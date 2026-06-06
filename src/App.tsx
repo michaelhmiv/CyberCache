@@ -43,7 +43,7 @@ function App() {
       profile: <ProfileScreen />,
       settings: <SettingsScreen />,
       help: <HelpScreen />,
-      workshop: <WorkshopScreen />,
+      workshop: <WorkshopScreen onNavigate={handleNavigate} />,
     };
     return (
       <div className="flex flex-col flex-1 min-h-0">
@@ -74,7 +74,7 @@ function App() {
         <ScreenWrapper activeTab={activeTab}>
           {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} />}
           {activeTab === 'loadout' && <LoadoutScreen />}
-          {activeTab === 'loot' && <LootScreen />}
+          {activeTab === 'loot' && <LootScreen onNavigate={handleNavigate} />}
           {activeTab === 'market' && <MarketScreen />}
           {activeTab === 'more' && <MoreScreen onNavigate={handleNavigate} />}
         </ScreenWrapper>

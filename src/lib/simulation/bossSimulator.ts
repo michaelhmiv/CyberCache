@@ -2,6 +2,7 @@ import { BossDef, BossAttemptResult } from '../../types/boss';
 import { Weapon, Shield, Ordnance, ClassMod, Relic } from '../../types/items';
 import { RiskSetting, Element } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
+import { applyLegendaryEffects, hasBadDecision, applyBadDecisionBonus } from '../legendaryEffects';
 
 export interface BossSimulationInput {
   primary: Weapon | null;
@@ -16,6 +17,8 @@ export interface BossSimulationInput {
   boss: BossDef;
   playerLevel: number;
   skillBonuses: Record<string, number>;
+  pityCount?: number;
+  playerCredits?: number;
 }
 
 export interface BossSimulationOutput {
@@ -138,11 +141,14 @@ function applySignatureMechanic(
 }
 
 export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
-  const { primary, shield, ordnance, heavy, consumables, risk, boss, playerLevel, skillBonuses, secondary } = input;
+  const { primary, secondary, shield, ordnance, heavy, consumables, risk, boss, playerLevel, skillBonuses, pityCount = 0, playerCredits = 0 } = input;
   const reasons: string[] = [];
   const recommendations: string[] = [];
 
   const rm = getRiskModifiers(risk);
+
+  // Legendary effect modifiers
+  const legendary = applyLegendaryEffects(primary, pityCount);
 
   // 1. Survival Check
   let playerHP = 500 + playerLevel * 40;
@@ -159,11 +165,21 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const shieldCellBoost = shieldCells * 100;
   const nanoSwarmRepair = nanoSwarms * 250;
 
-  let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * (1 + (skillBonuses.survival || 0));
+  let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
 
   // Emergency consumables boost survival
   if (adrenaline > 0) {
     totalSurvival *= 1.25;
+  }
+
+  // CryoAmmo slows boss by 15%
+  if (consumables['CryoAmmo'] > 0) {
+    totalSurvival *= 1.15; // Boss does 15% less damage
+  }
+
+  // VoidAmmo reduces self shield by 5%
+  if (consumables['VoidAmmo'] > 0) {
+    totalSurvival *= 0.95;
   }
 
   const bossTotalDamage = boss.dps * 30;
@@ -179,13 +195,18 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // 2. Shield / Armor Break Check
   let shieldBreak = 0;
   let armorBreak = 0;
-  const grenades = consumables['OrdnanceCharge'] || 0;
+  let grenades = consumables['OrdnanceCharge'] || 0;
   const phaseShift = consumables['PhaseShiftGrenade'] || 0;
+
+  // MagnetizedPayload: +2 free ordnance uses
+  if (consumables['MagnetizedPayload'] > 0) {
+    grenades += 2;
+  }
 
   if (primary) {
     const element = primary.element;
-    shieldBreak += primary.baseDamage * primary.shieldDamageMod * getElementMatchup(element, 'shield');
-    armorBreak += primary.baseDamage * primary.armorDamageMod * getElementMatchup(element, 'armor');
+    shieldBreak += primary.baseDamage * primary.shieldDamageMod * getElementMatchup(element, 'shield') * legendary.shieldBreakMult;
+    armorBreak += primary.baseDamage * primary.armorDamageMod * getElementMatchup(element, 'armor') * legendary.armorBreakMult;
   }
   if (secondary) {
     shieldBreak += secondary.baseDamage * secondary.shieldDamageMod * 0.3 * getElementMatchup(secondary.element, 'shield');
@@ -244,7 +265,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   let primaryDPS = 0;
   if (primary) {
     const elemMatch = getElementMatchup(primary.element, boss.weaknesses[0] || 'flesh');
-    const rawDPS = primary.baseDamage * primary.attackSpeed * (1 + primary.critChance * primary.critDamage) * primary.bossDamageMod * elemMatch;
+    const rawDPS = primary.baseDamage * primary.attackSpeed * (1 + primary.critChance * primary.critDamage) * primary.bossDamageMod * elemMatch * legendary.damageMult;
     const sig = applySignatureMechanic(primary, primaryAmmo.fullDuration, primaryAmmo.reloadDuration, 30);
     const reloadPenalty = primaryAmmo.reloadDuration > 0 ? 0.3 : 1.0; // 30% DPS during reload
     const effectiveTime = primaryAmmo.fullDuration + primaryAmmo.reloadDuration * reloadPenalty;
@@ -272,6 +293,12 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   }
   if (consumables['OverchargeStim'] > 0) {
     dps *= 1.12; // Next 3 shots +100% averaged over 30s ≈ +12%
+  }
+  if (consumables['IncendiaryAmmo'] > 0) {
+    dps *= 1.08; // Burn DoT ≈ +8% DPS
+  }
+  if (consumables['VoidAmmo'] > 0) {
+    dps *= 1.20; // +20% boss damage
   }
 
   dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0));
@@ -302,8 +329,11 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     mechanicScore = 1;
   }
 
-  // 5. Chaos / RNG — only applied during actual combat, not preview
-  const baseChance = Math.min(survivalScore, 1) * Math.min(breakScore, 1) * Math.min(dpsScore, 1.5) * mechanicScore;
+  // 5. Pity system: +3% win chance per failed attempt, capped at +30%
+  const pityBonus = Math.min(0.30, pityCount * 0.03);
+  
+  // 6. Chaos / RNG — only applied during actual combat, not preview
+  const baseChance = Math.min(survivalScore, 1) * Math.min(breakScore, 1) * Math.min(dpsScore, 1.5) * mechanicScore + pityBonus;
   let winChance = Math.max(0.02, Math.min(0.98, baseChance));
 
   // In actual combat (called from executeBossAttempt), chaos roll is applied there
@@ -311,10 +341,16 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // Luck booster doesn't affect win chance but affects loot
   const luckBoosters = consumables['LuckBooster'] || 0;
 
-  // Death fee
-  const deathFeePercent = boss.tier <= 1 ? 0.03 : boss.tier <= 2 ? 0.05 : boss.tier <= 3 ? 0.07 : 0.10;
+  // Death fee (computed here for preview display)
+  let deathFeePercent = boss.tier <= 1 ? 0.03 : boss.tier <= 2 ? 0.05 : boss.tier <= 3 ? 0.07 : 0.10;
+  
+  // InsuranceToken reduces death fee by 50%
+  if (consumables['InsuranceToken'] > 0) {
+    deathFeePercent *= 0.5;
+  }
+  
   const deathFeeCap = boss.tier <= 1 ? 2500 : boss.tier <= 2 ? 10000 : boss.tier <= 3 ? 25000 : 50000;
-  let deathFee = 0;
+  const deathFee = Math.min(Math.round(playerCredits * deathFeePercent), deathFeeCap);
 
   return {
     winChance,
@@ -325,25 +361,38 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     reasons,
     recommendations,
     expectedConsumableUsage: {},
-    deathFee: 0,
+    deathFee,
   };
 }
 
 export function executeBossAttempt(
   input: BossSimulationInput,
   playerCredits: number
-): { result: BossAttemptResult; creditsDelta: number; loot: Weapon[]; consumedConsumables: Record<string, number> } {
+): { result: BossAttemptResult; creditsDelta: number; loot: Weapon[]; consumedConsumables: Record<string, number>; extraLoot: boolean } {
   const sim = simulateBoss(input);
   // Apply chaos/RNG in actual combat (not in preview)
   const chaosRoll = (Math.random() - 0.5) * 0.1 + (input.risk === 'Conservative' ? -0.02 : input.risk === 'Greedy' ? 0.02 : input.risk === 'AllIn' ? 0.04 : 0);
   const adjustedChance = Math.max(0.02, Math.min(0.98, sim.winChance + chaosRoll));
   const win = Math.random() < adjustedChance;
 
-  const deathFeePercent = input.boss.tier <= 1 ? 0.03 : input.boss.tier <= 2 ? 0.05 : input.boss.tier <= 3 ? 0.07 : 0.10;
+  // LuckBooster: 25% chance for extra loot drop
+  const extraLoot = win && (input.consumables['LuckBooster'] || 0) > 0 && Math.random() < 0.25;
+
+  // DataSkimmer: 25% chance to duplicate loot
+  const dupeLoot = win && (input.consumables['DataSkimmer'] || 0) > 0 && Math.random() < 0.25;
+
+  let deathFeePercent = input.boss.tier <= 1 ? 0.03 : input.boss.tier <= 2 ? 0.05 : input.boss.tier <= 3 ? 0.07 : 0.10;
+  
+  // InsuranceToken reduces death fee by 50%
+  if ((input.consumables['InsuranceToken'] || 0) > 0) {
+    deathFeePercent *= 0.5;
+  }
+  
   const deathFeeCap = input.boss.tier <= 1 ? 2500 : input.boss.tier <= 2 ? 10000 : input.boss.tier <= 3 ? 25000 : 50000;
   const deathFee = win ? 0 : Math.min(Math.round(playerCredits * deathFeePercent), deathFeeCap);
 
   const creditsDelta = win ? Math.round(input.boss.level * 150) : -deathFee;
+  const finalCredits = applyBadDecisionBonus(creditsDelta, input.primary);
 
   // Determine phase of failure if lost
   let phaseFailed: string | undefined;
@@ -388,5 +437,5 @@ export function executeBossAttempt(
     recommendations: sim.recommendations,
   };
 
-  return { result, creditsDelta, loot: [], consumedConsumables };
+  return { result, creditsDelta: finalCredits, loot: [], consumedConsumables, extraLoot: extraLoot || dupeLoot };
 }

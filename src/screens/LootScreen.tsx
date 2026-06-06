@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Trash2, Lock, Unlock, ShoppingBag, Shield, Sword,
-  Gem, Zap, Scroll, ArrowLeftRight, AlertTriangle,
+  Gem, Zap, Scroll, ArrowLeftRight, AlertTriangle, Hammer,
 } from 'lucide-react';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import {
@@ -11,6 +11,7 @@ import {
 import { Rarity, Element } from '@/types/game';
 import { RARITIES } from '@/constants/rarities';
 import { rollQualityLabel } from '@/constants/rarities';
+import { calculateSalvageYield } from '@/constants/salvageRules';
 import { WeaponCanvas } from '@/components/pixelArt/WeaponCanvas';
 import { RollQualityBadge } from '@/components/common/RollQualityBadge';
 
@@ -271,6 +272,7 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
   // Detail modal state
   const [selected, setSelected] = useState<GearItem | null>(null);
   const [confirmScrap, setConfirmScrap] = useState(false);
+  const [confirmBulkScrap, setConfirmBulkScrap] = useState(false);
 
   // Derived: set of equipped item IDs
   const equippedIds = useMemo(() => {
@@ -326,13 +328,46 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
 
   const handleScrap = useCallback(
     (id: string) => {
-      const { scrapValue } = inventory.scrapItem(id);
+      const { scrapValue, materials, essences } = inventory.scrapItem(id);
       player.addScrap(scrapValue);
+      if (materials) {
+        Object.entries(materials).forEach(([type, count]) => {
+          if (count > 0) player.addMaterial(type, count);
+        });
+      }
+      if (essences) {
+        Object.entries(essences).forEach(([type, count]) => {
+          if (count > 0) player.addEssence(type, count);
+        });
+      }
       setSelected(null);
       setConfirmScrap(false);
     },
     [inventory, player],
   );
+
+  const handleBulkScrap = useCallback(() => {
+    const scrapTargets = allItems.filter(
+      (item) => !item.isLocked && !equippedIds.has(item.id) && (item.rarity === Rarity.Common || item.rarity === Rarity.Uncommon)
+    );
+    let totalScrap = 0;
+    scrapTargets.forEach((item) => {
+      const { scrapValue, materials, essences } = inventory.scrapItem(item.id);
+      totalScrap += scrapValue;
+      if (materials) {
+        Object.entries(materials).forEach(([type, count]) => {
+          if (count > 0) player.addMaterial(type, count);
+        });
+      }
+      if (essences) {
+        Object.entries(essences).forEach(([type, count]) => {
+          if (count > 0) player.addEssence(type, count);
+        });
+      }
+    });
+    player.addScrap(totalScrap);
+    setConfirmBulkScrap(false);
+  }, [allItems, equippedIds, inventory, player]);
 
   const toggleLock = useCallback(
     (id: string, locked: boolean) => {
@@ -376,6 +411,25 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
   );
 
   // ── Render ────────────────────────────────────────────────────────────
+
+  // Material summary for display
+  const materialSummary = useMemo(() => {
+    const totals: Record<string, number> = {};
+    Object.entries(player.materials).forEach(([type, count]) => {
+      if (count > 0) totals[type] = count;
+    });
+    Object.entries(player.essences).forEach(([type, count]) => {
+      if (count > 0) totals[type] = count;
+    });
+    return totals;
+  }, [player.materials, player.essences]);
+
+  // Scrap yield preview for selected item
+  const scrapPreview = useMemo(() => {
+    if (!selected) return null;
+    const { scrapValue, materials, essences } = calculateSalvageYield(selected as Weapon);
+    return { scrapValue, materials, essences };
+  }, [selected]);
 
   return (
     <div className="p-3 space-y-3">
@@ -446,8 +500,19 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
       </div>
 
       {/* === Item Count === */}
-      <div className="text-[10px] text-text-muted font-medium">
-        Showing {filtered.length} of {allItems.length} items
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] text-text-muted font-medium">
+          Showing {filtered.length} of {allItems.length} items
+        </div>
+        {specialCounts.Scrap > 0 && (
+          <button
+            onClick={() => setConfirmBulkScrap(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red/10 border border-red/30 text-red text-[10px] font-bold active:scale-95 transition-transform"
+          >
+            <Trash2 size={10} />
+            Bulk Scrap ({specialCounts.Scrap})
+          </button>
+        )}
       </div>
 
       {/* === Item List === */}
@@ -555,6 +620,35 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
                 Source: {selected.sourceTag}
               </div>
 
+              {/* Scrap yield preview */}
+              {scrapPreview && scrapPreview.scrapValue > 0 && (
+                <div className="rounded-lg bg-orange/5 border border-orange/30 p-3">
+                  <div className="text-[10px] uppercase font-bold text-orange mb-2">Scrap Yields</div>
+                  <div className="space-y-1 text-xs text-text-secondary">
+                    <div className="flex justify-between">
+                      <span>Scrap</span>
+                      <span className="font-bold text-orange">{scrapPreview.scrapValue}</span>
+                    </div>
+                    {scrapPreview.materials && Object.entries(scrapPreview.materials).map(([type, count]) => (
+                      count > 0 && (
+                        <div key={type} className="flex justify-between">
+                          <span className="text-text-muted">{type}</span>
+                          <span className="font-bold">{count}</span>
+                        </div>
+                      )
+                    ))}
+                    {scrapPreview.essences && Object.entries(scrapPreview.essences).map(([type, count]) => (
+                      count > 0 && (
+                        <div key={type} className="flex justify-between">
+                          <span className="text-text-muted">{type}</span>
+                          <span className="font-bold">{count}</span>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ── Action Buttons ── */}
               {confirmScrap ? (
                 /* ── Scrap Confirmation ── */
@@ -643,6 +737,75 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
                 <ShoppingBag size={14} />
                 List on Market
               </button>
+
+              {/* Material summary & workshop link */}
+              {Object.keys(materialSummary).length > 0 && (
+                <div className="rounded-lg bg-surface-raised border border-border p-3 mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] uppercase font-bold text-text-muted">Your Materials</div>
+                    <button
+                      onClick={() => onNavigate?.('workshop')}
+                      className="flex items-center gap-1 px-2 py-1 rounded bg-amber/10 border border-amber/30 text-amber text-[10px] font-bold active:scale-95 transition-transform"
+                    >
+                      <Hammer size={10} />
+                      Workshop
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[10px]">
+                    {Object.entries(materialSummary).slice(0, 6).map(([type, count]) => (
+                      <div key={type} className="flex justify-between">
+                        <span className="text-text-muted">{type}</span>
+                        <span className="font-bold text-text-secondary">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* === Bulk Scrap Confirmation Modal === */}
+      <AnimatePresence>
+        {confirmBulkScrap && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+            onClick={() => setConfirmBulkScrap(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-surface w-full max-w-[400px] rounded-2xl p-6 space-y-4 border border-border"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 text-red text-sm font-bold">
+                <AlertTriangle size={16} />
+                <span>Bulk Scrap Confirmation</span>
+              </div>
+              <div className="text-xs text-text-secondary">
+                Scrap all <span className="font-bold text-text-primary">{specialCounts.Scrap}</span> Common/Uncommon items?
+                <br />
+                Locked and equipped items will be skipped.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setConfirmBulkScrap(false)}
+                  className="py-2 rounded-lg bg-surface-raised border border-border text-text-primary text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkScrap}
+                  className="py-2 rounded-lg bg-red border border-red text-white text-xs font-bold"
+                >
+                  Scrap All
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

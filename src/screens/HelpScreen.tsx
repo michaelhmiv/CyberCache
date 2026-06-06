@@ -21,7 +21,7 @@ const SECTIONS = [
       'Weapons have 6 types (Pistol, SMG, Shotgun, Sniper, Launcher, Beam), 5 rarities (Common→Legendary), and 6 elements.',
       'Each weapon has a Roll Quality (0-100). Higher quality = better stats. "God Roll" at 96+.',
       'Weapons have modular Parts and random Affixes that modify their stats.',
-      'Legendary weapons have unique Special Effects that dramatically change gameplay.',
+      'Legendary weapons have unique Special Effects that change gameplay (e.g., Glass Sun: +50% Fire damage but -30% shield).',
       'Lock valuable items (tap → Lock) to prevent accidental scrapping.',
     ],
   },
@@ -49,7 +49,7 @@ const SECTIONS = [
       'Bring consumables (Med Kits, Shield Cells, Ordnance Charges) to boost your odds.',
       'Risk settings: Conservative (safer, less reward) → All In (dangerous, high reward).',
       'Death fees take a percentage of your credits on failure. Insurance Tokens reduce this.',
-      'Pity counters build up on repeated failures, increasing future win chance.',
+      'Pity counters build up on repeated failures, increasing future win chance by 3% per loss (cap +30%).',
     ],
   },
   {
@@ -70,7 +70,7 @@ const SECTIONS = [
     color: '#06B6D4',
     items: [
       'Three trees: Gunslinger (weapon damage/crits), Demolition (explosives/armor break), Scavenger (idle/loot/economy).',
-      'Spend 1 skill point per level (50 total available).',
+      'Spend 1 skill point per level, starting at level 2 (total = your level - 1).',
       'Nodes unlock in tiers. Major nodes and Keystones require adjacent nodes.',
       'Respec costs 100 credits per point spent. Try different builds!',
     ],
@@ -85,6 +85,7 @@ const SECTIONS = [
       'Fusion Lab can improve a weapon\'s roll quality by consuming 2+ similar weapons.',
       'Offline earnings accumulate up to your cap. Claim them from the Fight tab.',
       'Auto-salvage in Settings can automatically scrap low-rarity, low-quality drops.',
+      'Salvaging gear gives materials and essences — use them in the Workshop to craft consumables.',
     ],
   },
 ];

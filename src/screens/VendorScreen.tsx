@@ -7,6 +7,13 @@ import { MobileCard } from '@/components/layout/MobileCard';
 export const VendorScreen: React.FC = () => {
   const player = usePlayerStore();
 
+  // Only show vendor-appropriate items (not workshop-crafted ammo/consumables)
+  const VENDOR_IDS = [
+    'MedKit', 'Grenade', 'AmmoPack', 'ShieldCell',
+    'ElementalCoating', 'LuckBooster', 'BossScanner', 'InsuranceToken',
+  ];
+  const vendorItems = Object.values(CONSUMABLES).filter((c) => VENDOR_IDS.includes(c.id));
+
   const handleBuy = (type: string, price: number) => {
     if (player.credits < price) return;
     player.removeCredits(price);
@@ -16,10 +23,10 @@ export const VendorScreen: React.FC = () => {
   return (
     <div className="p-4 space-y-4 pb-20">
       <div className="text-lg font-black text-text-primary">Consumable Vendor</div>
-      <div className="text-xs text-text-muted">Stock up before boss encounters.</div>
+      <div className="text-xs text-text-muted">Stock up before boss encounters. Crafted ammo and advanced consumables are made in the Workshop.</div>
 
       <div className="space-y-2">
-        {Object.values(CONSUMABLES).map((c) => (
+        {vendorItems.map((c) => (
           <MobileCard key={c.id} className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-surface-raised border border-border flex items-center justify-center">

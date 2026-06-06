@@ -482,53 +482,6 @@ export const LoadoutScreen: React.FC = () => {
         })}
       </div>
 
-      {/* Consumable Loadout */}
-      <div className="space-y-2">
-        <div className="text-xs font-bold text-text-muted uppercase">Consumable Loadout</div>
-        <div className="text-[10px] text-text-muted -mt-1">
-          Buy consumables from the Vendor (More → Vendor)
-        </div>
-        {(['PreFight', 'MidFight', 'Emergency'] as const).map((slot) => {
-          const selected = loadout.consumables[slot];
-          return (
-            <MobileCard key={slot} className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-surface-raised border border-dashed border-border flex items-center justify-center">
-                <Plus size={20} className="text-text-muted" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-text-primary">
-                  {slot === 'PreFight' ? 'Pre-Fight' : slot === 'MidFight' ? 'Mid-Fight' : 'Emergency'}
-                </div>
-                <select
-                  className="text-[10px] bg-surface border border-border rounded px-1 py-0.5 text-text-primary w-full max-w-[200px]"
-                  value={selected || ''}
-                  onChange={(e) => loadout.setConsumableSlot(slot, e.target.value || null)}
-                >
-                  <option value="">-- None --</option>
-                  {Object.values(CONSUMABLES).map((c) => {
-                    const owned = playerStore.getConsumableCount(c.id);
-                    return (
-                      <option
-                        key={c.id}
-                        value={c.id}
-                        disabled={owned === 0}
-                      >
-                        {c.name} {owned > 0 ? `(×${owned})` : '— Not available'}
-                      </option>
-                    );
-                  })}
-                </select>
-                {selected && (
-                  <div className="text-[10px] text-text-muted mt-0.5">
-                    Owned: ×{playerStore.getConsumableCount(selected)}
-                  </div>
-                )}
-              </div>
-            </MobileCard>
-          );
-        })}
-      </div>
-
       {/* Equip Drawer */}
       <AnimatePresence>
         {activeSlot && (

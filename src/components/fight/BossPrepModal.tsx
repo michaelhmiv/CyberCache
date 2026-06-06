@@ -112,7 +112,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         player.addXP(boss.level * 20);
         const wasNewDefeat = !bossStore.defeatedBossIds.includes(boss.id);
         bossStore.defeatBoss(boss.id);
-        bossStore.incrementPity(boss.id);
+        bossStore.resetPity(boss.id);
         // Auto-unlock next boss in sequence
         if (wasNewDefeat) {
           const currentIndex = REGION_1_BOSSES.findIndex((b) => b.id === boss.id);

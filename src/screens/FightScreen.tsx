@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Clock, Database, ChevronRight, Download, Package, Crosshair } from 'lucide-react';
+import { Zap, Clock, Database, ChevronRight, Download, Package, Crosshair, Hammer } from 'lucide-react';
 import { usePlayerStore, useInventoryStore, useIdleStore, useLoadoutStore, useBossStore } from '@/store';
+import { DropSource } from '@/types/game';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WeaponCard } from '@/components/common/WeaponCard';
 import { WeaponCanvas } from '@/components/pixelArt/WeaponCanvas';
@@ -25,7 +26,13 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const [claimed, setClaimed] = useState(true);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const prevLevelRef = useRef(player.level);
-  const offline = useOfflineClaim(player.lastClaimTime, 15, player.offlineCapHours);
+
+  // Zone info (computed early — used by hooks and effects below)
+  const zoneIdx = Math.min(Math.floor((player.level - 1) / 5), 9);
+  const currentZone = DUSTWASTE_ZONES[Math.min(zoneIdx, DUSTWASTE_ZONES.length - 1)];
+  const zoneProgress = Math.min(100, ((player.level % 5) / 5) * 100 || 100);
+
+  const offline = useOfflineClaim(player.lastClaimTime, currentZone.idleCreditsPerMinute, player.offlineCapHours);
 
   useEffect(() => {
     setClaimed(false);
@@ -48,24 +55,28 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
 
       if (roll < 0.12) {
         // Weapon drop
-        const weapon = inventory.generateAndAdd({ source: 'World Drop', level: player.level });
+        const weapon = inventory.generateAndAdd({ source: DropSource.WorldDrop, level: player.level, zoneWeights: currentZone.dropPoolRarityWeights });
         handleAutoSalvage(weapon);
         setRecentDrop(weapon);
       } else if (roll < 0.16) {
         // Shield drop
         const shield = inventory.generateAndAddShield(player.level);
+        handleAutoSalvage(shield);
         setRecentDrop(shield);
       } else if (roll < 0.18) {
         // Class mod drop
         const mod = inventory.generateAndAddClassMod(player.level);
+        handleAutoSalvage(mod);
         setRecentDrop(mod);
       } else if (roll < 0.20) {
         // Relic drop
         const relic = inventory.generateAndAddRelic(player.level);
+        handleAutoSalvage(relic);
         setRecentDrop(relic);
       } else if (roll < 0.22) {
         // Ordnance drop
         const ord = inventory.generateAndAddOrdnance(player.level);
+        handleAutoSalvage(ord);
         setRecentDrop(ord);
       }
 
@@ -76,6 +87,8 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
 
       // Zone-based idle credits (3s tick = 20 ticks/min)
       player.addCredits(Math.round(currentZone.idleCreditsPerMinute / 20));
+      // Zone-based idle scrap
+      player.addScrap(Math.round(currentZone.idleScrapPerMinute / 20));
 
       player.addXP(1);
     }, 3000);
@@ -96,11 +109,6 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
       });
     }
   };
-
-  // Zone info
-  const zoneIdx = Math.min(Math.floor((player.level - 1) / 5), 9);
-  const currentZone = DUSTWASTE_ZONES[Math.min(zoneIdx, DUSTWASTE_ZONES.length - 1)];
-  const zoneProgress = Math.min(100, ((player.level % 5) / 5) * 100 || 100);
 
   // Boss targeting
   const currentBossId = bossStore.currentBossId;
@@ -230,6 +238,34 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         </div>
       </MobileCard>
 
+      {/* Material Summary */}
+      {(Object.values(player.materials).some(c => c > 0) || Object.values(player.essences).some(c => c > 0)) && (
+        <MobileCard className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber/10 border border-amber/30 flex items-center justify-center shrink-0">
+            <Hammer size={14} className="text-amber" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <div className="text-[10px] font-bold text-amber">Materials & Essences</div>
+              <button
+                onClick={() => onNavigate?.('workshop')}
+                className="text-[9px] px-1.5 py-0.5 rounded bg-amber/10 border border-amber/30 text-amber font-bold active:scale-95 transition-transform"
+              >
+                Workshop →
+              </button>
+            </div>
+            <div className="text-[10px] text-text-muted mt-0.5">
+              {Object.entries({ ...player.materials, ...player.essences })
+                .filter(([_, c]) => c > 0)
+                .slice(0, 4)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(' · ')}
+              {(Object.values({ ...player.materials, ...player.essences }).filter(c => c > 0).length > 4) ? ' · ...' : ''}
+            </div>
+          </div>
+        </MobileCard>
+      )}
+
       {/* Offline Claim */}
       {offline.credits > 0 && !claimed && (
         <MobileCard
@@ -307,7 +343,7 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         {/* Quick Loot */}
         <button
           onClick={() => {
-            const weapon = inventory.generateAndAdd({ source: 'World Drop', level: player.level });
+            const weapon = inventory.generateAndAdd({ source: DropSource.WorldDrop, level: player.level, zoneWeights: currentZone.dropPoolRarityWeights });
             setRecentDrop(weapon);
             player.addXP(5);
           }}

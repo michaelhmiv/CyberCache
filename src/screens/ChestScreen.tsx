@@ -323,14 +323,6 @@ export const ChestScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* source modifier info */}
-      <div className="bg-amber/5 border border-amber/20 rounded-xl p-3">
-        <div className="text-xs font-bold text-amber mb-1">Cache-Forged Modifier</div>
-        <div className="text-[11px] text-text-secondary">
-          Cache-Forged loot has <span className="text-amber font-bold">1.5× Legendary chance</span> compared to standard drops.
-        </div>
-      </div>
-
       {/* odds breakdown */}
       <div className="space-y-1">
         <div className="text-xs font-bold text-text-muted uppercase">Cache Odds (per item)</div>

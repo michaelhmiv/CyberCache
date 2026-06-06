@@ -54,7 +54,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
   [ConsumableType.LuckBooster]: {
     id: ConsumableType.LuckBooster,
     name: 'Luck Booster',
-    description: 'Improves loot/reward quality. Does not increase win chance.',
+    description: '25% chance for an extra loot drop from boss victories.',
     basePrice: 350,
     effect: '+loot',
     category: 'utility',
@@ -62,7 +62,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
   [ConsumableType.BossScanner]: {
     id: ConsumableType.BossScanner,
     name: 'Boss Scanner',
-    description: 'Improves information accuracy about boss weakness, resistance, and win chance.',
+    description: 'Reveals exact boss shield/armor break requirements in combat preview.',
     basePrice: 600,
     effect: '+info',
     category: 'utility',
@@ -70,7 +70,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
   [ConsumableType.InsuranceToken]: {
     id: ConsumableType.InsuranceToken,
     name: 'Insurance Token',
-    description: 'Reduces or prevents credit death fee on failure.',
+    description: 'Reduces credit death fee on failure by 50%.',
     basePrice: 800,
     effect: '-deathfee',
     category: 'utility',
@@ -111,7 +111,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
   IncendiaryAmmo: {
     id: 'IncendiaryAmmo',
     name: 'Incendiary Ammo',
-    description: '+10s full DPS, applies burn stacks.',
+    description: '+10s full DPS, +8% burn damage over time.',
     basePrice: 450,
     effect: '+dps/+burn',
     category: 'offense',
@@ -159,7 +159,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
   OverchargeStim: {
     id: 'OverchargeStim',
     name: 'Overcharge Stim',
-    description: 'Next 3 shots deal +100% damage.',
+    description: '+12% DPS (next 3 shots deal double damage, averaged over 30s fight).',
     basePrice: 800,
     effect: '+burst',
     category: 'offense',
@@ -167,7 +167,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
   TargetPainter: {
     id: 'TargetPainter',
     name: 'Target Painter',
-    description: '+20% crit chance for 8s.',
+    description: '+15% DPS (crit chance boost averaged over the fight).',
     basePrice: 600,
     effect: '+crit',
     category: 'offense',

@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { usePlayerStore, useWorkshopStore } from '@/store';
+import { usePlayerStore, useWorkshopStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
 
-export const WorkshopScreen: React.FC = () => {
+export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }> = ({ onNavigate }) => {
   const player = usePlayerStore();
   const workshop = useWorkshopStore();
+  const skillBonuses = useSkillStore().getBonuses();
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'survival' | 'offense' | 'utility'>('all');
 
   const filteredRecipes = selectedCategory === 'all'
     ? CRAFTING_RECIPES
     : CRAFTING_RECIPES.filter((r) => r.category === selectedCategory);
+
+  // Check if player has any materials at all
+  const hasMaterials = Object.values(player.materials).some((count) => count > 0) ||
+                       Object.values(player.essences).some((count) => count > 0);
 
   const handleCraft = (recipeId: string) => {
     const recipe = CRAFTING_RECIPES.find((r) => r.id === recipeId);
@@ -35,8 +40,9 @@ export const WorkshopScreen: React.FC = () => {
       }
     });
 
-    // Create queue
-    const craftTime = getCraftTimeWithReduction(recipe.craftTimeMs, 0);
+    // Create queue (craft time reduced by Scavenger consumable efficiency skills)
+    const scavengerPoints = (skillBonuses.consumableEfficiency || 0) * 10;
+    const craftTime = getCraftTimeWithReduction(recipe.craftTimeMs, scavengerPoints);
     workshop.addQueue({
       id: crypto.randomUUID(),
       benchId: 1, // TODO: assign to first available bench
@@ -49,11 +55,13 @@ export const WorkshopScreen: React.FC = () => {
   };
 
   const handleClaim = (queueId: string) => {
+    const queue = workshop.activeQueues.find(q => q.id === queueId);
+    const beforeClaim = queue?.claimedCount || 0;
     const claimed = workshop.claimQueue(queueId);
     if (claimed) {
       const recipe = CRAFTING_RECIPES.find((r) => r.id === claimed.recipeId);
       if (recipe) {
-        const newlyCompleted = claimed.claimedCount - (claimed.claimedCount - 1); // approximate
+        const newlyCompleted = claimed.claimedCount - beforeClaim;
         player.addConsumable(recipe.consumableType, newlyCompleted * recipe.outputCount);
       }
     }
@@ -63,6 +71,21 @@ export const WorkshopScreen: React.FC = () => {
     <div className="p-4 space-y-4 pb-20">
       <div className="text-lg font-black text-text-primary">Workshop</div>
       <div className="text-xs text-text-muted">Craft consumables and ammo from salvaged materials.</div>
+
+      {/* Material source hint */}
+      {!hasMaterials && (
+        <MobileCard className="space-y-2 border-amber/30 bg-amber/5">
+          <div className="text-[10px] text-text-secondary">
+            <span className="font-bold text-amber">Need materials?</span> Salvage weapons from the Loot tab to get crafting materials and essences.
+          </div>
+          <button
+            onClick={() => onNavigate?.('loot')}
+            className="w-full py-2 rounded-lg bg-amber/10 border border-amber/30 text-amber text-xs font-bold active:scale-95 transition-transform"
+          >
+            Go to Loot
+          </button>
+        </MobileCard>
+      )}
 
       {/* Materials Display */}
       <MobileCard className="space-y-1">
@@ -135,6 +158,15 @@ export const WorkshopScreen: React.FC = () => {
       <div className="space-y-2">
         {filteredRecipes.map((recipe) => {
           const { can, missing } = canStartCraft(recipe.id, player.materials, player.essences, player.level);
+          // Check which specific materials are missing
+          const missingMaterials = Object.entries(recipe.materials).filter(
+            ([key, amount]) => {
+              const available = (key.includes('Essence') || key === 'IgnitionFluid' || key === 'ConduitWire' || key === 'AcidCompound' || key === 'CryoGel' || key === 'VoidEssence')
+                ? player.essences[key] || 0
+                : player.materials[key] || 0;
+              return available < amount;
+            }
+          );
           return (
             <MobileCard key={recipe.id} className="space-y-1">
               <div className="flex items-center justify-between">
@@ -144,17 +176,33 @@ export const WorkshopScreen: React.FC = () => {
               <div className="text-[10px] text-text-muted">
                 {Object.entries(recipe.materials).map(([k, v]) => `${k}: ${v}`).join(' · ')}
               </div>
-              <button
-                onClick={() => handleCraft(recipe.id)}
-                disabled={!can}
-                className="w-full py-1.5 rounded-lg bg-amber text-bg text-[10px] font-bold disabled:opacity-40"
-              >
-                {can ? 'CRAFT' : `NEED: ${missing[0] || 'Level'}`}
-              </button>
+                  <button
+                    onClick={() => handleCraft(recipe.id)}
+                    disabled={!can}
+                    className={`w-full py-1.5 rounded-lg text-[10px] font-bold ${
+                      can
+                        ? 'bg-amber text-bg active:scale-95 transition-transform'
+                        : 'bg-surface-raised text-text-muted border border-border'
+                    }`}
+                  >
+                    {can ? 'CRAFT' : missingMaterials.length > 0 ? `Need: ${missingMaterials[0][0]}` : 'Missing materials'}
+                  </button>
             </MobileCard>
           );
         })}
       </div>
+
+      {/* Footer link to loot */}
+      {hasMaterials && (
+        <div className="text-center">
+          <button
+            onClick={() => onNavigate?.('loot')}
+            className="text-[10px] text-text-muted underline active:text-amber transition-colors"
+          >
+            Salvage more items from Loot
+          </button>
+        </div>
+      )}
     </div>
   );
 };

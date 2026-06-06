@@ -24,6 +24,7 @@ export interface GenerateWeaponOptions {
   forcedManufacturer?: Manufacturer;
   luckBonus?: number; // 0-1 flat increase to rarity roll
   bossTier?: number;
+  zoneWeights?: Record<string, number>; // per-zone rarity weights
 }
 
 export function generateWeapon(options: GenerateWeaponOptions): Weapon {
@@ -36,6 +37,7 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
     forcedManufacturer,
     luckBonus = 0,
     bossTier,
+    zoneWeights,
   } = options;
 
   // Seed based on item identity components for deterministic art/name
@@ -44,11 +46,18 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
   const rng = createRNG(seed);
 
   // 3. Roll rarity
-  const rarityWeights = Object.values(RARITIES).map((r) =>
-    source === 'Cache-Forged' && r.id === Rarity.Legendary
-      ? r.dropWeight * 1.5
-      : r.dropWeight
-  );
+  const rarityWeights = (() => {
+    // Use zone weights if provided (for farming drops)
+    if (zoneWeights) {
+      return Object.values(Rarity).map((r) => zoneWeights[r] || 0);
+    }
+    // Otherwise use global weights with Cache-Forged bonus
+    return Object.values(RARITIES).map((r) =>
+      source === 'Cache-Forged' && r.id === Rarity.Legendary
+        ? r.dropWeight * 1.5
+        : r.dropWeight
+    );
+  })();
   const rarity = forcedRarity || (pickWeighted(Object.values(RARITIES), rarityWeights, rng).id as Rarity);
   const rarityDef = RARITIES[rarity];
 
@@ -100,7 +109,7 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
     for (const [key, mult] of Object.entries(mfgDef.baseStatBias)) {
       const k = key as keyof typeof stats;
       if (stats[k] !== undefined) {
-        (stats as any)[k] = parseFloat((stats[k] * mult).toFixed(3));
+        (stats as any)[k] = parseFloat((stats[k] * (mult as number)).toFixed(3));
       }
     }
   }
