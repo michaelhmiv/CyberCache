@@ -17,7 +17,8 @@ export const SkillTreeScreen: React.FC = () => {
   const skillStore = useSkillStore();
 
   const pointsSpent = skillStore.getTotalSpent();
-  const pointsAvailable = MAX_SKILL_POINTS - pointsSpent;
+  const pointsEarned = Math.max(0, player.level - 1); // Start earning at level 2
+  const pointsAvailable = Math.max(0, pointsEarned - pointsSpent);
   const nodes = getSkillTreeNodes(activeTree);
 
   const canSpend = (nodeId: string) => {
@@ -56,7 +57,7 @@ export const SkillTreeScreen: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="text-xs text-text-muted">Points: <span className="text-amber font-bold">{pointsAvailable}</span> / {MAX_SKILL_POINTS}</div>
+        <div className="text-xs text-text-muted">Points: <span className="text-amber font-bold">{pointsAvailable}</span> available ({pointsSpent} spent · 1 per level)</div>
       </div>
 
       {/* Tree Selector */}

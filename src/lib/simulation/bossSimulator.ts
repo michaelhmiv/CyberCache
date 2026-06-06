@@ -302,10 +302,11 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     mechanicScore = 1;
   }
 
-  // 5. Chaos / RNG
+  // 5. Chaos / RNG — only applied during actual combat, not preview
   const baseChance = Math.min(survivalScore, 1) * Math.min(breakScore, 1) * Math.min(dpsScore, 1.5) * mechanicScore;
-  const chaosRoll = (Math.random() - 0.5) * 0.1 + rm.chaos;
-  let winChance = Math.max(0.02, Math.min(0.98, baseChance + chaosRoll));
+  let winChance = Math.max(0.02, Math.min(0.98, baseChance));
+
+  // In actual combat (called from executeBossAttempt), chaos roll is applied there
 
   // Luck booster doesn't affect win chance but affects loot
   const luckBoosters = consumables['LuckBooster'] || 0;
@@ -333,7 +334,10 @@ export function executeBossAttempt(
   playerCredits: number
 ): { result: BossAttemptResult; creditsDelta: number; loot: Weapon[]; consumedConsumables: Record<string, number> } {
   const sim = simulateBoss(input);
-  const win = Math.random() < sim.winChance;
+  // Apply chaos/RNG in actual combat (not in preview)
+  const chaosRoll = (Math.random() - 0.5) * 0.1 + (input.risk === 'Conservative' ? -0.02 : input.risk === 'Greedy' ? 0.02 : input.risk === 'AllIn' ? 0.04 : 0);
+  const adjustedChance = Math.max(0.02, Math.min(0.98, sim.winChance + chaosRoll));
+  const win = Math.random() < adjustedChance;
 
   const deathFeePercent = input.boss.tier <= 1 ? 0.03 : input.boss.tier <= 2 ? 0.05 : input.boss.tier <= 3 ? 0.07 : 0.10;
   const deathFeeCap = input.boss.tier <= 1 ? 2500 : input.boss.tier <= 2 ? 10000 : input.boss.tier <= 3 ? 25000 : 50000;

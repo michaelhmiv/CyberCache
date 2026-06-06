@@ -8,6 +8,7 @@ import { CONSUMABLES } from '../../constants/consumables';
 import { simulateBoss, executeBossAttempt } from '../../lib/simulation/bossSimulator';
 import { usePlayerStore, useInventoryStore, useBossStore, useLoadoutStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
+import { REGION_1_BOSSES } from '../../constants/bosses';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
 import { ElementIcon } from '../common/RarityGlow';
 
@@ -109,8 +110,19 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
       if (outcome.result.victory) {
         player.addCredits(outcome.creditsDelta);
         player.addXP(boss.level * 20);
+        const wasNewDefeat = !bossStore.defeatedBossIds.includes(boss.id);
         bossStore.defeatBoss(boss.id);
         bossStore.incrementPity(boss.id);
+        // Auto-unlock next boss in sequence
+        if (wasNewDefeat) {
+          const currentIndex = REGION_1_BOSSES.findIndex((b) => b.id === boss.id);
+          if (currentIndex >= 0 && currentIndex < REGION_1_BOSSES.length - 1) {
+            const nextBoss = REGION_1_BOSSES[currentIndex + 1];
+            if (!bossStore.unlockedBossIds.includes(nextBoss.id)) {
+              bossStore.unlockBoss(nextBoss.id);
+            }
+          }
+        }
         // Generate loot
         const loot = inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
         if (Math.random() < 0.3) {
