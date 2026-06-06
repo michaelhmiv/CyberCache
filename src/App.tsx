@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { BottomNav } from './components/layout/BottomNav';
 import { ScreenWrapper } from './components/layout/ScreenWrapper';
 import { FightScreen } from './screens/FightScreen';
@@ -48,7 +48,13 @@ function App() {
     return (
       <div className="flex flex-col flex-1 min-h-0">
         <div className="shrink-0 p-4 border-b border-border flex items-center gap-3">
-          <button onClick={handleBack} className="text-sm text-amber font-bold">← Back</button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleBack}
+            className="text-sm text-amber font-bold hover:text-amber/80 active:text-amber/60 transition-colors"
+          >
+            ← Back
+          </motion.button>
           <div className="text-sm font-bold text-text-primary capitalize">{subScreen}</div>
         </div>
         <div className="flex-1 overflow-y-auto">

@@ -2,7 +2,7 @@ import { BossDef, BossAttemptResult } from '../../types/boss';
 import { Weapon, Shield, Ordnance, ClassMod, Relic } from '../../types/items';
 import { RiskSetting, Element } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
-import { applyLegendaryEffects, hasBadDecision, applyBadDecisionBonus } from '../legendaryEffects';
+import { applyLegendaryEffects, hasBadDecision, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 
 export interface BossSimulationInput {
   primary: Weapon | null;
@@ -147,7 +147,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   const rm = getRiskModifiers(risk);
 
-  // Legendary effect modifiers
+  // Legendary effect modifiers (expanded: now returns scrap/credit/extraLoot/refund too)
   const legendary = applyLegendaryEffects(primary, pityCount);
 
   // 1. Survival Check
@@ -275,7 +275,8 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   let secondaryDPS = 0;
   if (secondary) {
-    const rawDPS = secondary.baseDamage * secondary.attackSpeed * 0.3 * secondary.bossDamageMod;
+    const secContrib = getHotSwapperSecondaryMult(primary); // 0.6 with Hot Swapper, 0.3 normally
+    const rawDPS = secondary.baseDamage * secondary.attackSpeed * secContrib * secondary.bossDamageMod;
     const sig = applySignatureMechanic(secondary, secondaryAmmo.fullDuration, secondaryAmmo.reloadDuration, 30);
     secondaryDPS = rawDPS * sig.dpsMult;
   }
@@ -391,7 +392,7 @@ export function executeBossAttempt(
   const deathFeeCap = input.boss.tier <= 1 ? 2500 : input.boss.tier <= 2 ? 10000 : input.boss.tier <= 3 ? 25000 : 50000;
   const deathFee = win ? 0 : Math.min(Math.round(playerCredits * deathFeePercent), deathFeeCap);
 
-  const creditsDelta = win ? Math.round(input.boss.level * 150) : -deathFee;
+  const creditsDelta = win ? Math.round(input.boss.level * 150 * legendary.creditMult) : -deathFee;
   const finalCredits = applyBadDecisionBonus(creditsDelta, input.primary);
 
   // Determine phase of failure if lost
@@ -406,11 +407,21 @@ export function executeBossAttempt(
 
   // Consumables actually consumed
   const consumedConsumables: Record<string, number> = {};
+  const insuranceRefundChance = getInsuranceFraudRefundChance(input.primary);
+
   if (!win) {
     // On defeat, all loaded consumables are consumed
     Object.entries(input.consumables).forEach(([type, count]) => {
       if (count > 0) consumedConsumables[type] = count;
     });
+    // Insurance Fraud: 50% chance to refund each consumed consumable
+    if (insuranceRefundChance > 0) {
+      Object.keys(consumedConsumables).forEach((type) => {
+        if (Math.random() < insuranceRefundChance) {
+          delete consumedConsumables[type];
+        }
+      });
+    }
   } else {
     // On victory: pre-fight and mid-fight are consumed, emergency only if used
     Object.entries(input.consumables).forEach(([type, count]) => {

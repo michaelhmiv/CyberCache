@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Clock, Database, ChevronRight, Download, Package, Crosshair, Hammer } from 'lucide-react';
-import { usePlayerStore, useInventoryStore, useIdleStore, useLoadoutStore, useBossStore } from '@/store';
+import { usePlayerStore, useInventoryStore, useIdleStore, useLoadoutStore, useBossStore, useSkillStore } from '@/store';
 import { DropSource } from '@/types/game';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WeaponCard } from '@/components/common/WeaponCard';
@@ -20,6 +20,8 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const bossStore = useBossStore();
   const loadoutStore = useLoadoutStore();
   const idle = useIdleStore();
+  const skillStore = useSkillStore();
+  const skillBonuses = skillStore.getBonuses();
   const [recentDrop, setRecentDrop] = useState<any>(null);
   const [prepBoss, setPrepBoss] = useState<(typeof REGION_1_BOSSES)[0] | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -32,7 +34,14 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const currentZone = DUSTWASTE_ZONES[Math.min(zoneIdx, DUSTWASTE_ZONES.length - 1)];
   const zoneProgress = Math.min(100, ((player.level % 5) / 5) * 100 || 100);
 
-  const offline = useOfflineClaim(player.lastClaimTime, currentZone.idleCreditsPerMinute, player.offlineCapHours);
+  const offline = useOfflineClaim(
+    player.lastClaimTime,
+    currentZone.idleCreditsPerMinute,
+    player.offlineCapHours,
+    player.workshopQueues,
+    player.lastWorkshopTick,
+    skillBonuses,
+  );
 
   useEffect(() => {
     setClaimed(false);
@@ -85,10 +94,10 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         player.addCacheKeyFragments(1);
       }
 
-      // Zone-based idle credits (3s tick = 20 ticks/min)
-      player.addCredits(Math.round(currentZone.idleCreditsPerMinute / 20));
-      // Zone-based idle scrap
-      player.addScrap(Math.round(currentZone.idleScrapPerMinute / 20));
+      // Zone-based idle credits (3s tick = 20 ticks/min) — Scavenger offlineEarnings bonus
+      player.addCredits(Math.round(currentZone.idleCreditsPerMinute / 20 * (1 + (skillBonuses.offlineEarnings || 0))));
+      // Zone-based idle scrap — Scavenger scrapYield bonus
+      player.addScrap(Math.round(currentZone.idleScrapPerMinute / 20 * (1 + (skillBonuses.scrapYield || 0))));
 
       player.addXP(1);
     }, 3000);
@@ -100,7 +109,9 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
     const thresholdIndex = ['Common', 'Uncommon', 'Rare', 'Epic'].indexOf(idle.autoSalvageRarity);
     if (rarityIndex <= thresholdIndex && (item.rollQuality || 0) <= idle.autoSalvageQuality) {
       const { scrapValue, materials, essences } = inventory.scrapItem(item.id);
-      player.addScrap(scrapValue);
+      // Scavenger scrapYield bonus
+      const bonusScrap = Math.round(scrapValue * (skillBonuses.scrapYield || 0));
+      player.addScrap(scrapValue + bonusScrap);
       Object.entries(materials).forEach(([type, count]) => {
         if (count > 0) player.addMaterial(type, count);
       });

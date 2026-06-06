@@ -4,7 +4,7 @@ import {
   Trash2, Lock, Unlock, ShoppingBag, Shield, Sword,
   Gem, Zap, Scroll, ArrowLeftRight, AlertTriangle, Hammer,
 } from 'lucide-react';
-import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
+import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 import {
   GearItem, Weapon, Shield as ShieldType, ClassMod, Relic, Ordnance,
 } from '@/types/items';
@@ -663,16 +663,48 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
                           : 'Scrap this item?'}
                     </span>
                   </div>
+                  {/* Show what you'll get */}
+                  {scrapPreview && (
+                    <div className="flex flex-wrap gap-1.5 text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded bg-orange/10 text-orange font-bold border border-orange/30">
+                        +{scrapPreview.scrapValue} Scrap
+                      </span>
+                      {scrapPreview.materials &&
+                        Object.entries(scrapPreview.materials)
+                          .filter(([, c]) => c > 0)
+                          .map(([type, count]) => (
+                            <span
+                              key={type}
+                              className="px-1.5 py-0.5 rounded bg-surface-raised text-text-secondary font-bold border border-border"
+                            >
+                              +{count} {type}
+                            </span>
+                          ))}
+                      {scrapPreview.essences &&
+                        Object.entries(scrapPreview.essences)
+                          .filter(([, c]) => c > 0)
+                          .map(([type, count]) => (
+                            <span
+                              key={type}
+                              className="px-1.5 py-0.5 rounded bg-purple/10 text-purple font-bold border border-purple/30"
+                            >
+                              +{count} {type}
+                            </span>
+                          ))}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setConfirmScrap(false)}
-                      className="py-2 rounded-lg bg-surface-raised border border-border text-text-primary text-xs font-bold"
+                      className="py-2 rounded-lg bg-surface-raised border border-border text-text-primary text-xs font-bold
+                                 active:scale-95 transition-transform hover:bg-surface"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={() => handleScrap(selected.id)}
-                      className="py-2 rounded-lg bg-red border border-red text-white text-xs font-bold"
+                      className="py-2 rounded-lg bg-red border border-red text-white text-xs font-bold
+                                 active:scale-95 transition-transform hover:bg-red/80"
                     >
                       Scrap It
                     </button>
@@ -682,74 +714,98 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
                 /* ── Action Row ── */
                 <div className="grid grid-cols-4 gap-2 pt-1">
                   {/* Equip */}
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => handleEquip(selected)}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-amber/10 border border-amber/30 text-amber active:scale-95 transition-transform"
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-amber/10 border border-amber/30 
+                               text-amber hover:bg-amber/15 active:bg-amber/20 transition-colors"
                   >
                     <Sword size={15} />
                     <span className="text-[9px] font-bold">Equip</span>
-                  </button>
+                  </motion.button>
 
                   {/* Compare (only if there's something to compare against) */}
                   {(() => {
                     const cmp = getCompareItem(selected);
                     if (cmp && cmp.id !== selected.id) {
                       return (
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => setSelected(cmp)}
-                          className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-blue/10 border border-blue/30 text-blue active:scale-95 transition-transform"
+                          className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-blue/10 border border-blue/30 
+                                     text-blue hover:bg-blue/15 active:bg-blue/20 transition-colors"
                         >
                           <ArrowLeftRight size={15} />
                           <span className="text-[9px] font-bold">Compare</span>
-                        </button>
+                        </motion.button>
                       );
                     }
                     return <div />;
                   })()}
 
                   {/* Lock / Unlock */}
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => toggleLock(selected.id, selected.isLocked)}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-surface-raised border border-border text-text-secondary active:scale-95 transition-transform"
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-surface-raised border border-border 
+                               text-text-secondary hover:bg-surface hover:text-text-primary active:scale-95 transition-all"
                   >
                     {selected.isLocked ? <Unlock size={15} /> : <Lock size={15} />}
                     <span className="text-[9px] font-bold">
                       {selected.isLocked ? 'Unlock' : 'Lock'}
                     </span>
-                  </button>
+                  </motion.button>
 
                   {/* Scrap */}
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setConfirmScrap(true)}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-red/10 border border-red/30 text-red active:scale-95 transition-transform"
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-red/10 border border-red/30 
+                               text-red hover:bg-red/15 active:bg-red/20 transition-colors"
                   >
                     <Trash2 size={15} />
                     <span className="text-[9px] font-bold">Scrap</span>
-                  </button>
+                  </motion.button>
                 </div>
               )}
 
               {/* List on Market — full width below the action row */}
-              <button
+              <motion.button
+                whileTap={{ scale: 0.98 }}
                 onClick={() => onNavigate?.('market')}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-green/10 border border-green/30 text-green active:scale-[0.98] transition-transform text-xs font-bold"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-green/10 border border-green/30 
+                           text-green hover:bg-green/15 active:bg-green/20 transition-colors text-xs font-bold"
               >
                 <ShoppingBag size={14} />
                 List on Market
-              </button>
+              </motion.button>
 
               {/* Material summary & workshop link */}
               {Object.keys(materialSummary).length > 0 && (
                 <div className="rounded-lg bg-surface-raised border border-border p-3 mt-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-[10px] uppercase font-bold text-text-muted">Your Materials</div>
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => onNavigate?.('workshop')}
-                      className="flex items-center gap-1 px-2 py-1 rounded bg-amber/10 border border-amber/30 text-amber text-[10px] font-bold active:scale-95 transition-transform"
+                      className="flex items-center gap-1 px-2 py-1 rounded bg-amber/10 border border-amber/30 
+                                 text-amber text-[10px] font-bold hover:bg-amber/15 active:bg-amber/20 transition-colors"
                     >
                       <Hammer size={10} />
                       Workshop
-                    </button>
+                      {(() => {
+                        // Show badge if workshop has active queues
+                        const ws = useWorkshopStore.getState();
+                        if (ws.activeQueues.length > 0) {
+                          return (
+                            <span className="ml-1 px-1 py-0.5 rounded-full bg-amber text-bg text-[8px] font-bold">
+                              {ws.activeQueues.length}
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </motion.button>
                   </div>
                   <div className="grid grid-cols-2 gap-1 text-[10px]">
                     {Object.entries(materialSummary).slice(0, 6).map(([type, count]) => (
@@ -788,20 +844,43 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
                 <span>Bulk Scrap Confirmation</span>
               </div>
               <div className="text-xs text-text-secondary">
-                Scrap all <span className="font-bold text-text-primary">{specialCounts.Scrap}</span> Common/Uncommon items?
-                <br />
-                Locked and equipped items will be skipped.
+                Scrap{' '}
+                <span className="font-bold text-text-primary">{specialCounts.Scrap}</span> Common &amp; Uncommon
+                items (locked/equipped items skipped).
+              </div>
+              {/* Material yield preview for bulk */}
+              <div className="rounded-lg bg-orange/5 border border-orange/30 p-2.5">
+                <div className="text-[10px] font-bold text-orange uppercase mb-1.5">You'll receive:</div>
+                <div className="flex flex-wrap gap-1.5 text-[10px]">
+                  <span className="px-1.5 py-0.5 rounded bg-orange/10 text-orange font-bold border border-orange/30">
+                    Estimated Scrap
+                  </span>
+                  {Object.keys(player.materials).length > 0 ? (
+                    Object.entries(player.materials).map(([type]) => (
+                      <span
+                        key={type}
+                        className="px-1.5 py-0.5 rounded bg-surface-raised text-text-secondary border border-border"
+                      >
+                        +{type}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-text-muted">(materials from each item)</span>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setConfirmBulkScrap(false)}
-                  className="py-2 rounded-lg bg-surface-raised border border-border text-text-primary text-xs font-bold"
+                  className="py-2 rounded-lg bg-surface-raised border border-border text-text-primary text-xs font-bold
+                             active:scale-95 transition-transform hover:bg-surface"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleBulkScrap}
-                  className="py-2 rounded-lg bg-red border border-red text-white text-xs font-bold"
+                  className="py-2 rounded-lg bg-red border border-red text-white text-xs font-bold
+                             active:scale-95 transition-transform hover:bg-red/80"
                 >
                   Scrap All
                 </button>

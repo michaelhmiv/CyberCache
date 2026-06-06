@@ -125,7 +125,12 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         }
         // Generate loot
         const loot = inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
+        // Base 30% chance for bonus drop
         if (Math.random() < 0.3) {
+          inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
+        }
+        // LuckBooster / DataSkimmer / Second Opinion extra loot
+        if (outcome.extraLoot) {
           inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
         }
       } else {
