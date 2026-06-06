@@ -6,9 +6,11 @@ export interface PlayerProfile {
   credits: number;
   scrap: number;
   cacheKeys: number;
+  cacheKeyFragments: number;
   currentZoneId: string;
   highestZoneId: string;
   offlineCapHours: number;
   lastClaimTime: number;
   deathFeeInsurance: boolean;
+  consumables: Record<string, number>;
 }

@@ -10,7 +10,7 @@ export const VendorScreen: React.FC = () => {
   const handleBuy = (type: string, price: number) => {
     if (player.credits < price) return;
     player.removeCredits(price);
-    // In real store we'd track consumable counts; simplified here
+    player.addConsumable(type, 1);
   };
 
   return (
@@ -28,6 +28,7 @@ export const VendorScreen: React.FC = () => {
               <div>
                 <div className="text-xs font-bold text-text-primary">{c.name}</div>
                 <div className="text-[10px] text-text-muted">{c.effect}</div>
+                <div className="text-[10px] text-amber mt-0.5">Owned: {player.consumables?.[c.id] || 0}</div>
               </div>
             </div>
             <button

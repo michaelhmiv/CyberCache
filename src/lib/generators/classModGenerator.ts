@@ -1,0 +1,78 @@
+import { Rarity, DropSource, SkillTreeType } from '../../types/game';
+import { ClassMod, Affix } from '../../types/items';
+import { RARITIES } from '../../constants/rarities';
+import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
+import { generateItemId } from '../utils/id';
+
+const SKILL_NODE_IDS = [
+  'gs_dmg_1', 'gs_dmg_2', 'gs_crit_1', 'gs_crit_2', 'gs_critdmg_1', 'gs_critdmg_2',
+  'gs_speed_1', 'gs_speed_2', 'gs_boss_1', 'gs_boss_2', 'gs_status_1', 'gs_shield_1',
+  'demo_ord_1', 'demo_ord_2', 'demo_exp_1', 'demo_exp_2', 'demo_armor_1', 'demo_armor_2',
+  'demo_stag_1', 'demo_stag_2', 'demo_heavy_1', 'demo_heavy_2', 'demo_shield_1',
+  'scav_idle_1', 'scav_idle_2', 'scav_drop_1', 'scav_drop_2', 'scav_qty_1', 'scav_qty_2',
+  'scav_scrap_1', 'scav_scrap_2', 'scav_cons_1', 'scav_cons_2', 'scav_cache_1', 'scav_fee_1',
+];
+
+const TREE_NAMES: Record<SkillTreeType, string> = {
+  [SkillTreeType.Gunslinger]: 'Gunslinger',
+  [SkillTreeType.Demolition]: 'Demolition',
+  [SkillTreeType.Scavenger]: 'Scavenger',
+};
+
+export function generateClassMod(level: number = 1): ClassMod {
+  const seed = hashString(`classmod_${level}_${Date.now()}_${Math.random()}`);
+  const rng = createRNG(seed);
+
+  const rarityKeys = Object.values(Rarity);
+  const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);
+  const rarity = pickWeighted(rarityKeys, weights, rng);
+  const rarityDef = RARITIES[rarity];
+
+  const trees = Object.values(SkillTreeType);
+  const treeBonus = trees[seededInt(0, trees.length - 1, rng)];
+
+  // Boost 2-3 random nodes
+  const numBoosts = seededInt(2, 4, rng);
+  const nodeBoosts: Record<string, number> = {};
+  for (let i = 0; i < numBoosts; i++) {
+    const nodeId = SKILL_NODE_IDS[seededInt(0, SKILL_NODE_IDS.length - 1, rng)];
+    nodeBoosts[nodeId] = seededInt(1, 3, rng);
+  }
+
+  const affixCount = seededInt(rarityDef.affixCount.min, rarityDef.affixCount.max, rng);
+  const affixes: Affix[] = [];
+  const classModAffixPool = [
+    { stat: 'weaponDamage', text: '+{v}% Weapon Damage', min: 3, max: 10 },
+    { stat: 'critChance', text: '+{v}% Crit Chance', min: 2, max: 6 },
+    { stat: 'bossDamageMod', text: '+{v}% Boss Damage', min: 5, max: 12 },
+    { stat: 'skillPoints', text: '+{v} Bonus Skill Points', min: 1, max: 3 },
+  ];
+  for (let i = 0; i < affixCount; i++) {
+    const def = classModAffixPool[seededInt(0, classModAffixPool.length - 1, rng)];
+    const rollVal = seededInt(def.min, def.max, rng);
+    affixes.push({
+      id: `${def.stat}_${i}`,
+      category: 'skill',
+      stat: def.stat,
+      value: rollVal / 100,
+      displayText: def.text.replace('{v}', String(rollVal)),
+    });
+  }
+
+  const treeName = TREE_NAMES[treeBonus];
+  const prefixes = ['Prototype', 'Field-Issue', 'Elite', 'Tactical', 'Optimized'];
+  const prefix = prefixes[seededInt(0, prefixes.length - 1, rng)];
+  const name = `${prefix} ${treeName} Class Mod`;
+
+  return {
+    id: generateItemId(),
+    name,
+    level,
+    rarity,
+    treeBonus,
+    nodeBoosts,
+    affixes,
+    sourceTag: DropSource.WorldDrop,
+    isLocked: false,
+  };
+}

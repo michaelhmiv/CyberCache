@@ -22,8 +22,6 @@ export const LoadoutScreen: React.FC = () => {
   const loadout = useLoadoutStore();
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
 
-  const weapons = inventory.getWeapons();
-
   const getEquippedName = (slot: string) => {
     const id = loadout.slots[slot as keyof typeof loadout.slots];
     if (!id) return null;
@@ -50,14 +48,14 @@ export const LoadoutScreen: React.FC = () => {
       <div className="space-y-2">
         {SLOTS.map((slot) => {
           const equippedId = loadout.slots[slot.key as keyof typeof loadout.slots];
-          const equippedItem = equippedId ? inventory.getById(equippedId) as Weapon | undefined : undefined;
+          const equippedItem = equippedId ? inventory.getById(equippedId) as any : undefined;
           return (
             <MobileCard
               key={slot.key}
               onClick={() => setActiveSlot(slot.key)}
               className="flex items-center gap-3 cursor-pointer"
             >
-              {equippedItem ? (
+              {equippedItem && equippedItem.weaponType ? (
                 <WeaponCanvas
                   type={equippedItem.weaponType}
                   manufacturer={equippedItem.manufacturer}
@@ -97,14 +95,30 @@ export const LoadoutScreen: React.FC = () => {
               <button onClick={() => setActiveSlot(null)} className="text-xs text-text-muted">Close</button>
             </div>
             <div className="space-y-2">
-              {weapons
-                .filter((w) => {
-                  if (activeSlot === 'primary' || activeSlot === 'secondary') return true;
-                  if (activeSlot === 'heavy') return w.weaponType === 'Launcher' || w.weaponType === 'Shotgun';
-                  return false; // simplified for MVP
+              {inventory.items
+                .filter((item) => {
+                  if (activeSlot === 'primary' || activeSlot === 'secondary') return 'weaponType' in item;
+                  if (activeSlot === 'heavy') return 'weaponType' in item && ((item as Weapon).weaponType === 'Launcher' || (item as Weapon).weaponType === 'Shotgun');
+                  if (activeSlot === 'shield') return 'hp' in item && !('weaponType' in item);
+                  if (activeSlot === 'classMod') return 'treeBonus' in item;
+                  if (activeSlot === 'ordnance') return 'damage' in item && 'effect' in item && !('weaponType' in item);
+                  if (activeSlot === 'relic') return 'affixes' in item && !('weaponType' in item) && !('hp' in item) && !('treeBonus' in item) && !('damage' in item);
+                  return false;
                 })
-                .map((w) => (
-                  <WeaponCard key={w.id} weapon={w} onClick={() => equipItem(w.id)} />
+                .map((item) => (
+                  <div key={item.id} onClick={() => equipItem(item.id)} className="cursor-pointer">
+                    {'weaponType' in item ? (
+                      <WeaponCard weapon={item as Weapon} />
+                    ) : (
+                      <MobileCard className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-surface-raised border border-border flex items-center justify-center text-text-muted text-[10px]">{(item as any).rarity || 'Gear'}</div>
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-text-primary">{(item as any).name || 'Unknown'}</div>
+                          <div className="text-[10px] text-text-muted">Lv.{(item as any).level} · {(item as any).rarity}</div>
+                        </div>
+                      </MobileCard>
+                    )}
+                  </div>
                 ))}
             </div>
             <button

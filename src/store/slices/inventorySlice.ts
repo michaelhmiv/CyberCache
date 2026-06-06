@@ -3,6 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { GearItem, Weapon } from '../../types/items';
 import { DropSource } from '../../types/game';
 import { generateWeapon } from '../../lib/generators/weaponGenerator';
+import { generateShield } from '../../lib/generators/shieldGenerator';
+import { generateClassMod } from '../../lib/generators/classModGenerator';
+import { generateRelic } from '../../lib/generators/relicGenerator';
+import { generateOrdnance } from '../../lib/generators/ordnanceGenerator';
 
 interface InventoryState {
   items: GearItem[];
@@ -12,6 +16,10 @@ interface InventoryState {
   lockItem: (id: string) => void;
   unlockItem: (id: string) => void;
   generateAndAdd: (opts: Parameters<typeof generateWeapon>[0]) => Weapon;
+  generateAndAddShield: (level?: number) => ReturnType<typeof generateShield>;
+  generateAndAddClassMod: (level?: number) => ReturnType<typeof generateClassMod>;
+  generateAndAddRelic: (level?: number) => ReturnType<typeof generateRelic>;
+  generateAndAddOrdnance: (level?: number) => ReturnType<typeof generateOrdnance>;
   getWeapons: () => Weapon[];
   getById: (id: string) => GearItem | undefined;
 }
@@ -51,6 +59,30 @@ export const useInventoryStore = create<InventoryState>()(
         const weapon = generateWeapon(opts);
         set((s) => ({ items: [weapon, ...s.items] }));
         return weapon;
+      },
+
+      generateAndAddShield: (level = 1) => {
+        const shield = generateShield(level);
+        set((s) => ({ items: [shield, ...s.items] }));
+        return shield;
+      },
+
+      generateAndAddClassMod: (level = 1) => {
+        const mod = generateClassMod(level);
+        set((s) => ({ items: [mod, ...s.items] }));
+        return mod;
+      },
+
+      generateAndAddRelic: (level = 1) => {
+        const relic = generateRelic(level);
+        set((s) => ({ items: [relic, ...s.items] }));
+        return relic;
+      },
+
+      generateAndAddOrdnance: (level = 1) => {
+        const ordnance = generateOrdnance(level);
+        set((s) => ({ items: [ordnance, ...s.items] }));
+        return ordnance;
       },
 
       getWeapons: () => get().items.filter((i) => 'weaponType' in i) as Weapon[],

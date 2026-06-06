@@ -1,73 +1,81 @@
-# React + TypeScript + Vite
+# CyberCache
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Mobile-first idle roguelite looter RPG.** Farm weapons, build your loadout, fight bosses with deep simulation mechanics, and trade on the marketplace.
 
-Currently, two official plugins are available:
+## 🎮 Gameplay
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Idle Farming** — Passive loot and XP generation. Earn offline rewards.
+- **Deep Weapon System** — 6 weapon types × 6 manufacturers × 6 elements × 5 rarities. Modular parts, procedural affixes, 25 legendary effects.
+- **7 Gear Slots** — Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic.
+- **Boss Combat** — 4-phase simulation (Survival → Break → DPS → Mechanics). Risk settings, elemental matchups, consumable planning, win chance estimation.
+- **Skill Trees** — Gunslinger (weapon tree), Demolition (explosives), Scavenger (idle/economy). 50 points to spend across 3 trees.
+- **Economy** — Credits, Scrap, Cache Keys, Cache Key Fragments. Vendor, Marketplace (simulated NPCs), Fusion Lab, Data Caches.
+- **Persistent Progress** — Everything saves to localStorage.
 
-## React Compiler
+## 🛠 Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React 19** + **TypeScript 6**
+- **Vite 8** (dev/build)
+- **Tailwind CSS 4** (dark cyberpunk theme)
+- **Zustand 5** (state management with persistence)
+- **Framer Motion 12** (animations)
+- **idb** (IndexedDB ready)
+- **Lucide React** (icons)
 
-## Expanding the ESLint configuration
+## 🚀 Quick Start
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open `http://localhost:5173` on desktop or mobile.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 📱 Mobile-First
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Designed for 480px mobile viewport with bottom tab navigation:
+- **Fight** — Farm, boss prep, recent drops
+- **Loadout** — Equip 7 gear slots
+- **Loot** — Inventory with filters, scrap, lock
+- **Market** — Buy/sell weapons
+- **More** — Data Cache, Skill Trees, Fusion Lab, Vendor, Profile, Settings, Guide
+
+## 🏗 Build
+
+```bash
+npm run build    # production build → dist/
+npm run preview  # preview production build
 ```
+
+## 📂 Project Structure
+
+```
+src/
+├── components/       # Reusable UI (WeaponCard, BossPrepModal, BottomNav, etc.)
+│   ├── common/       # RollQualityBadge, RarityGlow
+│   ├── fight/        # BossPrepModal
+│   ├── layout/       # ScreenWrapper, MobileCard, BottomNav
+│   └── pixelArt/     # WeaponCanvas renderer
+├── constants/        # Game data (bosses, rarities, weapons, skills, etc.)
+├── hooks/            # useIdleTicker, useOfflineClaim
+├── lib/
+│   ├── generators/   # Procedural item generators (weapons, shields, etc.)
+│   ├── pixelArt/     # Canvas sprite renderer with animations
+│   ├── simulation/   # Boss combat simulation engine
+│   └── utils/        # Seeded RNG, naming, IDs
+├── screens/          # Full-screen views (Fight, Loadout, Loot, Market, More + sub-screens)
+├── store/slices/     # Zustand stores (player, inventory, loadout, boss, skills, market, idle)
+└── types/            # TypeScript interfaces and enums
+```
+
+## 🎯 Features
+
+- **Procedural weapon generation** with 6 weapon types, 6 manufacturers, 6 elements, 5 rarities, 6 modular parts, affixes from 3 pools, and 25 legendary effects
+- **7 bosses** (Region 1) with unique mechanics (enrage, shield regen, burning ground, phase-out, armor repair, three-phase siege)
+- **Cache opening** with guaranteed Rare+ drops and rarity odds display
+- **Fusion Lab** — improve weapon roll quality by consuming 2+ similar weapons
+- **Offline earnings** with configurable cap (2-12 hours)
+- **Auto-salvage** — auto-scrap low-quality drops
+- **Level-up notifications**
+- **Zone progression** across 10 Dustwaste Frontier stages
+- **Skill tree bonuses** feed directly into boss simulations

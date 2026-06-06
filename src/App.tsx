@@ -11,6 +11,9 @@ import { SkillTreeScreen } from './screens/SkillTreeScreen';
 import { ChestScreen } from './screens/ChestScreen';
 import { FusionScreen } from './screens/FusionScreen';
 import { VendorScreen } from './screens/VendorScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+import { HelpScreen } from './screens/HelpScreen';
 
 type TabId = 'fight' | 'loadout' | 'loot' | 'market' | 'more';
 type SubScreen = 'chest' | 'skills' | 'fusion' | 'vendor' | 'profile' | 'settings' | 'help' | null;
@@ -34,9 +37,9 @@ function App() {
       skills: <SkillTreeScreen />,
       fusion: <FusionScreen />,
       vendor: <VendorScreen />,
-      profile: <div className="p-4 text-text-primary">Profile coming soon</div>,
-      settings: <div className="p-4 text-text-primary">Settings coming soon</div>,
-      help: <div className="p-4 text-text-primary">Guide coming soon</div>,
+      profile: <ProfileScreen />,
+      settings: <SettingsScreen />,
+      help: <HelpScreen />,
     };
     return (
       <div className="h-screen flex flex-col bg-bg text-text-primary">

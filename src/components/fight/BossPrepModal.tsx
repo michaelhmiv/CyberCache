@@ -6,7 +6,7 @@ import { Weapon, Shield as ShieldItem, Ordnance, ClassMod, Relic } from '../../t
 import { ConsumableType, RiskSetting, Element } from '../../types/game';
 import { CONSUMABLES } from '../../constants/consumables';
 import { simulateBoss, executeBossAttempt } from '../../lib/simulation/bossSimulator';
-import { usePlayerStore, useInventoryStore, useBossStore } from '../../store';
+import { usePlayerStore, useInventoryStore, useBossStore, useLoadoutStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
 import { ElementIcon } from '../common/RarityGlow';
@@ -20,32 +20,37 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const bossStore = useBossStore();
+  const loadout = useLoadoutStore();
+  const skillStore = useSkillStore();
   const [risk, setRisk] = useState<RiskSetting>(RiskSetting.Balanced);
   const [consumables, setConsumables] = useState<Record<string, number>>({});
   const [result, setResult] = useState<ReturnType<typeof executeBossAttempt> | null>(null);
   const [simulating, setSimulating] = useState(false);
 
-  const weapons = inventory.getWeapons();
-  const primary = weapons[0] || null; // simplistic for MVP
-  const secondary = weapons[1] || null;
-  const heavy = weapons.find((w) => w.weaponType === 'Launcher') || null;
+  const primary = loadout.getWeapon('primary') || inventory.getWeapons()[0] || null;
+  const secondary = loadout.getWeapon('secondary') || inventory.getWeapons()[1] || null;
+  const heavy = loadout.getWeapon('heavy') || inventory.getWeapons().find((w) => w.weaponType === 'Launcher') || null;
+  const shield = loadout.getShield() || null;
+  const ordnance = loadout.getOrdnance() || null;
+  const classMod = loadout.getClassMod() || null;
+  const relic = loadout.getRelic() || null;
 
   const sim = useMemo(() => {
     return simulateBoss({
       primary,
       secondary,
       heavy,
-      ordnance: null,
-      shield: null,
-      classMod: null,
-      relic: null,
+      ordnance: ordnance ? { id: ordnance.id, name: ordnance.name, level: ordnance.level, rarity: ordnance.rarity, damage: ordnance.damage, shieldDamage: ordnance.shieldDamage, armorDamage: ordnance.armorDamage, element: ordnance.element, effect: ordnance.effect, sourceTag: ordnance.sourceTag, isLocked: ordnance.isLocked } : null,
+      shield: shield ? { id: shield.id, name: shield.name, level: shield.level, rarity: shield.rarity, hp: shield.hp, rechargeRate: shield.rechargeRate, mitigation: shield.mitigation, element: shield.element, affixes: shield.affixes, sourceTag: shield.sourceTag, isLocked: shield.isLocked, pixelSeed: shield.pixelSeed } : null,
+      classMod: classMod ? { id: classMod.id, name: classMod.name, level: classMod.level, rarity: classMod.rarity, treeBonus: classMod.treeBonus, nodeBoosts: classMod.nodeBoosts, affixes: classMod.affixes, sourceTag: classMod.sourceTag, isLocked: classMod.isLocked } : null,
+      relic: relic ? { id: relic.id, name: relic.name, level: relic.level, rarity: relic.rarity, affixes: relic.affixes, sourceTag: relic.sourceTag, isLocked: relic.isLocked } : null,
       consumables,
       risk,
       boss,
       playerLevel: player.level,
-      skillBonuses: {},
+      skillBonuses: skillStore.getBonuses(),
     });
-  }, [primary, secondary, heavy, consumables, risk, boss, player.level]);
+  }, [primary, secondary, heavy, shield, ordnance, classMod, relic, consumables, risk, boss, player.level, skillStore]);
 
   const winBand = sim.winChance >= 0.95 ? 'Farmable' : sim.winChance >= 0.75 ? 'Favorable' : sim.winChance >= 0.5 ? 'Risky' : sim.winChance >= 0.25 ? 'Underdog' : sim.winChance >= 0.05 ? 'Desperate' : 'Nearly Impossible';
   const bandColor = sim.winChance >= 0.75 ? 'text-green' : sim.winChance >= 0.5 ? 'text-amber' : sim.winChance >= 0.25 ? 'text-orange-400' : 'text-red';
@@ -66,15 +71,15 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           primary,
           secondary,
           heavy,
-          ordnance: null,
-          shield: null,
-          classMod: null,
-          relic: null,
+          ordnance: ordnance ? { id: ordnance.id, name: ordnance.name, level: ordnance.level, rarity: ordnance.rarity, damage: ordnance.damage, shieldDamage: ordnance.shieldDamage, armorDamage: ordnance.armorDamage, element: ordnance.element, effect: ordnance.effect, sourceTag: ordnance.sourceTag, isLocked: ordnance.isLocked } : null,
+          shield: shield ? { id: shield.id, name: shield.name, level: shield.level, rarity: shield.rarity, hp: shield.hp, rechargeRate: shield.rechargeRate, mitigation: shield.mitigation, element: shield.element, affixes: shield.affixes, sourceTag: shield.sourceTag, isLocked: shield.isLocked, pixelSeed: shield.pixelSeed } : null,
+          classMod: classMod ? { id: classMod.id, name: classMod.name, level: classMod.level, rarity: classMod.rarity, treeBonus: classMod.treeBonus, nodeBoosts: classMod.nodeBoosts, affixes: classMod.affixes, sourceTag: classMod.sourceTag, isLocked: classMod.isLocked } : null,
+          relic: relic ? { id: relic.id, name: relic.name, level: relic.level, rarity: relic.rarity, affixes: relic.affixes, sourceTag: relic.sourceTag, isLocked: relic.isLocked } : null,
           consumables,
           risk,
           boss,
           playerLevel: player.level,
-          skillBonuses: {},
+          skillBonuses: skillStore.getBonuses(),
         },
         player.credits
       );

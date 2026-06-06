@@ -4,6 +4,7 @@ import { useLoadoutStore } from './slices/loadoutSlice';
 import { useBossStore } from './slices/bossSlice';
 import { useIdleStore } from './slices/idleSlice';
 import { useMarketStore } from './slices/marketSlice';
+import { useSkillStore } from './slices/skillSlice';
 
 export {
   usePlayerStore,
@@ -12,4 +13,5 @@ export {
   useBossStore,
   useIdleStore,
   useMarketStore,
+  useSkillStore,
 };

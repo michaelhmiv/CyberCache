@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { RotateCcw, Lock } from 'lucide-react';
 import { SKILL_NODES, getSkillTreeNodes, MAX_SKILL_POINTS } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
-import { usePlayerStore } from '@/store';
+import { usePlayerStore, useSkillStore } from '@/store';
 
 const TREES = [
   { id: SkillTreeType.Gunslinger, label: 'Gunslinger', color: '#EF4444', desc: 'Weapon damage, crits, speed' },
@@ -13,10 +13,10 @@ const TREES = [
 
 export const SkillTreeScreen: React.FC = () => {
   const [activeTree, setActiveTree] = useState(SkillTreeType.Gunslinger);
-  const [spent, setSpent] = useState<Record<string, number>>({});
   const player = usePlayerStore();
+  const skillStore = useSkillStore();
 
-  const pointsSpent = Object.values(spent).reduce((a, b) => a + b, 0);
+  const pointsSpent = skillStore.getTotalSpent();
   const pointsAvailable = MAX_SKILL_POINTS - pointsSpent;
   const nodes = getSkillTreeNodes(activeTree);
 
@@ -24,10 +24,10 @@ export const SkillTreeScreen: React.FC = () => {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return false;
     if (pointsAvailable < node.cost) return false;
-    if ((spent[nodeId] || 0) >= node.maxPoints) return false;
+    if ((skillStore.spent[nodeId] || 0) >= node.maxPoints) return false;
     if (node.requires) {
       for (const req of node.requires) {
-        if ((spent[req] || 0) === 0) return false;
+        if ((skillStore.spent[req] || 0) === 0) return false;
       }
     }
     return true;
@@ -35,14 +35,13 @@ export const SkillTreeScreen: React.FC = () => {
 
   const spendPoint = (nodeId: string) => {
     if (!canSpend(nodeId)) return;
-    setSpent((s) => ({ ...s, [nodeId]: (s[nodeId] || 0) + 1 }));
+    skillStore.spendPoint(nodeId);
   };
 
   const respec = () => {
-    const cost = pointsSpent * 100;
-    if (player.credits >= cost) {
+    const cost = skillStore.respecCost();
+    if (skillStore.respec(player.credits)) {
       player.removeCredits(cost);
-      setSpent({});
     }
   };
 
@@ -79,7 +78,7 @@ export const SkillTreeScreen: React.FC = () => {
       {/* Nodes */}
       <div className="space-y-2">
         {nodes.map((node) => {
-          const currentPoints = spent[node.id] || 0;
+          const currentPoints = skillStore.spent[node.id] || 0;
           const isMaxed = currentPoints >= node.maxPoints;
           const isAvailable = canSpend(node.id);
           const isKeystone = node.type === 'keystone';
