@@ -46,7 +46,7 @@ function App() {
       workshop: <WorkshopScreen />,
     };
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col flex-1 min-h-0">
         <div className="shrink-0 p-4 border-b border-border flex items-center gap-3">
           <button onClick={handleBack} className="text-sm text-amber font-bold">← Back</button>
           <div className="text-sm font-bold text-text-primary capitalize">{subScreen}</div>
