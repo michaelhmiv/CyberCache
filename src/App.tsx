@@ -59,7 +59,7 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-bg text-text-primary" style={{ maxWidth: 480, margin: '0 auto' }}>
+    <div className="h-full flex flex-col bg-bg text-text-primary">
       {/* Modal overlays — full screen, hide nav */}
       <AnimatePresence>
         {bossSelectOpen && (

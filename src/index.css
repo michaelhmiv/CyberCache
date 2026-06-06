@@ -30,7 +30,13 @@
   --font-mono: 'Fira Code', ui-monospace, monospace;
 }
 
-html, body, #root {
+html {
+  background: #0B0D10;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body, #root {
   background: #0B0D10;
   color: #F3F4F6;
   height: 100%;
