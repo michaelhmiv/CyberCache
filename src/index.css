@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0B0D10;
+  --color-surface: #161920;
+  --color-surface-raised: #1E232B;
+  --color-border: #2A2F3A;
+  --color-border-light: #3E4552;
+
+  --color-amber: #F59E0B;
+  --color-amber-glow: #FBBF24;
+  --color-red: #EF4444;
+  --color-green: #22C55E;
+  --color-blue: #3B82F6;
+  --color-purple: #A855F7;
+  --color-cyan: #06B6D4;
+  --color-void: #8B5CF6;
+
+  --color-text-primary: #F3F4F6;
+  --color-text-secondary: #9CA3AF;
+  --color-text-muted: #6B7280;
+
+  --color-rarity-common: #9CA3AF;
+  --color-rarity-uncommon: #22C55E;
+  --color-rarity-rare: #3B82F6;
+  --color-rarity-epic: #A855F7;
+  --color-rarity-legendary: #F59E0B;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, monospace;
+}
+
+html, body, #root {
+  background: #0B0D10;
+  color: #F3F4F6;
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  border-inline: 1px solid #2A2F3A;
+  background: #0B0D10;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* Rarity glow animations */
+@keyframes legendaryPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.7); }
+}
+
+@keyframes epicPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(168, 85, 247, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(168, 85, 247, 0.6); }
+}
+
+.rarity-legendary-glow {
+  animation: legendaryPulse 2s ease-in-out infinite;
+}
+
+.rarity-epic-glow {
+  animation: epicPulse 2.5s ease-in-out infinite;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #161920;
+}
+::-webkit-scrollbar-thumb {
+  background: #2A2F3A;
+  border-radius: 4px;
+}

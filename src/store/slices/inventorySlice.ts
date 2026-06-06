@@ -1,0 +1,64 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { GearItem, Weapon } from '../../types/items';
+import { DropSource } from '../../types/game';
+import { generateWeapon } from '../../lib/generators/weaponGenerator';
+
+interface InventoryState {
+  items: GearItem[];
+  addItem: (item: GearItem) => void;
+  removeItem: (id: string) => void;
+  scrapItem: (id: string) => { scrapValue: number };
+  lockItem: (id: string) => void;
+  unlockItem: (id: string) => void;
+  generateAndAdd: (opts: Parameters<typeof generateWeapon>[0]) => Weapon;
+  getWeapons: () => Weapon[];
+  getById: (id: string) => GearItem | undefined;
+}
+
+export const useInventoryStore = create<InventoryState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+
+      addItem: (item) => set((s) => ({ items: [item, ...s.items] })),
+
+      removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+
+      scrapItem: (id) => {
+        const item = get().items.find((i) => i.id === id);
+        if (!item) return { scrapValue: 0 };
+        let scrapValue = 10;
+        if ('rarity' in item) {
+          const rarityMulti = item.rarity === 'Common' ? 1 : item.rarity === 'Uncommon' ? 1.5 : item.rarity === 'Rare' ? 2.5 : item.rarity === 'Epic' ? 4 : 8;
+          scrapValue = Math.round((10 + (item.level || 1) * 5) * rarityMulti * ((item as any).rollQuality ? ((item as any).rollQuality / 100) : 1));
+        }
+        set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
+        return { scrapValue };
+      },
+
+      lockItem: (id) =>
+        set((s) => ({
+          items: s.items.map((i) => (i.id === id ? { ...i, isLocked: true } : i)),
+        })),
+
+      unlockItem: (id) =>
+        set((s) => ({
+          items: s.items.map((i) => (i.id === id ? { ...i, isLocked: false } : i)),
+        })),
+
+      generateAndAdd: (opts) => {
+        const weapon = generateWeapon(opts);
+        set((s) => ({ items: [weapon, ...s.items] }));
+        return weapon;
+      },
+
+      getWeapons: () => get().items.filter((i) => 'weaponType' in i) as Weapon[],
+      getById: (id) => get().items.find((i) => i.id === id),
+    }),
+    {
+      name: 'cc-inventory',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
