@@ -1,16 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sword, Shield, Zap, Crosshair, AlertTriangle, CheckCircle, Skull } from 'lucide-react';
+import { X, Shield, Zap, Crosshair, AlertTriangle, CheckCircle, Skull } from 'lucide-react';
 import { BossDef } from '../../types/boss';
-import { Weapon, Shield as ShieldItem, Ordnance, ClassMod, Relic } from '../../types/items';
-import { RiskSetting, Element } from '../../types/game';
+import { RiskSetting } from '../../types/game';
 import { CONSUMABLES } from '../../constants/consumables';
+import { RARITIES } from '../../constants/rarities';
 import { simulateBoss, executeBossAttempt } from '../../lib/simulation/bossSimulator';
 import { usePlayerStore, useInventoryStore, useBossStore, useLoadoutStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
-import { ElementIcon } from '../common/RarityGlow';
 
 interface BossPrepModalProps {
   boss: BossDef;
@@ -124,7 +123,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           }
         }
         // Generate loot
-        const loot = inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
+        inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
         // Base 30% chance for bonus drop
         if (Math.random() < 0.3) {
           inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
@@ -146,6 +145,8 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     setResult(null);
   };
 
+  const getRarityColor = (rarity?: string) => RARITIES[rarity as keyof typeof RARITIES]?.color || RARITIES.Common.color;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -157,10 +158,10 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-lg font-bold text-text-primary">{boss.name}</div>
+            <div className="bl-title text-3xl leading-none text-text-primary">{boss.name}</div>
             <div className="text-xs text-text-muted">Tier {boss.tier} • Lv.{boss.level}</div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full bg-surface border border-border">
+          <button onClick={onClose} className="p-2 rounded-full bl-secondary">
             <X size={20} />
           </button>
         </div>
@@ -187,7 +188,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         {!result && (
           <MobileCard className="text-center space-y-1">
             <div className="text-xs text-text-muted uppercase tracking-wider">Estimated Win Chance</div>
-            <div className={`text-3xl font-black ${bandColor}`}>{(sim.winChance * 100).toFixed(1)}%</div>
+            <div className={`font-mono text-3xl font-black ${bandColor}`}>{(sim.winChance * 100).toFixed(1)}%</div>
             <div className={`text-sm font-bold ${bandColor}`}>{winBand}</div>
           </MobileCard>
         )}
@@ -208,9 +209,13 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         <div className="space-y-2">
           <div className="text-xs font-bold text-text-muted uppercase">Loadout</div>
           {[primary, secondary, heavy].filter(Boolean).map((w, i) => (
-            <div key={i} className="flex items-center gap-3 bg-surface-raised rounded-lg p-2 border border-border">
+            <div
+              key={i}
+              className="flex items-center gap-3 bg-surface rounded-xl p-2 border-2 border-border shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+              style={{ borderLeftColor: w ? getRarityColor(w.rarity) : undefined, borderLeftWidth: w ? 5 : undefined }}
+            >
               {w && <WeaponCanvas type={w.weaponType} manufacturer={w.manufacturer} element={w.element} rarity={w.rarity} size={40} />}
-              <div className="text-xs text-text-primary font-bold">{w?.name || 'Empty'}</div>
+              <div className="text-xs font-bold" style={{ color: w ? getRarityColor(w.rarity) : undefined }}>{w?.name || 'Empty'}</div>
             </div>
           ))}
         </div>
@@ -229,7 +234,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
                     <div className="text-[10px] text-text-muted">{selected ? `Owned: ${player.getConsumableCount(selected)}` : ''}</div>
                   </div>
                   <select
-                    className="w-full text-xs bg-surface border border-border rounded-lg px-2 py-1 text-text-primary"
+                    className="w-full text-xs bg-surface border-2 border-border rounded-xl px-2 py-1 text-text-primary"
                     value={selected || ''}
                     onChange={(e) => setConsumableForSlot(slot, e.target.value || null)}
                   >
@@ -253,8 +258,8 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
                 <button
                   key={r}
                   onClick={() => setRisk(r)}
-                  className={`py-2 rounded-lg text-[10px] font-bold border transition-colors ${
-                    risk === r ? 'bg-amber text-bg border-amber' : 'bg-surface-raised text-text-secondary border-border'
+                  className={`py-2 rounded-xl text-[10px] font-bold transition-colors ${
+                    risk === r ? 'bl-primary' : 'bl-secondary text-text-secondary'
                   }`}
                 >
                   {r}
@@ -297,17 +302,17 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
       </div>
 
       {/* Bottom Action */}
-      <div className="shrink-0 p-4 border-t border-border bg-surface">
+      <div className="shrink-0 p-4 border-t-2 border-border bg-surface">
         {result ? (
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={reset} className="py-3 rounded-xl bg-amber text-bg font-bold text-sm">Fight Again</button>
-            <button onClick={onClose} className="py-3 rounded-xl bg-surface-raised text-text-primary font-bold text-sm border border-border">Back</button>
+            <button onClick={reset} className="py-3 rounded-xl bl-primary font-bold text-sm">Fight Again</button>
+            <button onClick={onClose} className="py-3 rounded-xl bl-secondary font-bold text-sm">Back</button>
           </div>
         ) : (
           <button
             onClick={handleFight}
             disabled={simulating}
-            className="w-full py-4 rounded-xl bg-amber text-bg font-black text-sm uppercase tracking-wider disabled:opacity-50"
+            className="w-full py-4 rounded-xl bl-primary font-black text-sm uppercase tracking-wider disabled:opacity-50"
           >
             {simulating ? 'Simulating...' : 'INITIATE COMBAT'}
           </button>

@@ -19,6 +19,7 @@ import { BossSelectModal } from './components/fight/BossSelectModal';
 
 type TabId = 'fight' | 'loadout' | 'loot' | 'market' | 'more';
 type SubScreen = 'chest' | 'skills' | 'fusion' | 'vendor' | 'profile' | 'settings' | 'help' | 'workshop' | null;
+const topLevelTabs: TabId[] = ['fight', 'loadout', 'loot', 'market', 'more'];
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>('fight');
@@ -26,7 +27,12 @@ function App() {
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
 
   const handleNavigate = (screen: string) => {
-    setSubScreen(screen as SubScreen);
+    if (topLevelTabs.includes(screen as TabId)) {
+      setActiveTab(screen as TabId);
+      setSubScreen(null);
+      return;
+    }
+    setSubScreen((screen === 'fusion' ? 'workshop' : screen) as SubScreen);
   };
 
   const handleBack = () => {
@@ -47,7 +53,7 @@ function App() {
     };
     return (
       <div className="flex flex-col flex-1 min-h-0">
-        <div className="shrink-0 p-4 border-b border-border flex items-center gap-3">
+        <div className="shrink-0 p-4 border-b-2 border-border bg-surface flex items-center gap-3">
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleBack}
@@ -55,7 +61,7 @@ function App() {
           >
             ← Back
           </motion.button>
-          <div className="text-sm font-bold text-text-primary capitalize">{subScreen}</div>
+          <div className="bl-title text-xl leading-none text-text-primary capitalize">{subScreen === 'workshop' ? 'Workshop' : subScreen}</div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {screens[subScreen!] || <div className="p-4 text-text-primary">Unknown screen</div>}
@@ -78,7 +84,7 @@ function App() {
         renderSubScreen()
       ) : (
         <ScreenWrapper activeTab={activeTab}>
-          {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} />}
+          {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
           {activeTab === 'loadout' && <LoadoutScreen />}
           {activeTab === 'loot' && <LootScreen onNavigate={handleNavigate} />}
           {activeTab === 'market' && <MarketScreen />}

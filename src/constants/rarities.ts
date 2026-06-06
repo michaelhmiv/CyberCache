@@ -15,7 +15,7 @@ export const RARITIES: Record<Rarity, RarityDef> = {
   [Rarity.Common]: {
     id: Rarity.Common,
     name: 'Common',
-    color: '#9CA3AF',
+    color: '#A5A7B5',
     affixCount: { min: 0, max: 1 },
     rollQualityBias: 0,
     specialEffectChance: 0,
@@ -25,7 +25,7 @@ export const RARITIES: Record<Rarity, RarityDef> = {
   [Rarity.Uncommon]: {
     id: Rarity.Uncommon,
     name: 'Uncommon',
-    color: '#22C55E',
+    color: '#7CFC00',
     affixCount: { min: 1, max: 1 },
     rollQualityBias: 5,
     specialEffectChance: 0,
@@ -35,7 +35,7 @@ export const RARITIES: Record<Rarity, RarityDef> = {
   [Rarity.Rare]: {
     id: Rarity.Rare,
     name: 'Rare',
-    color: '#3B82F6',
+    color: '#5AA7FF',
     affixCount: { min: 2, max: 2 },
     rollQualityBias: 10,
     specialEffectChance: 0.05,
@@ -45,7 +45,7 @@ export const RARITIES: Record<Rarity, RarityDef> = {
   [Rarity.Epic]: {
     id: Rarity.Epic,
     name: 'Epic',
-    color: '#A855F7',
+    color: '#FF9DF5',
     affixCount: { min: 3, max: 3 },
     rollQualityBias: 15,
     specialEffectChance: 0.15,
@@ -55,7 +55,7 @@ export const RARITIES: Record<Rarity, RarityDef> = {
   [Rarity.Legendary]: {
     id: Rarity.Legendary,
     name: 'Legendary',
-    color: '#F59E0B',
+    color: '#FFEA3A',
     affixCount: { min: 4, max: 5 },
     rollQualityBias: 20,
     specialEffectChance: 1.0,
