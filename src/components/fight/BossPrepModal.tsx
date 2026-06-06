@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sword, Shield, Zap, Crosshair, AlertTriangle, CheckCircle, Skull } from 'lucide-react';
 import { BossDef } from '../../types/boss';
 import { Weapon, Shield as ShieldItem, Ordnance, ClassMod, Relic } from '../../types/items';
-import { ConsumableType, RiskSetting, Element } from '../../types/game';
+import { RiskSetting, Element } from '../../types/game';
 import { CONSUMABLES } from '../../constants/consumables';
 import { simulateBoss, executeBossAttempt } from '../../lib/simulation/bossSimulator';
 import { usePlayerStore, useInventoryStore, useBossStore, useLoadoutStore, useSkillStore } from '../../store';
@@ -16,6 +16,12 @@ interface BossPrepModalProps {
   onClose: () => void;
 }
 
+const SLOT_LABELS = {
+  PreFight: 'Pre-Fight',
+  MidFight: 'Mid-Fight',
+  Emergency: 'Emergency',
+};
+
 export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
@@ -23,7 +29,6 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const loadout = useLoadoutStore();
   const skillStore = useSkillStore();
   const [risk, setRisk] = useState<RiskSetting>(RiskSetting.Balanced);
-  const [consumables, setConsumables] = useState<Record<string, number>>({});
   const [result, setResult] = useState<ReturnType<typeof executeBossAttempt> | null>(null);
   const [simulating, setSimulating] = useState(false);
 
@@ -34,6 +39,19 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const ordnance = loadout.getOrdnance() || null;
   const classMod = loadout.getClassMod() || null;
   const relic = loadout.getRelic() || null;
+  const equippedConsumables = loadout.getEquippedConsumables();
+
+  // Build consumable inventory map for simulation
+  const consumablesMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    Object.values(equippedConsumables).forEach((type) => {
+      if (type) {
+        const owned = player.getConsumableCount(type);
+        map[type] = owned > 0 ? 1 : 0; // Each slot uses 1 if available
+      }
+    });
+    return map;
+  }, [equippedConsumables, player]);
 
   const sim = useMemo(() => {
     return simulateBoss({
@@ -44,23 +62,19 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
       shield: shield ? { id: shield.id, name: shield.name, level: shield.level, rarity: shield.rarity, hp: shield.hp, rechargeRate: shield.rechargeRate, mitigation: shield.mitigation, element: shield.element, affixes: shield.affixes, sourceTag: shield.sourceTag, isLocked: shield.isLocked, pixelSeed: shield.pixelSeed } : null,
       classMod: classMod ? { id: classMod.id, name: classMod.name, level: classMod.level, rarity: classMod.rarity, treeBonus: classMod.treeBonus, nodeBoosts: classMod.nodeBoosts, affixes: classMod.affixes, sourceTag: classMod.sourceTag, isLocked: classMod.isLocked } : null,
       relic: relic ? { id: relic.id, name: relic.name, level: relic.level, rarity: relic.rarity, affixes: relic.affixes, sourceTag: relic.sourceTag, isLocked: relic.isLocked } : null,
-      consumables,
+      consumables: consumablesMap,
       risk,
       boss,
       playerLevel: player.level,
       skillBonuses: skillStore.getBonuses(),
     });
-  }, [primary, secondary, heavy, shield, ordnance, classMod, relic, consumables, risk, boss, player.level, skillStore]);
+  }, [primary, secondary, heavy, shield, ordnance, classMod, relic, consumablesMap, risk, boss, player.level, skillStore]);
 
   const winBand = sim.winChance >= 0.95 ? 'Farmable' : sim.winChance >= 0.75 ? 'Favorable' : sim.winChance >= 0.5 ? 'Risky' : sim.winChance >= 0.25 ? 'Underdog' : sim.winChance >= 0.05 ? 'Desperate' : 'Nearly Impossible';
   const bandColor = sim.winChance >= 0.75 ? 'text-green' : sim.winChance >= 0.5 ? 'text-amber' : sim.winChance >= 0.25 ? 'text-orange-400' : 'text-red';
 
-  const adjustConsumable = (type: string, delta: number) => {
-    setConsumables((prev) => {
-      const next = { ...prev, [type]: Math.max(0, (prev[type] || 0) + delta) };
-      if (next[type] === 0) delete next[type];
-      return next;
-    });
+  const setConsumableForSlot = (slot: keyof typeof SLOT_LABELS, type: string | null) => {
+    loadout.setConsumableSlot(slot, type);
   };
 
   const handleFight = () => {
@@ -75,7 +89,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           shield: shield ? { id: shield.id, name: shield.name, level: shield.level, rarity: shield.rarity, hp: shield.hp, rechargeRate: shield.rechargeRate, mitigation: shield.mitigation, element: shield.element, affixes: shield.affixes, sourceTag: shield.sourceTag, isLocked: shield.isLocked, pixelSeed: shield.pixelSeed } : null,
           classMod: classMod ? { id: classMod.id, name: classMod.name, level: classMod.level, rarity: classMod.rarity, treeBonus: classMod.treeBonus, nodeBoosts: classMod.nodeBoosts, affixes: classMod.affixes, sourceTag: classMod.sourceTag, isLocked: classMod.isLocked } : null,
           relic: relic ? { id: relic.id, name: relic.name, level: relic.level, rarity: relic.rarity, affixes: relic.affixes, sourceTag: relic.sourceTag, isLocked: relic.isLocked } : null,
-          consumables,
+          consumables: consumablesMap,
           risk,
           boss,
           playerLevel: player.level,
@@ -84,6 +98,14 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         player.credits
       );
       setResult(outcome);
+
+      // Deduct consumed consumables
+      Object.entries(outcome.consumedConsumables).forEach(([type, count]) => {
+        if (count > 0) {
+          player.removeConsumable(type, count);
+        }
+      });
+
       if (outcome.result.victory) {
         player.addCredits(outcome.creditsDelta);
         player.addXP(boss.level * 20);
@@ -105,7 +127,6 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
   const reset = () => {
     setResult(null);
-    setConsumables({});
   };
 
   return (
@@ -177,30 +198,32 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           ))}
         </div>
 
-        {/* Consumable Planner */}
+        {/* Consumable Loadout Slots */}
         {!result && (
           <div className="space-y-2">
-            <div className="text-xs font-bold text-text-muted uppercase">Consumables</div>
-            {Object.values(CONSUMABLES).slice(0, 5).map((c) => (
-              <div key={c.id} className="flex items-center justify-between bg-surface-raised rounded-lg p-2 border border-border">
-                <div className="text-xs text-text-primary">{c.name}</div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => adjustConsumable(c.id, -1)}
-                    className="w-6 h-6 rounded bg-border text-text-primary font-bold text-xs"
+            <div className="text-xs font-bold text-text-muted uppercase">Consumable Loadout</div>
+            {(Object.keys(SLOT_LABELS) as Array<keyof typeof SLOT_LABELS>).map((slot) => {
+              const selected = equippedConsumables[slot];
+              return (
+                <MobileCard key={slot} className="space-y-1">
+                  <div className="text-[10px] text-amber font-bold uppercase">{SLOT_LABELS[slot]}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-text-primary">{selected ? CONSUMABLES[selected]?.name || selected : 'None'}</div>
+                    <div className="text-[10px] text-text-muted">{selected ? `Owned: ${player.getConsumableCount(selected)}` : ''}</div>
+                  </div>
+                  <select
+                    className="w-full text-xs bg-surface border border-border rounded-lg px-2 py-1 text-text-primary"
+                    value={selected || ''}
+                    onChange={(e) => setConsumableForSlot(slot, e.target.value || null)}
                   >
-                    -
-                  </button>
-                  <span className="text-xs font-bold w-4 text-center">{consumables[c.id] || 0}</span>
-                  <button
-                    onClick={() => adjustConsumable(c.id, 1)}
-                    className="w-6 h-6 rounded bg-amber text-bg font-bold text-xs"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
+                    <option value="">-- None --</option>
+                    {Object.values(CONSUMABLES).map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.effect})</option>
+                    ))}
+                  </select>
+                </MobileCard>
+              );
+            })}
           </div>
         )}
 

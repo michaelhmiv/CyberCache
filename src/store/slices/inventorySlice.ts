@@ -7,12 +7,13 @@ import { generateShield } from '../../lib/generators/shieldGenerator';
 import { generateClassMod } from '../../lib/generators/classModGenerator';
 import { generateRelic } from '../../lib/generators/relicGenerator';
 import { generateOrdnance } from '../../lib/generators/ordnanceGenerator';
+import { calculateSalvageYield } from '../../constants/salvageRules';
 
 interface InventoryState {
   items: GearItem[];
   addItem: (item: GearItem) => void;
   removeItem: (id: string) => void;
-  scrapItem: (id: string) => { scrapValue: number };
+  scrapItem: (id: string) => { scrapValue: number; materials: Record<string, number>; essences: Record<string, number> };
   lockItem: (id: string) => void;
   unlockItem: (id: string) => void;
   generateAndAdd: (opts: Parameters<typeof generateWeapon>[0]) => Weapon;
@@ -35,14 +36,15 @@ export const useInventoryStore = create<InventoryState>()(
 
       scrapItem: (id) => {
         const item = get().items.find((i) => i.id === id);
-        if (!item) return { scrapValue: 0 };
+        if (!item) return { scrapValue: 0, materials: {}, essences: {} };
         let scrapValue = 10;
         if ('rarity' in item) {
           const rarityMulti = item.rarity === 'Common' ? 1 : item.rarity === 'Uncommon' ? 1.5 : item.rarity === 'Rare' ? 2.5 : item.rarity === 'Epic' ? 4 : 8;
           scrapValue = Math.round((10 + (item.level || 1) * 5) * rarityMulti * ((item as any).rollQuality ? ((item as any).rollQuality / 100) : 1));
         }
+        const salvage = calculateSalvageYield(item);
         set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
-        return { scrapValue };
+        return { scrapValue, materials: { ScrapAlloy: salvage.scrapAlloy, BallisticParts: salvage.ballisticParts, ReactiveComponents: salvage.reactiveComponents, TechFragments: salvage.techFragments, VoidDust: salvage.voidDust }, essences: salvage.essences };
       },
 
       lockItem: (id) =>

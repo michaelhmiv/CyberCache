@@ -80,8 +80,14 @@ export const FightScreen: React.FC = () => {
     const rarityIndex = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].indexOf(item.rarity);
     const thresholdIndex = ['Common', 'Uncommon', 'Rare', 'Epic'].indexOf(idle.autoSalvageRarity);
     if (rarityIndex <= thresholdIndex && (item.rollQuality || 0) <= idle.autoSalvageQuality) {
-      const { scrapValue } = inventory.scrapItem(item.id);
+      const { scrapValue, materials, essences } = inventory.scrapItem(item.id);
       player.addScrap(scrapValue);
+      Object.entries(materials).forEach(([type, count]) => {
+        if (count > 0) player.addMaterial(type, count);
+      });
+      Object.entries(essences).forEach(([type, count]) => {
+        if (count > 0) player.addEssence(type, count);
+      });
     }
   };
 

@@ -12,9 +12,15 @@ export type LoadoutSlot =
   | 'classMod'
   | 'relic';
 
+export interface LoadoutConsumables {
+  PreFight: string | null;
+  MidFight: string | null;
+  Emergency: string | null;
+}
+
 interface LoadoutState {
-  slots: Record<LoadoutSlot, string | null>; // item IDs
-  consumables: Record<string, number>; // consumableType -> count loaded
+  slots: Record<LoadoutSlot, string | null>;
+  consumables: LoadoutConsumables;
   setSlot: (slot: LoadoutSlot, itemId: string | null) => void;
   getEquipped: (slot: LoadoutSlot) => string | null;
   getWeapon: (slot: 'primary' | 'secondary' | 'heavy') => Weapon | undefined;
@@ -22,8 +28,8 @@ interface LoadoutState {
   getClassMod: () => ClassMod | undefined;
   getRelic: () => Relic | undefined;
   getOrdnance: () => Ordnance | undefined;
-  getEquippedConsumables: () => Record<string, number>;
-  setConsumables: (type: string, count: number) => void;
+  getEquippedConsumables: () => LoadoutConsumables;
+  setConsumableSlot: (slot: keyof LoadoutConsumables, type: string | null) => void;
 }
 
 const getInventoryItem = (id: string | null): GearItem | undefined => {
@@ -58,7 +64,11 @@ export const useLoadoutStore = create<LoadoutState>()(
         classMod: null,
         relic: null,
       },
-      consumables: {},
+      consumables: {
+        PreFight: null,
+        MidFight: null,
+        Emergency: null,
+      },
 
       setSlot: (slot, itemId) =>
         set((s) => ({ slots: { ...s.slots, [slot]: itemId } })),
@@ -93,9 +103,9 @@ export const useLoadoutStore = create<LoadoutState>()(
 
       getEquippedConsumables: () => get().consumables,
 
-      setConsumables: (type, count) =>
+      setConsumableSlot: (slot, type) =>
         set((s) => ({
-          consumables: { ...s.consumables, [type]: count },
+          consumables: { ...s.consumables, [slot]: type },
         })),
     }),
     {

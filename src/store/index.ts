@@ -5,6 +5,7 @@ import { useBossStore } from './slices/bossSlice';
 import { useIdleStore } from './slices/idleSlice';
 import { useMarketStore } from './slices/marketSlice';
 import { useSkillStore } from './slices/skillSlice';
+import { useWorkshopStore } from './slices/workshopSlice';
 
 export {
   usePlayerStore,
@@ -14,4 +15,5 @@ export {
   useIdleStore,
   useMarketStore,
   useSkillStore,
+  useWorkshopStore,
 };

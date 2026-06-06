@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { PlayerProfile } from '../../types/player';
+import { WorkshopQueue } from '../../types/workshop';
 
 export interface PlayerState extends PlayerProfile {
   setPlayer: (partial: Partial<PlayerProfile>) => void;
@@ -15,6 +16,12 @@ export interface PlayerState extends PlayerProfile {
   addConsumable: (type: string, count: number) => void;
   removeConsumable: (type: string, count: number) => void;
   getConsumableCount: (type: string) => number;
+  addMaterial: (type: string, count: number) => void;
+  removeMaterial: (type: string, count: number) => void;
+  addEssence: (type: string, count: number) => void;
+  removeEssence: (type: string, count: number) => void;
+  setWorkshopQueues: (queues: WorkshopQueue[]) => void;
+  setLastWorkshopTick: (timestamp: number) => void;
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -34,6 +41,10 @@ export const usePlayerStore = create<PlayerState>()(
       lastClaimTime: Date.now(),
       deathFeeInsurance: false,
       consumables: {},
+      materials: {},
+      essences: {},
+      workshopQueues: [],
+      lastWorkshopTick: Date.now(),
 
       setPlayer: (partial) => set((state) => ({ ...state, ...partial })),
       addXP: (amount) => {
@@ -73,6 +84,24 @@ export const usePlayerStore = create<PlayerState>()(
         const s = get();
         return s.consumables[type] || 0;
       },
+      addMaterial: (type, count) =>
+        set((s) => ({
+          materials: { ...s.materials, [type]: (s.materials[type] || 0) + count },
+        })),
+      removeMaterial: (type, count) =>
+        set((s) => ({
+          materials: { ...s.materials, [type]: Math.max(0, (s.materials[type] || 0) - count) },
+        })),
+      addEssence: (type, count) =>
+        set((s) => ({
+          essences: { ...s.essences, [type]: (s.essences[type] || 0) + count },
+        })),
+      removeEssence: (type, count) =>
+        set((s) => ({
+          essences: { ...s.essences, [type]: Math.max(0, (s.essences[type] || 0) - count) },
+        })),
+      setWorkshopQueues: (queues) => set({ workshopQueues: queues }),
+      setLastWorkshopTick: (timestamp) => set({ lastWorkshopTick: timestamp }),
     }),
     {
       name: 'cc-player',

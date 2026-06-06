@@ -1,7 +1,7 @@
 import { ConsumableType } from '../types/game';
 
 export interface ConsumableDef {
-  id: ConsumableType;
+  id: string;
   name: string;
   description: string;
   basePrice: number;
@@ -9,7 +9,8 @@ export interface ConsumableDef {
   category: 'survival' | 'offense' | 'utility';
 }
 
-export const CONSUMABLES: Record<ConsumableType, ConsumableDef> = {
+export const CONSUMABLES: Record<string, ConsumableDef> = {
+  // Legacy / vendor-bought consumables (keep for compatibility)
   [ConsumableType.MedKit]: {
     id: ConsumableType.MedKit,
     name: 'Med Kit',
@@ -72,6 +73,135 @@ export const CONSUMABLES: Record<ConsumableType, ConsumableDef> = {
     description: 'Reduces or prevents credit death fee on failure.',
     basePrice: 800,
     effect: '-deathfee',
+    category: 'utility',
+  },
+  // NEW crafted consumables
+  MedKitRefined: {
+    id: 'MedKitRefined',
+    name: 'Med Kit (Refined)',
+    description: 'Enhanced survival restoration. +300 HP survival check.',
+    basePrice: 600,
+    effect: '+survival++',
+    category: 'survival',
+  },
+  NanoSwarm: {
+    id: 'NanoSwarm',
+    name: 'Nano-Swarm',
+    description: 'Repair 250 shield over 10s.',
+    basePrice: 800,
+    effect: '+shield++',
+    category: 'survival',
+  },
+  AdrenalineShot: {
+    id: 'AdrenalineShot',
+    name: 'Adrenaline Shot',
+    description: 'Auto-revive once if survival check would fail.',
+    basePrice: 1200,
+    effect: '+revive',
+    category: 'survival',
+  },
+  ArmorPiercingAmmo: {
+    id: 'ArmorPiercingAmmo',
+    name: 'Armor-Piercing Ammo',
+    description: '+10s full DPS, +25% armor damage.',
+    basePrice: 400,
+    effect: '+dps/+armor',
+    category: 'offense',
+  },
+  IncendiaryAmmo: {
+    id: 'IncendiaryAmmo',
+    name: 'Incendiary Ammo',
+    description: '+10s full DPS, applies burn stacks.',
+    basePrice: 450,
+    effect: '+dps/+burn',
+    category: 'offense',
+  },
+  ShockAmmo: {
+    id: 'ShockAmmo',
+    name: 'Shock Ammo',
+    description: '+10s full DPS, +30% shield break.',
+    basePrice: 450,
+    effect: '+dps/+shield',
+    category: 'offense',
+  },
+  CorrosiveAmmo: {
+    id: 'CorrosiveAmmo',
+    name: 'Corrosive Ammo',
+    description: '+10s full DPS, +25% armor break + anti-heal.',
+    basePrice: 450,
+    effect: '+dps/+corrosive',
+    category: 'offense',
+  },
+  CryoAmmo: {
+    id: 'CryoAmmo',
+    name: 'Cryo Ammo',
+    description: '+10s full DPS, slows boss (-15% DPS).',
+    basePrice: 450,
+    effect: '+dps/+slow',
+    category: 'offense',
+  },
+  VoidAmmo: {
+    id: 'VoidAmmo',
+    name: 'Void Ammo',
+    description: '+10s full DPS, +20% boss damage, -5% self-shield.',
+    basePrice: 700,
+    effect: '+dps/+boss',
+    category: 'offense',
+  },
+  OrdnanceCharge: {
+    id: 'OrdnanceCharge',
+    name: 'Ordnance Charge',
+    description: '+1 grenade use, +shield/armor break.',
+    basePrice: 400,
+    effect: '+break',
+    category: 'offense',
+  },
+  OverchargeStim: {
+    id: 'OverchargeStim',
+    name: 'Overcharge Stim',
+    description: 'Next 3 shots deal +100% damage.',
+    basePrice: 800,
+    effect: '+burst',
+    category: 'offense',
+  },
+  TargetPainter: {
+    id: 'TargetPainter',
+    name: 'Target Painter',
+    description: '+20% crit chance for 8s.',
+    basePrice: 600,
+    effect: '+crit',
+    category: 'offense',
+  },
+  PhaseShiftGrenade: {
+    id: 'PhaseShiftGrenade',
+    name: 'Phase Shift Grenade',
+    description: 'Ignore boss armor for 5s.',
+    basePrice: 1000,
+    effect: '-armor',
+    category: 'offense',
+  },
+  DataSkimmer: {
+    id: 'DataSkimmer',
+    name: 'Data Skimmer',
+    description: 'After victory, 25% chance to dupe one loot drop.',
+    basePrice: 900,
+    effect: '+dupe',
+    category: 'utility',
+  },
+  Jammer: {
+    id: 'Jammer',
+    name: 'Jammer',
+    description: 'Boss cannot enrage or phase for 10s.',
+    basePrice: 750,
+    effect: '-mechanic',
+    category: 'utility',
+  },
+  MagnetizedPayload: {
+    id: 'MagnetizedPayload',
+    name: 'Magnetized Payload',
+    description: 'Ordnance gets +2 free uses.',
+    basePrice: 650,
+    effect: '+ordnance',
     category: 'utility',
   },
 };

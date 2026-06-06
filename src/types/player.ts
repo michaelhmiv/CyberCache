@@ -1,3 +1,5 @@
+import { WorkshopQueue } from './workshop';
+
 export interface PlayerProfile {
   id: string;
   name: string;
@@ -13,4 +15,8 @@ export interface PlayerProfile {
   lastClaimTime: number;
   deathFeeInsurance: boolean;
   consumables: Record<string, number>;
+  materials: Record<string, number>;
+  essences: Record<string, number>;
+  workshopQueues: WorkshopQueue[];
+  lastWorkshopTick: number;
 }

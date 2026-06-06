@@ -59,6 +59,53 @@ export enum ConsumableType {
   InsuranceToken = 'InsuranceToken',
 }
 
+export enum MaterialType {
+  ScrapAlloy = 'ScrapAlloy',
+  BallisticParts = 'BallisticParts',
+  ReactiveComponents = 'ReactiveComponents',
+  TechFragments = 'TechFragments',
+  VoidDust = 'VoidDust',
+}
+
+export enum EssenceType {
+  IgnitionFluid = 'IgnitionFluid',
+  ConduitWire = 'ConduitWire',
+  AcidCompound = 'AcidCompound',
+  CryoGel = 'CryoGel',
+  VoidEssence = 'VoidEssence',
+}
+
+export enum CraftedConsumableType {
+  MedKit = 'MedKit',
+  MedKitRefined = 'MedKitRefined',
+  ShieldCell = 'ShieldCell',
+  NanoSwarm = 'NanoSwarm',
+  AdrenalineShot = 'AdrenalineShot',
+  AmmoPack = 'AmmoPack',
+  ArmorPiercingAmmo = 'ArmorPiercingAmmo',
+  IncendiaryAmmo = 'IncendiaryAmmo',
+  ShockAmmo = 'ShockAmmo',
+  CorrosiveAmmo = 'CorrosiveAmmo',
+  CryoAmmo = 'CryoAmmo',
+  VoidAmmo = 'VoidAmmo',
+  OrdnanceCharge = 'OrdnanceCharge',
+  OverchargeStim = 'OverchargeStim',
+  TargetPainter = 'TargetPainter',
+  PhaseShiftGrenade = 'PhaseShiftGrenade',
+  LuckBooster = 'LuckBooster',
+  BossScanner = 'BossScanner',
+  InsuranceToken = 'InsuranceToken',
+  DataSkimmer = 'DataSkimmer',
+  Jammer = 'Jammer',
+  MagnetizedPayload = 'MagnetizedPayload',
+}
+
+export enum ConsumableSlot {
+  PreFight = 'PreFight',
+  MidFight = 'MidFight',
+  Emergency = 'Emergency',
+}
+
 export enum RiskSetting {
   Conservative = 'Conservative',
   Balanced = 'Balanced',

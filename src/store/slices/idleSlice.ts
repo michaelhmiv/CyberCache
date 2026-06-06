@@ -6,9 +6,11 @@ interface IdleState {
   farmTickCount: number;
   autoSalvageRarity: string;
   autoSalvageQuality: number;
+  autoSalvageToMaterials: boolean;
   setFarming: (v: boolean) => void;
   tick: () => void;
   setAutoSalvage: (rarity: string, quality: number) => void;
+  setAutoSalvageToMaterials: (v: boolean) => void;
 }
 
 export const useIdleStore = create<IdleState>()(
@@ -18,9 +20,11 @@ export const useIdleStore = create<IdleState>()(
       farmTickCount: 0,
       autoSalvageRarity: 'Common',
       autoSalvageQuality: 20,
+      autoSalvageToMaterials: false,
       setFarming: (v) => set({ isFarming: v }),
       tick: () => set((s) => ({ farmTickCount: s.farmTickCount + 1 })),
       setAutoSalvage: (rarity, quality) => set({ autoSalvageRarity: rarity, autoSalvageQuality: quality }),
+      setAutoSalvageToMaterials: (v) => set({ autoSalvageToMaterials: v }),
     }),
     {
       name: 'cc-idle',

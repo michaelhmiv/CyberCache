@@ -11,6 +11,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onNavigate }) => {
     { id: 'chest', label: 'Data Cache', desc: 'Open encrypted caches', icon: Box, color: '#F59E0B' },
     { id: 'skills', label: 'Skill Trees', desc: 'Gunslinger, Demolition, Scavenger', icon: Zap, color: '#EF4444' },
     { id: 'fusion', label: 'Fusion Lab', desc: 'Upgrade cache quality', icon: FlaskConical, color: '#A855F7' },
+    { id: 'workshop', label: 'Workshop', desc: 'Craft consumables and ammo', icon: ShoppingBag, color: '#F97316' },
     { id: 'vendor', label: 'Consumable Vendor', desc: 'Buy grenades, medkits, boosters', icon: ShoppingBag, color: '#22C55E' },
     { id: 'profile', label: 'Profile', desc: 'Stats and achievements', icon: User, color: '#3B82F6' },
     { id: 'settings', label: 'Settings', desc: 'Audio, notifications, data', icon: Settings, color: '#9CA3AF' },

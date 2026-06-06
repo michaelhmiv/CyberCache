@@ -6,6 +6,7 @@ import { Weapon } from '@/types/items';
 import { WeaponCanvas } from '@/components/pixelArt/WeaponCanvas';
 import { WeaponCard } from '@/components/common/WeaponCard';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { CONSUMABLES } from '@/constants/consumables';
 
 const SLOTS = [
   { key: 'primary', label: 'Primary Weapon', desc: 'Main combat weapon' },
@@ -73,6 +74,36 @@ export const LoadoutScreen: React.FC = () => {
                 <div className="text-[10px] text-text-muted">{equippedItem ? equippedItem.name : slot.desc}</div>
               </div>
               <ChevronRight size={16} className="text-text-muted" />
+            </MobileCard>
+          );
+        })}
+      </div>
+
+      {/* Consumable Loadout */}
+      <div className="space-y-2">
+        <div className="text-xs font-bold text-text-muted uppercase">Consumable Loadout</div>
+        {(['PreFight', 'MidFight', 'Emergency'] as const).map((slot) => {
+          const selected = loadout.consumables[slot];
+          return (
+            <MobileCard key={slot} className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-surface-raised border border-dashed border-border flex items-center justify-center">
+                <Plus size={20} className="text-text-muted" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-text-primary">
+                  {slot === 'PreFight' ? 'Pre-Fight' : slot === 'MidFight' ? 'Mid-Fight' : 'Emergency'}
+                </div>
+                <select
+                  className="text-[10px] bg-surface border border-border rounded px-1 py-0.5 text-text-primary w-full"
+                  value={selected || ''}
+                  onChange={(e) => loadout.setConsumableSlot(slot, e.target.value || null)}
+                >
+                  <option value="">-- None --</option>
+                  {Object.values(CONSUMABLES).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
             </MobileCard>
           );
         })}

@@ -14,9 +14,10 @@ import { VendorScreen } from './screens/VendorScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HelpScreen } from './screens/HelpScreen';
+import { WorkshopScreen } from './screens/WorkshopScreen';
 
 type TabId = 'fight' | 'loadout' | 'loot' | 'market' | 'more';
-type SubScreen = 'chest' | 'skills' | 'fusion' | 'vendor' | 'profile' | 'settings' | 'help' | null;
+type SubScreen = 'chest' | 'skills' | 'fusion' | 'vendor' | 'profile' | 'settings' | 'help' | 'workshop' | null;
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>('fight');
@@ -40,6 +41,7 @@ function App() {
       profile: <ProfileScreen />,
       settings: <SettingsScreen />,
       help: <HelpScreen />,
+      workshop: <WorkshopScreen />,
     };
     return (
       <div className="h-screen flex flex-col bg-bg text-text-primary">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useIdleStore } from '../store/slices/idleSlice';
+import { processOfflineCrafting } from '../lib/craftingEngine';
 
 export function useIdleTicker(callback: () => void, intervalMs = 3000) {
   const { isFarming } = useIdleStore();
@@ -11,8 +12,14 @@ export function useIdleTicker(callback: () => void, intervalMs = 3000) {
   }, [isFarming, callback, intervalMs]);
 }
 
-export function useOfflineClaim(lastClaimTime: number, ratePerMinute: number, capHours: number) {
-  const [claimable, setClaimable] = useState({ credits: 0, scrap: 0, seconds: 0 });
+export function useOfflineClaim(
+  lastClaimTime: number,
+  ratePerMinute: number,
+  capHours: number,
+  workshopQueues: any[] = [],
+  lastWorkshopTick: number = Date.now()
+) {
+  const [claimable, setClaimable] = useState({ credits: 0, scrap: 0, seconds: 0, workshopItems: {} as Record<string, number> });
 
   useEffect(() => {
     const now = Date.now();
@@ -20,12 +27,17 @@ export function useOfflineClaim(lastClaimTime: number, ratePerMinute: number, ca
     const capMs = capHours * 60 * 60 * 1000;
     const effectiveMs = Math.min(elapsedMs, capMs);
     const minutes = effectiveMs / 60000;
+
+    // Process workshop offline crafting
+    const { completedItems } = processOfflineCrafting(workshopQueues, lastWorkshopTick, now);
+
     setClaimable({
       credits: Math.floor(minutes * ratePerMinute),
       scrap: Math.floor(minutes * (ratePerMinute * 0.2)),
       seconds: Math.floor(effectiveMs / 1000),
+      workshopItems: completedItems,
     });
-  }, [lastClaimTime, ratePerMinute, capHours]);
+  }, [lastClaimTime, ratePerMinute, capHours, workshopQueues, lastWorkshopTick]);
 
   return claimable;
 }

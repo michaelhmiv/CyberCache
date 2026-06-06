@@ -16,6 +16,10 @@ export interface WeaponTypeDef {
     shieldDamageMod: number;
     armorDamageMod: number;
   };
+  magDurationSeconds: number;
+  reloadSeconds: number;
+  signatureMechanic: string;
+  ammoDrainRate: number;
 }
 
 export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
@@ -35,6 +39,10 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
       shieldDamageMod: 1.0,
       armorDamageMod: 1.0,
     },
+    magDurationSeconds: 15,
+    reloadSeconds: 1.0,
+    signatureMechanic: 'sidearm_recovery',
+    ammoDrainRate: 1.0,
   },
   [WeaponType.SMG]: {
     id: WeaponType.SMG,
@@ -52,6 +60,10 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
       shieldDamageMod: 1.05,
       armorDamageMod: 0.9,
     },
+    magDurationSeconds: 10,
+    reloadSeconds: 2.0,
+    signatureMechanic: 'overheat',
+    ammoDrainRate: 1.0,
   },
   [WeaponType.Shotgun]: {
     id: WeaponType.Shotgun,
@@ -69,6 +81,10 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
       shieldDamageMod: 0.95,
       armorDamageMod: 1.05,
     },
+    magDurationSeconds: 6,
+    reloadSeconds: 2.5,
+    signatureMechanic: 'multi_proc',
+    ammoDrainRate: 1.0,
   },
   [WeaponType.Sniper]: {
     id: WeaponType.Sniper,
@@ -86,6 +102,10 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
       shieldDamageMod: 1.0,
       armorDamageMod: 1.1,
     },
+    magDurationSeconds: 5,
+    reloadSeconds: 3.0,
+    signatureMechanic: 'precision_window',
+    ammoDrainRate: 0.8,
   },
   [WeaponType.Launcher]: {
     id: WeaponType.Launcher,
@@ -103,6 +123,10 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
       shieldDamageMod: 0.85,
       armorDamageMod: 1.3,
     },
+    magDurationSeconds: 2,
+    reloadSeconds: 4.0,
+    signatureMechanic: 'reload_lock_stagger',
+    ammoDrainRate: 2.0,
   },
   [WeaponType.Beam]: {
     id: WeaponType.Beam,
@@ -120,5 +144,9 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
       shieldDamageMod: 1.15,
       armorDamageMod: 1.15,
     },
+    magDurationSeconds: 12,
+    reloadSeconds: 3.0,
+    signatureMechanic: 'ramp_sustain',
+    ammoDrainRate: 0.9,
   },
 };
