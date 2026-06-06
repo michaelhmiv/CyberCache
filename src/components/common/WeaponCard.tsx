@@ -21,8 +21,12 @@ export const WeaponCard: React.FC<WeaponCardProps> = ({ weapon, onClick, showDet
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="relative rounded-xl p-3 bg-surface border border-border overflow-hidden flex items-center gap-3 cursor-pointer"
-      style={{ borderLeftColor: rarityColor, borderLeftWidth: 4 }}
+      className="relative rounded-xl p-3 bg-surface border-2 border-border overflow-hidden flex items-center gap-3 cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+      style={{
+        borderLeftColor: rarityColor,
+        borderLeftWidth: 5,
+        boxShadow: weapon.rarity === 'Legendary' || weapon.rarity === 'Epic' ? `0 0 14px ${rarityColor}44, 0 4px 12px rgba(0,0,0,0.5)` : undefined,
+      }}
     >
       <div className="shrink-0">
         <WeaponCanvas
@@ -35,18 +39,19 @@ export const WeaponCard: React.FC<WeaponCardProps> = ({ weapon, onClick, showDet
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-xs font-bold truncate" style={{ color: rarityColor }}>
+          <span className="text-sm font-black truncate" style={{ color: rarityColor }}>
             {weapon.name}
           </span>
           <RollQualityBadge quality={weapon.rollQuality} />
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-text-secondary mb-1">
+        <div className="flex items-center gap-2 text-[10px] text-text-secondary mb-1 uppercase">
           <span>Lv.{weapon.level}</span>
+          <span style={{ color: rarityColor }} className="font-bold">{weapon.rarity}</span>
           <span>{weapon.weaponType}</span>
           <ElementIcon element={weapon.element} />
         </div>
         {showDetails && (
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted font-mono">
             <span>Dmg {weapon.baseDamage}</span>
             <span>Spd {weapon.attackSpeed.toFixed(2)}</span>
             <span>Crit {(weapon.critChance * 100).toFixed(1)}%</span>

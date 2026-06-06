@@ -1,44 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Chakra+Petch:wght@400;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0B0D10;
-  --color-surface: #161920;
-  --color-surface-raised: #1E232B;
-  --color-border: #2A2F3A;
-  --color-border-light: #3E4552;
+  --color-bg: #050608;
+  --color-surface: #151821;
+  --color-surface-raised: #1A1E28;
+  --color-border: #000000;
+  --color-border-light: #2B3040;
 
-  --color-amber: #F59E0B;
-  --color-amber-glow: #FBBF24;
-  --color-red: #EF4444;
-  --color-green: #22C55E;
+  --color-amber: #FF9000;
+  --color-amber-glow: #FFEA3A;
+  --color-red: #FF4B5C;
+  --color-green: #7CFC00;
   --color-blue: #3B82F6;
   --color-purple: #A855F7;
-  --color-cyan: #06B6D4;
+  --color-cyan: #F7D20B;
   --color-void: #8B5CF6;
 
-  --color-text-primary: #F3F4F6;
-  --color-text-secondary: #9CA3AF;
-  --color-text-muted: #6B7280;
+  --color-text-primary: #F5F5F5;
+  --color-text-secondary: #A5A7B5;
+  --color-text-muted: #6F7280;
 
-  --color-rarity-common: #9CA3AF;
-  --color-rarity-uncommon: #22C55E;
-  --color-rarity-rare: #3B82F6;
-  --color-rarity-epic: #A855F7;
-  --color-rarity-legendary: #F59E0B;
+  --color-rarity-common: #A5A7B5;
+  --color-rarity-uncommon: #7CFC00;
+  --color-rarity-rare: #5AA7FF;
+  --color-rarity-epic: #FF9DF5;
+  --color-rarity-legendary: #FFEA3A;
 
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'Fira Code', ui-monospace, monospace;
+  --font-sans: 'Chakra Petch', system-ui, sans-serif;
+  --font-mono: Consolas, 'SF Mono', ui-monospace, monospace;
 }
 
 html {
-  background: #0B0D10;
+  background: #050608;
   height: 100dvh;
   overflow: hidden;
 }
 
 body, #root {
-  background: #0B0D10;
-  color: #F3F4F6;
+  background: #050608;
+  color: #F5F5F5;
   height: 100%;
   overflow: hidden;
 }
@@ -48,29 +49,72 @@ body, #root {
   flex-direction: column;
   max-width: 480px;
   margin: 0 auto;
-  border-inline: 1px solid #2A2F3A;
-  background: #0B0D10;
+  border-inline: 2px solid #000000;
+  background:
+    radial-gradient(circle at 50% 0%, #202331 0, #050608 55%, #000000 100%);
 }
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Chakra Petch', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+.bl-page {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(32, 35, 49, 0.95) 0, rgba(5, 6, 8, 0.98) 55%, #000000 100%);
+}
+
+.bl-title {
+  font-family: 'Bebas Neue', 'Chakra Petch', system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bl-label {
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.bl-card {
+  background: rgba(255, 162, 0, 0.05);
+  border: 2px solid #000000;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.bl-well {
+  background: #0F1217;
+  border: 1px solid #000000;
+  border-radius: 12px;
+}
+
+.bl-primary {
+  background: #FF9000;
+  color: #000000;
+  border: 2px solid #000000;
+  box-shadow: 0 0 15px rgba(255, 144, 0, 0.3);
+}
+
+.bl-secondary {
+  background: #202331;
+  color: #F5F5F5;
+  border: 2px solid #000000;
 }
 
 .pixelated {
   image-rendering: pixelated;
 }
 
-/* Rarity glow animations */
 @keyframes legendaryPulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
-  50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.7); }
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 234, 58, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(255, 234, 58, 0.7); }
 }
 
 @keyframes epicPulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(168, 85, 247, 0.3); }
-  50% { box-shadow: 0 0 12px rgba(168, 85, 247, 0.6); }
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 157, 245, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(255, 157, 245, 0.6); }
 }
 
 .rarity-legendary-glow {
@@ -81,14 +125,13 @@ body {
   animation: epicPulse 2.5s ease-in-out infinite;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #161920;
+  background: #101218;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2A2F3A;
+  background: #2B3040;
   border-radius: 4px;
 }

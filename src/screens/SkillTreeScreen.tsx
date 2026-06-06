@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { RotateCcw, Lock } from 'lucide-react';
-import { SKILL_NODES, getSkillTreeNodes, MAX_SKILL_POINTS } from '@/constants/skillTrees';
+import { getSkillTreeNodes } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import { usePlayerStore, useSkillStore } from '@/store';
 
 const TREES = [
-  { id: SkillTreeType.Gunslinger, label: 'Gunslinger', color: '#EF4444', desc: 'Weapon damage, crits, speed' },
-  { id: SkillTreeType.Demolition, label: 'Demolition', color: '#F59E0B', desc: 'Explosives, armor break' },
-  { id: SkillTreeType.Scavenger, label: 'Scavenger', color: '#22C55E', desc: 'Idle, loot, economy' },
+  { id: SkillTreeType.Gunslinger, label: 'Gunslinger', color: '#FF4B5C', desc: 'Weapon damage, crits, speed' },
+  { id: SkillTreeType.Demolition, label: 'Demolition', color: '#FF9000', desc: 'Explosives, armor break' },
+  { id: SkillTreeType.Scavenger, label: 'Scavenger', color: '#7CFC00', desc: 'Idle, loot, economy' },
 ];
 
 export const SkillTreeScreen: React.FC = () => {
@@ -20,6 +20,7 @@ export const SkillTreeScreen: React.FC = () => {
   const pointsEarned = Math.max(0, player.level - 1); // Start earning at level 2
   const pointsAvailable = Math.max(0, pointsEarned - pointsSpent);
   const nodes = getSkillTreeNodes(activeTree);
+  const activeTreeDef = TREES.find((tree) => tree.id === activeTree) || TREES[0];
 
   const canSpend = (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
@@ -47,10 +48,10 @@ export const SkillTreeScreen: React.FC = () => {
   };
 
   return (
-    <div className="p-4 space-y-4 pb-20">
+    <div className="bl-page p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between">
-        <div className="text-lg font-black text-text-primary">Skill Trees</div>
-        <button onClick={respec} className="flex items-center gap-1 text-xs text-amber bg-amber/10 px-2 py-1 rounded border border-amber/30">
+        <div className="bl-title text-3xl leading-none text-text-primary">Skill Trees</div>
+        <button onClick={respec} className="flex items-center gap-1 text-xs text-amber bg-amber/10 px-2 py-1 rounded-xl border border-amber/30">
           <RotateCcw size={12} />
           Respec ({pointsSpent * 100}cr)
         </button>
@@ -66,9 +67,10 @@ export const SkillTreeScreen: React.FC = () => {
           <button
             key={t.id}
             onClick={() => setActiveTree(t.id)}
-            className={`p-2 rounded-xl border text-left transition-colors ${
-              activeTree === t.id ? 'border-amber bg-amber/10' : 'border-border bg-surface-raised'
+            className={`p-2 rounded-xl border-2 text-left transition-colors ${
+              activeTree === t.id ? 'border-amber bg-amber/10 shadow-[0_0_14px_rgba(255,144,0,0.35)]' : 'border-border bg-surface-raised'
             }`}
+            style={{ borderLeftColor: t.color, borderLeftWidth: 5 }}
           >
             <div className="text-xs font-bold" style={{ color: t.color }}>{t.label}</div>
             <div className="text-[9px] text-text-muted mt-0.5">{t.desc}</div>
@@ -90,14 +92,15 @@ export const SkillTreeScreen: React.FC = () => {
               key={node.id}
               whileTap={isAvailable ? { scale: 0.98 } : {}}
               onClick={() => spendPoint(node.id)}
-              className={`rounded-xl p-3 border cursor-pointer transition-colors ${
-                isMaxed ? 'border-green/40 bg-green/5' : isAvailable ? 'border-amber/40 bg-amber/5' : 'border-border bg-surface-raised opacity-60'
+              className={`rounded-xl p-3 border-2 cursor-pointer transition-colors shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${
+                isMaxed ? 'border-green/40 bg-green/5' : isAvailable ? 'border-amber bg-amber/5' : 'border-border bg-surface opacity-60'
               }`}
+              style={{ borderLeftColor: isMaxed ? '#7CFC00' : activeTreeDef.color, borderLeftWidth: 5 }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {isKeystone && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber text-bg font-bold">KEYSTONE</span>}
-                  {isMajor && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple/20 text-purple font-bold">MAJOR</span>}
+                  {isKeystone && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber text-bg font-bold">KEYSTONE</span>}
+                  {isMajor && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple/20 text-purple font-bold">MAJOR</span>}
                   <div className="text-xs font-bold text-text-primary">{node.name}</div>
                 </div>
                 <div className="flex items-center gap-1">

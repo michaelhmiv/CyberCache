@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hammer, Clock, AlertCircle, ChevronDown } from 'lucide-react';
+import { Clock, ChevronDown } from 'lucide-react';
 import { usePlayerStore, useWorkshopStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
@@ -19,8 +19,8 @@ function findAvailableBench(activeQueues: WorkshopQueue[], unlockedCount: number
 }
 
 /** Format ms as human-readable time remaining */
-function formatTimeRemaining(startedAt: number, durationMs: number, count: number): string {
-  const elapsed = Date.now() - startedAt;
+function formatTimeRemaining(now: number, startedAt: number, durationMs: number): string {
+  const elapsed = now - startedAt;
   const currentCycle = elapsed % durationMs;
   const remaining = durationMs - currentCycle;
   if (remaining <= 0) return 'Done';
@@ -64,6 +64,12 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const [expandedMaterials, setExpandedMaterials] = useState(false);
   const [justCrafted, setJustCrafted] = useState<string | null>(null);
   const [expandedQueue, setExpandedQueue] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const filteredRecipes = useMemo(
     () =>
@@ -179,10 +185,10 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const nextAvailableBench = findAvailableBench(workshop.activeQueues, workshop.unlockedBenchCount);
 
   return (
-    <div className="p-4 space-y-4 pb-20">
+    <div className="bl-page p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between">
-        <div className="text-lg font-black text-text-primary">Workshop</div>
-        <div className="flex items-center gap-1.5 text-[10px] text-text-muted bg-surface-raised rounded-full px-2.5 py-1">
+        <div className="bl-title text-3xl leading-none text-text-primary">Workshop</div>
+        <div className="flex items-center gap-1.5 text-[10px] text-text-muted bg-surface-raised border-2 border-border rounded-full px-2.5 py-1">
           {Array.from({ length: workshop.unlockedBenchCount }, (_, i) => (
             <span
               key={i}
@@ -256,10 +262,10 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
             <div className="text-xs font-bold text-text-muted uppercase">Active Benches</div>
             {workshop.activeQueues.map((q) => {
               const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId);
-              const elapsed = Date.now() - q.startedAt;
+              const elapsed = now - q.startedAt;
               const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs));
               const pct = Math.min(100, (elapsed % q.durationMs) / q.durationMs * 100);
-              const timeLeft = formatTimeRemaining(q.startedAt, q.durationMs, q.count);
+              const timeLeft = formatTimeRemaining(now, q.startedAt, q.durationMs);
               const hasReady = completed > q.claimedCount;
               const isExpanded = expandedQueue === q.id;
 
@@ -360,10 +366,10 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
             key={cat}
             whileTap={{ scale: 0.95 }}
             onClick={() => setSelectedCategory(cat)}
-            className={`py-2 rounded-lg text-[10px] font-bold border transition-colors ${
+            className={`py-2 rounded-xl text-[10px] font-bold transition-colors ${
               selectedCategory === cat
-                ? 'bg-amber text-bg border-amber'
-                : 'bg-surface-raised text-text-secondary border-border hover:bg-surface hover:text-text-primary'
+                ? 'bl-primary'
+                : 'bl-secondary text-text-secondary hover:bg-surface hover:text-text-primary'
             }`}
           >
             {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -377,7 +383,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           <div className="text-center py-8 text-text-muted text-xs">No recipes in this category.</div>
         ) : (
           filteredRecipes.map((recipe) => {
-            const { can, missing } = canStartCraft(
+            const { can } = canStartCraft(
               recipe.id,
               player.materials,
               player.essences,
