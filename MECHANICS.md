@@ -133,6 +133,36 @@
 
 ---
 
+## 4.1 Roaming Areas
+
+Roaming areas are normal AFK combat zones for the Fight screen's background loop. They are separate from boss fights, which remain intentional encounters selected and prepared through the boss flow.
+
+Each roaming area is a place first, shaped by a dominant manufacturer philosophy:
+
+| Area | Manufacturer Influence | Combat Identity | Loot / Material Focus |
+|---|---|---|---|
+| Dustwaste Frontier | Mixed | Starter roaming, balanced salvage, cache fragments | Balanced gear, ScrapAlloy, BallisticParts |
+| Redline Circuit | Redline | High density, speed farming, sustained DPS | SMGs, pistols, attack speed, ScrapAlloy, BallisticParts |
+| Ironwood Bastion | Ironwood | Fewer tougher elites, precision, better quality lean | Snipers, pistols, crit, BallisticParts, TechFragments |
+| BlastForge Yards | BlastForge | Armor break, explosives, stagger pressure | Launchers, shotguns, ReactiveComponents, fire/corrosive flavor |
+| Prismatek Reactor | Prismatek | Elements, status, weakness matching | Beams, elemental drops, elemental essences, TechFragments |
+| ThrowTech Dumpnet | ThrowTech | Gadgets, deployables, drones, utility tech | Ordnance, utility gear, TechFragments, ReactiveComponents |
+| HelixWorks Labyrinth | HelixWorks | Modular gear, roll quality flavor, crafting depth | HelixWorks gear, relics, TechFragments, VoidDust |
+
+Current implementation:
+- The selected roaming area persists in idle state and changes Fight screen presentation.
+- Area choice influences displayed rates, enemy flavor, rarity weights, weapon manufacturer/type/element bias, gear-kind mix, and a small material/essence trickle.
+- Existing stage zone data remains available, but player-facing roaming identity now comes from areas.
+
+Deferred for later PRs:
+- Full manufacturer reputation.
+- Area-specific bosses or boss gating.
+- Consumables V2.
+- Deep material balance pass.
+- Endgame region systems, dynamic events, or multiplayer/backend features.
+
+---
+
 ## 5. Element Matchups
 
 | Element | Strong vs (1.3×) | Weak vs (0.7×) |
