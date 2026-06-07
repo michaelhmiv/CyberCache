@@ -1,5 +1,37 @@
 import { Element } from './game';
 
+export type BossTag =
+  | 'tutorial'
+  | 'simple'
+  | 'shield'
+  | 'armor'
+  | 'enrage'
+  | 'phase'
+  | 'repair'
+  | 'regen'
+  | 'burn'
+  | 'swarm'
+  | 'elite'
+  | 'mechanical'
+  | 'organic'
+  | 'multiPhase'
+  | 'attrition'
+  | 'burstCheck'
+  | 'evasive'
+  | 'siege';
+
+export type BossEventType =
+  | 'fightStart'
+  | 'shieldPhase'
+  | 'shieldBreak'
+  | 'armorPhase'
+  | 'armorBreak'
+  | 'bossMechanic'
+  | 'emergency'
+  | 'victory'
+  | 'defeat'
+  | 'lootRoll';
+
 export interface BossMechanic {
   id: string;
   name: string;
@@ -7,6 +39,39 @@ export interface BossMechanic {
   checkType: 'survival' | 'shieldBreak' | 'armorBreak' | 'dps' | 'mechanic';
   requiredLoadoutTrait?: string;
   threshold?: number;
+}
+
+export interface BossPhase {
+  id: string;
+  name: string;
+  description: string;
+  type: 'survival' | 'shieldBreak' | 'armorBreak' | 'dps' | 'mechanic';
+  targetValue: number;
+  recommendedCounters: string[];
+  failureReason: string;
+  successReason: string;
+  eventTrigger: BossEventType;
+}
+
+export interface PhaseAnalysis {
+  phaseId: string;
+  phaseName: string;
+  score: number;
+  status: 'safe' | 'close' | 'risky' | 'failing';
+  currentAnswers: string[];
+  missingCounters: string[];
+  relevantConsumables: string[];
+  explanation: string;
+}
+
+export interface BossPrepAnalysis {
+  projectedWinChance: number;
+  projectedFailurePhase?: PhaseAnalysis;
+  phaseAnalyses: PhaseAnalysis[];
+  equippedAnswers: string[];
+  missingCounters: string[];
+  consumablesAtRisk: string[];
+  riskSummary: string;
 }
 
 export interface BossDef {
@@ -21,6 +86,8 @@ export interface BossDef {
   weaknesses: Element[];
   resistances: Element[];
   mechanic: BossMechanic;
+  tags: BossTag[];
+  phases: BossPhase[];
   recommendedPower: number;
   entryCost: number;
   rematchCost: number;

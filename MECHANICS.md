@@ -317,6 +317,16 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 - **Victory**: Pre-Fight + Mid-Fight consumed (Emergency only if triggered)
 - **Defeat**: ALL loaded consumables consumed
 
+### Boss Prep V2 / Event-Ready Analysis
+- Boss fights are intentional prep encounters and remain separate from roaming combat.
+- Boss definitions now include tags and phase metadata for mechanics such as shield regen, armor repair, enrage, phase/control, burn attrition, and multi-phase siege.
+- Boss Prep analyzes each modeled phase against the existing survival, shield break, armor break, DPS, and mechanic score model.
+- Phase status is shown as `safe`, `close`, `risky`, or `failing`.
+- Prep now surfaces projected failure phase, current answers, missing counters, consumables at risk, and a plain-language risk profile.
+- Consumables V2 counter tags feed the analysis. Shock Ammo answers shield phases, Corrosive/Armor-Piercing answers armor and repair, Jammer answers enrage/phase/repair, Target Painter answers DPS races, emergency sustain answers survival, Insurance Token reduces defeat-cost risk, and Boss Scanner improves intel.
+- This is lightweight and event-ready, not a full final scripting engine. Event trigger labels such as `fightStart`, `shieldPhase`, `armorPhase`, `bossMechanic`, `emergency`, `victory`, `defeat`, and `lootRoll` are mapped onto the current score model.
+- Deeper weapon part behavior, deterministic boss balance snapshots, and full event hooks are future PR 5+ validation/balance work.
+
 ---
 
 ## 11. Economy
