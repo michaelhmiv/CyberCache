@@ -1,8 +1,9 @@
 import { BossDef, BossAttemptResult } from '../../types/boss';
 import { Weapon, Shield, Ordnance, ClassMod, Relic } from '../../types/items';
-import { RiskSetting, Element } from '../../types/game';
+import { RiskSetting } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
-import { applyLegendaryEffects, hasBadDecision, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
+import { CONSUMABLES, ConsumableDef } from '../../constants/consumables';
+import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 
 export interface BossSimulationInput {
   primary: Weapon | null;
@@ -31,7 +32,23 @@ export interface BossSimulationOutput {
   recommendations: string[];
   expectedConsumableUsage: Record<string, number>;
   deathFee: number;
+  bonusLootChance: number;
+  extraLootRollChance: number;
 }
+
+interface RuleTotals {
+  deathFeeReduction: number;
+  bonusLootChance: number;
+  extraLootRollChance: number;
+  recommendationIntel: number;
+}
+
+type BossSimWeapon = Weapon & {
+  magDurationSeconds?: number;
+  ammoDrainRate?: number;
+  reloadSeconds?: number;
+  signatureMechanic?: string;
+};
 
 function getRiskModifiers(risk: RiskSetting) {
   switch (risk) {
@@ -46,6 +63,46 @@ function getRiskModifiers(risk: RiskSetting) {
   }
 }
 
+function selectedConsumableDefs(consumables: Record<string, number>): ConsumableDef[] {
+  return Object.entries(consumables).flatMap(([id, count]) => {
+    const def = CONSUMABLES[id];
+    if (!def || count <= 0) return [];
+    return Array.from({ length: count }, () => def);
+  });
+}
+
+function getRuleTotals(defs: ConsumableDef[]): RuleTotals {
+  return defs.reduce<RuleTotals>(
+    (totals, def) => ({
+      deathFeeReduction: Math.min(0.95, totals.deathFeeReduction + (def.effectRules.deathFeeReduction || 0)),
+      bonusLootChance: Math.min(1, totals.bonusLootChance + (def.effectRules.bonusLootChance || 0)),
+      extraLootRollChance: Math.min(1, totals.extraLootRollChance + (def.effectRules.extraLootRollChance || 0)),
+      recommendationIntel: totals.recommendationIntel + (def.effectRules.recommendationIntel || 0),
+    }),
+    { deathFeeReduction: 0, bonusLootChance: 0, extraLootRollChance: 0, recommendationIntel: 0 }
+  );
+}
+
+function getExpectedUsage(consumables: Record<string, number>, win: boolean, survivalScore: number): Record<string, number> {
+  const used: Record<string, number> = {};
+
+  Object.entries(consumables).forEach(([type, count]) => {
+    const def = CONSUMABLES[type];
+    if (!def || count <= 0) return;
+
+    const shouldUse =
+      def.consumePolicy === 'onAttempt' ||
+      (def.consumePolicy === 'onVictory' && win) ||
+      (def.consumePolicy === 'onDefeat' && !win) ||
+      def.consumePolicy === 'onTrigger' ||
+      (def.consumePolicy === 'ifUsed' && (!win || survivalScore < 1));
+
+    if (shouldUse) used[type] = count;
+  });
+
+  return used;
+}
+
 function calculateAmmoWindows(
   weapon: Weapon | null,
   ammoPacksLoaded: number,
@@ -53,7 +110,7 @@ function calculateAmmoWindows(
 ): { fullDuration: number; reloadDuration: number; ammoPacksUsed: number } {
   if (!weapon) return { fullDuration: 0, reloadDuration: 0, ammoPacksUsed: 0 };
 
-  const typeDef = weapon as any;
+  const typeDef = weapon as BossSimWeapon;
   const magDuration = (typeDef.magDurationSeconds || 10) / (typeDef.ammoDrainRate || 1);
   const reloadTime = typeDef.reloadSeconds || 2;
 
@@ -93,7 +150,7 @@ function applySignatureMechanic(
 ): { dpsMult: number; statusMult: number; armorBreakMult: number; staggerAttempts: number } {
   if (!weapon) return { dpsMult: 1, statusMult: 1, armorBreakMult: 1, staggerAttempts: 0 };
 
-  const mechanic = (weapon as any).signatureMechanic || '';
+  const mechanic = (weapon as BossSimWeapon).signatureMechanic || '';
 
   switch (mechanic) {
     case 'sidearm_recovery':
@@ -146,18 +203,18 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const recommendations: string[] = [];
 
   const rm = getRiskModifiers(risk);
+  const selectedDefs = selectedConsumableDefs(consumables);
+  const rules = getRuleTotals(selectedDefs);
 
   // Legendary effect modifiers (expanded: now returns scrap/credit/extraLoot/refund too)
   const legendary = applyLegendaryEffects(primary, pityCount);
 
   // 1. Survival Check
-  let playerHP = 500 + playerLevel * 40;
-  let playerShieldHP = (shield?.hp || 0) + 200 + playerLevel * 20;
-  let mitigation = shield?.mitigation || 0.1;
+  const playerHP = 500 + playerLevel * 40;
+  const playerShieldHP = (shield?.hp || 0) + 200 + playerLevel * 20;
 
   const medkits = consumables['MedKit'] || 0;
   const shieldCells = consumables['ShieldCell'] || 0;
-  const insurance = consumables['InsuranceToken'] || 0;
   const nanoSwarms = consumables['NanoSwarm'] || 0;
   const adrenaline = consumables['AdrenalineShot'] || 0;
 
@@ -330,25 +387,28 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     mechanicScore = 1;
   }
 
+  if (rules.recommendationIntel > 0) {
+    const weakest = [
+      { label: 'survival', score: survivalScore },
+      { label: 'break', score: breakScore },
+      { label: 'DPS', score: dpsScore },
+      { label: 'mechanic', score: mechanicScore },
+    ].sort((a, b) => a.score - b.score)[0];
+    recommendations.unshift(`Boss Scanner readout: ${weakest.label} is the weakest projected check.`);
+  }
+
   // 5. Pity system: +3% win chance per failed attempt, capped at +30%
   const pityBonus = Math.min(0.30, pityCount * 0.03);
   
   // 6. Chaos / RNG — only applied during actual combat, not preview
   const baseChance = Math.min(survivalScore, 1) * Math.min(breakScore, 1) * Math.min(dpsScore, 1.5) * mechanicScore + pityBonus;
-  let winChance = Math.max(0.02, Math.min(0.98, baseChance));
+  const winChance = Math.max(0.02, Math.min(0.98, baseChance));
 
   // In actual combat (called from executeBossAttempt), chaos roll is applied there
 
-  // Luck booster doesn't affect win chance but affects loot
-  const luckBoosters = consumables['LuckBooster'] || 0;
-
   // Death fee (computed here for preview display)
   let deathFeePercent = boss.tier <= 1 ? 0.03 : boss.tier <= 2 ? 0.05 : boss.tier <= 3 ? 0.07 : 0.10;
-  
-  // InsuranceToken reduces death fee by 50%
-  if (consumables['InsuranceToken'] > 0) {
-    deathFeePercent *= 0.5;
-  }
+  deathFeePercent *= 1 - rules.deathFeeReduction;
   
   const deathFeeCap = boss.tier <= 1 ? 2500 : boss.tier <= 2 ? 10000 : boss.tier <= 3 ? 25000 : 50000;
   const deathFee = Math.min(Math.round(playerCredits * deathFeePercent), deathFeeCap);
@@ -361,33 +421,32 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     mechanicScore,
     reasons,
     recommendations,
-    expectedConsumableUsage: {},
+    expectedConsumableUsage: getExpectedUsage(consumables, winChance >= 0.5, survivalScore),
     deathFee,
+    bonusLootChance: rules.bonusLootChance,
+    extraLootRollChance: rules.extraLootRollChance,
   };
 }
 
 export function executeBossAttempt(
   input: BossSimulationInput,
   playerCredits: number
-): { result: BossAttemptResult; creditsDelta: number; loot: Weapon[]; consumedConsumables: Record<string, number>; extraLoot: boolean } {
+): { result: BossAttemptResult; creditsDelta: number; loot: Weapon[]; consumedConsumables: Record<string, number>; extraLoot: boolean; bonusLootRolls: number } {
   const sim = simulateBoss(input);
+  const selectedDefs = selectedConsumableDefs(input.consumables);
+  const rules = getRuleTotals(selectedDefs);
+  const legendary = applyLegendaryEffects(input.primary, input.pityCount || 0);
   // Apply chaos/RNG in actual combat (not in preview)
   const chaosRoll = (Math.random() - 0.5) * 0.1 + (input.risk === 'Conservative' ? -0.02 : input.risk === 'Greedy' ? 0.02 : input.risk === 'AllIn' ? 0.04 : 0);
   const adjustedChance = Math.max(0.02, Math.min(0.98, sim.winChance + chaosRoll));
   const win = Math.random() < adjustedChance;
 
-  // LuckBooster: 25% chance for extra loot drop
-  const extraLoot = win && (input.consumables['LuckBooster'] || 0) > 0 && Math.random() < 0.25;
-
-  // DataSkimmer: 25% chance to duplicate loot
-  const dupeLoot = win && (input.consumables['DataSkimmer'] || 0) > 0 && Math.random() < 0.25;
+  const bonusLootRolls = win
+    ? (Math.random() < rules.bonusLootChance ? 1 : 0) + (Math.random() < rules.extraLootRollChance ? 1 : 0)
+    : 0;
 
   let deathFeePercent = input.boss.tier <= 1 ? 0.03 : input.boss.tier <= 2 ? 0.05 : input.boss.tier <= 3 ? 0.07 : 0.10;
-  
-  // InsuranceToken reduces death fee by 50%
-  if ((input.consumables['InsuranceToken'] || 0) > 0) {
-    deathFeePercent *= 0.5;
-  }
+  deathFeePercent *= 1 - rules.deathFeeReduction;
   
   const deathFeeCap = input.boss.tier <= 1 ? 2500 : input.boss.tier <= 2 ? 10000 : input.boss.tier <= 3 ? 25000 : 50000;
   const deathFee = win ? 0 : Math.min(Math.round(playerCredits * deathFeePercent), deathFeeCap);
@@ -405,28 +464,12 @@ export function executeBossAttempt(
     bossHpRemaining = Math.round((1 - Math.random() * 0.6) * 100);
   }
 
-  // Consumables actually consumed
-  const consumedConsumables: Record<string, number> = {};
+  const consumedConsumables = getExpectedUsage(input.consumables, win, sim.survivalScore);
   const insuranceRefundChance = getInsuranceFraudRefundChance(input.primary);
-
-  if (!win) {
-    // On defeat, all loaded consumables are consumed
-    Object.entries(input.consumables).forEach(([type, count]) => {
-      if (count > 0) consumedConsumables[type] = count;
-    });
-    // Insurance Fraud: 50% chance to refund each consumed consumable
-    if (insuranceRefundChance > 0) {
-      Object.keys(consumedConsumables).forEach((type) => {
-        if (Math.random() < insuranceRefundChance) {
-          delete consumedConsumables[type];
-        }
-      });
-    }
-  } else {
-    // On victory: pre-fight and mid-fight are consumed, emergency only if used
-    Object.entries(input.consumables).forEach(([type, count]) => {
-      if (count > 0 && type !== 'AdrenalineShot' && type !== 'NanoSwarm' && type !== 'MedKit' && type !== 'MedKitRefined') {
-        consumedConsumables[type] = count;
+  if (insuranceRefundChance > 0) {
+    Object.keys(consumedConsumables).forEach((type) => {
+      if (Math.random() < insuranceRefundChance) {
+        delete consumedConsumables[type];
       }
     });
   }
@@ -448,5 +491,5 @@ export function executeBossAttempt(
     recommendations: sim.recommendations,
   };
 
-  return { result, creditsDelta: finalCredits, loot: [], consumedConsumables, extraLoot: extraLoot || dupeLoot };
+  return { result, creditsDelta: finalCredits, loot: [], consumedConsumables, extraLoot: bonusLootRolls > 0, bonusLootRolls };
 }

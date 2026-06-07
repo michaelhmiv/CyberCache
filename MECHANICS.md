@@ -93,6 +93,40 @@
 | `Jammer` | Cancels boss enrage/phase mechanic | Mid-Fight |
 | `MagnetizedPayload` | +2 free ordnance uses | Pre-Fight |
 
+### Consumables V2 Tactical Model
+
+Consumables are tactical boss-prep tools, not generic stat buttons. Roaming combat does not auto-consume boss consumables; the player deliberately equips them for intentional boss attempts.
+
+Each consumable definition includes:
+
+- Slot eligibility: `PreFight`, `MidFight`, and/or `Emergency`
+- Family: `survival`, `ammo`, `ordnance`, `tactical`, `economy`, or `corrupted`
+- Trigger: fight start, shield phase, armor phase, boss mechanic, survival failure, victory, defeat, loot roll, or manual/current-sim abstraction
+- Consume policy: `onAttempt`, `onTrigger`, `onVictory`, `onDefeat`, or `ifUsed`
+- Counter tags: shield, armor, enrage, phase, repair, burn, burst, elite, loot, deathFee
+- Effect and drawback rules consumed by the current score-based boss simulator
+
+Starter V2 roles:
+
+| Consumable | Slot | Tactical Role | Status |
+|---|---|---|---|
+| `MedKit` | Emergency | Emergency Save | implemented |
+| `ShieldCell` | Emergency | Shield Sustain | implemented |
+| `NanoSwarm` | Emergency | Attrition Repair | approximated by survival score |
+| `AdrenalineShot` | Emergency | Emergency Save | approximated by survival score |
+| `ShockAmmo` | MidFight | Shield Break | implemented |
+| `CorrosiveAmmo` | MidFight | Armor Break / Repair Counter | approximated by break + mechanic score |
+| `VoidAmmo` | MidFight | High-Risk DPS | implemented |
+| `Grenade` / `OrdnanceCharge` | PreFight or MidFight | Burst Break | implemented |
+| `TargetPainter` | PreFight | Focused DPS | implemented as DPS score |
+| `BossScanner` | PreFight | Boss Intel | approximated by failure readout and mechanic support |
+| `Jammer` | MidFight | Mechanic Counter | approximated by mechanic score |
+| `InsuranceToken` | PreFight | Death Fee Cover | implemented |
+| `DataSkimmer` | PreFight | Loot Risk | implemented as bonus loot roll |
+| `LuckBooster` | PreFight | Loot Quality | implemented as bonus loot chance |
+
+The current boss simulator still uses abstract score phases. PR 4 should replace that mapping with an event-driven boss simulation that can evaluate exact phase windows, trigger-level consumption, mechanic cancellation, and reward/death-fee timing.
+
 ---
 
 ## 3. Weapon Types & Signature Mechanics

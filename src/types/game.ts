@@ -57,6 +57,14 @@ export enum ConsumableType {
   LuckBooster = 'LuckBooster',
   BossScanner = 'BossScanner',
   InsuranceToken = 'InsuranceToken',
+  NanoSwarm = 'NanoSwarm',
+  AdrenalineShot = 'AdrenalineShot',
+  ShockAmmo = 'ShockAmmo',
+  CorrosiveAmmo = 'CorrosiveAmmo',
+  VoidAmmo = 'VoidAmmo',
+  TargetPainter = 'TargetPainter',
+  Jammer = 'Jammer',
+  DataSkimmer = 'DataSkimmer',
 }
 
 export enum MaterialType {
@@ -105,6 +113,8 @@ export enum ConsumableSlot {
   MidFight = 'MidFight',
   Emergency = 'Emergency',
 }
+
+export type ConsumableLoadout = Record<ConsumableSlot, string | null>;
 
 export enum RiskSetting {
   Conservative = 'Conservative',
