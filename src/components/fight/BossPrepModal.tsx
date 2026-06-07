@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, Crosshair, PackageCheck, Shield, Skull, X, Zap } from 'lucide-react';
-import { BossDef } from '../../types/boss';
+import { Activity, AlertTriangle, CheckCircle, Crosshair, Gauge, PackageCheck, Shield, Skull, Target, X, Zap } from 'lucide-react';
+import { BossDef, PhaseAnalysis } from '../../types/boss';
 import { ConsumableSlot, RiskSetting } from '../../types/game';
 import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts, getConsumablesForSlot } from '../../constants/consumables';
 import { RARITIES } from '../../constants/rarities';
@@ -26,6 +26,20 @@ const STATUS_LABEL = {
   implemented: 'Live',
   approximated: 'Approx',
   legacy: 'Legacy',
+};
+
+const PHASE_STATUS_COLOR: Record<PhaseAnalysis['status'], string> = {
+  safe: 'text-green',
+  close: 'text-amber',
+  risky: 'text-orange-400',
+  failing: 'text-red',
+};
+
+const PHASE_STATUS_BORDER: Record<PhaseAnalysis['status'], string> = {
+  safe: 'border-green/30',
+  close: 'border-amber/30',
+  risky: 'border-orange-400/30',
+  failing: 'border-red/30',
 };
 
 export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) => {
@@ -71,6 +85,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
   const winBand = sim.winChance >= 0.95 ? 'Farmable' : sim.winChance >= 0.75 ? 'Favorable' : sim.winChance >= 0.5 ? 'Risky' : sim.winChance >= 0.25 ? 'Underdog' : sim.winChance >= 0.05 ? 'Desperate' : 'Nearly Impossible';
   const bandColor = sim.winChance >= 0.75 ? 'text-green' : sim.winChance >= 0.5 ? 'text-amber' : sim.winChance >= 0.25 ? 'text-orange-400' : 'text-red';
+  const projectedFailure = sim.projectedFailurePhase;
 
   const setConsumableForSlot = (slot: ConsumableSlot, type: string | null) => {
     setError(null);
@@ -147,7 +162,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const getRarityColor = (rarity?: string) => RARITIES[rarity as keyof typeof RARITIES]?.color || RARITIES.Common.color;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/80 flex flex-col">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex flex-col">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -166,6 +181,11 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
             <div className="flex items-center gap-1"><Crosshair size={14} /> Armor {boss.armor.toLocaleString()}</div>
           </div>
           <div className="flex flex-wrap gap-2">
+            {boss.tags.map((tag) => (
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-raised border border-border-light text-text-secondary font-bold">
+                {tag}
+              </span>
+            ))}
             {boss.weaknesses.map((e) => (
               <span key={e} className="text-[10px] px-1.5 py-0.5 rounded bg-green/10 text-green font-bold">Weak: {e}</span>
             ))}
@@ -177,12 +197,90 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         </MobileCard>
 
         {!result && (
-          <MobileCard className="text-center space-y-1">
-            <div className="text-xs text-text-muted uppercase tracking-wider">Estimated Win Chance</div>
-            <div className={`font-mono text-3xl font-black ${bandColor}`}>{(sim.winChance * 100).toFixed(1)}%</div>
-            <div className={`text-sm font-bold ${bandColor}`}>{winBand}</div>
-            <div className="text-[10px] text-text-muted">Projected death fee: {sim.deathFee.toLocaleString()}cr</div>
-          </MobileCard>
+          <div className="grid grid-cols-2 gap-3">
+            <MobileCard className="text-center space-y-1">
+              <div className="text-xs text-text-muted uppercase tracking-wider">Estimated Win Chance</div>
+              <div className={`font-mono text-3xl font-black ${bandColor}`}>{(sim.winChance * 100).toFixed(1)}%</div>
+              <div className={`text-sm font-bold ${bandColor}`}>{winBand}</div>
+              <div className="text-[10px] text-text-muted">Death fee: {sim.deathFee.toLocaleString()}cr</div>
+            </MobileCard>
+            <MobileCard className="space-y-1">
+              <div className="text-xs text-text-muted uppercase tracking-wider">Projected Failure</div>
+              <div className={`text-sm font-black ${projectedFailure ? PHASE_STATUS_COLOR[projectedFailure.status] : 'text-green'}`}>
+                {projectedFailure ? projectedFailure.phaseName : 'None'}
+              </div>
+              <div className="text-[10px] text-text-secondary leading-snug">
+                {projectedFailure ? projectedFailure.explanation : 'Current prep answers every modeled phase.'}
+              </div>
+            </MobileCard>
+          </div>
+        )}
+
+        {!result && (
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-text-muted uppercase flex items-center gap-2">
+              <Activity size={14} />
+              Phase Plan
+            </div>
+            {sim.phaseAnalyses.map((phase) => (
+              <div key={phase.phaseId} className={`rounded-xl bg-surface p-3 border-2 ${PHASE_STATUS_BORDER[phase.status]} space-y-2`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-bold text-text-primary">{phase.phaseName}</div>
+                    <div className="text-[10px] text-text-secondary leading-snug">{phase.explanation}</div>
+                  </div>
+                  <div className={`text-[10px] font-black uppercase ${PHASE_STATUS_COLOR[phase.status]}`}>{phase.status}</div>
+                </div>
+                <div className="text-[10px] text-text-muted">Score {(phase.score * 100).toFixed(0)}%</div>
+                {phase.currentAnswers.length > 0 && (
+                  <div className="text-[10px] text-green">Answers: {phase.currentAnswers.join(', ')}</div>
+                )}
+                {phase.missingCounters.length > 0 && (
+                  <div className="text-[10px] text-amber">Missing: {phase.missingCounters.join(', ')}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!result && (
+          <div className="grid grid-cols-1 gap-3">
+            <MobileCard className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-text-muted uppercase">
+                <Target size={14} />
+                Current Answers
+              </div>
+              {sim.equippedAnswers.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {sim.equippedAnswers.slice(0, 12).map((answer) => (
+                    <span key={answer} className="text-[10px] px-1.5 py-0.5 rounded bg-green/10 text-green font-bold">
+                      {answer}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[10px] text-text-secondary">No clear boss counters detected in the current loadout.</div>
+              )}
+            </MobileCard>
+
+            <MobileCard className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-text-muted uppercase">
+                <AlertTriangle size={14} />
+                Missing Counters
+              </div>
+              {sim.missingCounters.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {sim.missingCounters.map((counter) => (
+                    <span key={counter} className="text-[10px] px-1.5 py-0.5 rounded bg-amber/10 text-amber font-bold">
+                      {counter}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[10px] text-green">Every modeled phase has at least one answer.</div>
+              )}
+            </MobileCard>
+          </div>
         )}
 
         {!result && sim.reasons.length > 0 && (
@@ -273,7 +371,10 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
         {!result && (
           <div className="space-y-2">
-            <div className="text-xs font-bold text-text-muted uppercase">Risk Profile</div>
+            <div className="text-xs font-bold text-text-muted uppercase flex items-center gap-2">
+              <Gauge size={14} />
+              Risk Profile
+            </div>
             <div className="grid grid-cols-4 gap-2">
               {Object.values(RiskSetting).map((r) => (
                 <button
@@ -285,7 +386,24 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
                 </button>
               ))}
             </div>
+            <div className="text-[10px] text-text-secondary">{sim.riskSummary}</div>
           </div>
+        )}
+
+        {!result && (
+          <MobileCard className="space-y-2">
+            <div className="text-xs font-bold text-text-muted uppercase">Consumables At Risk</div>
+            {sim.consumablesAtRisk.length > 0 ? (
+              sim.consumablesAtRisk.map((riskLine) => (
+                <div key={riskLine} className="text-[10px] text-text-secondary flex items-start gap-2">
+                  <AlertTriangle size={12} className="shrink-0 mt-0.5 text-amber" />
+                  {riskLine}
+                </div>
+              ))
+            ) : (
+              <div className="text-[10px] text-text-secondary">No selected consumables are currently tied to risky phases.</div>
+            )}
+          </MobileCard>
         )}
 
         {error && <div className="text-xs text-red">{error}</div>}
@@ -319,11 +437,19 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
                   <div className="text-[10px] text-text-muted mt-1">{result.result.recommendations[0]}</div>
                 </>
               )}
-              {Object.keys(result.consumablesUsed).length > 0 && (
+              {Object.keys(result.consumedConsumables).length > 0 && (
                 <div className="text-[10px] text-text-muted">
-                  Used: {Object.entries(result.consumablesUsed).map(([id, count]) => `${CONSUMABLES[id]?.name || id} x${count}`).join(', ')}
+                  Used: {Object.entries(result.consumedConsumables).map(([id, count]) => `${CONSUMABLES[id]?.name || id} x${count}`).join(', ')}
                 </div>
               )}
+              <div className="space-y-1 pt-2">
+                {result.result.reasons.slice(0, 3).map((reason) => (
+                  <div key={reason} className="text-[10px] text-text-secondary">{reason}</div>
+                ))}
+                {result.result.recommendations[0] && (
+                  <div className="text-[10px] text-amber">{result.result.recommendations[0]}</div>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

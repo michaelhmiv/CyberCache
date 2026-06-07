@@ -1,6 +1,6 @@
-import { BossDef, BossAttemptResult } from '../../types/boss';
+import { BossDef, BossAttemptResult, BossPhase, BossPrepAnalysis, PhaseAnalysis } from '../../types/boss';
 import { Weapon, Shield, Ordnance, ClassMod, Relic } from '../../types/items';
-import { RiskSetting } from '../../types/game';
+import { Element, Manufacturer, RiskSetting } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
 import { CONSUMABLES, ConsumableDef } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
@@ -22,7 +22,7 @@ export interface BossSimulationInput {
   playerCredits?: number;
 }
 
-export interface BossSimulationOutput {
+export interface BossSimulationOutput extends BossPrepAnalysis {
   winChance: number;
   survivalScore: number;
   breakScore: number;
@@ -61,6 +61,200 @@ function getRiskModifiers(risk: RiskSetting) {
     case RiskSetting.AllIn:
       return { survivalMult: 0.8, dpsMult: 1.15, consumableMult: 1.6, chaos: 0.04 };
   }
+}
+
+function getRiskSummary(risk: RiskSetting): string {
+  switch (risk) {
+    case RiskSetting.Conservative:
+      return 'Conservative: safer survival margins, more consumable usage, slightly lower DPS tempo.';
+    case RiskSetting.Balanced:
+      return 'Balanced: default safety and damage assumptions.';
+    case RiskSetting.Greedy:
+      return 'Greedy: higher DPS tempo, lower survival margin, fewer safety consumables.';
+    case RiskSetting.AllIn:
+      return 'All In: maximum DPS pressure with high consumption and high defeat risk.';
+  }
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function getStatus(score: number): PhaseAnalysis['status'] {
+  if (score >= 1.25) return 'safe';
+  if (score >= 1) return 'close';
+  if (score >= 0.75) return 'risky';
+  return 'failing';
+}
+
+function recommendationIsAnswered(recommendation: string, answers: string[]): boolean {
+  const haystack = answers.join(' ').toLowerCase();
+  return recommendation
+    .toLowerCase()
+    .split(/[ /-]+/)
+    .filter((part) => part.length > 3)
+    .some((part) => haystack.includes(part));
+}
+
+function getEquippedAnswers(input: BossSimulationInput, selectedDefs: ConsumableDef[]): string[] {
+  const { primary, secondary, heavy, boss } = input;
+  const weapons = [primary, secondary, heavy].filter((weapon): weapon is Weapon => Boolean(weapon));
+  const answers: string[] = [];
+
+  weapons.forEach((weapon, index) => {
+    const slot = index === 0 ? 'Primary' : index === 1 ? 'Secondary' : 'Heavy';
+    answers.push(`${slot}: ${weapon.element} ${weapon.weaponType}`);
+    if (boss.weaknesses.includes(weapon.element)) answers.push(`${weapon.element} weakness match`);
+    if (weapon.element === Element.Shock && boss.tags.includes('shield')) answers.push('Shock shield answer');
+    if (weapon.element === Element.Corrosive && (boss.tags.includes('armor') || boss.tags.includes('repair'))) {
+      answers.push('Corrosive armor/repair answer');
+    }
+    if (weapon.element === Element.Cryo && (boss.tags.includes('enrage') || boss.tags.includes('phase'))) {
+      answers.push('Cryo control answer');
+    }
+    if (weapon.manufacturer === Manufacturer.Ironwood && (boss.tags.includes('enrage') || boss.tags.includes('burstCheck'))) {
+      answers.push('Ironwood crit/burst pressure');
+    }
+    if (weapon.manufacturer === Manufacturer.BlastForge && (boss.tags.includes('armor') || boss.tags.includes('siege'))) {
+      answers.push('BlastForge armor cracking');
+    }
+    if (weapon.bossDamageMod > 1.1) answers.push('boss-damage weapon affix');
+    if (weapon.shieldDamageMod > 1.1 && boss.tags.includes('shield')) answers.push('shield-break weapon roll');
+    if (weapon.armorDamageMod > 1.1 && boss.tags.includes('armor')) answers.push('armor-break weapon roll');
+  });
+
+  selectedDefs.forEach((def) => {
+    answers.push(def.name);
+    answers.push(def.tacticalRole);
+  });
+
+  return unique(answers);
+}
+
+type BossPhaseType = 'survival' | 'shieldBreak' | 'armorBreak' | 'dps' | 'mechanic';
+
+function phaseScore(
+  phaseType: BossPhaseType,
+  scores: {
+    survivalScore: number;
+    shieldBreakScore: number;
+    armorBreakScore: number;
+    dpsScore: number;
+    mechanicScore: number;
+  }
+): number {
+  switch (phaseType) {
+    case 'survival':
+      return scores.survivalScore;
+    case 'shieldBreak':
+      return scores.shieldBreakScore;
+    case 'armorBreak':
+      return scores.armorBreakScore;
+    case 'dps':
+      return scores.dpsScore;
+    case 'mechanic':
+      return scores.mechanicScore;
+    default:
+      return 1;
+  }
+}
+
+function getRelevantConsumables(input: BossSimulationInput, selectedDefs: ConsumableDef[], phaseType: BossPhaseType): string[] {
+  const tagToPhase = {
+    survival: ['burn', 'burst', 'elite'],
+    shieldBreak: ['shield'],
+    armorBreak: ['armor', 'repair'],
+    dps: ['enrage', 'burst', 'elite'],
+    mechanic: ['phase', 'repair', 'enrage'],
+  } satisfies Record<BossPhaseType, string[]>;
+
+  return selectedDefs
+    .filter((def) => def.counterTags.some((tag) => input.boss.tags.includes(tag) || tagToPhase[phaseType].includes(tag)))
+    .map((def) => `${def.name} x${input.consumables[def.id] || 1}`);
+}
+
+function buildPhaseAnalyses(
+  input: BossSimulationInput,
+  selectedDefs: ConsumableDef[],
+  scores: {
+    survivalScore: number;
+    shieldBreakScore: number;
+    armorBreakScore: number;
+    dpsScore: number;
+    mechanicScore: number;
+  },
+  equippedAnswers: string[]
+): PhaseAnalysis[] {
+  // This is intentionally approximate: phase/event labels are mapped onto the
+  // current score model until a full combat scripting engine exists.
+  const phases: BossPhase[] = input.boss.phases || [
+    {
+      id: input.boss.mechanic.id || 'legacy_check',
+      name: input.boss.mechanic.name || 'Legacy Boss Check',
+      description: input.boss.mechanic.description,
+      type: input.boss.mechanic.checkType,
+      targetValue: input.boss.mechanic.threshold || 1,
+      recommendedCounters: ['stronger loadout', 'relevant consumables'],
+      failureReason: input.boss.mechanic.description || 'The legacy boss check is underprepared.',
+      successReason: 'Current prep is enough for this legacy boss check.',
+      eventTrigger: 'bossMechanic',
+    },
+  ];
+
+  return phases.map((phase) => {
+    const normalizedScore = phaseScore(phase.type, scores) / phase.targetValue;
+    const status = getStatus(normalizedScore);
+    const relevantConsumables = getRelevantConsumables(input, selectedDefs, phase.type);
+    const currentAnswers = equippedAnswers.filter((answer) =>
+      phase.recommendedCounters.some((counter) => recommendationIsAnswered(counter, [answer]))
+    );
+    const missingCounters = phase.recommendedCounters.filter((counter) => !recommendationIsAnswered(counter, [...currentAnswers, ...relevantConsumables]));
+
+    return {
+      phaseId: phase.id,
+      phaseName: phase.name,
+      score: normalizedScore,
+      status,
+      currentAnswers: unique([...currentAnswers, ...relevantConsumables]),
+      missingCounters,
+      relevantConsumables,
+      explanation: status === 'safe' || status === 'close' ? phase.successReason : phase.failureReason,
+    };
+  });
+}
+
+function selectProjectedFailurePhase(phaseAnalyses: PhaseAnalysis[]): PhaseAnalysis | undefined {
+  return [...phaseAnalyses].sort((a, b) => {
+    const severity = { failing: 0, risky: 1, close: 2, safe: 3 };
+    const severityDelta = severity[a.status] - severity[b.status];
+    if (severityDelta !== 0) return severityDelta;
+    return a.score - b.score;
+  })[0];
+}
+
+function getConsumablesAtRisk(input: BossSimulationInput, selectedDefs: ConsumableDef[], phaseAnalyses: PhaseAnalysis[]): string[] {
+  const riskyPhaseTypes = new Set(
+    phaseAnalyses
+      .filter((phase) => phase.status === 'failing' || phase.status === 'risky')
+      .map((phase) => input.boss.phases?.find((bossPhase) => bossPhase.id === phase.phaseId)?.type)
+  );
+  const tagToPhase = {
+    survival: ['burn', 'burst', 'elite'],
+    shieldBreak: ['shield'],
+    armorBreak: ['armor', 'repair'],
+    dps: ['enrage', 'burst', 'elite'],
+    mechanic: ['phase', 'repair', 'enrage'],
+  } satisfies Record<BossPhaseType, string[]>;
+
+  return selectedDefs
+    .filter((def) => {
+      const relevantToRisk = Array.from(riskyPhaseTypes).some((phaseType) => {
+        if (!phaseType) return false;
+        return def.counterTags.some((tag) => tagToPhase[phaseType].includes(tag) || input.boss.tags.includes(tag));
+      });
+      return relevantToRisk || def.consumePolicy === 'onAttempt' || def.consumePolicy === 'onDefeat';
+    })
+    .map((def) => `${def.name} x${input.consumables[def.id] || 1}: ${def.uiHints[1] || def.shortDescription}`);
 }
 
 function selectedConsumableDefs(consumables: Record<string, number>): ConsumableDef[] {
@@ -397,6 +591,31 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     recommendations.unshift(`Boss Scanner readout: ${weakest.label} is the weakest projected check.`);
   }
 
+  const equippedAnswers = getEquippedAnswers(input, selectedDefs);
+  const phaseAnalyses = buildPhaseAnalyses(
+    input,
+    selectedDefs,
+    { survivalScore, shieldBreakScore, armorBreakScore, dpsScore, mechanicScore },
+    equippedAnswers
+  );
+  const projectedFailurePhase = selectProjectedFailurePhase(phaseAnalyses);
+  const missingCounters = unique(phaseAnalyses.flatMap((phase) => phase.missingCounters).slice(0, 10));
+  const consumablesAtRisk = getConsumablesAtRisk(input, selectedDefs, phaseAnalyses);
+
+  phaseAnalyses.forEach((phase) => {
+    if (phase.status === 'failing') {
+      reasons.push(`${phase.phaseName}: ${phase.explanation}`);
+    } else if (phase.status === 'risky') {
+      reasons.push(`${phase.phaseName}: risky. ${phase.explanation}`);
+    } else if (phase.currentAnswers.length > 0) {
+      reasons.push(`${phase.phaseName}: covered by ${phase.currentAnswers.slice(0, 2).join(', ')}.`);
+    }
+  });
+
+  if (missingCounters.length > 0) {
+    recommendations.push(`Recommended: ${missingCounters.slice(0, 3).join(', ')}.`);
+  }
+
   // 5. Pity system: +3% win chance per failed attempt, capped at +30%
   const pityBonus = Math.min(0.30, pityCount * 0.03);
   
@@ -415,12 +634,19 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   return {
     winChance,
+    projectedWinChance: winChance,
+    projectedFailurePhase,
+    phaseAnalyses,
+    equippedAnswers,
+    missingCounters,
+    consumablesAtRisk,
+    riskSummary: getRiskSummary(risk),
     survivalScore,
     breakScore,
     dpsScore,
     mechanicScore,
-    reasons,
-    recommendations,
+    reasons: unique(reasons),
+    recommendations: unique(recommendations),
     expectedConsumableUsage: getExpectedUsage(consumables, winChance >= 0.5, survivalScore),
     deathFee,
     bonusLootChance: rules.bonusLootChance,
@@ -453,12 +679,14 @@ export function executeBossAttempt(
 
   const creditsDelta = win ? Math.round(input.boss.level * 150 * legendary.creditMult) : -deathFee;
   const finalCredits = applyBadDecisionBonus(creditsDelta, input.primary);
+  const projectedPhase = sim.projectedFailurePhase;
 
   // Determine phase of failure if lost
   let phaseFailed: string | undefined;
   let bossHpRemaining: number | undefined;
   if (!win) {
-    if (sim.survivalScore < sim.breakScore && sim.survivalScore < sim.dpsScore) phaseFailed = 'survival';
+    if (projectedPhase) phaseFailed = projectedPhase.phaseName;
+    else if (sim.survivalScore < sim.breakScore && sim.survivalScore < sim.dpsScore) phaseFailed = 'survival';
     else if (sim.breakScore < sim.dpsScore) phaseFailed = 'break';
     else phaseFailed = 'dps';
     bossHpRemaining = Math.round((1 - Math.random() * 0.6) * 100);
@@ -474,6 +702,20 @@ export function executeBossAttempt(
     });
   }
 
+  const resultReasons = win
+    ? [
+        projectedPhase?.currentAnswers[0]
+          ? `Victory: ${projectedPhase.phaseName} cleared with ${projectedPhase.currentAnswers[0]}.`
+          : `Victory: ${input.boss.name} defeated with current prep.`,
+        ...sim.reasons,
+      ]
+    : [
+        projectedPhase
+          ? `Defeat: Failed ${projectedPhase.phaseName}. ${projectedPhase.explanation}`
+          : `Defeat: ${input.boss.name} outlasted your current prep.`,
+        ...sim.reasons,
+      ];
+
   const result: BossAttemptResult = {
     id: crypto.randomUUID?.() || String(Date.now()),
     bossId: input.boss.id,
@@ -487,7 +729,7 @@ export function executeBossAttempt(
     creditsGained: win ? creditsDelta : 0,
     creditsLost: win ? 0 : deathFee,
     loot: [],
-    reasons: sim.reasons,
+    reasons: unique(resultReasons),
     recommendations: sim.recommendations,
   };
 
