@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Clock, Database, ChevronRight, Download, Package, Crosshair, Hammer } from 'lucide-react';
+import { Clock, ChevronRight, Crosshair, Download, Hammer, MapPin, Package, PackageSearch, Radar } from 'lucide-react';
 import { usePlayerStore, useInventoryStore, useIdleStore, useLoadoutStore, useBossStore, useSkillStore } from '@/store';
 import { DropSource } from '@/types/game';
+import { GearItem } from '@/types/items';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WeaponCard } from '@/components/common/WeaponCard';
 import { WeaponCanvas } from '@/components/pixelArt/WeaponCanvas';
@@ -10,6 +11,26 @@ import { BossPrepModal } from '@/components/fight/BossPrepModal';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { DUSTWASTE_ZONES } from '@/constants/zones';
 import { useOfflineClaim } from '@/hooks/useIdleTicker';
+
+type CombatLogEntry = {
+  id: string;
+  label: string;
+  detail: string;
+  tone: 'loot' | 'xp' | 'cache' | 'patrol';
+};
+
+const TICK_SECONDS = 3;
+const LOG_LIMIT = 5;
+const DROP_CHANCE_PER_TICK = 0.22;
+const CACHE_FRAGMENT_CHANCE_PER_TICK = 0.03;
+
+const describeGear = (item: GearItem) => {
+  if ('weaponType' in item) return `${item.rarity} ${item.weaponType}`;
+  if ('hp' in item) return `${item.rarity} Shield`;
+  if ('treeBonus' in item) return `${item.rarity} Class Mod`;
+  if ('damage' in item) return `${item.rarity} Ordnance`;
+  return `${item.rarity} Relic`;
+};
 
 export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: (screen: string) => void }> = ({
   onOpenBossSelect,
@@ -22,11 +43,19 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const idle = useIdleStore();
   const skillStore = useSkillStore();
   const skillBonuses = skillStore.getBonuses();
-  const [recentDrop, setRecentDrop] = useState<any>(null);
+  const [recentDrop, setRecentDrop] = useState<GearItem | null>(null);
   const [prepBoss, setPrepBoss] = useState<(typeof REGION_1_BOSSES)[0] | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const [claimed, setClaimed] = useState(true);
+  const [claimed, setClaimed] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([
+    {
+      id: 'initial-roam',
+      label: 'Roaming route assigned',
+      detail: 'Gunrunner deployed into Dustwaste Frontier for field combat.',
+      tone: 'patrol',
+    },
+  ]);
   const prevLevelRef = useRef(player.level);
 
   // Zone info (computed early — used by hooks and effects below)
@@ -43,71 +72,21 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
     skillBonuses,
   );
 
-  useEffect(() => {
-    setClaimed(false);
-  }, []);
+  const addCombatLog = (entry: Omit<CombatLogEntry, 'id'>) => {
+    setCombatLog((current) => [
+      {
+        ...entry,
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      },
+      ...current,
+    ].slice(0, LOG_LIMIT));
+  };
 
-  // Level-up detection
-  useEffect(() => {
-    if (player.level > prevLevelRef.current) {
-      setShowLevelUp(true);
-      setTimeout(() => setShowLevelUp(false), 2500);
-    }
-    prevLevelRef.current = player.level;
-  }, [player.level]);
-
-  // Background farming tick
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setElapsed((e) => e + 1);
-      const roll = Math.random();
-
-      if (roll < 0.12) {
-        // Weapon drop
-        const weapon = inventory.generateAndAdd({ source: DropSource.WorldDrop, level: player.level, zoneWeights: currentZone.dropPoolRarityWeights });
-        handleAutoSalvage(weapon);
-        setRecentDrop(weapon);
-      } else if (roll < 0.16) {
-        // Shield drop
-        const shield = inventory.generateAndAddShield(player.level);
-        handleAutoSalvage(shield);
-        setRecentDrop(shield);
-      } else if (roll < 0.18) {
-        // Class mod drop
-        const mod = inventory.generateAndAddClassMod(player.level);
-        handleAutoSalvage(mod);
-        setRecentDrop(mod);
-      } else if (roll < 0.20) {
-        // Relic drop
-        const relic = inventory.generateAndAddRelic(player.level);
-        handleAutoSalvage(relic);
-        setRecentDrop(relic);
-      } else if (roll < 0.22) {
-        // Ordnance drop
-        const ord = inventory.generateAndAddOrdnance(player.level);
-        handleAutoSalvage(ord);
-        setRecentDrop(ord);
-      }
-
-      // Cache key fragments (every tick, 3% chance)
-      if (Math.random() < 0.03) {
-        player.addCacheKeyFragments(1);
-      }
-
-      // Zone-based idle credits (3s tick = 20 ticks/min) — Scavenger offlineEarnings bonus
-      player.addCredits(Math.round(currentZone.idleCreditsPerMinute / 20 * (1 + (skillBonuses.offlineEarnings || 0))));
-      // Zone-based idle scrap — Scavenger scrapYield bonus
-      player.addScrap(Math.round(currentZone.idleScrapPerMinute / 20 * (1 + (skillBonuses.scrapYield || 0))));
-
-      player.addXP(1);
-    }, 3000);
-    return () => clearInterval(iv);
-  }, [player.level]);
-
-  const handleAutoSalvage = (item: any) => {
+  function handleAutoSalvage(item: GearItem) {
     const rarityIndex = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].indexOf(item.rarity);
     const thresholdIndex = ['Common', 'Uncommon', 'Rare', 'Epic'].indexOf(idle.autoSalvageRarity);
-    if (rarityIndex <= thresholdIndex && (item.rollQuality || 0) <= idle.autoSalvageQuality) {
+    const rollQuality = 'rollQuality' in item ? item.rollQuality : 0;
+    if (rarityIndex <= thresholdIndex && rollQuality <= idle.autoSalvageQuality) {
       const { scrapValue, materials, essences } = inventory.scrapItem(item.id);
       // Scavenger scrapYield bonus
       const bonusScrap = Math.round(scrapValue * (skillBonuses.scrapYield || 0));
@@ -119,7 +98,87 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         if (count > 0) player.addEssence(type, count);
       });
     }
-  };
+  }
+
+  // Level-up detection
+  useEffect(() => {
+    if (player.level > prevLevelRef.current) {
+      setShowLevelUp(true);
+      setTimeout(() => setShowLevelUp(false), 2500);
+    }
+    prevLevelRef.current = player.level;
+  }, [player.level]);
+
+  // Background roaming tick
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setElapsed((e) => e + 1);
+      const roll = Math.random();
+      let fieldDrop: GearItem | null = null;
+
+      if (roll < 0.12) {
+        // Weapon drop
+        const weapon = inventory.generateAndAdd({ source: DropSource.WorldDrop, level: player.level, zoneWeights: currentZone.dropPoolRarityWeights });
+        handleAutoSalvage(weapon);
+        setRecentDrop(weapon);
+        fieldDrop = weapon;
+      } else if (roll < 0.16) {
+        // Shield drop
+        const shield = inventory.generateAndAddShield(player.level);
+        handleAutoSalvage(shield);
+        setRecentDrop(shield);
+        fieldDrop = shield;
+      } else if (roll < 0.18) {
+        // Class mod drop
+        const mod = inventory.generateAndAddClassMod(player.level);
+        handleAutoSalvage(mod);
+        setRecentDrop(mod);
+        fieldDrop = mod;
+      } else if (roll < 0.20) {
+        // Relic drop
+        const relic = inventory.generateAndAddRelic(player.level);
+        handleAutoSalvage(relic);
+        setRecentDrop(relic);
+        fieldDrop = relic;
+      } else if (roll < 0.22) {
+        // Ordnance drop
+        const ord = inventory.generateAndAddOrdnance(player.level);
+        handleAutoSalvage(ord);
+        setRecentDrop(ord);
+        fieldDrop = ord;
+      }
+
+      // Cache key fragments (every tick, 3% chance)
+      if (Math.random() < CACHE_FRAGMENT_CHANCE_PER_TICK) {
+        player.addCacheKeyFragments(1);
+        addCombatLog({
+          label: 'Cache fragment found',
+          detail: `${currentZone.enemyType} patrol yielded a cache key fragment.`,
+          tone: 'cache',
+        });
+      } else if (fieldDrop) {
+        addCombatLog({
+          label: 'Field gear recovered',
+          detail: `${fieldDrop.name} (${describeGear(fieldDrop)}) dropped from ${currentZone.enemyType}s.`,
+          tone: 'loot',
+        });
+      } else {
+        addCombatLog({
+          label: 'Enemy sweep cleared',
+          detail: `${currentZone.enemyType}s routed. Credits, scrap, and XP recovered.`,
+          tone: 'xp',
+        });
+      }
+
+      // Zone-based idle credits (3s tick = 20 ticks/min) — Scavenger offlineEarnings bonus
+      player.addCredits(Math.round(currentZone.idleCreditsPerMinute / 20 * (1 + (skillBonuses.offlineEarnings || 0))));
+      // Zone-based idle scrap — Scavenger scrapYield bonus
+      player.addScrap(Math.round(currentZone.idleScrapPerMinute / 20 * (1 + (skillBonuses.scrapYield || 0))));
+
+      player.addXP(1);
+    }, 3000);
+    return () => clearInterval(iv);
+  }, [player.level]);
 
   // Boss targeting
   const currentBossId = bossStore.currentBossId;
@@ -145,6 +204,10 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
     0;
 
   const isNewPlayer = inventory.items.length === 0;
+  const activeMinutes = Math.floor((elapsed * TICK_SECONDS) / 60);
+  const activeSeconds = (elapsed * TICK_SECONDS) % 60;
+  const killsPerMinute = Math.round((60 / TICK_SECONDS) * 0.75);
+  const fieldFindsPerMinute = Math.round((60 / TICK_SECONDS) * DROP_CHANCE_PER_TICK);
 
   return (
     <div className="p-4 space-y-4 pb-20">
@@ -170,7 +233,9 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
             <div className="text-sm font-bold text-amber">Welcome, Gunrunner!</div>
           </div>
           <div className="text-xs text-text-secondary leading-relaxed">
-            Loot drops every 3 seconds while farming is active. Equip your best gear in the{' '}
+            Roaming combat runs every 3 seconds while your Gunrunner sweeps the current zone.
+            Field enemies can drop gear, cache fragments, credits, scrap, materials, and XP.
+            Equip your best gear in the{' '}
             <span className="text-text-primary font-bold">Loadout</span> tab, then hunt your first
             boss.
           </div>
@@ -202,18 +267,17 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         </div>
       </div>
 
-      {/* Zone Card */}
-      <MobileCard className="space-y-2">
+      {/* Roaming Command Center */}
+      <MobileCard className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs text-amber font-bold uppercase tracking-wider">
-              {currentZone.regionName}
-            </div>
+            <div className="text-xs text-amber font-bold uppercase tracking-wider">Roaming Command</div>
+            <div className="text-lg font-black text-text-primary">{currentZone.regionName}</div>
             <div className="text-sm text-text-secondary">
-              Stage {currentZone.stage} of {DUSTWASTE_ZONES.length}
+              Stage {currentZone.stage} of {DUSTWASTE_ZONES.length} field route
             </div>
           </div>
-          <Database size={20} className="text-text-muted" />
+          <MapPin size={22} className="text-text-muted" />
         </div>
         <div className="h-1.5 bg-surface-raised rounded-full overflow-hidden">
           <motion.div
@@ -221,31 +285,52 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
             style={{ width: `${zoneProgress}%` }}
           />
         </div>
-        <div className="flex items-center justify-between text-[10px] text-text-muted">
-          <span>Idle: {currentZone.idleCreditsPerMinute} cr/min</span>
-          <span>Enemies: {currentZone.enemyType}</span>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-surface-raised border border-border p-2">
+            <div className="text-[10px] text-text-muted uppercase">Enemy Contact</div>
+            <div className="text-xs font-bold text-text-primary">{currentZone.enemyType}s</div>
+          </div>
+          <div className="rounded-lg bg-surface-raised border border-border p-2">
+            <div className="text-[10px] text-text-muted uppercase">Area Tendency</div>
+            <div className="text-xs font-bold text-text-primary">{currentZone.elementTendency}</div>
+          </div>
+          <div className="rounded-lg bg-surface-raised border border-border p-2">
+            <div className="text-[10px] text-text-muted uppercase">Patrol Rate</div>
+            <div className="text-xs font-bold text-text-primary">~{killsPerMinute} kills/min</div>
+          </div>
+          <div className="rounded-lg bg-surface-raised border border-border p-2">
+            <div className="text-[10px] text-text-muted uppercase">Field Finds</div>
+            <div className="text-xs font-bold text-text-primary">~{fieldFindsPerMinute}/min</div>
+          </div>
         </div>
-        <div className="text-[10px] text-text-muted text-center">New zone every 5 levels</div>
+        <div className="flex items-center justify-between text-[10px] text-text-muted">
+          <span>{currentZone.idleCreditsPerMinute} cr/min</span>
+          <span>{currentZone.idleScrapPerMinute} scrap/min</span>
+        </div>
+        <div className="text-[10px] text-text-muted text-center">New roaming zone every 5 levels</div>
       </MobileCard>
 
-      {/* Farming Status */}
+      {/* Roaming Status */}
       <MobileCard className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-green/10 text-green flex items-center justify-center">
-          <Zap size={20} />
+          <Radar size={20} />
         </div>
         <div className="flex-1">
-          <div className="text-sm font-bold">Farming Active</div>
+          <div className="text-sm font-bold">Roaming Active</div>
+          <div className="text-[10px] text-text-muted">
+            Your Gunrunner is sweeping the zone for enemies and loot.
+          </div>
           <div className="text-[10px] text-text-muted">
             Auto-scrap: {idle.autoSalvageRarity} / Q{idle.autoSalvageQuality}+ | Keys:{' '}
             {player.cacheKeys} (+{player.cacheKeyFragments}/5 frags)
           </div>
           <div className="text-[10px] text-text-muted mt-0.5">
-            XP: 1/tick (3s) | Drops: ~22%/tick | Key Frags: 3%/tick
+            XP: 1/tick (3s) | Field Finds: ~22%/tick | Key Frags: 3%/tick
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-text-muted">Cr/min</div>
-          <div className="text-xs font-bold text-amber">{currentZone.idleCreditsPerMinute}</div>
+          <Clock size={16} className="text-text-muted ml-auto" />
+          <div className="text-[10px] text-text-muted mt-1">{activeMinutes}m {activeSeconds}s</div>
         </div>
       </MobileCard>
 
@@ -267,7 +352,7 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
             </div>
             <div className="text-[10px] text-text-muted mt-0.5">
               {Object.entries({ ...player.materials, ...player.essences })
-                .filter(([_, c]) => c > 0)
+                .filter(([, c]) => c > 0)
                 .slice(0, 4)
                 .map(([k, v]) => `${k}: ${v}`)
                 .join(' · ')}
@@ -285,6 +370,11 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
             player.addCredits(offline.credits);
             player.addScrap(offline.scrap);
             player.setPlayer({ lastClaimTime: Date.now() });
+            addCombatLog({
+              label: 'Field cache retrieved',
+              detail: `Offline roaming brought back ${offline.credits} credits and ${offline.scrap} scrap.`,
+              tone: 'loot',
+            });
             setClaimed(true);
           }}
         >
@@ -307,9 +397,12 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs text-red font-bold uppercase tracking-wider">
-                {isDefeated ? 'Defeated' : 'Current Target'}
+                {isDefeated ? 'Defeated Boss' : 'Prepare Boss Fight'}
               </div>
               <div className="text-lg font-black text-text-primary">{currentBoss.name}</div>
+              <div className="text-[10px] text-text-muted">
+                Intentional encounter. Tune loadout and consumables before engaging.
+              </div>
             </div>
             <ChevronRight size={20} className="text-text-muted" />
           </div>
@@ -332,13 +425,13 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
             ))}
           </div>
           <div className="text-[10px] text-amber">{currentBoss.mechanic.description}</div>
-          <div className="text-[10px] text-text-muted text-right">Tap to change target</div>
+          <div className="text-[10px] text-text-muted text-right">Tap to change boss target</div>
         </MobileCard>
       ) : (
         <MobileCard className="space-y-3">
           <div className="text-sm font-bold text-text-primary">No Target Selected</div>
           <div className="text-xs text-text-muted">
-            Select a boss to hunt from the boss list.
+            Bosses are separate prep encounters. Select one when you are ready to plan a loadout.
           </div>
           <button
             onClick={onOpenBossSelect}
@@ -351,18 +444,23 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
 
       {/* Quick Actions */}
       <div className="grid grid-cols-3 gap-2">
-        {/* Quick Loot */}
+        {/* Manual Field Sweep */}
         <button
           onClick={() => {
             const weapon = inventory.generateAndAdd({ source: DropSource.WorldDrop, level: player.level, zoneWeights: currentZone.dropPoolRarityWeights });
             setRecentDrop(weapon);
             player.addXP(5);
+            addCombatLog({
+              label: 'Manual field sweep',
+              detail: `${weapon.name} dropped during an active sweep of ${currentZone.enemyType}s.`,
+              tone: 'loot',
+            });
           }}
           className="bg-surface-raised border border-border text-text-primary font-bold py-2.5 rounded-xl text-xs active:scale-95 transition-transform flex flex-col items-center justify-center gap-0.5"
         >
-          <span>Quick Loot</span>
+          <span>Field Sweep</span>
           <span className="text-[9px] text-text-muted font-normal">
-            Manual drop (bypasses timer)
+            Manual roaming drop
           </span>
         </button>
 
@@ -393,9 +491,9 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         </button>
       </div>
 
-      {/* Quick Loot explanation */}
+      {/* Field Sweep explanation */}
       <div className="text-[10px] text-text-muted text-center -mt-2">
-        Quick Loot: Instant loot. Dev testing tool.
+        Field Sweep: Instant roaming combat result for testing the current zone.
       </div>
 
       {/* Recent Drop */}
@@ -410,7 +508,7 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
           >
             <div className="text-xs text-text-muted font-bold uppercase flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-amber animate-pulse" />
-              Recent Cache Drop
+              Recent Field Find
             </div>
             {'weaponType' in recentDrop ? (
               <WeaponCard weapon={recentDrop} />
@@ -433,9 +531,33 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         )}
       </AnimatePresence>
 
-      {/* Recent Caches Strip */}
+      {/* Combat Log */}
+      <MobileCard className="space-y-2">
+        <div className="flex items-center gap-2 text-xs text-text-muted font-bold uppercase">
+          <Crosshair size={14} />
+          Combat Log
+        </div>
+        <div className="space-y-2">
+          {combatLog.map((entry) => (
+            <div key={entry.id} className="flex items-start gap-2 rounded-lg bg-surface-raised border border-border p-2">
+              <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
+                entry.tone === 'loot' ? 'bg-amber' : entry.tone === 'cache' ? 'bg-blue-400' : entry.tone === 'xp' ? 'bg-green' : 'bg-text-muted'
+              }`} />
+              <div>
+                <div className="text-xs font-bold text-text-primary">{entry.label}</div>
+                <div className="text-[10px] text-text-muted">{entry.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </MobileCard>
+
+      {/* Recent Field Finds Strip */}
       <div>
-        <div className="text-xs text-text-muted font-bold uppercase mb-2">Recent Caches</div>
+        <div className="text-xs text-text-muted font-bold uppercase mb-2 flex items-center gap-2">
+          <PackageSearch size={14} />
+          Recent Field Finds
+        </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {inventory
             .getWeapons()
