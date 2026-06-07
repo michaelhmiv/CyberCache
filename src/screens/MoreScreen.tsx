@@ -21,7 +21,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onNavigate }) => {
       color: '#FF9000',
       badge: workshop.activeQueues.length > 0 ? workshop.activeQueues.length : null,
     },
-    { id: 'vendor', label: 'Consumable Vendor', desc: 'Buy grenades, medkits, boosters', icon: ShoppingBag, color: '#7CFC00' },
+    { id: 'vendor', label: 'Consumable Vendor', desc: 'Buy tactical boss-prep tools', icon: ShoppingBag, color: '#7CFC00' },
     { id: 'profile', label: 'Profile', desc: 'Stats and achievements', icon: User, color: '#5AA7FF' },
     { id: 'settings', label: 'Settings', desc: 'Audio, notifications, data', icon: Settings, color: '#9CA3AF' },
     { id: 'help', label: 'Guide', desc: 'How to play and tips', icon: HelpCircle, color: '#06B6D4' },
