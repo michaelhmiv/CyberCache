@@ -15,10 +15,14 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
     .from('item_instances')
     .select('id,item_level,rarity,is_locked,runtime_state,equipped_slot,payload,created_at')
     .eq('owner_user_id', userId)
-    .not('runtime_state', 'in', '("salvaged","consumed")')
+    .neq('runtime_state', 'salvaged')
+    .neq('runtime_state', 'consumed')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.warn('Runtime item sync skipped:', error.message);
+    return;
+  }
 
   const rows = (data ?? []) as ServerItemRow[];
   const items = rows.map(serverItemRowToDisplayGear);
