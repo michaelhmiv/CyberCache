@@ -9,15 +9,15 @@ This repo has two GitHub Actions workflows:
 
 Add these in GitHub repository settings:
 
-- `SB_TOKEN`
-- `SB_PROJECT_REF`
-- `SB_DB_PASS`
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_DB_PASSWORD`
+- `SUPABASE_PROJECT_REF`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
 For the current CyberCache project:
 
-- `SB_PROJECT_REF` should be `dyrmcwutjdzontjawqii`
+- `SUPABASE_PROJECT_REF` should be `dyrmcwutjdzontjawqii`
 - `VITE_SUPABASE_URL` should be `https://dyrmcwutjdzontjawqii.supabase.co`
 - use the active publishable key from Supabase for `VITE_SUPABASE_ANON_KEY`
 
