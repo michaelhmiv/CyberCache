@@ -18,6 +18,7 @@ import { WorkshopScreen } from './screens/WorkshopScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
+import { FeatureGate } from './auth/FeatureGate';
 import { useAuth } from './auth/AuthProvider';
 
 type TabId = 'fight' | 'loadout' | 'loot' | 'market' | 'more';
@@ -136,7 +137,11 @@ function App() {
           {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
           {activeTab === 'loadout' && <LoadoutScreen />}
           {activeTab === 'loot' && <LootScreen onNavigate={handleNavigate} />}
-          {activeTab === 'market' && <MarketScreen />}
+          {activeTab === 'market' && (
+            <FeatureGate feature="market">
+              <MarketScreen />
+            </FeatureGate>
+          )}
           {activeTab === 'more' && <MoreScreen onNavigate={handleNavigate} />}
         </ScreenWrapper>
       )}
