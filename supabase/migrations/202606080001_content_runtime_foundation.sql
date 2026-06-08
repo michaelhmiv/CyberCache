@@ -118,6 +118,7 @@ alter table public.escrow_records enable row level security;
 alter table public.service_jobs enable row level security;
 
 create policy "profiles_select_own" on public.profiles for select using (auth.uid() = id);
+create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = id);
 create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
 create policy "items_select_own_or_market" on public.item_instances for select using (
@@ -127,21 +128,44 @@ create policy "items_select_own_or_market" on public.item_instances for select u
     where ml.item_instance_id = item_instances.id and ml.status = 'active'
   )
 );
+create policy "items_insert_own" on public.item_instances for insert with check (auth.uid() = owner_user_id);
+create policy "items_update_own_unlisted" on public.item_instances for update using (
+  auth.uid() = owner_user_id
+  and not exists (
+    select 1 from public.market_listings ml
+    where ml.item_instance_id = item_instances.id and ml.status = 'active'
+  )
+) with check (auth.uid() = owner_user_id);
 
 create policy "professions_select_own" on public.player_professions for select using (auth.uid() = user_id);
+create policy "professions_insert_own" on public.player_professions for insert with check (auth.uid() = user_id);
+create policy "professions_update_own" on public.player_professions for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 create policy "actions_select_own" on public.active_actions for select using (auth.uid() = user_id);
+create policy "actions_insert_own" on public.active_actions for insert with check (auth.uid() = user_id);
+create policy "actions_update_own" on public.active_actions for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "market_select_active_or_own" on public.market_listings for select using (
   status = 'active' or auth.uid() = seller_user_id
 );
+create policy "market_insert_own" on public.market_listings for insert with check (auth.uid() = seller_user_id);
+create policy "market_update_own" on public.market_listings for update using (auth.uid() = seller_user_id) with check (auth.uid() = seller_user_id);
 
 create policy "escrow_select_party" on public.escrow_records for select using (
   auth.uid() = payer_user_id or auth.uid() = payee_user_id
 );
+create policy "escrow_insert_payer" on public.escrow_records for insert with check (auth.uid() = payer_user_id);
+create policy "escrow_update_party" on public.escrow_records for update using (
+  auth.uid() = payer_user_id or auth.uid() = payee_user_id
+) with check (auth.uid() = payer_user_id or auth.uid() = payee_user_id);
 
 create policy "service_jobs_select_party" on public.service_jobs for select using (
   auth.uid() = owner_user_id or auth.uid() = provider_user_id
 );
+create policy "service_jobs_insert_owner" on public.service_jobs for insert with check (auth.uid() = owner_user_id);
+create policy "service_jobs_update_party" on public.service_jobs for update using (
+  auth.uid() = owner_user_id or auth.uid() = provider_user_id
+) with check (auth.uid() = owner_user_id or auth.uid() = provider_user_id);
 
 comment on table public.item_instances is 'CyberCache generated/player-owned items. Static item definitions remain in src/content.';
 comment on table public.active_actions is 'One productive action per player at a time: roaming, boss fight, crafting, refining, repair, travel, or service work.';
