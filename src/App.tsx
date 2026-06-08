@@ -156,7 +156,7 @@ function App() {
           {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
           {activeTab === 'inventory' && <InventoryScreen onNavigate={handleNavigate} />}
           {activeTab === 'mastery' && <MasteryScreen />}
-          {activeTab === 'profile' && <ProfileScreen />}
+          {activeTab === 'profile' && <ProfileScreen onNavigate={handleNavigate} />}
         </ScreenWrapper>
       )}
 
