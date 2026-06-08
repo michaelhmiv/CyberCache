@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Box, ChevronRight, Crosshair, Sparkles } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
-import { getLiveTurfScene, ELEMENT_PROJECTILE } from '@/constants/liveTurfVisuals';
+import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
@@ -48,6 +48,10 @@ const getEnemyLabel = (area: RoamingAreaDef, bossName?: string) => {
   if (bossName) return bossName;
   return area.enemyType.split(',')[0] || 'Hostile contact';
 };
+
+const isImpactEvent = (event?: LiveTurfFeedEvent) => !!event && event.id !== 'idle-loop-ready';
+const isLootLikeEvent = (event?: LiveTurfFeedEvent) => isImpactEvent(event) && ['loot', 'cache', 'cash', 'level'].includes(event.tone);
+const isProjectileEvent = (event?: LiveTurfFeedEvent) => isImpactEvent(event) && ['xp', 'loot', 'cache', 'level'].includes(event.tone);
 
 const SceneProps: React.FC<{ prop: string; accent: string; dark: string }> = ({ prop, accent, dark }) => {
   switch (prop) {
@@ -113,60 +117,82 @@ const SceneProps: React.FC<{ prop: string; accent: string; dark: string }> = ({ 
   }
 };
 
-const RunnerSvg: React.FC<{ accent: string; reduced: boolean }> = ({ accent, reduced }) => (
-  <motion.g
-    animate={reduced ? undefined : { y: [0, -2, 0] }}
-    transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
-  >
-    <ellipse cx="104" cy="150" rx="31" ry="7" fill="#000" opacity="0.45" />
-    <path d="M91 86 L118 78 L134 100 L121 130 L91 130 L77 104 Z" fill="#2B2522" stroke="#000" strokeWidth="5" strokeLinejoin="round" />
-    <path d="M93 91 L116 85 L128 101 L119 121 L94 123 L84 105 Z" fill={accent} opacity="0.36" stroke="#000" strokeWidth="3" />
-    <path d="M92 56 L117 52 L129 66 L124 84 L97 89 L82 75 Z" fill="#B8B0A8" stroke="#000" strokeWidth="5" strokeLinejoin="round" />
-    <path d="M98 63 L122 60 L119 72 L96 76 Z" fill="#050608" stroke="#000" strokeWidth="3" />
-    <path d="M83 101 L63 118" stroke="#000" strokeWidth="8" strokeLinecap="round" />
-    <path d="M119 101 L150 105" stroke="#000" strokeWidth="8" strokeLinecap="round" />
-    <path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" />
-    <path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" />
-    <path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
-    <path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
-  </motion.g>
-);
+const RunnerSvg: React.FC<{ accent: string; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ accent, event, reduced }) => {
+  const active = isImpactEvent(event) && !reduced;
+  return (
+    <motion.g
+      key={`runner-${active ? event?.id : 'static'}`}
+      initial={active ? { x: -3, y: 0, rotate: 0 } : undefined}
+      animate={active ? { x: [-3, 4, 0], y: [0, -3, 0], rotate: [0, -1, 0] } : undefined}
+      transition={active ? { duration: 0.45, ease: 'easeOut' } : undefined}
+      style={{ transformOrigin: '104px 116px' }}
+    >
+      <ellipse cx="104" cy="150" rx="31" ry="7" fill="#000" opacity="0.45" />
+      <path d="M91 86 L118 78 L134 100 L121 130 L91 130 L77 104 Z" fill="#2B2522" stroke="#000" strokeWidth="5" strokeLinejoin="round" />
+      <path d="M93 91 L116 85 L128 101 L119 121 L94 123 L84 105 Z" fill={accent} opacity="0.36" stroke="#000" strokeWidth="3" />
+      <path d="M92 56 L117 52 L129 66 L124 84 L97 89 L82 75 Z" fill="#B8B0A8" stroke="#000" strokeWidth="5" strokeLinejoin="round" />
+      <path d="M98 63 L122 60 L119 72 L96 76 Z" fill="#050608" stroke="#000" strokeWidth="3" />
+      <path d="M83 101 L64 119" stroke="#000" strokeWidth="8" strokeLinecap="round" />
+      <path d="M119 101 L151 105" stroke="#000" strokeWidth="8" strokeLinecap="round" />
+      <path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" />
+      <path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" />
+      <path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
+      <path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
+    </motion.g>
+  );
+};
 
-const EnemySvg: React.FC<{ color: string; glow: string; boss: boolean; reduced: boolean }> = ({ color, glow, boss, reduced }) => (
-  <motion.g
-    animate={reduced ? undefined : { x: [0, -4, 0], y: [0, 1, 0] }}
-    transition={{ repeat: Infinity, duration: boss ? 1.7 : 1.35, ease: 'easeInOut' }}
-  >
-    <ellipse cx="315" cy="151" rx={boss ? 42 : 32} ry="8" fill="#000" opacity="0.48" />
-    <path d={boss ? 'M284 76 L326 63 L360 91 L351 133 L301 139 L273 108 Z' : 'M294 90 L326 79 L350 101 L340 133 L303 136 L283 111 Z'} fill="#161116" stroke="#000" strokeWidth="6" strokeLinejoin="round" />
-    <path d={boss ? 'M295 86 L326 76 L348 94 L341 124 L305 129 L286 107 Z' : 'M302 97 L325 90 L339 103 L333 124 L308 127 L295 111 Z'} fill={color} opacity="0.6" stroke="#000" strokeWidth="3" strokeLinejoin="round" />
-    <circle cx="326" cy="103" r={boss ? 12 : 8} fill={glow} stroke="#000" strokeWidth="3" />
-    <path d="M280 113 L256 120 M346 112 L371 120" stroke="#000" strokeWidth="7" strokeLinecap="round" />
-    <path d="M302 134 L291 153 M338 133 L351 153" stroke="#000" strokeWidth="7" strokeLinecap="round" />
-  </motion.g>
-);
+const EnemySvg: React.FC<{ color: string; glow: string; boss: boolean; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ color, glow, boss, event, reduced }) => {
+  const active = isImpactEvent(event) && !reduced;
+  return (
+    <motion.g
+      key={`enemy-${active ? event?.id : 'static'}`}
+      initial={active ? { x: 0, scale: 1 } : undefined}
+      animate={active ? { x: [0, 7, 0], scale: [1, 0.98, 1] } : undefined}
+      transition={active ? { duration: 0.42, ease: 'easeOut' } : undefined}
+      style={{ transformOrigin: '326px 110px' }}
+    >
+      <ellipse cx="315" cy="151" rx={boss ? 42 : 32} ry="8" fill="#000" opacity="0.48" />
+      <path d={boss ? 'M284 76 L326 63 L360 91 L351 133 L301 139 L273 108 Z' : 'M294 90 L326 79 L350 101 L340 133 L303 136 L283 111 Z'} fill="#161116" stroke="#000" strokeWidth="6" strokeLinejoin="round" />
+      <path d={boss ? 'M295 86 L326 76 L348 94 L341 124 L305 129 L286 107 Z' : 'M302 97 L325 90 L339 103 L333 124 L308 127 L295 111 Z'} fill={color} opacity="0.6" stroke="#000" strokeWidth="3" strokeLinejoin="round" />
+      <circle cx="326" cy="103" r={boss ? 12 : 8} fill={glow} stroke="#000" strokeWidth="3" />
+      <path d="M280 113 L256 120 M346 112 L371 120" stroke="#000" strokeWidth="7" strokeLinecap="round" />
+      <path d="M302 134 L291 153 M338 133 L351 153" stroke="#000" strokeWidth="7" strokeLinecap="round" />
+    </motion.g>
+  );
+};
 
-const ScrapSvg: React.FC<{ accent: string; reduced: boolean }> = ({ accent, reduced }) => (
-  <motion.g
-    animate={reduced ? undefined : { y: [0, -5, 0], opacity: [0.8, 1, 0.8] }}
-    transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
-  >
-    <path d="M199 134 L214 130 L226 140 L215 151 L198 148 Z" fill="#A5A7B5" stroke="#000" strokeWidth="4" />
-    <path d="M223 122 L236 125 L235 141 L220 139 Z" fill={accent} opacity="0.78" stroke="#000" strokeWidth="3" />
-    <path d="M204 119 L212 111 L219 121 L212 129 Z" fill="#F5F5F5" opacity="0.62" stroke="#000" strokeWidth="2" />
-  </motion.g>
-);
+const ScrapSvg: React.FC<{ accent: string; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ accent, event, reduced }) => {
+  if (!isLootLikeEvent(event)) return null;
+  return (
+    <motion.g
+      key={`scrap-${event?.id}`}
+      initial={reduced ? undefined : { y: 8, opacity: 0, scale: 0.86 }}
+      animate={reduced ? undefined : { y: [8, -10, -4], opacity: [0, 1, 0.92], scale: [0.86, 1.08, 1] }}
+      transition={reduced ? undefined : { duration: 0.62, ease: 'easeOut' }}
+    >
+      <path d="M199 134 L214 130 L226 140 L215 151 L198 148 Z" fill="#A5A7B5" stroke="#000" strokeWidth="4" />
+      <path d="M223 122 L236 125 L235 141 L220 139 Z" fill={accent} opacity="0.78" stroke="#000" strokeWidth="3" />
+      <path d="M204 119 L212 111 L219 121 L212 129 Z" fill="#F5F5F5" opacity="0.62" stroke="#000" strokeWidth="2" />
+    </motion.g>
+  );
+};
 
-const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; reduced: boolean }> = ({ projectile, reduced }) => (
-  <motion.g
-    animate={reduced ? undefined : { opacity: [0.2, 1, 0.35], x: [0, 16, 0] }}
-    transition={{ repeat: Infinity, duration: 0.95, ease: 'linear' }}
-  >
-    <path d="M162 106 L260 105" stroke="#000" strokeWidth="9" strokeLinecap="round" opacity="0.55" />
-    <path d="M162 106 L260 105" stroke={projectile.color} strokeWidth="4" strokeLinecap="round" />
-    <circle cx="265" cy="105" r="7" fill={projectile.glow} stroke="#000" strokeWidth="3" />
-  </motion.g>
-);
+const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ projectile, event, reduced }) => {
+  if (!isProjectileEvent(event)) return null;
+  return (
+    <motion.g
+      key={`projectile-${event?.id}`}
+      initial={reduced ? undefined : { opacity: 0, x: -8 }}
+      animate={reduced ? undefined : { opacity: [0, 1, 0], x: [-8, 18, 34] }}
+      transition={reduced ? undefined : { duration: 0.48, ease: 'linear' }}
+    >
+      <path d="M162 106 L260 105" stroke="#000" strokeWidth="9" strokeLinecap="round" opacity="0.55" />
+      <path d="M162 106 L260 105" stroke={projectile.color} strokeWidth="4" strokeLinecap="round" />
+      <circle cx="265" cy="105" r="7" fill={projectile.glow} stroke="#000" strokeWidth="3" />
+    </motion.g>
+  );
+};
 
 export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({
   area,
@@ -188,6 +214,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({
   const fallbackManufacturer = getFallbackManufacturer(area);
   const fallbackWeaponType = getFallbackWeaponType(area);
   const latestEvent = feedEvents[0];
+  const eventActive = isImpactEvent(latestEvent);
   const enemyLabel = getEnemyLabel(area, bossName);
   const title = bossName ?? area.name;
   const secondaryLabel = bossName ? 'Prep boss' : 'Open cache';
@@ -195,10 +222,12 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({
   const weaponLabel = weapon
     ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}`
     : `${area.manufacturerInfluence} patrol kit`;
+  const motionCaption = latestEvent ? `${latestEvent.label} ${latestEvent.detail}` : `standing by against ${enemyLabel}`;
+  const targetMode = latestEvent ? 'event' : 'target';
 
   return (
     <section className="relative h-[248px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 420 248" role="img" aria-label={`${title} idle combat visualization`}>
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 420 248" role="img" aria-label={`${title} event-driven activity visualization`}>
         <defs>
           <linearGradient id={`sky-${safeId}`} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={scene.skyTop} />
@@ -220,10 +249,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({
         <SceneProps prop={scene.prop} accent={scene.accent} dark={scene.groundDark} />
         <path d="M0 143 L58 136 L96 145 L155 135 L210 145 L277 137 L339 145 L420 134 L420 248 L0 248 Z" fill={`url(#ground-${safeId})`} stroke="#000" strokeWidth="5" />
         <path d="M20 165 L106 154 L179 162 L258 153 L397 161" fill="none" stroke="#000" strokeWidth="5" opacity="0.42" />
-        <ProjectileTape projectile={projectile} reduced={reduced} />
-        <ScrapSvg accent={scene.accent} reduced={reduced} />
-        <RunnerSvg accent={scene.accent} reduced={reduced} />
-        <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} boss={!!bossName} reduced={reduced} />
+        <ProjectileTape projectile={projectile} event={latestEvent} reduced={reduced} />
+        <ScrapSvg accent={scene.accent} event={latestEvent} reduced={reduced} />
+        <RunnerSvg accent={scene.accent} event={latestEvent} reduced={reduced} />
+        <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} boss={!!bossName} event={latestEvent} reduced={reduced} />
         <g filter={`url(#soft-glow-${safeId})`}>
           <path d="M12 18 L115 18 L128 31 L121 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" />
           <text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">LIVE TURF</text>
@@ -243,8 +272,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({
 
       <motion.div
         className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6"
-        animate={reduced ? undefined : { x: [0, 3, 0], y: [0, -1, 0] }}
-        transition={{ repeat: Infinity, duration: 1.1, ease: 'easeInOut' }}
+        key={`weapon-${eventActive ? latestEvent?.id : 'static'}`}
+        initial={eventActive && !reduced ? { x: -2, y: 0 } : undefined}
+        animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined}
+        transition={eventActive && !reduced ? { duration: 0.44, ease: 'easeOut' } : undefined}
       >
         <WeaponIllustration
           weapon={weapon}
@@ -255,20 +286,20 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({
           visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17}
           size={106}
           showBadges={false}
-          animate={!reduced}
+          animate={false}
         />
       </motion.div>
 
       <div className="pointer-events-none absolute bottom-[44px] left-2 right-2 grid grid-cols-[1fr_auto] gap-2">
         <div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>
           <div className="truncate text-[9px] font-black uppercase tracking-wide text-text-primary">{weaponLabel}</div>
-          <div className="truncate text-[8px] text-text-muted">{latestEvent ? `${latestEvent.label} ${latestEvent.detail}` : `visualizing ${projectile.label} into ${enemyLabel}`}</div>
+          <div className="truncate text-[8px] text-text-muted">{motionCaption}</div>
         </div>
         <div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>
           {latestEvent ? <Sparkles size={13} className="text-amber" /> : <Crosshair size={13} className="text-red" />}
           <div>
-            <div className="text-[8px] font-black uppercase tracking-wide text-text-muted">target</div>
-            <div className="max-w-[92px] truncate text-[9px] font-black text-red">{enemyLabel}</div>
+            <div className="text-[8px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div>
+            <div className="max-w-[92px] truncate text-[9px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel}</div>
           </div>
         </div>
       </div>
