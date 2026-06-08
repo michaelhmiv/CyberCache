@@ -7,7 +7,8 @@ import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts, getConsumable
 import { RARITIES } from '../../constants/rarities';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import { executeBossAttempt, simulateBoss } from '../../lib/simulation/bossSimulator';
-import { useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
+import { buildBossFightActivity, buildBossPrepActivity } from '../../lib/activity/activityBuilders';
+import { useActivityStore, useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
 
@@ -48,6 +49,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const bossStore = useBossStore();
   const loadout = useLoadoutStore();
   const skillStore = useSkillStore();
+  const activity = useActivityStore();
   const [risk, setRisk] = useState<RiskSetting>(RiskSetting.Balanced);
   const [result, setResult] = useState<ReturnType<typeof executeBossAttempt> | null>(null);
   const [simulating, setSimulating] = useState(false);
@@ -63,6 +65,15 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const equippedConsumables = loadout.getEquippedConsumables();
   const selectedConsumables = useMemo(() => consumableLoadoutToCounts(equippedConsumables), [equippedConsumables]);
   const selectionAvailable = Object.entries(selectedConsumables).every(([type, count]) => player.getConsumableCount(type) >= count);
+  const activityWeapon = primary ?? secondary ?? heavy ?? undefined;
+  const isBossPrepActivity = activity.current.kind === 'boss_prep' && activity.current.targetType === 'boss' && activity.current.targetId === boss.id;
+  const isBossFightActivity = activity.current.kind === 'boss_fight' && activity.current.targetType === 'boss' && activity.current.targetId === boss.id;
+  const activityLabel = isBossFightActivity ? 'Boss fight active' : isBossPrepActivity ? 'Boss prep active' : 'Boss prep not active';
+  const activityDetail = isBossFightActivity
+    ? `${boss.name} is currently the active fight activity.`
+    : isBossPrepActivity
+      ? `${boss.name} is the active prep target. Roaming is paused.`
+      : 'Sync this boss into active prep before combat can resolve.';
 
   const sim = useMemo(() => {
     return simulateBoss({
@@ -92,14 +103,37 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     loadout.setConsumableSlot(slot, type);
   };
 
-  const handleFight = () => {
+  const syncBossPrepActivity = async () => {
+    try {
+      await activity.start(buildBossPrepActivity(boss, activityWeapon));
+      setError(null);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Unable to set boss prep activity.');
+    }
+  };
+
+  const handleFight = async () => {
     if (!selectionAvailable) {
       setError('Selected consumables are not available in your inventory.');
       return;
     }
+    if (!isBossPrepActivity) {
+      setError('Boss combat requires this boss to be the active boss prep activity first.');
+      return;
+    }
 
     setSimulating(true);
-    setTimeout(() => {
+    setError(null);
+
+    try {
+      await activity.start(buildBossFightActivity(boss, activityWeapon));
+    } catch (nextError) {
+      setSimulating(false);
+      setError(nextError instanceof Error ? nextError.message : 'Unable to set boss fight activity.');
+      return;
+    }
+
+    window.setTimeout(async () => {
       const outcome = executeBossAttempt(
         {
           primary,
@@ -150,6 +184,12 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         bossStore.incrementPity(boss.id);
       }
       bossStore.addAttempt(outcome.result);
+
+      try {
+        await activity.clear();
+      } catch (nextError) {
+        console.warn('Boss activity clear skipped:', nextError);
+      }
       setSimulating(false);
     }, 1200);
   };
@@ -173,6 +213,24 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
             <X size={20} />
           </button>
         </div>
+
+        <MobileCard className="space-y-2 border-amber/30 bg-amber/5">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber">
+            <Activity size={14} />
+            {activityLabel}
+          </div>
+          <div className="text-[10px] text-text-secondary leading-relaxed">{activityDetail}</div>
+          {!isBossPrepActivity && !isBossFightActivity && !result && (
+            <button
+              type="button"
+              onClick={syncBossPrepActivity}
+              disabled={activity.pending}
+              className="rounded-lg border border-amber/30 bg-amber/10 px-2 py-1 text-[10px] font-bold text-amber disabled:opacity-50"
+            >
+              Sync Boss Prep
+            </button>
+          )}
+        </MobileCard>
 
         <MobileCard className="space-y-2">
           <div className="flex items-center gap-4 text-xs text-text-secondary">
@@ -461,10 +519,18 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
             <button onClick={reset} className="py-3 rounded-xl bl-primary font-bold text-sm">Fight Again</button>
             <button onClick={onClose} className="py-3 rounded-xl bl-secondary font-bold text-sm">Back</button>
           </div>
+        ) : !isBossPrepActivity ? (
+          <button
+            onClick={syncBossPrepActivity}
+            disabled={activity.pending}
+            className="w-full py-4 rounded-xl bl-primary font-black text-sm uppercase tracking-wider disabled:opacity-50"
+          >
+            {activity.pending ? 'Syncing...' : 'SYNC BOSS PREP ACTIVITY'}
+          </button>
         ) : (
           <button
             onClick={handleFight}
-            disabled={simulating || !selectionAvailable}
+            disabled={simulating || !selectionAvailable || activity.pending}
             className="w-full py-4 rounded-xl bl-primary font-black text-sm uppercase tracking-wider disabled:opacity-50"
           >
             {simulating ? 'Simulating...' : 'INITIATE COMBAT'}
