@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { User } from '@supabase/supabase-js';
 import * as authService from '../lib/supabase/authService';
 import * as profileService from '../lib/supabase/profileService';
+import { syncRuntimeItemsForUser } from '../lib/supabase/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/supabase/verifiedStateSync';
 import type { AccountState } from './accountState';
 import {
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const profile = await profileService.ensureProfile(nextUser);
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+    await syncRuntimeItemsForUser(nextUser.id);
     setAccount(profileService.profileRowToAccountState(profile, nextUser));
   }, []);
 
@@ -53,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!rawUser) return;
     const profile = await profileService.ensureProfile(rawUser);
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+    await syncRuntimeItemsForUser(rawUser.id);
     setAccount(profileService.profileRowToAccountState(profile, rawUser));
     setUser(toAuthSessionUser(rawUser));
   }, [rawUser]);
