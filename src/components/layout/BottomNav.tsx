@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sword, Shield, Package, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { Backpack, Crosshair, Gauge, Trophy, User } from 'lucide-react';
 
-type TabId = 'fight' | 'loadout' | 'loot' | 'market' | 'more';
+type TabId = 'dashboard' | 'fight' | 'inventory' | 'mastery' | 'profile';
 
 interface BottomNavProps {
   activeTab: TabId;
@@ -10,11 +10,11 @@ interface BottomNavProps {
 }
 
 const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: 'fight', label: 'Fight', icon: Sword },
-  { id: 'loadout', label: 'Loadout', icon: Shield },
-  { id: 'loot', label: 'Loot', icon: Package },
-  { id: 'market', label: 'Market', icon: TrendingUp },
-  { id: 'more', label: 'More', icon: MoreHorizontal },
+  { id: 'dashboard', label: 'Dash', icon: Gauge },
+  { id: 'fight', label: 'Fight', icon: Crosshair },
+  { id: 'inventory', label: 'Inventory', icon: Backpack },
+  { id: 'mastery', label: 'Mastery', icon: Trophy },
+  { id: 'profile', label: 'Profile', icon: User },
 ];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => {
