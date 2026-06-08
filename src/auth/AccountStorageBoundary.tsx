@@ -9,15 +9,23 @@ export function AccountStorageBoundary({ children }: { children: React.ReactNode
   useEffect(() => {
     let cancelled = false;
     const userId = user?.id ?? null;
+
+    // Reset to loading while storage migration runs — necessary gate
+    // to prevent rendering stale scoped data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReadyScope(null);
 
-    switchAccountStorageScope(userId)
-      .then(() => {
-        if (!cancelled) setReadyScope(userId ?? 'anonymous');
-      })
-      .catch(() => {
-        if (!cancelled) setReadyScope(userId ?? 'anonymous');
-      });
+    // Storage scope migration is async; setState after await is safe here
+    // because the effect cleans up via the cancelled flag on unmount.
+    async function run() {
+      try {
+        await switchAccountStorageScope(userId);
+      } catch {
+        // Storage scope switching is best-effort; don't block the app.
+      }
+      if (!cancelled) setReadyScope(userId ?? 'anonymous');
+    }
+    run();
 
     return () => {
       cancelled = true;
