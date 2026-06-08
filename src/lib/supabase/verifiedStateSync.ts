@@ -1,6 +1,9 @@
+import { useBossStore } from '@/store/slices/bossSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
+import { useSkillStore } from '@/store/slices/skillSlice';
+import { RiskSetting } from '@/types/game';
 import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
 
 export type RuntimeProfilePayload = {
@@ -14,6 +17,9 @@ export type RuntimeProfilePayload = {
   materials?: Record<string, number>;
   essences?: Record<string, number>;
   consumables?: Record<string, number>;
+  skill_spends?: Record<string, number>;
+  boss_state?: Record<string, unknown>;
+  last_idle_claim_at?: string;
 };
 
 const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic']);
@@ -24,6 +30,26 @@ function numberValue(value: number | string | undefined, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function timestampValue(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function recordValue(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const result: Record<string, number> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, raw]) => {
+    const parsed = typeof raw === 'number' ? raw : Number(raw);
+    if (Number.isFinite(parsed)) result[key] = parsed;
+  });
+  return result;
+}
+
+function stringArrayValue(value: unknown): string[] | undefined {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : undefined;
+}
+
 function toLoadoutSlot(value: string | null | undefined): LoadoutSlot | null {
   if (!value) return null;
   return validSlots.has(value as LoadoutSlot) ? (value as LoadoutSlot) : null;
@@ -32,18 +58,35 @@ function toLoadoutSlot(value: string | null | undefined): LoadoutSlot | null {
 export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): void {
   if (!profile) return;
 
+  const player = usePlayerStore.getState();
   usePlayerStore.getState().setPlayer({
-    id: profile.id ?? usePlayerStore.getState().id,
-    level: numberValue(profile.player_level, usePlayerStore.getState().level),
-    xp: numberValue(profile.player_xp, usePlayerStore.getState().xp),
-    credits: numberValue(profile.credits, usePlayerStore.getState().credits),
-    scrap: numberValue(profile.scrap, usePlayerStore.getState().scrap),
-    cacheKeys: numberValue(profile.cache_tokens, usePlayerStore.getState().cacheKeys),
-    cacheKeyFragments: numberValue(profile.cache_token_parts, usePlayerStore.getState().cacheKeyFragments),
-    materials: profile.materials ?? usePlayerStore.getState().materials,
-    essences: profile.essences ?? usePlayerStore.getState().essences,
-    consumables: profile.consumables ?? usePlayerStore.getState().consumables,
+    id: profile.id ?? player.id,
+    level: numberValue(profile.player_level, player.level),
+    xp: numberValue(profile.player_xp, player.xp),
+    credits: numberValue(profile.credits, player.credits),
+    scrap: numberValue(profile.scrap, player.scrap),
+    cacheKeys: numberValue(profile.cache_tokens, player.cacheKeys),
+    cacheKeyFragments: numberValue(profile.cache_token_parts, player.cacheKeyFragments),
+    materials: profile.materials ?? player.materials,
+    essences: profile.essences ?? player.essences,
+    consumables: profile.consumables ?? player.consumables,
+    lastClaimTime: timestampValue(profile.last_idle_claim_at, player.lastClaimTime),
   });
+
+  const skillSpends = recordValue(profile.skill_spends);
+  if (skillSpends) useSkillStore.setState({ spent: skillSpends });
+
+  const bossState = profile.boss_state;
+  if (bossState && typeof bossState === 'object' && !Array.isArray(bossState)) {
+    const raw = bossState as Record<string, unknown>;
+    useBossStore.setState((state) => ({
+      currentBossId: typeof raw.currentBossId === 'string' ? raw.currentBossId : state.currentBossId,
+      unlockedBossIds: stringArrayValue(raw.unlockedBossIds) ?? state.unlockedBossIds,
+      defeatedBossIds: stringArrayValue(raw.defeatedBossIds) ?? state.defeatedBossIds,
+      pityCounters: recordValue(raw.pityCounters) ?? state.pityCounters,
+      selectedRisk: typeof raw.selectedRisk === 'string' ? (raw.selectedRisk as RiskSetting) : state.selectedRisk,
+    }));
+  }
 }
 
 function syncRuntimeItem(row: ServerItemRow | undefined): void {
