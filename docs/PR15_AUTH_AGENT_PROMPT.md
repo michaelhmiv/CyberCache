@@ -1,64 +1,179 @@
 # PR 15 Agent Prompt: Guest-First Supabase Auth Foundation
 
-You are working in `michaelhmiv/CyberCache` on the `auth-client-guest-foundation` branch.
+You are working on CyberCache in repo `michaelhmiv/CyberCache`, branch `auth-client-guest-foundation`, PR #15.
 
-## Mandatory checks
+## 0. Mandatory verification
 
-Before editing, verify:
+Before editing anything, verify:
 
-- repo is `michaelhmiv/CyberCache`
-- branch is `auth-client-guest-foundation`
-- package name is `cybercache`
+- repo is exactly `michaelhmiv/CyberCache`
+- branch is exactly `auth-client-guest-foundation`
+- `package.json` has `"name": "cybercache"`
+- this is not Sportfolio or any other repo
 
-Read:
+If any check fails, stop and switch to the correct repo/branch.
 
-- `AGENTS.md`
-- `docs/AUTH_ONBOARDING_PLAN.md`
-- `src/auth/accountState.ts`
-- `src/auth/authTypes.ts`
-- `src/lib/supabase/config.ts`
-- `supabase/migrations/202606080002_account_state_and_verification.sql`
+## 1. Read these first
 
-## Product requirements
+Read these files before changing code:
 
-CyberCache must support three account states:
+```txt
+AGENTS.md
+docs/AUTH_ONBOARDING_PLAN.md
+docs/PR15_AUTH_AGENT_PROMPT.md
+src/auth/accountState.ts
+src/auth/authTypes.ts
+src/lib/supabase/config.ts
+src/lib/supabase/index.ts
+src/App.tsx
+src/main.tsx
+src/screens/MarketScreen.tsx
+supabase/migrations/202606080001_content_runtime_foundation.sql
+supabase/migrations/202606080002_account_state_and_verification.sql
+```
 
-1. Guest
-   - uses Supabase anonymous sign-in
-   - can play solo
-   - can persist solo progress
-   - cannot use market/service/escrow/trading/social/leaderboards
+These files define the source-of-truth direction and the account-state model. Do not bypass them.
 
-2. Registered unverified
-   - email/password account
-   - can play solo
-   - can persist profile and inventory
-   - gets daily verification reminders
-   - cannot use inter-user economy/social features
+## 2. Current architecture context
 
-3. Verified
-   - email-confirmed account
-   - full access to player economy/social systems
+CyberCache is a Vite + React + TypeScript app.
 
-The 7-day verification grace date is a reminder/escalation date, not a solo-play blocker.
+The repo already has:
 
-## Supabase settings assumed
+- `src/content` static gameplay framework
+- mechanics validation/report utilities
+- Supabase runtime schema migrations
+- GitHub Actions CI
+- Supabase migration deployment workflow
+- account-state schema from PR #14
+- draft PR #15 scaffolding for account gates and auth types
 
-- Email provider is enabled.
-- Anonymous sign-ins are enabled.
-- Railway has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-- Supabase redirects should include:
-  - `https://cybercache-production.up.railway.app/**`
-  - `http://localhost:5173/**`
+PR #15 currently contains:
 
-Use query-string auth modes because the app does not currently use React Router:
+```txt
+src/auth/accountState.ts
+src/auth/authTypes.ts
+src/test/accountState.test.ts
+docs/PR15_AUTH_AGENT_PROMPT.md
+```
 
-- `?auth=confirmed`
-- `?auth=reset-password`
+Your job is to complete the real app-side Supabase auth implementation.
 
-## Required implementation
+## 3. Product requirements
 
-### 1. Install Supabase JS
+CyberCache must support three account states.
+
+### Guest
+
+A guest is a Supabase anonymous user.
+
+Guest users can:
+
+- enter immediately
+- play solo
+- persist solo progress once runtime persistence is wired
+- eventually upgrade to a full account without losing progress
+
+Guest users cannot:
+
+- use marketplace
+- trade
+- create service jobs
+- use escrow
+- use player-to-player systems
+- affect social systems
+- affect leaderboards
+
+### Registered unverified
+
+A registered unverified user has an email/password account but has not confirmed email ownership.
+
+Registered unverified users can:
+
+- log in
+- play solo
+- persist profile and inventory
+- see daily verification reminders
+
+Registered unverified users cannot:
+
+- use marketplace
+- trade
+- create service jobs
+- use escrow
+- use player-to-player systems
+- affect social systems
+- affect leaderboards
+
+### Verified
+
+Verified users have confirmed email ownership.
+
+Verified users can:
+
+- play solo
+- use marketplace
+- use service jobs
+- use escrow
+- use future social systems
+- affect future leaderboards
+- access the full player economy
+
+## 4. Verification grace rule
+
+The 7-day verification grace date is a reminder/escalation deadline, not a solo-play hard block.
+
+Before the grace date, show light copy:
+
+```txt
+Verify your email to unlock trading, shops, and player services.
+```
+
+After the grace date, show stronger copy:
+
+```txt
+Email verification is required to use marketplace, shops, services, and social features.
+```
+
+Do not block Fight, Loot, Loadout, or other solo gameplay because the user is unverified. Only block inter-user/economy/social features.
+
+## 5. Supabase and redirect assumptions
+
+Production public URL:
+
+```txt
+https://cybercache-production.up.railway.app
+```
+
+Supabase project ref:
+
+```txt
+dyrmcwutjdzontjawqii
+```
+
+Railway already provides the Vite Supabase environment values used by `src/lib/supabase/config.ts`.
+
+Supabase Auth settings should allow:
+
+```txt
+https://cybercache-production.up.railway.app/**
+http://localhost:5173/**
+```
+
+The Railway internal port does not matter for redirects. Supabase should redirect to the public browser URL.
+
+This app does not currently use React Router. Do not add React Router in this PR unless absolutely unavoidable.
+
+Use query-string modes:
+
+```txt
+?auth=confirmed
+?auth=reset-password
+```
+
+Code should use the current browser origin for redirect construction. Do not hardcode localhost or production inside the app code.
+
+## 6. Install Supabase JS
 
 Run locally:
 
@@ -66,114 +181,439 @@ Run locally:
 npm install @supabase/supabase-js
 ```
 
-Commit both `package.json` and `package-lock.json`.
+Commit the resulting `package.json` and `package-lock.json` changes. Do not hand-edit the lockfile.
 
-### 2. Create Supabase client
+## 7. Create Supabase client
 
-Add `src/lib/supabase/client.ts`.
+Add:
 
-Use `requireSupabaseConfig()` from `src/lib/supabase/config.ts` and create a browser client.
+```txt
+src/lib/supabase/client.ts
+```
 
-Export the client from `src/lib/supabase/index.ts`.
+Use `requireSupabaseConfig()` from:
 
-### 3. Add auth service
+```txt
+src/lib/supabase/config.ts
+```
 
-Add `src/lib/supabase/authService.ts` with helpers:
+Create and export the Supabase browser client.
 
-- `getCurrentSession()`
-- `onAuthStateChange(callback)`
-- `signInAsGuest()` using anonymous sign-in
-- `signInWithEmail(email, password)`
-- `registerWithEmail(email, password, username)`
-- `sendPasswordReset(email)` using redirect `?auth=reset-password`
-- `updatePassword(password)`
-- `signOut()`
+Update:
 
-For signup/register, pass useful metadata such as username if supported.
+```txt
+src/lib/supabase/index.ts
+```
 
-### 4. Add profile service
+to export the client and all new services.
 
-Add `src/lib/supabase/profileService.ts`.
+Keep typing lightweight. Do not overbuild generated database types in this PR unless it is simple and compile-safe.
+
+## 8. Add auth service
+
+Add:
+
+```txt
+src/lib/supabase/authService.ts
+```
 
 Implement:
 
-- `getProfile(userId)`
-- `ensureProfile(user)`
-- `markVerificationReminderSeen(userId)`
-- `getAccountState(user)`
+```ts
+getCurrentSession()
+onAuthStateChange(callback)
+signInAsGuest()
+signInWithEmail(email, password)
+registerWithEmail(email, password, username)
+sendPasswordReset(email)
+updatePassword(password)
+signOut()
+```
 
-Profile bootstrap logic:
+Implementation notes:
 
-- If Supabase user is anonymous, create/upsert `profiles` row with `account_type = 'guest'`.
-- If user has email but is not confirmed, create/upsert with `account_type = 'registered_unverified'`.
-- If user email is confirmed, create/upsert with `account_type = 'verified'` and `email_verified_at` set.
-- Set `verification_grace_expires_at = created_at + 7 days` where applicable.
+- guest login should use Supabase anonymous sign-in
+- email login should use Supabase password login
+- registration should include username metadata if possible
+- reset email should redirect to `?auth=reset-password`
+- password update should update the current authenticated user
+- sign out should clear the Supabase session
+- use `getAuthRedirectConfig()` from `src/auth/authTypes.ts`
 
-Be careful not to overwrite existing username/display fields unnecessarily.
+Do not hardcode production or localhost URLs in these functions.
 
-### 5. Add AuthProvider
+## 9. Add profile service
 
-Add `src/auth/AuthProvider.tsx`.
+Add:
 
-It should:
+```txt
+src/lib/supabase/profileService.ts
+```
 
+Implement:
+
+```ts
+getProfile(userId)
+ensureProfile(user, options?)
+markVerificationReminderSeen(userId)
+getAccountState(user)
+```
+
+The `profiles` table includes:
+
+```txt
+id
+username
+display_name
+player_level
+player_xp
+credits
+created_at
+updated_at
+account_type
+email
+email_verified_at
+verification_grace_expires_at
+verification_reminder_last_seen_at
+```
+
+Valid account types:
+
+```txt
+guest
+registered_unverified
+verified
+```
+
+Profile bootstrap rules:
+
+- Anonymous user -> `account_type = guest`
+- Email user without confirmed email -> `account_type = registered_unverified`
+- Email user with confirmed email -> `account_type = verified`
+- Set `email` from the Supabase user when available
+- Set `email_verified_at` when confirmation timestamp exists
+- Set `verification_grace_expires_at` to roughly seven days after profile creation when missing
+- Do not overwrite existing `username` or `display_name` unnecessarily
+
+If registration supplies a username, preserve it. If username was passed through auth metadata, `ensureProfile()` should be able to write it during profile creation.
+
+If profile insert/update fails, surface a clear app error.
+
+## 10. AccountState mapping
+
+Use:
+
+```txt
+src/auth/accountState.ts
+```
+
+`getAccountState(user)` should produce:
+
+```ts
+{
+  userId,
+  accountType,
+  email,
+  emailVerifiedAt,
+  verificationGraceExpiresAt,
+  verificationReminderLastSeenAt,
+  isAnonymous
+}
+```
+
+Anonymous detection should prefer a Supabase-provided anonymous flag if available. If not available, derive conservatively from profile `account_type = guest` or missing email.
+
+## 11. Add AuthProvider
+
+Add:
+
+```txt
+src/auth/AuthProvider.tsx
+```
+
+It must:
+
+- create a React auth context
 - load initial session
 - subscribe to auth changes
-- call `ensureProfile`
-- expose `AuthContextValue`
+- call `ensureProfile(user)` after session load/change
+- keep `user`, `account`, and `loading` state
+- expose `AuthContextValue` from `src/auth/authTypes.ts`
 - expose `useAuth()`
-- track `authMode` from query string
-- expose refresh/sign-in/sign-out helpers
+- track auth mode from query string using `parseInitialAuthMode()`
+- expose `refreshAccount()`
+- expose guest/login/register/reset/logout functions
 
-### 6. Add AuthScreen
+Expected exposed methods:
 
-Add `src/screens/AuthScreen.tsx`.
+```txt
+continueAsGuest
+signInWithEmail
+registerWithEmail
+sendPasswordReset
+updatePassword
+signOut
+refreshAccount
+```
 
-Keep it simple and CyberCache-styled:
+If Supabase configuration is missing, show a controlled error rather than failing silently.
 
-- Continue as Guest
-- Login
-- Create Account
-- Forgot Password
-- Reset Password mode
+## 12. Add AuthScreen
 
-Do not overbuild. This is foundation work.
+Add:
 
-### 7. Gate App shell
+```txt
+src/screens/AuthScreen.tsx
+```
 
-Update `src/main.tsx` to wrap `App` with `AuthProvider`.
+It should support these modes:
 
-Update `src/App.tsx`:
+```txt
+guest
+login
+register
+forgot_password
+reset_password
+```
 
-- If auth is loading, show loading screen.
-- If no user/session, show `AuthScreen`.
-- If user exists, show current game shell.
-- Add a small verification reminder banner in the game shell when `shouldShowVerificationReminder(account)` is true.
+Default screen should prioritize seamless onboarding.
 
-Do not block solo play for unverified users.
+Primary action:
 
-### 8. Feature gates
+```txt
+Continue as Guest
+```
 
-Use `src/auth/accountState.ts` for market/service/social gates.
+Secondary actions:
 
-For this PR, at minimum gate `MarketScreen` or market entry points with `canUseFeature(account, 'market')`.
+```txt
+Create Account
+Login
+```
 
-If blocked, show a message explaining:
+Registration fields:
 
-- guests need to create and verify an account
-- registered users need to verify email
+```txt
+username
+email
+password
+confirm password
+```
 
-### 9. Tests
+Login fields:
 
-Keep existing tests green.
+```txt
+email
+password
+```
 
-Add or update tests for:
+Forgot password field:
 
-- account state gates if needed
-- auth redirect parsing
-- profile account-state mapping if practical without mocking Supabase heavily
+```txt
+email
+```
 
-## Commands to run
+Reset password fields:
+
+```txt
+new password
+confirm new password
+```
+
+Basic UI requirements:
+
+- validate required fields
+- validate matching confirmation password
+- show clear errors from Supabase/app logic
+- disable submit buttons while loading
+- do not overbuild styling
+- match current CyberCache style enough to be usable
+
+## 13. Wrap app with provider
+
+Update:
+
+```txt
+src/main.tsx
+```
+
+Wrap `<App />` with `<AuthProvider>` while preserving existing StrictMode/root behavior.
+
+## 14. Gate app shell
+
+Update:
+
+```txt
+src/App.tsx
+```
+
+Behavior:
+
+- if auth is loading, show a loading screen
+- if no user/session, show `<AuthScreen />`
+- if user/session exists, show the existing game shell
+
+Do not remove existing tab navigation or screens.
+
+Do not introduce React Router.
+
+## 15. Verification reminder banner
+
+Inside the authenticated game shell, show a small reminder banner when:
+
+```ts
+shouldShowVerificationReminder(account)
+```
+
+Rules:
+
+- show only for registered unverified users
+- do not show for guests
+- do not show for verified users
+- include copy about unlocking trading/shops/services
+- include a dismiss/mark-seen button
+- dismiss should call `markVerificationReminderSeen(userId)`
+- refresh account state after marking seen
+- after grace expiry, use the stronger copy from section 4
+
+Do not block solo play.
+
+## 16. Gate Market
+
+At minimum, gate the Market feature in this PR.
+
+Use:
+
+```ts
+canUseFeature(account, 'market')
+```
+
+If blocked for guest, show:
+
+```txt
+Create and verify an account to use player economy features.
+```
+
+If blocked for registered unverified, show:
+
+```txt
+Verify your email to unlock player economy features.
+```
+
+Verified users should see the existing market UI.
+
+Do not wire full marketplace persistence yet.
+
+## 17. Guest upgrade expectations
+
+Do not fully implement guest-to-registered upgrade if it becomes complex, but do not make design choices that prevent it.
+
+Guest progress should eventually stay attached when a guest upgrades to email/password.
+
+If upgrade is not completed in this PR, add a clear TODO and document the next PR.
+
+Minimum acceptable for this PR:
+
+- guest sign-in works
+- email registration works
+- email login works
+- profile/account state works
+- logout works
+- password reset flow works
+- market is gated by account state
+
+## 18. Reset and confirmation handling
+
+When the app loads with:
+
+```txt
+?auth=reset-password
+```
+
+show reset password mode.
+
+After successful password update:
+
+- show success
+- transition to login or game depending on session state
+- do not leave the user stuck
+
+When the app loads with:
+
+```txt
+?auth=confirmed
+```
+
+refresh account/profile state and show confirmation success if feasible.
+
+If confirmation success UI is awkward, do not block the rest of the auth foundation. At minimum, profile/account should refresh after auth state changes.
+
+## 19. Tests
+
+Keep existing tests green, especially:
+
+```txt
+src/test/accountState.test.ts
+```
+
+Add pure-function tests where practical.
+
+Preferred additions:
+
+- `parseInitialAuthMode('?auth=reset-password')` returns `reset_password`
+- default auth mode is `guest`
+- account-state gates still pass
+- any pure mapping helper from profile row to `AccountState` is tested
+
+Avoid tests that require a live Supabase project or real environment values.
+
+## 20. Do not do these things
+
+- Do not add React Router unless absolutely necessary
+- Do not remove existing game tabs/screens
+- Do not rewrite the game loop
+- Do not wire full inventory persistence yet
+- Do not wire market persistence yet
+- Do not create unrelated Supabase tables
+- Do not commit private credentials
+- Do not hardcode Supabase project credentials
+- Do not hardcode production or localhost URLs in app logic
+- Do not make verification a hard blocker for solo play
+- Do not allow guest/unverified accounts into market/service/escrow/social features
+
+## 21. Likely file changes
+
+Expected changed/added files:
+
+```txt
+package.json
+package-lock.json
+src/lib/supabase/client.ts
+src/lib/supabase/index.ts
+src/lib/supabase/authService.ts
+src/lib/supabase/profileService.ts
+src/auth/AuthProvider.tsx
+src/auth/accountState.ts
+src/auth/authTypes.ts
+src/screens/AuthScreen.tsx
+src/App.tsx
+src/main.tsx
+src/screens/MarketScreen.tsx
+src/test/accountState.test.ts
+```
+
+Optional useful test files:
+
+```txt
+src/test/authTypes.test.ts
+src/test/profileMapping.test.ts
+```
+
+Only add optional files if they materially help.
+
+## 22. Required commands before marking ready
+
+Run:
 
 ```bash
 npm test
@@ -183,25 +623,64 @@ npm run build
 npm run lint
 ```
 
-## Important constraints
+If anything fails:
 
-- Do not add React Router in this PR unless absolutely necessary.
-- Do not remove existing game tabs/screens.
-- Do not wire marketplace persistence yet.
-- Do not save secrets in the repo.
-- Keep changes focused on auth foundation and account gating.
+- fix it if introduced by this PR
+- if pre-existing, document why you believe it is pre-existing
+- do not mark PR ready without explaining failures
 
-## Expected result
+## 23. Manual QA checklist
 
-A user can:
+Run locally:
 
-- open the app
-- continue as guest
-- create an email/password account
-- log in
-- log out
-- request password reset
-- reset password via query-string mode
-- play solo as guest/unverified
-- see verification reminders
-- be blocked from player economy features until verified
+```bash
+npm run dev
+```
+
+Verify guest flow:
+
+- fresh visitor sees auth screen
+- Continue as Guest signs in anonymously
+- guest enters game shell
+- guest can access solo tabs
+- guest cannot use Market
+- guest can log out
+
+Verify registration:
+
+- create account with username, email, and password
+- profile row is created
+- account is `registered_unverified` unless confirmed timestamp already exists
+- user enters game shell
+- user sees verification reminder
+- user cannot use Market
+
+Verify login:
+
+- existing user can log in
+- profile loads
+- account state loads
+- game shell appears
+
+Verify forgot/reset password:
+
+- forgot password sends reset email
+- reset link returns with `?auth=reset-password`
+- reset password form appears
+- password update succeeds
+
+Verify verified behavior if practical:
+
+- after email verification, account becomes verified
+- verified account can access Market
+
+If verified behavior cannot be tested locally, document what was tested and what still needs production validation.
+
+## 24. Final PR state
+
+When complete:
+
+- update PR description with what was implemented
+- mark PR #15 ready for review
+- include command results in the PR description or comment
+- mention known limitations, especially guest-to-registered upgrade if not completed
