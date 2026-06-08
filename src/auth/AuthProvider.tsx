@@ -4,6 +4,13 @@ import * as authService from '../lib/supabase/authService';
 import * as profileService from '../lib/supabase/profileService';
 import { syncRuntimeItemsForUser } from '../lib/supabase/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/supabase/verifiedStateSync';
+import {
+  resetRuntimeStoresToInitialState,
+  restoreRuntimeStoresFromSupabase,
+  saveCurrentRuntimeStores,
+  startRuntimeStorePersistence,
+  stopRuntimeStorePersistence,
+} from '../store/runtimeSupabaseSync';
 import type { AccountState } from './accountState';
 import {
   parseAuthStatusMessage,
@@ -39,15 +46,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadUser = useCallback(async (nextUser: User | null) => {
+    stopRuntimeStorePersistence();
+    resetRuntimeStoresToInitialState();
     setRawUser(nextUser);
     setUser(toAuthSessionUser(nextUser));
     if (!nextUser) {
       setAccount(null);
       return;
     }
+
     const profile = await profileService.ensureProfile(nextUser);
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
     await syncRuntimeItemsForUser(nextUser.id);
+
+    let restoredSnapshot = false;
+    try {
+      restoredSnapshot = await restoreRuntimeStoresFromSupabase(nextUser.id);
+    } catch (error) {
+      console.warn('Runtime Supabase snapshot hydrate skipped:', error instanceof Error ? error.message : error);
+    }
+
+    if (!restoredSnapshot) {
+      await saveCurrentRuntimeStores(nextUser.id);
+    }
+    startRuntimeStorePersistence(nextUser.id);
     setAccount(profileService.profileRowToAccountState(profile, nextUser));
   }, []);
 
@@ -56,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const profile = await profileService.ensureProfile(rawUser);
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
     await syncRuntimeItemsForUser(rawUser.id);
+    await saveCurrentRuntimeStores(rawUser.id);
     setAccount(profileService.profileRowToAccountState(profile, rawUser));
     setUser(toAuthSessionUser(rawUser));
   }, [rawUser]);
@@ -73,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      stopRuntimeStorePersistence();
       subscription.unsubscribe();
     };
   }, [loadUser]);
@@ -138,11 +162,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }), [account, refreshAccount, run]);
 
   const signOut = useCallback(() => run(async () => {
+    await saveCurrentRuntimeStores(rawUser?.id ?? undefined);
     await authService.signOut();
     await loadUser(null);
     setAuthMode('guest');
     return { ok: true, message: 'Signed out.' };
-  }), [loadUser, run]);
+  }), [loadUser, rawUser?.id, run]);
 
   const value = useMemo<AuthContextValue>(() => ({
     user,
