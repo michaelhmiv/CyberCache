@@ -8,7 +8,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "mechanics:validate": "vitest run src/test/mechanicsValidation.test.ts",
+    "mechanics:report": "vitest run src/test/mechanicsBalanceReport.test.ts --reporter=verbose"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
