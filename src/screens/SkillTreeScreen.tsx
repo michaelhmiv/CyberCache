@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, RotateCcw, Sparkles, Zap } from 'lucide-react';
 import { getSkillTreeNodes } from '@/constants/skillTrees';
@@ -32,18 +32,13 @@ export const SkillTreeScreen: React.FC = () => {
   const nodes = getSkillTreeNodes(activeTree);
   const activeTreeDef = TREES.find((tree) => tree.id === activeTree) || TREES[0];
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0];
-
-  /* eslint-disable react-hooks/preserve-manual-memoization -- nodes is derived from stable tree definitions + spent points; stable across renders unless points change */
-  const tiers = useMemo(() => {
-    const grouped = new Map<number, SkillNode[]>();
-    nodes.forEach((node) => {
-      const current = grouped.get(node.tier) || [];
-      current.push(node);
-      grouped.set(node.tier, current.sort((a, b) => a.index - b.index));
-    });
-    return Array.from(grouped.entries()).sort(([a], [b]) => a - b);
-  }, [nodes]);
-  /* eslint-enable react-hooks/preserve-manual-memoization */
+  const groupedTiers = new Map<number, SkillNode[]>();
+  nodes.forEach((node) => {
+    const current = groupedTiers.get(node.tier) || [];
+    current.push(node);
+    groupedTiers.set(node.tier, current.sort((a, b) => a.index - b.index));
+  });
+  const tiers = Array.from(groupedTiers.entries()).sort(([a], [b]) => a - b);
 
   const canSpend = (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
