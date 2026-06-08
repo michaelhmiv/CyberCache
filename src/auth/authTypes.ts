@@ -25,6 +25,7 @@ export interface AuthContextValue {
   clearAuthStatus: () => void;
   continueAsGuest: () => Promise<AuthActionResult>;
   signInWithEmail: (email: string, password: string) => Promise<AuthActionResult>;
+  signInWithGoogle: () => Promise<AuthActionResult>;
   registerWithEmail: (email: string, password: string, username: string) => Promise<AuthActionResult>;
   sendPasswordReset: (email: string) => Promise<AuthActionResult>;
   updatePassword: (password: string) => Promise<AuthActionResult>;

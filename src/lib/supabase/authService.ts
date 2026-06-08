@@ -53,6 +53,15 @@ export async function updatePassword(secret: string): Promise<User> {
   return data.user;
 }
 
+export async function signInWithGoogle(): Promise<void> {
+  const redirects = getAuthRedirectConfig();
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: redirects.confirmedUrl },
+  });
+  if (error) throw error;
+}
+
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;

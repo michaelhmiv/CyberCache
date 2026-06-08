@@ -99,6 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { ok: true, message: 'Signed in.' };
   }), [loadUser, run]);
 
+  const signInWithGoogle = useCallback(() => run(async () => {
+    await authService.signInWithGoogle();
+    // signInWithOAuth redirects the page — no local state to update
+    return { ok: true };
+  }), [run]);
+
   const registerWithEmail = useCallback((email: string, secret: string, username: string) => run(async () => {
     const nextUser = await authService.registerWithEmail(email, secret, username);
     if (nextUser) {
@@ -146,13 +152,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAuthStatus,
     continueAsGuest,
     signInWithEmail,
+    signInWithGoogle,
     registerWithEmail,
     sendPasswordReset,
     updatePassword,
     markVerificationReminderSeen,
     signOut,
     refreshAccount,
-  }), [user, account, loading, actionLoading, authMode, authMessage, authError, clearAuthStatus, continueAsGuest, signInWithEmail, registerWithEmail, sendPasswordReset, updatePassword, markVerificationReminderSeen, signOut, refreshAccount]);
+  }), [user, account, loading, actionLoading, authMode, authMessage, authError, clearAuthStatus, continueAsGuest, signInWithEmail, signInWithGoogle, registerWithEmail, sendPasswordReset, updatePassword, markVerificationReminderSeen, signOut, refreshAccount]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
