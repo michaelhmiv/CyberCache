@@ -1,4 +1,5 @@
 export * from './gameContent';
+export * from './lootResolver';
 export * from './mechanicFramework';
 export * from './runtimeModel';
 export * from './simulation';
