@@ -18,9 +18,9 @@ export const MobileCard: React.FC<MobileCardProps> = ({
 }) => {
   return (
     <motion.div
-      whileTap={onClick ? { scale: 0.98, rotate: -0.25 } : undefined}
+      whileTap={onClick ? { scale: 0.985, rotate: -0.15 } : undefined}
       onClick={onClick}
-      className={`bl-card relative p-3 ${onClick ? 'cursor-pointer active:brightness-110' : ''} ${className}`}
+      className={`bl-card relative p-2.5 ${onClick ? 'cursor-pointer active:brightness-110' : ''} ${className}`}
       style={{
         borderLeftColor: rarityColor,
         borderLeftWidth: 5,
