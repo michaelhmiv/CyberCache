@@ -66,3 +66,30 @@ export function buildBossPrepActivity(boss: { id: string; name: string; weakness
     publicVisible: true,
   };
 }
+
+export function buildBossFightActivity(boss: { id: string; name: string; level?: number; tier?: number }, weapon?: Weapon): StartActivityInput {
+  return {
+    kind: 'boss_fight',
+    targetType: 'boss',
+    targetId: boss.id,
+    targetLabel: boss.name,
+    sceneKey: `boss:${boss.id}`,
+    notes: `Fighting ${boss.name}`,
+    activityPayload: {
+      boss_id: boss.id,
+      boss_name: boss.name,
+      boss_level: boss.level ?? null,
+      boss_tier: boss.tier ?? null,
+      weapon_id: weapon?.id ?? null,
+    },
+    publicPayload: {
+      activity_label: `Fighting ${boss.name}`,
+      target_label: boss.name,
+      boss_level: boss.level ?? null,
+      boss_tier: boss.tier ?? null,
+      scene_key: `boss:${boss.id}`,
+      ...weaponPublicSummary(weapon),
+    },
+    publicVisible: true,
+  };
+}
