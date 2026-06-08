@@ -115,10 +115,7 @@ const getXpDelta = (previous: Snapshot, current: Snapshot) => {
 };
 
 const Panel: React.FC<React.PropsWithChildren<{ label?: string; className?: string }>> = ({ label, className = '', children }) => (
-  <section
-    className={`relative overflow-hidden border-2 border-border bg-surface/95 p-2 shadow-[0_8px_18px_rgba(0,0,0,0.55)] ${className}`}
-    style={panelClip}
-  >
+  <section className={`relative overflow-hidden border-2 border-border bg-surface/95 p-2 shadow-[0_8px_18px_rgba(0,0,0,0.55)] ${className}`} style={panelClip}>
     <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(255,144,0,0.12)_0,transparent_34%,rgba(255,75,92,0.08)_100%)]" />
     <div className="pointer-events-none absolute -left-10 top-3 h-3 w-32 -rotate-12 bg-amber/20" />
     {label && (
@@ -146,35 +143,14 @@ const HudChip: React.FC<{ label: string; value: string | number; detail: string;
 
 const RewardIcon: React.FC<{ tone: GainTone }> = ({ tone }) => {
   const color = gainToneClass[tone];
-  const Icon = tone === 'loot'
-    ? PackageSearch
-    : tone === 'cache'
-      ? Box
-      : tone === 'level'
-        ? Trophy
-        : tone === 'cash'
-          ? Sparkles
-          : Activity;
-
-  return (
-    <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
-      <Icon size={17} className={color.text} />
-    </div>
-  );
+  const Icon = tone === 'loot' ? PackageSearch : tone === 'cache' ? Box : tone === 'level' ? Trophy : tone === 'cash' ? Sparkles : Activity;
+  return <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}><Icon size={17} className={color.text} /></div>;
 };
 
 const GainToast: React.FC<{ event: GainEvent }> = ({ event }) => {
   const color = gainToneClass[event.tone];
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 14, scale: 0.9, rotate: -1 }}
-      animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-      exit={{ opacity: 0, y: 14, scale: 0.92 }}
-      transition={{ duration: 0.14 }}
-      className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`}
-      style={signClip}
-    >
+    <motion.div layout initial={{ opacity: 0, y: 14, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 14, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={signClip}>
       <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} />
       <RewardIcon tone={event.tone} />
       <div className="min-w-0 leading-none">
@@ -185,35 +161,15 @@ const GainToast: React.FC<{ event: GainEvent }> = ({ event }) => {
   );
 };
 
-const ActionButton: React.FC<{
-  label: string;
-  desc: string;
-  stat?: string;
-  icon: React.ElementType;
-  tone: Tone;
-  primary?: boolean;
-  onClick: () => void;
-}> = ({ label, desc, stat, icon: Icon, tone, primary = false, onClick }) => {
+const ActionButton: React.FC<{ label: string; desc: string; stat?: string; icon: React.ElementType; tone: Tone; primary?: boolean; onClick: () => void }> = ({ label, desc, stat, icon: Icon, tone, primary = false, onClick }) => {
   const color = toneClass[tone];
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group relative overflow-hidden border-2 text-left active:scale-[0.98] transition-transform ${
-        primary ? `${color.border} ${color.bg}` : 'border-border bg-bg/80'
-      }`}
-      style={panelClip}
-    >
+    <button type="button" onClick={onClick} className={`group relative overflow-hidden border-2 text-left transition-transform active:scale-[0.98] ${primary ? `${color.border} ${color.bg}` : 'border-border bg-bg/80'}`} style={panelClip}>
       <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} />
       <div className="relative flex min-h-[56px] items-center gap-2 p-2 pl-3">
-        <div className={`flex h-9 w-9 shrink-0 -rotate-2 items-center justify-center border-2 border-border ${color.bg}`}>
-          <Icon size={16} className={color.text} />
-        </div>
+        <div className={`flex h-9 w-9 shrink-0 -rotate-2 items-center justify-center border-2 border-border ${color.bg}`}><Icon size={16} className={color.text} /></div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-xs font-black uppercase tracking-wide text-text-primary">{label}</div>
-            <ChevronRight size={14} className={`${color.text} opacity-75 group-active:translate-x-0.5 transition-transform`} />
-          </div>
+          <div className="flex items-center justify-between gap-2"><div className="text-xs font-black uppercase tracking-wide text-text-primary">{label}</div><ChevronRight size={14} className={`${color.text} opacity-75 transition-transform group-active:translate-x-0.5`} /></div>
           <div className="text-[9px] leading-snug text-text-muted">{desc}</div>
           {stat && <div className={`mt-0.5 text-[9px] font-black ${color.text}`}>{stat}</div>}
         </div>
@@ -222,25 +178,11 @@ const ActionButton: React.FC<{
   );
 };
 
-const InfoGauge: React.FC<{ label: string; value: string | number; detail: string; icon: React.ElementType; tone: Tone }> = ({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  tone,
-}) => {
+const InfoGauge: React.FC<{ label: string; value: string | number; detail: string; icon: React.ElementType; tone: Tone }> = ({ label, value, detail, icon: Icon, tone }) => {
   const color = toneClass[tone];
   return (
     <div className="relative overflow-hidden border-2 border-border bg-bg/75 p-1.5" style={panelClip}>
-      <div className="flex items-center gap-1.5">
-        <div className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
-          <Icon size={14} className={color.text} />
-        </div>
-        <div className="min-w-0">
-          <div className="text-[8px] uppercase tracking-wide text-text-muted">{label}</div>
-          <div className="truncate text-xs font-black leading-tight text-text-primary">{value}</div>
-        </div>
-      </div>
+      <div className="flex items-center gap-1.5"><div className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}><Icon size={14} className={color.text} /></div><div className="min-w-0"><div className="text-[8px] uppercase tracking-wide text-text-muted">{label}</div><div className="truncate text-xs font-black leading-tight text-text-primary">{value}</div></div></div>
       <div className="mt-0.5 truncate text-[8px] text-text-muted">{detail}</div>
     </div>
   );
@@ -255,7 +197,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const workshop = useWorkshopStore();
   const idle = useIdleStore();
   const activity = useActivityStore();
-
   const [gainFeed, setGainFeed] = useState<GainEvent[]>([]);
   const [activityError, setActivityError] = useState<string | null>(null);
   const previousSnapshotRef = useRef<Snapshot | null>(null);
@@ -310,19 +251,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   }, [activity, currentBoss, equippedWeapon, idle, onNavigate]);
 
   useEffect(() => {
-    const snapshot: Snapshot = {
-      level: player.level,
-      xp: player.xp,
-      credits: player.credits,
-      scrap: player.scrap,
-      cacheKeys: player.cacheKeys,
-      cacheKeyFragments: player.cacheKeyFragments,
-      itemCount: inventory.items.length,
-    };
+    const snapshot: Snapshot = { level: player.level, xp: player.xp, credits: player.credits, scrap: player.scrap, cacheKeys: player.cacheKeys, cacheKeyFragments: player.cacheKeyFragments, itemCount: inventory.items.length };
     const previous = previousSnapshotRef.current;
     previousSnapshotRef.current = snapshot;
     if (!previous) return;
-
     const events: GainEvent[] = [];
     const xpGain = getXpDelta(previous, snapshot);
     const creditsGain = snapshot.credits - previous.credits;
@@ -330,7 +262,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     const keyGain = snapshot.cacheKeys - previous.cacheKeys;
     const fragmentGain = snapshot.cacheKeyFragments - previous.cacheKeyFragments;
     const lootGain = snapshot.itemCount - previous.itemCount;
-
     if (snapshot.level > previous.level) events.push(makeGain(`LV ${snapshot.level}`, 'level', 'level'));
     if (xpGain > 0) events.push(makeGain(`+${compact(xpGain)}`, 'XP', 'xp'));
     if (lootGain > 0) events.push(makeGain(`+${lootGain}`, 'gear', 'loot'));
@@ -338,25 +269,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     if (scrapGain > 0) events.push(makeGain(`+${compact(scrapGain)}`, 'scrap', 'cash'));
     if (keyGain > 0) events.push(makeGain(`+${keyGain}`, 'keys', 'cache'));
     if (fragmentGain > 0) events.push(makeGain(`+${fragmentGain}`, 'frags', 'cache'));
-
     if (!events.length) return;
     const eventIds = events.map((event) => event.id);
     setGainFeed((current) => [...events, ...current].slice(0, 5));
-
-    const timeout = window.setTimeout(() => {
-      setGainFeed((current) => current.filter((event) => !eventIds.includes(event.id)));
-    }, 1050);
-
+    const timeout = window.setTimeout(() => setGainFeed((current) => current.filter((event) => !eventIds.includes(event.id))), 1050);
     return () => window.clearTimeout(timeout);
-  }, [
-    inventory.items.length,
-    player.cacheKeyFragments,
-    player.cacheKeys,
-    player.credits,
-    player.level,
-    player.scrap,
-    player.xp,
-  ]);
+  }, [inventory.items.length, player.cacheKeyFragments, player.cacheKeys, player.credits, player.level, player.scrap, player.xp]);
 
   const actions = [
     { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync selected turf as the active route, then enter combat.', icon: Crosshair, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
@@ -369,158 +287,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
   return (
     <div className="bl-page relative overflow-hidden p-2 pb-16">
-      <AnimatePresence>
-        {gainFeed.length > 0 && (
-          <motion.div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] left-0 right-0 z-50 mx-auto flex max-w-[440px] justify-center gap-1.5 px-3" initial={false}>
-            {gainFeed.slice(0, 2).map((event) => <GainToast key={event.id} event={event} />)}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="pointer-events-none absolute inset-0 opacity-70">
-        <div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" />
-        <div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" />
-      </div>
-
+      <AnimatePresence>{gainFeed.length > 0 && <motion.div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] left-0 right-0 z-50 mx-auto flex max-w-[440px] justify-center gap-1.5 px-3" initial={false}>{gainFeed.slice(0, 2).map((event) => <GainToast key={event.id} event={event} />)}</motion.div>}</AnimatePresence>
+      <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="bl-title text-3xl leading-none text-text-primary">Bounty Board</div>
-            <div className="text-[9px] uppercase tracking-[0.2em] text-text-muted">Activity-backed run / loot pops / level climb</div>
-          </div>
-          <div className="flex h-10 w-10 shrink-0 -rotate-2 items-center justify-center border-2 border-border bg-amber/15 shadow-[4px_4px_0_rgba(0,0,0,0.7)]">
-            <Crosshair size={20} className="text-amber" />
-          </div>
-        </div>
-
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          <HudChip label="Cash" value={compact(player.credits)} detail="credits" tone="cyan" />
-          <HudChip label="Scrap" value={compact(player.scrap)} detail="bench" tone="amber" />
-          <HudChip label="Keys" value={player.cacheKeys} detail={`${player.cacheKeyFragments}/5 frags`} tone="green" />
-          <HudChip label="Loot" value={inventory.items.length} detail={`${equippedCount}/7 equip`} tone="red" />
-        </div>
-
-        <Panel label="Current Activity">
-          <div className="flex items-start gap-2">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border ${selectedRoamingActive ? 'bg-green/10' : 'bg-amber/10'}`}>
-              <Activity size={18} className={selectedRoamingActive ? 'text-green' : 'text-amber'} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-black uppercase tracking-wide text-text-primary">{activityLabel}</div>
-              <div className="text-[9px] text-text-muted">Target: {activityTarget}</div>
-              <div className="text-[9px] text-text-muted">Scene: {activityScene}</div>
-              {activityError && <div className="mt-1 text-[9px] font-bold text-red">{activityError}</div>}
-            </div>
-            <div className="text-right text-[9px] font-black text-amber">{activity.pending ? 'SYNC' : selectedRoamingActive ? 'LIVE' : 'GATED'}</div>
-          </div>
-        </Panel>
-
-        <Panel label="Level Strip">
-          <div className="flex items-center gap-2">
-            <div className="relative flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-4 border-border bg-amber/15 shadow-[5px_5px_0_rgba(0,0,0,0.75)]">
-              <div className="absolute inset-1 border border-amber/40" />
-              <div className="text-center">
-                <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Level</div>
-                <div className="text-3xl font-black leading-none text-amber">{player.level}</div>
-              </div>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-end justify-between gap-2">
-                <div>
-                  <div className="text-sm font-black uppercase tracking-wide text-text-primary">XP Chalk Mark</div>
-                  <div className="text-[9px] text-text-muted">
-                    {player.xp.toLocaleString()} / {xpToNextLevel.toLocaleString()} XP · {xpRemaining.toLocaleString()} left
-                  </div>
-                </div>
-                <div className={`text-right text-[9px] font-black ${selectedRoamingActive ? 'text-green' : 'text-text-muted'}`}>{productiveTickLabel}</div>
-              </div>
-              <div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}>
-                <motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} />
-                <div className="absolute inset-0 grid grid-cols-5">
-                  {Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}
-                </div>
-              </div>
-              <div className="mt-1 flex items-center justify-between gap-2 text-[8px] uppercase tracking-wide text-text-muted">
-                <span>{selectedRoamingActive ? `${TICK_SECONDS}.00s tick` : 'activity required'}</span>
-                <span>{FIELD_FIND_CHANCE}% loot</span>
-                <span>{CACHE_FRAGMENT_CHANCE}% frag</span>
-              </div>
-            </div>
-          </div>
-        </Panel>
-
-        <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} feedEvents={gainFeed} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
-
-        <Panel label="Action Board" className="space-y-2">
-          <div className="grid grid-cols-1 gap-1.5">
-            {actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}
-          </div>
-        </Panel>
-
-        <Panel label="Hunter Notes">
-          <div className="grid grid-cols-2 gap-1.5">
-            <InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={selectedArea.dangerRating} icon={Map} tone="amber" />
-            <InfoGauge label="Mastery" value={masteryScore.toLocaleString()} detail={`${availableSkillPoints} unspent points`} icon={Trophy} tone="purple" />
-            <InfoGauge label="Best Gun" value={bestWeapon?.name ?? 'None'} detail={bestWeapon ? `${bestWeapon.combatPower} combat power` : 'Find gear in combat'} icon={Sparkles} tone="red" />
-            <InfoGauge label="Workshop" value={openWorkshopJobs} detail="passive queues" icon={Hammer} tone="green" />
-          </div>
-
-          {nextArea && (
-            <div className="mt-2 flex items-center gap-2 border-2 border-border bg-bg/75 p-1.5" style={panelClip}>
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-surface-raised">
-                <Lock size={14} className="text-text-muted" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">Next turf unlock</div>
-                <div className="truncate text-xs font-black text-text-primary">{nextArea.name}</div>
-              </div>
-              <div className="text-right text-[9px] font-black text-amber">Reach LV {nextArea.unlockLevel}</div>
-            </div>
-          )}
-        </Panel>
-
-        <Panel label="Numbers Up">
-          <div className="grid grid-cols-2 gap-1.5">
-            {(gainFeed.length ? gainFeed : [idleGainHint]).slice(0, 4).map((event) => {
-              const color = gainToneClass[event.tone];
-              return (
-                <div key={event.id} className="flex items-center gap-1.5 border-2 border-border bg-bg/75 p-1.5" style={signClip}>
-                  <span className={`h-2 w-2 rounded-full ${color.fill}`} />
-                  <div className="min-w-0 flex-1">
-                    <div className={`truncate text-[9px] font-black uppercase tracking-wide ${color.text}`}>{event.label}</div>
-                    <div className="truncate text-[8px] text-text-muted">{event.detail}</div>
-                  </div>
-                  <Activity size={11} className="text-text-muted" />
-                </div>
-              );
-            })}
-          </div>
-        </Panel>
-
-        <Panel label="Choose Turf">
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {ROAMING_AREAS.map((area) => {
-              const unlocked = isRoamingAreaUnlocked(area, player.level);
-              const selected = area.id === selectedArea.id;
-              return (
-                <button type="button" key={area.id} disabled={!unlocked} onClick={() => idle.setSelectedRoamingArea(area.id)} className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left active:scale-[0.98] transition-transform ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`} style={panelClip}>
-                  <div className="flex items-start justify-between gap-1.5">
-                    <div className="min-w-0">
-                      <div className="truncate text-[11px] font-black text-text-primary">{area.name}</div>
-                      <div className="text-[8px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div>
-                    </div>
-                    {!unlocked && <Lock size={11} className="shrink-0 text-text-muted" />}
-                    {selected && <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" />}
-                  </div>
-                  <div className="mt-0.5 truncate text-[8px] text-amber">{area.lootBias[0]}</div>
-                </button>
-              );
-            })}
-          </div>
-        </Panel>
+        <div className="flex items-start justify-between gap-2"><div><div className="bl-title text-3xl leading-none text-text-primary">Bounty Board</div><div className="text-[9px] uppercase tracking-[0.2em] text-text-muted">Activity-backed run / loot pops / level climb</div></div><div className="flex h-10 w-10 shrink-0 -rotate-2 items-center justify-center border-2 border-border bg-amber/15 shadow-[4px_4px_0_rgba(0,0,0,0.7)]"><Crosshair size={20} className="text-amber" /></div></div>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5"><HudChip label="Cash" value={compact(player.credits)} detail="credits" tone="cyan" /><HudChip label="Scrap" value={compact(player.scrap)} detail="bench" tone="amber" /><HudChip label="Keys" value={player.cacheKeys} detail={`${player.cacheKeyFragments}/5 frags`} tone="green" /><HudChip label="Loot" value={inventory.items.length} detail={`${equippedCount}/7 equip`} tone="red" /></div>
+        <Panel label="Current Activity"><div className="flex items-start gap-2"><div className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border ${selectedRoamingActive ? 'bg-green/10' : 'bg-amber/10'}`}><Activity size={18} className={selectedRoamingActive ? 'text-green' : 'text-amber'} /></div><div className="min-w-0 flex-1"><div className="text-xs font-black uppercase tracking-wide text-text-primary">{activityLabel}</div><div className="text-[9px] text-text-muted">Target: {activityTarget}</div><div className="text-[9px] text-text-muted">Scene: {activityScene}</div>{activityError && <div className="mt-1 text-[9px] font-bold text-red">{activityError}</div>}</div><div className="text-right text-[9px] font-black text-amber">{activity.pending ? 'SYNC' : selectedRoamingActive ? 'LIVE' : 'GATED'}</div></div></Panel>
+        <Panel label="Level Strip"><div className="flex items-center gap-2"><div className="relative flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-4 border-border bg-amber/15 shadow-[5px_5px_0_rgba(0,0,0,0.75)]"><div className="absolute inset-1 border border-amber/40" /><div className="text-center"><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Level</div><div className="text-3xl font-black leading-none text-amber">{player.level}</div></div></div><div className="min-w-0 flex-1"><div className="flex items-end justify-between gap-2"><div><div className="text-sm font-black uppercase tracking-wide text-text-primary">XP Chalk Mark</div><div className="text-[9px] text-text-muted">{player.xp.toLocaleString()} / {xpToNextLevel.toLocaleString()} XP · {xpRemaining.toLocaleString()} left</div></div><div className={`text-right text-[9px] font-black ${selectedRoamingActive ? 'text-green' : 'text-text-muted'}`}>{productiveTickLabel}</div></div><div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}><motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} /><div className="absolute inset-0 grid grid-cols-5">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}</div></div><div className="mt-1 flex items-center justify-between gap-2 text-[8px] uppercase tracking-wide text-text-muted"><span>{selectedRoamingActive ? `${TICK_SECONDS}.00s tick` : 'activity required'}</span><span>{FIELD_FIND_CHANCE}% loot</span><span>{CACHE_FRAGMENT_CHANCE}% frag</span></div></div></div></Panel>
+        <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} feedEvents={gainFeed} activityKind={activity.current.kind} activityLabel={activityLabel} activityTarget={activityTarget} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
+        <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
+        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={selectedArea.dangerRating} icon={Map} tone="amber" /><InfoGauge label="Mastery" value={masteryScore.toLocaleString()} detail={`${availableSkillPoints} unspent points`} icon={Trophy} tone="purple" /><InfoGauge label="Best Gun" value={bestWeapon?.name ?? 'None'} detail={bestWeapon ? `${bestWeapon.combatPower} combat power` : 'Find gear in combat'} icon={Sparkles} tone="red" /><InfoGauge label="Workshop" value={openWorkshopJobs} detail="passive queues" icon={Hammer} tone="green" /></div>{nextArea && <div className="mt-2 flex items-center gap-2 border-2 border-border bg-bg/75 p-1.5" style={panelClip}><div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-surface-raised"><Lock size={14} className="text-text-muted" /></div><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-wide text-text-muted">Next turf unlock</div><div className="truncate text-xs font-black text-text-primary">{nextArea.name}</div></div><div className="text-right text-[9px] font-black text-amber">Reach LV {nextArea.unlockLevel}</div></div>}</Panel>
+        <Panel label="Numbers Up"><div className="grid grid-cols-2 gap-1.5">{(gainFeed.length ? gainFeed : [idleGainHint]).slice(0, 4).map((event) => { const color = gainToneClass[event.tone]; return <div key={event.id} className="flex items-center gap-1.5 border-2 border-border bg-bg/75 p-1.5" style={signClip}><span className={`h-2 w-2 rounded-full ${color.fill}`} /><div className="min-w-0 flex-1"><div className={`truncate text-[9px] font-black uppercase tracking-wide ${color.text}`}>{event.label}</div><div className="truncate text-[8px] text-text-muted">{event.detail}</div></div><Activity size={11} className="text-text-muted" /></div>; })}</div></Panel>
+        <Panel label="Choose Turf"><div className="flex gap-1.5 overflow-x-auto pb-0.5">{ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; return <button type="button" key={area.id} disabled={!unlocked} onClick={() => idle.setSelectedRoamingArea(area.id)} className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left transition-transform active:scale-[0.98] ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`} style={panelClip}><div className="flex items-start justify-between gap-1.5"><div className="min-w-0"><div className="truncate text-[11px] font-black text-text-primary">{area.name}</div><div className="text-[8px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div></div>{!unlocked && <Lock size={11} className="shrink-0 text-text-muted" />}{selected && <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" />}</div><div className="mt-0.5 truncate text-[8px] text-amber">{area.lootBias[0]}</div></button>; })}</div></Panel>
       </div>
     </div>
   );
