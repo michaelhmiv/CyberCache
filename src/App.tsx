@@ -4,14 +4,10 @@ import { BottomNav } from './components/layout/BottomNav';
 import { ScreenWrapper } from './components/layout/ScreenWrapper';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { FightScreen } from './screens/FightScreen';
-import { LoadoutScreen } from './screens/LoadoutScreen';
-import { LootScreen } from './screens/LootScreen';
+import { InventoryScreen } from './screens/InventoryScreen';
 import { MarketScreen } from './screens/MarketScreen';
-import { MoreScreen } from './screens/MoreScreen';
-import { SkillTreeScreen } from './screens/SkillTreeScreen';
+import { MasteryScreen } from './screens/MasteryScreen';
 import { ChestScreen } from './screens/ChestScreen';
-import { FusionScreen } from './screens/FusionScreen';
-import { VendorScreen } from './screens/VendorScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HelpScreen } from './screens/HelpScreen';
@@ -22,9 +18,9 @@ import { isVerificationGraceExpired, shouldShowVerificationReminder } from './au
 import { FeatureGate } from './auth/FeatureGate';
 import { useAuth } from './auth/AuthProvider';
 
-type TabId = 'dashboard' | 'loadout' | 'skills' | 'loot' | 'market';
-type SubScreen = 'fight' | 'chest' | 'fusion' | 'vendor' | 'profile' | 'settings' | 'help' | 'workshop' | 'more' | null;
-const topLevelTabs: TabId[] = ['dashboard', 'loadout', 'skills', 'loot', 'market'];
+type TabId = 'dashboard' | 'fight' | 'inventory' | 'mastery' | 'profile';
+type SubScreen = 'chest' | 'market' | 'settings' | 'help' | 'workshop' | null;
+const topLevelTabs: TabId[] = ['dashboard', 'fight', 'inventory', 'mastery', 'profile'];
 
 function VerificationReminderBanner() {
   const { account, markVerificationReminderSeen, actionLoading } = useAuth();
@@ -71,12 +67,27 @@ function App() {
   }
 
   const handleNavigate = (screen: string) => {
+    if (screen === 'loadout' || screen === 'loot' || screen === 'vendor' || screen === 'fusion') {
+      setActiveTab('inventory');
+      setSubScreen(null);
+      return;
+    }
+    if (screen === 'skills') {
+      setActiveTab('mastery');
+      setSubScreen(null);
+      return;
+    }
+    if (screen === 'more') {
+      setActiveTab('profile');
+      setSubScreen(null);
+      return;
+    }
     if (topLevelTabs.includes(screen as TabId)) {
       setActiveTab(screen as TabId);
       setSubScreen(null);
       return;
     }
-    setSubScreen((screen === 'fusion' ? 'workshop' : screen) as SubScreen);
+    setSubScreen(screen as SubScreen);
   };
 
   const handleBack = () => {
@@ -85,22 +96,22 @@ function App() {
 
   const renderSubScreen = () => {
     const screens: Record<string, React.ReactNode> = {
-      fight: <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />,
       chest: <ChestScreen />,
-      fusion: <FusionScreen />,
-      vendor: <VendorScreen />,
-      profile: <ProfileScreen />,
+      market: (
+        <FeatureGate feature="market">
+          <MarketScreen />
+        </FeatureGate>
+      ),
       settings: <SettingsScreen />,
       help: <HelpScreen />,
       workshop: <WorkshopScreen onNavigate={handleNavigate} />,
-      more: <MoreScreen onNavigate={handleNavigate} />,
     };
-    const title = subScreen === 'workshop'
-      ? 'Workshop'
-      : subScreen === 'chest'
-        ? 'Data Cache'
-        : subScreen === 'fight'
-          ? 'Roaming'
+    const title = subScreen === 'chest'
+      ? 'Data Cache'
+      : subScreen === 'market'
+        ? 'Market'
+        : subScreen === 'workshop'
+          ? 'Workshop'
           : subScreen;
 
     return (
@@ -142,14 +153,10 @@ function App() {
       ) : (
         <ScreenWrapper activeTab={activeTab}>
           {activeTab === 'dashboard' && <DashboardScreen onNavigate={handleNavigate} />}
-          {activeTab === 'loadout' && <LoadoutScreen />}
-          {activeTab === 'skills' && <SkillTreeScreen />}
-          {activeTab === 'loot' && <LootScreen onNavigate={handleNavigate} />}
-          {activeTab === 'market' && (
-            <FeatureGate feature="market">
-              <MarketScreen />
-            </FeatureGate>
-          )}
+          {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
+          {activeTab === 'inventory' && <InventoryScreen onNavigate={handleNavigate} />}
+          {activeTab === 'mastery' && <MasteryScreen />}
+          {activeTab === 'profile' && <ProfileScreen />}
         </ScreenWrapper>
       )}
 
