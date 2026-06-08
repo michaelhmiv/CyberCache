@@ -1,3 +1,4 @@
+export * from './encounterRegistry';
 export * from './gameContent';
 export * from './lootResolver';
 export * from './mechanicFramework';
