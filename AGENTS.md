@@ -37,7 +37,11 @@ Gameplay probabilities and balance rules must not be hidden in UI components or 
 - `src/content/runtimeModel.ts` — static/runtime boundary and TypeScript shapes for Supabase-backed item instances, professions, service jobs, escrow, market listings, and active actions.
 - `src/content/simulation.ts` — deterministic simulation helpers for loot rolls, quality rolls, daily XP, and level curves.
 - `src/content/validation.ts` — validation utilities for duplicate IDs, missing references, invalid chances, malformed recipes, and bad loot tables.
+- `src/content/mechanicsValidator.ts` — validation bridge for current legacy constants while they are being migrated.
+- `src/content/mechanicsBalanceReport.ts` — deterministic boss/loadout sanity report utility for current encounter balance.
 - `src/test/content.test.ts` — safety tests for the content layer.
+- `src/test/mechanicsValidation.test.ts` — legacy mechanics validation coverage.
+- `src/test/balanceReport.test.ts` — balance report coverage.
 
 ## Product-Critical Rules
 
@@ -75,6 +79,8 @@ Run from repo root when possible:
 1. `npm test`
 2. `npm run build`
 3. `npm run lint`
+4. `npm run mechanics:validate`
+5. `npm run mechanics:report`
 
 If any command fails, report whether it appears pre-existing or introduced by the change.
 
