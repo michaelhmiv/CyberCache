@@ -161,16 +161,32 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
   isApplyingSnapshot = true;
   try {
     const player = objectValue<PlayerProfile>(snapshot.player);
-    if (player) usePlayerStore.setState(player);
+    if (player) {
+      const currentPlayer = usePlayerStore.getState();
+      usePlayerStore.setState({
+        name: typeof player.name === 'string' ? player.name : currentPlayer.name,
+        currentZoneId: typeof player.currentZoneId === 'string' ? player.currentZoneId : currentPlayer.currentZoneId,
+        highestZoneId: typeof player.highestZoneId === 'string' ? player.highestZoneId : currentPlayer.highestZoneId,
+        offlineCapHours: typeof player.offlineCapHours === 'number' ? player.offlineCapHours : currentPlayer.offlineCapHours,
+        deathFeeInsurance: typeof player.deathFeeInsurance === 'boolean' ? player.deathFeeInsurance : currentPlayer.deathFeeInsurance,
+        workshopQueues: arrayValue<WorkshopQueue>(player.workshopQueues) ?? currentPlayer.workshopQueues,
+        lastWorkshopTick: typeof player.lastWorkshopTick === 'number' ? player.lastWorkshopTick : currentPlayer.lastWorkshopTick,
+      });
+    }
 
     const inventory = objectValue<{ items: GearItem[] }>(snapshot.inventory);
     const items = arrayValue<GearItem>(inventory?.items);
-    if (items) useInventoryStore.setState({ items });
+    if (items) {
+      const currentItems = useInventoryStore.getState().items;
+      const currentIds = new Set(currentItems.map((item) => item.id));
+      const snapshotOnlyItems = items.filter((item) => !currentIds.has(item.id));
+      useInventoryStore.setState({ items: [...currentItems, ...snapshotOnlyItems] });
+    }
 
     const loadout = objectValue<{ slots: Record<LoadoutSlot, string | null>; consumables: LoadoutConsumables }>(snapshot.loadout);
     if (loadout) {
       useLoadoutStore.setState((state) => ({
-        slots: { ...emptySlots, ...(objectValue<Record<LoadoutSlot, string | null>>(loadout.slots) ?? {}) },
+        slots: { ...emptySlots, ...state.slots, ...(objectValue<Record<LoadoutSlot, string | null>>(loadout.slots) ?? {}) },
         consumables: { ...state.consumables, ...(objectValue<LoadoutConsumables>(loadout.consumables) ?? {}) },
       }));
     }
