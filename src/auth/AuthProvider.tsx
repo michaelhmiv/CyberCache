@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }), [account, refreshAccount, run]);
 
   const signOut = useCallback(() => run(async () => {
-    await saveCurrentRuntimeStores(rawUser?.id ?? undefined);
+    await saveCurrentRuntimeStores(rawUser?.id ?? null);
     await authService.signOut();
     await loadUser(null);
     setAuthMode('guest');
