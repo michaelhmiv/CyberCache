@@ -83,7 +83,9 @@ export async function switchAccountStorageScope(userId: string | null | undefine
   const nextScope = toStorageScope(userId);
   const previousScope = localStorage.getItem(ACTIVE_SCOPE_STORAGE_KEY);
 
-  if (previousScope && previousScope !== nextScope) {
+  if (!previousScope) {
+    persistStaticStoreKeys(nextScope);
+  } else if (previousScope !== nextScope) {
     persistStaticStoreKeys(previousScope);
   }
 
