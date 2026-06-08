@@ -10,6 +10,8 @@ import { calculateSalvageYield } from '../../constants/salvageRules';
 
 interface InventoryState {
   items: GearItem[];
+  setItems: (items: GearItem[]) => void;
+  upsertItem: (item: GearItem) => void;
   addItem: (item: GearItem) => void;
   removeItem: (id: string) => void;
   scrapItem: (id: string) => { scrapValue: number; materials: Record<string, number>; essences: Record<string, number> };
@@ -28,6 +30,17 @@ export const useInventoryStore = create<InventoryState>()(
   persist(
     (set, get) => ({
       items: [],
+
+      setItems: (items) => set({ items }),
+
+      upsertItem: (item) => set((s) => {
+        const exists = s.items.some((current) => current.id === item.id);
+        return {
+          items: exists
+            ? s.items.map((current) => (current.id === item.id ? item : current))
+            : [item, ...s.items],
+        };
+      }),
 
       addItem: (item) => set((s) => ({ items: [item, ...s.items] })),
 
