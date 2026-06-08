@@ -15,16 +15,59 @@ import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HelpScreen } from './screens/HelpScreen';
 import { WorkshopScreen } from './screens/WorkshopScreen';
+import { AuthScreen } from './screens/AuthScreen';
 import { BossSelectModal } from './components/fight/BossSelectModal';
+import { isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
+import { FeatureGate } from './auth/FeatureGate';
+import { useAuth } from './auth/AuthProvider';
 
 type TabId = 'fight' | 'loadout' | 'loot' | 'market' | 'more';
 type SubScreen = 'chest' | 'skills' | 'fusion' | 'vendor' | 'profile' | 'settings' | 'help' | 'workshop' | null;
 const topLevelTabs: TabId[] = ['fight', 'loadout', 'loot', 'market', 'more'];
 
+function VerificationReminderBanner() {
+  const { account, markVerificationReminderSeen, actionLoading } = useAuth();
+  if (!shouldShowVerificationReminder(account)) return null;
+
+  const expired = isVerificationGraceExpired(account);
+  const copy = expired
+    ? 'Email verification is required to use marketplace, shops, services, and social features.'
+    : 'Verify your email to unlock trading, shops, and player services.';
+
+  return (
+    <div className="shrink-0 mx-3 mt-3 rounded-xl border border-amber/60 bg-amber/10 px-3 py-2 text-xs text-amber flex items-center justify-between gap-3">
+      <span>{copy}</span>
+      <button
+        onClick={() => markVerificationReminderSeen()}
+        disabled={actionLoading}
+        className="shrink-0 rounded-lg border border-amber/70 px-2 py-1 text-[10px] font-black hover:bg-amber hover:text-bg disabled:opacity-50"
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
 function App() {
+  const { user, loading, authError } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('fight');
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-bg text-text-primary p-4">
+        <div className="text-center space-y-2">
+          <div className="bl-title text-3xl text-amber">CyberCache</div>
+          <div className="text-xs text-text-muted">Loading session…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
 
   const handleNavigate = (screen: string) => {
     if (topLevelTabs.includes(screen as TabId)) {
@@ -79,6 +122,13 @@ function App() {
         )}
       </AnimatePresence>
 
+      {authError && (
+        <div className="shrink-0 mx-3 mt-3 rounded-xl border border-red-500/50 bg-red-950/20 px-3 py-2 text-xs text-red-300">
+          {authError}
+        </div>
+      )}
+      <VerificationReminderBanner />
+
       {/* Main content area — keeps bottom nav visible */}
       {subScreen ? (
         renderSubScreen()
@@ -87,7 +137,11 @@ function App() {
           {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
           {activeTab === 'loadout' && <LoadoutScreen />}
           {activeTab === 'loot' && <LootScreen onNavigate={handleNavigate} />}
-          {activeTab === 'market' && <MarketScreen />}
+          {activeTab === 'market' && (
+            <FeatureGate feature="market">
+              <MarketScreen />
+            </FeatureGate>
+          )}
           {activeTab === 'more' && <MoreScreen onNavigate={handleNavigate} />}
         </ScreenWrapper>
       )}

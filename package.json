@@ -10,9 +10,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "mechanics:validate": "vitest run src/test/mechanicsValidation.test.ts",
-    "mechanics:report": "vitest run src/test/mechanicsBalanceReport.test.ts --reporter=verbose"
+    "mechanics:report": "vitest run src/test/balanceReport.test.ts --reporter=verbose"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.0",
     "@tailwindcss/vite": "^4.3.0",
     "framer-motion": "^12.40.0",
     "idb": "^8.0.3",
