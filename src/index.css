@@ -6,7 +6,7 @@
   --color-surface: #151821;
   --color-surface-raised: #1A1E28;
   --color-border: #000000;
-  --color-border-light: #2B3040;
+  --color-border-light: #34303A;
 
   --color-amber: #FF9000;
   --color-amber-glow: #FFEA3A;
@@ -18,8 +18,8 @@
   --color-void: #8B5CF6;
 
   --color-text-primary: #F5F5F5;
-  --color-text-secondary: #A5A7B5;
-  --color-text-muted: #6F7280;
+  --color-text-secondary: #B8B0A8;
+  --color-text-muted: #7B756D;
 
   --color-rarity-common: #A5A7B5;
   --color-rarity-uncommon: #7CFC00;
@@ -49,9 +49,10 @@ body, #root {
   flex-direction: column;
   max-width: 480px;
   margin: 0 auto;
-  border-inline: 2px solid #000000;
+  border-inline: 3px solid #000000;
   background:
-    radial-gradient(circle at 50% 0%, #202331 0, #050608 55%, #000000 100%);
+    radial-gradient(circle at 45% -10%, rgba(255, 144, 0, 0.2) 0, transparent 36%),
+    linear-gradient(160deg, #1B120C 0%, #050608 45%, #000000 100%);
 }
 
 body {
@@ -63,44 +64,102 @@ body {
 .bl-page {
   min-height: 100%;
   background:
-    radial-gradient(circle at 50% 0%, rgba(32, 35, 49, 0.95) 0, rgba(5, 6, 8, 0.98) 55%, #000000 100%);
+    radial-gradient(circle at 20% 6%, rgba(255, 144, 0, 0.16) 0, transparent 30%),
+    radial-gradient(circle at 90% 28%, rgba(255, 75, 92, 0.1) 0, transparent 24%),
+    linear-gradient(165deg, rgba(48, 30, 14, 0.88) 0%, rgba(5, 6, 8, 0.98) 48%, #000000 100%);
 }
 
 .bl-title {
   font-family: 'Bebas Neue', 'Chakra Petch', system-ui, sans-serif;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.055em;
+  text-shadow: 3px 3px 0 #000000, -1px -1px 0 rgba(255, 144, 0, 0.35);
 }
 
 .bl-label {
   text-transform: uppercase;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.12em;
 }
 
-.bl-card {
-  background: rgba(255, 162, 0, 0.05);
+.bl-cut {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.bl-sign {
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.bl-card,
+.bl-panel {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(255, 144, 0, 0.08), rgba(21, 24, 33, 0.96) 42%, rgba(255, 75, 92, 0.05));
   border: 2px solid #000000;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  border-radius: 0;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
-.bl-well {
-  background: #0F1217;
-  border: 1px solid #000000;
-  border-radius: 12px;
+.bl-card::before,
+.bl-panel::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 10px;
+  width: 100px;
+  height: 8px;
+  transform: rotate(-10deg);
+  background: rgba(255, 144, 0, 0.15);
+  pointer-events: none;
+}
+
+.bl-well,
+.bl-icon-plate {
+  background: rgba(5, 6, 8, 0.78);
+  border: 2px solid #000000;
+  border-radius: 0;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .bl-primary {
   background: #FF9000;
   color: #000000;
   border: 2px solid #000000;
-  box-shadow: 0 0 15px rgba(255, 144, 0, 0.3);
+  border-radius: 0;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.72);
 }
 
 .bl-secondary {
-  background: #202331;
+  background: rgba(26, 30, 40, 0.95);
   color: #F5F5F5;
   border: 2px solid #000000;
+  border-radius: 0;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.bl-tab-strip {
+  background: rgba(5, 6, 8, 0.78);
+  border: 2px solid #000000;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.bl-input {
+  background: rgba(5, 6, 8, 0.86);
+  border: 2px solid #000000;
+  border-radius: 0;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  color: #F5F5F5;
+}
+
+.bl-empty {
+  border: 2px dashed rgba(255, 144, 0, 0.45);
+  background: rgba(255, 144, 0, 0.08);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
 }
 
 .pixelated {
@@ -108,13 +167,13 @@ body {
 }
 
 @keyframes legendaryPulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(255, 234, 58, 0.4); }
-  50% { box-shadow: 0 0 16px rgba(255, 234, 58, 0.7); }
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 234, 58, 0.4), 5px 5px 0 rgba(0, 0, 0, 0.75); }
+  50% { box-shadow: 0 0 18px rgba(255, 234, 58, 0.78), 5px 5px 0 rgba(0, 0, 0, 0.75); }
 }
 
 @keyframes epicPulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(255, 157, 245, 0.3); }
-  50% { box-shadow: 0 0 12px rgba(255, 157, 245, 0.6); }
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 157, 245, 0.3), 5px 5px 0 rgba(0, 0, 0, 0.75); }
+  50% { box-shadow: 0 0 14px rgba(255, 157, 245, 0.62), 5px 5px 0 rgba(0, 0, 0, 0.75); }
 }
 
 .rarity-legendary-glow {
@@ -125,13 +184,60 @@ body {
   animation: epicPulse 2.5s ease-in-out infinite;
 }
 
+.bl-page .rounded-lg:not(.rounded-full),
+.bl-page .rounded-xl:not(.rounded-full),
+.bl-page .rounded-2xl:not(.rounded-full) {
+  border-radius: 0 !important;
+}
+
+.bl-page input:not(.unstyled),
+.bl-page select:not(.unstyled),
+.bl-page textarea:not(.unstyled) {
+  border: 2px solid #000000 !important;
+  border-radius: 0 !important;
+  background: rgba(5, 6, 8, 0.86) !important;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.bl-page button:not(.unstyled):not(.rounded-full),
+.bl-page [role='button']:not(.unstyled):not(.rounded-full) {
+  border-radius: 0 !important;
+}
+
+.bl-page .border:not(.border-0),
+.bl-page .border-2:not(.border-0) {
+  border-color: #000000;
+}
+
+.bl-page .bg-surface,
+.bl-page .bg-surface-raised {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #FFEA3A;
+  outline-offset: 2px;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: #101218;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2B3040;
-  border-radius: 4px;
+  background: #FF9000;
+  border-radius: 0;
 }

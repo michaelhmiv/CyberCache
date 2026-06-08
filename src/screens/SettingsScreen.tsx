@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Zap, AlertTriangle, Info } from 'lucide-react';
+import { Clock, Zap, AlertTriangle, Info, Settings } from 'lucide-react';
 import { usePlayerStore, useIdleStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
@@ -36,63 +36,63 @@ export const SettingsScreen: React.FC = () => {
   };
 
   return (
-    <div className="p-4 space-y-4 pb-20">
-      <div className="text-lg font-black text-text-primary">Settings</div>
+    <div className="bl-page space-y-4 p-4 pb-20">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="bl-title text-3xl leading-none text-text-primary">Options Board</div>
+          <div className="text-xs text-text-muted">Idle tuning, salvage rules, and account controls.</div>
+        </div>
+        <div className="bl-icon-plate flex h-12 w-12 shrink-0 -rotate-2 items-center justify-center text-amber">
+          <Settings size={22} />
+        </div>
+      </div>
 
-      {/* Offline Cap */}
-      <MobileCard className="space-y-2">
+      <MobileCard className="space-y-2" rarityColor="#3B82F6">
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-blue" />
-          <div className="text-xs font-bold text-text-primary">Offline Earnings Cap</div>
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Offline Earnings Cap</div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-5 gap-1.5">
           {[2, 4, 6, 8, 12].map((h) => (
             <button
               key={h}
               onClick={() => player.setPlayer({ offlineCapHours: h })}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                player.offlineCapHours === h ? 'bg-amber text-bg border-amber' : 'bg-surface-raised text-text-secondary border-border'
-              }`}
+              className={`py-1.5 text-xs font-black ${player.offlineCapHours === h ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
             >
               {h}h
             </button>
           ))}
         </div>
-        <div className="text-[10px] text-text-muted">Maximum hours of offline earnings that can accumulate.</div>
+        <div className="text-[10px] text-text-muted">Maximum hours of offline rewards that can pile up while away.</div>
       </MobileCard>
 
-      {/* Auto Salvage */}
-      <MobileCard className="space-y-2">
+      <MobileCard className="space-y-3" rarityColor="#FF9000">
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-amber" />
-          <div className="text-xs font-bold text-text-primary">Auto-Salvage Settings</div>
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Auto-Salvage Rules</div>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="text-[10px] text-text-muted">Max Rarity to Auto-Salvage</div>
-          <div className="flex gap-1">
+        <div className="space-y-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Max Rarity to Auto-Salvage</div>
+          <div className="grid grid-cols-4 gap-1.5">
             {salvageOptions.map((r) => (
               <button
                 key={r}
                 onClick={() => idle.setAutoSalvage(r, idle.autoSalvageQuality)}
-                className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors ${
-                  idle.autoSalvageRarity === r ? 'bg-amber text-bg border-amber' : 'bg-surface-raised text-text-secondary border-border'
-                }`}
+                className={`py-1.5 text-[10px] font-black ${idle.autoSalvageRarity === r ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
               >
                 {r}
               </button>
             ))}
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="text-[10px] text-text-muted">Max Roll Quality to Salvage</div>
-          <div className="flex gap-1">
+        <div className="space-y-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Max Roll Quality to Salvage</div>
+          <div className="grid grid-cols-5 gap-1.5">
             {qualityOptions.map((q) => (
               <button
                 key={q}
                 onClick={() => idle.setAutoSalvage(idle.autoSalvageRarity, q)}
-                className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors ${
-                  idle.autoSalvageQuality === q ? 'bg-amber text-bg border-amber' : 'bg-surface-raised text-text-secondary border-border'
-                }`}
+                className={`py-1.5 text-[10px] font-black ${idle.autoSalvageQuality === q ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
               >
                 {q}
               </button>
@@ -101,34 +101,32 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </MobileCard>
 
-      {/* About */}
-      <MobileCard className="space-y-2">
+      <MobileCard className="space-y-2" rarityColor="#3B82F6">
         <div className="flex items-center gap-2">
           <Info size={16} className="text-blue" />
-          <div className="text-xs font-bold text-text-primary">About</div>
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">About</div>
         </div>
-        <div className="text-[10px] text-text-secondary space-y-1">
+        <div className="space-y-1 text-[10px] text-text-secondary">
           <div>CyberCache v0.1.0</div>
           <div>Mobile-first idle roguelite looter RPG</div>
           <div>React 19 · TypeScript · Tailwind CSS · Framer Motion</div>
         </div>
       </MobileCard>
 
-      {/* Reset Data */}
-      <MobileCard className="space-y-2">
+      <MobileCard className="space-y-2" rarityColor="#FF4B5C">
         <div className="flex items-center gap-2">
           <AlertTriangle size={16} className="text-red" />
-          <div className="text-xs font-bold text-red">Danger Zone</div>
+          <div className="text-xs font-black uppercase tracking-wide text-red">Danger Zone</div>
         </div>
         {resetError && (
-          <div className="rounded-lg border border-red/30 bg-red/10 p-2 text-[10px] text-red">
+          <div className="bl-card p-2 text-[10px] text-red">
             {resetError}
           </div>
         )}
         {!showReset ? (
           <button
             onClick={() => setShowReset(true)}
-            className="w-full py-2 rounded-lg bg-red/10 text-red text-xs font-bold border border-red/30"
+            className="bl-secondary w-full py-2 text-xs font-black text-red"
           >
             Reset All Save Data
           </button>
@@ -138,16 +136,14 @@ export const SettingsScreen: React.FC = () => {
             <button
               onClick={handleReset}
               disabled={resetting}
-              className={`w-full py-2 rounded-lg text-xs font-bold border disabled:opacity-50 ${
-                resetConfirmed ? 'bg-red text-white border-red animate-pulse' : 'bg-red/10 text-red border-red/30'
-              }`}
+              className={`w-full py-2 text-xs font-black disabled:opacity-50 ${resetConfirmed ? 'bl-primary animate-pulse' : 'bl-secondary text-red'}`}
             >
-              {resetting ? 'Resetting…' : resetConfirmed ? '⚠️ RESET EVERYTHING ⚠️' : 'Confirm Reset'}
+              {resetting ? 'Resetting…' : resetConfirmed ? 'RESET EVERYTHING' : 'Confirm Reset'}
             </button>
             <button
               onClick={() => { setShowReset(false); setResetConfirmed(false); setResetError(null); }}
               disabled={resetting}
-              className="w-full py-2 rounded-lg bg-surface-raised text-text-secondary text-xs font-bold border border-border disabled:opacity-50"
+              className="bl-secondary w-full py-2 text-xs font-black text-text-secondary disabled:opacity-50"
             >
               Cancel
             </button>

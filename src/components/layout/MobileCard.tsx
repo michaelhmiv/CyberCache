@@ -13,21 +13,23 @@ export const MobileCard: React.FC<MobileCardProps> = ({
   children,
   className = '',
   onClick,
-  rarityColor = '#000000',
+  rarityColor = '#FF9000',
   glow = false,
 }) => {
   return (
     <motion.div
-      whileTap={{ scale: 0.98 }}
+      whileTap={onClick ? { scale: 0.98, rotate: -0.25 } : undefined}
       onClick={onClick}
-      className={`relative rounded-xl p-3 bg-surface border-2 border-border overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${className}`}
+      className={`bl-card relative p-3 ${onClick ? 'cursor-pointer active:brightness-110' : ''} ${className}`}
       style={{
         borderLeftColor: rarityColor,
-        borderLeftWidth: 4,
-        boxShadow: glow ? `0 0 12px ${rarityColor}66, 0 4px 12px rgba(0,0,0,0.5)` : undefined,
+        borderLeftWidth: 5,
+        boxShadow: glow
+          ? `0 0 16px ${rarityColor}66, 5px 5px 0 rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.06)`
+          : undefined,
       }}
     >
-      {children}
+      <div className="relative z-10">{children}</div>
     </motion.div>
   );
 };

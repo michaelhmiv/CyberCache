@@ -5,10 +5,10 @@ import { useAuth } from '../auth/AuthProvider';
 import type { AuthMode } from '../auth/authTypes';
 
 function modeTitle(mode: AuthMode): string {
-  if (mode === 'login') return 'Login';
-  if (mode === 'register') return 'Create Account';
-  if (mode === 'forgot_password') return 'Recover Account';
-  if (mode === 'reset_password') return 'Set New Password';
+  if (mode === 'login') return 'Load Hunter';
+  if (mode === 'register') return 'Create Hunter';
+  if (mode === 'forgot_password') return 'Recover Hunter';
+  if (mode === 'reset_password') return 'Set New Secret';
   return 'Enter CyberCache';
 }
 
@@ -91,19 +91,22 @@ export const AuthScreen: React.FC = () => {
   const message = localError ?? auth.authError;
 
   return (
-    <div className="min-h-full bg-bg text-text-primary flex items-center justify-center p-4">
+    <div className="bl-page flex min-h-full items-center justify-center p-4 text-text-primary">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm bg-surface border-2 border-border rounded-2xl p-5 shadow-xl space-y-4"
+        className="bl-card w-full max-w-sm space-y-4 p-5"
       >
-        <div className="text-center space-y-2">
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-amber text-bg flex items-center justify-center border-2 border-border shadow-lg">
-            <Zap size={28} />
+        <div className="space-y-3 text-center">
+          <div className="mx-auto flex h-16 w-16 -rotate-3 items-center justify-center border-[3px] border-border bg-amber text-bg shadow-[5px_5px_0_rgba(0,0,0,0.8)]">
+            <Zap size={30} />
           </div>
-          <div className="bl-title text-3xl leading-none text-amber">CyberCache</div>
-          <div className="text-xs text-text-muted leading-relaxed">
-            Jump in as a guest, then verify an account later to unlock trading, shops, and player services.
+          <div>
+            <div className="bl-title text-4xl leading-none text-amber">CyberCache</div>
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-text-muted">Load Hunter File</div>
+          </div>
+          <div className="text-xs leading-relaxed text-text-muted">
+            Jump in as a guest, then verify later to unlock the vendor yard, shops, and player services.
           </div>
         </div>
 
@@ -112,16 +115,16 @@ export const AuthScreen: React.FC = () => {
             <button
               onClick={handleGuest}
               disabled={auth.actionLoading}
-              className="w-full py-3 rounded-xl bg-amber text-bg font-black text-sm border-2 border-amber disabled:opacity-50"
+              className="bl-primary w-full py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
             >
               Continue as Guest
             </button>
             <button
               onClick={() => auth.signInWithGoogle()}
               disabled={auth.actionLoading}
-              className="w-full py-3 rounded-xl bg-surface-raised border border-border text-sm font-bold flex items-center justify-center gap-2 hover:bg-surface disabled:opacity-50"
+              className="bl-secondary flex w-full items-center justify-center gap-2 py-3 text-sm font-bold disabled:opacity-50"
             >
-              <svg viewBox="0 0 24 24" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -130,10 +133,10 @@ export const AuthScreen: React.FC = () => {
               Continue with Google
             </button>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setMode('register')} className="py-2.5 rounded-xl bg-surface-raised border border-border text-xs font-bold text-text-primary flex items-center justify-center gap-2">
+              <button onClick={() => setMode('register')} className="bl-secondary flex items-center justify-center gap-2 py-2.5 text-xs font-bold">
                 <UserPlus size={14} /> Create
               </button>
-              <button onClick={() => setMode('login')} className="py-2.5 rounded-xl bg-surface-raised border border-border text-xs font-bold text-text-primary flex items-center justify-center gap-2">
+              <button onClick={() => setMode('login')} className="bl-secondary flex items-center justify-center gap-2 py-2.5 text-xs font-bold">
                 <LogIn size={14} /> Login
               </button>
             </div>
@@ -143,7 +146,7 @@ export const AuthScreen: React.FC = () => {
         {auth.authMode !== 'guest' && (
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <div className="text-sm font-black text-text-primary">{modeTitle(auth.authMode)}</div>
+              <div className="text-sm font-black uppercase tracking-wide text-text-primary">{modeTitle(auth.authMode)}</div>
               <div className="text-[11px] text-text-muted">
                 {auth.authMode === 'reset_password'
                   ? 'Set a new password to finish account recovery.'
@@ -155,8 +158,8 @@ export const AuthScreen: React.FC = () => {
               <input
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
-                placeholder="Username"
-                className="w-full bg-surface-raised border border-border rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-text-muted"
+                placeholder="Hunter name"
+                className="bl-input w-full px-3 py-2 text-sm placeholder:text-text-muted"
               />
             )}
 
@@ -168,7 +171,7 @@ export const AuthScreen: React.FC = () => {
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="Email"
                   type="email"
-                  className="w-full bg-surface-raised border border-border rounded-xl pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-muted"
+                  className="bl-input w-full py-2 pl-9 pr-3 text-sm placeholder:text-text-muted"
                 />
               </div>
             )}
@@ -179,7 +182,7 @@ export const AuthScreen: React.FC = () => {
                 onChange={(event) => setSecret(event.target.value)}
                 placeholder={auth.authMode === 'reset_password' ? 'New password' : 'Password'}
                 type="password"
-                className="w-full bg-surface-raised border border-border rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-text-muted"
+                className="bl-input w-full px-3 py-2 text-sm placeholder:text-text-muted"
               />
             )}
 
@@ -189,12 +192,12 @@ export const AuthScreen: React.FC = () => {
                 onChange={(event) => setConfirmSecret(event.target.value)}
                 placeholder="Confirm password"
                 type="password"
-                className="w-full bg-surface-raised border border-border rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-text-muted"
+                className="bl-input w-full px-3 py-2 text-sm placeholder:text-text-muted"
               />
             )}
 
             {(message || auth.authMessage) && (
-              <div className={`text-xs rounded-xl border px-3 py-2 ${message ? 'border-red-500/50 text-red-300 bg-red-950/20' : 'border-green-500/50 text-green-300 bg-green-950/20'}`}>
+              <div className={`bl-card px-3 py-2 text-xs ${message ? 'text-red' : 'text-green'}`}>
                 {message ?? auth.authMessage}
               </div>
             )}
@@ -202,7 +205,7 @@ export const AuthScreen: React.FC = () => {
             <button
               type="submit"
               disabled={auth.actionLoading}
-              className="w-full py-3 rounded-xl bg-amber text-bg font-black text-sm border-2 border-amber disabled:opacity-50"
+              className="bl-primary w-full py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
             >
               {auth.actionLoading ? 'Working…' : modeTitle(auth.authMode)}
             </button>

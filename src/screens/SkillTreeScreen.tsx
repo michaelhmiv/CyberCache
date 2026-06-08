@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, RotateCcw, Sparkles, Zap } from 'lucide-react';
 import { getSkillTreeNodes } from '@/constants/skillTrees';
@@ -13,10 +13,10 @@ const TREES = [
 ];
 
 const nodeTone = (node: SkillNode, isAvailable: boolean, isMaxed: boolean) => {
-  if (isMaxed) return 'border-green/60 bg-green/10 text-green';
-  if (isAvailable) return 'border-amber bg-amber/10 text-amber';
-  if (node.type === 'keystone') return 'border-purple/40 bg-purple/10 text-purple opacity-70';
-  if (node.type === 'major') return 'border-amber/25 bg-surface text-text-secondary opacity-75';
+  if (isMaxed) return 'border-green/70 bg-green/10 text-green';
+  if (isAvailable) return 'border-amber bg-amber/12 text-amber';
+  if (node.type === 'keystone') return 'border-purple/45 bg-purple/10 text-purple opacity-80';
+  if (node.type === 'major') return 'border-amber/30 bg-surface text-text-secondary opacity-80';
   return 'border-border bg-surface text-text-muted opacity-65';
 };
 
@@ -32,18 +32,13 @@ export const SkillTreeScreen: React.FC = () => {
   const nodes = getSkillTreeNodes(activeTree);
   const activeTreeDef = TREES.find((tree) => tree.id === activeTree) || TREES[0];
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0];
-
-  /* eslint-disable react-hooks/preserve-manual-memoization -- nodes is derived from stable tree definitions + spent points; stable across renders unless points change */
-  const tiers = useMemo(() => {
-    const grouped = new Map<number, SkillNode[]>();
-    nodes.forEach((node) => {
-      const current = grouped.get(node.tier) || [];
-      current.push(node);
-      grouped.set(node.tier, current.sort((a, b) => a.index - b.index));
-    });
-    return Array.from(grouped.entries()).sort(([a], [b]) => a - b);
-  }, [nodes]);
-  /* eslint-enable react-hooks/preserve-manual-memoization */
+  const groupedTiers = new Map<number, SkillNode[]>();
+  nodes.forEach((node) => {
+    const current = groupedTiers.get(node.tier) || [];
+    current.push(node);
+    groupedTiers.set(node.tier, current.sort((a, b) => a.index - b.index));
+  });
+  const tiers = Array.from(groupedTiers.entries()).sort(([a], [b]) => a - b);
 
   const canSpend = (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
@@ -72,15 +67,15 @@ export const SkillTreeScreen: React.FC = () => {
   };
 
   return (
-    <div className="bl-page p-4 space-y-4 pb-20">
+    <div className="bl-page space-y-4 p-4 pb-20">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="bl-title text-3xl leading-none text-text-primary">Skill Trees</div>
-          <div className="text-xs text-text-muted mt-1">Choose a build path. Small nodes feed majors; majors unlock keystones.</div>
+          <div className="text-xs text-text-muted mt-1">Spend points on crooked branches. Small nodes feed majors; majors unlock keystones.</div>
         </div>
         <button
           onClick={respec}
-          className="shrink-0 flex items-center gap-1 text-xs text-amber bg-amber/10 px-2 py-1.5 rounded-xl border border-amber/30"
+          className="bl-secondary flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs font-black text-amber"
         >
           <RotateCcw size={12} />
           Respec
@@ -88,18 +83,9 @@ export const SkillTreeScreen: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-border bg-surface-raised p-2">
-          <div className="text-[10px] text-text-muted uppercase">Available</div>
-          <div className="text-xl font-black text-amber">{pointsAvailable}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-surface-raised p-2">
-          <div className="text-[10px] text-text-muted uppercase">Spent</div>
-          <div className="text-xl font-black text-text-primary">{pointsSpent}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-surface-raised p-2">
-          <div className="text-[10px] text-text-muted uppercase">Cost</div>
-          <div className="text-xl font-black text-text-primary">{pointsSpent * 100}cr</div>
-        </div>
+        <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Available</div><div className="text-xl font-black text-amber">{pointsAvailable}</div></div>
+        <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Spent</div><div className="text-xl font-black text-text-primary">{pointsSpent}</div></div>
+        <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Respec</div><div className="text-xl font-black text-text-primary">{pointsSpent * 100}cr</div></div>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -110,22 +96,20 @@ export const SkillTreeScreen: React.FC = () => {
               setActiveTree(tree.id);
               setSelectedNodeId(null);
             }}
-            className={`p-2 rounded-xl border-2 text-left transition-colors ${
-              activeTree === tree.id ? 'border-amber bg-amber/10 shadow-[0_0_14px_rgba(255,144,0,0.35)]' : 'border-border bg-surface-raised'
-            }`}
+            className={`bl-card p-2 text-left transition-colors ${activeTree === tree.id ? 'ring-2 ring-amber/70' : ''}`}
             style={{ borderLeftColor: tree.color, borderLeftWidth: 5 }}
           >
-            <div className="text-xs font-black" style={{ color: tree.color }}>{tree.label}</div>
-            <div className="text-[9px] text-text-muted mt-0.5 leading-tight">{tree.desc}</div>
+            <div className="text-xs font-black uppercase" style={{ color: tree.color }}>{tree.label}</div>
+            <div className="mt-0.5 text-[9px] leading-tight text-text-muted">{tree.desc}</div>
           </button>
         ))}
       </div>
 
-      <div className="rounded-2xl border-2 border-border bg-surface/70 overflow-hidden">
-        <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+      <div className="bl-card overflow-hidden p-0">
+        <div className="flex items-center justify-between border-b-2 border-border px-3 py-2">
           <div>
-            <div className="text-xs font-black" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
-            <div className="text-[10px] text-text-muted">Scroll the board. Tap a node to inspect or spend points.</div>
+            <div className="text-xs font-black uppercase tracking-wide" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
+            <div className="text-[10px] text-text-muted">Horizontal scroll is intentional on mobile. Tap a node to inspect or spend.</div>
           </div>
           <Sparkles size={16} style={{ color: activeTreeDef.color }} />
         </div>
@@ -134,11 +118,9 @@ export const SkillTreeScreen: React.FC = () => {
           <div className="min-w-[520px] space-y-3">
             {tiers.map(([tier, tierNodes], tierIndex) => (
               <div key={tier} className="relative">
-                {tierIndex > 0 && (
-                  <div className="absolute -top-3 left-1/2 h-3 w-px bg-border" />
-                )}
-                <div className="grid grid-cols-[58px_1fr] gap-2 items-center">
-                  <div className="text-[10px] uppercase tracking-wide text-text-muted font-bold">Tier {tier}</div>
+                {tierIndex > 0 && <div className="absolute -top-3 left-1/2 h-3 w-[2px] bg-amber/30" />}
+                <div className="grid grid-cols-[58px_1fr] items-center gap-2">
+                  <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Tier {tier}</div>
                   <div className="grid grid-cols-3 gap-2">
                     {Array.from({ length: 3 }).map((_, idx) => {
                       const node = tierNodes.find((n) => n.index === idx + 1) || (tierNodes.length === 1 && idx === 1 ? tierNodes[0] : undefined);
@@ -155,18 +137,19 @@ export const SkillTreeScreen: React.FC = () => {
                           key={node.id}
                           whileTap={isAvailable ? { scale: 0.96 } : { scale: 0.98 }}
                           onClick={() => spendPoint(node.id)}
-                          className={`relative rounded-xl border-2 p-2 text-left shadow-[0_4px_12px_rgba(0,0,0,0.45)] ${size} ${nodeTone(node, isAvailable, isMaxed)} ${isSelected ? 'ring-2 ring-amber/70' : ''}`}
+                          className={`relative border-2 p-2 text-left shadow-[4px_4px_0_rgba(0,0,0,0.65)] ${size} ${nodeTone(node, isAvailable, isMaxed)} ${isSelected ? 'ring-2 ring-amber/70' : ''}`}
+                          style={{ clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' }}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1 min-w-0">
-                              {node.type === 'keystone' && <Zap size={12} className="text-amber shrink-0" />}
-                              {node.type === 'major' && <Sparkles size={11} className="text-purple shrink-0" />}
-                              <div className="text-[10px] font-black text-text-primary truncate">{node.name}</div>
+                            <div className="flex min-w-0 items-center gap-1">
+                              {node.type === 'keystone' && <Zap size={12} className="shrink-0 text-amber" />}
+                              {node.type === 'major' && <Sparkles size={11} className="shrink-0 text-purple" />}
+                              <div className="truncate text-[10px] font-black text-text-primary">{node.name}</div>
                             </div>
-                            {isMaxed && <Lock size={11} className="text-green shrink-0" />}
+                            {isMaxed && <Lock size={11} className="shrink-0 text-green" />}
                           </div>
-                          <div className="text-[9px] text-text-muted mt-1 line-clamp-2">{node.description}</div>
-                          <div className="absolute right-2 bottom-1 text-[10px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
+                          <div className="mt-1 line-clamp-2 text-[9px] text-text-muted">{node.description}</div>
+                          <div className="absolute bottom-1 right-2 text-[10px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
                             {currentPoints}/{node.maxPoints}
                           </div>
                         </motion.button>
@@ -181,11 +164,11 @@ export const SkillTreeScreen: React.FC = () => {
       </div>
 
       {selectedNode && (
-        <div className="rounded-2xl border-2 border-border bg-surface p-3 space-y-2" style={{ borderLeftColor: activeTreeDef.color, borderLeftWidth: 5 }}>
+        <div className="bl-card space-y-2 p-3" style={{ borderLeftColor: activeTreeDef.color, borderLeftWidth: 5 }}>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-black text-text-primary">{selectedNode.name}</div>
-              <div className="text-[10px] text-text-muted uppercase">{selectedNode.type} · Tier {selectedNode.tier}</div>
+              <div className="text-sm font-black uppercase tracking-wide text-text-primary">{selectedNode.name}</div>
+              <div className="text-[10px] uppercase text-text-muted">{selectedNode.type} · Tier {selectedNode.tier}</div>
             </div>
             <div className="text-xs font-black text-amber">{skillStore.spent[selectedNode.id] || 0}/{selectedNode.maxPoints}</div>
           </div>
@@ -194,10 +177,7 @@ export const SkillTreeScreen: React.FC = () => {
             <div className="text-[10px] text-text-muted">Requires: {selectedNode.requires.join(', ')}</div>
           )}
           {canSpend(selectedNode.id) && (
-            <button
-              onClick={() => spendPoint(selectedNode.id)}
-              className="w-full rounded-xl bg-amber text-bg text-xs font-black py-2 active:scale-95 transition-transform"
-            >
+            <button onClick={() => spendPoint(selectedNode.id)} className="bl-primary w-full py-2 text-xs font-black">
               Spend {selectedNode.cost} Point{selectedNode.cost === 1 ? '' : 's'}
             </button>
           )}
