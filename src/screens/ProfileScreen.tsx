@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Target, TrendingUp, User } from 'lucide-react';
 import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { useAuth } from '@/auth/AuthProvider';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
@@ -93,6 +94,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         </div>
         <div className="text-[10px] text-text-muted">This panel reads sanitized activity fields and avoids internal runtime details.</div>
       </MobileCard>
+
+      <WorldPulseFeed />
 
       <MobileCard className="space-y-2" rarityColor="#7CFC00">
         <div className="flex items-center gap-2">
