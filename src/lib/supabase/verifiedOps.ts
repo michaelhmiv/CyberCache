@@ -1,4 +1,5 @@
 import { supabase } from './client';
+import { syncVerifiedResult } from './verifiedStateSync';
 
 export type VerifiedResult = Record<string, unknown>;
 
@@ -10,7 +11,9 @@ const requestId = (prefix: string): string => {
 const rpc = async (fn: string, args: Record<string, unknown>): Promise<VerifiedResult> => {
   const { data, error } = await supabase.rpc(fn, args);
   if (error) throw error;
-  return data as VerifiedResult;
+  const result = data as VerifiedResult;
+  syncVerifiedResult(result);
+  return result;
 };
 
 export const verifiedOps = {
