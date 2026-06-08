@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { User } from '@supabase/supabase-js';
 import * as authService from '../lib/supabase/authService';
 import * as profileService from '../lib/supabase/profileService';
+import { syncRuntimeProfile } from '../lib/supabase/verifiedStateSync';
 import type { AccountState } from './accountState';
 import {
   parseAuthStatusMessage,
@@ -43,14 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccount(null);
       return;
     }
-    const nextAccount = await profileService.getAccountState(nextUser);
-    setAccount(nextAccount);
+    const profile = await profileService.ensureProfile(nextUser);
+    syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+    setAccount(profileService.profileRowToAccountState(profile, nextUser));
   }, []);
 
   const refreshAccount = useCallback(async () => {
     if (!rawUser) return;
-    const nextAccount = await profileService.getAccountState(rawUser);
-    setAccount(nextAccount);
+    const profile = await profileService.ensureProfile(rawUser);
+    syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+    setAccount(profileService.profileRowToAccountState(profile, rawUser));
     setUser(toAuthSessionUser(rawUser));
   }, [rawUser]);
 
@@ -101,14 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(() => run(async () => {
     await authService.signInWithGoogle();
-    // signInWithOAuth redirects the page — no local state to update
     return { ok: true };
   }), [run]);
 
   const registerWithEmail = useCallback((email: string, secret: string, username: string) => run(async () => {
     const nextUser = await authService.registerWithEmail(email, secret, username);
     if (nextUser) {
-      await profileService.ensureProfile(nextUser, { username });
       await loadUser(nextUser);
     }
     return { ok: true, message: 'Account created. Verify your email to unlock player economy features.' };

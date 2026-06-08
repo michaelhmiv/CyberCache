@@ -27,21 +27,6 @@ function isAnonymousUser(user: User): boolean {
   return Boolean(candidate.is_anonymous ?? !user.email);
 }
 
-function getConfirmedAt(user: User): string | null {
-  const candidate = user as User & { email_confirmed_at?: string | null; confirmed_at?: string | null };
-  return candidate.email_confirmed_at ?? candidate.confirmed_at ?? null;
-}
-
-function resolveAccountType(user: User): AccountType {
-  if (isAnonymousUser(user)) return 'guest';
-  return getConfirmedAt(user) ? 'verified' : 'registered_unverified';
-}
-
-function plusSevenDays(date: string | Date): string {
-  const value = typeof date === 'string' ? new Date(date) : date;
-  return new Date(value.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-}
-
 export function profileRowToAccountState(profile: ProfileRow, user?: User | null): AccountState {
   return {
     userId: profile.id,
@@ -65,42 +50,12 @@ export async function getProfile(userId: string): Promise<ProfileRow | null> {
   return data as ProfileRow | null;
 }
 
-export async function ensureProfile(user: User, options: EnsureProfileOptions = {}): Promise<ProfileRow> {
+export async function ensureProfile(user: User, _options: EnsureProfileOptions = {}): Promise<ProfileRow> {
   const existing = await getProfile(user.id);
-  const accountType = resolveAccountType(user);
-  const email = user.email ?? null;
-  const emailVerifiedAt = getConfirmedAt(user);
-  const createdAt = existing?.created_at ?? new Date().toISOString();
-
-  const nextProfile: Partial<ProfileRow> & { id: string } = {
-    id: user.id,
-    account_type: accountType,
-    email,
-    email_verified_at: emailVerifiedAt,
-    verification_grace_expires_at: existing?.verification_grace_expires_at ?? plusSevenDays(createdAt),
-  };
-
-  if (!existing?.username && options.username) {
-    nextProfile.username = options.username;
-  } else if (!existing?.username && typeof user.user_metadata?.username === 'string') {
-    nextProfile.username = user.user_metadata.username;
-  }
-
   if (!existing) {
-    nextProfile.player_level = 1;
-    nextProfile.player_xp = 0;
-    nextProfile.credits = 0;
-    nextProfile.created_at = createdAt;
+    throw new Error('Profile row is missing. Sign out and sign back in so Supabase Auth can create the account profile.');
   }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert(nextProfile, { onConflict: 'id' })
-    .select('*')
-    .single();
-
-  if (error) throw error;
-  return data as ProfileRow;
+  return existing;
 }
 
 export async function getAccountState(user: User): Promise<AccountState> {
@@ -108,14 +63,8 @@ export async function getAccountState(user: User): Promise<AccountState> {
   return profileRowToAccountState(profile, user);
 }
 
-export async function markVerificationReminderSeen(userId: string): Promise<ProfileRow> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ verification_reminder_last_seen_at: new Date().toISOString() })
-    .eq('id', userId)
-    .select('*')
-    .single();
-
+export async function markVerificationReminderSeen(_userId: string): Promise<ProfileRow> {
+  const { data, error } = await supabase.rpc('cc_mark_reminder_seen');
   if (error) throw error;
   return data as ProfileRow;
 }

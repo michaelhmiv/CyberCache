@@ -3,6 +3,7 @@ import { AlertTriangle, Crosshair, PackagePlus, Radio, Shield, Star } from 'luci
 import { usePlayerStore } from '@/store';
 import { VENDOR_CONSUMABLES } from '@/constants/consumables';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
 
 const FAMILY_ICONS = {
   survival: Shield,
@@ -16,15 +17,23 @@ const FAMILY_ICONS = {
 export const VendorScreen: React.FC = () => {
   const player = usePlayerStore();
   const [notice, setNotice] = useState<string | null>(null);
+  const [buyingId, setBuyingId] = useState<string | null>(null);
 
-  const handleBuy = (type: string, price: number, name: string) => {
+  const handleBuy = async (type: string, price: number, name: string) => {
     if (player.credits < price) {
       setNotice('Not enough credits.');
       return;
     }
-    player.removeCredits(price);
-    player.addConsumable(type, 1);
-    setNotice(`${name} added to inventory.`);
+    setBuyingId(type);
+    setNotice(null);
+    try {
+      await verifiedOps.vendorBuy(type, 1);
+      setNotice(`${name} added to inventory.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Purchase failed.');
+    } finally {
+      setBuyingId(null);
+    }
   };
 
   return (
@@ -46,6 +55,7 @@ export const VendorScreen: React.FC = () => {
         {VENDOR_CONSUMABLES.map((c) => {
           const Icon = FAMILY_ICONS[c.family];
           const owned = player.getConsumableCount(c.id);
+          const buying = buyingId === c.id;
           return (
             <MobileCard key={c.id} className="space-y-2">
               <div className="flex items-start justify-between gap-3">
@@ -76,10 +86,10 @@ export const VendorScreen: React.FC = () => {
 
               <button
                 onClick={() => handleBuy(c.id, c.basePrice, c.name)}
-                disabled={player.credits < c.basePrice}
+                disabled={player.credits < c.basePrice || Boolean(buyingId)}
                 className="w-full py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
               >
-                Buy 1 • {c.basePrice.toLocaleString()}cr
+                {buying ? 'Buying…' : `Buy 1 • ${c.basePrice.toLocaleString()}cr`}
               </button>
             </MobileCard>
           );
