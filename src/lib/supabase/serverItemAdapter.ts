@@ -6,6 +6,8 @@ export type ServerItemRow = {
   item_level?: number | string | null;
   rarity?: string | null;
   is_locked?: boolean | null;
+  runtime_state?: string | null;
+  equipped_slot?: string | null;
   payload?: Record<string, unknown> | null;
 };
 
