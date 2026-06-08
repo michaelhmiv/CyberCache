@@ -33,6 +33,7 @@ export const SkillTreeScreen: React.FC = () => {
   const activeTreeDef = TREES.find((tree) => tree.id === activeTree) || TREES[0];
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0];
 
+  /* eslint-disable react-hooks/preserve-manual-memoization -- nodes is derived from stable tree definitions + spent points; stable across renders unless points change */
   const tiers = useMemo(() => {
     const grouped = new Map<number, SkillNode[]>();
     nodes.forEach((node) => {
@@ -42,6 +43,7 @@ export const SkillTreeScreen: React.FC = () => {
     });
     return Array.from(grouped.entries()).sort(([a], [b]) => a - b);
   }, [nodes]);
+  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const canSpend = (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
