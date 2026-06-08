@@ -6,6 +6,7 @@ import { useIdleStore } from './slices/idleSlice';
 import { useMarketStore } from './slices/marketSlice';
 import { useSkillStore } from './slices/skillSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
+import { useActivityStore } from './slices/activitySlice';
 
 export {
   usePlayerStore,
@@ -16,4 +17,5 @@ export {
   useMarketStore,
   useSkillStore,
   useWorkshopStore,
+  useActivityStore,
 };
