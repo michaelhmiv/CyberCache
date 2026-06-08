@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type TabId = 'dashboard' | 'loadout' | 'skills' | 'loot' | 'market';
+type TabId = 'dashboard' | 'fight' | 'inventory' | 'mastery' | 'profile';
 
 interface ScreenWrapperProps {
   activeTab: TabId;
