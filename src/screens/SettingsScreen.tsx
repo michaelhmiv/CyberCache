@@ -2,23 +2,37 @@ import React, { useState } from 'react';
 import { Clock, Zap, AlertTriangle, Info } from 'lucide-react';
 import { usePlayerStore, useIdleStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 
 export const SettingsScreen: React.FC = () => {
   const player = usePlayerStore();
   const idle = useIdleStore();
   const [showReset, setShowReset] = useState(false);
   const [resetConfirmed, setResetConfirmed] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const salvageOptions = ['Common', 'Uncommon', 'Rare', 'Epic'];
   const qualityOptions = [0, 20, 40, 60, 80];
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (!resetConfirmed) {
       setResetConfirmed(true);
       return;
     }
-    localStorage.clear();
-    window.location.reload();
+
+    setResetting(true);
+    setResetError(null);
+    try {
+      await verifiedOps.resetProgress();
+      resetRuntimeStoresToInitialState();
+      await saveCurrentRuntimeStores();
+      window.location.reload();
+    } catch (error) {
+      setResetError(error instanceof Error ? error.message : 'Unable to reset account progress.');
+      setResetting(false);
+    }
   };
 
   return (
@@ -106,6 +120,11 @@ export const SettingsScreen: React.FC = () => {
           <AlertTriangle size={16} className="text-red" />
           <div className="text-xs font-bold text-red">Danger Zone</div>
         </div>
+        {resetError && (
+          <div className="rounded-lg border border-red/30 bg-red/10 p-2 text-[10px] text-red">
+            {resetError}
+          </div>
+        )}
         {!showReset ? (
           <button
             onClick={() => setShowReset(true)}
@@ -115,18 +134,20 @@ export const SettingsScreen: React.FC = () => {
           </button>
         ) : (
           <div className="space-y-2">
-            <div className="text-[10px] text-red">This permanently deletes all progress, items, and settings. This cannot be undone.</div>
+            <div className="text-[10px] text-red">This permanently resets Supabase-backed progress, items, and runtime settings. This cannot be undone.</div>
             <button
               onClick={handleReset}
-              className={`w-full py-2 rounded-lg text-xs font-bold border ${
+              disabled={resetting}
+              className={`w-full py-2 rounded-lg text-xs font-bold border disabled:opacity-50 ${
                 resetConfirmed ? 'bg-red text-white border-red animate-pulse' : 'bg-red/10 text-red border-red/30'
               }`}
             >
-              {resetConfirmed ? '⚠️ RESET EVERYTHING ⚠️' : 'Confirm Reset'}
+              {resetting ? 'Resetting…' : resetConfirmed ? '⚠️ RESET EVERYTHING ⚠️' : 'Confirm Reset'}
             </button>
             <button
-              onClick={() => { setShowReset(false); setResetConfirmed(false); }}
-              className="w-full py-2 rounded-lg bg-surface-raised text-text-secondary text-xs font-bold border border-border"
+              onClick={() => { setShowReset(false); setResetConfirmed(false); setResetError(null); }}
+              disabled={resetting}
+              className="w-full py-2 rounded-lg bg-surface-raised text-text-secondary text-xs font-bold border border-border disabled:opacity-50"
             >
               Cancel
             </button>

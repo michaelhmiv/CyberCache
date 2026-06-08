@@ -1,3 +1,4 @@
+import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { supabase } from './client';
 import { syncVerifiedResult } from './verifiedStateSync';
 
@@ -13,6 +14,7 @@ const rpc = async (fn: string, args: Record<string, unknown>): Promise<VerifiedR
   if (error) throw error;
   const result = data as VerifiedResult;
   syncVerifiedResult(result);
+  await saveCurrentRuntimeStores();
   return result;
 };
 
@@ -33,4 +35,5 @@ export const verifiedOps = {
   requestItemService: (itemId: string, serviceId = 'repair') => rpc('cc_item_service_request', { nonce: requestId('service-request'), item_id: itemId, service_id: serviceId }),
   acceptItemService: (jobId: string, priceCredits: number, durationMinutes = 60) => rpc('cc_item_service_accept', { nonce: requestId('service-accept'), job_id: jobId, price_credits: priceCredits, duration_minutes: durationMinutes }),
   finishItemService: (jobId: string) => rpc('cc_item_job_finish', { nonce: requestId('service-finish'), job_id: jobId }),
+  resetProgress: () => rpc('cc_reset_progress', { nonce: requestId('reset') }),
 };

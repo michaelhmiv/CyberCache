@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { PlayerProfile } from '../../types/player';
 import { WorkshopQueue } from '../../types/workshop';
 
@@ -24,88 +23,84 @@ export interface PlayerState extends PlayerProfile {
   setLastWorkshopTick: (timestamp: number) => void;
 }
 
-export const usePlayerStore = create<PlayerState>()(
-  persist(
-    (set, get) => ({
-      id: 'player_1',
-      name: 'Gunrunner',
-      level: 1,
-      xp: 0,
-      credits: 5000,
-      scrap: 500,
-      cacheKeys: 3,
-      cacheKeyFragments: 0,
-      currentZoneId: 'dustwaste_1',
-      highestZoneId: 'dustwaste_1',
-      offlineCapHours: 2,
-      lastClaimTime: Date.now(),
-      deathFeeInsurance: false,
-      consumables: {},
-      materials: {},
-      essences: {},
-      workshopQueues: [],
-      lastWorkshopTick: Date.now(),
+const initialPlayerState = (): PlayerProfile => ({
+  id: 'player_1',
+  name: 'Gunrunner',
+  level: 1,
+  xp: 0,
+  credits: 5000,
+  scrap: 500,
+  cacheKeys: 3,
+  cacheKeyFragments: 0,
+  currentZoneId: 'dustwaste_1',
+  highestZoneId: 'dustwaste_1',
+  offlineCapHours: 2,
+  lastClaimTime: Date.now(),
+  deathFeeInsurance: false,
+  consumables: {},
+  materials: {},
+  essences: {},
+  workshopQueues: [],
+  lastWorkshopTick: Date.now(),
+});
 
-      setPlayer: (partial) => set((state) => ({ ...state, ...partial })),
-      addXP: (amount) => {
-        const state = get();
-        let newXP = state.xp + amount;
-        let newLevel = state.level;
-        while (newXP >= newLevel * 100) {
-          newXP -= newLevel * 100;
-          newLevel++;
-        }
-        set({ xp: newXP, level: newLevel });
-      },
-      addCredits: (amount) => set((s) => ({ credits: s.credits + amount })),
-      removeCredits: (amount) => set((s) => ({ credits: Math.max(0, s.credits - amount) })),
-      addScrap: (amount) => set((s) => ({ scrap: s.scrap + amount })),
-      removeScrap: (amount) => set((s) => ({ scrap: Math.max(0, s.scrap - amount) })),
-      addCacheKeys: (amount) => set((s) => ({ cacheKeys: s.cacheKeys + amount })),
-      removeCacheKeys: (amount) => set((s) => ({ cacheKeys: Math.max(0, s.cacheKeys - amount) })),
-      addCacheKeyFragments: (amount) => set((s) => {
-        let newFrags = s.cacheKeyFragments + amount;
-        let newKeys = s.cacheKeys;
-        while (newFrags >= 5) {
-          newFrags -= 5;
-          newKeys += 1;
-        }
-        return { cacheKeyFragments: newFrags, cacheKeys: newKeys };
-      }),
-      addConsumable: (type, count) =>
-        set((s) => ({
-          consumables: { ...s.consumables, [type]: (s.consumables[type] || 0) + count },
-        })),
-      removeConsumable: (type, count) =>
-        set((s) => ({
-          consumables: { ...s.consumables, [type]: Math.max(0, (s.consumables[type] || 0) - count) },
-        })),
-      getConsumableCount: (type) => {
-        const s = get();
-        return s.consumables[type] || 0;
-      },
-      addMaterial: (type, count) =>
-        set((s) => ({
-          materials: { ...s.materials, [type]: (s.materials[type] || 0) + count },
-        })),
-      removeMaterial: (type, count) =>
-        set((s) => ({
-          materials: { ...s.materials, [type]: Math.max(0, (s.materials[type] || 0) - count) },
-        })),
-      addEssence: (type, count) =>
-        set((s) => ({
-          essences: { ...s.essences, [type]: (s.essences[type] || 0) + count },
-        })),
-      removeEssence: (type, count) =>
-        set((s) => ({
-          essences: { ...s.essences, [type]: Math.max(0, (s.essences[type] || 0) - count) },
-        })),
-      setWorkshopQueues: (queues) => set({ workshopQueues: queues }),
-      setLastWorkshopTick: (timestamp) => set({ lastWorkshopTick: timestamp }),
-    }),
-    {
-      name: 'cc-player',
-      storage: createJSONStorage(() => localStorage),
+export const usePlayerStore = create<PlayerState>()((set, get) => ({
+  ...initialPlayerState(),
+
+  setPlayer: (partial) => set((state) => ({ ...state, ...partial })),
+  addXP: (amount) => {
+    const state = get();
+    let newXP = state.xp + amount;
+    let newLevel = state.level;
+    while (newXP >= newLevel * 100) {
+      newXP -= newLevel * 100;
+      newLevel++;
     }
-  )
-);
+    set({ xp: newXP, level: newLevel });
+  },
+  addCredits: (amount) => set((s) => ({ credits: s.credits + amount })),
+  removeCredits: (amount) => set((s) => ({ credits: Math.max(0, s.credits - amount) })),
+  addScrap: (amount) => set((s) => ({ scrap: s.scrap + amount })),
+  removeScrap: (amount) => set((s) => ({ scrap: Math.max(0, s.scrap - amount) })),
+  addCacheKeys: (amount) => set((s) => ({ cacheKeys: s.cacheKeys + amount })),
+  removeCacheKeys: (amount) => set((s) => ({ cacheKeys: Math.max(0, s.cacheKeys - amount) })),
+  addCacheKeyFragments: (amount) => set((s) => {
+    let newFrags = s.cacheKeyFragments + amount;
+    let newKeys = s.cacheKeys;
+    while (newFrags >= 5) {
+      newFrags -= 5;
+      newKeys += 1;
+    }
+    return { cacheKeyFragments: newFrags, cacheKeys: newKeys };
+  }),
+  addConsumable: (type, count) =>
+    set((s) => ({
+      consumables: { ...s.consumables, [type]: (s.consumables[type] || 0) + count },
+    })),
+  removeConsumable: (type, count) =>
+    set((s) => ({
+      consumables: { ...s.consumables, [type]: Math.max(0, (s.consumables[type] || 0) - count) },
+    })),
+  getConsumableCount: (type) => {
+    const s = get();
+    return s.consumables[type] || 0;
+  },
+  addMaterial: (type, count) =>
+    set((s) => ({
+      materials: { ...s.materials, [type]: (s.materials[type] || 0) + count },
+    })),
+  removeMaterial: (type, count) =>
+    set((s) => ({
+      materials: { ...s.materials, [type]: Math.max(0, (s.materials[type] || 0) - count) },
+    })),
+  addEssence: (type, count) =>
+    set((s) => ({
+      essences: { ...s.essences, [type]: (s.essences[type] || 0) + count },
+    })),
+  removeEssence: (type, count) =>
+    set((s) => ({
+      essences: { ...s.essences, [type]: Math.max(0, (s.essences[type] || 0) - count) },
+    })),
+  setWorkshopQueues: (queues) => set({ workshopQueues: queues }),
+  setLastWorkshopTick: (timestamp) => set({ lastWorkshopTick: timestamp }),
+}));

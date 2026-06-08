@@ -25,14 +25,16 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
   }
 
   const rows = (data ?? []) as ServerItemRow[];
-  const items = rows.map(serverItemRowToDisplayGear);
-  const slots: Partial<Record<LoadoutSlot, string | null>> = {};
+  const serverItems = rows.map(serverItemRowToDisplayGear);
+  const serverIds = new Set(serverItems.map((item) => item.id));
+  const existingClientOnlyItems = useInventoryStore.getState().items.filter((item) => !serverIds.has(item.id));
+  const serverSlots: Partial<Record<LoadoutSlot, string | null>> = {};
 
   rows.forEach((row) => {
     const slot = toLoadoutSlot(row.equipped_slot);
-    if (slot) slots[slot] = row.id;
+    if (slot) serverSlots[slot] = row.id;
   });
 
-  useInventoryStore.getState().setItems(items);
-  useLoadoutStore.getState().setSlots(slots);
+  useInventoryStore.getState().setItems([...serverItems, ...existingClientOnlyItems]);
+  useLoadoutStore.setState((state) => ({ slots: { ...state.slots, ...serverSlots } }));
 }

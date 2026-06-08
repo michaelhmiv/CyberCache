@@ -1,10 +1,10 @@
 import { createJSONStorage, type StateStorage } from 'zustand/middleware';
 
-const ANONYMOUS_STORAGE_SCOPE = 'anonymous';
-let activeStorageScope = ANONYMOUS_STORAGE_SCOPE;
+let activeStorageScope = 'guest';
+const inMemoryValues = new Map<string, string>();
 
 export function toStorageScope(userId: string | null | undefined): string {
-  return userId ? `user:${userId}` : ANONYMOUS_STORAGE_SCOPE;
+  return userId ? `user:${userId}` : 'guest';
 }
 
 export function setUserStorageScope(userId: string | null | undefined): boolean {
@@ -24,9 +24,13 @@ export function getUserScopedStorageKey(storeName: string, scope = activeStorage
 
 export function createUserScopedStorage(): StateStorage {
   return {
-    getItem: (name) => localStorage.getItem(getUserScopedStorageKey(name)),
-    setItem: (name, value) => localStorage.setItem(getUserScopedStorageKey(name), value),
-    removeItem: (name) => localStorage.removeItem(getUserScopedStorageKey(name)),
+    getItem: (name) => inMemoryValues.get(getUserScopedStorageKey(name)) ?? null,
+    setItem: (name, value) => {
+      inMemoryValues.set(getUserScopedStorageKey(name), value);
+    },
+    removeItem: (name) => {
+      inMemoryValues.delete(getUserScopedStorageKey(name));
+    },
   };
 }
 

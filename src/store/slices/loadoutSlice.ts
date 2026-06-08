@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '../../types/items';
 import { useInventoryStore } from './inventorySlice';
 
@@ -18,7 +17,7 @@ export interface LoadoutConsumables {
   Emergency: string | null;
 }
 
-const emptySlots: Record<LoadoutSlot, string | null> = {
+export const emptySlots: Record<LoadoutSlot, string | null> = {
   primary: null,
   secondary: null,
   heavy: null,
@@ -28,7 +27,7 @@ const emptySlots: Record<LoadoutSlot, string | null> = {
   relic: null,
 };
 
-interface LoadoutState {
+export interface LoadoutState {
   slots: Record<LoadoutSlot, string | null>;
   consumables: LoadoutConsumables;
   setSlots: (slots: Partial<Record<LoadoutSlot, string | null>>) => void;
@@ -63,59 +62,51 @@ const isOrdnance = (item: GearItem | undefined): item is Ordnance =>
 const isRelic = (item: GearItem | undefined): item is Relic =>
   !!(item && 'affixes' in item && !isWeapon(item) && !isShield(item) && !isClassMod(item) && !isOrdnance(item));
 
-export const useLoadoutStore = create<LoadoutState>()(
-  persist(
-    (set, get) => ({
-      slots: emptySlots,
-      consumables: {
-        PreFight: null,
-        MidFight: null,
-        Emergency: null,
-      },
+export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
+  slots: emptySlots,
+  consumables: {
+    PreFight: null,
+    MidFight: null,
+    Emergency: null,
+  },
 
-      setSlots: (slots) => set({ slots: { ...emptySlots, ...slots } }),
+  setSlots: (slots) => set({ slots: { ...emptySlots, ...slots } }),
 
-      setSlot: (slot, itemId) =>
-        set((s) => ({ slots: { ...s.slots, [slot]: itemId } })),
+  setSlot: (slot, itemId) =>
+    set((s) => ({ slots: { ...s.slots, [slot]: itemId } })),
 
-      getEquipped: (slot) => get().slots[slot],
+  getEquipped: (slot) => get().slots[slot],
 
-      getWeapon: (slot) => {
-        const id = get().slots[slot];
-        const item = getInventoryItem(id);
-        return isWeapon(item) ? item : undefined;
-      },
-      getShield: () => {
-        const id = get().slots.shield;
-        const item = getInventoryItem(id);
-        return isShield(item) ? item : undefined;
-      },
-      getClassMod: () => {
-        const id = get().slots.classMod;
-        const item = getInventoryItem(id);
-        return isClassMod(item) ? item : undefined;
-      },
-      getRelic: () => {
-        const id = get().slots.relic;
-        const item = getInventoryItem(id);
-        return isRelic(item) ? item : undefined;
-      },
-      getOrdnance: () => {
-        const id = get().slots.ordnance;
-        const item = getInventoryItem(id);
-        return isOrdnance(item) ? item : undefined;
-      },
+  getWeapon: (slot) => {
+    const id = get().slots[slot];
+    const item = getInventoryItem(id);
+    return isWeapon(item) ? item : undefined;
+  },
+  getShield: () => {
+    const id = get().slots.shield;
+    const item = getInventoryItem(id);
+    return isShield(item) ? item : undefined;
+  },
+  getClassMod: () => {
+    const id = get().slots.classMod;
+    const item = getInventoryItem(id);
+    return isClassMod(item) ? item : undefined;
+  },
+  getRelic: () => {
+    const id = get().slots.relic;
+    const item = getInventoryItem(id);
+    return isRelic(item) ? item : undefined;
+  },
+  getOrdnance: () => {
+    const id = get().slots.ordnance;
+    const item = getInventoryItem(id);
+    return isOrdnance(item) ? item : undefined;
+  },
 
-      getEquippedConsumables: () => get().consumables,
+  getEquippedConsumables: () => get().consumables,
 
-      setConsumableSlot: (slot, type) =>
-        set((s) => ({
-          consumables: { ...s.consumables, [slot]: type },
-        })),
-    }),
-    {
-      name: 'cc-loadout',
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
+  setConsumableSlot: (slot, type) =>
+    set((s) => ({
+      consumables: { ...s.consumables, [slot]: type },
+    })),
+}));

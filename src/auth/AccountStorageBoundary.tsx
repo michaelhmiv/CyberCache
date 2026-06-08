@@ -1,38 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { switchAccountStorageScope } from '../store/sessionPersistence';
+import React from 'react';
 import { useAuth } from './AuthProvider';
 
 export function AccountStorageBoundary({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  const [readyScope, setReadyScope] = useState<string | null>(null);
+  const { loading } = useAuth();
 
-  useEffect(() => {
-    let cancelled = false;
-    const userId = user?.id ?? null;
-
-    // Reset to loading while storage migration runs — necessary gate
-    // to prevent rendering stale scoped data.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setReadyScope(null);
-
-    // Storage scope migration is async; setState after await is safe here
-    // because the effect cleans up via the cancelled flag on unmount.
-    async function run() {
-      try {
-        await switchAccountStorageScope(userId);
-      } catch {
-        // Storage scope switching is best-effort; don't block the app.
-      }
-      if (!cancelled) setReadyScope(userId ?? 'anonymous');
-    }
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  if (loading || readyScope === null) {
+  if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-bg text-text-primary p-4">
         <div className="text-center space-y-2">
