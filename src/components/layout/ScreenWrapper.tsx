@@ -19,7 +19,7 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({ activeTab, childre
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -18 }}
           transition={{ duration: 0.18 }}
-          className="relative h-full min-h-full"
+          className="relative min-h-full"
         >
           {children}
         </motion.div>
