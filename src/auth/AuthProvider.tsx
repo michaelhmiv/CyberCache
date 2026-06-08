@@ -11,6 +11,7 @@ import {
   startRuntimeStorePersistence,
   stopRuntimeStorePersistence,
 } from '../store/runtimeSupabaseSync';
+import { useActivityStore } from '../store';
 import type { AccountState } from './accountState';
 import {
   parseAuthStatusMessage,
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadUser = useCallback(async (nextUser: User | null) => {
     stopRuntimeStorePersistence();
     resetRuntimeStoresToInitialState();
+    useActivityStore.getState().reset();
     setRawUser(nextUser);
     setUser(toAuthSessionUser(nextUser));
     if (!nextUser) {
@@ -69,6 +71,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!restoredSnapshot) {
       await saveCurrentRuntimeStores(nextUser.id);
     }
+
+    try {
+      await useActivityStore.getState().hydrate();
+    } catch (error) {
+      console.warn('Active activity hydrate skipped:', error instanceof Error ? error.message : error);
+    }
+
     startRuntimeStorePersistence(nextUser.id);
     setAccount(profileService.profileRowToAccountState(profile, nextUser));
   }, []);
@@ -78,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const profile = await profileService.ensureProfile(rawUser);
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
     await syncRuntimeItemsForUser(rawUser.id);
+    await useActivityStore.getState().hydrate();
     await saveCurrentRuntimeStores(rawUser.id);
     setAccount(profileService.profileRowToAccountState(profile, rawUser));
     setUser(toAuthSessionUser(rawUser));
@@ -97,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
       stopRuntimeStorePersistence();
+      useActivityStore.getState().reset();
       subscription.unsubscribe();
     };
   }, [loadUser]);
