@@ -4,7 +4,8 @@ import { Box, Sparkles, Info, Lock, Unlock, Scissors, Sword } from 'lucide-react
 import { usePlayerStore, useInventoryStore } from '@/store';
 import { useLoadoutStore, LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { RARITIES } from '@/constants/rarities';
-import { DropSource, Rarity } from '@/types/game';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/supabase/serverItemAdapter';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
 
 // ─── helpers ──────────────────────────────────────────────────────────
@@ -57,7 +58,6 @@ const GearItemCard: React.FC<{
       className="relative rounded-xl p-4 bg-surface border border-border overflow-hidden"
       style={{ borderLeftColor: rarityDef.color, borderLeftWidth: 4 }}
     >
-      {/* rarity + name */}
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold" style={{ color: rarityDef.color }}>
@@ -70,7 +70,6 @@ const GearItemCard: React.FC<{
         <span className="text-[10px] text-text-muted">Lv.{item.level}</span>
       </div>
 
-      {/* type */}
       <div className="text-[10px] text-text-muted mb-2">
         {gearTypeLabel(item)}
         {itemIsWeapon && (item as Weapon).element && (
@@ -81,7 +80,6 @@ const GearItemCard: React.FC<{
         )}
       </div>
 
-      {/* inline stats */}
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted mb-3">
         {itemIsWeapon && (
           <>
@@ -110,13 +108,11 @@ const GearItemCard: React.FC<{
         {isRelic(item) && (
           <span>{(item as Relic).affixes.length} affix{(item as Relic).affixes.length !== 1 ? 'es' : ''}</span>
         )}
-        {/* affix count for all */}
         {'affixes' in item && item.affixes && item.affixes.length > 0 && !isRelic(item) && (
           <span>{item.affixes.length} affix{item.affixes.length !== 1 ? 'es' : ''}</span>
         )}
       </div>
 
-      {/* action buttons */}
       <div className="flex items-center gap-2">
         {itemIsWeapon && action !== 'equipped' && (
           <button
@@ -146,14 +142,12 @@ const GearItemCard: React.FC<{
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
           <Scissors size={12} />
-          Scrap
+          Recycle
         </button>
       </div>
     </motion.div>
   );
 };
-
-// ─── main screen ──────────────────────────────────────────────────────
 
 export const ChestScreen: React.FC = () => {
   const player = usePlayerStore();
@@ -163,43 +157,25 @@ export const ChestScreen: React.FC = () => {
   const [opening, setOpening] = useState(false);
   const [revealed, setRevealed] = useState<GearItem[] | null>(null);
   const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked' | 'equipped'>>({});
+  const [error, setError] = useState<string | null>(null);
 
   const keys = player.cacheKeys;
   const frags = player.cacheKeyFragments;
 
-  const handleOpen = () => {
-    if (keys <= 0) return;
-    player.removeCacheKeys(1);
+  const handleOpen = async () => {
+    if (keys <= 0 || opening) return;
     setOpening(true);
+    setError(null);
     setItemActions({});
-    setTimeout(() => {
-      const drops: GearItem[] = [];
-      // primary roll: Rare 60% / Epic 32% / Legendary 8%
-      const r = Math.random();
-      let forcedRarity = Rarity.Rare;
-      if (r > 0.6) forcedRarity = Rarity.Epic;
-      if (r > 0.92) forcedRarity = Rarity.Legendary;
-      drops.push(inventory.generateAndAdd({ source: DropSource.CacheForged, level: player.level, forcedRarity }));
-
-      // bonus: 40% chance of a second Rare+ item
-      if (Math.random() < 0.4) {
-        drops.push(inventory.generateAndAdd({
-          source: DropSource.CacheForged,
-          level: player.level,
-          forcedRarity: Math.random() > 0.5 ? Rarity.Rare : Rarity.Epic,
-        }));
-      }
-      // bonus: 15% chance of a third Epic+ item
-      if (Math.random() < 0.15) {
-        drops.push(inventory.generateAndAdd({
-          source: DropSource.CacheForged,
-          level: player.level,
-          forcedRarity: Rarity.Epic,
-        }));
-      }
-      setRevealed(drops);
+    try {
+      const result = await verifiedOps.makeItem();
+      const item = serverItemRowToDisplayGear(result.item as ServerItemRow);
+      setRevealed([item]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to open cache.');
+    } finally {
       setOpening(false);
-    }, 2000);
+    }
   };
 
   const close = () => {
@@ -207,11 +183,8 @@ export const ChestScreen: React.FC = () => {
     setItemActions({});
   };
 
-  // ── item actions ──────────────────────────────────────────────────
-
-  const handleEquip = (item: GearItem, _idx: number) => {
+  const handleEquip = async (item: GearItem, _idx: number) => {
     if (!isWeapon(item)) return;
-    // auto-pick best available weapon slot
     const slots: LoadoutSlot[] = ['primary', 'secondary', 'heavy'];
     let targetSlot: LoadoutSlot | null = null;
     for (const slot of slots) {
@@ -220,48 +193,30 @@ export const ChestScreen: React.FC = () => {
         break;
       }
     }
-    if (!targetSlot) targetSlot = 'primary'; // fallback: replace primary
+    if (!targetSlot) targetSlot = 'primary';
+    await verifiedOps.equipItem(item.id, targetSlot);
     loadout.setSlot(targetSlot, item.id);
     setItemActions((prev) => ({ ...prev, [item.id]: 'equipped' }));
   };
 
-  const handleScrap = (item: GearItem, _idx: number) => {
+  const handleScrap = async (item: GearItem, _idx: number) => {
     if (item.isLocked) return;
-    const result = inventory.scrapItem(item.id);
-    player.addScrap(result.scrapValue);
-    if (result.materials) {
-      Object.entries(result.materials).forEach(([type, count]) => {
-        if (count > 0) player.addMaterial(type, count);
-      });
-    }
-    if (result.essences) {
-      Object.entries(result.essences).forEach(([type, count]) => {
-        if (count > 0) player.addEssence(type, count);
-      });
-    }
+    await verifiedOps.recycleItem(item.id);
     setItemActions((prev) => ({ ...prev, [item.id]: 'scrapped' }));
   };
 
-  const handleLockToggle = (item: GearItem, _idx: number) => {
-    if (item.isLocked) {
-      inventory.unlockItem(item.id);
-      setItemActions((prev) => ({ ...prev, [item.id]: 'unlocked' }));
-      // refresh the item reference
-      const refreshed = inventory.getById(item.id);
-      if (refreshed) {
-        setRevealed((prev) => prev?.map((i) => (i.id === item.id ? refreshed : i)) ?? null);
-      }
-    } else {
+  const handleLockToggle = async (item: GearItem, _idx: number) => {
+    const nextLocked = !item.isLocked;
+    await verifiedOps.itemLock(item.id, nextLocked);
+    if (nextLocked) {
       inventory.lockItem(item.id);
       setItemActions((prev) => ({ ...prev, [item.id]: 'locked' }));
-      const refreshed = inventory.getById(item.id);
-      if (refreshed) {
-        setRevealed((prev) => prev?.map((i) => (i.id === item.id ? refreshed : i)) ?? null);
-      }
+    } else {
+      inventory.unlockItem(item.id);
+      setItemActions((prev) => ({ ...prev, [item.id]: 'unlocked' }));
     }
+    setRevealed((prev) => prev?.map((i) => (i.id === item.id ? { ...i, isLocked: nextLocked } : i)) ?? null);
   };
-
-  // ── odds display ──────────────────────────────────────────────────
 
   const odds: Record<string, string> = {
     Common: '0%',
@@ -276,7 +231,6 @@ export const ChestScreen: React.FC = () => {
 
   return (
     <div className="p-4 space-y-4 pb-20">
-      {/* header */}
       <div className="flex items-center justify-between">
         <div className="text-lg font-black text-text-primary">Data Cache</div>
         <div className="flex items-center gap-2 text-sm">
@@ -288,7 +242,12 @@ export const ChestScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* key fragments progress */}
+      {error && (
+        <div className="rounded-xl border border-red/30 bg-red/10 p-3 text-xs text-red-light">
+          {error}
+        </div>
+      )}
+
       <div className="bg-surface-raised border border-border rounded-xl p-3">
         <div className="flex items-center justify-between text-xs mb-1.5">
           <span className="text-text-muted">Key Fragments</span>
@@ -305,7 +264,6 @@ export const ChestScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* main open panel */}
       <div className="bg-surface-raised border border-border rounded-2xl p-6 text-center space-y-3">
         <div className="w-20 h-20 mx-auto rounded-full bg-amber/10 border-2 border-amber flex items-center justify-center">
           <Box size={36} className="text-amber" />
@@ -319,13 +277,12 @@ export const ChestScreen: React.FC = () => {
         </button>
         <div className="flex items-center justify-center gap-1 text-[10px] text-text-muted">
           <Info size={10} />
-          Guarantees Rare or better
+          Server-verified rarity roll · Rare or better
         </div>
       </div>
 
-      {/* odds breakdown */}
       <div className="space-y-1">
-        <div className="text-xs font-bold text-text-muted uppercase">Cache Odds (per item)</div>
+        <div className="text-xs font-bold text-text-muted uppercase">Server Odds</div>
         {Object.values(RARITIES).map((r) => (
           <div key={r.id} className="flex items-center justify-between text-xs">
             <span style={{ color: r.color }} className="font-bold">{r.name}</span>
@@ -334,20 +291,6 @@ export const ChestScreen: React.FC = () => {
         ))}
       </div>
 
-      {/* bonus drop info */}
-      <div className="bg-surface-raised border border-border rounded-xl p-3 space-y-1">
-        <div className="text-xs font-bold text-text-muted uppercase mb-1">Bonus Drops</div>
-        <div className="flex items-center gap-2 text-[11px] text-text-secondary">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber shrink-0" />
-          40% chance of a second <span className="text-blue font-bold">Rare+</span> item
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-text-secondary">
-          <span className="w-1.5 h-1.5 rounded-full bg-purple shrink-0" />
-          15% chance of a third <span className="text-purple font-bold">Epic+</span> item
-        </div>
-      </div>
-
-      {/* Opening Animation */}
       <AnimatePresence>
         {opening && (
           <motion.div
@@ -370,7 +313,6 @@ export const ChestScreen: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Reveal overlay */}
       <AnimatePresence>
         {revealed && (
           <motion.div
