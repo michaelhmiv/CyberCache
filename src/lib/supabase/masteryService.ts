@@ -18,10 +18,14 @@ export interface MasteryLeaderboardRow {
   mastery_level: number;
 }
 
+function rows<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 export async function getMyMasterySummary(): Promise<MasterySummaryRow[]> {
   const { data, error } = await supabase.rpc('cc_my_mastery_summary');
-  if (error) throw error;
-  return (data ?? []) as MasterySummaryRow[];
+  if (error) return [];
+  return rows<MasterySummaryRow>(data);
 }
 
 export async function getMasteryLeaderboard(masteryId: string, limitCount = 25): Promise<MasteryLeaderboardRow[]> {
@@ -29,6 +33,6 @@ export async function getMasteryLeaderboard(masteryId: string, limitCount = 25):
     target_mastery_id: masteryId,
     limit_count: limitCount,
   });
-  if (error) throw error;
-  return (data ?? []) as MasteryLeaderboardRow[];
+  if (error) return [];
+  return rows<MasteryLeaderboardRow>(data);
 }

@@ -18,9 +18,20 @@ export interface LoadoutConsumables {
   Emergency: string | null;
 }
 
+const emptySlots: Record<LoadoutSlot, string | null> = {
+  primary: null,
+  secondary: null,
+  heavy: null,
+  ordnance: null,
+  shield: null,
+  classMod: null,
+  relic: null,
+};
+
 interface LoadoutState {
   slots: Record<LoadoutSlot, string | null>;
   consumables: LoadoutConsumables;
+  setSlots: (slots: Partial<Record<LoadoutSlot, string | null>>) => void;
   setSlot: (slot: LoadoutSlot, itemId: string | null) => void;
   getEquipped: (slot: LoadoutSlot) => string | null;
   getWeapon: (slot: 'primary' | 'secondary' | 'heavy') => Weapon | undefined;
@@ -55,20 +66,14 @@ const isRelic = (item: GearItem | undefined): item is Relic =>
 export const useLoadoutStore = create<LoadoutState>()(
   persist(
     (set, get) => ({
-      slots: {
-        primary: null,
-        secondary: null,
-        heavy: null,
-        ordnance: null,
-        shield: null,
-        classMod: null,
-        relic: null,
-      },
+      slots: emptySlots,
       consumables: {
         PreFight: null,
         MidFight: null,
         Emergency: null,
       },
+
+      setSlots: (slots) => set({ slots: { ...emptySlots, ...slots } }),
 
       setSlot: (slot, itemId) =>
         set((s) => ({ slots: { ...s.slots, [slot]: itemId } })),

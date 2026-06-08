@@ -23,6 +23,7 @@ export const verifiedOps = {
   recycleItem: (itemId: string) => rpc('cc_recycle_item', { nonce: requestId('recycle'), item_id: itemId }),
   itemLock: (itemId: string, locked: boolean) => rpc('cc_item_lock', { nonce: requestId('lock'), item_id: itemId, locked }),
   equipItem: (itemId: string, slotName: string) => rpc('cc_equip_item', { nonce: requestId('equip'), item_id: itemId, slot_name: slotName }),
+  unequipSlot: (slotName: string) => rpc('cc_unequip_slot', { nonce: requestId('unequip'), slot_name: slotName }),
   idleClaim: () => rpc('cc_idle_claim', { nonce: requestId('idle') }),
   retrain: () => rpc('cc_retrain', { nonce: requestId('retrain') }),
   battleResult: (targetId: string, stance = 'balanced') => rpc('cc_battle_result', { nonce: requestId('battle'), target_id: targetId, stance }),
