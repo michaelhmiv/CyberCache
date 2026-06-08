@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BarChart3, Crosshair, Hammer, Map, Shield, Swords, Trophy, Zap } from 'lucide-react';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { useBossStore, useInventoryStore, usePlayerStore, useSkillStore } from '@/store';
@@ -111,15 +111,13 @@ export const MasteryScreen: React.FC = () => {
   const availableSkillPoints = Math.max(0, playerLevel - 1 - spentSkillPoints);
   const localScore = playerLevel * 100 + inventoryCount * 5 + defeatedBossCount * 50 + spentSkillPoints * 25;
 
-  const tracks = useMemo(() => {
-    const merged = new Map<string, MasterySummaryRow>();
-    staticTracks.forEach((track) => merged.set(track.mastery_id, track));
-    serverTracks.forEach((track) => {
-      const normalized = normalizeTrack(track);
-      merged.set(normalized.mastery_id, normalized);
-    });
-    return Array.from(merged.values());
-  }, [serverTracks]);
+  const mergedTracks = new Map<string, MasterySummaryRow>();
+  staticTracks.forEach((track) => mergedTracks.set(track.mastery_id, track));
+  serverTracks.forEach((track) => {
+    const normalized = normalizeTrack(track);
+    mergedTracks.set(normalized.mastery_id, normalized);
+  });
+  const tracks = Array.from(mergedTracks.values());
 
   const masteryScore = tracks.reduce((sum, track) => sum + toNumber(track.mastery_xp), 0) || localScore;
   const rankedTracks = [...tracks].filter((track) => toNumber(track.rank) > 0).sort((a, b) => toNumber(a.rank) - toNumber(b.rank));
