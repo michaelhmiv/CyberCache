@@ -1,0 +1,27 @@
+insert into public.mastery_definitions (id, category, label, description, unit_label, xp_per_unit, is_ranked) values
+  ('account.net_worth', 'account', 'Net Worth', 'Competitive account value across credits, inventory, and economy.', 'value', 1, true),
+  ('combat.boss_defeats', 'combat', 'Boss Defeats', 'Total verified boss and battle victories.', 'defeats', 100, true),
+  ('combat.boss_attempts', 'combat', 'Boss Attempts', 'All verified boss and battle attempts.', 'attempts', 20, true),
+  ('inventory.cache_draws', 'inventory', 'Cache Draws', 'Server-verified data cache item draws.', 'draws', 30, true),
+  ('inventory.recycle', 'inventory', 'Recycling', 'Items recycled into scrap and materials.', 'items', 25, true),
+  ('inventory.scrap_generated', 'inventory', 'Scrap Generated', 'Total scrap created through verified item recycling.', 'scrap', 1, true),
+  ('economy.vendor_buys', 'economy', 'Vendor Supply', 'Consumables purchased from the vendor.', 'buys', 15, true),
+  ('economy.market_listings', 'economy', 'Market Listings', 'Items listed on the market.', 'listings', 20, true),
+  ('economy.market_sales', 'economy', 'Market Sales', 'Listings accepted by other players.', 'sales', 50, true),
+  ('economy.trade_volume', 'economy', 'Trade Volume', 'Credits moved through market trades.', 'credits', 1, true),
+  ('skills.training', 'skills', 'Training', 'Skill tree investment and retraining activity.', 'actions', 25, true),
+  ('locations.dustwaste', 'locations', 'Dustwaste Mastery', 'Activity completed in the Dustwaste region.', 'activity', 25, true),
+  ('services.repair', 'services', 'Repair Services', 'Repairs and item services completed for other players.', 'jobs', 50, true),
+  ('weapons.pistol', 'weapons', 'Pistol Mastery', 'Pistol usage and pistol-driven victories.', 'XP', 1, true),
+  ('weapons.smg', 'weapons', 'SMG Mastery', 'SMG usage and SMG-driven victories.', 'XP', 1, true),
+  ('weapons.shotgun', 'weapons', 'Shotgun Mastery', 'Shotgun usage and shotgun-driven victories.', 'XP', 1, true),
+  ('weapons.ordnance', 'weapons', 'Ordnance Mastery', 'Ordnance use, explosive damage, and ordnance-driven wins.', 'XP', 1, true)
+on conflict (id) do update set
+  category = excluded.category,
+  label = excluded.label,
+  description = excluded.description,
+  unit_label = excluded.unit_label,
+  xp_per_unit = excluded.xp_per_unit,
+  is_ranked = excluded.is_ranked,
+  is_active = true,
+  updated_at = now();
