@@ -1,18 +1,15 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { BossAttemptResult } from '../../types/boss';
 import { RiskSetting } from '../../types/game';
 
-interface BossState {
+export interface BossState {
   currentBossId: string | null;
   unlockedBossIds: string[];
   defeatedBossIds: string[];
   pityCounters: Record<string, number>;
   attemptHistory: BossAttemptResult[];
-  // Preparation
   preparedConsumables: Record<string, number>;
   selectedRisk: RiskSetting;
-  // Actions
   setCurrentBoss: (id: string | null) => void;
   unlockBoss: (id: string) => void;
   defeatBoss: (id: string) => void;
@@ -24,48 +21,40 @@ interface BossState {
   clearPrep: () => void;
 }
 
-export const useBossStore = create<BossState>()(
-  persist(
-    (set, _get) => ({
-      currentBossId: null,
-      unlockedBossIds: ['dune_tyrant'],
-      defeatedBossIds: [],
-      pityCounters: {},
-      attemptHistory: [],
-      preparedConsumables: {},
-      selectedRisk: RiskSetting.Balanced,
+export const useBossStore = create<BossState>()((set) => ({
+  currentBossId: null,
+  unlockedBossIds: ['dune_tyrant'],
+  defeatedBossIds: [],
+  pityCounters: {},
+  attemptHistory: [],
+  preparedConsumables: {},
+  selectedRisk: RiskSetting.Balanced,
 
-      setCurrentBoss: (id) => set({ currentBossId: id }),
-      unlockBoss: (id) =>
-        set((s) => ({
-          unlockedBossIds: s.unlockedBossIds.includes(id) ? s.unlockedBossIds : [...s.unlockedBossIds, id],
-        })),
-      defeatBoss: (id) =>
-        set((s) => ({
-          defeatedBossIds: s.defeatedBossIds.includes(id) ? s.defeatedBossIds : [...s.defeatedBossIds, id],
-        })),
-      incrementPity: (id) =>
-        set((s) => ({
-          pityCounters: { ...s.pityCounters, [id]: (s.pityCounters[id] || 0) + 1 },
-        })),
-      resetPity: (id) =>
-        set((s) => ({
-          pityCounters: { ...s.pityCounters, [id]: 0 },
-        })),
-      addAttempt: (result) =>
-        set((s) => ({
-          attemptHistory: [result, ...s.attemptHistory].slice(0, 100),
-        })),
-      setConsumablePrep: (type, count) =>
-        set((s) => ({
-          preparedConsumables: { ...s.preparedConsumables, [type]: count },
-        })),
-      setRisk: (risk) => set({ selectedRisk: risk }),
-      clearPrep: () => set({ preparedConsumables: {}, selectedRisk: RiskSetting.Balanced }),
-    }),
-    {
-      name: 'cc-boss',
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
+  setCurrentBoss: (id) => set({ currentBossId: id }),
+  unlockBoss: (id) =>
+    set((s) => ({
+      unlockedBossIds: s.unlockedBossIds.includes(id) ? s.unlockedBossIds : [...s.unlockedBossIds, id],
+    })),
+  defeatBoss: (id) =>
+    set((s) => ({
+      defeatedBossIds: s.defeatedBossIds.includes(id) ? s.defeatedBossIds : [...s.defeatedBossIds, id],
+    })),
+  incrementPity: (id) =>
+    set((s) => ({
+      pityCounters: { ...s.pityCounters, [id]: (s.pityCounters[id] || 0) + 1 },
+    })),
+  resetPity: (id) =>
+    set((s) => ({
+      pityCounters: { ...s.pityCounters, [id]: 0 },
+    })),
+  addAttempt: (result) =>
+    set((s) => ({
+      attemptHistory: [result, ...s.attemptHistory].slice(0, 100),
+    })),
+  setConsumablePrep: (type, count) =>
+    set((s) => ({
+      preparedConsumables: { ...s.preparedConsumables, [type]: count },
+    })),
+  setRisk: (risk) => set({ selectedRisk: risk }),
+  clearPrep: () => set({ preparedConsumables: {}, selectedRisk: RiskSetting.Balanced }),
+}));
