@@ -9,6 +9,15 @@ export interface ProfileRow {
   player_level: number;
   player_xp: number;
   credits: number;
+  scrap: number;
+  cache_tokens: number;
+  cache_token_parts: number;
+  materials: Record<string, number>;
+  essences: Record<string, number>;
+  consumables: Record<string, number>;
+  skill_spends: Record<string, number>;
+  boss_state: Record<string, unknown>;
+  last_idle_claim_at: string;
   created_at: string;
   updated_at: string;
   account_type: AccountType;
