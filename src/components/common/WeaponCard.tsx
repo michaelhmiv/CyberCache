@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Weapon } from '../../types/items';
-import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
 import { RollQualityBadge } from './RollQualityBadge';
-import { ElementIcon } from './RarityGlow';
+import { VisualBadge } from './VisualBadge';
+import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { RARITIES } from '../../constants/rarities';
 
 interface WeaponCardProps {
@@ -21,37 +21,32 @@ export const WeaponCard: React.FC<WeaponCardProps> = ({ weapon, onClick, showDet
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="relative rounded-xl p-3 bg-surface border-2 border-border overflow-hidden flex items-center gap-3 cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+      className="bl-card relative flex cursor-pointer items-center gap-2 overflow-hidden p-2"
       style={{
         borderLeftColor: rarityColor,
         borderLeftWidth: 5,
-        boxShadow: weapon.rarity === 'Legendary' || weapon.rarity === 'Epic' ? `0 0 14px ${rarityColor}44, 0 4px 12px rgba(0,0,0,0.5)` : undefined,
+        boxShadow: weapon.rarity === 'Legendary' || weapon.rarity === 'Epic' ? `0 0 14px ${rarityColor}44, 5px 5px 0 rgba(0,0,0,0.75)` : undefined,
       }}
     >
       <div className="shrink-0">
-        <WeaponCanvas
-          type={weapon.weaponType}
-          manufacturer={weapon.manufacturer}
-          element={weapon.element}
-          rarity={weapon.rarity}
-          size={56}
-        />
+        <WeaponIllustration weapon={weapon} size="card" showBadges />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-sm font-black truncate" style={{ color: rarityColor }}>
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-1.5">
+          <span className="truncate text-xs font-black uppercase tracking-wide" style={{ color: rarityColor }}>
             {weapon.name}
           </span>
           <RollQualityBadge quality={weapon.rollQuality} />
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-text-secondary mb-1 uppercase">
-          <span>Lv.{weapon.level}</span>
-          <span style={{ color: rarityColor }} className="font-bold">{weapon.rarity}</span>
-          <span>{weapon.weaponType}</span>
-          <ElementIcon element={weapon.element} />
+        <div className="mb-1 flex flex-wrap items-center gap-1 text-[9px] uppercase text-text-secondary">
+          <span className="font-black text-text-muted">Lv.{weapon.level}</span>
+          <span style={{ color: rarityColor }} className="font-black">{weapon.rarity}</span>
+          <VisualBadge kind="weaponType" id={weapon.weaponType} size="xs" label />
+          <VisualBadge kind="manufacturer" id={weapon.manufacturer} size="xs" label />
+          <VisualBadge kind="element" id={weapon.element} size="xs" label />
         </div>
         {showDetails && (
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted font-mono">
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[9px] font-mono text-text-muted">
             <span>Dmg {weapon.baseDamage}</span>
             <span>Spd {weapon.attackSpeed.toFixed(2)}</span>
             <span>Crit {(weapon.critChance * 100).toFixed(1)}%</span>
@@ -60,7 +55,7 @@ export const WeaponCard: React.FC<WeaponCardProps> = ({ weapon, onClick, showDet
         )}
       </div>
       {weapon.isLocked && (
-        <div className="absolute top-1 right-1 text-text-muted">
+        <div className="absolute right-1 top-1 text-text-muted">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9.243 2 7 4.243 7 7v3H5v10h14V10h-2V7c0-2.757-2.243-5-5-5zm0 2c1.654 0 3 1.346 3 3v3H9V7c0-1.654 1.346-3 3-3zm-5 8h10v6H7v-6z"/></svg>
         </div>
       )}
