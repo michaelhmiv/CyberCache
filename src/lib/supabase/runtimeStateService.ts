@@ -25,7 +25,9 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
   }
 
   const rows = (data ?? []) as ServerItemRow[];
-  const items = rows.map(serverItemRowToDisplayGear);
+  const serverItems = rows.map(serverItemRowToDisplayGear);
+  const serverIds = new Set(serverItems.map((item) => item.id));
+  const existingClientOnlyItems = useInventoryStore.getState().items.filter((item) => !serverIds.has(item.id));
   const slots: Partial<Record<LoadoutSlot, string | null>> = {};
 
   rows.forEach((row) => {
@@ -33,6 +35,6 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
     if (slot) slots[slot] = row.id;
   });
 
-  useInventoryStore.getState().setItems(items);
+  useInventoryStore.getState().setItems([...serverItems, ...existingClientOnlyItems]);
   useLoadoutStore.getState().setSlots(slots);
 }
