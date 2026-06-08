@@ -60,4 +60,8 @@ function syncRuntimeItem(row: ServerItemRow | undefined): void {
 export function syncVerifiedResult(result: Record<string, unknown>): void {
   syncRuntimeProfile(result.profile as RuntimeProfilePayload | undefined);
   syncRuntimeItem(result.item as ServerItemRow | undefined);
+  const clearedSlot = toLoadoutSlot(result.slot_name as string | undefined);
+  if (clearedSlot && result.action_type === 'cc_unequip_slot') {
+    useLoadoutStore.getState().setSlot(clearedSlot, null);
+  }
 }
