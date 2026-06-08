@@ -8,9 +8,9 @@ const SECTIONS = [
     icon: Sword,
     color: '#F59E0B',
     items: [
-      'CyberCache is an idle roguelite looter RPG. You farm weapons, fight bosses, and upgrade your loadout.',
-      'The Fight tab is your home base. It passively generates loot and XP while you play.',
-      'Tap Quick Drop to manually generate a weapon, or let the auto-farming handle it.',
+      'CyberCache is an idle roguelite looter RPG. Farm weapons, fight bosses, and upgrade your rig.',
+      'The Fight tab is your main field board. It passively generates loot and XP while you play.',
+      'Use manual sweeps for instant combat feedback, then tune the loadout before bosses.',
     ],
   },
   {
@@ -18,11 +18,10 @@ const SECTIONS = [
     icon: Box,
     color: '#A855F7',
     items: [
-      'Weapons have 6 types (Pistol, SMG, Shotgun, Sniper, Launcher, Beam), 5 rarities (Common→Legendary), and 6 elements.',
-      'Each weapon has a Roll Quality (0-100). Higher quality = better stats. "God Roll" at 96+.',
-      'Weapons have modular Parts and random Affixes that modify their stats.',
-      'Legendary weapons have unique Special Effects that change gameplay (e.g., Glass Sun: +50% Fire damage but -30% shield).',
-      'Lock valuable items (tap → Lock) to prevent accidental scrapping.',
+      'Weapons have types, rarities, elements, roll quality, modular parts, and affixes.',
+      'Higher roll quality means better stats. God rolls start at 96+.',
+      'Legendary weapons have special effects that alter the run.',
+      'Lock valuable gear before scrapping or listing it.',
     ],
   },
   {
@@ -30,12 +29,9 @@ const SECTIONS = [
     icon: Shield,
     color: '#3B82F6',
     items: [
-      '7 gear slots: Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic.',
-      'Primary weapon contributes the most to combat. Secondary gives ~30% passive contribution.',
-      'Heavy weapons (Launcher, Shotgun) are for burst damage and boss phase breaks.',
-      'Shields improve your survival chance in boss fights.',
-      'Class Mods boost specific Skill Trees. Relics provide global modifiers.',
-      'Tap any slot in the Loadout tab to equip gear from your inventory.',
+      'Seven slots define the hunter rig: Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic.',
+      'The boss simulator uses your equipped loadout, not the full backpack.',
+      'Class Mods and Relics are build identity pieces, not filler stats.',
     ],
   },
   {
@@ -43,13 +39,9 @@ const SECTIONS = [
     icon: Zap,
     color: '#EF4444',
     items: [
-      'Boss fights run through 4 phases: Survival → Shield/Armor Break → DPS → Mechanics.',
-      'The win chance estimate shows your odds. 75%+ is "Favorable."',
-      'Elemental matchups matter. Use weapons strong against the boss\'s weakness (shown in green).',
-      'Bring consumables (Med Kits, Shield Cells, Ordnance Charges) to boost your odds.',
-      'Risk settings: Conservative (safer, less reward) → All In (dangerous, high reward).',
-      'Death fees take a percentage of your credits on failure. Insurance Tokens reduce this.',
-      'Pity counters build up on repeated failures, increasing future win chance by 3% per loss (cap +30%).',
+      'Boss fights run through survival, break, DPS, and mechanic checks.',
+      'Element matchups and consumables matter. Target weaknesses and avoid resistances.',
+      'Pity counters build on repeated failures and improve future odds.',
     ],
   },
   {
@@ -57,11 +49,9 @@ const SECTIONS = [
     icon: TrendingUp,
     color: '#22C55E',
     items: [
-      'Credits: earned from farming, boss victories, and selling gear. Used for vendor purchases.',
-      'Scrap: from salvaging unwanted items. Used in the Fusion Lab to improve roll quality.',
-      'Cache Keys: open Data Caches which guarantee Rare+ weapons. Earned from boss kills and rare drops.',
-      'Cache Key Fragments (5 = 1 Key): randomly drop from farming.',
-      'Marketplace: buy/sell weapons with simulated NPC traders. Listing fee is 10%.',
+      'Credits come from farming, boss wins, and selling gear.',
+      'Scrap and materials come from salvaging and feed the workbench.',
+      'Cache Keys open Data Caches. Five fragments convert into one key.',
     ],
   },
   {
@@ -69,10 +59,9 @@ const SECTIONS = [
     icon: Star,
     color: '#06B6D4',
     items: [
-      'Three trees: Gunslinger (weapon damage/crits), Demolition (explosives/armor break), Scavenger (idle/loot/economy).',
-      'Spend 1 skill point per level, starting at level 2 (total = your level - 1).',
-      'Nodes unlock in tiers. Major nodes and Keystones require adjacent nodes.',
-      'Respec costs 100 credits per point spent. Try different builds!',
+      'Three trees: Gunslinger, Demolition, and Scavenger.',
+      'Spend one skill point per level starting at level 2.',
+      'Small nodes feed majors; majors unlock keystones.',
     ],
   },
   {
@@ -80,33 +69,42 @@ const SECTIONS = [
     icon: Database,
     color: '#F59E0B',
     items: [
-      'Equip your best weapons in the Loadout tab — the boss simulator uses your loadout, not your inventory.',
-      'Match elements to boss weaknesses for 1.3× damage. Avoid resisted elements (0.7×).',
-      'Fusion Lab can improve a weapon\'s roll quality by consuming 2+ similar weapons.',
-      'Offline earnings accumulate up to your cap. Claim them from the Fight tab.',
-      'Auto-salvage in Settings can automatically scrap low-rarity, low-quality drops.',
-      'Salvaging gear gives materials and essences — use them in the Workshop to craft consumables.',
+      'Match elements to boss weaknesses for stronger damage checks.',
+      'Use Settings to tune auto-salvage so junk does not clutter your backpack.',
+      'Use Workshop queues to convert salvaged parts into combat utility.',
     ],
   },
 ];
 
 export const HelpScreen: React.FC = () => {
   return (
-    <div className="p-4 space-y-4 pb-20">
-      <div className="text-lg font-black text-text-primary">Guide</div>
-      <div className="text-xs text-text-muted">Everything you need to know about CyberCache.</div>
+    <div className="bl-page space-y-4 p-4 pb-20">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="bl-title text-3xl leading-none text-text-primary">Field Manual</div>
+          <div className="text-xs text-text-muted">Pinned notes for loot, combat, caches, and buildcraft.</div>
+        </div>
+        <div className="bl-icon-plate flex h-12 w-12 shrink-0 -rotate-2 items-center justify-center text-amber">
+          <Database size={22} />
+        </div>
+      </div>
 
       <div className="space-y-3">
         {SECTIONS.map((section) => (
-          <MobileCard key={section.title}>
-            <div className="flex items-center gap-2 mb-2">
-              <section.icon size={16} style={{ color: section.color }} />
-              <div className="text-sm font-bold text-text-primary">{section.title}</div>
+          <MobileCard key={section.title} rarityColor={section.color}>
+            <div className="mb-2 flex items-center gap-2">
+              <div className="bl-icon-plate flex h-9 w-9 items-center justify-center" style={{ backgroundColor: `${section.color}18` }}>
+                <section.icon size={16} style={{ color: section.color }} />
+              </div>
+              <div>
+                <div className="text-sm font-black uppercase tracking-wide text-text-primary">{section.title}</div>
+                <div className="text-[9px] uppercase tracking-[0.16em] text-text-muted">Briefing card</div>
+              </div>
             </div>
             <ul className="space-y-1.5">
               {section.items.map((item, i) => (
-                <li key={i} className="text-[11px] text-text-secondary flex items-start gap-1.5">
-                  <span className="text-text-muted mt-0.5 shrink-0">·</span>
+                <li key={i} className="flex items-start gap-1.5 text-[11px] text-text-secondary">
+                  <span className="mt-0.5 shrink-0 text-amber">▸</span>
                   <span>{item}</span>
                 </li>
               ))}
