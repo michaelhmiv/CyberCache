@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
@@ -15,6 +15,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import {
+  useActivityStore,
   useBossStore,
   useIdleStore,
   useInventoryStore,
@@ -26,6 +27,8 @@ import {
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '@/constants/roamingAreas';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
+import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
+import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 
 interface DashboardScreenProps {
   onNavigate: (screen: string) => void;
@@ -84,7 +87,7 @@ const gainToneClass: Record<GainTone, { text: string; bg: string; border: string
 const idleGainHint: GainEvent = {
   id: 'idle-loop-ready',
   label: '+0',
-  detail: 'ready',
+  detail: 'activity gated',
   tone: 'xp',
 };
 
@@ -99,6 +102,8 @@ const makeGain = (label: string, detail: string, tone: GainTone): GainEvent => (
   detail,
   tone,
 });
+
+const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
 
 const getXpDelta = (previous: Snapshot, current: Snapshot) => {
   if (current.level < previous.level) return 0;
@@ -249,8 +254,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const boss = useBossStore();
   const workshop = useWorkshopStore();
   const idle = useIdleStore();
+  const activity = useActivityStore();
 
   const [gainFeed, setGainFeed] = useState<GainEvent[]>([]);
+  const [activityError, setActivityError] = useState<string | null>(null);
   const previousSnapshotRef = useRef<Snapshot | null>(null);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
@@ -266,6 +273,41 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const xpRemaining = Math.max(0, xpToNextLevel - player.xp);
   const nextArea = ROAMING_AREAS.find((area) => !isRoamingAreaUnlocked(area, player.level));
   const masteryScore = player.level * 100 + inventory.items.length * 5 + boss.defeatedBossIds.length * 50 + spentSkillPoints * 25;
+  const activePayload = activity.current.publicPayload;
+  const activityLabel = safeText(activePayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
+  const activityTarget = activity.current.targetLabel ?? safeText(activePayload.target_label) ?? 'No target';
+  const activityScene = activity.current.sceneKey ?? safeText(activePayload.scene_key) ?? 'standby';
+  const selectedRoamingActive = activity.current.kind === 'roaming_loot' && activity.current.targetType === 'roaming_area' && activity.current.targetId === selectedArea.id;
+  const productiveTickLabel = selectedRoamingActive ? `+${XP_PER_TICK}/tick` : 'gated';
+  const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : `start ${selectedArea.name}`;
+
+  const startSelectedRoaming = useCallback(async () => {
+    setActivityError(null);
+    try {
+      await activity.start(buildRoamingLootActivity(selectedArea, equippedWeapon));
+      idle.setFarming(true);
+    } catch (error) {
+      setActivityError(error instanceof Error ? error.message : 'Unable to start roaming activity.');
+    } finally {
+      onNavigate('fight');
+    }
+  }, [activity, equippedWeapon, idle, onNavigate, selectedArea]);
+
+  const openBossPrep = useCallback(async () => {
+    if (!currentBoss) {
+      onNavigate('chest');
+      return;
+    }
+    setActivityError(null);
+    try {
+      await activity.start(buildBossPrepActivity(currentBoss, equippedWeapon));
+      idle.setFarming(false);
+    } catch (error) {
+      setActivityError(error instanceof Error ? error.message : 'Unable to start boss prep activity.');
+    } finally {
+      onNavigate('fight');
+    }
+  }, [activity, currentBoss, equippedWeapon, idle, onNavigate]);
 
   useEffect(() => {
     const snapshot: Snapshot = {
@@ -299,7 +341,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
     if (!events.length) return;
     const eventIds = events.map((event) => event.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- animation feed, cleared on cleanup
     setGainFeed((current) => [...events, ...current].slice(0, 5));
 
     const timeout = window.setTimeout(() => {
@@ -318,12 +359,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   ]);
 
   const actions = [
-    { id: 'fight', label: 'Hit The Wastes', desc: 'Jump into the active badlands run.', icon: Crosshair, tone: 'red' as Tone, stat: `+${XP_PER_TICK} XP / ${TICK_SECONDS}s`, primary: true },
-    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: Backpack, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true },
-    { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: Box, tone: 'green' as Tone, stat: `${player.cacheKeys} keys` },
-    { id: 'mastery', label: 'Mastery', desc: 'Spend points and build identity.', icon: Trophy, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready` },
-    { id: 'workshop', label: 'Workshop', desc: 'Craft, fuse, repair, and queue jobs.', icon: Hammer, tone: 'blue' as Tone, stat: `${openWorkshopJobs} active` },
-    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: BarChart3, tone: 'cyan' as Tone, stat: 'Trade hub' },
+    { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync selected turf as the active route, then enter combat.', icon: Crosshair, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
+    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: Backpack, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('inventory') },
+    { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: Box, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
+    { id: 'mastery', label: 'Mastery', desc: 'Spend points and build identity.', icon: Trophy, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('mastery') },
+    { id: 'workshop', label: 'Workshop', desc: 'Craft dispatch uses activity; bench timers stay passive.', icon: Hammer, tone: 'blue' as Tone, stat: `${openWorkshopJobs} queues`, onClick: () => onNavigate('workshop') },
+    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: BarChart3, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
   ];
 
   return (
@@ -345,7 +386,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="bl-title text-3xl leading-none text-text-primary">Bounty Board</div>
-            <div className="text-[9px] uppercase tracking-[0.2em] text-text-muted">Badlands run / loot pops / level climb</div>
+            <div className="text-[9px] uppercase tracking-[0.2em] text-text-muted">Activity-backed run / loot pops / level climb</div>
           </div>
           <div className="flex h-10 w-10 shrink-0 -rotate-2 items-center justify-center border-2 border-border bg-amber/15 shadow-[4px_4px_0_rgba(0,0,0,0.7)]">
             <Crosshair size={20} className="text-amber" />
@@ -358,6 +399,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           <HudChip label="Keys" value={player.cacheKeys} detail={`${player.cacheKeyFragments}/5 frags`} tone="green" />
           <HudChip label="Loot" value={inventory.items.length} detail={`${equippedCount}/7 equip`} tone="red" />
         </div>
+
+        <Panel label="Current Activity">
+          <div className="flex items-start gap-2">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border ${selectedRoamingActive ? 'bg-green/10' : 'bg-amber/10'}`}>
+              <Activity size={18} className={selectedRoamingActive ? 'text-green' : 'text-amber'} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-black uppercase tracking-wide text-text-primary">{activityLabel}</div>
+              <div className="text-[9px] text-text-muted">Target: {activityTarget}</div>
+              <div className="text-[9px] text-text-muted">Scene: {activityScene}</div>
+              {activityError && <div className="mt-1 text-[9px] font-bold text-red">{activityError}</div>}
+            </div>
+            <div className="text-right text-[9px] font-black text-amber">{activity.pending ? 'SYNC' : selectedRoamingActive ? 'LIVE' : 'GATED'}</div>
+          </div>
+        </Panel>
 
         <Panel label="Level Strip">
           <div className="flex items-center gap-2">
@@ -376,21 +432,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                     {player.xp.toLocaleString()} / {xpToNextLevel.toLocaleString()} XP · {xpRemaining.toLocaleString()} left
                   </div>
                 </div>
-                <div className="text-right text-[9px] font-black text-green">+{XP_PER_TICK}/tick</div>
+                <div className={`text-right text-[9px] font-black ${selectedRoamingActive ? 'text-green' : 'text-text-muted'}`}>{productiveTickLabel}</div>
               </div>
               <div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}>
-                <motion.div
-                  className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]"
-                  initial={false}
-                  animate={{ width: `${xpProgress}%` }}
-                  transition={{ type: 'spring', stiffness: 90, damping: 18 }}
-                />
+                <motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} />
                 <div className="absolute inset-0 grid grid-cols-5">
                   {Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}
                 </div>
               </div>
               <div className="mt-1 flex items-center justify-between gap-2 text-[8px] uppercase tracking-wide text-text-muted">
-                <span>{TICK_SECONDS}.00s tick</span>
+                <span>{selectedRoamingActive ? `${TICK_SECONDS}.00s tick` : 'activity required'}</span>
                 <span>{FIELD_FIND_CHANCE}% loot</span>
                 <span>{CACHE_FRAGMENT_CHANCE}% frag</span>
               </div>
@@ -398,25 +449,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           </div>
         </Panel>
 
-        <LiveTurfDiorama
-          area={selectedArea}
-          weapon={equippedWeapon}
-          bossName={currentBoss?.name}
-          bossWeaknessCount={currentBoss?.weaknesses.length}
-          playerLevel={player.level}
-          equippedCount={equippedCount}
-          cacheKeys={player.cacheKeys}
-          feedEvents={gainFeed}
-          onFight={() => onNavigate('fight')}
-          onSecondary={() => onNavigate(currentBoss ? 'fight' : 'chest')}
-        />
+        <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} feedEvents={gainFeed} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
 
         <Panel label="Action Board" className="space-y-2">
           <div className="grid grid-cols-1 gap-1.5">
-            {actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} onClick={() => onNavigate(action.id)} />)}
+            {actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}
           </div>
           <div className="grid grid-cols-2 gap-1.5">
-            {actions.slice(2).map((action) => <ActionButton key={action.id} {...action} onClick={() => onNavigate(action.id)} />)}
+            {actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}
           </div>
         </Panel>
 
@@ -425,7 +465,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             <InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={selectedArea.dangerRating} icon={Map} tone="amber" />
             <InfoGauge label="Mastery" value={masteryScore.toLocaleString()} detail={`${availableSkillPoints} unspent points`} icon={Trophy} tone="purple" />
             <InfoGauge label="Best Gun" value={bestWeapon?.name ?? 'None'} detail={bestWeapon ? `${bestWeapon.combatPower} combat power` : 'Find gear in combat'} icon={Sparkles} tone="red" />
-            <InfoGauge label="Workshop" value={openWorkshopJobs} detail="active queues" icon={Hammer} tone="green" />
+            <InfoGauge label="Workshop" value={openWorkshopJobs} detail="passive queues" icon={Hammer} tone="green" />
           </div>
 
           {nextArea && (
@@ -466,14 +506,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               const unlocked = isRoamingAreaUnlocked(area, player.level);
               const selected = area.id === selectedArea.id;
               return (
-                <button
-                  type="button"
-                  key={area.id}
-                  disabled={!unlocked}
-                  onClick={() => idle.setSelectedRoamingArea(area.id)}
-                  className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left active:scale-[0.98] transition-transform ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`}
-                  style={panelClip}
-                >
+                <button type="button" key={area.id} disabled={!unlocked} onClick={() => idle.setSelectedRoamingArea(area.id)} className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left active:scale-[0.98] transition-transform ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`} style={panelClip}>
                   <div className="flex items-start justify-between gap-1.5">
                     <div className="min-w-0">
                       <div className="truncate text-[11px] font-black text-text-primary">{area.name}</div>
