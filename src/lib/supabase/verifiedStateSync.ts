@@ -1,4 +1,7 @@
+import { useInventoryStore } from '@/store/slices/inventorySlice';
+import { useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
+import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
 
 export type RuntimeProfilePayload = {
   id?: string;
@@ -13,10 +16,17 @@ export type RuntimeProfilePayload = {
   consumables?: Record<string, number>;
 };
 
+const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic']);
+
 function numberValue(value: number | string | undefined, fallback = 0): number {
   if (value === undefined) return fallback;
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toLoadoutSlot(value: string | null | undefined): LoadoutSlot | null {
+  if (!value) return null;
+  return validSlots.has(value as LoadoutSlot) ? (value as LoadoutSlot) : null;
 }
 
 export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): void {
@@ -36,6 +46,18 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
   });
 }
 
+function syncRuntimeItem(row: ServerItemRow | undefined): void {
+  if (!row?.id) return;
+  if (row.runtime_state === 'salvaged' || row.runtime_state === 'consumed') {
+    useInventoryStore.getState().removeItem(row.id);
+    return;
+  }
+  useInventoryStore.getState().upsertItem(serverItemRowToDisplayGear(row));
+  const slot = toLoadoutSlot(row.equipped_slot);
+  if (slot) useLoadoutStore.getState().setSlot(slot, row.id);
+}
+
 export function syncVerifiedResult(result: Record<string, unknown>): void {
   syncRuntimeProfile(result.profile as RuntimeProfilePayload | undefined);
+  syncRuntimeItem(result.item as ServerItemRow | undefined);
 }
