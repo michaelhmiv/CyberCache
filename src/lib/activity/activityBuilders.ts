@@ -1,6 +1,6 @@
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { StartActivityInput } from '@/types/activity';
-import type { Weapon } from '@/types/items';
+import type { GearItem, Weapon } from '@/types/items';
 
 const weaponPublicSummary = (weapon?: Weapon) => {
   if (!weapon) return {};
@@ -11,6 +11,16 @@ const weaponPublicSummary = (weapon?: Weapon) => {
     weapon_type: weapon.weaponType,
     weapon_element: weapon.element,
     weapon_manufacturer: weapon.manufacturer,
+  };
+};
+
+const gearPublicSummary = (item?: GearItem) => {
+  if (!item) return {};
+  return {
+    item_id: item.id,
+    item_name: item.name,
+    item_rarity: item.rarity,
+    item_level: item.level,
   };
 };
 
@@ -89,6 +99,55 @@ export function buildBossFightActivity(boss: { id: string; name: string; level?:
       boss_tier: boss.tier ?? null,
       scene_key: `boss:${boss.id}`,
       ...weaponPublicSummary(weapon),
+    },
+    publicVisible: true,
+  };
+}
+
+export function buildCraftingActivity(recipe: { id: string; name: string; category?: string }, benchId?: number | null): StartActivityInput {
+  return {
+    kind: 'crafting',
+    targetType: 'workshop_job',
+    targetId: recipe.id,
+    targetLabel: recipe.name,
+    sceneKey: 'workshop:crafting',
+    notes: `Dispatching ${recipe.name}`,
+    activityPayload: {
+      recipe_id: recipe.id,
+      recipe_name: recipe.name,
+      category: recipe.category ?? null,
+      bench_id: benchId ?? null,
+    },
+    publicPayload: {
+      activity_label: `Crafting ${recipe.name}`,
+      target_label: recipe.name,
+      category: recipe.category ?? null,
+      bench_id: benchId ?? null,
+      scene_key: 'workshop:crafting',
+    },
+    publicVisible: true,
+  };
+}
+
+export function buildSalvagingActivity(item: GearItem): StartActivityInput {
+  return {
+    kind: 'salvaging',
+    targetType: 'item',
+    targetId: item.id,
+    targetLabel: item.name,
+    sceneKey: 'workshop:salvage',
+    notes: `Salvaging ${item.name}`,
+    activityPayload: {
+      item_id: item.id,
+      item_name: item.name,
+      rarity: item.rarity,
+      level: item.level,
+    },
+    publicPayload: {
+      activity_label: `Salvaging ${item.name}`,
+      target_label: item.name,
+      scene_key: 'workshop:salvage',
+      ...gearPublicSummary(item),
     },
     publicVisible: true,
   };
