@@ -3,6 +3,7 @@ import { GAME_CONTENT, OUTPUT_QUALITY_CURVE } from '../content/gameContent';
 import { CACHE_RARITY_ODDS, resolveRarityWeights, rollCacheRarity, validateCacheRarityOdds } from '../content/lootResolver';
 import { ACTION_SLOT_RULES, DURABILITY_POLICIES, GEAR_SLOT_RULES, GUNSMITHING_BOUNDARIES, MARKET_CONTROL_RULES, SERVICE_MARKET_RULES, STARTER_STORE_ITEMS, VEHICLE_CLASSES_FIRST_ERA } from '../content/mechanicFramework';
 import { buildLevelCurve, calculateDailyXp, calculateEffectiveSkill, rollOutputQuality, simulateLootTable } from '../content/simulation';
+import { buildXpProgressionSummary, getXpForAction, grantXp, levelStateFromTotalXp, totalXpRequiredToReachLevel } from '../content/xpResolver';
 import { validateGameContent } from '../content/validation';
 import { CONTENT_BOUNDARIES, IMPLEMENTATION_BACKLOG } from '../content/runtimeModel';
 import { DropSource, Rarity } from '../types/game';
@@ -68,6 +69,32 @@ describe('CyberCache content layer', () => {
     expect(dailyXp.enemyDefeatXp).toBeGreaterThan(0);
   });
 
+  it('uses the XP resolver as the source for action rewards', () => {
+    expect(getXpForAction('boss_victory')).toBe(1000);
+    expect(getXpForAction('enemy_defeated')).toBe(16);
+  });
+
+  it('converts total XP into level state through the resolver', () => {
+    const levelTwoTotal = totalXpRequiredToReachLevel(2);
+    const state = levelStateFromTotalXp(levelTwoTotal);
+    expect(state.level).toBe(2);
+    expect(state.xpIntoLevel).toBe(0);
+  });
+
+  it('grants XP and reports level gains deterministically', () => {
+    const previous = levelStateFromTotalXp(0);
+    const result = grantXp(previous, totalXpRequiredToReachLevel(3));
+    expect(result.next.level).toBe(3);
+    expect(result.levelsGained).toBe(2);
+  });
+
+  it('summarizes XP progression with stress-test timing', () => {
+    const summary = buildXpProgressionSummary(10);
+    expect(summary.levelCap).toBe(10);
+    expect(summary.dailyStressXp.totalXp).toBeGreaterThan(0);
+    expect(summary.totalYearsToCap).toBeGreaterThanOrEqual(0);
+  });
+
   it('builds a level curve with cumulative day estimates', () => {
     const curve = buildLevelCurve(10);
     expect(curve).toHaveLength(10);
@@ -77,8 +104,8 @@ describe('CyberCache content layer', () => {
   });
 
   it('documents the boundary between static content and runtime state', () => {
-    expect(CONTENT_BOUNDARIES.some((boundary) => boundary.persistence === 'static_content')).toBe(true);
-    expect(CONTENT_BOUNDARIES.some((boundary) => boundary.persistence === 'supabase_runtime')).toBe(true);
+    expect(CONTENT_BOUNDARIES.some((boundary) => boundary.persistence ===('static_content' as const))).toBe(true);
+    expect(CONTENT_BOUNDARIES.some((boundary) => boundary.persistence ===('supabase_runtime' as const))).toBe(true);
   });
 
   it('keeps the next implementation backlog explicit', () => {
