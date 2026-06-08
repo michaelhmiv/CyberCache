@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  useActivityStore,
   useBossStore,
   useIdleStore,
   useInventoryStore,
@@ -21,7 +22,7 @@ import {
   usePlayerStore,
   useSkillStore,
 } from '@/store';
-import { GearItem } from '@/types/items';
+import { GearItem, Weapon } from '@/types/items';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WeaponCard } from '@/components/common/WeaponCard';
 import { WeaponCanvas } from '@/components/pixelArt/WeaponCanvas';
@@ -35,6 +36,7 @@ import {
   rollAreaDropKind,
   rollAreaMaterialFind,
 } from '@/constants/roamingAreas';
+import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { useOfflineClaim } from '@/hooks/useIdleTicker';
 
 type CombatLogEntry = {
@@ -66,6 +68,7 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const bossStore = useBossStore();
   const loadoutStore = useLoadoutStore();
   const idle = useIdleStore();
+  const activity = useActivityStore();
   const skillStore = useSkillStore();
   const skillBonuses = skillStore.getBonuses();
   const [recentDrop, setRecentDrop] = useState<GearItem | null>(null);
@@ -77,8 +80,8 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([
     {
       id: 'initial-roam',
-      label: 'Roaming route assigned',
-      detail: 'Gunrunner deployed into Dustwaste Frontier for field combat.',
+      label: 'Activity gate armed',
+      detail: 'Roaming rewards require an active server-backed roaming route.',
       tone: 'patrol',
     },
   ]);
@@ -89,6 +92,24 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const areaScrapPerMinute = selectedArea.idleScrapPerMinute;
   const offlineEarningsBonus = skillBonuses.offlineEarnings || 0;
   const scrapYieldBonus = skillBonuses.scrapYield || 0;
+  const bestBossWeapon = inventory
+    .getWeapons()
+    .sort((a, b) => b.bossPower - a.bossPower)[0];
+  const activityWeapon: Weapon | undefined = loadoutStore.getWeapon('primary') ?? loadoutStore.getWeapon('secondary') ?? loadoutStore.getWeapon('heavy') ?? bestBossWeapon;
+  const isRoamingActivity = activity.current.kind === 'roaming_loot';
+  const activeRoamingAreaId = activity.current.targetType === 'roaming_area' ? activity.current.targetId : null;
+  const roamingMatchesSelectedArea = isRoamingActivity && activeRoamingAreaId === selectedArea.id;
+  const canRunRoamingTick = roamingMatchesSelectedArea && !activity.pending;
+  const activityStatusLabel = canRunRoamingTick
+    ? 'Roaming Active'
+    : isRoamingActivity
+      ? 'Roaming Paused'
+      : 'Roaming Idle';
+  const activityStatusDetail = canRunRoamingTick
+    ? 'Server-backed route is active. Rewards may tick.'
+    : isRoamingActivity
+      ? `Active route is ${activity.current.targetLabel ?? activeRoamingAreaId}; switch back or start this turf.`
+      : 'Start a roaming activity before this screen can generate rewards.';
   const rarityFocus = Object.entries(selectedArea.dropPoolRarityWeights)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 3)
@@ -119,6 +140,63 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
       ...current,
     ].slice(0, LOG_LIMIT));
   }, []);
+
+  const startRoamingActivity = useCallback(async () => {
+    try {
+      const next = await activity.start(buildRoamingLootActivity(selectedArea, activityWeapon));
+      idle.setFarming(true);
+      setElapsed(0);
+      addCombatLog({
+        label: 'Roaming activity started',
+        detail: `${next.targetLabel ?? selectedArea.name} is now the active route of record.`,
+        tone: 'patrol',
+      });
+    } catch (error) {
+      addCombatLog({
+        label: 'Roaming start failed',
+        detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.',
+        tone: 'patrol',
+      });
+    }
+  }, [activity, activityWeapon, addCombatLog, idle, selectedArea]);
+
+  const stopActiveActivity = useCallback(async () => {
+    try {
+      await activity.clear();
+      idle.setFarming(false);
+      addCombatLog({
+        label: 'Activity cleared',
+        detail: 'Gunrunner returned to idle standby. Productive rewards are paused.',
+        tone: 'patrol',
+      });
+    } catch (error) {
+      addCombatLog({
+        label: 'Activity clear failed',
+        detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.',
+        tone: 'patrol',
+      });
+    }
+  }, [activity, addCombatLog, idle]);
+
+  const startBossPrep = useCallback(async () => {
+    if (!prepBossTarget) return;
+    try {
+      await activity.start(buildBossPrepActivity(prepBossTarget, activityWeapon));
+      idle.setFarming(false);
+      addCombatLog({
+        label: 'Boss prep started',
+        detail: `${prepBossTarget.name} is now the active activity. Roaming rewards are paused.`,
+        tone: 'patrol',
+      });
+      setPrepBoss(prepBossTarget);
+    } catch (error) {
+      addCombatLog({
+        label: 'Boss prep failed',
+        detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.',
+        tone: 'patrol',
+      });
+    }
+  }, [activity, activityWeapon, addCombatLog, idle, prepBossTarget]);
 
   const handleAutoSalvage = useCallback((item: GearItem) => {
     const rarityIndex = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].indexOf(item.rarity);
@@ -167,8 +245,10 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
     prevLevelRef.current = player.level;
   }, [player.level]);
 
-  // Background roaming tick
+  // Server-backed roaming tick. No active activity row means no rewards.
   useEffect(() => {
+    if (!canRunRoamingTick) return undefined;
+
     const iv = setInterval(() => {
       setElapsed((e) => e + 1);
       let fieldDrop: GearItem | null = null;
@@ -177,7 +257,6 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         fieldDrop = createRoamingDrop(true);
       }
 
-      // Cache key fragments (every tick, 3% chance)
       if (Math.random() < CACHE_FRAGMENT_CHANCE_PER_TICK) {
         player.addCacheKeyFragments(1);
         addCombatLog({
@@ -207,20 +286,29 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
 
       player.addCredits(Math.round((areaCreditsPerMinute / 20) * (1 + offlineEarningsBonus)));
       player.addScrap(Math.round((areaScrapPerMinute / 20) * (1 + scrapYieldBonus)));
-
       player.addXP(1);
     }, 3000);
+
     return () => clearInterval(iv);
   }, [
     addCombatLog,
     areaCreditsPerMinute,
     areaScrapPerMinute,
+    canRunRoamingTick,
     createRoamingDrop,
     offlineEarningsBonus,
     player,
     scrapYieldBonus,
     selectedArea,
   ]);
+
+  useEffect(() => {
+    if (!canRunRoamingTick) return undefined;
+    const iv = setInterval(() => {
+      activity.heartbeat().catch((error) => console.warn('Activity heartbeat skipped:', error));
+    }, 60000);
+    return () => clearInterval(iv);
+  }, [activity, canRunRoamingTick]);
 
   // Boss targeting
   const currentBossId = bossStore.currentBossId;
@@ -239,17 +327,14 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   // Power: equipped primary, or best weapon, or 0
   const fightPower =
     loadoutStore.getWeapon('primary')?.bossPower ||
-    inventory
-      .getWeapons()
-      .sort((a, b) => b.bossPower - a.bossPower)[0]
-      ?.bossPower ||
+    bestBossWeapon?.bossPower ||
     0;
 
   const isNewPlayer = inventory.items.length === 0;
   const activeMinutes = Math.floor((elapsed * TICK_SECONDS) / 60);
   const activeSeconds = (elapsed * TICK_SECONDS) % 60;
-  const killsPerMinute = Math.round((60 / TICK_SECONDS) * 0.75);
-  const fieldFindsPerMinute = Math.round((60 / TICK_SECONDS) * DROP_CHANCE_PER_TICK);
+  const killsPerMinute = canRunRoamingTick ? Math.round((60 / TICK_SECONDS) * 0.75) : 0;
+  const fieldFindsPerMinute = canRunRoamingTick ? Math.round((60 / TICK_SECONDS) * DROP_CHANCE_PER_TICK) : 0;
 
   return (
     <div className="p-4 space-y-4 pb-20">
@@ -275,7 +360,7 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
             <div className="text-sm font-bold text-amber">Welcome, Gunrunner!</div>
           </div>
           <div className="text-xs text-text-secondary leading-relaxed">
-            Roaming combat runs every 3 seconds while your Gunrunner sweeps the current zone.
+            Roaming combat must be started as an active activity before rewards tick.
             Field enemies can drop gear, cache fragments, credits, scrap, materials, and XP.
             Equip your best gear in the{' '}
             <span className="text-text-primary font-bold">Loadout</span> tab, then hunt your first
@@ -379,20 +464,38 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
 
       {/* Roaming Status */}
       <MobileCard className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-green/10 text-green flex items-center justify-center">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${canRunRoamingTick ? 'bg-green/10 text-green' : 'bg-surface-raised text-text-muted'}`}>
           <Radar size={20} />
         </div>
         <div className="flex-1">
-          <div className="text-sm font-bold">Roaming Active</div>
+          <div className="text-sm font-bold">{activityStatusLabel}</div>
           <div className="text-[10px] text-text-muted">
-            Your Gunrunner is sweeping the selected area for enemies and loot.
+            {activityStatusDetail}
           </div>
           <div className="text-[10px] text-text-muted">
             Auto-scrap: {idle.autoSalvageRarity} / Q{idle.autoSalvageQuality}+ | Keys:{' '}
             {player.cacheKeys} (+{player.cacheKeyFragments}/5 frags)
           </div>
           <div className="text-[10px] text-text-muted mt-0.5">
-            XP: 1/tick (3s) | Field Finds: ~22%/tick | Key Frags: 3%/tick
+            XP: {canRunRoamingTick ? '1/tick (3s)' : 'paused'} | Field Finds: {canRunRoamingTick ? '~22%/tick' : 'paused'} | Key Frags: {canRunRoamingTick ? '3%/tick' : 'paused'}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={startRoamingActivity}
+              disabled={activity.pending || canRunRoamingTick}
+              className="rounded-lg border border-green/30 bg-green/10 px-2 py-1 text-[10px] font-bold text-green disabled:opacity-50"
+            >
+              {canRunRoamingTick ? 'Active' : 'Start Roaming'}
+            </button>
+            <button
+              type="button"
+              onClick={stopActiveActivity}
+              disabled={activity.pending || !isRoamingActivity}
+              className="rounded-lg border border-border bg-surface-raised px-2 py-1 text-[10px] font-bold text-text-secondary disabled:opacity-50"
+            >
+              Stop
+            </button>
           </div>
         </div>
         <div className="text-right">
@@ -513,7 +616,9 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
       <div className="grid grid-cols-3 gap-2">
         {/* Manual Field Sweep */}
         <button
+          disabled={!canRunRoamingTick}
           onClick={() => {
+            if (!canRunRoamingTick) return;
             const drop = createRoamingDrop(false);
             player.addXP(5);
             addCombatLog({
@@ -522,17 +627,17 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
               tone: 'loot',
             });
           }}
-          className="bg-surface-raised border border-border text-text-primary font-bold py-2.5 rounded-xl text-xs active:scale-95 transition-transform flex flex-col items-center justify-center gap-0.5"
+          className="bg-surface-raised border border-border text-text-primary font-bold py-2.5 rounded-xl text-xs active:scale-95 transition-transform flex flex-col items-center justify-center gap-0.5 disabled:opacity-50"
         >
           <span>Field Sweep</span>
           <span className="text-[9px] text-text-muted font-normal">
-            Manual roaming drop
+            Requires active route
           </span>
         </button>
 
         {/* Prepare Boss */}
         <button
-          onClick={() => prepBossTarget && setPrepBoss(prepBossTarget)}
+          onClick={startBossPrep}
           className={`font-bold py-2.5 rounded-xl text-xs active:scale-95 transition-transform ${
             prepBossTarget
               ? 'bg-amber text-bg'
@@ -559,7 +664,7 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
 
       {/* Field Sweep explanation */}
       <div className="text-[10px] text-text-muted text-center -mt-2">
-        Field Sweep: Instant roaming combat result for testing the current zone.
+        Field Sweep: Instant result is disabled unless the selected turf is the active activity.
       </div>
 
       {/* Recent Drop */}
@@ -660,7 +765,7 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
                     Select Roaming Area
                   </div>
                   <div className="text-[10px] text-text-muted">
-                    Areas shape roaming rewards. Boss combat stays separate.
+                    Areas shape roaming rewards. Switching turf does not start rewards until activity is updated.
                   </div>
                 </div>
                 <button
