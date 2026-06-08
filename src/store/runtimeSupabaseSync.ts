@@ -20,6 +20,7 @@ import { useSkillStore } from './slices/skillSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
 
 const SAVE_DEBOUNCE_MS = 500;
+const riskSettings = ['Conservative', 'Balanced', 'Greedy', 'AllIn'];
 
 let activeUserId: string | null = null;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -75,6 +76,22 @@ function arrayValue<T>(value: unknown): T[] | null {
   return Array.isArray(value) ? (value as T[]) : null;
 }
 
+function numberRecordValue(value: unknown): Record<string, number> | null {
+  const source = objectValue<Record<string, unknown>>(value);
+  if (!source) return null;
+
+  return Object.fromEntries(
+    Object.entries(source).map(([key, rawValue]) => {
+      const parsed = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+      return [key, Number.isFinite(parsed) ? parsed : 0];
+    }),
+  );
+}
+
+function isRiskSetting(value: unknown): value is RiskSetting {
+  return typeof value === 'string' && riskSettings.includes(value);
+}
+
 function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
   const player = usePlayerStore.getState();
   const inventory = useInventoryStore.getState();
@@ -103,18 +120,18 @@ function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
       consumables: player.consumables,
       materials: player.materials,
       essences: player.essences,
-      workshopQueues: player.workshopQueues,
+      workshopQueues: arrayValue<WorkshopQueue>(player.workshopQueues) ?? [],
       lastWorkshopTick: player.lastWorkshopTick,
     },
-    inventory: { items: inventory.items },
+    inventory: { items: arrayValue<GearItem>(inventory.items) ?? [] },
     loadout: { slots: loadout.slots, consumables: loadout.consumables },
     boss: {
-      currentBossId: boss.currentBossId,
-      unlockedBossIds: boss.unlockedBossIds,
-      defeatedBossIds: boss.defeatedBossIds,
-      pityCounters: boss.pityCounters,
-      attemptHistory: boss.attemptHistory,
-      preparedConsumables: boss.preparedConsumables,
+      currentBossId: typeof boss.currentBossId === 'string' ? boss.currentBossId : null,
+      unlockedBossIds: arrayValue<string>(boss.unlockedBossIds) ?? [],
+      defeatedBossIds: arrayValue<string>(boss.defeatedBossIds) ?? [],
+      pityCounters: numberRecordValue(boss.pityCounters) ?? {},
+      attemptHistory: arrayValue<BossAttemptResult>(boss.attemptHistory) ?? [],
+      preparedConsumables: numberRecordValue(boss.preparedConsumables) ?? {},
       selectedRisk: boss.selectedRisk,
     },
     idle: {
@@ -127,16 +144,16 @@ function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
     },
     market: {
       activeTab: market.activeTab,
-      listings: market.listings,
-      history: market.history,
+      listings: arrayValue<Listing>(market.listings) ?? [],
+      history: arrayValue<MarketHistory>(market.history) ?? [],
       filters: market.filters,
-      watchlist: market.watchlist,
+      watchlist: arrayValue<string>(market.watchlist) ?? [],
       seeded: market.seeded,
     },
-    skills: { spent: skills.spent },
+    skills: { spent: numberRecordValue(skills.spent) ?? {} },
     workshop: {
       unlockedBenchCount: workshop.unlockedBenchCount,
-      activeQueues: workshop.activeQueues,
+      activeQueues: arrayValue<WorkshopQueue>(workshop.activeQueues) ?? [],
     },
   };
 }
@@ -177,9 +194,9 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
     const inventory = objectValue<{ items: GearItem[] }>(snapshot.inventory);
     const items = arrayValue<GearItem>(inventory?.items);
     if (items) {
-      const currentItems = useInventoryStore.getState().items;
+      const currentItems = arrayValue<GearItem>(useInventoryStore.getState().items) ?? [];
       const currentIds = new Set(currentItems.map((item) => item.id));
-      const snapshotOnlyItems = items.filter((item) => !currentIds.has(item.id));
+      const snapshotOnlyItems = items.filter((item) => item?.id && !currentIds.has(item.id));
       useInventoryStore.setState({ items: [...currentItems, ...snapshotOnlyItems] });
     }
 
@@ -192,7 +209,18 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
     }
 
     const boss = objectValue<BossSnapshot>(snapshot.boss);
-    if (boss) useBossStore.setState(boss);
+    if (boss) {
+      const currentBoss = useBossStore.getState();
+      useBossStore.setState({
+        currentBossId: typeof boss.currentBossId === 'string' || boss.currentBossId === null ? boss.currentBossId : currentBoss.currentBossId,
+        unlockedBossIds: arrayValue<string>(boss.unlockedBossIds) ?? currentBoss.unlockedBossIds,
+        defeatedBossIds: arrayValue<string>(boss.defeatedBossIds) ?? currentBoss.defeatedBossIds,
+        pityCounters: numberRecordValue(boss.pityCounters) ?? currentBoss.pityCounters,
+        attemptHistory: arrayValue<BossAttemptResult>(boss.attemptHistory) ?? currentBoss.attemptHistory,
+        preparedConsumables: numberRecordValue(boss.preparedConsumables) ?? currentBoss.preparedConsumables,
+        selectedRisk: isRiskSetting(boss.selectedRisk) ? boss.selectedRisk : currentBoss.selectedRisk,
+      });
+    }
 
     const idle = objectValue<IdleSnapshot>(snapshot.idle);
     if (idle) useIdleStore.setState(idle);
@@ -201,7 +229,7 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
     if (market) useMarketStore.setState(market);
 
     const skills = objectValue<{ spent: Record<string, number> }>(snapshot.skills);
-    const spent = objectValue<Record<string, number>>(skills?.spent);
+    const spent = numberRecordValue(skills?.spent);
     if (spent) useSkillStore.setState({ spent });
 
     const workshop = objectValue<{ unlockedBenchCount: number; activeQueues: WorkshopQueue[] }>(snapshot.workshop);
