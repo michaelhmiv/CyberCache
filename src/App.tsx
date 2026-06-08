@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BottomNav } from './components/layout/BottomNav';
 import { ScreenWrapper } from './components/layout/ScreenWrapper';
+import { DashboardScreen } from './screens/DashboardScreen';
 import { FightScreen } from './screens/FightScreen';
 import { LoadoutScreen } from './screens/LoadoutScreen';
 import { LootScreen } from './screens/LootScreen';
@@ -21,9 +22,9 @@ import { isVerificationGraceExpired, shouldShowVerificationReminder } from './au
 import { FeatureGate } from './auth/FeatureGate';
 import { useAuth } from './auth/AuthProvider';
 
-type TabId = 'fight' | 'loadout' | 'loot' | 'market' | 'more';
-type SubScreen = 'chest' | 'skills' | 'fusion' | 'vendor' | 'profile' | 'settings' | 'help' | 'workshop' | null;
-const topLevelTabs: TabId[] = ['fight', 'loadout', 'loot', 'market', 'more'];
+type TabId = 'dashboard' | 'loadout' | 'skills' | 'loot' | 'market';
+type SubScreen = 'fight' | 'chest' | 'fusion' | 'vendor' | 'profile' | 'settings' | 'help' | 'workshop' | 'more' | null;
+const topLevelTabs: TabId[] = ['dashboard', 'loadout', 'skills', 'loot', 'market'];
 
 function VerificationReminderBanner() {
   const { account, markVerificationReminderSeen, actionLoading } = useAuth();
@@ -50,7 +51,7 @@ function VerificationReminderBanner() {
 
 function App() {
   const { user, loading, authError } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('fight');
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
 
@@ -82,18 +83,26 @@ function App() {
     setSubScreen(null);
   };
 
-  // Sub-screen content renderer (header + back button preserved)
   const renderSubScreen = () => {
     const screens: Record<string, React.ReactNode> = {
+      fight: <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />,
       chest: <ChestScreen />,
-      skills: <SkillTreeScreen />,
       fusion: <FusionScreen />,
       vendor: <VendorScreen />,
       profile: <ProfileScreen />,
       settings: <SettingsScreen />,
       help: <HelpScreen />,
       workshop: <WorkshopScreen onNavigate={handleNavigate} />,
+      more: <MoreScreen onNavigate={handleNavigate} />,
     };
+    const title = subScreen === 'workshop'
+      ? 'Workshop'
+      : subScreen === 'chest'
+        ? 'Data Cache'
+        : subScreen === 'fight'
+          ? 'Roaming'
+          : subScreen;
+
     return (
       <div className="flex flex-col flex-1 min-h-0">
         <div className="shrink-0 p-4 border-b-2 border-border bg-surface flex items-center gap-3">
@@ -104,7 +113,7 @@ function App() {
           >
             ← Back
           </motion.button>
-          <div className="bl-title text-xl leading-none text-text-primary capitalize">{subScreen === 'workshop' ? 'Workshop' : subScreen}</div>
+          <div className="bl-title text-xl leading-none text-text-primary capitalize">{title}</div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {screens[subScreen!] || <div className="p-4 text-text-primary">Unknown screen</div>}
@@ -115,7 +124,6 @@ function App() {
 
   return (
     <div className="h-full flex flex-col bg-bg text-text-primary">
-      {/* Modal overlays — full screen, hide nav */}
       <AnimatePresence>
         {bossSelectOpen && (
           <BossSelectModal onClose={() => setBossSelectOpen(false)} />
@@ -129,24 +137,22 @@ function App() {
       )}
       <VerificationReminderBanner />
 
-      {/* Main content area — keeps bottom nav visible */}
       {subScreen ? (
         renderSubScreen()
       ) : (
         <ScreenWrapper activeTab={activeTab}>
-          {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
+          {activeTab === 'dashboard' && <DashboardScreen onNavigate={handleNavigate} />}
           {activeTab === 'loadout' && <LoadoutScreen />}
+          {activeTab === 'skills' && <SkillTreeScreen />}
           {activeTab === 'loot' && <LootScreen onNavigate={handleNavigate} />}
           {activeTab === 'market' && (
             <FeatureGate feature="market">
               <MarketScreen />
             </FeatureGate>
           )}
-          {activeTab === 'more' && <MoreScreen onNavigate={handleNavigate} />}
         </ScreenWrapper>
       )}
 
-      {/* Bottom nav always visible except during full-screen modals */}
       <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); }} />
     </div>
   );
