@@ -7,9 +7,8 @@ import {
 } from '../../types/game';
 import { Weapon, WeaponPart, Affix } from '../../types/items';
 import { WEAPON_TYPES } from '../../constants/weaponTypes';
-import { RARITIES, rollQualityLabel } from '../../constants/rarities';
+import { RARITIES } from '../../constants/rarities';
 import { MANUFACTURERS } from '../../constants/manufacturers';
-import { ELEMENTS } from '../../constants/elements';
 import { getEligibleLegendaryEffects } from '../../constants/legendaryEffects';
 import { rollRarityForDrop } from '../../content/lootResolver';
 import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
@@ -36,7 +35,7 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
     forcedRarity,
     forcedElement,
     forcedManufacturer,
-    luckBonus = 0,
+    _luckBonus = 0,
     bossTier,
     zoneWeights,
   } = options;
@@ -77,7 +76,7 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
   const levelScalar = 1 + (level - 1) * 0.08;
   const rarityScalar = rarity === 'Common' ? 1 : rarity === 'Uncommon' ? 1.1 : rarity === 'Rare' ? 1.25 : rarity === 'Epic' ? 1.45 : 1.7;
 
-  let stats = {
+  const stats = {
     baseDamage: Math.round(typeDef.baseStats.baseDamage * levelScalar * rarityScalar),
     attackSpeed: parseFloat((typeDef.baseStats.attackSpeed * levelScalar * 0.98).toFixed(2)),
     critChance: parseFloat((typeDef.baseStats.critChance * levelScalar * 0.95).toFixed(3)),
@@ -98,7 +97,7 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
     for (const [key, mult] of Object.entries(mfgDef.baseStatBias)) {
       const k = key as keyof typeof stats;
       if (stats[k] !== undefined) {
-        (stats as any)[k] = parseFloat((stats[k] * (mult as number)).toFixed(3));
+        (stats as Record<string, number>)[k] = parseFloat((stats[k] * (mult as number)).toFixed(3));
       }
     }
   }
@@ -128,7 +127,7 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
     for (const [k, v] of Object.entries(part.modifier)) {
       const key = k as keyof typeof stats;
       if (typeof stats[key] === 'number') {
-        (stats as any)[key] = parseFloat(((stats[key] as number) * (v as number)).toFixed(3));
+        (stats as Record<string, number>)[key] = parseFloat(((stats[key] as number) * (v as number)).toFixed(3));
       }
     }
   });

@@ -1,3 +1,5 @@
+import { GearItem } from './items';
+
 export interface MarketFilter {
   rarity?: string[];
   levelMin?: number;
@@ -21,7 +23,7 @@ export interface Listing {
   sellerId: string;
   sellerName: string;
   itemId: string;
-  itemSnapshot: any; // serialized item
+  itemSnapshot: GearItem; // serialized item
   price: number;
   listedAt: number;
   feePaid: number;

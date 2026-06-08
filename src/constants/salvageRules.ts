@@ -1,4 +1,4 @@
-import { Element, Rarity } from '../types/game';
+import { Element } from '../types/game';
 import { GearItem, Weapon } from '../types/items';
 
 export interface SalvageYield {
@@ -29,7 +29,7 @@ const ELEMENT_TO_ESSENCE: Record<string, string> = {
 export function calculateSalvageYield(item: GearItem): SalvageYield {
   const rarityMult = RARITY_MULTIPLIERS[item.rarity] || 1.0;
   const level = item.level || 1;
-  const rollQuality = (item as any).rollQuality || 50;
+  const rollQuality = (item as unknown as { rollQuality?: number }).rollQuality ?? 50;
   const qualityMultiplier = 0.5 + rollQuality / 100;
 
   // 1. Scrap Alloy (all gear)
@@ -74,7 +74,7 @@ export function calculateSalvageYield(item: GearItem): SalvageYield {
 
   // 4. Essences (elemental gear)
   const essences: Record<string, number> = {};
-  const element = (item as any).element as Element;
+  const element = (item as unknown as { element?: Element }).element;
   if (element && element !== Element.Kinetic && ELEMENT_TO_ESSENCE[element]) {
     const baseEssence = Math.ceil(rarityMult / 2);
     const bonus = rollQuality > 75 ? 1 : 0;

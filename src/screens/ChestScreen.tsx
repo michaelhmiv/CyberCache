@@ -209,7 +209,7 @@ export const ChestScreen: React.FC = () => {
 
   // ── item actions ──────────────────────────────────────────────────
 
-  const handleEquip = (item: GearItem, idx: number) => {
+  const handleEquip = (item: GearItem, _idx: number) => {
     if (!isWeapon(item)) return;
     // auto-pick best available weapon slot
     const slots: LoadoutSlot[] = ['primary', 'secondary', 'heavy'];
@@ -225,7 +225,7 @@ export const ChestScreen: React.FC = () => {
     setItemActions((prev) => ({ ...prev, [item.id]: 'equipped' }));
   };
 
-  const handleScrap = (item: GearItem, idx: number) => {
+  const handleScrap = (item: GearItem, _idx: number) => {
     if (item.isLocked) return;
     const result = inventory.scrapItem(item.id);
     player.addScrap(result.scrapValue);
@@ -242,7 +242,7 @@ export const ChestScreen: React.FC = () => {
     setItemActions((prev) => ({ ...prev, [item.id]: 'scrapped' }));
   };
 
-  const handleLockToggle = (item: GearItem, idx: number) => {
+  const handleLockToggle = (item: GearItem, _idx: number) => {
     if (item.isLocked) {
       inventory.unlockItem(item.id);
       setItemActions((prev) => ({ ...prev, [item.id]: 'unlocked' }));

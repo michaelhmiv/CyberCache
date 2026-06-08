@@ -1,7 +1,7 @@
 import { Rarity, DropSource, SkillTreeType } from '../../types/game';
 import { ClassMod, Affix } from '../../types/items';
 import { RARITIES } from '../../constants/rarities';
-import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
+import { createRNG, seededInt, pickWeighted, hashString } from '../utils/rng';
 import { generateItemId } from '../utils/id';
 
 const SKILL_NODE_IDS = [

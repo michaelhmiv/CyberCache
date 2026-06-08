@@ -42,7 +42,6 @@ export function generateShield(level: number = 1): Shield {
     });
   }
 
-  const elems = ['Kinetic', 'Fire', 'Shock', 'Corrosive', 'Cryo', 'Void'];
   const elementName = ELEMENTS[element].name;
   const manufacturerNames = ['Ironwood', 'HelixWorks', 'Prismatek', 'ThrowTech', 'Redline'];
   const manufacturer = manufacturerNames[seededInt(0, manufacturerNames.length - 1, rng)];

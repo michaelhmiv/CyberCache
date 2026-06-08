@@ -1,5 +1,5 @@
 import { Element, Rarity, DropSource } from '../../types/game';
-import { Ordnance, Affix } from '../../types/items';
+import { Ordnance } from '../../types/items';
 import { RARITIES } from '../../constants/rarities';
 import { ELEMENTS } from '../../constants/elements';
 import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
@@ -25,7 +25,7 @@ export function generateOrdnance(level: number = 1): Ordnance {
   const rarityKeys = Object.values(Rarity);
   const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);
   const rarity = pickWeighted(rarityKeys, weights, rng);
-  const rarityDef = RARITIES[rarity];
+  const _rarityDef = RARITIES[rarity];
 
   const elemKeys = Object.values(Element);
   const element = pickWeighted(elemKeys, [1, 1, 1, 1, 1, 1], rng);

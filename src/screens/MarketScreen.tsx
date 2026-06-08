@@ -5,8 +5,12 @@ import { useMarketStore, useInventoryStore, usePlayerStore } from '@/store';
 import { WeaponCard } from '@/components/common/WeaponCard';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { Listing, MarketHistory } from '@/types/market';
-import { GearItem, Weapon } from '@/types/items';
+import { Weapon } from '@/types/items';
 import { RARITIES } from '@/constants/rarities';
+
+// Module-level helpers to avoid impure calls during render
+const generateId = () => crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+const getNow = () => Date.now();
 
 // ── NPC seller name lookup (mirrors marketSlice NPC_SELLERS) ────────────
 const NPC_NAMES: Record<string, string> = {
@@ -56,7 +60,7 @@ export const MarketScreen: React.FC = () => {
     if (!market.seeded) {
       market.seedMarket();
     }
-  }, [market.seeded, market.seedMarket]);
+  }, [market.seeded, market.seedMarket, market]);
 
   // ── Auto-dismiss toast ─────────────────────────────────────────────
   useEffect(() => {
@@ -100,13 +104,13 @@ export const MarketScreen: React.FC = () => {
     player.removeCredits(fee);
 
     const listing: Listing = {
-      id: crypto.randomUUID?.() || String(Date.now()),
+      id: generateId(),
       sellerId: 'player_1',
       sellerName: player.name,
       itemId,
       itemSnapshot: JSON.parse(JSON.stringify(item)),
       price,
-      listedAt: Date.now(),
+      listedAt: getNow(),
       feePaid: fee,
     };
 
@@ -125,7 +129,7 @@ export const MarketScreen: React.FC = () => {
     inventory.addItem(listing.itemSnapshot);
     market.removeListing(listing.id);
     market.addHistory({
-      id: crypto.randomUUID?.() || String(Date.now()),
+      id: generateId(),
       type: 'buy',
       itemId: listing.itemId,
       itemName: listing.itemSnapshot.name || 'Unknown',
@@ -133,7 +137,7 @@ export const MarketScreen: React.FC = () => {
       price: listing.price,
       fee: 0,
       otherPartyId: listing.sellerId,
-      timestamp: Date.now(),
+      timestamp: getNow(),
     });
     setToastMessage(`Bought "${listing.itemSnapshot.name}" for ${listing.price.toLocaleString()}cr.`);
   };

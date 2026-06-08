@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { SKILL_NODES, getSkillTreeNodes } from '../../constants/skillTrees';
-import { SkillTreeType } from '../../types/game';
+import { SKILL_NODES } from '../../constants/skillTrees';
 
 interface SkillState {
   spent: Record<string, number>;

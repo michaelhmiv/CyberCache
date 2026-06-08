@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { BossAttemptResult, BossDef } from '../../types/boss';
-import { ConsumableType, RiskSetting } from '../../types/game';
+import { BossAttemptResult } from '../../types/boss';
+import { RiskSetting } from '../../types/game';
 
 interface BossState {
   currentBossId: string | null;
@@ -26,7 +26,7 @@ interface BossState {
 
 export const useBossStore = create<BossState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       currentBossId: null,
       unlockedBossIds: ['dune_tyrant'],
       defeatedBossIds: [],

@@ -1,7 +1,7 @@
 import { Rarity, DropSource } from '../../types/game';
 import { Relic, Affix } from '../../types/items';
 import { RARITIES } from '../../constants/rarities';
-import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
+import { createRNG, seededInt, pickWeighted, hashString } from '../utils/rng';
 import { generateItemId } from '../utils/id';
 
 export function generateRelic(level: number = 1): Relic {

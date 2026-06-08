@@ -6,9 +6,9 @@ import {
 } from 'lucide-react';
 import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 import {
-  GearItem, Weapon, Shield as ShieldType, ClassMod, Relic, Ordnance,
+  GearItem, Weapon, Shield as ShieldType, ClassMod, Relic, Ordnance, Affix,
 } from '@/types/items';
-import { Rarity, Element } from '@/types/game';
+import { Rarity } from '@/types/game';
 import { RARITIES } from '@/constants/rarities';
 import { rollQualityLabel } from '@/constants/rarities';
 import { calculateSalvageYield } from '@/constants/salvageRules';
@@ -592,13 +592,13 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
               )}
 
               {/* Affixes (shared) */}
-              {'affixes' in selected && (selected as any).affixes?.length > 0 && (
+              {'affixes' in selected && (selected as { affixes: Affix[] }).affixes.length > 0 && (
                 <div className="rounded-lg bg-surface-raised border border-border p-3">
                   <div className="text-[10px] uppercase font-bold text-text-muted mb-1.5">
-                    Affixes ({(selected as any).affixes.length})
+                    Affixes ({(selected as { affixes: Affix[] }).affixes.length})
                   </div>
                   <div className="space-y-1">
-                    {(selected as any).affixes.map((a: any) => (
+                    {(selected as { affixes: Affix[] }).affixes.map((a: Affix) => (
                       <div key={a.id} className="text-xs text-amber">
                         {a.displayText}
                       </div>

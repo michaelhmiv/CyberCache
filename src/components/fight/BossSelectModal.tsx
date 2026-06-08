@@ -1,8 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, CheckCircle, Lock, Skull, Star, Shield, Zap, Crosshair } from 'lucide-react';
+import { X, CheckCircle, Lock, Skull, Shield, Zap, Crosshair } from 'lucide-react';
 import { useBossStore } from '../../store/slices/bossSlice';
-import { usePlayerStore } from '../../store';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import { BossDef } from '../../types/boss';
 import { MobileCard } from '../layout/MobileCard';
@@ -13,7 +12,6 @@ interface BossSelectModalProps {
 
 export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => {
   const bossStore = useBossStore();
-  const player = usePlayerStore();
 
   const selectBoss = (boss: BossDef) => {
     bossStore.setCurrentBoss(boss.id);

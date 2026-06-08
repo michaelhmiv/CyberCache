@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { GearItem, Weapon } from '../../types/items';
-import { DropSource } from '../../types/game';
 import { generateWeapon } from '../../lib/generators/weaponGenerator';
 import { generateShield } from '../../lib/generators/shieldGenerator';
 import { generateClassMod } from '../../lib/generators/classModGenerator';
@@ -40,7 +39,7 @@ export const useInventoryStore = create<InventoryState>()(
         let scrapValue = 10;
         if ('rarity' in item) {
           const rarityMulti = item.rarity === 'Common' ? 1 : item.rarity === 'Uncommon' ? 1.5 : item.rarity === 'Rare' ? 2.5 : item.rarity === 'Epic' ? 4 : 8;
-          scrapValue = Math.round((10 + (item.level || 1) * 5) * rarityMulti * ((item as any).rollQuality ? ((item as any).rollQuality / 100) : 1));
+          scrapValue = Math.round((10 + (item.level || 1) * 5) * rarityMulti * (((item as unknown as { rollQuality?: number }).rollQuality ?? 100) / 100));
         }
         const salvage = calculateSalvageYield(item);
         set((s) => ({ items: s.items.filter((i) => i.id !== id) }));

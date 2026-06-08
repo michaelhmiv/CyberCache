@@ -9,7 +9,7 @@ export function applyLegendaryEffects(
   weapon: Weapon | null,
   pityCount: number = 0,
   enemyKillCount: number = 0,
-  playerCredits: number = 0,
+  _playerCredits: number = 0,
 ): {
   damageMult: number;
   survivalMult: number;

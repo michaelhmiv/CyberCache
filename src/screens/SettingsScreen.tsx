@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Zap, Trash2, AlertTriangle, Info } from 'lucide-react';
+import { Clock, Zap, AlertTriangle, Info } from 'lucide-react';
 import { usePlayerStore, useIdleStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 

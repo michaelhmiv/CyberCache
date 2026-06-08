@@ -1,9 +1,8 @@
 import React from 'react';
-import { User, TrendingUp, Target, Box, Clock, Award } from 'lucide-react';
+import { TrendingUp, Target, Box, Award } from 'lucide-react';
 import { usePlayerStore, useInventoryStore, useBossStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { REGION_1_BOSSES } from '@/constants/bosses';
-import { Weapon } from '@/types/items';
 
 export const ProfileScreen: React.FC = () => {
   const player = usePlayerStore();

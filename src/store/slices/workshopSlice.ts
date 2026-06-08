@@ -36,7 +36,6 @@ export const useWorkshopStore = create<WorkshopState>()(
       claimQueue: (queueId) => {
         const queue = get().activeQueues.find((q) => q.id === queueId);
         if (!queue) return null;
-        const totalCraftTime = queue.count * queue.durationMs;
         const elapsed = Date.now() - queue.startedAt;
         const completedCount = Math.min(queue.count, Math.floor(elapsed / queue.durationMs));
         const newClaimed = Math.min(completedCount, queue.count);

@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Plus, Zap, TrendingUp, TrendingDown, Shield } from 'lucide-react';
-import { useInventoryStore, useLoadoutStore, useBossStore, usePlayerStore } from '@/store';
+import { useInventoryStore, useLoadoutStore, useBossStore } from '@/store';
 import { Weapon, Shield as ShieldType, ClassMod, Relic, Ordnance, GearItem } from '@/types/items';
 import { WeaponCanvas } from '@/components/pixelArt/WeaponCanvas';
 import { WeaponCard } from '@/components/common/WeaponCard';
 import { MobileCard } from '@/components/layout/MobileCard';
-import { CONSUMABLES } from '@/constants/consumables';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { Element } from '@/types/game';
 
@@ -113,10 +112,10 @@ const CompareView: React.FC<{
         <div className="rounded-lg bg-surface-raised p-2 border border-border">
           <div className="text-[10px] text-text-muted uppercase mb-0.5">Current</div>
           <div className="text-xs font-bold text-text-primary truncate">
-            {(current as any).name || current.id}
+            {current.name || current.id}
           </div>
           <div className="text-[10px] text-text-muted">
-            Lv.{(current as any).level} · {(current as any).rarity}
+            Lv.{current.level} · {current.rarity}
           </div>
           {isWeapon(current) && (
             <div className="mt-1 space-y-0.5">
@@ -141,10 +140,10 @@ const CompareView: React.FC<{
         <div className="rounded-lg bg-surface border border-primary/30 p-2">
           <div className="text-[10px] text-primary uppercase mb-0.5">Candidate</div>
           <div className="text-xs font-bold text-text-primary truncate">
-            {(candidate as any).name || candidate.id}
+            {candidate.name || candidate.id}
           </div>
           <div className="text-[10px] text-text-muted">
-            Lv.{(candidate as any).level} · {(candidate as any).rarity}
+            Lv.{candidate.level} · {candidate.rarity}
           </div>
           {isWeapon(candidate) && (
             <div className="mt-1 space-y-0.5">
@@ -226,14 +225,14 @@ const InventoryItemRow: React.FC<{
     ) : (
       <MobileCard className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-lg bg-surface-raised border border-border flex items-center justify-center text-text-muted text-[10px]">
-          {(item as any).rarity || 'Gear'}
+          {item.rarity || 'Gear'}
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-xs font-bold text-text-primary">
-            {(item as any).name || 'Unknown'}
+            {item.name || 'Unknown'}
           </div>
           <div className="text-[10px] text-text-muted">
-            Lv.{(item as any).level} · {(item as any).rarity}
+            Lv.{item.level} · {item.rarity}
             {item.isLocked && (
               <span className="ml-1 text-text-muted">🔒</span>
             )}
@@ -268,7 +267,6 @@ export const LoadoutScreen: React.FC = () => {
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
   const bossStore = useBossStore();
-  const playerStore = usePlayerStore();
 
   const [activeSlot, setActiveSlot] = useState<SlotKey | null>(null);
   const [compareCandidateId, setCompareCandidateId] = useState<string | null>(null);
@@ -296,7 +294,7 @@ export const LoadoutScreen: React.FC = () => {
     return inventory.getById(id);
   };
 
-  const getEquippedName = (slot: string) => {
+  const _getEquippedName = (slot: string) => {
     const id = loadout.slots[slot as SlotKey];
     if (!id) return null;
     const item = inventory.getById(id);
@@ -469,7 +467,7 @@ export const LoadoutScreen: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-text-primary">{slot.label}</div>
                 <div className="text-[10px] text-text-muted">
-                  {equippedItem ? (equippedItem as any).name : slot.desc}
+                  {equippedItem ? equippedItem.name : slot.desc}
                 </div>
                 {/* bossPower badge for equipped weapons */}
                 {equippedItem && isWeapon(equippedItem) && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sword, Shield, Box, ShoppingCart, Zap, Star, Database, TrendingUp } from 'lucide-react';
+import { Sword, Shield, Box, Zap, Star, Database, TrendingUp } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 
 const SECTIONS = [

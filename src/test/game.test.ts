@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { simulateBoss, executeBossAttempt } from '../lib/simulation/bossSimulator';
+import { describe, it, expect } from 'vitest';
+import { simulateBoss } from '../lib/simulation/bossSimulator';
 import { BossDef } from '../types/boss';
-import { Weapon, Shield, Ordnance, ClassMod, Relic } from '../types/items';
+import { Weapon, Shield } from '../types/items';
 import { RiskSetting, Element } from '../types/game';
 import { REGION_1_BOSSES } from '../constants/bosses';
 import { DUSTWASTE_ZONES } from '../constants/zones';
@@ -224,7 +224,7 @@ describe('Inventory Type Guards', () => {
     const isShield = 'hp' in testShield && !('weaponType' in testShield);
     expect(isShield).toBe(true);
 
-    const fakeWeapon = { hp: 100, weaponType: 'Pistol' } as any;
+    const fakeWeapon = { hp: 100, weaponType: 'Pistol' } as Record<string, unknown>;
     const isShieldFake = 'hp' in fakeWeapon && !('weaponType' in fakeWeapon);
     expect(isShieldFake).toBe(false); // weapons have weaponType
   });
@@ -235,13 +235,13 @@ describe('Inventory Type Guards', () => {
 describe('Loadout Slot Validity', () => {
   it('should only allow weapons in weapon slots', () => {
     // Weapon slots (primary, secondary): items with 'weaponType'
-    const isValidForWeaponSlot = (item: any) => 'weaponType' in item;
+    const isValidForWeaponSlot = (item: Record<string, unknown>) => 'weaponType' in item;
     expect(isValidForWeaponSlot(testWeapon)).toBe(true);
     expect(isValidForWeaponSlot(testShield)).toBe(false);
   });
 
   it('should only allow Launcher/Shotgun in heavy slot', () => {
-    const isValidForHeavy = (item: any) =>
+    const isValidForHeavy = (item: Record<string, unknown>) =>
       'weaponType' in item &&
       (item.weaponType === 'Launcher' || item.weaponType === 'Shotgun');
 
