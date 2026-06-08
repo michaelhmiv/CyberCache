@@ -62,6 +62,12 @@ body {
 }
 
 .bl-page {
+  --cc-page-pad: 0.625rem;
+  --cc-card-pad: 0.625rem;
+  --cc-panel-pad: 0.625rem;
+  --cc-gap-lg: 0.625rem;
+  --cc-gap-md: 0.5rem;
+  --cc-gap-sm: 0.375rem;
   min-height: 100%;
   background:
     radial-gradient(circle at 20% 6%, rgba(255, 144, 0, 0.16) 0, transparent 30%),
@@ -213,6 +219,56 @@ body {
 .bl-page .bg-surface-raised {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
+
+/* Mobile density pass: keep the badlands look, but remove excess vertical air across every page. */
+.bl-page.p-4,
+.bl-page.p-3,
+.bl-page.p-2 {
+  padding-top: var(--cc-page-pad) !important;
+  padding-left: var(--cc-page-pad) !important;
+  padding-right: var(--cc-page-pad) !important;
+}
+
+.bl-page.pb-20,
+.bl-page.pb-16 {
+  padding-bottom: calc(4.25rem + env(safe-area-inset-bottom)) !important;
+}
+
+.bl-page .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: var(--cc-gap-lg) !important;
+}
+
+.bl-page .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: var(--cc-gap-md) !important;
+}
+
+.bl-page .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: var(--cc-gap-sm) !important;
+}
+
+.bl-page .gap-4 { gap: var(--cc-gap-lg) !important; }
+.bl-page .gap-3 { gap: var(--cc-gap-md) !important; }
+.bl-page .gap-2 { gap: var(--cc-gap-sm) !important; }
+
+.bl-page .p-4:not(.p-0) { padding: 0.7rem !important; }
+.bl-page .p-3:not(.p-0) { padding: var(--cc-card-pad) !important; }
+.bl-page .p-2:not(.p-0) { padding: 0.45rem !important; }
+
+.bl-page .px-4 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+.bl-page .px-3 { padding-left: 0.6rem !important; padding-right: 0.6rem !important; }
+.bl-page .py-3 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+.bl-page .py-2 { padding-top: 0.4rem !important; padding-bottom: 0.4rem !important; }
+
+.bl-page .mb-2 { margin-bottom: 0.375rem !important; }
+.bl-page .mt-3 { margin-top: 0.5rem !important; }
+.bl-page .mt-2 { margin-top: 0.375rem !important; }
+.bl-page .mt-1\.5 { margin-top: 0.25rem !important; }
+
+.bl-page .min-h-\[70px\] { min-height: 3.5rem !important; }
+.bl-page .h-12 { height: 2.5rem !important; }
+.bl-page .w-12 { width: 2.5rem !important; }
+.bl-page .h-10 { height: 2.25rem !important; }
+.bl-page .w-10 { width: 2.25rem !important; }
 
 button,
 a,
