@@ -289,6 +289,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
     if (!events.length) return;
     const eventIds = events.map((event) => event.id);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- animation feed, cleared on cleanup
     setGainFeed((current) => [...events, ...current].slice(0, 6));
 
     const timeout = window.setTimeout(() => {
