@@ -25,6 +25,7 @@ import {
 } from '@/store';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '@/constants/roamingAreas';
+import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 
 interface DashboardScreenProps {
   onNavigate: (screen: string) => void;
@@ -258,6 +259,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const spentSkillPoints = skills.getTotalSpent();
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
   const bestWeapon = [...inventory.getWeapons()].sort((a, b) => b.combatPower - a.combatPower)[0];
+  const equippedWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy') ?? bestWeapon;
   const openWorkshopJobs = workshop.activeQueues.length;
   const xpToNextLevel = player.level * 100;
   const xpProgress = Math.min(100, Math.max(0, (player.xp / xpToNextLevel) * 100));
@@ -396,40 +398,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           </div>
         </Panel>
 
-        <div className="relative h-[218px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'linear-gradient(160deg,rgba(255,144,0,0.23),rgba(108,45,16,0.7) 38%,rgba(5,6,8,0.96) 100%)',
-            }}
-          />
-          <div className="absolute left-0 right-0 top-0 h-5 border-b-2 border-border bg-red/35" />
-          <div className="absolute bottom-8 left-0 right-0 h-8 -rotate-2 bg-amber/15" />
-          <div className="relative flex h-full flex-col">
-            <div className="border-b-2 border-border bg-surface/85 px-3 py-2 text-center">
-              <div className="bl-title text-3xl leading-none text-text-primary">{currentBoss?.name ?? selectedArea.name}</div>
-              <div className="text-[9px] uppercase tracking-[0.2em] text-text-muted">{currentBoss ? 'Marked boss' : 'Current turf'}</div>
-            </div>
-            <div className="flex flex-1 items-center justify-center">
-              <motion.div className="relative flex h-24 w-28 -rotate-2 items-center justify-center" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 2.6, ease: 'easeInOut' }}>
-                <div className="absolute h-20 w-24 rotate-3 border-4 border-border bg-surface shadow-[6px_6px_0_rgba(0,0,0,0.7)]" />
-                <div className="absolute h-14 w-18 -rotate-6 border-2 border-amber/50 bg-bg/80" />
-                <PackageSearch size={32} className="relative text-amber" />
-              </motion.div>
-            </div>
-            <div className="grid grid-cols-2 border-t-2 border-border bg-surface/90 text-[9px]">
-              <button type="button" onClick={() => onNavigate('fight')} className="border-r border-border px-3 py-2 text-left active:bg-red/10">
-                <div className="font-black uppercase tracking-wide text-red">Start run</div>
-                <div className="text-text-muted">{selectedArea.enemyType}</div>
-              </button>
-              <button type="button" onClick={() => onNavigate(currentBoss ? 'fight' : 'chest')} className="px-3 py-2 text-left active:bg-amber/10">
-                <div className="font-black uppercase tracking-wide text-amber">{currentBoss ? 'Prep boss' : 'Open cache'}</div>
-                <div className="text-text-muted">{currentBoss ? `${currentBoss.weaknesses.length} weakness tags` : `${player.cacheKeys} keys ready`}</div>
-              </button>
-            </div>
-          </div>
-        </div>
+        <LiveTurfDiorama
+          area={selectedArea}
+          weapon={equippedWeapon}
+          bossName={currentBoss?.name}
+          bossWeaknessCount={currentBoss?.weaknesses.length}
+          playerLevel={player.level}
+          equippedCount={equippedCount}
+          cacheKeys={player.cacheKeys}
+          feedEvents={gainFeed}
+          onFight={() => onNavigate('fight')}
+          onSecondary={() => onNavigate(currentBoss ? 'fight' : 'chest')}
+        />
 
         <Panel label="Action Board" className="space-y-2">
           <div className="grid grid-cols-1 gap-1.5">
