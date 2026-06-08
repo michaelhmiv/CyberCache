@@ -141,6 +141,22 @@ function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
   };
 }
 
+export function resetRuntimeStoresToInitialState(): void {
+  isApplyingSnapshot = true;
+  try {
+    usePlayerStore.setState(usePlayerStore.getInitialState(), true);
+    useInventoryStore.setState(useInventoryStore.getInitialState(), true);
+    useLoadoutStore.setState(useLoadoutStore.getInitialState(), true);
+    useBossStore.setState(useBossStore.getInitialState(), true);
+    useIdleStore.setState(useIdleStore.getInitialState(), true);
+    useMarketStore.setState(useMarketStore.getInitialState(), true);
+    useSkillStore.setState(useSkillStore.getInitialState(), true);
+    useWorkshopStore.setState(useWorkshopStore.getInitialState(), true);
+  } finally {
+    isApplyingSnapshot = false;
+  }
+}
+
 function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
   isApplyingSnapshot = true;
   try {
