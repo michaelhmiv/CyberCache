@@ -11,6 +11,7 @@ import { RARITIES, rollQualityLabel } from '../../constants/rarities';
 import { MANUFACTURERS } from '../../constants/manufacturers';
 import { ELEMENTS } from '../../constants/elements';
 import { getEligibleLegendaryEffects } from '../../constants/legendaryEffects';
+import { rollRarityForDrop } from '../../content/lootResolver';
 import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
 import { generateItemId } from '../utils/id';
 import { generateWeaponName } from '../utils/naming';
@@ -45,20 +46,8 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
   const seed = hashString(seedBase);
   const rng = createRNG(seed);
 
-  // 3. Roll rarity
-  const rarityWeights = (() => {
-    // Use zone weights if provided (for farming drops)
-    if (zoneWeights) {
-      return Object.values(Rarity).map((r) => zoneWeights[r] || 0);
-    }
-    // Otherwise use global weights with Cache-Forged bonus
-    return Object.values(RARITIES).map((r) =>
-      source === 'Cache-Forged' && r.id === Rarity.Legendary
-        ? r.dropWeight * 1.5
-        : r.dropWeight
-    );
-  })();
-  const rarity = forcedRarity || (pickWeighted(Object.values(RARITIES), rarityWeights, rng).id as Rarity);
+  // 3. Roll rarity through the content resolver so drop-source weighting has one owner.
+  const rarity = forcedRarity || rollRarityForDrop({ source, zoneWeights }, rng).id;
   const rarityDef = RARITIES[rarity];
 
   // 4. Weapon type

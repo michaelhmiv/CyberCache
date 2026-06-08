@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_CONTENT, OUTPUT_QUALITY_CURVE } from '../content/gameContent';
+import { CACHE_RARITY_ODDS, resolveRarityWeights, rollCacheRarity, validateCacheRarityOdds } from '../content/lootResolver';
 import { ACTION_SLOT_RULES, DURABILITY_POLICIES, GEAR_SLOT_RULES, GUNSMITHING_BOUNDARIES, MARKET_CONTROL_RULES, SERVICE_MARKET_RULES, STARTER_STORE_ITEMS, VEHICLE_CLASSES_FIRST_ERA } from '../content/mechanicFramework';
 import { buildLevelCurve, calculateDailyXp, calculateEffectiveSkill, rollOutputQuality, simulateLootTable } from '../content/simulation';
 import { validateGameContent } from '../content/validation';
 import { CONTENT_BOUNDARIES, IMPLEMENTATION_BACKLOG } from '../content/runtimeModel';
+import { DropSource, Rarity } from '../types/game';
 
 describe('CyberCache content layer', () => {
   it('validates the seeded content without errors', () => {
@@ -17,6 +19,27 @@ describe('CyberCache content layer', () => {
       const total = Object.values(band.chances).reduce((sum, chance) => sum + chance, 0);
       expect(total).toBeCloseTo(1, 6);
     }
+  });
+
+  it('keeps cache rarity odds in the content source of truth', () => {
+    expect(validateCacheRarityOdds()).toBe(true);
+    expect(CACHE_RARITY_ODDS).toEqual([
+      { rarity: Rarity.Rare, chance: 0.6 },
+      { rarity: Rarity.Epic, chance: 0.32 },
+      { rarity: Rarity.Legendary, chance: 0.08 },
+    ]);
+  });
+
+  it('rolls cache rarity from content-backed odds', () => {
+    expect(rollCacheRarity(() => 0.01)).toBe(Rarity.Rare);
+    expect(rollCacheRarity(() => 0.61)).toBe(Rarity.Epic);
+    expect(rollCacheRarity(() => 0.99)).toBe(Rarity.Legendary);
+  });
+
+  it('resolves cache-forged rarity weighting through the content resolver', () => {
+    const worldWeights = resolveRarityWeights({ source: DropSource.WorldDrop });
+    const cacheWeights = resolveRarityWeights({ source: DropSource.CacheForged });
+    expect(cacheWeights[Rarity.Legendary]).toBeGreaterThan(worldWeights[Rarity.Legendary] ?? 0);
   });
 
   it('runs deterministic loot simulations for a fixed seed', () => {
