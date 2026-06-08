@@ -1,10 +1,9 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { MarketFilter, Listing, MarketHistory } from '../../types/market';
 import { generateWeapon } from '../../lib/generators/weaponGenerator';
 import { DropSource } from '../../types/game';
 
-interface MarketState {
+export interface MarketState {
   activeTab: 'buy' | 'sell' | 'mylistings' | 'history';
   listings: Listing[];
   history: MarketHistory[];
@@ -52,46 +51,29 @@ function generateSeedListings(): Listing[] {
   return listings;
 }
 
-export const useMarketStore = create<MarketState>()(
-  persist(
-    (set, get) => ({
-      activeTab: 'buy',
-      listings: [],
-      history: [],
-      filters: { sortBy: 'newest', sortDir: 'desc' },
-      watchlist: [],
-      seeded: false,
+export const useMarketStore = create<MarketState>()((set, get) => ({
+  activeTab: 'buy',
+  listings: [],
+  history: [],
+  filters: { sortBy: 'newest', sortDir: 'desc' },
+  watchlist: [],
+  seeded: false,
 
-      setActiveTab: (tab) => set({ activeTab: tab }),
-      addListing: (listing) => set((s) => ({ listings: [listing, ...s.listings] })),
-      removeListing: (id) => set((s) => ({ listings: s.listings.filter((l) => l.id !== id) })),
-      addHistory: (entry) => set((s) => ({ history: [entry, ...s.history].slice(0, 50) })),
-      setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),
-      toggleWatchlist: (id) =>
-        set((s) => ({
-          watchlist: s.watchlist.includes(id)
-            ? s.watchlist.filter((w) => w !== id)
-            : [...s.watchlist, id],
-        })),
-      seedMarket: () => {
-        const state = get();
-        if (state.seeded) return;
-        const seedListings = generateSeedListings();
-        set({ listings: seedListings, seeded: true });
-      },
-    }),
-    {
-      name: 'cc-market',
-      storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        // Seed on first load
-        if (state && !state.seeded) {
-          // Small delay to ensure rehydration is complete
-          setTimeout(() => {
-            useMarketStore.getState().seedMarket();
-          }, 100);
-        }
-      },
-    }
-  )
-);
+  setActiveTab: (tab) => set({ activeTab: tab }),
+  addListing: (listing) => set((s) => ({ listings: [listing, ...s.listings] })),
+  removeListing: (id) => set((s) => ({ listings: s.listings.filter((l) => l.id !== id) })),
+  addHistory: (entry) => set((s) => ({ history: [entry, ...s.history].slice(0, 50) })),
+  setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),
+  toggleWatchlist: (id) =>
+    set((s) => ({
+      watchlist: s.watchlist.includes(id)
+        ? s.watchlist.filter((w) => w !== id)
+        : [...s.watchlist, id],
+    })),
+  seedMarket: () => {
+    const state = get();
+    if (state.seeded) return;
+    const seedListings = generateSeedListings();
+    set({ listings: seedListings, seeded: true });
+  },
+}));
