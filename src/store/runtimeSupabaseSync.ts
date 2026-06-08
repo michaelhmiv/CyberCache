@@ -182,6 +182,21 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
       const currentPlayer = usePlayerStore.getState();
       usePlayerStore.setState({
         name: typeof player.name === 'string' ? player.name : currentPlayer.name,
+        level: typeof player.level === 'number' ? player.level : currentPlayer.level,
+        xp: typeof player.xp === 'number' ? player.xp : currentPlayer.xp,
+        credits: typeof player.credits === 'number' ? player.credits : currentPlayer.credits,
+        scrap: typeof player.scrap === 'number' ? player.scrap : currentPlayer.scrap,
+        cacheKeys: typeof player.cacheKeys === 'number' ? player.cacheKeys : currentPlayer.cacheKeys,
+        cacheKeyFragments: typeof player.cacheKeyFragments === 'number' ? player.cacheKeyFragments : currentPlayer.cacheKeyFragments,
+        consumables: player.consumables && typeof player.consumables === 'object' && !Array.isArray(player.consumables)
+          ? player.consumables as Record<string, number>
+          : currentPlayer.consumables,
+        materials: player.materials && typeof player.materials === 'object' && !Array.isArray(player.materials)
+          ? player.materials as Record<string, number>
+          : currentPlayer.materials,
+        essences: player.essences && typeof player.essences === 'object' && !Array.isArray(player.essences)
+          ? player.essences as Record<string, number>
+          : currentPlayer.essences,
         currentZoneId: typeof player.currentZoneId === 'string' ? player.currentZoneId : currentPlayer.currentZoneId,
         highestZoneId: typeof player.highestZoneId === 'string' ? player.highestZoneId : currentPlayer.highestZoneId,
         offlineCapHours: typeof player.offlineCapHours === 'number' ? player.offlineCapHours : currentPlayer.offlineCapHours,
