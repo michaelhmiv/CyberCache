@@ -1,0 +1,29 @@
+name: Supabase Migrations
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SB_TOKEN: ${{ secrets.SB_TOKEN }}
+      SB_DB_PASS: ${{ secrets.SB_DB_PASS }}
+      SB_PROJECT_REF: ${{ secrets.SB_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy database changes
+        run: |
+          export SUPABASE_ACCESS_TOKEN="$SB_TOKEN"
+          export SUPABASE_DB_PASSWORD="$SB_DB_PASS"
+          supabase link --project-ref "$SB_PROJECT_REF"
+          supabase db push
