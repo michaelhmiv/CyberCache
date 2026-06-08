@@ -17,6 +17,8 @@ const masteryCategories: { id: CategoryId; label: string; desc: string; icon: Re
   { id: 'services', label: 'Services', desc: 'Repair jobs, reputation, fulfilled work', icon: Hammer, color: '#A855F7' },
 ];
 
+const categoryIds = new Set<CategoryId>(masteryCategories.map((category) => category.id));
+
 const staticTracks: MasterySummaryRow[] = [
   { mastery_id: 'combat.boss_defeats', category: 'combat', label: 'Boss Defeats', mastery_xp: 0, mastery_level: 1, rank: 0 },
   { mastery_id: 'combat.boss_attempts', category: 'combat', label: 'Boss Attempts', mastery_xp: 0, mastery_level: 1, rank: 0 },
@@ -32,9 +34,25 @@ const staticTracks: MasterySummaryRow[] = [
   { mastery_id: 'weapons.ordnance', category: 'weapons', label: 'Ordnance Mastery', mastery_xp: 0, mastery_level: 1, rank: 0 },
 ];
 
-function toNumber(value: number | string): number {
+function toNumber(value: unknown): number {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function safeArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function normalizeTrack(track: MasterySummaryRow): MasterySummaryRow {
+  const category = categoryIds.has(track.category as CategoryId) ? track.category : 'combat';
+  return {
+    mastery_id: typeof track.mastery_id === 'string' && track.mastery_id.length > 0 ? track.mastery_id : 'unknown',
+    category,
+    label: typeof track.label === 'string' && track.label.length > 0 ? track.label : 'Unknown Mastery',
+    mastery_xp: toNumber(track.mastery_xp),
+    mastery_level: Math.max(1, Math.trunc(toNumber(track.mastery_level))),
+    rank: Math.max(0, Math.trunc(toNumber(track.rank))),
+  };
 }
 
 const RankTile: React.FC<{ label: string; value: string | number; sub: string }> = ({ label, value, sub }) => (
@@ -47,7 +65,8 @@ const RankTile: React.FC<{ label: string; value: string | number; sub: string }>
 
 const TrackRow: React.FC<{ track: MasterySummaryRow }> = ({ track }) => {
   const xp = toNumber(track.mastery_xp);
-  const rankText = track.rank > 0 ? `#${track.rank.toLocaleString()}` : 'Unranked';
+  const rank = toNumber(track.rank);
+  const rankText = rank > 0 ? `#${rank.toLocaleString()}` : 'Unranked';
   return (
     <div className="rounded-lg bg-surface border border-border p-2">
       <div className="flex items-center justify-between gap-2">
@@ -55,7 +74,7 @@ const TrackRow: React.FC<{ track: MasterySummaryRow }> = ({ track }) => {
         <div className="text-[10px] text-amber font-black">{rankText}</div>
       </div>
       <div className="flex items-center justify-between text-[10px] text-text-muted mt-1">
-        <span>Lv. {track.mastery_level}</span>
+        <span>Lv. {Math.max(1, toNumber(track.mastery_level))}</span>
         <span>{xp.toLocaleString()} XP</span>
       </div>
     </div>
@@ -76,7 +95,7 @@ export const MasteryScreen: React.FC = () => {
     getMyMasterySummary()
       .then((rows) => {
         if (cancelled) return;
-        setServerTracks(rows);
+        setServerTracks(rows.map(normalizeTrack));
         setLoadState('ready');
       })
       .catch(() => {
@@ -86,19 +105,25 @@ export const MasteryScreen: React.FC = () => {
     return () => { cancelled = true; };
   }, []);
 
-  const spentSkillPoints = skills.getTotalSpent();
-  const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
-  const localScore = player.level * 100 + inventory.items.length * 5 + boss.defeatedBossIds.length * 50 + spentSkillPoints * 25;
+  const spentSkillPoints = typeof skills.getTotalSpent === 'function' ? toNumber(skills.getTotalSpent()) : 0;
+  const playerLevel = Math.max(1, toNumber(player.level));
+  const inventoryCount = safeArray(inventory.items).length;
+  const defeatedBossCount = safeArray(boss.defeatedBossIds).length;
+  const availableSkillPoints = Math.max(0, playerLevel - 1 - spentSkillPoints);
+  const localScore = playerLevel * 100 + inventoryCount * 5 + defeatedBossCount * 50 + spentSkillPoints * 25;
 
   const tracks = useMemo(() => {
     const merged = new Map<string, MasterySummaryRow>();
     staticTracks.forEach((track) => merged.set(track.mastery_id, track));
-    serverTracks.forEach((track) => merged.set(track.mastery_id, track));
+    serverTracks.forEach((track) => {
+      const normalized = normalizeTrack(track);
+      merged.set(normalized.mastery_id, normalized);
+    });
     return Array.from(merged.values());
   }, [serverTracks]);
 
   const masteryScore = tracks.reduce((sum, track) => sum + toNumber(track.mastery_xp), 0) || localScore;
-  const rankedTracks = tracks.filter((track) => track.rank > 0).sort((a, b) => a.rank - b.rank);
+  const rankedTracks = [...tracks].filter((track) => toNumber(track.rank) > 0).sort((a, b) => toNumber(a.rank) - toNumber(b.rank));
   const bestRank = rankedTracks[0]?.rank;
   const highestTrack = [...tracks].sort((a, b) => toNumber(b.mastery_xp) - toNumber(a.mastery_xp))[0];
 
@@ -114,7 +139,7 @@ export const MasteryScreen: React.FC = () => {
 
         <div className="grid grid-cols-3 gap-2">
           <RankTile label="Score" value={masteryScore.toLocaleString()} sub={loadState === 'ready' ? 'server tracked' : 'local/session'} />
-          <RankTile label="Best Rank" value={bestRank ? `#${bestRank.toLocaleString()}` : '—'} sub={highestTrack?.label ?? 'no track yet'} />
+          <RankTile label="Best Rank" value={bestRank ? `#${toNumber(bestRank).toLocaleString()}` : '—'} sub={highestTrack?.label ?? 'no track yet'} />
           <RankTile label="Skill Pts" value={availableSkillPoints} sub={`${spentSkillPoints} spent`} />
         </div>
 
@@ -149,7 +174,7 @@ export const MasteryScreen: React.FC = () => {
               const Icon = category.icon;
               const categoryTracks = tracks.filter((track) => track.category === category.id);
               const totalXp = categoryTracks.reduce((sum, track) => sum + toNumber(track.mastery_xp), 0);
-              const highestLevel = Math.max(1, ...categoryTracks.map((track) => track.mastery_level));
+              const highestLevel = Math.max(1, ...categoryTracks.map((track) => toNumber(track.mastery_level)));
               return (
                 <div
                   key={category.id}
@@ -173,7 +198,7 @@ export const MasteryScreen: React.FC = () => {
           <div className="rounded-2xl border border-border bg-surface-raised p-3 space-y-2">
             <div className="text-xs font-black text-text-primary">Ranked Tracks</div>
             <div className="space-y-2">
-              {tracks
+              {[...tracks]
                 .sort((a, b) => toNumber(b.mastery_xp) - toNumber(a.mastery_xp))
                 .slice(0, 8)
                 .map((track) => <TrackRow key={track.mastery_id} track={track} />)}
