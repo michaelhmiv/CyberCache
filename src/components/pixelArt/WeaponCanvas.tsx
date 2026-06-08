@@ -1,12 +1,12 @@
-import React, { useRef, useEffect } from 'react';
-import { renderWeaponSprite } from '../../lib/pixelArt/renderer';
-import { Element, Manufacturer, WeaponType } from '../../types/game';
+import React from 'react';
+import { Element, Manufacturer, Rarity, WeaponType } from '../../types/game';
+import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 
 interface WeaponCanvasProps {
   type: WeaponType;
   manufacturer: Manufacturer;
   element: Element;
-  rarity: string;
+  rarity: Rarity | string;
   size?: number;
   className?: string;
 }
@@ -19,29 +19,16 @@ export const WeaponCanvas: React.FC<WeaponCanvasProps> = ({
   size = 64,
   className = '',
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const loop = (time: number) => {
-      renderWeaponSprite(canvas, type, manufacturer, element, rarity, time);
-      animRef.current = requestAnimationFrame(loop);
-    };
-    animRef.current = requestAnimationFrame(loop);
-
-    return () => cancelAnimationFrame(animRef.current);
-  }, [type, manufacturer, element, rarity]);
-
   return (
-    <canvas
-      ref={canvasRef}
-      width={64}
-      height={64}
-      className={`pixelated ${className}`}
-      style={{ width: size, height: size, imageRendering: 'pixelated' }}
+    <WeaponIllustration
+      type={type}
+      manufacturer={manufacturer}
+      element={element}
+      rarity={rarity}
+      visualSeed={`${type}:${manufacturer}:${element}:${rarity}`.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)}
+      size={size}
+      className={className}
+      showBadges={size >= 56}
     />
   );
 };
