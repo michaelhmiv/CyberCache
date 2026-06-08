@@ -28,16 +28,16 @@ function VerificationReminderBanner() {
 
   const expired = isVerificationGraceExpired(account);
   const copy = expired
-    ? 'Email verification is required to use marketplace, shops, services, and social features.'
-    : 'Verify your email to unlock trading, shops, and player services.';
+    ? 'Email verification required before using markets, shops, services, and social features.'
+    : 'Verify email to unlock trading, shops, and player services.';
 
   return (
-    <div className="shrink-0 mx-3 mt-3 rounded-xl border border-amber/60 bg-amber/10 px-3 py-2 text-xs text-amber flex items-center justify-between gap-3">
-      <span>{copy}</span>
+    <div className="bl-card shrink-0 mx-3 mt-3 flex items-center justify-between gap-3 px-3 py-2 text-xs text-amber">
+      <span className="font-bold">{copy}</span>
       <button
         onClick={() => markVerificationReminderSeen()}
         disabled={actionLoading}
-        className="shrink-0 rounded-lg border border-amber/70 px-2 py-1 text-[10px] font-black hover:bg-amber hover:text-bg disabled:opacity-50"
+        className="bl-secondary shrink-0 px-2 py-1 text-[10px] font-black disabled:opacity-50"
       >
         Dismiss
       </button>
@@ -53,10 +53,10 @@ function App() {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-bg text-text-primary p-4">
-        <div className="text-center space-y-2">
-          <div className="bl-title text-3xl text-amber">CyberCache</div>
-          <div className="text-xs text-text-muted">Loading session…</div>
+      <div className="bl-page flex h-full items-center justify-center p-4 text-text-primary">
+        <div className="bl-card w-full max-w-xs p-5 text-center">
+          <div className="bl-title text-4xl text-amber">CyberCache</div>
+          <div className="text-xs font-bold uppercase tracking-widest text-text-muted">Loading Hunter File…</div>
         </div>
       </div>
     );
@@ -107,24 +107,33 @@ function App() {
       workshop: <WorkshopScreen onNavigate={handleNavigate} />,
     };
     const title = subScreen === 'chest'
-      ? 'Data Cache'
+      ? 'Crack Cache'
       : subScreen === 'market'
-        ? 'Market'
+        ? 'Vendor Yard'
         : subScreen === 'workshop'
-          ? 'Workshop'
-          : subScreen;
+          ? 'Workbench'
+          : subScreen === 'help'
+            ? 'Field Manual'
+            : subScreen === 'settings'
+              ? 'Options Board'
+              : subScreen;
 
     return (
-      <div className="flex flex-col flex-1 min-h-0">
-        <div className="shrink-0 p-4 border-b-2 border-border bg-surface flex items-center gap-3">
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={handleBack}
-            className="text-sm text-amber font-bold hover:text-amber/80 active:text-amber/60 transition-colors"
-          >
-            ← Back
-          </motion.button>
-          <div className="bl-title text-xl leading-none text-text-primary capitalize">{title}</div>
+      <div className="flex min-h-0 flex-1 flex-col bg-bg">
+        <div className="shrink-0 border-b-[3px] border-border bg-surface p-3 shadow-[0_6px_16px_rgba(0,0,0,0.45)]">
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleBack}
+              className="bl-secondary px-3 py-2 text-xs font-black text-amber active:text-amber/70"
+            >
+              ← Back
+            </motion.button>
+            <div>
+              <div className="bl-title text-2xl leading-none text-text-primary capitalize">{title}</div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-text-muted">Sub-screen / field station</div>
+            </div>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {screens[subScreen!] || <div className="p-4 text-text-primary">Unknown screen</div>}
@@ -134,7 +143,7 @@ function App() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-bg text-text-primary">
+    <div className="flex h-full flex-col bg-bg text-text-primary">
       <AnimatePresence>
         {bossSelectOpen && (
           <BossSelectModal onClose={() => setBossSelectOpen(false)} />
@@ -142,7 +151,7 @@ function App() {
       </AnimatePresence>
 
       {authError && (
-        <div className="shrink-0 mx-3 mt-3 rounded-xl border border-red-500/50 bg-red-950/20 px-3 py-2 text-xs text-red-300">
+        <div className="bl-card shrink-0 mx-3 mt-3 px-3 py-2 text-xs font-bold text-red">
           {authError}
         </div>
       )}
