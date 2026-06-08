@@ -29,4 +29,7 @@ export const verifiedOps = {
   marketCreate: (itemId: string, priceCredits: number) => rpc('cc_market_create', { nonce: requestId('list'), item_id: itemId, price_credits: priceCredits }),
   marketCancel: (listingId: string) => rpc('cc_market_cancel', { nonce: requestId('cancel'), listing_id: listingId }),
   acceptListing: (listingId: string) => rpc('cc_accept_listing', { nonce: requestId('accept'), listing_id: listingId }),
+  requestItemService: (itemId: string, serviceId = 'repair') => rpc('cc_item_service_request', { nonce: requestId('service-request'), item_id: itemId, service_id: serviceId }),
+  acceptItemService: (jobId: string, priceCredits: number, durationMinutes = 60) => rpc('cc_item_service_accept', { nonce: requestId('service-accept'), job_id: jobId, price_credits: priceCredits, duration_minutes: durationMinutes }),
+  finishItemService: (jobId: string) => rpc('cc_item_job_finish', { nonce: requestId('service-finish'), job_id: jobId }),
 };
