@@ -63,14 +63,8 @@ export async function getAccountState(user: User): Promise<AccountState> {
   return profileRowToAccountState(profile, user);
 }
 
-export async function markVerificationReminderSeen(userId: string): Promise<ProfileRow> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ verification_reminder_last_seen_at: new Date().toISOString() })
-    .eq('id', userId)
-    .select('*')
-    .single();
-
+export async function markVerificationReminderSeen(_userId: string): Promise<ProfileRow> {
+  const { data, error } = await supabase.rpc('cc_mark_reminder_seen');
   if (error) throw error;
   return data as ProfileRow;
 }
