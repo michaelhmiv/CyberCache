@@ -2,6 +2,7 @@ import { Element } from '../types/game';
 import { GearItem, Weapon } from '../types/items';
 
 export interface SalvageYield {
+  scrapValue: number;
   scrapAlloy: number;
   ballisticParts: number;
   reactiveComponents: number;
@@ -84,6 +85,7 @@ export function calculateSalvageYield(item: GearItem): SalvageYield {
   }
 
   return {
+    scrapValue: scrapAlloy,
     scrapAlloy,
     ballisticParts,
     reactiveComponents,
