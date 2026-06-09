@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { BottomNav } from './components/layout/BottomNav';
 import { ScreenWrapper } from './components/layout/ScreenWrapper';
 import { DashboardScreen } from './screens/DashboardScreen';
-import { FightScreen } from './screens/FightScreen';
+import { ActionScreen } from './screens/ActionScreen';
 import { InventoryScreen } from './screens/InventoryScreen';
 import { MarketScreen } from './screens/MarketScreen';
 import { MasteryScreen } from './screens/MasteryScreen';
@@ -162,7 +162,7 @@ function App() {
       ) : (
         <ScreenWrapper activeTab={activeTab}>
           {activeTab === 'dashboard' && <DashboardScreen onNavigate={handleNavigate} />}
-          {activeTab === 'fight' && <FightScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
+          {activeTab === 'fight' && <ActionScreen onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
           {activeTab === 'inventory' && <InventoryScreen onNavigate={handleNavigate} />}
           {activeTab === 'mastery' && <MasteryScreen />}
           {activeTab === 'profile' && <ProfileScreen onNavigate={handleNavigate} />}
