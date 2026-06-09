@@ -5,6 +5,7 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { useNow } from '@/hooks/useNow';
+import { xpToNextLevel } from '@/content/simulation';
 
 type PulseEntry = {
   id: string;
@@ -48,7 +49,7 @@ export const WorldPulseFeed: React.FC = () => {
     {
       id: 'level-progress',
       label: `Level ${player.level} Gunrunner`,
-      detail: `${player.xp} / ${player.level * 100} XP toward next level.`,
+      detail: `${player.xp} / ${xpToNextLevel(player.level)} XP toward next level.`,
       icon: Trophy,
       tone: '#FF9000',
     },
