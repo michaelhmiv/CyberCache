@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Activity, AlertTriangle, CheckCircle, Crosshair, Gauge, PackageCheck, Shield, Skull, Target, X, Zap } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Activity, AlertTriangle, CheckCircle, Crosshair, Gauge, Heart, PackageCheck, Shield, Skull, Swords, Target, X, Zap } from 'lucide-react';
 import { BossDef, PhaseAnalysis } from '../../types/boss';
 import { ConsumableSlot, RiskSetting } from '../../types/game';
 import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts, getConsumablesForSlot } from '../../constants/consumables';
@@ -9,6 +9,7 @@ import { REGION_1_BOSSES } from '../../constants/bosses';
 import { executeBossAttempt, simulateBoss } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity, buildBossPrepActivity } from '../../lib/activity/activityBuilders';
 import { computeLoadoutDps } from '../../lib/stats/dpsChain';
+import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
 import { useActivityStore, useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
@@ -45,6 +46,11 @@ const PHASE_STATUS_BORDER: Record<PhaseAnalysis['status'], string> = {
   failing: 'border-red/30',
 };
 
+// Animation tuning constants and the FightTimeline / DamageLog types live
+// in src/lib/animation/fightTimeline.ts. Importing them above keeps the
+// constants testable without bootstrapping the React tree, and prevents
+// drift between the runtime animation and the parity test.
+
 export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
@@ -56,6 +62,14 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const [result, setResult] = useState<ReturnType<typeof executeBossAttempt> | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The fight card morphs through three states: 'pre' (win chance %),
+  // 'during' (animated HP bars + phase markers), 'post' (victory/defeat
+  // result). One card, one slot, no overlap — see plan hud-component-plan.md
+  // PR #0 §2.4. The timeline ref lets the animation callback read the
+  // latest state without re-creating the closure on every tick.
+  const reducedMotion = useReducedMotion();
+  const [fightTimeline, setFightTimeline] = useState<FightTimeline | null>(null);
+  const animationCancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
 
   const primary = loadout.getWeapon('primary') || inventory.getWeapons()[0] || null;
   const secondary = loadout.getWeapon('secondary') || inventory.getWeapons()[1] || null;
@@ -148,6 +162,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
     setSimulating(true);
     setError(null);
+    setResult(null);
 
     try {
       await activity.start(buildBossFightActivity(boss, activityWeapon));
@@ -157,70 +172,121 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
       return;
     }
 
-    window.setTimeout(async () => {
-      const outcome = executeBossAttempt(
-        {
-          primary,
-          secondary,
-          heavy,
-          ordnance,
-          shield,
-          classMod,
-          relic,
-          consumables: selectedConsumables,
-          risk,
-          boss,
-          playerLevel: player.level,
-          skillBonuses: skillStore.getBonuses(),
-          pityCount: bossStore.pityCounters[boss.id] || 0,
-          playerCredits: player.credits,
-        },
-        player.credits
-      );
+    // The sim is instant (Math.random() and arithmetic). The old code
+    // wrapped it in a 1.2s setTimeout as a fake "thinking" delay. Now we
+    // run the sim immediately, capture the result, and *animate* the
+    // outcome over ~400-600ms (or skip the animation entirely with
+    // prefers-reduced-motion). The result is the same — the player just
+    // gets to *see* the math instead of staring at "Simulating...".
+    const outcome = executeBossAttempt(
+      {
+        primary,
+        secondary,
+        heavy,
+        ordnance,
+        shield,
+        classMod,
+        relic,
+        consumables: selectedConsumables,
+        risk,
+        boss,
+        playerLevel: player.level,
+        skillBonuses: skillStore.getBonuses(),
+        pityCount: bossStore.pityCounters[boss.id] || 0,
+        playerCredits: player.credits,
+      },
+      player.credits
+    );
 
-      Object.entries(outcome.consumedConsumables).forEach(([type, count]) => {
-        if (count > 0) player.removeConsumable(type, count);
-      });
+    // Consume consumables immediately so the inventory UI updates even
+    // mid-animation. This matches the old behavior.
+    Object.entries(outcome.consumedConsumables).forEach(([type, count]) => {
+      if (count > 0) player.removeConsumable(type, count);
+    });
 
-      setResult(outcome);
-      if (outcome.result.victory) {
-        player.addCredits(outcome.creditsDelta);
-        player.addXP(boss.level * 20);
-        const wasNewDefeat = !bossStore.defeatedBossIds.includes(boss.id);
-        bossStore.defeatBoss(boss.id);
-        bossStore.resetPity(boss.id);
-        if (wasNewDefeat) {
-          const currentIndex = REGION_1_BOSSES.findIndex((b) => b.id === boss.id);
-          const nextBoss = REGION_1_BOSSES[currentIndex + 1];
-          if (nextBoss && !bossStore.unlockedBossIds.includes(nextBoss.id)) {
-            bossStore.unlockBoss(nextBoss.id);
-          }
+    // Apply the outcome to the stores. The result card (rendered when
+    // `result` is set) shows the user what happened; the stores reflect it
+    // immediately. The animation is purely visual.
+    if (outcome.result.victory) {
+      player.addCredits(outcome.creditsDelta);
+      player.addXP(boss.level * 20);
+      const wasNewDefeat = !bossStore.defeatedBossIds.includes(boss.id);
+      bossStore.defeatBoss(boss.id);
+      bossStore.resetPity(boss.id);
+      if (wasNewDefeat) {
+        const currentIndex = REGION_1_BOSSES.findIndex((b) => b.id === boss.id);
+        const nextBoss = REGION_1_BOSSES[currentIndex + 1];
+        if (nextBoss && !bossStore.unlockedBossIds.includes(nextBoss.id)) {
+          bossStore.unlockBoss(nextBoss.id);
         }
+      }
+      inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
+      if (Math.random() < 0.3) {
         inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
-        if (Math.random() < 0.3) {
-          inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
-        }
-        for (let i = 0; i < outcome.bonusLootRolls; i++) {
-          inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
-        }
-      } else {
-        player.removeCredits(-outcome.creditsDelta);
-        bossStore.incrementPity(boss.id);
       }
-      bossStore.addAttempt(outcome.result);
+      for (let i = 0; i < outcome.bonusLootRolls; i++) {
+        inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
+      }
+    } else {
+      player.removeCredits(-outcome.creditsDelta);
+      bossStore.incrementPity(boss.id);
+    }
+    bossStore.addAttempt(outcome.result);
 
-      try {
-        await activity.clear();
-      } catch (nextError) {
-        console.warn('Boss activity clear skipped:', nextError);
-      }
-      setSimulating(false);
-    }, 1200);
+    // Set up the fight timeline so the fight card can render the animation
+    // (or the reduced-motion skip). The animation walks the phase
+    // boundaries; the player/boss HP bar values interpolate linearly. The
+    // initial values are derived from the sim outcome: victory starts the
+    // boss at 100% and walks it down; defeat starts the boss at the
+    // bossHpRemaining percentage and leaves it there.
+    const shieldHpValue = shield?.hp ?? 0;
+    const initialTimeline: FightTimeline = buildInitialTimeline(
+      outcome,
+      boss.health,
+      player.level,
+      shieldHpValue
+    );
+    setFightTimeline(initialTimeline);
+
+    const cancel = { cancelled: false };
+    animationCancelRef.current = cancel;
+    // The animation callback receives a per-phase snapshot and pushes it
+    // into state, so the fight card's HP bars tick in real time rather
+    // than jumping from initial to final. With reduced-motion, the
+    // callback is never called and the fight card shows the final state.
+    const onPhase = (snapshot: FightTimeline) => setFightTimeline(snapshot);
+    const finalTimeline = await runFightAnimation(
+      initialTimeline,
+      sim.phaseAnalyses,
+      reducedMotion === true,
+      cancel,
+      onPhase
+    );
+    if (cancel.cancelled) return; // a new fight started before this one finished
+
+    setFightTimeline({ ...finalTimeline, finishedAt: performance.now() });
+    setResult(outcome);
+    setSimulating(false);
+
+    try {
+      await activity.clear();
+    } catch (nextError) {
+      console.warn('Boss activity clear skipped:', nextError);
+    }
   };
+
+  // If the user closes the modal or starts a new fight mid-animation,
+  // cancel the running animation so it doesn't fight with the new state.
+  useEffect(() => {
+    return () => {
+      animationCancelRef.current.cancelled = true;
+    };
+  }, []);
 
   const reset = () => {
     setResult(null);
     setError(null);
+    setFightTimeline(null);
   };
 
   const getRarityColor = (rarity?: string) => RARITIES[rarity as keyof typeof RARITIES]?.color || RARITIES.Common.color;
@@ -278,7 +344,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           <div className="text-[10px] text-amber">{boss.mechanic.description}</div>
         </MobileCard>
 
-        {!result && (
+        {!result && !fightTimeline && (
           <div className="grid grid-cols-2 gap-3">
             <MobileCard className="text-center space-y-1">
               <div className="text-xs text-text-muted uppercase tracking-wider">Estimated Win Chance</div>
@@ -298,7 +364,18 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           </div>
         )}
 
-        {!result && (
+        {/* The fight card replaces the win-chance grid mid-fight. It
+            renders the animated HP bars and phase markers driven by the
+            fightTimeline state (see runFightAnimation above). */}
+        {!result && fightTimeline && (
+          <FightCard timeline={fightTimeline} phases={sim.phaseAnalyses} bossName={boss.name} reducedMotion={reducedMotion} />
+        )}
+
+        {/* Hide the phase-plan and current-answers sections during the
+            fight animation — the fight card is doing the visual work
+            there. The plan re-appears in the post-fight view via the
+            result card's reasons. */}
+        {!result && !fightTimeline && (
           <div className="space-y-2">
             <div className="text-xs font-bold text-text-muted uppercase flex items-center gap-2">
               <Activity size={14} />
@@ -584,3 +661,81 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     </motion.div>
   );
 };
+
+// The walk-phases animation function lives in src/lib/animation/fightTimeline.ts
+// so it can be unit-tested without bootstrapping the React tree. This
+// module exports the FightCard subcomponent (and constants are re-imported
+// from the animation module).
+
+// Keep the FightCard component as a small subcomponent to keep the main
+// BossPrepModal JSX clean. It only renders when simulating && !result.
+const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bossName: string; reducedMotion: boolean | null }> = ({ timeline, phases, bossName, reducedMotion }) => {
+  const playerPct = timeline.playerHpMax > 0 ? (timeline.playerHp / timeline.playerHpMax) * 100 : 0;
+  const bossPct = timeline.bossHpMax > 0 ? (timeline.bossHp / timeline.bossHpMax) * 100 : 0;
+  const currentPhase = phases[Math.min(timeline.currentPhaseIndex, phases.length - 1)];
+  const recentPopups = timeline.damageLog.slice(-3);
+
+  return (
+    <MobileCard className="space-y-2 border-red/30 bg-red/5">
+      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red">
+        <Swords size={14} />
+        Combat Resolution
+      </div>
+      {/* Player HP bar */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-[10px] text-text-muted">
+          <span className="flex items-center gap-1"><Heart size={11} className="text-green" /> Player</span>
+          <span className="font-black text-text-primary">{timeline.playerHp.toLocaleString()} / {timeline.playerHpMax.toLocaleString()}</span>
+        </div>
+        <div className="relative h-4 overflow-hidden border-2 border-border bg-bg">
+          <motion.div
+            className="h-full bg-green"
+            initial={{ width: `${(timeline.outcome?.result.victory ? 30 : 100)}%` }}
+            animate={{ width: `${playerPct}%` }}
+            transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 18 }}
+          />
+        </div>
+      </div>
+      {/* Boss HP bar */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-[10px] text-text-muted">
+          <span className="flex items-center gap-1"><Skull size={11} className="text-red" /> {bossName}</span>
+          <span className="font-black text-text-primary">{timeline.bossHp.toLocaleString()} / {timeline.bossHpMax.toLocaleString()}</span>
+        </div>
+        <div className="relative h-4 overflow-hidden border-2 border-border bg-bg">
+          <motion.div
+            className="h-full bg-red"
+            initial={{ width: '100%' }}
+            animate={{ width: `${bossPct}%` }}
+            transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 18 }}
+          />
+        </div>
+      </div>
+      {/* Phase marker */}
+      {currentPhase && (
+        <div className="flex items-center justify-between text-[10px]">
+          <span className="text-text-muted">Phase {Math.min(timeline.currentPhaseIndex + 1, phases.length)} / {phases.length}</span>
+          <span className={`font-black uppercase ${PHASE_STATUS_COLOR[currentPhase.status]}`}>{currentPhase.phaseName}</span>
+        </div>
+      )}
+      {/* Recent damage popups */}
+      {recentPopups.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {recentPopups.map((popup) => (
+            <div
+              key={popup.id}
+              className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${
+                popup.target === 'boss'
+                  ? 'border-red/40 bg-red/10 text-red'
+                  : 'border-amber/40 bg-amber/10 text-amber'
+              }`}
+            >
+              {popup.target === 'boss' ? '−' : '−'}{popup.value.toLocaleString()} <span className="text-text-muted">· {popup.phaseName}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </MobileCard>
+  );
+};
+
