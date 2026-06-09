@@ -82,7 +82,7 @@ as $$
 declare
   actor uuid := auth.uid();
   prior jsonb;
-  row public.active_actions%rowtype;
+  result_row public.active_actions%rowtype;
   normalized_kind text := coalesce(nullif(trim(action_kind), ''), 'idle_standby');
 begin
   if actor is null then raise exception 'Authentication required'; end if;
@@ -103,8 +103,8 @@ begin
   end if;
 
   select result_payload into prior
-  from public.verified_action_ledger
-  where user_id = actor and idempotency_key = nonce;
+  from public.verified_action_ledger vl
+  where vl.user_id = actor and vl.idempotency_key = nonce;
   if prior is not null then return prior; end if;
 
   perform pg_advisory_xact_lock(hashtext(actor::text));
@@ -157,11 +157,11 @@ begin
     public_visible = excluded.public_visible,
     schema_version = excluded.schema_version,
     updated_at = excluded.updated_at
-  returning * into row;
+  returning * into result_row;
 
   prior := jsonb_build_object(
     'action_type', 'cc_set_active_action',
-    'activity', public.cc_active_action_snapshot(row)
+    'activity', public.cc_active_action_snapshot(result_row)
   );
 
   insert into public.verified_action_ledger(user_id, action_type, idempotency_key, result_payload)
@@ -180,14 +180,14 @@ as $$
 declare
   actor uuid := auth.uid();
   prior jsonb;
-  row public.active_actions%rowtype;
+  result_row public.active_actions%rowtype;
 begin
   if actor is null then raise exception 'Authentication required'; end if;
   if nonce is null or length(trim(nonce)) < 8 then raise exception 'nonce is required'; end if;
 
   select result_payload into prior
-  from public.verified_action_ledger
-  where user_id = actor and idempotency_key = nonce;
+  from public.verified_action_ledger vl
+  where vl.user_id = actor and vl.idempotency_key = nonce;
   if prior is not null then return prior; end if;
 
   perform pg_advisory_xact_lock(hashtext(actor::text));
@@ -240,11 +240,11 @@ begin
     public_visible = true,
     schema_version = 1,
     updated_at = now()
-  returning * into row;
+  returning * into result_row;
 
   prior := jsonb_build_object(
     'action_type', 'cc_clear_active_action',
-    'activity', public.cc_active_action_snapshot(row)
+    'activity', public.cc_active_action_snapshot(result_row)
   );
 
   insert into public.verified_action_ledger(user_id, action_type, idempotency_key, result_payload)
@@ -262,14 +262,14 @@ set search_path = public
 as $$
 declare
   actor uuid := auth.uid();
-  row public.active_actions%rowtype;
+  result_row public.active_actions%rowtype;
 begin
   if actor is null then raise exception 'Authentication required'; end if;
 
   update public.active_actions
   set last_heartbeat_at = now(), updated_at = now()
   where user_id = actor
-  returning * into row;
+  returning * into result_row;
 
   if not found then
     insert into public.active_actions (
@@ -280,12 +280,12 @@ begin
       public_visible,
       updated_at
     ) values (actor, 'idle_standby', now(), now(), true, now())
-    returning * into row;
+    returning * into result_row;
   end if;
 
   return jsonb_build_object(
     'action_type', 'cc_active_action_heartbeat',
-    'activity', public.cc_active_action_snapshot(row)
+    'activity', public.cc_active_action_snapshot(result_row)
   );
 end;
 $$;
