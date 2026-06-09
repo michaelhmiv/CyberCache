@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, Clock, PackageSearch, Sparkles } from 'lucide-react';
 import { getActionWorkspaceSpec } from '@/lib/activity/actionWorkspaceSpecs';
+import { getAnimationBeatsForEvent } from '@/lib/activity/actionAnimationDirector';
 import type { ActivityKind } from '@/types/activity';
 import type { GearItem } from '@/types/items';
 
@@ -60,8 +61,9 @@ export const ActiveActionHeader: React.FC<{
   manageLabel?: string;
 }> = ({ kind, title, detail, target, elapsed, status = 'LIVE', stats, onManage, manageLabel = 'Manage' }) => {
   const spec = getActionWorkspaceSpec(kind);
+  const motionBeats = getAnimationBeatsForEvent(kind).join(' ');
   return (
-    <section className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_10px_22px_rgba(0,0,0,0.55)]" style={panelClip}>
+    <section data-motion-beats={motionBeats} className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_10px_22px_rgba(0,0,0,0.55)]" style={panelClip}>
       <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rotate-12 border-[14px] border-amber/5" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
