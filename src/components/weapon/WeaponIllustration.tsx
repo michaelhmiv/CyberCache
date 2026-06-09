@@ -50,13 +50,6 @@ function fallbackSpec(props: WeaponIllustrationProps): WeaponVisualSpec {
   });
 }
 
-const blackStroke = {
-  stroke: '#000000',
-  strokeWidth: 5,
-  strokeLinejoin: 'round' as const,
-  strokeLinecap: 'round' as const,
-};
-
 const innerStroke = {
   stroke: '#000000',
   strokeWidth: 3,

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Activity, Crosshair, Hammer, PackageSearch, Radio, Trophy } from 'lucide-react';
 import { useActivityStore, useBossStore, useInventoryStore, usePlayerStore, useWorkshopStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
+import { useNow } from '@/hooks/useNow';
 
 type PulseEntry = {
   id: string;
@@ -21,6 +22,7 @@ export const WorldPulseFeed: React.FC = () => {
   const inventory = useInventoryStore();
   const bossStore = useBossStore();
   const workshop = useWorkshopStore();
+  const now = useNow();
 
   const publicPayload = activity.current.publicPayload;
   const activityLabel = safeText(publicPayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
@@ -30,8 +32,10 @@ export const WorldPulseFeed: React.FC = () => {
     .filter(Boolean)
     .at(-1);
   const strongestWeapon = inventory.getWeapons().sort((a, b) => b.combatPower - a.combatPower)[0];
-  const legendaryCount = inventory.items.filter((item) => item.rarity === 'Legendary').length;
-  const readyQueues = workshop.activeQueues.filter((queue) => Math.floor((Date.now() - queue.startedAt) / queue.durationMs) > queue.claimedCount).length;
+  const readyQueues = useMemo(
+    () => workshop.activeQueues.filter((queue) => Math.floor((now - queue.startedAt) / queue.durationMs) > queue.claimedCount).length,
+    [workshop.activeQueues, now],
+  );
 
   const entries: PulseEntry[] = [
     {
