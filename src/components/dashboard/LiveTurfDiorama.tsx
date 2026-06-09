@@ -5,14 +5,15 @@ import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { CharacterStatBar } from '@/components/stats/CharacterStatBar';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
-import { useLoadoutStore, usePlayerStore, useSkillStore } from '@/store';
+import { useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore } from '@/store';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
 import type { ActivityKind } from '@/types/activity';
 import type { CharacterStatSummary } from '@/lib/stats/characterStats';
+import type { TickEvent } from '@/store/slices/tickSlice';
 
-export type LiveTurfFeedEvent = { id: string; label: string; detail: string; tone: string };
+export type LiveTurfFeedEvent = TickEvent;
 
 type DioramaMode = 'idle' | 'roaming' | 'bossPrep' | 'bossFight' | 'crafting' | 'salvaging' | 'workshopService' | 'marketListing';
 
@@ -24,7 +25,6 @@ interface LiveTurfDioramaProps {
   playerLevel: number;
   equippedCount: number;
   cacheKeys: number;
-  feedEvents: LiveTurfFeedEvent[];
   activityKind?: ActivityKind;
   activityLabel?: string;
   activityTarget?: string | null;
@@ -45,8 +45,11 @@ const fallbackMaker = (area: RoamingAreaDef) => area.manufacturerInfluence === '
 const fallbackType = (area: RoamingAreaDef) => area.weaponBias[0] ?? WeaponType.Pistol;
 const fallbackElement = (area: RoamingAreaDef) => area.elementBias?.[0] ?? Element.Kinetic;
 const enemyLabel = (area: RoamingAreaDef, bossName?: string) => bossName ?? area.enemyType.split(',')[0] ?? 'Target contact';
-const isImpact = (event?: LiveTurfFeedEvent) => !!event && event.id !== 'idle-loop-ready';
-const isLootLike = (event?: LiveTurfFeedEvent) => isImpact(event) && ['loot', 'cache', 'cash', 'level'].includes(event.tone);
+const isImpact = (event?: LiveTurfFeedEvent): event is LiveTurfFeedEvent => !!event && event.id !== 'idle-loop-ready';
+const isLootLike = (event: LiveTurfFeedEvent | undefined): boolean => {
+  if (!isImpact(event)) return false;
+  return event.tone === 'loot' || event.tone === 'cache' || event.tone === 'cash' || event.tone === 'level';
+};
 
 const modeFromActivity = (kind?: ActivityKind): DioramaMode => {
   if (kind === 'roaming_loot') return 'roaming';
@@ -116,11 +119,14 @@ const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; mo
   return <motion.g initial={reduced ? undefined : { opacity: 0, x: -8 }} animate={reduced ? undefined : { opacity: [0, 1, 0], x: [-8, 18, 34] }} transition={reduced ? undefined : { duration: 0.48, ease: 'linear' }}><path d="M162 106 L260 105" stroke="#000" strokeWidth="9" strokeLinecap="round" opacity="0.55" /><path d="M162 106 L260 105" stroke={projectile.color} strokeWidth="4" strokeLinecap="round" /><circle cx="265" cy="105" r="7" fill={projectile.glow} stroke="#000" strokeWidth="3" /></motion.g>;
 };
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, playerLevel, equippedCount, cacheKeys, feedEvents, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const skills = useSkillStore();
+  // Single source of truth: the diorama reads the latest tick event from the
+  // shared tick feed store, not from a prop. The animation is a pure read.
+  const latestEvent = useTickFeedStore((state) => state.events[0]);
   const computedStats = statSummary ?? buildCharacterStatSummary({ player, weapons: [loadout.getWeapon('primary'), loadout.getWeapon('secondary'), loadout.getWeapon('heavy')], shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent });
   const scene = getLiveTurfScene(area);
   const mode = modeFromActivity(activityKind);
@@ -128,7 +134,6 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'fallback'}-${mode}`);
   const element = weapon?.element ?? fallbackElement(area);
   const projectile = ELEMENT_PROJECTILE[element];
-  const latestEvent = feedEvents[0];
   const eventActive = isImpact(latestEvent);
   const title = activityTarget || bossName || area.name;
   const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : `${area.manufacturerInfluence} patrol kit`;
