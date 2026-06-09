@@ -36,4 +36,6 @@ export const verifiedOps = {
   acceptItemService: (jobId: string, priceCredits: number, durationMinutes = 60) => rpc('cc_item_service_accept', { nonce: requestId('service-accept'), job_id: jobId, price_credits: priceCredits, duration_minutes: durationMinutes }),
   finishItemService: (jobId: string) => rpc('cc_item_job_finish', { nonce: requestId('service-finish'), job_id: jobId }),
   resetProgress: () => rpc('cc_reset_progress', { nonce: requestId('reset') }),
+  claimRoamingRewards: (input: { ticks: number; areaId: string }) =>
+    rpc('cc_claim_roaming_rewards', { nonce: requestId(`roam:${input.areaId}`), ticks: input.ticks, area_id: input.areaId }),
 };

@@ -16,7 +16,8 @@ import { BossSelectModal } from './components/fight/BossSelectModal';
 import { isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
 import { FeatureGate } from './auth/FeatureGate';
 import { useAuth } from './auth/AuthProvider';
-import { useActiveActionSettlement } from './hooks/useActiveActionSettlement';
+import { useEffect } from 'react';
+import { mountIdleTicker, unmountIdleTicker } from './store';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | null;
@@ -51,7 +52,17 @@ function App() {
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
 
-  useActiveActionSettlement(Boolean(user && !loading), user?.id);
+  // Mount the singleton idle ticker once per authenticated session. The ticker
+  // is the single source of truth for roaming rewards: it reads the active
+  // activity, rolls probabilities client-side for instant animation feedback,
+  // and asks the server to validate the roll via cc_claim_roaming_rewards.
+  useEffect(() => {
+    if (!user || loading) return undefined;
+    mountIdleTicker();
+    return () => {
+      unmountIdleTicker();
+    };
+  }, [user, loading]);
 
   if (loading) {
     return (
