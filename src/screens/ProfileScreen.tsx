@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Target, TrendingUp, User, Zap } from 'lucide-react';
 import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore, useSkillStore, useCombatStatsStore, combatStatsSelectors } from '@/store';
 import { WeaponType } from '@/types/game';
+import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { SkillTreeScreen } from './SkillTreeScreen';
@@ -41,7 +42,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
 
   const weapons = inventory.getWeapons();
   const totalItems = inventory.items.length;
-  const xpToNext = player.level * 100;
+  const xpToNext = xpToNextLevel(player.level);
   const xpProgress = Math.round((player.xp / xpToNext) * 100);
   const spentSkillPoints = skillStore.getTotalSpent();
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);

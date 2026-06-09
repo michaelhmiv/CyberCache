@@ -16,6 +16,8 @@ export interface RoamingAreaDef {
   unlockLevel: number;
   idleCreditsPerMinute: number;
   idleScrapPerMinute: number;
+  /** XP per roaming tick. Mirrors the server `roaming_areas.xp_per_tick` column. */
+  idleXpPerTick: number;
   dropPoolRarityWeights: Record<Rarity, number>;
   materialBias: string[];
   essenceBias: string[];
@@ -57,6 +59,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 1,
     idleCreditsPerMinute: 15,
     idleScrapPerMinute: 3,
+    idleXpPerTick: 1,
     dropPoolRarityWeights: BASE_RARITY_WEIGHTS,
     materialBias: ['ScrapAlloy', 'BallisticParts'],
     essenceBias: [],
@@ -77,6 +80,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 4,
     idleCreditsPerMinute: 18,
     idleScrapPerMinute: 3,
+    idleXpPerTick: 2,
     dropPoolRarityWeights: {
       [Rarity.Common]: 56,
       [Rarity.Uncommon]: 27,
@@ -103,6 +107,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 8,
     idleCreditsPerMinute: 17,
     idleScrapPerMinute: 4,
+    idleXpPerTick: 3,
     dropPoolRarityWeights: {
       [Rarity.Common]: 50,
       [Rarity.Uncommon]: 29,
@@ -129,6 +134,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 12,
     idleCreditsPerMinute: 16,
     idleScrapPerMinute: 5,
+    idleXpPerTick: 4,
     dropPoolRarityWeights: {
       [Rarity.Common]: 52,
       [Rarity.Uncommon]: 28,
@@ -156,6 +162,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 16,
     idleCreditsPerMinute: 18,
     idleScrapPerMinute: 4,
+    idleXpPerTick: 5,
     dropPoolRarityWeights: {
       [Rarity.Common]: 51,
       [Rarity.Uncommon]: 27,
@@ -183,6 +190,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 20,
     idleCreditsPerMinute: 19,
     idleScrapPerMinute: 4,
+    idleXpPerTick: 6,
     dropPoolRarityWeights: {
       [Rarity.Common]: 53,
       [Rarity.Uncommon]: 27,
@@ -210,6 +218,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 25,
     idleCreditsPerMinute: 21,
     idleScrapPerMinute: 5,
+    idleXpPerTick: 8,
     dropPoolRarityWeights: {
       [Rarity.Common]: 48,
       [Rarity.Uncommon]: 29,

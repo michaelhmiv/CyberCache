@@ -47,6 +47,7 @@ declare
   essence_bias jsonb;
   credits_per_tick integer;
   scrap_per_tick integer;
+  xp_per_tick integer;
   bonus_credits integer := 0;
   bonus_scrap integer := 0;
   offline_cap_ms bigint;
@@ -96,9 +97,15 @@ begin
    from public.roaming_areas
   where id = area_id;
 
+  -- Read the per-area XP multiplier. Falls back to 1 if the column was added
+  -- by migration 057 after the row was already in place (defensive: the
+  -- backfill at the bottom of 057 covers all seven canonical areas).
+  select xp_per_tick into xp_per_tick from public.roaming_areas where id = area_id;
+
   if credits_per_tick is null then
     credits_per_tick := 1;
     scrap_per_tick := 1;
+    xp_per_tick := 1;
     material_bias := '["ScrapAlloy"]'::jsonb;
     essence_bias := '[]'::jsonb;
   end if;
@@ -152,7 +159,7 @@ begin
 
     credit_awarded := credit_awarded + credits_per_tick;
     scrap_awarded := scrap_awarded + scrap_per_tick;
-    xp_awarded := xp_awarded + 1;
+    xp_awarded := xp_awarded + coalesce(xp_per_tick, 1);
   end loop;
 
   -- Apply skill-tree bonuses (offlineEarnings, scrapYield) as multipliers.
