@@ -161,3 +161,88 @@ describe('buildCharacterStatSummary — diorama DPS bugfix', () => {
     expect(noBoss.headline.find((m) => m.key === 'dps')!.value).toBe(explicitUndefined.headline.find((m) => m.key === 'dps')!.value);
   });
 });
+
+describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () => {
+  it('labels the DPS headline "Standard DPS" when no boss is supplied', () => {
+    // The previous label "DPS" was ambiguous when paired with a separate
+    // "Boss DPS" metric — readers could not tell which number applied to
+    // a given target. "Standard DPS" makes the baseline explicit.
+    const player = makePlayer();
+    const weapon = makeWeapon({ id: 'w1' });
+    const summary = buildCharacterStatSummary({ player, weapons: [weapon], spentSkills: {} });
+    const dpsMetric = summary.headline.find((metric) => metric.key === 'dps')!;
+    expect(dpsMetric.label).toBe('Standard DPS');
+  });
+
+  it('labels the DPS headline "Fight DPS" when a boss is supplied', () => {
+    // "Fight DPS" is the boss-relative number: weapon DPS × element
+    // matchup × consumables × boss resistance. The previous label
+    // (still "DPS") hid the fact that this number can change just by
+    // selecting a different boss.
+    const player = makePlayer();
+    const weapon = makeWeapon({ id: 'w1', element: Element.Fire });
+    const boss = makeBoss([Element.Fire]);
+    const summary = buildCharacterStatSummary({ player, weapons: [weapon], spentSkills: {}, boss });
+    const dpsMetric = summary.headline.find((metric) => metric.key === 'dps')!;
+    expect(dpsMetric.label).toBe('Fight DPS');
+  });
+
+  it('emits a stacked health metric with at least a chassis segment when a shield is absent', () => {
+    // The HP bar in the diorama reads from `metric.stacked`. The chassis
+    // segment must always be present (base + level * 12). When the player
+    // has no shield, no shield/mitigation segments are emitted.
+    const player = makePlayer();
+    const weapon = makeWeapon({ id: 'w1' });
+    const summary = buildCharacterStatSummary({ player, weapons: [weapon], shield: undefined, spentSkills: {} });
+    const healthMetric = summary.all.find((metric) => metric.key === 'health')!;
+    expect(healthMetric.stacked).toBeDefined();
+    expect(healthMetric.stacked!.length).toBe(1);
+    expect(healthMetric.stacked![0].label).toBe('Chassis');
+    expect(healthMetric.stacked![0].value).toBe(100 + player.level * 12);
+  });
+
+  it('emits a stacked health metric with chassis + shield segments when a shield is equipped', () => {
+    // Adding a shield should add a "Shield" segment to the HP bar.
+    // The shield HP is the `hp` field on the shield, the segment
+    // uses the cyan tone.
+    const player = makePlayer();
+    const weapon = makeWeapon({ id: 'w1' });
+    const shield = { id: 's1', name: 'Test Shield', kind: 'Shield' as const, rarity: 0, level: 1, hp: 200, mitigation: 0.1, abilities: [], affixes: [], sourceTag: 'World Drop' as const, isLocked: false, pixelSeed: 0 };
+    const summary = buildCharacterStatSummary({ player, weapons: [weapon], shield, spentSkills: {} });
+    const healthMetric = summary.all.find((metric) => metric.key === 'health')!;
+    expect(healthMetric.stacked).toBeDefined();
+    const labels = healthMetric.stacked!.map((segment) => segment.label);
+    expect(labels).toContain('Chassis');
+    expect(labels).toContain('Shield');
+    // Sum of segments equals total metric value (idle-game convention)
+    const segmentSum = healthMetric.stacked!.reduce((sum, segment) => sum + segment.value, 0);
+    expect(segmentSum).toBe(healthMetric.value);
+  });
+
+  it('emits a mitigation segment only when mitigation is positive', () => {
+    // A shield with 0% mitigation should not add a 0-width "Mitigation"
+    // segment to the bar (it would render as a hairline that confuses
+    // readers). The segment only appears when it has width.
+    const player = makePlayer();
+    const weapon = makeWeapon({ id: 'w1' });
+    const zeroMitShield = { id: 's1', name: 'Zero Mit Shield', kind: 'Shield' as const, rarity: 0, level: 1, hp: 100, mitigation: 0, abilities: [], affixes: [], sourceTag: 'World Drop' as const, isLocked: false, pixelSeed: 0 };
+    const summary = buildCharacterStatSummary({ player, weapons: [weapon], shield: zeroMitShield, spentSkills: {} });
+    const healthMetric = summary.all.find((metric) => metric.key === 'health')!;
+    const labels = healthMetric.stacked!.map((segment) => segment.label);
+    expect(labels).not.toContain('Mitigation');
+  });
+
+  it('exposes the new stacked/label fields on the headline so the HUD can render the bar and the new label', () => {
+    // The headline is what the diorama renders. Both the new DPS label
+    // and the health stacked breakdown must be present in `headline`,
+    // not just in `all`.
+    const player = makePlayer();
+    const weapon = makeWeapon({ id: 'w1' });
+    const summary = buildCharacterStatSummary({ player, weapons: [weapon], spentSkills: {} });
+    const headlineHealth = summary.headline.find((metric) => metric.key === 'health')!;
+    const headlineDps = summary.headline.find((metric) => metric.key === 'dps')!;
+    expect(headlineHealth.stacked).toBeDefined();
+    expect(headlineHealth.stacked!.length).toBeGreaterThan(0);
+    expect(headlineDps.label).toBe('Standard DPS');
+  });
+});
