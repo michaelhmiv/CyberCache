@@ -7,6 +7,7 @@ import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisual
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore } from '@/store';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
+import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
 import type { ActivityKind } from '@/types/activity';
@@ -22,6 +23,13 @@ interface LiveTurfDioramaProps {
   weapon?: Weapon;
   bossName?: string;
   bossWeaknessCount?: number;
+  /**
+   * Full boss object, when a boss is being prepped. When set, the stat
+   * summary's DPS metric switches to boss-relative (computeLoadoutDps with
+   * the boss's weaknesses applied) and the detail label switches to
+   * "vs {boss.name} ({weakness})".
+   */
+  boss?: BossDef;
   playerLevel: number;
   equippedCount: number;
   cacheKeys: number;
@@ -119,7 +127,7 @@ const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; mo
   return <motion.g initial={reduced ? undefined : { opacity: 0, x: -8 }} animate={reduced ? undefined : { opacity: [0, 1, 0], x: [-8, 18, 34] }} transition={reduced ? undefined : { duration: 0.48, ease: 'linear' }}><path d="M162 106 L260 105" stroke="#000" strokeWidth="9" strokeLinecap="round" opacity="0.55" /><path d="M162 106 L260 105" stroke={projectile.color} strokeWidth="4" strokeLinecap="round" /><circle cx="265" cy="105" r="7" fill={projectile.glow} stroke="#000" strokeWidth="3" /></motion.g>;
 };
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, boss, playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
@@ -127,7 +135,24 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // Single source of truth: the diorama reads the latest tick event from the
   // shared tick feed store, not from a prop. The animation is a pure read.
   const latestEvent = useTickFeedStore((state) => state.events[0]);
-  const computedStats = statSummary ?? buildCharacterStatSummary({ player, weapons: [loadout.getWeapon('primary'), loadout.getWeapon('secondary'), loadout.getWeapon('heavy')], shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent });
+  // The diorama's stat math must use the same weapons as the animation. The
+  // animation uses the `weapon` prop (which already falls back to the
+  // strongest inventory weapon in the Dashboard), so the stat math needs the
+  // same set. We de-dupe by id and lead with the displayed weapon so its
+  // contributions show first in the source breakdown.
+  const primaryWeapon = loadout.getWeapon('primary');
+  const secondaryWeapon = loadout.getWeapon('secondary');
+  const heavyWeapon = loadout.getWeapon('heavy');
+  const equippedWeapons = [primaryWeapon, secondaryWeapon, heavyWeapon].filter((w): w is Weapon => !!w);
+  const weaponIds = new Set(equippedWeapons.map((w) => w.id));
+  const statWeapons = weapon && !weaponIds.has(weapon.id)
+    ? [weapon, ...equippedWeapons]
+    : equippedWeapons.length > 0
+      ? equippedWeapons
+      : weapon
+        ? [weapon]
+        : [];
+  const computedStats = statSummary ?? buildCharacterStatSummary({ player, weapons: statWeapons, shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent, boss });
   const scene = getLiveTurfScene(area);
   const mode = modeFromActivity(activityKind);
   const copy = modeInfo[mode];
