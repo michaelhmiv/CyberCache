@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Activity, AlertTriangle, CheckCircle, Crosshair, Gauge, Heart, PackageCheck, Shield, Skull, Swords, Target, X, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle, Gauge, Heart, PackageCheck, Shield, Skull, Sparkles, Swords, Target, X, Zap } from 'lucide-react';
 import { BossDef, PhaseAnalysis } from '../../types/boss';
 import { ConsumableSlot, RiskSetting } from '../../types/game';
 import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts, getConsumablesForSlot } from '../../constants/consumables';
@@ -44,6 +44,110 @@ const PHASE_STATUS_BORDER: Record<PhaseAnalysis['status'], string> = {
   close: 'border-amber/30',
   risky: 'border-orange-400/30',
   failing: 'border-red/30',
+};
+
+const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
+
+/**
+ * BossVitalsBars — three proportional horizontal bars (HP, Shield, Armor).
+ * Idle-game convention: HP is the thickest bar (the player's primary
+ * concern), shield and armor are thinner and stacked below. Each bar
+ * animates from 0 to its value on first mount (300ms) so the player gets
+ * a "this is a beefy boss" feeling instead of static numbers.
+ *
+ * Private to BossPrepModal; lives in the same file as a deliberate
+ * scope limit. If a future screen needs the same visualization, extract
+ * to src/components/boss/BossVitalsBars.tsx.
+ */
+const BossVitalsBars: React.FC<{ boss: BossDef }> = ({ boss }) => {
+  const maxHealth = Math.max(1, boss.health);
+  const maxShield = Math.max(1, boss.shield);
+  const maxArmor = Math.max(1, boss.armor);
+  return (
+    <div className="space-y-1.5" data-testid="boss-vitals">
+      {/* HP — red, the primary bar */}
+      <div className="flex items-center gap-2">
+        <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
+          <Heart size={11} className="text-red" />HP
+        </div>
+        <div className="relative h-3 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
+          <motion.div
+            className="absolute inset-y-0 left-0 bg-red"
+            initial={{ width: 0 }}
+            animate={{ width: `${(boss.health / maxHealth) * 100}%` }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            data-bar="hp"
+            data-width={(boss.health / maxHealth * 100).toFixed(1)}
+          />
+        </div>
+        <div className="w-20 text-right font-mono text-xs font-black text-red">{boss.health.toLocaleString()}</div>
+      </div>
+      {/* Shield — cyan */}
+      <div className="flex items-center gap-2">
+        <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
+          <Zap size={11} className="text-cyan" />Sh
+        </div>
+        <div className="relative h-2 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
+          <motion.div
+            className="absolute inset-y-0 left-0 bg-cyan"
+            initial={{ width: 0 }}
+            animate={{ width: `${(boss.shield / maxShield) * 100}%` }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            data-bar="shield"
+            data-width={(boss.shield / maxShield * 100).toFixed(1)}
+          />
+        </div>
+        <div className="w-20 text-right font-mono text-[10px] font-black text-cyan">{boss.shield.toLocaleString()}</div>
+      </div>
+      {/* Armor — purple */}
+      <div className="flex items-center gap-2">
+        <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
+          <Shield size={11} className="text-purple" />Ar
+        </div>
+        <div className="relative h-2 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
+          <motion.div
+            className="absolute inset-y-0 left-0 bg-purple"
+            initial={{ width: 0 }}
+            animate={{ width: `${(boss.armor / maxArmor) * 100}%` }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            data-bar="armor"
+            data-width={(boss.armor / maxArmor * 100).toFixed(1)}
+          />
+        </div>
+        <div className="w-20 text-right font-mono text-[10px] font-black text-purple">{boss.armor.toLocaleString()}</div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * BossReadinessCard — the recommended-power delta. Surfaces the gap
+ * between the player's effective DPS and the boss's recommendedPower.
+ * Green = over-geared, red = under-geared, with a percentage delta so
+ * the player can read the gap at a glance. The threshold is 0 (zero
+ * delta = exactly the recommended power). No "is this beatable"
+ * gating here — the win-chance card already does that.
+ */
+const BossReadinessCard: React.FC<{ boss: BossDef; playerPower: number }> = ({ boss, playerPower }) => {
+  const delta = playerPower - boss.recommendedPower;
+  const deltaPct = boss.recommendedPower > 0 ? (delta / boss.recommendedPower) * 100 : 0;
+  const overgeared = delta >= 0;
+  return (
+    <div
+      className={`flex items-center gap-2 border-2 p-1.5 ${overgeared ? 'border-green/40 bg-green/5' : 'border-red/40 bg-red/5'}`}
+      style={slashClip}
+      data-testid="boss-readiness"
+    >
+      <Sparkles size={14} className={overgeared ? 'text-green' : 'text-red'} />
+      <div className="text-[10px] text-text-muted">Your power:</div>
+      <div className="text-xs font-black text-text-primary">{playerPower.toFixed(0).toLocaleString()}</div>
+      <div className="text-[10px] text-text-muted">vs</div>
+      <div className="text-xs font-black text-text-primary">{boss.recommendedPower.toLocaleString()}</div>
+      <div className={`ml-auto text-xs font-black ${overgeared ? 'text-green' : 'text-red'}`} data-delta={deltaPct.toFixed(1)}>
+        {overgeared ? '+' : ''}{deltaPct.toFixed(0)}%
+      </div>
+    </div>
+  );
 };
 
 // Animation tuning constants and the FightTimeline / DamageLog types live
@@ -135,6 +239,14 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const winBand = sim.winChance >= 0.95 ? 'Farmable' : sim.winChance >= 0.75 ? 'Favorable' : sim.winChance >= 0.5 ? 'Risky' : sim.winChance >= 0.25 ? 'Underdog' : sim.winChance >= 0.05 ? 'Desperate' : 'Nearly Impossible';
   const bandColor = sim.winChance >= 0.75 ? 'text-green' : sim.winChance >= 0.5 ? 'text-amber' : sim.winChance >= 0.25 ? 'text-orange-400' : 'text-red';
   const projectedFailure = sim.projectedFailurePhase;
+  // Player power for the recommended-power delta. We use the boss-relative
+  // DPS as the comparison point because it's the same number that the sim
+  // already considers when computing win chance — comparing two different
+  // metrics (effective DPS vs recommended power) is what the user would do
+  // mentally anyway. recommendedPower is on a different scale (abstract
+  // power units) so we surface the comparison as a percentage delta, not
+  // a raw subtraction.
+  const playerPower = sim.effectiveDPS;
 
   const setConsumableForSlot = (slot: ConsumableSlot, type: string | null) => {
     setError(null);
@@ -323,11 +435,13 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         </MobileCard>
 
         <MobileCard className="space-y-2">
-          <div className="flex items-center gap-4 text-xs text-text-secondary">
-            <div className="flex items-center gap-1"><Shield size={14} /> HP {boss.health.toLocaleString()}</div>
-            <div className="flex items-center gap-1"><Zap size={14} /> Shield {boss.shield.toLocaleString()}</div>
-            <div className="flex items-center gap-1"><Crosshair size={14} /> Armor {boss.armor.toLocaleString()}</div>
-          </div>
+          {/* Boss vitals: HP / Shield / Armor as proportional bars. Each bar
+              animates from 0 to its value on first mount (300ms) — the "this
+              is a beefy boss" feeling. The bar max is the boss's own value
+              (1:1 visualization per hud-component-plan.md PR #2 §4.1
+              decision (a)). Idle-game convention: thicker HP bar, thinner
+              shield/armor bars below. */}
+          <BossVitalsBars boss={boss} />
           <div className="flex flex-wrap gap-2">
             {boss.tags.map((tag) => (
               <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-raised border border-border-light text-text-secondary font-bold">
@@ -344,13 +458,23 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           <div className="text-[10px] text-amber">{boss.mechanic.description}</div>
         </MobileCard>
 
+        <BossReadinessCard boss={boss} playerPower={playerPower} />
+
         {!result && !fightTimeline && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <MobileCard className="text-center space-y-1">
-              <div className="text-xs text-text-muted uppercase tracking-wider">Estimated Win Chance</div>
+              <div className="text-xs text-text-muted uppercase tracking-wider">Win Chance</div>
               <div className={`font-mono text-3xl font-black ${bandColor}`}>{(sim.winChance * 100).toFixed(1)}%</div>
               <div className={`text-sm font-bold ${bandColor}`}>{winBand}</div>
               <div className="text-[10px] text-text-muted">Death fee: {sim.deathFee.toLocaleString()}cr</div>
+            </MobileCard>
+            <MobileCard className="text-center space-y-1">
+              <div className="text-xs text-text-muted uppercase tracking-wider">Time to Kill</div>
+              <div className="font-mono text-3xl font-black text-red">
+                {sim.timeToKill >= 999 ? '∞' : `${sim.timeToKill.toFixed(1)}s`}
+              </div>
+              <div className="text-sm font-bold text-text-secondary">@ {sim.effectiveDPS.toFixed(0)} DPS</div>
+              <div className="text-[10px] text-text-muted">vs {boss.health.toLocaleString()} HP</div>
             </MobileCard>
             <MobileCard className="space-y-1">
               <div className="text-xs text-text-muted uppercase tracking-wider">Projected Failure</div>

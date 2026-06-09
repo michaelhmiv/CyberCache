@@ -39,6 +39,19 @@ export interface BossSimulationOutput extends BossPrepAnalysis {
   deathFee: number;
   bonusLootChance: number;
   extraLootRollChance: number;
+  /**
+   * Effective player DPS in damage/second. Already includes per-weapon
+   * chain math, player-level skill bonuses, risk modifier, and the
+   * penalty for dps=0. The HUD uses this to label the TTK card
+   * ("@ 1,234 DPS") and to compute the recommended-power delta.
+   */
+  effectiveDPS: number;
+  /**
+   * Seconds to kill the boss at the current effective DPS. Already
+   * guarded against division by zero — if effective DPS is 0 this
+   * is boss.health (so the value is finite and large, not Infinity).
+   */
+  timeToKill: number;
 }
 
 interface RuleTotals {
@@ -638,6 +651,8 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     deathFee,
     bonusLootChance: rules.bonusLootChance,
     extraLootRollChance: rules.extraLootRollChance,
+    effectiveDPS: dps,
+    timeToKill,
   };
 }
 
