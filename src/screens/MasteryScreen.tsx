@@ -80,6 +80,80 @@ const TrackRow: React.FC<{ track: MasterySummaryRow }> = ({ track }) => {
   );
 };
 
+// Constellation visualization: 6 categories arranged on a circular orbit with
+// their tracks as satellite dots. Each category's node size scales with its
+// total XP so the strongest category visually dominates.
+const ConstellationMap: React.FC<{
+  tracks: MasterySummaryRow[];
+  categories: typeof masteryCategories;
+}> = ({ tracks, categories }) => {
+  const size = 320;
+  const center = size / 2;
+  const orbitRadius = size * 0.36;
+  const categoryData = categories.map((cat) => {
+    const categoryTracks = tracks.filter((t) => t.category === cat.id);
+    const totalXp = categoryTracks.reduce((s, t) => s + toNumber(t.mastery_xp), 0);
+    return { cat, categoryTracks, totalXp };
+  });
+  const maxXp = Math.max(1, ...categoryData.map((c) => c.totalXp));
+
+  return (
+    <div className="bl-card p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-xs font-black uppercase tracking-wide text-text-primary">Constellation</div>
+        <div className="text-[9px] uppercase tracking-widest text-text-muted">size = XP</div>
+      </div>
+      <svg viewBox={`0 0 ${size} ${size}`} className="w-full" style={{ maxHeight: 360 }}>
+        <defs>
+          <radialGradient id="orbit-fill" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FF9000" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#FF9000" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx={center} cy={center} r={orbitRadius} fill="url(#orbit-fill)" stroke="#FF900033" strokeDasharray="4 4" />
+        {categoryData.map(({ cat, categoryTracks, totalXp }, i) => {
+          const angle = (i / categoryData.length) * Math.PI * 2 - Math.PI / 2;
+          const cx = center + Math.cos(angle) * orbitRadius;
+          const cy = center + Math.sin(angle) * orbitRadius;
+          const r = 8 + (totalXp / maxXp) * 16;
+          return (
+            <g key={cat.id}>
+              <circle cx={cx} cy={cy} r={r} fill={cat.color} fillOpacity="0.18" stroke={cat.color} strokeWidth="2" />
+              <text x={cx} y={cy + 4} textAnchor="middle" className="fill-text-primary" style={{ fontSize: 9, fontWeight: 900 }}>
+                {cat.label.slice(0, 4).toUpperCase()}
+              </text>
+              {categoryTracks.slice(0, 4).map((track, ti) => {
+                const ta = angle + (ti - 1.5) * 0.4;
+                const tr = orbitRadius + (ti - 1.5) * 18;
+                const tx = center + Math.cos(ta) * tr;
+                const ty = center + Math.sin(ta) * tr;
+                return <circle key={track.mastery_id} cx={tx} cy={ty} r={2.5} fill={cat.color} fillOpacity={Math.min(1, 0.4 + toNumber(track.mastery_xp) / 1000)} />;
+              })}
+            </g>
+          );
+        })}
+        <text x={center} y={center - 4} textAnchor="middle" className="fill-amber" style={{ fontSize: 10, fontWeight: 900 }}>CYBER</text>
+        <text x={center} y={center + 10} textAnchor="middle" className="fill-amber" style={{ fontSize: 10, fontWeight: 900 }}>CACHE</text>
+      </svg>
+    </div>
+  );
+};
+
+const ASCENSION_TIERS = [
+  { min: 0, label: 'Dormant', tone: '#6B7280' },
+  { min: 1, label: 'Active', tone: '#7CFC00' },
+  { min: 100, label: 'Pulsar', tone: '#5AA7FF' },
+  { min: 1000, label: 'Nova', tone: '#FF9000' },
+] as const;
+
+const ascensionTier = (xp: number) => {
+  let tier = ASCENSION_TIERS[0];
+  for (const t of ASCENSION_TIERS) {
+    if (xp >= t.min) tier = t;
+  }
+  return tier;
+};
+
 export const MasteryScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MasteryTab>('overview');
   const [serverTracks, setServerTracks] = useState<MasterySummaryRow[]>([]);
@@ -118,6 +192,12 @@ export const MasteryScreen: React.FC = () => {
     mergedTracks.set(normalized.mastery_id, normalized);
   });
   const tracks = Array.from(mergedTracks.values());
+  const categoryData = masteryCategories.map((cat) => {
+    const categoryTracks = tracks.filter((track) => track.category === cat.id);
+    const totalXp = categoryTracks.reduce((sum, track) => sum + toNumber(track.mastery_xp), 0);
+    const highestLevel = Math.max(1, ...categoryTracks.map((track) => toNumber(track.mastery_level)));
+    return { cat, categoryTracks, totalXp, highestLevel };
+  });
 
   const masteryScore = tracks.reduce((sum, track) => sum + toNumber(track.mastery_xp), 0) || localScore;
   const rankedTracks = [...tracks].filter((track) => toNumber(track.rank) > 0).sort((a, b) => toNumber(a.rank) - toNumber(b.rank));
@@ -169,34 +249,38 @@ export const MasteryScreen: React.FC = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            {masteryCategories.map((category) => {
-              const Icon = category.icon;
-              const categoryTracks = tracks.filter((track) => track.category === category.id);
-              const totalXp = categoryTracks.reduce((sum, track) => sum + toNumber(track.mastery_xp), 0);
-              const highestLevel = Math.max(1, ...categoryTracks.map((track) => toNumber(track.mastery_level)));
+          <ConstellationMap tracks={tracks} categories={masteryCategories} />
+
+          <div className="grid grid-cols-3 gap-2">
+            {categoryData.map(({ cat, totalXp, highestLevel }) => {
+              const Icon = cat.icon;
+              const tier = ascensionTier(totalXp);
               return (
-                <div key={category.id} className="bl-card p-3" style={{ borderLeftColor: category.color, borderLeftWidth: 5 }}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="bl-icon-plate flex h-9 w-9 items-center justify-center" style={{ backgroundColor: `${category.color}18` }}>
-                      <Icon size={18} style={{ color: category.color }} />
+                <div key={cat.id} className="bl-card p-2" style={{ borderLeftColor: cat.color, borderLeftWidth: 4 }}>
+                  <div className="flex items-center gap-1.5">
+                    <div className="bl-icon-plate flex h-7 w-7 shrink-0 items-center justify-center" style={{ backgroundColor: `${cat.color}18` }}>
+                      <Icon size={12} style={{ color: cat.color }} />
                     </div>
-                    <span className="text-[10px] font-black text-amber">Lv. {highestLevel}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[10px] font-black uppercase tracking-wide text-text-primary">{cat.label}</div>
+                      <div className="text-[8px] text-text-muted">Lv. {highestLevel}</div>
+                    </div>
                   </div>
-                  <div className="mt-2 text-sm font-black uppercase tracking-wide text-text-primary">{category.label}</div>
-                  <div className="text-[10px] leading-snug text-text-muted">{category.desc}</div>
-                  <div className="mt-2 text-[10px] text-text-secondary">{totalXp.toLocaleString()} XP · {categoryTracks.length} tracks</div>
+                  <div className="mt-1 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tier.tone }} />
+                    <span className="text-[8px] font-black uppercase tracking-widest" style={{ color: tier.tone }}>{tier.label}</span>
+                  </div>
                 </div>
               );
             })}
           </div>
 
           <div className="bl-card space-y-2 p-3">
-            <div className="text-xs font-black uppercase tracking-wide text-text-primary">Ranked Tracks</div>
+            <div className="text-xs font-black uppercase tracking-wide text-text-primary">Top Tracks</div>
             <div className="space-y-2">
               {[...tracks]
                 .sort((a, b) => toNumber(b.mastery_xp) - toNumber(a.mastery_xp))
-                .slice(0, 8)
+                .slice(0, 5)
                 .map((track) => <TrackRow key={track.mastery_id} track={track} />)}
             </div>
           </div>
