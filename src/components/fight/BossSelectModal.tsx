@@ -2,9 +2,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { X, CheckCircle, Lock, Skull, Shield, Zap, Crosshair } from 'lucide-react';
 import { useBossStore } from '../../store/slices/bossSlice';
+import { useInventoryStore } from '../../store/slices/inventorySlice';
+import { useLoadoutStore } from '../../store/slices/loadoutSlice';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import { BossDef } from '../../types/boss';
 import { MobileCard } from '../layout/MobileCard';
+import { computeLoadoutDps } from '../../lib/stats/dpsChain';
 
 interface BossSelectModalProps {
   onClose: () => void;
@@ -12,10 +15,30 @@ interface BossSelectModalProps {
 
 export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => {
   const bossStore = useBossStore();
+  const inventory = useInventoryStore();
+  const loadout = useLoadoutStore();
+  // The player's best shot is their highest-combatPower weapon — the same
+  // fallback the Dashboard's "Best Gun" gauge uses. This keeps the
+  // projection honest: "if you walked into this boss with your best
+  // gun, here's the DPS you'd get."
+  const bestWeapon = [...inventory.getWeapons()].sort((a, b) => b.combatPower - a.combatPower)[0]
+    ?? loadout.getWeapon('primary')
+    ?? loadout.getWeapon('secondary')
+    ?? loadout.getWeapon('heavy')
+    ?? null;
 
   const selectBoss = (boss: BossDef) => {
     bossStore.setCurrentBoss(boss.id);
     onClose();
+  };
+
+  // Project the player's best weapon's DPS against each candidate boss. The
+  // label is "vs {boss.name}" so the chip is contextual, not abstract. This
+  // is the same call the diorama uses, so what the player sees here matches
+  // what the diorama will show after they select the target.
+  const projectDpsVs = (boss: BossDef): number => {
+    if (!bestWeapon) return 0;
+    return computeLoadoutDps([bestWeapon], boss.weaknesses, boss.resistances);
   };
 
   return (
@@ -92,10 +115,21 @@ export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => 
                 </div>
 
                 {/* Stats Row */}
-                <div className="flex items-center gap-3 text-[10px] text-text-secondary">
-                  <div className="flex items-center gap-1"><Shield size={10} /> HP {boss.health.toLocaleString()}</div>
-                  {boss.shield > 0 && <div className="flex items-center gap-1"><Zap size={10} /> Shield {boss.shield.toLocaleString()}</div>}
-                  {boss.armor > 0 && <div className="flex items-center gap-1"><Crosshair size={10} /> Armor {boss.armor.toLocaleString()}</div>}
+                <div className="flex items-center justify-between gap-2 text-[10px] text-text-secondary">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1"><Shield size={10} /> HP {boss.health.toLocaleString()}</div>
+                    {boss.shield > 0 && <div className="flex items-center gap-1"><Zap size={10} /> Shield {boss.shield.toLocaleString()}</div>}
+                    {boss.armor > 0 && <div className="flex items-center gap-1"><Crosshair size={10} /> Armor {boss.armor.toLocaleString()}</div>}
+                  </div>
+                  <div
+                    className="border-2 border-border bg-bg/80 px-1.5 py-0.5"
+                    data-testid={`bossselect-dps-${boss.id}`}
+                  >
+                    <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Your best vs {boss.name.split(' ').slice(-1)[0]}</div>
+                    <div className={`text-[11px] font-black ${bestWeapon ? 'text-red' : 'text-text-muted'}`}>
+                      {bestWeapon ? `${Math.round(projectDpsVs(boss)).toLocaleString()} DPS` : 'no weapon'}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Weaknesses / Resistances */}

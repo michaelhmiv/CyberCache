@@ -15,11 +15,11 @@ const toneClass: Record<StatTone, { text: string; rail: string; bg: string }> = 
   muted: { text: 'text-text-muted', rail: 'bg-text-muted', bg: 'bg-surface' },
 };
 
-function MiniMetric({ metric }: { metric: StatMetric }) {
+function MiniMetric({ metric, ...rest }: { metric: StatMetric } & React.HTMLAttributes<HTMLDivElement>) {
   const tone = toneClass[metric.tone];
   const { key } = metric;
   return (
-    <div className="relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-2 py-1.5" style={slashClip}>
+    <div {...rest} className={`relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-2 py-1.5 ${rest.className ?? ''}`} style={slashClip}>
       <div className={`absolute left-0 top-0 h-full w-1 ${tone.rail}`} />
       <div className="flex items-center gap-1.5 pl-0.5">
         {key === 'health' ? <HeartPulse size={12} className={tone.text} /> : key === 'dps' ? <Crosshair size={12} className={tone.text} /> : key === 'boss' ? <Shield size={12} className={tone.text} /> : key === 'rareFind' ? <Sparkles size={12} className={tone.text} /> : <Radar size={12} className={tone.text} />}
@@ -73,7 +73,7 @@ export function CharacterStatBar({ summary }: { summary: CharacterStatSummary })
     <>
       <button type="button" onClick={() => setOpen(true)} className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip}>
         <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted"><span>Hunter Totals</span><span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span></div>
-        <div className="flex gap-1">{summary.headline.map((metric) => <MiniMetric key={metric.key} metric={metric} />)}</div>
+        <div className="flex gap-1">{summary.headline.map((metric) => <MiniMetric key={metric.key} metric={metric} data-testid={`hud-metric-${metric.key}`} />)}</div>
       </button>
       <AnimatePresence>
         {open && (

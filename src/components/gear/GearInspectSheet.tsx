@@ -4,8 +4,9 @@ import { Gem, Lock, PackageSearch, Scroll, Shield, ShoppingCart, Sparkles, Sword
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { RARITIES, rollQualityLabel } from '@/constants/rarities';
 import { calculateSalvageYield } from '@/constants/salvageRules';
-import { useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
-import { computeStandardDps } from '@/lib/stats/dpsChain';
+import { useBossStore, useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
+import { computeLoadoutDps, computeStandardDps } from '@/lib/stats/dpsChain';
+import { REGION_1_BOSSES } from '@/constants/bosses';
 import type { Affix, ClassMod, GearItem, Ordnance, Relic, Shield as ShieldItem, Weapon } from '@/types/items';
 import type { Listing } from '@/types/market';
 
@@ -57,14 +58,36 @@ function Visual({ item, color }: { item: GearItem; color: string }) {
   return <motion.div className="flex h-48 items-center justify-center" animate={{ scale: [1, 1.05, 1], y: [0, -5, 0] }} transition={{ duration: 2.2, repeat: Infinity }}><div className="relative flex h-32 w-32 -rotate-3 items-center justify-center border-[5px] border-black bg-bg shadow-[10px_10px_0_rgba(0,0,0,0.45)]" style={panelClip}><div className="absolute inset-2 border-2" style={{ borderColor: color, clipPath: panelClip.clipPath }} /><motion.div className="absolute inset-5 opacity-20" style={{ backgroundColor: color, clipPath: panelClip.clipPath }} animate={{ opacity: [0.12, 0.28, 0.12] }} transition={{ duration: 1.4, repeat: Infinity }} /><Icon size={52} style={{ color }} /></div></motion.div>;
 }
 
-function statRows(item: GearItem): Array<[string, React.ReactNode, string?, number?]> {
+function statRows(item: GearItem, bossRelativeDps?: number, bossName?: string): Array<[string, React.ReactNode, string?, number?]> {
   if (isWeapon(item)) {
     // DPS goes through the unified modifier chain. The "vs standard target"
     // label is shown next to the number on the UI to make the assumption
     // explicit — the player can see in the boss-prep screen what the value
-    // becomes against a real weakness.
+    // becomes against a real weakness. When a boss is selected, a second
+    // row is appended with the boss-relative DPS so the player can compare
+    // this weapon's contribution to both the standard baseline and the
+    // current hunt target.
     const dps = Math.round(computeStandardDps(item));
-    return [['Combat Power', item.combatPower, 'text-amber', item.combatPower], ['DPS (vs standard)', dps, 'text-red', dps], ['Boss Power', item.bossPower, 'text-amber', item.bossPower], ['Farm Power', item.farmPower, 'text-green', item.farmPower], ['Damage', item.baseDamage], ['Attack Speed', item.attackSpeed.toFixed(2)], ['Crit Chance', pct(item.critChance)], ['Crit Damage', pct(item.critDamage)], ['Status Chance', pct(item.statusChance)], ['Shield Modifier', signedPct(item.shieldDamageMod), 'text-cyan'], ['Armor Modifier', signedPct(item.armorDamageMod), 'text-purple'], ['Offline Modifier', signedPct(item.offlineEarningsMod), 'text-green'], ['Rare Drop', signedPct(item.rareDropChanceMod), 'text-amber'], ['Scrap Yield', signedPct(item.scrapYieldMod), 'text-cyan']];
+    const rows: Array<[string, React.ReactNode, string?, number?]> = [
+      ['Combat Power', item.combatPower, 'text-amber', item.combatPower],
+      ['DPS (vs standard)', dps, 'text-red', dps],
+      ['Boss Power', item.bossPower, 'text-amber', item.bossPower],
+      ['Farm Power', item.farmPower, 'text-green', item.farmPower],
+      ['Damage', item.baseDamage],
+      ['Attack Speed', item.attackSpeed.toFixed(2)],
+      ['Crit Chance', pct(item.critChance)],
+      ['Crit Damage', pct(item.critDamage)],
+      ['Status Chance', pct(item.statusChance)],
+      ['Shield Modifier', signedPct(item.shieldDamageMod), 'text-cyan'],
+      ['Armor Modifier', signedPct(item.armorDamageMod), 'text-purple'],
+      ['Offline Modifier', signedPct(item.offlineEarningsMod), 'text-green'],
+      ['Rare Drop', signedPct(item.rareDropChanceMod), 'text-amber'],
+      ['Scrap Yield', signedPct(item.scrapYieldMod), 'text-cyan'],
+    ];
+    if (bossRelativeDps !== undefined && bossName) {
+      rows.splice(2, 0, [`DPS (vs ${bossName})`, Math.round(bossRelativeDps), 'text-red', bossRelativeDps]);
+    }
+    return rows;
   }
   if (isShield(item)) return [['Shield HP', item.hp, 'text-cyan', item.hp], ['Recharge Rate', `${Math.round(item.rechargeRate)}/s`], ['Mitigation', pct(item.mitigation), 'text-green'], ['Element', item.element]];
   if (isClassMod(item)) return [['Skill Tree', item.treeBonus, 'text-purple'], ['Boosted Nodes', Object.keys(item.nodeBoosts).length], ['Total Node Boost', Object.values(item.nodeBoosts).reduce((s, v) => s + v, 0), 'text-purple'], ['Affixes', item.affixes.length]];
@@ -76,6 +99,7 @@ export function GearInspectSheet({ item, open, onClose, actions, contextLabel = 
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
   const market = useMarketStore();
+  const bossStore = useBossStore();
   const equippedIds = useMemo(() => new Set(Object.values(loadout.slots).filter(Boolean) as string[]), [loadout.slots]);
   const intel = useMemo(() => {
     if (!item) return { active: 0, lowest: null as number | null, median: null as number | null, mine: 0, recent: 0 };
@@ -91,7 +115,15 @@ export function GearInspectSheet({ item, open, onClose, actions, contextLabel = 
   const ownedSimilar = inventory.items.filter((owned) => kindOf(owned) === kindOf(item) && owned.rarity === item.rarity && Math.abs((owned.level ?? 1) - (item.level ?? 1)) <= 5).length;
   const affixes = affixesOf(item);
   const salvage = calculateSalvageYield(item);
-  const rows = statRows(item);
+  // If the player has a boss selected, show a second DPS row on weapons
+  // using the same chain (computeLoadoutDps) the diorama uses. The label
+  // says "vs {boss.name}" so the player knows which target the number
+  // refers to. Falls back to "vs standard" only when no boss is selected.
+  const currentBoss = bossStore.currentBossId ? REGION_1_BOSSES.find((b) => b.id === bossStore.currentBossId) ?? null : null;
+  const bossRelativeDps = isWeapon(item) && currentBoss
+    ? computeLoadoutDps([item], currentBoss.weaknesses, currentBoss.resistances)
+    : undefined;
+  const rows = statRows(item, bossRelativeDps, currentBoss?.name);
   const maxRow = Math.max(1, ...rows.map(([, value]) => typeof value === 'number' ? value : 0));
 
   return <AnimatePresence>{open && <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/85" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}><motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 320 }} className="max-h-[92vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.75)]" style={panelClip} onClick={(event) => event.stopPropagation()}><div className="mb-3 flex justify-center"><div className="h-1.5 w-12 rounded-full bg-border" /></div><div className="relative overflow-hidden border-2 border-border bg-surface p-3" style={panelClip}><div className="absolute -right-10 top-3 h-8 w-36 rotate-12 bg-amber/10" /><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">{contextLabel}</div><div className="truncate bl-title text-3xl leading-none" style={{ color }}>{item.name}</div><div className="mt-1 text-[10px] font-black uppercase tracking-wide text-text-muted">{item.rarity} · Lv.{item.level} · {kindOf(item)} · {item.sourceTag}</div></div><button type="button" onClick={onClose} className="bl-secondary shrink-0 p-2 text-text-muted"><X size={15} /></button></div><div className="mt-3 border-2 border-border bg-bg/80" style={panelClip}><Visual item={item} color={color} /></div><div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5"><StatLine label="Qty" value={`Unique x${Math.max(1, ownedExact)}`} tone="text-amber" width={55} /><StatLine label="Owned" value={ownedSimilar} tone="text-cyan" width={45} /><StatLine label="State" value={equipped ? 'Equipped' : item.isLocked ? 'Locked' : 'Tradeable'} tone={equipped ? 'text-green' : item.isLocked ? 'text-red' : 'text-amber'} width={65} /></div>{isWeapon(item) && <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5"><StatLine label="Roll" value={`${item.rollQuality} ${rollQualityLabel(item.rollQuality)}`} tone="text-amber" width={item.rollQuality} /><StatLine label="Maker" value={item.manufacturer} width={55} /><StatLine label="Element" value={item.element} tone="text-cyan" width={55} /></div>}</div><Tape title="Stat Poster" icon={PackageSearch}><div className="space-y-1.5">{rows.map(([label, value, tone, width]) => <StatLine key={`${label}-${value}`} label={label} value={value} tone={tone} width={width ? width / maxRow * 100 : 38} />)}</div></Tape>{isWeapon(item) && item.parts.length > 0 && <Tape title="Roll Parts" icon={Sword}><div className="space-y-1.5">{item.parts.map((part) => <div key={part.slot} className="border border-border bg-bg/70 p-2" style={slashClip}><div className="text-[10px] font-black text-text-primary">{part.slot}</div><div className="mt-1 text-[9px] text-text-muted">{Object.entries(part.modifier).map(([k, v]) => `${k} ${typeof v === 'number' ? v.toFixed(2) : v}`).join(' · ') || 'Visual part'}</div></div>)}</div></Tape>}{isClassMod(item) && Object.keys(item.nodeBoosts).length > 0 && <Tape title="Skill Node Boosts" icon={Scroll}><div className="space-y-1.5">{Object.entries(item.nodeBoosts).map(([node, boost]) => <StatLine key={node} label={node} value={`+${boost}`} tone="text-purple" width={boost * 18} />)}</div></Tape>}{affixes.length > 0 && <Tape title={`Affixes (${affixes.length})`} icon={Sparkles}><div className="space-y-1.5">{affixes.map((affix) => <div key={affix.id} className="border border-amber/35 bg-amber/10 p-2 text-xs font-bold text-amber" style={slashClip}>{affix.displayText}</div>)}</div></Tape>}{isWeapon(item) && item.legendaryEffectId && <Tape title="Legendary Effect" icon={Sparkles}><div className="text-sm font-black text-amber">{item.legendaryEffectId}</div></Tape>}<Tape title="Market Intelligence" icon={ShoppingCart}><div className="space-y-1.5"><StatLine label="Comparable Supply" value={intel.active} tone="text-amber" width={intel.active * 10} /><StatLine label="Lowest Ask" value={intel.lowest ? `${n(intel.lowest)}cr` : 'None'} tone="text-green" width={60} /><StatLine label="Median Ask" value={intel.median ? `${n(intel.median)}cr` : 'None'} width={50} /><StatLine label="Recent Sales" value={intel.recent} width={intel.recent * 10} /><StatLine label="Mine Listed" value={intel.mine} tone="text-cyan" width={intel.mine * 30} /></div><div className="mt-2 border border-border bg-bg/70 p-2 text-[10px] text-text-muted" style={slashClip}>Comparable supply is same type, rarity, and nearby level. Unique rolled gear is quantity one; stack counts belong to materials, consumables, and fragments.</div></Tape><Tape title="Salvage Forecast" icon={Zap}><div className="space-y-1.5"><StatLine label="Scrap" value={salvage.scrapValue} tone="text-orange" width={salvage.scrapValue} /><StatLine label="Alloy" value={salvage.scrapAlloy} width={salvage.scrapAlloy} /><StatLine label="Parts" value={salvage.ballisticParts} width={salvage.ballisticParts * 15} /><StatLine label="Reactive" value={salvage.reactiveComponents} width={salvage.reactiveComponents * 15} /><StatLine label="Tech" value={salvage.techFragments} width={salvage.techFragments * 15} /><StatLine label="Void" value={salvage.voidDust} width={salvage.voidDust * 20} /></div></Tape>{item.isLocked && <div className="mt-3 flex items-center gap-2 border border-red/30 bg-red/10 p-2 text-xs font-bold text-red" style={slashClip}><Lock size={13} />Locked gear cannot be listed or bulk-scrapped without unlocking.</div>}{actions && <div className="sticky bottom-0 mt-4 border-t-2 border-border bg-bg/95 pt-3 backdrop-blur">{actions}</div>}</motion.div></motion.div>}</AnimatePresence>;
