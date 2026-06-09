@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { User } from '@supabase/supabase-js';
 import * as authService from '../lib/supabase/authService';
 import * as profileService from '../lib/supabase/profileService';
+import { settleActiveActivityRewards } from '../lib/activity/activitySettlement';
 import { syncRuntimeItemsForUser } from '../lib/supabase/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/supabase/verifiedStateSync';
 import {
@@ -74,8 +75,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await useActivityStore.getState().hydrate();
+      await settleActiveActivityRewards({ userId: nextUser.id });
     } catch (error) {
-      console.warn('Active activity hydrate skipped:', error instanceof Error ? error.message : error);
+      console.warn('Active activity hydrate/settlement skipped:', error instanceof Error ? error.message : error);
     }
 
     startRuntimeStorePersistence(nextUser.id);
@@ -88,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
     await syncRuntimeItemsForUser(rawUser.id);
     await useActivityStore.getState().hydrate();
+    await settleActiveActivityRewards({ userId: rawUser.id });
     await saveCurrentRuntimeStores(rawUser.id);
     setAccount(profileService.profileRowToAccountState(profile, rawUser));
     setUser(toAuthSessionUser(rawUser));
