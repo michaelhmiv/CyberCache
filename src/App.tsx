@@ -116,7 +116,14 @@ function App() {
     const screens: Record<string, React.ReactNode> = {
       chest: <ChestScreen />,
       settings: <SettingsScreen />,
-      help: <HelpScreen />,
+      help: (
+        <HelpScreen
+          onTourJump={(tab) => {
+            setActiveTab(tab);
+            setSubScreen(null);
+          }}
+        />
+      ),
       workshop: <WorkshopScreen onNavigate={handleNavigate} />,
     };
     const title = subScreen === 'chest'
