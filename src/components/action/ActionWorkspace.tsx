@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, Clock, PackageSearch, Sparkles } from 'lucide-react';
+import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { getActionWorkspaceSpec } from '@/lib/activity/actionWorkspaceSpecs';
 import { getAnimationBeatsForEvent } from '@/lib/activity/actionAnimationDirector';
 import type { ActivityKind } from '@/types/activity';
@@ -120,35 +121,39 @@ export const ActionFeed: React.FC<{
   title?: string;
   entries: ActionFeedEntry[];
   empty?: string;
-}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet.' }) => (
-  <section className="relative overflow-hidden border-2 border-border bg-surface/95 p-3" style={panelClip}>
-    <div className="mb-3 flex items-center gap-2">
-      <PackageSearch size={16} className="text-amber" />
-      <div>
-        <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">reward stream</div>
-        <div className="text-sm font-black text-text-primary">{title}</div>
+}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet.' }) => {
+  const [selectedGear, setSelectedGear] = useState<GearItem | null>(null);
+  return (
+    <section className="relative overflow-hidden border-2 border-border bg-surface/95 p-3" style={panelClip}>
+      <div className="mb-3 flex items-center gap-2">
+        <PackageSearch size={16} className="text-amber" />
+        <div>
+          <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">reward stream</div>
+          <div className="text-sm font-black text-text-primary">{title}</div>
+        </div>
       </div>
-    </div>
-    <div className="space-y-2">
-      {entries.length === 0 && <div className="border border-border bg-bg/70 p-2 text-xs text-text-muted">{empty}</div>}
-      {entries.map((entry) => {
-        const clickable = !!entry.onInspect || !!entry.gear;
-        const Inner = (
-          <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 border border-border bg-bg/75 p-2 text-left" style={chipClip}>
-            <span className={`mt-1 h-2.5 w-2.5 shrink-0 ${feedDot(entry.tone)}`} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[11px] font-black uppercase tracking-wide text-text-primary">{entry.label}</div>
-              <div className="text-[10px] leading-snug text-text-muted">{entry.detail}</div>
-              {entry.gear && <div className="mt-1 text-[9px] font-black uppercase tracking-wide text-amber">Tap to inspect gear</div>}
-            </div>
-          </motion.div>
-        );
-        if (!clickable) return <div key={entry.id}>{Inner}</div>;
-        return <button key={entry.id} type="button" onClick={entry.onInspect} className="block w-full active:scale-[0.99]">{Inner}</button>;
-      })}
-    </div>
-  </section>
-);
+      <div className="space-y-2">
+        {entries.length === 0 && <div className="border border-border bg-bg/70 p-2 text-xs text-text-muted">{empty}</div>}
+        {entries.map((entry) => {
+          const clickable = !!entry.onInspect || !!entry.gear;
+          const Inner = (
+            <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 border border-border bg-bg/75 p-2 text-left" style={chipClip}>
+              <span className={`mt-1 h-2.5 w-2.5 shrink-0 ${feedDot(entry.tone)}`} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[11px] font-black uppercase tracking-wide text-text-primary">{entry.label}</div>
+                <div className="text-[10px] leading-snug text-text-muted">{entry.detail}</div>
+                {entry.gear && <div className="mt-1 text-[9px] font-black uppercase tracking-wide text-amber">Tap to inspect full stats, animation, value, and market supply</div>}
+              </div>
+            </motion.div>
+          );
+          if (!clickable) return <div key={entry.id}>{Inner}</div>;
+          return <button key={entry.id} type="button" onClick={() => entry.gear ? setSelectedGear(entry.gear) : entry.onInspect?.()} className="block w-full active:scale-[0.99]">{Inner}</button>;
+        })}
+      </div>
+      <GearInspectSheet item={selectedGear} open={!!selectedGear} onClose={() => setSelectedGear(null)} contextLabel="Loot Log Inspect" />
+    </section>
+  );
+};
 
 export const ContextualPickerSheet: React.FC<{
   open: boolean;
