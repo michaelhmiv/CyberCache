@@ -16,6 +16,13 @@ export interface RoamingAreaDef {
   unlockLevel: number;
   idleCreditsPerMinute: number;
   idleScrapPerMinute: number;
+  /**
+   * XP awarded per successful tick in this area. Scales with unlock level
+   * and danger rating so that high-tier areas reward more progression.
+   * Formula in src/content/simulation.ts:areaXpMultiplier.
+   * Mirrored server-side in supabase/migrations/202606080058_idle_xp_per_tick.sql.
+   */
+  idleXpPerTick: number;
   dropPoolRarityWeights: Record<Rarity, number>;
   materialBias: string[];
   essenceBias: string[];
@@ -57,6 +64,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 1,
     idleCreditsPerMinute: 15,
     idleScrapPerMinute: 3,
+    idleXpPerTick: 1.0,
     dropPoolRarityWeights: BASE_RARITY_WEIGHTS,
     materialBias: ['ScrapAlloy', 'BallisticParts'],
     essenceBias: [],
@@ -77,6 +85,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 4,
     idleCreditsPerMinute: 18,
     idleScrapPerMinute: 3,
+    idleXpPerTick: 1.2,
     dropPoolRarityWeights: {
       [Rarity.Common]: 56,
       [Rarity.Uncommon]: 27,
@@ -103,6 +112,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 8,
     idleCreditsPerMinute: 17,
     idleScrapPerMinute: 4,
+    idleXpPerTick: 1.4,
     dropPoolRarityWeights: {
       [Rarity.Common]: 50,
       [Rarity.Uncommon]: 29,
@@ -129,6 +139,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 12,
     idleCreditsPerMinute: 16,
     idleScrapPerMinute: 5,
+    idleXpPerTick: 1.65,
     dropPoolRarityWeights: {
       [Rarity.Common]: 52,
       [Rarity.Uncommon]: 28,
@@ -156,6 +167,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 16,
     idleCreditsPerMinute: 18,
     idleScrapPerMinute: 4,
+    idleXpPerTick: 1.9,
     dropPoolRarityWeights: {
       [Rarity.Common]: 51,
       [Rarity.Uncommon]: 27,
@@ -183,6 +195,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 20,
     idleCreditsPerMinute: 19,
     idleScrapPerMinute: 4,
+    idleXpPerTick: 2.15,
     dropPoolRarityWeights: {
       [Rarity.Common]: 53,
       [Rarity.Uncommon]: 27,
@@ -210,6 +223,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     unlockLevel: 25,
     idleCreditsPerMinute: 21,
     idleScrapPerMinute: 5,
+    idleXpPerTick: 2.4,
     dropPoolRarityWeights: {
       [Rarity.Common]: 48,
       [Rarity.Uncommon]: 29,
