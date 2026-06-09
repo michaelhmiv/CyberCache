@@ -1,6 +1,26 @@
 import React, { useMemo, useState } from 'react';
-import { Box, ChevronDown, ChevronUp, Database, Search, Shield, Sparkles, Star, Sword, TrendingUp, X, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  Box,
+  ChevronDown,
+  ChevronUp,
+  Compass,
+  Database,
+  Gauge,
+  PlayCircle,
+  Search,
+  Shield,
+  Sparkles,
+  Star,
+  Sword,
+  TrendingUp,
+  User,
+  X,
+  Zap,
+} from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
+
+type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 
 interface HelpItem {
   term: string;
@@ -16,7 +36,86 @@ interface HelpSection {
   items: HelpItem[];
 }
 
-// Section content reflects the post-PR-#52-to-#56 reality: single-tick loop,
+interface TourStep {
+  id: string;
+  title: string;
+  body: string;
+  target: { tab: TabId; label: string; icon: React.ElementType };
+  // The on-screen element to spotlight, used by the tour overlay when active.
+  spotlight: string;
+  cta: string;
+}
+
+// One guided step per major gameplay phase. Each step names a real tab and
+// describes what the player should be looking at, so the manual is a real tour
+// rather than a static reference card.
+const TOUR_STEPS: TourStep[] = [
+  {
+    id: 'pick-turf',
+    title: '1. Pick a turf',
+    body:
+      'Open the Board. The Choose Turf strip lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Start with Dustwaste Frontier at Level 1; the system gates higher areas behind your Hunter level.',
+    target: { tab: 'dashboard', label: 'Board', icon: Gauge },
+    spotlight: 'Choose Turf strip',
+    cta: 'Go to Board',
+  },
+  {
+    id: 'start-roam',
+    title: '2. Start a roam',
+    body:
+      'Tap a turf, then Action. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses and Mini-bosses are triggered by the Boss prep button on the Board, not by Action — Action is the passive roaming loop.',
+    target: { tab: 'fight', label: 'Action', icon: PlayCircle },
+    spotlight: 'Roaming activity card',
+    cta: 'Open Action',
+  },
+  {
+    id: 'inspect-loot',
+    title: '3. Inspect loot',
+    body:
+      'Open Gear and tap any item card to bring up the inspect sheet. The "vs standard target" DPS at the top is your baseline. The Matchup Chip at the bottom shows effective DPS against the boss you are prepping, factoring in element, manufacturer, and legendary effects.',
+    target: { tab: 'inventory', label: 'Gear', icon: Box },
+    spotlight: 'Gear grid',
+    cta: 'Open Gear',
+  },
+  {
+    id: 'build-loadout',
+    title: '4. Build a loadout',
+    body:
+      'Boss damage is computed from the seven equipped slots, not the full backpack. Equip your best weapon, shield, class mod, and relic before any boss attempt. Class Mods unlock Skill Tree keystones; Relics grant affixes. Both stack with weapon affixes in the DPS chain.',
+    target: { tab: 'inventory', label: 'Gear', icon: Shield },
+    spotlight: 'Loadout panel',
+    cta: 'Open Gear',
+  },
+  {
+    id: 'check-identity',
+    title: '5. Read your Build Identity',
+    body:
+      'The Hunter tab shows your Build Identity — the weapon type you actually rack kills with, pulled from combat stats. It is not based on what you own. If it shows "No data yet", patrol a turf for a few minutes; the system needs a stable winner in killsByWeaponType.',
+    target: { tab: 'profile', label: 'Hunter', icon: User },
+    spotlight: 'Build Identity card',
+    cta: 'Open Hunter',
+  },
+  {
+    id: 'sell-buy',
+    title: '6. Trade at the Market',
+    body:
+      'Sell duplicates for credits, and use the Vendor to roll for gear you can afford. Locked items never get sold or salvaged. The Market uses server-minted credits only, so a successful sale reflects in your balance on the next 3s tick.',
+    target: { tab: 'market', label: 'Market', icon: TrendingUp },
+    spotlight: 'Market tabs',
+    cta: 'Open Market',
+  },
+  {
+    id: 'mastery-constellation',
+    title: '7. Track Mastery',
+    body:
+      'The Mastery screen (Field Manual → Mastery) renders six orbits — Combat, Weapons, Inventory, Locations, Economy, Services. Each satellite dot is a track. The constellation is server-tracked; the local fallback only fires when the server is unreachable.',
+    target: { tab: 'profile', label: 'Hunter', icon: Sparkles },
+    spotlight: 'Mastery constellation',
+    cta: 'Open Mastery',
+  },
+];
+
+// Section content reflects the post-PR-#52-to-#58 reality: single-tick loop,
 // per-area XP multiplier, new curve, server-minted fragments, build identity
 // from kill stats. The old "auto-salvage clutter" copy is gone.
 const SECTIONS: HelpSection[] = [
@@ -28,7 +127,7 @@ const SECTIONS: HelpSection[] = [
     color: '#F59E0B',
     items: [
       { term: 'Pick a turf', body: 'The Dashboard\'s Choose Turf strip shows the seven roaming areas. Each one scales: later areas drop better loot and award more XP per tick.' },
-      { term: 'Tap a turf, then Fight', body: 'Selecting an area and hitting Fight starts a roaming_loot activity. While it\'s active, the single 3-second tick awards credits, scrap, XP, and the occasional gear drop.' },
+      { term: 'Tap a turf, then Action', body: 'Selecting an area and hitting Action starts a roaming_loot activity. While it\'s active, the single 3-second tick awards credits, scrap, XP, and the occasional gear drop.' },
       { term: 'Equip before you push bosses', body: 'The boss simulator uses your equipped loadout (7 slots), not your full backpack. Open Loadout and slot your best weapon, shield, class mod, and relic before any boss attempt.' },
     ],
   },
@@ -43,6 +142,7 @@ const SECTIONS: HelpSection[] = [
       { term: 'DPS modifier chain', body: 'A weapon\'s effective DPS is raw damage × signature × manufacturer × affixes × legendary effect × element matchup × boss resistance. The gear inspector shows "vs standard target"; the dashboard chip shows the dynamic DPS against the selected boss.' },
       { term: 'Lock before salvage', body: 'Use the lock badge on any gear card to protect it from auto-salvage. Locked items survive cleanup passes and are excluded from the vendor list.' },
       { term: 'Server-minted drops', body: 'Credits, scrap, XP, fragments, materials, and essences are all server-minted. Your client rolls gear drops for immediate visual feedback, and the server reconciles economy stats every 3s.' },
+      { term: 'Per-area XP', body: 'Each area has its own idle XP multiplier (1.0 → 2.4). The Board shows the multiplier on the area card; high-danger areas reward more XP per tick, not just better loot.' },
     ],
   },
   {
@@ -53,7 +153,7 @@ const SECTIONS: HelpSection[] = [
     color: '#3B82F6',
     items: [
       { term: 'Slots', body: 'Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic. Equipping is gated by item kind and unlock level.' },
-      { term: 'Build identity', body: 'Your Profile\'s "Build Identity" is the weapon type you actually rack kills with, pulled from combat stats. It\'s not based on what you own — it reflects what you *use*.' },
+      { term: 'Build identity', body: 'Your Hunter tab\'s "Build Identity" is the weapon type you actually rack kills with, pulled from combat stats. It\'s not based on what you own — it reflects what you *use*.' },
       { term: 'Class Mods & Relics', body: 'These are build identity pieces, not filler stats. Class Mods grant skill-tree nodes; Relics grant affixes. Both stack with weapon affixes for the DPS chain.' },
     ],
   },
@@ -89,7 +189,7 @@ const SECTIONS: HelpSection[] = [
     color: '#06B6D4',
     items: [
       { term: 'Three trees', body: 'Gunslinger boosts weapons; Demolition boosts ordnance; Scavenger boosts materials and salvage yield. Each tree is gated by level and class mod.' },
-      { term: 'Spend points', body: 'One skill point per level starting at level 2. Unspent points are visible on the Profile and Dashboard HUDs.' },
+      { term: 'Spend points', body: 'One skill point per level starting at level 2. Unspent points are visible on the Hunter and Board HUDs.' },
       { term: 'Nodes & keystones', body: 'Small nodes feed majors; majors unlock keystones. Keystones are build-defining (e.g. "free reload on kill") and are why loadout matters.' },
     ],
   },
@@ -119,6 +219,12 @@ const SECTIONS: HelpSection[] = [
     ],
   },
 ];
+
+interface HelpScreenProps {
+  // Optional callback for the guided tour's "Go to ..." buttons. If the host
+  // app (App.tsx) wires this up, the tour can switch tabs for the player.
+  onTourJump?: (tab: TabId) => void;
+}
 
 const SectionCard: React.FC<{ section: HelpSection; open: boolean; onToggle: () => void; query: string }> = ({ section, open, onToggle, query }) => {
   const Icon = section.icon;
@@ -158,13 +264,78 @@ const SectionCard: React.FC<{ section: HelpSection; open: boolean; onToggle: () 
   );
 };
 
-export const HelpScreen: React.FC = () => {
+const TourStepCard: React.FC<{
+  step: TourStep;
+  index: number;
+  total: number;
+  isCurrent: boolean;
+  onJump: (tab: TabId) => void;
+}> = ({ step, index, isCurrent, onJump }) => {
+  const Icon = step.target.icon;
+  return (
+    <div
+      className={`relative border-2 p-3 transition-all ${
+        isCurrent ? 'border-amber bg-amber/10' : 'border-border bg-surface/40'
+      }`}
+      style={{ clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' }}
+    >
+      <div className="flex items-start gap-2">
+        <div className={`bl-icon-plate flex h-7 w-7 shrink-0 items-center justify-center ${isCurrent ? 'bg-amber text-bg' : 'bg-bg text-amber'}`}>
+          <span className="text-[10px] font-black">{index + 1}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[12px] font-black uppercase tracking-wide text-text-primary">{step.title}</div>
+          <div className="mt-1 text-[11px] leading-snug text-text-secondary">{step.body}</div>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex items-center gap-1 border border-border bg-bg/70 px-1.5 py-0.5">
+              <Icon size={10} className="text-amber" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-text-secondary">{step.target.label}</span>
+            </div>
+            <span className="text-[9px] text-text-muted">·</span>
+            <span className="text-[9px] uppercase tracking-wide text-text-muted">{step.spotlight}</span>
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onJump(step.target.tab)}
+        className="mt-2 flex w-full items-center justify-center gap-1.5 border-2 border-border bg-bg py-1.5 text-[10px] font-black uppercase tracking-widest text-amber transition-transform active:scale-[0.97]"
+        style={{ clipPath: 'polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)' }}
+      >
+        {step.cta}
+        <ArrowRight size={11} />
+      </button>
+    </div>
+  );
+};
+
+export const HelpScreen: React.FC<HelpScreenProps> = ({ onTourJump }) => {
   const [openId, setOpenId] = useState<string | null>('start');
   const [query, setQuery] = useState('');
+  const [tourStep, setTourStep] = useState<number>(0);
+  const [tourOpen, setTourOpen] = useState<boolean>(true);
 
   // When searching, auto-open every section that has a hit so the user
   // doesn't have to click through each one.
   const effectiveOpenId = useMemo(() => (query.trim().length > 0 ? '__all__' : openId), [query, openId]);
+
+  const handleTourJump = (tab: TabId) => {
+    if (onTourJump) {
+      onTourJump(tab);
+    } else {
+      // Fallback: surface a clear hint if the host hasn't wired onTourJump.
+      // We don't try to fake a tab switch because the BottomNav state lives
+      // in App.tsx and the screens are mounted by tab.
+      console.warn('[HelpScreen] onTourJump not wired; cannot switch to', tab);
+    }
+    // Advance the cursor so the player sees progress when they return.
+    setTourStep((prev) => Math.min(prev + 1, TOUR_STEPS.length - 1));
+  };
+
+  const resetTour = () => {
+    setTourStep(0);
+    setTourOpen(true);
+  };
 
   return (
     <div className="bl-page space-y-4 p-4 pb-20">
@@ -177,6 +348,64 @@ export const HelpScreen: React.FC = () => {
           <Database size={22} />
         </div>
       </div>
+
+      <MobileCard rarityColor="#FF4B5C">
+        <button
+          type="button"
+          onClick={() => setTourOpen((o) => !o)}
+          className="flex w-full items-center gap-2 text-left transition-transform active:scale-[0.98]"
+        >
+          <div className="bl-icon-plate flex h-9 w-9 shrink-0 items-center justify-center bg-[#FF4B5C]/15">
+            <Compass size={16} className="text-[#FF4B5C]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-black uppercase tracking-wide text-text-primary">Guided Tour</div>
+            <div className="text-[9px] uppercase tracking-[0.16em] text-text-muted">
+              Step {tourStep + 1} of {TOUR_STEPS.length} — {TOUR_STEPS[tourStep].title.replace(/^\d+\.\s*/, '')}
+            </div>
+          </div>
+          <div className="text-[9px] font-black uppercase tracking-widest text-text-muted">
+            {Math.round(((tourStep + 1) / TOUR_STEPS.length) * 100)}%
+          </div>
+          {tourOpen ? <ChevronUp size={16} className="text-text-muted" /> : <ChevronDown size={16} className="text-text-muted" />}
+        </button>
+        {tourOpen && (
+          <div className="mt-2 space-y-2 border-t-2 border-border pt-2">
+            <TourStepCard
+              step={TOUR_STEPS[tourStep]}
+              index={tourStep}
+              total={TOUR_STEPS.length}
+              isCurrent
+              onJump={handleTourJump}
+            />
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setTourStep((s) => Math.max(0, s - 1))}
+                disabled={tourStep === 0}
+                className="border-2 border-border bg-bg px-2 py-1 text-[10px] font-black uppercase tracking-widest text-text-secondary transition-transform active:scale-[0.97] disabled:opacity-30"
+              >
+                ← Back
+              </button>
+              <button
+                type="button"
+                onClick={resetTour}
+                className="border-2 border-border bg-bg px-2 py-1 text-[10px] font-black uppercase tracking-widest text-text-muted transition-transform active:scale-[0.97]"
+              >
+                Restart
+              </button>
+              <button
+                type="button"
+                onClick={() => setTourStep((s) => Math.min(TOUR_STEPS.length - 1, s + 1))}
+                disabled={tourStep === TOUR_STEPS.length - 1}
+                className="border-2 border-amber bg-amber/20 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-amber transition-transform active:scale-[0.97] disabled:opacity-30"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+      </MobileCard>
 
       <div className="relative">
         <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" />
