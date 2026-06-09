@@ -598,7 +598,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         playerLevel={player.level}
         equippedCount={equippedCount}
         cacheKeys={player.cacheKeys}
-        feedEvents={visualFeed}
         activityKind={currentKind}
         activityLabel={detail.title}
         activityTarget={targetLabel}

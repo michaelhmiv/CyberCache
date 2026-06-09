@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
@@ -22,6 +22,7 @@ import {
   useLoadoutStore,
   usePlayerStore,
   useSkillStore,
+  useTickFeedStore,
   useWorkshopStore,
 } from '@/store';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -35,23 +36,13 @@ interface DashboardScreenProps {
 }
 
 type Tone = 'amber' | 'green' | 'blue' | 'red' | 'purple' | 'cyan';
-type GainTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level';
+type GainTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level' | 'kill' | 'material' | 'essence' | 'fragment';
 
 type GainEvent = {
   id: string;
   label: string;
   detail: string;
   tone: GainTone;
-};
-
-type Snapshot = {
-  level: number;
-  xp: number;
-  credits: number;
-  scrap: number;
-  cacheKeys: number;
-  cacheKeyFragments: number;
-  itemCount: number;
 };
 
 const TICK_SECONDS = 3;
@@ -82,6 +73,10 @@ const gainToneClass: Record<GainTone, { text: string; bg: string; border: string
   cash: { text: 'text-cyan', bg: 'bg-cyan/10', border: 'border-cyan/70', fill: 'bg-cyan' },
   cache: { text: 'text-blue-300', bg: 'bg-blue-500/10', border: 'border-blue-400/70', fill: 'bg-blue-400' },
   level: { text: 'text-red', bg: 'bg-red/10', border: 'border-red/70', fill: 'bg-red' },
+  kill: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
+  material: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
+  essence: { text: 'text-purple', bg: 'bg-purple/10', border: 'border-purple/70', fill: 'bg-purple' },
+  fragment: { text: 'text-blue-300', bg: 'bg-blue-500/10', border: 'border-blue-400/70', fill: 'bg-blue-400' },
 };
 
 const idleGainHint: GainEvent = {
@@ -96,23 +91,7 @@ const compact = (value: number) => new Intl.NumberFormat('en', {
   maximumFractionDigits: 1,
 }).format(value);
 
-const makeGain = (label: string, detail: string, tone: GainTone): GainEvent => ({
-  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-  label,
-  detail,
-  tone,
-});
-
 const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
-
-const getXpDelta = (previous: Snapshot, current: Snapshot) => {
-  if (current.level < previous.level) return 0;
-  if (current.level === previous.level) return current.xp - previous.xp;
-
-  let delta = previous.level * 100 - previous.xp;
-  for (let level = previous.level + 1; level < current.level; level += 1) delta += level * 100;
-  return delta + current.xp;
-};
 
 const Panel: React.FC<React.PropsWithChildren<{ label?: string; className?: string }>> = ({ label, className = '', children }) => (
   <section className={`relative overflow-hidden border-2 border-border bg-surface/95 p-2 shadow-[0_8px_18px_rgba(0,0,0,0.55)] ${className}`} style={panelClip}>
@@ -197,51 +176,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const workshop = useWorkshopStore();
   const idle = useIdleStore();
   const activity = useActivityStore();
-  const [gainFeed, setGainFeed] = useState<GainEvent[]>([]);
+  // Gain feed is now a read of the single-source-of-truth tick event log.
+  // The Numbers Up panel mirrors the diorama's animation feed; no Zustand
+  // diff subscription is needed.
+  const gainFeed = useTickFeedStore((state) => state.events.slice(0, 5) as GainEvent[]);
   const [activityError, setActivityError] = useState<string | null>(null);
-
-  // Gain tracking via Zustand subscribe (outside React render cycle)
-  useEffect(() => {
-    const getSnapshot = (): Snapshot => ({
-      level: usePlayerStore.getState().level,
-      xp: usePlayerStore.getState().xp,
-      credits: usePlayerStore.getState().credits,
-      scrap: usePlayerStore.getState().scrap,
-      cacheKeys: usePlayerStore.getState().cacheKeys,
-      cacheKeyFragments: usePlayerStore.getState().cacheKeyFragments,
-      itemCount: useInventoryStore.getState().items.length,
-    });
-
-    let previous = getSnapshot();
-
-    const check = () => {
-      const snapshot = getSnapshot();
-      const events: GainEvent[] = [];
-      const xpGain = getXpDelta(previous, snapshot);
-      const creditsGain = snapshot.credits - previous.credits;
-      const scrapGain = snapshot.scrap - previous.scrap;
-      const keyGain = snapshot.cacheKeys - previous.cacheKeys;
-      const fragmentGain = snapshot.cacheKeyFragments - previous.cacheKeyFragments;
-      const lootGain = snapshot.itemCount - previous.itemCount;
-      if (snapshot.level > previous.level) events.push(makeGain(`LV ${snapshot.level}`, 'level', 'level'));
-      if (xpGain > 0) events.push(makeGain(`+${compact(xpGain)}`, 'XP', 'xp'));
-      if (lootGain > 0) events.push(makeGain(`+${lootGain}`, 'gear', 'loot'));
-      if (creditsGain > 0) events.push(makeGain(`+${compact(creditsGain)}`, 'credits', 'cash'));
-      if (scrapGain > 0) events.push(makeGain(`+${compact(scrapGain)}`, 'scrap', 'cash'));
-      if (keyGain > 0) events.push(makeGain(`+${keyGain}`, 'keys', 'cache'));
-      if (fragmentGain > 0) events.push(makeGain(`+${fragmentGain}`, 'frags', 'cache'));
-      previous = snapshot;
-      if (!events.length) return;
-      const eventIds = events.map((event) => event.id);
-      setGainFeed((current) => [...events, ...current].slice(0, 5));
-      setTimeout(() => setGainFeed((current) => current.filter((event) => !eventIds.includes(event.id))), 1050);
-    };
-
-    const unsub1 = usePlayerStore.subscribe(check);
-    const unsub2 = useInventoryStore.subscribe(check);
-
-    return () => { unsub1(); unsub2(); };
-  }, []);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
@@ -310,7 +249,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         <div className="flex gap-1.5 overflow-x-auto pb-0.5"><HudChip label="Cash" value={compact(player.credits)} detail="credits" tone="cyan" /><HudChip label="Scrap" value={compact(player.scrap)} detail="bench" tone="amber" /><HudChip label="Keys" value={player.cacheKeys} detail={`${player.cacheKeyFragments}/5 frags`} tone="green" /><HudChip label="Loot" value={inventory.items.length} detail={`${equippedCount}/7 equip`} tone="red" /></div>
         <Panel label="Current Activity"><div className="flex items-start gap-2"><div className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border ${selectedRoamingActive ? 'bg-green/10' : 'bg-amber/10'}`}><Activity size={18} className={selectedRoamingActive ? 'text-green' : 'text-amber'} /></div><div className="min-w-0 flex-1"><div className="text-xs font-black uppercase tracking-wide text-text-primary">{activityLabel}</div><div className="text-[9px] text-text-muted">Target: {activityTarget}</div><div className="text-[9px] text-text-muted">Scene: {activityScene}</div>{activityError && <div className="mt-1 text-[9px] font-bold text-red">{activityError}</div>}</div><div className="text-right text-[9px] font-black text-amber">{activity.pending ? 'SYNC' : selectedRoamingActive ? 'LIVE' : 'GATED'}</div></div></Panel>
         <Panel label="Level Strip"><div className="flex items-center gap-2"><div className="relative flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-4 border-border bg-amber/15 shadow-[5px_5px_0_rgba(0,0,0,0.75)]"><div className="absolute inset-1 border border-amber/40" /><div className="text-center"><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Level</div><div className="text-3xl font-black leading-none text-amber">{player.level}</div></div></div><div className="min-w-0 flex-1"><div className="flex items-end justify-between gap-2"><div><div className="text-sm font-black uppercase tracking-wide text-text-primary">XP Chalk Mark</div><div className="text-[9px] text-text-muted">{player.xp.toLocaleString()} / {xpToNextLevel.toLocaleString()} XP · {xpRemaining.toLocaleString()} left</div></div><div className={`text-right text-[9px] font-black ${selectedRoamingActive ? 'text-green' : 'text-text-muted'}`}>{productiveTickLabel}</div></div><div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}><motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} /><div className="absolute inset-0 grid grid-cols-5">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}</div></div><div className="mt-1 flex items-center justify-between gap-2 text-[8px] uppercase tracking-wide text-text-muted"><span>{selectedRoamingActive ? `${TICK_SECONDS}.00s tick` : 'activity required'}</span><span>{FIELD_FIND_CHANCE}% loot</span><span>{CACHE_FRAGMENT_CHANCE}% frag</span></div></div></div></Panel>
-        <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} feedEvents={gainFeed} activityKind={activity.current.kind} activityLabel={activityLabel} activityTarget={activityTarget} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
+        <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} activityLabel={activityLabel} activityTarget={activityTarget} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
         <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
         <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={selectedArea.dangerRating} icon={Map} tone="amber" /><InfoGauge label="Mastery" value={masteryScore.toLocaleString()} detail={`${availableSkillPoints} unspent points`} icon={Trophy} tone="purple" /><InfoGauge label="Best Gun" value={bestWeapon?.name ?? 'None'} detail={bestWeapon ? `${bestWeapon.combatPower} combat power` : 'Find gear in combat'} icon={Sparkles} tone="red" /><InfoGauge label="Workshop" value={openWorkshopJobs} detail="passive queues" icon={Hammer} tone="green" /></div>{nextArea && <div className="mt-2 flex items-center gap-2 border-2 border-border bg-bg/75 p-1.5" style={panelClip}><div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-surface-raised"><Lock size={14} className="text-text-muted" /></div><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-wide text-text-muted">Next turf unlock</div><div className="truncate text-xs font-black text-text-primary">{nextArea.name}</div></div><div className="text-right text-[9px] font-black text-amber">Reach LV {nextArea.unlockLevel}</div></div>}</Panel>
         <Panel label="Numbers Up"><div className="grid grid-cols-2 gap-1.5">{(gainFeed.length ? gainFeed : [idleGainHint]).slice(0, 4).map((event) => { const color = gainToneClass[event.tone]; return <div key={event.id} className="flex items-center gap-1.5 border-2 border-border bg-bg/75 p-1.5" style={signClip}><span className={`h-2 w-2 rounded-full ${color.fill}`} /><div className="min-w-0 flex-1"><div className={`truncate text-[9px] font-black uppercase tracking-wide ${color.text}`}>{event.label}</div><div className="truncate text-[8px] text-text-muted">{event.detail}</div></div><Activity size={11} className="text-text-muted" /></div>; })}</div></Panel>
