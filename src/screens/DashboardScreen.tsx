@@ -31,6 +31,7 @@ import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
+import { resolveSceneLabel } from '@/lib/dashboard/sceneLabel';
 
 interface DashboardScreenProps {
   onNavigate: (screen: string) => void;
@@ -210,7 +211,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const activePayload = activity.current.publicPayload;
   const activityLabel = safeText(activePayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
   const activityTarget = activity.current.targetLabel ?? safeText(activePayload.target_label) ?? 'No target';
-  const activityScene = activity.current.sceneKey ?? safeText(activePayload.scene_key) ?? 'standby';
+  const activityScene = resolveSceneLabel(activity.current.sceneKey, safeText(activePayload.scene_key));
   const selectedRoamingActive = activity.current.kind === 'roaming_loot' && activity.current.targetType === 'roaming_area' && activity.current.targetId === selectedArea.id;
   const productiveTickLabel = selectedRoamingActive ? `+${selectedArea.idleXpPerTick}/tick` : 'gated';
   const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : `start ${selectedArea.name}`;
