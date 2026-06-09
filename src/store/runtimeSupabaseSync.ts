@@ -186,8 +186,8 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
         xp: typeof player.xp === 'number' ? player.xp : currentPlayer.xp,
         credits: typeof player.credits === 'number' ? player.credits : currentPlayer.credits,
         scrap: typeof player.scrap === 'number' ? player.scrap : currentPlayer.scrap,
-        cacheKeys: typeof player.cacheKeys === 'number' ? player.cacheKeys : currentPlayer.cacheKeys,
-        cacheKeyFragments: typeof player.cacheKeyFragments === 'number' ? player.cacheKeyFragments : currentPlayer.cacheKeyFragments,
+        // Cache keys/fragments are checked by cc_make_item against profiles.cache_tokens.
+        // Do not restore snapshot values here or the UI can show phantom keys that the server rejects.
         lastClaimTime: typeof player.lastClaimTime === 'number' ? player.lastClaimTime : currentPlayer.lastClaimTime,
         consumables: player.consumables && typeof player.consumables === 'object' && !Array.isArray(player.consumables)
           ? player.consumables as Record<string, number>
