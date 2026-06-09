@@ -144,7 +144,9 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
       settledThrough,
     };
 
-    window.dispatchEvent(new CustomEvent('cybercache:activity-settled', { detail: result }));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cybercache:activity-settled', { detail: result }));
+    }
     if (options.saveSnapshot !== false) await saveCurrentRuntimeStores(options.userId ?? undefined);
     return result;
   } finally {
