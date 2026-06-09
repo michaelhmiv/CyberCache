@@ -34,6 +34,14 @@ import {
 import { BossPrepModal } from '@/components/fight/BossPrepModal';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { MobileCard } from '@/components/layout/MobileCard';
+import {
+  ActionFeed,
+  ActiveActionHeader,
+  ContextualPickerSheet,
+  RewardIntelPanel,
+  type ActionFeedEntry,
+  type ActionStat,
+} from '@/components/action/ActionWorkspace';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import {
@@ -47,6 +55,7 @@ import {
 } from '@/constants/roamingAreas';
 import { calculateSalvageYield } from '@/constants/salvageRules';
 import {
+  buildBossFightActivity,
   buildBossPrepActivity,
   buildCraftingActivity,
   buildRoamingLootActivity,
@@ -54,13 +63,15 @@ import {
 } from '@/lib/activity/activityBuilders';
 import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
 import { makeRunEvent, sortRunEventsByVisualPriority, type RunVisualEvent } from '@/lib/run/runEvents';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/supabase/serverItemAdapter';
 import type { ActivityKind, StartActivityInput } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
 import { Rarity } from '@/types/game';
 
 const TICK_SECONDS = 3;
-const LOG_LIMIT = 8;
+const LOG_LIMIT = 10;
 const DROP_CHANCE_PER_TICK = 0.22;
 const CACHE_FRAGMENT_CHANCE_PER_TICK = 0.03;
 const MATERIAL_FIND_CHANCE_PER_TICK = 0.08;
@@ -70,8 +81,8 @@ const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc
 const smallClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 
 const copy: Record<ActivityKind, { title: string; detail: string }> = {
-  none: { title: 'No Action', detail: 'Choose what the runner should do next.' },
-  idle_standby: { title: 'Standby', detail: 'Runner is visible but not producing rewards.' },
+  none: { title: 'No Action', detail: 'Choose what the hunter should do next.' },
+  idle_standby: { title: 'Standby', detail: 'Hunter is visible but not producing rewards.' },
   roaming_loot: { title: 'Roaming Loot', detail: 'Sweeping turf for XP, credits, scrap, gear, materials, and cache fragments.' },
   boss_prep: { title: 'Boss Prep', detail: 'Checking weaknesses, counters, and loadout readiness before a discrete encounter.' },
   boss_fight: { title: 'Boss Encounter', detail: 'Resolving a focused boss encounter instead of the roaming loop.' },
@@ -84,7 +95,7 @@ const copy: Record<ActivityKind, { title: string; detail: string }> = {
 const idleEvent: RunVisualEvent = {
   id: 'idle-loop-ready',
   label: 'ACTION READY',
-  detail: 'Choose a runner action. The workspace below changes to the current action.',
+  detail: 'Choose a hunter action. The workspace below changes to the current action.',
   tone: 'patrol',
   eventType: 'idle',
 };
@@ -104,29 +115,7 @@ const formatDuration = (ms: number) => {
   return `${Math.max(1, Math.ceil(ms / 1000))}s`;
 };
 
-const StatChip: React.FC<{ label: string; value: string | number; accent?: string }> = ({ label, value, accent = 'text-amber' }) => (
-  <div className="border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
-    <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{label}</div>
-    <div className={`truncate text-xs font-black ${accent}`}>{value}</div>
-  </div>
-);
-
-const Meter: React.FC<{ label: string; value: number; max?: number; detail?: string }> = ({ label, value, max = 100, detail }) => {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100));
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between gap-2 text-[9px] font-black uppercase tracking-wide text-text-muted">
-        <span>{label}</span>
-        <span>{detail ?? `${Math.round(pct)}%`}</span>
-      </div>
-      <div className="h-2 overflow-hidden border border-border bg-bg">
-        <motion.div className="h-full bg-amber" animate={{ width: `${pct}%` }} transition={{ duration: 0.35 }} />
-      </div>
-    </div>
-  );
-};
-
-const Section: React.FC<{ title: string; eyebrow?: string; children: React.ReactNode; icon?: React.ElementType }> = ({ title, eyebrow, children, icon: Icon }) => (
+const Section: React.FC<{ title: string; eyebrow?: string; children: React.ReactNode; icon?: React.ElementType; action?: React.ReactNode }> = ({ title, eyebrow, children, icon: Icon, action }) => (
   <MobileCard className="relative overflow-hidden space-y-3 border-border/90 bg-surface/95">
     <div className="absolute -right-8 -top-8 h-24 w-24 rotate-12 border-[14px] border-amber/5" />
     <div className="relative flex items-start justify-between gap-3">
@@ -137,38 +126,11 @@ const Section: React.FC<{ title: string; eyebrow?: string; children: React.React
           {title}
         </div>
       </div>
+      {action}
     </div>
     <div className="relative">{children}</div>
   </MobileCard>
 );
-
-const FeedCard: React.FC<{ event: RunVisualEvent }> = ({ event }) => {
-  const dot = event.tone === 'loot' ? 'bg-amber' : event.tone === 'cache' ? 'bg-blue-400' : event.tone === 'cash' ? 'bg-cyan' : event.tone === 'level' ? 'bg-red' : event.tone === 'xp' ? 'bg-green' : 'bg-text-muted';
-  return (
-    <div className="flex items-start gap-2 border border-border bg-surface-raised p-2" style={smallClip}>
-      <span className={`mt-1 h-2.5 w-2.5 shrink-0 ${dot}`} />
-      <div className="min-w-0">
-        <div className="truncate text-[11px] font-black uppercase tracking-wide text-text-primary">{event.label}</div>
-        <div className="text-[10px] leading-snug text-text-muted">{event.detail}</div>
-      </div>
-    </div>
-  );
-};
-
-type CommonPanelProps = {
-  playerLevel: number;
-  currentKind: ActivityKind;
-  selectedArea: RoamingAreaDef;
-  setSelectedArea: (id: string) => void;
-  startRoam: (area?: RoamingAreaDef) => void;
-  startPrep: (boss?: BossDef) => void;
-  openBoss: () => void;
-  startCrafting: () => void;
-  startSalvage: (item?: GearItem) => void;
-  startWorkshop: () => void;
-  startMarket: () => void;
-  onNavigate?: (screen: string) => void;
-};
 
 const RouteCard: React.FC<{ area: RoamingAreaDef; selected: boolean; unlocked: boolean; onSelect: () => void; onStart: () => void }> = ({ area, selected, unlocked, onSelect, onStart }) => {
   const bestRarity = Object.entries(area.dropPoolRarityWeights).sort(([, a], [, b]) => b - a)[0];
@@ -187,7 +149,7 @@ const RouteCard: React.FC<{ area: RoamingAreaDef; selected: boolean; unlocked: b
         </button>
       </div>
       <div className="relative mt-3 grid grid-cols-3 gap-1.5 text-[9px]">
-        <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Rates</span><div className="font-black text-text-primary">{area.idleCreditsPerMinute}cr/{area.idleScrapPerMinute}s</div></div>
+        <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Rates</span><div className="font-black text-text-primary">{area.idleCreditsPerMinute}cr/min</div></div>
         <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Loot</span><div className="truncate font-black text-amber">{area.lootBias[0]}</div></div>
         <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Rarity</span><div className="font-black text-text-primary">{bestRarity?.[0]}</div></div>
       </div>
@@ -196,95 +158,108 @@ const RouteCard: React.FC<{ area: RoamingAreaDef; selected: boolean; unlocked: b
   );
 };
 
-const RoamingPanel: React.FC<CommonPanelProps & { feed: RunVisualEvent[]; creditsPerTick: number; scrapPerTick: number }> = ({ playerLevel, selectedArea, setSelectedArea, startRoam, feed, creditsPerTick, scrapPerTick }) => {
-  const rarityEntries = Object.entries(selectedArea.dropPoolRarityWeights).sort(([, a], [, b]) => b - a);
-  const gearEntries = Object.entries(selectedArea.gearDropWeights).sort(([, a], [, b]) => b - a);
+const GearInspectModal: React.FC<{ item: GearItem | null; onClose: () => void }> = ({ item, onClose }) => {
+  if (!item) return null;
   return (
-    <div className="space-y-3">
-      <Section title="Route Control" eyebrow="Roaming workspace" icon={Radar}>
-        <div className="grid grid-cols-3 gap-2">
-          <StatChip label="Tick" value={`${TICK_SECONDS}s`} />
-          <StatChip label="Per Tick" value={`${creditsPerTick}cr`} accent="text-cyan" />
-          <StatChip label="Scrap" value={`+${scrapPerTick}`} accent="text-green" />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+      <motion.div initial={{ y: 20, scale: 0.96 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20, scale: 0.96 }} className="w-full max-w-sm border-2 border-border bg-bg p-4" style={panelClip} onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Gear Inspect</div>
+            <div className="text-lg font-black text-text-primary">{item.name}</div>
+            <div className="text-xs text-text-muted">{describeGear(item)} · Lv.{item.level}</div>
+          </div>
+          <button type="button" onClick={onClose} className="bl-secondary p-2 text-text-muted"><X size={14} /></button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-          <div className="border border-border bg-bg/60 p-2"><span className="text-text-muted">Enemies</span><div className="mt-1 font-bold text-text-primary">{selectedArea.enemyType}</div></div>
-          <div className="border border-border bg-bg/60 p-2"><span className="text-text-muted">Materials</span><div className="mt-1 font-bold text-amber">{[...selectedArea.materialBias, ...selectedArea.essenceBias].slice(0, 3).join(' / ') || 'Balanced'}</div></div>
+          <div className="border border-border bg-surface p-2"><span className="text-text-muted">Rarity</span><div className="font-black text-amber">{item.rarity}</div></div>
+          <div className="border border-border bg-surface p-2"><span className="text-text-muted">Source</span><div className="font-black text-text-primary">{'sourceTag' in item ? item.sourceTag : 'Action reward'}</div></div>
         </div>
-      </Section>
-
-      <Section title="Choose Roaming Route" eyebrow="Switch inside Roam" icon={MapPin}>
-        <div className="space-y-2">
-          {ROAMING_AREAS.map((area) => {
-            const unlocked = isRoamingAreaUnlocked(area, playerLevel);
-            const selected = area.id === selectedArea.id;
-            return <RouteCard key={area.id} area={area} selected={selected} unlocked={unlocked} onSelect={() => setSelectedArea(area.id)} onStart={() => startRoam(area)} />;
-          })}
-        </div>
-      </Section>
-
-      <Section title="Reward Intelligence" eyebrow="What this route feeds" icon={Sparkles}>
-        <div className="grid gap-3">
-          <div className="space-y-2">
-            {rarityEntries.map(([rarity, weight]) => <Meter key={rarity} label={rarity} value={weight} max={60} detail={`${weight}% weight`} />)}
+        {'weaponType' in item && (
+          <div className="mt-3 grid grid-cols-3 gap-2 text-[10px]">
+            <div className="border border-border bg-surface p-2"><span className="text-text-muted">Power</span><div className="font-black text-text-primary">{item.combatPower}</div></div>
+            <div className="border border-border bg-surface p-2"><span className="text-text-muted">Element</span><div className="font-black text-amber">{item.element}</div></div>
+            <div className="border border-border bg-surface p-2"><span className="text-text-muted">Maker</span><div className="truncate font-black text-text-primary">{item.manufacturer}</div></div>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
-            {gearEntries.map(([kind, weight]) => <div key={kind} className="border border-border bg-bg/60 p-2"><span className="uppercase text-text-muted">{kind}</span><div className="font-black text-text-primary">{weight} weight</div></div>)}
-          </div>
-          <div className="text-[10px] leading-snug text-text-muted">Bias: {selectedArea.lootBias.join(' · ')}. Weapons: {selectedArea.weaponBias.join(' / ') || 'mixed'}. Elements: {selectedArea.elementBias?.join(' / ') || 'mixed'}.</div>
-        </div>
-      </Section>
+        )}
+        <button type="button" onClick={onClose} className="mt-4 bl-primary w-full py-2 text-xs font-black">Close Inspect</button>
+      </motion.div>
+    </motion.div>
+  );
+};
 
-      <Section title="Latest Route Beats" eyebrow="Roam feed" icon={Activity}>
-        <div className="space-y-2">{feed.slice(0, 5).map((event) => <FeedCard key={event.id} event={event} />)}</div>
+type CommonPanelProps = {
+  playerLevel: number;
+  selectedArea: RoamingAreaDef;
+  setSelectedArea: (id: string) => void;
+  startRoam: (area?: RoamingAreaDef) => void;
+  startPrep: (boss?: BossDef) => void;
+  startBossFight: (boss?: BossDef) => void;
+  openBoss: () => void;
+  startCrafting: () => void;
+  startSalvage: (item?: GearItem) => void;
+  startWorkshop: () => void;
+  startMarket: () => void;
+  onNavigate?: (screen: string) => void;
+};
+
+const RoamingPanel: React.FC<{ selectedArea: RoamingAreaDef; creditsPerTick: number; scrapPerTick: number; setShowAreaSelect: (show: boolean) => void }> = ({ selectedArea, creditsPerTick, scrapPerTick, setShowAreaSelect }) => {
+  const rarityEntries = Object.entries(selectedArea.dropPoolRarityWeights).sort(([, a], [, b]) => b - a);
+  const gearEntries = Object.entries(selectedArea.gearDropWeights).sort(([, a], [, b]) => b - a).slice(0, 4);
+  return (
+    <div className="space-y-3">
+      <RewardIntelPanel
+        title={`${selectedArea.name} reward map`}
+        eyebrow="roaming intel"
+        stats={[
+          { label: 'Tick', value: `${TICK_SECONDS}s`, tone: 'amber' },
+          { label: 'Credits', value: `+${creditsPerTick}`, tone: 'cyan' },
+          { label: 'Scrap', value: `+${scrapPerTick}`, tone: 'green' },
+          { label: 'Gear', value: `${Math.round(DROP_CHANCE_PER_TICK * 100)}%`, tone: 'amber' },
+          { label: 'Cache Frag', value: `${Math.round(CACHE_FRAGMENT_CHANCE_PER_TICK * 100)}%`, tone: 'cyan' },
+          { label: 'Materials', value: `${Math.round(MATERIAL_FIND_CHANCE_PER_TICK * 100)}%`, tone: 'green' },
+        ]}
+      >
+        Enemies: {selectedArea.enemyType}. Materials: {[...selectedArea.materialBias, ...selectedArea.essenceBias].slice(0, 4).join(' / ') || 'Balanced'}. Bias: {selectedArea.lootBias.join(' · ')}. Rarity weights: {rarityEntries.map(([rarity, weight]) => `${rarity} ${weight}`).join(' / ')}. Gear weights: {gearEntries.map(([kind, weight]) => `${kind} ${weight}`).join(' / ')}.
+      </RewardIntelPanel>
+      <Section title="Route Control" eyebrow="compressed" icon={MapPin} action={<button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Route</button>}>
+        <div className="text-xs leading-relaxed text-text-muted">The route selector now lives behind the area title and this compact control. The main screen stays focused on rewards and the live loot log.</div>
       </Section>
     </div>
   );
 };
 
-const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBoss?: BossDef; fightPower: number }> = ({ bosses, currentBoss, fightPower, startPrep, openBoss }) => {
-  const boss = currentBoss ?? bosses[0];
-  if (!boss) return <IdlePanel {...({} as CommonPanelProps)} />;
+const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBoss?: BossDef; fightPower: number; onBossPicker: () => void }> = ({ currentBoss, fightPower, startBossFight, onBossPicker }) => {
+  const boss = currentBoss;
+  if (!boss) return null;
   const readiness = Math.min(140, Math.round((fightPower / Math.max(1, boss.recommendedPower)) * 100));
   return (
     <div className="space-y-3">
-      <Section title="Boss Readiness" eyebrow={boss.name} icon={Skull}>
-        <div className="grid grid-cols-4 gap-2">
-          <StatChip label="Lv" value={boss.level} />
-          <StatChip label="Power" value={boss.recommendedPower} />
-          <StatChip label="Cost" value={boss.entryCost} accent="text-cyan" />
-          <StatChip label="Your" value={fightPower} accent={readiness >= 100 ? 'text-green' : 'text-red'} />
-        </div>
-        <div className="mt-3"><Meter label="Readiness" value={readiness} max={100} detail={`${readiness}%`} /></div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-          <div className="border border-border bg-bg/60 p-2"><span className="text-text-muted">Weak</span><div className="font-black text-green">{boss.weaknesses.join(' / ') || 'None'}</div></div>
-          <div className="border border-border bg-bg/60 p-2"><span className="text-text-muted">Resist</span><div className="font-black text-red">{boss.resistances.join(' / ') || 'None'}</div></div>
-        </div>
-        <div className="mt-3 border border-amber/30 bg-amber/5 p-2 text-[10px] leading-snug text-text-secondary"><span className="font-black text-amber">{boss.mechanic.name}: </span>{boss.mechanic.description}</div>
-      </Section>
-
-      <Section title="Phase Checklist" eyebrow="Prep targets" icon={Target}>
+      <RewardIntelPanel
+        title={`${boss.name} readiness`}
+        eyebrow="boss prep intel"
+        stats={[
+          { label: 'Boss Lv', value: boss.level },
+          { label: 'Need', value: boss.recommendedPower },
+          { label: 'You', value: fightPower, tone: readiness >= 100 ? 'green' : 'red' },
+          { label: 'Ready', value: `${readiness}%`, tone: readiness >= 100 ? 'green' : 'red' },
+          { label: 'Cost', value: boss.entryCost, tone: 'cyan' },
+          { label: 'Drops', value: boss.dedicatedDrops.length, tone: 'amber' },
+        ]}
+      >
+        Weak: {boss.weaknesses.join(' / ') || 'None'}. Resist: {boss.resistances.join(' / ') || 'None'}. Dedicated drops: {boss.dedicatedDrops.join(' / ') || 'Unknown'}.
+      </RewardIntelPanel>
+      <Section title="Phase Checklist" eyebrow="prep targets" icon={Target} action={<button type="button" onClick={onBossPicker} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Boss</button>}>
         <div className="space-y-2">
           {boss.phases.map((phase, index) => (
             <div key={phase.id} className="border-2 border-border bg-bg/70 p-2" style={smallClip}>
-              <div className="flex items-center justify-between gap-2"><div className="font-black text-text-primary text-xs">{index + 1}. {phase.name}</div><span className="text-[9px] font-black uppercase text-amber">{phase.type}</span></div>
+              <div className="flex items-center justify-between gap-2"><div className="text-xs font-black text-text-primary">{index + 1}. {phase.name}</div><span className="text-[9px] font-black uppercase text-amber">{phase.type}</span></div>
               <div className="mt-1 text-[10px] leading-snug text-text-muted">{phase.description}</div>
               <div className="mt-2 flex flex-wrap gap-1">{phase.recommendedCounters.slice(0, 4).map((counter) => <span key={counter} className="border border-border bg-surface px-1.5 py-0.5 text-[9px] text-text-secondary">{counter}</span>)}</div>
             </div>
           ))}
         </div>
-      </Section>
-
-      <Section title="Select Boss Target" eyebrow="Switch inside Boss Prep" icon={Crosshair}>
-        <div className="space-y-2">
-          {bosses.map((candidate) => (
-            <button key={candidate.id} type="button" onClick={() => startPrep(candidate)} className={`w-full border-2 p-2 text-left ${candidate.id === boss.id ? 'border-amber bg-amber/10' : 'border-border bg-bg/70'}`} style={smallClip}>
-              <div className="flex justify-between gap-2"><span className="font-black text-text-primary text-xs">{candidate.name}</span><span className="text-[9px] text-text-muted">Lv.{candidate.level} · Pwr {candidate.recommendedPower}</span></div>
-              <div className="mt-1 text-[10px] text-text-muted">{candidate.weaknesses.join('/')} weak · Drops: {candidate.dedicatedDrops.slice(0, 2).join(', ')}</div>
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={openBoss} className="mt-3 bl-primary w-full py-2 text-xs font-black">Open Boss Modal</button>
+        <button type="button" onClick={() => startBossFight(boss)} className="mt-3 bl-primary w-full py-2 text-xs font-black">Start Boss Encounter</button>
       </Section>
     </div>
   );
@@ -292,114 +267,73 @@ const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBos
 
 const BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: () => void }> = ({ boss, fightPower, openBoss }) => {
   if (!boss) return <Section title="No Boss Selected" icon={Skull}><button type="button" onClick={openBoss} className="bl-primary w-full py-2 text-xs font-black">Choose Boss</button></Section>;
+  const readiness = Math.round((fightPower / Math.max(1, boss.recommendedPower)) * 100);
   return (
     <div className="space-y-3">
-      <Section title="Encounter Replay" eyebrow={boss.name} icon={Crosshair}>
-        <div className="relative space-y-2 before:absolute before:left-[13px] before:top-4 before:h-[calc(100%-24px)] before:w-0.5 before:bg-border">
+      <RewardIntelPanel
+        title={`${boss.name} loot stakes`}
+        eyebrow="encounter intel"
+        stats={[
+          { label: 'Power', value: fightPower, tone: readiness >= 100 ? 'green' : 'red' },
+          { label: 'Need', value: boss.recommendedPower },
+          { label: 'Phase', value: boss.phases.length },
+          { label: 'Dedicated', value: boss.dedicatedDrops.length, tone: 'amber' },
+          { label: 'Table', value: boss.dropTable.length },
+          { label: 'Risk', value: readiness >= 100 ? 'Stable' : 'High', tone: readiness >= 100 ? 'green' : 'red' },
+        ]}
+      >
+        Dedicated drops: {boss.dedicatedDrops.join(' / ')}. Current fight view is event-driven and ready for richer HP/phase resolution.
+      </RewardIntelPanel>
+      <Section title="Phase Breakdown" eyebrow="encounter replay" icon={Crosshair}>
+        <div className="space-y-2">
           {boss.phases.map((phase, index) => {
             const pass = fightPower >= boss.recommendedPower * phase.targetValue;
-            return (
-              <div key={phase.id} className="relative flex gap-3">
-                <div className={`z-10 mt-1 h-7 w-7 shrink-0 border-2 border-border ${pass ? 'bg-green' : 'bg-red'} text-center text-[10px] font-black leading-6 text-bg`}>{index + 1}</div>
-                <div className="flex-1 border border-border bg-bg/70 p-2">
-                  <div className="flex justify-between gap-2"><span className="text-xs font-black text-text-primary">{phase.name}</span><span className={pass ? 'text-green text-[9px] font-black' : 'text-red text-[9px] font-black'}>{pass ? 'LIKELY PASS' : 'RISK'}</span></div>
-                  <div className="mt-1 text-[10px] text-text-muted">{pass ? phase.successReason : phase.failureReason}</div>
-                </div>
-              </div>
-            );
+            return <div key={phase.id} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2"><span className="text-xs font-black text-text-primary">{index + 1}. {phase.name}</span><span className={pass ? 'text-green text-[9px] font-black' : 'text-red text-[9px] font-black'}>{pass ? 'LIKELY PASS' : 'RISK'}</span></div><div className="mt-1 text-[10px] text-text-muted">{pass ? phase.successReason : phase.failureReason}</div></div>;
           })}
         </div>
       </Section>
-      <Section title="Reward Stakes" eyebrow="Drops" icon={Package}>
-        <div className="grid grid-cols-2 gap-2 text-[10px]"><div className="border border-border bg-bg/70 p-2"><span className="text-text-muted">Dedicated</span><div className="font-black text-amber">{boss.dedicatedDrops.join(' / ')}</div></div><div className="border border-border bg-bg/70 p-2"><span className="text-text-muted">Table Size</span><div className="font-black text-text-primary">{boss.dropTable.length} items</div></div></div>
-      </Section>
     </div>
   );
 };
 
-const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onNavigate }) => {
+const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number; onRecipePicker: () => void }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onRecipePicker }) => {
   const now = useNow();
   const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, playerMaterials, playerEssences, playerLevel), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
-  const canNow = craftable.filter(({ check }) => check.can).slice(0, 6);
-  const blocked = craftable.filter(({ check }) => !check.can).slice(0, 4);
+  const canNow = craftable.filter(({ check }) => check.can);
   return (
     <div className="space-y-3">
-      <Section title="Bench Command" eyebrow="Crafting workspace" icon={Hammer}>
-        <div className="grid grid-cols-3 gap-2"><StatChip label="Free" value={benchesFree} accent={benchesFree ? 'text-green' : 'text-red'} /><StatChip label="Queued" value={queues.length} /><StatChip label="Craftable" value={canNow.length} accent="text-amber" /></div>
-        <button type="button" onClick={startCrafting} className="mt-3 bl-primary w-full py-2 text-xs font-black">Set Crafting As Current Action</button>
-      </Section>
-      {queues.length > 0 && <Section title="Active Bench Queues" eyebrow="Machine deck" icon={Clock}><div className="space-y-2">{queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; return <div key={`${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {q.benchId}: {recipe?.name ?? q.recipeId}</span><span className="text-amber">{formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><Meter label="Cycle" value={elapsed % q.durationMs} max={q.durationMs} detail={`${q.claimedCount}/${q.count} claimed`} /></div>; })}</div></Section>}
-      <Section title="Craftable Now" eyebrow="Available recipes" icon={Sparkles}>
-        <div className="grid gap-2">{canNow.map(({ recipe, duration }) => <button key={recipe.id} type="button" onClick={() => onNavigate?.('workshop')} className="border-2 border-border bg-bg/70 p-2 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="text-xs font-black text-text-primary">{recipe.name}</span><span className="text-[9px] text-amber">{formatDuration(duration)}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe.category} · {Object.entries(recipe.materials).map(([k, v]) => `${k} ${v}`).join(' · ')}</div></button>)}</div>
-      </Section>
-      <Section title="Blocked Recipes" eyebrow="What to farm next" icon={AlertTriangle}>
-        <div className="space-y-2">{blocked.map(({ recipe, check }) => <div key={recipe.id} className="border border-border bg-bg/70 p-2"><div className="text-xs font-black text-text-primary">{recipe.name}</div><div className="mt-1 text-[10px] text-red">{check.missing.join(' · ')}</div></div>)}</div>
-      </Section>
+      <RewardIntelPanel title="Bench output forecast" eyebrow="crafting intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Queued', value: queues.length }, { label: 'Craftable', value: canNow.length, tone: 'amber' }, { label: 'Recipes', value: CRAFTING_RECIPES.length }, { label: 'Reduction', value: `${skillReductionPoints}%`, tone: 'cyan' }, { label: 'Blocked', value: Math.max(0, CRAFTING_RECIPES.length - canNow.length), tone: 'red' }]}>Choose a recipe from the sheet; the action page stays focused on active output and queue status.</RewardIntelPanel>
+      {queues.length > 0 && <Section title="Active Bench Queues" eyebrow="machine deck" icon={Clock}><div className="space-y-2">{queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; return <div key={`${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {q.benchId}: {recipe?.name ?? q.recipeId}</span><span className="text-amber">{formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div></div>; })}</div></Section>}
+      <Section title="Recipe Control" eyebrow="selector moved" icon={Hammer}><button type="button" onClick={onRecipePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Recipe</button><button type="button" onClick={startCrafting} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Crafting As Current Action</button></Section>
     </div>
   );
 };
 
-const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[] }> = ({ items, startSalvage, onNavigate }) => {
+const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePicker: () => void }> = ({ items, startSalvage, onNavigate, onSalvagePicker }) => {
   const candidates = items.filter((item) => !item.isLocked && (item.rarity === Rarity.Common || item.rarity === Rarity.Uncommon)).slice(0, 8);
-  const totals = candidates.reduce((acc, item) => {
-    const y = calculateSalvageYield(item);
-    acc.scrapAlloy += y.scrapAlloy;
-    acc.ballisticParts += y.ballisticParts;
-    acc.reactiveComponents += y.reactiveComponents;
-    acc.techFragments += y.techFragments;
-    acc.voidDust += y.voidDust;
-    Object.entries(y.essences).forEach(([k, v]) => { acc.essences[k] = (acc.essences[k] || 0) + v; });
-    return acc;
-  }, { scrapAlloy: 0, ballisticParts: 0, reactiveComponents: 0, techFragments: 0, voidDust: 0, essences: {} as Record<string, number> });
+  const top = candidates[0];
+  const y = top ? calculateSalvageYield(top) : null;
   return (
     <div className="space-y-3">
-      <Section title="Scrap Forecast" eyebrow="Salvage workspace" icon={Recycle}>
-        <div className="grid grid-cols-5 gap-1.5 text-[9px]"><StatChip label="Items" value={candidates.length} /><StatChip label="Alloy" value={totals.scrapAlloy} /><StatChip label="Parts" value={totals.ballisticParts} /><StatChip label="Tech" value={totals.techFragments} /><StatChip label="Void" value={totals.voidDust} /></div>
-        <button type="button" onClick={() => startSalvage(candidates[0])} disabled={!candidates[0]} className="mt-3 bl-primary w-full py-2 text-xs font-black disabled:opacity-50">Set Top Candidate As Salvage Action</button>
-      </Section>
-      <Section title="Recommended Breakdown" eyebrow="Safe candidates" icon={Boxes}>
-        <div className="space-y-2">{candidates.map((item) => { const y = calculateSalvageYield(item); return <button key={item.id} type="button" onClick={() => startSalvage(item)} className="w-full border-2 border-border bg-bg/70 p-2 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-xs font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">+{y.scrapAlloy} alloy · +{y.ballisticParts} parts · +{y.reactiveComponents} reactive · +{y.techFragments} tech</div></button>; })}</div>
-        {candidates.length === 0 && <div className="text-xs text-text-muted">No safe low-rarity candidates. Open Gear to pick a specific item.</div>}
-        <button type="button" onClick={() => onNavigate?.('loot')} className="mt-3 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear Yard</button>
-      </Section>
+      <RewardIntelPanel title="Breakdown forecast" eyebrow="salvage intel" stats={[{ label: 'Safe Items', value: candidates.length }, { label: 'Alloy', value: y?.scrapAlloy ?? 0, tone: 'green' }, { label: 'Parts', value: y?.ballisticParts ?? 0, tone: 'amber' }, { label: 'Reactive', value: y?.reactiveComponents ?? 0, tone: 'cyan' }, { label: 'Tech', value: y?.techFragments ?? 0 }, { label: 'Void', value: y?.voidDust ?? 0, tone: 'red' }]}>Top candidate: {top?.name ?? 'None'}. Locked gear is ignored for safe recommendations.</RewardIntelPanel>
+      <Section title="Salvage Control" eyebrow="item selector" icon={Recycle}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => startSalvage(top)} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Set Top Candidate As Action</button><button type="button" onClick={() => onNavigate?.('loot')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear Yard</button></Section>
     </div>
   );
 };
 
 const WorkshopPanel: React.FC<CommonPanelProps & { queues: { id?: string; recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; benchesFree: number }> = ({ queues, benchesFree, onNavigate }) => {
   const now = useNow();
-  return (
-  <div className="space-y-3">
-    <Section title="Service Bay" eyebrow="Workshop workspace" icon={Wrench}>
-      <div className="grid grid-cols-3 gap-2"><StatChip label="Free" value={benchesFree} accent={benchesFree ? 'text-green' : 'text-red'} /><StatChip label="Running" value={queues.length} /><StatChip label="Ready" value={queues.filter((q) => Math.floor((now - q.startedAt) / q.durationMs) > q.claimedCount).length} accent="text-amber" /></div>
-    </Section>
-    <Section title="Machine Queue" eyebrow="What needs attention" icon={Clock}>
-      <div className="space-y-2">{queues.length === 0 ? <div className="text-xs text-text-muted">No queues are running. Start a recipe from the Workshop.</div> : queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs)); return <div key={q.id ?? `${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between"><span className="text-xs font-black text-text-primary">Bench {q.benchId}</span><span className={completed > q.claimedCount ? 'text-green text-[10px] font-black' : 'text-amber text-[10px]'}>{completed > q.claimedCount ? 'READY' : formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe?.name ?? q.recipeId} · {completed}/{q.count} complete</div><Meter label="cycle" value={elapsed % q.durationMs} max={q.durationMs} /></div>; })}</div>
-      <button type="button" onClick={() => onNavigate?.('workshop')} className="mt-3 bl-primary w-full py-2 text-xs font-black">Open Workshop</button>
-    </Section>
-  </div>
-  );
+  const ready = queues.filter((q) => Math.floor((now - q.startedAt) / q.durationMs) > q.claimedCount).length;
+  return <div className="space-y-3"><RewardIntelPanel title="Machine queue" eyebrow="workshop intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Running', value: queues.length }, { label: 'Ready', value: ready, tone: ready ? 'amber' : 'muted' }, { label: 'Benches', value: benchesFree + queues.length }, { label: 'Next', value: queues[0] ? formatDuration(Math.max(0, queues[0].durationMs - ((now - queues[0].startedAt) % queues[0].durationMs))) : 'None' }, { label: 'State', value: ready ? 'Claim' : 'Service' }]} /> <Section title="Machine Queue" eyebrow="what needs attention" icon={Clock}><div className="space-y-2">{queues.length === 0 ? <div className="text-xs text-text-muted">No queues are running. Start a recipe from the Workshop.</div> : queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs)); return <div key={q.id ?? `${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between"><span className="text-xs font-black text-text-primary">Bench {q.benchId}</span><span className={completed > q.claimedCount ? 'text-green text-[10px] font-black' : 'text-amber text-[10px]'}>{completed > q.claimedCount ? 'READY' : formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe?.name ?? q.recipeId} · {completed}/{q.count} complete</div></div>; })}</div><button type="button" onClick={() => onNavigate?.('workshop')} className="mt-3 bl-primary w-full py-2 text-xs font-black">Open Workshop</button></Section></div>;
 };
 
-const MarketPanel: React.FC<CommonPanelProps & { listings: number; history: number; sellableItems: GearItem[]; credits: number }> = ({ listings, history, sellableItems, credits, startMarket, onNavigate }) => {
-  const topSellable = sellableItems.slice(0, 5);
-  return (
-    <div className="space-y-3">
-      <Section title="Trade Kiosk" eyebrow="Market workspace" icon={ShoppingCart}>
-        <div className="grid grid-cols-4 gap-2"><StatChip label="Credits" value={credits.toLocaleString()} /><StatChip label="Sellable" value={sellableItems.length} /><StatChip label="Listed" value={listings} /><StatChip label="History" value={history} /></div>
-        <button type="button" onClick={startMarket} className="mt-3 bl-primary w-full py-2 text-xs font-black">Set Market Listing As Current Action</button>
-      </Section>
-      <Section title="Listing Candidates" eyebrow="Unlocked gear" icon={Package}>
-        <div className="space-y-2">{topSellable.length === 0 ? <div className="text-xs text-text-muted">No unlocked sellable gear. Unlock items from Gear first.</div> : topSellable.map((item) => { const isWeapon = 'weaponType' in item; const price = isWeapon ? Math.round((item as Weapon).combatPower * 10 + (item as Weapon).rollQuality * 50) : Math.round((item.level ?? 1) * 200); return <button key={item.id} type="button" onClick={() => onNavigate?.('market')} className="w-full border border-border bg-bg/70 p-2 text-left"><div className="flex justify-between gap-2"><span className="truncate text-xs font-black text-text-primary">{item.name}</span><span className="text-[10px] text-amber">~{price.toLocaleString()}cr</span></div><div className="mt-1 text-[10px] text-text-muted">Fee estimate {(price * 0.1).toFixed(0)}cr · {describeGear(item)}</div></button>; })}</div>
-        <button type="button" onClick={() => onNavigate?.('market')} className="mt-3 bl-secondary w-full py-2 text-xs font-black text-amber">Open Market</button>
-      </Section>
-    </div>
-  );
-};
+const MarketPanel: React.FC<CommonPanelProps & { listings: number; history: number; sellableItems: GearItem[]; credits: number; onMarketPicker: () => void }> = ({ listings, history, sellableItems, credits, startMarket, onMarketPicker, onNavigate }) => (
+  <div className="space-y-3"><RewardIntelPanel title="Trade kiosk" eyebrow="market intel" stats={[{ label: 'Credits', value: credits.toLocaleString(), tone: 'cyan' }, { label: 'Sellable', value: sellableItems.length }, { label: 'Listed', value: listings, tone: 'amber' }, { label: 'History', value: history }, { label: 'Fees', value: '10%' }, { label: 'Mode', value: 'Listing' }]} /> <Section title="Listing Control" eyebrow="item selector" icon={ShoppingCart}><button type="button" onClick={onMarketPicker} className="bl-primary w-full py-2 text-xs font-black">Choose Listing Candidate</button><button type="button" onClick={startMarket} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Market As Current Action</button><button type="button" onClick={() => onNavigate?.('market')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Market</button></Section></div>
+);
 
 const IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate, selectedArea }) => (
   <div className="space-y-3">
-    <Section title="Recommended Dispatch" eyebrow="No action active" icon={Activity}>
+    <Section title="Recommended Dispatch" eyebrow="no action active" icon={Activity}>
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => startRoam?.()} className="border-2 border-amber/40 bg-amber/10 p-3 text-left" style={panelClip}><Radar size={17} className="text-amber" /><div className="mt-2 text-sm font-black text-text-primary">Start Roam</div><div className="text-[10px] text-text-muted">{selectedArea?.name ?? 'Default route'}</div></button>
         <button type="button" onClick={() => startPrep?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><Skull size={17} className="text-red" /><div className="mt-2 text-sm font-black text-text-primary">Prep Boss</div><div className="text-[10px] text-text-muted">Check counters first</div></button>
@@ -426,9 +360,16 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const skillBonuses = skillStore.getBonuses();
   const [showSwitch, setShowSwitch] = useState(false);
   const [showAreaSelect, setShowAreaSelect] = useState(false);
+  const [showBossPicker, setShowBossPicker] = useState(false);
+  const [showRecipePicker, setShowRecipePicker] = useState(false);
+  const [showSalvagePicker, setShowSalvagePicker] = useState(false);
+  const [showMarketPicker, setShowMarketPicker] = useState(false);
   const [prepBoss, setPrepBoss] = useState<BossDef | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [feed, setFeed] = useState<RunVisualEvent[]>([idleEvent]);
+  const [gearLookup, setGearLookup] = useState<Record<string, GearItem>>({});
+  const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
+  const [cacheError, setCacheError] = useState<string | null>(null);
   const prevLevelRef = useRef(player.level);
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
@@ -455,6 +396,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const sellableItems = inventory.items.filter((item) => !item.isLocked);
   const playerListings = market.listings.filter((listing) => listing.sellerId === 'player_1').length;
   const skillReductionPoints = (skillBonuses.consumableEfficiency || 0) * 10;
+  const salvageCandidates = inventory.items.filter((item) => !item.isLocked && (item.rarity === Rarity.Common || item.rarity === Rarity.Uncommon)).slice(0, 12);
+  const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, player.materials, player.essences, player.level), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
+  const openCacheDetail = player.cacheKeys > 0 ? `${player.cacheKeys} keys ready` : `Need ${5 - player.cacheKeyFragments} fragments`;
 
   const pushEvents = useCallback((events: RunVisualEvent[]) => {
     setFeed((current) => [...sortRunEventsByVisualPriority(events), ...current.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT));
@@ -466,39 +410,57 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       idle.setFarming(input.kind === 'roaming_loot');
       setElapsed(0);
       setShowSwitch(false);
+      setShowAreaSelect(false);
+      setShowBossPicker(false);
+      setShowRecipePicker(false);
+      setShowSalvagePicker(false);
+      setShowMarketPicker(false);
       pushEvents([event]);
     } catch (error) {
       pushEvents([makeRunEvent('ACTION FAILED', error instanceof Error ? error.message : 'The action service rejected the transition.', 'patrol', 'run_stopped')]);
     }
   }, [activity, idle, pushEvents]);
 
-  const startRoam = useCallback((area: RoamingAreaDef = selectedArea) => {
-    idle.setSelectedRoamingArea(area.id);
-    startAction(buildRoamingLootActivity(area, activityWeapon), makeRunEvent('ROAM STARTED', `${area.name} is now the current route.`, 'patrol', 'run_started'));
+  const startRoam = useCallback((area?: RoamingAreaDef) => {
+    const target = area ?? selectedArea;
+    idle.setSelectedRoamingArea(target.id);
+    startAction(buildRoamingLootActivity(target, activityWeapon), makeRunEvent('ROAMING ROUTE', `Hunter is roaming ${target.name}.`, 'patrol', 'run_started'));
   }, [activityWeapon, idle, selectedArea, startAction]);
 
-  const startPrep = useCallback((boss: BossDef = prepBossTarget) => {
-    if (!boss) { onOpenBossSelect(); return; }
-    startAction(buildBossPrepActivity(boss, activityWeapon), makeRunEvent('BOSS PREP', `${boss.name} is now the current prep target.`, 'patrol', 'boss_prep'));
-    setPrepBoss(boss);
-  }, [activityWeapon, onOpenBossSelect, prepBossTarget, startAction]);
+  const startPrep = useCallback((boss?: BossDef) => {
+    const target = boss ?? prepBossTarget;
+    if (!target) return;
+    bossStore.setCurrentBoss(target.id);
+    startAction(buildBossPrepActivity(target, activityWeapon), makeRunEvent('BOSS PREP', `Prep started for ${target.name}.`, 'patrol', 'boss_prep'));
+  }, [activityWeapon, bossStore, prepBossTarget, startAction]);
 
-  const startCrafting = useCallback(() => {
-    startAction(buildCraftingActivity({ id: 'workshop-crafting', name: 'Workbench Crafting', category: 'gear' }, null), makeRunEvent('CRAFTING', 'Workbench crafting is now the visible character action.', 'patrol', 'crafting'));
-  }, [startAction]);
+  const startBossFight = useCallback((boss?: BossDef) => {
+    const target = boss ?? prepBossTarget;
+    if (!target) return;
+    bossStore.setCurrentBoss(target.id);
+    startAction(buildBossFightActivity(target, activityWeapon), makeRunEvent('BOSS FIGHT', `Encounter started against ${target.name}.`, 'xp', 'boss_fight'));
+  }, [activityWeapon, bossStore, prepBossTarget, startAction]);
+
+  const startCrafting = useCallback((recipe = craftable.find(({ check }) => check.can)?.recipe ?? CRAFTING_RECIPES[0]) => {
+    if (!recipe) return;
+    startAction(buildCraftingActivity(recipe, null), makeRunEvent('CRAFTING', `Bench focus set to ${recipe.name}.`, 'patrol', 'crafting'));
+  }, [craftable, startAction]);
 
   const startSalvage = useCallback((item?: GearItem) => {
-    const target = item ?? inventory.items.find((candidate) => !candidate.isLocked && (candidate.rarity === Rarity.Common || candidate.rarity === Rarity.Uncommon));
-    if (!target) { onNavigate?.('loot'); pushEvents([makeRunEvent('NO GEAR', 'No safe salvage candidate is available yet.', 'patrol', 'idle')]); return; }
-    startAction(buildSalvagingActivity(target), makeRunEvent('SALVAGING', `${target.name} is now the visible salvage action.`, 'patrol', 'salvaging'));
-  }, [inventory.items, onNavigate, pushEvents, startAction]);
+    const target = item ?? salvageCandidates[0];
+    if (!target) {
+      onNavigate?.('loot');
+      return;
+    }
+    startAction(buildSalvagingActivity(target), makeRunEvent('SALVAGE TARGET', `${target.name} staged for breakdown.`, 'patrol', 'salvaging'));
+  }, [onNavigate, salvageCandidates, startAction]);
 
   const startWorkshop = useCallback(() => {
-    startAction({ kind: 'workshop_service', targetType: 'workshop_job', targetId: 'workshop-service', targetLabel: 'Workshop Service', sceneKey: 'workshop:service', notes: 'Servicing workshop queues', publicPayload: { activity_label: 'Servicing Workshop', target_label: 'Workshop Service', scene_key: 'workshop:service' }, publicVisible: true }, makeRunEvent('WORKSHOP SERVICE', 'Runner is servicing workshop machines and queues.', 'patrol', 'crafting'));
+    startAction({ kind: 'workshop_service', targetType: 'workshop_job', targetId: 'workshop-service', targetLabel: 'Machine Queue', sceneKey: 'workshop:service', notes: 'Servicing workshop queues', publicPayload: { activity_label: 'Servicing Workshop', target_label: 'Machine Queue', scene_key: 'workshop:service' }, publicVisible: true }, makeRunEvent('WORKSHOP SERVICE', 'Hunter is servicing bench queues.', 'patrol', 'workshop_service'));
   }, [startAction]);
 
   const startMarket = useCallback(() => {
-    startAction({ kind: 'market_listing', targetType: 'market_listing', targetId: 'market-console', targetLabel: 'Trade Kiosk', sceneKey: 'market:kiosk', notes: 'Managing market listings', publicPayload: { activity_label: 'Managing Market Listings', target_label: 'Trade Kiosk', scene_key: 'market:kiosk' }, publicVisible: true }, makeRunEvent('MARKET LISTING', 'Runner is working the trade kiosk.', 'patrol', 'market_listing'));
+    startAction({ kind: 'market_listing', targetType: 'market_listing', targetId: 'market-console', targetLabel: 'Trade Kiosk', sceneKey: 'market:kiosk', notes: 'Managing market listings', publicPayload: { activity_label: 'Managing Market Listings', target_label: 'Trade Kiosk', scene_key: 'market:kiosk' }, publicVisible: true }, makeRunEvent('MARKET LISTING', 'Hunter is working the trade kiosk.', 'patrol', 'market_listing'));
   }, [startAction]);
 
   const stopAction = useCallback(async () => {
@@ -523,6 +485,29 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return item;
   }, [inventory, player.level, selectedArea]);
 
+  const openCache = useCallback(async () => {
+    setCacheError(null);
+    if (player.cacheKeys <= 0) {
+      const msg = player.cacheKeyFragments > 0 ? `No cache key ready. Need ${5 - player.cacheKeyFragments} more fragments.` : 'No cache keys ready. Roam for cache fragments first.';
+      setCacheError(msg);
+      pushEvents([makeRunEvent('CACHE LOCKED', msg, 'cache', 'cache_locked')]);
+      return;
+    }
+    try {
+      pushEvents([makeRunEvent('CACHE OPENING', 'Decrypting server-verified cache roll.', 'cache', 'cache_opening')]);
+      const result = await verifiedOps.makeItem();
+      const item = serverItemRowToDisplayGear(result.item as ServerItemRow);
+      const event = makeRunEvent('CACHE GEAR', `${item.name} (${describeGear(item)}) decrypted from a cache.`, 'loot', 'cache_opened');
+      setGearLookup((current) => ({ ...current, [event.id]: item }));
+      setInspectGear(item);
+      pushEvents([event]);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unable to open cache.';
+      setCacheError(msg);
+      pushEvents([makeRunEvent('CACHE FAILED', msg, 'cache', 'cache_failed')]);
+    }
+  }, [player.cacheKeyFragments, player.cacheKeys, pushEvents]);
+
   useEffect(() => {
     if (!market.seeded) market.seedMarket();
   }, [market]);
@@ -541,7 +526,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       const cacheFound = Math.random() < CACHE_FRAGMENT_CHANCE_PER_TICK;
       const materialFound = Math.random() < MATERIAL_FIND_CHANCE_PER_TICK;
       if (cacheFound) { player.addCacheKeyFragments(1); events.push(makeRunEvent('CACHE FRAGMENT', `${selectedArea.enemyType} patrol yielded a cache key fragment.`, 'cache', 'cache_fragment')); }
-      if (drop) events.push(makeRunEvent('GEAR DROP', `${drop.name} (${describeGear(drop)}) dropped in ${selectedArea.name}.`, 'loot', 'gear_drop'));
+      if (drop) {
+        const event = makeRunEvent('GEAR DROP', `${drop.name} (${describeGear(drop)}) dropped in ${selectedArea.name}.`, 'loot', 'gear_drop');
+        setGearLookup((current) => ({ ...current, [event.id]: drop }));
+        events.push(event);
+      }
       if (!drop && !cacheFound && materialFound) {
         const find = rollAreaMaterialFind(selectedArea);
         if (find?.kind === 'material') { player.addMaterial(find.type, 1); events.push(makeRunEvent('MATERIAL FIND', `${find.type} recovered while sweeping ${selectedArea.name}.`, 'loot', 'material_find')); }
@@ -562,27 +551,40 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return () => window.clearInterval(iv);
   }, [activity, canTick]);
 
-  const commonProps: CommonPanelProps = { playerLevel: player.level, currentKind, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
+  const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => ({
+    ...event,
+    gear: gearLookup[event.id],
+    onInspect: gearLookup[event.id] ? () => setInspectGear(gearLookup[event.id]) : undefined,
+  }));
+
+  const headerStats: ActionStat[] = [
+    { label: 'Target', value: targetLabel, tone: currentKind === 'idle_standby' || currentKind === 'none' ? 'muted' : 'amber' },
+    { label: 'Keys', value: `${player.cacheKeys} +${player.cacheKeyFragments}/5`, tone: 'cyan' },
+    { label: 'Tick', value: canTick ? `${TICK_SECONDS}s live` : 'paused', tone: canTick ? 'green' : 'muted' },
+  ];
+
+  const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
 
   const workspace = (() => {
-    if (currentKind === 'roaming_loot') return <RoamingPanel {...commonProps} feed={feed} creditsPerTick={creditsPerTick} scrapPerTick={scrapPerTick} />;
-    if (currentKind === 'boss_prep') return <BossPrepPanel {...commonProps} bosses={bosses} currentBoss={prepBossTarget} fightPower={fightPower} />;
+    if (currentKind === 'roaming_loot') return <RoamingPanel selectedArea={selectedArea} creditsPerTick={creditsPerTick} scrapPerTick={scrapPerTick} setShowAreaSelect={setShowAreaSelect} />;
+    if (currentKind === 'boss_prep') return <BossPrepPanel {...commonProps} bosses={bosses} currentBoss={prepBossTarget} fightPower={fightPower} onBossPicker={() => setShowBossPicker(true)} />;
     if (currentKind === 'boss_fight') return <BossFightPanel boss={prepBossTarget} fightPower={fightPower} openBoss={onOpenBossSelect} />;
-    if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} />;
-    if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} />;
+    if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} onRecipePicker={() => setShowRecipePicker(true)} />;
+    if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} onSalvagePicker={() => setShowSalvagePicker(true)} />;
     if (currentKind === 'workshop_service') return <WorkshopPanel {...commonProps} queues={workshop.activeQueues} benchesFree={benchesFree} />;
-    if (currentKind === 'market_listing') return <MarketPanel {...commonProps} listings={playerListings} history={market.history.length} sellableItems={sellableItems} credits={player.credits} />;
+    if (currentKind === 'market_listing') return <MarketPanel {...commonProps} listings={playerListings} history={market.history.length} sellableItems={sellableItems} credits={player.credits} onMarketPicker={() => setShowMarketPicker(true)} />;
     return <IdlePanel {...commonProps} />;
   })();
 
   const switchActions = [
     { label: 'Roam', detail: selectedArea.name, icon: Radar, run: () => startRoam() },
     { label: 'Boss Prep', detail: prepBossTarget?.name ?? 'Choose target', icon: Skull, run: () => startPrep() },
-    { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: Hammer, run: startCrafting },
+    { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: Crosshair, run: () => startBossFight() },
+    { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: Hammer, run: () => startCrafting() },
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: Recycle, run: () => startSalvage() },
     { label: 'Workshop', detail: `${workshop.activeQueues.length} queues`, icon: Wrench, run: startWorkshop },
     { label: 'Market', detail: `${sellableItems.length} sellable`, icon: ShoppingCart, run: startMarket },
-    { label: 'Caches', detail: `${player.cacheKeys} keys`, icon: Package, run: () => { setShowSwitch(false); onNavigate?.('chest'); } },
+    { label: 'Caches', detail: openCacheDetail, icon: Package, run: openCache },
   ].slice(0, MAX_SWITCH_ROWS);
 
   return (
@@ -592,27 +594,54 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <div className="flex gap-2"><button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary px-3 py-2 text-[10px] font-black text-amber">Switch</button><button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary px-3 py-2 text-[10px] font-black text-red disabled:opacity-50">Stop</button></div>
       </div>
 
-      <LiveTurfDiorama area={selectedArea} weapon={activityWeapon} bossName={visualBoss?.name} bossWeaknessCount={visualBoss?.weaknesses.length ?? 0} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} feedEvents={visualFeed} activityKind={currentKind} activityLabel={detail.title} activityTarget={targetLabel} onFight={() => currentKind === 'roaming_loot' ? startRoam(selectedArea) : setShowSwitch(true)} onSecondary={() => setShowSwitch(true)} primaryActionLabel={currentKind === 'roaming_loot' ? 'Refresh route' : 'Switch action'} primaryActionDetail={currentKind === 'roaming_loot' ? selectedArea.enemyType : 'Open action drawer'} secondaryActionLabel="Switch" secondaryActionDetail="Change runner action" />
+      <LiveTurfDiorama
+        area={selectedArea}
+        weapon={activityWeapon}
+        bossName={visualBoss?.name}
+        bossWeaknessCount={visualBoss?.weaknesses.length ?? 0}
+        playerLevel={player.level}
+        equippedCount={equippedCount}
+        cacheKeys={player.cacheKeys}
+        feedEvents={visualFeed}
+        activityKind={currentKind}
+        activityLabel={detail.title}
+        activityTarget={targetLabel}
+        onTitleClick={currentKind === 'roaming_loot' ? () => setShowAreaSelect(true) : undefined}
+        onFight={() => currentKind === 'idle_standby' || currentKind === 'none' ? startRoam(selectedArea) : setShowSwitch(true)}
+        onSecondary={openCache}
+        primaryActionLabel={currentKind === 'roaming_loot' ? 'Manage route' : currentKind === 'idle_standby' || currentKind === 'none' ? 'Start roam' : 'Switch action'}
+        primaryActionDetail={currentKind === 'roaming_loot' ? selectedArea.name : currentKind === 'idle_standby' || currentKind === 'none' ? selectedArea.enemyType : 'Open action drawer'}
+        secondaryActionLabel="Open cache"
+        secondaryActionDetail={openCacheDetail}
+      />
 
-      <MobileCard className="space-y-3">
-        <div className="flex items-start justify-between gap-3"><div><div className="text-[10px] font-black uppercase tracking-widest text-amber">Current Action</div><div className="text-lg font-black text-text-primary">{detail.title}</div><div className="text-xs leading-relaxed text-text-muted">{detail.detail}</div></div><div className="text-right text-[10px] text-text-muted"><Clock size={16} className="ml-auto" />{activeMinutes}m {activeSeconds}s</div></div>
-        <div className="grid grid-cols-3 gap-2 text-center text-[10px]"><div className="border border-border bg-surface-raised p-2"><div className="text-text-muted">Target</div><div className="truncate font-bold text-text-primary">{targetLabel}</div></div><div className="border border-border bg-surface-raised p-2"><div className="text-text-muted">Keys</div><div className="font-bold text-amber">{player.cacheKeys} +{player.cacheKeyFragments}/5</div></div><div className="border border-border bg-surface-raised p-2"><div className="text-text-muted">Tick</div><div className="font-bold text-text-primary">{canTick ? `${TICK_SECONDS}s live` : 'paused'}</div></div></div>
-      </MobileCard>
-
+      <ActiveActionHeader kind={currentKind} title={detail.title} detail={detail.detail} target={targetLabel} elapsed={`${activeMinutes}m ${activeSeconds}s`} status={canTick ? 'LIVE' : currentKind === 'idle_standby' || currentKind === 'none' ? 'READY' : 'ACTIVE'} stats={headerStats} onManage={() => currentKind === 'roaming_loot' ? setShowAreaSelect(true) : setShowSwitch(true)} manageLabel={currentKind === 'roaming_loot' ? 'Change Route' : 'Manage Action'} />
+      {cacheError && <div className="border-2 border-red/40 bg-red/10 p-2 text-xs font-bold text-red" style={smallClip}>{cacheError}</div>}
+      <ActionFeed entries={feedEntries} />
       {workspace}
 
       <AnimatePresence>
-        {showSwitch && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-black/70" onClick={() => setShowSwitch(false)}>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="w-full max-h-[82vh] overflow-y-auto rounded-t-2xl border-t-2 border-border bg-bg p-4" onClick={(e) => e.stopPropagation()}>
-              <div className="mb-3 flex items-center justify-between"><div><div className="bl-title text-2xl text-text-primary">Switch Action</div><div className="text-[10px] text-text-muted">This drawer replaces the old full-screen action grid.</div></div><button type="button" onClick={() => setShowSwitch(false)} className="bl-secondary p-2 text-text-muted"><ChevronDown size={16} /></button></div>
-              <div className="space-y-2">{switchActions.map(({ label, detail: rowDetail, icon: Icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber"><Icon size={18} /></div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}</div>
-            </motion.div>
-          </motion.div>
-        )}
+        <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer instead of crowding the Action tab." onClose={() => setShowSwitch(false)}>
+          {switchActions.map(({ label, detail: rowDetail, icon: Icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber"><Icon size={18} /></div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
+        </ContextualPickerSheet>
+        <ContextualPickerSheet open={showAreaSelect} title="Choose Roaming Route" detail="Tapping the scene title opens this sheet." onClose={() => setShowAreaSelect(false)}>
+          {ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; return <RouteCard key={area.id} area={area} selected={selected} unlocked={unlocked} onSelect={() => idle.setSelectedRoamingArea(area.id)} onStart={() => startRoam(area)} />; })}
+        </ContextualPickerSheet>
+        <ContextualPickerSheet open={showBossPicker} title="Choose Boss Target" detail="Boss selection no longer consumes the default action screen." onClose={() => setShowBossPicker(false)}>
+          {bosses.map((boss) => <button key={boss.id} type="button" onClick={() => startPrep(boss)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="text-sm font-black text-text-primary">{boss.name}</span><span className="text-[9px] text-text-muted">Lv.{boss.level} · Pwr {boss.recommendedPower}</span></div><div className="mt-1 text-[10px] text-text-muted">Weak: {boss.weaknesses.join('/')} · Drops: {boss.dedicatedDrops.slice(0, 2).join(', ')}</div></button>)}
+        </ContextualPickerSheet>
+        <ContextualPickerSheet open={showRecipePicker} title="Choose Recipe" detail="Recipe selection is contextual, not permanent page chrome." onClose={() => setShowRecipePicker(false)}>
+          {craftable.map(({ recipe, check, duration }) => <button key={recipe.id} type="button" onClick={() => check.can && startCrafting(recipe)} disabled={!check.can} className="w-full border-2 border-border bg-surface p-3 text-left disabled:opacity-50" style={smallClip}><div className="flex justify-between gap-2"><span className="text-sm font-black text-text-primary">{recipe.name}</span><span className="text-[9px] text-amber">{formatDuration(duration)}</span></div><div className="mt-1 text-[10px] text-text-muted">{check.can ? Object.entries(recipe.materials).map(([k, v]) => `${k} ${v}`).join(' · ') : check.missing.join(' · ')}</div></button>)}
+        </ContextualPickerSheet>
+        <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Only unlocked low-rarity items are auto-recommended." onClose={() => setShowSalvagePicker(false)}>
+          {salvageCandidates.map((item) => { const y = calculateSalvageYield(item); return <button key={item.id} type="button" onClick={() => startSalvage(item)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">+{y.scrapAlloy} alloy · +{y.ballisticParts} parts · +{y.reactiveComponents} reactive · +{y.techFragments} tech</div></button>; })}
+        </ContextualPickerSheet>
+        <ContextualPickerSheet open={showMarketPicker} title="Choose Listing Candidate" detail="Market candidates are contextual controls." onClose={() => setShowMarketPicker(false)}>
+          {sellableItems.slice(0, 10).map((item) => <button key={item.id} type="button" onClick={() => onNavigate?.('market')} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">{describeGear(item)} · tap to open Market listing flow</div></button>)}
+        </ContextualPickerSheet>
+        {inspectGear && <GearInspectModal item={inspectGear} onClose={() => setInspectGear(null)} />}
       </AnimatePresence>
 
-      <AnimatePresence>{showAreaSelect && (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 overflow-y-auto bg-bg/90 p-4 backdrop-blur-sm"><div className="mx-auto max-w-lg space-y-3 pb-10"><div className="sticky top-0 flex items-center justify-between bg-bg/95 py-2"><div><div className="text-xs font-bold uppercase tracking-wider text-amber">Select Roaming Area</div><div className="text-[10px] text-text-muted">Changing turf does not produce rewards until Roam is started or switched.</div></div><button onClick={() => setShowAreaSelect(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface-raised text-text-primary" aria-label="Close area selector"><X size={16} /></button></div>{ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; return <button key={area.id} disabled={!unlocked} onClick={() => { if (!unlocked) return; idle.setSelectedRoamingArea(area.id); setShowAreaSelect(false); }} className={`w-full border p-3 text-left ${selected ? 'border-amber/40 bg-amber/10' : 'border-border bg-surface'} ${!unlocked ? 'opacity-60' : ''}`} style={panelClip}><div className="flex items-start justify-between gap-3"><div><div className="text-sm font-black text-text-primary">{area.name}</div><div className="text-[10px] text-text-muted">{area.manufacturerInfluence} / Lv.{area.unlockLevel} / {area.dangerRating}</div></div>{selected && <span className="text-[9px] font-black uppercase tracking-widest text-amber">Current</span>}</div><div className="mt-2 text-xs leading-relaxed text-text-secondary">{area.gameplayIdentity}</div><div className="mt-1 text-[10px] text-text-muted">Enemies: {area.enemyType}</div><div className="mt-1 text-[10px] text-amber">{unlocked ? area.selectionHint : `Locked until level ${area.unlockLevel}.`}</div></button>; })}</div></motion.div>)}</AnimatePresence>
       <AnimatePresence>{prepBoss && <BossPrepModal boss={prepBoss} onClose={() => setPrepBoss(null)} />}</AnimatePresence>
     </div>
   );
