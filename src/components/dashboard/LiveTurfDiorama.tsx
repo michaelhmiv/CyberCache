@@ -6,6 +6,7 @@ import { CharacterStatBar } from '@/components/stats/CharacterStatBar';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore } from '@/store';
+import { computeWeaponDps } from '@/lib/stats/dpsChain';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
@@ -139,6 +140,14 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : `${area.manufacturerInfluence} patrol kit`;
   const motionCaption = latestEvent ? `${latestEvent.label} ${latestEvent.detail}` : copy.caption;
   const targetMode = latestEvent ? 'event' : copy.status;
+  // The DPS chip shows the weapon's output against the *current* target:
+  //   - In a roaming context, vs a standard target (no weakness)
+  //   - In a boss prep/fight, vs the selected boss's first weakness
+  // This way the chip "honestly" reflects the modifier chain, not just the
+  // base damage — the player sees a number that responds to context.
+  const bossTarget = bossName ? REGION_1_BOSSES.find((b) => b.name === bossName) : null;
+  const targetDps = weapon ? computeWeaponDps({ weapon, bossWeaknesses: bossTarget?.weaknesses }) : 0;
+  const dpsChipLabel = bossTarget ? `vs ${bossTarget.name.split(' ')[0]}` : 'vs standard';
   const primaryLabel = primaryActionLabel ?? (activityKind === 'roaming_loot' ? 'View run' : activityKind === 'idle_standby' || activityKind === 'none' ? 'Start action' : 'Manage action');
   const primaryDetail = primaryActionDetail ?? (activityKind === 'roaming_loot' ? area.enemyType : copy.caption);
   const secondaryLabel = secondaryActionLabel ?? (bossName ? 'Prep boss' : 'Switch');
@@ -163,7 +172,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       </svg>
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
-        <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">LV {playerLevel}</div><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
+        <div className="pointer-events-none shrink-0 space-y-1">
+          <div className="border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">LV {playerLevel}</div><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
+          {weapon && <div className="border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{dpsChipLabel}</div><div className="text-xs font-black text-red">{Math.round(targetDps).toLocaleString()} <span className="text-[8px] text-text-muted">DPS</span></div></div>}
+        </div>
       </div>
       <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${eventActive ? latestEvent?.id : mode}`} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44 } : undefined}><WeaponIllustration weapon={weapon} type={fallbackType(area)} manufacturer={fallbackMaker(area)} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
       <div className="pointer-events-none absolute bottom-[82px] left-2 right-2 grid grid-cols-[1fr_auto] gap-2"><div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate text-[9px] font-black uppercase tracking-wide text-text-primary">{weaponLabel}</div><div className="truncate text-[8px] text-text-muted">{motionCaption}</div></div><div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>{latestEvent ? <Sparkles size={13} className="text-amber" /> : <Crosshair size={13} className="text-red" />}<div><div className="text-[8px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div><div className="max-w-[92px] truncate text-[9px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel(area, bossName)}</div></div></div></div>

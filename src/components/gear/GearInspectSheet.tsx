@@ -5,6 +5,7 @@ import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { RARITIES, rollQualityLabel } from '@/constants/rarities';
 import { calculateSalvageYield } from '@/constants/salvageRules';
 import { useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
+import { computeStandardDps } from '@/lib/stats/dpsChain';
 import type { Affix, ClassMod, GearItem, Ordnance, Relic, Shield as ShieldItem, Weapon } from '@/types/items';
 import type { Listing } from '@/types/market';
 
@@ -58,8 +59,12 @@ function Visual({ item, color }: { item: GearItem; color: string }) {
 
 function statRows(item: GearItem): Array<[string, React.ReactNode, string?, number?]> {
   if (isWeapon(item)) {
-    const dps = Math.round(item.baseDamage * item.attackSpeed * (1 + item.critChance * item.critDamage));
-    return [['Combat Power', item.combatPower, 'text-amber', item.combatPower], ['DPS Estimate', dps, 'text-red', dps], ['Boss Power', item.bossPower, 'text-amber', item.bossPower], ['Farm Power', item.farmPower, 'text-green', item.farmPower], ['Damage', item.baseDamage], ['Attack Speed', item.attackSpeed.toFixed(2)], ['Crit Chance', pct(item.critChance)], ['Crit Damage', pct(item.critDamage)], ['Status Chance', pct(item.statusChance)], ['Shield Modifier', signedPct(item.shieldDamageMod), 'text-cyan'], ['Armor Modifier', signedPct(item.armorDamageMod), 'text-purple'], ['Offline Modifier', signedPct(item.offlineEarningsMod), 'text-green'], ['Rare Drop', signedPct(item.rareDropChanceMod), 'text-amber'], ['Scrap Yield', signedPct(item.scrapYieldMod), 'text-cyan']];
+    // DPS goes through the unified modifier chain. The "vs standard target"
+    // label is shown next to the number on the UI to make the assumption
+    // explicit — the player can see in the boss-prep screen what the value
+    // becomes against a real weakness.
+    const dps = Math.round(computeStandardDps(item));
+    return [['Combat Power', item.combatPower, 'text-amber', item.combatPower], ['DPS (vs standard)', dps, 'text-red', dps], ['Boss Power', item.bossPower, 'text-amber', item.bossPower], ['Farm Power', item.farmPower, 'text-green', item.farmPower], ['Damage', item.baseDamage], ['Attack Speed', item.attackSpeed.toFixed(2)], ['Crit Chance', pct(item.critChance)], ['Crit Damage', pct(item.critDamage)], ['Status Chance', pct(item.statusChance)], ['Shield Modifier', signedPct(item.shieldDamageMod), 'text-cyan'], ['Armor Modifier', signedPct(item.armorDamageMod), 'text-purple'], ['Offline Modifier', signedPct(item.offlineEarningsMod), 'text-green'], ['Rare Drop', signedPct(item.rareDropChanceMod), 'text-amber'], ['Scrap Yield', signedPct(item.scrapYieldMod), 'text-cyan']];
   }
   if (isShield(item)) return [['Shield HP', item.hp, 'text-cyan', item.hp], ['Recharge Rate', `${Math.round(item.rechargeRate)}/s`], ['Mitigation', pct(item.mitigation), 'text-green'], ['Element', item.element]];
   if (isClassMod(item)) return [['Skill Tree', item.treeBonus, 'text-purple'], ['Boosted Nodes', Object.keys(item.nodeBoosts).length], ['Total Node Boost', Object.values(item.nodeBoosts).reduce((s, v) => s + v, 0), 'text-purple'], ['Affixes', item.affixes.length]];

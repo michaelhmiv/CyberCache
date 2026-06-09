@@ -1,6 +1,7 @@
 import { SKILL_NODES } from '@/constants/skillTrees';
 import type { PlayerProfile } from '@/types/player';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
+import { computeStandardDps } from '@/lib/stats/dpsChain';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
@@ -40,7 +41,10 @@ type Input = {
 const pct = (value: number) => `${Math.round(value * 100)}%`;
 const signedPct = (value: number) => `${value >= 0 ? '+' : ''}${Math.round(value * 100)}%`;
 const whole = (value: number) => Math.round(value).toLocaleString();
-const weaponDps = (weapon: Weapon) => weapon.baseDamage * weapon.attackSpeed * (1 + weapon.critChance * weapon.critDamage);
+// DPS computation is delegated to the unified modifier chain. The standard
+// target (no weakness, no resistance, no consumables) is the right baseline
+// for the dashboard stat summary — boss-relative DPS lives in the boss sim.
+const weaponDps = (weapon: Weapon) => computeStandardDps(weapon);
 const gearAffixes = (gear: Array<GearItem | undefined>, stat: string) => gear.flatMap((item) => ('affixes' in (item ?? {}) && Array.isArray(item?.affixes) ? item.affixes.filter((affix) => affix.stat === stat).map((affix) => ({ item, affix })) : []));
 
 function skillTotal(spent: Record<string, number>, key: string) {
