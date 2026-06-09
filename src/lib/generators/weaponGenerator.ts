@@ -14,6 +14,7 @@ import { rollRarityForDrop } from '../../content/lootResolver';
 import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
 import { generateItemId } from '../utils/id';
 import { generateWeaponName } from '../utils/naming';
+import { computeStandardDps } from '../stats/dpsChain';
 
 export interface GenerateWeaponOptions {
   source: DropSource;
@@ -181,20 +182,42 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
   }
 
   // 13. Source tag already set
-  // 14. Calculate effective power
-  const combatPower = Math.round(
-    stats.baseDamage * stats.attackSpeed * (1 + stats.critChance * (stats.critDamage - 1)) * (1 + stats.statusChance * 0.5)
-  );
-  const bossPower = Math.round(combatPower * (1 + stats.bossDamageMod) * (1 + stats.shieldDamageMod * 0.3) * (1 + stats.armorDamageMod * 0.3));
-  const farmPower = Math.round(combatPower * (1 + stats.waveDamageMod) * (1 + stats.attackSpeed * 0.2));
-  const economyScore = Math.round((stats.rareDropChanceMod + stats.scrapYieldMod + stats.offlineEarningsMod) * 100);
-
-  // 15. Name
-  const name = generateWeaponName(weaponType, manufacturer, element, rng);
-
-  return {
+  // 14. Calculate effective power.
+  //
+  //   `combatPower` is the chain's "vs standard target" DPS, computed via
+  //   `computeStandardDps(weapon)`. The chain (src/lib/stats/dpsChain.ts)
+  //   is the single source of truth for "how much damage does this weapon
+  //   do per second against a generic target" — we delegate to it here so
+  //   the frozen value on the Weapon record and the value the diorama /
+  //   gear inspect show cannot diverge. The parity test in
+  //   src/test/weaponGenerator.test.ts asserts they match.
+  //
+  //   `bossPower` and `farmPower` are composite derived stats, not pure
+  //   DPS. They fold in shield/armor break bonuses and wave damage mod
+  //   respectively — domain facts the generator owns, not the chain.
+  //   `bossPower` is `combatPower * (1 + bossDamageMod) * (1 + shield
+  //   damage mod 0.3) * (1 + armor damage mod 0.3)`. `farmPower` is
+  //   `combatPower * (1 + waveDamageMod) * (1 + attackSpeed * 0.2)`.
+  //
+  //   We assemble the weapon first with placeholder power values, then
+  //   call the chain on the assembled weapon to compute combatPower.
+  //   The chain only reads baseDamage / attackSpeed / critChance /
+  //   critDamage / element / manufacturer — none of which depend on
+  //   combatPower, so the placeholder is safe.
+  //
+  //   This intentionally changes the visible `Combat Power` and
+  //   `Farm Power` chips on every existing weapon. The new value uses
+  //   the chain's formula (`(1 + critChance * critDamage)`) which is
+  //   the correct interpretation per the locked decision in
+  //   `.hermes/plans/dps-chain-v2-plan.md` (D1: "vs standard" = raw
+  //   hit, no element multiplier). The previous generator formula
+  //   (`(1 + critChance * (critDamage - 1)) * (1 + statusChance *
+  //   0.5)`) treated critDamage as a partial multiplier and status
+  //   chance as a DPS contributor; both are now removed because
+  //   neither is folded into the chain's standard-target DPS.
+  const stub: Weapon = {
     id: generateItemId(),
-    name,
+    name: '',
     level,
     rarity,
     weaponType,
@@ -208,6 +231,22 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
     sourceTag: source,
     isLocked: false,
     pixelSeed: seed,
+    combatPower: 0,
+    bossPower: 0,
+    farmPower: 0,
+    economyScore: 0,
+  };
+  const combatPower = Math.round(computeStandardDps(stub));
+  const bossPower = Math.round(combatPower * (1 + stats.bossDamageMod) * (1 + stats.shieldDamageMod * 0.3) * (1 + stats.armorDamageMod * 0.3));
+  const farmPower = Math.round(combatPower * (1 + stats.waveDamageMod) * (1 + stats.attackSpeed * 0.2));
+  const economyScore = Math.round((stats.rareDropChanceMod + stats.scrapYieldMod + stats.offlineEarningsMod) * 100);
+
+  // 15. Name
+  const name = generateWeaponName(weaponType, manufacturer, element, rng);
+
+  return {
+    ...stub,
+    name,
     combatPower,
     bossPower,
     farmPower,
