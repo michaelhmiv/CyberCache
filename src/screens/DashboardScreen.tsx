@@ -47,7 +47,6 @@ type GainEvent = {
 };
 
 const TICK_SECONDS = 3;
-const XP_PER_TICK = 1;
 const FIELD_FIND_CHANCE = 22;
 const CACHE_FRAGMENT_CHANCE = 3;
 
@@ -206,7 +205,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const activityTarget = activity.current.targetLabel ?? safeText(activePayload.target_label) ?? 'No target';
   const activityScene = activity.current.sceneKey ?? safeText(activePayload.scene_key) ?? 'standby';
   const selectedRoamingActive = activity.current.kind === 'roaming_loot' && activity.current.targetType === 'roaming_area' && activity.current.targetId === selectedArea.id;
-  const productiveTickLabel = selectedRoamingActive ? `+${XP_PER_TICK}/tick` : 'gated';
+  const productiveTickLabel = selectedRoamingActive ? `+${selectedArea.idleXpPerTick}/tick` : 'gated';
   const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : `start ${selectedArea.name}`;
 
   const startSelectedRoaming = useCallback(async () => {

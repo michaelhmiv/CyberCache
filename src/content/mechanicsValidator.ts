@@ -144,6 +144,7 @@ export function validateMechanicsFoundation(): MechanicsValidationReport {
     checkCount += check(area.unlockLevel >= 1, issues, 'invalid_area_unlock_level', path, 'Roaming area unlockLevel must be at least 1.');
     checkCount += check(nonNegativeNumber(area.idleCreditsPerMinute), issues, 'invalid_area_credits', path, 'Roaming area idleCreditsPerMinute must be non-negative.');
     checkCount += check(nonNegativeNumber(area.idleScrapPerMinute), issues, 'invalid_area_scrap', path, 'Roaming area idleScrapPerMinute must be non-negative.');
+    checkCount += check(area.idleXpPerTick > 0, issues, 'invalid_area_idle_xp', path, 'Roaming area idleXpPerTick must be greater than 0.');
     checkCount += check(Object.values(Rarity).every((rarity) => nonNegativeNumber(area.dropPoolRarityWeights[rarity])), issues, 'invalid_area_rarity_weights', path, 'Roaming area must define non-negative weights for every rarity.');
     checkCount += check(Object.values(area.gearDropWeights).every((weight) => weight >= 0), issues, 'invalid_area_gear_weights', path, 'Gear drop weights must be non-negative.');
     checkCount += check(area.manufacturerInfluence === 'Mixed' || Object.values(Manufacturer).includes(area.manufacturerInfluence), issues, 'invalid_manufacturer_influence', path, 'Manufacturer influence must be a manufacturer or Mixed.');
