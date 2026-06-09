@@ -1,5 +1,6 @@
 import type { Weapon } from '@/types/items';
 import { Element } from '@/types/game';
+import { applySignatureMechanic, DPS_CONSUMABLE_EFFECTS } from './signatureMechanic';
 
 export type DpsContext = {
   weapon: Weapon;
@@ -8,32 +9,35 @@ export type DpsContext = {
   /**
    * Boss resistances (defensive elements that reduce incoming damage).
    * Multiplicative, default empty (= no resistance penalty).
-   * Replaces the legacy single-number `bossResistance` parameter.
    */
   bossResistances?: Element[];
-  /** Pre-fight consumables applied as a final multiplier. */
-  consumables?: { TargetPainter?: number; OptimalAmmo?: number };
-  /** Manufacturer-specific legendary damage multiplier (default 1.0). */
+  /**
+   * Pre-fight consumable counts, in `Record<string, number>` shape.
+   * The chain only consumes the keys listed in `DPS_CONSUMABLE_EFFECTS`
+   * (TargetPainter, OverchargeStim, IncendiaryAmmo, VoidAmmo). Other
+   * consumables affect survival/break/loot and stay in the sim.
+   */
+  consumables?: Record<string, number>;
+  /**
+   * Manufacturer-specific legendary damage multiplier (default 1.0).
+   */
   legendaryDamageMult?: number;
+  /**
+   * Ammo-window efficiency for this weapon in the active fight.
+   * 1.0 = no reload loss, 0.0 = full reload (no firing time).
+   * Computed by the sim via `calculateAmmoWindows` and passed in.
+   * Default 1.0 (= every fight, the weapon is always firing).
+   */
+  ammoEfficiency?: number;
 };
 
 /**
  * Real counter-element table.
  *
- * The element-vs-element matchup is now a 3-state lookup, not the
- * 2-state "match → 1.3, else 1.0" used in PR A-C. A player element that
- * matches a boss resistance pays a 0.7× penalty; a non-matching element
- * is neutral (1.0×). When both `bossWeaknesses` and `bossResistances`
- * are empty, the chain returns 1.0× regardless of element (this is
- * the "vs standard target" semantics locked by decision D1).
- *
- * The boss-weakness check takes priority over the resistance check
- * (a player should never see "this element is both your counter AND
- * the boss's resistance" — those arrays are disjoint by data design).
- *
- * The "vs standard" / 1.0×-for-everything branch replaces the legacy
- * `getElementMatchup(element, 'flesh')` fallback. The chain no longer
- * cares about target-type strings; it only consumes Element arrays.
+ * 3-state lookup: weakness = 1.3×, resistance = 0.7×, otherwise = 1.0×.
+ * The "vs standard" baseline is the otherwise branch (1.0× for every
+ * element) — there is no flesh fallback. The chain no longer imports
+ * `getElementMatchup`; it only consumes Element arrays.
  */
 const counterElementMultiplier = (
   playerElement: Element,
@@ -46,26 +50,40 @@ const counterElementMultiplier = (
 };
 
 /**
+ * Compute the consumable multiplier step. Only the keys listed in
+ * `DPS_CONSUMABLE_EFFECTS` contribute; everything else is silently
+ * ignored. The shape is `Record<string, number>` so callers can pass
+ * the full consumables table without filtering.
+ */
+function consumableMultiplier(consumables: Record<string, number> | undefined): number {
+  if (!consumables) return 1;
+  let mult = 1;
+  for (const [key, count] of Object.entries(consumables)) {
+    const effect = DPS_CONSUMABLE_EFFECTS[key];
+    if (effect !== undefined && count > 0) {
+      mult *= 1 + effect * count;
+    }
+  }
+  return mult;
+}
+
+/**
  * The unified DPS modifier chain. This is the single source of truth for
  * "damage per second" in CyberCache. Every UI surface that shows DPS
  * (gear inspect, loadout screen, dashboard chips, boss prep, LiveTurfDiorama)
  * MUST go through this function — do not compute DPS inline.
  *
  * Chain order (each step is multiplicative, applied to the previous result):
- *   1. Raw DPS  = baseDamage * attackSpeed * (1 + critChance * critDamage)
- *   2. Signature DPS modifier (charges, bursts, etc.)
+ *   1. Raw DPS       = baseDamage * attackSpeed * (1 + critChance * critDamage)
+ *   2. Signature DPS modifier (charges, bursts, etc. — see signatureMechanic)
  *   3. Manufacturer legendary damage multiplier
- *   4. Element matchup vs boss weakness / resistance
- *   5. Pre-fight consumables (TargetPainter, OptimalAmmo)
+ *   4. Element matchup vs boss weakness / resistance (3-state counter table)
+ *   5. Ammo-window efficiency (caller-provided, default 1.0)
+ *   6. Pre-fight consumables (DPS-relevant subset, see DPS_CONSUMABLE_EFFECTS)
  *
- * Note: boss resistance is no longer a single multiplicative number in
- * the chain's signature — it is consumed as a `Element[]` array that
- * combines with `bossWeaknesses` to form the 3-state counter table.
- * Callers that previously passed `bossResistance: 0.5` (a flat damage
- * penalty) need to model their effect as a synthetic resistance element
- * or add a new chain step. None of the in-tree callers did this; the
- * sim passed `bossResistance: 1` (no penalty) and the dashboard passed
- * nothing.
+ * The chain knows nothing about per-slot contribution (secondary × 0.3,
+ * heavy × 0.5) or risk/skill bonuses — those are loadout-decision and
+ * player-level concerns that the sim multiplies on top of the chain.
  */
 export function computeWeaponDps(ctx: DpsContext): number {
   const {
@@ -74,37 +92,35 @@ export function computeWeaponDps(ctx: DpsContext): number {
     bossResistances = [],
     consumables = {},
     legendaryDamageMult = 1,
+    ammoEfficiency = 1,
   } = ctx;
   // Step 1: Raw DPS from base stats.
   const rawDps = weapon.baseDamage * weapon.attackSpeed * (1 + weapon.critChance * weapon.critDamage);
-  // Step 2: Signature mechanic. We pass through a 1.0 multiplier here;
-  // the full signature-reload calculation lives in bossSimulator. When the
-  // signature is extracted into its own module (PR E), this becomes a
-  // direct call. For now the chain correctly accounts for everything except
-  // ammo-windows — that loss is acceptable for non-boss DPS displays.
-  const signatureDps = rawDps;
+  // Step 2: Signature mechanic. The chain now consumes the signature
+  // directly via signatureMechanic.ts. The `fullDuration` and
+  // `reloadDuration` are 0 in the no-ammo-window default (the chain
+  // doesn't model ammo windows itself; that's a caller concern in
+  // step 5). For weapons with no signature, this returns 1.0×.
+  const sig = applySignatureMechanic(weapon, 0, 0, 30);
+  const signatureDps = rawDps * sig.dpsMult;
   // Step 3: Manufacturer legendary damage multiplier.
   const legendaryDps = signatureDps * legendaryDamageMult;
-  // Step 4: Element matchup. 3-state counter table: weakness = 1.3×,
-  // resistance = 0.7×, otherwise = 1.0×. The "vs standard" baseline
-  // is the otherwise branch (1.0× for every element).
+  // Step 4: Element matchup. 3-state counter table.
   const elemMatch = counterElementMultiplier(weapon.element, bossWeaknesses, bossResistances);
   const elementalDps = legendaryDps * elemMatch;
-  // Step 5: Pre-fight consumables. TargetPainter is +15% DPS (covers the
-  // +20% crit), OptimalAmmo is +8% DPS (slight attack-speed bump).
-  const consumableMult = (1 + (consumables.TargetPainter ?? 0) * 0.15) * (1 + (consumables.OptimalAmmo ?? 0) * 0.08);
-  return elementalDps * consumableMult;
+  // Step 5: Ammo-window efficiency. Caller pre-computes this from
+  // `calculateAmmoWindows`; the chain just multiplies it in.
+  const ammoDps = elementalDps * ammoEfficiency;
+  // Step 6: Pre-fight consumables. Only the keys in
+  // DPS_CONSUMABLE_EFFECTS contribute; everything else is a no-op.
+  return ammoDps * consumableMultiplier(consumables);
 }
 
 /**
  * "Standard target" DPS: vs a target with no weakness, no resistance, no
- * consumables, no legendary bonus. Used by the gear inspect and loadout
- * screen so the player sees the raw weapon contribution without target
- * context.
- *
- * Under PR D, "vs standard" means: no element multiplier at all (1.0×
- * for every element). This replaces the legacy flesh-fallback semantics
- * where Fire-vs-flesh returned 1.3×.
+ * consumables, no legendary bonus, infinite ammo, no signature loss.
+ * Used by the gear inspect and loadout screen so the player sees the
+ * raw weapon contribution without target context.
  */
 export function computeStandardDps(weapon: Weapon, legendaryDamageMult = 1): number {
   return computeWeaponDps({ weapon, legendaryDamageMult });
@@ -118,7 +134,7 @@ export function computeLoadoutDps(
   weapons: Weapon[],
   bossWeaknesses?: Element[],
   bossResistances?: Element[],
-  consumables?: DpsContext['consumables'],
+  consumables?: Record<string, number>,
 ): number {
   return weapons.reduce(
     (sum, weapon) => sum + computeWeaponDps({ weapon, bossWeaknesses, bossResistances, consumables }),
@@ -129,14 +145,17 @@ export function computeLoadoutDps(
 /** A short human label for the active DPS context (for UI display). */
 export function describeDpsContext(
   weapon: Weapon,
-  context: { bossWeaknesses?: Element[]; bossResistances?: Element[]; consumables?: DpsContext['consumables'] },
+  context: { bossWeaknesses?: Element[]; bossResistances?: Element[]; consumables?: Record<string, number> },
 ): string {
   const parts: string[] = [];
   if (context.bossWeaknesses?.length) parts.push(`vs ${context.bossWeaknesses[0]}-weak`);
   else if (context.bossResistances?.length) parts.push(`vs ${context.bossResistances[0]}-resist`);
   else parts.push('vs standard target');
-  if (context.consumables?.TargetPainter) parts.push('+TargetPainter');
-  if (context.consumables?.OptimalAmmo) parts.push('+OptimalAmmo');
+  if (context.consumables) {
+    for (const key of Object.keys(DPS_CONSUMABLE_EFFECTS)) {
+      if (context.consumables[key]) parts.push(`+${key}`);
+    }
+  }
   parts.push(String(weapon.manufacturer));
   return parts.join(' · ');
 }

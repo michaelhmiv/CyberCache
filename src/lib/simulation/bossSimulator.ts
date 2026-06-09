@@ -5,7 +5,11 @@ import { getElementMatchup } from '../../constants/elements';
 import { CONSUMABLES, ConsumableDef } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 import { computeWeaponDps } from '../stats/dpsChain';
-
+// Note: applySignatureMechanic used to be applied in the sim
+// (one inline call per weapon). After PR E, the chain consumes the
+// signature via the new src/lib/stats/signatureMechanic.ts module
+// directly. The sim only needs ammoEfficiencyFromWindows for
+// pre-computing the ammo-window efficiency it passes to the chain.
 export interface BossSimulationInput {
   primary: Weapon | null;
   secondary: Weapon | null;
@@ -337,59 +341,11 @@ function calculateAmmoWindows(
   return { fullDuration, reloadDuration, ammoPacksUsed: packsUsed };
 }
 
-function applySignatureMechanic(
-  weapon: Weapon | null,
-  fullDuration: number,
-  reloadDuration: number,
-  fightDuration: number
-): { dpsMult: number; statusMult: number; armorBreakMult: number; staggerAttempts: number } {
-  if (!weapon) return { dpsMult: 1, statusMult: 1, armorBreakMult: 1, staggerAttempts: 0 };
-
-  const mechanic = (weapon as BossSimWeapon).signatureMechanic || '';
-
-  switch (mechanic) {
-    case 'sidearm_recovery':
-      // Pistol: minimal reload penalty
-      return { dpsMult: 1, statusMult: 1, armorBreakMult: 1, staggerAttempts: 0 };
-
-    case 'overheat': {
-      // SMG: 8s active at 1.5x, 3s cooldown at 0.1x
-      const cycle = 11; // 8 + 3
-      const cycles = fightDuration / cycle;
-      const activeRatio = (cycles * 8) / fightDuration;
-      const cooldownRatio = (cycles * 3) / fightDuration;
-      const avgMult = activeRatio * 1.5 + cooldownRatio * 0.1;
-      return { dpsMult: avgMult, statusMult: 1.2, armorBreakMult: 1, staggerAttempts: 0 };
-    }
-
-    case 'multi_proc': {
-      // Shotgun: 8 pseudo-pellets, higher effective status
-      return { dpsMult: 1, statusMult: 2.2, armorBreakMult: 1.25, staggerAttempts: 0 };
-    }
-
-    case 'precision_window': {
-      // Sniper: first 3s of each phase +40%
-      const phases = 3; // shield, armor, health (approx)
-      const bonusTime = Math.min(phases * 3, fightDuration);
-      const avgMult = 1 + (bonusTime / fightDuration) * 0.4;
-      return { dpsMult: avgMult, statusMult: 1, armorBreakMult: 1, staggerAttempts: 0 };
-    }
-
-    case 'reload_lock_stagger': {
-      // Launcher: each shot is a stagger attempt, low sustained DPS
-      const shots = Math.floor(fightDuration / 6); // 2s mag + 4s reload
-      return { dpsMult: 0.85, statusMult: 1.2, armorBreakMult: 1.3, staggerAttempts: shots };
-    }
-
-    case 'ramp_sustain': {
-      // Beam: ramps from 0.3 to 1.5 over 10s, avg ~0.9 over long fights
-      const avgMult = fightDuration > 20 ? 1.1 : 0.85;
-      return { dpsMult: avgMult, statusMult: 1.15, armorBreakMult: 1, staggerAttempts: 0 };
-    }
-
-    default:
-      return { dpsMult: 1, statusMult: 1, armorBreakMult: 1, staggerAttempts: 0 };
-  }
+/** Convert an ammo-window result to a single efficiency multiplier. */
+function ammoEfficiencyFromWindows(fullDuration: number, reloadDuration: number, fightDuration: number = 30): number {
+  const reloadPenalty = reloadDuration > 0 ? 0.3 : 1.0; // 30% DPS during reload
+  const effectiveTime = fullDuration + reloadDuration * reloadPenalty;
+  return effectiveTime / fightDuration;
 }
 
 export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
@@ -504,27 +460,17 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   // 3. DPS Check with Ammo Windows
   //
-  // The per-weapon "raw" DPS now goes through the chain
-  // (src/lib/stats/dpsChain.ts). The chain is the single source of truth
-  // for "how much damage does this weapon do per second against a target
-  // with this element matchup and legendary bonus". The sim's job is to
-  // apply per-fight modifiers ON TOP: ammo windows, signature mechanics,
-  // per-slot contribution multipliers (secondary gets 0.3 of base,
-  // heavy gets 0.5 of base). The chain does not yet know about these
-  // per-fight concerns (PR E will fold signature + consumables into
-  // the chain).
+  // The per-weapon DPS now goes entirely through the chain
+  // (src/lib/stats/dpsChain.ts). The chain is the single source of
+  // truth for "how much damage does this weapon do per second against
+  // a target with this element matchup, legendary bonus, ammo window,
+  // signature mechanic, and consumable buffs". The sim's job is to
+  // pre-compute the ammo windows (per-slot loadout decision) and
+  // apply the per-slot contribution multipliers on top (secondary ×
+  // 0.3 normally / 0.6 with Hot Swapper, heavy × 0.5).
   //
-  // We pass `bossWeaknesses` and `bossResistance` to the chain so the
-  // element-vs-weakness matchup and resistance penalty use the chain's
-  // counter-element table (which handles the boss-weakness-as-Element
-  // correctly, unlike the legacy `getElementMatchup(element, 'flesh')`
-  // call that silently fell through to 1.0×).
-  //
-  // We do NOT pass `consumables` to the chain here — the chain's
-  // consumables context is a 2-key struct (TargetPainter, OptimalAmmo)
-  // and the sim's pre-fight consumable math is applied below as a
-  // separate step. PR E will consolidate. For now: chain handles the
-  // DPS math, sim handles the per-fight consumable math.
+  // Risk modifier (rm.dpsMult) and skill bonus (skillBonuses.dps) are
+  // player-level concerns and stay in the sim.
   const ammoPacks = (consumables['AmmoPack'] || 0) +
     (consumables['ArmorPiercingAmmo'] || 0) +
     (consumables['IncendiaryAmmo'] || 0) +
@@ -534,34 +480,43 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     (consumables['VoidAmmo'] || 0);
 
   const primaryAmmo = calculateAmmoWindows(primary, ammoPacks, 30);
-  const secondaryAmmo = calculateAmmoWindows(secondary, 0, 30); // secondary doesn't use ammo packs
+  // Secondary doesn't use ammo packs and the chain handles secondary
+  // signature internally now. No need to pre-compute its ammo window.
+  // (Previously we called calculateAmmoWindows here to feed the
+  // signature mechanic — now that's the chain's job.)
 
   let primaryDPS = 0;
   if (primary) {
+    const ammoEff = ammoEfficiencyFromWindows(primaryAmmo.fullDuration, primaryAmmo.reloadDuration, 30);
+    // The chain now handles signature + ammo efficiency + DPS-relevant
+    // consumables internally. We pass the full `consumables` table
+    // (Record<string, number>) and the chain looks up only the keys
+    // in DPS_CONSUMABLE_EFFECTS.
     const chainDps = computeWeaponDps({
       weapon: primary,
       bossWeaknesses: boss.weaknesses,
       bossResistances: boss.resistances,
+      consumables,
       legendaryDamageMult: legendary.damageMult,
+      ammoEfficiency: ammoEff,
     });
-    const sig = applySignatureMechanic(primary, primaryAmmo.fullDuration, primaryAmmo.reloadDuration, 30);
-    const reloadPenalty = primaryAmmo.reloadDuration > 0 ? 0.3 : 1.0; // 30% DPS during reload
-    const effectiveTime = primaryAmmo.fullDuration + primaryAmmo.reloadDuration * reloadPenalty;
-    const ammoEfficiency = effectiveTime / 30;
-    primaryDPS = chainDps * ammoEfficiency * sig.dpsMult;
+    primaryDPS = chainDps;
   }
 
   let secondaryDPS = 0;
   if (secondary) {
     const secContrib = getHotSwapperSecondaryMult(primary); // 0.6 with Hot Swapper, 0.3 normally
+    // Secondary doesn't have an ammo window in the sim (secondary
+    // weapons don't consume ammo packs). ammoEfficiency stays at the
+    // default 1.0 in the chain.
     const chainDps = computeWeaponDps({
       weapon: secondary,
       bossWeaknesses: boss.weaknesses,
       bossResistances: boss.resistances,
+      consumables,
       legendaryDamageMult: 1, // secondary doesn't get the primary's legendary bonus
     });
-    const sig = applySignatureMechanic(secondary, secondaryAmmo.fullDuration, secondaryAmmo.reloadDuration, 30);
-    secondaryDPS = chainDps * secContrib * sig.dpsMult;
+    secondaryDPS = chainDps * secContrib;
   }
 
   let heavyDPS = 0;
@@ -574,6 +529,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       weapon: heavy,
       bossWeaknesses: boss.weaknesses,
       bossResistances: boss.resistances,
+      consumables,
       legendaryDamageMult: 1,
     });
     heavyDPS = chainDps * 0.5;
@@ -581,20 +537,9 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   let dps = primaryDPS + secondaryDPS + heavyDPS;
 
-  // Pre-fight consumables
-  if (consumables['TargetPainter'] > 0) {
-    dps *= 1.15; // +20% crit ≈ +15% DPS
-  }
-  if (consumables['OverchargeStim'] > 0) {
-    dps *= 1.12; // Next 3 shots +100% averaged over 30s ≈ +12%
-  }
-  if (consumables['IncendiaryAmmo'] > 0) {
-    dps *= 1.08; // Burn DoT ≈ +8% DPS
-  }
-  if (consumables['VoidAmmo'] > 0) {
-    dps *= 1.20; // +20% boss damage
-  }
-
+  // Player-level modifiers (not per-weapon) stay in the sim.
+  // The chain's per-weapon DPS already includes signature, ammo
+  // efficiency, and DPS-relevant consumables.
   dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0));
 
   const timeToKill = boss.health / (dps || 1);
