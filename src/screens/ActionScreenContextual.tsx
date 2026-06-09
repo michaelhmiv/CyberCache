@@ -3,9 +3,6 @@ import { useNow } from '@/hooks/useNow';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
-  AlertTriangle,
-  Boxes,
-  ChevronDown,
   Clock,
   Crosshair,
   Hammer,
@@ -15,7 +12,6 @@ import {
   Recycle,
   ShoppingCart,
   Skull,
-  Sparkles,
   Target,
   Wrench,
   X,
