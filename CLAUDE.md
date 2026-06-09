@@ -59,3 +59,11 @@ npm run lint
 ```
 
 If a command fails, report whether it appears pre-existing or introduced.
+
+## DPS Computation
+
+All DPS math lives in `src/lib/stats/dpsChain.ts`. The chain is the
+single source of truth — every UI surface goes through it. Do not
+inline DPS formulas. See [`docs/dps-chain-v2.md`](./docs/dps-chain-v2.md)
+for the chain's contract, the 6 multiplicative steps, the `DpsContext`
+shape, the call patterns, and the recipe for adding a new modifier.
