@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Backpack, Box, Hammer, Shield, ShoppingBag } from 'lucide-react';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
-import { LootScreen } from './LootScreen';
+import { GearYardScreen } from './GearYardScreen';
 import { VendorScreen } from './VendorScreen';
 import { WorkshopScreen } from './WorkshopScreen';
 import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
@@ -97,7 +97,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
       </div>
 
       <div>
-        {activeTab === 'gear' && <LootScreen onNavigate={onNavigate} />}
+        {activeTab === 'gear' && <GearYardScreen onNavigate={onNavigate} />}
         {activeTab === 'loadout' && <SyncedLoadoutScreen />}
         {activeTab === 'supply' && <VendorScreen />}
         {activeTab === 'workshop' && <WorkshopScreen onNavigate={onNavigate} />}
