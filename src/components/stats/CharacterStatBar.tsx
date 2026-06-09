@@ -15,6 +15,37 @@ const toneClass: Record<StatTone, { text: string; rail: string; bg: string }> = 
   muted: { text: 'text-text-muted', rail: 'bg-text-muted', bg: 'bg-surface' },
 };
 
+/**
+ * Stacked horizontal bar — splits a single metric into N segments
+ * side-by-side, with the segment widths proportional to their values
+ * and the segment color from the source tone. Idle-game convention:
+ * always one continuous bar (no gaps between segments), with a thin
+ * outline. Used for the Health metric (chassis + shield + mitigation)
+ * and reusable for any future metric that has a `stacked` breakdown.
+ */
+function StackedBar({ segments, total }: { segments: NonNullable<StatMetric['stacked']>; total: number }) {
+  const safeTotal = Math.max(1, total);
+  return (
+    <div className="relative h-1 w-full overflow-hidden border border-border bg-surface" aria-hidden="true">
+      <div className="absolute inset-0 flex">
+        {segments.map((segment, index) => {
+          const widthPct = Math.max(0, Math.min(100, (segment.value / safeTotal) * 100));
+          const tone = toneClass[segment.tone];
+          return (
+            <div
+              key={`${segment.label}-${index}`}
+              className={`h-full ${tone.rail}`}
+              style={{ width: `${widthPct}%` }}
+              data-segment={segment.label}
+              data-width={widthPct.toFixed(2)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MiniMetric({ metric, ...rest }: { metric: StatMetric } & React.HTMLAttributes<HTMLDivElement>) {
   const tone = toneClass[metric.tone];
   const { key } = metric;
@@ -28,6 +59,7 @@ function MiniMetric({ metric, ...rest }: { metric: StatMetric } & React.HTMLAttr
           <div className={`truncate text-[11px] font-black ${tone.text}`}>{metric.display}</div>
         </div>
       </div>
+      {metric.stacked && metric.stacked.length > 0 && <StackedBar segments={metric.stacked} total={metric.value} />}
     </div>
   );
 }

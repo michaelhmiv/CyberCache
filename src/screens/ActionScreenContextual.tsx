@@ -39,6 +39,7 @@ import {
   type ActionStat,
 } from '@/components/action/ActionWorkspace';
 import { REGION_1_BOSSES } from '@/constants/bosses';
+import { computeFightPower } from '@/lib/stats/fightPower';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import {
   ROAMING_AREAS,
@@ -375,7 +376,23 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const bestBossWeapon = useMemo(() => inventory.getWeapons().sort((a, b) => b.bossPower - a.bossPower)[0], [inventory]);
   const activityWeapon: Weapon | undefined = loadoutStore.getWeapon('primary') ?? loadoutStore.getWeapon('secondary') ?? loadoutStore.getWeapon('heavy') ?? bestBossWeapon;
   const equippedCount = Object.values(loadoutStore.slots).filter(Boolean).length;
-  const fightPower = loadoutStore.getWeapon('primary')?.bossPower || bestBossWeapon?.bossPower || 0;
+  // fightPower is the "effective DPS vs the current boss target".
+  // The previous implementation read `weapon.bossPower` directly, which
+  // is a static generator composite that bakes in shield/armor/wave
+  // bonuses. The real-world "can I beat this boss" number is the
+  // boss-relative DPS from the unified modifier chain. The pure helper
+  // in lib/stats/fightPower.ts owns the fallback chain — no surface in
+  // the boss prep context can ever read 0 while a weapon is in the
+  // loadout (this is the regression that triggered this PR).
+  const fightPower = useMemo(
+    () =>
+      computeFightPower(
+        [loadoutStore.getWeapon('primary'), loadoutStore.getWeapon('secondary'), loadoutStore.getWeapon('heavy')],
+        bestBossWeapon,
+        currentBoss,
+      ),
+    [loadoutStore, currentBoss, bestBossWeapon],
+  );
   const isRoaming = currentKind === 'roaming_loot';
   const activeRoamingAreaId = activity.current.targetType === 'roaming_area' ? activity.current.targetId : null;
   const canTick = isRoaming && activeRoamingAreaId === selectedArea.id && !activity.pending;

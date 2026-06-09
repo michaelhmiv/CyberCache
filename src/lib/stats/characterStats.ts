@@ -22,6 +22,18 @@ export type StatMetric = {
   detail: string;
   tone: StatTone;
   contributions: StatContribution[];
+  /**
+   * Optional stacked sub-segments for a horizontal bar visualization.
+   * Each segment is a (value, display, tone) triple that, summed, equals
+   * `value`. The HUD uses this to render a single horizontal bar split
+   * by source (e.g., HP bar: base chassis + shield + mitigation). The
+   * SourceRow in the modal renders the same data as a contribution list.
+   *
+   * If absent, the HUD renders no bar for the metric (default text-only).
+   * Idle-game convention: a single non-stacked bar uses `stacked = [{...}]`
+   * with one entry equal to `value`.
+   */
+  stacked?: Array<{ value: number; display: string; tone: StatTone; label: string }>;
 };
 
 export type CharacterStatSummary = {
@@ -79,8 +91,8 @@ function affixContribs(gear: Array<GearItem | undefined>, key: string, scalar: n
   });
 }
 
-function metric(key: string, label: string, value: number, display: string, detail: string, tone: StatTone, contributions: StatContribution[]): StatMetric {
-  return { key, label, value, display, detail, tone, contributions: contributions.filter((entry) => entry.value !== 0) };
+function metric(key: string, label: string, value: number, display: string, detail: string, tone: StatTone, contributions: StatContribution[], stacked?: StatMetric['stacked']): StatMetric {
+  return { key, label, value, display, detail, tone, contributions: contributions.filter((entry) => entry.value !== 0), stacked };
 }
 
 export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
@@ -129,6 +141,16 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     ...affixContribs(gear, 'weaponDamage', baseDps, whole),
   ];
 
+  // DPS label: "Fight DPS" when a boss is selected (this is the number
+  // the player deals vs the selected target). Otherwise "Standard DPS"
+  // (the baseline against a target with no weakness/resistance). The
+  // detail line carries the full context. The previous label "DPS" was
+  // ambiguous and was the root of the "I have 0 DPS with a weapon"
+  // confusion — the metric itself was non-zero, but the reader couldn't
+  // tell which slot was the boss-relative number and which was the
+  // post-boss-modifier number.
+  const dpsLabel = boss ? 'Fight DPS' : 'Standard DPS';
+
   const bossContribs: StatContribution[] = [
     { source: 'Total DPS', detail: 'After weapons, skills, and gear affixes', value: totalDps, display: whole(totalDps), tone: 'red' },
     ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: 'Boss damage modifier', value: totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length), display: whole(totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length)), tone: 'amber' as StatTone })),
@@ -152,8 +174,12 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   ];
 
   const all = [
-    metric('health', 'Health', totalHealth, whole(totalHealth), 'base + shield + mitigation', 'green', healthContribs),
-    metric('dps', 'DPS', dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
+    metric('health', 'Health', totalHealth, whole(totalHealth), 'base + shield + mitigation', 'green', healthContribs, [
+      { value: baseHealth, display: whole(baseHealth), tone: 'muted', label: 'Chassis' },
+      ...(shield ? [{ value: shieldHp, display: whole(shieldHp), tone: 'cyan' as StatTone, label: 'Shield' }] : []),
+      ...(shield && mitigationHp > 0 ? [{ value: mitigationHp, display: whole(mitigationHp), tone: 'green' as StatTone, label: 'Mitigation' }] : []),
+    ]),
+    metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
     metric('boss', 'Boss DPS', bossDps, whole(bossDps), 'DPS with boss modifiers', 'amber', bossContribs),
     metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', breakContribs('shield')),
     metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', breakContribs('armor')),
