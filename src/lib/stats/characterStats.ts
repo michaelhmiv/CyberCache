@@ -1,7 +1,8 @@
 import { SKILL_NODES } from '@/constants/skillTrees';
 import type { PlayerProfile } from '@/types/player';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
-import { computeStandardDps } from '@/lib/stats/dpsChain';
+import type { BossDef } from '@/types/boss';
+import { computeLoadoutDps, computeStandardDps } from '@/lib/stats/dpsChain';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
@@ -36,6 +37,13 @@ type Input = {
   relic?: Relic;
   ordnance?: Ordnance;
   spentSkills: Record<string, number>;
+  /**
+   * When a boss is selected on the Dashboard, the DPS metric becomes
+   * boss-relative: the displayed value uses computeLoadoutDps with the
+   * boss's weaknesses applied, and the detail label switches from
+   * "vs standard target" to "vs {boss.name} ({weakness1})".
+   */
+  boss?: BossDef;
 };
 
 const pct = (value: number) => `${Math.round(value * 100)}%`;
@@ -76,7 +84,7 @@ function metric(key: string, label: string, value: number, display: string, deta
 }
 
 export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
-  const { player, weapons, shield, classMod, relic, ordnance, spentSkills } = input;
+  const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss } = input;
   const liveWeapons = weapons.filter((weapon): weapon is Weapon => !!weapon);
   const gear = [...liveWeapons, shield, classMod, relic, ordnance];
   const baseHealth = 100 + player.level * 12;
@@ -87,6 +95,15 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const weaponDamageBonus = skillTotal(spentSkills, 'weaponDamage') + skillTotal(spentSkills, 'attackSpeed') + skillTotal(spentSkills, 'critChance') * 0.5 + skillTotal(spentSkills, 'critDamage') * 0.5;
   const affixDamageBonus = gearAffixes(gear, 'weaponDamage').reduce((sum, item) => sum + item.affix.value, 0);
   const totalDps = baseDps * (1 + weaponDamageBonus + affixDamageBonus);
+  // When a boss is supplied, the DPS metric becomes the boss-relative DPS so
+  // the player can read the effective damage they'll deal. Otherwise it stays
+  // as the standard-target total. The detail label flips with the context.
+  const baseDpsForBoss = boss ? computeLoadoutDps(liveWeapons, boss.weaknesses) : 0;
+  const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus);
+  const dpsDisplayValue = boss ? totalDpsForBoss : totalDps;
+  const dpsDetail = boss
+    ? `vs ${boss.name} (${(boss.weaknesses[0] ?? 'no weakness').toLowerCase()})`
+    : 'weapons + skills + affixes';
   const bossWeaponBonus = liveWeapons.reduce((sum, weapon) => sum + weapon.bossDamageMod, 0) / Math.max(1, liveWeapons.length);
   const bossSkillBonus = skillTotal(spentSkills, 'bossDamageMod') + skillTotal(spentSkills, 'bossDamageSniperPistol') + skillTotal(spentSkills, 'launcherBossDps') + skillTotal(spentSkills, 'weaknessMatchDamage');
   const bossDps = totalDps * (1 + bossWeaponBonus + bossSkillBonus);
@@ -136,7 +153,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
 
   const all = [
     metric('health', 'Health', totalHealth, whole(totalHealth), 'base + shield + mitigation', 'green', healthContribs),
-    metric('dps', 'DPS', totalDps, whole(totalDps), 'weapons + skills + affixes', 'red', dpsContribs),
+    metric('dps', 'DPS', dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
     metric('boss', 'Boss DPS', bossDps, whole(bossDps), 'DPS with boss modifiers', 'amber', bossContribs),
     metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', breakContribs('shield')),
     metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', breakContribs('armor')),
