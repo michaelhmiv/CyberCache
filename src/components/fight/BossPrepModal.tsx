@@ -121,6 +121,50 @@ const BossVitalsBars: React.FC<{ boss: BossDef }> = ({ boss }) => {
 };
 
 /**
+ * BossPhaseTimeline — a horizontal segmented bar showing all phases
+ * of the boss fight in order, each segment colored by status. Tapping
+ * a segment smooth-scrolls the corresponding phase card into view.
+ * Idle-game convention: one continuous bar split by vertical dividers
+ * (no gaps), with the phase name centered in each segment. The bar
+ * shows the *order* of phases, which the existing card list cannot.
+ *
+ * Private to BossPrepModal; lives in the same file as a deliberate
+ * scope limit. If a future screen needs it, extract to
+ * src/components/boss/BossPhaseTimeline.tsx.
+ */
+const PHASE_STATUS_BG: Record<PhaseAnalysis['status'], string> = {
+  safe: 'bg-green/40',
+  close: 'bg-amber/40',
+  risky: 'bg-orange-400/40',
+  failing: 'bg-red/40',
+};
+
+const BossPhaseTimeline: React.FC<{ phases: PhaseAnalysis[]; onSelect: (phaseId: string) => void }> = ({ phases, onSelect }) => {
+  if (phases.length === 0) return null;
+  return (
+    <div className="flex h-9 border-2 border-border overflow-hidden" data-testid="phase-timeline" role="navigation" aria-label="Boss phase timeline">
+      {phases.map((phase, i) => {
+        const color = PHASE_STATUS_BG[phase.status];
+        const borderRight = i < phases.length - 1 ? 'border-r-2 border-border' : '';
+        return (
+          <button
+            key={phase.phaseId}
+            type="button"
+            onClick={() => onSelect(phase.phaseId)}
+            className={`flex-1 ${color} ${borderRight} px-1 text-[8px] font-black uppercase text-text-primary active:scale-95 truncate`}
+            data-phase-segment={phase.phaseId}
+            data-status={phase.status}
+            aria-label={`Jump to ${phase.phaseName} (${phase.status})`}
+          >
+            {phase.phaseName}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+/**
  * BossReadinessCard — the recommended-power delta. Surfaces the gap
  * between the player's effective DPS and the boss's recommendedPower.
  * Green = over-geared, red = under-geared, with a percentage delta so
@@ -174,6 +218,24 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const reducedMotion = useReducedMotion();
   const [fightTimeline, setFightTimeline] = useState<FightTimeline | null>(null);
   const animationCancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+  // PR #3: phase card refs for the timeline scroll-into-view. A Map
+  // because phase ids are not in a known order and the count is small
+  // (4-6 phases typically). Using a ref-callback pattern so React handles
+  // the mount/unmount lifecycle for us.
+  const phaseCardRefs = useRef(new Map<string, HTMLElement>());
+  const setPhaseCardRef = (phaseId: string) => (node: HTMLElement | null) => {
+    if (node) phaseCardRefs.current.set(phaseId, node);
+    else phaseCardRefs.current.delete(phaseId);
+  };
+  // Smooth-scroll the named phase card into view. Called from the
+  // segmented timeline at the top of the phase plan. Honors the
+  // reducedMotion preference from framer-motion by falling back to
+  // instant scroll when set.
+  const scrollToPhase = (phaseId: string) => {
+    const node = phaseCardRefs.current.get(phaseId);
+    if (!node) return;
+    node.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  };
 
   const primary = loadout.getWeapon('primary') || inventory.getWeapons()[0] || null;
   const secondary = loadout.getWeapon('secondary') || inventory.getWeapons()[1] || null;
@@ -505,8 +567,18 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
               <Activity size={14} />
               Phase Plan
             </div>
+            {/* Segmented timeline — tap a segment to jump to the
+                corresponding phase card below. The timeline is the
+                only place in the modal that shows the *order* of the
+                phases. The card list shows them but not as a flow. */}
+            <BossPhaseTimeline phases={sim.phaseAnalyses} onSelect={scrollToPhase} />
             {sim.phaseAnalyses.map((phase) => (
-              <div key={phase.phaseId} className={`rounded-xl bg-surface p-3 border-2 ${PHASE_STATUS_BORDER[phase.status]} space-y-2`}>
+              <div
+                key={phase.phaseId}
+                data-phase-id={phase.phaseId}
+                ref={setPhaseCardRef(phase.phaseId)}
+                className={`rounded-xl bg-surface p-3 border-2 ${PHASE_STATUS_BORDER[phase.status]} space-y-2`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-bold text-text-primary">{phase.phaseName}</div>
