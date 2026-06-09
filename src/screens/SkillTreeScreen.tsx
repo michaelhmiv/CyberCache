@@ -20,7 +20,7 @@ const nodeTone = (node: SkillNode, isAvailable: boolean, isMaxed: boolean) => {
   return 'border-border bg-surface text-text-muted opacity-65';
 };
 
-export const SkillTreeScreen: React.FC = () => {
+export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [activeTree, setActiveTree] = useState(SkillTreeType.Gunslinger);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const player = usePlayerStore();
@@ -66,29 +66,36 @@ export const SkillTreeScreen: React.FC = () => {
     }
   };
 
+  const header = embedded ? null : (
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <div className="bl-title text-3xl leading-none text-text-primary">Skill Trees</div>
+        <div className="text-xs text-text-muted mt-1">Spend points on crooked branches. Small nodes feed majors; majors unlock keystones.</div>
+      </div>
+      <button
+        onClick={respec}
+        className="bl-secondary flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs font-black text-amber"
+      >
+        <RotateCcw size={12} />
+        Respec
+      </button>
+    </div>
+  );
+
+  const stats = embedded ? null : (
+    <div className="grid grid-cols-3 gap-2">
+      <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Available</div><div className="text-xl font-black text-amber">{pointsAvailable}</div></div>
+      <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Spent</div><div className="text-xl font-black text-text-primary">{pointsSpent}</div></div>
+      <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Respec</div><div className="text-xl font-black text-text-primary">{pointsSpent * 100}cr</div></div>
+    </div>
+  );
+
   return (
-    <div className="bl-page space-y-4 p-4 pb-20">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="bl-title text-3xl leading-none text-text-primary">Skill Trees</div>
-          <div className="text-xs text-text-muted mt-1">Spend points on crooked branches. Small nodes feed majors; majors unlock keystones.</div>
-        </div>
-        <button
-          onClick={respec}
-          className="bl-secondary flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs font-black text-amber"
-        >
-          <RotateCcw size={12} />
-          Respec
-        </button>
-      </div>
+    <div className={embedded ? '' : 'bl-page space-y-4 p-4 pb-20'}>
+      {header}
+      {stats}
 
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Available</div><div className="text-xl font-black text-amber">{pointsAvailable}</div></div>
-        <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Spent</div><div className="text-xl font-black text-text-primary">{pointsSpent}</div></div>
-        <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Respec</div><div className="text-xl font-black text-text-primary">{pointsSpent * 100}cr</div></div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2">
+      <div className={embedded ? '' : 'space-y-4'}>
         {TREES.map((tree) => (
           <button
             key={tree.id}

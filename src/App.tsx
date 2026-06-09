@@ -6,7 +6,6 @@ import { DashboardScreen } from './screens/DashboardScreen';
 import { ActionScreenContextual } from './screens/ActionScreenContextual';
 import { InventoryScreen } from './screens/InventoryScreen';
 import { MarketScreen } from './screens/MarketScreen';
-import { MasteryScreen } from './screens/MasteryScreen';
 import { ChestScreen } from './screens/ChestScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
@@ -18,9 +17,9 @@ import { isVerificationGraceExpired, shouldShowVerificationReminder } from './au
 import { FeatureGate } from './auth/FeatureGate';
 import { useAuth } from './auth/AuthProvider';
 
-type TabId = 'dashboard' | 'fight' | 'inventory' | 'mastery' | 'profile';
-type SubScreen = 'chest' | 'market' | 'settings' | 'help' | 'workshop' | null;
-const topLevelTabs: TabId[] = ['dashboard', 'fight', 'inventory', 'mastery', 'profile'];
+type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
+type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | null;
+const topLevelTabs: TabId[] = ['dashboard', 'fight', 'inventory', 'market', 'profile'];
 
 function VerificationReminderBanner() {
   const { account, markVerificationReminderSeen, actionLoading } = useAuth();
@@ -73,7 +72,12 @@ function App() {
       return;
     }
     if (screen === 'skills') {
-      setActiveTab('mastery');
+      setActiveTab('profile');
+      setSubScreen(null);
+      return;
+    }
+    if (screen === 'market') {
+      setActiveTab('market');
       setSubScreen(null);
       return;
     }
@@ -97,26 +101,19 @@ function App() {
   const renderSubScreen = () => {
     const screens: Record<string, React.ReactNode> = {
       chest: <ChestScreen />,
-      market: (
-        <FeatureGate feature="market">
-          <MarketScreen />
-        </FeatureGate>
-      ),
       settings: <SettingsScreen />,
       help: <HelpScreen />,
       workshop: <WorkshopScreen onNavigate={handleNavigate} />,
     };
     const title = subScreen === 'chest'
       ? 'Crack Cache'
-      : subScreen === 'market'
-        ? 'Vendor Yard'
-        : subScreen === 'workshop'
-          ? 'Workbench'
-          : subScreen === 'help'
-            ? 'Field Manual'
-            : subScreen === 'settings'
-              ? 'Options Board'
-              : subScreen;
+      : subScreen === 'workshop'
+        ? 'Workbench'
+        : subScreen === 'help'
+          ? 'Field Manual'
+          : subScreen === 'settings'
+            ? 'Options Board'
+            : subScreen;
 
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-bg">
@@ -164,7 +161,11 @@ function App() {
           {activeTab === 'dashboard' && <DashboardScreen onNavigate={handleNavigate} />}
           {activeTab === 'fight' && <ActionScreenContextual onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
           {activeTab === 'inventory' && <InventoryScreen onNavigate={handleNavigate} />}
-          {activeTab === 'mastery' && <MasteryScreen />}
+          {activeTab === 'market' && (
+            <FeatureGate feature="market">
+              <MarketScreen />
+            </FeatureGate>
+          )}
           {activeTab === 'profile' && <ProfileScreen onNavigate={handleNavigate} />}
         </ScreenWrapper>
       )}

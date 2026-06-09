@@ -26,7 +26,6 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({ onNavigate }) => {
     { id: 'settings', label: 'Settings', desc: 'Audio, notifications, data', icon: Settings, color: '#9CA3AF' },
     { id: 'help', label: 'Guide', desc: 'How to play and tips', icon: HelpCircle, color: '#06B6D4' },
   ];
-
   return (
     <div className="bl-page p-4 space-y-3 pb-20">
       <div className="bl-title text-3xl leading-none text-text-primary">More</div>

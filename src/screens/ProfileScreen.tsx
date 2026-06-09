@@ -1,8 +1,9 @@
 import React from 'react';
-import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Target, TrendingUp, User } from 'lucide-react';
-import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore } from '@/store';
+import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Target, TrendingUp, User, Zap } from 'lucide-react';
+import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
+import { SkillTreeScreen } from './SkillTreeScreen';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { useAuth } from '@/auth/AuthProvider';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
@@ -34,12 +35,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const inventory = useInventoryStore();
   const bossStore = useBossStore();
   const activity = useActivityStore();
+  const skillStore = useSkillStore();
   const { account, user, signOut, actionLoading } = useAuth();
 
   const weapons = inventory.getWeapons();
   const totalItems = inventory.items.length;
   const xpToNext = player.level * 100;
   const xpProgress = Math.round((player.xp / xpToNext) * 100);
+  const spentSkillPoints = skillStore.getTotalSpent();
+  const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
   const verifiedLabel = account?.accountType === 'verified'
     ? 'Verified account'
     : account?.accountType === 'guest'
@@ -96,6 +100,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
       </MobileCard>
 
       <WorldPulseFeed />
+
+      <MobileCard className="space-y-3" rarityColor="#FF4B5C">
+        <div className="flex items-center gap-2">
+          <Zap size={16} className="text-red" />
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Skill Trees</div>
+          <div className="ml-auto text-[10px] text-text-muted">{availableSkillPoints} pts available</div>
+        </div>
+        <SkillTreeScreen embedded />
+      </MobileCard>
 
       <MobileCard className="space-y-2" rarityColor="#7CFC00">
         <div className="flex items-center gap-2">

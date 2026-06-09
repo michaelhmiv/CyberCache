@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Backpack, Gauge, PlayCircle, Trophy, User } from 'lucide-react';
+import { Backpack, Gauge, PlayCircle, ShoppingCart, User } from 'lucide-react';
 
-type TabId = 'dashboard' | 'fight' | 'inventory' | 'mastery' | 'profile';
+type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 
 interface BottomNavProps {
   activeTab: TabId;
@@ -13,7 +13,7 @@ const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Board', icon: Gauge },
   { id: 'fight', label: 'Action', icon: PlayCircle },
   { id: 'inventory', label: 'Gear', icon: Backpack },
-  { id: 'mastery', label: 'Trees', icon: Trophy },
+  { id: 'market', label: 'Market', icon: ShoppingCart },
   { id: 'profile', label: 'Hunter', icon: User },
 ];
 
