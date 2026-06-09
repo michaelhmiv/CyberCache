@@ -201,6 +201,17 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       const killCount = previewEvents.filter((e) => e.tone === 'kill').length;
       if (killCount > 0) {
         useCombatStatsStore.getState().recordKill({ areaId, count: killCount });
+        // Persist the updated combat stats so the dashboard's "kills/min"
+        // counter has real data, not the old 0.75 fudge factor.
+        const userId = usePlayerStore.getState().id;
+        if (userId) {
+          try {
+            const { saveCombatStats } = await import('@/store/combatStatsSupabaseSync');
+            await saveCombatStats(userId);
+          } catch (error) {
+            void error; // Best-effort; next tick will retry.
+          }
+        }
       }
 
       // Server validation. If the call fails, the client-side events are already shown — but the

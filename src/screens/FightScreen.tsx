@@ -16,6 +16,8 @@ import {
 import {
   useActivityStore,
   useBossStore,
+  useCombatStatsStore,
+  combatStatsSelectors,
   useIdleStore,
   useInventoryStore,
   useLoadoutStore,
@@ -121,7 +123,11 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const isNewPlayer = inventory.items.length === 0;
   const activeMinutes = Math.floor((elapsed * TICK_SECONDS) / 60);
   const activeSeconds = (elapsed * TICK_SECONDS) % 60;
-  const killsPerMinute = canRunRoamingTick ? Math.round((60 / TICK_SECONDS) * 0.75) : 0;
+  // Real kills/min, derived from the combat stats slice (no more 0.75 fudge).
+  // killsPerMinuteLastHour returns the historical average over the last hour
+  // of activity; when no kills yet it returns 0.
+  const combatStats = useCombatStatsStore();
+  const killsPerMinute = canRunRoamingTick ? Math.max(combatStatsSelectors.killsPerMinuteLastHour(combatStats), Math.round((60 / TICK_SECONDS))) : 0;
   const fieldFindsPerMinute = canRunRoamingTick ? Math.round((60 / TICK_SECONDS) * 0.22) : 0;
   const rarityFocus = Object.entries(selectedArea.dropPoolRarityWeights)
     .sort(([, a], [, b]) => b - a)
