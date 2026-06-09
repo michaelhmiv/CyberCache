@@ -64,15 +64,10 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   removeScrap: (amount) => set((s) => ({ scrap: Math.max(0, s.scrap - amount) })),
   addCacheKeys: (amount) => set((s) => ({ cacheKeys: s.cacheKeys + amount })),
   removeCacheKeys: (amount) => set((s) => ({ cacheKeys: Math.max(0, s.cacheKeys - amount) })),
-  addCacheKeyFragments: (amount) => set((s) => {
-    let newFrags = s.cacheKeyFragments + amount;
-    let newKeys = s.cacheKeys;
-    while (newFrags >= 5) {
-      newFrags -= 5;
-      newKeys += 1;
-    }
-    return { cacheKeyFragments: newFrags, cacheKeys: newKeys };
-  }),
+  addCacheKeyFragments: (_amount) => {
+    // Cache keys/fragments are enforced by the verified `profiles.cache_tokens` fields.
+    // Frontend-only fragment minting creates phantom keys that `cc_make_item` correctly rejects.
+  },
   addConsumable: (type, count) =>
     set((s) => ({
       consumables: { ...s.consumables, [type]: (s.consumables[type] || 0) + count },
