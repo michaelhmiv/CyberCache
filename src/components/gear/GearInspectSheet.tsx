@@ -15,7 +15,7 @@ const isWeapon = (item: GearItem): item is Weapon => 'weaponType' in item;
 const isShield = (item: GearItem): item is ShieldItem => 'hp' in item && !isWeapon(item);
 const isClassMod = (item: GearItem): item is ClassMod => 'treeBonus' in item;
 const isOrdnance = (item: GearItem): item is Ordnance => 'damage' in item && 'effect' in item && !isWeapon(item);
-const isRelic = (item: GearItem): item is Relic => 'affixes' in item && !isWeapon(item) && !isShield(item) && !isClassMod(item) && !isOrdnance(item);
+const _isRelic = (item: GearItem): item is Relic => 'affixes' in item && !isWeapon(item) && !isShield(item) && !isClassMod(item) && !isOrdnance(item);
 const affixesOf = (item: GearItem): Affix[] => ('affixes' in item && Array.isArray(item.affixes) ? item.affixes : []);
 
 const kindOf = (item: GearItem) => (isWeapon(item) ? 'Weapon' : isShield(item) ? 'Shield' : isClassMod(item) ? 'Class Mod' : isOrdnance(item) ? 'Ordnance' : 'Relic');
