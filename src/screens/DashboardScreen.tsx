@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
@@ -184,7 +184,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   // Gain feed is now a read of the single-source-of-truth tick event log.
   // The Numbers Up panel mirrors the diorama's animation feed; no Zustand
   // diff subscription is needed.
-  const gainFeed = useTickFeedStore((state) => state.events.slice(0, 5) as GainEvent[]);
+  // NOTE: the slice MUST happen outside the Zustand selector. Calling
+  // `state.events.slice(0, 5)` inside the selector returns a new array
+  // reference on every snapshot read, which trips React's
+  // "result of getSnapshot should be cached" check and infinite-loops the
+  // dashboard. The events array itself is stable across renders; we slice
+  // the result in a memo keyed on the events identity.
+  const tickEvents = useTickFeedStore((state) => state.events);
+  const gainFeed = useMemo(() => tickEvents.slice(0, 5) as GainEvent[], [tickEvents]);
   const [activityError, setActivityError] = useState<string | null>(null);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
