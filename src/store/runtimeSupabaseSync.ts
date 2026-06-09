@@ -188,6 +188,7 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
         scrap: typeof player.scrap === 'number' ? player.scrap : currentPlayer.scrap,
         cacheKeys: typeof player.cacheKeys === 'number' ? player.cacheKeys : currentPlayer.cacheKeys,
         cacheKeyFragments: typeof player.cacheKeyFragments === 'number' ? player.cacheKeyFragments : currentPlayer.cacheKeyFragments,
+        lastClaimTime: typeof player.lastClaimTime === 'number' ? player.lastClaimTime : currentPlayer.lastClaimTime,
         consumables: player.consumables && typeof player.consumables === 'object' && !Array.isArray(player.consumables)
           ? player.consumables as Record<string, number>
           : currentPlayer.consumables,
