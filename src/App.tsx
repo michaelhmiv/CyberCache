@@ -16,6 +16,7 @@ import { BossSelectModal } from './components/fight/BossSelectModal';
 import { isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
 import { FeatureGate } from './auth/FeatureGate';
 import { useAuth } from './auth/AuthProvider';
+import { useActiveActionSettlement } from './hooks/useActiveActionSettlement';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | null;
@@ -49,6 +50,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
+
+  useActiveActionSettlement(Boolean(user && !loading), user?.id);
 
   if (loading) {
     return (
