@@ -541,7 +541,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     const chainDps = computeWeaponDps({
       weapon: primary,
       bossWeaknesses: boss.weaknesses,
-      bossResistance: 1, // PR D will switch to boss.resistances array; for now chain treats it as 1.0×
+      bossResistances: boss.resistances,
       legendaryDamageMult: legendary.damageMult,
     });
     const sig = applySignatureMechanic(primary, primaryAmmo.fullDuration, primaryAmmo.reloadDuration, 30);
@@ -557,7 +557,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     const chainDps = computeWeaponDps({
       weapon: secondary,
       bossWeaknesses: boss.weaknesses,
-      bossResistance: 1,
+      bossResistances: boss.resistances,
       legendaryDamageMult: 1, // secondary doesn't get the primary's legendary bonus
     });
     const sig = applySignatureMechanic(secondary, secondaryAmmo.fullDuration, secondaryAmmo.reloadDuration, 30);
@@ -573,7 +573,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     const chainDps = computeWeaponDps({
       weapon: heavy,
       bossWeaknesses: boss.weaknesses,
-      bossResistance: 1,
+      bossResistances: boss.resistances,
       legendaryDamageMult: 1,
     });
     heavyDPS = chainDps * 0.5;
