@@ -72,6 +72,16 @@ Gameplay probabilities and balance rules must not be hidden in UI components or 
 5. Migrate recipes/professions/work queues after runtime state tables are designed.
 6. Add Supabase-backed item instance and service-market tables only after static content boundaries are clear.
 
+## DPS Computation (READ BEFORE TOUCHING ANY DPS CODE)
+
+All DPS math is the single source of truth: `src/lib/stats/dpsChain.ts`.
+Every UI surface that shows DPS MUST go through `computeWeaponDps` /
+`computeLoadoutDps` / `computeStandardDps`. Do not inline `baseDmg * spd * (1 + crit * critDmg) * …`
+formulas anywhere. See [`docs/dps-chain-v2.md`](./docs/dps-chain-v2.md) for the
+chain's contract, the 6 multiplicative steps, the `DpsContext` shape, and
+the recipe for adding a new modifier. Contract tests live in
+`src/test/dpsChain.test.ts`.
+
 ## Verification Before Completion
 
 Run from repo root when possible:
