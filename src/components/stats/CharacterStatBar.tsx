@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Crosshair, HeartPulse, Radar, Shield, Sparkles, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
+import { pickTopContributions } from '@/lib/stats/topContribs';
 
 const panelClip = { clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' };
 const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -98,6 +99,46 @@ function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
   );
 }
 
+/**
+ * TopContribsStrip — a single dense row of the N largest source
+ * contributions across all metrics. Sits under the HUNTER TOTALS
+ * headline chips and shows, at a glance, "this is where your damage
+ * is coming from". Renders the source name (truncated), a tone
+ * color dot, and the display value.
+ *
+ * Empty state: when no contributions are slotted, shows a muted
+ * "no sources" line so the row is never just empty space.
+ *
+ * The pure data layer lives in `src/lib/stats/topContribs.ts` (not
+ * here) so React Fast Refresh isn't broken by a non-component export
+ * in a components file.
+ */
+function TopContribsStrip({ summary, n = 3 }: { summary: CharacterStatSummary; n?: number }) {
+  const top = useMemo(() => pickTopContributions(summary, n), [summary, n]);
+  if (top.length === 0) {
+    return <div className="mt-1 px-1 text-[9px] text-text-muted" data-testid="top-contribs-empty">No slotted sources contributing</div>;
+  }
+  return (
+    <div className="mt-1 flex gap-1 overflow-hidden" data-testid="top-contribs-strip">
+      {top.map((c, index) => {
+        const tone = toneClass[c.tone ?? 'muted'];
+        return (
+          <div
+            key={`${c.source}-${c.detail}-${index}`}
+            className="flex min-w-0 flex-1 items-center gap-1 border border-border bg-bg/75 px-1.5 py-0.5"
+            style={slashClip}
+            data-contrib-source={c.source}
+          >
+            <div className={`h-1 w-1 shrink-0 ${tone.rail}`} />
+            <span className="truncate text-[8px] font-black text-text-primary">{c.source}</span>
+            <span className="shrink-0 text-[9px] font-black text-amber">{c.display}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function CharacterStatBar({ summary }: { summary: CharacterStatSummary }) {
   const [open, setOpen] = useState(false);
   const sourceMax = useMemo(() => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))), [summary]);
@@ -106,6 +147,7 @@ export function CharacterStatBar({ summary }: { summary: CharacterStatSummary })
       <button type="button" onClick={() => setOpen(true)} className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip}>
         <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted"><span>Hunter Totals</span><span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span></div>
         <div className="flex gap-1">{summary.headline.map((metric) => <MiniMetric key={metric.key} metric={metric} data-testid={`hud-metric-${metric.key}`} />)}</div>
+        <TopContribsStrip summary={summary} n={3} />
       </button>
       <AnimatePresence>
         {open && (
