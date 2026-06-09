@@ -8,9 +8,11 @@ import { RARITIES } from '../../constants/rarities';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import { executeBossAttempt, simulateBoss } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity, buildBossPrepActivity } from '../../lib/activity/activityBuilders';
+import { computeLoadoutDps } from '../../lib/stats/dpsChain';
 import { useActivityStore, useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
+import type { Weapon } from '../../types/items';
 
 interface BossPrepModalProps {
   boss: BossDef;
@@ -66,6 +68,28 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const selectedConsumables = useMemo(() => consumableLoadoutToCounts(equippedConsumables), [equippedConsumables]);
   const selectionAvailable = Object.entries(selectedConsumables).every(([type, count]) => player.getConsumableCount(type) >= count);
   const activityWeapon = primary ?? secondary ?? heavy ?? undefined;
+  // Boss-relative DPS for the prep modal. Single source of truth: the chain
+  // (src/lib/stats/dpsChain.ts). Each weapon row in the Loadout section gets
+  // its own DPS-vs-this-boss number so the player can see which slot is
+  // actually contributing, and the element-vs-weakness match status so the
+  // "counter / resisted / neutral" indicator is honest.
+  const loadoutDpsPerWeapon = useMemo(() => {
+    const slots: Array<{ slot: 'Primary' | 'Secondary' | 'Heavy'; weapon: Weapon | null }> = [
+      { slot: 'Primary', weapon: primary },
+      { slot: 'Secondary', weapon: secondary },
+      { slot: 'Heavy', weapon: heavy },
+    ];
+    return slots.map(({ slot, weapon }) => {
+      if (!weapon) {
+        return { slot, weapon, dpsVsBoss: 0, matchesWeakness: false, matchesResistance: false };
+      }
+      const matchesWeakness = boss.weaknesses.includes(weapon.element);
+      const matchesResistance = boss.resistances.includes(weapon.element);
+      const dpsVsBoss = computeLoadoutDps([weapon], boss.weaknesses, boss.resistances);
+      return { slot, weapon, dpsVsBoss, matchesWeakness, matchesResistance };
+    });
+  }, [primary, secondary, heavy, boss.weaknesses, boss.resistances]);
+  const loadoutDpsVsBoss = loadoutDpsPerWeapon.reduce((sum, entry) => sum + entry.dpsVsBoss, 0);
   const isBossPrepActivity = activity.current.kind === 'boss_prep' && activity.current.targetType === 'boss' && activity.current.targetId === boss.id;
   const isBossFightActivity = activity.current.kind === 'boss_fight' && activity.current.targetType === 'boss' && activity.current.targetId === boss.id;
   const activityLabel = isBossFightActivity ? 'Boss fight active' : isBossPrepActivity ? 'Boss prep active' : 'Boss prep not active';
@@ -353,15 +377,35 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         )}
 
         <div className="space-y-2">
-          <div className="text-xs font-bold text-text-muted uppercase">Loadout</div>
-          {[primary, secondary, heavy].filter(Boolean).map((w, i) => (
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-text-muted uppercase">Loadout</div>
             <div
-              key={i}
-              className="flex items-center gap-3 bg-surface rounded-xl p-2 border-2 border-border shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
-              style={{ borderLeftColor: w ? getRarityColor(w.rarity) : undefined, borderLeftWidth: w ? 5 : undefined }}
+              className="border-2 border-border bg-bg/85 px-2 py-1 text-right"
+              style={{ clipPath: 'polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)' }}
+              data-testid="bossprep-loadout-dps"
             >
-              {w && <WeaponCanvas type={w.weaponType} manufacturer={w.manufacturer} element={w.element} rarity={w.rarity} size={40} />}
-              <div className="text-xs font-bold" style={{ color: w ? getRarityColor(w.rarity) : undefined }}>{w?.name || 'Empty'}</div>
+              <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">vs {boss.name}</div>
+              <div className="text-sm font-black text-red">{loadoutDpsVsBoss.toLocaleString()} DPS</div>
+            </div>
+          </div>
+          {loadoutDpsPerWeapon.map(({ slot, weapon, dpsVsBoss, matchesWeakness, matchesResistance }) => (
+            <div
+              key={slot}
+              className="flex items-center gap-3 bg-surface rounded-xl p-2 border-2 border-border shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+              style={{ borderLeftColor: weapon ? getRarityColor(weapon.rarity) : undefined, borderLeftWidth: weapon ? 5 : undefined }}
+            >
+              {weapon && <WeaponCanvas type={weapon.weaponType} manufacturer={weapon.manufacturer} element={weapon.element} rarity={weapon.rarity} size={40} />}
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold truncate" style={{ color: weapon ? getRarityColor(weapon.rarity) : undefined }}>{weapon?.name || 'Empty'}</div>
+                <div className="flex items-center gap-1.5 text-[9px] font-mono text-text-muted">
+                  <span>⚡ {weapon ? Math.round(weapon.bossPower).toLocaleString() : '—'} bossPower</span>
+                  {weapon && <span className={matchesWeakness ? 'text-green font-bold' : matchesResistance ? 'text-red font-bold' : 'text-text-muted'}>{matchesWeakness ? '✓ counter' : matchesResistance ? '✗ resisted' : '○ neutral'}</span>}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{slot}</div>
+                <div className="text-sm font-black text-red">{Math.round(dpsVsBoss).toLocaleString()}</div>
+              </div>
             </div>
           ))}
         </div>
