@@ -98,7 +98,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   // When a boss is supplied, the DPS metric becomes the boss-relative DPS so
   // the player can read the effective damage they'll deal. Otherwise it stays
   // as the standard-target total. The detail label flips with the context.
-  const baseDpsForBoss = boss ? computeLoadoutDps(liveWeapons, boss.weaknesses) : 0;
+  const baseDpsForBoss = boss ? computeLoadoutDps(liveWeapons, boss.weaknesses, boss.resistances) : 0;
   const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus);
   const dpsDisplayValue = boss ? totalDpsForBoss : totalDps;
   const dpsDetail = boss
