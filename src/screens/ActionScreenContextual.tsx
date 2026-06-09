@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNow } from '@/hooks/useNow';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
@@ -88,8 +89,6 @@ const idleEvent: RunVisualEvent = {
   eventType: 'idle',
 };
 
-const materialKeys = new Set(['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust']);
-
 const describeGear = (item: GearItem) => {
   if ('weaponType' in item) return `${item.rarity} ${item.weaponType}`;
   if ('hp' in item) return `${item.rarity} Shield`;
@@ -157,6 +156,7 @@ const FeedCard: React.FC<{ event: RunVisualEvent }> = ({ event }) => {
 };
 
 type CommonPanelProps = {
+  now: number;
   playerLevel: number;
   currentKind: ActivityKind;
   selectedArea: RoamingAreaDef;
@@ -318,7 +318,7 @@ const BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: (
   );
 };
 
-const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number }> = ({ currentKind, playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onNavigate }) => {
+const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number }> = ({ now, playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onNavigate }) => {
   const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, playerMaterials, playerEssences, playerLevel), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
   const canNow = craftable.filter(({ check }) => check.can).slice(0, 6);
   const blocked = craftable.filter(({ check }) => !check.can).slice(0, 4);
@@ -328,7 +328,7 @@ const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<strin
         <div className="grid grid-cols-3 gap-2"><StatChip label="Free" value={benchesFree} accent={benchesFree ? 'text-green' : 'text-red'} /><StatChip label="Queued" value={queues.length} /><StatChip label="Craftable" value={canNow.length} accent="text-amber" /></div>
         <button type="button" onClick={startCrafting} className="mt-3 bl-primary w-full py-2 text-xs font-black">Set Crafting As Current Action</button>
       </Section>
-      {queues.length > 0 && <Section title="Active Bench Queues" eyebrow="Machine deck" icon={Clock}><div className="space-y-2">{queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = Date.now() - q.startedAt; return <div key={`${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {q.benchId}: {recipe?.name ?? q.recipeId}</span><span className="text-amber">{formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><Meter label="Cycle" value={elapsed % q.durationMs} max={q.durationMs} detail={`${q.claimedCount}/${q.count} claimed`} /></div>; })}</div></Section>}
+      {queues.length > 0 && <Section title="Active Bench Queues" eyebrow="Machine deck" icon={Clock}><div className="space-y-2">{queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; return <div key={`${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {q.benchId}: {recipe?.name ?? q.recipeId}</span><span className="text-amber">{formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><Meter label="Cycle" value={elapsed % q.durationMs} max={q.durationMs} detail={`${q.claimedCount}/${q.count} claimed`} /></div>; })}</div></Section>}
       <Section title="Craftable Now" eyebrow="Available recipes" icon={Sparkles}>
         <div className="grid gap-2">{canNow.map(({ recipe, duration }) => <button key={recipe.id} type="button" onClick={() => onNavigate?.('workshop')} className="border-2 border-border bg-bg/70 p-2 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="text-xs font-black text-text-primary">{recipe.name}</span><span className="text-[9px] text-amber">{formatDuration(duration)}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe.category} · {Object.entries(recipe.materials).map(([k, v]) => `${k} ${v}`).join(' · ')}</div></button>)}</div>
       </Section>
@@ -366,13 +366,13 @@ const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[] }> = ({ item
   );
 };
 
-const WorkshopPanel: React.FC<CommonPanelProps & { queues: { id?: string; recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; benchesFree: number }> = ({ queues, benchesFree, onNavigate }) => (
+const WorkshopPanel: React.FC<CommonPanelProps & { queues: { id?: string; recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; benchesFree: number }> = ({ now, queues, benchesFree, onNavigate }) => (
   <div className="space-y-3">
     <Section title="Service Bay" eyebrow="Workshop workspace" icon={Wrench}>
-      <div className="grid grid-cols-3 gap-2"><StatChip label="Free" value={benchesFree} accent={benchesFree ? 'text-green' : 'text-red'} /><StatChip label="Running" value={queues.length} /><StatChip label="Ready" value={queues.filter((q) => Math.floor((Date.now() - q.startedAt) / q.durationMs) > q.claimedCount).length} accent="text-amber" /></div>
+      <div className="grid grid-cols-3 gap-2"><StatChip label="Free" value={benchesFree} accent={benchesFree ? 'text-green' : 'text-red'} /><StatChip label="Running" value={queues.length} /><StatChip label="Ready" value={queues.filter((q) => Math.floor((now - q.startedAt) / q.durationMs) > q.claimedCount).length} accent="text-amber" /></div>
     </Section>
     <Section title="Machine Queue" eyebrow="What needs attention" icon={Clock}>
-      <div className="space-y-2">{queues.length === 0 ? <div className="text-xs text-text-muted">No queues are running. Start a recipe from the Workshop.</div> : queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = Date.now() - q.startedAt; const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs)); return <div key={q.id ?? `${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between"><span className="text-xs font-black text-text-primary">Bench {q.benchId}</span><span className={completed > q.claimedCount ? 'text-green text-[10px] font-black' : 'text-amber text-[10px]'}>{completed > q.claimedCount ? 'READY' : formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe?.name ?? q.recipeId} · {completed}/{q.count} complete</div><Meter label="cycle" value={elapsed % q.durationMs} max={q.durationMs} /></div>; })}</div>
+      <div className="space-y-2">{queues.length === 0 ? <div className="text-xs text-text-muted">No queues are running. Start a recipe from the Workshop.</div> : queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs)); return <div key={q.id ?? `${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between"><span className="text-xs font-black text-text-primary">Bench {q.benchId}</span><span className={completed > q.claimedCount ? 'text-green text-[10px] font-black' : 'text-amber text-[10px]'}>{completed > q.claimedCount ? 'READY' : formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe?.name ?? q.recipeId} · {completed}/{q.count} complete</div><Meter label="cycle" value={elapsed % q.durationMs} max={q.durationMs} /></div>; })}</div>
       <button type="button" onClick={() => onNavigate?.('workshop')} className="mt-3 bl-primary w-full py-2 text-xs font-black">Open Workshop</button>
     </Section>
   </div>
@@ -559,7 +559,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return () => window.clearInterval(iv);
   }, [activity, canTick]);
 
-  const commonProps: CommonPanelProps = { playerLevel: player.level, currentKind, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
+  const now = useNow();
+
+  const commonProps: CommonPanelProps = { now, playerLevel: player.level, currentKind, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
 
   const workspace = (() => {
     if (currentKind === 'roaming_loot') return <RoamingPanel {...commonProps} feed={feed} creditsPerTick={creditsPerTick} scrapPerTick={scrapPerTick} />;
