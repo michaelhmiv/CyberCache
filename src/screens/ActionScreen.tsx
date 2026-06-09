@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
   Boxes,
-  ChevronRight,
   Clock,
   Crosshair,
   Hammer,
