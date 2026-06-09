@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Target, TrendingUp, User, Zap } from 'lucide-react';
-import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore, useSkillStore } from '@/store';
+import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore, useSkillStore, useCombatStatsStore, combatStatsSelectors } from '@/store';
+import { WeaponType } from '@/types/game';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { SkillTreeScreen } from './SkillTreeScreen';
@@ -50,9 +51,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
       ? 'Guest account'
       : 'Email verification pending';
 
-  const typeCounts: Record<string, number> = {};
-  weapons.forEach((w) => { typeCounts[w.weaponType] = (typeCounts[w.weaponType] || 0) + 1; });
-  const favoriteType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+  // Build identity = the weapon type the player actually racks kills with, not
+  // the type they happen to have the most of in their stash. Pulled from the
+  // combat stats feed so it reflects what the player *uses*, not what they own.
+  const combatStats = useCombatStatsStore();
+  const buildIdentity = combatStatsSelectors.dominantWeaponType(combatStats);
+  const buildIdentityLabel = buildIdentity ? WeaponType[buildIdentity] : null;
+  // Unique affix types: count distinct `affix.stat` values across all owned
+  // weapons. The previous formula used `affix.id` which is `${stat}_${index}`
+  // — that just counted affix *slots*, not unique affix *types*.
+  const uniqueAffixTypes = new Set(weapons.flatMap((w) => w.affixes.map((a) => a.stat))).size;
   const payload = activity.current.publicPayload;
   const activityLabel = safeText(payload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
   const activityTarget = activity.current.targetLabel ?? safeText(payload.target_label) ?? 'No target';
@@ -145,9 +153,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         <div className="text-xs font-black uppercase tracking-wide text-text-muted">Collection Patch</div>
         <div className="space-y-1 text-xs text-text-secondary">
           <div className="flex justify-between"><span>Weapons</span><span className="text-text-primary">{weapons.length}</span></div>
-          <div className="flex justify-between"><span>Favorite Type</span><span className="font-bold text-amber">{favoriteType ? favoriteType[0] : 'None'}</span></div>
+          <div className="flex justify-between"><span>Build Identity</span><span className="font-bold text-amber">{buildIdentityLabel ?? 'No data yet — patrol a turf'}</span></div>
           <div className="flex justify-between"><span>Legendary Items</span><span className="font-bold text-amber">{weapons.filter((w) => w.rarity === 'Legendary').length}</span></div>
-          <div className="flex justify-between"><span>Unique Affixes</span><span className="text-text-primary">{new Set(weapons.flatMap((w) => w.affixes.map((a) => a.id))).size}</span></div>
+          <div className="flex justify-between"><span>Unique Affix Types</span><span className="text-text-primary">{uniqueAffixTypes}</span></div>
         </div>
       </MobileCard>
 
