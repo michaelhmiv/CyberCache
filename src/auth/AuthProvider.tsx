@@ -13,6 +13,7 @@ import {
   stopRuntimeStorePersistence,
 } from '../store/runtimeSupabaseSync';
 import { useActivityStore } from '../store';
+import { loadCombatStats, saveCombatStats } from '../store/combatStatsSupabaseSync';
 import type { AccountState } from './accountState';
 import {
   parseAuthStatusMessage,
@@ -78,6 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await settleActiveActivityRewards({ userId: nextUser.id });
     } catch (error) {
       console.warn('Active activity hydrate/settlement skipped:', error instanceof Error ? error.message : error);
+    }
+
+    // Hydrate combat stats. On first login this is a no-op (no row yet);
+    // subsequent logins restore the persisted kill counts and playtime.
+    try {
+      const loaded = await loadCombatStats(nextUser.id);
+      if (!loaded) await saveCombatStats(nextUser.id);
+    } catch (error) {
+      console.warn('Combat stats hydrate skipped:', error instanceof Error ? error.message : error);
     }
 
     startRuntimeStorePersistence(nextUser.id);
