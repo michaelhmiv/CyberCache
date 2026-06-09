@@ -15,16 +15,14 @@ const toneClass: Record<StatTone, { text: string; rail: string; bg: string }> = 
   muted: { text: 'text-text-muted', rail: 'bg-text-muted', bg: 'bg-surface' },
 };
 
-const iconFor = (key: string) => key === 'health' ? HeartPulse : key === 'dps' ? Crosshair : key === 'boss' ? Shield : key === 'rareFind' ? Sparkles : Radar;
-
 function MiniMetric({ metric }: { metric: StatMetric }) {
   const tone = toneClass[metric.tone];
-  const Icon = iconFor(metric.key);
+  const { key } = metric;
   return (
     <div className="relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-2 py-1.5" style={slashClip}>
       <div className={`absolute left-0 top-0 h-full w-1 ${tone.rail}`} />
       <div className="flex items-center gap-1.5 pl-0.5">
-        <Icon size={12} className={tone.text} />
+        {key === 'health' ? <HeartPulse size={12} className={tone.text} /> : key === 'dps' ? <Crosshair size={12} className={tone.text} /> : key === 'boss' ? <Shield size={12} className={tone.text} /> : key === 'rareFind' ? <Sparkles size={12} className={tone.text} /> : <Radar size={12} className={tone.text} />}
         <div className="min-w-0 leading-none">
           <div className="truncate text-[8px] font-black uppercase tracking-wide text-text-muted">{metric.label}</div>
           <div className={`truncate text-[11px] font-black ${tone.text}`}>{metric.display}</div>
