@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
@@ -199,7 +199,49 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const activity = useActivityStore();
   const [gainFeed, setGainFeed] = useState<GainEvent[]>([]);
   const [activityError, setActivityError] = useState<string | null>(null);
-  const previousSnapshotRef = useRef<Snapshot | null>(null);
+
+  // Gain tracking via Zustand subscribe (outside React render cycle)
+  useEffect(() => {
+    const getSnapshot = (): Snapshot => ({
+      level: usePlayerStore.getState().level,
+      xp: usePlayerStore.getState().xp,
+      credits: usePlayerStore.getState().credits,
+      scrap: usePlayerStore.getState().scrap,
+      cacheKeys: usePlayerStore.getState().cacheKeys,
+      cacheKeyFragments: usePlayerStore.getState().cacheKeyFragments,
+      itemCount: useInventoryStore.getState().items.length,
+    });
+
+    let previous = getSnapshot();
+
+    const check = () => {
+      const snapshot = getSnapshot();
+      const events: GainEvent[] = [];
+      const xpGain = getXpDelta(previous, snapshot);
+      const creditsGain = snapshot.credits - previous.credits;
+      const scrapGain = snapshot.scrap - previous.scrap;
+      const keyGain = snapshot.cacheKeys - previous.cacheKeys;
+      const fragmentGain = snapshot.cacheKeyFragments - previous.cacheKeyFragments;
+      const lootGain = snapshot.itemCount - previous.itemCount;
+      if (snapshot.level > previous.level) events.push(makeGain(`LV ${snapshot.level}`, 'level', 'level'));
+      if (xpGain > 0) events.push(makeGain(`+${compact(xpGain)}`, 'XP', 'xp'));
+      if (lootGain > 0) events.push(makeGain(`+${lootGain}`, 'gear', 'loot'));
+      if (creditsGain > 0) events.push(makeGain(`+${compact(creditsGain)}`, 'credits', 'cash'));
+      if (scrapGain > 0) events.push(makeGain(`+${compact(scrapGain)}`, 'scrap', 'cash'));
+      if (keyGain > 0) events.push(makeGain(`+${keyGain}`, 'keys', 'cache'));
+      if (fragmentGain > 0) events.push(makeGain(`+${fragmentGain}`, 'frags', 'cache'));
+      previous = snapshot;
+      if (!events.length) return;
+      const eventIds = events.map((event) => event.id);
+      setGainFeed((current) => [...events, ...current].slice(0, 5));
+      setTimeout(() => setGainFeed((current) => current.filter((event) => !eventIds.includes(event.id))), 1050);
+    };
+
+    const unsub1 = usePlayerStore.subscribe(check);
+    const unsub2 = useInventoryStore.subscribe(check);
+
+    return () => { unsub1(); unsub2(); };
+  }, []);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
@@ -249,32 +291,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       onNavigate('fight');
     }
   }, [activity, currentBoss, equippedWeapon, idle, onNavigate]);
-
-  useEffect(() => {
-    const snapshot: Snapshot = { level: player.level, xp: player.xp, credits: player.credits, scrap: player.scrap, cacheKeys: player.cacheKeys, cacheKeyFragments: player.cacheKeyFragments, itemCount: inventory.items.length };
-    const previous = previousSnapshotRef.current;
-    previousSnapshotRef.current = snapshot;
-    if (!previous) return;
-    const events: GainEvent[] = [];
-    const xpGain = getXpDelta(previous, snapshot);
-    const creditsGain = snapshot.credits - previous.credits;
-    const scrapGain = snapshot.scrap - previous.scrap;
-    const keyGain = snapshot.cacheKeys - previous.cacheKeys;
-    const fragmentGain = snapshot.cacheKeyFragments - previous.cacheKeyFragments;
-    const lootGain = snapshot.itemCount - previous.itemCount;
-    if (snapshot.level > previous.level) events.push(makeGain(`LV ${snapshot.level}`, 'level', 'level'));
-    if (xpGain > 0) events.push(makeGain(`+${compact(xpGain)}`, 'XP', 'xp'));
-    if (lootGain > 0) events.push(makeGain(`+${lootGain}`, 'gear', 'loot'));
-    if (creditsGain > 0) events.push(makeGain(`+${compact(creditsGain)}`, 'credits', 'cash'));
-    if (scrapGain > 0) events.push(makeGain(`+${compact(scrapGain)}`, 'scrap', 'cash'));
-    if (keyGain > 0) events.push(makeGain(`+${keyGain}`, 'keys', 'cache'));
-    if (fragmentGain > 0) events.push(makeGain(`+${fragmentGain}`, 'frags', 'cache'));
-    if (!events.length) return;
-    const eventIds = events.map((event) => event.id);
-    setGainFeed((current) => [...events, ...current].slice(0, 5));
-    const timeout = window.setTimeout(() => setGainFeed((current) => current.filter((event) => !eventIds.includes(event.id))), 1050);
-    return () => window.clearTimeout(timeout);
-  }, [inventory.items.length, player.cacheKeyFragments, player.cacheKeys, player.credits, player.level, player.scrap, player.xp]);
 
   const actions = [
     { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync selected turf as the active route, then enter combat.', icon: Crosshair, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
