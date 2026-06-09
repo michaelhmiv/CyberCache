@@ -73,13 +73,23 @@ const isLootLikeEvent = (event?: LiveTurfFeedEvent) => isImpactEvent(event) && [
 const isProjectileEvent = (mode: DioramaMode, event?: LiveTurfFeedEvent) => (mode === 'roaming' || mode === 'bossFight') && isImpactEvent(event) && ['xp', 'loot', 'cache', 'level'].includes(event.tone);
 
 const SceneProps: React.FC<{ prop: string; accent: string; dark: string }> = ({ prop, accent, dark }) => {
-  if (prop === 'forge') {
-    return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M28 86 L76 70 L101 89 L89 128 L29 129 Z" fill={dark} opacity="0.78" /><path d="M314 50 L353 50 L363 128 L302 128 Z" fill={dark} opacity="0.82" /><path d="M327 57 L349 57 L352 116 L323 116 Z" fill={accent} opacity="0.32" /></g>;
+  switch (prop) {
+    case 'speedway':
+      return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M22 112 L122 92 L133 104 L32 126 Z" fill={dark} opacity="0.72" /><path d="M274 105 L388 84 L396 100 L282 122 Z" fill={dark} opacity="0.76" /><path d="M304 69 L346 64 L355 90 L313 96 Z" fill={accent} opacity="0.34" /></g>;
+    case 'bastion':
+      return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M26 78 L66 55 L101 75 L96 123 L26 128 Z" fill={dark} opacity="0.78" /><path d="M310 72 L378 49 L394 80 L383 126 L312 124 Z" fill={dark} opacity="0.8" /><path d="M55 54 L77 43 L98 56" fill="none" stroke={accent} opacity="0.5" /></g>;
+    case 'forge':
+      return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M28 86 L76 70 L101 89 L89 128 L29 129 Z" fill={dark} opacity="0.78" /><path d="M314 50 L353 50 L363 128 L302 128 Z" fill={dark} opacity="0.82" /><path d="M327 57 L349 57 L352 116 L323 116 Z" fill={accent} opacity="0.32" /><path d="M341 43 L352 24 L361 43" fill={accent} opacity="0.5" /></g>;
+    case 'reactor':
+      return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M35 80 L89 63 L119 95 L89 128 L31 126 Z" fill={dark} opacity="0.76" /><circle cx="347" cy="86" r="30" fill={accent} opacity="0.22" /><circle cx="347" cy="86" r="16" fill={accent} opacity="0.42" /><path d="M317 86 L378 86 M347 56 L347 116" stroke={accent} opacity="0.62" /></g>;
+    case 'dumpnet':
+      return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M20 100 L94 70 L124 96 L97 129 L24 129 Z" fill={dark} opacity="0.8" /><path d="M295 78 L381 62 L395 119 L307 127 Z" fill={dark} opacity="0.82" /><path d="M303 84 L384 68 M311 104 L390 88 M333 73 L337 120 M366 66 L372 113" stroke={accent} opacity="0.5" /></g>;
+    case 'labyrinth':
+      return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M28 72 L78 57 L118 75 L111 129 L32 126 Z" fill={dark} opacity="0.78" /><path d="M300 58 L359 43 L390 75 L382 126 L305 128 Z" fill={dark} opacity="0.82" /><path d="M309 69 L348 59 L374 81 L369 112 L316 115 Z" fill="none" stroke={accent} opacity="0.58" /></g>;
+    case 'scrap':
+    default:
+      return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M24 97 L88 70 L124 96 L94 129 L26 128 Z" fill={dark} opacity="0.76" /><path d="M304 85 L378 66 L393 102 L361 128 L306 126 Z" fill={dark} opacity="0.8" /><path d="M50 84 L86 74 L98 86 L63 98 Z" fill={accent} opacity="0.34" /></g>;
   }
-  if (prop === 'reactor') {
-    return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M35 80 L89 63 L119 95 L89 128 L31 126 Z" fill={dark} opacity="0.76" /><circle cx="347" cy="86" r="30" fill={accent} opacity="0.22" /><circle cx="347" cy="86" r="16" fill={accent} opacity="0.42" /></g>;
-  }
-  return <g stroke="#000" strokeWidth="4" strokeLinejoin="round"><path d="M24 97 L88 70 L124 96 L94 129 L26 128 Z" fill={dark} opacity="0.76" /><path d="M304 85 L378 66 L393 102 L361 128 L306 126 Z" fill={dark} opacity="0.8" /><path d="M50 84 L86 74 L98 86 L63 98 Z" fill={accent} opacity="0.34" /></g>;
 };
 
 const ActivityProp: React.FC<{ mode: DioramaMode; accent: string; dark: string; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ mode, accent, dark, event, reduced }) => {
@@ -96,6 +106,9 @@ const ActivityProp: React.FC<{ mode: DioramaMode; accent: string; dark: string; 
   if (mode === 'marketListing') {
     return <g stroke="#000" strokeLinejoin="round"><path d="M189 104 L258 94 L282 122 L270 154 L195 160 L176 130 Z" fill={dark} strokeWidth="5" /><path d="M201 111 L253 104 L268 122 L257 143 L204 148 L191 128 Z" fill="#111318" strokeWidth="3" /><path d="M211 119 L245 115 M211 131 L257 126" stroke={accent} strokeWidth="3" strokeLinecap="round" /></g>;
   }
+  if (mode === 'idle') {
+    return <g stroke="#000" strokeLinejoin="round"><path d="M189 132 L246 124 L266 145 L205 156 Z" fill={dark} opacity="0.85" strokeWidth="5" /><path d="M207 111 L236 106 L250 124 L217 132 Z" fill={accent} opacity="0.35" strokeWidth="3" /><path d="M235 107 L250 89 L260 117" fill="none" stroke={accent} opacity="0.62" strokeWidth="3" /></g>;
+  }
   return null;
 };
 
@@ -106,7 +119,7 @@ const RunnerSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfF
   const leftArm = bench ? 'M83 102 L111 124' : prep ? 'M84 101 L189 92' : mode === 'idle' ? 'M83 101 L72 132' : 'M83 101 L64 119';
   const rightArm = bench ? 'M119 101 L179 123' : prep ? 'M119 101 L184 116' : mode === 'idle' ? 'M119 101 L142 125' : 'M119 101 L151 105';
   const idleMotion = mode === 'roaming' || mode === 'bossFight' ? { x: [0, 5, 0], y: [0, -2, 0] } : { y: [0, -1, 0] };
-  return <motion.g key={`runner-${active ? event?.id : mode}`} animate={reduced ? undefined : active ? { x: [-3, 5, 0], y: [0, -3, 0], rotate: [0, -1, 0] } : idleMotion} transition={reduced ? undefined : active ? { duration: 0.45, ease: 'easeOut' } : { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }} style={{ transformOrigin: '104px 116px' }}><ellipse cx="104" cy="150" rx="31" ry="7" fill="#000" opacity="0.45" /><path d="M73 88 L91 78 L95 119 L76 128 Z" fill="#111318" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d={bench ? 'M92 90 L119 82 L137 101 L123 130 L91 130 L75 107 Z' : 'M91 86 L118 78 L134 100 L121 130 L91 130 L77 104 Z'} fill="#2B2522" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d="M93 91 L116 85 L128 101 L119 121 L94 123 L84 105 Z" fill={accent} opacity="0.38" stroke="#000" strokeWidth="3" /><path d="M92 56 L117 52 L129 66 L124 84 L97 89 L82 75 Z" fill="#B8B0A8" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d="M98 63 L122 60 L119 72 L96 76 Z" fill="#050608" stroke="#000" strokeWidth="3" /><path d={leftArm} stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d={rightArm} stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" /><path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" /></motion.g>;
+  return <motion.g key={`runner-${active ? event?.id : mode}`} animate={reduced ? undefined : active ? { x: [-3, 5, 0], y: [0, -3, 0], rotate: [0, -1, 0] } : idleMotion} transition={reduced ? undefined : active ? { duration: 0.45, ease: 'easeOut' } : { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }} style={{ transformOrigin: '104px 116px' }}><ellipse cx="104" cy="150" rx="31" ry="7" fill="#000" opacity="0.45" /><path d="M73 88 L91 78 L95 119 L76 128 Z" fill="#111318" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d={bench ? 'M92 90 L119 82 L137 101 L123 130 L91 130 L75 107 Z' : 'M91 86 L118 78 L134 100 L121 130 L91 130 L77 104 Z'} fill="#2B2522" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d="M93 91 L116 85 L128 101 L119 121 L94 123 L84 105 Z" fill={accent} opacity="0.38" stroke="#000" strokeWidth="3" /><path d="M92 56 L117 52 L129 66 L124 84 L97 89 L82 75 Z" fill="#B8B0A8" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d="M98 63 L122 60 L119 72 L96 76 Z" fill="#050608" stroke="#000" strokeWidth="3" /><path d="M83 54 L103 43 L122 50 L97 55 Z" fill="#161116" stroke="#000" strokeWidth="4" /><path d={leftArm} stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d={rightArm} stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" /><path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" /></motion.g>;
 };
 
 const EnemySvg: React.FC<{ color: string; glow: string; boss: boolean; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ color, glow, boss, mode, event, reduced }) => {
@@ -117,7 +130,7 @@ const EnemySvg: React.FC<{ color: string; glow: string; boss: boolean; mode: Dio
 
 const ScrapSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ accent, mode, event, reduced }) => {
   if (mode !== 'salvaging' && !isLootLikeEvent(event)) return null;
-  return <motion.g key={`scrap-${event?.id ?? mode}`} initial={!reduced && isLootLikeEvent(event) ? { y: 8, opacity: 0, scale: 0.86 } : undefined} animate={!reduced && isLootLikeEvent(event) ? { y: [8, -10, -4], opacity: [0, 1, 0.92], scale: [0.86, 1.08, 1] } : undefined} transition={!reduced && isLootLikeEvent(event) ? { duration: 0.62, ease: 'easeOut' } : undefined}><path d="M199 134 L214 130 L226 140 L215 151 L198 148 Z" fill="#A5A7B5" stroke="#000" strokeWidth="4" /><path d="M223 122 L236 125 L235 141 L220 139 Z" fill={accent} opacity="0.78" stroke="#000" strokeWidth="3" /></motion.g>;
+  return <motion.g key={`scrap-${event?.id ?? mode}`} initial={!reduced && isLootLikeEvent(event) ? { y: 8, opacity: 0, scale: 0.86 } : undefined} animate={!reduced && isLootLikeEvent(event) ? { y: [8, -10, -4], opacity: [0, 1, 0.92], scale: [0.86, 1.08, 1] } : undefined} transition={!reduced && isLootLikeEvent(event) ? { duration: 0.62, ease: 'easeOut' } : undefined}><path d="M199 134 L214 130 L226 140 L215 151 L198 148 Z" fill="#A5A7B5" stroke="#000" strokeWidth="4" /><path d="M223 122 L236 125 L235 141 L220 139 Z" fill={accent} opacity="0.78" stroke="#000" strokeWidth="3" /><path d="M204 119 L212 111 L219 121 L212 129 Z" fill="#F5F5F5" opacity="0.62" stroke="#000" strokeWidth="2" /></motion.g>;
 };
 
 const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ projectile, mode, event, reduced }) => {
@@ -146,7 +159,6 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const primaryDetail = primaryActionDetail ?? (activityKind === 'roaming_loot' ? area.enemyType : copy.caption);
   const secondaryLabel = secondaryActionLabel ?? (bossName ? 'Prep boss' : 'Switch');
   const secondaryDetail = secondaryActionDetail ?? (bossName ? `${bossWeaknessCount} weakness tags` : `${cacheKeys} keys ready`);
-
   const titleBlock = <div className="min-w-0 border-2 border-border bg-surface/90 px-2 py-1.5 text-left shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate bl-title text-2xl leading-none text-text-primary">{title}</div><div className="truncate text-[8px] font-black uppercase tracking-[0.18em] text-text-muted">{activityLabel || copy.caption}</div></div>;
 
   return (
@@ -166,16 +178,12 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
-
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">LV {playerLevel}</div><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
       </div>
-
       <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${eventActive ? latestEvent?.id : mode}`} initial={eventActive && !reduced ? { x: -2, y: 0 } : undefined} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44, ease: 'easeOut' } : undefined}><WeaponIllustration weapon={weapon} type={fallbackWeaponType} manufacturer={fallbackManufacturer} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
-
       <div className="pointer-events-none absolute bottom-[44px] left-2 right-2 grid grid-cols-[1fr_auto] gap-2"><div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate text-[9px] font-black uppercase tracking-wide text-text-primary">{weaponLabel}</div><div className="truncate text-[8px] text-text-muted">{motionCaption}</div></div><div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>{latestEvent ? <Sparkles size={13} className="text-amber" /> : <Crosshair size={13} className="text-red" />}<div><div className="text-[8px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div><div className="max-w-[92px] truncate text-[9px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel}</div></div></div></div>
-
       <div className="absolute bottom-0 left-0 right-0 grid grid-cols-2 border-t-2 border-border bg-surface/95 text-[9px]"><button type="button" onClick={onFight} className="flex items-center justify-between gap-2 border-r border-border px-3 py-2 text-left active:bg-red/10"><span><span className="block font-black uppercase tracking-wide text-red">{primaryLabel}</span><span className="block truncate text-text-muted">{primaryDetail}</span></span><Crosshair size={14} className="shrink-0 text-red" /></button><button type="button" onClick={onSecondary} className="flex items-center justify-between gap-2 px-3 py-2 text-left active:bg-amber/10"><span><span className="block font-black uppercase tracking-wide text-amber">{secondaryLabel}</span><span className="block truncate text-text-muted">{secondaryDetail}</span></span>{secondaryActionLabel ? <ChevronDown size={14} className="shrink-0 text-amber" /> : <Box size={14} className="shrink-0 text-amber" />}</button></div>
     </section>
   );
