@@ -108,18 +108,31 @@ const GearCard: React.FC<{
   const rarityColor = RARITIES[item.rarity].color;
   const gearType = getGearType(item);
 
-  // Stat preview line per item type
-  const statLine = (() => {
-    if (isWeapon(item))
-      return `Dmg ${item.baseDamage}  Spd ${item.attackSpeed.toFixed(2)}  Crit ${(item.critChance * 100).toFixed(0)}%`;
-    if (isShield(item))
-      return `HP ${item.hp}  Rech ${item.rechargeRate.toFixed(0)}/s  Mit ${(item.mitigation * 100).toFixed(0)}%`;
-    if (isClassMod(item))
-      return `Tree: ${item.treeBonus}  Nodes: ${Object.keys(item.nodeBoosts).length}`;
-    if (isRelic(item))
-      return `Affixes: ${item.affixes.length}`;
-    // Ordnance
-    return `Dmg ${item.damage}  Shield ${item.shieldDamage}  Armor ${item.armorDamage}`;
+  // Stat preview chips per item type, rendered as bordered stat cells with
+  // tabular-nums for readable scan across the grid.
+  const statChips = (() => {
+    if (isWeapon(item)) return [
+      { label: 'DMG', value: item.baseDamage },
+      { label: 'SPD', value: item.attackSpeed.toFixed(2) },
+      { label: 'CRT', value: `${(item.critChance * 100).toFixed(0)}%` },
+    ];
+    if (isShield(item)) return [
+      { label: 'HP', value: item.hp },
+      { label: 'RECH', value: `${item.rechargeRate.toFixed(0)}/s` },
+      { label: 'MIT', value: `${(item.mitigation * 100).toFixed(0)}%` },
+    ];
+    if (isClassMod(item)) return [
+      { label: 'TREE', value: item.treeBonus },
+      { label: 'NODES', value: Object.keys(item.nodeBoosts).length },
+    ];
+    if (isRelic(item)) return [
+      { label: 'AFFIX', value: item.affixes.length },
+    ];
+    return [
+      { label: 'DMG', value: item.damage },
+      { label: 'SHLD', value: item.shieldDamage },
+      { label: 'ARM', value: item.armorDamage },
+    ];
   })();
 
   return (
@@ -167,7 +180,18 @@ const GearCard: React.FC<{
             </span>
           )}
         </div>
-        <div className="text-[10px] text-text-muted truncate">{statLine}</div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {statChips.map((chip) => (
+            <span
+              key={chip.label}
+              className="inline-flex items-center gap-0.5 border border-border bg-bg/80 px-1 py-0.5 text-[9px] font-bold tabular-nums"
+              title={chip.label}
+            >
+              <span className="text-text-muted">{chip.label}</span>
+              <span className="text-text-primary">{chip.value}</span>
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Locked badge */}
