@@ -156,7 +156,6 @@ const FeedCard: React.FC<{ event: RunVisualEvent }> = ({ event }) => {
 };
 
 type CommonPanelProps = {
-  now: number;
   playerLevel: number;
   currentKind: ActivityKind;
   selectedArea: RoamingAreaDef;
@@ -318,7 +317,8 @@ const BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: (
   );
 };
 
-const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number }> = ({ now, playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onNavigate }) => {
+const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onNavigate }) => {
+  const now = useNow();
   const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, playerMaterials, playerEssences, playerLevel), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
   const canNow = craftable.filter(({ check }) => check.can).slice(0, 6);
   const blocked = craftable.filter(({ check }) => !check.can).slice(0, 4);
@@ -366,7 +366,9 @@ const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[] }> = ({ item
   );
 };
 
-const WorkshopPanel: React.FC<CommonPanelProps & { queues: { id?: string; recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; benchesFree: number }> = ({ now, queues, benchesFree, onNavigate }) => (
+const WorkshopPanel: React.FC<CommonPanelProps & { queues: { id?: string; recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; benchesFree: number }> = ({ queues, benchesFree, onNavigate }) => {
+  const now = useNow();
+  return (
   <div className="space-y-3">
     <Section title="Service Bay" eyebrow="Workshop workspace" icon={Wrench}>
       <div className="grid grid-cols-3 gap-2"><StatChip label="Free" value={benchesFree} accent={benchesFree ? 'text-green' : 'text-red'} /><StatChip label="Running" value={queues.length} /><StatChip label="Ready" value={queues.filter((q) => Math.floor((now - q.startedAt) / q.durationMs) > q.claimedCount).length} accent="text-amber" /></div>
@@ -376,7 +378,8 @@ const WorkshopPanel: React.FC<CommonPanelProps & { queues: { id?: string; recipe
       <button type="button" onClick={() => onNavigate?.('workshop')} className="mt-3 bl-primary w-full py-2 text-xs font-black">Open Workshop</button>
     </Section>
   </div>
-);
+  );
+};
 
 const MarketPanel: React.FC<CommonPanelProps & { listings: number; history: number; sellableItems: GearItem[]; credits: number }> = ({ listings, history, sellableItems, credits, startMarket, onNavigate }) => {
   const topSellable = sellableItems.slice(0, 5);
@@ -559,9 +562,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return () => window.clearInterval(iv);
   }, [activity, canTick]);
 
-  const now = useNow();
-
-  const commonProps: CommonPanelProps = { now, playerLevel: player.level, currentKind, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
+  const commonProps: CommonPanelProps = { playerLevel: player.level, currentKind, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
 
   const workspace = (() => {
     if (currentKind === 'roaming_loot') return <RoamingPanel {...commonProps} feed={feed} creditsPerTick={creditsPerTick} scrapPerTick={scrapPerTick} />;
