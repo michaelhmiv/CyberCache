@@ -85,7 +85,9 @@ export function calculateDailyXp(assumptions: SimulationAssumptions = DEFAULT_SI
 
 export function xpToNextLevel(level: number): number {
   if (level < 1) throw new Error('Level must be at least 1.');
-  return Math.floor(400 + 125 * Math.pow(level, 1.85));
+  // Curve: 50*n + 20*n^1.4
+  // Mirrored server-side in supabase/migrations/202606080057_xp_curve_and_wipe_slate.sql
+  return Math.floor(50 * level + 20 * Math.pow(level, 1.4));
 }
 
 export function buildLevelCurve(maxLevel = 100, assumptions: SimulationAssumptions = DEFAULT_SIMULATION_ASSUMPTIONS): LevelCurvePoint[] {

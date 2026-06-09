@@ -29,6 +29,7 @@ import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '@/constant
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
+import { xpToNextLevel } from '@/content/simulation';
 
 interface DashboardScreenProps {
   onNavigate: (screen: string) => void;
@@ -251,9 +252,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const bestWeapon = [...inventory.getWeapons()].sort((a, b) => b.combatPower - a.combatPower)[0];
   const equippedWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy') ?? bestWeapon;
   const openWorkshopJobs = workshop.activeQueues.length;
-  const xpToNextLevel = player.level * 100;
-  const xpProgress = Math.min(100, Math.max(0, (player.xp / xpToNextLevel) * 100));
-  const xpRemaining = Math.max(0, xpToNextLevel - player.xp);
+  const xpToNextLevelValue = xpToNextLevel(player.level);
+  const xpProgress = Math.min(100, Math.max(0, (player.xp / xpToNextLevelValue) * 100));
+  const xpRemaining = Math.max(0, xpToNextLevelValue - player.xp);
   const nextArea = ROAMING_AREAS.find((area) => !isRoamingAreaUnlocked(area, player.level));
   const masteryScore = player.level * 100 + inventory.items.length * 5 + boss.defeatedBossIds.length * 50 + spentSkillPoints * 25;
   const activePayload = activity.current.publicPayload;
