@@ -6,7 +6,6 @@ import type { GearItem } from '@/types/items';
 
 const TICK_MS = 3000;
 const DROP_CHANCE_PER_TICK = 0.22;
-const CACHE_FRAGMENT_CHANCE_PER_TICK = 0.03;
 const MATERIAL_FIND_CHANCE_PER_TICK = 0.08;
 const SETTLEMENT_LOCK_KEY = 'cybercache:active-action-settlement-lock';
 const LOCK_TTL_MS = 15000;
@@ -92,17 +91,14 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
     const creditsPerTick = Math.round((area.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0)));
     const scrapPerTick = Math.round((area.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0)));
     const gearDrops: GearItem[] = [];
-    let cacheFragments = 0;
     let materialFinds = 0;
 
     for (let i = 0; i < ticks; i += 1) {
       const drop = Math.random() < DROP_CHANCE_PER_TICK;
-      const cache = Math.random() < CACHE_FRAGMENT_CHANCE_PER_TICK;
       const material = Math.random() < MATERIAL_FIND_CHANCE_PER_TICK;
 
-      if (cache) cacheFragments += 1;
       if (drop) gearDrops.push(generateAreaDrop(area.id));
-      if (!drop && !cache && material) {
+      if (!drop && material) {
         const find = rollAreaMaterialFind(area);
         if (find?.kind === 'material') {
           usePlayerStore.getState().addMaterial(find.type, 1);
@@ -123,7 +119,6 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
     playerStore.addCredits(credits);
     playerStore.addScrap(scrap);
     playerStore.addXP(xp);
-    if (cacheFragments > 0) playerStore.addCacheKeyFragments(cacheFragments);
     playerStore.setPlayer({ lastClaimTime: settledThrough });
     useIdleStore.setState((state) => ({
       isFarming: true,
@@ -138,7 +133,7 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
       xp,
       credits,
       scrap,
-      cacheFragments,
+      cacheFragments: 0,
       gearDrops,
       materialFinds,
       settledThrough,
