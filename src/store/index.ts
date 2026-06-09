@@ -7,6 +7,10 @@ import { useMarketStore } from './slices/marketSlice';
 import { useSkillStore } from './slices/skillSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
 import { useActivityStore } from './slices/activitySlice';
+import { useTickFeedStore } from './slices/tickSlice';
+import { useIdleTickerStore, mountIdleTicker, unmountIdleTicker } from './slices/idleTickerSlice';
+import { useCombatStatsStore, combatStatsSelectors } from './slices/combatStatsSlice';
+export { useCombatStatsStore, combatStatsSelectors };
 
 export {
   usePlayerStore,
@@ -18,4 +22,9 @@ export {
   useSkillStore,
   useWorkshopStore,
   useActivityStore,
+  useTickFeedStore,
+  useIdleTickerStore,
+  mountIdleTicker,
+  unmountIdleTicker,
+  useCombatStatsStore,
 };

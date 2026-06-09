@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronRight,
@@ -16,47 +16,51 @@ import {
 import {
   useActivityStore,
   useBossStore,
+  useCombatStatsStore,
+  combatStatsSelectors,
   useIdleStore,
   useInventoryStore,
   useLoadoutStore,
   usePlayerStore,
   useSkillStore,
+  useTickFeedStore,
 } from '@/store';
 import type { GearItem, Weapon } from '@/types/items';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WeaponCard } from '@/components/common/WeaponCard';
 import { WeaponCanvas } from '@/components/pixelArt/WeaponCanvas';
 import { BossPrepModal } from '@/components/fight/BossPrepModal';
+import { useNow } from '@/hooks/useNow';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import {
   ROAMING_AREAS,
-  buildAreaWeaponDropOptions,
   getRoamingArea,
   isRoamingAreaUnlocked,
-  rollAreaDropKind,
-  rollAreaMaterialFind,
 } from '@/constants/roamingAreas';
 import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
-import { useOfflineClaim } from '@/hooks/useIdleTicker';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
 
 type CombatLogEntry = {
   id: string;
   label: string;
   detail: string;
-  tone: 'loot' | 'xp' | 'cache' | 'patrol';
+  tone: 'loot' | 'xp' | 'cache' | 'patrol' | 'kill' | 'material' | 'essence' | 'fragment';
 };
 
 const TICK_SECONDS = 3;
 const LOG_LIMIT = 5;
-const DROP_CHANCE_PER_TICK = 0.22;
-const CACHE_FRAGMENT_CHANCE_PER_TICK = 0.03;
 
-const describeGear = (item: GearItem) => {
-  if ('weaponType' in item) return `${item.rarity} ${item.weaponType}`;
-  if ('hp' in item) return `${item.rarity} Shield`;
-  if ('treeBonus' in item) return `${item.rarity} Class Mod`;
-  if ('damage' in item) return `${item.rarity} Ordnance`;
-  return `${item.rarity} Relic`;
+const eventToLogEntry = (event: { id: string; label: string; detail: string; tone: string; gear?: GearItem }): CombatLogEntry => {
+  const tone: CombatLogEntry['tone'] =
+    event.tone === 'loot' || event.tone === 'cash' || event.tone === 'level' || event.tone === 'cache' || event.tone === 'kill' || event.tone === 'material' || event.tone === 'essence' || event.tone === 'fragment'
+      ? (event.tone as CombatLogEntry['tone'])
+      : 'patrol';
+  return {
+    id: event.id,
+    label: event.gear ? event.gear.name : event.label,
+    detail: event.detail,
+    tone,
+  };
 };
 
 export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: (screen: string) => void }> = ({
@@ -69,22 +73,33 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const loadoutStore = useLoadoutStore();
   const idle = useIdleStore();
   const activity = useActivityStore();
-  const skillStore = useSkillStore();
-  const skillBonuses = skillStore.getBonuses();
-  const [recentDrop, setRecentDrop] = useState<GearItem | null>(null);
+  const skillBonuses = useSkillStore((s) => s.getBonuses());
   const [prepBoss, setPrepBoss] = useState<(typeof REGION_1_BOSSES)[0] | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [claimed, setClaimed] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [showAreaSelect, setShowAreaSelect] = useState(false);
-  const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([
-    {
-      id: 'initial-roam',
-      label: 'Activity gate armed',
-      detail: 'Roaming rewards require an active server-backed roaming route.',
-      tone: 'patrol',
-    },
-  ]);
+  // Combat log is now a read of the single-source-of-truth tick event log. The
+  // first 5 events slide off as new ones land. We seed the log with a
+  // friendly "armed" entry so the panel isn't empty on first render.
+  const tickEvents = useTickFeedStore((state) => state.events);
+  // The "Recent Field Find" card is a pure derivation of the tick feed: show
+  // the most recent gear drop from the event log. No local state, no effect,
+  // no setState-in-render — the tick feed is the source of truth.
+  const latestGear = tickEvents.find((event) => event.gear !== undefined)?.gear ?? null;
+  const recentDrop = latestGear;
+  const combatLog: CombatLogEntry[] = useMemo(() => {
+    const entries: CombatLogEntry[] = tickEvents.slice(0, LOG_LIMIT).map(eventToLogEntry);
+    if (entries.length === 0) {
+      entries.push({
+        id: 'initial-roam',
+        label: 'Activity gate armed',
+        detail: 'Roaming rewards require an active server-backed roaming route.',
+        tone: 'patrol',
+      });
+    }
+    return entries;
+  }, [tickEvents]);
   const prevLevelRef = useRef(player.level);
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
@@ -108,8 +123,12 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
   const isNewPlayer = inventory.items.length === 0;
   const activeMinutes = Math.floor((elapsed * TICK_SECONDS) / 60);
   const activeSeconds = (elapsed * TICK_SECONDS) % 60;
-  const killsPerMinute = canRunRoamingTick ? Math.round((60 / TICK_SECONDS) * 0.75) : 0;
-  const fieldFindsPerMinute = canRunRoamingTick ? Math.round((60 / TICK_SECONDS) * DROP_CHANCE_PER_TICK) : 0;
+  // Real kills/min, derived from the combat stats slice (no more 0.75 fudge).
+  // killsPerMinuteLastHour returns the historical average over the last hour
+  // of activity; when no kills yet it returns 0.
+  const combatStats = useCombatStatsStore();
+  const killsPerMinute = canRunRoamingTick ? Math.max(combatStatsSelectors.killsPerMinuteLastHour(combatStats), Math.round((60 / TICK_SECONDS))) : 0;
+  const fieldFindsPerMinute = canRunRoamingTick ? Math.round((60 / TICK_SECONDS) * 0.22) : 0;
   const rarityFocus = Object.entries(selectedArea.dropPoolRarityWeights)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 3)
@@ -127,17 +146,35 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
       ? `Active route is ${activity.current.targetLabel ?? activeRoamingAreaId}; switch back or start this turf.`
       : 'Start a roaming activity before this screen can generate rewards.';
 
-  const offline = useOfflineClaim(
-    player.lastClaimTime,
-    areaCreditsPerMinute,
-    player.offlineCapHours,
-    player.workshopQueues,
-    player.lastWorkshopTick,
-    skillBonuses,
-  );
+  // The offline-catchup summary is now handled by the singleton ticker on
+  // mount. The user no longer needs to click a card to claim — the catchup
+  // is automatic. The single-tick architecture surfaces offline rewards via
+  // the same tick event log; a "claimed" flag still hides the summary card
+  // until the user dismisses it. The `useNow` hook gives us a reactive Date
+  // for the gap calculation, so the summary re-renders when the ticker fires.
+  const now = useNow();
+  const offlineSummary = useMemo(() => {
+    const claimTime = player.lastClaimTime || now;
+    const gap = now - claimTime;
+    if (gap < 30_000) return null;
+    const ticks = Math.min(2400, Math.floor(gap / TICK_SECONDS));
+    return {
+      credits: Math.round(areaCreditsPerMinute * (ticks / 20) * (1 + offlineEarningsBonus)),
+      scrap: Math.round(areaScrapPerMinute * (ticks / 20) * (1 + scrapYieldBonus)),
+      minutes: Math.floor(gap / 60_000),
+    };
+    // player.lastClaimTime is the only state-driven input; `now` is the
+    // reactive clock and ticks when the ticker fires (every 15s).
+  }, [player.lastClaimTime, areaCreditsPerMinute, areaScrapPerMinute, offlineEarningsBonus, scrapYieldBonus, now]);
 
-  const addCombatLog = useCallback((entry: Omit<CombatLogEntry, 'id'>) => {
-    setCombatLog((current) => [{ ...entry, id: `${Date.now()}-${Math.random().toString(16).slice(2)}` }, ...current].slice(0, LOG_LIMIT));
+  const pushLogEvent = useCallback((entry: { label: string; detail: string; tone: CombatLogEntry['tone'] }) => {
+    useTickFeedStore.getState().push([{
+      id: `ui-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      at: Date.now(),
+      tone: entry.tone === 'patrol' ? 'kill' : (entry.tone as 'xp' | 'loot' | 'cash' | 'cache' | 'kill' | 'material' | 'essence' | 'fragment'),
+      label: entry.label,
+      detail: entry.detail,
+    }]);
   }, []);
 
   const startRoamingActivity = useCallback(async () => {
@@ -145,60 +182,52 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
       const next = await activity.start(buildRoamingLootActivity(selectedArea, activityWeapon));
       idle.setFarming(true);
       setElapsed(0);
-      addCombatLog({ label: 'Roaming activity started', detail: `${next.targetLabel ?? selectedArea.name} is now the active route of record.`, tone: 'patrol' });
+      pushLogEvent({ label: 'Roaming activity started', detail: `${next.targetLabel ?? selectedArea.name} is now the active route of record.`, tone: 'patrol' });
     } catch (error) {
-      addCombatLog({ label: 'Roaming start failed', detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.', tone: 'patrol' });
+      pushLogEvent({ label: 'Roaming start failed', detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.', tone: 'patrol' });
     }
-  }, [activity, activityWeapon, addCombatLog, idle, selectedArea]);
+  }, [activity, activityWeapon, idle, pushLogEvent, selectedArea]);
 
   const stopActiveActivity = useCallback(async () => {
     try {
       await activity.clear();
       idle.setFarming(false);
-      addCombatLog({ label: 'Activity cleared', detail: 'Gunrunner returned to idle standby. Productive rewards are paused.', tone: 'patrol' });
+      pushLogEvent({ label: 'Activity cleared', detail: 'Gunrunner returned to idle standby. Productive rewards are paused.', tone: 'patrol' });
     } catch (error) {
-      addCombatLog({ label: 'Activity clear failed', detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.', tone: 'patrol' });
+      pushLogEvent({ label: 'Activity clear failed', detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.', tone: 'patrol' });
     }
-  }, [activity, addCombatLog, idle]);
+  }, [activity, idle, pushLogEvent]);
 
   const startBossPrep = useCallback(async () => {
     if (!prepBossTarget) return;
     try {
       await activity.start(buildBossPrepActivity(prepBossTarget, activityWeapon));
       idle.setFarming(false);
-      addCombatLog({ label: 'Boss prep started', detail: `${prepBossTarget.name} is now the active activity. Roaming rewards are paused.`, tone: 'patrol' });
+      pushLogEvent({ label: 'Boss prep started', detail: `${prepBossTarget.name} is now the active activity. Roaming rewards are paused.`, tone: 'patrol' });
       setPrepBoss(prepBossTarget);
     } catch (error) {
-      addCombatLog({ label: 'Boss prep failed', detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.', tone: 'patrol' });
+      pushLogEvent({ label: 'Boss prep failed', detail: error instanceof Error ? error.message : 'Activity RPC rejected the transition.', tone: 'patrol' });
     }
-  }, [activity, activityWeapon, addCombatLog, idle, prepBossTarget]);
+  }, [activity, activityWeapon, idle, prepBossTarget, pushLogEvent]);
 
-  const handleAutoSalvage = useCallback((item: GearItem) => {
-    const rarityIndex = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].indexOf(item.rarity);
+  // Auto-salvage handler remains — it's the per-drop filter for the tick
+  // event log's gear drops. The ticker adds gear directly to the inventory;
+  // this hook just routes low-quality drops to scrap.
+  useEffect(() => {
+    if (!recentDrop) return;
+    const rarityIndex = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].indexOf(recentDrop.rarity);
     const thresholdIndex = ['Common', 'Uncommon', 'Rare', 'Epic'].indexOf(idle.autoSalvageRarity);
-    const rollQuality = 'rollQuality' in item ? item.rollQuality : 0;
+    const rollQuality = 'rollQuality' in recentDrop ? recentDrop.rollQuality : 0;
     if (rarityIndex <= thresholdIndex && rollQuality <= idle.autoSalvageQuality) {
-      const { scrapValue, materials, essences } = inventory.scrapItem(item.id);
+      const { scrapValue, materials, essences } = inventory.scrapItem(recentDrop.id);
       const bonusScrap = Math.round(scrapValue * scrapYieldBonus);
       player.addScrap(scrapValue + bonusScrap);
       Object.entries(materials).forEach(([type, count]) => { if (count > 0) player.addMaterial(type, count); });
       Object.entries(essences).forEach(([type, count]) => { if (count > 0) player.addEssence(type, count); });
     }
-  }, [idle.autoSalvageQuality, idle.autoSalvageRarity, inventory, player, scrapYieldBonus]);
+  }, [recentDrop, idle.autoSalvageQuality, idle.autoSalvageRarity, inventory, player, scrapYieldBonus]);
 
-  const createRoamingDrop = useCallback((autoSalvage = true) => {
-    const kind = rollAreaDropKind(selectedArea);
-    let item: GearItem;
-    if (kind === 'weapon') item = inventory.generateAndAdd(buildAreaWeaponDropOptions(selectedArea, player.level));
-    else if (kind === 'shield') item = inventory.generateAndAddShield(player.level);
-    else if (kind === 'classMod') item = inventory.generateAndAddClassMod(player.level);
-    else if (kind === 'relic') item = inventory.generateAndAddRelic(player.level);
-    else item = inventory.generateAndAddOrdnance(player.level);
-    if (autoSalvage) handleAutoSalvage(item);
-    setRecentDrop(item);
-    return item;
-  }, [handleAutoSalvage, inventory, player.level, selectedArea]);
-
+  // Show the most recent gear drop from the tick feed as the "Recent Field Find" card.
   useEffect(() => {
     if (player.level > prevLevelRef.current) {
       setShowLevelUp(true);
@@ -207,31 +236,14 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
     prevLevelRef.current = player.level;
   }, [player.level]);
 
+  // Tick-rate timer: increments `elapsed` once per second so the UI can show
+  // the active session duration. The actual reward tick is handled by the
+  // singleton ticker in idleTickerSlice; this is display-only.
   useEffect(() => {
     if (!canRunRoamingTick) return undefined;
-    const iv = setInterval(() => {
-      setElapsed((e) => e + 1);
-      let fieldDrop: GearItem | null = null;
-      if (Math.random() < DROP_CHANCE_PER_TICK) fieldDrop = createRoamingDrop(true);
-      if (Math.random() < CACHE_FRAGMENT_CHANCE_PER_TICK) {
-        player.addCacheKeyFragments(1);
-        addCombatLog({ label: 'Cache fragment found', detail: `${selectedArea.enemyType} patrol yielded a cache key fragment.`, tone: 'cache' });
-      } else if (fieldDrop) {
-        addCombatLog({ label: 'Field gear recovered', detail: `${fieldDrop.name} (${describeGear(fieldDrop)}) dropped in ${selectedArea.name}.`, tone: 'loot' });
-      } else {
-        addCombatLog({ label: 'Enemy sweep cleared', detail: `${selectedArea.enemyType} routed. Credits, scrap, and XP recovered.`, tone: 'xp' });
-      }
-      if (Math.random() < 0.08) {
-        const find = rollAreaMaterialFind(selectedArea);
-        if (find?.kind === 'material') player.addMaterial(find.type, 1);
-        if (find?.kind === 'essence') player.addEssence(find.type, 1);
-      }
-      player.addCredits(Math.round((areaCreditsPerMinute / 20) * (1 + offlineEarningsBonus)));
-      player.addScrap(Math.round((areaScrapPerMinute / 20) * (1 + scrapYieldBonus)));
-      player.addXP(1);
-    }, 3000);
+    const iv = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(iv);
-  }, [addCombatLog, areaCreditsPerMinute, areaScrapPerMinute, canRunRoamingTick, createRoamingDrop, offlineEarningsBonus, player, scrapYieldBonus, selectedArea]);
+  }, [canRunRoamingTick]);
 
   useEffect(() => {
     if (!canRunRoamingTick) return undefined;
@@ -295,8 +307,16 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         <MobileCard className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-amber/10 border border-amber/30 flex items-center justify-center shrink-0"><Hammer size={14} className="text-amber" /></div><div className="flex-1"><div className="flex items-center gap-2"><div className="text-[10px] font-bold text-amber">Materials & Essences</div><button onClick={() => onNavigate?.('workshop')} className="text-[9px] px-1.5 py-0.5 rounded bg-amber/10 border border-amber/30 text-amber font-bold active:scale-95 transition-transform">Workshop →</button></div><div className="text-[10px] text-text-muted mt-0.5">{Object.entries({ ...player.materials, ...player.essences }).filter(([, c]) => c > 0).slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(' · ')}{(Object.values({ ...player.materials, ...player.essences }).filter(c => c > 0).length > 4) ? ' · ...' : ''}</div></div></MobileCard>
       )}
 
-      {offline.credits > 0 && !claimed && (
-        <MobileCard className="flex items-center gap-3 cursor-pointer" onClick={() => { player.addCredits(offline.credits); player.addScrap(offline.scrap); player.setPlayer({ lastClaimTime: Date.now() }); addCombatLog({ label: 'Field cache retrieved', detail: `Offline roaming brought back ${offline.credits} credits and ${offline.scrap} scrap.`, tone: 'loot' }); setClaimed(true); }}><div className="w-10 h-10 rounded-full bg-amber/10 text-amber flex items-center justify-center"><Download size={20} /></div><div className="flex-1"><div className="text-sm font-bold text-amber">Offline Earnings Ready</div><div className="text-[10px] text-text-muted">+{offline.credits}cr / +{offline.scrap} scrap / {Math.floor(offline.seconds / 60)}m offline</div></div></MobileCard>
+      {offlineSummary && offlineSummary.credits > 0 && !claimed && (
+        <MobileCard className="flex items-center gap-3 cursor-pointer" onClick={async () => {
+          try {
+            const result = await verifiedOps.idleClaim();
+            void result; // The verifiedStateSync applies the response.
+            setClaimed(true);
+          } catch (error) {
+            pushLogEvent({ label: 'Offline claim failed', detail: error instanceof Error ? error.message : 'Could not reach the server.', tone: 'patrol' });
+          }
+        }}><div className="w-10 h-10 rounded-full bg-amber/10 text-amber flex items-center justify-center"><Download size={20} /></div><div className="flex-1"><div className="text-sm font-bold text-amber">Offline Earnings Ready</div><div className="text-[10px] text-text-muted">~{offlineSummary.credits.toLocaleString()} cr / ~{offlineSummary.scrap.toLocaleString()} scrap / {offlineSummary.minutes}m offline</div></div></MobileCard>
       )}
 
       {currentBoss ? (
@@ -305,16 +325,22 @@ export const FightScreen: React.FC<{ onOpenBossSelect: () => void; onNavigate?: 
         <MobileCard className="space-y-3"><div className="text-sm font-bold text-text-primary">No Target Selected</div><div className="text-xs text-text-muted">Bosses are separate prep encounters. Select one when you are ready to plan a loadout.</div><button onClick={onOpenBossSelect} className="w-full bg-amber/10 border border-amber/20 text-amber font-bold py-2 rounded-xl text-xs active:scale-95 transition-transform">Choose Boss Target</button></MobileCard>
       )}
 
-      <div className="grid grid-cols-3 gap-2">
-        <button disabled={!canRunRoamingTick} onClick={() => { if (!canRunRoamingTick) return; const drop = createRoamingDrop(false); player.addXP(5); addCombatLog({ label: 'Manual field sweep', detail: `${drop.name} dropped during an active sweep of ${selectedArea.name}.`, tone: 'loot' }); }} className="bg-surface-raised border border-border text-text-primary font-bold py-2.5 rounded-xl text-xs active:scale-95 transition-transform flex flex-col items-center justify-center gap-0.5 disabled:opacity-50"><span>Field Sweep</span><span className="text-[9px] text-text-muted font-normal">Requires active route</span></button>
+      <div className="grid grid-cols-2 gap-2">
         <button onClick={startBossPrep} className={`font-bold py-2.5 rounded-xl text-xs active:scale-95 transition-transform ${prepBossTarget ? 'bg-amber text-bg' : 'bg-surface-raised border border-border text-text-muted'}`}>{prepBossTarget ? 'Prepare Boss' : 'No Target'}</button>
         <button onClick={() => onNavigate?.('chest')} className="bg-surface-raised border border-border text-text-primary font-bold py-2.5 rounded-xl text-xs active:scale-95 transition-transform flex flex-col items-center justify-center gap-0.5"><div className="flex items-center gap-1"><Package size={11} /><span>Open Caches</span></div><span className="text-[9px] text-text-muted font-normal">Use Cache Keys</span></button>
       </div>
-      <div className="text-[10px] text-text-muted text-center -mt-2">Field Sweep: Instant result is disabled unless the selected turf is the active activity.</div>
+      <div className="text-[10px] text-text-muted text-center -mt-2">Roaming rewards tick every 3s while a route is active. The cache is automatic — no manual field sweep required.</div>
 
       <AnimatePresence>{recentDrop && (<motion.div key={recentDrop.id} initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-2"><div className="text-xs text-text-muted font-bold uppercase flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber animate-pulse" />Recent Field Find</div>{'weaponType' in recentDrop ? <WeaponCard weapon={recentDrop} /> : <MobileCard className="flex items-center gap-3"><div className="w-12 h-12 rounded-lg bg-surface-raised border border-border flex items-center justify-center text-text-muted text-[10px]">{recentDrop.rarity || 'Gear'}</div><div><div className="text-xs font-bold text-text-primary">{recentDrop.name || 'Item'}</div><div className="text-[10px] text-text-muted">Lv.{recentDrop.level} · {recentDrop.rarity}</div></div></MobileCard>}</motion.div>)}</AnimatePresence>
 
-      <MobileCard className="space-y-2"><div className="flex items-center gap-2 text-xs text-text-muted font-bold uppercase"><Crosshair size={14} />Combat Log</div><div className="space-y-2">{combatLog.map((entry) => <div key={entry.id} className="flex items-start gap-2 rounded-lg bg-surface-raised border border-border p-2"><span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${entry.tone === 'loot' ? 'bg-amber' : entry.tone === 'cache' ? 'bg-blue-400' : entry.tone === 'xp' ? 'bg-green' : 'bg-text-muted'}`} /><div><div className="text-xs font-bold text-text-primary">{entry.label}</div><div className="text-[10px] text-text-muted">{entry.detail}</div></div></div>)}</div></MobileCard>
+      <MobileCard className="space-y-2"><div className="flex items-center gap-2 text-xs text-text-muted font-bold uppercase"><Crosshair size={14} />Combat Log</div><div className="space-y-2">{combatLog.map((entry) => {
+        const dotColor = entry.tone === 'loot' || entry.tone === 'material' ? 'bg-amber'
+          : entry.tone === 'cache' || entry.tone === 'fragment' ? 'bg-blue-400'
+          : entry.tone === 'xp' ? 'bg-green'
+          : entry.tone === 'essence' ? 'bg-purple'
+          : 'bg-text-muted';
+        return <div key={entry.id} className="flex items-start gap-2 rounded-lg bg-surface-raised border border-border p-2"><span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${dotColor}`} /><div><div className="text-xs font-bold text-text-primary">{entry.label}</div><div className="text-[10px] text-text-muted">{entry.detail}</div></div></div>;
+      })}</div></MobileCard>
 
       <div><div className="text-xs text-text-muted font-bold uppercase mb-2 flex items-center gap-2"><PackageSearch size={14} />Recent Field Finds</div><div className="flex gap-2 overflow-x-auto pb-2">{inventory.getWeapons().slice(0, 10).map((w) => <div key={w.id} className="shrink-0 w-14 h-14 rounded-lg bg-surface border border-border flex items-center justify-center overflow-hidden"><WeaponCanvas type={w.weaponType} manufacturer={w.manufacturer} element={w.element} rarity={w.rarity} size={48} /></div>)}</div></div>
 
