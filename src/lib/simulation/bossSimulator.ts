@@ -4,6 +4,7 @@ import { Element, Manufacturer, RiskSetting } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
 import { CONSUMABLES, ConsumableDef } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
+import { computeWeaponDps } from '../stats/dpsChain';
 
 export interface BossSimulationInput {
   primary: Weapon | null;
@@ -502,6 +503,28 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   }
 
   // 3. DPS Check with Ammo Windows
+  //
+  // The per-weapon "raw" DPS now goes through the chain
+  // (src/lib/stats/dpsChain.ts). The chain is the single source of truth
+  // for "how much damage does this weapon do per second against a target
+  // with this element matchup and legendary bonus". The sim's job is to
+  // apply per-fight modifiers ON TOP: ammo windows, signature mechanics,
+  // per-slot contribution multipliers (secondary gets 0.3 of base,
+  // heavy gets 0.5 of base). The chain does not yet know about these
+  // per-fight concerns (PR E will fold signature + consumables into
+  // the chain).
+  //
+  // We pass `bossWeaknesses` and `bossResistance` to the chain so the
+  // element-vs-weakness matchup and resistance penalty use the chain's
+  // counter-element table (which handles the boss-weakness-as-Element
+  // correctly, unlike the legacy `getElementMatchup(element, 'flesh')`
+  // call that silently fell through to 1.0×).
+  //
+  // We do NOT pass `consumables` to the chain here — the chain's
+  // consumables context is a 2-key struct (TargetPainter, OptimalAmmo)
+  // and the sim's pre-fight consumable math is applied below as a
+  // separate step. PR E will consolidate. For now: chain handles the
+  // DPS math, sim handles the per-fight consumable math.
   const ammoPacks = (consumables['AmmoPack'] || 0) +
     (consumables['ArmorPiercingAmmo'] || 0) +
     (consumables['IncendiaryAmmo'] || 0) +
@@ -515,26 +538,45 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   let primaryDPS = 0;
   if (primary) {
-    const elemMatch = getElementMatchup(primary.element, boss.weaknesses[0] || 'flesh');
-    const rawDPS = primary.baseDamage * primary.attackSpeed * (1 + primary.critChance * primary.critDamage) * primary.bossDamageMod * elemMatch * legendary.damageMult;
+    const chainDps = computeWeaponDps({
+      weapon: primary,
+      bossWeaknesses: boss.weaknesses,
+      bossResistance: 1, // PR D will switch to boss.resistances array; for now chain treats it as 1.0×
+      legendaryDamageMult: legendary.damageMult,
+    });
     const sig = applySignatureMechanic(primary, primaryAmmo.fullDuration, primaryAmmo.reloadDuration, 30);
     const reloadPenalty = primaryAmmo.reloadDuration > 0 ? 0.3 : 1.0; // 30% DPS during reload
     const effectiveTime = primaryAmmo.fullDuration + primaryAmmo.reloadDuration * reloadPenalty;
     const ammoEfficiency = effectiveTime / 30;
-    primaryDPS = rawDPS * ammoEfficiency * sig.dpsMult;
+    primaryDPS = chainDps * ammoEfficiency * sig.dpsMult;
   }
 
   let secondaryDPS = 0;
   if (secondary) {
     const secContrib = getHotSwapperSecondaryMult(primary); // 0.6 with Hot Swapper, 0.3 normally
-    const rawDPS = secondary.baseDamage * secondary.attackSpeed * secContrib * secondary.bossDamageMod;
+    const chainDps = computeWeaponDps({
+      weapon: secondary,
+      bossWeaknesses: boss.weaknesses,
+      bossResistance: 1,
+      legendaryDamageMult: 1, // secondary doesn't get the primary's legendary bonus
+    });
     const sig = applySignatureMechanic(secondary, secondaryAmmo.fullDuration, secondaryAmmo.reloadDuration, 30);
-    secondaryDPS = rawDPS * sig.dpsMult;
+    secondaryDPS = chainDps * secContrib * sig.dpsMult;
   }
 
   let heavyDPS = 0;
   if (heavy) {
-    heavyDPS = heavy.baseDamage * heavy.attackSpeed * 0.5 * heavy.bossDamageMod;
+    // Heavy has a per-slot "0.5" contribution that lives in the sim
+    // (not the chain) because it's a loadout-decision concern, not a
+    // per-weapon property. The chain still gets boss context so the
+    // element matchup applies.
+    const chainDps = computeWeaponDps({
+      weapon: heavy,
+      bossWeaknesses: boss.weaknesses,
+      bossResistance: 1,
+      legendaryDamageMult: 1,
+    });
+    heavyDPS = chainDps * 0.5;
   }
 
   let dps = primaryDPS + secondaryDPS + heavyDPS;
