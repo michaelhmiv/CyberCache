@@ -14,6 +14,7 @@ import { useInventoryStore } from '@/store';
 import { Element, Rarity, Manufacturer, WeaponType } from '@/types/game';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 import type { GearItem, Weapon } from '@/types/items';
+import { GearCompare } from '@/components/gear/GearCompare';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 const chipClip = { clipPath: 'polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)' };
@@ -375,6 +376,9 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-black text-text-primary truncate">{item.name}</div>
                           <div className="text-[10px] text-text-muted mt-0.5">{itemSubtext(item)}</div>
+                          {currentItem && (
+                            <GearCompare current={currentItem} candidate={item} compact />
+                          )}
                         </div>
                         <div className="bl-primary px-3 py-1 text-[9px] font-black shrink-0">
                           Equip

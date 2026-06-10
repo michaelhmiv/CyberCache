@@ -3,6 +3,8 @@ import { ChevronRight, Plus } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { useInventoryStore, useLoadoutStore } from '@/store';
+import { GearCompare } from '@/components/gear/GearCompare';
+import type { GearItem } from '@/types/items';
 
 const slots = [
   { key: 'primary', label: 'Primary' },
@@ -97,7 +99,28 @@ export const SyncedLoadoutScreen: React.FC = () => {
       {activeSlot && (
         <div className="fixed inset-x-0 bottom-0 z-50 bg-surface rounded-t-2xl border-t border-border p-4 max-h-[70vh] overflow-y-auto" style={{ maxWidth: 480, margin: '0 auto' }}>
           <div className="flex items-center justify-between mb-3"><div className="text-sm font-bold text-text-primary">{slots.find((slot) => slot.key === activeSlot)?.label}</div><button onClick={() => setActiveSlot(null)} className="text-xs text-text-muted">Close</button></div>
-          <div className="space-y-2">{candidates.map((item) => <button key={item.id} disabled={busy} onClick={() => equip(activeSlot, item.id)} className="w-full text-left rounded-xl border border-border bg-surface-raised p-3 text-xs text-text-primary disabled:opacity-50">{label(item)}</button>)}</div>
+          <div className="space-y-2">
+            {candidates
+              .filter((item) => item.id !== (activeSlot ? loadout.slots[activeSlot] : null))
+              .map((item) => {
+                const equippedItem = activeSlot ? equipped(activeSlot) : undefined;
+                const fullItem = inventory.getById(item.id) as GearItem | undefined;
+                const fullEquipped = equippedItem ? (inventory.getById(equippedItem.id) as GearItem | undefined) : undefined;
+                return (
+                  <button
+                    key={item.id}
+                    disabled={busy}
+                    onClick={() => equip(activeSlot!, item.id)}
+                    className="w-full text-left rounded-xl border border-border bg-surface-raised p-3 disabled:opacity-50"
+                  >
+                    <div className="text-xs font-black text-text-primary">{item.name}</div>
+                    <div className="text-[10px] text-text-muted">{item.rarity} · Lv.{item.level}</div>
+                    {fullItem && fullEquipped && (
+                      <GearCompare current={fullEquipped} candidate={fullItem} compact />
+                    )}
+                  </button>
+                );
+              })}</div>
           <button disabled={busy} onClick={() => clearSlot(activeSlot)} className="w-full mt-3 py-2 rounded-lg bg-red/10 text-red text-xs font-bold border border-red/30 disabled:opacity-50">Clear Slot</button>
         </div>
       )}
