@@ -81,7 +81,14 @@ const pushPreviewEvents = (events: TickEvent[]) => {
  * inv.generateAndAdd*() calls. Gear drops show as "pending" until
  * the server response replaces them with real items.
  */
-const rollPreviewEvents = (areaId: string, ticks: number, rng: () => number): TickEvent[] => {
+const rollPreviewEvents = (
+  areaId: string,
+  ticks: number,
+  rng: () => number,
+  effectiveCreditsPerTick: number,
+  effectiveScrapPerTick: number,
+  effectiveXpPerTick: number,
+): TickEvent[] => {
   const area = getRoamingArea(areaId);
   const events: TickEvent[] = [];
   const now = Date.now();
@@ -130,9 +137,10 @@ const rollPreviewEvents = (areaId: string, ticks: number, rng: () => number): Ti
           id: '',
           at,
           tone: 'kill',
-          label: 'Enemy swept',
-          detail: `${area.enemyType} routed. Credits, scrap, and XP recovered.`,
+          label: `+${effectiveCreditsPerTick}cr · +${effectiveScrapPerTick} scrap · +${effectiveXpPerTick} XP`,
+          detail: `${area.enemyType} routed in ${area.name}.`,
           areaId,
+          value: effectiveCreditsPerTick,
         });
       }
     }
@@ -660,7 +668,20 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       const playerId = usePlayerStore.getState().id;
       const tickRng = playerId ? createTickRng(playerId, areaId, totalTickCount) : Math.random;
 
-      const previewEvents = rollPreviewEvents(areaId, ticks, tickRng);
+      // Compute estimated per-tick resource rates for the preview feed.
+      // Mirrors the Chef's math: area rates ÷ 20 ticks/min × multipliers.
+      const area = getRoamingArea(areaId);
+      const baseCredits = Math.round((area?.idleCreditsPerMinute ?? 15) / 20);
+      const baseScrap = Math.round((area?.idleScrapPerMinute ?? 3) / 20);
+      const baseXp = area?.idleXpPerTick ?? 1;
+      const skillBonuses = useSkillStore.getState().getBonuses();
+      const offlineMult = 1 + (skillBonuses.offlineEarnings || 0);
+      const scrapMult = 1 + (skillBonuses.scrapYield || 0);
+      const estCredits = Math.round(baseCredits * offlineMult);
+      const estScrap = Math.round(baseScrap * scrapMult);
+      const estXp = Math.round(baseXp);
+
+      const previewEvents = rollPreviewEvents(areaId, ticks, tickRng, estCredits, estScrap, estXp);
       const survivalEvents = applySurvivalTick(areaId, ticks);
       const killCycleEvents = applyKillCycleTick(areaId, ticks);
       const allEvents = [...previewEvents, ...survivalEvents, ...killCycleEvents];

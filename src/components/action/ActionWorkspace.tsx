@@ -127,6 +127,31 @@ export const ActionFeed: React.FC<{
   empty?: string;
 }> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet.' }) => {
   const [selectedGear, setSelectedGear] = useState<GearItem | null>(null);
+
+  const rarityBorder = (item?: GearItem): string => {
+    if (!item || !('rarity' in item)) return 'border-border';
+    const colors: Record<string, string> = {
+      Common: 'border-[#A5A7B5]/40',
+      Uncommon: 'border-[#7CFC00]/40',
+      Rare: 'border-[#5AA7FF]/40',
+      Epic: 'border-[#FF9DF5]/40',
+      Legendary: 'border-[#FFEA3A]/50',
+    };
+    return colors[(item as { rarity: string }).rarity] ?? 'border-border';
+  };
+
+  const rarityGlow = (item?: GearItem): string => {
+    if (!item || !('rarity' in item)) return '';
+    const colors: Record<string, string> = {
+      Common: 'shadow-[0_0_6px_rgba(165,167,181,0.15)]',
+      Uncommon: 'shadow-[0_0_8px_rgba(124,252,0,0.15)]',
+      Rare: 'shadow-[0_0_8px_rgba(90,167,255,0.15)]',
+      Epic: 'shadow-[0_0_10px_rgba(255,157,245,0.15)]',
+      Legendary: 'shadow-[0_0_12px_rgba(255,234,58,0.2)]',
+    };
+    return colors[(item as { rarity: string }).rarity] ?? '';
+  };
+
   return (
     <section className="relative overflow-hidden border-2 border-border bg-surface/95 p-3" style={panelClip}>
       <div className="mb-3 flex items-center gap-2">
@@ -140,13 +165,26 @@ export const ActionFeed: React.FC<{
         {entries.length === 0 && <div className="border border-border bg-bg/70 p-2 text-xs text-text-muted">{empty}</div>}
         {entries.map((entry) => {
           const clickable = !!entry.onInspect || !!entry.gear;
+          const borderClass = entry.gear ? rarityBorder(entry.gear) : 'border-border';
+          const glowClass = entry.gear ? rarityGlow(entry.gear) : '';
           const Inner = (
-            <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 border border-border bg-bg/75 p-2 text-left" style={chipClip}>
-              <span className={`mt-1 h-2.5 w-2.5 shrink-0 ${feedDot(entry.tone)}`} />
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className={`flex items-start gap-2 border p-2 text-left bg-bg/75 ${borderClass} ${glowClass}`}
+              style={chipClip}
+            >
+              <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${feedDot(entry.tone)}`} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[11px] font-black uppercase tracking-wide text-text-primary">{entry.label}</div>
                 <div className="text-[10px] leading-snug text-text-muted">{entry.detail}</div>
-                {entry.gear && <div className="mt-1 text-[9px] font-black uppercase tracking-wide text-amber">Tap to inspect full stats, animation, value, and market supply</div>}
+                {entry.gear && (
+                  <div className="mt-1 text-[9px] font-black uppercase tracking-wide text-amber">
+                    Tap to inspect →
+                  </div>
+                )}
               </div>
             </motion.div>
           );

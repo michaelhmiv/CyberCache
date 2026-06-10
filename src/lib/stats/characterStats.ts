@@ -141,23 +141,21 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     ...affixContribs(gear, 'weaponDamage', baseDps, whole),
   ];
 
-  // DPS label: "Fight DPS" when a boss is selected (this is the number
-  // the player deals vs the selected target). Otherwise "Standard DPS"
-  // (the baseline against a target with no weakness/resistance). The
-  // detail line carries the full context. The previous label "DPS" was
-  // ambiguous and was the root of the "I have 0 DPS with a weapon"
-  // confusion — the metric itself was non-zero, but the reader couldn't
-  // tell which slot was the boss-relative number and which was the
-  // post-boss-modifier number.
-  const dpsLabel = boss ? 'Fight DPS' : 'Standard DPS';
+  // DPS label: shows "Base DPS" (raw pooled weapon power) or "Effective DPS"
+  // (after all modifiers vs the selected boss). The two-number format answers
+  // "what my gear says on paper" vs "what it actually does to this target."
+  const dpsLabel = boss ? 'Effective DPS' : 'Base DPS';
 
   const bossContribs: StatContribution[] = [
-    { source: 'Total DPS', detail: 'After weapons, skills, and gear affixes', value: totalDps, display: whole(totalDps), tone: 'red' },
-    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: 'Boss damage modifier', value: totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length), display: whole(totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length)), tone: 'amber' as StatTone })),
+    { source: 'Base DPS', detail: 'Weapons + skills + affixes before boss mods', value: totalDps, display: whole(totalDps), tone: 'red' },
+    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `Boss dmg mod +${Math.round(weapon.bossDamageMod * 100)}%`, value: totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length), display: whole(totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length)), tone: 'amber' as StatTone })),
     ...skillContribs(spentSkills, 'bossDamageMod', totalDps, whole),
     ...skillContribs(spentSkills, 'bossDamageSniperPistol', totalDps, whole),
     ...skillContribs(spentSkills, 'launcherBossDps', totalDps, whole),
     ...skillContribs(spentSkills, 'weaknessMatchDamage', totalDps, whole),
+    // Relic & classMod contributions to boss DPS
+    ...(relic ? relic.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: relic.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone })) : []),
+    ...(classMod ? classMod.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: classMod.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone })) : []),
   ];
 
   const breakContribs = (type: 'shield' | 'armor'): StatContribution[] => [
@@ -180,7 +178,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
       ...(shield && mitigationHp > 0 ? [{ value: mitigationHp, display: whole(mitigationHp), tone: 'green' as StatTone, label: 'Mitigation' }] : []),
     ]),
     metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
-    metric('boss', 'Boss DPS', bossDps, whole(bossDps), 'DPS with boss modifiers', 'amber', bossContribs),
+    metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
     metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', breakContribs('shield')),
     metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', breakContribs('armor')),
     metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', utilityContribs(['rareDropChanceMod', 'rareDropChance', 'postBossDropChance'])),

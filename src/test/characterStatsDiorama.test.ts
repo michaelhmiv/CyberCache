@@ -163,28 +163,27 @@ describe('buildCharacterStatSummary — diorama DPS bugfix', () => {
 });
 
 describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () => {
-  it('labels the DPS headline "Standard DPS" when no boss is supplied', () => {
-    // The previous label "DPS" was ambiguous when paired with a separate
-    // "Boss DPS" metric — readers could not tell which number applied to
-    // a given target. "Standard DPS" makes the baseline explicit.
+  it('labels the DPS headline "Base DPS" when no boss is supplied', () => {
+    // "Base DPS" is the raw pooled weapon power before target-specific
+    // modifiers. When no boss is selected, there's no effective target.
     const player = makePlayer();
     const weapon = makeWeapon({ id: 'w1' });
     const summary = buildCharacterStatSummary({ player, weapons: [weapon], spentSkills: {} });
     const dpsMetric = summary.headline.find((metric) => metric.key === 'dps')!;
-    expect(dpsMetric.label).toBe('Standard DPS');
+    expect(dpsMetric.label).toBe('Base DPS');
   });
 
-  it('labels the DPS headline "Fight DPS" when a boss is supplied', () => {
-    // "Fight DPS" is the boss-relative number: weapon DPS × element
-    // matchup × consumables × boss resistance. The previous label
-    // (still "DPS") hid the fact that this number can change just by
-    // selecting a different boss.
+  it('labels the DPS headline "Effective DPS" when a boss is supplied', () => {
+    // "Effective DPS" is the actual damage after all modifiers (element
+    // matchup, boss weaknesses, consumables, skills, gear affixes) are
+    // applied vs the selected target. The base-vs-effective pair answers
+    // "what my gear says on paper" vs "what it actually does."
     const player = makePlayer();
     const weapon = makeWeapon({ id: 'w1', element: Element.Fire });
     const boss = makeBoss([Element.Fire]);
     const summary = buildCharacterStatSummary({ player, weapons: [weapon], spentSkills: {}, boss });
     const dpsMetric = summary.headline.find((metric) => metric.key === 'dps')!;
-    expect(dpsMetric.label).toBe('Fight DPS');
+    expect(dpsMetric.label).toBe('Effective DPS');
   });
 
   it('emits a stacked health metric with at least a chassis segment when a shield is absent', () => {
@@ -243,6 +242,6 @@ describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () =>
     const headlineDps = summary.headline.find((metric) => metric.key === 'dps')!;
     expect(headlineHealth.stacked).toBeDefined();
     expect(headlineHealth.stacked!.length).toBeGreaterThan(0);
-    expect(headlineDps.label).toBe('Standard DPS');
+    expect(headlineDps.label).toBe('Base DPS');
   });
 });

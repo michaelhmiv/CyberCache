@@ -197,11 +197,16 @@ export function processRoamingClaim(
 
       if (gear) {
         generatedItems.push(gear);
+        // Build a rich detail line: rarity, type, power, element, manufacturer
+        const typeLabel = 'weaponType' in gear ? gear.weaponType : 'gear';
+        const powerLabel = 'combatPower' in gear ? ` · ${gear.combatPower} Power` : '';
+        const elemLabel = 'element' in gear ? ` · ${gear.element}` : '';
+        const mfgLabel = 'manufacturer' in gear ? ` · ${gear.manufacturer}` : '';
         feedEvents.push({
           at: now - (ticks - 1 - tickIdx) * TICK_MS,
           tone: 'loot',
           label: gear.name,
-          detail: `${gear.rarity} ${'weaponType' in gear ? gear.weaponType : 'gear'}`,
+          detail: `${gear.rarity} ${typeLabel}${powerLabel}${elemLabel}${mfgLabel}`,
           gear,
           areaId,
         });
@@ -234,14 +239,15 @@ export function processRoamingClaim(
         });
       }
     } else {
-      // Kill — base rewards
+      // Kill — base rewards. Show the actual per-tick amounts.
       killsRecorded++;
       feedEvents.push({
         at: now - (ticks - 1 - tickIdx) * TICK_MS,
         tone: 'kill',
-        label: 'Enemy swept',
-        detail: `${area.enemyType} routed. Credits, scrap, and XP recovered.`,
+        label: `+${effectiveCreditsPerTick}cr · +${effectiveScrapPerTick} scrap · +${effectiveXpPerTick} XP`,
+        detail: `${area.enemyType} routed in ${area.name}.`,
         areaId,
+        value: effectiveCreditsPerTick,
       });
     }
 
