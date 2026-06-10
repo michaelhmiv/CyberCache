@@ -81,7 +81,7 @@ begin
     from public.active_actions
    where user_id = actor
    for update;
-  if not found or activity_row.action_kind <> 'roaming_loot' or activity_row.target_id <> area_id then
+  if not found or activity_row.active_action <> 'roaming_loot' or activity_row.target_id <> area_id then
     raise exception 'No active roaming activity for area %', area_id;
   end if;
 
