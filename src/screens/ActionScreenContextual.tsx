@@ -28,7 +28,6 @@ import {
   useWorkshopStore,
 } from '@/store';
 import { BossPrepModal } from '@/components/fight/BossPrepModal';
-import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   ActionFeed,
@@ -376,7 +375,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const prepBossTarget = currentBoss ?? REGION_1_BOSSES.find((b) => bossStore.unlockedBossIds.includes(b.id) && !bossStore.defeatedBossIds.includes(b.id)) ?? REGION_1_BOSSES[0];
   const bestBossWeapon = useMemo(() => inventory.getWeapons().sort((a, b) => b.bossPower - a.bossPower)[0], [inventory]);
   const activityWeapon: Weapon | undefined = loadoutStore.getWeapon('primary') ?? loadoutStore.getWeapon('secondary') ?? loadoutStore.getWeapon('heavy') ?? bestBossWeapon;
-  const equippedCount = Object.values(loadoutStore.slots).filter(Boolean).length;
   // fightPower is the "effective DPS vs the current boss target".
   // The previous implementation read `weapon.bossPower` directly, which
   // is a static generator composite that bakes in shield/armor/wave
@@ -403,7 +401,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const scrapPerTick = Math.round((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0)));
   const targetLabel = activity.current.targetLabel ?? (currentKind === 'idle_standby' || currentKind === 'none' ? 'No target selected' : selectedArea.name);
   const detail = copy[currentKind] ?? copy.idle_standby;
-  const visualBoss = currentKind === 'boss_prep' || currentKind === 'boss_fight' ? prepBossTarget : undefined;
   const visualFeed = currentKind === 'idle_standby' || currentKind === 'none' ? feed : feed.filter((event) => event.id !== 'idle-loop-ready');
   const bosses = REGION_1_BOSSES.filter((boss) => bossStore.unlockedBossIds.includes(boss.id) || boss.level <= player.level + 5).slice(0, 8);
   const benchesFree = Math.max(0, workshop.unlockedBenchCount - new Set(workshop.activeQueues.map((q) => q.benchId)).size);
@@ -607,26 +604,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <div><div className="bl-title text-3xl leading-none text-text-primary">Action</div><div className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted">contextual command workspace</div></div>
         <div className="flex gap-2"><button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary px-3 py-2 text-[10px] font-black text-amber">Switch</button><button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary px-3 py-2 text-[10px] font-black text-red disabled:opacity-50">Stop</button></div>
       </div>
-
-      <LiveTurfDiorama
-        area={selectedArea}
-        weapon={activityWeapon}
-        bossName={visualBoss?.name}
-        bossWeaknessCount={visualBoss?.weaknesses.length ?? 0}
-        playerLevel={player.level}
-        equippedCount={equippedCount}
-        cacheKeys={player.cacheKeys}
-        activityKind={currentKind}
-        activityLabel={detail.title}
-        activityTarget={targetLabel}
-        onTitleClick={currentKind === 'roaming_loot' ? () => setShowAreaSelect(true) : undefined}
-        onFight={() => currentKind === 'idle_standby' || currentKind === 'none' ? startRoam(selectedArea) : setShowSwitch(true)}
-        onSecondary={openCache}
-        primaryActionLabel={currentKind === 'roaming_loot' ? 'Manage route' : currentKind === 'idle_standby' || currentKind === 'none' ? 'Start roam' : 'Switch action'}
-        primaryActionDetail={currentKind === 'roaming_loot' ? selectedArea.name : currentKind === 'idle_standby' || currentKind === 'none' ? selectedArea.enemyType : 'Open action drawer'}
-        secondaryActionLabel="Open cache"
-        secondaryActionDetail={openCacheDetail}
-      />
 
       <ActiveActionHeader kind={currentKind} title={detail.title} detail={detail.detail} target={targetLabel} elapsed={`${activeMinutes}m ${activeSeconds}s`} status={canTick ? 'LIVE' : currentKind === 'idle_standby' || currentKind === 'none' ? 'READY' : 'ACTIVE'} stats={headerStats} onManage={() => currentKind === 'roaming_loot' ? setShowAreaSelect(true) : setShowSwitch(true)} manageLabel={currentKind === 'roaming_loot' ? 'Change Route' : 'Manage Action'} />
       <ActionStage kind={currentKind} className="mt-3" />
