@@ -12,6 +12,7 @@ import { useIdleTickerStore, mountIdleTicker, unmountIdleTicker } from './slices
 import { useCombatStatsStore, combatStatsSelectors } from './slices/combatStatsSlice';
 import { useSurvivalStore } from './slices/survivalSlice';
 import { useKillCycleStore } from './slices/killCycleSlice';
+import { useLoadoutPresetsStore } from './slices/loadoutPresetsSlice';
 export { combatStatsSelectors };
 
 export {
@@ -31,4 +32,5 @@ export {
   useCombatStatsStore,
   useSurvivalStore,
   useKillCycleStore,
+  useLoadoutPresetsStore,
 };

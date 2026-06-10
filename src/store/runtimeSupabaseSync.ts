@@ -19,6 +19,7 @@ import { usePlayerStore } from './slices/playerSlice';
 import { useSkillStore } from './slices/skillSlice';
 import { useSurvivalStore } from './slices/survivalSlice';
 import { useKillCycleStore } from './slices/killCycleSlice';
+import { useLoadoutPresetsStore } from './slices/loadoutPresetsSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -79,6 +80,18 @@ type KillCycleSnapshot = {
   lastKilledMonsterId: string | null;
 };
 
+type LoadoutPresetsSnapshot = {
+  presets: Array<{
+    id: string;
+    name: string;
+    slots: Record<LoadoutSlot, string | null>;
+    consumables: LoadoutConsumables;
+    createdAt: number;
+    updatedAt: number;
+  }>;
+  activePresetId: string | null;
+};
+
 type FullRuntimeSnapshot = {
   player: PlayerProfile;
   inventory: { items: GearItem[] };
@@ -90,6 +103,7 @@ type FullRuntimeSnapshot = {
   workshop: { unlockedBenchCount: number; activeQueues: WorkshopQueue[] };
   survival: SurvivalSnapshot;
   killCycle: KillCycleSnapshot;
+  loadoutPresets: LoadoutPresetsSnapshot;
 };
 
 function objectValue<T extends object>(value: unknown): Partial<T> | null {
@@ -127,6 +141,7 @@ function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
   const workshop = useWorkshopStore.getState();
   const survival = useSurvivalStore.getState();
   const killCycle = useKillCycleStore.getState();
+  const loadoutPresets = useLoadoutPresetsStore.getState();
 
   return {
   player: {
@@ -199,6 +214,10 @@ function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
       totalKills: killCycle.totalKills,
       lastKilledMonsterId: killCycle.lastKilledMonsterId,
     },
+    loadoutPresets: {
+      presets: loadoutPresets.presets,
+      activePresetId: loadoutPresets.activePresetId,
+    },
   };
 }
 
@@ -215,6 +234,7 @@ export function resetRuntimeStoresToInitialState(): void {
     useWorkshopStore.setState(useWorkshopStore.getInitialState(), true);
     useSurvivalStore.setState(useSurvivalStore.getInitialState(), true);
     useKillCycleStore.setState(useKillCycleStore.getInitialState(), true);
+    useLoadoutPresetsStore.setState(useLoadoutPresetsStore.getInitialState(), true);
   } finally {
     isApplyingSnapshot = false;
   }
@@ -331,6 +351,14 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
           ? killCycle.lastKilledMonsterId : state.lastKilledMonsterId,
       }));
     }
+
+    const loadoutPresets = objectValue<LoadoutPresetsSnapshot>(snapshot.loadoutPresets);
+    if (loadoutPresets) {
+      useLoadoutPresetsStore.setState({
+        presets: Array.isArray(loadoutPresets.presets) ? loadoutPresets.presets : [],
+        activePresetId: typeof loadoutPresets.activePresetId === 'string' ? loadoutPresets.activePresetId : null,
+      });
+    }
   } finally {
     isApplyingSnapshot = false;
   }
@@ -388,6 +416,7 @@ export function startRuntimeStorePersistence(userId: string): void {
     useWorkshopStore.subscribe(listener),
     useSurvivalStore.subscribe(listener),
     useKillCycleStore.subscribe(listener),
+    useLoadoutPresetsStore.subscribe(listener),
   ];
 }
 

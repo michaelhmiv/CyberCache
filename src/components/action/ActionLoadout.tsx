@@ -15,6 +15,7 @@ import { ChevronDown, ChevronUp, Crosshair, Shield, Zap, Diamond, Gem } from 'lu
 import { useLoadoutStore, usePlayerStore } from '@/store';
 import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
+import { PresetSwitcher } from '@/components/action/PresetSwitcher';
 import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
 import type { Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
@@ -220,11 +221,14 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
 
       {/* Collapsed summary strip */}
       {collapsed && (
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
-          <span className="font-black text-text-primary">{equippedCount}/7 equipped</span>
-          <span className="text-text-muted">DPS {dps > 0 ? dps.toFixed(0) : '—'}</span>
-          <div className="flex-1" />
-          <ConsumablesChips className="text-[9px]" />
+        <div className="mt-2 space-y-2">
+          <PresetSwitcher />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+            <span className="font-black text-text-primary">{equippedCount}/7 equipped</span>
+            <span className="text-text-muted">DPS {dps > 0 ? dps.toFixed(0) : '—'}</span>
+            <div className="flex-1" />
+            <ConsumablesChips className="text-[9px]" />
+          </div>
         </div>
       )}
 
@@ -238,6 +242,9 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
+            <div className="mt-2">
+              <PresetSwitcher />
+            </div>
             <div className="mt-3 relative" style={{ paddingTop: '75%' }}>
               <StarConnectors />
               <div
