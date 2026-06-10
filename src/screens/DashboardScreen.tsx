@@ -32,19 +32,17 @@ import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
 import { resolveSceneLabel } from '@/lib/dashboard/sceneLabel';
+import type { TickEvent, TickEventTone } from '@/store/slices/tickSlice';
 
 interface DashboardScreenProps {
   onNavigate: (screen: string) => void;
 }
 
 type Tone = 'amber' | 'green' | 'blue' | 'red' | 'purple' | 'cyan';
-type GainTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level' | 'kill' | 'material' | 'essence' | 'fragment';
+type DisplayGainTone = TickEventTone | 'unknown';
 
-type GainEvent = {
-  id: string;
-  label: string;
-  detail: string;
-  tone: GainTone;
+type DisplayGainEvent = Pick<TickEvent, 'id' | 'label' | 'detail'> & {
+  tone?: string;
 };
 
 const TICK_SECONDS = 3;
@@ -68,7 +66,7 @@ const toneClass: Record<Tone, { text: string; border: string; bg: string; fill: 
   cyan: { text: 'text-cyan', border: 'border-cyan/45', bg: 'bg-cyan/10', fill: 'bg-cyan' },
 };
 
-const gainToneClass: Record<GainTone, { text: string; bg: string; border: string; fill: string }> = {
+const gainToneClass: Record<DisplayGainTone, { text: string; bg: string; border: string; fill: string }> = {
   xp: { text: 'text-green', bg: 'bg-green/10', border: 'border-green/70', fill: 'bg-green' },
   loot: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   cash: { text: 'text-cyan', bg: 'bg-cyan/10', border: 'border-cyan/70', fill: 'bg-cyan' },
@@ -78,9 +76,15 @@ const gainToneClass: Record<GainTone, { text: string; bg: string; border: string
   material: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   essence: { text: 'text-purple', bg: 'bg-purple/10', border: 'border-purple/70', fill: 'bg-purple' },
   fragment: { text: 'text-blue-300', bg: 'bg-blue-500/10', border: 'border-blue-400/70', fill: 'bg-blue-400' },
+  damage: { text: 'text-red', bg: 'bg-red/10', border: 'border-red/70', fill: 'bg-red' },
+  heal: { text: 'text-green', bg: 'bg-green/10', border: 'border-green/70', fill: 'bg-green' },
+  death: { text: 'text-red', bg: 'bg-red/15', border: 'border-red/80', fill: 'bg-red' },
+  unknown: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
 };
 
-const idleGainHint: GainEvent = {
+const getGainToneClass = (tone?: string) => gainToneClass[(tone ?? 'unknown') as DisplayGainTone] ?? gainToneClass.unknown;
+
+const idleGainHint: DisplayGainEvent = {
   id: 'idle-loop-ready',
   label: '+0',
   detail: 'activity gated',
@@ -121,14 +125,22 @@ const HudChip: React.FC<{ label: string; value: string | number; detail: string;
   );
 };
 
-const RewardIcon: React.FC<{ tone: GainTone }> = ({ tone }) => {
-  const color = gainToneClass[tone];
-  const Icon = tone === 'loot' ? PackageSearch : tone === 'cache' ? Box : tone === 'level' ? Trophy : tone === 'cash' ? Sparkles : Activity;
+const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
+  const color = getGainToneClass(tone);
+  const Icon = tone === 'loot'
+    ? PackageSearch
+    : tone === 'cache' || tone === 'fragment'
+      ? Box
+      : tone === 'level' || tone === 'kill' || tone === 'death'
+        ? Trophy
+        : tone === 'cash'
+          ? Sparkles
+          : Activity;
   return <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}><Icon size={17} className={color.text} /></div>;
 };
 
-const GainToast: React.FC<{ event: GainEvent }> = ({ event }) => {
-  const color = gainToneClass[event.tone];
+const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
+  const color = getGainToneClass(event.tone);
   return (
     <motion.div layout initial={{ opacity: 0, y: 14, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 14, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={signClip}>
       <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} />
@@ -162,11 +174,7 @@ const InfoGauge: React.FC<{ label: string; value: string | number; detail: strin
   const color = toneClass[tone];
   const isClickable = Boolean(onClick);
   return (
-    <div
-      onClick={onClick}
-      className={`relative overflow-hidden border-2 border-border bg-bg/75 p-1.5 ${isClickable ? 'cursor-pointer transition-transform active:scale-[0.97] hover:border-amber' : ''}`}
-      style={panelClip}
-    >
+    <div onClick={onClick} className={`relative overflow-hidden border-2 border-border bg-bg/75 p-1.5 ${isClickable ? 'cursor-pointer transition-transform active:scale-[0.97] hover:border-amber' : ''}`} style={panelClip}>
       <div className="flex items-center gap-1.5"><div className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}><Icon size={14} className={color.text} /></div><div className="min-w-0"><div className="text-[8px] uppercase tracking-wide text-text-muted">{label}</div><div className="truncate text-xs font-black leading-tight text-text-primary">{value}</div></div></div>
       <div className="mt-0.5 truncate text-[8px] text-text-muted">{detail}</div>
     </div>
@@ -182,17 +190,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const workshop = useWorkshopStore();
   const idle = useIdleStore();
   const activity = useActivityStore();
-  // Gain feed is now a read of the single-source-of-truth tick event log.
-  // The Numbers Up panel mirrors the diorama's animation feed; no Zustand
-  // diff subscription is needed.
-  // NOTE: the slice MUST happen outside the Zustand selector. Calling
-  // `state.events.slice(0, 5)` inside the selector returns a new array
-  // reference on every snapshot read, which trips React's
-  // "result of getSnapshot should be cached" check and infinite-loops the
-  // dashboard. The events array itself is stable across renders; we slice
-  // the result in a memo keyed on the events identity.
   const tickEvents = useTickFeedStore((state) => state.events);
-  const gainFeed = useMemo(() => tickEvents.slice(0, 5) as GainEvent[], [tickEvents]);
+  const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.slice(0, 5), [tickEvents]);
   const [activityError, setActivityError] = useState<string | null>(null);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
@@ -255,7 +254,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
   return (
     <div className="bl-page relative overflow-hidden p-2 pb-16">
-      <AnimatePresence>{gainFeed.length > 0 && <motion.div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] left-0 right-0 z-50 mx-auto flex max-w-[440px] justify-center gap-1.5 px-3" initial={false}>{gainFeed.slice(0, 2).map((event) => <GainToast key={event.id} event={event} />)}</motion.div>}</AnimatePresence>
+      <AnimatePresence>
+        {gainFeed.length > 0 && (
+          <motion.div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] left-0 right-0 z-50 mx-auto flex max-w-[440px] justify-center gap-1.5 px-3" initial={false}>
+            {gainFeed.slice(0, 2).map((event) => <GainToast key={event.id} event={event} />)}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
         <div className="flex items-start justify-between gap-2"><div><div className="bl-title text-3xl leading-none text-text-primary">Bounty Board</div><div className="text-[9px] uppercase tracking-[0.2em] text-text-muted">Activity-backed run / loot pops / level climb</div></div><div className="flex h-10 w-10 shrink-0 -rotate-2 items-center justify-center border-2 border-border bg-amber/15 shadow-[4px_4px_0_rgba(0,0,0,0.7)]"><Crosshair size={20} className="text-amber" /></div></div>
@@ -265,7 +270,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} boss={currentBoss ?? undefined} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} activityLabel={activityLabel} activityTarget={activityTarget} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
         <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
         <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={selectedArea.dangerRating} icon={Map} tone="amber" /><InfoGauge label="Mastery" value={masteryScore.toLocaleString()} detail={`${availableSkillPoints} unspent points`} icon={Trophy} tone="purple" /><InfoGauge label="Best Gun" value={bestWeapon?.name ?? 'None'} detail={bestWeapon ? `${bestWeapon.combatPower} combat power` : 'Find gear in combat'} icon={Sparkles} tone="red" /><InfoGauge label="Workshop" value={openWorkshopJobs} detail={openWorkshopJobs > 0 ? `${openWorkshopJobs} passive queue${openWorkshopJobs === 1 ? '' : 's'} — tap` : 'open craft bench'} icon={Hammer} tone="green" onClick={() => onNavigate('workshop')} /></div>{nextArea && <div className="mt-2 flex items-center gap-2 border-2 border-border bg-bg/75 p-1.5" style={panelClip}><div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-surface-raised"><Lock size={14} className="text-text-muted" /></div><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-wide text-text-muted">Next turf unlock</div><div className="truncate text-xs font-black text-text-primary">{nextArea.name}</div></div><div className="text-right text-[9px] font-black text-amber">Reach LV {nextArea.unlockLevel}</div></div>}</Panel>
-        <Panel label="Numbers Up"><div className="grid grid-cols-2 gap-1.5">{(gainFeed.length ? gainFeed : [idleGainHint]).slice(0, 4).map((event) => { const color = gainToneClass[event.tone]; return <div key={event.id} className="flex items-center gap-1.5 border-2 border-border bg-bg/75 p-1.5" style={signClip}><span className={`h-2 w-2 rounded-full ${color.fill}`} /><div className="min-w-0 flex-1"><div className={`truncate text-[9px] font-black uppercase tracking-wide ${color.text}`}>{event.label}</div><div className="truncate text-[8px] text-text-muted">{event.detail}</div></div><Activity size={11} className="text-text-muted" /></div>; })}</div></Panel>
+        <Panel label="Numbers Up"><div className="grid grid-cols-2 gap-1.5">{(gainFeed.length ? gainFeed : [idleGainHint]).slice(0, 4).map((event) => { const color = getGainToneClass(event.tone); return <div key={event.id} className="flex items-center gap-1.5 border-2 border-border bg-bg/75 p-1.5" style={signClip}><span className={`h-2 w-2 rounded-full ${color.fill}`} /><div className="min-w-0 flex-1"><div className={`truncate text-[9px] font-black uppercase tracking-wide ${color.text}`}>{event.label}</div><div className="truncate text-[8px] text-text-muted">{event.detail}</div></div><Activity size={11} className="text-text-muted" /></div>; })}</div></Panel>
         <Panel label="Choose Turf"><div className="flex gap-1.5 overflow-x-auto pb-0.5">{ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; return <button type="button" key={area.id} disabled={!unlocked} onClick={() => idle.setSelectedRoamingArea(area.id)} className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left transition-transform active:scale-[0.98] ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`} style={panelClip}><div className="flex items-start justify-between gap-1.5"><div className="min-w-0"><div className="truncate text-[11px] font-black text-text-primary">{area.name}</div><div className="text-[8px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div></div>{!unlocked && <Lock size={11} className="shrink-0 text-text-muted" />}{selected && <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" />}</div><div className="mt-0.5 truncate text-[8px] text-amber">{area.lootBias[0]}</div></button>; })}</div></Panel>
       </div>
     </div>
