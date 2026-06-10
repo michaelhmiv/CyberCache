@@ -1,6 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { useSkillStore } from '../store/slices/skillSlice';
-import { SkillTreeType } from '../types/game';
 import type { ClassMod } from '../types/items';
 import { DropSource, Rarity } from '../types/game';
 
