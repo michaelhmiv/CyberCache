@@ -28,14 +28,17 @@ function toSize(size: OrdnanceIllustrationProps['size']) {
 
 function fallbackSpec(props: OrdnanceIllustrationProps): OrdnanceVisualSpec {
   return buildOrdnanceVisualSpec({
-    id: 'ordnance-preview',
-    name: 'Preview Ordnance',
+    id: 'ordnance-preview', name: 'Preview Ordnance',
     element: props.element || Element.Kinetic,
     rarity: props.rarity ?? Rarity.Common,
-    damage: 50,
-    effect: 'frag',
+    damage: 50, effect: 'frag',
   } as any);
 }
+
+const innerStroke = {
+  stroke: '#000000', strokeWidth: 3,
+  strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const,
+};
 
 export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = ({
   ordnance, element, rarity, size = 'card', className = '', showBadges = true, animate = false,
@@ -47,6 +50,7 @@ export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = ({
   const filterId = `ordnance-glow-${spec.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const surfFilter = surfaceFilterId(spec.texture);
   const animatedClass = animate ? 'animate-pulse' : '';
+  const decalCount = sizing.level === 0 ? 0 : sizing.level === 1 ? 2 : 3;
 
   return (
     <div className={`relative inline-flex items-center justify-center ${className}`}
@@ -59,8 +63,8 @@ export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = ({
             <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor={frame.color} floodOpacity="0.55" />
           </filter>
           <linearGradient id={`${filterId}-element`} x1="0" x2="1">
-            <stop offset="0%" stopColor={spec.elementVisual.color} />
-            <stop offset="100%" stopColor={spec.elementVisual.accentColor} />
+            <stop offset="0%" stopColor={spec.elementVisual.accentColor} />
+            <stop offset="100%" stopColor={spec.elementVisual.color} />
           </linearGradient>
         </defs>
 
@@ -68,21 +72,46 @@ export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = ({
         <path d="M13 17 L221 17 L230 28 L226 92 L215 103 L16 103 L10 93 L13 17 Z" fill="none" stroke={frame.color} strokeWidth={frame.strokeWidth} opacity="0.95" />
 
         <g filter={spec.rarity === Rarity.Legendary || spec.rarity === Rarity.Epic ? `url(#${filterId})` : undefined}>
-          {/* Payload body */}
-          <path d={sil.body} fill={spec.elementVisual.color} opacity="0.88" stroke="#000" strokeWidth="4" strokeLinejoin="round" filter={surfFilter ? `url(#${surfFilter})` : undefined} />
-          {/* Fuse cap with element gradient */}
-          <path d={sil.cap} fill={`url(#${filterId}-element)`} stroke="#000" strokeWidth="3" strokeLinejoin="round" className={animatedClass} />
+          {/* Base plate */}
+          <path d={sil.base} fill="#2a2a35" {...innerStroke} />
+
+          {/* Main body casing */}
+          <path d={sil.body} fill="#3a3a44" {...innerStroke} filter={surfFilter ? `url(#${surfFilter})` : undefined} />
+
+          {/* Payload indicator (element-colored inner core) */}
+          <path d={sil.payload} fill={`url(#${filterId}-element)`} opacity="0.75" stroke="#000" strokeWidth="2.5" strokeLinejoin="round" className={animatedClass} />
+
+          {/* Fragmentation ring / banding */}
+          {sil.fragRing && (
+            <g fill="none" stroke="#000" strokeWidth="1.5" opacity="0.5">
+              {sil.fragRing.split(' M').map((seg, i) => {
+                const path = i === 0 ? seg : `M${seg}`;
+                return <path key={i} d={path} />;
+              })}
+            </g>
+          )}
+
+          {/* Fuse assembly top */}
+          <path d={sil.fuse} fill="#4a4a54" {...innerStroke} filter="url(#bevel-sm)" />
+
+          {/* Trigger pin + safety spoon */}
+          <path d={sil.trigger} fill="#5a5a64" {...innerStroke} />
+
+          {/* Emitter port (bottom discharge point) */}
+          <path d={sil.emitter} fill={spec.elementVisual.accentColor} opacity="0.8" stroke="#000" strokeWidth="2" className={animatedClass} />
+
           {/* Markings */}
           {sizing.level > 0 && sil.markings && (
-            <g fill="none" stroke="#000" strokeWidth="1.5" opacity="0.4">
+            <g fill="none" stroke="#000" strokeWidth="1.5" opacity="0.35">
               {sil.markings.split(' M').map((seg, i) => {
                 const path = i === 0 ? seg : `M${seg}`;
                 return <path key={i} d={path} />;
               })}
             </g>
           )}
+
           {/* Affix decals */}
-          {sizing.level > 0 && spec.decals.slice(0, sizing.level === 1 ? 2 : 3).map((d) => <Decal key={d.id} decal={d} />)}
+          {sizing.level > 0 && spec.decals.slice(0, decalCount).map((d) => <Decal key={d.id} decal={d} />)}
         </g>
 
         {showBadges && sizing.level > 0 && (

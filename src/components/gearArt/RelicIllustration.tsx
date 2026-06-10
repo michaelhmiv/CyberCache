@@ -24,12 +24,13 @@ function toSize(size: RelicIllustrationProps['size']) {
 }
 
 function fallbackSpec(props: RelicIllustrationProps): RelicVisualSpec {
-  return buildRelicVisualSpec({
-    id: 'relic-preview',
-    name: 'Preview Relic',
-    rarity: props.rarity ?? Rarity.Common,
-  } as any);
+  return buildRelicVisualSpec({ id: 'relic-preview', name: 'Preview Relic', rarity: props.rarity ?? Rarity.Common } as any);
 }
+
+const innerStroke = {
+  stroke: '#000000', strokeWidth: 3,
+  strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const,
+};
 
 export const RelicIllustration: React.FC<RelicIllustrationProps> = ({
   relic, rarity, size = 'card', className = '', showBadges = true, animate = false,
@@ -41,6 +42,7 @@ export const RelicIllustration: React.FC<RelicIllustrationProps> = ({
   const filterId = `relic-glow-${spec.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const surfFilter = surfaceFilterId(spec.texture);
   const animatedClass = animate ? 'animate-pulse' : '';
+  const decalCount = sizing.level === 0 ? 0 : sizing.level === 1 ? 2 : 4;
 
   return (
     <div className={`relative inline-flex items-center justify-center ${className}`}
@@ -52,9 +54,10 @@ export const RelicIllustration: React.FC<RelicIllustrationProps> = ({
           <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor={frame.color} floodOpacity="0.55" />
           </filter>
-          <linearGradient id={`${filterId}-core`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#FFEA3A" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#FF9000" stopOpacity="0.4" />
+          <linearGradient id={`${filterId}-crystal`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FFEA3A" stopOpacity="0.95" />
+            <stop offset="50%" stopColor="#FF9000" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#A855F7" stopOpacity="0.5" />
           </linearGradient>
         </defs>
 
@@ -62,21 +65,36 @@ export const RelicIllustration: React.FC<RelicIllustrationProps> = ({
         <path d="M16 18 L218 18 L226 28 L222 110 L212 120 L18 120 L10 110 L14 28 Z" fill="none" stroke={frame.color} strokeWidth={frame.strokeWidth} opacity="0.95" />
 
         <g filter={spec.rarity === Rarity.Legendary || spec.rarity === Rarity.Epic ? `url(#${filterId})` : undefined}>
-          {/* Relic body */}
-          <path d={sil.body} fill="#A855F7" opacity="0.9" stroke="#000" strokeWidth="4" strokeLinejoin="round" filter={surfFilter ? `url(#${surfFilter})` : undefined} />
-          {/* Glowing core */}
-          <path d={sil.core} fill={`url(#${filterId}-core)`} stroke="#000" strokeWidth="2" strokeLinejoin="round" className={animatedClass} />
-          {/* Rune markings */}
+          {/* Support stands */}
+          <path d={sil.stands} fill="#2a2a35" {...innerStroke} />
+
+          {/* Base plate */}
+          <path d={sil.base} fill="#3a3a44" {...innerStroke} filter="url(#bevel-sm)" />
+
+          {/* Outer casing */}
+          <path d={sil.casing} fill="#4a4058" opacity="0.9" {...innerStroke} filter={surfFilter ? `url(#${surfFilter})` : undefined} />
+
+          {/* Top clamp prongs */}
+          <path d={sil.prongs} fill="#5a5070" {...innerStroke} filter="url(#bevel-sm)" />
+
+          {/* Energy containment ring */}
+          <path d={sil.ring} fill="none" stroke="#FFEA3A" strokeWidth="1.5" opacity="0.6" className={animatedClass} />
+
+          {/* Crystal core */}
+          <path d={sil.crystal} fill={`url(#${filterId}-crystal)`} opacity="0.9" stroke="#000" strokeWidth="2.5" strokeLinejoin="round" className={animatedClass} />
+
+          {/* Rune etchings on casing */}
           {sizing.level > 0 && sil.runes && (
-            <g fill="none" stroke="#FFEA3A" strokeWidth="1.5" opacity="0.6">
+            <g fill="none" stroke="#FFEA3A" strokeWidth="1.5" opacity="0.5">
               {sil.runes.split(' M').map((seg, i) => {
                 const path = i === 0 ? seg : `M${seg}`;
                 return <path key={i} d={path} />;
               })}
             </g>
           )}
+
           {/* Affix decals */}
-          {sizing.level > 0 && spec.decals.slice(0, sizing.level === 1 ? 2 : 4).map((d) => <Decal key={d.id} decal={d} />)}
+          {sizing.level > 0 && spec.decals.slice(0, decalCount).map((d) => <Decal key={d.id} decal={d} />)}
         </g>
 
         {showBadges && sizing.level > 0 && (
