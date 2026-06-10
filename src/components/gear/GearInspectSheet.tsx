@@ -86,6 +86,8 @@ function statRows(item: GearItem, bossRelativeDps?: number, bossName?: string): 
       ['Status Chance', pct(item.statusChance)],
       ['Shield Modifier', signedPct(item.shieldDamageMod), 'text-cyan'],
       ['Armor Modifier', signedPct(item.armorDamageMod), 'text-purple'],
+      ['Boss Damage Mod', signedPct(item.bossDamageMod), 'text-red'],
+      ['Wave Damage Mod', signedPct(item.waveDamageMod), 'text-orange'],
       ['Offline Modifier', signedPct(item.offlineEarningsMod), 'text-green'],
       ['Rare Drop', signedPct(item.rareDropChanceMod), 'text-amber'],
       ['Scrap Yield', signedPct(item.scrapYieldMod), 'text-cyan'],
@@ -98,7 +100,21 @@ function statRows(item: GearItem, bossRelativeDps?: number, bossName?: string): 
   if (isShield(item)) return [['Shield HP', item.hp, 'text-cyan', item.hp], ['Recharge Rate', `${Math.round(item.rechargeRate)}/s`], ['Mitigation', pct(item.mitigation), 'text-green'], ['Element', item.element]];
   if (isClassMod(item)) return [['Skill Tree', item.treeBonus, 'text-purple'], ['Boosted Nodes', Object.keys(item.nodeBoosts).length], ['Total Node Boost', Object.values(item.nodeBoosts).reduce((s, v) => s + v, 0), 'text-purple'], ['Affixes', item.affixes.length]];
   if (isOrdnance(item)) return [['Payload Damage', item.damage, 'text-red', item.damage], ['Shield Damage', item.shieldDamage, 'text-cyan'], ['Armor Damage', item.armorDamage, 'text-purple'], ['Element', item.element], ['Effect', item.effect]];
-  return [['Affixes', affixesOf(item).length], ['Source', item.sourceTag], ['Level', item.level], ['Rarity', item.rarity]];
+  // Relic: show affix category breakdown (relics are all about affixes)
+  const relicAffixes = affixesOf(item);
+  const byCategory: Record<string, number> = {};
+  relicAffixes.forEach((a) => {
+    byCategory[a.category] = (byCategory[a.category] || 0) + 1;
+  });
+  const catRows: Array<[string, React.ReactNode, string?, number?]> = Object.entries(byCategory).map(
+    ([cat, count]) => [`${cat} Affixes`, count, 'text-amber', count * 15],
+  );
+  return [
+    ['Total Affixes', relicAffixes.length, 'text-amber', relicAffixes.length * 10],
+    ...catRows,
+    ['Source', item.sourceTag],
+    ['Rarity', item.rarity],
+  ];
 }
 
 export function GearInspectSheet({ item, open, onClose, actions, contextLabel = 'Gear Inspect' }: { item: GearItem | null; open: boolean; onClose: () => void; actions?: React.ReactNode; contextLabel?: string }) {
