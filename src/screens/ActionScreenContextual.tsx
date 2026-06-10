@@ -38,6 +38,7 @@ import {
   type ActionFeedEntry,
   type ActionStat,
 } from '@/components/action/ActionWorkspace';
+import { ActionStage } from '@/lib/activity/ActionStage';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { computeFightPower } from '@/lib/stats/fightPower';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
@@ -628,6 +629,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       />
 
       <ActiveActionHeader kind={currentKind} title={detail.title} detail={detail.detail} target={targetLabel} elapsed={`${activeMinutes}m ${activeSeconds}s`} status={canTick ? 'LIVE' : currentKind === 'idle_standby' || currentKind === 'none' ? 'READY' : 'ACTIVE'} stats={headerStats} onManage={() => currentKind === 'roaming_loot' ? setShowAreaSelect(true) : setShowSwitch(true)} manageLabel={currentKind === 'roaming_loot' ? 'Change Route' : 'Manage Action'} />
+      <ActionStage kind={currentKind} className="mt-3" />
       {cacheError && <div className="border-2 border-red/40 bg-red/10 p-2 text-xs font-bold text-red" style={smallClip}>{cacheError}</div>}
       <ActionFeed entries={feedEntries} />
       {workspace}
