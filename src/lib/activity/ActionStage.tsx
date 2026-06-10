@@ -27,8 +27,10 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useActionStageOrchestrator } from './useActionStageOrchestrator';
 import { resolveBeat, getStageAssetsForKind, StageSprite, type BeatRender } from './actionStageRenderer';
+import type { ActionAnimationBeat } from './actionAnimationDirector';
 import type { ActivityKind } from '@/types/activity';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
+import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { MONSTERS } from '@/constants/monsters';
 
 const SPRITE_SIZE = 96;
@@ -63,7 +65,15 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
 
   const assets = getStageAssetsForKind(kind, { targetSprite: liveTargetSprite ?? targetOverride });
   const stage = useActionStageOrchestrator(kind);
-  const beat = resolveBeat(stage.currentBeat, {
+
+  // PR 5: when the hunter is dead, force the beat to 'hunter-down'
+  // and hide the target sprite. The orchestrator keeps cycling the
+  // other beats so when the player resurrects, the cadence resumes
+  // from where it left off rather than restarting at index 0.
+  const isDead = useSurvivalStore((s) => s.isDead);
+  const effectiveBeat: ActionAnimationBeat = isDead ? 'hunter-down' : stage.currentBeat;
+
+  const beat = resolveBeat(effectiveBeat, {
     kind,
     reducedMotion: stage.reducedMotion,
     accentColor: assets.accentColor,
@@ -131,7 +141,7 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
           </BeatLayer>
         </div>
 
-        {assets.targetSprite && (
+        {assets.targetSprite && !isDead && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             {/* HP bar above the target sprite — only renders for
                 roaming_loot (the kill cycle). Other activity kinds
@@ -152,7 +162,7 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
           </div>
         )}
 
-        {assets.surfaceSprite && !assets.targetSprite && (
+        {assets.surfaceSprite && !assets.targetSprite && !isDead && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <BeatLayer
               beat={beat}

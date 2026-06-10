@@ -77,6 +77,12 @@ export interface SurvivalState {
   die: (entry: DeathLogEntry) => void;
   startResurrection: (readyAt: number) => void;
   resurrect: () => void;
+  /** Pay credits to skip the free timer. Caller must have already
+   *  deducted credits from the player store. */
+  resurrectPaid: () => void;
+  /** Consume a revive token. Caller must have already decremented the
+   *  player's ReviveToken count from the player store. */
+  resurrectToken: () => void;
   /** Debug/test-only — reset to full HP. */
   resetFull: () => void;
 }
@@ -161,6 +167,30 @@ export const useSurvivalStore = create<SurvivalState>()(
           resurrectionStartedAt: null,
           resurrectionReadyAt: null,
         })),
+
+      resurrectPaid: () =>
+        set((state) => {
+          if (!state.isDead) return state;
+          return {
+            isDead: false,
+            currentHp: state.maxHp,
+            shieldHp: 0,
+            resurrectionStartedAt: null,
+            resurrectionReadyAt: null,
+          };
+        }),
+
+      resurrectToken: () =>
+        set((state) => {
+          if (!state.isDead) return state;
+          return {
+            isDead: false,
+            currentHp: state.maxHp,
+            shieldHp: 0,
+            resurrectionStartedAt: null,
+            resurrectionReadyAt: null,
+          };
+        }),
 
       resetFull: () =>
         set((state) => ({

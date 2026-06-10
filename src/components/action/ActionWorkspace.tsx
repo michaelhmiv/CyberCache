@@ -4,6 +4,7 @@ import { ChevronDown, Clock, PackageSearch, Sparkles } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { getActionWorkspaceSpec } from '@/lib/activity/actionWorkspaceSpecs';
 import { getAnimationBeatsForEvent } from '@/lib/activity/actionAnimationDirector';
+import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import type { ActivityKind } from '@/types/activity';
 import type { GearItem } from '@/types/items';
 
@@ -81,6 +82,9 @@ export const ActiveActionHeader: React.FC<{
       </div>
       <div className="relative mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
         {stats.slice(0, 6).map((stat) => <ActionStatChip key={`${stat.label}-${stat.value}`} {...stat} />)}
+      </div>
+      <div className="relative mt-3">
+        <ConsumablesChips />
       </div>
       <div className="relative mt-3 border-2 border-border bg-bg/70 p-2 text-[10px]" style={chipClip}>
         <div className="font-black uppercase tracking-wide text-amber">Next Decision</div>

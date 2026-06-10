@@ -17,7 +17,8 @@ export type ActionAnimationBeat =
   | 'material-burst'
   | 'machine-ready'
   | 'kiosk-scan'
-  | 'credit-transfer';
+  | 'credit-transfer'
+  | 'hunter-down';
 
 export type ActionAnimationPlan = {
   kind: ActivityKind;
