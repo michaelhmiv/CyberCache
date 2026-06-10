@@ -19,13 +19,17 @@ import { syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import type { GearItem, Weapon } from '@/types/items';
 import { useTickFeedStore, type TickEvent } from './tickSlice';
-import { pickAreaMonster } from '@/lib/combat/areaMonsterSelector';
+import { pickAreaMonster, resolveAreaMonsters } from '@/lib/combat/areaMonsterSelector';
 import {
   computeMonsterDamageVsHunter,
+  computePlayerDamageVsMonster,
   decideAutoEat,
   computeHealAmount,
+  type WeaponDamageSource,
 } from '@/lib/combat/damageContract';
-import { loadoutSurvivalStats } from '@/lib/combat/loadoutSurvival';
+import { loadoutSurvivalStats, loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
+import { useKillCycleStore } from '@/store/slices/killCycleSlice';
+import { pickNextTarget, xpForKill } from '@/lib/combat/killCycleHelpers';
 
 const TICK_MS = 3000;
 const DROP_CHANCE = 0.22;
@@ -35,6 +39,7 @@ const DEFAULT_AREA_ID = ROAMING_AREAS[0]?.id ?? 'dustwaste_frontier';
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let lastTickAt = 0;
+let lastTickedAreaId: string | null = null;
 let ticking = false;
 
 export interface IdleTickerState {
@@ -265,6 +270,121 @@ const applySurvivalTick = (areaId: string, ticks: number): TickEvent[] => {
   return events;
 };
 
+/**
+ * Per-tick kill cycle — apply hunter→monster damage, check for kill,
+ * spawn the next target. Returns the events to push to the feed.
+ *
+ * The kill cycle is separate from the survival tick because:
+ *   1. The monster can die mid-tick (rare with low DPS, common with
+ *      high DPS), so the loop body needs to recheck the target state
+ *      after each application.
+ *   2. On a kill, we want to fire a single consolidated "kill" event
+ *      (with XP) rather than scattering it.
+ *   3. The spawn logic needs the area's full roster, which is a
+ *      different lookup than the per-tick monster selector used by
+ *      applySurvivalTick.
+ *
+ * This is PR 4's headline change. The user originally asked for
+ * "I see a small HP bar under the enemy and it dies" — that's what
+ * this function powers.
+ */
+const applyKillCycleTick = (areaId: string, ticks: number): TickEvent[] => {
+  const events: TickEvent[] = [];
+  const area = getRoamingArea(areaId);
+  const killCycle = useKillCycleStore.getState();
+  const player = usePlayerStore.getState();
+  const now = Date.now();
+
+  // If no current target, spawn one. This happens on the first tick
+  // after entering the area, or after a kill. We do this *once* at
+  // the top of the function, not per-tick, to avoid spawning a new
+  // target every 3s for a player who's idling with 0 DPS.
+  if (!killCycle.currentTargetId) {
+    const roster = resolveAreaMonsters(area);
+    if (roster.length === 0) return events;
+    const next = pickNextTarget(roster, killCycle.lastKilledMonsterId);
+    if (next) {
+      useKillCycleStore.getState().spawnTarget(next);
+    }
+  }
+
+  const effectiveDps = loadoutEffectiveDps();
+
+  for (let i = 0; i < ticks; i += 1) {
+    if (useSurvivalStore.getState().isDead) break;
+    const currentKillCycle = useKillCycleStore.getState();
+    if (!currentKillCycle.currentTargetId) break;
+
+    // Resolve the current monster from the slice.
+    const targetId = currentKillCycle.currentTargetId;
+    const roster = resolveAreaMonsters(area);
+    const monster = roster.find((m) => m.id === targetId);
+    if (!monster) {
+      // Stale target id (e.g. area was reconfigured). Clear and break.
+      useKillCycleStore.getState().clearTarget();
+      break;
+    }
+
+    // No DPS? Skip the damage application (the kill cycle pauses
+    // visually until the player equips a weapon).
+    if (effectiveDps <= 0) break;
+
+    const weapon: WeaponDamageSource = { effectiveDps };
+    const damage = computePlayerDamageVsMonster(weapon, monster);
+    useKillCycleStore.getState().applyPlayerDamage(damage);
+
+    const at = now - (ticks - 1 - i) * TICK_MS;
+    const afterDmg = useKillCycleStore.getState();
+
+    if (afterDmg.currentTargetHp > 0) {
+      // Normal hit — emit a damage event for the feed.
+      events.push({
+        id: '',
+        at,
+        tone: 'loot', // reuse the 'loot' tone (green dot) for hit feedback
+        label: `-${damage} HP`,
+        detail: `Hit ${monster.name} for ${damage} HP.`,
+        areaId,
+        value: damage,
+      });
+    } else {
+      // KILL! The monster's HP just hit 0. Fire the kill event,
+      // award XP, then spawn the next target.
+      const killedId = useKillCycleStore.getState().killCurrentTarget();
+      const xp = xpForKill(monster);
+      player.addXP(xp);
+      events.push({
+        id: '',
+        at,
+        tone: 'kill',
+        label: `+${xp} XP`,
+        detail: `Killed ${monster.name}.`,
+        areaId,
+        value: xp,
+      });
+
+      // Spawn the next target. We use the just-killed id as the
+      // "previous" so pickNextTarget rotates forward.
+      const nextRoster = resolveAreaMonsters(area);
+      const next = pickNextTarget(nextRoster, killedId);
+      if (next) {
+        useKillCycleStore.getState().spawnTarget(next);
+        events.push({
+          id: '',
+          at,
+          tone: 'kill',
+          label: 'New target',
+          detail: `${next.name} approaches.`,
+          areaId,
+          value: 0,
+        });
+      }
+    }
+  }
+
+  return events;
+};
+
 const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
   if (!payload) return;
   syncVerifiedResult(payload);
@@ -335,12 +455,21 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       const areaId = activity.targetId || useIdleStore.getState().selectedRoamingAreaId || DEFAULT_AREA_ID;
       if (!areaId) return;
 
+      // Detect area change: reset the kill cycle so the player gets
+      // a fresh target from the new area's roster and the per-area
+      // kill counter starts at 0.
+      if (lastTickedAreaId !== null && lastTickedAreaId !== areaId) {
+        useKillCycleStore.getState().resetForAreaChange();
+      }
+      lastTickedAreaId = areaId;
+
       // Client-side roll → immediate animation feedback. The server independently re-rolls and
       // validates in `cc_claim_roaming_rewards`, so the client preview is honest because the
       // server uses the same nonce+area+actor seed.
       const previewEvents = rollClientEvents(areaId, ticks);
       const survivalEvents = applySurvivalTick(areaId, ticks);
-      const allEvents = [...previewEvents, ...survivalEvents];
+      const killCycleEvents = applyKillCycleTick(areaId, ticks);
+      const allEvents = [...previewEvents, ...survivalEvents, ...killCycleEvents];
       awardLocal(allEvents);
 
       // If the hunter died this tick, skip reward claims and the
@@ -401,6 +530,7 @@ export const unmountIdleTicker = (): void => {
   }
   useIdleTickerStore.setState({ running: false });
   lastTickAt = 0;
+  lastTickedAreaId = null;
 };
 
 /** Resolve which area the ticker should be claiming for. */

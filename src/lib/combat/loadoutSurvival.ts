@@ -16,6 +16,7 @@ import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { computeHunterMaxHp, type HunterSurvivalStats } from './damageContract';
+import { computeStandardDps } from '@/lib/stats/dpsChain';
 
 /**
  * Read the equipped shield's HP. Returns 0 if no shield equipped.
@@ -41,4 +42,27 @@ export function loadoutSurvivalStats(): HunterSurvivalStats {
     dodgeChance: 0, // no dodge affix yet — future PR
     elementalResist: 0, // no elemental resist affix yet — future PR
   };
+}
+
+/**
+ * Read the hunter's total effective DPS from the equipped weapons.
+ * Used by the kill cycle to compute per-tick damage to the current
+ * monster target. Returns 0 if no weapons are equipped.
+ *
+ * Implementation note: we sum `computeStandardDps` across all
+ * equipped weapons. Standard DPS is the right baseline for the
+ * roaming kill cycle (no boss-relative context). Future PRs may
+ * swap to a context-aware value when the hunter is in a boss fight.
+ */
+export function loadoutEffectiveDps(): number {
+  const loadout = useLoadoutStore.getState();
+  const slots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
+  let total = 0;
+  for (const slot of slots) {
+    const weapon = loadout.getWeapon(slot);
+    if (weapon) {
+      total += computeStandardDps(weapon);
+    }
+  }
+  return total;
 }
