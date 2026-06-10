@@ -660,12 +660,28 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
         const playerId = usePlayerStore.getState().id;
         if (playerId) {
           const { submitClaim } = await import('@/lib/chef/chefClient');
+          const loadout = useLoadoutStore.getState();
+          // Sum idle economy mods from equipped weapons (Phase 2d).
+          const idleMods = {
+            offlineEarningsMod: 0,
+            scrapYieldMod: 0,
+            rareDropChanceMod: 0,
+          };
+          for (const slot of ['primary', 'secondary', 'heavy'] as const) {
+            const weapon = loadout.getWeapon(slot);
+            if (weapon) {
+              idleMods.offlineEarningsMod += weapon.offlineEarningsMod;
+              idleMods.scrapYieldMod += weapon.scrapYieldMod;
+              idleMods.rareDropChanceMod += weapon.rareDropChanceMod;
+            }
+          }
           const chefResult = await submitClaim({
             playerId,
             areaId,
             ticks,
             tickCount: totalTickCount,
             playerLevel: usePlayerStore.getState().level,
+            idleMods,
           });
 
           // Apply canonical results from the Chef
