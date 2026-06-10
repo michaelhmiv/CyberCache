@@ -24,12 +24,12 @@ const isMissingRpcError = (error: unknown, fn: string): boolean => {
   return text.includes(fn.toLowerCase()) && (text.includes('404') || text.includes('not found') || text.includes('could not find') || text.includes('pgrst202'));
 };
 
-const claimRoamingRewards = async (input: { ticks: number; areaId: string }): Promise<VerifiedResult> => {
+const claimRoamingRewards = async (input: { ticks: number; areaId: string; tickCount: number }): Promise<VerifiedResult> => {
   try {
     return await rpc('cc_claim_roaming_rewards', {
-      nonce: requestId(`roam:${input.areaId}`),
       ticks: input.ticks,
       area_id: input.areaId,
+      tick_count: input.tickCount,
     });
   } catch (error) {
     if (!isMissingRpcError(error, 'cc_claim_roaming_rewards')) throw error;

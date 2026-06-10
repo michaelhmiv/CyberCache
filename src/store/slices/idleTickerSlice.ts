@@ -661,7 +661,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       // server is the source of truth for persistent rewards, so a retry on the next tick will
       // reconcile. Persistence happens via the runtime snapshot.
       try {
-        const result = await verifiedOps.claimRoamingRewards({ ticks, areaId });
+        const result = await verifiedOps.claimRoamingRewards({ ticks, areaId, tickCount: totalTickCount });
         applyServerRewards(result as Record<string, unknown>);
         await saveCurrentRuntimeStores();
       } catch (error) {
