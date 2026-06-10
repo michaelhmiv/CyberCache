@@ -5,6 +5,7 @@ import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useMarketStore, usePlayerStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
+import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
 import type { GearItem, Weapon } from '@/types/items';
 import type { Listing, MarketHistory } from '@/types/market';
@@ -145,16 +146,7 @@ export const MarketScreen: React.FC = () => {
 
   return (
     <div className="space-y-3 p-4 pb-20">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-lg font-black text-text-primary">Market</div>
-          <div className="text-[10px] text-text-muted">Every listing can be inspected with the same full gear sheet used by inventory and loot logs.</div>
-        </div>
-        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-raised px-2.5 py-1">
-          <Wallet size={14} className="text-amber" />
-          <span className="text-xs font-bold text-amber">{player.credits.toLocaleString()}cr</span>
-        </div>
-      </div>
+      <ResourceBar />
 
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (

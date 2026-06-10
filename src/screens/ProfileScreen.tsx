@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Skull, Target, TrendingUp, User, Zap } from 'lucide-react';
-import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore, useSkillStore, useSurvivalStore } from '@/store';
+import { useActivityStore, useBossStore, useInventoryStore, usePlayerStore, useSkillStore } from '@/store';
+import { ResourceBar } from '@/components/layout/ResourceBar';
 import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
@@ -62,15 +63,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
 
   return (
     <div className="bl-page space-y-4 p-4 pb-20">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="bl-title text-3xl leading-none text-text-primary">Hunter Dossier</div>
-          <div className="text-xs text-text-muted mt-1">Identity, account status, activity, stats, settings, and guide access.</div>
-        </div>
-        <div className="bl-icon-plate flex h-12 w-12 shrink-0 -rotate-2 items-center justify-center text-amber">
-          <User size={22} />
-        </div>
-      </div>
+      <ResourceBar />
 
       <MobileCard className="space-y-3" rarityColor="#FF9000">
         <div className="flex items-center gap-3">

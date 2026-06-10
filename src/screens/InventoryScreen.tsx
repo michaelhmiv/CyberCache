@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Backpack, Box, Hammer, Pill, Shield } from 'lucide-react';
+import { ResourceBar } from '@/components/layout/ResourceBar';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
 import { GearHub } from '@/components/gear/GearHub';
 import { ConsumablesScreen } from './ConsumablesScreen';
@@ -40,18 +41,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
 
   return (
     <div className="bl-page space-y-4 pb-20">
-      <div className="space-y-3 p-4 pb-0">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="bl-title text-3xl leading-none text-text-primary">Gear Yard</div>
-            <div className="text-xs text-text-muted mt-1">
-              Backpack, loadout, consumables, and workbench access.
-            </div>
-          </div>
-          <div className="bl-icon-plate flex h-12 w-12 shrink-0 -rotate-2 items-center justify-center text-amber">
-            <Backpack size={22} />
-          </div>
-        </div>
+      <ResourceBar className="px-4 pt-3" />
+      <div className="space-y-3 px-4 pb-0">
 
         <div className="grid grid-cols-4 gap-2">
           <SummaryTile label="Items" value={inventory.items.length} sub={`${lockedCount} locked`} />
