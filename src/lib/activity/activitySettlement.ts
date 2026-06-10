@@ -94,11 +94,14 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
     let materialFinds = 0;
 
     for (let i = 0; i < ticks; i += 1) {
-      const drop = Math.random() < DROP_CHANCE_PER_TICK;
-      const material = Math.random() < MATERIAL_FIND_CHANCE_PER_TICK;
-
-      if (drop) gearDrops.push(generateAreaDrop(area.id));
-      if (!drop && material) {
+      // Single cumulative roll: gear 22%, then material 8% of the
+      // remaining space, then nothing. This matches the intended rates
+      // rather than the old conditional chain which reduced material
+      // to (1-0.22)*0.08 = 6.24%. See Phase 1a plan.
+      const roll = Math.random();
+      if (roll < DROP_CHANCE_PER_TICK) {
+        gearDrops.push(generateAreaDrop(area.id));
+      } else if (roll < DROP_CHANCE_PER_TICK + MATERIAL_FIND_CHANCE_PER_TICK) {
         const find = rollAreaMaterialFind(area);
         if (find?.kind === 'material') {
           usePlayerStore.getState().addMaterial(find.type, 1);

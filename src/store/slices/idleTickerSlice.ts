@@ -54,19 +54,12 @@ export interface IdleTickerState {
   tickNow: () => Promise<void>;
 }
 
-const awardLocal = (events: TickEvent[]) => {
+const pushPreviewEvents = (events: TickEvent[]) => {
   if (events.length === 0) return;
 
-  for (const event of events) {
-    if (event.tone === 'cash' && typeof event.value === 'number') {
-      usePlayerStore.getState().addCredits(event.value);
-    } else if (event.tone === 'loot' && event.gear) {
-      useInventoryStore.getState().addItem(event.gear);
-    } else if (event.tone === 'material' && event.value) {
-      // Materials arrive via the server response — local-only mirror, never persisted.
-    }
-  }
-
+  // Phase 1b: preview events are cosmetic only. No store mutations here —
+  // credits, XP, scrap, gear, materials, and essences are all sourced from
+  // the server response via syncRuntimeProfile / syncVerifiedResult.
   useTickFeedStore.getState().push(events);
 };
 
@@ -105,38 +98,44 @@ const rollClientEvents = (areaId: string, ticks: number): TickEvent[] => {
           areaId,
         });
       }
-    } else if (Math.random() < FRAGMENT_CHANCE) {
-      events.push({
-        id: '',
-        at,
-        tone: 'fragment',
-        label: '+1 cache fragment',
-        detail: `${area.enemyType} patrol yielded a cache key fragment.`,
-        areaId,
-        value: 1,
-      });
-    } else if (Math.random() < MATERIAL_FIND_CHANCE) {
-      const find = rollAreaMaterialFind(area);
-      if (find) {
+    } else {
+      // Single cumulative roll for fragment / material / kill so the
+      // intended probabilities (3%, 8%, 67%) are honoured rather than
+      // reduced by the preceding gear check. See Phase 1a plan.
+      const subRoll = Math.random();
+      if (subRoll < FRAGMENT_CHANCE) {
         events.push({
           id: '',
           at,
-          tone: find.kind === 'material' ? 'material' : 'essence',
-          label: `+1 ${find.type}`,
-          detail: `Field sweep recovered ${find.type}.`,
+          tone: 'fragment',
+          label: '+1 cache fragment',
+          detail: `${area.enemyType} patrol yielded a cache key fragment.`,
           areaId,
           value: 1,
         });
+      } else if (subRoll < FRAGMENT_CHANCE + MATERIAL_FIND_CHANCE) {
+        const find = rollAreaMaterialFind(area);
+        if (find) {
+          events.push({
+            id: '',
+            at,
+            tone: find.kind === 'material' ? 'material' : 'essence',
+            label: `+1 ${find.type}`,
+            detail: `Field sweep recovered ${find.type}.`,
+            areaId,
+            value: 1,
+          });
+        }
+      } else {
+        events.push({
+          id: '',
+          at,
+          tone: 'kill',
+          label: 'Enemy swept',
+          detail: `${area.enemyType} routed. Credits, scrap, and XP recovered.`,
+          areaId,
+        });
       }
-    } else {
-      events.push({
-        id: '',
-        at,
-        tone: 'kill',
-        label: 'Enemy swept',
-        detail: `${area.enemyType} routed. Credits, scrap, and XP recovered.`,
-        areaId,
-      });
     }
   }
 
@@ -551,31 +550,13 @@ const applyBossFightTick = async (bossId: string): Promise<void> => {
 
 const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
   if (!payload) return;
+  // Phase 1b: syncVerifiedResult sets canonical player totals
+  // (credits, XP, scrap, materials, essences, fragments) from the
+  // server's profile snapshot. The rewards payload fields
+  // (credits_awarded, xp_awarded, etc.) are retained for feed
+  // display only — they are already accounted for in the profile
+  // snapshot returned by the server.
   syncVerifiedResult(payload);
-  const player = usePlayerStore.getState();
-  const credits = Number(payload.credits_awarded ?? 0);
-  const scrap = Number(payload.scrap_awarded ?? 0);
-  const xp = Number(payload.xp_awarded ?? 0);
-  if (credits > 0) player.addCredits(credits);
-  if (scrap > 0) player.addScrap(scrap);
-  if (xp > 0) player.addXP(xp);
-
-  const fragments = Number(payload.cache_fragments_awarded ?? 0);
-  if (fragments > 0) player.addCacheKeyFragments(fragments);
-
-  const materials = (payload.materials && typeof payload.materials === 'object') ? payload.materials as Record<string, number> : null;
-  if (materials) {
-    for (const [type, count] of Object.entries(materials)) {
-      if (count > 0) player.addMaterial(type, count);
-    }
-  }
-
-  const essences = (payload.essences && typeof payload.essences === 'object') ? payload.essences as Record<string, number> : null;
-  if (essences) {
-    for (const [type, count] of Object.entries(essences)) {
-      if (count > 0) player.addEssence(type, count);
-    }
-  }
 };
 
 export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
@@ -641,7 +622,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       const survivalEvents = applySurvivalTick(areaId, ticks);
       const killCycleEvents = applyKillCycleTick(areaId, ticks);
       const allEvents = [...previewEvents, ...survivalEvents, ...killCycleEvents];
-      awardLocal(allEvents);
+      pushPreviewEvents(allEvents);
 
       // If the hunter died this tick, skip reward claims and the
       // server reconciliation — the death is local-only for now

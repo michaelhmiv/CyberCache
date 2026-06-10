@@ -44,9 +44,12 @@ export interface HunterSurvivalStats {
 
 /**
  * Damage roll from the hunter to a single monster. The result is
- * `max(1, floor(effectiveDps / monster.defense * variance))`. The
- * minimum of 1 keeps the kill-feel: even a fully-overmatched hit
+ * `max(1, floor(effectiveDps * TICK_SECONDS / monster.defense * variance))`.
+ * The minimum of 1 keeps the kill-feel: even a fully-overmatched hit
  * connects, which matches the "hunter always progresses" loop.
+ *
+ * `effectiveDps` is per-second damage. The 3s tick window means we
+ * apply 3 seconds of DPS per tick (multiply, not divide — Phase 1c).
  */
 export function computePlayerDamageVsMonster(
   weapon: WeaponDamageSource,
@@ -54,11 +57,12 @@ export function computePlayerDamageVsMonster(
   rng: () => number = Math.random
 ): number {
   if (weapon.effectiveDps <= 0) return 0;
+  const TICK_SECONDS = 3;
   const variance = 0.85 + rng() * 0.3; // 0.85x to 1.15x
   // Defense scales mitigation more aggressively: def 6 ≈ 13% reduction,
   // def 50 ≈ 55%, def 200 ≈ 75% (capped).
   const defenseMitigation = 1 - Math.min(0.75, monster.defense / (monster.defense + 40));
-  const base = (weapon.effectiveDps / 3) * variance * defenseMitigation; // /3 because the dps is per-second and a tick is ~3s
+  const base = weapon.effectiveDps * TICK_SECONDS * variance * defenseMitigation;
   return Math.max(1, Math.floor(base));
 }
 
