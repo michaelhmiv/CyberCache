@@ -1,8 +1,13 @@
-import { Rarity, DropSource, SkillTreeType } from '../../types/game';
+import { Rarity, Manufacturer, DropSource, SkillTreeType } from '../../types/game';
 import { ClassMod, Affix } from '../../types/items';
 import { RARITIES } from '../../constants/rarities';
-import { createRNG, seededInt, pickWeighted, hashString } from '../utils/rng';
+import { createRNG, seededInt, seededRandom, pickWeighted, hashString } from '../utils/rng';
 import { generateItemId } from '../utils/id';
+import {
+  generateActivityModule,
+  pickActivityKind,
+} from '../generators/activityModuleGenerator';
+import { BASE_ACTIVITY_MODULE_CHANCE } from '../../content/activityModuleDefs';
 
 const SKILL_NODE_IDS = [
   'gs_dmg_1', 'gs_dmg_2', 'gs_crit_1', 'gs_crit_2', 'gs_critdmg_1', 'gs_critdmg_2',
@@ -18,6 +23,15 @@ const TREE_NAMES: Record<SkillTreeType, string> = {
   [SkillTreeType.Demolition]: 'Demolition',
   [SkillTreeType.Scavenger]: 'Scavenger',
 };
+
+const CLASSMOD_MANUFACTURERS: Manufacturer[] = [
+  Manufacturer.HelixWorks,
+  Manufacturer.Ironwood,
+  Manufacturer.ThrowTech,
+  Manufacturer.Prismatek,
+  Manufacturer.Redline,
+  Manufacturer.BlastForge,
+];
 
 export function generateClassMod(level: number = 1, externalRng?: () => number): ClassMod {
   const rng = externalRng ?? createRNG(hashString(`classmod_${level}_${Date.now()}_${Math.random()}`));
@@ -56,6 +70,27 @@ export function generateClassMod(level: number = 1, externalRng?: () => number):
       value: rollVal / 100,
       displayText: def.text.replace('{v}', String(rollVal)),
     });
+  }
+
+  // Roll activity module (class mods specialize in crafting/workshop/market)
+  const classModMfg = CLASSMOD_MANUFACTURERS[seededInt(0, CLASSMOD_MANUFACTURERS.length - 1, rng)];
+  const activityChance = BASE_ACTIVITY_MODULE_CHANCE + 0.05
+    + (rarity === Rarity.Uncommon ? 0.05 : rarity === Rarity.Rare ? 0.15 : rarity === Rarity.Epic ? 0.25 : rarity === Rarity.Legendary ? 0.35 : 0);
+  if (seededRandom(0, 1, rng) < activityChance) {
+    const activityKind = pickActivityKind('classMod', rng);
+    if (activityKind) {
+      const module = generateActivityModule({
+        itemLevel: level,
+        itemRarity: rarity,
+        manufacturer: classModMfg,
+        slot: 'classMod',
+        activityKind,
+        rng,
+      });
+      if (module) {
+        affixes.push(module);
+      }
+    }
   }
 
   const treeName = TREE_NAMES[treeBonus];

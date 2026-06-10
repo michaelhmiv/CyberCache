@@ -1,9 +1,22 @@
-import { Element, Rarity, DropSource } from '../../types/game';
+import { Element, Rarity, Manufacturer, DropSource } from '../../types/game';
 import { Shield, Affix } from '../../types/items';
 import { RARITIES } from '../../constants/rarities';
 import { ELEMENTS } from '../../constants/elements';
 import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
 import { generateItemId } from '../utils/id';
+import {
+  generateActivityModule,
+  pickActivityKind,
+} from '../generators/activityModuleGenerator';
+import { BASE_ACTIVITY_MODULE_CHANCE } from '../../content/activityModuleDefs';
+
+const SHIELD_MANUFACTURERS: Manufacturer[] = [
+  Manufacturer.Ironwood,
+  Manufacturer.HelixWorks,
+  Manufacturer.Prismatek,
+  Manufacturer.ThrowTech,
+  Manufacturer.Redline,
+];
 
 export function generateShield(level: number = 1, externalRng?: () => number): Shield {
   const seedBase = `shield_${level}_${Date.now()}_${Math.random()}`;
@@ -17,6 +30,9 @@ export function generateShield(level: number = 1, externalRng?: () => number): S
 
   const elemKeys = Object.values(Element);
   const element = pickWeighted(elemKeys, [1, 1, 1, 1, 1, 1], rng);
+
+  // Pick a manufacturer for activity module purposes
+  const shieldMfg = SHIELD_MANUFACTURERS[seededInt(0, SHIELD_MANUFACTURERS.length - 1, rng)];
 
   const baseHp = 150 + level * 30;
   const rarityHpMult = rarity === 'Common' ? 1 : rarity === 'Uncommon' ? 1.2 : rarity === 'Rare' ? 1.5 : rarity === 'Epic' ? 1.8 : 2.2;
@@ -43,8 +59,7 @@ export function generateShield(level: number = 1, externalRng?: () => number): S
     });
   }
 
-  // Bake affixes into stats so they are NOT purely cosmetic.
-  // hp and rechargeRate are multiplicative; mitigation is additive.
+  // Bake affixes into stats
   for (const affix of affixes) {
     const v = affix.value;
     switch (affix.stat) {
@@ -62,10 +77,28 @@ export function generateShield(level: number = 1, externalRng?: () => number): S
     }
   }
 
+  // Roll activity module (procedural)
+  const activityChance = BASE_ACTIVITY_MODULE_CHANCE
+    + (rarity === Rarity.Uncommon ? 0.05 : rarity === Rarity.Rare ? 0.15 : rarity === Rarity.Epic ? 0.25 : rarity === Rarity.Legendary ? 0.35 : 0);
+  if (seededRandom(0, 1, rng) < activityChance) {
+    const activityKind = pickActivityKind('shield', rng);
+    if (activityKind) {
+      const module = generateActivityModule({
+        itemLevel: level,
+        itemRarity: rarity,
+        manufacturer: shieldMfg,
+        slot: 'shield',
+        activityKind,
+        rng,
+      });
+      if (module) {
+        affixes.push(module);
+      }
+    }
+  }
+
   const elementName = ELEMENTS[element].name;
-  const manufacturerNames = ['Ironwood', 'HelixWorks', 'Prismatek', 'ThrowTech', 'Redline'];
-  const manufacturer = manufacturerNames[seededInt(0, manufacturerNames.length - 1, rng)];
-  const name = `${elementName} ${manufacturer} Shield Mk.${seededInt(1, 5, rng)}`;
+  const name = `${elementName} ${shieldMfg} Shield Mk.${seededInt(1, 5, rng)}`;
 
   return {
     id: generateItemId(),

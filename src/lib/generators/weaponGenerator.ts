@@ -15,6 +15,11 @@ import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '..
 import { generateItemId } from '../utils/id';
 import { generateWeaponName } from '../utils/naming';
 import { computeStandardDps } from '../stats/dpsChain';
+import {
+  generateActivityModule,
+  pickActivityKind,
+} from '../generators/activityModuleGenerator';
+import { BASE_ACTIVITY_MODULE_CHANCE } from '../../content/activityModuleDefs';
 
 export interface GenerateWeaponOptions {
   source: DropSource;
@@ -212,6 +217,27 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
       // Unknown stat from future affixes — silently skip.
       default:
         break;
+    }
+  }
+
+  // 10c. Roll activity module (procedural, Borderlands-style)
+  // Chance increases with rarity: Common 15%, Uncommon 20%, Rare 30%, Epic 40%, Legendary 55%
+  const activityChance = BASE_ACTIVITY_MODULE_CHANCE
+    + (rarity === Rarity.Uncommon ? 0.05 : rarity === Rarity.Rare ? 0.15 : rarity === Rarity.Epic ? 0.25 : rarity === Rarity.Legendary ? 0.35 : 0);
+  if (seededRandom(0, 1, rng) < activityChance) {
+    const activityKind = pickActivityKind('weapon', rng);
+    if (activityKind) {
+      const module = generateActivityModule({
+        itemLevel: level,
+        itemRarity: rarity,
+        manufacturer,
+        slot: 'weapon',
+        activityKind,
+        rng,
+      });
+      if (module) {
+        affixes.push(module);
+      }
     }
   }
 

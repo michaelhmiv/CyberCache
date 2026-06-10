@@ -38,6 +38,7 @@ import {
 } from '@/components/action/ActionWorkspace';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
+import { ActivityModifierPanel } from '@/components/action/ActivityModifierPanel';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { computeFightPower } from '@/lib/stats/fightPower';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
@@ -632,6 +633,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
       {/* 2. Loadout — star-pattern gear constellation */}
       <ActionLoadout />
+
+      {/* 2b. Activity modifiers — procedural gear bonuses for current action */}
+      <ActivityModifierPanel activityKind={currentKind} />
 
       {/* 3. Compact status strip — HP / Keys / Tick */}
       <div className="flex gap-2 text-[10px]">

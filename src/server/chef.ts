@@ -33,6 +33,8 @@ import {
   buildAreaWeaponDropOptions,
 } from '../constants/roamingAreas';
 import type { GearItem } from '../types/items';
+import { sumActivityModifier } from '../lib/stats/activityModifiers';
+import type { ActivityKind } from '../types/activity';
 
 // --- Types ---
 
@@ -50,6 +52,18 @@ export interface ClaimRequest {
   };
   /** Skill tree bonuses (Scavenger tree affects idle economy). */
   skillBonuses?: Record<string, number>;
+  /**
+   * Activity modifiers computed by the client from equipped gear via
+   * `sumActivityModifier`. The Chef applies these to roaming rewards.
+   * In a future enforcement pass the Chef will re-derive them from
+   * player inventory for server-authoritative verification.
+   */
+  activityMods?: Record<string, number>;
+  /**
+   * Equipped gear IDs — enables future server-side re-derivation of
+   * activity modifiers without a second DB round-trip.
+   */
+  equippedGear?: GearItem[];
 }
 
 export interface ClaimResult {
@@ -96,7 +110,7 @@ const MATERIAL_THRESHOLD = 0.33; // 0.22 + 0.03 + 0.08
 export function processRoamingClaim(
   request: ClaimRequest,
 ): ClaimResult {
-  const { playerId, areaId, ticks: requestedTicks, tickCount, playerLevel, idleMods, skillBonuses } = request;
+  const { playerId, areaId, ticks: requestedTicks, tickCount, playerLevel, idleMods, skillBonuses, activityMods, equippedGear } = request;
 
   const area = getRoamingArea(areaId);
   const creditsPerTick = Math.round((area.idleCreditsPerMinute || 15) / 20);
@@ -115,8 +129,19 @@ export function processRoamingClaim(
   // rareDropChance from gear + skills (structural wiring — threshold adjustment deferred)
   const totalRareDropMod = (idleMods?.rareDropChanceMod ?? 0) + (skillBonuses?.rareDropChance || 0);
 
-  const effectiveCreditsPerTick = Math.round(creditsPerTick * offlineMult);
-  const effectiveScrapPerTick = Math.round(scrapPerTick * scrapMult);
+  // Activity modifiers from equipped gear (procedural — Borderlands-style).
+  // The client computes these via sumActivityModifier(equippedGear, 'roaming_loot').
+  // The Chef applies them multiplicatively on top of the idle economy baseline.
+  const activityCreditsMult = 1 + (activityMods?.creditsPerKill ?? 0);
+  const activityScrapMult = 1 + (activityMods?.scrapYieldMod ?? 0);
+  const activityXpMult = 1 + (activityMods?.xpBoostMod ?? 0);
+  const activityRareDropBonus = activityMods?.rareDropChanceMod ?? 0;
+  const activityFragmentBonus = activityMods?.cacheFragmentChance ?? 0;
+  const activityMaterialBonus = activityMods?.materialFindChance ?? 0;
+
+  const effectiveCreditsPerTick = Math.round(creditsPerTick * offlineMult * activityCreditsMult);
+  const effectiveScrapPerTick = Math.round(scrapPerTick * scrapMult * activityScrapMult);
+  const effectiveXpPerTick = Math.round(xpPerTick * activityXpMult);
 
   // Clamp ticks to prevent abuse
   const ticks = Math.max(1, Math.min(requestedTicks, 20));
@@ -139,7 +164,10 @@ export function processRoamingClaim(
 
     // Single cumulative roll (Phase 1a: no if/else-if probability distortion).
     // rareDropChance mod increases the gear threshold linearly.
-    const gearThreshold = GEAR_THRESHOLD * (1 + totalRareDropMod);
+    // Activity modifiers add on top: rareDropChanceMod + materialFindChance.
+    const gearThreshold = GEAR_THRESHOLD * (1 + totalRareDropMod + activityRareDropBonus);
+    const fragmentThreshold = FRAGMENT_THRESHOLD + activityFragmentBonus;
+    const materialThreshold = MATERIAL_THRESHOLD + activityMaterialBonus;
     const roll = rng();
 
     if (roll < gearThreshold) {
@@ -178,7 +206,7 @@ export function processRoamingClaim(
           areaId,
         });
       }
-    } else if (roll < FRAGMENT_THRESHOLD) {
+    } else if (roll < fragmentThreshold) {
       fragmentsAwarded++;
       feedEvents.push({
         at: now - (ticks - 1 - tickIdx) * TICK_MS,
@@ -188,7 +216,7 @@ export function processRoamingClaim(
         areaId,
         value: 1,
       });
-    } else if (roll < MATERIAL_THRESHOLD) {
+    } else if (roll < materialThreshold) {
       const find = rollAreaMaterialFind(area, rng);
       if (find) {
         if (find.kind === 'material') {
@@ -217,10 +245,10 @@ export function processRoamingClaim(
       });
     }
 
-    // Every tick awards base resources (with idle mods + skill bonuses applied)
+    // Every tick awards base resources (with idle mods + skill bonuses + activity mods applied)
     creditsAwarded += effectiveCreditsPerTick;
     scrapAwarded += effectiveScrapPerTick;
-    xpAwarded += Math.round(xpPerTick);
+    xpAwarded += effectiveXpPerTick;
   }
 
   return {
