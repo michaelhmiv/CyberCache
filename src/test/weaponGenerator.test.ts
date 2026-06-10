@@ -151,7 +151,6 @@ describe('weaponGenerator — affixes baked into stats', () => {
       const weapon = generateWeapon({ source: DropSource.WorldDrop, level: 1 });
       const dmgAffixes = weapon.affixes.filter((a) => a.stat === 'baseDamage');
       if (dmgAffixes.length > 0) {
-        const affixMult = 1 + dmgAffixes.reduce((sum, a) => sum + a.value, 0);
         // Loosely: the weapon's baseDamage should be higher than it would
         // be without affixes. The exact value depends on parts and
         // manufacturer bias, but at minimum it's the type's base.
