@@ -26,8 +26,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useActionStageOrchestrator } from './useActionStageOrchestrator';
-import { resolveBeat, getStageAssetsForKind, type BeatRender } from './actionStageRenderer';
+import { resolveBeat, getStageAssetsForKind, StageSprite, type BeatRender } from './actionStageRenderer';
 import type { ActivityKind } from '@/types/activity';
+import { useKillCycleStore } from '@/store/slices/killCycleSlice';
+import { MONSTERS } from '@/constants/monsters';
 
 const SPRITE_SIZE = 96;
 const CANVAS_HEIGHT = 168;
@@ -48,7 +50,18 @@ export interface ActionStageProps {
  * element to animate (hunter, target, surface, or the whole stage).
  */
 export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, hunterOverride, className }) => {
-  const assets = getStageAssetsForKind(kind, { targetSprite: targetOverride });
+  // For roaming_loot, override the target sprite with the live
+  // monster from the kill cycle slice. This is the PR 4 wiring:
+  // the stage now reflects what the hunter is actually fighting.
+  const liveTargetId = useKillCycleStore((s) => s.currentTargetId);
+  const liveTargetSprite = (() => {
+    if (kind !== 'roaming_loot') return undefined;
+    if (targetOverride) return targetOverride;
+    if (!liveTargetId) return undefined;
+    return MONSTERS.find((m) => m.id === liveTargetId)?.visualKey;
+  })();
+
+  const assets = getStageAssetsForKind(kind, { targetSprite: liveTargetSprite ?? targetOverride });
   const stage = useActionStageOrchestrator(kind);
   const beat = resolveBeat(stage.currentBeat, {
     kind,
@@ -120,6 +133,11 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
 
         {assets.targetSprite && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            {/* HP bar above the target sprite — only renders for
+                roaming_loot (the kill cycle). Other activity kinds
+                with a targetSprite (boss_prep, boss_fight) just
+                show the sprite; their fight math is separate. */}
+            {kind === 'roaming_loot' && <TargetHpBar accentColor={assets.accentColor} />}
             <BeatLayer
               beat={beat}
               target="target"
@@ -223,3 +241,50 @@ export const StageSprite: React.FC<StageSpriteProps> = ({ visualKey, size, accen
     </div>
   </div>
 );
+
+/**
+ * TargetHpBar — the small HP bar above the target monster's sprite
+ * during roaming. Reads live data from the kill cycle slice. Renders
+ * nothing when no target is spawned (the slice is null). Animates the
+ * fill width so damage ticks feel smooth.
+ *
+ * PR 4 addition. The visual answer to "I see a small HP bar under
+ * the enemy and it dies."
+ */
+const TargetHpBar: React.FC<{ accentColor?: string }> = ({ accentColor = '#ff8800' }) => {
+  const currentHp = useKillCycleStore((s) => s.currentTargetHp);
+  const maxHp = useKillCycleStore((s) => s.currentTargetHpMax);
+  const targetId = useKillCycleStore((s) => s.currentTargetId);
+
+  // No target → no bar. The stage still shows the default sprite
+  // (from getStageAssetsForKind's `monster_scavenger` fallback) but
+  // no HP bar appears until the first tick spawns a real target.
+  if (!targetId || maxHp <= 0) return null;
+
+  const ratio = Math.max(0, Math.min(1, currentHp / maxHp));
+  const targetName = MONSTERS.find((m) => m.id === targetId)?.name ?? 'Unknown';
+
+  return (
+    <div
+      data-testid="target-hp-bar"
+      data-target-id={targetId}
+      data-target-hp={currentHp}
+      data-target-hp-max={maxHp}
+      className="absolute -top-5 left-1/2 w-24 -translate-x-1/2"
+    >
+      <div className="mb-0.5 flex items-center justify-between text-[7px] font-black uppercase tracking-wider text-text-muted">
+        <span className="truncate">{targetName}</span>
+        <span>{Math.round(ratio * 100)}%</span>
+      </div>
+      <div className="h-1.5 w-full border border-border bg-bg/80">
+        <motion.div
+          className="h-full"
+          style={{ background: accentColor }}
+          initial={false}
+          animate={{ width: `${ratio * 100}%` }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        />
+      </div>
+    </div>
+  );
+};
