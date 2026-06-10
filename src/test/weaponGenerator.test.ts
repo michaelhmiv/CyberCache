@@ -40,14 +40,14 @@ function makeWeaponStub(overrides: Partial<Weapon> = {}): Weapon {
     attackSpeed: 5,
     critChance: 0.2,
     critDamage: 1.5,
-    statusChance: 0.1,
-    statusDamage: 1.0,
+    statusChance: 0,
+    statusDamage: 0,
     bossDamageMod: 0,
     waveDamageMod: 0,
     shieldDamageMod: 0,
     armorDamageMod: 0,
-    offlineEarningsMod: 0,
     rareDropChanceMod: 0,
+    offlineEarningsMod: 0,
     scrapYieldMod: 0,
     parts: [],
     affixes: [],
@@ -231,9 +231,9 @@ describe('weaponGenerator — affixes baked into stats', () => {
     // baseline test stats (100 dmg, 5 spd, 0.2 crit, 1.5 crit mult, 0.1
     // status chance), the legacy generator formula was:
     //   100 * 5 * (1 + 0.2*0.5) * (1 + 0.1*0.5) = 100 * 5 * 1.1 * 1.05 = 577.5 → 578
-    // The chain's formula is:
-    //   100 * 5 * (1 + 0.2*1.5) = 100 * 5 * 1.3 = 650
-    // We assert the new value is 650, NOT 578, so the shift is
+    // The chain's formula (now with status multiplier) is:
+    //   100 * 5 * (1 + 0.2*1.5) * (1 + 0.1*1.0*0.3) = 100 * 5 * 1.3 * 1.03 = 669.5 → 670
+    // We assert the new value is 670, NOT 578, so the shift is
     // intentional and visible. If a future agent "fixes" combatPower
     // back to 578, this test fails and they get a clear error message.
     const weapon = makeWeaponStub({
@@ -245,8 +245,8 @@ describe('weaponGenerator — affixes baked into stats', () => {
       statusDamage: 1.0,
     });
     // Sanity: the stub's combatPower is 0 by default; the *frozen* value
-    // a generator would write is 650, the *live* chain value is 650.
+    // a generator would write is 670, the *live* chain value is 670.
     const live = Math.round(computeStandardDps(weapon));
-    expect(live).toBe(650);
+    expect(live).toBe(670);
   });
 });
