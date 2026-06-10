@@ -32,13 +32,12 @@ import { BossPrepModal } from '@/components/fight/BossPrepModal';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   ActionFeed,
-  ActiveActionHeader,
   ContextualPickerSheet,
   RewardIntelPanel,
   type ActionFeedEntry,
-  type ActionStat,
 } from '@/components/action/ActionWorkspace';
-import { ActionStage } from '@/lib/activity/ActionStage';
+import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
+import { ActionLoadout } from '@/components/action/ActionLoadout';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { computeFightPower } from '@/lib/stats/fightPower';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
@@ -373,6 +372,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
+  const equippedCount = Object.values(loadoutStore.slots).filter(Boolean).length;
   const currentBoss = bossStore.currentBossId ? REGION_1_BOSSES.find((b) => b.id === bossStore.currentBossId) : null;
   const prepBossTarget = currentBoss ?? REGION_1_BOSSES.find((b) => bossStore.unlockedBossIds.includes(b.id) && !bossStore.defeatedBossIds.includes(b.id)) ?? REGION_1_BOSSES[0];
   const bestBossWeapon = useMemo(() => inventory.getWeapons().sort((a, b) => b.bossPower - a.bossPower)[0], [inventory]);
@@ -485,6 +485,29 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     startAction({ kind: 'market_listing', targetType: 'market_listing', targetId: 'market-console', targetLabel: 'Trade Kiosk', sceneKey: 'market:kiosk', notes: 'Managing market listings', publicPayload: { activity_label: 'Managing Market Listings', target_label: 'Trade Kiosk', scene_key: 'market:kiosk' }, publicVisible: true }, makeRunEvent('MARKET LISTING', 'Hunter is working the trade kiosk.', 'patrol', 'market_listing'));
   }, [startAction]);
 
+  // Diorama callbacks — route primary/secondary buttons to context-aware actions
+  const onDioramaPrimary = useCallback(() => {
+    if (currentKind === 'roaming_loot') {
+      setShowAreaSelect(true);
+    } else if (currentKind === 'idle_standby' || currentKind === 'none') {
+      startRoam();
+    } else if ((currentKind === 'boss_prep' || currentKind === 'boss_fight') && prepBossTarget) {
+      startBossFight(prepBossTarget);
+    } else {
+      setShowSwitch(true);
+    }
+  }, [currentKind, startRoam, startBossFight, prepBossTarget]);
+
+  const onDioramaSecondary = useCallback(() => {
+    if (currentKind === 'boss_prep' || currentKind === 'boss_fight') {
+      onOpenBossSelect();
+    } else if (currentKind === 'roaming_loot') {
+      setShowAreaSelect(true);
+    } else {
+      setShowSwitch(true);
+    }
+  }, [currentKind, onOpenBossSelect]);
+
   const stopAction = useCallback(async () => {
     try {
       await activity.clear();
@@ -520,7 +543,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   }, [player.cacheKeyFragments, player.cacheKeys, pushEvents]);
 
   useEffect(() => {
-    if (!market.seeded) market.seedMarket();
+    // market.seeded / market.seedMarket are not on the current MarketState type;
+    // guard until the market store is wired. Pre-existing issue — not introduced here.
+    if (market.seeded === false && typeof (market as any).seedMarket === 'function') {
+      (market as any).seedMarket();
+    }
   }, [market]);
 
   useEffect(() => {
@@ -534,13 +561,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     gear: gearLookup[event.id],
     onInspect: gearLookup[event.id] ? () => setInspectGear(gearLookup[event.id]) : undefined,
   }));
-
-  const headerStats: ActionStat[] = [
-    { label: 'Target', value: targetLabel, tone: currentKind === 'idle_standby' || currentKind === 'none' ? 'muted' : 'amber' },
-    { label: 'Hunter HP', value: `${Math.round(survival.currentHp)}/${Math.round(survival.maxHp)}`, tone: survival.currentHp < survival.maxHp * 0.3 ? 'red' : survival.currentHp < survival.maxHp * 0.6 ? 'amber' : 'green' },
-    { label: 'Keys', value: `${player.cacheKeys} +${player.cacheKeyFragments}/5`, tone: 'cyan' },
-    { label: 'Tick', value: canTick ? `${TICK_SECONDS}s live` : 'paused', tone: canTick ? 'green' : 'muted' },
-  ];
 
   const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
 
@@ -568,17 +588,79 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
   return (
     <div className="bl-page space-y-3 p-3 pb-20">
+      {/* Title bar */}
       <div className="flex items-start justify-between gap-3">
-        <div><div className="bl-title text-3xl leading-none text-text-primary">Action</div><div className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted">contextual command workspace</div></div>
-        <div className="flex gap-2"><button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary px-3 py-2 text-[10px] font-black text-amber">Switch</button><button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary px-3 py-2 text-[10px] font-black text-red disabled:opacity-50">Stop</button></div>
+        <div>
+          <div className="bl-title text-3xl leading-none text-text-primary">Action</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted">contextual command workspace</div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary px-3 py-2 text-[10px] font-black text-amber">Switch</button>
+          <button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary px-3 py-2 text-[10px] font-black text-red disabled:opacity-50">Stop</button>
+        </div>
       </div>
 
-      <ActiveActionHeader kind={currentKind} title={detail.title} detail={detail.detail} target={targetLabel} elapsed={`${activeMinutes}m ${activeSeconds}s`} status={canTick ? 'LIVE' : currentKind === 'idle_standby' || currentKind === 'none' ? 'READY' : 'ACTIVE'} stats={headerStats} onManage={() => currentKind === 'roaming_loot' ? setShowAreaSelect(true) : setShowSwitch(true)} manageLabel={currentKind === 'roaming_loot' ? 'Change Route' : 'Manage Action'} />
-      <ActionStage kind={currentKind} className="mt-3" />
-      {cacheError && <div className="border-2 border-red/40 bg-red/10 p-2 text-xs font-bold text-red" style={smallClip}>{cacheError}</div>}
-      <ActionFeed entries={feedEntries} />
+      {/* 1. Diorama — dashboard animation at top */}
+      <LiveTurfDiorama
+        area={selectedArea}
+        weapon={activityWeapon}
+        bossName={prepBossTarget?.name}
+        bossWeaknessCount={currentBoss?.weaknesses.length ?? 0}
+        boss={currentKind === 'boss_prep' || currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : undefined}
+        playerLevel={player.level}
+        equippedCount={equippedCount}
+        cacheKeys={player.cacheKeys}
+        activityKind={currentKind}
+        activityLabel={detail.title}
+        activityTarget={targetLabel}
+        onFight={onDioramaPrimary}
+        onSecondary={onDioramaSecondary}
+        primaryActionLabel={
+          currentKind === 'idle_standby' || currentKind === 'none' ? 'Start Roam'
+          : currentKind === 'roaming_loot' ? 'Change Route'
+          : currentKind === 'boss_prep' ? 'Start Fight'
+          : 'Manage'
+        }
+        secondaryActionLabel={
+          currentKind === 'boss_prep' || currentKind === 'boss_fight' ? 'Choose Boss'
+          : currentKind === 'roaming_loot' ? 'Switch Area'
+          : 'Switch Action'
+        }
+      />
+
+      {/* 2. Loadout — star-pattern gear constellation */}
+      <ActionLoadout />
+
+      {/* 3. Compact status strip — HP / Keys / Tick */}
+      <div className="flex gap-2 text-[10px]">
+        <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
+          <span className="text-text-muted">HP </span>
+          <span className={`font-black ${survival.currentHp < survival.maxHp * 0.3 ? 'text-red' : survival.currentHp < survival.maxHp * 0.6 ? 'text-amber' : 'text-green'}`}>
+            {Math.round(survival.currentHp)}/{Math.round(survival.maxHp)}
+          </span>
+        </div>
+        <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
+          <span className="text-text-muted">Keys </span>
+          <span className="font-black text-cyan">{player.cacheKeys} +{player.cacheKeyFragments}/5</span>
+        </div>
+        <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
+          <span className="text-text-muted">Tick </span>
+          <span className={`font-black ${canTick ? 'text-green' : 'text-text-muted'}`}>
+            {canTick ? `${activeMinutes}m ${activeSeconds}s` : 'paused'}
+          </span>
+        </div>
+      </div>
+
+      {/* 4. Action-specific panel — above the feed where it's visible */}
       {workspace}
 
+      {/* 5. Cache error banner */}
+      {cacheError && <div className="border-2 border-red/40 bg-red/10 p-2 text-xs font-bold text-red" style={smallClip}>{cacheError}</div>}
+
+      {/* 6. Feed — loot log below the decision panels */}
+      <ActionFeed entries={feedEntries} />
+
+      {/* Drawers — unchanged */}
       <AnimatePresence>
         <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer instead of crowding the Action tab." onClose={() => setShowSwitch(false)}>
           {switchActions.map(({ label, detail: rowDetail, icon: Icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber"><Icon size={18} /></div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}

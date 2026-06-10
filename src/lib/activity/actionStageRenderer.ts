@@ -323,8 +323,21 @@ export function getStageAssetsForKind(
   overrides?: { targetSprite?: string }
 ) {
   const spec = getActionWorkspaceSpec(kind);
+  const assets = (spec as any).stageAssets as {
+    hunterSprite: string;
+    targetSprite?: string;
+    surfaceSprite?: string;
+    accentColor: string;
+    stageLabel: string;
+  } | undefined;
+  const defaults = {
+    hunterSprite: 'hunter_default',
+    accentColor: '#3a3a4a',
+    stageLabel: 'STANDBY',
+  };
   return {
-    ...spec.stageAssets,
-    targetSprite: overrides?.targetSprite ?? spec.stageAssets.targetSprite,
+    ...defaults,
+    ...assets,
+    targetSprite: overrides?.targetSprite ?? assets?.targetSprite,
   };
 }

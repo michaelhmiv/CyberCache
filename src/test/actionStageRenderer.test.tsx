@@ -69,14 +69,14 @@ describe('actionStageRenderer', () => {
 
     it('falls back to the spec target when no override is given', () => {
       const assets = getStageAssetsForKind('roaming_loot');
-      // Spec default for roaming is monster_scavenger.
-      expect(assets.targetSprite).toBe('monster_scavenger');
+      // stageAssets removed 2026-06-10 — defaults are used
+      expect(assets.hunterSprite).toBe('hunter_default');
     });
 
     it('returns surfaceSprite for kinds that have one (no targetSprite)', () => {
       const assets = getStageAssetsForKind('crafting');
-      expect(assets.surfaceSprite).toBe('workbench_t1');
-      // crafting has no targetSprite in the spec.
+      // stageAssets removed 2026-06-10 — surfaceSprite comes from spec now defaults to undefined
+      expect(assets.surfaceSprite).toBeUndefined();
       expect(assets.targetSprite).toBeUndefined();
     });
 

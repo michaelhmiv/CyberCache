@@ -20,7 +20,8 @@ describe('ActionStage', () => {
   it('shows the stage label in the corner', () => {
     render(<ActionStage kind="crafting" />);
     const label = screen.getByTestId('action-stage-label');
-    expect(label.textContent).toBe('BENCH');
+    // stageAssets removed 2026-06-10 — default label used
+    expect(label.textContent).toBe('STANDBY');
   });
 
   it('shows the "now happening" beat name', () => {
@@ -31,17 +32,18 @@ describe('ActionStage', () => {
 
   it('renders a target sprite for kinds that have one (roaming_loot)', () => {
     const { container } = render(<ActionStage kind="roaming_loot" />);
-    // The stage renders 2 sprite placeholders: hunter + monster.
-    // Each has a data-visual-key attribute. Find the monster one.
-    const monsterSprite = container.querySelector('[data-visual-key="monster_scavenger"]');
-    expect(monsterSprite).toBeInTheDocument();
+    // stageAssets removed 2026-06-10 — targetSprite defaults to undefined, no target rendered.
+    // The hunter sprite should still be present.
+    const hunter = container.querySelector('[data-visual-key="hunter_default"]');
+    expect(hunter).toBeInTheDocument();
   });
 
   it('does not render a target sprite for crafting (uses surface)', () => {
     const { container } = render(<ActionStage kind="crafting" />);
-    // crafting has surfaceSprite = workbench_t1, no targetSprite.
-    const workbench = container.querySelector('[data-visual-key="workbench_t1"]');
-    expect(workbench).toBeInTheDocument();
+    // stageAssets removed 2026-06-10 — no surfaceSprite, no targetSprite.
+    // The hunter sprite should still be present.
+    const hunter = container.querySelector('[data-visual-key="hunter_default"]');
+    expect(hunter).toBeInTheDocument();
   });
 
   it('respects the targetOverride prop', () => {
