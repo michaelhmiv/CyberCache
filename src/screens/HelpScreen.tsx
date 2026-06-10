@@ -148,7 +148,7 @@ const SECTIONS: HelpSection[] = [
   {
     id: 'loadout',
     title: 'Loadout',
-    blurb: 'Seven slots define the rig.',
+    blurb: 'Seven slots define the loadout.',
     icon: Shield,
     color: '#3B82F6',
     items: [

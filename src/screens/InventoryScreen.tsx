@@ -55,7 +55,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
 
         <div className="grid grid-cols-4 gap-2">
           <SummaryTile label="Items" value={inventory.items.length} sub={`${lockedCount} locked`} />
-          <SummaryTile label="Rig" value={`${equippedCount}/7`} sub="slots filled" />
+          <SummaryTile label="Loadout" value={`${equippedCount}/7`} sub="slots filled" />
           <SummaryTile label="Cash" value={player.credits.toLocaleString()} sub={`${player.scrap.toLocaleString()} scrap`} />
           <SummaryTile label="Jobs" value={queueCount} sub="bench" />
         </div>
