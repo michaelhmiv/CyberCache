@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Gem, Lock, PackageSearch, Scroll, Shield, ShoppingCart, Sparkles, Sword, X, Zap } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
+import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { RARITIES, rollQualityLabel } from '@/constants/rarities';
 import { calculateSalvageYield } from '@/constants/salvageRules';
 import { useBossStore, useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
@@ -51,11 +52,16 @@ function Tape({ title, icon: Icon, children }: { title: string; icon?: React.Ele
 }
 
 function Visual({ item, color }: { item: GearItem; color: string }) {
-  if (isWeapon(item)) {
-    return <motion.div className="relative flex h-48 items-center justify-center" animate={{ y: [0, -4, 0], rotate: [-1, 1, -1] }} transition={{ duration: 2.6, repeat: Infinity }}><div className="absolute inset-x-8 top-7 h-24 -rotate-6 bg-black/30 blur-xl" /><WeaponIllustration weapon={item} size="showcase" showBadges animate /></motion.div>;
-  }
-  const Icon = isShield(item) ? Shield : isClassMod(item) ? Scroll : isOrdnance(item) ? Zap : Gem;
-  return <motion.div className="flex h-48 items-center justify-center" animate={{ scale: [1, 1.05, 1], y: [0, -5, 0] }} transition={{ duration: 2.2, repeat: Infinity }}><div className="relative flex h-32 w-32 -rotate-3 items-center justify-center border-[5px] border-black bg-bg shadow-[10px_10px_0_rgba(0,0,0,0.45)]" style={panelClip}><div className="absolute inset-2 border-2" style={{ borderColor: color, clipPath: panelClip.clipPath }} /><motion.div className="absolute inset-5 opacity-20" style={{ backgroundColor: color, clipPath: panelClip.clipPath }} animate={{ opacity: [0.12, 0.28, 0.12] }} transition={{ duration: 1.4, repeat: Infinity }} /><Icon size={52} style={{ color }} /></div></motion.div>;
+  return (
+    <motion.div
+      className="relative flex h-48 items-center justify-center"
+      animate={isWeapon(item) ? { y: [0, -4, 0], rotate: [-1, 1, -1] } : { scale: [1, 1.03, 1], y: [0, -4, 0] }}
+      transition={{ duration: isWeapon(item) ? 2.6 : 2.2, repeat: Infinity }}
+    >
+      {isWeapon(item) && <div className="absolute inset-x-8 top-7 h-24 -rotate-6 bg-black/30 blur-xl" />}
+      <GearIllustration item={item} size="showcase" showBadges animate />
+    </motion.div>
+  );
 }
 
 function statRows(item: GearItem, bossRelativeDps?: number, bossName?: string): Array<[string, React.ReactNode, string?, number?]> {

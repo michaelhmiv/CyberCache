@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeftRight, Lock, ShoppingBag, Sword, Trash2, Unlock } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
-import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
+import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { RARITIES } from '@/constants/rarities';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import type { GearItem, Weapon } from '@/types/items';
@@ -96,7 +96,7 @@ export const GearYardScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         {items.map((item) => (
           <motion.button key={item.id} layout whileTap={{ scale: 0.98 }} onClick={() => setSelected(item)} className="relative flex w-full items-center gap-3 border border-border bg-surface p-3 text-left" style={{ borderLeftColor: colorOf(item), borderLeftWidth: 4 }}>
             <div className="flex h-14 w-14 shrink-0 items-center justify-center border border-border bg-bg">
-              {isWeapon(item) ? <WeaponIllustration weapon={item} size={54} showBadges={false} animate={false} /> : <span className="text-lg font-black" style={{ color: colorOf(item) }}>{kindOf(item)[0]}</span>}
+              <GearIllustration item={item} size={50} showBadges={false} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-black" style={{ color: colorOf(item) }}>{item.name}</div>

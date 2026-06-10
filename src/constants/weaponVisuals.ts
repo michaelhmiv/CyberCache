@@ -34,6 +34,10 @@ export interface WeaponTypeSilhouette {
   chamber?: string;
   muzzle?: string;
   mass: 'compact' | 'balanced' | 'long' | 'heavy' | 'energy';
+  /** Thin seam / panel-gap lines rendered as strokes (no fill). */
+  panelLines?: string;
+  /** Raised plates, rail mounts, structural reinforcement shapes. */
+  structural?: string;
 }
 
 export const MANUFACTURER_WEAPON_STYLES: Record<Manufacturer, ManufacturerWeaponStyle> = {
@@ -121,6 +125,8 @@ export const WEAPON_SILHOUETTES: Record<WeaponType, WeaponTypeSilhouette> = {
     chamber: 'M121 45 L145 48 L142 60 L118 61 Z',
     muzzle: 'M196 43 L219 45 L223 51 L216 58 L195 58 Z',
     mass: 'compact',
+    panelLines: 'M68 47 L119 42 M77 57 L127 53 M91 38 L131 36 M104 65 L118 65 M122 46 L142 49 M70 78 L85 92 M99 68 L115 86',
+    structural: 'M78 44 L115 40 L128 48 L121 61 L81 62 L72 53 Z',
   },
   [WeaponType.SMG]: {
     id: WeaponType.SMG,
@@ -136,6 +142,8 @@ export const WEAPON_SILHOUETTES: Record<WeaponType, WeaponTypeSilhouette> = {
     chamber: 'M129 45 L151 48 L147 61 L124 61 Z',
     muzzle: 'M205 42 L227 44 L230 50 L224 57 L205 57 Z',
     mass: 'balanced',
+    panelLines: 'M57 45 L124 40 M71 58 L139 50 M84 37 L140 35 M113 65 L135 65 M132 46 L149 49 M57 68 L41 57 M67 82 L78 98 M34 46 L50 58',
+    structural: 'M76 42 L120 38 L139 48 L130 62 L72 63 L65 53 Z M44 47 L55 46 L56 58 L46 61 Z',
   },
   [WeaponType.Shotgun]: {
     id: WeaponType.Shotgun,
@@ -151,6 +159,8 @@ export const WEAPON_SILHOUETTES: Record<WeaponType, WeaponTypeSilhouette> = {
     chamber: 'M116 45 L146 48 L142 62 L111 62 Z',
     muzzle: 'M205 37 L230 40 L234 48 L226 58 L205 58 Z',
     mass: 'heavy',
+    panelLines: 'M53 47 L120 42 M70 60 L133 53 M93 37 L131 36 M92 69 L135 69 M117 48 L143 50 M57 68 L39 60 M56 83 L70 98 M25 42 L48 51 M124 72 L107 78 M86 72 L80 78',
+    structural: 'M74 42 L118 38 L137 50 L127 64 L68 64 L60 53 Z M30 45 L52 45 L50 58 L25 66 Z',
   },
   [WeaponType.Sniper]: {
     id: WeaponType.Sniper,
@@ -166,6 +176,8 @@ export const WEAPON_SILHOUETTES: Record<WeaponType, WeaponTypeSilhouette> = {
     chamber: 'M116 45 L145 49 L141 61 L112 61 Z',
     muzzle: 'M218 42 L238 44 L240 49 L236 55 L218 55 Z',
     mass: 'long',
+    panelLines: 'M54 48 L115 43 M71 59 L131 52 M81 32 L137 31 M141 45 L217 44 M105 66 L124 66 M118 47 L143 50 M61 68 L42 58 M59 85 L74 97 M19 43 L52 47 M97 72 L91 88 M120 72 L105 89',
+    structural: 'M74 43 L113 40 L133 50 L125 62 L68 63 L60 53 Z M26 44 L52 45 L48 57 L18 67 Z M84 30 L132 29 L145 36 L137 43 L81 43 Z',
   },
   [WeaponType.Launcher]: {
     id: WeaponType.Launcher,
@@ -181,6 +193,8 @@ export const WEAPON_SILHOUETTES: Record<WeaponType, WeaponTypeSilhouette> = {
     chamber: 'M109 39 L154 42 L151 63 L105 64 Z',
     muzzle: 'M217 31 L239 37 L240 58 L219 67 Z',
     mass: 'heavy',
+    panelLines: 'M49 40 L153 35 M75 57 L185 47 M80 29 L138 27 M118 70 L148 70 M113 42 L152 46 M53 72 L29 63 M80 84 L90 103 M21 42 L43 43 M106 77 L99 99 M150 34 L213 35 M150 33 L186 48 M133 70 L125 101',
+    structural: 'M68 34 L148 30 L184 40 L175 63 L58 66 L40 54 Z M25 42 L44 40 L40 57 L20 70 Z',
   },
   [WeaponType.Beam]: {
     id: WeaponType.Beam,
@@ -196,6 +210,8 @@ export const WEAPON_SILHOUETTES: Record<WeaponType, WeaponTypeSilhouette> = {
     chamber: 'M114 42 L158 45 L151 65 L108 65 Z',
     muzzle: 'M195 33 L231 43 L234 49 L227 55 L195 60 Z',
     mass: 'energy',
+    panelLines: 'M57 47 L120 40 M73 60 L137 51 M131 39 L164 44 M86 34 L130 31 M100 68 L128 68 M115 44 L156 50 M59 67 L45 60 M55 83 L70 96 M29 47 L52 47 M91 72 L85 82 M124 72 L112 82 M141 35 L197 35',
+    structural: 'M76 43 L115 39 L138 48 L130 62 L72 63 L64 53 Z M35 46 L53 46 L53 58 L33 67 Z M118 43 L153 46 L148 60 L113 61 Z',
   },
 };
 

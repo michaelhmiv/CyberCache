@@ -104,7 +104,7 @@ function decalShape(index: number, affix: Affix): WeaponVisualDecal['shape'] {
   return index % 2 === 0 ? 'slash' : 'dot';
 }
 
-function buildDecals(affixes: Affix[] | undefined, seed: number, legendaryEffectId?: string): WeaponVisualDecal[] {
+export function buildDecals(affixes: Affix[] | undefined, seed: number, legendaryEffectId?: string): WeaponVisualDecal[] {
   const rng = seeded(seed ^ 0x9E3779B9);
   const decals = (affixes || []).slice(0, 5).map((affix, index) => ({
     id: affix.id || `${affix.category}-${index}`,

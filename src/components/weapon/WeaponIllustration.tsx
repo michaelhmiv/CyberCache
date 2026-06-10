@@ -2,6 +2,8 @@ import React from 'react';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
 import { buildWeaponVisualSpec, type WeaponVisualDecal, type WeaponVisualSpec } from '@/lib/weaponArt/buildWeaponVisualSpec';
+import { SharedDefs, surfaceFilterId } from '@/components/gearArt/SharedDefs';
+import { computeAttachPoints, barrelAttachments, sightAttachments, gripAttachments } from '@/lib/gearArt/partPlacement';
 
 export type WeaponIllustrationSize = 'thumb' | 'card' | 'showcase';
 
@@ -37,12 +39,13 @@ function toSize(size: WeaponIllustrationProps['size']) {
 }
 
 function fallbackSpec(props: WeaponIllustrationProps): WeaponVisualSpec {
+  const rar: Rarity | string = props.rarity ?? Rarity.Common;
   return buildWeaponVisualSpec({
     id: `preview-${props.type || WeaponType.Pistol}-${props.manufacturer || Manufacturer.Redline}-${props.element || Element.Kinetic}`,
     weaponType: props.type || WeaponType.Pistol,
     manufacturer: props.manufacturer || Manufacturer.Redline,
     element: props.element || Element.Kinetic,
-    rarity: props.rarity || Rarity.Common,
+    rarity: rar,
     pixelSeed: props.visualSeed || 1,
     rollQuality: 50,
     parts: [],
@@ -57,11 +60,59 @@ const innerStroke = {
   strokeLinecap: 'round' as const,
 };
 
-const Shape: React.FC<{ d?: string; fill: string; opacity?: number; strokeWidth?: number }> = ({ d, fill, opacity = 1, strokeWidth = 5 }) => {
+const Shape: React.FC<{ d?: string; fill: string; opacity?: number; strokeWidth?: number; filter?: string }> = ({ d, fill, opacity = 1, strokeWidth = 5, filter }) => {
   if (!d) return null;
-  return <path d={d} fill={fill} opacity={opacity} stroke="#000000" strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />;
+  return <path d={d} fill={fill} opacity={opacity} stroke="#000000" strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" filter={filter} />;
 };
 
+// ============================================================================
+// PANEL LINES — thin seam / panel-gap lines that make weapons look constructed
+// ============================================================================
+const PanelLines: React.FC<{ spec: WeaponVisualSpec; detail: number }> = ({ spec, detail }) => {
+  const panelLines = spec.silhouette.panelLines;
+  if (!panelLines || detail === 0) return null;
+  return (
+    <g fill="none" stroke="#000000" strokeWidth="1.5" opacity="0.45" strokeLinecap="round">
+      {panelLines.split(' M').map((segment, i) => {
+        const path = i === 0 ? segment : `M${segment}`;
+        return <path key={i} d={path} />;
+      })}
+    </g>
+  );
+};
+
+// ============================================================================
+// STRUCTURAL DETAIL — raised plates, rail mounts, reinforcement
+// ============================================================================
+const StructuralDetail: React.FC<{ spec: WeaponVisualSpec; detail: number }> = ({ spec, detail }) => {
+  const structural = spec.silhouette.structural;
+  if (!structural || detail === 0) return null;
+  const style = spec.manufacturerStyle;
+  return (
+    <g>
+      {structural.split(' M').map((segment, i) => {
+        const path = i === 0 ? segment : `M${segment}`;
+        return (
+          <path
+            key={i}
+            d={path}
+            fill={style.light}
+            opacity="0.55"
+            stroke="#000000"
+            strokeWidth="2.5"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            filter="url(#bevel-sm)"
+          />
+        );
+      })}
+    </g>
+  );
+};
+
+// ============================================================================
+// MANUFACTURER MOTIF — decorative pattern on weapon body
+// ============================================================================
 const StripeMotif: React.FC<{ spec: WeaponVisualSpec; detail: number }> = ({ spec, detail }) => {
   const style = spec.manufacturerStyle;
   if (detail === 0) return null;
@@ -113,83 +164,173 @@ const StripeMotif: React.FC<{ spec: WeaponVisualSpec; detail: number }> = ({ spe
   }
 };
 
+// ============================================================================
+// PART ATTACHMENTS — parameterized by silhouette geometry
+// ============================================================================
 const PartAttachments: React.FC<{ spec: WeaponVisualSpec; detail: number }> = ({ spec, detail }) => {
   const { partVariants: parts, manufacturerStyle: style, elementVisual } = spec;
   if (detail === 0) return null;
 
+  const barrels = barrelAttachments(spec);
+  const sights = sightAttachments(spec);
+  const grips = gripAttachments(spec);
+
   return (
     <g>
-      {parts.Barrel % 2 === 0 ? (
-        <path d="M162 31 L187 27 L195 34 L169 39 Z" fill={style.light} {...innerStroke} />
-      ) : (
-        <path d="M160 61 L192 62 L185 72 L155 69 Z" fill={style.dark} {...innerStroke} />
+      {/* Barrel attachment — 3 variants */}
+      {parts.Barrel % 3 < barrels.length && (
+        <path d={barrels[parts.Barrel % 3].d} fill={style.light} {...innerStroke} filter="url(#bevel-sm)" />
       )}
-      {parts.Sight > 1 && <path d="M101 23 L137 21 L146 31 L92 34 Z" fill={style.dark} {...innerStroke} />}
-      {parts.Magazine > 2 && <path d="M108 67 L141 67 L134 107 L101 106 Z" fill={style.dark} {...innerStroke} />}
-      {parts.Chamber > 1 && <circle cx="134" cy="53" r="13" fill={elementVisual.color} opacity="0.8" stroke="#000" strokeWidth="4" />}
-      {parts.Grip > 2 && <path d="M60 82 L83 81 L79 112 L55 109 Z" fill={style.dark} {...innerStroke} />}
-      {parts.Core > 2 && <path d="M83 45 L123 42 L132 52 L124 64 L82 65 L73 54 Z" fill={style.light} opacity="0.62" {...innerStroke} />}
+
+      {/* Sight attachment — 3 variants */}
+      {parts.Sight > 1 && parts.Sight % 3 < sights.length && (
+        <path d={sights[parts.Sight % 3].d} fill={style.dark} {...innerStroke} filter="url(#bevel-sm)" />
+      )}
+
+      {/* Magazine variant */}
+      {parts.Magazine > 2 && (
+        <path d={`M${spec.silhouette.anchor.x + 88} ${spec.silhouette.anchor.y + 37} L${spec.silhouette.anchor.x + 121} ${spec.silhouette.anchor.y + 37} L${spec.silhouette.anchor.x + 114} ${spec.silhouette.anchor.y + 74} L${spec.silhouette.anchor.x + 81} ${spec.silhouette.anchor.y + 73} Z`} fill={style.dark} {...innerStroke} />
+      )}
+
+      {/* Chamber glow — element-colored */}
+      {parts.Chamber > 1 && (
+        <circle cx={spec.silhouette.anchor.x + 116} cy={spec.silhouette.anchor.y + 23} r="13" fill={elementVisual.color} opacity="0.8" stroke="#000" strokeWidth="4" />
+      )}
+
+      {/* Grip variants */}
+      {parts.Grip > 2 && parts.Grip % 3 < grips.length && (
+        <path d={grips[parts.Grip % 3].d} fill={style.dark} {...innerStroke} filter="url(#bevel-sm)" />
+      )}
+
+      {/* Core plate — raised center reinforcement */}
+      {parts.Core > 2 && (
+        <path d={`M${spec.silhouette.anchor.x + 65} ${spec.silhouette.anchor.y + 15} L${spec.silhouette.anchor.x + 105} ${spec.silhouette.anchor.y + 12} L${spec.silhouette.anchor.x + 114} ${spec.silhouette.anchor.y + 22} L${spec.silhouette.anchor.x + 106} ${spec.silhouette.anchor.y + 34} L${spec.silhouette.anchor.x + 64} ${spec.silhouette.anchor.y + 35} L${spec.silhouette.anchor.x + 55} ${spec.silhouette.anchor.y + 24} Z`} fill={style.light} opacity="0.62" {...innerStroke} filter="url(#bevel-sm)" />
+      )}
     </g>
   );
 };
 
+// ============================================================================
+// INTEGRATED ELEMENT EFFECTS — element bleeds into weapon body, not just muzzle
+// ============================================================================
 const ElementEffect: React.FC<{ spec: WeaponVisualSpec; detail: number; animate: boolean }> = ({ spec, detail, animate }) => {
   const element = spec.element;
   const color = spec.elementVisual.color;
   const accent = spec.elementVisual.accentColor;
   const animatedClass = animate ? 'animate-pulse' : '';
+  const pts = computeAttachPoints(spec);
+  const cx = pts.chamberCenter.x;
+  const cy = pts.chamberCenter.y;
 
   switch (element) {
-    case Element.Fire:
+    case Element.Fire: {
+      // Fire bleeds from chamber forward along top rail, with heat vent glow
       return (
-        <g className={animatedClass} opacity="0.9">
-          <path d="M198 39 L220 48 L199 57 C207 49 204 44 198 39 Z" fill={accent} stroke="#000" strokeWidth="2" />
-          <path d="M189 43 L207 50 L190 56 C196 50 195 46 189 43 Z" fill={color} stroke="#000" strokeWidth="2" />
-          {detail > 1 && <path d="M72 73 C82 83 100 82 108 71" fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" />}
+        <g className={animatedClass} opacity="0.92">
+          {/* Chamber heat core */}
+          <circle cx={cx} cy={cy} r="10" fill={color} stroke="#000" strokeWidth="2" opacity="0.7" />
+          <circle cx={cx} cy={cy} r="5" fill={accent} opacity="0.9" />
+          {/* Heat veins along body toward barrel */}
+          <path d={`M${cx + 10} ${cy - 3} Q${cx + 30} ${cy - 14} ${pts.barrelTip.x - 20} ${pts.barrelTip.y - 8}`} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" opacity="0.7" />
+          <path d={`M${cx + 10} ${cy + 5} Q${cx + 28} ${cy + 18} ${pts.barrelTip.x - 16} ${pts.barrelTip.y}`} fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+          {/* Muzzle heat flare */}
+          <path d={`M${pts.barrelTip.x - 10} ${pts.barrelTip.y - 6} L${pts.barrelTip.x + 12} ${pts.barrelTip.y + 3} L${pts.barrelTip.x - 8} ${pts.barrelTip.y + 8} C${pts.barrelTip.x} ${pts.barrelTip.y - 1} ${pts.barrelTip.x - 4} ${pts.barrelTip.y - 2} ${pts.barrelTip.x - 10} ${pts.barrelTip.y - 6} Z`} fill={accent} stroke="#000" strokeWidth="2" />
+          {detail > 1 && <path d={`M${cx - 25} ${cy + 15} Q${cx - 10} ${cy + 28} ${cx + 15} ${cy + 22}`} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" opacity="0.5" />}
         </g>
       );
-    case Element.Shock:
+    }
+    case Element.Shock: {
+      // Shock: circuit traces along body + arcing at chamber and muzzle
       return (
-        <g fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" className={animatedClass}>
-          <path d="M172 33 L161 50 L178 48 L164 69" />
-          {detail > 0 && <path d="M104 35 L96 51 L111 49 L100 66" />}
+        <g fill="none" stroke={accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" className={animatedClass}>
+          {/* Chamber node */}
+          <circle cx={cx} cy={cy} r="6" fill={color} stroke="#000" strokeWidth="2" />
+          <circle cx={cx} cy={cy} r="3" fill={accent} />
+          {/* Arc paths from chamber to barrel */}
+          <path d={`M${cx + 5} ${cy - 4} L${cx + 25} ${cy - 12} L${pts.barrelTip.x - 18} ${pts.barrelTip.y - 10}`} />
+          <path d={`M${cx + 5} ${cy + 6} L${cx + 22} ${cy + 15} L${pts.barrelTip.x - 22} ${pts.barrelTip.y + 5}`} />
+          {detail > 0 && (
+            <>
+              <path d={`M${cx - 20} ${cy - 2} L${cx - 10} ${cy + 10}`} />
+              <path d={`M${pts.barrelTip.x - 8} ${pts.barrelTip.y - 6} L${pts.barrelTip.x + 6} ${pts.barrelTip.y + 4} L${pts.barrelTip.x - 2} ${pts.barrelTip.y + 12}`} />
+            </>
+          )}
         </g>
       );
-    case Element.Corrosive:
+    }
+    case Element.Corrosive: {
+      // Corrosive: acid drip marks from chamber, green staining on body
       return (
         <g className={animatedClass}>
-          <circle cx="173" cy="62" r="7" fill={color} stroke="#000" strokeWidth="3" />
-          <path d="M181 64 C187 75 178 80 172 71" fill={color} stroke="#000" strokeWidth="2" />
-          {detail > 0 && <circle cx="101" cy="68" r="4" fill={accent} stroke="#000" strokeWidth="2" />}
+          {/* Chamber acid pool */}
+          <ellipse cx={cx} cy={cy + 2} rx="10" ry="5" fill={color} stroke="#000" strokeWidth="2" opacity="0.6" />
+          {/* Drip trails down from chamber */}
+          <path d={`M${cx - 5} ${cy + 6} Q${cx - 7} ${cy + 18} ${cx - 4} ${cy + 22}`} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" opacity="0.7" />
+          <path d={`M${cx + 4} ${cy + 8} Q${cx + 6} ${cy + 20} ${cx + 3} ${cy + 26}`} fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+          {/* Acid-etched barrel ring */}
+          <ellipse cx={pts.barrelTip.x - 12} cy={pts.barrelTip.y} rx="6" ry="4" fill="none" stroke={color} strokeWidth="2" opacity="0.5" />
+          {detail > 0 && (
+            <>
+              <circle cx={cx - 20} cy={cy + 5} r="3" fill={accent} stroke="#000" strokeWidth="1.5" opacity="0.7" />
+              <circle cx={pts.barrelTip.x - 20} cy={pts.barrelTip.y - 3} r="2" fill={color} stroke="#000" strokeWidth="1.5" opacity="0.6" />
+            </>
+          )}
         </g>
       );
-    case Element.Cryo:
+    }
+    case Element.Cryo: {
+      // Cryo: frost creeping from chamber outward, ice crystal formations
       return (
         <g className={animatedClass} fill={accent} stroke="#000" strokeWidth="2" opacity="0.9">
-          <path d="M184 35 L196 42 L194 56 L181 62 L170 54 L172 40 Z" />
-          {detail > 0 && <path d="M123 32 L132 38 L130 50 L119 54 L110 47 L112 36 Z" fill={color} />}
+          {/* Frost core at chamber */}
+          <path d={`M${cx - 8} ${cy - 6} L${cx + 8} ${cy - 8} L${cx + 10} ${cy + 6} L${cx - 6} ${cy + 8} Z`} fill={color} />
+          {/* Ice crystal spikes on body */}
+          <path d={`M${cx - 18} ${cy - 4} L${cx - 8} ${cy - 10} L${cx - 12} ${cy}`} />
+          <path d={`M${cx + 14} ${cy - 10} L${cx + 6} ${cy - 2} L${cx + 18} ${cy + 2}`} />
+          {/* Frost on barrel */}
+          <path d={`M${pts.barrelTip.x - 24} ${pts.barrelTip.y - 6} L${pts.barrelTip.x - 16} ${pts.barrelTip.y - 12} L${pts.barrelTip.x - 20} ${pts.barrelTip.y} Z`} opacity="0.7" />
+          {detail > 0 && (
+            <path d={`M${cx - 5} ${cy + 10} L${cx + 12} ${cy + 14} L${cx + 8} ${cy + 20}`} fill={color} opacity="0.8" />
+          )}
         </g>
       );
-    case Element.Void:
+    }
+    case Element.Void: {
+      // Void: distortion ripples from chamber, glitch lines across body
       return (
         <g className={animatedClass} opacity="0.9">
-          <ellipse cx="151" cy="53" rx="18" ry="11" fill={color} stroke="#000" strokeWidth="4" />
-          <path d="M136 45 L165 62 M166 43 L139 64" stroke={accent} strokeWidth="3" strokeLinecap="round" />
-          {detail > 1 && <path d="M67 40 L86 40 M73 70 L96 70 M178 30 L204 30" stroke={color} strokeWidth="3" />}
+          {/* Chamber void core */}
+          <ellipse cx={cx} cy={cy} rx="12" ry="8" fill={color} stroke="#000" strokeWidth="3" />
+          {/* Distortion rings around chamber */}
+          <ellipse cx={cx} cy={cy - 1} rx="8" ry="5" fill="none" stroke={accent} strokeWidth="2" opacity="0.6" />
+          {/* Glitch lines radiating outward */}
+          <path d={`M${cx + 12} ${cy - 3} L${pts.barrelTip.x - 15} ${pts.barrelTip.y - 5} M${cx - 12} ${cy + 2} L${cx - 30} ${cy + 8}`} stroke={color} strokeWidth="3" strokeLinecap="round" />
+          <path d={`M${cx + 5} ${cy + 8} L${cx + 18} ${cy + 15} M${cx - 8} ${cy - 6} L${cx - 22} ${cy - 10}`} stroke={accent} strokeWidth="2" strokeLinecap="round" />
+          {detail > 1 && (
+            <>
+              <path d={`M${pts.barrelTip.x - 20} ${pts.barrelTip.y - 8} L${pts.barrelTip.x - 5} ${pts.barrelTip.y + 6}`} stroke={color} strokeWidth="2" />
+              <path d={`M${cx - 15} ${cy + 12} L${cx - 25} ${cy + 2}`} stroke={accent} strokeWidth="1.5" />
+            </>
+          )}
         </g>
       );
+    }
     case Element.Kinetic:
     default:
       return detail > 0 ? (
         <g stroke={accent} strokeWidth="2" opacity="0.42">
-          <path d="M70 49 L119 45" />
-          <path d="M80 61 L138 60" />
-          <path d="M151 47 L192 48" />
+          {/* Ballistic striations along barrel */}
+          <path d={`M${pts.topRail.x1} ${pts.topRail.y1} L${pts.topRail.x2 - 20} ${pts.topRail.y2}`} />
+          <path d={`M${pts.topRail.x1 + 8} ${pts.topRail.y1 + 8} L${pts.topRail.x2 - 15} ${pts.topRail.y2 + 5}`} />
+          <path d={`M${pts.barrelBase.x + 2} ${pts.barrelBase.y + 2} L${pts.barrelTip.x - 10} ${pts.barrelTip.y + 2}`} />
         </g>
       ) : null;
   }
 };
 
+// ============================================================================
+// DECAL — affix / rarity / legendary tag rendered on weapon surface
+// ============================================================================
 const Decal: React.FC<{ decal: WeaponVisualDecal }> = ({ decal }) => {
   const transform = `translate(${decal.x} ${decal.y}) rotate(${decal.rotate})`;
   if (decal.shape === 'tag') {
@@ -206,6 +347,9 @@ const Decal: React.FC<{ decal: WeaponVisualDecal }> = ({ decal }) => {
   return <circle cx={decal.x} cy={decal.y} r="5" fill={decal.color} stroke="#000" strokeWidth="2" />;
 };
 
+// ============================================================================
+// RARITY FRAME — border, glow, rarity badge
+// ============================================================================
 const RarityFrame: React.FC<{ spec: WeaponVisualSpec; detail: number }> = ({ spec, detail }) => {
   const frame = spec.rarityFrame;
   return (
@@ -223,26 +367,47 @@ const RarityFrame: React.FC<{ spec: WeaponVisualSpec; detail: number }> = ({ spe
   );
 };
 
+// ============================================================================
+// CONDITION MARKS — visual wear based on rollQuality
+// ============================================================================
 const ConditionMarks: React.FC<{ spec: WeaponVisualSpec; detail: number }> = ({ spec, detail }) => {
   if (detail === 0) return null;
   if (spec.condition === 'godroll') {
-    return <path d="M33 86 L52 78 L70 85 L53 94 Z" fill="#FFEA3A" stroke="#000" strokeWidth="3" />;
+    return (
+      <g>
+        <path d="M33 86 L52 78 L70 85 L53 94 Z" fill="#FFEA3A" stroke="#000" strokeWidth="3" />
+        <path d="M160 82 L178 76 L192 83 L176 90 Z" fill="#FFEA3A" stroke="#000" strokeWidth="2.5" />
+      </g>
+    );
   }
   if (spec.condition === 'mint') {
     return <path d="M35 88 L76 81" stroke="#F5F5F5" strokeWidth="3" strokeLinecap="round" opacity="0.75" />;
   }
-  if (spec.condition === 'beat-up' || spec.condition === 'field-used') {
+  if (spec.condition === 'clean') {
+    return <path d="M35 88 L60 83" stroke="#F5F5F5" strokeWidth="2" strokeLinecap="round" opacity="0.4" />;
+  }
+  if (spec.condition === 'field-used' || spec.condition === 'beat-up') {
+    const opacity = spec.condition === 'beat-up' ? 0.7 : 0.35;
     return (
-      <g stroke="#000" strokeWidth="3" opacity="0.7">
+      <g stroke="#000" strokeWidth="3" opacity={opacity}>
         <path d="M71 42 L83 51" />
         <path d="M112 62 L126 54" />
         <path d="M158 43 L170 51" />
+        {spec.condition === 'beat-up' && (
+          <>
+            <path d="M90 44 L98 52" />
+            <path d="M138 60 L148 52" />
+          </>
+        )}
       </g>
     );
   }
   return null;
 };
 
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 export const WeaponIllustration: React.FC<WeaponIllustrationProps> = ({
   weapon,
   type,
@@ -261,6 +426,8 @@ export const WeaponIllustration: React.FC<WeaponIllustrationProps> = ({
   const style = spec.manufacturerStyle;
   const frame = spec.rarityFrame;
   const filterId = `weapon-glow-${spec.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const surfFilter = surfaceFilterId(spec.manufacturerVisual.texture);
+  const decalCount = sizing.level === 0 ? 0 : sizing.level === 1 ? 3 : 5;
 
   return (
     <div
@@ -270,38 +437,81 @@ export const WeaponIllustration: React.FC<WeaponIllustrationProps> = ({
     >
       <svg viewBox="0 0 240 120" width="100%" height="100%" role="img" aria-label={`${spec.rarity} ${spec.element} ${spec.type}`}>
         <defs>
+          {/* Shared surface texture filters */}
+          <SharedDefs />
+
+          {/* Per-instance drop shadow for legendary/epic */}
           <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor={frame.color} floodOpacity="0.55" />
           </filter>
+
+          {/* Body gradient (fallback when no surface filter applies) */}
           <linearGradient id={`${filterId}-body`} x1="0" x2="1" y1="0" y2="1">
             <stop offset="0%" stopColor={style.light} />
             <stop offset="42%" stopColor={style.primary} />
             <stop offset="100%" stopColor={style.dark} />
           </linearGradient>
+
+          {/* Element gradient */}
           <linearGradient id={`${filterId}-element`} x1="0" x2="1">
             <stop offset="0%" stopColor={spec.elementVisual.color} />
             <stop offset="100%" stopColor={spec.elementVisual.accentColor} />
           </linearGradient>
         </defs>
 
+        {/* Rarity frame behind everything */}
         <RarityFrame spec={spec} detail={sizing.level} />
+
+        {/* Glow filter wrapper for legendary/epic */}
         <g filter={spec.rarity === Rarity.Legendary || spec.rarity === Rarity.Epic ? `url(#${filterId})` : undefined}>
+          {/* Manufacturer frame outline */}
           <Shape d={style.frameD} fill={style.dark} opacity={0.38} strokeWidth={4} />
+
+          {/* Silhouette layers — back to front */}
           <Shape d={silhouette.stock} fill={style.dark} />
           <Shape d={silhouette.grip} fill={style.dark} />
           <Shape d={silhouette.magazine} fill={style.dark} />
-          <Shape d={silhouette.body} fill={`url(#${filterId}-body)`} />
-          <Shape d={silhouette.chamber} fill={spec.element === Element.Kinetic ? style.light : `url(#${filterId}-element)`} opacity={0.92} strokeWidth={4} />
-          <Shape d={silhouette.barrel} fill={style.primary} />
+
+          {/* Body with surface texture filter if applicable */}
+          <Shape
+            d={silhouette.body}
+            fill={surfFilter ? style.primary : `url(#${filterId}-body)`}
+            opacity={surfFilter ? 0.95 : 1}
+            filter={surfFilter ? `url(#${surfFilter})` : undefined}
+          />
+
+          {/* Apply surface texture to chamber if same material */}
+          <Shape
+            d={silhouette.chamber}
+            fill={spec.element === Element.Kinetic ? style.light : (surfFilter ? spec.elementVisual.color : `url(#${filterId}-element)`)}
+            opacity={0.92}
+            strokeWidth={4}
+            filter={spec.element === Element.Kinetic && surfFilter ? `url(#${surfFilter})` : undefined}
+          />
+
+          <Shape d={silhouette.barrel} fill={style.primary} filter={surfFilter ? `url(#${surfFilter})` : undefined} />
           <Shape d={silhouette.muzzle} fill={style.dark} />
           <Shape d={silhouette.sight} fill={style.dark} strokeWidth={4} />
+
+          {/* Detail layers */}
+          <PanelLines spec={spec} detail={sizing.level} />
+          <StructuralDetail spec={spec} detail={sizing.level} />
           <PartAttachments spec={spec} detail={sizing.level} />
           <StripeMotif spec={spec} detail={sizing.level} />
+
+          {/* Element effect — now integrated into the body */}
           <ElementEffect spec={spec} detail={sizing.level} animate={animate} />
+
+          {/* Condition marks */}
           <ConditionMarks spec={spec} detail={sizing.level} />
-          {sizing.level > 0 && spec.decals.slice(0, sizing.level === 1 ? 3 : 5).map((decal) => <Decal key={decal.id} decal={decal} />)}
+
+          {/* Affix decals */}
+          {sizing.level > 0 && spec.decals.slice(0, decalCount).map((decal) => (
+            <Decal key={decal.id} decal={decal} />
+          ))}
         </g>
 
+        {/* Manufacturer / element / rarity badges */}
         {showBadges && sizing.level > 0 && (
           <g>
             <path d="M18 83 L55 83 L62 92 L55 101 L18 101 Z" fill={style.primary} stroke="#000" strokeWidth="3" />

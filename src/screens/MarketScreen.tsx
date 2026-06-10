@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, History, List, Search, ShoppingCart, Tag, Wallet, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
-import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
+import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useMarketStore, usePlayerStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
 import type { GearItem, Weapon } from '@/types/items';
@@ -62,7 +62,7 @@ function GearMiniCard({ item, right, onInspect }: { item: GearItem; right?: Reac
     <div className="flex items-center gap-3">
       <button type="button" onClick={onInspect} className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg">
-          {isWeapon(item) ? <WeaponIllustration weapon={item} size={50} showBadges={false} animate={false} /> : <span className="text-sm font-black" style={{ color }}>{itemKind(item)[0]}</span>}
+          <GearIllustration item={item} size={46} showBadges={false} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-black" style={{ color }}>{item.name}</div>
