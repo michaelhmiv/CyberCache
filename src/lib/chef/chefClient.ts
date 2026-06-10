@@ -20,6 +20,12 @@ export interface ChefClaimRequest {
   ticks: number;
   tickCount: number;
   playerLevel: number;
+  /** Idle economy modifiers from equipped weapons/relics (Phase 2d). */
+  idleMods?: {
+    offlineEarningsMod: number;
+    scrapYieldMod: number;
+    rareDropChanceMod: number;
+  };
   jwt?: string;
 }
 
