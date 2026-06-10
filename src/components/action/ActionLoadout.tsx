@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Crosshair, Shield, Zap, Diamond, Gem, Coins, Cpu } from 'lucide-react';
+import { ChevronDown, ChevronUp, Crosshair, Shield, Zap, Diamond, Gem } from 'lucide-react';
 import { useLoadoutStore, usePlayerStore, useInventoryStore } from '@/store';
 import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
@@ -189,14 +189,14 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
       loadout.setSlot(pickerSlot, itemId);
       setPickerSlot(null);
     }
-  }, [pickerSlot, loadout]);
+  }, [pickerSlot, loadout, setPickerSlot]);
 
   const onUnequip = useCallback(() => {
     if (pickerSlot) {
       loadout.setSlot(pickerSlot, null);
       setPickerSlot(null);
     }
-  }, [pickerSlot, loadout]);
+  }, [pickerSlot, loadout, setPickerSlot]);
 
   const currentItemId = pickerSlot ? loadout.slots[pickerSlot] : null;
 
