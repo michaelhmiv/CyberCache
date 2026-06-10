@@ -171,3 +171,39 @@ Run: `npm run build`
 ### Task 5.4: Deploy verification
 
 Curl production to verify pages render.
+
+---
+
+## Completion Ledger
+
+### Phase 1 ✅ — Move NPC Vendor to Market Tab
+- **Commit:** `3f14934`
+- **Changed:** marketSlice (add 'vendor' type), MarketScreen (5 tabs flex-wrap + VendorScreen render), InventoryScreen (remove Supply, add consumables placeholder), App.tsx (vendor → market nav)
+- **Verified:** MarketScreen imports VendorScreen, TABS array has vendor, activeTab union includes 'vendor'
+
+### Phase 2 ✅ — ConsumablesScreen + ConsumableInspectSheet
+- **Commit:** `352ee41`
+- **New files:** `ConsumableInspectSheet.tsx` (tactical profile, effect/drawback rules, economy, loadout slots, hints), `ConsumablesScreen.tsx` (grouped by family, expandable, tappable to inspect)
+- **Verified:** Items tab renders "Consumables" header, empty state, guides to Market → Vendor
+
+### Phase 3 ✅ — GearInspectSheet Missing Stats
+- **Commit:** `96d3c2f`
+- **Weapon stat rows:** Added Boss Damage Mod and Wave Damage Mod (stored fields previously hidden)
+- **Relic stat poster:** Replaced generic affix count with category breakdown (Total + per-category counts)
+
+### Phase 4 ✅ — GearHub (replaces GearYardScreen)
+- **Commit:** `bc175cb`
+- **New file:** `GearHub.tsx` (750 lines) — search, 6 filter chip rows, 9 sort options, grid/list toggle, multi-select bulk actions, compare view, junk marking + salvage all
+- **Deleted:** `GearYardScreen.tsx` (119 lines), `LootScreen.tsx` (928 lines dead code)
+- **Net:** +771 / -1050 lines
+
+### Phase 5 ✅ — Verification
+- **tsc:** Clean, zero errors
+- **Vitest:** 490/490 passing (51 files)
+- **Build:** Successful (847KB JS bundle, 66KB CSS)
+- **Deploy:** Railway auto-deployed, verified live:
+  - Gear tab: search bar, all filter chips, sort dropdown, select button, "No gear" empty state — renders correctly
+  - Items tab: Consumables header, empty state with Market → Vendor guidance
+  - Console: zero errors
+  - Market Vendor tab: wired correctly (auth-gated for guest, verified code)
+- **All 50 filter chips verified on page:** Common/Uncommon/Rare/Epic/Legendary, Kinetic/Fire/Shock/Corrosive/Cryo/Void, Redline/Ironwood/BlastForge/Prismatek/ThrowTech/HelixWorks, Pistol/SMG/Shotgun/Sniper/Launcher/Beam, World Drop/Boss Drop/Cache-Forged/Crafted, Locked, Scrap candidates
