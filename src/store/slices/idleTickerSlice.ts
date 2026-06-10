@@ -6,6 +6,8 @@ import {
   usePlayerStore,
   useCombatStatsStore,
   useSurvivalStore,
+  useSkillStore,
+  useLoadoutStore,
 } from '@/store';
 import {
   ROAMING_AREAS,
@@ -25,7 +27,7 @@ import {
   computeHealAmount,
   type WeaponDamageSource,
 } from '@/lib/combat/damageContract';
-import { loadoutSurvivalStats, loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
+import { loadoutSurvivalStats, loadoutEffectiveDps, equippedShieldRechargeRate, equippedShieldMitigation } from '@/lib/combat/loadoutSurvival';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
 import { pickNextTarget, xpForKill } from '@/lib/combat/killCycleHelpers';
 import { bossTick, bossDamagePerSecond } from '@/lib/combat/bossTick';
@@ -266,6 +268,19 @@ const applySurvivalTick = (areaId: string, ticks: number): TickEvent[] => {
     }
   }
 
+  // Shield recharge: per-tick regen (Phase 4).
+  const rechargeRate = equippedShieldRechargeRate();
+  if (rechargeRate > 0 && !useSurvivalStore.getState().isDead) {
+    const shieldProfile = useLoadoutStore.getState().getShield();
+    const shieldCap = shieldProfile?.hp ?? 0;
+    const rechargeAmount = rechargeRate * ticks * (TICK_MS / 1000);
+    const currentShield = useSurvivalStore.getState().shieldHp;
+    if (currentShield < shieldCap) {
+      const actualRecharge = Math.min(rechargeAmount, shieldCap - currentShield);
+      useSurvivalStore.getState().refillShield(actualRecharge);
+    }
+  }
+
   return events;
 };
 
@@ -350,7 +365,15 @@ const applyKillCycleTick = (areaId: string, ticks: number): TickEvent[] => {
       // KILL! The monster's HP just hit 0. Fire the kill event,
       // award XP, then spawn the next target.
       const killedId = useKillCycleStore.getState().killCurrentTarget();
-      const xp = xpForKill(monster);
+      // Relic xpBoostMod multiplies kill XP (Phase 5c).
+      let xpMult = 1;
+      const relic = useLoadoutStore.getState().getRelic();
+      if (relic) {
+        for (const affix of relic.affixes) {
+          if (affix.stat === 'xpBoostMod') xpMult += affix.value;
+        }
+      }
+      const xp = Math.round(xpForKill(monster) * xpMult);
       player.addXP(xp);
       events.push({
         id: '',
@@ -426,13 +449,15 @@ const applyBossFightTick = async (bossId: string): Promise<void> => {
   const playerDps = loadoutEffectiveDps();
 
   const medkitCount = player.getConsumableCount('MedKit');
+  const shieldMit = equippedShieldMitigation();
+  const effectiveBossDps = bossDamagePerSecond(boss) * (1 - Math.min(0.8, shieldMit));
   const result = bossTick({
     boss,
     currentBossHp: bossStore.activeBossHp,
     currentPlayerHp: survival.currentHp,
     currentPlayerShield: survival.shieldHp,
     playerDps,
-    bossDps: bossDamagePerSecond(boss),
+    bossDps: effectiveBossDps,
     maxPlayerHp: survival.maxHp,
     autoEatThreshold: survival.autoEatThreshold,
     medkitsAvailable: medkitCount,
@@ -542,6 +567,21 @@ const applyBossFightTick = async (bossId: string): Promise<void> => {
 
   if (events.length > 0) {
     useTickFeedStore.getState().push(events);
+  }
+
+  // Shield recharge: per-tick regen during boss fights (Phase 4).
+  if (result.status === 'ongoing') {
+    const rechargeRate = equippedShieldRechargeRate();
+    if (rechargeRate > 0) {
+      const shieldProfile = useLoadoutStore.getState().getShield();
+      const shieldCap = shieldProfile?.hp ?? 0;
+      const rechargeAmount = rechargeRate * (TICK_MS / 1000);
+      const currentShield = useSurvivalStore.getState().shieldHp;
+      if (currentShield < shieldCap) {
+        const actualRecharge = Math.min(rechargeAmount, shieldCap - currentShield);
+        useSurvivalStore.getState().refillShield(actualRecharge);
+      }
+    }
   }
 };
 
@@ -661,7 +701,9 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
         if (playerId) {
           const { submitClaim } = await import('@/lib/chef/chefClient');
           const loadout = useLoadoutStore.getState();
-          // Sum idle economy mods from equipped weapons (Phase 2d).
+          const skillBonuses = useSkillStore.getState().getBonuses();
+
+          // Sum idle economy mods from equipped weapons + relic (Phase 5c).
           const idleMods = {
             offlineEarningsMod: 0,
             scrapYieldMod: 0,
@@ -670,11 +712,21 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           for (const slot of ['primary', 'secondary', 'heavy'] as const) {
             const weapon = loadout.getWeapon(slot);
             if (weapon) {
-              idleMods.offlineEarningsMod += weapon.offlineEarningsMod;
-              idleMods.scrapYieldMod += weapon.scrapYieldMod;
-              idleMods.rareDropChanceMod += weapon.rareDropChanceMod;
+              idleMods.offlineEarningsMod += weapon.offlineEarningsMod || 0;
+              idleMods.scrapYieldMod += weapon.scrapYieldMod || 0;
+              idleMods.rareDropChanceMod += weapon.rareDropChanceMod || 0;
             }
           }
+          // Add relic affix contributions.
+          const relic = loadout.getRelic();
+          if (relic) {
+            for (const affix of relic.affixes) {
+              if (affix.stat === 'offlineEarningsMod') idleMods.offlineEarningsMod += affix.value;
+              if (affix.stat === 'scrapYieldMod') idleMods.scrapYieldMod += affix.value;
+              if (affix.stat === 'rareDropChanceMod') idleMods.rareDropChanceMod += affix.value;
+            }
+          }
+
           const chefResult = await submitClaim({
             playerId,
             areaId,
@@ -682,6 +734,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
             tickCount: totalTickCount,
             playerLevel: usePlayerStore.getState().level,
             idleMods,
+            skillBonuses,
           });
 
           // Apply canonical results from the Chef

@@ -85,11 +85,14 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
         bonuses[effectKey] = (bonuses[effectKey] || 0) + effectValue * points;
       }
     }
-    bonuses.dps = (bonuses.weaponDamage || 0) + (bonuses.critChance || 0) * 0.5 + (bonuses.critDamage || 0) * 0.5;
+    // Phase 3: composite keys for consumers.
+    bonuses.dps = (bonuses.weaponDamage || 0) + (bonuses.critChance || 0) * 0.5 + (bonuses.critDamage || 0) * 0.5 + (bonuses.attackSpeed || 0) * 0.3;
     bonuses.survival = (bonuses.shieldCapacity || 0) * 0.3 + (bonuses.staggerChance || 0) * 0.2;
     bonuses.shieldBreak = (bonuses.shieldDamageMod || 0) + (bonuses.ordnanceShieldBreak || 0);
     bonuses.armorBreak = (bonuses.armorDamageMod || 0) + (bonuses.explosiveArmorBreak || 0);
     bonuses.staggerChance = bonuses.staggerChance || 0;
+    // Wire ordnance + explosive damage into heavy attack bonus.
+    bonuses.heavyDamageBonus = (bonuses.ordnanceDamage || 0) * 0.4 + (bonuses.explosiveDamage || 0) * 0.6;
     return bonuses;
   },
 

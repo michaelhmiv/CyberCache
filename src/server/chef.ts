@@ -42,12 +42,14 @@ export interface ClaimRequest {
   ticks: number;
   tickCount: number; // monotonically increasing nonce
   playerLevel: number;
-  /** Idle economy modifiers from equipped weapons/relics. */
+  /** Idle economy modifiers from equipped gear. */
   idleMods?: {
     offlineEarningsMod: number;
     scrapYieldMod: number;
     rareDropChanceMod: number;
   };
+  /** Skill tree bonuses (Scavenger tree affects idle economy). */
+  skillBonuses?: Record<string, number>;
 }
 
 export interface ClaimResult {
@@ -94,16 +96,25 @@ const MATERIAL_THRESHOLD = 0.33; // 0.22 + 0.03 + 0.08
 export function processRoamingClaim(
   request: ClaimRequest,
 ): ClaimResult {
-  const { playerId, areaId, ticks: requestedTicks, tickCount, playerLevel, idleMods } = request;
+  const { playerId, areaId, ticks: requestedTicks, tickCount, playerLevel, idleMods, skillBonuses } = request;
 
   const area = getRoamingArea(areaId);
   const creditsPerTick = Math.round((area.idleCreditsPerMinute || 15) / 20);
   const scrapPerTick = Math.round((area.idleScrapPerMinute || 3) / 20);
   const xpPerTick = area.idleXpPerTick || 1.0;
 
-  // Apply idle economy modifiers from weapons/relics (Phase 2d).
-  const offlineMult = 1 + (idleMods?.offlineEarningsMod ?? 0);
-  const scrapMult = 1 + (idleMods?.scrapYieldMod ?? 0);
+  // Merge idle economy modifiers from gear + skill tree.
+  const gearOfflineMult = 1 + (idleMods?.offlineEarningsMod ?? 0);
+  const skillOfflineBonus = skillBonuses?.offlineEarnings || 0;
+  const offlineMult = gearOfflineMult + skillOfflineBonus;
+
+  const gearScrapMult = 1 + (idleMods?.scrapYieldMod ?? 0);
+  const skillScrapBonus = skillBonuses?.scrapYield || 0;
+  const scrapMult = gearScrapMult + skillScrapBonus;
+
+  // rareDropChance from gear + skills (structural wiring — threshold adjustment deferred)
+  const totalRareDropMod = (idleMods?.rareDropChanceMod ?? 0) + (skillBonuses?.rareDropChance || 0);
+
   const effectiveCreditsPerTick = Math.round(creditsPerTick * offlineMult);
   const effectiveScrapPerTick = Math.round(scrapPerTick * scrapMult);
 
@@ -126,10 +137,12 @@ export function processRoamingClaim(
     // Deterministic RNG — same tuple, same stream as the client preview
     const rng = createTickRng(playerId, areaId, tickCount - ticks + tickIdx + 1);
 
-    // Single cumulative roll (Phase 1a: no if/else-if probability distortion)
+    // Single cumulative roll (Phase 1a: no if/else-if probability distortion).
+    // rareDropChance mod increases the gear threshold linearly.
+    const gearThreshold = GEAR_THRESHOLD * (1 + totalRareDropMod);
     const roll = rng();
 
-    if (roll < GEAR_THRESHOLD) {
+    if (roll < gearThreshold) {
       // Gear drop — generate the actual item server-side
       const kind = rollAreaDropKind(area, rng);
       let gear: GearItem | undefined;
@@ -204,7 +217,7 @@ export function processRoamingClaim(
       });
     }
 
-    // Every tick awards base resources (with idle mods applied)
+    // Every tick awards base resources (with idle mods + skill bonuses applied)
     creditsAwarded += effectiveCreditsPerTick;
     scrapAwarded += effectiveScrapPerTick;
     xpAwarded += Math.round(xpPerTick);

@@ -383,7 +383,14 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     // immediately. The animation is purely visual.
     if (outcome.result.victory) {
       player.addCredits(outcome.creditsDelta);
-      player.addXP(boss.level * 20);
+      // Relic xpBoostMod multiplies boss kill XP (Phase 5c).
+      let xpMult = 1;
+      if (relic) {
+        for (const affix of relic.affixes) {
+          if (affix.stat === 'xpBoostMod') xpMult += affix.value;
+        }
+      }
+      player.addXP(Math.round(boss.level * 20 * xpMult));
       const wasNewDefeat = !bossStore.defeatedBossIds.includes(boss.id);
       bossStore.defeatBoss(boss.id);
       bossStore.resetPity(boss.id);

@@ -38,6 +38,11 @@ in screens or components is forbidden.
 | **Public profile activity** | `src/types/activity.ts` → `ActiveActivity.publicPayload` | Display-only; derived from activity store |
 | **Animation / diorama display** | `src/lib/animation/fightTimeline.ts` + `src/lib/activity/ActionStage.tsx` | Pure reads of gameplay state |
 | **DPS computation** | `src/lib/stats/dpsChain.ts` | See `docs/dps-chain-v2.md` |
+| **Skill tree bonuses** | `src/store/slices/skillSlice.ts` (`getBonuses`) | Flows into: roaming DPS (`loadoutSurvival`), Chef idle economy, boss sim, survival HP, stagger dodge |
+| **Skill → Chef economy** | `src/server/chef.ts` + `idleTickerSlice` | Skill tree Scavenger bonuses (offlineEarnings, scrapYield, rareDropChance) merged with weapon idle mods |
+| **Shield defense** (mitigation, recharge, element) | `src/lib/combat/loadoutSurvival.ts` + `damageContract.ts` | Mitigation reduces all incoming damage (capped 80%). Recharge regens shield per tick. Element match grants +15% resist. |
+| **Relic affixes** | `loadoutSlice.getRelic().affixes` summed in `idleTickerSlice` + `bossSimulator` | Idle mods → Chef; bossDamageMod/survivalBoost → boss sim; xpBoostMod → kill/boss XP |
+| **Ordnance damage** | `bossSimulator.ts` (ordnanceFlatDamage) | Ordnance raw damage reduces boss effective HP. Ordnance element modifies shield/armor break. |
 | **Supabase persistence** | `src/store/runtimeSupabaseSync.ts` + Chef RPCs | 500ms debounced snapshot + Chef direct writes |
 | **XP curve** | `src/content/simulation.ts` (`xpToNextLevel`) | Mirrored server-side in migration 057 |
 
@@ -253,4 +258,4 @@ Both use the same Mulberry32 RNG. Same seed = same item.
 
 ---
 
-*Last updated: 2026-06-10 — stabilization pass removing duplicate client engines.*
+*Last updated: 2026-06-10 — Phase 5: wired skill tree, shield defense, relic affixes, ordnance damage into all gameplay consumers.*

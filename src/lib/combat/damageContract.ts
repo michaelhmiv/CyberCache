@@ -40,6 +40,10 @@ export interface HunterSurvivalStats {
   dodgeChance?: number;
   /** 0-1 elemental resistance. Default 0. */
   elementalResist?: number;
+  /** 0-1 damage mitigation from equipped shield (reduces all incoming damage). */
+  mitigation?: number;
+  /** Shield element — provides extra resistance when matching monster element. */
+  shieldElement?: Element;
 }
 
 /**
@@ -92,9 +96,19 @@ export function computeMonsterDamageVsHunter(
     return { shieldAbsorbed: 0, hpDamage: 0, missed: true, fullyBlocked: false };
   }
   const variance = 0.85 + rng() * 0.3; // 0.85x to 1.15x
-  const elementalResist = hunter.elementalResist ?? 0;
+
+  // Elemental resistance: base resist + shield-element match bonus.
+  let elementalResist = hunter.elementalResist ?? 0;
+  if (hunter.shieldElement && monster.element === hunter.shieldElement) {
+    elementalResist += 0.15; // matching shield element grants +15% resist
+  }
   const elementMult = monster.element ? Math.max(0.1, 1 - elementalResist) : 1;
-  const raw = Math.floor(monster.attackPower * variance * elementMult);
+
+  // Shield mitigation: flat % damage reduction (capped at 80%).
+  const mitigation = Math.min(0.8, hunter.mitigation ?? 0);
+  const mitigationMult = 1 - mitigation;
+
+  const raw = Math.floor(monster.attackPower * variance * elementMult * mitigationMult);
   const shieldAbsorbed = Math.min(hunter.shieldHp, raw);
   const hpDamage = Math.max(0, raw - shieldAbsorbed);
   return {
