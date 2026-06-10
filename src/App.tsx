@@ -8,6 +8,7 @@ import { InventoryScreen } from './screens/InventoryScreen';
 import { MarketScreen } from './screens/MarketScreen';
 import { ChestScreen } from './screens/ChestScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { TabErrorBoundary } from './components/layout/TabErrorBoundary';
 import { DeathOverlay } from './components/action/DeathOverlay';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HelpScreen } from './screens/HelpScreen';
@@ -180,15 +181,17 @@ function App() {
         renderSubScreen()
       ) : (
         <ScreenWrapper activeTab={activeTab}>
-          {activeTab === 'dashboard' && <DashboardScreen onNavigate={handleNavigate} />}
-          {activeTab === 'fight' && <ActionScreenContextual onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} />}
-          {activeTab === 'inventory' && <InventoryScreen onNavigate={handleNavigate} />}
+          {activeTab === 'dashboard' && <TabErrorBoundary surface="Dashboard"><DashboardScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
+          {activeTab === 'fight' && <TabErrorBoundary surface="Action"><ActionScreenContextual onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} /></TabErrorBoundary>}
+          {activeTab === 'inventory' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
           {activeTab === 'market' && (
-            <FeatureGate feature="market">
-              <MarketScreen />
-            </FeatureGate>
+            <TabErrorBoundary surface="Market">
+              <FeatureGate feature="market">
+                <MarketScreen />
+              </FeatureGate>
+            </TabErrorBoundary>
           )}
-          {activeTab === 'profile' && <ProfileScreen onNavigate={handleNavigate} />}
+          {activeTab === 'profile' && <TabErrorBoundary surface="Profile"><ProfileScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
         </ScreenWrapper>
       )}
 

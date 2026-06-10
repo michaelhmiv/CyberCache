@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNow } from '@/hooks/useNow';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -43,11 +43,8 @@ import { computeFightPower } from '@/lib/stats/fightPower';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import {
   ROAMING_AREAS,
-  buildAreaWeaponDropOptions,
   getRoamingArea,
   isRoamingAreaUnlocked,
-  rollAreaDropKind,
-  rollAreaMaterialFind,
   type RoamingAreaDef,
 } from '@/constants/roamingAreas';
 import { calculateSalvageYield } from '@/constants/salvageRules';
@@ -59,7 +56,8 @@ import {
   buildSalvagingActivity,
 } from '@/lib/activity/activityBuilders';
 import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
-import { makeRunEvent, sortRunEventsByVisualPriority, type RunVisualEvent } from '@/lib/run/runEvents';
+import { makeRunEvent, type RunVisualEvent } from '@/lib/run/runEvents';
+import { useTickFeedStore } from '@/store/slices/tickSlice';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/supabase/serverItemAdapter';
 import type { ActivityKind, StartActivityInput } from '@/types/activity';
@@ -363,11 +361,20 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showMarketPicker, setShowMarketPicker] = useState(false);
   const [prepBoss, setPrepBoss] = useState<BossDef | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  // Display-only timer: increments elapsed once per second for the UI clock.
+  // The actual reward tick is handled by the singleton ticker in idleTickerSlice.
+  useEffect(() => {
+    if (!canTick) return undefined;
+    const iv = window.setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => window.clearInterval(iv);
+  }, [canTick]);
+  // Tick feed events from the canonical ticker — the single source of truth
+  // for roaming rewards. The Action screen is a consumer, not an engine.
+  const tickEvents = useTickFeedStore((s) => s.events);
   const [feed, setFeed] = useState<RunVisualEvent[]>([idleEvent]);
   const [gearLookup, setGearLookup] = useState<Record<string, GearItem>>({});
   const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
   const [cacheError, setCacheError] = useState<string | null>(null);
-  const prevLevelRef = useRef(player.level);
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
@@ -401,7 +408,15 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const scrapPerTick = Math.round((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0)));
   const targetLabel = activity.current.targetLabel ?? (currentKind === 'idle_standby' || currentKind === 'none' ? 'No target selected' : selectedArea.name);
   const detail = copy[currentKind] ?? copy.idle_standby;
-  const visualFeed = currentKind === 'idle_standby' || currentKind === 'none' ? feed : feed.filter((event) => event.id !== 'idle-loop-ready');
+  // Merge tick-feed events (from the canonical ticker) with lifecycle events
+  // (action start/stop, cache open). The ticker is the single source of truth
+  // for roaming rewards; the Action screen is a consumer, not an engine.
+  const tickDisplayEvents: Array<{ id: string; label: string; detail: string; tone: string; eventType?: string; value?: number; areaId?: string }> = tickEvents
+    .filter((e) => !e.areaId || e.areaId === selectedArea.id)
+    .slice(0, LOG_LIMIT);
+  const visualFeed = (currentKind === 'idle_standby' || currentKind === 'none')
+    ? feed
+    : [...tickDisplayEvents, ...feed.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT);
   const bosses = REGION_1_BOSSES.filter((boss) => bossStore.unlockedBossIds.includes(boss.id) || boss.level <= player.level + 5).slice(0, 8);
   const benchesFree = Math.max(0, workshop.unlockedBenchCount - new Set(workshop.activeQueues.map((q) => q.benchId)).size);
   const sellableItems = inventory.items.filter((item) => !item.isLocked);
@@ -412,7 +427,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const openCacheDetail = player.cacheKeys > 0 ? `${player.cacheKeys} keys ready` : `Need ${5 - player.cacheKeyFragments} fragments`;
 
   const pushEvents = useCallback((events: RunVisualEvent[]) => {
-    setFeed((current) => [...sortRunEventsByVisualPriority(events), ...current.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT));
+    setFeed((current) => [...events, ...current.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT));
   }, []);
 
   const startAction = useCallback(async (input: StartActivityInput, event: RunVisualEvent) => {
@@ -485,17 +500,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     }
   }, [activity, idle, pushEvents]);
 
-  const createDrop = useCallback(() => {
-    const kind = rollAreaDropKind(selectedArea);
-    let item: GearItem;
-    if (kind === 'weapon') item = inventory.generateAndAdd(buildAreaWeaponDropOptions(selectedArea, player.level));
-    else if (kind === 'shield') item = inventory.generateAndAddShield(player.level);
-    else if (kind === 'classMod') item = inventory.generateAndAddClassMod(player.level);
-    else if (kind === 'relic') item = inventory.generateAndAddRelic(player.level);
-    else item = inventory.generateAndAddOrdnance(player.level);
-    return item;
-  }, [inventory, player.level, selectedArea]);
-
   const openCache = useCallback(async () => {
     setCacheError(null);
     if (player.cacheKeys <= 0) {
@@ -522,39 +526,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   useEffect(() => {
     if (!market.seeded) market.seedMarket();
   }, [market]);
-
-  useEffect(() => {
-    if (player.level > prevLevelRef.current) pushEvents([makeRunEvent(`LEVEL ${player.level}`, 'XP crossed the next level threshold.', 'level', 'level_up')]);
-    prevLevelRef.current = player.level;
-  }, [player.level, pushEvents]);
-
-  useEffect(() => {
-    if (!canTick) return undefined;
-    const iv = window.setInterval(() => {
-      setElapsed((e) => e + 1);
-      const events: RunVisualEvent[] = [];
-      const drop = Math.random() < DROP_CHANCE_PER_TICK ? createDrop() : null;
-      const cacheFound = Math.random() < CACHE_FRAGMENT_CHANCE_PER_TICK;
-      const materialFound = Math.random() < MATERIAL_FIND_CHANCE_PER_TICK;
-      if (cacheFound) { player.addCacheKeyFragments(1); events.push(makeRunEvent('CACHE FRAGMENT', `${selectedArea.enemyType} patrol yielded a cache key fragment.`, 'cache', 'cache_fragment')); }
-      if (drop) {
-        const event = makeRunEvent('GEAR DROP', `${drop.name} (${describeGear(drop)}) dropped in ${selectedArea.name}.`, 'loot', 'gear_drop');
-        setGearLookup((current) => ({ ...current, [event.id]: drop }));
-        events.push(event);
-      }
-      if (!drop && !cacheFound && materialFound) {
-        const find = rollAreaMaterialFind(selectedArea);
-        if (find?.kind === 'material') { player.addMaterial(find.type, 1); events.push(makeRunEvent('MATERIAL FIND', `${find.type} recovered while sweeping ${selectedArea.name}.`, 'loot', 'material_find')); }
-        if (find?.kind === 'essence') { player.addEssence(find.type, 1); events.push(makeRunEvent('ESSENCE FIND', `${find.type} essence recovered while sweeping ${selectedArea.name}.`, 'loot', 'material_find')); }
-      }
-      player.addCredits(creditsPerTick);
-      player.addScrap(scrapPerTick);
-      player.addXP(1);
-      if (!events.length) events.push(makeRunEvent('ENEMY SWEEP', `${selectedArea.enemyType} routed. +1 XP / +${creditsPerTick}cr / +${scrapPerTick} scrap.`, 'xp', 'enemy_sweep'));
-      pushEvents(events);
-    }, TICK_SECONDS * 1000);
-    return () => window.clearInterval(iv);
-  }, [canTick, createDrop, creditsPerTick, player, pushEvents, scrapPerTick, selectedArea]);
 
   useEffect(() => {
     if (!canTick) return undefined;
