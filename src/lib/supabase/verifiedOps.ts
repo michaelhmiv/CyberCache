@@ -18,6 +18,44 @@ const rpc = async (fn: string, args: Record<string, unknown>): Promise<VerifiedR
   return result;
 };
 
+const isMissingRpcError = (error: unknown, fn: string): boolean => {
+  const record = error as { code?: string; message?: string; details?: string };
+  const text = `${record.code ?? ''} ${record.message ?? ''} ${record.details ?? ''}`.toLowerCase();
+  return text.includes(fn.toLowerCase()) && (text.includes('404') || text.includes('not found') || text.includes('could not find') || text.includes('pgrst202'));
+};
+
+const claimRoamingRewards = async (input: { ticks: number; areaId: string }): Promise<VerifiedResult> => {
+  try {
+    return await rpc('cc_claim_roaming_rewards', {
+      nonce: requestId(`roam:${input.areaId}`),
+      ticks: input.ticks,
+      area_id: input.areaId,
+    });
+  } catch (error) {
+    if (!isMissingRpcError(error, 'cc_claim_roaming_rewards')) throw error;
+
+    // Backward-compatible fallback for environments where the migration that
+    // adds cc_claim_roaming_rewards has not been applied yet. This prevents the
+    // 3s ticker from repeatedly calling a missing RPC and gives the app a
+    // server-verified profile sync path until the DB migration lands.
+    const fallback = await rpc('cc_idle_claim', { nonce: requestId(`idle-roam:${input.areaId}`) });
+    const rewards = fallback.rewards && typeof fallback.rewards === 'object'
+      ? fallback.rewards as Record<string, unknown>
+      : {};
+
+    return {
+      ...fallback,
+      action_type: 'cc_claim_roaming_rewards:fallback',
+      xp_awarded: Number(rewards.xp ?? 0),
+      credits_awarded: Number(rewards.credits ?? 0),
+      scrap_awarded: 0,
+      cache_fragments_awarded: 0,
+      materials: {},
+      essences: {},
+    };
+  }
+};
+
 export const verifiedOps = {
   initialBundle: () => rpc('cc_initial_bundle', { nonce: requestId('initial') }),
   makeItem: () => rpc('cc_make_item', { nonce: requestId('make') }),
@@ -36,6 +74,5 @@ export const verifiedOps = {
   acceptItemService: (jobId: string, priceCredits: number, durationMinutes = 60) => rpc('cc_item_service_accept', { nonce: requestId('service-accept'), job_id: jobId, price_credits: priceCredits, duration_minutes: durationMinutes }),
   finishItemService: (jobId: string) => rpc('cc_item_job_finish', { nonce: requestId('service-finish'), job_id: jobId }),
   resetProgress: () => rpc('cc_reset_progress', { nonce: requestId('reset') }),
-  claimRoamingRewards: (input: { ticks: number; areaId: string }) =>
-    rpc('cc_claim_roaming_rewards', { nonce: requestId(`roam:${input.areaId}`), ticks: input.ticks, area_id: input.areaId }),
+  claimRoamingRewards,
 };
