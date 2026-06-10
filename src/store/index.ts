@@ -10,6 +10,7 @@ import { useActivityStore } from './slices/activitySlice';
 import { useTickFeedStore } from './slices/tickSlice';
 import { useIdleTickerStore, mountIdleTicker, unmountIdleTicker } from './slices/idleTickerSlice';
 import { useCombatStatsStore, combatStatsSelectors } from './slices/combatStatsSlice';
+import { useSurvivalStore } from './slices/survivalSlice';
 export { combatStatsSelectors };
 
 export {
@@ -27,4 +28,5 @@ export {
   mountIdleTicker,
   unmountIdleTicker,
   useCombatStatsStore,
+  useSurvivalStore,
 };
