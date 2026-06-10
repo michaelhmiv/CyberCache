@@ -29,6 +29,12 @@ export type DpsContext = {
    * Default 1.0 (= every fight, the weapon is always firing).
    */
   ammoEfficiency?: number;
+  /**
+   * Per-weapon boss damage modifier. Added multiplicatively at the end
+   * of the chain so the sim doesn't need to re-multiply after the
+   * chain returns. Default 0 (= no boss damage bonus).
+   */
+  bossDamageMod?: number;
 };
 
 /**
@@ -81,6 +87,7 @@ function consumableMultiplier(consumables: Record<string, number> | undefined): 
  *   4. Element matchup vs boss weakness / resistance (3-state counter table)
  *   5. Ammo-window efficiency (caller-provided, default 1.0)
  *   6. Pre-fight consumables (DPS-relevant subset, see DPS_CONSUMABLE_EFFECTS)
+ *   7. Per-weapon boss damage modifier (default 0)
  *
  * The chain knows nothing about per-slot contribution (secondary × 0.3,
  * heavy × 0.5) or risk/skill bonuses — those are loadout-decision and
@@ -94,6 +101,7 @@ export function computeWeaponDps(ctx: DpsContext): number {
     consumables = {},
     legendaryDamageMult = 1,
     ammoEfficiency = 1,
+    bossDamageMod = 0,
   } = ctx;
   // Step 1: Raw DPS from base stats.
   const rawDps = weapon.baseDamage * weapon.attackSpeed * (1 + weapon.critChance * weapon.critDamage);
@@ -118,7 +126,8 @@ export function computeWeaponDps(ctx: DpsContext): number {
   const ammoDps = elementalDps * ammoEfficiency;
   // Step 6: Pre-fight consumables. Only the keys in
   // DPS_CONSUMABLE_EFFECTS contribute; everything else is a no-op.
-  return ammoDps * consumableMultiplier(consumables);
+  // Step 7: Per-weapon boss damage modifier (multiplicative at end).
+  return ammoDps * consumableMultiplier(consumables) * (1 + bossDamageMod);
 }
 
 /**

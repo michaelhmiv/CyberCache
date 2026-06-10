@@ -52,7 +52,7 @@ export function loadoutEffectiveDps(): number {
   for (const slot of slots) {
     const weapon = loadout.getWeapon(slot);
     if (weapon) {
-      total += computeStandardDps(weapon);
+      total += computeStandardDps(weapon) * (1 + weapon.waveDamageMod);
     }
   }
   return total;
