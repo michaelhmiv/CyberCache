@@ -5,6 +5,8 @@ import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { RARITIES } from '@/constants/rarities';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
+import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
+import { calculateSalvageYield } from '@/constants/salvageRules';
 import type { GearItem, Weapon } from '@/types/items';
 import { Rarity } from '@/types/game';
 
@@ -59,9 +61,12 @@ export const GearYardScreen: React.FC<{ onNavigate?: (screen: string) => void }>
 
   const scrap = (item: GearItem) => {
     const result = inventory.scrapItem(item.id);
+    const yield_ = calculateSalvageYield(item); // full yield for toast
     player.addScrap(result.scrapValue);
     Object.entries(result.materials).forEach(([type, count]) => count > 0 && player.addMaterial(type, count));
     Object.entries(result.essences).forEach(([type, count]) => count > 0 && player.addEssence(type, count));
+    // Fire salvage toast
+    useSalvageFeedStore.getState().push(item, yield_);
     setSelected(null);
   };
 

@@ -5,6 +5,7 @@ import {
   Gem, Zap, Scroll, ArrowLeftRight, AlertTriangle, Hammer,
 } from 'lucide-react';
 import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
+import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import {
   GearItem, Weapon, Shield as ShieldType, ClassMod, Relic, Ordnance, Affix,
 } from '@/types/items';
@@ -352,6 +353,12 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
 
   const handleScrap = useCallback(
     (id: string) => {
+      const item = allItems.find((i) => i.id === id);
+      if (item) {
+        // Fire salvage toast before scrapping
+        const yield_ = calculateSalvageYield(item);
+        useSalvageFeedStore.getState().push(item, yield_);
+      }
       const { scrapValue, materials, essences } = inventory.scrapItem(id);
       player.addScrap(scrapValue);
       if (materials) {
@@ -367,7 +374,7 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
       setSelected(null);
       setConfirmScrap(false);
     },
-    [inventory, player],
+    [inventory, player, allItems],
   );
 
   const handleBulkScrap = useCallback(() => {
@@ -376,6 +383,9 @@ export const LootScreen: React.FC<{ onNavigate?: (screen: string) => void }> = (
     );
     let totalScrap = 0;
     scrapTargets.forEach((item) => {
+      // Fire salvage toast before scrapping
+      const yield_ = calculateSalvageYield(item);
+      useSalvageFeedStore.getState().push(item, yield_);
       const { scrapValue, materials, essences } = inventory.scrapItem(item.id);
       totalScrap += scrapValue;
       if (materials) {

@@ -9,10 +9,10 @@
  *   Row 2:   Shield     ★PRIMARY★    Class Mod
  *   Row 3:   (empty)    Relic         Ordnance
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Crosshair, Shield, Zap, Diamond, Gem } from 'lucide-react';
-import { useLoadoutStore, usePlayerStore } from '@/store';
+import { ChevronDown, ChevronUp, Crosshair, Shield, Zap, Diamond, Gem, Coins, Cpu } from 'lucide-react';
+import { useLoadoutStore, usePlayerStore, useInventoryStore } from '@/store';
 import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
@@ -150,13 +150,31 @@ const SlotChip: React.FC<{
 
 export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) => {
   const loadout = useLoadoutStore();
+  const player = usePlayerStore();
+  const inventory = useInventoryStore();
+  // Subscribe to consumable changes so the chips re-render
   usePlayerStore((s) => s.consumables);
-
-  const [collapsed, setCollapsed] = useState(readCollapsed);
-  const [pickerSlot, setPickerSlot] = useState<LoadoutSlot | null>(null);
+  useLoadoutStore((s) => s.consumables);
 
   const dps = loadoutEffectiveDps();
   const equippedCount = Object.values(loadout.slots).filter(Boolean).length;
+  const emptyLoadout = equippedCount === 0;
+
+  // Auto-expand when loadout is empty — the player needs to see what to fill.
+  const [collapsed, setCollapsed] = useState(() => {
+    if (emptyLoadout) return false; // always expand for empty loadout
+    return readCollapsed();
+  });
+
+  // Resource summary: always visible
+  const resourceStats = useMemo(() => [
+    { label: 'Credits', value: player.credits.toLocaleString(), tone: 'text-cyan' as const },
+    { label: 'Scrap', value: player.scrap.toLocaleString(), tone: 'text-green' as const },
+    { label: 'Items', value: inventory.items.length, tone: 'text-amber' as const },
+    { label: 'Keys', value: `${player.cacheKeys}+${player.cacheKeyFragments}`, tone: 'text-purple' as const },
+  ], [player.credits, player.scrap, player.cacheKeys, player.cacheKeyFragments, inventory.items.length]);
+
+  const [pickerSlot, setPickerSlot] = useState<LoadoutSlot | null>(null);
 
   const toggle = useCallback(() => {
     setCollapsed((prev) => {
@@ -198,7 +216,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
           <Crosshair size={15} className="text-amber shrink-0" />
           <div>
             <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Loadout</div>
-            <div className="text-sm font-black text-text-primary">Gear Constellation</div>
+            <div className="text-sm font-black text-text-primary">{equippedCount}/7 Gear</div>
           </div>
         </button>
         <div className="flex items-center gap-2">
@@ -219,16 +237,25 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
         </div>
       </div>
 
+      {/* Resource summary — always visible, compact row */}
+      <div className="mt-2 flex gap-1.5">
+        {resourceStats.map(({ label, value, tone }) => (
+          <div key={label} className="flex-1 border border-border/60 bg-bg/40 px-1.5 py-1 text-center" style={signClip}>
+            <div className="text-[7px] font-black uppercase tracking-wider text-text-muted">{label}</div>
+            <div className={`text-[10px] font-black truncate ${tone}`}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Consumables — always visible, not hidden in collapsed/expanded blocks */}
+      <div className="mt-2">
+        <ConsumablesChips className="text-[9px]" />
+      </div>
+
       {/* Collapsed summary strip */}
       {collapsed && (
-        <div className="mt-2 space-y-2">
+        <div className="mt-2">
           <PresetSwitcher />
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
-            <span className="font-black text-text-primary">{equippedCount}/7 equipped</span>
-            <span className="text-text-muted">DPS {dps > 0 ? dps.toFixed(0) : '—'}</span>
-            <div className="flex-1" />
-            <ConsumablesChips className="text-[9px]" />
-          </div>
         </div>
       )}
 
@@ -266,10 +293,6 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
                   );
                 })}
               </div>
-            </div>
-
-            <div className="mt-2 pt-2 border-t border-border/50">
-              <ConsumablesChips />
             </div>
           </motion.div>
         )}

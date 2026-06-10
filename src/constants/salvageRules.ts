@@ -13,10 +13,10 @@ export interface SalvageYield {
 
 const RARITY_MULTIPLIERS: Record<string, number> = {
   Common: 1.0,
-  Uncommon: 1.5,
-  Rare: 2.5,
-  Epic: 4.0,
-  Legendary: 8.0,
+  Uncommon: 2.0,
+  Rare: 5.0,
+  Epic: 10.0,
+  Legendary: 25.0,
 };
 
 const ELEMENT_TO_ESSENCE: Record<string, string> = {

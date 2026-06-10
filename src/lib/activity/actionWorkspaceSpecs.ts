@@ -6,15 +6,11 @@
  * When you add a new activity kind:
  *   1. Add the entry to `ActivityKind` in `src/types/activity.ts`.
  *   2. Add a `MechanicWorkspaceSpec` here with a unique `kind`.
- *   3. Add a beat plan to `ACTION_ANIMATION_PLANS` in
- *      `src/lib/activity/actionAnimationDirector.ts`.
- *   4. Add a beat queue to `idleTickPlans` if the kind ticks.
  *
- * NOTE: The action stage (ActionStage.tsx, actionStageRenderer.ts,
- * useActionStageOrchestrator.ts, actionAnimationDirector.ts) was
- * deprecated 2026-06-10 in favor of LiveTurfDiorama. These modules
- * remain on disk for test compatibility but are no longer imported
- * by any production screen.
+ * The deprecated ActionStage (ActionStage.tsx, actionStageRenderer.ts,
+ * useActionStageOrchestrator.ts) was removed 2026-06-10 in favor of
+ * LiveTurfDiorama. The actionAnimationDirector.ts beat catalog
+ * remains for reference but is no longer wired to any visual stage.
  */
 import type { ActivityKind } from '@/types/activity';
 
