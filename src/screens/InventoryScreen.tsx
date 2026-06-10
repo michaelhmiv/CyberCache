@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Backpack, Box, Hammer, Pill, Shield } from 'lucide-react';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
-import { GearYardScreen } from './GearYardScreen';
+import { GearHub } from '@/components/gear/GearHub';
 import { ConsumablesScreen } from './ConsumablesScreen';
 import { WorkshopScreen } from './WorkshopScreen';
 import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
@@ -45,7 +45,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
           <div>
             <div className="bl-title text-3xl leading-none text-text-primary">Gear Yard</div>
             <div className="text-xs text-text-muted mt-1">
-              Backpack, loadout bench, vendor supply, and workbench access.
+              Backpack, loadout, consumables, and workbench access.
             </div>
           </div>
           <div className="bl-icon-plate flex h-12 w-12 shrink-0 -rotate-2 items-center justify-center text-amber">
@@ -97,7 +97,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
       </div>
 
       <div>
-        {activeTab === 'gear' && <GearYardScreen onNavigate={onNavigate} />}
+        {activeTab === 'gear' && <GearHub onNavigate={onNavigate} />}
         {activeTab === 'loadout' && <SyncedLoadoutScreen />}
         {activeTab === 'consumables' && <ConsumablesScreen />}
         {activeTab === 'workshop' && <WorkshopScreen onNavigate={onNavigate} />}
