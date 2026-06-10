@@ -29,13 +29,34 @@ function equippedShieldHp(): number {
 }
 
 /**
+ * Read the equipped shield's full defensive profile.
+ * Returns null if no shield equipped.
+ */
+function equippedShieldProfile(): {
+  hp: number;
+  mitigation: number;
+  rechargeRate: number;
+  element: import('@/types/game').Element | null;
+} | null {
+  const shield = useLoadoutStore.getState().getShield();
+  if (!shield) return null;
+  return {
+    hp: shield.hp,
+    mitigation: shield.mitigation,
+    rechargeRate: shield.rechargeRate,
+    element: shield.element,
+  };
+}
+
+/**
  * Build the survival stats object the damage contract needs.
  * Exported for use by the idle ticker. Wraps a fresh read of the
  * relevant store state at call time.
  */
 export function loadoutSurvivalStats(): HunterSurvivalStats {
   const level = usePlayerStore.getState().level;
-  const shieldCapacity = equippedShieldHp();
+  const shieldProfile = equippedShieldProfile();
+  const shieldCapacity = shieldProfile?.hp ?? 0;
   const currentShieldHp = useSurvivalStore.getState().shieldHp;
   const skillBonuses = useSkillStore.getState().getBonuses();
   const survivalMult = 1 + (skillBonuses.survival || 0);
@@ -45,7 +66,9 @@ export function loadoutSurvivalStats(): HunterSurvivalStats {
     maxHp: Math.round(computeHunterMaxHp(level, shieldCapacity) * survivalMult),
     shieldHp: currentShieldHp,
     dodgeChance: staggerDodge,
-    elementalResist: 0, // no elemental resist affix yet — future PR
+    elementalResist: 0, // no generic resist affix yet
+    mitigation: shieldProfile?.mitigation ?? 0,
+    shieldElement: shieldProfile?.element ?? undefined,
   };
 }
 
@@ -72,4 +95,22 @@ export function loadoutEffectiveDps(): number {
     }
   }
   return total * skillDpsMult;
+}
+
+/**
+ * Read the equipped shield's recharge rate (HP per second).
+ * Returns 0 if no shield equipped.
+ */
+export function equippedShieldRechargeRate(): number {
+  const shield = useLoadoutStore.getState().getShield();
+  return shield?.rechargeRate ?? 0;
+}
+
+/**
+ * Read the equipped shield's damage mitigation (0-1).
+ * Returns 0 if no shield equipped.
+ */
+export function equippedShieldMitigation(): number {
+  const shield = useLoadoutStore.getState().getShield();
+  return shield?.mitigation ?? 0;
 }

@@ -388,6 +388,13 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
 
+  // Shield mitigation: % damage reduction effectively multiplies the survival pool.
+  // Capped at 80% mitigation (i.e., max 5× effective HP multiplier).
+  const shieldMitigation = Math.min(0.8, shield?.mitigation ?? 0);
+  if (shieldMitigation > 0) {
+    totalSurvival *= 1 / (1 - shieldMitigation);
+  }
+
   // Emergency consumables boost survival
   if (adrenaline > 0) {
     totalSurvival *= 1.25;
