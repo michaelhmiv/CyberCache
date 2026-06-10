@@ -247,6 +247,80 @@ async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
   }
 }
 
+async function handleSalvage(req: Request, res: Response): Promise<void> {
+  try {
+    const body = req.body as { playerId: string; itemId: string; jwt?: string };
+    if (!body.playerId || !body.itemId) {
+      res.status(400).json({ error: 'Missing playerId or itemId' });
+      return;
+    }
+
+    const supabase = getSupabase();
+    if (body.jwt) {
+      await supabase.auth.setSession({ access_token: body.jwt, refresh_token: '' });
+    }
+
+    // Read the item from the player's inventory
+    const { data: item, error: itemError } = await supabase
+      .from('player_items')
+      .select('*')
+      .eq('id', body.itemId)
+      .eq('owner_id', body.playerId)
+      .single();
+
+    if (itemError || !item) {
+      res.status(404).json({ error: 'Item not found in your inventory' });
+      return;
+    }
+
+    // Calculate salvage yield
+    const { calculateSalvageYield } = await import('../../constants/salvageRules');
+    const yield_ = calculateSalvageYield(item);
+
+    // Delete the item
+    const { error: deleteError } = await supabase
+      .from('player_items')
+      .delete()
+      .eq('id', body.itemId)
+      .eq('owner_id', body.playerId);
+
+    if (deleteError) {
+      res.status(500).json({ error: 'Failed to remove item', detail: deleteError.message });
+      return;
+    }
+
+    // Award resources via RPC
+    const { error: rpcError } = await supabase.rpc('cc_apply_chef_rewards', {
+      _player_id: body.playerId,
+      _scrap: yield_.scrapValue,
+      _materials: yield_.materials,
+      _essences: yield_.essences,
+      _credits: 0,
+      _xp: 0,
+      _fragments: 0,
+      _kills: 0,
+      _tick_count: 0,
+      _area_id: 'salvage',
+    });
+
+    if (rpcError) {
+      console.error('[chef] salvage reward apply failed:', rpcError.message);
+    }
+
+    res.json({
+      salvaged: true,
+      itemId: body.itemId,
+      scrapValue: yield_.scrapValue,
+      materials: yield_.materials,
+      essences: yield_.essences,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[chef] salvage error:', message);
+    res.status(500).json({ error: 'Salvage failed', detail: message });
+  }
+}
+
 export function mountChefRoutes(app: Express): void {
   app.post('/api/claim', handleClaim);
 
@@ -256,5 +330,7 @@ export function mountChefRoutes(app: Express): void {
 
   app.post('/api/verify-boss', handleVerifyBoss);
 
-  console.log('[chef] routes mounted: POST /api/claim, GET /api/health, POST /api/verify-boss');
+  app.post('/api/salvage', handleSalvage);
+
+  console.log('[chef] routes mounted: POST /api/claim, GET /api/health, POST /api/verify-boss, POST /api/salvage');
 }

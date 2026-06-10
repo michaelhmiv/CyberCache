@@ -1,12 +1,10 @@
-import { buildAreaWeaponDropOptions, getRoamingArea, rollAreaDropKind, rollAreaMaterialFind } from '@/constants/roamingAreas';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
-import { useActivityStore, useIdleStore, useInventoryStore, usePlayerStore, useSkillStore } from '@/store';
+import { useActivityStore, useIdleStore, usePlayerStore, useSkillStore, useLoadoutStore } from '@/store';
 import type { ActiveActivity } from '@/types/activity';
 import type { GearItem } from '@/types/items';
+import { getRoamingArea } from '@/constants/roamingAreas';
 
 const TICK_MS = 3000;
-const DROP_CHANCE_PER_TICK = 0.22;
-const MATERIAL_FIND_CHANCE_PER_TICK = 0.08;
 const SETTLEMENT_LOCK_KEY = 'cybercache:active-action-settlement-lock';
 const LOCK_TTL_MS = 15000;
 
@@ -53,19 +51,15 @@ const releaseLock = (): void => {
   window.localStorage.removeItem(SETTLEMENT_LOCK_KEY);
 };
 
-function generateAreaDrop(areaId: string): GearItem {
-  const area = getRoamingArea(areaId);
-  const inventory = useInventoryStore.getState();
-  const level = usePlayerStore.getState().level;
-  const kind = rollAreaDropKind(area);
-
-  if (kind === 'weapon') return inventory.generateAndAdd(buildAreaWeaponDropOptions(area, level));
-  if (kind === 'shield') return inventory.generateAndAddShield(level);
-  if (kind === 'classMod') return inventory.generateAndAddClassMod(level);
-  if (kind === 'relic') return inventory.generateAndAddRelic(level);
-  return inventory.generateAndAddOrdnance(level);
-}
-
+/**
+ * Settle accumulated offline roaming rewards by delegating to the Chef
+ * server — the SINGLE authoritative source for all gameplay outcomes.
+ *
+ * Phase 3: All client-side item generation and resource awarding has been
+ * removed. The function calculates elapsed ticks and sends a claim to the
+ * Chef, which processes all probabilities, generates items, awards
+ * resources, and returns the canonical result.
+ */
 export async function settleActiveActivityRewards(options: { userId?: string | null; saveSnapshot?: boolean } = {}): Promise<ActivitySettlementResult | null> {
   if (settling) return null;
   if (!acquireLock()) return null;
@@ -87,47 +81,106 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
     const ticks = Math.floor(elapsedMs / TICK_MS);
     if (ticks <= 0) return null;
 
+    // Delegate ALL reward processing to the Chef — no client-side generation.
     const skillBonuses = useSkillStore.getState().getBonuses();
-    const creditsPerTick = Math.round((area.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0)));
-    const scrapPerTick = Math.round((area.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0)));
-    const gearDrops: GearItem[] = [];
-    let materialFinds = 0;
+    const loadout = useLoadoutStore.getState();
 
-    for (let i = 0; i < ticks; i += 1) {
-      // Single cumulative roll: gear 22%, then material 8% of the
-      // remaining space, then nothing. This matches the intended rates
-      // rather than the old conditional chain which reduced material
-      // to (1-0.22)*0.08 = 6.24%. See Phase 1a plan.
-      const roll = Math.random();
-      if (roll < DROP_CHANCE_PER_TICK) {
-        gearDrops.push(generateAreaDrop(area.id));
-      } else if (roll < DROP_CHANCE_PER_TICK + MATERIAL_FIND_CHANCE_PER_TICK) {
-        const find = rollAreaMaterialFind(area);
-        if (find?.kind === 'material') {
-          usePlayerStore.getState().addMaterial(find.type, 1);
-          materialFinds += 1;
-        }
-        if (find?.kind === 'essence') {
-          usePlayerStore.getState().addEssence(find.type, 1);
-          materialFinds += 1;
-        }
+    // Sum idle economy mods (same as the ticker does)
+    const idleMods = {
+      offlineEarningsMod: 0,
+      scrapYieldMod: 0,
+      rareDropChanceMod: 0,
+    };
+    for (const slot of ['primary', 'secondary', 'heavy'] as const) {
+      const weapon = loadout.getWeapon(slot);
+      if (weapon) {
+        idleMods.offlineEarningsMod += weapon.offlineEarningsMod || 0;
+        idleMods.scrapYieldMod += weapon.scrapYieldMod || 0;
+        idleMods.rareDropChanceMod += weapon.rareDropChanceMod || 0;
+      }
+    }
+    const relic = loadout.getRelic();
+    if (relic) {
+      for (const affix of relic.affixes) {
+        if (affix.stat === 'offlineEarningsMod') idleMods.offlineEarningsMod += affix.value;
+        if (affix.stat === 'scrapYieldMod') idleMods.scrapYieldMod += affix.value;
+        if (affix.stat === 'rareDropChanceMod') idleMods.rareDropChanceMod += affix.value;
       }
     }
 
-    const credits = creditsPerTick * ticks;
-    const scrap = scrapPerTick * ticks;
-    const xp = ticks;
-    const settledThrough = from + ticks * TICK_MS;
+    let chefResult: {
+      rewards?: { creditsAwarded?: number; scrapAwarded?: number; xpAwarded?: number; cacheFragmentsAwarded?: number; materials?: Record<string, number>; essences?: Record<string, number> };
+      items?: GearItem[];
+      feedEvents?: Array<{ at: number; tone: string; label: string; detail: string; areaId: string; value?: number }>;
+    } | null = null;
+
+    try {
+      const { submitClaim } = await import('@/lib/chef/chefClient');
+      chefResult = await submitClaim({
+        playerId: player.id,
+        areaId: area.id,
+        ticks,
+        tickCount: 0, // offline settlement — not part of the live tick counter
+        playerLevel: player.level,
+        idleMods,
+        skillBonuses,
+      });
+    } catch (error) {
+      console.warn('[activitySettlement] Chef claim failed, trying RPC fallback:', error instanceof Error ? error.message : error);
+      try {
+        const { verifiedOps } = await import('@/lib/supabase/verifiedOps');
+        const rpcResult = await verifiedOps.claimRoamingRewards({ ticks, areaId: area.id, tickCount: 0 });
+        chefResult = rpcResult as unknown as typeof chefResult;
+      } catch (rpcError) {
+        console.warn('[activitySettlement] RPC fallback also failed:', rpcError instanceof Error ? rpcError.message : rpcError);
+      }
+    }
+
+    if (!chefResult) return null;
+
+    const rewards = chefResult.rewards ?? {};
+    const xp = rewards.xpAwarded ?? 0;
+    const credits = rewards.creditsAwarded ?? 0;
+    const scrap = rewards.scrapAwarded ?? 0;
+    const cacheFragments = rewards.cacheFragmentsAwarded ?? 0;
+    const gearDrops = chefResult.items ?? [];
+
+    // Apply resources via the player store (which tracks pending deltas)
     const playerStore = usePlayerStore.getState();
-    playerStore.addCredits(credits);
-    playerStore.addScrap(scrap);
-    playerStore.addXP(xp);
+    if (credits) playerStore.addCredits(credits);
+    if (scrap) playerStore.addScrap(scrap);
+    if (xp) playerStore.addXP(xp);
+    if (cacheFragments) playerStore.addCacheKeyFragments(cacheFragments);
+
+    // Apply materials/essences from Chef response
+    const materials = rewards.materials ?? {};
+    for (const [type, count] of Object.entries(materials)) {
+      if (count > 0) playerStore.addMaterial(type, count);
+    }
+    const essences = rewards.essences ?? {};
+    for (const [type, count] of Object.entries(essences)) {
+      if (count > 0) playerStore.addEssence(type, count);
+    }
+
+    // Add Chef-generated items to inventory
+    if (gearDrops.length > 0) {
+      const inv = await import('@/store/slices/inventorySlice').then((m) => m.useInventoryStore.getState());
+      if (inv.receiveServerItems) {
+        inv.receiveServerItems(gearDrops);
+      } else {
+        gearDrops.forEach((item) => inv.upsertItem(item));
+      }
+    }
+
+    const settledThrough = from + ticks * TICK_MS;
     playerStore.setPlayer({ lastClaimTime: settledThrough });
     useIdleStore.setState((state) => ({
       isFarming: true,
       farmTickCount: state.farmTickCount + ticks,
       selectedRoamingAreaId: area.id,
     }));
+
+    const materialFinds = Object.values(materials).reduce((s, c) => s + c, 0) + Object.values(essences).reduce((s, c) => s + c, 0);
 
     const result: ActivitySettlementResult = {
       kind: current.kind,
@@ -136,7 +189,7 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
       xp,
       credits,
       scrap,
-      cacheFragments: 0,
+      cacheFragments,
       gearDrops,
       materialFinds,
       settledThrough,

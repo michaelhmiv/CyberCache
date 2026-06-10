@@ -401,11 +401,23 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           bossStore.unlockBoss(nextBoss.id);
         }
       }
-      inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
-      if (Math.random() < 0.3) {
-        inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
-      }
-      for (let i = 0; i < outcome.bonusLootRolls; i++) {
+      // Delegate boss loot to the Chef for server-authoritative drops.
+      // Fire-and-forget — the items arrive via runtime store sync.
+      try {
+        const { verifyBossFight } = await import('@/lib/chef/chefClient');
+        await verifyBossFight({
+          playerId: player.id,
+          bossId: boss.id,
+          damageDealt: outcome.damageDealt,
+          damageTaken: outcome.damageTaken,
+          medkitsConsumed: outcome.medkitsConsumed,
+          fightDurationMs: outcome.fightDurationMs,
+          loadoutDps: sim.effectiveDPS,
+          victory: true,
+        });
+      } catch (chefError) {
+        console.warn('[BossPrepModal] Chef boss verification failed:', chefError instanceof Error ? chefError.message : chefError);
+        // Fallback: single guaranteed drop (reduced from 1-3 client-side rolls)
         inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
       }
     } else {

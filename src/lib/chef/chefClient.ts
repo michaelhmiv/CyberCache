@@ -12,7 +12,16 @@
 
 import type { GearItem } from '@/types/items';
 
-const CHEF_URL = import.meta.env.VITE_CHEF_URL || '/api';
+const CHEF_URL = (() => {
+  // Explicit env var takes priority
+  if (import.meta.env.VITE_CHEF_URL) return import.meta.env.VITE_CHEF_URL;
+  // In production, use the same origin — the Express server handles /api/*
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return window.location.origin;
+  }
+  // Fallback for SSR / test environments
+  return '/api';
+})();
 
 export interface ChefClaimRequest {
   playerId: string;
@@ -121,6 +130,36 @@ export async function verifyBossFight(request: ChefVerifyBossRequest): Promise<C
     const errorBody = await response.json().catch(() => ({}));
     const detail = (errorBody as { detail?: string }).detail || response.statusText;
     throw new Error(`Chef boss verification failed (${response.status}): ${detail}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Salvage an item via the Chef server.
+ * The client does optimistic removal; the Chef verifies and awards resources.
+ */
+export async function salvageItem(request: { playerId: string; itemId: string; jwt?: string }): Promise<{
+  salvaged: boolean;
+  scrapValue: number;
+  materials: Record<string, number>;
+  essences: Record<string, number>;
+}> {
+  const jwt = request.jwt || (await getSessionJwt());
+
+  const response = await fetch(`${CHEF_URL}/salvage`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+    },
+    body: JSON.stringify({ ...request, jwt }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const detail = (errorBody as { detail?: string }).detail || response.statusText;
+    throw new Error(`Chef salvage failed (${response.status}): ${detail}`);
   }
 
   return response.json();

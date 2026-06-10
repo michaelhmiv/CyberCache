@@ -4,6 +4,8 @@ import { WorkshopQueue } from '../../types/workshop';
 
 export interface PlayerState extends PlayerProfile {
   setPlayer: (partial: Partial<PlayerProfile>) => void;
+  /** Sync canonical values from the server. Merges pending local deltas on top. */
+  syncFromServer: (server: Partial<PlayerProfile>) => void;
   addXP: (amount: number) => void;
   addCredits: (amount: number) => void;
   removeCredits: (amount: number) => void;
@@ -21,6 +23,8 @@ export interface PlayerState extends PlayerProfile {
   removeEssence: (type: string, count: number) => void;
   setWorkshopQueues: (queues: WorkshopQueue[]) => void;
   setLastWorkshopTick: (timestamp: number) => void;
+  /** Pending local deltas not yet confirmed by the server. */
+  _pending: { xp: number; credits: number; scrap: number; materials: Record<string, number>; essences: Record<string, number> };
 }
 
 const initialPlayerState = (): PlayerProfile => ({
@@ -46,21 +50,37 @@ const initialPlayerState = (): PlayerProfile => ({
 
 export const usePlayerStore = create<PlayerState>()((set, get) => ({
   ...initialPlayerState(),
+  _pending: { xp: 0, credits: 0, scrap: 0, materials: {}, essences: {} },
+
+  /** Apply server-canonical values, then add pending local deltas on top. */
+  syncFromServer: (server) => set((state) => {
+    const p = state._pending;
+    let xp = (typeof server.xp === 'number' ? server.xp : state.xp) + p.xp;
+    let level = typeof server.level === 'number' ? server.level : state.level;
+    while (xp >= level * 100) { xp -= level * 100; level += 1; }
+    const credits = (typeof server.credits === 'number' ? server.credits : state.credits) + p.credits;
+    const scrap = (typeof server.scrap === 'number' ? server.scrap : state.scrap) + p.scrap;
+    const serverMats = (server.materials && typeof server.materials === 'object' ? server.materials : {}) as Record<string, number>;
+    const serverEss = (server.essences && typeof server.essences === 'object' ? server.essences : {}) as Record<string, number>;
+    const materials: Record<string, number> = { ...serverMats };
+    for (const [k, v] of Object.entries(p.materials)) materials[k] = (materials[k] || 0) + v;
+    const essences: Record<string, number> = { ...serverEss };
+    for (const [k, v] of Object.entries(p.essences)) essences[k] = (essences[k] || 0) + v;
+    return { ...state, ...server, xp, level, credits, scrap, materials, essences, _pending: { xp: 0, credits: 0, scrap: 0, materials: {}, essences: {} } };
+  }),
 
   setPlayer: (partial) => set((state) => ({ ...state, ...partial })),
+
   addXP: (amount) => {
+    set((s) => ({ _pending: { ...s._pending, xp: s._pending.xp + amount }, xp: s.xp + amount }));
     const state = get();
-    let newXP = state.xp + amount;
-    let newLevel = state.level;
-    while (newXP >= newLevel * 100) {
-      newXP -= newLevel * 100;
-      newLevel++;
-    }
-    set({ xp: newXP, level: newLevel });
+    let newXP = state.xp; let newLevel = state.level;
+    while (newXP >= newLevel * 100) { newXP -= newLevel * 100; newLevel += 1; }
+    if (newLevel !== state.level) set({ xp: newXP, level: newLevel });
   },
-  addCredits: (amount) => set((s) => ({ credits: s.credits + amount })),
+  addCredits: (amount) => set((s) => ({ _pending: { ...s._pending, credits: s._pending.credits + amount }, credits: s.credits + amount })),
   removeCredits: (amount) => set((s) => ({ credits: Math.max(0, s.credits - amount) })),
-  addScrap: (amount) => set((s) => ({ scrap: s.scrap + amount })),
+  addScrap: (amount) => set((s) => ({ _pending: { ...s._pending, scrap: s._pending.scrap + amount }, scrap: s.scrap + amount })),
   removeScrap: (amount) => set((s) => ({ scrap: Math.max(0, s.scrap - amount) })),
   addCacheKeys: (amount) => set((s) => ({ cacheKeys: s.cacheKeys + amount })),
   removeCacheKeys: (amount) => set((s) => ({ cacheKeys: Math.max(0, s.cacheKeys - amount) })),
@@ -82,6 +102,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   },
   addMaterial: (type, count) =>
     set((s) => ({
+      _pending: { ...s._pending, materials: { ...s._pending.materials, [type]: (s._pending.materials[type] || 0) + count } },
       materials: { ...s.materials, [type]: (s.materials[type] || 0) + count },
     })),
   removeMaterial: (type, count) =>
@@ -90,6 +111,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     })),
   addEssence: (type, count) =>
     set((s) => ({
+      _pending: { ...s._pending, essences: { ...s._pending.essences, [type]: (s._pending.essences[type] || 0) + count } },
       essences: { ...s.essences, [type]: (s.essences[type] || 0) + count },
     })),
   removeEssence: (type, count) =>

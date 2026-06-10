@@ -59,7 +59,7 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
   if (!profile) return;
 
   const player = usePlayerStore.getState();
-  usePlayerStore.getState().setPlayer({
+  usePlayerStore.getState().syncFromServer({
     id: profile.id ?? player.id,
     level: numberValue(profile.player_level, player.level),
     xp: numberValue(profile.player_xp, player.xp),
