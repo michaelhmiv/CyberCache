@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, History, List, Search, ShoppingCart, Tag, Wallet, X } from 'lucide-react';
+import { Filter, History, List, Search, ShoppingCart, Store, Tag, Wallet, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useMarketStore, usePlayerStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
+import { VendorScreen } from './VendorScreen';
 import type { GearItem, Weapon } from '@/types/items';
 import type { Listing, MarketHistory } from '@/types/market';
 
@@ -30,6 +31,7 @@ function resolveOtherPartyName(id: string, playerName: string): string {
 
 const TABS = [
   { id: 'buy', label: 'Buy', icon: ShoppingCart },
+  { id: 'vendor', label: 'Vendor', icon: Store },
   { id: 'sell', label: 'Sell', icon: Tag },
   { id: 'mylistings', label: 'My Listings', icon: List },
   { id: 'history', label: 'History', icon: History },
@@ -154,14 +156,16 @@ export const MarketScreen: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
-          <button key={t.id} onClick={() => market.setActiveTab(t.id)} className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>
+          <button key={t.id} onClick={() => market.setActiveTab(t.id)} className={`flex flex-1 flex-col items-center gap-1 rounded-xl border py-2 min-w-[60px] text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>
             <t.icon size={16} />
             {t.label}
           </button>
         ))}
       </div>
+
+      {market.activeTab === 'vendor' && <VendorScreen />}
 
       {market.activeTab === 'buy' && (
         <div className="space-y-3">

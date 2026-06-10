@@ -4,13 +4,13 @@ import { generateWeapon } from '../../lib/generators/weaponGenerator';
 import { DropSource } from '../../types/game';
 
 export interface MarketState {
-  activeTab: 'buy' | 'sell' | 'mylistings' | 'history';
+  activeTab: 'buy' | 'vendor' | 'sell' | 'mylistings' | 'history';
   listings: Listing[];
   history: MarketHistory[];
   filters: MarketFilter;
   watchlist: string[];
   seeded: boolean;
-  setActiveTab: (tab: 'buy' | 'sell' | 'mylistings' | 'history') => void;
+  setActiveTab: (tab: 'buy' | 'vendor' | 'sell' | 'mylistings' | 'history') => void;
   addListing: (listing: Listing) => void;
   removeListing: (id: string) => void;
   addHistory: (entry: MarketHistory) => void;

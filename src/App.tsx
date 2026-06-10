@@ -83,8 +83,13 @@ function App() {
   }
 
   const handleNavigate = (screen: string) => {
-    if (screen === 'loadout' || screen === 'loot' || screen === 'vendor' || screen === 'fusion') {
+    if (screen === 'loadout' || screen === 'loot' || screen === 'fusion') {
       setActiveTab('inventory');
+      setSubScreen(null);
+      return;
+    }
+    if (screen === 'vendor') {
+      setActiveTab('market');
       setSubScreen(null);
       return;
     }

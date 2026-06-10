@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Backpack, Box, Hammer, Shield, ShoppingBag } from 'lucide-react';
+import { Backpack, Box, Hammer, Pill, Shield } from 'lucide-react';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
 import { GearYardScreen } from './GearYardScreen';
-import { VendorScreen } from './VendorScreen';
 import { WorkshopScreen } from './WorkshopScreen';
 import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 
-type InventoryTab = 'gear' | 'loadout' | 'supply' | 'workshop';
+type InventoryTab = 'gear' | 'loadout' | 'consumables' | 'workshop';
 
 interface InventoryScreenProps {
   onNavigate: (screen: string) => void;
@@ -15,7 +14,7 @@ interface InventoryScreenProps {
 const tabs: { id: InventoryTab; label: string; icon: React.ElementType }[] = [
   { id: 'gear', label: 'Gear', icon: Backpack },
   { id: 'loadout', label: 'Loadout', icon: Shield },
-  { id: 'supply', label: 'Supply', icon: ShoppingBag },
+  { id: 'consumables', label: 'Items', icon: Pill },
   { id: 'workshop', label: 'Bench', icon: Hammer },
 ];
 
@@ -99,7 +98,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
       <div>
         {activeTab === 'gear' && <GearYardScreen onNavigate={onNavigate} />}
         {activeTab === 'loadout' && <SyncedLoadoutScreen />}
-        {activeTab === 'supply' && <VendorScreen />}
+        {activeTab === 'consumables' && <div className="p-4 text-center text-sm text-text-muted py-10">Consumables — coming in Phase 2</div>}
         {activeTab === 'workshop' && <WorkshopScreen onNavigate={onNavigate} />}
       </div>
     </div>
