@@ -32,6 +32,16 @@ export interface RoamingAreaDef {
   gearDropWeights: Record<GearDropKind, number>;
   selectionHint: string;
   futureHooks?: string[];
+  /**
+   * Optional explicit monster roster. If omitted, the area falls back
+   * to the tier-derived default in `defaultMonstersForTier(unlockLevel)`.
+   * Designers can use this to put a custom mob mix in a thematically
+   * distinct area (e.g. all-fire mobs in a volcanic area) without
+   * rewriting the unlock level.
+   */
+  monsterIds?: string[];
+  /** Optional per-monster weights for tick-by-tick selection. */
+  monsterWeights?: Record<string, number>;
 }
 
 const BASE_RARITY_WEIGHTS: Record<Rarity, number> = {
@@ -73,6 +83,8 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     gearDropWeights: BALANCED_GEAR_WEIGHTS,
     selectionHint: 'Need general early loot? Stay in Dustwaste Frontier.',
     futureHooks: ['tutorial routes', 'starter boss trail'],
+    monsterIds: ['dustwaste_raider', 'dustwaste_drone', 'dustwaste_brute', 'dustwaste_elite'],
+    monsterWeights: { dustwaste_raider: 6, dustwaste_drone: 5, dustwaste_brute: 3, dustwaste_elite: 0.5 },
   },
   {
     id: 'redline_circuit',
@@ -100,6 +112,8 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     gearDropWeights: { weapon: 14, shield: 3, classMod: 1, relic: 2, ordnance: 2 },
     selectionHint: 'Need speed farming gear? Roam Redline Circuit.',
     futureHooks: ['density modifiers', 'sustained-kill streaks'],
+    monsterIds: ['redline_runner', 'redline_drone', 'redline_brute', 'redline_elite'],
+    monsterWeights: { redline_runner: 5, redline_drone: 4, redline_brute: 2.5, redline_elite: 0.5 },
   },
   {
     id: 'ironwood_bastion',
@@ -127,6 +141,8 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     gearDropWeights: { weapon: 12, shield: 4, classMod: 3, relic: 2, ordnance: 1 },
     selectionHint: 'Need better crit or boss weapons? Roam Ironwood Bastion.',
     futureHooks: ['elite packs', 'weakpoint contracts'],
+    monsterIds: ['ironwood_sentinel', 'ironwood_ranger', 'ironwood_brute', 'ironwood_elite'],
+    monsterWeights: { ironwood_sentinel: 4, ironwood_ranger: 3, ironwood_brute: 2, ironwood_elite: 0.5 },
   },
   {
     id: 'blastforge_yards',
@@ -155,6 +171,8 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     gearDropWeights: { weapon: 11, shield: 3, classMod: 1, relic: 1, ordnance: 6 },
     selectionHint: 'Need armor-breaking materials? Roam BlastForge Yards.',
     futureHooks: ['armor-break objectives', 'stagger events'],
+    monsterIds: ['blastforge_worker', 'blastforge_enforcer', 'blastforge_brute', 'blastforge_elite'],
+    monsterWeights: { blastforge_worker: 5, blastforge_enforcer: 3, blastforge_brute: 2, blastforge_elite: 0.4 },
   },
   {
     id: 'prismatek_reactor',
@@ -183,6 +201,8 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     gearDropWeights: { weapon: 12, shield: 4, classMod: 2, relic: 3, ordnance: 1 },
     selectionHint: 'Need elemental essences? Roam Prismatek Reactor.',
     futureHooks: ['daily element rotations', 'weakness-match bonuses'],
+    monsterIds: ['prismatek_drone', 'prismatek_runner', 'prismatek_brute', 'prismatek_elite'],
+    monsterWeights: { prismatek_drone: 3.5, prismatek_runner: 3, prismatek_brute: 1.5, prismatek_elite: 0.3 },
   },
   {
     id: 'throwtech_dumpnet',
@@ -211,6 +231,8 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     gearDropWeights: { weapon: 10, shield: 3, classMod: 3, relic: 2, ordnance: 4 },
     selectionHint: 'Need utility tech and deployable flavor? Roam ThrowTech Dumpnet.',
     futureHooks: ['turret events', 'drone salvage'],
+    monsterIds: ['throwtech_scavenger', 'throwtech_brute', 'throwtech_sniper', 'throwtech_elite'],
+    monsterWeights: { throwtech_scavenger: 4, throwtech_brute: 2.5, throwtech_sniper: 1.5, throwtech_elite: 0.3 },
   },
   {
     id: 'helixworks_labyrinth',
@@ -239,6 +261,8 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
     gearDropWeights: { weapon: 11, shield: 3, classMod: 3, relic: 4, ordnance: 1 },
     selectionHint: 'Need modular crafting depth? Roam HelixWorks Labyrinth.',
     futureHooks: ['fusion lab hooks', 'prototype modifiers'],
+    monsterIds: ['helix_worker', 'helix_runner', 'helix_brute', 'helix_elite'],
+    monsterWeights: { helix_worker: 3.5, helix_runner: 3, helix_brute: 1.5, helix_elite: 0.3 },
   },
 ];
 
