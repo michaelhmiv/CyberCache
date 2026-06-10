@@ -20,9 +20,9 @@ export function generateShield(level: number = 1, externalRng?: () => number): S
 
   const baseHp = 150 + level * 30;
   const rarityHpMult = rarity === 'Common' ? 1 : rarity === 'Uncommon' ? 1.2 : rarity === 'Rare' ? 1.5 : rarity === 'Epic' ? 1.8 : 2.2;
-  const hp = Math.round(baseHp * rarityHpMult * seededRandom(0.9, 1.1, rng));
-  const rechargeRate = parseFloat((10 + level * 1.5).toFixed(1));
-  const mitigation = parseFloat((0.05 + rarityDef.rollQualityBias * 0.002).toFixed(3));
+  let hp = Math.round(baseHp * rarityHpMult * seededRandom(0.9, 1.1, rng));
+  let rechargeRate = parseFloat((10 + level * 1.5).toFixed(1));
+  let mitigation = parseFloat((0.05 + rarityDef.rollQualityBias * 0.002).toFixed(3));
 
   const affixCount = seededInt(rarityDef.affixCount.min, rarityDef.affixCount.max, rng);
   const affixes: Affix[] = [];
@@ -41,6 +41,25 @@ export function generateShield(level: number = 1, externalRng?: () => number): S
       value: rollVal / 100,
       displayText: def.text.replace('{v}', String(rollVal)),
     });
+  }
+
+  // Bake affixes into stats so they are NOT purely cosmetic.
+  // hp and rechargeRate are multiplicative; mitigation is additive.
+  for (const affix of affixes) {
+    const v = affix.value;
+    switch (affix.stat) {
+      case 'hp':
+        hp = Math.round(hp * (1 + v));
+        break;
+      case 'rechargeRate':
+        rechargeRate = parseFloat((rechargeRate * (1 + v)).toFixed(1));
+        break;
+      case 'mitigation':
+        mitigation = parseFloat((mitigation + v).toFixed(3));
+        break;
+      default:
+        break;
+    }
   }
 
   const elementName = ELEMENTS[element].name;
