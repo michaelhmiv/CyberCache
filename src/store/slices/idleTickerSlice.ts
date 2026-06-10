@@ -30,6 +30,9 @@ import {
 import { loadoutSurvivalStats, loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
 import { pickNextTarget, xpForKill } from '@/lib/combat/killCycleHelpers';
+import { bossTick, bossDamagePerSecond } from '@/lib/combat/bossTick';
+import { REGION_1_BOSSES } from '@/constants/bosses';
+import { useBossStore } from '@/store/slices/bossSlice';
 
 const TICK_MS = 3000;
 const DROP_CHANCE = 0.22;
@@ -385,6 +388,167 @@ const applyKillCycleTick = (areaId: string, ticks: number): TickEvent[] => {
   return events;
 };
 
+/**
+ * applyBossFightTick — advance the live boss fight by one ticker step.
+ *
+ * PR 6 — this is what makes the boss fight "real medkit attrition"
+ * instead of a one-shot sim. The 3s ticker calls this once per tick
+ * when the active activity is `boss_fight`. The function:
+ *
+ *   1. Looks up the boss by ID.
+ *   2. Reads the live-fight state from `useBossStore`.
+ *   3. Reads player loadout DPS, current HP, shield, auto-eat threshold,
+ *      and medkit count.
+ *   4. Calls the pure `bossTick()` from `@/lib/combat/bossTick`.
+ *   5. Applies the result: HP delta → `applyDamage`/`heal` on the
+ *      survival slice, medkits consumed → `removeConsumable` on the
+ *      player store, boss state → `applyLiveTick` on the boss store.
+ *   6. On victory: `endLiveFight('victory')`, `defeatBoss(bossId)`,
+ *      push a 'victory' tick event, and clear the live fight after
+ *      a short delay so the result UI has time to read the state.
+ *   7. On defeat: `endLiveFight('defeat')`, increment pity, call
+ *      `die()` on the survival slice (PR 5 death overlay takes over),
+ *      push a 'defeat' tick event.
+ *
+ * If the fight is not 'active' (idle, victory, defeat) we bail early
+ * so the ticker doesn't double-apply a result.
+ */
+const applyBossFightTick = async (bossId: string): Promise<void> => {
+  const boss = REGION_1_BOSSES.find((b) => b.id === bossId);
+  if (!boss) return;
+
+  const bossStore = useBossStore.getState();
+  if (bossStore.activeStatus !== 'active' || bossStore.activeBossId !== bossId) {
+    return;
+  }
+
+  const player = usePlayerStore.getState();
+  const survival = useSurvivalStore.getState();
+
+  // Player effective DPS from the same chain the kill cycle uses.
+  // loadoutEffectiveDps() reads useLoadoutStore.getState() internally.
+  const playerDps = loadoutEffectiveDps();
+
+  const medkitCount = player.getConsumableCount('MedKit');
+  const result = bossTick({
+    boss,
+    currentBossHp: bossStore.activeBossHp,
+    currentPlayerHp: survival.currentHp,
+    currentPlayerShield: survival.shieldHp,
+    playerDps,
+    bossDps: bossDamagePerSecond(boss),
+    maxPlayerHp: survival.maxHp,
+    autoEatThreshold: survival.autoEatThreshold,
+    medkitsAvailable: medkitCount,
+  });
+
+  // 1. Push the per-tick damage events to the feed.
+  const events: TickEvent[] = [];
+  const tickAt = Date.now();
+  if (result.damageDealt > 0) {
+    events.push({
+      id: '',
+      at: tickAt,
+      tone: 'kill',
+      label: boss.name,
+      detail: `−${Math.round(result.damageDealt).toLocaleString()} HP`,
+      areaId: 'boss_arena',
+      value: 0,
+    });
+  }
+  if (result.damageTaken > 0) {
+    events.push({
+      id: '',
+      at: tickAt,
+      tone: 'damage',
+      label: boss.name,
+      detail: `−${Math.round(result.damageTaken).toLocaleString()} HP`,
+      areaId: 'boss_arena',
+      value: Math.round(result.damageTaken),
+    });
+  }
+  if (result.medkitsConsumed > 0) {
+    events.push({
+      id: '',
+      at: tickAt,
+      tone: 'heal',
+      label: 'MedKit (auto)',
+      detail: `+${result.medkitsConsumed} used`,
+      areaId: 'boss_arena',
+      value: result.medkitsConsumed,
+    });
+  }
+
+  // 2. Apply HP delta to the player. Boss damage is post-shield, so
+  //    applyDamage with that net number. If auto-eat healed us, the
+  //    net result.playerHp is higher than currentPlayerHp.
+  const hpDelta = result.playerHp - survival.currentHp;
+  if (hpDelta < 0) {
+    survival.applyDamage(-hpDelta);
+  } else if (hpDelta > 0) {
+    survival.heal(hpDelta);
+  }
+  // Sync shield too — bossTick() may have absorbed some damage.
+  if (result.playerShield !== survival.shieldHp) {
+    useSurvivalStore.setState({ shieldHp: result.playerShield });
+  }
+
+  // 3. Consume medkits (real, not just a flag).
+  if (result.medkitsConsumed > 0) {
+    player.removeConsumable('MedKit', result.medkitsConsumed);
+  }
+
+  // 4. Update the boss store's live-fight state.
+  bossStore.applyLiveTick({
+    bossHp: result.bossHp,
+    medkitsConsumed: result.medkitsConsumed,
+    damageDealt: result.damageDealt,
+  });
+
+  // 5. Resolve status.
+  if (result.status === 'victory') {
+    events.push({
+      id: '',
+      at: tickAt,
+      tone: 'loot',
+      label: `${boss.name} defeated`,
+      detail: `${result.damageDealt.toLocaleString(undefined, { maximumFractionDigits: 0 })} damage dealt`,
+      areaId: 'boss_arena',
+      value: 0,
+    });
+    bossStore.endLiveFight('victory');
+    bossStore.defeatBoss(bossId);
+    bossStore.resetPity(bossId);
+    // Clear the live fight on the next microtask so any UI reading
+    // activeStatus='victory' has a frame to render the result.
+    queueMicrotask(() => bossStore.clearLiveFight());
+  } else if (result.status === 'defeat') {
+    events.push({
+      id: '',
+      at: tickAt,
+      tone: 'damage',
+      label: 'Hunter down',
+      detail: `Killed by ${boss.name}`,
+      areaId: 'boss_arena',
+      value: 0,
+    });
+    bossStore.endLiveFight('defeat');
+    bossStore.incrementPity(bossId);
+    // Trigger the PR 5 death overlay with this boss as the killer.
+    survival.die({
+      monsterId: boss.id,
+      monsterName: boss.name,
+      areaId: 'boss_arena',
+      at: tickAt,
+    });
+    queueMicrotask(() => bossStore.clearLiveFight());
+  }
+
+  if (events.length > 0) {
+    useTickFeedStore.getState().push(events);
+  }
+};
+
 const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
   if (!payload) return;
   syncVerifiedResult(payload);
@@ -449,6 +613,13 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       set({ lastTickAt: now });
 
       if (activity.kind !== 'roaming_loot') {
+        // PR 6 — live boss fight. The activity is a boss; the 3s
+        // ticker drives the per-tick attrition. Death overlay
+        // (PR 5) fires on defeat; victory ends the fight and
+        // records the defeatBoss state on the boss store.
+        if (activity.kind === 'boss_fight' && activity.targetType === 'boss' && activity.targetId) {
+          await applyBossFightTick(activity.targetId);
+        }
         return;
       }
 
