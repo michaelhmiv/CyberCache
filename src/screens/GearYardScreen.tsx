@@ -41,11 +41,19 @@ export const GearYardScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   }), [equippedIds, inventory.items, typeFilter, viewFilter]);
 
   const equip = (item: GearItem) => {
-    if ('hp' in item) loadout.setSlot('shield', item.id);
-    else if ('treeBonus' in item) loadout.setSlot('classMod', item.id);
-    else if ('effect' in item && 'damage' in item && !isWeapon(item)) loadout.setSlot('ordnance', item.id);
-    else if (!isWeapon(item)) loadout.setSlot('relic', item.id);
-    else onNavigate?.('loadout');
+    if ('hp' in item) { loadout.setSlot('shield', item.id); setSelected(null); return; }
+    if ('treeBonus' in item) { loadout.setSlot('classMod', item.id); setSelected(null); return; }
+    if ('effect' in item && 'damage' in item && !isWeapon(item)) { loadout.setSlot('ordnance', item.id); setSelected(null); return; }
+    if (!isWeapon(item)) { loadout.setSlot('relic', item.id); setSelected(null); return; }
+    // Weapon: auto-equip into the first available weapon slot.
+    const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
+    const firstEmpty = weaponSlots.find((s) => !loadout.slots[s]);
+    if (firstEmpty) {
+      loadout.setSlot(firstEmpty, item.id);
+    } else {
+      // All weapon slots occupied — let the user swap on the Loadout screen.
+      onNavigate?.('loadout');
+    }
     setSelected(null);
   };
 
