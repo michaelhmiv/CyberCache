@@ -278,10 +278,11 @@ export function isRoamingAreaUnlocked(area: RoamingAreaDef, playerLevel: number)
   return playerLevel >= area.unlockLevel;
 }
 
-function pickWeightedValue<T extends string>(weights: Record<T, number>): T {
+function pickWeightedValue<T extends string>(weights: Record<T, number>, rng?: () => number): T {
   const entries = Object.entries(weights) as [T, number][];
   const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
-  let roll = Math.random() * total;
+  const random = rng ? rng() : Math.random();
+  let roll = random * total;
 
   for (const [value, weight] of entries) {
     roll -= weight;
@@ -291,38 +292,41 @@ function pickWeightedValue<T extends string>(weights: Record<T, number>): T {
   return entries[0][0];
 }
 
-function pickArrayValue<T>(values: T[]): T | undefined {
+function pickArrayValue<T>(values: T[], rng?: () => number): T | undefined {
   if (values.length === 0) return undefined;
-  return values[Math.floor(Math.random() * values.length)];
+  const random = rng ? rng() : Math.random();
+  return values[Math.floor(random * values.length)];
 }
 
-export function rollAreaDropKind(area: RoamingAreaDef): GearDropKind {
-  return pickWeightedValue(area.gearDropWeights);
+export function rollAreaDropKind(area: RoamingAreaDef, rng?: () => number): GearDropKind {
+  return pickWeightedValue(area.gearDropWeights, rng);
 }
 
 export function buildAreaWeaponDropOptions(
   area: RoamingAreaDef,
-  level: number
+  level: number,
+  rng?: () => number,
 ): GenerateWeaponOptions {
   const dominantManufacturer =
     area.manufacturerInfluence === 'Mixed' ? undefined : area.manufacturerInfluence;
 
+  const roll = rng ? rng() : Math.random();
   return {
     source: DropSource.WorldDrop,
     level,
     zoneWeights: area.dropPoolRarityWeights,
     forcedManufacturer:
-      dominantManufacturer && Math.random() < 0.65 ? dominantManufacturer : undefined,
-    forcedType: area.weaponBias.length > 0 && Math.random() < 0.55 ? pickArrayValue(area.weaponBias) : undefined,
-    forcedElement: area.elementBias && Math.random() < 0.55 ? pickArrayValue(area.elementBias) : undefined,
+      dominantManufacturer && roll < 0.65 ? dominantManufacturer : undefined,
+    forcedType: area.weaponBias.length > 0 && rng ? (rng() < 0.55 ? pickArrayValue(area.weaponBias, rng) : undefined) : (area.weaponBias.length > 0 && Math.random() < 0.55 ? pickArrayValue(area.weaponBias) : undefined),
+    forcedElement: area.elementBias && rng ? (rng() < 0.55 ? pickArrayValue(area.elementBias, rng) : undefined) : (area.elementBias && Math.random() < 0.55 ? pickArrayValue(area.elementBias) : undefined),
   };
 }
 
-export function rollAreaMaterialFind(area: RoamingAreaDef): { type: string; kind: 'material' | 'essence' } | null {
+export function rollAreaMaterialFind(area: RoamingAreaDef, rng?: () => number): { type: string; kind: 'material' | 'essence' } | null {
   const pool = [
     ...area.materialBias.map((type) => ({ type, kind: 'material' as const })),
     ...area.essenceBias.map((type) => ({ type, kind: 'essence' as const })),
   ];
 
-  return pickArrayValue(pool) || null;
+  return pickArrayValue(pool, rng) || null;
 }

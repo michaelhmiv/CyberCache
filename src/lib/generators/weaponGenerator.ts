@@ -28,7 +28,7 @@ export interface GenerateWeaponOptions {
   zoneWeights?: Record<string, number>; // per-zone rarity weights
 }
 
-export function generateWeapon(options: GenerateWeaponOptions): Weapon {
+export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () => number): Weapon {
   const {
     source,
     level = 1,
@@ -41,10 +41,12 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
     zoneWeights,
   } = options;
 
-  // Seed based on item identity components for deterministic art/name
+  // Phase 2b: when an external RNG is provided (ticker path), use it
+  // directly for deterministic, server-reproducible items. Otherwise
+  // fall back to the legacy Date.now() + Math.random() seed.
   const seedBase = `${source}_${level}_${Date.now()}_${Math.random()}`;
-  const seed = hashString(seedBase);
-  const rng = createRNG(seed);
+  const pixelSeed = hashString(seedBase);
+  const rng = externalRng ?? createRNG(pixelSeed);
 
   // 3. Roll rarity through the content resolver so drop-source weighting has one owner.
   const rarity = forcedRarity || rollRarityForDrop({ source, zoneWeights }, rng).id;
@@ -230,7 +232,7 @@ export function generateWeapon(options: GenerateWeaponOptions): Weapon {
     legendaryEffectId,
     sourceTag: source,
     isLocked: false,
-    pixelSeed: seed,
+    pixelSeed,
     combatPower: 0,
     bossPower: 0,
     farmPower: 0,

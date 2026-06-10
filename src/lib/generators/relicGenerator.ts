@@ -4,9 +4,8 @@ import { RARITIES } from '../../constants/rarities';
 import { createRNG, seededInt, pickWeighted, hashString } from '../utils/rng';
 import { generateItemId } from '../utils/id';
 
-export function generateRelic(level: number = 1): Relic {
-  const seed = hashString(`relic_${level}_${Date.now()}_${Math.random()}`);
-  const rng = createRNG(seed);
+export function generateRelic(level: number = 1, externalRng?: () => number): Relic {
+  const rng = externalRng ?? createRNG(hashString(`relic_${level}_${Date.now()}_${Math.random()}`));
 
   const rarityKeys = Object.values(Rarity);
   const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);

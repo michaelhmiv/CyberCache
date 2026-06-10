@@ -18,9 +18,8 @@ const ORDNANCE_EFFECTS = [
   'Kinetic Slam: +30% armor break',
 ];
 
-export function generateOrdnance(level: number = 1): Ordnance {
-  const seed = hashString(`ordnance_${level}_${Date.now()}_${Math.random()}`);
-  const rng = createRNG(seed);
+export function generateOrdnance(level: number = 1, externalRng?: () => number): Ordnance {
+  const rng = externalRng ?? createRNG(hashString(`ordnance_${level}_${Date.now()}_${Math.random()}`));
 
   const rarityKeys = Object.values(Rarity);
   const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);

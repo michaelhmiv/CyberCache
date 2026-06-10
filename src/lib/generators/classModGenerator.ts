@@ -19,9 +19,8 @@ const TREE_NAMES: Record<SkillTreeType, string> = {
   [SkillTreeType.Scavenger]: 'Scavenger',
 };
 
-export function generateClassMod(level: number = 1): ClassMod {
-  const seed = hashString(`classmod_${level}_${Date.now()}_${Math.random()}`);
-  const rng = createRNG(seed);
+export function generateClassMod(level: number = 1, externalRng?: () => number): ClassMod {
+  const rng = externalRng ?? createRNG(hashString(`classmod_${level}_${Date.now()}_${Math.random()}`));
 
   const rarityKeys = Object.values(Rarity);
   const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);

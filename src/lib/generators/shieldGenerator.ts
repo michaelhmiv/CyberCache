@@ -5,9 +5,10 @@ import { ELEMENTS } from '../../constants/elements';
 import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
 import { generateItemId } from '../utils/id';
 
-export function generateShield(level: number = 1): Shield {
-  const seed = hashString(`shield_${level}_${Date.now()}_${Math.random()}`);
-  const rng = createRNG(seed);
+export function generateShield(level: number = 1, externalRng?: () => number): Shield {
+  const seedBase = `shield_${level}_${Date.now()}_${Math.random()}`;
+  const pixelSeed = hashString(seedBase);
+  const rng = externalRng ?? createRNG(pixelSeed);
 
   const rarityKeys = Object.values(Rarity);
   const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);
@@ -59,6 +60,6 @@ export function generateShield(level: number = 1): Shield {
     affixes,
     sourceTag: DropSource.WorldDrop,
     isLocked: false,
-    pixelSeed: seed,
+    pixelSeed,
   };
 }

@@ -33,6 +33,7 @@ import { pickNextTarget, xpForKill } from '@/lib/combat/killCycleHelpers';
 import { bossTick, bossDamagePerSecond } from '@/lib/combat/bossTick';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { useBossStore } from '@/store/slices/bossSlice';
+import { createTickRng } from '@/lib/rng/tickRng';
 
 const TICK_MS = 3000;
 const DROP_CHANCE = 0.22;
@@ -44,10 +45,13 @@ let intervalId: ReturnType<typeof setInterval> | null = null;
 let lastTickAt = 0;
 let lastTickedAreaId: string | null = null;
 let ticking = false;
+let totalTickCount = 0;
 
 export interface IdleTickerState {
   running: boolean;
   lastTickAt: number;
+  /** Monotonically increasing tick counter — used as the RNG seed and server nonce. */
+  totalTickCount: number;
   start: () => void;
   stop: () => void;
   /** Force a single tick (e.g. when the user resumes the tab or comes back from offline). */
@@ -63,29 +67,29 @@ const pushPreviewEvents = (events: TickEvent[]) => {
   useTickFeedStore.getState().push(events);
 };
 
-const rollClientEvents = (areaId: string, ticks: number): TickEvent[] => {
+const rollClientEvents = (areaId: string, ticks: number, rng: () => number): TickEvent[] => {
   const area = getRoamingArea(areaId);
   const events: TickEvent[] = [];
   const now = Date.now();
 
   for (let i = 0; i < ticks; i += 1) {
     const at = now - (ticks - 1 - i) * TICK_MS;
-    if (Math.random() < DROP_CHANCE) {
-      const kind = rollAreaDropKind(area);
+    if (rng() < DROP_CHANCE) {
+      const kind = rollAreaDropKind(area, rng);
       const player = usePlayerStore.getState();
       const inv = useInventoryStore.getState();
       let gear: GearItem | undefined;
       if (kind === 'weapon') {
-        const opts = buildAreaWeaponDropOptions(area, player.level);
-        gear = inv.generateAndAdd(opts);
+        const opts = buildAreaWeaponDropOptions(area, player.level, rng);
+        gear = inv.generateAndAdd(opts, rng);
       } else if (kind === 'shield') {
-        gear = inv.generateAndAddShield(player.level);
+        gear = inv.generateAndAddShield(player.level, rng);
       } else if (kind === 'classMod') {
-        gear = inv.generateAndAddClassMod(player.level);
+        gear = inv.generateAndAddClassMod(player.level, rng);
       } else if (kind === 'relic') {
-        gear = inv.generateAndAddRelic(player.level);
+        gear = inv.generateAndAddRelic(player.level, rng);
       } else {
-        gear = inv.generateAndAddOrdnance(player.level);
+        gear = inv.generateAndAddOrdnance(player.level, rng);
       }
       if (gear) {
         events.push({
@@ -102,7 +106,7 @@ const rollClientEvents = (areaId: string, ticks: number): TickEvent[] => {
       // Single cumulative roll for fragment / material / kill so the
       // intended probabilities (3%, 8%, 67%) are honoured rather than
       // reduced by the preceding gear check. See Phase 1a plan.
-      const subRoll = Math.random();
+      const subRoll = rng();
       if (subRoll < FRAGMENT_CHANCE) {
         events.push({
           id: '',
@@ -562,6 +566,7 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
 export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
   running: false,
   lastTickAt: 0,
+  totalTickCount: 0,
   start: () => {
     if (intervalId) return;
     intervalId = setInterval(() => {
@@ -615,10 +620,14 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       }
       lastTickedAreaId = areaId;
 
-      // Client-side roll → immediate animation feedback. The server independently re-rolls and
-      // validates in `cc_claim_roaming_rewards`, so the client preview is honest because the
-      // server uses the same nonce+area+actor seed.
-      const previewEvents = rollClientEvents(areaId, ticks);
+      // Phase 2d: deterministic tick RNG. The same (player, area, tickCount)
+      // tuple produces the same random stream. The server uses the same tuple
+      // in cc_claim_roaming_rewards via the Mulberry32 port (migration 003).
+      totalTickCount += 1;
+      const playerId = usePlayerStore.getState().id;
+      const tickRng = playerId ? createTickRng(playerId, areaId, totalTickCount) : Math.random;
+
+      const previewEvents = rollClientEvents(areaId, ticks, tickRng);
       const survivalEvents = applySurvivalTick(areaId, ticks);
       const killCycleEvents = applyKillCycleTick(areaId, ticks);
       const allEvents = [...previewEvents, ...survivalEvents, ...killCycleEvents];

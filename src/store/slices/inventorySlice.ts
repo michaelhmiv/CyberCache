@@ -16,11 +16,11 @@ export interface InventoryState {
   scrapItem: (id: string) => { scrapValue: number; materials: Record<string, number>; essences: Record<string, number> };
   lockItem: (id: string) => void;
   unlockItem: (id: string) => void;
-  generateAndAdd: (opts: Parameters<typeof generateWeapon>[0]) => Weapon;
-  generateAndAddShield: (level?: number) => ReturnType<typeof generateShield>;
-  generateAndAddClassMod: (level?: number) => ReturnType<typeof generateClassMod>;
-  generateAndAddRelic: (level?: number) => ReturnType<typeof generateRelic>;
-  generateAndAddOrdnance: (level?: number) => ReturnType<typeof generateOrdnance>;
+  generateAndAdd: (opts: Parameters<typeof generateWeapon>[0], rng?: () => number) => Weapon;
+  generateAndAddShield: (level?: number, rng?: () => number) => ReturnType<typeof generateShield>;
+  generateAndAddClassMod: (level?: number, rng?: () => number) => ReturnType<typeof generateClassMod>;
+  generateAndAddRelic: (level?: number, rng?: () => number) => ReturnType<typeof generateRelic>;
+  generateAndAddOrdnance: (level?: number, rng?: () => number) => ReturnType<typeof generateOrdnance>;
   getWeapons: () => Weapon[];
   getById: (id: string) => GearItem | undefined;
 }
@@ -66,32 +66,32 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
       items: s.items.map((i) => (i.id === id ? { ...i, isLocked: false } : i)),
     })),
 
-  generateAndAdd: (opts) => {
-    const weapon = generateWeapon(opts);
+  generateAndAdd: (opts, rng) => {
+    const weapon = generateWeapon(opts, rng);
     set((s) => ({ items: [weapon, ...s.items] }));
     return weapon;
   },
 
-  generateAndAddShield: (level = 1) => {
-    const shield = generateShield(level);
+  generateAndAddShield: (level = 1, rng) => {
+    const shield = generateShield(level, rng);
     set((s) => ({ items: [shield, ...s.items] }));
     return shield;
   },
 
-  generateAndAddClassMod: (level = 1) => {
-    const mod = generateClassMod(level);
+  generateAndAddClassMod: (level = 1, rng) => {
+    const mod = generateClassMod(level, rng);
     set((s) => ({ items: [mod, ...s.items] }));
     return mod;
   },
 
-  generateAndAddRelic: (level = 1) => {
-    const relic = generateRelic(level);
+  generateAndAddRelic: (level = 1, rng) => {
+    const relic = generateRelic(level, rng);
     set((s) => ({ items: [relic, ...s.items] }));
     return relic;
   },
 
-  generateAndAddOrdnance: (level = 1) => {
-    const ordnance = generateOrdnance(level);
+  generateAndAddOrdnance: (level = 1, rng) => {
+    const ordnance = generateOrdnance(level, rng);
     set((s) => ({ items: [ordnance, ...s.items] }));
     return ordnance;
   },
