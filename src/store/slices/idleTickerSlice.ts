@@ -67,45 +67,40 @@ const pushPreviewEvents = (events: TickEvent[]) => {
   useTickFeedStore.getState().push(events);
 };
 
-const rollClientEvents = (areaId: string, ticks: number, rng: () => number): TickEvent[] => {
+/**
+ * rollPreviewEvents — COSMETIC ONLY. Generates preview tick events
+ * for immediate display in the tick feed. Does NOT mutate any store
+ * (inventory, player resources, survival, kill cycle).
+ *
+ * All item generation, resource awards, and state mutations are
+ * owned by the Chef server (src/server/chef.ts). This function
+ * produces display-only placeholder events that are replaced when
+ * the Chef's canonical response arrives.
+ *
+ * Phase 3: renamed from rollClientEvents. Removed all
+ * inv.generateAndAdd*() calls. Gear drops show as "pending" until
+ * the server response replaces them with real items.
+ */
+const rollPreviewEvents = (areaId: string, ticks: number, rng: () => number): TickEvent[] => {
   const area = getRoamingArea(areaId);
   const events: TickEvent[] = [];
   const now = Date.now();
 
   for (let i = 0; i < ticks; i += 1) {
     const at = now - (ticks - 1 - i) * TICK_MS;
-    if (rng() < DROP_CHANCE) {
-      const kind = rollAreaDropKind(area, rng);
-      const player = usePlayerStore.getState();
-      const inv = useInventoryStore.getState();
-      let gear: GearItem | undefined;
-      if (kind === 'weapon') {
-        const opts = buildAreaWeaponDropOptions(area, player.level, rng);
-        gear = inv.generateAndAdd(opts, rng);
-      } else if (kind === 'shield') {
-        gear = inv.generateAndAddShield(player.level, rng);
-      } else if (kind === 'classMod') {
-        gear = inv.generateAndAddClassMod(player.level, rng);
-      } else if (kind === 'relic') {
-        gear = inv.generateAndAddRelic(player.level, rng);
-      } else {
-        gear = inv.generateAndAddOrdnance(player.level, rng);
-      }
-      if (gear) {
-        events.push({
-          id: '',
-          at,
-          tone: 'loot',
-          label: gear.name,
-          detail: `${gear.rarity} ${('weaponType' in gear) ? gear.weaponType : 'gear'}`,
-          gear,
-          areaId,
-        });
-      }
+    const roll = rng();
+
+    if (roll < DROP_CHANCE) {
+      // Gear drop — preview shows ??? until Chef response arrives
+      events.push({
+        id: '',
+        at,
+        tone: 'loot',
+        label: 'Gear found...',
+        detail: `Searching ${area.enemyType} remains...`,
+        areaId,
+      });
     } else {
-      // Single cumulative roll for fragment / material / kill so the
-      // intended probabilities (3%, 8%, 67%) are honoured rather than
-      // reduced by the preceding gear check. See Phase 1a plan.
       const subRoll = rng();
       if (subRoll < FRAGMENT_CHANCE) {
         events.push({
@@ -118,7 +113,7 @@ const rollClientEvents = (areaId: string, ticks: number, rng: () => number): Tic
           value: 1,
         });
       } else if (subRoll < FRAGMENT_CHANCE + MATERIAL_FIND_CHANCE) {
-        const find = rollAreaMaterialFind(area);
+        const find = rollAreaMaterialFind(area, rng);
         if (find) {
           events.push({
             id: '',
@@ -627,7 +622,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       const playerId = usePlayerStore.getState().id;
       const tickRng = playerId ? createTickRng(playerId, areaId, totalTickCount) : Math.random;
 
-      const previewEvents = rollClientEvents(areaId, ticks, tickRng);
+      const previewEvents = rollPreviewEvents(areaId, ticks, tickRng);
       const survivalEvents = applySurvivalTick(areaId, ticks);
       const killCycleEvents = applyKillCycleTick(areaId, ticks);
       const allEvents = [...previewEvents, ...survivalEvents, ...killCycleEvents];
@@ -657,17 +652,55 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
         }
       }
 
-      // Server validation. If the call fails, the client-side events are already shown — but the
-      // server is the source of truth for persistent rewards, so a retry on the next tick will
-      // reconcile. Persistence happens via the runtime snapshot.
+      // Phase 3: Chef is the authoritative engine. Try the Chef API first,
+      // fall back to the Supabase RPC if the Chef is unreachable.
+      //
+      // The Chef generates items, awards resources, and processes survival /
+      // kill cycle events. All state mutations (inventory, player resources,
+      // survival HP) come from the Chef response.
       try {
-        const result = await verifiedOps.claimRoamingRewards({ ticks, areaId, tickCount: totalTickCount });
-        applyServerRewards(result as Record<string, unknown>);
-        await saveCurrentRuntimeStores();
+        const playerId = usePlayerStore.getState().id;
+        if (playerId) {
+          const { submitClaim } = await import('@/lib/chef/chefClient');
+          const chefResult = await submitClaim({
+            playerId,
+            areaId,
+            ticks,
+            tickCount: totalTickCount,
+            playerLevel: usePlayerStore.getState().level,
+          });
+
+          // Apply canonical results from the Chef
+          applyServerRewards(chefResult as unknown as Record<string, unknown>);
+
+          // Replace preview gear events with real items from the Chef
+          const feedStore = useTickFeedStore.getState();
+          if (chefResult.feedEvents && chefResult.feedEvents.length > 0) {
+            // Remove old preview events and push the canonical ones
+            feedStore.clear?.();
+            feedStore.push(chefResult.feedEvents as TickEvent[]);
+          }
+
+          // Add Chef-generated items to inventory
+          if (chefResult.items && chefResult.items.length > 0) {
+            const inv = useInventoryStore.getState();
+            inv.receiveServerItems?.(chefResult.items) ||
+              chefResult.items.forEach((item) => inv.upsertItem(item as GearItem));
+          }
+        }
       } catch (error) {
-        // Network or RPC failure — preview still shown, server will reconcile on next tick.
-        console.warn('[idleTicker] roaming rewards RPC failed:', error);
+        // Chef unavailable — fall back to Supabase RPC
+        console.warn('[idleTicker] Chef unavailable, falling back to RPC:', error);
+        try {
+          const result = await verifiedOps.claimRoamingRewards({ ticks, areaId, tickCount: totalTickCount });
+          applyServerRewards(result as Record<string, unknown>);
+        } catch (rpcError) {
+          console.warn('[idleTicker] roaming rewards RPC also failed:', rpcError);
+        }
       }
+
+      // Persist runtime stores to Supabase (debounced sync)
+      await saveCurrentRuntimeStores();
     } finally {
       ticking = false;
     }

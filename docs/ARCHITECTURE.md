@@ -14,23 +14,31 @@ repo must read this document before touching game logic.
 Each gameplay domain has **exactly one owner** file/module. Duplicate logic
 in screens or components is forbidden.
 
+> **Phase 5 (Chef):** As of June 2026, the Chef worker (`src/server/chef.ts`)
+> is the authoritative engine for all roaming tick processing, item generation,
+> and boss fight verification. The client is a display layer — it NEVER generates
+> items or awards resources independently. See §8 (Chef Architecture) below.
+
 | Domain | Owner | Notes |
-|---|---|---|
+|---|---|---|---|
 | **Activity lifecycle** (start, stop, heartbeat) | `src/lib/supabase/activityService.ts` + `src/store/useActivityStore` | Server-backed via `active_actions` table |
-| **Roaming tick execution** | `src/store/slices/idleTickerSlice.ts` | Mounted once in `App.tsx`. 3s cadence. Calls `cc_claim_roaming_rewards` RPC. |
-| **Server reward claiming** | `src/store/slices/idleTickerSlice.ts` → `verifiedOps` → `cc_claim_roaming_rewards` RPC | Server is source of truth; client is instant preview |
+| **Roaming tick processing** | `src/server/chef.ts` (Chef worker) | Authoritative engine. Processes claims, generates items, awards resources. Runs on Railway server process. |
+| **Roaming tick preview** (UI-only) | `src/store/slices/idleTickerSlice.ts` → `rollPreviewEvents` | COSMETIC ONLY. Shows placeholder events until Chef response. No store mutations. |
+| **Server reward claiming** | `src/lib/supabase/verifiedOps.ts` → `cc_apply_chef_rewards` RPC | Fallback when Chef is unavailable; Chef is primary path |
+| **Item generation** | `src/server/chef.ts` + `src/lib/generators/*` | Chef calls the same TS generators as the client imports. ONE source of truth. |
 | **Tick feed events** | `src/store/slices/tickSlice.ts` | `TickEvent` / `TickEventTone`. Capped at 50, FIFO. |
-| **Inventory mutation** | `src/store/slices/inventorySlice.ts` | `addItem`, `removeItem`, `generateAndAdd*` |
-| **Player resources** (credits, XP, scrap, materials, essences, cache keys/fragments) | `src/store/slices/playerSlice.ts` | `addCredits`, `addXP`, `addScrap`, `addMaterial`, `addEssence`, `addCacheKeyFragments` |
+| **Inventory mutation** | `src/store/slices/inventorySlice.ts` | `receiveServerItems` (Chef path) or `addItem`/`removeItem` (user actions) |
+| **Player resources** (credits, XP, scrap, materials, essences, cache keys/fragments) | `src/store/slices/playerSlice.ts` | Mutated ONLY via `syncVerifiedResult` from server response |
 | **Loadout** | `src/store/slices/loadoutSlice.ts` | 7-slot loadout with consumable slots |
 | **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` | Persisted via Supabase runtime snapshot |
 | **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Supabase runtime snapshot |
-| **Boss prep / boss fight** | `src/store/slices/bossSlice.ts` + `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |
+| **Boss prep analysis** | `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |
+| **Boss fight verification** | `src/server/routes/claim.ts` → `POST /api/verify-boss` | Plausibility checks: damage ≤ DPS × time × 1.2, damage ≥ boss HP for victory |
 | **Crafting / salvaging / workshop** | `src/store/slices/workshopSlice.ts` + `src/lib/craftingEngine.ts` | Queue-based |
 | **Public profile activity** | `src/types/activity.ts` → `ActiveActivity.publicPayload` | Display-only; derived from activity store |
 | **Animation / diorama display** | `src/lib/animation/fightTimeline.ts` + `src/lib/activity/ActionStage.tsx` | Pure reads of gameplay state |
 | **DPS computation** | `src/lib/stats/dpsChain.ts` | See `docs/dps-chain-v2.md` |
-| **Supabase persistence** | `src/store/runtimeSupabaseSync.ts` | 500ms debounced snapshot of all 10 stores |
+| **Supabase persistence** | `src/store/runtimeSupabaseSync.ts` + Chef RPCs | 500ms debounced snapshot + Chef direct writes |
 | **XP curve** | `src/content/simulation.ts` (`xpToNextLevel`) | Mirrored server-side in migration 057 |
 
 ---
@@ -186,7 +194,43 @@ These timers must never mutate gameplay state.
 
 ---
 
-## 10. Agent Checklist Before Opening a PR
+## 8. Chef Architecture (Server-Side Engine)
+
+The Chef (`src/server/chef.ts`) runs in the same Railway process as the web app.
+It is the **authoritative engine** for all gameplay outcomes.
+
+### Why the Chef exists
+
+The client (player's browser) cannot be trusted. A player can open DevTools and
+override `Math.random` to force legendary drops. The Chef runs on your server.
+
+### What the Chef owns
+
+- Tick claim processing (probabilities, rewards)
+- Item generation (weapons, shields, classMods, relics, ordnance)
+- Resource awards (credits, XP, scrap, materials, essences)
+- Boss fight verification (plausibility checks)
+
+### What the Chef does NOT own
+
+- UI rendering (React app)
+- Animation display
+- Cosmetic previews (display-only placeholders in the tick feed)
+
+### One source of truth for generators
+
+The Chef imports the **same TypeScript generator functions** as the client.
+Both use the same Mulberry32 RNG. Same seed = same item.
+
+### Adding a new weapon type
+
+1. Add entry to `src/constants/weaponTypes.ts`
+2. Add name to `src/lib/utils/naming.ts`
+3. `git push` — both client and Chef pick up the change.
+
+---
+
+## 9. Agent Checklist Before Opening a PR
 
 - [ ] `npm test` passes
 - [ ] `npm run build` passes
@@ -198,6 +242,10 @@ These timers must never mutate gameplay state.
 - [ ] Tick feed events use the canonical `TickEventTone` from `tickSlice.ts`
 - [ ] No duplicated `TickEventTone` or `ActivityKind` unions
 - [ ] New event tones have test coverage including `'unknown'` fallback
+- [ ] No `generateAndAdd*` calls in `idleTickerSlice.ts` — tick previews are cosmetic only
+- [ ] Items are generated by the Chef, not the client
+- [ ] New generators have determinism tests in `src/test/chefDeterminism.test.ts`
+- [ ] Boss fight results are verified through `POST /api/verify-boss`
 - [ ] Authenticated progression does not depend on localStorage
 - [ ] Architecture doc is updated if a new source of truth is introduced
 - [ ] `AGENTS.md` rules are followed

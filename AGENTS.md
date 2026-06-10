@@ -14,6 +14,8 @@ Before making any change:
 - **If a requested change appears to require a new source of truth, stop and update `docs/ARCHITECTURE.md` first.**
 - **Do not bypass static architecture guards without documenting why.** Run `scripts/guard-architecture.sh` after changes.
 - **Do not treat UI animation as gameplay execution.** Dioramas, action stages, and loot popups read from stores — they do not produce gameplay outcomes.
+- **The Chef is the authoritative engine.** All roaming tick processing, item generation, and resource awards happen server-side (`src/server/chef.ts`). The client is a display layer — NEVER add item generation or resource mutation to the client ticker path. See `docs/ARCHITECTURE.md` §8.
+- **All item generators are shared.** `src/lib/generators/*` is imported by BOTH the Chef and the client. One source of truth. Do not create generator copies.
 
 ## Mandatory Repo Verification
 

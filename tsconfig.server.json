@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "ignoreDeprecations": "6.0",
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src/server/**/*.ts",
+    "src/lib/generators/**/*.ts",
+    "src/lib/rng/**/*.ts",
+    "src/lib/utils/rng.ts",
+    "src/lib/utils/id.ts",
+    "src/lib/utils/naming.ts",
+    "src/lib/stats/dpsChain.ts",
+    "src/constants/roamingAreas.ts",
+    "src/constants/weaponTypes.ts",
+    "src/constants/rarities.ts",
+    "src/constants/manufacturers.ts",
+    "src/constants/legendaryEffects.ts",
+    "src/constants/elements.ts",
+    "src/content/lootResolver.ts",
+    "src/types/game.ts",
+    "src/types/items.ts"
+  ]
+}

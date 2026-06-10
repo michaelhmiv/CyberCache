@@ -10,11 +10,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "mechanics:validate": "vitest run src/test/mechanicsValidation.test.ts",
-    "mechanics:report": "vitest run src/test/balanceReport.test.ts --reporter=verbose"
+    "mechanics:report": "vitest run src/test/balanceReport.test.ts --reporter=verbose",
+    "start": "tsx --tsconfig tsconfig.server.json src/server/index.ts",
+    "server": "tsx --tsconfig tsconfig.server.json src/server/index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.0",
     "@tailwindcss/vite": "^4.3.0",
+    "@types/express": "^5.0.6",
+    "express": "^5.2.1",
     "framer-motion": "^12.40.0",
     "idb": "^8.0.3",
     "lucide-react": "^1.17.0",
@@ -36,6 +40,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
+    "tsx": "^4.22.4",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",

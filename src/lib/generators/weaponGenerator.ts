@@ -26,6 +26,7 @@ export interface GenerateWeaponOptions {
   luckBonus?: number; // 0-1 flat increase to rarity roll
   bossTier?: number;
   zoneWeights?: Record<string, number>; // per-zone rarity weights
+  _luckBonus?: number; // internal — destructured from options
 }
 
 export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () => number): Weapon {

@@ -21,6 +21,8 @@ export interface InventoryState {
   generateAndAddClassMod: (level?: number, rng?: () => number) => ReturnType<typeof generateClassMod>;
   generateAndAddRelic: (level?: number, rng?: () => number) => ReturnType<typeof generateRelic>;
   generateAndAddOrdnance: (level?: number, rng?: () => number) => ReturnType<typeof generateOrdnance>;
+  /** Replace inventory with server-authoritative items. Chef-only path. */
+  receiveServerItems: (items: GearItem[]) => void;
   getWeapons: () => Weapon[];
   getById: (id: string) => GearItem | undefined;
 }
@@ -95,6 +97,13 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
     set((s) => ({ items: [ordnance, ...s.items] }));
     return ordnance;
   },
+
+  receiveServerItems: (items) => set((s) => {
+    // Merge server items with existing: deduplicate by id, prefer server version
+    const serverIds = new Set(items.map((i) => i.id));
+    const existing = s.items.filter((i) => !serverIds.has(i.id));
+    return { items: [...items, ...existing] };
+  }),
 
   getWeapons: () => get().items.filter((i) => 'weaponType' in i) as Weapon[],
   getById: (id) => get().items.find((i) => i.id === id),
