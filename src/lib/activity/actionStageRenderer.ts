@@ -291,6 +291,24 @@ export const BEAT_ANIMATORS: Record<ActionAnimationBeat, BeatAnimator> = {
     },
     debugLabel: 'credit-transfer',
   }),
+
+  // ─── Death beat (PR 5) ───────────────────────────────────────────
+  // The hunter slumps to the ground and stays there until resurrected.
+  // Single-shot animation, no infinite repeat. The stage itself can
+  // also pulse red as a "danger" backdrop.
+  'hunter-down': () => ({
+    target: 'hunter',
+    variants: {
+      initial: { y: 0, rotate: 0, opacity: 1 },
+      animate: {
+        y: [0, 8, 18],
+        rotate: [0, 12, 78],
+        opacity: [1, 0.9, 0.7],
+        transition: { duration: 1.2, ease: 'easeIn', times: [0, 0.4, 1] },
+      },
+    },
+    debugLabel: 'hunter-down',
+  }),
 };
 
 /** Resolve the beat renderer for a given beat, or fall back to idle-breathe. */

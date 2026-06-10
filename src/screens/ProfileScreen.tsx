@@ -1,6 +1,6 @@
 import React from 'react';
-import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Target, TrendingUp, User, Zap } from 'lucide-react';
-import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore, useSkillStore } from '@/store';
+import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Skull, Target, TrendingUp, User, Zap } from 'lucide-react';
+import { useActivityStore, usePlayerStore, useInventoryStore, useBossStore, useSkillStore, useSurvivalStore } from '@/store';
 import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
@@ -37,6 +37,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const bossStore = useBossStore();
   const activity = useActivityStore();
   const skillStore = useSkillStore();
+  const deathLog = useSurvivalStore((s) => s.deathLog);
   const { account, user, signOut, actionLoading } = useAuth();
 
   const weapons = inventory.getWeapons();
@@ -101,6 +102,35 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
       </MobileCard>
 
       <WorldPulseFeed />
+
+      <MobileCard className="space-y-2" rarityColor="#FF4B5C">
+        <div className="flex items-center gap-2">
+          <Skull size={16} className="text-red" />
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Killed By</div>
+          <div className="ml-auto text-[10px] text-text-muted">{deathLog.length} recorded</div>
+        </div>
+        {deathLog.length === 0 ? (
+          <div className="text-[10px] text-text-muted">No deaths on file. Stay sharp out there.</div>
+        ) : (
+          <ul data-testid="death-log" className="space-y-1 text-xs text-text-secondary">
+            {deathLog.slice(0, 10).map((entry, i) => (
+              <li
+                key={`${entry.at}-${i}`}
+                data-testid="death-log-entry"
+                data-monster-id={entry.monsterId}
+                data-area-id={entry.areaId}
+                className="flex items-center justify-between gap-3 border-b border-border/40 pb-1 last:border-b-0"
+              >
+                <div className="min-w-0 flex-1 truncate font-bold text-text-primary">{entry.monsterName}</div>
+                <div className="truncate text-[10px] text-text-muted">{entry.areaId}</div>
+                <div className="shrink-0 text-[10px] text-text-muted">
+                  {new Date(entry.at).toLocaleDateString()}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </MobileCard>
 
       <MobileCard className="space-y-3" rarityColor="#FF4B5C">
         <div className="flex items-center gap-2">

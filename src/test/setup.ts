@@ -1,10 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
 
 // Set dummy Supabase env vars so modules that call `requireSupabaseConfig`
 // at import time (via the supabase client) don't throw in test runs that
 // don't have a real `.env`. The values are never used to make real
-// network calls — the per-test `vi.mock` of `verifiedOps` and
+// network calls — the per-test mock of `verifiedOps` and
 // `runtimeSupabaseSync` is what actually prevents real network access.
 //
 // This unblocks test files like `idleTickerSurvival.test.ts` and

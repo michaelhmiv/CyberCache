@@ -8,6 +8,7 @@ import { InventoryScreen } from './screens/InventoryScreen';
 import { MarketScreen } from './screens/MarketScreen';
 import { ChestScreen } from './screens/ChestScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { DeathOverlay } from './components/action/DeathOverlay';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HelpScreen } from './screens/HelpScreen';
 import { WorkshopScreen } from './screens/WorkshopScreen';
@@ -192,6 +193,7 @@ function App() {
       )}
 
       <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); }} />
+      <DeathOverlay />
     </div>
   );
 }
