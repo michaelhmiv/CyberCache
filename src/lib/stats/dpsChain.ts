@@ -103,13 +103,17 @@ export function computeWeaponDps(ctx: DpsContext): number {
   } = ctx;
   // Step 1: Raw DPS from base stats.
   const rawDps = weapon.baseDamage * weapon.attackSpeed * (1 + weapon.critChance * weapon.critDamage);
+  // Step 1.5: Status effect contribution — flat DPS multiplier.
+  // A full per-tick DoT system is a follow-up feature. For now, status
+  // chance and damage contribute as (1 + chance * damage * 0.3).
+  const statusMult = 1 + weapon.statusChance * weapon.statusDamage * 0.3;
   // Step 2: Signature mechanic. The chain now consumes the signature
   // directly via signatureMechanic.ts. The `fullDuration` and
   // `reloadDuration` are 0 in the no-ammo-window default (the chain
   // doesn't model ammo windows itself; that's a caller concern in
   // step 5). For weapons with no signature, this returns 1.0×.
   const sig = applySignatureMechanic(weapon, 0, 0, 30);
-  const signatureDps = rawDps * sig.dpsMult;
+  const signatureDps = rawDps * statusMult * sig.dpsMult;
   // Step 3: Manufacturer legendary damage multiplier.
   const legendaryDps = signatureDps * legendaryDamageMult;
   // Step 4: Element matchup. 3-state counter table.

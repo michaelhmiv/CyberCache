@@ -20,15 +20,6 @@ import { computeHunterMaxHp, type HunterSurvivalStats } from './damageContract';
 import { computeStandardDps } from '@/lib/stats/dpsChain';
 
 /**
- * Read the equipped shield's HP. Returns 0 if no shield equipped.
- * The shield's `hp` field is the shield's *capacity* in this game.
- */
-function equippedShieldHp(): number {
-  const shield = useLoadoutStore.getState().getShield();
-  return shield?.hp ?? 0;
-}
-
-/**
  * Read the equipped shield's full defensive profile.
  * Returns null if no shield equipped.
  */

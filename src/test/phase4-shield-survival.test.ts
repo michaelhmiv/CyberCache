@@ -7,10 +7,7 @@ import {
   computeMonsterDamageVsHunter,
   type HunterSurvivalStats,
 } from '@/lib/combat/damageContract';
-import {
-  equippedShieldRechargeRate,
-  equippedShieldMitigation,
-} from '@/lib/combat/loadoutSurvival';
+
 import type { MonsterDef } from '@/constants/monsters';
 import type { Element } from '@/types/game';
 
