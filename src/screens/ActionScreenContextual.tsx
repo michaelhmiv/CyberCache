@@ -6,7 +6,6 @@ import {
   Clock,
   Crosshair,
   Hammer,
-  MapPin,
   Package,
   Radar,
   Recycle,
@@ -197,32 +196,6 @@ type CommonPanelProps = {
   startWorkshop: () => void;
   startMarket: () => void;
   onNavigate?: (screen: string) => void;
-};
-
-const RoamingPanel: React.FC<{ selectedArea: RoamingAreaDef; creditsPerTick: number; scrapPerTick: number; setShowAreaSelect: (show: boolean) => void }> = ({ selectedArea, creditsPerTick, scrapPerTick, setShowAreaSelect }) => {
-  const rarityEntries = Object.entries(selectedArea.dropPoolRarityWeights).sort(([, a], [, b]) => b - a);
-  const gearEntries = Object.entries(selectedArea.gearDropWeights).sort(([, a], [, b]) => b - a).slice(0, 4);
-  return (
-    <div className="space-y-3">
-      <RewardIntelPanel
-        title={`${selectedArea.name} reward map`}
-        eyebrow="roaming intel"
-        stats={[
-          { label: 'Tick', value: `${TICK_SECONDS}s`, tone: 'amber' },
-          { label: 'Credits', value: `+${creditsPerTick}`, tone: 'cyan' },
-          { label: 'Scrap', value: `+${scrapPerTick}`, tone: 'green' },
-          { label: 'Gear', value: `${Math.round(DROP_CHANCE_PER_TICK * 100)}%`, tone: 'amber' },
-          { label: 'Cache Frag', value: `${Math.round(CACHE_FRAGMENT_CHANCE_PER_TICK * 100)}%`, tone: 'cyan' },
-          { label: 'Materials', value: `${Math.round(MATERIAL_FIND_CHANCE_PER_TICK * 100)}%`, tone: 'green' },
-        ]}
-      >
-        Enemies: {selectedArea.enemyType}. Materials: {[...selectedArea.materialBias, ...selectedArea.essenceBias].slice(0, 4).join(' / ') || 'Balanced'}. Bias: {selectedArea.lootBias.join(' · ')}. Rarity weights: {rarityEntries.map(([rarity, weight]) => `${rarity} ${weight}`).join(' / ')}. Gear weights: {gearEntries.map(([kind, weight]) => `${kind} ${weight}`).join(' / ')}.
-      </RewardIntelPanel>
-      <Section title="Route Control" eyebrow="compressed" icon={MapPin} action={<button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Route</button>}>
-        <div className="text-xs leading-relaxed text-text-muted">The route selector now lives behind the area title and this compact control. The main screen stays focused on rewards and the live loot log.</div>
-      </Section>
-    </div>
-  );
 };
 
 const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBoss?: BossDef; fightPower: number; onBossPicker: () => void }> = ({ currentBoss, fightPower, startBossFight, onBossPicker }) => {
@@ -568,7 +541,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
 
   const workspace = (() => {
-    if (currentKind === 'roaming_loot') return <RoamingPanel selectedArea={selectedArea} creditsPerTick={creditsPerTick} scrapPerTick={scrapPerTick} setShowAreaSelect={setShowAreaSelect} />;
+    // Roaming: intel + route control are now baked into the diorama area
+    // title click → route selector sheet. The workspace stays clean so the
+    // loadout and loot feed are immediately visible.
+    if (currentKind === 'roaming_loot') return null;
     if (currentKind === 'boss_prep') return <BossPrepPanel {...commonProps} bosses={bosses} currentBoss={prepBossTarget} fightPower={fightPower} onBossPicker={() => setShowBossPicker(true)} />;
     if (currentKind === 'boss_fight') return <BossFightPanel boss={prepBossTarget} fightPower={fightPower} openBoss={onOpenBossSelect} />;
     if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} onRecipePicker={() => setShowRecipePicker(true)} />;
@@ -618,6 +594,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         activityTarget={targetLabel}
         onFight={onDioramaPrimary}
         onSecondary={onDioramaSecondary}
+        onTitleClick={() => setShowAreaSelect(true)}
         primaryActionLabel={
           currentKind === 'idle_standby' || currentKind === 'none' ? 'Start Roam'
           : currentKind === 'roaming_loot' ? 'Change Route'
@@ -671,7 +648,18 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer instead of crowding the Action tab." onClose={() => setShowSwitch(false)}>
           {switchActions.map(({ label, detail: rowDetail, icon: Icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber"><Icon size={18} /></div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showAreaSelect} title="Choose Roaming Route" detail="Tapping the scene title opens this sheet." onClose={() => setShowAreaSelect(false)}>
+        <ContextualPickerSheet open={showAreaSelect} title="Choose Roaming Route" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Tap the scene title to switch routes.'} onClose={() => setShowAreaSelect(false)}>
+          {/* Compact area stats strip — replaces the removed Roaming Intel card */}
+          {isRoaming && (
+            <div className="mb-3 grid grid-cols-3 gap-1.5 text-[9px]">
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Credits</span><div className="font-black text-cyan">+{creditsPerTick}/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Scrap</span><div className="font-black text-green">+{scrapPerTick}/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Gear</span><div className="font-black text-amber">{Math.round(DROP_CHANCE_PER_TICK * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Cache Frag</span><div className="font-black text-cyan">{Math.round(CACHE_FRAGMENT_CHANCE_PER_TICK * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Materials</span><div className="font-black text-green">{Math.round(MATERIAL_FIND_CHANCE_PER_TICK * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Enemy</span><div className="font-black text-text-primary">{selectedArea.enemyType.split(' ')[0]}</div></div>
+            </div>
+          )}
           {ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; return <RouteCard key={area.id} area={area} selected={selected} unlocked={unlocked} onSelect={() => idle.setSelectedRoamingArea(area.id)} onStart={() => startRoam(area)} />; })}
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showBossPicker} title="Choose Boss Target" detail="Boss selection no longer consumes the default action screen." onClose={() => setShowBossPicker(false)}>
