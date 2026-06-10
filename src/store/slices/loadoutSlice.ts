@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '../../types/items';
 import { useInventoryStore } from './inventorySlice';
+import { useSkillStore } from './skillSlice';
 
 export type LoadoutSlot =
   | 'primary'
@@ -70,10 +71,51 @@ export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
     Emergency: null,
   },
 
-  setSlots: (slots) => set({ slots: { ...emptySlots, ...slots } }),
+  setSlots: (slots) => {
+    // Handle class mod equip / unequip if classMod is in the new slots.
+    if ('classMod' in slots) {
+      const skillStore = useSkillStore.getState();
+      const prevId = get().slots.classMod;
 
-  setSlot: (slot, itemId) =>
-    set((s) => ({ slots: { ...s.slots, [slot]: itemId } })),
+      if (prevId) {
+        skillStore.removeClassMod();
+      }
+
+      const newClassModId = slots.classMod;
+      if (newClassModId) {
+        const item = getInventoryItem(newClassModId);
+        if (isClassMod(item)) {
+          skillStore.applyClassMod(item);
+        }
+      }
+    }
+
+    set({ slots: { ...emptySlots, ...slots } });
+  },
+
+  setSlot: (slot, itemId) => {
+    const prevId = get().slots[slot];
+
+    // Handle class mod equip / unequip side effects.
+    if (slot === 'classMod') {
+      const skillStore = useSkillStore.getState();
+
+      // Remove previous class mod boosts if any.
+      if (prevId) {
+        skillStore.removeClassMod();
+      }
+
+      // Apply new class mod boosts.
+      if (itemId) {
+        const item = getInventoryItem(itemId);
+        if (isClassMod(item)) {
+          skillStore.applyClassMod(item);
+        }
+      }
+    }
+
+    set((s) => ({ slots: { ...s.slots, [slot]: itemId } }));
+  },
 
   getEquipped: (slot) => get().slots[slot],
 
