@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Backpack, Box, Hammer, Pill, Shield } from 'lucide-react';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
 import { GearYardScreen } from './GearYardScreen';
+import { ConsumablesScreen } from './ConsumablesScreen';
 import { WorkshopScreen } from './WorkshopScreen';
 import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 
@@ -98,7 +99,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
       <div>
         {activeTab === 'gear' && <GearYardScreen onNavigate={onNavigate} />}
         {activeTab === 'loadout' && <SyncedLoadoutScreen />}
-        {activeTab === 'consumables' && <div className="p-4 text-center text-sm text-text-muted py-10">Consumables — coming in Phase 2</div>}
+        {activeTab === 'consumables' && <ConsumablesScreen />}
         {activeTab === 'workshop' && <WorkshopScreen onNavigate={onNavigate} />}
       </div>
     </div>
