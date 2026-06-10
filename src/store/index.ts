@@ -13,6 +13,7 @@ import { useCombatStatsStore, combatStatsSelectors } from './slices/combatStatsS
 import { useSurvivalStore } from './slices/survivalSlice';
 import { useKillCycleStore } from './slices/killCycleSlice';
 import { useLoadoutPresetsStore } from './slices/loadoutPresetsSlice';
+import { useSalvageFeedStore } from './slices/salvageFeedSlice';
 export { combatStatsSelectors };
 
 export {
@@ -33,4 +34,5 @@ export {
   useSurvivalStore,
   useKillCycleStore,
   useLoadoutPresetsStore,
+  useSalvageFeedStore,
 };

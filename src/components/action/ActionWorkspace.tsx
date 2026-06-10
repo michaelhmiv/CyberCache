@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, Clock, PackageSearch, Sparkles } from 'lucide-react';
+import { ChevronDown, PackageSearch, Sparkles } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
-import { getActionWorkspaceSpec } from '@/lib/activity/actionWorkspaceSpecs';
-import { getAnimationBeatsForEvent } from '@/lib/activity/actionAnimationDirector';
-import { ConsumablesChips } from '@/components/action/ConsumablesChips';
-import type { ActivityKind } from '@/types/activity';
 import type { GearItem } from '@/types/items';
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
@@ -50,55 +46,6 @@ export const ActionStatChip: React.FC<ActionStat> = ({ label, value, tone = 'amb
     <div className={`truncate text-xs font-black ${toneText[tone]}`}>{value}</div>
   </div>
 );
-
-export const ActiveActionHeader: React.FC<{
-  kind: ActivityKind;
-  title: string;
-  detail: string;
-  target: string;
-  elapsed?: string;
-  status?: string;
-  stats: ActionStat[];
-  onManage?: () => void;
-  manageLabel?: string;
-}> = ({ kind, title, detail, target, elapsed, status = 'LIVE', stats, onManage, manageLabel = 'Manage' }) => {
-  const spec = getActionWorkspaceSpec(kind);
-  const motionBeats = getAnimationBeatsForEvent(kind).join(' ');
-  return (
-    <section data-motion-beats={motionBeats} className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_10px_22px_rgba(0,0,0,0.55)]" style={panelClip}>
-      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rotate-12 border-[14px] border-amber/5" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[10px] font-black uppercase tracking-widest text-amber">Current Action · {spec.liveVerb}</div>
-          <div className="truncate text-lg font-black text-text-primary">{title}</div>
-          <div className="text-xs leading-relaxed text-text-muted">{detail}</div>
-          <div className="mt-1 text-[10px] font-black uppercase tracking-wide text-text-secondary">Target: {target}</div>
-        </div>
-        <div className="shrink-0 text-right text-[10px] text-text-muted">
-          <Clock size={16} className="ml-auto" />
-          <div className="font-black text-amber">{status}</div>
-          {elapsed && <div>{elapsed}</div>}
-        </div>
-      </div>
-      <div className="relative mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
-        {stats.slice(0, 6).map((stat) => <ActionStatChip key={`${stat.label}-${stat.value}`} {...stat} />)}
-      </div>
-      <div className="relative mt-3">
-        <ConsumablesChips />
-      </div>
-      <div className="relative mt-3 border-2 border-border bg-bg/70 p-2 text-[10px]" style={chipClip}>
-        <div className="font-black uppercase tracking-wide text-amber">Next Decision</div>
-        <div className="mt-1 leading-snug text-text-muted">{spec.coreDecision}</div>
-      </div>
-      {onManage && (
-        <button type="button" onClick={onManage} className="relative mt-3 flex w-full items-center justify-between border-2 border-border bg-bg/75 px-3 py-2 text-left text-xs font-black text-amber" style={chipClip}>
-          <span>{manageLabel}</span>
-          <ChevronDown size={14} />
-        </button>
-      )}
-    </section>
-  );
-};
 
 export const RewardIntelPanel: React.FC<{
   title?: string;

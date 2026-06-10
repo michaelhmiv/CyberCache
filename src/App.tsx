@@ -20,6 +20,7 @@ import { FeatureGate } from './auth/FeatureGate';
 import { useAuth } from './auth/AuthProvider';
 import { useEffect } from 'react';
 import { mountIdleTicker, unmountIdleTicker } from './store';
+import { SalvageToastContainer } from './components/action/SalvageToast';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | null;
@@ -197,6 +198,7 @@ function App() {
 
       <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); }} />
       <DeathOverlay />
+      <SalvageToastContainer />
     </div>
   );
 }
