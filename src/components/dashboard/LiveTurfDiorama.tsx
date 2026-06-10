@@ -6,6 +6,7 @@ import { CharacterStatBar } from '@/components/stats/CharacterStatBar';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore } from '@/store';
+import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { MONSTERS } from '@/constants/monsters';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { BossDef } from '@/types/boss';
@@ -157,6 +158,47 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ a
   );
 };
 
+const HunterHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ active, accentColor }) => {
+  const currentHp = useSurvivalStore((state) => state.currentHp);
+  const maxHp = useSurvivalStore((state) => state.maxHp);
+  const shieldHp = useSurvivalStore((state) => state.shieldHp);
+
+  if (!active || maxHp <= 0) return null;
+
+  const hpRatio = Math.max(0, Math.min(1, currentHp / maxHp));
+  const shieldRatio = maxHp > 0 ? Math.max(0, Math.min(1, shieldHp / maxHp)) : 0;
+
+  return (
+    <div className="pointer-events-none absolute left-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="hunter-hp-bar">
+      <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
+        <span className="truncate">Hunter</span>
+        <span className="shrink-0 text-green">{Math.round(hpRatio * 100)}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden border border-border bg-surface">
+        <motion.div
+          className="h-full"
+          style={{ background: accentColor }}
+          initial={false}
+          animate={{ width: `${hpRatio * 100}%` }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        />
+        {shieldRatio > 0 && (
+          <motion.div
+            className="h-1"
+            style={{ background: '#4FC3F7', marginTop: '-4px' }}
+            initial={false}
+            animate={{ width: `${shieldRatio * 100}%` }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          />
+        )}
+      </div>
+      <div className="mt-0.5 text-[7px] font-black text-text-muted text-right">
+        {Math.round(currentHp)}/{Math.round(maxHp)}
+      </div>
+    </div>
+  );
+};
+
 export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, boss, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
   const player = usePlayerStore();
@@ -217,6 +259,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
+      <HunterHpOverlay active={activityKind === 'roaming_loot' || activityKind === 'boss_fight'} accentColor={scene.accent} />
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         {/* Duplicate `LV {playerLevel}` chip removed per PR #4 §6.3. The
