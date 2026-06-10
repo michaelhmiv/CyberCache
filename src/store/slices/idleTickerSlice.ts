@@ -6,11 +6,15 @@ import {
   usePlayerStore,
   useCombatStatsStore,
   useSurvivalStore,
+  useSkillStore,
+  useLoadoutStore,
 } from '@/store';
 import {
   ROAMING_AREAS,
   getRoamingArea,
+  rollAreaDropKind,
   rollAreaMaterialFind,
+  buildAreaWeaponDropOptions,
 } from '@/constants/roamingAreas';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
@@ -661,7 +665,9 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
         if (playerId) {
           const { submitClaim } = await import('@/lib/chef/chefClient');
           const loadout = useLoadoutStore.getState();
-          // Sum idle economy mods from equipped weapons (Phase 2d).
+          const skillBonuses = useSkillStore.getState().getBonuses();
+
+          // Sum idle economy mods from equipped weapons.
           const idleMods = {
             offlineEarningsMod: 0,
             scrapYieldMod: 0,
@@ -670,11 +676,12 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           for (const slot of ['primary', 'secondary', 'heavy'] as const) {
             const weapon = loadout.getWeapon(slot);
             if (weapon) {
-              idleMods.offlineEarningsMod += weapon.offlineEarningsMod;
-              idleMods.scrapYieldMod += weapon.scrapYieldMod;
-              idleMods.rareDropChanceMod += weapon.rareDropChanceMod;
+              idleMods.offlineEarningsMod += weapon.offlineEarningsMod || 0;
+              idleMods.scrapYieldMod += weapon.scrapYieldMod || 0;
+              idleMods.rareDropChanceMod += weapon.rareDropChanceMod || 0;
             }
           }
+
           const chefResult = await submitClaim({
             playerId,
             areaId,
@@ -682,6 +689,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
             tickCount: totalTickCount,
             playerLevel: usePlayerStore.getState().level,
             idleMods,
+            skillBonuses,
           });
 
           // Apply canonical results from the Chef
@@ -698,11 +706,8 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           // Add Chef-generated items to inventory
           if (chefResult.items && chefResult.items.length > 0) {
             const inv = useInventoryStore.getState();
-            if (inv.receiveServerItems) {
-              inv.receiveServerItems(chefResult.items);
-            } else {
+            inv.receiveServerItems?.(chefResult.items) ||
               chefResult.items.forEach((item) => inv.upsertItem(item as GearItem));
-            }
           }
         }
       } catch (error) {

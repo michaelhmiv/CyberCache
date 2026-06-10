@@ -15,8 +15,18 @@
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
+import { useSkillStore } from '@/store/slices/skillSlice';
 import { computeHunterMaxHp, type HunterSurvivalStats } from './damageContract';
 import { computeStandardDps } from '@/lib/stats/dpsChain';
+
+/**
+ * Read the equipped shield's HP. Returns 0 if no shield equipped.
+ * The shield's `hp` field is the shield's *capacity* in this game.
+ */
+function equippedShieldHp(): number {
+  const shield = useLoadoutStore.getState().getShield();
+  return shield?.hp ?? 0;
+}
 
 /**
  * Build the survival stats object the damage contract needs.
@@ -27,10 +37,14 @@ export function loadoutSurvivalStats(): HunterSurvivalStats {
   const level = usePlayerStore.getState().level;
   const shieldCapacity = equippedShieldHp();
   const currentShieldHp = useSurvivalStore.getState().shieldHp;
+  const skillBonuses = useSkillStore.getState().getBonuses();
+  const survivalMult = 1 + (skillBonuses.survival || 0);
+  // Stagger chance translates to monster miss chance (capped at 40%).
+  const staggerDodge = Math.min(0.4, (skillBonuses.staggerChance || 0) * 0.5);
   return {
-    maxHp: computeHunterMaxHp(level, shieldCapacity),
+    maxHp: Math.round(computeHunterMaxHp(level, shieldCapacity) * survivalMult),
     shieldHp: currentShieldHp,
-    dodgeChance: 0, // no dodge affix yet — future PR
+    dodgeChance: staggerDodge,
     elementalResist: 0, // no elemental resist affix yet — future PR
   };
 }
@@ -47,13 +61,15 @@ export function loadoutSurvivalStats(): HunterSurvivalStats {
  */
 export function loadoutEffectiveDps(): number {
   const loadout = useLoadoutStore.getState();
+  const skillBonuses = useSkillStore.getState().getBonuses();
+  const skillDpsMult = 1 + (skillBonuses.dps || 0);
   const slots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
   let total = 0;
   for (const slot of slots) {
     const weapon = loadout.getWeapon(slot);
     if (weapon) {
-      total += computeStandardDps(weapon) * (1 + weapon.waveDamageMod);
+      total += computeStandardDps(weapon) * (1 + (weapon.waveDamageMod || 0));
     }
   }
-  return total;
+  return total * skillDpsMult;
 }
