@@ -8,7 +8,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useActionStageOrchestrator } from './useActionStageOrchestrator';
-import { resolveBeat, getStageAssetsForKind, StageSprite, type BeatRender } from './actionStageRenderer';
+import { resolveBeat, getStageAssetsForKind, type BeatRender } from './actionStageRenderer';
 import type { ActionAnimationBeat } from './actionAnimationDirector';
 import type { ActivityKind } from '@/types/activity';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
@@ -175,3 +175,25 @@ const BeatLayer: React.FC<{
     </motion.div>
   );
 };
+
+/** StageSprite — placeholder renderer for a sprite given a visualKey. */
+export const StageSprite: React.FC<{
+  visualKey: string;
+  size: number;
+  accentColor?: string;
+  className?: string;
+}> = ({ visualKey, size, accentColor, className }) => (
+  <div
+    data-visual-key={visualKey}
+    className={`flex items-center justify-center border-2 border-border bg-bg/80 text-center font-black text-text-muted ${className ?? ''}`}
+    style={{
+      width: size,
+      height: size,
+      boxShadow: accentColor ? `inset 0 0 0 1px ${accentColor}40` : undefined,
+    }}
+  >
+    <div className="px-1 text-[8px] uppercase leading-tight tracking-tight">
+      {visualKey.replace(/_/g, ' ')}
+    </div>
+  </div>
+);
