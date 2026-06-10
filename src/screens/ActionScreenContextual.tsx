@@ -361,20 +361,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showMarketPicker, setShowMarketPicker] = useState(false);
   const [prepBoss, setPrepBoss] = useState<BossDef | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  // Display-only timer: increments elapsed once per second for the UI clock.
-  // The actual reward tick is handled by the singleton ticker in idleTickerSlice.
-  useEffect(() => {
-    if (!canTick) return undefined;
-    const iv = window.setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => window.clearInterval(iv);
-  }, [canTick]);
+  const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
+  const [cacheError, setCacheError] = useState<string | null>(null);
   // Tick feed events from the canonical ticker — the single source of truth
   // for roaming rewards. The Action screen is a consumer, not an engine.
   const tickEvents = useTickFeedStore((s) => s.events);
   const [feed, setFeed] = useState<RunVisualEvent[]>([idleEvent]);
   const [gearLookup, setGearLookup] = useState<Record<string, GearItem>>({});
-  const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
-  const [cacheError, setCacheError] = useState<string | null>(null);
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
@@ -382,14 +375,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const prepBossTarget = currentBoss ?? REGION_1_BOSSES.find((b) => bossStore.unlockedBossIds.includes(b.id) && !bossStore.defeatedBossIds.includes(b.id)) ?? REGION_1_BOSSES[0];
   const bestBossWeapon = useMemo(() => inventory.getWeapons().sort((a, b) => b.bossPower - a.bossPower)[0], [inventory]);
   const activityWeapon: Weapon | undefined = loadoutStore.getWeapon('primary') ?? loadoutStore.getWeapon('secondary') ?? loadoutStore.getWeapon('heavy') ?? bestBossWeapon;
-  // fightPower is the "effective DPS vs the current boss target".
-  // The previous implementation read `weapon.bossPower` directly, which
-  // is a static generator composite that bakes in shield/armor/wave
-  // bonuses. The real-world "can I beat this boss" number is the
-  // boss-relative DPS from the unified modifier chain. The pure helper
-  // in lib/stats/fightPower.ts owns the fallback chain — no surface in
-  // the boss prep context can ever read 0 while a weapon is in the
-  // loadout (this is the regression that triggered this PR).
   const fightPower = useMemo(
     () =>
       computeFightPower(
@@ -402,6 +387,15 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const isRoaming = currentKind === 'roaming_loot';
   const activeRoamingAreaId = activity.current.targetType === 'roaming_area' ? activity.current.targetId : null;
   const canTick = isRoaming && activeRoamingAreaId === selectedArea.id && !activity.pending;
+
+  // Display-only timer: increments elapsed once per second for the UI clock.
+  // The actual reward tick is handled by the singleton ticker in idleTickerSlice.
+  // MUST be below `canTick` — referencing it before declaration is a TDZ error.
+  useEffect(() => {
+    if (!canTick) return undefined;
+    const iv = window.setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => window.clearInterval(iv);
+  }, [canTick]);
   const activeMinutes = Math.floor((elapsed * TICK_SECONDS) / 60);
   const activeSeconds = (elapsed * TICK_SECONDS) % 60;
   const creditsPerTick = Math.round((selectedArea.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0)));
