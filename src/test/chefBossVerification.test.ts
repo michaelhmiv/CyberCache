@@ -9,8 +9,6 @@ import { describe, it, expect } from 'vitest';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 
 describe('Boss fight verification', () => {
-  const DUMMY_PLAYER = '00000000-0000-0000-0000-000000000001';
-
   it('rejects victory when damage dealt < boss health', () => {
     const boss = REGION_1_BOSSES[0]; // Dune Tyrant, 800 HP
     const damageDealt = 400; // less than 800

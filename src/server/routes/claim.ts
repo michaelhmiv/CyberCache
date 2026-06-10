@@ -192,7 +192,6 @@ async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
     // Medkit check: at `autoEatThreshold` (default 0.3), medkits fire.
     // Boss DPS * seconds gives max damage possible with 0 medkits consumed.
     // If no medkits consumed but player survived > HP threshold, it's plausible.
-    const playerHpEstimate = 500 + body.playerId.length * 0; // Can't know exact HP without querying
     if (body.medkitsConsumed === 0 && seconds > 10 && boss.dps * seconds > 1000) {
       // Boss would have killed in 10+ seconds at its DPS — medkits should have fired
       // This is a soft check; we don't reject on this alone

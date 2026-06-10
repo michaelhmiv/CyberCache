@@ -10,7 +10,7 @@
  * 4. The tickFeed store correctly caps at MAX_EVENTS
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useIdleTickerStore, unmountIdleTicker } from '@/store/slices/idleTickerSlice';
+import { unmountIdleTicker } from '@/store/slices/idleTickerSlice';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 import { useActivityStore } from '@/store/slices/activitySlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';

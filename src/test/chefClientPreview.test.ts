@@ -6,7 +6,7 @@
  * or kill cycle state. The Chef is the sole mutator.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 
 describe('Client preview events are cosmetic', () => {

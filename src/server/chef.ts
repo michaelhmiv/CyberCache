@@ -20,7 +20,6 @@
  * (src/lib/generators/*) — ONE source of truth, zero code drift.
  */
 
-import { SupabaseClient } from '@supabase/supabase-js';
 import { createTickRng } from '../lib/rng/tickRng';
 import { generateWeapon } from '../lib/generators/weaponGenerator';
 import { generateShield } from '../lib/generators/shieldGenerator';
@@ -28,14 +27,11 @@ import { generateClassMod } from '../lib/generators/classModGenerator';
 import { generateRelic } from '../lib/generators/relicGenerator';
 import { generateOrdnance } from '../lib/generators/ordnanceGenerator';
 import {
-  ROAMING_AREAS,
   getRoamingArea,
   rollAreaDropKind,
   rollAreaMaterialFind,
   buildAreaWeaponDropOptions,
-  type GearDropKind,
 } from '../constants/roamingAreas';
-import { DropSource } from '../types/game';
 import type { GearItem } from '../types/items';
 
 // --- Types ---
@@ -68,9 +64,6 @@ export interface ClaimResult {
 // --- Constants ---
 
 const TICK_MS = 3000;
-const DROP_CHANCE = 0.22;
-const FRAGMENT_CHANCE = 0.03;
-const MATERIAL_FIND_CHANCE = 0.08;
 const GEAR_THRESHOLD = 0.22;
 const FRAGMENT_THRESHOLD = 0.25; // 0.22 + 0.03
 const MATERIAL_THRESHOLD = 0.33; // 0.22 + 0.03 + 0.08
@@ -94,7 +87,6 @@ const MATERIAL_THRESHOLD = 0.33; // 0.22 + 0.03 + 0.08
  */
 export function processRoamingClaim(
   request: ClaimRequest,
-  supabase: SupabaseClient,
 ): ClaimResult {
   const { playerId, areaId, ticks: requestedTicks, tickCount, playerLevel } = request;
 

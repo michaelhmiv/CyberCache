@@ -10,9 +10,7 @@ import {
 import {
   ROAMING_AREAS,
   getRoamingArea,
-  rollAreaDropKind,
   rollAreaMaterialFind,
-  buildAreaWeaponDropOptions,
 } from '@/constants/roamingAreas';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
@@ -684,8 +682,11 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           // Add Chef-generated items to inventory
           if (chefResult.items && chefResult.items.length > 0) {
             const inv = useInventoryStore.getState();
-            inv.receiveServerItems?.(chefResult.items) ||
+            if (inv.receiveServerItems) {
+              inv.receiveServerItems(chefResult.items);
+            } else {
               chefResult.items.forEach((item) => inv.upsertItem(item as GearItem));
+            }
           }
         }
       } catch (error) {

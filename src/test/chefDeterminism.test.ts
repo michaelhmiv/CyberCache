@@ -13,8 +13,6 @@ import { generateShield } from '@/lib/generators/shieldGenerator';
 import { generateClassMod } from '@/lib/generators/classModGenerator';
 import { generateRelic } from '@/lib/generators/relicGenerator';
 import { generateOrdnance } from '@/lib/generators/ordnanceGenerator';
-import { buildAreaWeaponDropOptions, getRoamingArea } from '@/constants/roamingAreas';
-
 describe('Chef determinism', () => {
   const PLAYER = '00000000-0000-0000-0000-000000000001';
   const AREA = 'dustwaste_frontier';
