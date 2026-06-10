@@ -362,7 +362,7 @@ function ammoEfficiencyFromWindows(fullDuration: number, reloadDuration: number,
 }
 
 export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
-  const { primary, secondary, shield, ordnance, heavy, consumables, risk, boss, playerLevel, skillBonuses, pityCount = 0, playerCredits = 0 } = input;
+  const { primary, secondary, shield, ordnance, heavy, consumables, risk, boss, playerLevel, skillBonuses, relic, pityCount = 0, playerCredits = 0 } = input;
   const reasons: string[] = [];
   const recommendations: string[] = [];
 
@@ -393,6 +393,19 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const shieldMitigation = Math.min(0.8, shield?.mitigation ?? 0);
   if (shieldMitigation > 0) {
     totalSurvival *= 1 / (1 - shieldMitigation);
+  }
+
+  // Relic affixes: sum bossDamageMod and survivalBoost (Phase 5c).
+  let relicBossDmgMod = 0;
+  let relicSurvivalBoost = 0;
+  if (relic) {
+    for (const affix of relic.affixes) {
+      if (affix.stat === 'bossDamageMod') relicBossDmgMod += affix.value;
+      if (affix.stat === 'survivalBoost') relicSurvivalBoost += affix.value;
+    }
+  }
+  if (relicSurvivalBoost > 0) {
+    totalSurvival *= (1 + relicSurvivalBoost);
   }
 
   // Emergency consumables boost survival
@@ -446,6 +459,21 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   if (ordnance) {
     shieldBreak += ordnance.shieldDamage * grenades;
     armorBreak += ordnance.armorDamage * grenades;
+  }
+
+  // Ordnance flat damage: reduces boss effective HP (Phase 5a).
+  let ordnanceFlatDamage = 0;
+  if (ordnance && ordnance.damage > 0) {
+    ordnanceFlatDamage = ordnance.damage * Math.max(1, grenades);
+  }
+
+  // Ordnance element matchup: modifies shield/armor break (Phase 5b).
+  if (ordnance && ordnance.element) {
+    const ordElemMatch = getElementMatchup(ordnance.element, 'shield');
+    if (ordElemMatch !== 1) {
+      shieldBreak += ordnance.shieldDamage * grenades * (ordElemMatch - 1);
+      armorBreak += ordnance.armorDamage * grenades * (ordElemMatch - 1);
+    }
   }
 
   // Elemental ammo modifiers
@@ -563,9 +591,10 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // Player-level modifiers (not per-weapon) stay in the sim.
   // The chain's per-weapon DPS already includes signature, ammo
   // efficiency, and DPS-relevant consumables.
-  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0));
+  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod);
 
-  const timeToKill = boss.health / (dps || 1);
+  const netBossHp = Math.max(1, boss.health - ordnanceFlatDamage);
+  const timeToKill = netBossHp / (dps || 1);
   const dpsScore = 30 / timeToKill;
 
   if (dpsScore < 0.8) {

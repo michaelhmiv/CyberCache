@@ -367,7 +367,15 @@ const applyKillCycleTick = (areaId: string, ticks: number): TickEvent[] => {
       // KILL! The monster's HP just hit 0. Fire the kill event,
       // award XP, then spawn the next target.
       const killedId = useKillCycleStore.getState().killCurrentTarget();
-      const xp = xpForKill(monster);
+      // Relic xpBoostMod multiplies kill XP (Phase 5c).
+      let xpMult = 1;
+      const relic = useLoadoutStore.getState().getRelic();
+      if (relic) {
+        for (const affix of relic.affixes) {
+          if (affix.stat === 'xpBoostMod') xpMult += affix.value;
+        }
+      }
+      const xp = Math.round(xpForKill(monster) * xpMult);
       player.addXP(xp);
       events.push({
         id: '',
@@ -697,7 +705,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           const loadout = useLoadoutStore.getState();
           const skillBonuses = useSkillStore.getState().getBonuses();
 
-          // Sum idle economy mods from equipped weapons.
+          // Sum idle economy mods from equipped weapons + relic (Phase 5c).
           const idleMods = {
             offlineEarningsMod: 0,
             scrapYieldMod: 0,
@@ -709,6 +717,15 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
               idleMods.offlineEarningsMod += weapon.offlineEarningsMod || 0;
               idleMods.scrapYieldMod += weapon.scrapYieldMod || 0;
               idleMods.rareDropChanceMod += weapon.rareDropChanceMod || 0;
+            }
+          }
+          // Add relic affix contributions.
+          const relic = loadout.getRelic();
+          if (relic) {
+            for (const affix of relic.affixes) {
+              if (affix.stat === 'offlineEarningsMod') idleMods.offlineEarningsMod += affix.value;
+              if (affix.stat === 'scrapYieldMod') idleMods.scrapYieldMod += affix.value;
+              if (affix.stat === 'rareDropChanceMod') idleMods.rareDropChanceMod += affix.value;
             }
           }
 
