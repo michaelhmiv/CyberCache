@@ -512,6 +512,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       consumables,
       legendaryDamageMult: legendary.damageMult,
       ammoEfficiency: ammoEff,
+      bossDamageMod: primary.bossDamageMod,
     });
     primaryDPS = chainDps;
   }
@@ -528,6 +529,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       bossResistances: boss.resistances,
       consumables,
       legendaryDamageMult: 1, // secondary doesn't get the primary's legendary bonus
+      bossDamageMod: secondary.bossDamageMod,
     });
     secondaryDPS = chainDps * secContrib;
   }
@@ -544,6 +546,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       bossResistances: boss.resistances,
       consumables,
       legendaryDamageMult: 1,
+      bossDamageMod: heavy.bossDamageMod,
     });
     heavyDPS = chainDps * 0.5;
   }
@@ -552,8 +555,8 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   // Player-level modifiers (not per-weapon) stay in the sim.
   // The chain's per-weapon DPS already includes signature, ammo
-  // efficiency, and DPS-relevant consumables.
-  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0));
+  // efficiency, DPS-relevant consumables, and per-weapon boss damage.
+  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0));
 
   const timeToKill = boss.health / (dps || 1);
   const dpsScore = 30 / timeToKill;

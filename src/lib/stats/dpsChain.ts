@@ -29,6 +29,12 @@ export type DpsContext = {
    * Default 1.0 (= every fight, the weapon is always firing).
    */
   ammoEfficiency?: number;
+  /**
+   * Per-weapon boss damage modifier. Added multiplicatively at the end
+   * of the chain so the sim doesn't need to re-multiply after the
+   * chain returns. Default 0 (= no boss damage bonus).
+   */
+  bossDamageMod?: number;
 };
 
 /**
@@ -80,6 +86,7 @@ function consumableMultiplier(consumables: Record<string, number> | undefined): 
  *   4. Element matchup vs boss weakness / resistance (3-state counter table)
  *   5. Ammo-window efficiency (caller-provided, default 1.0)
  *   6. Pre-fight consumables (DPS-relevant subset, see DPS_CONSUMABLE_EFFECTS)
+ *   7. Per-weapon boss damage modifier (default 0)
  *
  * The chain knows nothing about per-slot contribution (secondary × 0.3,
  * heavy × 0.5) or risk/skill bonuses — those are loadout-decision and
@@ -93,14 +100,11 @@ export function computeWeaponDps(ctx: DpsContext): number {
     consumables = {},
     legendaryDamageMult = 1,
     ammoEfficiency = 1,
+    bossDamageMod = 0,
   } = ctx;
   // Step 1: Raw DPS from base stats.
   const rawDps = weapon.baseDamage * weapon.attackSpeed * (1 + weapon.critChance * weapon.critDamage);
-  // Step 2: Signature mechanic. The chain now consumes the signature
-  // directly via signatureMechanic.ts. The `fullDuration` and
-  // `reloadDuration` are 0 in the no-ammo-window default (the chain
-  // doesn't model ammo windows itself; that's a caller concern in
-  // step 5). For weapons with no signature, this returns 1.0×.
+  // Step 2: Signature mechanic.
   const sig = applySignatureMechanic(weapon, 0, 0, 30);
   const signatureDps = rawDps * sig.dpsMult;
   // Step 3: Manufacturer legendary damage multiplier.
@@ -108,12 +112,12 @@ export function computeWeaponDps(ctx: DpsContext): number {
   // Step 4: Element matchup. 3-state counter table.
   const elemMatch = counterElementMultiplier(weapon.element, bossWeaknesses, bossResistances);
   const elementalDps = legendaryDps * elemMatch;
-  // Step 5: Ammo-window efficiency. Caller pre-computes this from
-  // `calculateAmmoWindows`; the chain just multiplies it in.
+  // Step 5: Ammo-window efficiency.
   const ammoDps = elementalDps * ammoEfficiency;
-  // Step 6: Pre-fight consumables. Only the keys in
-  // DPS_CONSUMABLE_EFFECTS contribute; everything else is a no-op.
-  return ammoDps * consumableMultiplier(consumables);
+  // Step 6: Pre-fight consumables.
+  const consumableDps = ammoDps * consumableMultiplier(consumables);
+  // Step 7: Per-weapon boss damage modifier.
+  return consumableDps * (1 + bossDamageMod);
 }
 
 /**
