@@ -545,7 +545,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   useEffect(() => {
     // market.seeded / market.seedMarket are not on the current MarketState type;
     // guard until the market store is wired. Pre-existing issue — not introduced here.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (market.seeded === false && typeof (market as any).seedMarket === 'function') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (market as any).seedMarket();
     }
   }, [market]);

@@ -323,6 +323,9 @@ export function getStageAssetsForKind(
   overrides?: { targetSprite?: string }
 ) {
   const spec = getActionWorkspaceSpec(kind);
+  // stageAssets was removed from MechanicWorkspaceSpec (2026-06-10).
+  // The cast preserves backward compat for the deprecated test suite.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const assets = (spec as any).stageAssets as {
     hunterSprite: string;
     targetSprite?: string;
