@@ -25,6 +25,7 @@ import {
   useMarketStore,
   usePlayerStore,
   useSkillStore,
+  useSurvivalStore,
   useWorkshopStore,
 } from '@/store';
 import { BossPrepModal } from '@/components/fight/BossPrepModal';
@@ -352,6 +353,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const workshop = useWorkshopStore();
   const market = useMarketStore();
   const skillStore = useSkillStore();
+  const survival = useSurvivalStore();
   const skillBonuses = skillStore.getBonuses();
   const [showSwitch, setShowSwitch] = useState(false);
   const [showAreaSelect, setShowAreaSelect] = useState(false);
@@ -535,6 +537,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
   const headerStats: ActionStat[] = [
     { label: 'Target', value: targetLabel, tone: currentKind === 'idle_standby' || currentKind === 'none' ? 'muted' : 'amber' },
+    { label: 'Hunter HP', value: `${Math.round(survival.currentHp)}/${Math.round(survival.maxHp)}`, tone: survival.currentHp < survival.maxHp * 0.3 ? 'red' : survival.currentHp < survival.maxHp * 0.6 ? 'amber' : 'green' },
     { label: 'Keys', value: `${player.cacheKeys} +${player.cacheKeyFragments}/5`, tone: 'cyan' },
     { label: 'Tick', value: canTick ? `${TICK_SECONDS}s live` : 'paused', tone: canTick ? 'green' : 'muted' },
   ];
