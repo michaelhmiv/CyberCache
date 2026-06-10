@@ -198,8 +198,6 @@ echo ""
 echo -n "Rule 6: No unapproved localStorage usage... "
 ALLOWED_STORAGE=(
   "$SRC/lib/activity/activitySettlement.ts:cross-tab lock (coordination, not progression)"
-  "$SRC/store/slices/survivalSlice.ts:bridge until Supabase snapshot (documented gap)"
-  "$SRC/store/slices/killCycleSlice.ts:bridge until Supabase snapshot (documented gap)"
   "$SRC/test/:test files"
 )
 

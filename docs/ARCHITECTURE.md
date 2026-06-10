@@ -23,14 +23,14 @@ in screens or components is forbidden.
 | **Inventory mutation** | `src/store/slices/inventorySlice.ts` | `addItem`, `removeItem`, `generateAndAdd*` |
 | **Player resources** (credits, XP, scrap, materials, essences, cache keys/fragments) | `src/store/slices/playerSlice.ts` | `addCredits`, `addXP`, `addScrap`, `addMaterial`, `addEssence`, `addCacheKeyFragments` |
 | **Loadout** | `src/store/slices/loadoutSlice.ts` | 7-slot loadout with consumable slots |
-| **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` | Persisted via `localStorage` (not yet in Supabase snapshot) |
-| **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via `localStorage` (not yet in Supabase snapshot) |
+| **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` | Persisted via Supabase runtime snapshot |
+| **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Supabase runtime snapshot |
 | **Boss prep / boss fight** | `src/store/slices/bossSlice.ts` + `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |
 | **Crafting / salvaging / workshop** | `src/store/slices/workshopSlice.ts` + `src/lib/craftingEngine.ts` | Queue-based |
 | **Public profile activity** | `src/types/activity.ts` → `ActiveActivity.publicPayload` | Display-only; derived from activity store |
 | **Animation / diorama display** | `src/lib/animation/fightTimeline.ts` + `src/lib/activity/ActionStage.tsx` | Pure reads of gameplay state |
 | **DPS computation** | `src/lib/stats/dpsChain.ts` | See `docs/dps-chain-v2.md` |
-| **Supabase persistence** | `src/store/runtimeSupabaseSync.ts` | 500ms debounced snapshot of 8 stores |
+| **Supabase persistence** | `src/store/runtimeSupabaseSync.ts` | 500ms debounced snapshot of all 10 stores |
 | **XP curve** | `src/content/simulation.ts` (`xpToNextLevel`) | Mirrored server-side in migration 057 |
 
 ---
@@ -128,18 +128,9 @@ These timers must never mutate gameplay state.
   in `verifiedOps` + `verifiedStateSync`.
 - **Client-side randomness** is only for instant animation feedback.
   The server re-rolls and the server response is authoritative.
-- **localStorage may only be used for:** UI preferences, cross-tab coordination
-  locks (`activitySettlement.ts`), and guest/anonymous bootstrapping of
-  `survivalSlice` and `killCycleSlice` (these two slices are not yet in the
-  Supabase snapshot — see gap below).
+- **localStorage may only be used for:** UI preferences and cross-tab coordination
+  locks (`activitySettlement.ts`).
 - **Authenticated game progression must not depend on localStorage.**
-
-### Known gap: survival/killCycle not in Supabase snapshot
-
-`survivalSlice` and `killCycleSlice` are the only stores excluded from
-`FullRuntimeSnapshot` in `runtimeSupabaseSync.ts`. They survive page reloads
-via Zustand's `persist` middleware + `localStorage`. This is a temporary bridge;
-the planned fix is to add them to the snapshot schema (tracked as follow-up).
 
 ---
 

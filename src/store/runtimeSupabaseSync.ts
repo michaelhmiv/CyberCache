@@ -17,6 +17,8 @@ import { emptySlots, type LoadoutConsumables, type LoadoutSlot, useLoadoutStore 
 import { useMarketStore } from './slices/marketSlice';
 import { usePlayerStore } from './slices/playerSlice';
 import { useSkillStore } from './slices/skillSlice';
+import { useSurvivalStore } from './slices/survivalSlice';
+import { useKillCycleStore } from './slices/killCycleSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -57,6 +59,26 @@ type MarketSnapshot = {
   seeded: boolean;
 };
 
+type SurvivalSnapshot = {
+  currentHp: number;
+  maxHp: number;
+  shieldHp: number;
+  isDead: boolean;
+  deathLog: Array<{ monsterId: string; monsterName: string; areaId: string; at: number }>;
+  resurrectionStartedAt: number | null;
+  resurrectionReadyAt: number | null;
+  autoEatThreshold: number;
+};
+
+type KillCycleSnapshot = {
+  currentTargetId: string | null;
+  currentTargetHp: number;
+  currentTargetHpMax: number;
+  monstersKilledCount: number;
+  totalKills: number;
+  lastKilledMonsterId: string | null;
+};
+
 type FullRuntimeSnapshot = {
   player: PlayerProfile;
   inventory: { items: GearItem[] };
@@ -66,6 +88,8 @@ type FullRuntimeSnapshot = {
   market: MarketSnapshot;
   skills: { spent: Record<string, number> };
   workshop: { unlockedBenchCount: number; activeQueues: WorkshopQueue[] };
+  survival: SurvivalSnapshot;
+  killCycle: KillCycleSnapshot;
 };
 
 function objectValue<T extends object>(value: unknown): Partial<T> | null {
@@ -101,9 +125,11 @@ function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
   const market = useMarketStore.getState();
   const skills = useSkillStore.getState();
   const workshop = useWorkshopStore.getState();
+  const survival = useSurvivalStore.getState();
+  const killCycle = useKillCycleStore.getState();
 
   return {
-    player: {
+  player: {
       id: player.id,
       name: player.name,
       level: player.level,
@@ -155,6 +181,24 @@ function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
       unlockedBenchCount: workshop.unlockedBenchCount,
       activeQueues: arrayValue<WorkshopQueue>(workshop.activeQueues) ?? [],
     },
+    survival: {
+      currentHp: survival.currentHp,
+      maxHp: survival.maxHp,
+      shieldHp: survival.shieldHp,
+      isDead: survival.isDead,
+      deathLog: arrayValue<SurvivalSnapshot['deathLog'][number]>(survival.deathLog) ?? [],
+      resurrectionStartedAt: survival.resurrectionStartedAt,
+      resurrectionReadyAt: survival.resurrectionReadyAt,
+      autoEatThreshold: survival.autoEatThreshold,
+    },
+    killCycle: {
+      currentTargetId: killCycle.currentTargetId,
+      currentTargetHp: killCycle.currentTargetHp,
+      currentTargetHpMax: killCycle.currentTargetHpMax,
+      monstersKilledCount: killCycle.monstersKilledCount,
+      totalKills: killCycle.totalKills,
+      lastKilledMonsterId: killCycle.lastKilledMonsterId,
+    },
   };
 }
 
@@ -169,6 +213,8 @@ export function resetRuntimeStoresToInitialState(): void {
     useMarketStore.setState(useMarketStore.getInitialState(), true);
     useSkillStore.setState(useSkillStore.getInitialState(), true);
     useWorkshopStore.setState(useWorkshopStore.getInitialState(), true);
+    useSurvivalStore.setState(useSurvivalStore.getInitialState(), true);
+    useKillCycleStore.setState(useKillCycleStore.getInitialState(), true);
   } finally {
     isApplyingSnapshot = false;
   }
@@ -255,6 +301,36 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
         ...(arrayValue<WorkshopQueue>(workshop.activeQueues) ? { activeQueues: workshop.activeQueues as WorkshopQueue[] } : {}),
       });
     }
+
+    const survival = objectValue<SurvivalSnapshot>(snapshot.survival);
+    if (survival) {
+      useSurvivalStore.setState((state) => ({
+        currentHp: typeof survival.currentHp === 'number' ? survival.currentHp : state.currentHp,
+        maxHp: typeof survival.maxHp === 'number' ? survival.maxHp : state.maxHp,
+        shieldHp: typeof survival.shieldHp === 'number' ? survival.shieldHp : state.shieldHp,
+        isDead: typeof survival.isDead === 'boolean' ? survival.isDead : state.isDead,
+        deathLog: arrayValue<SurvivalSnapshot['deathLog'][number]>(survival.deathLog) ?? state.deathLog,
+        resurrectionStartedAt: typeof survival.resurrectionStartedAt === 'number' || survival.resurrectionStartedAt === null
+          ? survival.resurrectionStartedAt : state.resurrectionStartedAt,
+        resurrectionReadyAt: typeof survival.resurrectionReadyAt === 'number' || survival.resurrectionReadyAt === null
+          ? survival.resurrectionReadyAt : state.resurrectionReadyAt,
+        autoEatThreshold: typeof survival.autoEatThreshold === 'number' ? survival.autoEatThreshold : state.autoEatThreshold,
+      }));
+    }
+
+    const killCycle = objectValue<KillCycleSnapshot>(snapshot.killCycle);
+    if (killCycle) {
+      useKillCycleStore.setState((state) => ({
+        currentTargetId: typeof killCycle.currentTargetId === 'string' || killCycle.currentTargetId === null
+          ? killCycle.currentTargetId : state.currentTargetId,
+        currentTargetHp: typeof killCycle.currentTargetHp === 'number' ? killCycle.currentTargetHp : state.currentTargetHp,
+        currentTargetHpMax: typeof killCycle.currentTargetHpMax === 'number' ? killCycle.currentTargetHpMax : state.currentTargetHpMax,
+        monstersKilledCount: typeof killCycle.monstersKilledCount === 'number' ? killCycle.monstersKilledCount : state.monstersKilledCount,
+        totalKills: typeof killCycle.totalKills === 'number' ? killCycle.totalKills : state.totalKills,
+        lastKilledMonsterId: typeof killCycle.lastKilledMonsterId === 'string' || killCycle.lastKilledMonsterId === null
+          ? killCycle.lastKilledMonsterId : state.lastKilledMonsterId,
+      }));
+    }
   } finally {
     isApplyingSnapshot = false;
   }
@@ -310,6 +386,8 @@ export function startRuntimeStorePersistence(userId: string): void {
     useMarketStore.subscribe(listener),
     useSkillStore.subscribe(listener),
     useWorkshopStore.subscribe(listener),
+    useSurvivalStore.subscribe(listener),
+    useKillCycleStore.subscribe(listener),
   ];
 }
 
