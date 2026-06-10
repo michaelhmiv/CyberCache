@@ -753,7 +753,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         )}
       </div>
 
-      {/* 2. Loadout — star-pattern gear constellation */}
+      {/* 2. Action-specific panel — above the loadout where it's visible during active play */}
+      {workspace}
+
+      {/* 3. Loadout — star-pattern gear constellation */}
       <ActionLoadout />
 
       {/* 2b. Activity modifiers — procedural gear bonuses for current action */}
@@ -778,9 +781,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           </span>
         </div>
       </div>
-
-      {/* 4. Action-specific panel — above the feed where it's visible */}
-      {workspace}
 
       {/* 5. Cache error banner */}
       {cacheError && <div className="border-2 border-red/40 bg-red/10 p-2 text-xs font-bold text-red" style={smallClip}>{cacheError}</div>}
