@@ -5,6 +5,7 @@ import {
   useInventoryStore,
   usePlayerStore,
   useCombatStatsStore,
+  useSurvivalStore,
 } from '@/store';
 import {
   ROAMING_AREAS,
@@ -18,6 +19,13 @@ import { syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import type { GearItem, Weapon } from '@/types/items';
 import { useTickFeedStore, type TickEvent } from './tickSlice';
+import { pickAreaMonster } from '@/lib/combat/areaMonsterSelector';
+import {
+  computeMonsterDamageVsHunter,
+  decideAutoEat,
+  computeHealAmount,
+} from '@/lib/combat/damageContract';
+import { loadoutSurvivalStats } from '@/lib/combat/loadoutSurvival';
 
 const TICK_MS = 3000;
 const DROP_CHANCE = 0.22;
@@ -127,6 +135,136 @@ const rollClientEvents = (areaId: string, ticks: number): TickEvent[] => {
   return events;
 };
 
+/**
+ * Per-tick survival damage application. Picks a monster from the
+ * current area's roster, rolls a hit, applies damage to the survival
+ * slice, then decides whether to auto-eat a consumable. Emits feed
+ * events for hits, heals, and death. Returns the events so the
+ * caller can push them to the tick feed alongside loot events.
+ *
+ * This is the only place per-tick monster damage is applied. PR 2
+ * adds it; future PRs may add per-weapon damage to the monster (the
+ * kill cycle in PR 4) but the hunter's damage intake is owned here.
+ */
+const applySurvivalTick = (areaId: string, ticks: number): TickEvent[] => {
+  const events: TickEvent[] = [];
+  const area = getRoamingArea(areaId);
+  const now = Date.now();
+
+  for (let i = 0; i < ticks; i += 1) {
+    if (useSurvivalStore.getState().isDead) break;
+
+    const monster = pickAreaMonster({ ...area, unlockLevel: area.unlockLevel });
+    if (!monster) continue;
+
+    const hunter = loadoutSurvivalStats();
+    // Refresh the hunter's shield from the survival slice — it may
+    // have been refilled by a recent auto-eat in the same tick.
+    hunter.shieldHp = useSurvivalStore.getState().shieldHp;
+
+    const hit = computeMonsterDamageVsHunter(monster, hunter);
+    const at = now - (ticks - 1 - i) * TICK_MS;
+
+    if (hit.missed) {
+      // Miss events are not pushed to the feed (would be spammy); the
+      // damage event will appear on the next successful hit.
+      continue;
+    }
+
+    if (hit.shieldAbsorbed > 0) {
+      useSurvivalStore.getState().refillShield(-hit.shieldAbsorbed);
+    }
+
+    if (hit.hpDamage > 0) {
+      useSurvivalStore.getState().applyDamage(hit.hpDamage);
+      events.push({
+        id: '',
+        at,
+        tone: 'damage',
+        label: `-${hit.hpDamage} HP`,
+        detail: `${monster.name} hit you for ${hit.hpDamage} HP${hit.shieldAbsorbed > 0 ? ` (${hit.shieldAbsorbed} absorbed by shield)` : ''}.`,
+        areaId,
+        value: hit.hpDamage,
+      });
+    } else if (hit.fullyBlocked) {
+      events.push({
+        id: '',
+        at,
+        tone: 'damage',
+        label: 'Blocked',
+        detail: `${monster.name}'s attack absorbed by your shield.`,
+        areaId,
+        value: 0,
+      });
+    }
+
+    // Auto-eat: if HP dropped below threshold, burn a consumable.
+    const survival = useSurvivalStore.getState();
+    const player = usePlayerStore.getState();
+    const decision = decideAutoEat(
+      survival.currentHp,
+      survival.maxHp,
+      player.consumables,
+      survival.autoEatThreshold
+    );
+    if (decision.eatConsumable) {
+      const consumableId = decision.eatConsumable;
+      const healAmount = computeHealAmount(consumableId);
+      player.removeConsumable(consumableId, 1);
+      if (consumableId === 'ShieldCell') {
+        survival.refillShield(healAmount);
+        events.push({
+          id: '',
+          at,
+          tone: 'heal',
+          label: 'Shield Cell',
+          detail: `Auto-ate a Shield Cell (+${healAmount} shield).`,
+          areaId,
+          value: healAmount,
+        });
+      } else if (healAmount > 0) {
+        survival.heal(healAmount);
+        events.push({
+          id: '',
+          at,
+          tone: 'heal',
+          label: `+${healAmount} HP`,
+          detail: `Auto-ate a ${consumableId} (+${healAmount} HP).`,
+          areaId,
+          value: healAmount,
+        });
+      }
+    }
+
+    // Death check — applies AFTER the damage event so the feed shows
+    // the killing blow, then a death marker, in that order.
+    if (useSurvivalStore.getState().currentHp === 0) {
+      useSurvivalStore.getState().die({
+        monsterId: monster.id,
+        monsterName: monster.name,
+        areaId,
+        at,
+      });
+      useCombatStatsStore.getState().recordDeath({});
+      events.push({
+        id: '',
+        at,
+        tone: 'death',
+        label: 'Hunter Down',
+        detail: `Killed by ${monster.name} in ${area.name}.`,
+        areaId,
+        value: 0,
+      });
+      // Stop the ticker on death. The resurrection flow (PR 5) will
+      // restart it via `mountIdleTicker` after the player recovers.
+      useIdleTickerStore.getState().stop();
+      break;
+    }
+  }
+
+  return events;
+};
+
 const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
   if (!payload) return;
   syncVerifiedResult(payload);
@@ -177,6 +315,12 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
     if (ticking) return;
     ticking = true;
     try {
+      // Hard stop when the hunter is dead. The resurrection flow
+      // (PR 5) restarts the ticker after the player recovers.
+      if (useSurvivalStore.getState().isDead) {
+        return;
+      }
+
       const activity = useActivityStore.getState().current;
       const now = Date.now();
       const sinceLast = lastTickAt === 0 ? TICK_MS : now - lastTickAt;
@@ -195,7 +339,16 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       // validates in `cc_claim_roaming_rewards`, so the client preview is honest because the
       // server uses the same nonce+area+actor seed.
       const previewEvents = rollClientEvents(areaId, ticks);
-      awardLocal(previewEvents);
+      const survivalEvents = applySurvivalTick(areaId, ticks);
+      const allEvents = [...previewEvents, ...survivalEvents];
+      awardLocal(allEvents);
+
+      // If the hunter died this tick, skip reward claims and the
+      // server reconciliation — the death is local-only for now
+      // (server-side HP persistence is a future PR).
+      if (useSurvivalStore.getState().isDead) {
+        return;
+      }
 
       // Kill counter — one per tick that did not produce a gear/fragment/material drop.
       const killCount = previewEvents.filter((e) => e.tone === 'kill').length;
