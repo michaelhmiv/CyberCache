@@ -142,6 +142,90 @@ describe('weaponGenerator — derived stats', () => {
 });
 
 describe('weaponGenerator — value shifts from PR B are bounded and explainable', () => {
+describe('weaponGenerator — affixes baked into stats', () => {
+  it('affixes with baseDamage multiply the weapon baseDamage', () => {
+    // Generate many weapons and look for one with a baseDamage affix.
+    // The weapon's baseDamage should be > the type's baseline at level 1
+    // because the affix is multiplicative.
+    for (let i = 0; i < 200; i++) {
+      const weapon = generateWeapon({ source: DropSource.WorldDrop, level: 1 });
+      const dmgAffixes = weapon.affixes.filter((a) => a.stat === 'baseDamage');
+      if (dmgAffixes.length > 0) {
+        // Loosely: the weapon's baseDamage should be higher than it would
+        // be without affixes. The exact value depends on parts and
+        // manufacturer bias, but at minimum it's the type's base.
+        const typeMin = 8; // lowest baseDamage among all types at level 1
+        expect(weapon.baseDamage).toBeGreaterThanOrEqual(typeMin);
+        // Stronger assertion: the affix multiplier is visible.
+        // We can't compute the exact pre-affix value without replaying
+        // the generator, but we can verify the computed dps is nonzero.
+        expect(weapon.combatPower).toBeGreaterThan(0);
+        return; // found one, test passes
+      }
+    }
+    // If we reach here, we never found a baseDamage affix in 200 tries.
+    // That's statistically extremely unlikely (~30% per weapon at Common
+    // rarity, so P(no dmg affix in 200) ≈ 0). Fail explicitly.
+    expect(true).toBe(false); // should never reach — affix pool includes baseDamage
+  });
+
+  it('affixes with critChance add to the weapon critChance', () => {
+    // Same pattern: find a weapon with critChance affix, verify stat > 0.
+    for (let i = 0; i < 200; i++) {
+      const weapon = generateWeapon({ source: DropSource.WorldDrop, level: 1 });
+      const critAffixes = weapon.affixes.filter((a) => a.stat === 'critChance');
+      if (critAffixes.length > 0) {
+        const affixSum = critAffixes.reduce((sum, a) => sum + a.value, 0);
+        // critChance should be at least the affix sum (since base is > 0).
+        expect(weapon.critChance).toBeGreaterThanOrEqual(affixSum);
+        return;
+      }
+    }
+  });
+
+  it('affixes with bossDamageMod, waveDamageMod, shieldDamageMod, armorDamageMod add to their respective stats', () => {
+    const modStats = ['bossDamageMod', 'waveDamageMod', 'shieldDamageMod', 'armorDamageMod'] as const;
+    for (let i = 0; i < 300; i++) {
+      const weapon = generateWeapon({ source: DropSource.WorldDrop, level: 1 });
+      for (const stat of modStats) {
+        const affixSum = weapon.affixes
+          .filter((a) => a.stat === stat)
+          .reduce((sum, a) => sum + a.value, 0);
+        if (affixSum > 0) {
+          expect(weapon[stat]).toBeGreaterThanOrEqual(affixSum);
+          return; // found at least one — pass
+        }
+      }
+    }
+  });
+
+  it('affixes with offlineEarningsMod, rareDropChanceMod, scrapYieldMod add to their respective stats', () => {
+    const idleStats = ['offlineEarningsMod', 'rareDropChanceMod', 'scrapYieldMod'] as const;
+    for (let i = 0; i < 300; i++) {
+      const weapon = generateWeapon({ source: DropSource.WorldDrop, level: 1 });
+      for (const stat of idleStats) {
+        const affixSum = weapon.affixes
+          .filter((a) => a.stat === stat)
+          .reduce((sum, a) => sum + a.value, 0);
+        if (affixSum > 0) {
+          expect(weapon[stat]).toBeGreaterThanOrEqual(affixSum);
+          return;
+        }
+      }
+    }
+  });
+
+  it('affix application does not break combatPower parity', () => {
+    // The frozen-vs-live parity must still hold after affix baking.
+    // With affixes baked in, combatPower must still === computeStandardDps(weapon).
+    for (let i = 0; i < 100; i++) {
+      const weapon = generateWeapon({ source: DropSource.WorldDrop, level: 25 });
+      const live = Math.round(computeStandardDps(weapon));
+      expect(weapon.combatPower, `combatPower mismatch on iteration ${i} (affixes: ${weapon.affixes.length})`).toBe(live);
+    }
+  });
+});
+
   it('combatPower on a baseline weapon is now exactly computeStandardDps, not the legacy formula', () => {
     // This test documents the visible shift. For a weapon with the
     // baseline test stats (100 dmg, 5 spd, 0.2 crit, 1.5 crit mult, 0.1

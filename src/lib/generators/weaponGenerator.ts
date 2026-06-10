@@ -170,6 +170,51 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
     });
   }
 
+  // 10b. Bake affixes into stats so they are NOT purely cosmetic.
+  // Multiplicative stats (baseDamage, attackSpeed) multiply the base.
+  // Additive stats (crit, modifiers) add to the existing value.
+  for (const affix of affixes) {
+    const v = affix.value;
+    switch (affix.stat) {
+      case 'baseDamage':
+        stats.baseDamage = Math.round(stats.baseDamage * (1 + v));
+        break;
+      case 'attackSpeed':
+        stats.attackSpeed = parseFloat((stats.attackSpeed * (1 + v)).toFixed(2));
+        break;
+      case 'critChance':
+        stats.critChance = parseFloat((stats.critChance + v).toFixed(3));
+        break;
+      case 'critDamage':
+        stats.critDamage = parseFloat((stats.critDamage + v).toFixed(2));
+        break;
+      case 'bossDamageMod':
+        stats.bossDamageMod = parseFloat((stats.bossDamageMod + v).toFixed(3));
+        break;
+      case 'waveDamageMod':
+        stats.waveDamageMod = parseFloat((stats.waveDamageMod + v).toFixed(3));
+        break;
+      case 'shieldDamageMod':
+        stats.shieldDamageMod = parseFloat((stats.shieldDamageMod + v).toFixed(3));
+        break;
+      case 'armorDamageMod':
+        stats.armorDamageMod = parseFloat((stats.armorDamageMod + v).toFixed(3));
+        break;
+      case 'offlineEarningsMod':
+        stats.offlineEarningsMod = parseFloat((stats.offlineEarningsMod + v).toFixed(3));
+        break;
+      case 'rareDropChanceMod':
+        stats.rareDropChanceMod = parseFloat((stats.rareDropChanceMod + v).toFixed(3));
+        break;
+      case 'scrapYieldMod':
+        stats.scrapYieldMod = parseFloat((stats.scrapYieldMod + v).toFixed(3));
+        break;
+      // Unknown stat from future affixes — silently skip.
+      default:
+        break;
+    }
+  }
+
   // 12. Roll quality 0-100
   let rollQuality = seededInt(0 + rarityDef.rollQualityBias + helixBonus, 100, rng);
   rollQuality = Math.min(100, rollQuality);
