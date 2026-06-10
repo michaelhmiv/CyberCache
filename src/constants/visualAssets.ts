@@ -218,14 +218,15 @@ export const GEAR_VISUALS: Record<GearVisualId, VisualAsset> = {
 };
 
 export const RESOURCE_VISUALS: Record<ResourceVisualId, VisualAsset> = {
-  credits: { id: 'credits', kind: 'resource', label: 'Credits', shortLabel: 'CR', mark: '¢', color: '#F7D20B', accentColor: '#FF9000', description: 'Spendable currency.', texture: 'metal' },
-  scrap: { id: 'scrap', kind: 'resource', label: 'Scrap', shortLabel: 'SCR', mark: 'S', color: '#A5A7B5', accentColor: '#FF9000', description: 'Workbench salvage.', texture: 'metal' },
-  cacheKey: { id: 'cacheKey', kind: 'resource', label: 'Cache Key', shortLabel: 'KEY', mark: 'K', color: '#7CFC00', accentColor: '#FFEA3A', description: 'Opens a Data Cache.', texture: 'data' },
-  cacheFragment: { id: 'cacheFragment', kind: 'resource', label: 'Cache Fragment', shortLabel: 'FRG', mark: 'F', color: '#3B82F6', accentColor: '#A5F3FC', description: 'Five fragments become one cache key.', texture: 'data' },
+  // ── ResourceBar chips: maximally distinct colors so the 5 icons never blend ──
+  credits: { id: 'credits', kind: 'resource', label: 'Credits', shortLabel: 'CR', mark: '$', color: '#FFD700', accentColor: '#FFA000', description: 'Spendable currency.', texture: 'metal' },
+  scrap: { id: 'scrap', kind: 'resource', label: 'Scrap', shortLabel: 'SCR', mark: 'S', color: '#FF5722', accentColor: '#FF8A65', description: 'Workbench salvage.', texture: 'metal' },
+  cacheKey: { id: 'cacheKey', kind: 'resource', label: 'Cache Key', shortLabel: 'KEY', mark: 'K', color: '#00BCD4', accentColor: '#80DEEA', description: 'Opens a Data Cache.', texture: 'data' },
+  cacheFragment: { id: 'cacheFragment', kind: 'resource', label: 'Cache Fragment', shortLabel: 'FRG', mark: 'F', color: '#2196F3', accentColor: '#90CAF9', description: 'Five fragments become one cache key.', texture: 'data' },
   xp: { id: 'xp', kind: 'resource', label: 'XP', shortLabel: 'XP', mark: 'XP', color: '#7CFC00', accentColor: '#C4FF2F', description: 'Level progress.', texture: 'energy' },
-  level: { id: 'level', kind: 'resource', label: 'Level', shortLabel: 'LV', mark: 'LV', color: '#FF9000', accentColor: '#FFEA3A', description: 'Hunter level.', texture: 'metal' },
+  level: { id: 'level', kind: 'resource', label: 'Level', shortLabel: 'LV', mark: 'LV', color: '#E040FB', accentColor: '#EA80FC', description: 'Hunter level.', texture: 'metal' },
   masteryPoint: { id: 'masteryPoint', kind: 'resource', label: 'Mastery Point', shortLabel: 'MP', mark: 'M', color: '#A855F7', accentColor: '#FF9DF5', description: 'Skill tree currency.', texture: 'data' },
-  loot: { id: 'loot', kind: 'resource', label: 'Loot', shortLabel: 'LOOT', mark: 'L', color: '#FFEA3A', accentColor: '#FF9000', description: 'Gear reward.', texture: 'ordnance' },
+  loot: { id: 'loot', kind: 'resource', label: 'Loot', shortLabel: 'LOOT', mark: 'L', color: '#76FF03', accentColor: '#B2FF59', description: 'Gear reward.', texture: 'ordnance' },
 };
 
 export const DROP_SOURCE_VISUALS = {

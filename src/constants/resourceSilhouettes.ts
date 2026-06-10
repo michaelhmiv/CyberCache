@@ -1,197 +1,190 @@
 /**
- * Resource SILHOUETTES — SVG path shapes for non-gear game resources.
+ * Resource SILHOUETTES — bold, iconic SVG path shapes for non-gear game resources.
  *
- * Each resource type has 3+ variant silhouette shapes that are selected
- * deterministically from a seed (for variety). Used by ResourceIcon to
- * render small (24–32px) icons in the universal resource bar and across
- * the site.
+ * Designed for small sizes (18–24px viewBox). Each resource has 3+ shape variants
+ * selected deterministically by seed. The shapes prioritize:
+ *   - Instant recognizability (even at 18px)
+ *   - Clear silhouettes with bold internal detail
+ *   - Distinct profiles so no two resources share a shape class
  *
- * Shapes are designed for a 24×24 viewBox and use the same Borderlands-
- * cyberpunk angular aesthetic as the gear silhouette libraries.
+ * Used by ResourceIcon in the universal ResourceBar.
  */
 
 export interface ResourceSilhouette {
   id: string;
-  /** Main outline path */
+  /** Main outline — bold, fill with primary color */
   body: string;
-  /** Inner detail / accent path */
-  detail?: string;
-  /** Secondary highlight (rendered in accent color) */
+  /** Inner core — brighter/contrasting fill */
+  core?: string;
+  /** Highlight accent — small bright feature for pop */
   highlight?: string;
 }
 
-// ── Credits (hexagonal coin with gear teeth) ────────────────────────────────
+// ── Credits: coin / ingot shapes — round, unmistakable ────────────────────────
 
 const CREDITS_SILHOUETTES: ResourceSilhouette[] = [
   {
-    id: 'credits-hex',
-    body: 'M12 2L20 6.5V15.5L12 20L4 15.5V6.5L12 2Z',
-    detail: 'M12 5.5L17.5 8.5V14.5L12 17.5L6.5 14.5V8.5L12 5.5Z',
-    highlight: 'M12 2.5L7 5.3V6L12 3.3L17 6V5.3L12 2.5Z',
+    id: 'credits-coin',
+    body: 'M12 1.5C6.2 1.5 1.5 6.2 1.5 12S6.2 22.5 12 22.5 22.5 17.8 22.5 12 17.8 1.5 12 1.5Z',
+    core: 'M12 4C7.6 4 4 7.6 4 12S7.6 20 12 20 20 16.4 20 12 16.4 4 12 4Z',
+    highlight: 'M9.5 12L11 14.5L14.5 10',
   },
   {
-    id: 'credits-oct',
-    body: 'M12 1.5L18.5 5V12L18.5 19L12 22.5L5.5 19V12L5.5 5L12 1.5Z',
-    detail: 'M12 5L16 7.5V16.5L12 19L8 16.5V7.5L12 5Z',
+    id: 'credits-ingot',
+    body: 'M3 7L12 3L21 7V17L12 21L3 17V7Z',
+    core: 'M6 8.5L12 5.5L18 8.5V15.5L12 18.5L6 15.5V8.5Z',
+    highlight: 'M9 10L15 14L12 16L9 13Z',
   },
   {
-    id: 'credits-round',
-    body: 'M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z',
-    detail: 'M12 4.5C7.86 4.5 4.5 7.86 4.5 12C4.5 16.14 7.86 19.5 12 19.5C16.14 19.5 19.5 16.14 19.5 12C19.5 7.86 16.14 4.5 12 4.5Z',
-    highlight: 'M12 6.5L14.5 8V10L12 8.5L9.5 7V8L12 9.5L14.5 11V13L12 11.5L9.5 10V11L12 12.5L14.5 14V16L12 14.5L9.5 13V14L12 15.5L14.5 17V19L12 17.5L9.5 16V17L12 18.5L14.5 20V21L12 19.5L9.5 18Z',
+    id: 'credits-stack',
+    body: 'M3 6L12 2L21 6L21 10L12 14L3 10Z M3 10L12 14L21 10V14L12 18L3 14Z M3 14L12 18L21 14V18L12 22L3 18Z',
+    core: 'M5 7.5L12 4.5L19 7.5V9.5L12 12.5L5 9.5V7.5Z',
   },
 ];
 
-// ── Scrap (jagged metal plate with bolt holes) ──────────────────────────────
+// ── Scrap: jagged shards, sharp triangles — aggressive, angular ───────────────
 
 const SCRAP_SILHOUETTES: ResourceSilhouette[] = [
   {
-    id: 'scrap-plate',
-    body: 'M4 4L10 2L16 3L20 7L22 13L20 18L14 22L8 21L2 17L3 11L4 4Z',
-    detail: 'M7 7L10 6L14 7L16 10L16 14L13 17L9 17L6 14L7 10L7 7Z',
-    highlight: 'M6 8.5L7.5 7.5L8 9L6.5 10Z',
-  },
-  {
     id: 'scrap-shard',
-    body: 'M6 2L12 1L18 4L22 10L20 16L15 22L9 21L3 16L2 9L6 2Z',
-    detail: 'M8 6L12 5L15 8L15 13L12 17L8 16L6 11L8 6Z',
+    body: 'M12 1L21 8L19 15L22 22L12 20L4 23L2 15L1 7L12 1Z',
+    core: 'M12 4L17 8.5L16 14L18 18L12 16.5L7 18.5L5 14L4 8.5L12 4Z',
+    highlight: 'M8 9L10 7L11 9Z M14 13L15 15L13 14Z',
   },
   {
-    id: 'scrap-chunk',
-    body: 'M3 5L8 3L14 2L19 6L21 12L19 18L14 22L8 21L2 16L1 10L3 5Z',
-    detail: 'M6 7L10 6L14 8L15 13L12 17L8 17L5 12L6 7Z',
-    highlight: 'M5 9L6 8.5L7 10L5.5 10.5Z',
+    id: 'scrap-blade',
+    body: 'M4 2L12 1L18 5L22 12L19 19L13 22L7 21L3 16L2 8L4 2Z',
+    core: 'M7 5L12 4L15 7L17 12L15 17L11 19L7 18L5 13L7 5Z',
+    highlight: 'M9 8L11 7L11 10Z M14 14L16 15L14 16Z',
+  },
+  {
+    id: 'scrap-spike',
+    body: 'M12 1L21 8L19 15L22 22L12 20L4 23L2 15L1 7L12 1Z',
+    core: 'M12 4L17 8.5L16 14L18 18L12 16.5L7 18.5L5 14L4 8.5L12 4Z',
+    highlight: 'M8 9L10 7L11 9Z',
   },
 ];
 
-// ── Cache Key (angular keycard with circuit traces) ──────────────────────────
+// ── Cache Key: keycard / key shape with teeth — tech feel ─────────────────────
 
 const CACHE_KEY_SILHOUETTES: ResourceSilhouette[] = [
   {
     id: 'cachekey-card',
-    body: 'M3 4H16L20 8V20H3V4Z',
-    detail: 'M6 7H13V9H6V7Z M6 10.5H11V12.5H6V10.5Z',
-    highlight: 'M17 5L19 7V19H17V5Z',
+    body: 'M4 3H14L19 7V21H4V3Z',
+    core: 'M7 6H12V9H7V6Z M7 11H10V13H7V11Z M7 15H11V17H7V15Z',
+    highlight: 'M16 4L18 6.5V20H5V4L7 5Z',
   },
   {
-    id: 'cachekey-hex-card',
-    body: 'M5 3L14 2L19 6V18L14 22L5 21L2 16V7L5 3Z',
-    detail: 'M7 7L13 6L16 9V15L13 18L7 17L4 13V10L7 7Z',
-    highlight: 'M8 9L11 8.5L13 10.5V14L11 16L8 15.5L6.5 12.5V10L8 9Z',
+    id: 'cachekey-key',
+    body: 'M2 7H12L14 9V12L7 12L5 14L5 20H2V7Z',
+    core: 'M4 9H10V11H4V9Z',
+    highlight: 'M7 12L9 12.5L7 14V14.5L8 15L7 16V17L9 18H7V16.5H7L6 15V14.5Z M3.5 16.5H6V18H3.5Z M3.5 13H6V15H3.5Z',
   },
   {
-    id: 'cachekey-chip',
-    body: 'M4 5H19L21 12V19H15V14H9V19H3V12L4 5Z',
-    detail: 'M7 8H16V10H7V8Z',
-    highlight: 'M10 14H14V17H10V14Z M9 19V21H15V19H9Z',
+    id: 'cachekey-hex',
+    body: 'M12 2L20 7V17L12 22L4 17V7L12 2Z',
+    core: 'M12 5L17 8V16L12 19L7 16V8L12 5Z',
+    highlight: 'M12 8L15 10V14L12 16L9 14V10L12 8Z',
   },
 ];
 
-// ── Cache Fragment (partial keycard shard) ───────────────────────────────────
+// ── Cache Fragment: partial shard — broken keycard piece ──────────────────────
 
 const CACHE_FRAGMENT_SILHOUETTES: ResourceSilhouette[] = [
   {
-    id: 'cachefrag-shard1',
-    body: 'M6 4L12 2L18 5L17 11L12 14L7 11L6 4Z',
-    detail: 'M9 6L12 5L14 7L13 10L11 11L8 9L9 6Z',
+    id: 'cachefrag-piece',
+    body: 'M4 5L8 3L14 4L17 8L15 14L10 16L5 13L4 5Z',
+    core: 'M7 7L10 5.5L13 7L12 11L9 12L7 10L7 7Z',
   },
   {
-    id: 'cachefrag-shard2',
-    body: 'M5 5L10 3L16 4L18 9L15 13L9 14L5 10L5 5Z',
-    detail: 'M8 7L11 6L13 8L12 11L9 11L7 9L8 7Z',
-  },
-  {
-    id: 'cachefrag-shard3',
-    body: 'M4 6L9 4L15 6L17 12L13 16L8 15L3 11L4 6Z',
-    detail: 'M7 8L10 7L12 10L11 13L8 12L6 10L7 8Z',
+    id: 'cachefrag-chip',
+    body: 'M3 6L9 4L16 6L18 11L14 16L8 15L2 11L3 6Z',
+    core: 'M6 8L10 7L13 9L12 12L9 13L6 11L6 8Z',
+    highlight: 'M8 9.5L10 8.5L11 10L9 11Z',
   },
 ];
 
-// ── Level (chevron-stacked rank insignia) ────────────────────────────────────
+// ── Level: upward chevron / rank insignia — military prestige ─────────────────
 
 const LEVEL_SILHOUETTES: ResourceSilhouette[] = [
   {
-    id: 'level-chevrons',
-    body: 'M4 20L12 8L20 20H4Z',
-    detail: 'M7 16L12 8.5L17 16H7Z',
-    highlight: 'M10 13L12 10L14 13H10Z',
+    id: 'level-chevron',
+    body: 'M12 2L21 11L17 11L17 22H7L7 11L3 11L12 2Z',
+    core: 'M12 5L17 10.5H15V18H9V10.5H7L12 5Z',
+    highlight: 'M12 8L10 12H14L12 8Z',
   },
   {
-    id: 'level-diamond',
-    body: 'M12 2L22 11L12 20L2 11L12 2Z',
-    detail: 'M12 5.5L17.5 11L12 16.5L6.5 11L12 5.5Z',
-    highlight: 'M12 8.5L14.5 11L12 13.5L9.5 11L12 8.5Z',
+    id: 'level-star',
+    body: 'M12 1L14.5 8L22 9L16 14.5L17.5 22L12 18L6.5 22L8 14.5L2 9L9.5 8L12 1Z',
+    core: 'M12 5L13.5 9.5L18.5 10L14.5 13.5L15.5 18L12 15.5L8.5 18L9.5 13.5L5.5 10L10.5 9.5L12 5Z',
+    highlight: 'M12 8L11 11.5L13.5 12.5L12 14L10 12.5L12 8Z',
   },
   {
-    id: 'level-shield-rank',
+    id: 'level-shield',
     body: 'M12 2L22 7V13Q12 22 12 22Q12 22 2 13V7L12 2Z',
-    detail: 'M12 5L17.5 8V11.5Q12 17 12 17Q12 17 6.5 11.5V8L12 5Z',
+    core: 'M12 5L17.5 8V11.5Q12 17 12 17Q12 17 6.5 11.5V8L12 5Z',
+    highlight: 'M12 8L14.5 10V12L12 13.5L9.5 12V10L12 8Z',
   },
 ];
 
-// ── XP (upward-filled progress diamond) ──────────────────────────────────────
+// ── XP: upward arrow / diamond progress — momentum feel ────────────────────────
 
 const XP_SILHOUETTES: ResourceSilhouette[] = [
   {
-    id: 'xp-diamond-fill',
-    body: 'M12 2L20 12L12 22L4 12L12 2Z',
-    detail: 'M12 5L16 12L12 19L8 12L12 5Z',
-    highlight: 'M12 8L13.5 12L12 16L10.5 12L12 8Z',
+    id: 'xp-diamond',
+    body: 'M12 1.5L21 12L12 22.5L3 12L12 1.5Z',
+    core: 'M12 5L17 12L12 19L7 12L12 5Z',
+    highlight: 'M12 8.5L14 12L13.5 15L12 16.5L10.5 15L10 12L12 8.5Z',
   },
   {
-    id: 'xp-arrow-up',
-    body: 'M12 4L14 6L13 6L13 20H11L11 6L10 6L12 4Z M12 3L18 10H15L12 6.5L9 10H6L12 3Z',
-    detail: 'M12 2L19 10H16L12 5.5L8 10H5L12 2Z',
+    id: 'xp-arrow',
+    body: 'M12 2L19 9H15V22H9V9H5L12 2Z',
+    core: 'M12 5L16 8.5H13.5V18H10.5V8.5H8L12 5Z',
   },
   {
     id: 'xp-bolt',
-    body: 'M13 2L5 12H11L10 22L19 12H13L13 2Z',
-    detail: 'M12.5 5L8 11.5H11.5L11 17L16 10.5H12.5L12.5 5Z',
+    body: 'M14 1L5 12H11L10 23L19 12H13L14 1Z',
+    core: 'M13 5L8 12H11L10.5 18L15.5 12H13L13 5Z',
+    highlight: 'M12 8L11.5 9.5L13 9L12 8Z',
   },
 ];
 
-// ── Mastery Point (faceted crystal node) ─────────────────────────────────────
+// ── Mastery Point: star/crystal node — prestige currency ──────────────────────
 
 const MASTERY_SILHOUETTES: ResourceSilhouette[] = [
   {
+    id: 'mastery-star4',
+    body: 'M12 1L14.5 8.5L22 9.5L16 14.5L17.5 22L12 18L6.5 22L8 14.5L2 9.5L9.5 8.5L12 1Z',
+    core: 'M12 5.5L13.5 9.5L18.5 10L14.5 13L15.5 17.5L12 15L8.5 17.5L9.5 13L5.5 10L10.5 9.5L12 5.5Z',
+  },
+  {
     id: 'mastery-crystal',
-    body: 'M12 1.5L18 6L22 13L18 20L12 23.5L6 20L2 13L6 6L12 1.5Z',
-    detail: 'M12 5L16 8L19 13L16 18L12 20.5L8 18L5 13L8 8L12 5Z',
-    highlight: 'M12 9L14 11L15.5 13L14 15L12 16.5L10 15L8.5 13L10 11L12 9Z',
-  },
-  {
-    id: 'mastery-star',
-    body: 'M12 2L14.5 8.5L21 9.5L16 14.5L17 21L12 17.5L7 21L8 14.5L3 9.5L9.5 8.5L12 2Z',
-    detail: 'M12 5.5L13.5 9.5L18 10L14.5 13L15 17.5L12 15L9 17.5L9.5 13L6 10L10.5 9.5L12 5.5Z',
-  },
-  {
-    id: 'mastery-node',
-    body: 'M12 3C7.03 3 3 7.03 3 12C3 16.97 7.03 21 12 21C16.97 21 21 16.97 21 12C21 7.03 16.97 3 12 3Z',
-    detail: 'M12 6L17 10L15 18L12 19L9 18L7 10L12 6Z',
-    highlight: 'M12 8L14.5 10.5L13.5 15L12 15.5L10.5 15L9.5 10.5L12 8Z',
+    body: 'M12 2L18 7L21 13L18 19L12 23L6 19L3 13L6 7L12 2Z',
+    core: 'M12 5.5L16 9L18 13L16 17L12 20L8 17L6 13L8 9L12 5.5Z',
+    highlight: 'M12 9L13.5 11L14 13L13 15L12 16L11 15L10 13L10.5 11L12 9Z',
   },
 ];
 
-// ── Loot (angular loot crate / package with glow) ────────────────────────────
+// ── Loot: crate / chest / capsule — container, reward shape ──────────────────
 
 const LOOT_SILHOUETTES: ResourceSilhouette[] = [
   {
     id: 'loot-crate',
-    body: 'M3 7L12 3L21 7V16L12 20L3 16V7Z',
-    detail: 'M6 9L12 6.5L18 9L18 14.5L12 17L6 14.5V9Z',
-    highlight: 'M12 8.5L15 10V14L12 15.5L9 14V10L12 8.5Z',
+    body: 'M2 7L12 3L22 7V17L12 21L2 17V7Z',
+    core: 'M5 9L12 6L19 9V15L12 18L5 15V9Z',
+    highlight: 'M9 10.5L15 13.5L12 15L9 12Z',
   },
   {
-    id: 'loot-box-angular',
-    body: 'M4 6L12 2L20 6L20 18L12 22L4 18V6Z',
-    detail: 'M7 8.5L12 6L17 8.5L17 16L12 18.5L7 16V8.5Z',
-    highlight: 'M12 9L14.5 10.5V15L12 16L9.5 15V10.5L12 9Z',
+    id: 'loot-chest',
+    body: 'M3 8L12 4L21 8V11L12 7L3 11Z M3 11L12 15L21 11V20L12 24L3 20V11Z',
+    core: 'M6 13L12 10L18 13V18L12 21L6 18V13Z',
+    highlight: 'M11 11L13 12.5L12 14L10 12.5Z',
   },
   {
     id: 'loot-capsule',
-    body: 'M7 3H17L20 12L17 21H7L4 12L7 3Z',
-    detail: 'M9 6H15L17 12L15 18H9L7 12L9 6Z',
-    highlight: 'M11 8.5H13L14.5 12L13 15.5H11L9.5 12L11 8.5Z',
+    body: 'M8 2H16L20 12L16 22H8L4 12L8 2Z',
+    core: 'M9.5 5H14.5L17.5 12L14.5 19H9.5L6.5 12L9.5 5Z',
+    highlight: 'M11 8H13L14.5 12L13 16H11L9.5 12L11 8Z',
   },
 ];
 
@@ -225,7 +218,10 @@ export function pickResourceSilhouette(
 ): ResourceSilhouette {
   const variants = RESOURCE_SILHOUETTES[resourceId];
   if (!variants || variants.length === 0) {
-    return { id: 'unknown', body: 'M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z' };
+    return {
+      id: 'unknown',
+      body: 'M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z',
+    };
   }
   return variants[Math.abs(seed) % variants.length];
 }

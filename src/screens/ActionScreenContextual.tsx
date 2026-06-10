@@ -542,12 +542,108 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
 
   const workspace = (() => {
-    // Roaming: intel + route control are baked into the diorama area.
-    // Idle/standby: no panel — the compact action selector above handles starting actions.
-    if (currentKind === 'roaming_loot') return null;
-    if (currentKind === 'idle_standby' || currentKind === 'none') return null; // <-- replaced IdlePanel
+    // Idle/standby: no panel — the compact action selector handles starting actions.
+    if (currentKind === 'idle_standby' || currentKind === 'none') return null;
+
+    // Roaming: compact route status panel with key stats at a glance
+    if (currentKind === 'roaming_loot') {
+      return (
+        <div className="relative overflow-hidden border-2 border-amber/40 bg-amber/[0.06] p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
+          <div className="absolute -right-6 -top-6 h-20 w-20 rotate-12 border-[10px] border-amber/5" />
+          <div className="relative flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Active Route</div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Radar size={15} className="text-amber shrink-0" />
+                <div>
+                  <div className="text-sm font-black text-text-primary">{selectedArea.name}</div>
+                  <div className="text-[10px] text-text-muted">{selectedArea.enemyType} · Lv.{selectedArea.unlockLevel} · {selectedArea.dangerRating}</div>
+                </div>
+              </div>
+            </div>
+            <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
+              Change Route
+            </button>
+          </div>
+          <div className="relative mt-2 grid grid-cols-4 gap-1.5 text-[9px]">
+            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Credits</div>
+              <div className="font-black text-cyan">+{creditsPerTick}/tick</div>
+            </div>
+            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Scrap</div>
+              <div className="font-black text-green">+{scrapPerTick}/tick</div>
+            </div>
+            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Gear</div>
+              <div className="font-black text-amber">{Math.round(DROP_CHANCE_PER_TICK * 100)}%/tick</div>
+            </div>
+            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Frag</div>
+              <div className="font-black text-cyan">{Math.round(CACHE_FRAGMENT_CHANCE_PER_TICK * 100)}%/tick</div>
+            </div>
+          </div>
+          <div className="relative mt-2 pt-2 border-t border-border/40 text-[9px] text-text-muted">
+            {selectedArea.gameplayIdentity} · Active for {activeMinutes}m {activeSeconds}s · {equippedCount}/7 gear equipped
+          </div>
+        </div>
+      );
+    }
+
+    // Boss Fight: compact encounter panel
+    if (currentKind === 'boss_fight') {
+      if (!prepBossTarget) return (
+        <div className="border-2 border-border bg-surface/95 p-3" style={panelClip}>
+          <div className="text-[9px] font-black uppercase tracking-[0.22em] text-red">Boss Encounter</div>
+          <div className="text-xs text-text-muted mt-1">No boss selected. Tap Choose Boss to pick a target.</div>
+          <button type="button" onClick={onOpenBossSelect} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Choose Boss</button>
+        </div>
+      );
+      const readiness = Math.min(140, Math.round((fightPower / Math.max(1, prepBossTarget.recommendedPower)) * 100));
+      return (
+        <div className="relative overflow-hidden border-2 border-red/40 bg-red/[0.06] p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
+          <div className="absolute -right-6 -top-6 h-20 w-20 rotate-12 border-[10px] border-red/5" />
+          <div className="relative flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[9px] font-black uppercase tracking-[0.22em] text-red">Boss Encounter</div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Skull size={15} className="text-red shrink-0" />
+                <div>
+                  <div className="text-sm font-black text-text-primary">{prepBossTarget.name}</div>
+                  <div className="text-[10px] text-text-muted">Lv.{prepBossTarget.level} · {prepBossTarget.phases.length} phases · {prepBossTarget.dedicatedDrops.length} dedicated drops</div>
+                </div>
+              </div>
+            </div>
+            <button type="button" onClick={onOpenBossSelect} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
+              Change Boss
+            </button>
+          </div>
+          <div className="relative mt-2 grid grid-cols-4 gap-1.5 text-[9px]">
+            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Your Power</div>
+              <div className={`font-black ${readiness >= 100 ? 'text-green' : 'text-red'}`}>{fightPower}</div>
+            </div>
+            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Rec. Power</div>
+              <div className="font-black text-amber">{prepBossTarget.recommendedPower}</div>
+            </div>
+            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Readiness</div>
+              <div className={`font-black ${readiness >= 100 ? 'text-green' : 'text-red'}`}>{readiness}%</div>
+            </div>
+            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Cost</div>
+              <div className="font-black text-cyan">{prepBossTarget.entryCost}</div>
+            </div>
+          </div>
+          <div className="relative mt-2 pt-2 border-t border-border/40 text-[9px] text-text-muted">
+            Weak: {prepBossTarget.weaknesses.slice(0,4).join(', ') || 'None'} · Resist: {prepBossTarget.resistances.slice(0,4).join(', ') || 'None'}
+          </div>
+        </div>
+      );
+    }
+
     if (currentKind === 'boss_prep') return <BossPrepPanel {...commonProps} bosses={bosses} currentBoss={prepBossTarget} fightPower={fightPower} onBossPicker={() => setShowBossPicker(true)} />;
-    if (currentKind === 'boss_fight') return <BossFightPanel boss={prepBossTarget} fightPower={fightPower} openBoss={onOpenBossSelect} />;
     if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} onRecipePicker={() => setShowRecipePicker(true)} />;
     if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} onSalvagePicker={() => setShowSalvagePicker(true)} />;
     if (currentKind === 'workshop_service') return <WorkshopPanel {...commonProps} queues={workshop.activeQueues} benchesFree={benchesFree} />;

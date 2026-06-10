@@ -1,9 +1,13 @@
 /**
- * ResourceIcon — renders a small (24px default) procedural SVG icon for any
+ * ResourceIcon — renders a small (18–24px) procedural SVG icon for any
  * game resource using the visualAssets registry + resourceSilhouettes shapes.
  *
  * Central source of truth: change a VisualAsset in constants/visualAssets.ts
- * and every ResourceIcon across the site updates automatically.
+ * or a silhouette in constants/resourceSilhouettes.ts and every ResourceIcon
+ * across the site updates automatically.
+ *
+ * At small sizes (< 24px) SVG filters are skipped — they wash out color.
+ * Instead we use bold solid fills with the mark letter for instant recognition.
  */
 import React, { useMemo } from 'react';
 import { getResourceVisual, type ResourceVisualId, type VisualAsset } from '@/constants/visualAssets';
@@ -21,7 +25,8 @@ interface ResourceIconProps {
   className?: string;
 }
 
-/** Maps texture names from visualAssets to the SharedDefs filter IDs */
+/** Maps texture names from visualAssets to the SharedDefs filter IDs.
+ *  Only used when size >= 24 — small icons skip filters for clarity. */
 const TEXTURE_FILTER: Record<string, string> = {
   metal: 'url(#surface-metal)',
   crystal: 'url(#surface-crystal)',
@@ -44,7 +49,8 @@ export const ResourceIcon: React.FC<ResourceIconProps> = ({
     [id, seed],
   );
 
-  const textureFilter = asset.texture ? TEXTURE_FILTER[asset.texture] : undefined;
+  const useFilters = size >= 24;
+  const textureFilter = useFilters && asset.texture ? TEXTURE_FILTER[asset.texture] : undefined;
   const viewBox = '0 0 24 24';
 
   return (
@@ -57,62 +63,67 @@ export const ResourceIcon: React.FC<ResourceIconProps> = ({
       aria-label={asset.label}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
-        <SharedDefs />
-        {/* Inner glow for the highlight path */}
-        <filter id={`glow-${id}`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
+      {useFilters && (
+        <defs>
+          <SharedDefs />
+          {/* Inner glow for the highlight path */}
+          <filter id={`glow-${id}`} x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+      )}
 
-      {/* Body — main silhouette filled with primary color + surface texture */}
+      {/* Body — main silhouette filled with bold primary color */}
       <path
         d={silhouette.body}
         fill={asset.color}
-        fillOpacity={0.85}
-        stroke={asset.accentColor}
-        strokeWidth={0.6}
-        strokeOpacity={0.6}
-        filter={textureFilter}
+        fillOpacity={0.92}
+        stroke={useFilters ? asset.accentColor : 'rgba(0,0,0,0.3)'}
+        strokeWidth={0.8}
+        strokeOpacity={0.5}
+        {...(useFilters && textureFilter ? { filter: textureFilter } : {})}
       />
 
-      {/* Detail — inner shape, slightly lighter */}
-      {silhouette.detail && (
+      {/* Core — inner shape in brighter accent, gives the icon its identity */}
+      {silhouette.core && (
         <path
-          d={silhouette.detail}
+          d={silhouette.core}
           fill={asset.accentColor}
-          fillOpacity={0.25}
+          fillOpacity={0.4}
           stroke={asset.color}
           strokeWidth={0.4}
-          strokeOpacity={0.4}
+          strokeOpacity={0.3}
         />
       )}
 
-      {/* Highlight — rendered in accent color with glow */}
+      {/* Highlight — small bright detail for visual pop */}
       {silhouette.highlight && (
         <path
           d={silhouette.highlight}
           fill={asset.accentColor}
-          fillOpacity={0.7}
-          filter={`url(#glow-${id})`}
+          fillOpacity={0.85}
+          {...(useFilters ? { filter: `url(#glow-${id})` } : {})}
         />
       )}
 
-      {/* Mark — single letter badge in the center when icon is large enough */}
-      {size >= 20 && (
+      {/* Mark — single bold letter in the center for instant recognition */}
+      {asset.mark && (
         <text
           x="12"
-          y="17"
+          y={size < 20 ? '16.5' : '17'}
           textAnchor="middle"
-          fontSize={size < 24 ? '8' : '9'}
+          fontSize={size < 20 ? '10' : '9'}
           fontWeight="bold"
           fill={asset.accentColor}
-          fillOpacity={0.9}
+          fillOpacity={0.95}
           fontFamily="monospace"
+          stroke="#000"
+          strokeWidth="0.8"
+          strokeOpacity={0.3}
         >
           {asset.mark}
         </text>
