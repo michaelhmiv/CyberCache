@@ -5,7 +5,8 @@ import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { CharacterStatBar } from '@/components/stats/CharacterStatBar';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
-import { useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore } from '@/store';
+import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore } from '@/store';
+import { MONSTERS } from '@/constants/monsters';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
@@ -127,6 +128,35 @@ const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; mo
   return <motion.g initial={reduced ? undefined : { opacity: 0, x: -8 }} animate={reduced ? undefined : { opacity: [0, 1, 0], x: [-8, 18, 34] }} transition={reduced ? undefined : { duration: 0.48, ease: 'linear' }}><path d="M162 106 L260 105" stroke="#000" strokeWidth="9" strokeLinecap="round" opacity="0.55" /><path d="M162 106 L260 105" stroke={projectile.color} strokeWidth="4" strokeLinecap="round" /><circle cx="265" cy="105" r="7" fill={projectile.glow} stroke="#000" strokeWidth="3" /></motion.g>;
 };
 
+const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ active, accentColor }) => {
+  const currentHp = useKillCycleStore((state) => state.currentTargetHp);
+  const maxHp = useKillCycleStore((state) => state.currentTargetHpMax);
+  const targetId = useKillCycleStore((state) => state.currentTargetId);
+
+  if (!active || !targetId || maxHp <= 0) return null;
+
+  const ratio = Math.max(0, Math.min(1, currentHp / maxHp));
+  const targetName = MONSTERS.find((monster) => monster.id === targetId)?.name ?? 'Target';
+
+  return (
+    <div className="pointer-events-none absolute right-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="primary-diorama-target-hp">
+      <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
+        <span className="truncate">{targetName}</span>
+        <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden border border-border bg-surface">
+        <motion.div
+          className="h-full"
+          style={{ background: accentColor }}
+          initial={false}
+          animate={{ width: `${ratio * 100}%` }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        />
+      </div>
+    </div>
+  );
+};
+
 export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, boss, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
   const player = usePlayerStore();
@@ -186,6 +216,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
+      <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         {/* Duplicate `LV {playerLevel}` chip removed per PR #4 §6.3. The

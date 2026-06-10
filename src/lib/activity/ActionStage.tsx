@@ -1,32 +1,14 @@
 /**
- * ActionStage — the canvas component that renders the current activity
- * kind's stage. Lives inside the `ActiveActionHeader` (or anywhere
- * else that wants the visual). Owns:
+ * ActionStage — secondary beat canvas for the current activity kind.
  *
- *   - The hunter sprite (left)
- *   - The target / surface sprite (right or center, depending on kind)
- *   - The current beat animation (driven by `useActionStageOrchestrator`)
- *   - A "now happening" label below the canvas
- *
- * The stage is *pure presentation* — it doesn't know about store
- * state, ticks, or combat. It just renders the spec for the given
- * kind. Per-tick damage and kill-cycle are PR 4.
- *
- * Props:
- *   - `kind` — the activity kind. Drives the spec lookup and beat plan.
- *   - `targetOverride` — optional `targetSprite` to use in place of
- *     the spec's default. Used by the boss-prep kind to show the
- *     selected boss instead of the generic "boss_default" sprite.
- *   - `className` — optional extra classes on the outer container.
- *
- * Tests:
- *   - See `actionStageRenderer.test.tsx` for beat-renderer unit tests.
- *   - The orchestrator is tested in `useActionStageOrchestrator.test.ts`.
+ * The main combat HUD belongs in LiveTurfDiorama. This component intentionally
+ * renders beat/sprite motion only so the Action tab does not duplicate enemy HP
+ * or hunter totals in a second animated area.
  */
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useActionStageOrchestrator } from './useActionStageOrchestrator';
-import { resolveBeat, getStageAssetsForKind, StageSprite, type BeatRender } from './actionStageRenderer';
+import { resolveBeat, getStageAssetsForKind, type BeatRender } from './actionStageRenderer';
 import type { ActionAnimationBeat } from './actionAnimationDirector';
 import type { ActivityKind } from '@/types/activity';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
@@ -48,13 +30,10 @@ export interface ActionStageProps {
 
 /**
  * The stage canvas. Renders two sprites with a stage background and
- * a beat-driven animation. The beat's `target` field tells us which
- * element to animate (hunter, target, surface, or the whole stage).
+ * a beat-driven animation. It is pure presentation and intentionally
+ * has no combat HUD; target HP is rendered in the primary diorama.
  */
 export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, hunterOverride, className }) => {
-  // For roaming_loot, override the target sprite with the live
-  // monster from the kill cycle slice. This is the PR 4 wiring:
-  // the stage now reflects what the hunter is actually fighting.
   const liveTargetId = useKillCycleStore((s) => s.currentTargetId);
   const liveTargetSprite = (() => {
     if (kind !== 'roaming_loot') return undefined;
@@ -65,11 +44,6 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
 
   const assets = getStageAssetsForKind(kind, { targetSprite: liveTargetSprite ?? targetOverride });
   const stage = useActionStageOrchestrator(kind);
-
-  // PR 5: when the hunter is dead, force the beat to 'hunter-down'
-  // and hide the target sprite. The orchestrator keeps cycling the
-  // other beats so when the player resurrects, the cadence resumes
-  // from where it left off rather than restarting at index 0.
   const isDead = useSurvivalStore((s) => s.isDead);
   const effectiveBeat: ActionAnimationBeat = isDead ? 'hunter-down' : stage.currentBeat;
 
@@ -86,11 +60,9 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
       className={`relative overflow-hidden border-2 border-border bg-bg/70 ${className ?? ''}`}
       style={{
         height: CANVAS_HEIGHT,
-        // Subtle accent tint on the stage background.
         background: `linear-gradient(180deg, ${assets.accentColor}14 0%, transparent 100%)`,
       }}
     >
-      {/* Stage label — small badge in the corner */}
       <div
         className="absolute right-1 top-1 border border-border bg-bg/85 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber"
         data-testid="action-stage-label"
@@ -98,8 +70,6 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
         {assets.stageLabel}
       </div>
 
-      {/* Beat number indicator — small dots showing which beat in the
-          sequence is playing. Useful for QA; can be hidden via CSS. */}
       <div
         className="absolute bottom-1 left-1 flex gap-0.5"
         data-testid="action-stage-beat-dots"
@@ -115,7 +85,6 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
         ))}
       </div>
 
-      {/* "Now happening" label */}
       <div
         className="absolute bottom-1 right-1 text-[8px] font-black uppercase tracking-widest text-text-muted"
         data-testid="action-stage-now-happening"
@@ -123,10 +92,7 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
         → {stage.currentBeat}
       </div>
 
-      {/* The stage layer — receives stage-targeted beat animations. */}
       <BeatLayer beat={beat} target="stage" reducedMotion={stage.reducedMotion}>
-        {/* The sprites, positioned absolutely on the stage. */}
-        {/* Hunter: left third. Target/surface: right third (if present). */}
         <div className="absolute left-3 top-1/2 -translate-y-1/2">
           <BeatLayer
             beat={beat}
@@ -143,11 +109,6 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
 
         {assets.targetSprite && !isDead && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            {/* HP bar above the target sprite — only renders for
-                roaming_loot (the kill cycle). Other activity kinds
-                with a targetSprite (boss_prep, boss_fight) just
-                show the sprite; their fight math is separate. */}
-            {kind === 'roaming_loot' && <TargetHpBar accentColor={assets.accentColor} />}
             <BeatLayer
               beat={beat}
               target="target"
@@ -178,7 +139,6 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
           </div>
         )}
 
-        {/* Center divider — a subtle vertical line between the two sprites. */}
         <div
           className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-px -translate-x-1/2 -translate-y-1/2"
           style={{ background: `${assets.accentColor}30` }}
@@ -189,12 +149,6 @@ export const ActionStage: React.FC<ActionStageProps> = ({ kind, targetOverride, 
   );
 };
 
-/**
- * BeatLayer — a wrapper that applies a beat's Framer Motion variants
- * to its children. The `target` filter ensures we only apply the beat
- * to the right element (so an `impact-flash` beat doesn't also flash
- * the surface sprite).
- */
 const BeatLayer: React.FC<{
   beat: BeatRender;
   target: BeatRender['target'];
@@ -202,13 +156,13 @@ const BeatLayer: React.FC<{
   children: React.ReactNode;
 }> = ({ beat, target, reducedMotion, children }) => {
   if (beat.target !== target) {
-    // Wrong target — render children without animation.
     return <>{children}</>;
   }
-  // Reduced motion: use the initial variant only (no animation).
+
   const variants = reducedMotion
     ? { initial: beat.variants.initial, animate: beat.variants.initial }
     : beat.variants;
+
   return (
     <motion.div
       data-beat-target={target}
@@ -222,21 +176,13 @@ const BeatLayer: React.FC<{
   );
 };
 
-/**
- * StageSprite — placeholder renderer for a sprite given a `visualKey`.
- * Real pixel-art integration is out of scope for PR 3 — when assets
- * land in `src/lib/pixelArt/`, swap this for the real renderer. The
- * component is intentionally dumb so tests can assert on it without
- * bringing in framer-motion state.
- */
-interface StageSpriteProps {
+/** StageSprite — placeholder renderer for a sprite given a visualKey. */
+export const StageSprite: React.FC<{
   visualKey: string;
   size: number;
   accentColor?: string;
   className?: string;
-}
-
-export const StageSprite: React.FC<StageSpriteProps> = ({ visualKey, size, accentColor, className }) => (
+}> = ({ visualKey, size, accentColor, className }) => (
   <div
     data-visual-key={visualKey}
     className={`flex items-center justify-center border-2 border-border bg-bg/80 text-center font-black text-text-muted ${className ?? ''}`}
@@ -251,50 +197,3 @@ export const StageSprite: React.FC<StageSpriteProps> = ({ visualKey, size, accen
     </div>
   </div>
 );
-
-/**
- * TargetHpBar — the small HP bar above the target monster's sprite
- * during roaming. Reads live data from the kill cycle slice. Renders
- * nothing when no target is spawned (the slice is null). Animates the
- * fill width so damage ticks feel smooth.
- *
- * PR 4 addition. The visual answer to "I see a small HP bar under
- * the enemy and it dies."
- */
-const TargetHpBar: React.FC<{ accentColor?: string }> = ({ accentColor = '#ff8800' }) => {
-  const currentHp = useKillCycleStore((s) => s.currentTargetHp);
-  const maxHp = useKillCycleStore((s) => s.currentTargetHpMax);
-  const targetId = useKillCycleStore((s) => s.currentTargetId);
-
-  // No target → no bar. The stage still shows the default sprite
-  // (from getStageAssetsForKind's `monster_scavenger` fallback) but
-  // no HP bar appears until the first tick spawns a real target.
-  if (!targetId || maxHp <= 0) return null;
-
-  const ratio = Math.max(0, Math.min(1, currentHp / maxHp));
-  const targetName = MONSTERS.find((m) => m.id === targetId)?.name ?? 'Unknown';
-
-  return (
-    <div
-      data-testid="target-hp-bar"
-      data-target-id={targetId}
-      data-target-hp={currentHp}
-      data-target-hp-max={maxHp}
-      className="absolute -top-5 left-1/2 w-24 -translate-x-1/2"
-    >
-      <div className="mb-0.5 flex items-center justify-between text-[7px] font-black uppercase tracking-wider text-text-muted">
-        <span className="truncate">{targetName}</span>
-        <span>{Math.round(ratio * 100)}%</span>
-      </div>
-      <div className="h-1.5 w-full border border-border bg-bg/80">
-        <motion.div
-          className="h-full"
-          style={{ background: accentColor }}
-          initial={false}
-          animate={{ width: `${ratio * 100}%` }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-        />
-      </div>
-    </div>
-  );
-};
