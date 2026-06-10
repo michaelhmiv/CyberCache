@@ -158,52 +158,13 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ a
   );
 };
 
-const HunterHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ active, accentColor }) => {
-  const currentHp = useSurvivalStore((state) => state.currentHp);
-  const maxHp = useSurvivalStore((state) => state.maxHp);
-  const shieldHp = useSurvivalStore((state) => state.shieldHp);
-
-  if (!active || maxHp <= 0) return null;
-
-  const hpRatio = Math.max(0, Math.min(1, currentHp / maxHp));
-  const shieldRatio = maxHp > 0 ? Math.max(0, Math.min(1, shieldHp / maxHp)) : 0;
-
-  return (
-    <div className="pointer-events-none absolute left-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="hunter-hp-bar">
-      <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
-        <span className="truncate">Hunter</span>
-        <span className="shrink-0 text-green">{Math.round(hpRatio * 100)}%</span>
-      </div>
-      <div className="h-2 w-full overflow-hidden border border-border bg-surface">
-        <motion.div
-          className="h-full"
-          style={{ background: accentColor }}
-          initial={false}
-          animate={{ width: `${hpRatio * 100}%` }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-        />
-        {shieldRatio > 0 && (
-          <motion.div
-            className="h-1"
-            style={{ background: '#4FC3F7', marginTop: '-4px' }}
-            initial={false}
-            animate={{ width: `${shieldRatio * 100}%` }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          />
-        )}
-      </div>
-      <div className="mt-0.5 text-[7px] font-black text-text-muted text-right">
-        {Math.round(currentHp)}/{Math.round(maxHp)}
-      </div>
-    </div>
-  );
-};
-
 export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, boss, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const skills = useSkillStore();
+  const hunterCurrentHp = useSurvivalStore((state) => state.currentHp);
+  const hunterMaxHp = useSurvivalStore((state) => state.maxHp);
   // Single source of truth: the diorama reads the latest tick event from the
   // shared tick feed store, not from a prop. The animation is a pure read.
   const latestEvent = useTickFeedStore((state) => state.events[0]);
@@ -259,7 +220,6 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
-      <HunterHpOverlay active={activityKind === 'roaming_loot' || activityKind === 'boss_fight'} accentColor={scene.accent} />
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         {/* Duplicate `LV {playerLevel}` chip removed per PR #4 §6.3. The
@@ -269,7 +229,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       </div>
       <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${eventActive ? latestEvent?.id : mode}`} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44 } : undefined}><WeaponIllustration weapon={weapon} type={fallbackType(area)} manufacturer={fallbackMaker(area)} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
       <div className="pointer-events-none absolute bottom-[82px] left-2 right-2 grid grid-cols-[1fr_auto] gap-2"><div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate text-[9px] font-black uppercase tracking-wide text-text-primary">{weaponLabel}</div><div className="truncate text-[8px] text-text-muted">{motionCaption}</div></div><div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>{latestEvent ? <Sparkles size={13} className="text-amber" /> : <Crosshair size={13} className="text-red" />}<div><div className="text-[8px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div><div className="max-w-[92px] truncate text-[9px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel(area, bossName)}</div></div></div></div>
-      <CharacterStatBar summary={computedStats} />
+      <CharacterStatBar summary={computedStats} currentHp={hunterCurrentHp} maxHp={hunterMaxHp} />
       <div className="absolute bottom-0 left-0 right-0 grid grid-cols-2 border-t-2 border-border bg-surface/95 text-[9px]"><button type="button" onClick={onFight} className="flex items-center justify-between gap-2 border-r border-border px-3 py-2 text-left active:bg-red/10"><span><span className="block font-black uppercase tracking-wide text-red">{primaryLabel}</span><span className="block truncate text-text-muted">{primaryDetail}</span></span><Crosshair size={14} className="shrink-0 text-red" /></button><button type="button" onClick={onSecondary} className="flex items-center justify-between gap-2 px-3 py-2 text-left active:bg-amber/10"><span><span className="block font-black uppercase tracking-wide text-amber">{secondaryLabel}</span><span className="block truncate text-text-muted">{secondaryDetail}</span></span>{secondaryActionLabel ? <ChevronDown size={14} className="shrink-0 text-amber" /> : <Box size={14} className="shrink-0 text-amber" />}</button></div>
     </section>
   );
