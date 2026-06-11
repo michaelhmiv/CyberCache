@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, PackageSearch, Sparkles } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
-import type { GearItem } from '@/types/items';
+import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
+import type { GearItem, Weapon } from '@/types/items';
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 const chipClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -116,6 +117,7 @@ export const ActionFeed: React.FC<{
           const clickable = !!entry.onInspect || !!entry.gear;
           const borderClass = entry.gear ? rarityBorder(entry.gear) : 'border-border';
           const glowClass = entry.gear ? rarityGlow(entry.gear) : '';
+          const isWeapon = (g: GearItem): g is Weapon => 'weaponType' in g;
           const Inner = (
             <motion.div
               layout
@@ -125,7 +127,19 @@ export const ActionFeed: React.FC<{
               className={`flex items-start gap-2 border p-2 text-left bg-bg/75 ${borderClass} ${glowClass}`}
               style={chipClip}
             >
-              <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${feedDot(entry.tone)}`} />
+              {/* When gear is present, show weapon thumbnail instead of dot */}
+              {entry.gear && isWeapon(entry.gear) ? (
+                <div className="shrink-0 mt-0.5">
+                  <WeaponIllustration
+                    weapon={entry.gear}
+                    size="thumb"
+                    showBadges={false}
+                    animate={false}
+                  />
+                </div>
+              ) : (
+                <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${feedDot(entry.tone)}`} />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[11px] font-black uppercase tracking-wide text-text-primary">{entry.label}</div>
                 <div className="text-[10px] leading-snug text-text-muted">{entry.detail}</div>

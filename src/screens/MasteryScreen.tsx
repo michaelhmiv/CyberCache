@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart3, Crosshair, Hammer, Map, Shield, Swords, Trophy, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { useBossStore, useInventoryStore, usePlayerStore, useSkillStore } from '@/store';
 import { getMyMasterySummary, type MasterySummaryRow } from '@/lib/supabase/masteryService';
@@ -111,14 +112,45 @@ const ConstellationMap: React.FC<{
           </radialGradient>
         </defs>
         <circle cx={center} cy={center} r={orbitRadius} fill="url(#orbit-fill)" stroke="#FF900033" strokeDasharray="4 4" />
+        {/* Animated connecting lines from center to each category — pathLength staggered */}
+        {categoryData.map(({ cat }, i) => {
+          const angle = (i / categoryData.length) * Math.PI * 2 - Math.PI / 2;
+          const cx = center + Math.cos(angle) * orbitRadius;
+          const cy = center + Math.sin(angle) * orbitRadius;
+          return (
+            <motion.path
+              key={`line-${cat.id}`}
+              d={`M${center} ${center} L${cx} ${cy}`}
+              stroke={cat.color}
+              strokeOpacity={0.3}
+              strokeWidth={1.5}
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.1 * i, ease: 'easeOut' }}
+            />
+          );
+        })}
         {categoryData.map(({ cat, categoryTracks, totalXp }, i) => {
           const angle = (i / categoryData.length) * Math.PI * 2 - Math.PI / 2;
           const cx = center + Math.cos(angle) * orbitRadius;
           const cy = center + Math.sin(angle) * orbitRadius;
           const r = 8 + (totalXp / maxXp) * 16;
+          const isTop = totalXp === maxXp;
           return (
             <g key={cat.id}>
-              <circle cx={cx} cy={cy} r={r} fill={cat.color} fillOpacity="0.18" stroke={cat.color} strokeWidth="2" />
+              {/* Category node with pulse animation on highest-XP */}
+              {isTop ? (
+                <motion.circle
+                  cx={cx} cy={cy} r={r}
+                  fill={cat.color} fillOpacity="0.22"
+                  stroke={cat.color} strokeWidth="2"
+                  animate={{ r: [r, r + 4, r], fillOpacity: [0.22, 0.35, 0.22] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              ) : (
+                <circle cx={cx} cy={cy} r={r} fill={cat.color} fillOpacity="0.18" stroke={cat.color} strokeWidth="2" />
+              )}
               <text x={cx} y={cy + 4} textAnchor="middle" className="fill-text-primary" style={{ fontSize: 9, fontWeight: 900 }}>
                 {cat.label.slice(0, 4).toUpperCase()}
               </text>
@@ -127,13 +159,28 @@ const ConstellationMap: React.FC<{
                 const tr = orbitRadius + (ti - 1.5) * 18;
                 const tx = center + Math.cos(ta) * tr;
                 const ty = center + Math.sin(ta) * tr;
-                return <circle key={track.mastery_id} cx={tx} cy={ty} r={2.5} fill={cat.color} fillOpacity={Math.min(1, 0.4 + toNumber(track.mastery_xp) / 1000)} />;
+                const xp = toNumber(track.mastery_xp);
+                return (
+                  <motion.circle
+                    key={track.mastery_id}
+                    cx={tx} cy={ty} r={2.5}
+                    fill={cat.color}
+                    fillOpacity={Math.min(1, 0.4 + xp / 1000)}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 0.3, delay: 0.05 * ti + 0.1 * i }}
+                  />
+                );
               })}
             </g>
           );
         })}
-        <text x={center} y={center - 4} textAnchor="middle" className="fill-amber" style={{ fontSize: 10, fontWeight: 900 }}>CYBER</text>
-        <text x={center} y={center + 10} textAnchor="middle" className="fill-amber" style={{ fontSize: 10, fontWeight: 900 }}>CACHE</text>
+        <motion.text x={center} y={center - 4} textAnchor="middle" className="fill-amber" style={{ fontSize: 10, fontWeight: 900 }}
+          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.5 }}
+        >CYBER</motion.text>
+        <motion.text x={center} y={center + 10} textAnchor="middle" className="fill-amber" style={{ fontSize: 10, fontWeight: 900 }}
+          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.6 }}
+        >CACHE</motion.text>
       </svg>
     </div>
   );

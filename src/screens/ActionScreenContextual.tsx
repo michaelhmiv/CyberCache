@@ -65,6 +65,7 @@ import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
 import { Rarity } from '@/types/game';
 import { ResourceBar } from '@/components/layout/ResourceBar';
+import { LegendaryDropFlash } from '@/components/action/LegendaryDropFlash';
 
 const TICK_SECONDS = 3;
 const LOG_LIMIT = 10;
@@ -669,6 +670,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" />
         <div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" />
       </div>
+
+      {/* Legendary drop screen flash */}
+      <LegendaryDropFlash />
 
       {/* Resource bar */}
       <ResourceBar className="px-4 pt-1" />
