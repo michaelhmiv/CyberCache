@@ -5,9 +5,10 @@ import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { CharacterStatBar } from '@/components/stats/CharacterStatBar';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
-import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore } from '@/store';
+import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore, useBossStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { MONSTERS } from '@/constants/monsters';
+import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ARCHETYPE_SILHOUETTES, type EnemyArchetype } from '@/components/diorama/EnemySilhouettes';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { BossDef } from '@/types/boss';
@@ -212,6 +213,33 @@ const LootParticles: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> =
   );
 };
 
+/** Player damage flash — shows a red screen flash and floating damage number
+ *  when the hunter takes damage in roaming/boss modes. */
+const PlayerDamageFlash: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean; eventActive: boolean }> = ({ event, reduced, eventActive }) => {
+  if (reduced) return null;
+  if (!event || event.tone !== 'damage') return null;
+  if (!eventActive) return null; // Only animate on the latest event
+
+  const damageValue = event.value ?? 0;
+  return (
+    <motion.g
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: [0, 1, 0], scale: [0.8, 1.2, 1], y: [0, -30, -50] }}
+      transition={{ duration: 0.8, ease: 'easeOut' }}
+    >
+      {/* Red screen flash overlay */}
+      <rect x="0" y="0" width="420" height="286" fill="#FF0000" opacity="0.15" />
+      {/* Floating damage number near runner (x~104, y~100) */}
+      <text x="104" y="90" textAnchor="middle" fill="#FF4444" fontSize="18" fontWeight="900" stroke="#000" strokeWidth="3">
+        -{damageValue}
+      </text>
+      {/* Small hit spark at runner position */}
+      <circle cx="104" cy="100" r="8" fill="#FF4444" opacity="0.6" />
+      <circle cx="104" cy="100" r="12" fill="none" stroke="#FF4444" strokeWidth="2" opacity="0.8" />
+    </motion.g>
+  );
+};
+
 const ScrapSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ accent, mode, event, reduced }) => {
   if (mode !== 'salvaging' && !isLootLike(event)) return null;
   return <motion.g initial={!reduced && isLootLike(event) ? { y: 8, opacity: 0, scale: 0.86 } : undefined} animate={!reduced && isLootLike(event) ? { y: [8, -10, -4], opacity: [0, 1, 0.92], scale: [0.86, 1.08, 1] } : undefined}><path d="M199 134 L214 130 L226 140 L215 151 L198 148 Z" fill="#A5A7B5" stroke="#000" strokeWidth="4" /><path d="M223 122 L236 125 L235 141 L220 139 Z" fill={accent} opacity="0.78" stroke="#000" strokeWidth="3" /></motion.g>;
@@ -247,6 +275,44 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ a
           transition={{ duration: 0.4, ease: 'easeOut' }}
         />
       </div>
+    </div>
+  );
+};
+
+/** Boss HP overlay for live boss fights. Reads from the boss store. */
+const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ active, accentColor }) => {
+  const bossHp = useBossStore((state) => state.activeBossHp);
+  const bossMaxHp = useBossStore((state) => state.activeBossMaxHp);
+  const bossId = useBossStore((state) => state.activeBossId);
+  const status = useBossStore((state) => state.activeStatus);
+
+  if (!active || !bossId || bossMaxHp <= 0 || status === 'idle') return null;
+
+  const ratio = Math.max(0, Math.min(1, bossHp / bossMaxHp));
+  const bossDef = REGION_1_BOSSES.find((b) => b.id === bossId);
+  const bossName = bossDef?.name ?? 'Boss';
+
+  return (
+    <div className="pointer-events-none absolute right-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="primary-diorama-boss-hp">
+      <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
+        <span className="truncate">{bossName}</span>
+        <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden border border-border bg-surface">
+        <motion.div
+          className="h-full"
+          style={{ background: accentColor }}
+          initial={false}
+          animate={{ width: `${ratio * 100}%` }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        />
+      </div>
+      {status === 'victory' && (
+        <div className="mt-1 text-center text-[8px] font-black text-green animate-pulse">VICTORY</div>
+      )}
+      {status === 'defeat' && (
+        <div className="mt-1 text-center text-[8px] font-black text-red animate-pulse">DEFEATED</div>
+      )}
     </div>
   );
 };
@@ -312,9 +378,11 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} archetype="runner" boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
         <LootDropGear event={latestEvent} reduced={reduced} />
         <LootParticles event={latestEvent} reduced={reduced} />
+        <PlayerDamageFlash event={latestEvent} reduced={reduced} eventActive={eventActive} />
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
+      <BossHpOverlay active={activityKind === 'boss_fight' || activityKind === 'boss_prep'} accentColor={scene.accent} />
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         {/* Duplicate `LV {playerLevel}` chip removed per PR #4 §6.3. The

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { PlayerProfile } from '../../types/player';
 import { WorkshopQueue } from '../../types/workshop';
+import { XP_CURVE_FORMULA } from '@/content/simulation';
 
 export interface PlayerState extends PlayerProfile {
   setPlayer: (partial: Partial<PlayerProfile>) => void;
@@ -57,7 +58,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     const p = state._pending;
     let xp = (typeof server.xp === 'number' ? server.xp : state.xp) + p.xp;
     let level = typeof server.level === 'number' ? server.level : state.level;
-    while (xp >= level * 100) { xp -= level * 100; level += 1; }
+    while (xp >= XP_CURVE_FORMULA(level)) { xp -= XP_CURVE_FORMULA(level); level += 1; }
     const credits = (typeof server.credits === 'number' ? server.credits : state.credits) + p.credits;
     const scrap = (typeof server.scrap === 'number' ? server.scrap : state.scrap) + p.scrap;
     const serverMats = (server.materials && typeof server.materials === 'object' ? server.materials : {}) as Record<string, number>;
@@ -74,8 +75,12 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   addXP: (amount) => {
     set((s) => ({ _pending: { ...s._pending, xp: s._pending.xp + amount }, xp: s.xp + amount }));
     const state = get();
-    let newXP = state.xp; let newLevel = state.level;
-    while (newXP >= newLevel * 100) { newXP -= newLevel * 100; newLevel += 1; }
+    let newXP = state.xp;
+    let newLevel = state.level;
+    while (newXP >= XP_CURVE_FORMULA(newLevel)) {
+      newXP -= XP_CURVE_FORMULA(newLevel);
+      newLevel += 1;
+    }
     if (newLevel !== state.level) set({ xp: newXP, level: newLevel });
   },
   addCredits: (amount) => set((s) => ({ _pending: { ...s._pending, credits: s._pending.credits + amount }, credits: s.credits + amount })),

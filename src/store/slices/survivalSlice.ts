@@ -84,6 +84,9 @@ export interface SurvivalState {
   resurrectToken: () => void;
   /** Debug/test-only — reset to full HP. */
   resetFull: () => void;
+  /** Sync authoritative survival state from the Chef server.
+   *  Called when the Chef claim response includes survival data. */
+  syncFromServer: (server: { currentHp: number; shieldHp: number; isDead?: boolean }) => void;
 }
 
 const INITIAL_MAX_HP = 700;
@@ -195,4 +198,49 @@ export const useSurvivalStore = create<SurvivalState>()((set) => ({
       resurrectionStartedAt: null,
       resurrectionReadyAt: null,
     })),
+
+  /** Sync authoritative survival state from the Chef server.
+   *  Called when the Chef claim response includes survival data.
+   *  The server is the source of truth for HP/shield; local simulation
+   *  may have drifted due to latency or offline ticks. */
+  syncFromServer: (server) =>
+    set((state) => {
+      // If server says we're dead but locally we're alive, trigger death flow
+      const wasAlive = !state.isDead;
+      const serverDead = server.isDead === true;
+      const newHp = Math.max(0, Math.min(state.maxHp, server.currentHp));
+      const newShield = Math.max(0, server.shieldHp);
+
+      if (wasAlive && serverDead) {
+        // Server-authoritative death — trigger local death state
+        // Note: death log entry should already exist on server; we don't
+        // duplicate it here to avoid double-logging.
+        return {
+          currentHp: 0,
+          shieldHp: newShield,
+          isDead: true,
+          // Don't overwrite resurrection timers if already set
+          resurrectionStartedAt: state.resurrectionStartedAt ?? Date.now(),
+          resurrectionReadyAt: state.resurrectionReadyAt ?? Date.now() + 5 * 60 * 1000,
+        };
+      }
+
+      if (state.isDead && !serverDead) {
+        // Server-authoritative resurrection (e.g. after a claim that revived)
+        return {
+          currentHp: newHp,
+          shieldHp: newShield,
+          isDead: false,
+          resurrectionStartedAt: null,
+          resurrectionReadyAt: null,
+        };
+      }
+
+      // Normal HP/shield sync — preserve death state
+      return {
+        currentHp: newHp,
+        shieldHp: newShield,
+        isDead: serverDead,
+      };
+    }),
 }));

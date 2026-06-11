@@ -42,6 +42,8 @@ export interface KillCycleState {
   killCurrentTarget: () => string | null; // returns killed id, or null
   clearTarget: () => void;
   resetForAreaChange: () => void;
+  /** Sync kill cycle state from server-authoritative Chef response. */
+  syncFromServer: (server: { currentTargetId: string | null; currentTargetHp: number; currentTargetHpMax: number; monstersKilledCount: number; totalKills: number; lastKilledMonsterId: string | null }) => void;
 }
 
 export const useKillCycleStore = create<KillCycleState>()((set, get) => ({
@@ -99,5 +101,15 @@ export const useKillCycleStore = create<KillCycleState>()((set, get) => ({
       currentTargetHpMax: 0,
       monstersKilledCount: 0,
       targetSpawnedAt: null,
+    }),
+
+  syncFromServer: (server) =>
+    set({
+      currentTargetId: server.currentTargetId ?? null,
+      currentTargetHp: server.currentTargetHp ?? 0,
+      currentTargetHpMax: server.currentTargetHpMax ?? 0,
+      monstersKilledCount: server.monstersKilledCount ?? 0,
+      totalKills: server.totalKills ?? 0,
+      lastKilledMonsterId: server.lastKilledMonsterId ?? null,
     }),
 }));
