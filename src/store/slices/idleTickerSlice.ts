@@ -42,7 +42,6 @@ import { generateShield } from '@/lib/generators/shieldGenerator';
 import { generateClassMod } from '@/lib/generators/classModGenerator';
 import { generateRelic } from '@/lib/generators/relicGenerator';
 import { generateOrdnance } from '@/lib/generators/ordnanceGenerator';
-import { DropSource } from '@/types/game';
 
 const TICK_MS = 3000;
 const DROP_CHANCE = 0.22;
@@ -811,6 +810,20 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
             skillBonuses,
             activityMods,
             equippedGear,
+            effectiveDps: loadoutEffectiveDps(),
+            killCycle: {
+              currentTargetId: useKillCycleStore.getState().currentTargetId,
+              currentTargetHp: useKillCycleStore.getState().currentTargetHp,
+              currentTargetHpMax: useKillCycleStore.getState().currentTargetHpMax,
+              monstersKilledCount: useKillCycleStore.getState().monstersKilledCount,
+              totalKills: useKillCycleStore.getState().totalKills,
+              lastKilledMonsterId: useKillCycleStore.getState().lastKilledMonsterId,
+            },
+            survival: {
+              currentHp: useSurvivalStore.getState().currentHp,
+              shieldHp: useSurvivalStore.getState().shieldHp,
+              maxHp: useSurvivalStore.getState().maxHp,
+            },
           });
 
           // Apply canonical results from the Chef
