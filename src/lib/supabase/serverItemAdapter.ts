@@ -35,6 +35,29 @@ function scoreFor(rarity: Rarity, level: number): number {
 }
 
 export function serverItemRowToDisplayGear(row: ServerItemRow): GearItem {
+  // Payload-based reconstruction: when the server stores the full item JSON
+  // in the payload column, return it directly. Validate that the payload
+  // has at least one gear-type discriminator field (weaponType, hp, damage,
+  // treeBonus, or affixes) so we don't spread a stray object as a GearItem.
+  if (
+    row.payload &&
+    typeof row.payload === 'object' &&
+    'id' in row.payload &&
+    'rarity' in row.payload &&
+    'level' in row.payload &&
+    ('weaponType' in row.payload ||
+     'hp' in row.payload ||
+     'damage' in row.payload ||
+     'treeBonus' in row.payload ||
+     'affixes' in row.payload)
+  ) {
+    return {
+      ...(row.payload as unknown as GearItem),
+      id: row.id || String(row.payload.id),
+      isLocked: Boolean(row.is_locked),
+    };
+  }
+
   const rarity = toRarity(row.rarity);
   const level = toNumber(row.item_level, 1);
   const base = scoreFor(rarity, level);

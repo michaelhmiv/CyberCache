@@ -57,6 +57,12 @@ describe('DPS modifier chain', () => {
       const weapon = makeWeapon({ baseDamage: 0, element: Element.Shock });
       expect(computeStandardDps(weapon)).toBe(0);
     });
+
+    it('includes the canonical status contribution in standard DPS', () => {
+      const weapon = makeWeapon({ statusChance: 0.5, statusDamage: 2 });
+      const rawDps = 100 * 5 * (1 + 0.2 * 1.5);
+      expect(computeStandardDps(weapon)).toBeCloseTo(rawDps * (1 + 0.5 * 2 * 0.3), 4);
+    });
   });
 
   describe('computeWeaponDps (full chain)', () => {

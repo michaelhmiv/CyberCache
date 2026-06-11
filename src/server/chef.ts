@@ -33,8 +33,18 @@ import {
   buildAreaWeaponDropOptions,
 } from '../constants/roamingAreas';
 import type { GearItem } from '../types/items';
+import { REGION_1_BOSSES } from '../constants/bosses';
 import { sumActivityModifier } from '../lib/stats/activityModifiers';
 import type { ActivityKind } from '../types/activity';
+import { DropSource } from '../types/game';
+import {
+  getBossConsumableUsage,
+  getBossRiskModifiers,
+  simulateBoss,
+  type BossSimulationInput,
+} from '../lib/simulation/bossSimulator';
+import { applyBadDecisionBonus, applyLegendaryEffects, getInsuranceFraudRefundChance } from '../lib/legendaryEffects';
+import type { BossAttemptResult } from '../types/boss';
 
 // --- Types ---
 
@@ -83,12 +93,46 @@ export interface ClaimResult {
   feedEvents: unknown[];
 }
 
+export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
+  playerId: string;
+  bossId: string;
+  attemptNonce: number;
+}
+
+export interface BossAttemptChefResult {
+  actionType: 'cc_apply_boss_attempt';
+  profile: Record<string, unknown>;
+  result: BossAttemptResult;
+  creditsDelta: number;
+  xpAwarded: number;
+  loot: GearItem[];
+  items: GearItem[];
+  consumedConsumables: Record<string, number>;
+  extraLoot: boolean;
+  bonusLootRolls: number;
+  unlockedBossId?: string;
+  telemetry: {
+    serverRolled: true;
+    adjustedWinChance: number;
+    effectiveDps: number;
+    timeToKill: number;
+  };
+}
+
 // --- Constants ---
 
 const TICK_MS = 3000;
 const GEAR_THRESHOLD = 0.22;
-const FRAGMENT_THRESHOLD = 0.25; // 0.22 + 0.03
-const MATERIAL_THRESHOLD = 0.33; // 0.22 + 0.03 + 0.08
+const FRAGMENT_CHANCE = 0.03;
+const MATERIAL_CHANCE = 0.08;
+
+function clampChance(value: number): number {
+  return Math.max(0, Math.min(0.98, value));
+}
+
+function bossAttemptId(playerId: string, bossId: string, nonce: number): string {
+  return `boss_${playerId}_${bossId}_${nonce}`;
+}
 
 // --- Chef Implementation ---
 
@@ -132,12 +176,13 @@ export function processRoamingClaim(
   // Activity modifiers from equipped gear (procedural — Borderlands-style).
   // The client computes these via sumActivityModifier(equippedGear, 'roaming_loot').
   // The Chef applies them multiplicatively on top of the idle economy baseline.
-  const activityCreditsMult = 1 + (activityMods?.creditsPerKill ?? 0);
-  const activityScrapMult = 1 + (activityMods?.scrapYieldMod ?? 0);
-  const activityXpMult = 1 + (activityMods?.xpBoostMod ?? 0);
-  const activityRareDropBonus = activityMods?.rareDropChanceMod ?? 0;
-  const activityFragmentBonus = activityMods?.cacheFragmentChance ?? 0;
-  const activityMaterialBonus = activityMods?.materialFindChance ?? 0;
+  const effectiveActivityMods = activityMods ?? sumActivityModifier(equippedGear ?? [], 'roaming_loot' as ActivityKind);
+  const activityCreditsMult = 1 + (effectiveActivityMods.creditsPerKill ?? 0);
+  const activityScrapMult = 1 + (effectiveActivityMods.scrapYieldMod ?? 0);
+  const activityXpMult = 1 + (effectiveActivityMods.xpBoostMod ?? 0);
+  const activityRareDropBonus = effectiveActivityMods.rareDropChanceMod ?? 0;
+  const activityFragmentBonus = effectiveActivityMods.cacheFragmentChance ?? 0;
+  const activityMaterialBonus = effectiveActivityMods.materialFindChance ?? 0;
 
   const effectiveCreditsPerTick = Math.round(creditsPerTick * offlineMult * activityCreditsMult);
   const effectiveScrapPerTick = Math.round(scrapPerTick * scrapMult * activityScrapMult);
@@ -165,9 +210,12 @@ export function processRoamingClaim(
     // Single cumulative roll (Phase 1a: no if/else-if probability distortion).
     // rareDropChance mod increases the gear threshold linearly.
     // Activity modifiers add on top: rareDropChanceMod + materialFindChance.
-    const gearThreshold = GEAR_THRESHOLD * (1 + totalRareDropMod + activityRareDropBonus);
-    const fragmentThreshold = FRAGMENT_THRESHOLD + activityFragmentBonus;
-    const materialThreshold = MATERIAL_THRESHOLD + activityMaterialBonus;
+    const gearChance = clampChance(GEAR_THRESHOLD * (1 + totalRareDropMod + activityRareDropBonus));
+    const fragmentChance = Math.max(0, FRAGMENT_CHANCE * (1 + activityFragmentBonus));
+    const materialChance = Math.max(0, MATERIAL_CHANCE * (1 + activityMaterialBonus));
+    const gearThreshold = gearChance;
+    const fragmentThreshold = Math.min(0.99, gearThreshold + fragmentChance);
+    const materialThreshold = Math.min(0.99, fragmentThreshold + materialChance);
     const roll = rng();
 
     if (roll < gearThreshold) {
@@ -272,5 +320,116 @@ export function processRoamingClaim(
     },
     items: generatedItems,
     feedEvents,
+  };
+}
+
+export function processBossAttempt(request: BossAttemptRequest): BossAttemptChefResult {
+  const boss = REGION_1_BOSSES.find((entry) => entry.id === request.bossId);
+  if (!boss) throw new Error(`Unknown boss: ${request.bossId}`);
+
+  const input: BossSimulationInput = { ...request, boss };
+  const sim = simulateBoss(input);
+  const rng = createTickRng(request.playerId, boss.id, request.attemptNonce);
+  const rm = getBossRiskModifiers(request.risk);
+  const chaosRoll = (rng() - 0.5) * 0.1 + rm.chaos;
+  const adjustedWinChance = Math.max(0.02, Math.min(0.98, sim.winChance + chaosRoll));
+  const victory = rng() < adjustedWinChance;
+  const legendary = applyLegendaryEffects(request.primary, request.pityCount || 0);
+
+  const bonusLootRolls = victory
+    ? (rng() < sim.bonusLootChance ? 1 : 0) + (rng() < sim.extraLootRollChance ? 1 : 0)
+    : 0;
+
+  const deathFee = victory ? 0 : sim.deathFee;
+  const rawCreditsDelta = victory ? Math.round(boss.level * 150 * legendary.creditMult) : -deathFee;
+  const creditsDelta = applyBadDecisionBonus(rawCreditsDelta, request.primary);
+
+  let xpMult = 1;
+  request.relic?.affixes.forEach((affix) => {
+    if (affix.stat === 'xpBoostMod') xpMult += affix.value;
+  });
+  const xpAwarded = victory ? Math.round(boss.level * 20 * xpMult) : 0;
+
+  const consumedConsumables = getBossConsumableUsage(request.consumables, victory, sim.survivalScore);
+  const refundChance = getInsuranceFraudRefundChance(request.primary);
+  if (refundChance > 0) {
+    Object.keys(consumedConsumables).forEach((type) => {
+      if (rng() < refundChance) delete consumedConsumables[type];
+    });
+  }
+
+  const loot: GearItem[] = [];
+  let unlockedBossId: string | undefined;
+  if (victory) {
+    const currentIndex = REGION_1_BOSSES.findIndex((entry) => entry.id === boss.id);
+    unlockedBossId = REGION_1_BOSSES[currentIndex + 1]?.id;
+    const guaranteedRolls = 1;
+    const baseBonusRolls = rng() < 0.3 ? 1 : 0;
+    const totalRolls = guaranteedRolls + baseBonusRolls + bonusLootRolls;
+    for (let i = 0; i < totalRolls; i++) {
+      loot.push(generateWeapon({ source: DropSource.BossDrop, level: boss.level, bossTier: boss.tier }, rng));
+    }
+  }
+
+  const projectedPhase = sim.projectedFailurePhase;
+  let phaseFailed: string | undefined;
+  let bossHpRemaining: number | undefined;
+  if (!victory) {
+    if (projectedPhase) phaseFailed = projectedPhase.phaseName;
+    else if (sim.survivalScore < sim.breakScore && sim.survivalScore < sim.dpsScore) phaseFailed = 'survival';
+    else if (sim.breakScore < sim.dpsScore) phaseFailed = 'break';
+    else phaseFailed = 'dps';
+    bossHpRemaining = Math.round((1 - rng() * 0.6) * 100);
+  }
+
+  const resultReasons = victory
+    ? [
+        projectedPhase?.currentAnswers[0]
+          ? `Victory: ${projectedPhase.phaseName} cleared with ${projectedPhase.currentAnswers[0]}.`
+          : `Victory: ${boss.name} defeated with current prep.`,
+        ...sim.reasons,
+      ]
+    : [
+        projectedPhase
+          ? `Defeat: Failed ${projectedPhase.phaseName}. ${projectedPhase.explanation}`
+          : `Defeat: ${boss.name} outlasted your current prep.`,
+        ...sim.reasons,
+      ];
+
+  const result: BossAttemptResult = {
+    id: bossAttemptId(request.playerId, boss.id, request.attemptNonce),
+    bossId: boss.id,
+    timestamp: Date.now(),
+    victory,
+    winChance: sim.winChance,
+    phaseFailed,
+    bossHpRemaining,
+    consumablesUsed: consumedConsumables,
+    consumablesLost: consumedConsumables,
+    creditsGained: victory ? Math.max(0, creditsDelta) : 0,
+    creditsLost: victory ? 0 : deathFee,
+    loot: loot.map((item) => item.id),
+    reasons: Array.from(new Set(resultReasons)),
+    recommendations: sim.recommendations,
+  };
+
+  return {
+    actionType: 'cc_apply_boss_attempt',
+    profile: {},
+    result,
+    creditsDelta,
+    xpAwarded,
+    loot,
+    items: loot,
+    consumedConsumables,
+    extraLoot: bonusLootRolls > 0,
+    bonusLootRolls,
+    unlockedBossId,
+    telemetry: {
+      serverRolled: true,
+      adjustedWinChance,
+      effectiveDps: sim.effectiveDPS,
+      timeToKill: sim.timeToKill,
+    },
   };
 }

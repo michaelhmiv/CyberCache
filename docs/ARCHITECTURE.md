@@ -33,7 +33,7 @@ in screens or components is forbidden.
 | **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` | Persisted via Supabase runtime snapshot |
 | **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Supabase runtime snapshot |
 | **Boss prep analysis** | `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |
-| **Boss fight verification** | `src/server/routes/claim.ts` → `POST /api/verify-boss` | Plausibility checks: damage ≤ DPS × time × 1.2, damage ≥ boss HP for victory |
+| **Boss attempts** | `src/server/chef.ts` + `src/server/routes/claim.ts` via `POST /api/verify-boss` | Client sends intent/loadout. Chef rolls outcome, consumables, XP, credits, pity, unlocks, and loot. |
 | **Crafting / salvaging / workshop** | `src/store/slices/workshopSlice.ts` + `src/lib/craftingEngine.ts` | Queue-based |
 | **Public profile activity** | `src/types/activity.ts` → `ActiveActivity.publicPayload` | Display-only; derived from activity store |
 | **Animation / diorama display** | `src/lib/animation/fightTimeline.ts` + `src/lib/activity/ActionStage.tsx` | Pure reads of gameplay state |
@@ -41,7 +41,7 @@ in screens or components is forbidden.
 | **Skill tree bonuses** | `src/store/slices/skillSlice.ts` (`getBonuses`) | Flows into: roaming DPS (`loadoutSurvival`), Chef idle economy, boss sim, survival HP, stagger dodge |
 | **Skill → Chef economy** | `src/server/chef.ts` + `idleTickerSlice` | Skill tree Scavenger bonuses (offlineEarnings, scrapYield, rareDropChance) merged with weapon idle mods |
 | **Shield defense** (mitigation, recharge, element) | `src/lib/combat/loadoutSurvival.ts` + `damageContract.ts` | Mitigation reduces all incoming damage (capped 80%). Recharge regens shield per tick. Element match grants +15% resist. |
-| **Relic affixes** | `loadoutSlice.getRelic().affixes` summed in `idleTickerSlice` + `bossSimulator` | Idle mods → Chef; bossDamageMod/survivalBoost → boss sim; xpBoostMod → kill/boss XP |
+| **Relic affixes** | `loadoutSlice.getRelic().affixes` sent to Chef/snapshot consumers | Idle mods go to Chef; bossDamageMod/survivalBoost go to boss sim/Chef; xpBoostMod affects Chef-owned XP. |
 | **Ordnance damage** | `bossSimulator.ts` (ordnanceFlatDamage) | Ordnance raw damage reduces boss effective HP. Ordnance element modifies shield/armor break. |
 | **Supabase persistence** | `src/store/runtimeSupabaseSync.ts` + Chef RPCs | 500ms debounced snapshot + Chef direct writes |
 | **XP curve** | `src/content/simulation.ts` (`xpToNextLevel`) | Mirrored server-side in migration 057 |
@@ -53,12 +53,12 @@ in screens or components is forbidden.
 ### Tick rewards (roaming)
 ```
 idleTickerSlice.tickNow()
-  → rollClientEvents()          # client preview (Math.random ok HERE only)
-  → applyEvents()               # mutate player + inventory + push tickFeed
-  → cc_claim_roaming_rewards()  # server re-rolls, validates, returns authoritative state
-  → apply server response       # overwrite client preview with server truth
+  -> rollPreviewEvents()          # cosmetic feed only, no progression mutation
+  -> applyKillCycleTick()         # local target animation only, no XP/resources
+  -> submitClaim(/api/claim)      # Chef rolls rewards, items, XP, resources, kills
+  -> applyServerRewards()         # sync canonical profile and items
+  -> recordKill(killsRecorded)    # stats use Chef-confirmed kills only
 ```
-
 ### Survival damage (per tick)
 ```
 idleTickerSlice.tickNow()
@@ -78,11 +78,13 @@ ActionScreenContextual.openCache()
 
 ### Boss attempt
 ```
-BossPrepModal → bossSimulator.executeBossAttempt()  # pure simulation
-  → bossSlice.recordAttempt()                        # state mutation
-  → display result via animation                      # UI only
+BossPrepModal
+  -> verifyBossFight(intent/loadout)          # client sends intent only
+  -> /api/verify-boss                         # route calls Chef
+  -> processBossAttempt()                     # Chef rolls outcome/loot/XP/credits/pity/unlocks
+  -> cc_apply_chef_boss_attempt()             # profile/consumables/boss_state RPC
+  -> syncBossAttemptResult()                  # client syncs returned canonical state and animates
 ```
-
 ### Activity transitions
 ```
 screen → activityStore.start(input)   # writes to Supabase active_actions

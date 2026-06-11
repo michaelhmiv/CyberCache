@@ -2,7 +2,8 @@ import { SKILL_NODES } from '@/constants/skillTrees';
 import type { PlayerProfile } from '@/types/player';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
-import { computeLoadoutDps, computeStandardDps } from '@/lib/stats/dpsChain';
+import { computeStandardDps } from '@/lib/stats/dpsChain';
+import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
@@ -97,28 +98,27 @@ function metric(key: string, label: string, value: number, display: string, deta
 
 export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss } = input;
+  const mechanics = buildCharacterMechanicsSnapshot(input);
   const liveWeapons = weapons.filter((weapon): weapon is Weapon => !!weapon);
   const gear = [...liveWeapons, shield, classMod, relic, ordnance];
-  const baseHealth = 100 + player.level * 12;
+  const baseHealth = mechanics.maxHp.contributions.find((entry) => entry.stat === 'baseHp')?.value ?? mechanics.maxHp.value;
   const shieldHp = shield?.hp ?? 0;
-  const mitigationHp = Math.round(shieldHp * (shield?.mitigation ?? 0));
-  const totalHealth = baseHealth + shieldHp + mitigationHp;
-  const baseDps = liveWeapons.reduce((sum, weapon) => sum + weaponDps(weapon), 0);
+  const mitigationHp = Math.max(0, mechanics.effectiveHp.value - mechanics.maxHp.value);
+  const totalHealth = mechanics.maxHp.value;
+  const baseDps = mechanics.standardWeaponDps.value;
   const weaponDamageBonus = skillTotal(spentSkills, 'weaponDamage') + skillTotal(spentSkills, 'attackSpeed') + skillTotal(spentSkills, 'critChance') * 0.5 + skillTotal(spentSkills, 'critDamage') * 0.5;
   const affixDamageBonus = gearAffixes(gear, 'weaponDamage').reduce((sum, item) => sum + item.affix.value, 0);
   const totalDps = baseDps * (1 + weaponDamageBonus + affixDamageBonus);
   // When a boss is supplied, the DPS metric becomes the boss-relative DPS so
   // the player can read the effective damage they'll deal. Otherwise it stays
   // as the standard-target total. The detail label flips with the context.
-  const baseDpsForBoss = boss ? computeLoadoutDps(liveWeapons, boss.weaknesses, boss.resistances) : 0;
+  const baseDpsForBoss = boss ? mechanics.bossRelativeDps.value : 0;
   const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus);
   const dpsDisplayValue = boss ? totalDpsForBoss : totalDps;
   const dpsDetail = boss
     ? `vs ${boss.name} (${(boss.weaknesses[0] ?? 'no weakness').toLowerCase()})`
     : 'weapons + skills + affixes';
-  const bossWeaponBonus = liveWeapons.reduce((sum, weapon) => sum + weapon.bossDamageMod, 0) / Math.max(1, liveWeapons.length);
-  const bossSkillBonus = skillTotal(spentSkills, 'bossDamageMod') + skillTotal(spentSkills, 'bossDamageSniperPistol') + skillTotal(spentSkills, 'launcherBossDps') + skillTotal(spentSkills, 'weaknessMatchDamage');
-  const bossDps = totalDps * (1 + bossWeaponBonus + bossSkillBonus);
+  const bossDps = mechanics.simulatedBossDps.value;
   const ordnanceDamage = ordnance?.damage ?? 0;
   const shieldBreak = liveWeapons.reduce((sum, weapon) => sum + weaponDps(weapon) * Math.max(0, weapon.shieldDamageMod), 0) + (ordnance?.shieldDamage ?? 0) + baseDps * (skillTotal(spentSkills, 'shieldDamageMod') + skillTotal(spentSkills, 'ordnanceShieldBreak'));
   const armorBreak = liveWeapons.reduce((sum, weapon) => sum + weaponDps(weapon) * Math.max(0, weapon.armorDamageMod), 0) + (ordnance?.armorDamage ?? 0) + baseDps * (skillTotal(spentSkills, 'armorDamageMod') + skillTotal(spentSkills, 'explosiveArmorBreak'));
@@ -129,7 +129,11 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const healthContribs: StatContribution[] = [
     { source: 'Hunter chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted' },
     shield ? { source: shield.name, detail: 'Shield HP pool', value: shieldHp, display: whole(shieldHp), tone: 'cyan' } : undefined,
-    shield ? { source: shield.name, detail: `Mitigation padding ${pct(shield.mitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'green' } : undefined,
+  ].filter(Boolean) as StatContribution[];
+
+  const effectiveHpContribs: StatContribution[] = [
+    { source: 'Max HP', detail: 'Combat HP before mitigation', value: totalHealth, display: whole(totalHealth), tone: 'green' },
+    shield ? { source: shield.name, detail: `Mitigation ${pct(shield.mitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'cyan' } : undefined,
   ].filter(Boolean) as StatContribution[];
 
   const dpsContribs: StatContribution[] = [
@@ -172,11 +176,11 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   ];
 
   const all = [
-    metric('health', 'Health', totalHealth, whole(totalHealth), 'base + shield + mitigation', 'green', healthContribs, [
+    metric('health', 'Max HP', totalHealth, whole(totalHealth), 'combat HP: chassis + shield', 'green', healthContribs, [
       { value: baseHealth, display: whole(baseHealth), tone: 'muted', label: 'Chassis' },
       ...(shield ? [{ value: shieldHp, display: whole(shieldHp), tone: 'cyan' as StatTone, label: 'Shield' }] : []),
-      ...(shield && mitigationHp > 0 ? [{ value: mitigationHp, display: whole(mitigationHp), tone: 'green' as StatTone, label: 'Mitigation' }] : []),
     ]),
+    metric('effectiveHp', 'Effective HP', mechanics.effectiveHp.value, whole(mechanics.effectiveHp.value), 'max HP adjusted by mitigation', 'cyan', effectiveHpContribs),
     metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
     metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
     metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', breakContribs('shield')),

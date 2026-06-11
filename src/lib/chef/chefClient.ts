@@ -11,6 +11,8 @@
  */
 
 import type { GearItem } from '@/types/items';
+import type { BossAttemptResult } from '@/types/boss';
+import type { BossSimulationInput } from '@/lib/simulation/bossSimulator';
 
 const CHEF_BASE = (() => {
   // Explicit env var takes priority (should be full base URL, e.g. 'https://app.up.railway.app')
@@ -38,6 +40,9 @@ export interface ChefClaimRequest {
     scrapYieldMod: number;
     rareDropChanceMod: number;
   };
+  skillBonuses?: Record<string, number>;
+  activityMods?: Record<string, number>;
+  equippedGear?: GearItem[];
   jwt?: string;
 }
 
@@ -66,27 +71,33 @@ export interface ChefClaimResult {
   }>;
 }
 
-export interface ChefVerifyBossRequest {
+export interface ChefVerifyBossRequest extends Omit<BossSimulationInput, 'boss'> {
   playerId: string;
   bossId: string;
-  damageDealt: number;
-  damageTaken: number;
-  medkitsConsumed: number;
-  fightDurationMs: number;
-  loadoutDps: number;
-  victory: boolean;
+  attemptNonce: number;
   jwt?: string;
 }
 
 export interface ChefVerifyBossResult {
+  actionType: 'cc_apply_boss_attempt';
   verified: boolean;
   victory: boolean;
-  rewards?: {
-    xp: number;
-    credits: number;
-    loot: GearItem[];
-  };
+  result: BossAttemptResult;
+  creditsDelta: number;
+  xpAwarded: number;
+  loot: GearItem[];
+  items: GearItem[];
+  consumedConsumables: Record<string, number>;
+  extraLoot: boolean;
+  bonusLootRolls: number;
+  profile?: Record<string, unknown>;
   pityIncremented: boolean;
+  telemetry: {
+    serverRolled: true;
+    adjustedWinChance: number;
+    effectiveDps: number;
+    timeToKill: number;
+  };
   reason?: string;
 }
 

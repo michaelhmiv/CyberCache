@@ -280,15 +280,11 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
   //   combatPower, so the placeholder is safe.
   //
   //   This intentionally changes the visible `Combat Power` and
-  //   `Farm Power` chips on every existing weapon. The new value uses
-  //   the chain's formula (`(1 + critChance * critDamage)`) which is
-  //   the correct interpretation per the locked decision in
-  //   `.hermes/plans/dps-chain-v2-plan.md` (D1: "vs standard" = raw
-  //   hit, no element multiplier). The previous generator formula
-  //   (`(1 + critChance * (critDamage - 1)) * (1 + statusChance *
-  //   0.5)`) treated critDamage as a partial multiplier and status
-  //   chance as a DPS contributor; both are now removed because
-  //   neither is folded into the chain's standard-target DPS.
+  //   `Farm Power` chips on every existing weapon. The canonical standard
+  //   formula is raw crit DPS (`1 + critChance * critDamage`) plus the
+  //   status contribution owned by dpsChain (`1 + statusChance *
+  //   statusDamage * 0.3`). BossDamageMod is not standard DPS; it enters
+  //   only when the chain is called in an explicit boss context.
   const stub: Weapon = {
     id: generateItemId(),
     name: '',

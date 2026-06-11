@@ -19,6 +19,14 @@ context and returns a number. Every DPS surface calls it.
 The audit (June 2026) found seven places where this rule was violated.
 PRs A–E fixed each one. PR F (this doc) makes the rule discoverable.
 
+## Current Locked Contract
+
+As of the mechanics integrity audit, standard DPS includes raw crit DPS, status contribution, signature mechanics, and any explicitly supplied legendary damage multiplier. Standard DPS does not include element matchup, consumables, ammo windows, or bossDamageMod.
+
+Boss-relative DPS includes the standard chain plus boss element matchup and each weapon's bossDamageMod. Full boss simulation DPS is a separate value: it starts from boss-relative per-weapon chain values and then applies slot multipliers, ammo windows, consumables, risk, skills, relic/class modifiers, ordnance, survival/break checks, and Chef-owned outcome rolls.
+
+Shared UI surfaces must consume `buildCharacterMechanicsSnapshot` for derived stat displays instead of re-computing formulas locally.
+
 **Why this rule exists:** when two surfaces use two different formulas,
 they disagree. The player sees "you will not defeat the boss before
 timeout" in one place and "your best DPS vs this boss is X" in another,

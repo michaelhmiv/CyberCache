@@ -15,6 +15,8 @@ Before making any change:
 - **Do not bypass static architecture guards without documenting why.** Run `scripts/guard-architecture.sh` after changes.
 - **Do not treat UI animation as gameplay execution.** Dioramas, action stages, and loot popups read from stores — they do not produce gameplay outcomes.
 - **The Chef is the authoritative engine.** All roaming tick processing, item generation, and resource awards happen server-side (`src/server/chef.ts`). The client is a display layer — NEVER add item generation or resource mutation to the client ticker path. See `docs/ARCHITECTURE.md` §8.
+- **Boss attempts are Chef-owned.** BossPrepModal and other screens may send intent/loadout selection and animate returned results, but they must not call `executeBossAttempt()`, mutate player progression, consume items, roll loot, update pity/unlocks, or provide client loot fallbacks.
+- **Displayed mechanics come from the snapshot.** Shared stat surfaces should consume `src/lib/mechanics/buildCharacterMechanicsSnapshot.ts` (or helpers that consume it) for HP, DPS, break, loot, XP, scrap, and offline modifiers instead of re-computing formulas locally.
 - **All item generators are shared.** `src/lib/generators/*` is imported by BOTH the Chef and the client. One source of truth. Do not create generator copies.
 
 ## Mandatory Repo Verification

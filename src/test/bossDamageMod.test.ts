@@ -67,12 +67,11 @@ describe('dpsChain — bossDamageMod', () => {
     expect(bossDps).toBeCloseTo(standard * 1.3 * 1.15, -1);
   });
 
-  it('computeLoadoutDps does not apply bossDamageMod unless explicitly passed', () => {
+  it('computeLoadoutDps applies bossDamageMod only when boss context is present', () => {
     const weapon = makeWeapon({ bossDamageMod: 0.5 });
-    // Without bossDamageMod, loadoutDps should be standard DPS.
-    const loadoutDps = computeLoadoutDps([weapon]);
     const standard = computeStandardDps(weapon);
-    expect(loadoutDps).toBe(standard);
+    expect(computeLoadoutDps([weapon])).toBe(standard);
+    expect(computeLoadoutDps([weapon], [Element.Kinetic], [])).toBeCloseTo(standard * 1.3 * 1.5, 0);
   });
 
   it('two weapons with different bossDamageMod each get their own bonus', () => {

@@ -68,7 +68,7 @@ type BossSimWeapon = Weapon & {
   signatureMechanic?: string;
 };
 
-function getRiskModifiers(risk: RiskSetting) {
+export function getBossRiskModifiers(risk: RiskSetting) {
   switch (risk) {
     case RiskSetting.Conservative:
       return { survivalMult: 1.2, dpsMult: 0.95, consumableMult: 1.4, chaos: -0.02 };
@@ -295,7 +295,7 @@ function getRuleTotals(defs: ConsumableDef[]): RuleTotals {
   );
 }
 
-function getExpectedUsage(consumables: Record<string, number>, win: boolean, survivalScore: number): Record<string, number> {
+export function getBossConsumableUsage(consumables: Record<string, number>, win: boolean, survivalScore: number): Record<string, number> {
   const used: Record<string, number> = {};
 
   Object.entries(consumables).forEach(([type, count]) => {
@@ -366,7 +366,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const reasons: string[] = [];
   const recommendations: string[] = [];
 
-  const rm = getRiskModifiers(risk);
+  const rm = getBossRiskModifiers(risk);
   const selectedDefs = selectedConsumableDefs(consumables);
   const rules = getRuleTotals(selectedDefs);
 
@@ -686,7 +686,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     mechanicScore,
     reasons: unique(reasons),
     recommendations: unique(recommendations),
-    expectedConsumableUsage: getExpectedUsage(consumables, winChance >= 0.5, survivalScore),
+    expectedConsumableUsage: getBossConsumableUsage(consumables, winChance >= 0.5, survivalScore),
     deathFee,
     bonusLootChance: rules.bonusLootChance,
     extraLootRollChance: rules.extraLootRollChance,
@@ -733,7 +733,7 @@ export function executeBossAttempt(
     bossHpRemaining = Math.round((1 - Math.random() * 0.6) * 100);
   }
 
-  const consumedConsumables = getExpectedUsage(input.consumables, win, sim.survivalScore);
+  const consumedConsumables = getBossConsumableUsage(input.consumables, win, sim.survivalScore);
   const insuranceRefundChance = getInsuranceFraudRefundChance(input.primary);
   if (insuranceRefundChance > 0) {
     Object.keys(consumedConsumables).forEach((type) => {

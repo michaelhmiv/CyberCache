@@ -149,8 +149,34 @@ export function computeLoadoutDps(
   bossResistances?: Element[],
   consumables?: Record<string, number>,
 ): number {
+  const bossContext = Boolean(bossWeaknesses?.length || bossResistances?.length);
   return weapons.reduce(
-    (sum, weapon) => sum + computeWeaponDps({ weapon, bossWeaknesses, bossResistances, consumables }),
+    (sum, weapon) => sum + computeWeaponDps({
+      weapon,
+      bossWeaknesses,
+      bossResistances,
+      consumables,
+      bossDamageMod: bossContext ? weapon.bossDamageMod : 0,
+    }),
+    0,
+  );
+}
+
+/** Explicit boss-relative loadout DPS, including per-weapon bossDamageMod. */
+export function computeBossRelativeDps(
+  weapons: Weapon[],
+  bossWeaknesses: Element[] = [],
+  bossResistances: Element[] = [],
+  consumables?: Record<string, number>,
+): number {
+  return weapons.reduce(
+    (sum, weapon) => sum + computeWeaponDps({
+      weapon,
+      bossWeaknesses,
+      bossResistances,
+      consumables,
+      bossDamageMod: weapon.bossDamageMod,
+    }),
     0,
   );
 }

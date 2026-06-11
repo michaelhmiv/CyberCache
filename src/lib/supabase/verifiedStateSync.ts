@@ -4,6 +4,8 @@ import { useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { RiskSetting } from '@/types/game';
+import type { BossAttemptResult } from '@/types/boss';
+import type { GearItem } from '@/types/items';
 import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
 
 export type RuntimeProfilePayload = {
@@ -50,6 +52,21 @@ function stringArrayValue(value: unknown): string[] | undefined {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : undefined;
 }
 
+function legacyBossIds(raw: Record<string, unknown>, prefix: string): string[] {
+  return Object.entries(raw)
+    .filter(([key, value]) => key.startsWith(prefix) && value === true)
+    .map(([key]) => key.slice(prefix.length));
+}
+
+function legacyPityCounters(raw: Record<string, unknown>): Record<string, number> {
+  return Object.entries(raw).reduce<Record<string, number>>((result, [key, value]) => {
+    if (!key.startsWith('pity_')) return result;
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (Number.isFinite(parsed)) result[key.slice('pity_'.length)] = parsed;
+    return result;
+  }, {});
+}
+
 function toLoadoutSlot(value: string | null | undefined): LoadoutSlot | null {
   if (!value) return null;
   return validSlots.has(value as LoadoutSlot) ? (value as LoadoutSlot) : null;
@@ -79,11 +96,13 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
   const bossState = profile.boss_state;
   if (bossState && typeof bossState === 'object' && !Array.isArray(bossState)) {
     const raw = bossState as Record<string, unknown>;
+    const legacyDefeated = legacyBossIds(raw, 'defeated_');
+    const legacyPity = legacyPityCounters(raw);
     useBossStore.setState((state) => ({
       currentBossId: typeof raw.currentBossId === 'string' ? raw.currentBossId : state.currentBossId,
       unlockedBossIds: stringArrayValue(raw.unlockedBossIds) ?? state.unlockedBossIds,
-      defeatedBossIds: stringArrayValue(raw.defeatedBossIds) ?? state.defeatedBossIds,
-      pityCounters: recordValue(raw.pityCounters) ?? state.pityCounters,
+      defeatedBossIds: stringArrayValue(raw.defeatedBossIds) ?? (legacyDefeated.length ? legacyDefeated : state.defeatedBossIds),
+      pityCounters: recordValue(raw.pityCounters) ?? (Object.keys(legacyPity).length ? legacyPity : state.pityCounters),
       selectedRisk: typeof raw.selectedRisk === 'string' ? (raw.selectedRisk as RiskSetting) : state.selectedRisk,
     }));
   }
@@ -107,4 +126,14 @@ export function syncVerifiedResult(result: Record<string, unknown>): void {
   if (clearedSlot && result.action_type === 'cc_unequip_slot') {
     useLoadoutStore.getState().setSlot(clearedSlot, null);
   }
+}
+
+export function syncBossAttemptResult(result: {
+  profile?: RuntimeProfilePayload;
+  items?: GearItem[];
+  result?: BossAttemptResult;
+}): void {
+  syncRuntimeProfile(result.profile);
+  if (result.items?.length) useInventoryStore.getState().receiveServerItems(result.items);
+  if (result.result) useBossStore.getState().addAttempt(result.result);
 }
