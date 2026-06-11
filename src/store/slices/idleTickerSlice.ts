@@ -16,6 +16,7 @@ import {
 } from '@/constants/roamingAreas';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
+import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import type { GearItem, Weapon } from '@/types/items';
 import { useTickFeedStore, type TickEvent } from './tickSlice';
@@ -29,7 +30,7 @@ import {
 } from '@/lib/combat/damageContract';
 import { loadoutSurvivalStats, loadoutEffectiveDps, equippedShieldRechargeRate, equippedShieldMitigation } from '@/lib/combat/loadoutSurvival';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
-import { pickNextTarget, xpForKill } from '@/lib/combat/killCycleHelpers';
+import { pickNextTarget } from '@/lib/combat/killCycleHelpers';
 import { bossTick, bossDamagePerSecond } from '@/lib/combat/bossTick';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { useBossStore } from '@/store/slices/bossSlice';
@@ -316,7 +317,6 @@ const applyKillCycleTick = (areaId: string, ticks: number): TickEvent[] => {
   const events: TickEvent[] = [];
   const area = getRoamingArea(areaId);
   const killCycle = useKillCycleStore.getState();
-  const player = usePlayerStore.getState();
   const now = Date.now();
 
   // If no current target, spawn one. This happens on the first tick
@@ -372,27 +372,18 @@ const applyKillCycleTick = (areaId: string, ticks: number): TickEvent[] => {
         value: damage,
       });
     } else {
-      // KILL! The monster's HP just hit 0. Fire the kill event,
-      // award XP, then spawn the next target.
+      // KILL! The local cycle advances targets for display only. XP and
+      // resources come from the Chef claim so the same kill cannot award
+      // local XP and server XP.
       const killedId = useKillCycleStore.getState().killCurrentTarget();
-      // Relic xpBoostMod multiplies kill XP (Phase 5c).
-      let xpMult = 1;
-      const relic = useLoadoutStore.getState().getRelic();
-      if (relic) {
-        for (const affix of relic.affixes) {
-          if (affix.stat === 'xpBoostMod') xpMult += affix.value;
-        }
-      }
-      const xp = Math.round(xpForKill(monster) * xpMult);
-      player.addXP(xp);
       events.push({
         id: '',
         at,
         tone: 'kill',
-        label: `+${xp} XP`,
-        detail: `Killed ${monster.name}.`,
+        label: 'Kill pending',
+        detail: `Killed ${monster.name}; rewards resolve through Chef.`,
         areaId,
-        value: xp,
+        value: 0,
       });
 
       // Spawn the next target. We use the just-killed id as the
@@ -696,22 +687,6 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
         return;
       }
 
-      // Kill counter — one per tick that did not produce a gear/fragment/material drop.
-      const killCount = previewEvents.filter((e) => e.tone === 'kill').length;
-      if (killCount > 0) {
-        useCombatStatsStore.getState().recordKill({ areaId, count: killCount });
-        // Persist the updated combat stats so the dashboard's "kills/min"
-        // counter has real data, not the old 0.75 fudge factor.
-        const userId = usePlayerStore.getState().id;
-        if (userId) {
-          try {
-            const { saveCombatStats } = await import('@/store/combatStatsSupabaseSync');
-            await saveCombatStats(userId);
-          } catch (error) {
-            void error; // Best-effort; next tick will retry.
-          }
-        }
-      }
 
       // Phase 3: Chef is the authoritative engine. Try the Chef API first,
       // fall back to the Supabase RPC if the Chef is unreachable.
@@ -749,6 +724,16 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
               if (affix.stat === 'rareDropChanceMod') idleMods.rareDropChanceMod += affix.value;
             }
           }
+          const equippedGear = [
+            loadout.getWeapon('primary'),
+            loadout.getWeapon('secondary'),
+            loadout.getWeapon('heavy'),
+            loadout.getShield(),
+            loadout.getClassMod(),
+            relic,
+            loadout.getOrdnance(),
+          ].filter((item): item is GearItem => Boolean(item));
+          const activityMods = sumActivityModifier(equippedGear, 'roaming_loot');
 
           const chefResult = await submitClaim({
             playerId,
@@ -758,10 +743,22 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
             playerLevel: usePlayerStore.getState().level,
             idleMods,
             skillBonuses,
+            activityMods,
+            equippedGear,
           });
 
           // Apply canonical results from the Chef
           applyServerRewards(chefResult as unknown as Record<string, unknown>);
+          const confirmedKills = chefResult.rewards?.killsRecorded ?? 0;
+          if (confirmedKills > 0) {
+            useCombatStatsStore.getState().recordKill({ areaId, count: confirmedKills });
+            try {
+              const { saveCombatStats } = await import('@/store/combatStatsSupabaseSync');
+              await saveCombatStats(playerId);
+            } catch (error) {
+              void error;
+            }
+          }
 
           // Replace only preview events with canonical Chef feed events.
           // Kill cycle and survival events (enemy HP, damage, kills, death,

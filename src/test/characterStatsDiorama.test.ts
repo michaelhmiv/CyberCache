@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildCharacterStatSummary } from '../lib/stats/characterStats';
+import { computeHunterMaxHp } from '../lib/combat/damageContract';
+import { buildCharacterMechanicsSnapshot } from '../lib/mechanics/buildCharacterMechanicsSnapshot';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '../types/game';
 import type { BossDef } from '../types/boss';
 import type { PlayerProfile } from '../types/player';
@@ -188,7 +190,7 @@ describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () =>
 
   it('emits a stacked health metric with at least a chassis segment when a shield is absent', () => {
     // The HP bar in the diorama reads from `metric.stacked`. The chassis
-    // segment must always be present (base + level * 12). When the player
+    // segment must always be present (canonical combat HP base). When the player
     // has no shield, no shield/mitigation segments are emitted.
     const player = makePlayer();
     const weapon = makeWeapon({ id: 'w1' });
@@ -197,7 +199,7 @@ describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () =>
     expect(healthMetric.stacked).toBeDefined();
     expect(healthMetric.stacked!.length).toBe(1);
     expect(healthMetric.stacked![0].label).toBe('Chassis');
-    expect(healthMetric.stacked![0].value).toBe(100 + player.level * 12);
+    expect(healthMetric.stacked![0].value).toBe(computeHunterMaxHp(player.level, 0));
   });
 
   it('emits a stacked health metric with chassis + shield segments when a shield is equipped', () => {
@@ -216,6 +218,17 @@ describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () =>
     // Sum of segments equals total metric value (idle-game convention)
     const segmentSum = healthMetric.stacked!.reduce((sum, segment) => sum + segment.value, 0);
     expect(segmentSum).toBe(healthMetric.value);
+  });
+
+  it('uses the same mechanics snapshot for shared HP and DPS values', () => {
+    const player = makePlayer({ level: 7 });
+    const weapon = makeWeapon({ id: 'w1', bossDamageMod: 0.25 });
+    const boss = makeBoss([Element.Fire]);
+    const summary = buildCharacterStatSummary({ player, weapons: [weapon], spentSkills: {}, boss });
+    const snapshot = buildCharacterMechanicsSnapshot({ player, weapons: [weapon], spentSkills: {}, boss });
+    expect(summary.all.find((metric) => metric.key === 'health')!.value).toBe(snapshot.maxHp.value);
+    expect(summary.all.find((metric) => metric.key === 'dps')!.value).toBeCloseTo(snapshot.bossRelativeDps.value, 4);
+    expect(summary.all.find((metric) => metric.key === 'boss')!.value).toBeCloseTo(snapshot.simulatedBossDps.value, 4);
   });
 
   it('emits a mitigation segment only when mitigation is positive', () => {

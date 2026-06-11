@@ -45,7 +45,7 @@ ALLOWED_MUTATIONS=(
   "$SRC/screens/MarketScreen.tsx:market buy/sell (user transaction)"
   "$SRC/screens/GearYardScreen.tsx:salvage (user breaks down gear)"
   "$SRC/screens/LootScreen.tsx:salvage (user breaks down gear)"
-  "$SRC/components/fight/BossPrepModal.tsx:boss encounter rewards (user-initiated fight result)"
+  "$SRC/components/action/DeathOverlay.tsx:revive token consumption (user resurrection)"
 )
 
 # Allowed files for Math.random in gameplay contexts
@@ -59,7 +59,6 @@ ALLOWED_RANDOM=(
   "$SRC/lib/run/runEvents.ts:event ID generation (display-only)"
   "$SRC/test/:test files"
   "$SRC/screens/MarketScreen.tsx:UI ID generation (non-gameplay)"
-  "$SRC/components/fight/BossPrepModal.tsx:boss fight outcome (user-initiated)"
 )
 
 # Allowed setInterval/setTimeout in screens/components
@@ -109,6 +108,12 @@ REWARD_CALLS=(
   "generateAndAddOrdnance"
   "generateAndAddClassMod"
   "generateAndAddRelic"
+  "removeConsumable"
+  "defeatBoss"
+  "resetPity"
+  "unlockBoss"
+  "incrementPity"
+  "executeBossAttempt"
 )
 
 FOUND_REWARDS=""
@@ -119,7 +124,7 @@ for dir in "$SCREENS" "$COMPONENTS"; do
     if is_allowed "$file" "${ALLOWED_MUTATIONS[@]}"; then continue; fi
     if [[ "$file" == *".test."* ]]; then continue; fi
     FOUND_REWARDS+="  $file:$line: $content"$'\n'
-  done < <(grep -rn "addCredits\|addXP\|addScrap\|addMaterial\|addEssence\|addCacheKeyFragments\|addItem\|generateAndAdd" "$dir" --include="*.ts" --include="*.tsx" 2>/dev/null || true)
+  done < <(grep -rn "addCredits\|addXP\|addScrap\|addMaterial\|addEssence\|addCacheKeyFragments\|addItem\|generateAndAdd\|removeConsumable\|defeatBoss\|resetPity\|unlockBoss\|incrementPity\|executeBossAttempt" "$dir" --include="*.ts" --include="*.tsx" 2>/dev/null || true)
 done
 
 if [ -n "$FOUND_REWARDS" ]; then

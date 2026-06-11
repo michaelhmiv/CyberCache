@@ -35,6 +35,14 @@ function scoreFor(rarity: Rarity, level: number): number {
 }
 
 export function serverItemRowToDisplayGear(row: ServerItemRow): GearItem {
+  if (row.payload && typeof row.payload === 'object' && 'id' in row.payload && 'rarity' in row.payload && 'level' in row.payload) {
+    return {
+      ...(row.payload as unknown as GearItem),
+      id: row.id || String(row.payload.id),
+      isLocked: Boolean(row.is_locked),
+    };
+  }
+
   const rarity = toRarity(row.rarity);
   const level = toNumber(row.item_level, 1);
   const base = scoreFor(rarity, level);

@@ -5,11 +5,12 @@ import { BossDef, PhaseAnalysis } from '../../types/boss';
 import { ConsumableSlot, RiskSetting } from '../../types/game';
 import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts, getConsumablesForSlot } from '../../constants/consumables';
 import { RARITIES } from '../../constants/rarities';
-import { REGION_1_BOSSES } from '../../constants/bosses';
-import { executeBossAttempt, simulateBoss } from '../../lib/simulation/bossSimulator';
+import { simulateBoss } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity, buildBossPrepActivity } from '../../lib/activity/activityBuilders';
 import { computeLoadoutDps } from '../../lib/stats/dpsChain';
 import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
+import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
+import { syncBossAttemptResult } from '../../lib/supabase/verifiedStateSync';
 import { useActivityStore, useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
@@ -207,7 +208,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const skillStore = useSkillStore();
   const activity = useActivityStore();
   const [risk, setRisk] = useState<RiskSetting>(RiskSetting.Balanced);
-  const [result, setResult] = useState<ReturnType<typeof executeBossAttempt> | null>(null);
+  const [result, setResult] = useState<ChefVerifyBossResult | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The fight card morphs through three states: 'pre' (win chance %),
@@ -346,14 +347,12 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
       return;
     }
 
-    // The sim is instant (Math.random() and arithmetic). The old code
-    // wrapped it in a 1.2s setTimeout as a fake "thinking" delay. Now we
-    // run the sim immediately, capture the result, and *animate* the
-    // outcome over ~400-600ms (or skip the animation entirely with
-    // prefers-reduced-motion). The result is the same — the player just
-    // gets to *see* the math instead of staring at "Simulating...".
-    const outcome = executeBossAttempt(
-      {
+    let outcome: ChefVerifyBossResult;
+    try {
+      outcome = await verifyBossFight({
+        playerId: player.id,
+        bossId: boss.id,
+        attemptNonce: Date.now(),
         primary,
         secondary,
         heavy,
@@ -363,68 +362,17 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         relic,
         consumables: selectedConsumables,
         risk,
-        boss,
         playerLevel: player.level,
         skillBonuses: skillStore.getBonuses(),
         pityCount: bossStore.pityCounters[boss.id] || 0,
         playerCredits: player.credits,
-      },
-      player.credits
-    );
-
-    // Consume consumables immediately so the inventory UI updates even
-    // mid-animation. This matches the old behavior.
-    Object.entries(outcome.consumedConsumables).forEach(([type, count]) => {
-      if (count > 0) player.removeConsumable(type, count);
-    });
-
-    // Apply the outcome to the stores. The result card (rendered when
-    // `result` is set) shows the user what happened; the stores reflect it
-    // immediately. The animation is purely visual.
-    if (outcome.result.victory) {
-      player.addCredits(outcome.creditsDelta);
-      // Relic xpBoostMod multiplies boss kill XP (Phase 5c).
-      let xpMult = 1;
-      if (relic) {
-        for (const affix of relic.affixes) {
-          if (affix.stat === 'xpBoostMod') xpMult += affix.value;
-        }
-      }
-      player.addXP(Math.round(boss.level * 20 * xpMult));
-      const wasNewDefeat = !bossStore.defeatedBossIds.includes(boss.id);
-      bossStore.defeatBoss(boss.id);
-      bossStore.resetPity(boss.id);
-      if (wasNewDefeat) {
-        const currentIndex = REGION_1_BOSSES.findIndex((b) => b.id === boss.id);
-        const nextBoss = REGION_1_BOSSES[currentIndex + 1];
-        if (nextBoss && !bossStore.unlockedBossIds.includes(nextBoss.id)) {
-          bossStore.unlockBoss(nextBoss.id);
-        }
-      }
-      // Delegate boss loot to the Chef for server-authoritative drops.
-      // Fire-and-forget — the items arrive via runtime store sync.
-      try {
-        const { verifyBossFight } = await import('@/lib/chef/chefClient');
-        await verifyBossFight({
-          playerId: player.id,
-          bossId: boss.id,
-          damageDealt: outcome.damageDealt,
-          damageTaken: outcome.damageTaken,
-          medkitsConsumed: outcome.medkitsConsumed,
-          fightDurationMs: outcome.fightDurationMs,
-          loadoutDps: sim.effectiveDPS,
-          victory: true,
-        });
-      } catch (chefError) {
-        console.warn('[BossPrepModal] Chef boss verification failed:', chefError instanceof Error ? chefError.message : chefError);
-        // Fallback: single guaranteed drop (reduced from 1-3 client-side rolls)
-        inventory.generateAndAdd({ source: 'Boss Drop', level: boss.level, bossTier: boss.tier });
-      }
-    } else {
-      player.removeCredits(-outcome.creditsDelta);
-      bossStore.incrementPity(boss.id);
+      });
+      syncBossAttemptResult(outcome);
+    } catch (chefError) {
+      setSimulating(false);
+      setError(chefError instanceof Error ? chefError.message : 'Chef boss attempt failed.');
+      return;
     }
-    bossStore.addAttempt(outcome.result);
 
     // Set up the fight timeline so the fight card can render the animation
     // (or the reduced-motion skip). The animation walks the phase
@@ -814,7 +762,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
                   <CheckCircle size={40} className="mx-auto text-green" />
                   <div className="text-xl font-black text-green">BOSS DEFEATED</div>
                   <div className="text-xs text-text-secondary">+{result.creditsDelta.toLocaleString()} credits</div>
-                  <div className="text-xs text-text-secondary">+{boss.level * 20} XP</div>
+                  <div className="text-xs text-text-secondary">+{result.xpAwarded.toLocaleString()} XP</div>
                   {result.bonusLootRolls > 0 && (
                     <div className="text-xs text-amber flex justify-center items-center gap-1">
                       <PackageCheck size={12} /> +{result.bonusLootRolls} bonus loot roll{result.bonusLootRolls > 1 ? 's' : ''}

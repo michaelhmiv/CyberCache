@@ -1,13 +1,14 @@
 import type { PhaseAnalysis } from '../../types/boss';
 import type { BossSimulationInput } from '../simulation/bossSimulator';
 import type { Weapon } from '../../types/items';
+import { computeHunterMaxHp } from '../combat/damageContract';
 
 // Mirror the formula in src/lib/simulation/bossSimulator.ts:364-365.
 // Kept client-side so the fight card can render the bar without re-running
 // the sim. If the sim formula changes, this MUST change in lockstep — the
 // bossFightAnimation.test.ts parity test guards this.
 export const computePlayerMaxHp = (playerLevel: number, shieldHp: number): number =>
-  500 + playerLevel * 40 + shieldHp + 200 + playerLevel * 20;
+  computeHunterMaxHp(playerLevel, shieldHp);
 
 // Animation tuning. Total duration is well under the 1.2s the old fake
 // setTimeout used. With reduced-motion, the animation is skipped and the
