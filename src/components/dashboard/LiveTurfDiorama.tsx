@@ -8,6 +8,7 @@ import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { MONSTERS } from '@/constants/monsters';
+import { ARCHETYPE_SILHOUETTES, type EnemyArchetype } from '@/components/diorama/EnemySilhouettes';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
@@ -58,7 +59,7 @@ const enemyLabel = (area: RoamingAreaDef, bossName?: string) => bossName ?? area
 const isImpact = (event?: LiveTurfFeedEvent): event is LiveTurfFeedEvent => !!event && event.id !== 'idle-loop-ready';
 const isLootLike = (event: LiveTurfFeedEvent | undefined): boolean => {
   if (!isImpact(event)) return false;
-  return event.tone === 'loot' || event.tone === 'cache' || event.tone === 'cash' || event.tone === 'level';
+  return event.tone === 'loot' || event.tone === 'cache' || event.tone === 'cash' || event.tone === 'level' || event.tone === 'kill';
 };
 
 const modeFromActivity = (kind?: ActivityKind): DioramaMode => {
@@ -113,10 +114,58 @@ const RunnerSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfF
   return <motion.g animate={reduced ? undefined : active ? { x: [-3, 5, 0], y: [0, -3, 0], rotate: [0, -1, 0] } : idleMotion} transition={reduced ? undefined : active ? { duration: 0.45 } : { duration: 2.8, repeat: Infinity }}><ellipse cx="104" cy="150" rx="31" ry="7" fill="#000" opacity="0.45" /><path d="M91 86 L118 78 L134 100 L121 130 L91 130 L77 104 Z" fill="#2B2522" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d="M93 91 L116 85 L128 101 L119 121 L94 123 L84 105 Z" fill={accent} opacity="0.38" stroke="#000" strokeWidth="3" /><path d="M92 56 L117 52 L129 66 L124 84 L97 89 L82 75 Z" fill="#B8B0A8" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d="M98 63 L122 60 L119 72 L96 76 Z" fill="#050608" stroke="#000" strokeWidth="3" /><path d={leftArm} stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d={rightArm} stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" /><path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" /></motion.g>;
 };
 
-const EnemySvg: React.FC<{ color: string; glow: string; boss: boolean; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ color, glow, boss, mode, event, reduced }) => {
+const EnemySvg: React.FC<{ color: string; glow: string; archetype: EnemyArchetype; boss: boolean; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ color, glow, archetype, boss, mode, event, reduced }) => {
   if (mode !== 'roaming' && mode !== 'bossFight') return null;
+  const silhouette = ARCHETYPE_SILHOUETTES[boss ? 'elite' : archetype];
   const active = isImpact(event) && !reduced;
-  return <motion.g animate={reduced ? undefined : active ? { x: [0, 9, -4, 0], scale: [1, 0.98, 1.02, 1] } : { x: [0, -5, 0], y: [0, 2, 0] }} transition={reduced ? undefined : active ? { duration: 0.48 } : { duration: 2.2, repeat: Infinity }}><ellipse cx="315" cy="151" rx={boss ? 42 : 32} ry="8" fill="#000" opacity="0.48" /><path d={boss ? 'M284 76 L326 63 L360 91 L351 133 L301 139 L273 108 Z' : 'M303 83 L330 78 L350 101 L340 135 L306 138 L287 111 Z'} fill="#161116" stroke="#000" strokeWidth="6" strokeLinejoin="round" /><path d={boss ? 'M295 86 L326 76 L348 94 L341 124 L305 129 L286 107 Z' : 'M306 92 L329 87 L342 103 L335 125 L309 129 L296 112 Z'} fill={color} opacity="0.6" stroke="#000" strokeWidth="3" strokeLinejoin="round" /><circle cx="326" cy="103" r={boss ? 12 : 8} fill={glow} stroke="#000" strokeWidth="3" /></motion.g>;
+  const isKill = active && event?.tone === 'kill';
+  const scale = silhouette.baseScale * (boss ? 1.3 : 1.0);
+  return (
+    <motion.g
+      animate={reduced ? undefined : isKill ? { opacity: [1, 0.9, 0], scale: [1, 1.2, 0.3], x: [0, 10, 0], y: [0, -5, 10] } : active ? { x: [0, 9, -4, 0], scale: [1, 0.98, 1.02, 1] } : { x: [0, -5, 0], y: [0, 2, 0] }}
+      transition={reduced ? undefined : isKill ? { duration: 0.4 } : active ? { duration: 0.48 } : { duration: 2.2, repeat: Infinity }}
+    >
+      <ellipse cx="320" cy="151" rx={32 * scale} ry="8" fill="#000" opacity="0.48" />
+      <path d={silhouette.bodyOuter} fill="#161116" stroke="#000" strokeWidth="6" strokeLinejoin="round" />
+      <path d={silhouette.bodyInner} fill={color} opacity="0.6" stroke="#000" strokeWidth="3" strokeLinejoin="round" />
+      {silhouette.armorPlates?.map((plate, i) => <path key={`p-${i}`} d={plate} fill={glow} opacity="0.18" stroke="#000" strokeWidth="2" />)}
+      {silhouette.limbLeft && <path d={silhouette.limbLeft} stroke="#000" strokeWidth="6" strokeLinecap="round" />}
+      {silhouette.limbRight && <path d={silhouette.limbRight} stroke="#000" strokeWidth="6" strokeLinecap="round" />}
+      {silhouette.eyes.map((eye, i) => <circle key={`e-${i}`} cx={eye.cx} cy={eye.cy} r={eye.r} fill={isKill ? '#FFFFFF' : glow} stroke="#000" strokeWidth="3" />)}
+    </motion.g>
+  );
+};
+
+const LootParticles: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
+  if (!isLootLike(event) || reduced) return null;
+  const count = event?.tone === 'kill' ? 6 : event?.tone === 'loot' ? 5 : 4;
+  const colors = event?.tone === 'loot' ? ['#FF9000', '#FFEA3A', '#FF9000', '#FFEA3A', '#FFD700']
+    : event?.tone === 'cash' ? ['#00BCD4', '#80DEEA', '#00BCD4']
+    : ['#FF5722', '#FF8A65', '#FFEA3A', '#76FF03'];
+  return (
+    <motion.g>
+      {Array.from({ length: count }).map((_, i) => {
+        const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+        const dist = 25 + Math.random() * 40;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist - 15;
+        const color = colors[i % colors.length];
+        const shape = i % 4;
+        return (
+          <motion.g key={`lp-${i}`}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+            animate={{ x: dx, y: dy, opacity: 0, scale: 0.15 }}
+            transition={{ duration: 0.5 + Math.random() * 0.3, ease: 'easeOut' }}
+          >
+            {shape === 0 && <rect x="-4" y="-4" width="8" height="8" fill={color} stroke="#000" strokeWidth="1.5" transform="rotate(45)" />}
+            {shape === 1 && <circle cx="0" cy="0" r="4" fill={color} stroke="#000" strokeWidth="1.5" />}
+            {shape === 2 && <path d="M0 -5L5 3L-5 3Z" fill={color} stroke="#000" strokeWidth="1.5" />}
+            {shape === 3 && <path d="M-5 0L0 -5L5 0L0 5Z" fill={color} stroke="#000" strokeWidth="1.5" />}
+          </motion.g>
+        );
+      })}
+    </motion.g>
+  );
 };
 
 const ScrapSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ accent, mode, event, reduced }) => {
@@ -216,7 +265,8 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <ProjectileTape projectile={projectile} mode={mode} event={latestEvent} reduced={reduced} />
         <ScrapSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
         <RunnerSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
-        <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
+        <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} archetype="runner" boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
+        <LootParticles event={latestEvent} reduced={reduced} />
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />

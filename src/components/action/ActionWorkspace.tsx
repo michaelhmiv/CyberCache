@@ -37,6 +37,8 @@ const feedDot = (tone?: string) => {
   if (tone === 'cash') return 'bg-cyan';
   if (tone === 'level') return 'bg-red';
   if (tone === 'xp') return 'bg-green';
+  if (tone === 'kill') return 'bg-red';
+  if (tone === 'death') return 'bg-red';
   return 'bg-text-muted';
 };
 

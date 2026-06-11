@@ -165,6 +165,18 @@ const MASTERY_SILHOUETTES: ResourceSilhouette[] = [
   },
 ];
 
+// ── Consumables ────────────────────────────────────────────────────────────────
+
+const CONSUMABLE_SILHOUETTES: Record<string, ResourceSilhouette[]> = {
+  medKit: [{ id: 'medkit', body: 'M7 3H17L20 7V17L17 21H7L4 17V7L7 3Z', core: 'M9 8H15V16H9V8Z M12 5V19 M5 12H19', highlight: 'M10 9H14V15H10V9Z' }],
+  grenade: [{ id: 'grenade', body: 'M8 3H16L14 5L14 6H10L10 5L8 3Z M6 6H18Q18 12 14 18L12 22L10 18Q6 12 6 6Z', core: 'M8 8H16Q16 12 13 16L12 18L11 16Q8 12 8 8Z', highlight: 'M10 10H14V14H10V10Z' }],
+  ammoPack: [{ id: 'ammo', body: 'M5 4H16L19 8V18L16 21H5V4Z', core: 'M8 7H14V10H8V7Z M8 12H14V15H8V12Z', highlight: 'M10 8H12V9H10V8Z' }],
+  shieldCell: [{ id: 'shieldcell', body: 'M6 3H18L21 7V17L18 21H6L3 17V7L6 3Z', core: 'M9 7H15V9H12V15H15V17H9V15H12V9H9V7Z', highlight: 'M8 11H16L12 8Z' }],
+  elementalCoating: [{ id: 'coating', body: 'M9 2H15L16 8Q14 11 16 12Q14 16 16 20L15 22H9L8 20Q10 16 8 12Q10 11 8 8L9 2Z', core: 'M11 6H13L13.5 9Q12 10.5 13 12Q12 14 13 16L12.5 18H11.5L11 16Q12 14 11 12Q12 10.5 11 9L11 6Z' }],
+  luckBooster: [{ id: 'luck', body: 'M12 2L14.5 7.5L20.5 8L16 12.5L17 19L12 15.5L7 19L8 12.5L3.5 8L9.5 7.5L12 2Z', core: 'M12 6L13.5 9L17 9.5L14.5 11.5L15 15L12 13L9 15L9.5 11.5L7 9.5L10.5 9L12 6Z' }],
+  bossScanner: [{ id: 'scanner', body: 'M4 5H20L22 9V15L20 19H4L2 15V9L4 5Z', core: 'M7 8H17L18 10V14L17 16H7L6 14V10L7 8Z', highlight: 'M9 10H15V14H9V10Z M12 10.5V13.5' }],
+};
+
 // ── Loot: crate / chest / capsule — container, reward shape ──────────────────
 
 const LOOT_SILHOUETTES: ResourceSilhouette[] = [

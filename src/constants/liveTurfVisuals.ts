@@ -23,7 +23,7 @@ const DEFAULT_SCENE: LiveTurfSceneVisual = {
   ground: '#8B5A2B',
   groundDark: '#2B1B14',
   accent: '#FFEA3A',
-  enemyColor: '#B8B0A8',
+  enemyColor: '#D4A574', // warm tan — visible against brown ground (was #B8B0A8, clashed with Ironwood)
   enemyGlow: '#FF9000',
   prop: 'scrap',
   mood: 'open scrapland patrol',
@@ -52,7 +52,7 @@ export const LIVE_TURF_SCENES: Record<string, LiveTurfSceneVisual> = {
     ground: '#50613A',
     groundDark: '#121A11',
     accent: '#B8B0A8',
-    enemyColor: '#A5A7B5',
+    enemyColor: '#94A3B8', // cool slate — distinct from Dustwaste warm tan (was #A5A7B5)
     enemyGlow: '#22C55E',
     prop: 'bastion',
     mood: 'fortified ridge sightline',
