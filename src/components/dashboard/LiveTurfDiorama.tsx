@@ -136,6 +136,49 @@ const EnemySvg: React.FC<{ color: string; glow: string; archetype: EnemyArchetyp
   );
 };
 
+// Loot gear icon — shows the actual dropped item rising from the kill site
+const LootDropGear: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
+  if (!event || event.tone !== 'loot' || !event.gear || reduced) return null;
+  const gear = event.gear;
+  const isWeaponDrop = 'weaponType' in gear;
+  const rarityColor = gear.rarity === 'Legendary' ? '#FFEA3A'
+    : gear.rarity === 'Epic' ? '#FF9DF5'
+    : gear.rarity === 'Rare' ? '#5AA7FF'
+    : gear.rarity === 'Uncommon' ? '#7CFC00'
+    : '#A5A7B5';
+
+  return (
+    <motion.g
+      initial={{ y: 0, opacity: 0, scale: 0.6 }}
+      animate={{ y: -40, opacity: [0, 1, 1, 0], scale: [0.6, 1, 1, 0.8] }}
+      transition={{ duration: 2.0, ease: 'easeOut', times: [0, 0.15, 0.7, 1] }}
+    >
+      <g transform="translate(320, 100)">
+        {isWeaponDrop ? (
+          <WeaponIllustration
+            weapon={gear as Weapon}
+            size={48}
+            showBadges={false}
+            animate={true}
+          />
+        ) : (
+          /* Non-weapon gear: colored diamond with label */
+          <g>
+            <rect x="-18" y="-18" width="36" height="36" rx="3" fill={rarityColor} fillOpacity="0.25" stroke={rarityColor} strokeWidth="2" transform="rotate(12)" />
+            <text x="0" y="4" textAnchor="middle" fill={rarityColor} fontSize="10" fontWeight="900" stroke="#000" strokeWidth="1.5">
+              {gear.name.slice(0, 4).toUpperCase()}
+            </text>
+          </g>
+        )}
+        {/* Rarity label below the item */}
+        <text x="0" y="35" textAnchor="middle" fill="#FFEA3A" fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
+          {gear.rarity.toUpperCase()}
+        </text>
+      </g>
+    </motion.g>
+  );
+};
+
 const LootParticles: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
   if (!isLootLike(event) || reduced) return null;
   const count = event?.tone === 'kill' ? 6 : event?.tone === 'loot' ? 5 : 4;
@@ -266,6 +309,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <ScrapSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
         <RunnerSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
         <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} archetype="runner" boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
+        <LootDropGear event={latestEvent} reduced={reduced} />
         <LootParticles event={latestEvent} reduced={reduced} />
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
