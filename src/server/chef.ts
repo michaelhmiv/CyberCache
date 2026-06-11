@@ -45,7 +45,8 @@ import {
 } from '../lib/simulation/bossSimulator';
 import { applyBadDecisionBonus, applyLegendaryEffects, getInsuranceFraudRefundChance } from '../lib/legendaryEffects';
 import type { BossAttemptResult } from '../types/boss';
-import { resolveAreaMonsters, pickNextTarget, pickAreaMonster } from '../lib/combat/areaMonsterSelector';
+import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterSelector';
+import { pickNextTarget } from '../lib/combat/killCycleHelpers';
 import { computePlayerDamageVsMonster, type WeaponDamageSource } from '../lib/combat/damageContract';
 import { computeMonsterDamageVsHunter, type HunterSurvivalStats, decideAutoEat, computeHealAmount } from '../lib/combat/damageContract';
 
@@ -124,6 +125,32 @@ export interface ClaimResult {
   survival: {
     currentHp: number;
     shieldHp: number;
+  };
+}
+
+export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
+  playerId: string;
+  bossId: string;
+  attemptNonce: number;
+}
+
+export interface BossAttemptChefResult {
+  actionType: 'cc_apply_boss_attempt';
+  profile: Record<string, unknown>;
+  result: BossAttemptResult;
+  creditsDelta: number;
+  xpAwarded: number;
+  loot: GearItem[];
+  items: GearItem[];
+  consumedConsumables: Record<string, number>;
+  extraLoot: boolean;
+  bonusLootRolls: number;
+  unlockedBossId?: string;
+  telemetry: {
+    serverRolled: true;
+    adjustedWinChance: number;
+    effectiveDps: number;
+    timeToKill: number;
   };
 }
 
@@ -354,6 +381,20 @@ export function processRoamingClaim(
     },
     items: generatedItems,
     feedEvents,
+    // Server-authoritative kill cycle state for client synchronization
+    killCycle: {
+      currentTargetId: null,
+      currentTargetHp: 0,
+      currentTargetHpMax: 0,
+      monstersKilledCount: 0,
+      totalKills: 0,
+      lastKilledMonsterId: null,
+    },
+    // Server-authoritative survival HP for client synchronization
+    survival: {
+      currentHp: 0,
+      shieldHp: 0,
+    },
   };
 }
 
