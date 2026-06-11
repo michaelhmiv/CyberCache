@@ -43,6 +43,23 @@ export interface ChefClaimRequest {
   skillBonuses?: Record<string, number>;
   activityMods?: Record<string, number>;
   equippedGear?: GearItem[];
+  /** Effective DPS from the client's loadout (for kill cycle simulation). */
+  effectiveDps?: number;
+  /** Current kill cycle state from the client. */
+  killCycle?: {
+    currentTargetId: string | null;
+    currentTargetHp: number;
+    currentTargetHpMax: number;
+    monstersKilledCount: number;
+    totalKills: number;
+    lastKilledMonsterId: string | null;
+  };
+  /** Current survival HP and shield from the client. */
+  survival?: {
+    currentHp: number;
+    shieldHp: number;
+    maxHp: number;
+  };
   jwt?: string;
 }
 
@@ -69,6 +86,21 @@ export interface ChefClaimResult {
     value?: number;
     gear?: GearItem;
   }>;
+  /** Server-authoritative kill cycle state for client synchronization. */
+  killCycle?: {
+    currentTargetId: string | null;
+    currentTargetHp: number;
+    currentTargetHpMax: number;
+    monstersKilledCount: number;
+    totalKills: number;
+    lastKilledMonsterId: string | null;
+  };
+  /** Server-authoritative survival HP for client synchronization. */
+  survival?: {
+    currentHp: number;
+    shieldHp: number;
+    isDead?: boolean;
+  };
 }
 
 export interface ChefVerifyBossRequest extends Omit<BossSimulationInput, 'boss'> {

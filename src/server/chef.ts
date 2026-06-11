@@ -47,8 +47,8 @@ import { applyBadDecisionBonus, applyLegendaryEffects, getInsuranceFraudRefundCh
 import type { BossAttemptResult } from '../types/boss';
 import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterSelector';
 import { pickNextTarget } from '../lib/combat/killCycleHelpers';
-import { computePlayerDamageVsMonster, type WeaponDamageSource } from '../lib/combat/damageContract';
-import { computeMonsterDamageVsHunter, type HunterSurvivalStats, decideAutoEat, computeHealAmount } from '../lib/combat/damageContract';
+import { computePlayerDamageVsMonster } from '../lib/combat/damageContract';
+import { computeMonsterDamageVsHunter, type HunterSurvivalStats } from '../lib/combat/damageContract';
 
 // --- Types ---
 
@@ -94,6 +94,7 @@ export interface ClaimRequest {
     currentHp: number;
     shieldHp: number;
     maxHp: number;
+    mitigation?: number;
   };
 }
 
@@ -125,32 +126,7 @@ export interface ClaimResult {
   survival: {
     currentHp: number;
     shieldHp: number;
-  };
-}
-
-export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
-  playerId: string;
-  bossId: string;
-  attemptNonce: number;
-}
-
-export interface BossAttemptChefResult {
-  actionType: 'cc_apply_boss_attempt';
-  profile: Record<string, unknown>;
-  result: BossAttemptResult;
-  creditsDelta: number;
-  xpAwarded: number;
-  loot: GearItem[];
-  items: GearItem[];
-  consumedConsumables: Record<string, number>;
-  extraLoot: boolean;
-  bonusLootRolls: number;
-  unlockedBossId?: string;
-  telemetry: {
-    serverRolled: true;
-    adjustedWinChance: number;
-    effectiveDps: number;
-    timeToKill: number;
+    isDead: boolean;
   };
 }
 
@@ -264,6 +240,27 @@ export function processRoamingClaim(
 
   const now = Date.now();
 
+  // --- Combat state initialization ---
+  // Seed from the request's optional killCycle and survival state.
+  // The client sends its current state; the Chef simulates forward and
+  // returns authoritative state that the client syncs to.
+  const effectiveDps = request.effectiveDps ?? 0;
+  const roster = resolveAreaMonsters(area);
+
+  // Kill cycle state
+  let kcTargetId: string | null = request.killCycle?.currentTargetId ?? null;
+  let kcTargetHp = request.killCycle?.currentTargetHp ?? 0;
+  let kcTargetHpMax = request.killCycle?.currentTargetHpMax ?? 0;
+  let kcMonstersKilled = request.killCycle?.monstersKilledCount ?? 0;
+  let kcTotalKills = request.killCycle?.totalKills ?? 0;
+  let kcLastKilledId: string | null = request.killCycle?.lastKilledMonsterId ?? null;
+
+  // Survival state
+  let survHp = request.survival?.currentHp ?? 0;
+  let survShield = request.survival?.shieldHp ?? 0;
+  const survMaxHp = request.survival?.maxHp ?? 700;
+  let survDead = survHp <= 0;
+
   for (let tickIdx = 0; tickIdx < ticks; tickIdx++) {
     // Deterministic RNG — same tuple, same stream as the client preview
     const rng = createTickRng(playerId, areaId, tickCount - ticks + tickIdx + 1);
@@ -364,6 +361,66 @@ export function processRoamingClaim(
     creditsAwarded += effectiveCreditsPerTick;
     scrapAwarded += effectiveScrapPerTick;
     xpAwarded += effectiveXpPerTick;
+
+    // --- Kill cycle simulation (player → monster damage) ---
+    if (!survDead && effectiveDps > 0 && roster.length > 0) {
+      // Spawn a target if none exists
+      if (!kcTargetId) {
+        const next = pickNextTarget(roster, kcLastKilledId);
+        if (next) {
+          kcTargetId = next.id;
+          kcTargetHp = next.hp;
+          kcTargetHpMax = next.hp;
+        }
+      }
+
+      // Apply damage to current target
+      if (kcTargetId) {
+        const monster = roster.find((m) => m.id === kcTargetId);
+        if (monster) {
+          const dmg = computePlayerDamageVsMonster({ effectiveDps }, monster);
+          kcTargetHp -= dmg;
+
+          if (kcTargetHp <= 0) {
+            // Kill! Advance the cycle
+            kcMonstersKilled += 1;
+            kcTotalKills += 1;
+            kcLastKilledId = kcTargetId;
+
+            const next = pickNextTarget(roster, kcLastKilledId);
+            if (next) {
+              kcTargetId = next.id;
+              kcTargetHp = next.hp;
+              kcTargetHpMax = next.hp;
+            } else {
+              kcTargetId = null;
+              kcTargetHp = 0;
+              kcTargetHpMax = 0;
+            }
+          }
+        }
+      }
+    }
+
+    // --- Survival simulation (monster → player damage) ---
+    if (!survDead && roster.length > 0) {
+      const attacker = pickAreaMonster(area);
+      if (attacker) {
+        const hunter: HunterSurvivalStats = {
+          maxHp: survMaxHp,
+          shieldHp: survShield,
+          mitigation: request.survival?.mitigation ?? 0,
+        };
+        const hit = computeMonsterDamageVsHunter(attacker, hunter);
+        if (!hit.missed) {
+          survShield = Math.max(0, survShield - hit.shieldAbsorbed);
+          survHp = Math.max(0, survHp - hit.hpDamage);
+          if (survHp <= 0) {
+            survDead = true;
+          }
+        }
+      }
+    }
   }
 
   return {
@@ -383,17 +440,18 @@ export function processRoamingClaim(
     feedEvents,
     // Server-authoritative kill cycle state for client synchronization
     killCycle: {
-      currentTargetId: null,
-      currentTargetHp: 0,
-      currentTargetHpMax: 0,
-      monstersKilledCount: 0,
-      totalKills: 0,
-      lastKilledMonsterId: null,
+      currentTargetId: kcTargetId,
+      currentTargetHp: Math.max(0, kcTargetHp),
+      currentTargetHpMax: kcTargetHpMax,
+      monstersKilledCount: kcMonstersKilled,
+      totalKills: kcTotalKills,
+      lastKilledMonsterId: kcLastKilledId,
     },
     // Server-authoritative survival HP for client synchronization
     survival: {
-      currentHp: 0,
-      shieldHp: 0,
+      currentHp: survHp,
+      shieldHp: survShield,
+      isDead: survDead,
     },
   };
 }
