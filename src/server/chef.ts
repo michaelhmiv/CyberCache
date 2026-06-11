@@ -45,6 +45,10 @@ import {
 } from '../lib/simulation/bossSimulator';
 import { applyBadDecisionBonus, applyLegendaryEffects, getInsuranceFraudRefundChance } from '../lib/legendaryEffects';
 import type { BossAttemptResult } from '../types/boss';
+import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterSelector';
+import { pickNextTarget } from '../lib/combat/killCycleHelpers';
+import { computePlayerDamageVsMonster, type WeaponDamageSource } from '../lib/combat/damageContract';
+import { computeMonsterDamageVsHunter, type HunterSurvivalStats, decideAutoEat, computeHealAmount } from '../lib/combat/damageContract';
 
 // --- Types ---
 
@@ -74,6 +78,23 @@ export interface ClaimRequest {
    * activity modifiers without a second DB round-trip.
    */
   equippedGear?: GearItem[];
+  /** Effective DPS from the client's loadout (for kill cycle simulation). */
+  effectiveDps?: number;
+  /** Current kill cycle state from the client (for server-authoritative simulation). */
+  killCycle?: {
+    currentTargetId: string | null;
+    currentTargetHp: number;
+    currentTargetHpMax: number;
+    monstersKilledCount: number;
+    totalKills: number;
+    lastKilledMonsterId: string | null;
+  };
+  /** Current survival HP and shield from the client. */
+  survival?: {
+    currentHp: number;
+    shieldHp: number;
+    maxHp: number;
+  };
 }
 
 export interface ClaimResult {
@@ -91,6 +112,46 @@ export interface ClaimResult {
   };
   items: GearItem[];
   feedEvents: unknown[];
+  /** Server-authoritative kill cycle state for client synchronization. */
+  killCycle: {
+    currentTargetId: string | null;
+    currentTargetHp: number;
+    currentTargetHpMax: number;
+    monstersKilledCount: number;
+    totalKills: number;
+    lastKilledMonsterId: string | null;
+  };
+  /** Server-authoritative survival HP for client synchronization. */
+  survival: {
+    currentHp: number;
+    shieldHp: number;
+  };
+}
+
+export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
+  playerId: string;
+  bossId: string;
+  attemptNonce: number;
+}
+
+export interface BossAttemptChefResult {
+  actionType: 'cc_apply_boss_attempt';
+  profile: Record<string, unknown>;
+  result: BossAttemptResult;
+  creditsDelta: number;
+  xpAwarded: number;
+  loot: GearItem[];
+  items: GearItem[];
+  consumedConsumables: Record<string, number>;
+  extraLoot: boolean;
+  bonusLootRolls: number;
+  unlockedBossId?: string;
+  telemetry: {
+    serverRolled: true;
+    adjustedWinChance: number;
+    effectiveDps: number;
+    timeToKill: number;
+  };
 }
 
 export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
@@ -320,6 +381,20 @@ export function processRoamingClaim(
     },
     items: generatedItems,
     feedEvents,
+    // Server-authoritative kill cycle state for client synchronization
+    killCycle: {
+      currentTargetId: null,
+      currentTargetHp: 0,
+      currentTargetHpMax: 0,
+      monstersKilledCount: 0,
+      totalKills: 0,
+      lastKilledMonsterId: null,
+    },
+    // Server-authoritative survival HP for client synchronization
+    survival: {
+      currentHp: 0,
+      shieldHp: 0,
+    },
   };
 }
 

@@ -83,11 +83,14 @@ export function calculateDailyXp(assumptions: SimulationAssumptions = DEFAULT_SI
   return { roamingTickXp, enemyDefeatXp, damageCreditXp, bossAttemptXp, bossVictoryXp, scrapXp, craftXp, totalXp };
 }
 
-export function xpToNextLevel(level: number): number {
+// Shared XP curve formula — MUST match server (supabase/migrations/202606080057_xp_curve_and_wipe_slate.sql)
+export const XP_CURVE_FORMULA = (level: number): number => {
   if (level < 1) throw new Error('Level must be at least 1.');
-  // Curve: 50*n + 20*n^1.4
-  // Mirrored server-side in supabase/migrations/202606080057_xp_curve_and_wipe_slate.sql
   return Math.floor(50 * level + 20 * Math.pow(level, 1.4));
+};
+
+export function xpToNextLevel(level: number): number {
+  return XP_CURVE_FORMULA(level);
 }
 
 export function buildLevelCurve(maxLevel = 100, assumptions: SimulationAssumptions = DEFAULT_SIMULATION_ASSUMPTIONS): LevelCurvePoint[] {

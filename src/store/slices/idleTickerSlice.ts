@@ -13,6 +13,8 @@ import {
   ROAMING_AREAS,
   getRoamingArea,
   rollAreaMaterialFind,
+  rollAreaDropKind,
+  buildAreaWeaponDropOptions,
 } from '@/constants/roamingAreas';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
@@ -35,6 +37,12 @@ import { bossTick, bossDamagePerSecond } from '@/lib/combat/bossTick';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { useBossStore } from '@/store/slices/bossSlice';
 import { createTickRng } from '@/lib/rng/tickRng';
+import { generateWeapon } from '@/lib/generators/weaponGenerator';
+import { generateShield } from '@/lib/generators/shieldGenerator';
+import { generateClassMod } from '@/lib/generators/classModGenerator';
+import { generateRelic } from '@/lib/generators/relicGenerator';
+import { generateOrdnance } from '@/lib/generators/ordnanceGenerator';
+import { DropSource } from '@/types/game';
 
 const TICK_MS = 3000;
 const DROP_CHANCE = 0.22;
@@ -75,12 +83,13 @@ const pushPreviewEvents = (events: TickEvent[]) => {
  *
  * All item generation, resource awards, and state mutations are
  * owned by the Chef server (src/server/chef.ts). This function
- * produces display-only placeholder events that are replaced when
- * the Chef's canonical response arrives.
+ * produces preview events that include the actual generated gear
+ * using the same deterministic RNG as the Chef, so the preview
+ * matches the server-authoritative result. The Chef response
+ * replaces these with canonical events (which should be identical).
  *
- * Phase 3: renamed from rollClientEvents. Removed all
- * inv.generateAndAdd*() calls. Gear drops show as "pending" until
- * the server response replaces them with real items.
+ * Phase 3b: Now generates actual gear using the same RNG stream
+ * as the Chef, eliminating "graphical blobs" placeholder particles.
  */
 const rollPreviewEvents = (
   areaId: string,
@@ -89,6 +98,7 @@ const rollPreviewEvents = (
   effectiveCreditsPerTick: number,
   effectiveScrapPerTick: number,
   effectiveXpPerTick: number,
+  playerLevel: number,
 ): TickEvent[] => {
   const area = getRoamingArea(areaId);
   const events: TickEvent[] = [];
@@ -99,15 +109,46 @@ const rollPreviewEvents = (
     const roll = rng();
 
     if (roll < DROP_CHANCE) {
-      // Gear drop — preview shows ??? until Chef response arrives
-      events.push({
-        id: '',
-        at,
-        tone: 'loot',
-        label: 'Gear found...',
-        detail: `Searching ${area.enemyType} remains...`,
-        areaId,
-      });
+      // Gear drop — generate actual gear using same RNG as Chef
+      // so preview matches server-authoritative result.
+      const kind = rollAreaDropKind(area, rng);
+      let gear: GearItem | undefined;
+
+      switch (kind) {
+        case 'weapon': {
+          const opts = buildAreaWeaponDropOptions(area, playerLevel, rng);
+          gear = generateWeapon(opts, rng);
+          break;
+        }
+        case 'shield':
+          gear = generateShield(playerLevel, rng);
+          break;
+        case 'classMod':
+          gear = generateClassMod(playerLevel, rng);
+          break;
+        case 'relic':
+          gear = generateRelic(playerLevel, rng);
+          break;
+        case 'ordnance':
+          gear = generateOrdnance(playerLevel, rng);
+          break;
+      }
+
+      if (gear) {
+        const typeLabel = 'weaponType' in gear ? gear.weaponType : 'gear';
+        const powerLabel = 'combatPower' in gear ? ` · ${gear.combatPower} Power` : '';
+        const elemLabel = 'element' in gear ? ` · ${gear.element}` : '';
+        const mfgLabel = 'manufacturer' in gear ? ` · ${gear.manufacturer}` : '';
+        events.push({
+          id: '',
+          at,
+          tone: 'loot',
+          label: gear.name,
+          detail: `${gear.rarity} ${typeLabel}${powerLabel}${elemLabel}${mfgLabel}`,
+          gear,
+          areaId,
+        });
+      }
     } else {
       const subRoll = rng();
       if (subRoll < FRAGMENT_CHANCE) {
@@ -595,6 +636,31 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
   // display only — they are already accounted for in the profile
   // snapshot returned by the server.
   syncVerifiedResult(payload);
+
+  // Phase 3b: Sync authoritative kill cycle and survival state from Chef.
+  // The Chef simulates the kill cycle and survival damage server-side;
+  // the client's local simulation is cosmetic only and may drift.
+  // We apply the server-authoritative state here to keep them in sync.
+  const killCycle = payload.killCycle as
+    | {
+        currentTargetId: string | null;
+        currentTargetHp: number;
+        currentTargetHpMax: number;
+        monstersKilledCount: number;
+        totalKills: number;
+        lastKilledMonsterId: string | null;
+      }
+    | undefined;
+  const survival = payload.survival as
+    | { currentHp: number; shieldHp: number; isDead?: boolean }
+    | undefined;
+
+  if (killCycle) {
+    useKillCycleStore.getState().syncFromServer(killCycle);
+  }
+  if (survival) {
+    useSurvivalStore.getState().syncFromServer(survival);
+  }
 };
 
 export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
@@ -674,7 +740,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       const estScrap = Math.round(baseScrap * scrapMult);
       const estXp = Math.round(baseXp);
 
-      const previewEvents = rollPreviewEvents(areaId, ticks, tickRng, estCredits, estScrap, estXp);
+      const previewEvents = rollPreviewEvents(areaId, ticks, tickRng, estCredits, estScrap, estXp, usePlayerStore.getState().level);
       const survivalEvents = applySurvivalTick(areaId, ticks);
       const killCycleEvents = applyKillCycleTick(areaId, ticks);
       const allEvents = [...previewEvents, ...survivalEvents, ...killCycleEvents];
