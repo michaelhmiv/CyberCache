@@ -12,16 +12,19 @@
 
 import type { GearItem } from '@/types/items';
 
-const CHEF_URL = (() => {
-  // Explicit env var takes priority
+const CHEF_BASE = (() => {
+  // Explicit env var takes priority (should be full base URL, e.g. 'https://app.up.railway.app')
   if (import.meta.env.VITE_CHEF_URL) return import.meta.env.VITE_CHEF_URL;
   // In production, use the same origin — the Express server handles /api/*
   if (typeof window !== 'undefined' && window.location.origin) {
     return window.location.origin;
   }
   // Fallback for SSR / test environments
-  return '/api';
+  return '';
 })();
+
+/** Full API path builder. Express mounts Chef at /api/*, not root. */
+const chefUrl = (path: string) => `${CHEF_BASE}/api${path}`;
 
 export interface ChefClaimRequest {
   playerId: string;
@@ -93,7 +96,7 @@ export interface ChefVerifyBossResult {
 export async function submitClaim(request: ChefClaimRequest): Promise<ChefClaimResult> {
   const jwt = request.jwt || (await getSessionJwt());
 
-  const response = await fetch(`${CHEF_URL}/claim`, {
+  const response = await fetch(chefUrl('/claim'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -117,7 +120,7 @@ export async function submitClaim(request: ChefClaimRequest): Promise<ChefClaimR
 export async function verifyBossFight(request: ChefVerifyBossRequest): Promise<ChefVerifyBossResult> {
   const jwt = request.jwt || (await getSessionJwt());
 
-  const response = await fetch(`${CHEF_URL}/verify-boss`, {
+  const response = await fetch(chefUrl('/verify-boss'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -147,7 +150,7 @@ export async function salvageItem(request: { playerId: string; itemId: string; j
 }> {
   const jwt = request.jwt || (await getSessionJwt());
 
-  const response = await fetch(`${CHEF_URL}/salvage`, {
+  const response = await fetch(chefUrl('/salvage'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -176,7 +179,7 @@ export async function isChefAvailable(): Promise<boolean> {
   if (_chefAvailable !== null) return _chefAvailable;
 
   try {
-    const response = await fetch(`${CHEF_URL}/health`, {
+    const response = await fetch(chefUrl('/health'), {
       method: 'GET',
       signal: AbortSignal.timeout(2000),
     });
