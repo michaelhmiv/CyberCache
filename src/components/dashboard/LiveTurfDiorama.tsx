@@ -59,7 +59,8 @@ const enemyLabel = (area: RoamingAreaDef, bossName?: string) => bossName ?? area
 const isImpact = (event?: LiveTurfFeedEvent): event is LiveTurfFeedEvent => !!event && event.id !== 'idle-loop-ready';
 const isLootLike = (event: LiveTurfFeedEvent | undefined): boolean => {
   if (!isImpact(event)) return false;
-  return event.tone === 'loot' || event.tone === 'cache' || event.tone === 'cash' || event.tone === 'level' || event.tone === 'kill';
+  // 'cash' is a resource-only tick, not a real kill. Don't trigger particle effects.
+  return event.tone === 'loot' || event.tone === 'cache' || event.tone === 'level' || event.tone === 'kill';
 };
 
 const modeFromActivity = (kind?: ActivityKind): DioramaMode => {

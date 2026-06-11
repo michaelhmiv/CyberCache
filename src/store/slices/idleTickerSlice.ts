@@ -133,10 +133,12 @@ const rollPreviewEvents = (
           });
         }
       } else {
+        // Resource-only tick — NOT a real kill. Use 'cash' tone so the
+        // diorama doesn't trigger enemy death animations for every resource drop.
         events.push({
           id: '',
           at,
-          tone: 'kill',
+          tone: 'cash',
           label: `+${effectiveCreditsPerTick}cr · +${effectiveScrapPerTick} scrap · +${effectiveXpPerTick} XP`,
           detail: `${area.enemyType} routed in ${area.name}.`,
           areaId,
@@ -761,12 +763,23 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           // Apply canonical results from the Chef
           applyServerRewards(chefResult as unknown as Record<string, unknown>);
 
-          // Replace preview gear events with real items from the Chef
+          // Replace only preview events with canonical Chef feed events.
+          // Kill cycle and survival events (enemy HP, damage, kills, death,
+          // heals) are NOT wiped — they drive the diorama animations and must
+          // persist across Chef responses. Clearing them would cause the enemy
+          // death animation to break (enemy resurrects when the kill event vanishes).
           const feedStore = useTickFeedStore.getState();
           if (chefResult.feedEvents && chefResult.feedEvents.length > 0) {
-            // Remove old preview events and push the canonical ones
-            feedStore.clear?.();
-            feedStore.push(chefResult.feedEvents as TickEvent[]);
+            // Keep only kill-cycle and survival events
+            const keeperTones = new Set(['kill', 'damage', 'death', 'heal']);
+            const keepers = feedStore.events.filter((e) => keeperTones.has(e.tone));
+            // Prepend canonical Chef events (most recent first) + keepers
+            const merged = [...(chefResult.feedEvents as TickEvent[]), ...keepers];
+            // Clear and repopulate in correct order
+            if (feedStore.clear) {
+              feedStore.clear();
+            }
+            feedStore.push(merged);
           }
 
           // Add Chef-generated items to inventory
