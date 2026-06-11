@@ -91,6 +91,13 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
     skillTotal(input.spentSkills, 'launcherBossDps') +
     skillTotal(input.spentSkills, 'weaknessMatchDamage') +
     affixTotal([input.classMod, input.relic], 'bossDamageMod');
+  // NOTE: weaponDamageBonus and bossSkillBonus are flat lump-sum multipliers
+  // applied post-hoc on top of bossRelativeDps. This is a display-layer
+  // approximation — the full DPS chain in computeWeaponDps() handles crit,
+  // status, and signature per-weapon. skill/affix bonuses are summed here
+  // rather than threaded into the per-weapon chain to keep the snapshot
+  // fast and the contribution trace readable. For the authoritative combat
+  // number, use bossSimulator.simulateBoss() which runs the full chain.
   const bossDpsAfterPlayerMods = bossRelativeDps * (1 + weaponDamageBonus + bossSkillBonus);
   const shieldBreak = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon) * Math.max(0, weapon.shieldDamageMod), 0) + (input.ordnance?.shieldDamage ?? 0);
   const armorBreak = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon) * Math.max(0, weapon.armorDamageMod), 0) + (input.ordnance?.armorDamage ?? 0);

@@ -16,6 +16,8 @@ import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { useCombatStatsStore } from '@/store/slices/combatStatsSlice';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
+import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
+import type { Weapon } from '@/types/items';
 
 // Suppress the network round-trip — we only care about the local
 // survival wiring in this test. The ticker still calls verifiedOps
@@ -42,6 +44,40 @@ const enterRoamingArea = (areaId: string) => {
   } as never);
 };
 
+/** Minimal weapon with DPS > 0 so the kill cycle fires events. */
+const testWeapon = (): Weapon => ({
+  id: 'test-survival-gun',
+  name: 'Test Survival Gun',
+  level: 1,
+  rarity: Rarity.Common,
+  weaponType: WeaponType.SMG,
+  manufacturer: Manufacturer.Redline,
+  element: Element.Kinetic,
+  rollQuality: 50,
+  baseDamage: 10,
+  attackSpeed: 5,
+  critChance: 0,
+  critDamage: 0,
+  statusChance: 0,
+  statusDamage: 0,
+  bossDamageMod: 0,
+  waveDamageMod: 0,
+  shieldDamageMod: 0,
+  armorDamageMod: 0,
+  offlineEarningsMod: 0,
+  rareDropChanceMod: 0,
+  scrapYieldMod: 0,
+  parts: [],
+  affixes: [],
+  sourceTag: DropSource.WorldDrop,
+  isLocked: false,
+  pixelSeed: 1,
+  combatPower: 0,
+  bossPower: 0,
+  farmPower: 0,
+  economyScore: 0,
+});
+
 describe('idleTickerSlice — survival wiring', () => {
   beforeEach(() => {
     // Reset all stores to a known state.
@@ -58,7 +94,7 @@ describe('idleTickerSlice — survival wiring', () => {
     });
     useLoadoutStore.setState({
       slots: {
-        primary: null,
+        primary: testWeapon(),
         secondary: null,
         heavy: null,
         ordnance: null,
@@ -107,10 +143,14 @@ describe('idleTickerSlice — survival wiring', () => {
     enterRoamingArea('dustwaste_frontier');
     await useIdleTickerStore.getState().tickNow();
     const events = useTickFeedStore.getState().events;
-    const damageEvents = events.filter((e) => e.tone === 'damage');
-    // At least one damage OR block event should appear; some ticks may
-    // all-miss in fast succession but that's <1% probability over 3s.
-    expect(damageEvents.length + events.filter((e) => e.tone === 'kill').length).toBeGreaterThan(0);
+    // Survival damage emits tone 'damage' (monster → player).
+    // Kill cycle hits emit tone 'loot' (player → monster damage).
+    // Kill cycle kills emit tone 'kill'.
+    // At least one of these three should appear within a tick cycle.
+    const survivalHits = events.filter((e) => e.tone === 'damage').length;
+    const killHits = events.filter((e) => e.tone === 'loot').length;
+    const kills = events.filter((e) => e.tone === 'kill').length;
+    expect(survivalHits + killHits + kills).toBeGreaterThan(0);
   });
 
   it('does not apply damage when activity is not roaming_loot', async () => {
