@@ -80,7 +80,7 @@ function statRows(item: GearItem, bossRelativeDps?: number, bossName?: string): 
       ['Boss Power', item.bossPower, 'text-amber', item.bossPower],
       ['Farm Power', item.farmPower, 'text-green', item.farmPower],
       ['Damage', item.baseDamage],
-      ['Attack Speed', item.attackSpeed.toFixed(2)],
+      ['Attack Speed', (item.attackSpeed ?? 0).toFixed(2)],
       ['Crit Chance', pct(item.critChance)],
       ['Crit Damage', pct(item.critDamage)],
       ['Status Chance', pct(item.statusChance)],

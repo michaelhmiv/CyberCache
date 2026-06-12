@@ -84,7 +84,7 @@ const GearItemCard: React.FC<{
         {itemIsWeapon && (
           <>
             <span>Dmg {(item as Weapon).baseDamage}</span>
-            <span>Spd {(item as Weapon).attackSpeed.toFixed(2)}</span>
+            <span>Spd {((item as Weapon).attackSpeed ?? 0).toFixed(2)}</span>
             <span>Crit {((item as Weapon).critChance * 100).toFixed(1)}%</span>
             <span>Boss {((item as Weapon).bossDamageMod * 100).toFixed(0)}%</span>
           </>
