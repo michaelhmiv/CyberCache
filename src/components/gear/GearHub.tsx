@@ -15,20 +15,17 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, ArrowUpDown, X, LayoutGrid, List, Trash2, Lock, Unlock,
-  CheckSquare, Square, ArrowLeftRight, AlertTriangle, Sword,
+  CheckSquare, Square, ArrowLeftRight, Sword,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
-import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
+import { useInventoryStore, useLoadoutStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { RARITIES } from '@/constants/rarities';
-import { calculateSalvageYield } from '@/constants/salvageRules';
-import { Rarity } from '@/types/game';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import type { GearItem, Weapon } from '@/types/items';
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-const chipClip = { clipPath: 'polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)' };
 
 const RARITY_RANK: Record<string, number> = {
   Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5,
@@ -133,7 +130,6 @@ interface GearHubProps {
 export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
-  const player = usePlayerStore();
 
   // Filters
   const [search, setSearch] = useState('');
@@ -153,6 +149,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   // Multi-select
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pendingScrapIds, setPendingScrapIds] = useState<Set<string>>(new Set());
 
   // Compare
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -265,23 +262,42 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
     setInspectItem(null);
   };
 
-  const scrap = (item: GearItem) => {
-    const result = inventory.scrapItem(item.id);
-    const yield_ = calculateSalvageYield(item);
-    player.addScrap(result.scrapValue);
-    Object.entries(result.materials).forEach(([type, count]) => count > 0 && player.addMaterial(type, count));
-    Object.entries(result.essences).forEach(([type, count]) => count > 0 && player.addEssence(type, count));
-    useSalvageFeedStore.getState().push(item, yield_);
-    setSelectedIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+  const scrap = async (item: GearItem) => {
+    if (pendingScrapIds.has(item.id)) return;
+    setPendingScrapIds((prev) => new Set(prev).add(item.id));
+    try {
+      const result = await verifiedOps.recycleItem(item.id);
+      const scrapAward = Number(result.scrap_award ?? 0);
+      useSalvageFeedStore.getState().push(item, {
+        scrapValue: scrapAward,
+        scrapAlloy: 0,
+        ballisticParts: 0,
+        reactiveComponents: 0,
+        techFragments: 0,
+        voidDust: 0,
+        essences: {},
+      });
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+    } catch (error) {
+      console.warn('[GearHub] verified salvage failed:', error instanceof Error ? error.message : error);
+    } finally {
+      setPendingScrapIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
   };
 
   const bulkScrap = () => {
-    selectedIds.forEach((id) => {
-      const item = inventory.getById(id);
-      if (item) scrap(item);
-    });
-    setSelectedIds(new Set());
-    setSelectMode(false);
+    void (async () => {
+      for (const id of selectedIds) {
+        const item = inventory.getById(id);
+        if (item) await scrap(item);
+      }
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    })();
   };
 
   const bulkLock = () => {
@@ -341,7 +357,11 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   );
 
   const salvageAllJunk = () => {
-    junkItems.forEach((item) => scrap(item));
+    void (async () => {
+      for (const item of junkItems) {
+        await scrap(item);
+      }
+    })();
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -757,7 +777,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
               {inspectItem!.isLocked ? <Unlock size={15} /> : <Lock size={15} />}
               {inspectItem!.isLocked ? 'Unlock' : 'Lock'}
             </button>
-            <button type="button" onClick={() => scrap(inspectItem!)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
+            <button type="button" onClick={() => void scrap(inspectItem!)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
               <Trash2 size={15} />Scrap
             </button>
           </div>

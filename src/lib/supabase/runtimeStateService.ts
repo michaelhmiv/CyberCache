@@ -26,8 +26,6 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
 
   const rows = (data ?? []) as ServerItemRow[];
   const serverItems = rows.map(serverItemRowToDisplayGear);
-  const serverIds = new Set(serverItems.map((item) => item.id));
-  const existingClientOnlyItems = useInventoryStore.getState().items.filter((item) => !serverIds.has(item.id));
   const serverSlots: Partial<Record<LoadoutSlot, string | null>> = {};
 
   rows.forEach((row) => {
@@ -35,6 +33,9 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
     if (slot) serverSlots[slot] = row.id;
   });
 
-  useInventoryStore.getState().setItems([...serverItems, ...existingClientOnlyItems]);
+  // item_instances is the ownership ledger. Do not preserve local-only items
+  // across authenticated hydration; generated items must arrive through Chef/RPC
+  // persistence before becoming inventory truth.
+  useInventoryStore.getState().setItems(serverItems);
   useLoadoutStore.setState((state) => ({ slots: { ...state.slots, ...serverSlots } }));
 }

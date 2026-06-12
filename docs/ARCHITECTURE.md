@@ -20,7 +20,7 @@ in screens or components is forbidden.
 > items or awards resources independently. See §8 (Chef Architecture) below.
 
 | Domain | Owner | Notes |
-|---|---|---|---|
+|---|---|---|
 | **Activity lifecycle** (start, stop, heartbeat) | `src/lib/supabase/activityService.ts` + `src/store/useActivityStore` | Server-backed via `active_actions` table |
 | **Roaming tick processing** | `src/server/chef.ts` (Chef worker) | Authoritative engine. Processes claims, generates items, awards resources. Runs on Railway server process. |
 | **Roaming tick preview** (UI-only) | `src/store/slices/idleTickerSlice.ts` → `rollPreviewEvents` | COSMETIC ONLY. Shows placeholder events until Chef response. No store mutations. |
@@ -45,6 +45,24 @@ in screens or components is forbidden.
 | **Ordnance damage** | `bossSimulator.ts` (ordnanceFlatDamage) | Ordnance raw damage reduces boss effective HP. Ordnance element modifies shield/armor break. |
 | **Supabase persistence** | `src/store/runtimeSupabaseSync.ts` + Chef RPCs | 500ms debounced snapshot + Chef direct writes |
 | **XP curve** | `src/content/simulation.ts` (`xpToNextLevel`) | Mirrored server-side in migration 057 |
+
+### Formula / Modifier Owners
+
+Every displayed or awarded gameplay number must point to one owner:
+
+| Number | Owner | Display Contract |
+|---|---|---|
+| Standard DPS, boss-relative DPS | `src/lib/stats/dpsChain.ts` | UI reads through `buildCharacterMechanicsSnapshot()` / `buildCharacterStatSummary()` |
+| Max HP, shield HP, mitigation, effective HP | `src/lib/combat/damageContract.ts` + `src/lib/mechanics/buildCharacterMechanicsSnapshot.ts` | Snapshot buckets show `base`, `gear`, and effective mitigation |
+| Survival damage / death preview state | `src/server/chef.ts` for verified tick outcomes; `src/lib/combat/damageContract.ts` for pure math | Client survival slice hydrates display/runtime state only |
+| Kill cycle / monster HP display | `src/server/chef.ts` for verified tick advancement; `src/store/slices/killCycleSlice.ts` for animation state | Snapshot may hydrate display state, never rewards |
+| Roaming rewards, XP, credits, scrap, fragments, materials, essences | `src/server/chef.ts` + `cc_apply_chef_rewards` | Client calls intent and syncs returned profile/items |
+| Boss rewards, death fee, consumable spend, pity, unlocks, loot | `src/server/chef.ts` + `cc_apply_chef_boss_attempt` | Boss UI sends intent/loadout and animates returned result |
+| Salvage economy | `cc_recycle_item` RPC | UI submits item id and syncs verified profile/item state |
+| Gear generation | `src/lib/generators/*` called by Chef/server | Client may preview/render, not mint authoritative inventory |
+| Rarity/drop odds and area modifiers | `src/content/*`, `src/constants/roamingAreas.ts`, Chef claim code | Snapshot exposes activity/area buckets for display |
+| Offline cap / offline settlement | Profile/RPC state plus Chef settlement | Runtime snapshot is not offline reward truth |
+| Skill and gear modifiers | `skillSlice.getBonuses()`, item payload affixes, `buildCharacterMechanicsSnapshot()` | Snapshot buckets separate `skill`, `gear`, `weapon`, `activity`, `consumable`, `server`, and `runtime` |
 
 ---
 
@@ -135,6 +153,41 @@ Display-only timers are allowed for:
 
 These timers must never mutate gameplay state.
 
+### Shared Mechanics Snapshot
+
+Any UI surface that displays HP, DPS, break pressure, loot modifiers, XP,
+scrap, offline modifiers, or boss-relative values should consume
+`src/lib/mechanics/buildCharacterMechanicsSnapshot.ts` directly or through
+`src/lib/stats/characterStats.ts`.
+
+The snapshot returns each scalar as:
+
+```
+{
+  value: number,                 // final displayed total
+  contributions: [
+    { bucket, source, stat, value }
+  ],
+  buckets: {
+    base, gear, weapon, skill, activity, consumable, server, runtime
+  }
+}
+```
+
+Bucket meaning:
+- `base`: chassis/level/base curve before equipment.
+- `weapon`: weapon DPS or weapon-owned modifier contribution.
+- `gear`: shield, ordnance, class mod, relic, and affix contribution.
+- `skill`: skill tree contribution.
+- `activity`: area/activity/runtime-route modifier contribution.
+- `consumable`: temporary/prep consumable modifier contribution.
+- `server`: authoritative server/Chef override or settled value.
+- `runtime`: display hydration state that is not economy truth.
+
+Do not add new UI-local DPS, HP, survival, reward, or loot formulas. If a
+display needs a number that is not in the snapshot, add it to the snapshot and
+document its owner here.
+
 ---
 
 ## 5. Server Verification Rules
@@ -146,6 +199,17 @@ These timers must never mutate gameplay state.
 - **localStorage may only be used for:** UI preferences and cross-tab coordination
   locks (`activitySettlement.ts`).
 - **Authenticated game progression must not depend on localStorage.**
+- **`player_runtime_snapshots` are display hydration only.** They may restore
+  UI/runtime state such as selected area, boss selection/risk, loadout
+  consumable intent, market filters/watchlist, survival display, kill-cycle
+  display, and loadout presets. They must never restore or trust credits, XP,
+  scrap, materials, essences, consumable counts, cache keys/fragments,
+  inventory ownership, boss wins/unlocks/pity/attempts, market listings,
+  verified rewards, skills, or workshop outputs.
+- **Chef-only RPCs are service-role only.** Functions that accept a user id and
+  mutate economy/progression state, such as `cc_apply_chef_rewards`,
+  `cc_apply_chef_boss_attempt`, and internal mastery/stat helpers, must not be
+  executable by `anon` or `authenticated`.
 
 ---
 

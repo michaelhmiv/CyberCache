@@ -231,6 +231,29 @@ describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () =>
     expect(summary.all.find((metric) => metric.key === 'boss')!.value).toBeCloseTo(snapshot.simulatedBossDps.value, 4);
   });
 
+  it('exposes bucketed mechanics breakdowns for display traceability', () => {
+    const player = makePlayer({ level: 7 });
+    const weapon = makeWeapon({ id: 'w1', rareDropChanceMod: 0.1, scrapYieldMod: 0.2, offlineEarningsMod: 0.3 });
+    const boss = makeBoss([Element.Fire]);
+    const snapshot = buildCharacterMechanicsSnapshot({
+      player,
+      weapons: [weapon],
+      spentSkills: {},
+      boss,
+      bossSimDps: 1234,
+      activityMods: { rareDropChanceMod: 0.04, scrapYieldMod: 0.05, offlineEarningsMod: 0.06 },
+      consumableMods: { bonusLootChance: 0.07, scrapYieldMod: 0.08, xpBoostMod: 0.09 },
+    });
+
+    expect(Object.keys(snapshot.simulatedBossDps.buckets).sort()).toEqual(['activity', 'base', 'consumable', 'gear', 'runtime', 'server', 'skill', 'weapon'].sort());
+    expect(snapshot.standardWeaponDps.buckets.weapon).toBeGreaterThan(0);
+    expect(snapshot.lootRareFind.buckets.activity).toBeCloseTo(0.04);
+    expect(snapshot.lootRareFind.buckets.consumable).toBeCloseTo(0.07);
+    expect(snapshot.scrapModifier.buckets.consumable).toBeCloseTo(0.08);
+    expect(snapshot.xpModifier.buckets.consumable).toBeCloseTo(0.09);
+    expect(snapshot.simulatedBossDps.buckets.server).toBeCloseTo(1234 - snapshot.simulatedBossDps.contributions.filter((entry) => entry.bucket !== 'server').reduce((sum, entry) => sum + entry.value, 0), 4);
+  });
+
   it('emits a mitigation segment only when mitigation is positive', () => {
     // A shield with 0% mitigation should not add a 0-width "Mitigation"
     // segment to the bar (it would render as a hairline that confuses

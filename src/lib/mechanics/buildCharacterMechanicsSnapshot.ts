@@ -6,14 +6,37 @@ import { computeHunterMaxHp } from '@/lib/combat/damageContract';
 import { computeBossRelativeDps, computeStandardDps } from '@/lib/stats/dpsChain';
 
 export type MechanicsContribution = {
+  bucket: MechanicsContributionBucket;
   source: string;
   stat: string;
   value: number;
 };
 
+export type MechanicsContributionBucket =
+  | 'base'
+  | 'gear'
+  | 'weapon'
+  | 'skill'
+  | 'activity'
+  | 'consumable'
+  | 'server'
+  | 'runtime';
+
+export const MECHANICS_CONTRIBUTION_BUCKETS: MechanicsContributionBucket[] = [
+  'base',
+  'gear',
+  'weapon',
+  'skill',
+  'activity',
+  'consumable',
+  'server',
+  'runtime',
+];
+
 export type MechanicsScalar = {
   value: number;
   contributions: MechanicsContribution[];
+  buckets: Record<MechanicsContributionBucket, number>;
 };
 
 export type CharacterMechanicsSnapshot = {
@@ -42,6 +65,8 @@ export type BuildCharacterMechanicsSnapshotInput = {
   ordnance?: Ordnance;
   spentSkills: Record<string, number>;
   boss?: BossDef;
+  activityMods?: Record<string, number>;
+  consumableMods?: Record<string, number>;
   bossSimDps?: number;
 };
 
@@ -63,8 +88,25 @@ function affixTotal(gear: Array<GearItem | undefined>, key: string): number {
   }, 0);
 }
 
-function contribution(source: string, stat: string, value: number): MechanicsContribution {
-  return { source, stat, value };
+function contribution(bucket: MechanicsContributionBucket, source: string, stat: string, value: number): MechanicsContribution {
+  return { bucket, source, stat, value };
+}
+
+function scalar(value: number, contributions: MechanicsContribution[]): MechanicsScalar {
+  const buckets = Object.fromEntries(MECHANICS_CONTRIBUTION_BUCKETS.map((bucket) => [bucket, 0])) as Record<MechanicsContributionBucket, number>;
+  contributions.forEach((entry) => {
+    buckets[entry.bucket] += entry.value;
+  });
+  return {
+    value,
+    contributions,
+    buckets,
+  };
+}
+
+function recordTotal(mods: Record<string, number> | undefined, keys: string[]): number {
+  if (!mods) return 0;
+  return keys.reduce((sum, key) => sum + (Number(mods[key]) || 0), 0);
 }
 
 export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSnapshotInput): CharacterMechanicsSnapshot {
@@ -79,80 +121,113 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
   const bossRelativeDps = input.boss
     ? computeBossRelativeDps(weapons, input.boss.weaknesses, input.boss.resistances)
     : standardWeaponDps;
-  const weaponDamageBonus =
+  const skillDamageBonus =
     skillTotal(input.spentSkills, 'weaponDamage') +
     skillTotal(input.spentSkills, 'attackSpeed') +
     skillTotal(input.spentSkills, 'critChance') * 0.5 +
-    skillTotal(input.spentSkills, 'critDamage') * 0.5 +
-    affixTotal(gear, 'weaponDamage');
-  const bossSkillBonus =
+    skillTotal(input.spentSkills, 'critDamage') * 0.5;
+  const gearDamageBonus = affixTotal(gear, 'weaponDamage');
+  const skillBossBonus =
     skillTotal(input.spentSkills, 'bossDamageMod') +
     skillTotal(input.spentSkills, 'bossDamageSniperPistol') +
     skillTotal(input.spentSkills, 'launcherBossDps') +
-    skillTotal(input.spentSkills, 'weaknessMatchDamage') +
-    affixTotal([input.classMod, input.relic], 'bossDamageMod');
-  // NOTE: weaponDamageBonus and bossSkillBonus are flat lump-sum multipliers
+    skillTotal(input.spentSkills, 'weaknessMatchDamage');
+  const gearBossBonus = affixTotal([input.classMod, input.relic], 'bossDamageMod');
+  // NOTE: skill and gear damage bonuses are flat lump-sum multipliers
   // applied post-hoc on top of bossRelativeDps. This is a display-layer
   // approximation — the full DPS chain in computeWeaponDps() handles crit,
   // status, and signature per-weapon. skill/affix bonuses are summed here
   // rather than threaded into the per-weapon chain to keep the snapshot
   // fast and the contribution trace readable. For the authoritative combat
   // number, use bossSimulator.simulateBoss() which runs the full chain.
-  const bossDpsAfterPlayerMods = bossRelativeDps * (1 + weaponDamageBonus + bossSkillBonus);
-  const shieldBreak = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon) * Math.max(0, weapon.shieldDamageMod), 0) + (input.ordnance?.shieldDamage ?? 0);
-  const armorBreak = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon) * Math.max(0, weapon.armorDamageMod), 0) + (input.ordnance?.armorDamage ?? 0);
+  const playerDamageBonus = skillDamageBonus + gearDamageBonus + skillBossBonus + gearBossBonus;
+  const bossDpsAfterPlayerMods = bossRelativeDps * (1 + playerDamageBonus);
+  const weaponShieldBreak = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon) * Math.max(0, weapon.shieldDamageMod), 0);
+  const weaponArmorBreak = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon) * Math.max(0, weapon.armorDamageMod), 0);
+  const skillShieldBreak = standardWeaponDps * (skillTotal(input.spentSkills, 'shieldDamageMod') + skillTotal(input.spentSkills, 'ordnanceShieldBreak'));
+  const skillArmorBreak = standardWeaponDps * (skillTotal(input.spentSkills, 'armorDamageMod') + skillTotal(input.spentSkills, 'explosiveArmorBreak'));
+  const shieldBreak = weaponShieldBreak + (input.ordnance?.shieldDamage ?? 0) + skillShieldBreak;
+  const armorBreak = weaponArmorBreak + (input.ordnance?.armorDamage ?? 0) + skillArmorBreak;
   const ordnanceContribution = input.ordnance?.damage ?? 0;
+  const activityRareFind = recordTotal(input.activityMods, ['rareDropChanceMod']);
+  const activityScrap = recordTotal(input.activityMods, ['scrapYieldMod']);
+  const activityOffline = recordTotal(input.activityMods, ['offlineEarningsMod', 'creditsPerKill']);
+  const consumableRareFind = recordTotal(input.consumableMods, ['rareDropChanceMod', 'lootQuantity', 'bonusLootChance']);
+  const consumableScrap = recordTotal(input.consumableMods, ['scrapYieldMod']);
+  const consumableXp = recordTotal(input.consumableMods, ['xpBoostMod']);
 
   return {
-    maxHp: {
-      value: maxHp,
-      contributions: [
-        contribution('Hunter chassis', 'baseHp', baseHp),
-        contribution(input.shield?.name ?? 'No shield', 'shieldHp', shieldHp),
+    maxHp: scalar(maxHp, [
+      contribution('base', 'Hunter chassis', 'baseHp', baseHp),
+      contribution('gear', input.shield?.name ?? 'No shield', 'shieldHp', shieldHp),
+    ]),
+    shield: scalar(shieldHp, [contribution('gear', input.shield?.name ?? 'No shield', 'shieldHp', shieldHp)]),
+    mitigation: scalar(mitigation, [contribution('gear', input.shield?.name ?? 'No shield', 'mitigation', mitigation)]),
+    effectiveHp: scalar(effectiveHp, [
+      contribution('base', 'Max HP', 'maxHp', maxHp),
+      contribution('gear', input.shield?.name ?? 'No shield', 'mitigationEffectiveHp', effectiveHp - maxHp),
+    ]),
+    standardWeaponDps: scalar(
+      standardWeaponDps,
+      weapons.map((weapon) => contribution('weapon', weapon.name, 'standardDps', computeStandardDps(weapon))),
+    ),
+    bossRelativeDps: scalar(
+      bossRelativeDps,
+      weapons.map((weapon) => contribution('weapon', weapon.name, 'bossRelativeDps', input.boss ? computeBossRelativeDps([weapon], input.boss.weaknesses, input.boss.resistances) : computeStandardDps(weapon))),
+    ),
+    simulatedBossDps: scalar(input.bossSimDps ?? bossDpsAfterPlayerMods, [
+      contribution('weapon', 'Boss-relative DPS', 'bossRelativeDps', bossRelativeDps),
+      contribution('skill', 'Skill tree damage', 'skillDamageMods', bossRelativeDps * (skillDamageBonus + skillBossBonus)),
+      contribution('gear', 'Gear affixes', 'gearDamageMods', bossRelativeDps * (gearDamageBonus + gearBossBonus)),
+      contribution('server', 'Server simulation override', 'bossSimDpsOverride', input.bossSimDps === undefined ? 0 : input.bossSimDps - bossDpsAfterPlayerMods),
+    ]),
+    shieldBreak: scalar(shieldBreak, [
+      ...weapons.map((weapon) => contribution('weapon', weapon.name, 'shieldBreak', computeStandardDps(weapon) * Math.max(0, weapon.shieldDamageMod))),
+      contribution('gear', input.ordnance?.name ?? 'No ordnance', 'ordnanceShieldBreak', input.ordnance?.shieldDamage ?? 0),
+      contribution('skill', 'Skill tree', 'shieldBreakSkillMods', skillShieldBreak),
+    ]),
+    armorBreak: scalar(armorBreak, [
+      ...weapons.map((weapon) => contribution('weapon', weapon.name, 'armorBreak', computeStandardDps(weapon) * Math.max(0, weapon.armorDamageMod))),
+      contribution('gear', input.ordnance?.name ?? 'No ordnance', 'ordnanceArmorBreak', input.ordnance?.armorDamage ?? 0),
+      contribution('skill', 'Skill tree', 'armorBreakSkillMods', skillArmorBreak),
+    ]),
+    ordnanceContribution: scalar(ordnanceContribution, [contribution('gear', input.ordnance?.name ?? 'No ordnance', 'ordnanceDamage', ordnanceContribution)]),
+    lootRareFind: scalar(
+      weapons.reduce((sum, weapon) => sum + weapon.rareDropChanceMod, 0) + skillTotal(input.spentSkills, 'rareDropChance') + skillTotal(input.spentSkills, 'postBossDropChance') + affixTotal(gear, 'rareDropChanceMod') + activityRareFind + consumableRareFind,
+      [
+        ...weapons.map((weapon) => contribution('weapon', weapon.name, 'rareDropChanceMod', weapon.rareDropChanceMod)),
+        contribution('skill', 'Skill tree', 'rareDropChance', skillTotal(input.spentSkills, 'rareDropChance') + skillTotal(input.spentSkills, 'postBossDropChance')),
+        contribution('gear', 'Gear affixes', 'rareDropChanceMod', affixTotal(gear, 'rareDropChanceMod')),
+        contribution('activity', 'Activity / area modifiers', 'rareDropChanceMod', activityRareFind),
+        contribution('consumable', 'Consumable / temporary modifiers', 'rareDropChanceMod', consumableRareFind),
       ],
-    },
-    shield: { value: shieldHp, contributions: [contribution(input.shield?.name ?? 'No shield', 'shieldHp', shieldHp)] },
-    mitigation: { value: mitigation, contributions: [contribution(input.shield?.name ?? 'No shield', 'mitigation', mitigation)] },
-    effectiveHp: {
-      value: effectiveHp,
-      contributions: [
-        contribution('Max HP', 'maxHp', maxHp),
-        contribution(input.shield?.name ?? 'No shield', 'mitigationEffectiveHp', effectiveHp - maxHp),
+    ),
+    scrapModifier: scalar(
+      weapons.reduce((sum, weapon) => sum + weapon.scrapYieldMod, 0) + skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'autoSalvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus') + affixTotal(gear, 'scrapYieldMod') + activityScrap + consumableScrap,
+      [
+        ...weapons.map((weapon) => contribution('weapon', weapon.name, 'scrapYieldMod', weapon.scrapYieldMod)),
+        contribution('skill', 'Skill tree', 'scrapYield', skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'autoSalvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus')),
+        contribution('gear', 'Gear affixes', 'scrapYieldMod', affixTotal(gear, 'scrapYieldMod')),
+        contribution('activity', 'Activity / area modifiers', 'scrapYieldMod', activityScrap),
+        contribution('consumable', 'Consumable / temporary modifiers', 'scrapYieldMod', consumableScrap),
       ],
-    },
-    standardWeaponDps: {
-      value: standardWeaponDps,
-      contributions: weapons.map((weapon) => contribution(weapon.name, 'standardDps', computeStandardDps(weapon))),
-    },
-    bossRelativeDps: {
-      value: bossRelativeDps,
-      contributions: weapons.map((weapon) => contribution(weapon.name, 'bossRelativeDps', input.boss ? computeBossRelativeDps([weapon], input.boss.weaknesses, input.boss.resistances) : computeStandardDps(weapon))),
-    },
-    simulatedBossDps: {
-      value: input.bossSimDps ?? bossDpsAfterPlayerMods,
-      contributions: [
-        contribution('Boss-relative DPS', 'bossRelativeDps', bossRelativeDps),
-        contribution('Skills and affixes', 'playerDamageMods', bossDpsAfterPlayerMods - bossRelativeDps),
+    ),
+    xpModifier: scalar(
+      affixTotal(gear, 'xpBoostMod') + skillTotal(input.spentSkills, 'xpBoostMod') + consumableXp,
+      [
+        ...gear.flatMap((item) => item && 'affixes' in item ? item.affixes.filter((affix) => affix.stat === 'xpBoostMod').map((affix) => contribution('gear', item.name, 'xpBoostMod', affix.value)) : []),
+        contribution('skill', 'Skill tree', 'xpBoostMod', skillTotal(input.spentSkills, 'xpBoostMod')),
+        contribution('consumable', 'Consumable / temporary modifiers', 'xpBoostMod', consumableXp),
       ],
-    },
-    shieldBreak: { value: shieldBreak, contributions: weapons.map((weapon) => contribution(weapon.name, 'shieldBreak', computeStandardDps(weapon) * Math.max(0, weapon.shieldDamageMod))) },
-    armorBreak: { value: armorBreak, contributions: weapons.map((weapon) => contribution(weapon.name, 'armorBreak', computeStandardDps(weapon) * Math.max(0, weapon.armorDamageMod))) },
-    ordnanceContribution: { value: ordnanceContribution, contributions: [contribution(input.ordnance?.name ?? 'No ordnance', 'ordnanceDamage', ordnanceContribution)] },
-    lootRareFind: {
-      value: weapons.reduce((sum, weapon) => sum + weapon.rareDropChanceMod, 0) + skillTotal(input.spentSkills, 'rareDropChance') + skillTotal(input.spentSkills, 'postBossDropChance') + affixTotal(gear, 'rareDropChanceMod'),
-      contributions: weapons.map((weapon) => contribution(weapon.name, 'rareDropChanceMod', weapon.rareDropChanceMod)),
-    },
-    scrapModifier: {
-      value: weapons.reduce((sum, weapon) => sum + weapon.scrapYieldMod, 0) + skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'autoSalvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus') + affixTotal(gear, 'scrapYieldMod'),
-      contributions: weapons.map((weapon) => contribution(weapon.name, 'scrapYieldMod', weapon.scrapYieldMod)),
-    },
-    xpModifier: {
-      value: affixTotal(gear, 'xpBoostMod') + skillTotal(input.spentSkills, 'xpBoostMod'),
-      contributions: gear.flatMap((item) => item && 'affixes' in item ? item.affixes.filter((affix) => affix.stat === 'xpBoostMod').map((affix) => contribution(item.name, 'xpBoostMod', affix.value)) : []),
-    },
-    offlineEarningModifier: {
-      value: weapons.reduce((sum, weapon) => sum + weapon.offlineEarningsMod, 0) + skillTotal(input.spentSkills, 'offlineEarnings') + affixTotal(gear, 'offlineEarningsMod'),
-      contributions: weapons.map((weapon) => contribution(weapon.name, 'offlineEarningsMod', weapon.offlineEarningsMod)),
-    },
+    ),
+    offlineEarningModifier: scalar(
+      weapons.reduce((sum, weapon) => sum + weapon.offlineEarningsMod, 0) + skillTotal(input.spentSkills, 'offlineEarnings') + affixTotal(gear, 'offlineEarningsMod') + activityOffline,
+      [
+        ...weapons.map((weapon) => contribution('weapon', weapon.name, 'offlineEarningsMod', weapon.offlineEarningsMod)),
+        contribution('skill', 'Skill tree', 'offlineEarnings', skillTotal(input.spentSkills, 'offlineEarnings')),
+        contribution('gear', 'Gear affixes', 'offlineEarningsMod', affixTotal(gear, 'offlineEarningsMod')),
+        contribution('activity', 'Activity / area modifiers', 'offlineEarningsMod', activityOffline),
+      ],
+    ),
   };
 }

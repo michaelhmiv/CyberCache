@@ -1,9 +1,5 @@
-import type { BossAttemptResult } from '@/types/boss';
 import type { RiskSetting } from '@/types/game';
-import type { GearItem } from '@/types/items';
-import type { Listing, MarketFilter, MarketHistory } from '@/types/market';
-import type { PlayerProfile } from '@/types/player';
-import type { WorkshopQueue } from '@/types/workshop';
+import type { MarketFilter } from '@/types/market';
 import {
   clearRuntimeStoreSnapshot,
   getRuntimeStoreSnapshot,
@@ -13,7 +9,7 @@ import {
 import { useBossStore } from './slices/bossSlice';
 import { useIdleStore } from './slices/idleSlice';
 import { useInventoryStore } from './slices/inventorySlice';
-import { emptySlots, type LoadoutConsumables, type LoadoutSlot, useLoadoutStore } from './slices/loadoutSlice';
+import { type LoadoutConsumables, type LoadoutSlot, useLoadoutStore } from './slices/loadoutSlice';
 import { useMarketStore } from './slices/marketSlice';
 import { usePlayerStore } from './slices/playerSlice';
 import { useSkillStore } from './slices/skillSlice';
@@ -34,17 +30,11 @@ let unsubscribers: Array<() => void> = [];
 
 type BossSnapshot = {
   currentBossId: string | null;
-  unlockedBossIds: string[];
-  defeatedBossIds: string[];
-  pityCounters: Record<string, number>;
-  attemptHistory: BossAttemptResult[];
   preparedConsumables: Record<string, number>;
   selectedRisk: RiskSetting;
 };
 
 type IdleSnapshot = {
-  isFarming: boolean;
-  farmTickCount: number;
   autoSalvageRarity: string;
   autoSalvageQuality: number;
   autoSalvageToMaterials: boolean;
@@ -52,12 +42,9 @@ type IdleSnapshot = {
 };
 
 type MarketSnapshot = {
-  activeTab: 'buy' | 'sell' | 'mylistings' | 'history';
-  listings: Listing[];
-  history: MarketHistory[];
+  activeTab: string;
   filters: MarketFilter;
   watchlist: string[];
-  seeded: boolean;
 };
 
 type SurvivalSnapshot = {
@@ -92,15 +79,13 @@ type LoadoutPresetsSnapshot = {
   activePresetId: string | null;
 };
 
-type FullRuntimeSnapshot = {
-  player: PlayerProfile;
-  inventory: { items: GearItem[] };
-  loadout: { slots: Record<LoadoutSlot, string | null>; consumables: LoadoutConsumables };
+type RuntimeDisplaySnapshot = {
+  schemaVersion: 2;
+  authority: 'display_hydration_only';
+  loadout: { consumables: LoadoutConsumables };
   boss: BossSnapshot;
   idle: IdleSnapshot;
   market: MarketSnapshot;
-  skills: { spent: Record<string, number> };
-  workshop: { unlockedBenchCount: number; activeQueues: WorkshopQueue[] };
   survival: SurvivalSnapshot;
   killCycle: KillCycleSnapshot;
   loadoutPresets: LoadoutPresetsSnapshot;
@@ -130,54 +115,25 @@ function isRiskSetting(value: unknown): value is RiskSetting {
   return typeof value === 'string' && riskSettings.includes(value);
 }
 
-function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
-  const player = usePlayerStore.getState();
-  const inventory = useInventoryStore.getState();
+export function buildRuntimeDisplaySnapshot(): RuntimeDisplaySnapshot {
   const loadout = useLoadoutStore.getState();
   const boss = useBossStore.getState();
   const idle = useIdleStore.getState();
   const market = useMarketStore.getState();
-  const skills = useSkillStore.getState();
-  const workshop = useWorkshopStore.getState();
   const survival = useSurvivalStore.getState();
   const killCycle = useKillCycleStore.getState();
   const loadoutPresets = useLoadoutPresetsStore.getState();
 
   return {
-  player: {
-      id: player.id,
-      name: player.name,
-      level: player.level,
-      xp: player.xp,
-      credits: player.credits,
-      scrap: player.scrap,
-      cacheKeys: player.cacheKeys,
-      cacheKeyFragments: player.cacheKeyFragments,
-      currentZoneId: player.currentZoneId,
-      highestZoneId: player.highestZoneId,
-      offlineCapHours: player.offlineCapHours,
-      lastClaimTime: player.lastClaimTime,
-      deathFeeInsurance: player.deathFeeInsurance,
-      consumables: player.consumables,
-      materials: player.materials,
-      essences: player.essences,
-      workshopQueues: arrayValue<WorkshopQueue>(player.workshopQueues) ?? [],
-      lastWorkshopTick: player.lastWorkshopTick,
-    },
-    inventory: { items: arrayValue<GearItem>(inventory.items) ?? [] },
-    loadout: { slots: loadout.slots, consumables: loadout.consumables },
+    schemaVersion: 2,
+    authority: 'display_hydration_only',
+    loadout: { consumables: loadout.consumables },
     boss: {
       currentBossId: typeof boss.currentBossId === 'string' ? boss.currentBossId : null,
-      unlockedBossIds: arrayValue<string>(boss.unlockedBossIds) ?? [],
-      defeatedBossIds: arrayValue<string>(boss.defeatedBossIds) ?? [],
-      pityCounters: numberRecordValue(boss.pityCounters) ?? {},
-      attemptHistory: arrayValue<BossAttemptResult>(boss.attemptHistory) ?? [],
       preparedConsumables: numberRecordValue(boss.preparedConsumables) ?? {},
       selectedRisk: boss.selectedRisk,
     },
     idle: {
-      isFarming: idle.isFarming,
-      farmTickCount: idle.farmTickCount,
       autoSalvageRarity: idle.autoSalvageRarity,
       autoSalvageQuality: idle.autoSalvageQuality,
       autoSalvageToMaterials: idle.autoSalvageToMaterials,
@@ -185,16 +141,8 @@ function buildRuntimeStoreSnapshot(): FullRuntimeSnapshot {
     },
     market: {
       activeTab: market.activeTab,
-      listings: arrayValue<Listing>(market.listings) ?? [],
-      history: arrayValue<MarketHistory>(market.history) ?? [],
       filters: market.filters,
       watchlist: arrayValue<string>(market.watchlist) ?? [],
-      seeded: market.seeded,
-    },
-    skills: { spent: numberRecordValue(skills.spent) ?? {} },
-    workshop: {
-      unlockedBenchCount: workshop.unlockedBenchCount,
-      activeQueues: arrayValue<WorkshopQueue>(workshop.activeQueues) ?? [],
     },
     survival: {
       currentHp: survival.currentHp,
@@ -240,52 +188,17 @@ export function resetRuntimeStoresToInitialState(): void {
   }
 }
 
-function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
+export function applyRuntimeDisplaySnapshot(snapshot: RuntimeStoreSnapshot): void {
   isApplyingSnapshot = true;
   try {
-    const player = objectValue<PlayerProfile>(snapshot.player);
-    if (player) {
-      const currentPlayer = usePlayerStore.getState();
-      usePlayerStore.setState({
-        name: typeof player.name === 'string' ? player.name : currentPlayer.name,
-        level: typeof player.level === 'number' ? player.level : currentPlayer.level,
-        xp: typeof player.xp === 'number' ? player.xp : currentPlayer.xp,
-        credits: typeof player.credits === 'number' ? player.credits : currentPlayer.credits,
-        scrap: typeof player.scrap === 'number' ? player.scrap : currentPlayer.scrap,
-        // Cache keys/fragments are checked by cc_make_item against profiles.cache_tokens.
-        // Do not restore snapshot values here or the UI can show phantom keys that the server rejects.
-        lastClaimTime: typeof player.lastClaimTime === 'number' ? player.lastClaimTime : currentPlayer.lastClaimTime,
-        consumables: player.consumables && typeof player.consumables === 'object' && !Array.isArray(player.consumables)
-          ? player.consumables as Record<string, number>
-          : currentPlayer.consumables,
-        materials: player.materials && typeof player.materials === 'object' && !Array.isArray(player.materials)
-          ? player.materials as Record<string, number>
-          : currentPlayer.materials,
-        essences: player.essences && typeof player.essences === 'object' && !Array.isArray(player.essences)
-          ? player.essences as Record<string, number>
-          : currentPlayer.essences,
-        currentZoneId: typeof player.currentZoneId === 'string' ? player.currentZoneId : currentPlayer.currentZoneId,
-        highestZoneId: typeof player.highestZoneId === 'string' ? player.highestZoneId : currentPlayer.highestZoneId,
-        offlineCapHours: typeof player.offlineCapHours === 'number' ? player.offlineCapHours : currentPlayer.offlineCapHours,
-        deathFeeInsurance: typeof player.deathFeeInsurance === 'boolean' ? player.deathFeeInsurance : currentPlayer.deathFeeInsurance,
-        workshopQueues: arrayValue<WorkshopQueue>(player.workshopQueues) ?? currentPlayer.workshopQueues,
-        lastWorkshopTick: typeof player.lastWorkshopTick === 'number' ? player.lastWorkshopTick : currentPlayer.lastWorkshopTick,
-      });
-    }
-
-    const inventory = objectValue<{ items: GearItem[] }>(snapshot.inventory);
-    const items = arrayValue<GearItem>(inventory?.items);
-    if (items) {
-      const currentItems = arrayValue<GearItem>(useInventoryStore.getState().items) ?? [];
-      const currentIds = new Set(currentItems.map((item) => item.id));
-      const snapshotOnlyItems = items.filter((item) => item?.id && !currentIds.has(item.id));
-      useInventoryStore.setState({ items: [...currentItems, ...snapshotOnlyItems] });
-    }
-
-    const loadout = objectValue<{ slots: Record<LoadoutSlot, string | null>; consumables: LoadoutConsumables }>(snapshot.loadout);
+    // Runtime snapshots are stale display hydration only. Authoritative
+    // economy state is already loaded from profiles/item_instances/RPCs before
+    // this function runs, so never restore player resources, item ownership,
+    // boss progression, skill spends, workshop outputs, or market listings
+    // from `player_runtime_snapshots`.
+    const loadout = objectValue<{ consumables: LoadoutConsumables }>(snapshot.loadout);
     if (loadout) {
       useLoadoutStore.setState((state) => ({
-        slots: { ...emptySlots, ...state.slots, ...(objectValue<Record<LoadoutSlot, string | null>>(loadout.slots) ?? {}) },
         consumables: { ...state.consumables, ...(objectValue<LoadoutConsumables>(loadout.consumables) ?? {}) },
       }));
     }
@@ -295,31 +208,28 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
       const currentBoss = useBossStore.getState();
       useBossStore.setState({
         currentBossId: typeof boss.currentBossId === 'string' || boss.currentBossId === null ? boss.currentBossId : currentBoss.currentBossId,
-        unlockedBossIds: arrayValue<string>(boss.unlockedBossIds) ?? currentBoss.unlockedBossIds,
-        defeatedBossIds: arrayValue<string>(boss.defeatedBossIds) ?? currentBoss.defeatedBossIds,
-        pityCounters: numberRecordValue(boss.pityCounters) ?? currentBoss.pityCounters,
-        attemptHistory: arrayValue<BossAttemptResult>(boss.attemptHistory) ?? currentBoss.attemptHistory,
         preparedConsumables: numberRecordValue(boss.preparedConsumables) ?? currentBoss.preparedConsumables,
         selectedRisk: isRiskSetting(boss.selectedRisk) ? boss.selectedRisk : currentBoss.selectedRisk,
       });
     }
 
     const idle = objectValue<IdleSnapshot>(snapshot.idle);
-    if (idle) useIdleStore.setState(idle);
+    if (idle) {
+      useIdleStore.setState((state) => ({
+        autoSalvageRarity: typeof idle.autoSalvageRarity === 'string' ? idle.autoSalvageRarity : state.autoSalvageRarity,
+        autoSalvageQuality: typeof idle.autoSalvageQuality === 'number' ? idle.autoSalvageQuality : state.autoSalvageQuality,
+        autoSalvageToMaterials: typeof idle.autoSalvageToMaterials === 'boolean' ? idle.autoSalvageToMaterials : state.autoSalvageToMaterials,
+        selectedRoamingAreaId: typeof idle.selectedRoamingAreaId === 'string' ? idle.selectedRoamingAreaId : state.selectedRoamingAreaId,
+      }));
+    }
 
     const market = objectValue<MarketSnapshot>(snapshot.market);
-    if (market) useMarketStore.setState(market);
-
-    const skills = objectValue<{ spent: Record<string, number> }>(snapshot.skills);
-    const spent = numberRecordValue(skills?.spent);
-    if (spent) useSkillStore.setState({ spent });
-
-    const workshop = objectValue<{ unlockedBenchCount: number; activeQueues: WorkshopQueue[] }>(snapshot.workshop);
-    if (workshop) {
-      useWorkshopStore.setState({
-        ...(typeof workshop.unlockedBenchCount === 'number' ? { unlockedBenchCount: workshop.unlockedBenchCount } : {}),
-        ...(arrayValue<WorkshopQueue>(workshop.activeQueues) ? { activeQueues: workshop.activeQueues as WorkshopQueue[] } : {}),
-      });
+    if (market) {
+      useMarketStore.setState((state) => ({
+        activeTab: typeof market.activeTab === 'string' ? market.activeTab : state.activeTab,
+        filters: objectValue<MarketFilter>(market.filters) ? { ...state.filters, ...market.filters } : state.filters,
+        watchlist: arrayValue<string>(market.watchlist) ?? state.watchlist,
+      }));
     }
 
     const survival = objectValue<SurvivalSnapshot>(snapshot.survival);
@@ -367,7 +277,7 @@ function applyRuntimeStoreSnapshot(snapshot: RuntimeStoreSnapshot): void {
 export async function restoreRuntimeStoresFromSupabase(userId: string): Promise<boolean> {
   const snapshot = await getRuntimeStoreSnapshot(userId);
   if (!snapshot) return false;
-  applyRuntimeStoreSnapshot(snapshot);
+  applyRuntimeDisplaySnapshot(snapshot);
   return true;
 }
 
@@ -380,7 +290,7 @@ export async function saveCurrentRuntimeStores(userId = activeUserId): Promise<v
 
   isSaving = true;
   try {
-    await saveRuntimeStoreSnapshot(userId, buildRuntimeStoreSnapshot());
+    await saveRuntimeStoreSnapshot(userId, buildRuntimeDisplaySnapshot());
   } catch (error) {
     console.warn('Runtime Supabase snapshot save skipped:', error instanceof Error ? error.message : error);
   } finally {
@@ -406,14 +316,10 @@ export function startRuntimeStorePersistence(userId: string): void {
   activeUserId = userId;
   const listener = () => scheduleRuntimeStoreSave();
   unsubscribers = [
-    usePlayerStore.subscribe(listener),
-    useInventoryStore.subscribe(listener),
     useLoadoutStore.subscribe(listener),
     useBossStore.subscribe(listener),
     useIdleStore.subscribe(listener),
     useMarketStore.subscribe(listener),
-    useSkillStore.subscribe(listener),
-    useWorkshopStore.subscribe(listener),
     useSurvivalStore.subscribe(listener),
     useKillCycleStore.subscribe(listener),
     useLoadoutPresetsStore.subscribe(listener),
