@@ -13,7 +13,7 @@
 
 import express from 'express';
 import path from 'node:path';
-import { mountChefRoutes } from './routes/claim';
+import { mountChefRoutes } from './routes/chefRoutes';
 
 const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, '../../dist');
