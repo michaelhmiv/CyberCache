@@ -8,7 +8,7 @@ import {
   loadoutSlotAccepts,
 } from '@/lib/loadout/loadoutReadModel';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { GearItem, Weapon, Shield } from '@/types/items';
+import type { GearItem, Shield, Weapon } from '@/types/items';
 
 const testWeapon = (id: string): Weapon => ({
   id,
@@ -55,6 +55,7 @@ const testShield = (id: string): Shield => ({
   affixes: [],
   sourceTag: DropSource.WorldDrop,
   isLocked: false,
+  pixelSeed: 2,
 });
 
 describe('loadoutReadModel', () => {
