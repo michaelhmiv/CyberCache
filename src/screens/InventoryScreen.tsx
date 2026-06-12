@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Backpack, Box, Hammer, Pill, Shield } from 'lucide-react';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
@@ -6,6 +6,7 @@ import { GearHub } from '@/components/gear/GearHub';
 import { ConsumablesScreen } from './ConsumablesScreen';
 import { WorkshopScreen } from './WorkshopScreen';
 import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
+import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 
 type InventoryTab = 'gear' | 'loadout' | 'consumables' | 'workshop';
 
@@ -35,7 +36,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
   const player = usePlayerStore();
   const workshop = useWorkshopStore();
 
-  const equippedCount = Object.values(loadout.slots).filter(Boolean).length;
+  const loadoutRows = useMemo(() => buildLoadoutRows(loadout.slots, inventory.items), [loadout.slots, inventory.items]);
+  const equippedCount = countEquippedLoadoutSlots(loadoutRows);
   const lockedCount = inventory.items.filter((item) => item.isLocked).length;
   const queueCount = workshop.activeQueues.length;
 
@@ -46,7 +48,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
 
         <div className="grid grid-cols-4 gap-2">
           <SummaryTile label="Items" value={inventory.items.length} sub={`${lockedCount} locked`} />
-          <SummaryTile label="Loadout" value={`${equippedCount}/7`} sub="slots filled" />
+          <SummaryTile label="Loadout" value={`${equippedCount}/7`} sub="resolved slots" />
           <SummaryTile label="Cash" value={player.credits.toLocaleString()} sub={`${player.scrap.toLocaleString()} scrap`} />
           <SummaryTile label="Jobs" value={queueCount} sub="bench" />
         </div>
@@ -60,7 +62,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
               <Box size={19} />
             </div>
             <div>
-              <div className="text-sm font-black text-text-primary">Crack Data Cache</div>
+              <div className="text-sm font-black text-text-primary">Open Data Cache</div>
               <div className="text-[10px] text-text-muted">{player.cacheKeys} keys · {player.cacheKeyFragments}/5 fragments</div>
             </div>
           </div>
@@ -75,9 +77,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center gap-1 py-2 text-[10px] font-black transition-colors ${
-                  active ? 'bl-primary' : 'bl-secondary text-text-muted'
-                }`}
+                className={`flex flex-col items-center gap-1 py-2 text-[10px] font-black transition-colors ${active ? 'bl-primary' : 'bl-secondary text-text-muted'}`}
               >
                 <Icon size={15} />
                 {tab.label}
