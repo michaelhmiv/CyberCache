@@ -21,6 +21,9 @@ Before making any change:
 - **All item generators are shared.** `src/lib/generators/*` is imported by BOTH the Chef and the client. One source of truth. Do not create generator copies.
 - **Use the live item schema.** Server and Supabase paths must use `item_instances.owner_user_id` / `runtime_state`; do not reintroduce legacy `player_items` / `owner_id` paths.
 - **Runtime snapshots are hydration support, not economy authority.** Do not let `player_runtime_snapshots` become the canonical source for credits, XP, inventory ownership, cache keys, marketplace state, boss victories, or other economy-affecting facts.
+- **Do not restore economy from runtime snapshots.** `runtimeSupabaseSync.ts` may hydrate display/runtime state only; profile rows, item_instances, Chef/RPC ledgers, and market tables own economy truth.
+- **User-id mutation RPCs are service-only unless they re-derive `auth.uid()`.** Any security-definer RPC that accepts a player/user UUID and mutates progression must revoke `authenticated`; browser-callable RPCs must derive the actor internally.
+- **Salvage is verified server state.** UI components submit recycle intent through `verifiedOps.recycleItem()` or Chef/API routes and sync the returned profile/item state. Do not call `inventory.scrapItem()` plus `player.addScrap()` from components.
 
 ## Mandatory Repo Verification
 

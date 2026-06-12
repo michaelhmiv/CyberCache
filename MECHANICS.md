@@ -224,6 +224,12 @@ Deferred for later PRs:
 
 ## 7. Salvage Formulas
 
+Current authority: `cc_recycle_item` is the verified salvage economy path.
+Inventory UI submits item id intent and syncs the returned profile/item state;
+it must not award scrap, materials, or essences locally. The TypeScript
+`calculateSalvageYield()` helper is an inspection/preview model until the RPC
+is expanded to award the full material/essence breakdown server-side.
+
 ### Base Scrap Alloy
 ```
 ScrapAlloy = max(5, floor((level * 5 + 10) * rarityMult * (0.5 + rollQuality/100)))

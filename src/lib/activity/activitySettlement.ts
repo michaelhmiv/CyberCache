@@ -1,5 +1,6 @@
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { useActivityStore, useIdleStore, usePlayerStore, useSkillStore, useLoadoutStore } from '@/store';
+import { syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
 import type { ActiveActivity } from '@/types/activity';
 import type { GearItem } from '@/types/items';
 import { getRoamingArea } from '@/constants/roamingAreas';
@@ -109,6 +110,7 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
     }
 
     let chefResult: {
+      profile?: Record<string, unknown>;
       rewards?: { creditsAwarded?: number; scrapAwarded?: number; xpAwarded?: number; cacheFragmentsAwarded?: number; materials?: Record<string, number>; essences?: Record<string, number> };
       items?: GearItem[];
       feedEvents?: Array<{ at: number; tone: string; label: string; detail: string; areaId: string; value?: number }>;
@@ -145,22 +147,13 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
     const cacheFragments = rewards.cacheFragmentsAwarded ?? 0;
     const gearDrops = chefResult.items ?? [];
 
-    // Apply resources via the player store (which tracks pending deltas)
+    // Apply the authoritative profile returned by Chef/RPC. Do not replay
+    // resource deltas client-side; that would make the browser a second
+    // economy writer and can drift from SQL caps/leveling/idempotency.
     const playerStore = usePlayerStore.getState();
-    if (credits) playerStore.addCredits(credits);
-    if (scrap) playerStore.addScrap(scrap);
-    if (xp) playerStore.addXP(xp);
-    if (cacheFragments) playerStore.addCacheKeyFragments(cacheFragments);
-
-    // Apply materials/essences from Chef response
+    syncVerifiedResult(chefResult as Record<string, unknown>);
     const materials = rewards.materials ?? {};
-    for (const [type, count] of Object.entries(materials)) {
-      if (count > 0) playerStore.addMaterial(type, count);
-    }
     const essences = rewards.essences ?? {};
-    for (const [type, count] of Object.entries(essences)) {
-      if (count > 0) playerStore.addEssence(type, count);
-    }
 
     // Add Chef-generated items to inventory
     if (gearDrops.length > 0) {

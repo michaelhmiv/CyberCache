@@ -22,7 +22,7 @@ const RARITY_COLORS: Record<string, string> = {
 const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
   const dismiss = useSalvageFeedStore((s) => s.dismiss);
   const accent = RARITY_COLORS[event.item.rarity] ?? '#A5A7B5';
-  const { scrapAlloy, ballisticParts, reactiveComponents, techFragments, voidDust, essences } = event.yield;
+  const { scrapValue, scrapAlloy, ballisticParts, reactiveComponents, techFragments, voidDust, essences } = event.yield;
 
   useEffect(() => {
     const timer = setTimeout(() => dismiss(event.id), 6000);
@@ -30,6 +30,7 @@ const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
   }, [event.id, dismiss]);
 
   const parts: string[] = [];
+  if (scrapValue > 0) parts.push(`+${scrapValue} Scrap`);
   if (scrapAlloy > 0) parts.push(`+${scrapAlloy} Alloy`);
   if (ballisticParts > 0) parts.push(`+${ballisticParts} Parts`);
   if (reactiveComponents > 0) parts.push(`+${reactiveComponents} Reactive`);

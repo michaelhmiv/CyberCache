@@ -242,6 +242,22 @@ else
 fi
 echo ""
 
+# Rule 8: Runtime snapshots must not hydrate economy truth
+echo -n "Rule 8: Runtime snapshots do not restore economy truth... "
+SNAPSHOT_FILE="$SRC/store/runtimeSupabaseSync.ts"
+FOUND_SNAPSHOT_AUTHORITY=""
+if [ -f "$SNAPSHOT_FILE" ]; then
+  FOUND_SNAPSHOT_AUTHORITY=$(grep -n "snapshotOnlyItems\|credits:.*player\.\|xp:.*player\.\|scrap:.*player\.\|cacheKeys:.*player\.\|cacheKeyFragments:.*player\.\|materials:.*player\.\|essences:.*player\.\|defeatedBossIds:.*boss\.\|unlockedBossIds:.*boss\.\|attemptHistory:.*boss\.\|listings:.*market\.\|history:.*market\.\|spent:.*skills" "$SNAPSHOT_FILE" || true)
+fi
+if [ -n "$FOUND_SNAPSHOT_AUTHORITY" ]; then
+  echo -e "${RED}VIOLATIONS${NC}"
+  echo "$FOUND_SNAPSHOT_AUTHORITY"
+  VIOLATIONS=$((VIOLATIONS + 1))
+else
+  echo -e "${GREEN}OK${NC}"
+fi
+echo ""
+
 # Summary
 echo "---"
 if [ "$VIOLATIONS" -eq 0 ]; then

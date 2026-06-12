@@ -120,11 +120,11 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     : 'weapons + skills + affixes';
   const bossDps = mechanics.simulatedBossDps.value;
   const ordnanceDamage = ordnance?.damage ?? 0;
-  const shieldBreak = liveWeapons.reduce((sum, weapon) => sum + weaponDps(weapon) * Math.max(0, weapon.shieldDamageMod), 0) + (ordnance?.shieldDamage ?? 0) + baseDps * (skillTotal(spentSkills, 'shieldDamageMod') + skillTotal(spentSkills, 'ordnanceShieldBreak'));
-  const armorBreak = liveWeapons.reduce((sum, weapon) => sum + weaponDps(weapon) * Math.max(0, weapon.armorDamageMod), 0) + (ordnance?.armorDamage ?? 0) + baseDps * (skillTotal(spentSkills, 'armorDamageMod') + skillTotal(spentSkills, 'explosiveArmorBreak'));
-  const rareFind = liveWeapons.reduce((sum, weapon) => sum + weapon.rareDropChanceMod, 0) + skillTotal(spentSkills, 'rareDropChance') + skillTotal(spentSkills, 'postBossDropChance') + gearAffixes(gear, 'rareDropChanceMod').reduce((sum, item) => sum + item.affix.value, 0);
-  const offline = liveWeapons.reduce((sum, weapon) => sum + weapon.offlineEarningsMod, 0) + skillTotal(spentSkills, 'offlineEarnings') + affixContribs(gear, 'offlineEarningsMod', 1, signedPct).reduce((sum, item) => sum + item.value, 0);
-  const scrap = liveWeapons.reduce((sum, weapon) => sum + weapon.scrapYieldMod, 0) + skillTotal(spentSkills, 'scrapYield') + skillTotal(spentSkills, 'autoSalvageBonus') + skillTotal(spentSkills, 'lowRarityScrapBonus') + gearAffixes(gear, 'scrapYieldMod').reduce((sum, item) => sum + item.affix.value, 0);
+  const shieldBreak = mechanics.shieldBreak.value;
+  const armorBreak = mechanics.armorBreak.value;
+  const rareFind = mechanics.lootRareFind.value;
+  const offline = mechanics.offlineEarningModifier.value;
+  const scrap = mechanics.scrapModifier.value;
 
   const healthContribs: StatContribution[] = [
     { source: 'Hunter chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted' },
