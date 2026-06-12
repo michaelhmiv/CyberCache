@@ -11,6 +11,8 @@ import { MONSTERS } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ARCHETYPE_SILHOUETTES, type EnemyArchetype } from '@/components/diorama/EnemySilhouettes';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
+import { MATERIAL_VISUALS, ESSENCE_VISUALS, RESOURCE_VISUALS, GEAR_VISUALS } from '@/constants/visualAssets';
+import { pickResourceSilhouette, type ResourceSilhouetteId } from '@/constants/resourceSilhouettes';
 import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
@@ -27,12 +29,6 @@ interface LiveTurfDioramaProps {
   weapon?: Weapon;
   bossName?: string;
   bossWeaknessCount?: number;
-  /**
-   * Full boss object, when a boss is being prepped. When set, the stat
-   * summary's DPS metric switches to boss-relative (computeLoadoutDps with
-   * the boss's weaknesses applied) and the detail label switches to
-   * "vs {boss.name} ({weakness})".
-   */
   boss?: BossDef;
   playerLevel: number;
   equippedCount: number;
@@ -60,7 +56,6 @@ const enemyLabel = (area: RoamingAreaDef, bossName?: string) => bossName ?? area
 const isImpact = (event?: LiveTurfFeedEvent): event is LiveTurfFeedEvent => !!event && event.id !== 'idle-loop-ready';
 const isLootLike = (event: LiveTurfFeedEvent | undefined): boolean => {
   if (!isImpact(event)) return false;
-  // 'cash' is a resource-only tick, not a real kill. Don't trigger particle effects.
   return event.tone === 'loot' || event.tone === 'cache' || event.tone === 'level' || event.tone === 'kill';
 };
 
@@ -86,6 +81,39 @@ const modeInfo: Record<DioramaMode, { label: string; caption: string; status: st
   marketListing: { label: 'Market', caption: 'working the trade kiosk', status: 'TRADE' },
 };
 
+// ── Drop visual helpers ──────────────────────────────────────────────────────────
+
+/** Parse material type from event label (e.g. "+1 TechFragments" → "TechFragments") */
+const parseDropType = (label: string): string => {
+  const match = label.match(/^\+?\d+\s+(.+)$/);
+  return match ? match[1] : label;
+};
+
+/** Resolve visual asset color for a material or essence drop */
+const dropAssetColor = (typeName: string): string => {
+  const mat = (MATERIAL_VISUALS as Record<string, { color: string }>)[typeName];
+  if (mat) return mat.color;
+  const ess = (ESSENCE_VISUALS as Record<string, { color: string }>)[typeName];
+  if (ess) return ess.color;
+  // Resource colors
+  const res = (RESOURCE_VISUALS as Record<string, { color: string }>)[typeName];
+  if (res) return res.color;
+  return '#A5A7B5'; // fallback gray
+};
+
+/** Determine gear type category from a GearItem for non-weapon drops */
+const gearTypeCategory = (gear: TickEvent['gear']): 'weapon' | 'shield' | 'classMod' | 'relic' | 'ordnance' | 'gear' => {
+  if (!gear) return 'gear';
+  if ('weaponType' in gear) return 'weapon';
+  if ('hp' in gear && 'rechargeRate' in gear) return 'shield';
+  if ('damage' in gear && 'effect' in gear) return 'ordnance';
+  if ('treeBonus' in gear) return 'classMod';
+  if ('affixes' in gear) return 'relic';
+  return 'gear';
+};
+
+// ── Scene Props (unchanged) ──────────────────────────────────────────────────────
+
 const SceneProps: React.FC<{ prop: string; accent: string; dark: string }> = ({ prop, accent, dark }) => {
   const foreground = prop === 'reactor'
     ? <><circle cx="348" cy="88" r="30" fill={accent} opacity="0.22" /><circle cx="348" cy="88" r="15" fill={accent} opacity="0.42" /></>
@@ -106,30 +134,133 @@ const ActivityProp: React.FC<{ mode: DioramaMode; accent: string; dark: string; 
   return null;
 };
 
+// ── Runner (Player Hunter) ───────────────────────────────────────────────────────
+
 const RunnerSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ accent, mode, event, reduced }) => {
   const active = isImpact(event) && !reduced;
   const bench = mode === 'crafting' || mode === 'salvaging' || mode === 'workshopService' || mode === 'marketListing';
   const prep = mode === 'bossPrep';
+  const isDamage = active && event?.tone === 'damage';
+  const isHeal = active && event?.tone === 'heal';
   const leftArm = bench ? 'M83 102 L111 124' : prep ? 'M84 101 L189 92' : mode === 'idle' ? 'M83 101 L72 132' : 'M83 101 L64 119';
   const rightArm = bench ? 'M119 101 L179 123' : prep ? 'M119 101 L184 116' : mode === 'idle' ? 'M119 101 L142 125' : 'M119 101 L151 105';
   const idleMotion = mode === 'roaming' || mode === 'bossFight' ? { x: [0, 5, 0], y: [0, -2, 0] } : { y: [0, -1, 0] };
-  return <motion.g animate={reduced ? undefined : active ? { x: [-3, 5, 0], y: [0, -3, 0], rotate: [0, -1, 0] } : idleMotion} transition={reduced ? undefined : active ? { duration: 0.45 } : { duration: 2.8, repeat: Infinity }}><ellipse cx="104" cy="150" rx="31" ry="7" fill="#000" opacity="0.45" /><path d="M91 86 L118 78 L134 100 L121 130 L91 130 L77 104 Z" fill="#2B2522" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d="M93 91 L116 85 L128 101 L119 121 L94 123 L84 105 Z" fill={accent} opacity="0.38" stroke="#000" strokeWidth="3" /><path d="M92 56 L117 52 L129 66 L124 84 L97 89 L82 75 Z" fill="#B8B0A8" stroke="#000" strokeWidth="5" strokeLinejoin="round" /><path d="M98 63 L122 60 L119 72 L96 76 Z" fill="#050608" stroke="#000" strokeWidth="3" /><path d={leftArm} stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d={rightArm} stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" /><path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" /><path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" /></motion.g>;
+  // Damage reaction: flash red, stagger back
+  const damageAnim = isDamage ? { x: [-8, 2, 0], opacity: [1, 0.4, 1], filter: ['drop-shadow(0 0 0 #FF0000)', 'drop-shadow(0 0 8px #FF0000)', 'drop-shadow(0 0 0 #FF0000)'] } : {};
+  const healAnim = isHeal ? { opacity: [1, 0.7, 1], filter: ['drop-shadow(0 0 0 #7CFC00)', 'drop-shadow(0 0 10px #7CFC00)', 'drop-shadow(0 0 0 #7CFC00)'] } : {};
+  return (
+    <motion.g
+      animate={reduced ? undefined : isDamage ? damageAnim : isHeal ? healAnim : active ? { x: [-3, 5, 0], y: [0, -3, 0], rotate: [0, -1, 0] } : idleMotion}
+      transition={reduced ? undefined : isDamage ? { duration: 0.35 } : isHeal ? { duration: 0.6 } : active ? { duration: 0.45 } : { duration: 2.8, repeat: Infinity }}
+    >
+      <ellipse cx="104" cy="150" rx="31" ry="7" fill="#000" opacity="0.45" />
+      {/* Body */}
+      <path d="M91 86 L118 78 L134 100 L121 130 L91 130 L77 104 Z" fill="#2B2522" stroke="#000" strokeWidth="5" strokeLinejoin="round" />
+      <path d="M93 91 L116 85 L128 101 L119 121 L94 123 L84 105 Z" fill={accent} opacity="0.38" stroke="#000" strokeWidth="3" />
+      {/* Head */}
+      <path d="M92 56 L117 52 L129 66 L124 84 L97 89 L82 75 Z" fill="#B8B0A8" stroke="#000" strokeWidth="5" strokeLinejoin="round" />
+      <path d="M98 63 L122 60 L119 72 L96 76 Z" fill="#050608" stroke="#000" strokeWidth="3" />
+      {/* Arms */}
+      <path d={leftArm} stroke="#000" strokeWidth="8" strokeLinecap="round" />
+      <path d={rightArm} stroke="#000" strokeWidth="8" strokeLinecap="round" />
+      {/* Legs */}
+      <path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" />
+      <path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" />
+      {/* Laser guns */}
+      <path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
+      <path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
+      {/* Damage red overlay */}
+      {isDamage && !reduced && (
+        <motion.rect x="75" y="45" width="62" height="112" rx="4" fill="#FF0000" opacity="0"
+          animate={{ opacity: [0, 0.35, 0] }}
+          transition={{ duration: 0.35 }}
+        />
+      )}
+    </motion.g>
+  );
 };
+
+// ── Integrated Enemy HP Bar (SVG, above enemy) ───────────────────────────────────
+
+const EnemyHpBarSvg: React.FC<{ active: boolean; accentColor: string; enemyX: number; enemyY: number }> = ({ active, accentColor, enemyX, enemyY }) => {
+  const currentHp = useKillCycleStore((state) => state.currentTargetHp);
+  const maxHp = useKillCycleStore((state) => state.currentTargetHpMax);
+  const targetId = useKillCycleStore((state) => state.currentTargetId);
+
+  if (!active || !targetId || maxHp <= 0) return null;
+
+  const ratio = Math.max(0, Math.min(1, currentHp / maxHp));
+  const barWidth = 80;
+  const barHeight = 8;
+  const x = enemyX - barWidth / 2;
+  const y = enemyY - 28;
+
+  return (
+    <motion.g initial={false} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+      {/* Background bar */}
+      <rect x={x} y={y} width={barWidth} height={barHeight} rx="2" fill="#050608" stroke="#2A2F3A" strokeWidth="1.5" />
+      {/* HP fill */}
+      <motion.rect
+        x={x + 1} y={y + 1}
+        width={Math.max(0, (barWidth - 2) * ratio)}
+        height={barHeight - 2}
+        rx="1"
+        fill={accentColor}
+        initial={false}
+        animate={{ width: Math.max(0, (barWidth - 2) * ratio) }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      />
+      {/* HP percentage text */}
+      <text x={enemyX} y={y - 4} textAnchor="middle" fill="#B8B0A8" fontSize="7" fontWeight="900" stroke="#000" strokeWidth="2">
+        {Math.round(ratio * 100)}%
+      </text>
+    </motion.g>
+  );
+};
+
+// ── Enemy Hit Effects (flash + floating damage number) ───────────────────────────
+
+const EnemyHitEffects: React.FC<{ event?: LiveTurfFeedEvent; enemyX: number; enemyY: number; reduced: boolean }> = ({ event, enemyX, enemyY, reduced }) => {
+  if (!event || reduced) return null;
+  // Hit events from kill cycle use tone 'loot' with damage label
+  const isHit = event.tone === 'loot' && event.label?.startsWith('-') && (event.value ?? 0) > 0;
+  if (!isHit) return null;
+  const dmg = event.value ?? 0;
+
+  return (
+    <motion.g
+      initial={{ opacity: 0, y: 0 }}
+      animate={{ opacity: [0, 1, 0], y: [0, -20, -35] }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+    >
+      {/* Hit flash circle on enemy */}
+      <circle cx={enemyX} cy={enemyY} r="18" fill="#FFFFFF" opacity="0.3" />
+      <circle cx={enemyX} cy={enemyY} r="12" fill="none" stroke="#FFFFFF" strokeWidth="2" opacity="0.6" />
+      {/* Floating damage number */}
+      <text x={enemyX} y={enemyY - 12} textAnchor="middle" fill="#FFEA3A" fontSize="16" fontWeight="900" stroke="#000" strokeWidth="3">
+        -{dmg}
+      </text>
+    </motion.g>
+  );
+};
+
+// ── Enemy SVG (monster) ──────────────────────────────────────────────────────────
 
 const EnemySvg: React.FC<{ color: string; glow: string; archetype: EnemyArchetype; boss: boolean; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ color, glow, archetype, boss, mode, event, reduced }) => {
   if (mode !== 'roaming' && mode !== 'bossFight') return null;
   const silhouette = ARCHETYPE_SILHOUETTES[boss ? 'elite' : archetype];
   const active = isImpact(event) && !reduced;
   const isKill = active && event?.tone === 'kill';
+  const isHit = active && event?.tone === 'loot' && event?.label?.startsWith('-') && (event?.value ?? 0) > 0;
   const scale = silhouette.baseScale * (boss ? 1.3 : 1.0);
   return (
     <motion.g
-      animate={reduced ? undefined : isKill ? { opacity: [1, 0.9, 0], scale: [1, 1.2, 0.3], x: [0, 10, 0], y: [0, -5, 10] } : active ? { x: [0, 9, -4, 0], scale: [1, 0.98, 1.02, 1] } : { x: [0, -5, 0], y: [0, 2, 0] }}
-      transition={reduced ? undefined : isKill ? { duration: 0.4 } : active ? { duration: 0.48 } : { duration: 2.2, repeat: Infinity }}
+      animate={reduced ? undefined : isKill ? { opacity: [1, 0.9, 0], scale: [1, 1.2, 0.3], x: [0, 10, 0], y: [0, -5, 10] } : isHit ? { x: [0, 4, -2, 0], scale: [1, 0.94, 1.02, 1] } : active ? { x: [0, 9, -4, 0], scale: [1, 0.98, 1.02, 1] } : { x: [0, -5, 0], y: [0, 2, 0] }}
+      transition={reduced ? undefined : isKill ? { duration: 0.4 } : isHit ? { duration: 0.2 } : active ? { duration: 0.48 } : { duration: 2.2, repeat: Infinity }}
     >
       <ellipse cx="320" cy="151" rx={32 * scale} ry="8" fill="#000" opacity="0.48" />
       <path d={silhouette.bodyOuter} fill="#161116" stroke="#000" strokeWidth="6" strokeLinejoin="round" />
-      <path d={silhouette.bodyInner} fill={color} opacity="0.6" stroke="#000" strokeWidth="3" strokeLinejoin="round" />
+      <path d={silhouette.bodyInner} fill={isHit && !reduced ? '#FFFFFF' : color} opacity={isHit && !reduced ? 0.9 : 0.6} stroke="#000" strokeWidth="3" strokeLinejoin="round" />
       {silhouette.armorPlates?.map((plate, i) => <path key={`p-${i}`} d={plate} fill={glow} opacity="0.18" stroke="#000" strokeWidth="2" />)}
       {silhouette.limbLeft && <path d={silhouette.limbLeft} stroke="#000" strokeWidth="6" strokeLinecap="round" />}
       {silhouette.limbRight && <path d={silhouette.limbRight} stroke="#000" strokeWidth="6" strokeLinecap="round" />}
@@ -138,74 +269,202 @@ const EnemySvg: React.FC<{ color: string; glow: string; archetype: EnemyArchetyp
   );
 };
 
-// Loot gear icon — shows the actual dropped item rising from the kill site
-const LootDropGear: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
-  if (!event || event.tone !== 'loot' || !event.gear || reduced) return null;
-  const gear = event.gear;
-  const isWeaponDrop = 'weaponType' in gear;
-  const rarityColor = gear.rarity === 'Legendary' ? '#FFEA3A'
-    : gear.rarity === 'Epic' ? '#FF9DF5'
-    : gear.rarity === 'Rare' ? '#5AA7FF'
-    : gear.rarity === 'Uncommon' ? '#7CFC00'
-    : '#A5A7B5';
+// ── Drop Visual Icons (type-specific SVG shapes for non-weapon drops) ────────────
 
-  return (
-    <motion.g
-      initial={{ y: 0, opacity: 0, scale: 0.6 }}
-      animate={{ y: -40, opacity: [0, 1, 1, 0], scale: [0.6, 1, 1, 0.8] }}
-      transition={{ duration: 2.0, ease: 'easeOut', times: [0, 0.15, 0.7, 1] }}
-    >
-      <g transform="translate(320, 100)">
-        {isWeaponDrop ? (
-          <WeaponIllustration
-            weapon={gear as Weapon}
-            size={48}
-            showBadges={false}
-            animate={true}
-          />
-        ) : (
-          /* Non-weapon gear: colored diamond with label */
-          <g>
-            <rect x="-18" y="-18" width="36" height="36" rx="3" fill={rarityColor} fillOpacity="0.25" stroke={rarityColor} strokeWidth="2" transform="rotate(12)" />
-            <text x="0" y="4" textAnchor="middle" fill={rarityColor} fontSize="10" fontWeight="900" stroke="#000" strokeWidth="1.5">
-              {gear.name.slice(0, 4).toUpperCase()}
-            </text>
-          </g>
-        )}
-        {/* Rarity label below the item */}
-        <text x="0" y="35" textAnchor="middle" fill="#FFEA3A" fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
-          {gear.rarity.toUpperCase()}
+/** Renders a distinct SVG icon for each drop type: material, essence, fragment, scrap, credits */
+const DropVisualIcon: React.FC<{ tone: string; label: string; x: number; y: number; size?: number }> = ({ tone, label, x, y, size = 28 }) => {
+  const half = size / 2;
+  const color = dropAssetColor(parseDropType(label));
+
+  // Helper to pick a deterministic silhouette variant
+  const pickSil = (resourceId: string) => {
+    const seed = label.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+    return pickResourceSilhouette(resourceId as ResourceSilhouetteId, seed);
+  };
+
+  if (tone === 'material') {
+    // Crystal / gem shape for materials
+    return (
+      <g transform={`translate(${x}, ${y})`}>
+        <rect x={-half + 2} y={-half + 2} width={size - 4} height={size - 4} rx="3" fill={color} fillOpacity="0.3" stroke={color} strokeWidth="2" />
+        <path d={`M${-half + 6} 0L0 ${-half + 6}L${half - 6} 0L0 ${half - 6}Z`} fill={color} stroke="#000" strokeWidth="1.5" />
+        <text x="0" y={half + 10} textAnchor="middle" fill={color} fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
+          {parseDropType(label).slice(0, 4).toUpperCase()}
         </text>
       </g>
-    </motion.g>
+    );
+  }
+
+  if (tone === 'essence') {
+    // Glowing orb / droplet for essences
+    return (
+      <g transform={`translate(${x}, ${y})`}>
+        <circle cx="0" cy="0" r={half - 2} fill={color} fillOpacity="0.35" stroke={color} strokeWidth="2" />
+        <circle cx="0" cy="0" r={half - 6} fill={color} fillOpacity="0.7" />
+        <circle cx={-half * 0.3} cy={-half * 0.3} r="2.5" fill="#FFFFFF" opacity="0.7" />
+        <text x="0" y={half + 10} textAnchor="middle" fill={color} fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
+          {parseDropType(label).slice(0, 4).toUpperCase()}
+        </text>
+      </g>
+    );
+  }
+
+  if (tone === 'fragment') {
+    // Key shard for cache fragments
+    const sil = pickSil('cacheFragment');
+    return (
+      <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
+        <path d={sil.body} fill="#2196F3" fillOpacity="0.8" stroke="#000" strokeWidth="1.5" />
+        {sil.core && <path d={sil.core} fill="#90CAF9" opacity="0.6" />}
+        <text x="0" y={half + 10} textAnchor="middle" fill="#2196F3" fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
+          FRAG
+        </text>
+      </g>
+    );
+  }
+
+  if (tone === 'cash') {
+    // If label contains "scrap", show scrap icon; otherwise credits
+    const isScrap = label.toLowerCase().includes('scrap');
+    if (isScrap) {
+      const sil = pickSil('scrap');
+      return (
+        <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
+          <path d={sil.body} fill="#FF5722" fillOpacity="0.8" stroke="#000" strokeWidth="1.5" />
+          {sil.core && <path d={sil.core} fill="#FF8A65" opacity="0.5" />}
+        </g>
+      );
+    }
+    // Credits coin
+    const sil = pickSil('credits');
+    return (
+      <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
+        <path d={sil.body} fill="#FFD700" fillOpacity="0.85" stroke="#000" strokeWidth="1.5" />
+        {sil.core && <path d={sil.core} fill="#FFA000" opacity="0.5" />}
+      </g>
+    );
+  }
+
+  // Default: loot crate
+  const sil = pickSil('loot');
+  return (
+    <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
+      <path d={sil.body} fill={color} fillOpacity="0.7" stroke="#000" strokeWidth="1.5" />
+    </g>
   );
 };
 
+// ── Loot Drop Gear — shows the actual dropped item rising from the kill site ─────
+
+const LootDropGear: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
+  if (!event || reduced) return null;
+
+  // Weapon / gear drops — use WeaponIllustration for weapons, gear-type icon for others
+  if (event.tone === 'loot' && event.gear) {
+    const gear = event.gear;
+    const isWeaponDrop = 'weaponType' in gear;
+    const rarityColor = gear.rarity === 'Legendary' ? '#FFEA3A'
+      : gear.rarity === 'Epic' ? '#FF9DF5'
+      : gear.rarity === 'Rare' ? '#5AA7FF'
+      : gear.rarity === 'Uncommon' ? '#7CFC00'
+      : '#A5A7B5';
+    const gearCat = gearTypeCategory(gear);
+    const gearVis = (GEAR_VISUALS as Record<string, { color: string; label: string }>)[gearCat];
+
+    return (
+      <motion.g
+        initial={{ y: 0, opacity: 0, scale: 0.6 }}
+        animate={{ y: -40, opacity: [0, 1, 1, 0], scale: [0.6, 1, 1, 0.8] }}
+        transition={{ duration: 2.0, ease: 'easeOut', times: [0, 0.15, 0.7, 1] }}
+      >
+        <g transform="translate(320, 100)">
+          {isWeaponDrop ? (
+            <WeaponIllustration
+              weapon={gear as Weapon}
+              size={48}
+              showBadges={false}
+              animate={true}
+            />
+          ) : (
+            /* Non-weapon gear: gear-type colored hex with icon label */
+            <g>
+              <polygon
+                points="0,-20 18,-10 18,10 0,20 -18,10 -18,-10"
+                fill={gearVis?.color ?? '#A5A7B5'}
+                fillOpacity="0.25"
+                stroke={gearVis?.color ?? '#A5A7B5'}
+                strokeWidth="2"
+              />
+              <text x="0" y="4" textAnchor="middle" fill={rarityColor} fontSize="9" fontWeight="900" stroke="#000" strokeWidth="2">
+                {gearCat.toUpperCase().slice(0, 4)}
+              </text>
+            </g>
+          )}
+          {/* Rarity label */}
+          <text x="0" y="38" textAnchor="middle" fill={rarityColor} fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
+            {gear.rarity.toUpperCase()}
+          </text>
+        </g>
+      </motion.g>
+    );
+  }
+
+  // Material / Essence / Fragment / Cash drops — show type-specific icon
+  if (event.tone === 'material' || event.tone === 'essence' || event.tone === 'fragment' || event.tone === 'cash') {
+    return (
+      <motion.g
+        initial={{ y: 0, opacity: 0, scale: 0.5 }}
+        animate={{ y: -35, opacity: [0, 1, 1, 0], scale: [0.5, 1.1, 1, 0.7] }}
+        transition={{ duration: 1.8, ease: 'easeOut', times: [0, 0.2, 0.65, 1] }}
+      >
+        <DropVisualIcon tone={event.tone} label={event.label} x={320} y={105} size={34} />
+      </motion.g>
+    );
+  }
+
+  return null;
+};
+
+// ── Loot Particles — type-specific burst particles ───────────────────────────────
+
 const LootParticles: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
   if (!isLootLike(event) || reduced) return null;
-  const count = event?.tone === 'kill' ? 6 : event?.tone === 'loot' ? 5 : 4;
-  const colors = event?.tone === 'loot' ? ['#FF9000', '#FFEA3A', '#FF9000', '#FFEA3A', '#FFD700']
-    : event?.tone === 'cash' ? ['#00BCD4', '#80DEEA', '#00BCD4']
-    : ['#FF5722', '#FF8A65', '#FFEA3A', '#76FF03'];
+  const tone = event?.tone ?? 'kill';
+
+  // Color schemes per event type
+  const colorSchemes: Record<string, string[]> = {
+    kill: ['#FF5722', '#FF8A65', '#FFEA3A', '#76FF03'],
+    loot: ['#FF9000', '#FFEA3A', '#FFD700', '#FFA000', '#FFC107'],
+    cache: ['#00BCD4', '#80DEEA', '#4DD0E1', '#00ACC1'],
+    cash: ['#FFD700', '#FFA000', '#FF8F00', '#FFC107'],
+    level: ['#E040FB', '#EA80FC', '#CE93D8', '#BA68C8'],
+  };
+  const count = tone === 'kill' ? 7 : tone === 'loot' ? 6 : 5;
+  const colors = colorSchemes[tone] ?? colorSchemes.kill;
+
   return (
     <motion.g>
       {Array.from({ length: count }).map((_, i) => {
-        const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
-        const dist = 25 + Math.random() * 40;
+        // Deterministic pseudo-random values from event id + particle index
+        const seed = (event?.id ?? '').split('').reduce((s, c) => s + c.charCodeAt(0), i * 7);
+        const phi = (seed * 2654435761) % 1000000 / 1000000; // golden-ratio hash
+        const angle = (i / count) * Math.PI * 2 + (phi - 0.5) * 0.6;
+        const dist = 20 + (phi * 1000 % 1) * 45;
         const dx = Math.cos(angle) * dist;
         const dy = Math.sin(angle) * dist - 15;
         const color = colors[i % colors.length];
         const shape = i % 4;
+        const dur = 0.45 + (phi * 100 % 1) * 0.35;
         return (
           <motion.g key={`lp-${i}`}
             initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-            animate={{ x: dx, y: dy, opacity: 0, scale: 0.15 }}
-            transition={{ duration: 0.5 + Math.random() * 0.3, ease: 'easeOut' }}
+            animate={{ x: dx, y: dy, opacity: 0, scale: 0.12 }}
+            transition={{ duration: dur, ease: 'easeOut' }}
           >
-            {shape === 0 && <rect x="-4" y="-4" width="8" height="8" fill={color} stroke="#000" strokeWidth="1.5" transform="rotate(45)" />}
-            {shape === 1 && <circle cx="0" cy="0" r="4" fill={color} stroke="#000" strokeWidth="1.5" />}
-            {shape === 2 && <path d="M0 -5L5 3L-5 3Z" fill={color} stroke="#000" strokeWidth="1.5" />}
-            {shape === 3 && <path d="M-5 0L0 -5L5 0L0 5Z" fill={color} stroke="#000" strokeWidth="1.5" />}
+            {shape === 0 && <rect x="-5" y="-5" width="10" height="10" fill={color} stroke="#000" strokeWidth="1.5" transform="rotate(45)" />}
+            {shape === 1 && <circle cx="0" cy="0" r="5" fill={color} stroke="#000" strokeWidth="1.5" />}
+            {shape === 2 && <path d="M0 -6L6 4L-6 4Z" fill={color} stroke="#000" strokeWidth="1.5" />}
+            {shape === 3 && <path d="M-6 0L0 -6L6 0L0 6Z" fill={color} stroke="#000" strokeWidth="1.5" />}
           </motion.g>
         );
       })}
@@ -213,12 +472,12 @@ const LootParticles: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> =
   );
 };
 
-/** Player damage flash — shows a red screen flash and floating damage number
- *  when the hunter takes damage in roaming/boss modes. */
+// ── Player Damage Flash ──────────────────────────────────────────────────────────
+
 const PlayerDamageFlash: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean; eventActive: boolean }> = ({ event, reduced, eventActive }) => {
   if (reduced) return null;
   if (!event || event.tone !== 'damage') return null;
-  if (!eventActive) return null; // Only animate on the latest event
+  if (!eventActive) return null;
 
   const damageValue = event.value ?? 0;
   return (
@@ -227,28 +486,113 @@ const PlayerDamageFlash: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean;
       animate={{ opacity: [0, 1, 0], scale: [0.8, 1.2, 1], y: [0, -30, -50] }}
       transition={{ duration: 0.8, ease: 'easeOut' }}
     >
-      {/* Red screen flash overlay */}
-      <rect x="0" y="0" width="420" height="286" fill="#FF0000" opacity="0.15" />
-      {/* Floating damage number near runner (x~104, y~100) */}
-      <text x="104" y="90" textAnchor="middle" fill="#FF4444" fontSize="18" fontWeight="900" stroke="#000" strokeWidth="3">
+      {/* Red vignette overlay */}
+      <rect x="0" y="0" width="420" height="286" fill="#FF0000" opacity="0.12" />
+      {/* Damage number near runner */}
+      <text x="104" y="90" textAnchor="middle" fill="#FF4444" fontSize="20" fontWeight="900" stroke="#000" strokeWidth="3">
         -{damageValue}
       </text>
-      {/* Small hit spark at runner position */}
-      <circle cx="104" cy="100" r="8" fill="#FF4444" opacity="0.6" />
-      <circle cx="104" cy="100" r="12" fill="none" stroke="#FF4444" strokeWidth="2" opacity="0.8" />
+      {/* Hit spark at runner position */}
+      <circle cx="104" cy="100" r="10" fill="#FF4444" opacity="0.5" />
+      <circle cx="104" cy="100" r="15" fill="none" stroke="#FF4444" strokeWidth="2" opacity="0.7" />
+      <path d="M96 92 L112 108 M112 92 L96 108" stroke="#FF4444" strokeWidth="1.5" opacity="0.6" />
     </motion.g>
   );
 };
+
+// ── Scrap SVG ────────────────────────────────────────────────────────────────────
 
 const ScrapSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ accent, mode, event, reduced }) => {
   if (mode !== 'salvaging' && !isLootLike(event)) return null;
   return <motion.g initial={!reduced && isLootLike(event) ? { y: 8, opacity: 0, scale: 0.86 } : undefined} animate={!reduced && isLootLike(event) ? { y: [8, -10, -4], opacity: [0, 1, 0.92], scale: [0.86, 1.08, 1] } : undefined}><path d="M199 134 L214 130 L226 140 L215 151 L198 148 Z" fill="#A5A7B5" stroke="#000" strokeWidth="4" /><path d="M223 122 L236 125 L235 141 L220 139 Z" fill={accent} opacity="0.78" stroke="#000" strokeWidth="3" /></motion.g>;
 };
 
-const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ projectile, mode, event, reduced }) => {
+// ── Weapon-Specific Projectile ───────────────────────────────────────────────────
+
+const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; weaponType?: WeaponType; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ projectile, weaponType, mode, event, reduced }) => {
   if ((mode !== 'roaming' && mode !== 'bossFight') || !isImpact(event)) return null;
-  return <motion.g initial={reduced ? undefined : { opacity: 0, x: -8 }} animate={reduced ? undefined : { opacity: [0, 1, 0], x: [-8, 18, 34] }} transition={reduced ? undefined : { duration: 0.48, ease: 'linear' }}><path d="M162 106 L260 105" stroke="#000" strokeWidth="9" strokeLinecap="round" opacity="0.55" /><path d="M162 106 L260 105" stroke={projectile.color} strokeWidth="4" strokeLinecap="round" /><circle cx="265" cy="105" r="7" fill={projectile.glow} stroke="#000" strokeWidth="3" /></motion.g>;
+
+  // Weapon-type-specific projectile shapes
+  const renderProjectile = () => {
+    switch (weaponType) {
+      case WeaponType.Shotgun:
+        // Spread of 5 pellets
+        return (
+          <motion.g initial={reduced ? undefined : { opacity: 0 }} animate={reduced ? undefined : { opacity: [0, 1, 0] }} transition={reduced ? undefined : { duration: 0.48, times: [0, 0.3, 1] }}>
+            {[-8, -4, 0, 4, 8].map((spread, i) => (
+              <circle key={i} cx={265 + spread * 2} cy={105 + spread} r="3" fill={projectile.glow} stroke="#000" strokeWidth="2" />
+            ))}
+            <path d="M162 106 L255 105" stroke="#000" strokeWidth="7" strokeLinecap="round" opacity="0.5" />
+            <path d="M162 106 L255 105" stroke={projectile.color} strokeWidth="3" strokeLinecap="round" opacity="0.8" />
+          </motion.g>
+        );
+
+      case WeaponType.Sniper:
+        // Long thin precision beam
+        return (
+          <motion.g initial={reduced ? undefined : { opacity: 0, x: -4 }} animate={reduced ? undefined : { opacity: [0, 1, 0.8, 0], x: [-4, 8, 20, 34] }} transition={reduced ? undefined : { duration: 0.35, times: [0, 0.2, 0.6, 1] }}>
+            <path d="M162 106 L268 105" stroke="#000" strokeWidth="6" strokeLinecap="round" opacity="0.55" />
+            <path d="M162 106 L268 105" stroke={projectile.color} strokeWidth="2" strokeLinecap="round" />
+            <circle cx="268" cy="105" r="5" fill={projectile.glow} stroke="#000" strokeWidth="2.5" />
+          </motion.g>
+        );
+
+      case WeaponType.Launcher:
+        // Large rocket shape
+        return (
+          <motion.g initial={reduced ? undefined : { opacity: 0, x: -8 }} animate={reduced ? undefined : { opacity: [0, 1, 0], x: [-8, 16, 36], rotate: [0, 5, -5] }} transition={reduced ? undefined : { duration: 0.65, times: [0, 0.35, 1] }}>
+            <path d="M162 106 L258 105" stroke="#000" strokeWidth="8" strokeLinecap="round" opacity="0.5" />
+            <path d="M162 106 L258 105" stroke={projectile.color} strokeWidth="5" strokeLinecap="round" />
+            <circle cx="262" cy="105" r="9" fill={projectile.glow} stroke="#000" strokeWidth="3" />
+            <path d="M268 105 L276 101 M268 105 L276 109 M272 105 L280 105" stroke="#FFEA3A" strokeWidth="2" strokeLinecap="round" />
+          </motion.g>
+        );
+
+      case WeaponType.Beam:
+        // Continuous laser beam
+        return (
+          <motion.g initial={reduced ? undefined : { opacity: 0 }} animate={reduced ? undefined : { opacity: [0, 1, 0.5, 0] }} transition={reduced ? undefined : { duration: 0.5, times: [0, 0.1, 0.6, 1] }}>
+            <path d="M162 106 L272 105" stroke="#000" strokeWidth="10" strokeLinecap="round" opacity="0.4" />
+            <path d="M162 106 L272 105" stroke={projectile.glow} strokeWidth="4" strokeLinecap="round" opacity="0.9" />
+            <path d="M162 106 L272 105" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />
+            <circle cx="272" cy="105" r="6" fill="#FFFFFF" stroke={projectile.glow} strokeWidth="3" />
+          </motion.g>
+        );
+
+      case WeaponType.SMG:
+        // Burst of 3 dots
+        return (
+          <motion.g>
+            {[0, 1, 2].map((burst, i) => (
+              <motion.g key={i}
+                initial={reduced ? undefined : { opacity: 0, x: -4 }}
+                animate={reduced ? undefined : { opacity: [0, 1, 0], x: [-4, 14 + i * 8, 28 + i * 8] }}
+                transition={reduced ? undefined : { duration: 0.4, delay: i * 0.08, times: [0, 0.5, 1] }}
+              >
+                <circle cx="265" cy={105} r="3.5" fill={projectile.glow} stroke="#000" strokeWidth="2" />
+              </motion.g>
+            ))}
+            <path d="M162 106 L258 105" stroke="#000" strokeWidth="6" strokeLinecap="round" opacity="0.45" />
+            <path d="M162 106 L258 105" stroke={projectile.color} strokeWidth="2.5" strokeLinecap="round" opacity="0.7" />
+          </motion.g>
+        );
+
+      default:
+        // Pistol / default: single bullet
+        return (
+          <motion.g initial={reduced ? undefined : { opacity: 0, x: -8 }} animate={reduced ? undefined : { opacity: [0, 1, 0], x: [-8, 18, 34] }} transition={reduced ? undefined : { duration: 0.48, ease: 'linear' }}>
+            <path d="M162 106 L260 105" stroke="#000" strokeWidth="9" strokeLinecap="round" opacity="0.55" />
+            <path d="M162 106 L260 105" stroke={projectile.color} strokeWidth="4" strokeLinecap="round" />
+            <circle cx="265" cy="105" r="7" fill={projectile.glow} stroke="#000" strokeWidth="3" />
+          </motion.g>
+        );
+    }
+  };
+
+  return renderProjectile();
 };
+
+// ── Target HP Overlay (HTML, kept for accessibility but SVG version is primary) ──
 
 const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ active, accentColor }) => {
   const currentHp = useKillCycleStore((state) => state.currentTargetHp);
@@ -279,7 +623,7 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ a
   );
 };
 
-/** Boss HP overlay for live boss fights. Reads from the boss store. */
+/** Boss HP overlay for live boss fights. */
 const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ active, accentColor }) => {
   const bossHp = useBossStore((state) => state.activeBossHp);
   const bossMaxHp = useBossStore((state) => state.activeBossMaxHp);
@@ -317,6 +661,8 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ act
   );
 };
 
+// ── Main Diorama Component ───────────────────────────────────────────────────────
+
 export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, boss, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
   const player = usePlayerStore();
@@ -324,14 +670,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const skills = useSkillStore();
   const hunterCurrentHp = useSurvivalStore((state) => state.currentHp);
   const hunterMaxHp = useSurvivalStore((state) => state.maxHp);
-  // Single source of truth: the diorama reads the latest tick event from the
-  // shared tick feed store, not from a prop. The animation is a pure read.
   const latestEvent = useTickFeedStore((state) => state.events[0]);
-  // The diorama's stat math must use the same weapons as the animation. The
-  // animation uses the `weapon` prop (which already falls back to the
-  // strongest inventory weapon in the Dashboard), so the stat math needs the
-  // same set. We de-dupe by id and lead with the displayed weapon so its
-  // contributions show first in the source breakdown.
   const primaryWeapon = loadout.getWeapon('primary');
   const secondaryWeapon = loadout.getWeapon('secondary');
   const heavyWeapon = loadout.getWeapon('heavy');
@@ -362,6 +701,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const secondaryDetail = secondaryActionDetail ?? (bossName ? `${bossWeaknessCount} weakness tags` : `${cacheKeys} keys ready`);
   const titleBlock = <div className="min-w-0 border-2 border-border bg-surface/90 px-2 py-1.5 text-left shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="flex items-center gap-1"><div className="min-w-0 flex-1"><div className="truncate bl-title text-2xl leading-none text-text-primary">{title}</div><div className="truncate text-[8px] font-black uppercase tracking-[0.18em] text-text-muted">{activityLabel || copy.caption}</div></div>{onTitleClick && <ChevronDown size={16} className="shrink-0 text-amber animate-bounce" />}</div></div>;
 
+  // Enemy center position (where the archetype center is)
+  const enemyX = 320;
+  const enemyY = 100;
+
   return (
     <section className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 420 286" role="img" aria-label={`${copy.label} activity visualization`}>
@@ -372,22 +715,27 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <path d="M20 165 L106 154 L179 162 L258 153 L397 161" fill="none" stroke="#000" strokeWidth="5" opacity="0.42" />
         <SceneProps prop={scene.prop} accent={scene.accent} dark={scene.groundDark} />
         <ActivityProp mode={mode} accent={scene.accent} dark={scene.groundDark} event={latestEvent} reduced={reduced} />
-        <ProjectileTape projectile={projectile} mode={mode} event={latestEvent} reduced={reduced} />
+        <ProjectileTape projectile={projectile} weaponType={weapon?.weaponType} mode={mode} event={latestEvent} reduced={reduced} />
         <ScrapSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
         <RunnerSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
         <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} archetype="runner" boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
+        {/* SVG HP bar integrated above enemy */}
+        <EnemyHpBarSvg active={activityKind === 'roaming_loot'} accentColor={scene.accent} enemyX={enemyX} enemyY={enemyY} />
+        {/* Hit flash + damage numbers on enemy */}
+        <EnemyHitEffects event={latestEvent} enemyX={enemyX} enemyY={enemyY} reduced={reduced} />
+        {/* Drop visuals — gear, materials, essences, fragments, scrap, credits */}
         <LootDropGear event={latestEvent} reduced={reduced} />
+        {/* Particle burst */}
         <LootParticles event={latestEvent} reduced={reduced} />
+        {/* Player damage flash (screen-wide red overlay) */}
         <PlayerDamageFlash event={latestEvent} reduced={reduced} eventActive={eventActive} />
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
+      {/* HTML overlays for boss HP and detailed target info */}
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
       <BossHpOverlay active={activityKind === 'boss_fight' || activityKind === 'boss_prep'} accentColor={scene.accent} />
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
-        {/* Duplicate `LV {playerLevel}` chip removed per PR #4 §6.3. The
-            level is already prominent in the Level Strip panel above. The
-            gear count is the only relevant info that lives here. */}
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
       </div>
       <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${eventActive ? latestEvent?.id : mode}`} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44 } : undefined}><WeaponIllustration weapon={weapon} type={fallbackType(area)} manufacturer={fallbackMaker(area)} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
