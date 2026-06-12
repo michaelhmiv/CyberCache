@@ -6,6 +6,7 @@ import { useSkillStore } from '@/store/slices/skillSlice';
 import { RiskSetting } from '@/types/game';
 import type { BossAttemptResult } from '@/types/boss';
 import type { GearItem } from '@/types/items';
+import type { ConsumableBatch } from '@/types/player';
 import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
 
 export type RuntimeProfilePayload = {
@@ -19,6 +20,7 @@ export type RuntimeProfilePayload = {
   materials?: Record<string, number>;
   essences?: Record<string, number>;
   consumables?: Record<string, number>;
+  consumable_batches?: ConsumableBatch[];
   skill_spends?: Record<string, number>;
   boss_state?: Record<string, unknown>;
   last_idle_claim_at?: string;
@@ -51,6 +53,32 @@ function recordValue(value: unknown): Record<string, number> | undefined {
     if (Number.isFinite(parsed)) result[key] = parsed;
   });
   return result;
+}
+
+function consumableBatchArrayValue(value: unknown): ConsumableBatch[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+    const raw = entry as Record<string, unknown>;
+    const id = typeof raw.id === 'string' ? raw.id : '';
+    const consumableType = typeof raw.consumable_type === 'string' ? raw.consumable_type : '';
+    const quality = Number(raw.quality_percent);
+    const quantity = Number(raw.quantity);
+    const origin = typeof raw.origin === 'string' ? raw.origin : 'vendor';
+    if (!id || !consumableType || !Number.isFinite(quality) || !Number.isFinite(quantity)) return [];
+    return [{
+      id,
+      consumable_type: consumableType,
+      quality_percent: quality,
+      quantity,
+      origin: origin === 'crafted' || origin === 'market' || origin === 'reward' ? origin : 'vendor',
+      creator_user_id: typeof raw.creator_user_id === 'string' ? raw.creator_user_id : null,
+      source_recipe_id: typeof raw.source_recipe_id === 'string' ? raw.source_recipe_id : null,
+      metadata: raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata) ? raw.metadata as Record<string, unknown> : {},
+      created_at: typeof raw.created_at === 'string' ? raw.created_at : undefined,
+      updated_at: typeof raw.updated_at === 'string' ? raw.updated_at : undefined,
+    } satisfies ConsumableBatch];
+  });
 }
 
 function stringArrayValue(value: unknown): string[] | undefined {
@@ -120,6 +148,7 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
     materials: profile.materials ?? player.materials,
     essences: profile.essences ?? player.essences,
     consumables: profile.consumables ?? player.consumables,
+    consumableBatches: consumableBatchArrayValue(profile.consumable_batches) ?? player.consumableBatches,
     lastClaimTime: timestampValue(profile.last_idle_claim_at, player.lastClaimTime),
     lastClaimedTick: numberValue(profile.last_claimed_tick, player.lastClaimedTick),
   });
