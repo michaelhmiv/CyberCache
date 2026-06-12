@@ -1,5 +1,5 @@
 import { useInventoryStore } from '@/store/slices/inventorySlice';
-import { useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
+import { applyAuthoritativeLoadoutSlots, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { supabase } from './client';
 import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
 
@@ -33,9 +33,8 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
     if (slot) serverSlots[slot] = row.id;
   });
 
-  // item_instances is the ownership ledger. Do not preserve local-only items
-  // across authenticated hydration; generated items must arrive through Chef/RPC
-  // persistence before becoming inventory truth.
+  // item_instances is the ownership and loadout authority. Do not preserve
+  // stale local slots when the server has no equipped item for that slot.
   useInventoryStore.getState().setItems(serverItems);
-  useLoadoutStore.setState((state) => ({ slots: { ...state.slots, ...serverSlots } }));
+  applyAuthoritativeLoadoutSlots(serverSlots);
 }
