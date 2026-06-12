@@ -17,6 +17,7 @@ import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
 import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import type { Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
@@ -174,6 +175,8 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
     { label: 'Keys', value: `${player.cacheKeys}+${player.cacheKeyFragments}`, tone: 'text-purple' as const },
   ], [player.credits, player.scrap, player.cacheKeys, player.cacheKeyFragments, inventory.items.length]);
 
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pickerSlot, setPickerSlot] = useState<LoadoutSlot | null>(null);
 
   const toggle = useCallback(() => {
@@ -184,19 +187,33 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
     });
   }, []);
 
-  const onEquip = useCallback((itemId: string) => {
-    if (pickerSlot) {
-      loadout.setSlot(pickerSlot, itemId);
+  const onEquip = useCallback(async (itemId: string) => {
+    if (!pickerSlot) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await verifiedOps.equipItem(itemId, pickerSlot);
       setPickerSlot(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update loadout.');
+    } finally {
+      setBusy(false);
     }
-  }, [pickerSlot, loadout, setPickerSlot]);
+  }, [pickerSlot]);
 
-  const onUnequip = useCallback(() => {
-    if (pickerSlot) {
-      loadout.setSlot(pickerSlot, null);
+  const onUnequip = useCallback(async () => {
+    if (!pickerSlot) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await verifiedOps.unequipSlot(pickerSlot);
       setPickerSlot(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to clear slot.');
+    } finally {
+      setBusy(false);
     }
-  }, [pickerSlot, loadout, setPickerSlot]);
+  }, [pickerSlot]);
 
   const currentItemId = pickerSlot ? loadout.slots[pickerSlot] : null;
 
@@ -307,9 +324,15 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
             onClose={() => setPickerSlot(null)}
             onEquip={onEquip}
             onUnequip={onUnequip}
+            busy={busy}
           />
         )}
       </AnimatePresence>
+
+      {/* Error banner */}
+      {error && (
+        <div className="mt-2 rounded-xl border border-red/30 bg-red/10 p-2 text-xs text-red-light">{error}</div>
+      )}
     </section>
   );
 };

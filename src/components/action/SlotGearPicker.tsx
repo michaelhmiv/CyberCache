@@ -32,8 +32,9 @@ interface SlotGearPickerProps {
   slot: LoadoutSlot;
   currentItemId: string | null;
   onClose: () => void;
-  onEquip: (itemId: string) => void;
-  onUnequip: () => void;
+  onEquip: (itemId: string) => Promise<void>;
+  onUnequip: () => Promise<void>;
+  busy?: boolean;
 }
 
 function isSlotCompatible(item: GearItem, slot: LoadoutSlot): boolean {
@@ -98,7 +99,7 @@ function getItemWeaponType(item: GearItem): string | null {
 }
 
 export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
-  slot, currentItemId, onClose, onEquip, onUnequip,
+  slot, currentItemId, onClose, onEquip, onUnequip, busy = false,
 }) => {
   const inventory = useInventoryStore();
   const allItems = inventory.items;
@@ -345,7 +346,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                 <div className="text-sm font-black text-text-primary truncate">{currentItem.name}</div>
                 <div className="text-[10px] text-amber">{itemSubtext(currentItem)}</div>
               </div>
-              <button type="button" onClick={onUnequip} className="bl-secondary px-2 py-1 text-[9px] font-black text-red shrink-0">
+              <button type="button" onClick={onUnequip} disabled={busy} className="bl-secondary px-2 py-1 text-[9px] font-black text-red shrink-0 disabled:opacity-50">
                 Unequip
               </button>
             </div>
@@ -368,8 +369,9 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                     <button
                       key={item.id}
                       type="button"
+                      disabled={busy}
                       onClick={() => onEquip(item.id)}
-                      className="w-full border-2 border-border bg-surface/90 p-2.5 text-left active:scale-[0.99] transition-transform hover:border-amber/30"
+                      className="w-full border-2 border-border bg-surface/90 p-2.5 text-left active:scale-[0.99] transition-transform hover:border-amber/30 disabled:opacity-50 disabled:scale-100"
                       style={{ ...signClip, borderColor: `${accent}40` }}
                     >
                       <div className="flex items-center justify-between gap-2">

@@ -473,6 +473,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingScrapIds, setPendingScrapIds] = useState<Set<string>>(new Set());
+  const [busyEquip, setBusyEquip] = useState(false);
 
   // Compare
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -617,19 +618,26 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
     });
   };
 
-  const equip = (item: GearItem) => {
-    if (isShield(item)) { loadout.setSlot('shield', item.id); setInspectItem(null); return; }
-    if (isClassMod(item)) { loadout.setSlot('classMod', item.id); setInspectItem(null); return; }
-    if (isOrdnance(item)) { loadout.setSlot('ordnance', item.id); setInspectItem(null); return; }
-    if (isRelic(item)) { loadout.setSlot('relic', item.id); setInspectItem(null); return; }
-    const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
-    const firstEmpty = weaponSlots.find((slot) => !loadout.slots[slot]);
-    if (firstEmpty) {
-      loadout.setSlot(firstEmpty, item.id);
-    } else {
-      onNavigate?.('loadout');
+  const equip = async (item: GearItem) => {
+    setBusyEquip(true);
+    try {
+      if (isShield(item)) { await verifiedOps.equipItem(item.id, 'shield'); setInspectItem(null); return; }
+      if (isClassMod(item)) { await verifiedOps.equipItem(item.id, 'classMod'); setInspectItem(null); return; }
+      if (isOrdnance(item)) { await verifiedOps.equipItem(item.id, 'ordnance'); setInspectItem(null); return; }
+      if (isRelic(item)) { await verifiedOps.equipItem(item.id, 'relic'); setInspectItem(null); return; }
+      const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
+      const firstEmpty = weaponSlots.find((slot) => !loadout.slots[slot]);
+      if (firstEmpty) {
+        await verifiedOps.equipItem(item.id, firstEmpty);
+      } else {
+        onNavigate?.('loadout');
+      }
+      setInspectItem(null);
+    } catch (err) {
+      console.warn('[GearHub] equip failed:', err instanceof Error ? err.message : err);
+    } finally {
+      setBusyEquip(false);
     }
-    setInspectItem(null);
   };
 
   const scrap = async (item: GearItem) => {

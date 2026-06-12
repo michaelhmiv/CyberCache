@@ -17,6 +17,7 @@ import { create } from 'zustand';
 import type { LoadoutSlot, LoadoutConsumables } from './loadoutSlice';
 import { useLoadoutStore } from './loadoutSlice';
 import { useInventoryStore } from './inventorySlice';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
 
 export interface LoadoutPreset {
   id: string;
@@ -37,7 +38,7 @@ export interface LoadoutPresetsState {
   /** Rename a preset. */
   renamePreset: (id: string, name: string) => void;
   /** Load a preset into the active loadout. Marks it as active. */
-  loadPreset: (id: string) => void;
+  loadPreset: (id: string) => Promise<void>;
   /** Overwrite an existing preset with the current loadout state. */
   overwritePreset: (id: string) => void;
   /** Return all presets sorted by updatedAt descending. */
@@ -98,26 +99,30 @@ export const useLoadoutPresetsStore = create<LoadoutPresetsState>()((set, get) =
     }));
   },
 
-  loadPreset: (id) => {
+  loadPreset: async (id) => {
     const preset = get().presets.find((p) => p.id === id);
     if (!preset) return;
 
     const loadout = useLoadoutStore.getState();
     const inventory = useInventoryStore.getState();
 
-    // Validate every item ID in the preset still exists in inventory.
-    // If missing, leave the slot null and warn.
-    const validSlots: Partial<Record<LoadoutSlot, string | null>> = {};
+    // Equip each slot through the server — the server handles deduplication
+    // and returns the canonical state via syncVerifiedResult.
+    const equipPromises: Promise<void>[] = [];
     for (const [slot, itemId] of Object.entries(preset.slots) as [LoadoutSlot, string | null][]) {
-      if (itemId && !inventory.getById(itemId)) {
-        console.warn(`[loadoutPresets] Item ${itemId} (slot ${slot}) not found in inventory — leaving empty.`);
-        validSlots[slot] = null;
-      } else {
-        validSlots[slot] = itemId;
+      if (itemId && inventory.getById(itemId)) {
+        equipPromises.push(
+          verifiedOps.equipItem(itemId, slot).catch((err) => {
+            console.warn(`[loadoutPresets] Failed to equip ${itemId} to ${slot}:`, err instanceof Error ? err.message : err);
+          }),
+        );
+      } else if (itemId) {
+        console.warn(`[loadoutPresets] Item ${itemId} (slot ${slot}) not found in inventory — skipping.`);
       }
     }
+    await Promise.all(equipPromises);
 
-    loadout.setSlots(validSlots);
+    // Consumable slots are local-display-only (not server-verified)
     loadout.setConsumableSlot('PreFight', preset.consumables.PreFight);
     loadout.setConsumableSlot('MidFight', preset.consumables.MidFight);
     loadout.setConsumableSlot('Emergency', preset.consumables.Emergency);

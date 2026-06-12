@@ -195,7 +195,6 @@ export const ChestScreen: React.FC = () => {
     }
     if (!targetSlot) targetSlot = 'primary';
     await verifiedOps.equipItem(item.id, targetSlot);
-    loadout.setSlot(targetSlot, item.id);
     setItemActions((prev) => ({ ...prev, [item.id]: 'equipped' }));
   };
 
