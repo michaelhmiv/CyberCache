@@ -948,7 +948,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
                 <div className="flex items-start justify-between gap-1">
                   {selectMode ? (
                     selected ? <CheckSquare size={14} className="text-amber" /> : <Square size={14} className="text-text-muted" />
-                  ) : equipped ? (
+                  ) : equippedSlot ? (
                     <span className="rounded-full bg-amber px-1.5 py-0.5 text-[7px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>
                   ) : <span />}
                   {item.isLocked && <Lock size={10} className="text-red" />}
