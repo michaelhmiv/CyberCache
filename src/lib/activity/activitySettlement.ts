@@ -116,13 +116,19 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
       feedEvents?: Array<{ at: number; tone: string; label: string; detail: string; areaId: string; value?: number }>;
     } | null = null;
 
+    // Use lastClaimedTick + 1 so the RPC ordering guard passes.
+    // lastClaimedTick was synced from the server profile above; it
+    // reflects what the DB last recorded. tickCount: 0 would always
+    // fail after the first session because last_claimed_tick ≥ 1.
+    const settlementTick = player.lastClaimedTick + 1;
+
     try {
       const { submitClaim } = await import('@/lib/chef/chefClient');
       chefResult = await submitClaim({
         playerId: player.id,
         areaId: area.id,
         ticks,
-        tickCount: 0, // offline settlement — not part of the live tick counter
+        tickCount: settlementTick,
         playerLevel: player.level,
         idleMods,
         skillBonuses,
@@ -131,7 +137,7 @@ export async function settleActiveActivityRewards(options: { userId?: string | n
       console.warn('[activitySettlement] Chef claim failed, trying RPC fallback:', error instanceof Error ? error.message : error);
       try {
         const { verifiedOps } = await import('@/lib/supabase/verifiedOps');
-        const rpcResult = await verifiedOps.claimRoamingRewards({ ticks, areaId: area.id, tickCount: 0 });
+        const rpcResult = await verifiedOps.claimRoamingRewards({ ticks, areaId: area.id, tickCount: settlementTick });
         chefResult = rpcResult as unknown as typeof chefResult;
       } catch (rpcError) {
         console.warn('[activitySettlement] RPC fallback also failed:', rpcError instanceof Error ? rpcError.message : rpcError);
