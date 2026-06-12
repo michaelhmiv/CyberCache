@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { MarketListing, MarketHistoryEntry, MarketFilters } from '@/types/market';
+import type { Listing, MarketHistory as MarketHistoryEntry, MarketFilter as MarketFilters } from '@/types/market';
 import { generateWeapon } from '@/lib/generators/weaponGenerator';
 import { createTickRng } from '@/lib/rng/tickRng';
 
@@ -36,11 +36,12 @@ function generateSeedListings(): MarketListing[] {
     return {
       id: `npc_${i}_${Date.now()}`,
       itemSnapshot: weapon,
-      priceCredits: price,
+      price,
       sellerId: 'npc_vendor',
       sellerName: 'Vault Trader',
       listedAt: Date.now() - Math.floor(rng() * 86_400_000),
-    } satisfies MarketListing;
+      feePaid: 0,
+    } satisfies Listing;
   });
   return weapons;
 }
