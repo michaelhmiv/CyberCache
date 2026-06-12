@@ -19,7 +19,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useActivityStore, useOfflineRecapStore, usePlayerStore } from '@/store';
-import type { SettlementRecap } from '@/lib/activity/activitySettlement';
 
 // Read debug flag at module level
 const DEBUG =
@@ -27,51 +26,41 @@ const DEBUG =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (import.meta as any).env?.VITE_DEBUG_SETTLEMENT === 'true';
 
-interface DiagnosticState {
-  activeAction: string;
-  lastHeartbeat: string | null;
-  lastRoamingSettledAt: string | null;
-  lastClaimedTick: number;
-  lastSettlementResult: string;
-  lastNoopReason: string | null;
-  lastError: string | null;
-  settledTicks: number;
-  timeAway: string;
-  visibleSince: number | null;
-}
-
 export function SettlementDebugOverlay() {
-  if (!DEBUG) return null;
-
+  // Hooks must be called unconditionally — the if (!DEBUG) return null
+  // gate applies only to rendering, not to hook declarations.
   const [visibleSince, setVisibleSince] = useState<number | null>(null);
 
-  // Track visibility
   useEffect(() => {
+    if (!DEBUG) return;
     const handleVisible = () => setVisibleSince(Date.now());
     const handleHidden = () => setVisibleSince(null);
 
-    document.addEventListener('visibilitychange', () => {
+    const onVisibility = () => {
       if (document.hidden) handleHidden();
       else handleVisible();
-    });
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', handleVisible);
 
-    // Initial state
     if (!document.hidden) handleVisible();
 
     return () => {
-      document.removeEventListener('visibilitychange', handleHidden);
+      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', handleVisible);
     };
   }, []);
 
-  // Read store state reactively
   const activity = useActivityStore((s) => s.current);
   const lastSettlement = useOfflineRecapStore((s) => s.lastSettlement);
   const dismissed = useOfflineRecapStore((s) => s.dismissed);
-  const playerLevel = usePlayerStore((s) => s.playerLevel);
+  const playerLevel = usePlayerStore((s) => s.level);
 
-  const diag: DiagnosticState = {
+  // Render gate — only show the overlay when DEBUG is enabled
+  if (!DEBUG) return null;
+
+  const diag = {
     activeAction: activity.kind ?? 'unknown',
     lastHeartbeat: activity.lastHeartbeatAt ?? null,
     lastRoamingSettledAt:
