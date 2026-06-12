@@ -20,6 +20,7 @@
  */
 
 import type { Weapon } from '@/types/items';
+import { getDpsConsumableEffectMap } from '@/constants/consumables';
 
 export interface SignatureMechanicResult {
   /** Multiplicative DPS modifier (1.0 = neutral). */
@@ -98,23 +99,8 @@ export function applySignatureMechanic(
 }
 
 /**
- * Convenience: a flat list of consumable types that affect DPS.
- * Used by the chain's consumables step. The sim passes the full
- * `Record<string, number>` of consumable counts and the chain
- * looks up only the keys in this table.
- *
- * Adding a new DPS-affecting consumable: append its multiplier here
- * AND add a test in `src/test/dpsChain.test.ts`. The list is
- * intentionally hardcoded (not driven by the ConsumableDef table)
- * to keep the chain's contract narrow and the table auditable.
+ * DPS-affecting consumable map, derived from `src/constants/consumables.ts`.
+ * The consumable definition table is the source of truth for new DPS items;
+ * do not add a second hardcoded DPS item list here.
  */
-export const DPS_CONSUMABLE_EFFECTS: Record<string, number> = {
-  // +20% crit ≈ +15% DPS for the fight window
-  TargetPainter: 0.15,
-  // Next 3 shots +100% averaged over 30s ≈ +12%
-  OverchargeStim: 0.12,
-  // Burn DoT ≈ +8% DPS
-  IncendiaryAmmo: 0.08,
-  // +20% boss damage
-  VoidAmmo: 0.20,
-};
+export const DPS_CONSUMABLE_EFFECTS: Record<string, number> = getDpsConsumableEffectMap();
