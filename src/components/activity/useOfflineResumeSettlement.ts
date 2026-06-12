@@ -130,12 +130,15 @@ export function useOfflineResumeSettlement() {
         error instanceof Error ? error.message : error,
       );
     } finally {
+      // Clear the resume window after any attempted settlement so a stale
+      // hiddenSince value cannot retrigger from follow-up focus/pageshow events.
+      hiddenSinceRef.current = null;
       settlingRef.current = false;
     }
   }, [user, loading]);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined') return undefined;
 
     const handleHidden = () => {
       hiddenSinceRef.current = Date.now();
@@ -155,13 +158,15 @@ export function useOfflineResumeSettlement() {
     };
 
     // visibilitychange: primary signal for mobile app switching.
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibilityChange = () => {
       if (document.hidden) {
         handleHidden();
       } else {
         handleVisible();
       }
-    });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // focus: backup signal for desktop/mobile browser tab switching.
     const handleFocus = () => {
@@ -193,8 +198,7 @@ export function useOfflineResumeSettlement() {
     window.addEventListener('pagehide', handlePageHide);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleHidden);
-      document.removeEventListener('visibilitychange', handleVisible);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener('pagehide', handlePageHide);
