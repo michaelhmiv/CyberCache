@@ -23,6 +23,9 @@ import { mountIdleTicker, unmountIdleTicker } from './store';
 import { SalvageToastContainer } from './components/action/SalvageToast';
 import { OfflineRecap } from './components/activity/OfflineRecap';
 import { useOfflineRecapListener } from './components/activity/useOfflineRecapListener';
+import { useOfflineResumeSettlement } from './components/activity/useOfflineResumeSettlement';
+import { useLeaveSignals } from './components/activity/useLeaveSignals';
+import { SettlementDebugOverlay } from './components/activity/SettlementDebugOverlay';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | null;
@@ -59,6 +62,14 @@ function App() {
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
+
+  // Mobile resume settlement: catches app-switch returns where AuthProvider
+  // doesn't fire (page stays mounted, no auth state change).
+  useOfflineResumeSettlement();
+
+  // Best-effort leave signals: saves snapshot + sends heartbeat on pagehide.
+  // NOT required for correctness — server timestamps are authoritative.
+  useLeaveSignals();
 
   // Mount the singleton idle ticker once per authenticated session. The ticker
   // is the single source of truth for roaming rewards: it reads the active
@@ -205,6 +216,7 @@ function App() {
       <DeathOverlay />
       <SalvageToastContainer />
       <OfflineRecap />
+      <SettlementDebugOverlay />
     </div>
   );
 }

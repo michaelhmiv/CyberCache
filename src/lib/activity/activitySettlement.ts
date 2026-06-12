@@ -85,7 +85,15 @@ export async function settleActiveActivityRewards(
       await saveCurrentRuntimeStores(userId);
     }
 
-    // Dispatch recap event for OfflineRecap component to consume.
+    // Write settlement result directly to OfflineRecapStore.
+    // This is the PRIMARY delivery path — the OfflineRecap component
+    // reads from this store. No listener race condition possible.
+    const { useOfflineRecapStore } = await import('@/store/slices/offlineRecapSlice');
+    useOfflineRecapStore.getState().setSettlement(result);
+
+    // Dispatch recap event as secondary notification (debugging, telemetry).
+    // The CustomEvent is NOT the primary delivery path — the store write above is.
+    // Keep this event for backward-compatible listeners and dev diagnostics.
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('cybercache:activity-settled', { detail: result }),
