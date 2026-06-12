@@ -43,6 +43,10 @@ export interface LoadoutState {
   setConsumableSlot: (slot: keyof LoadoutConsumables, type: string | null) => void;
 }
 
+let applyingAuthoritativeLoadoutState = false;
+let persistSequence = 0;
+const latestPersistBySlot: Partial<Record<LoadoutSlot, number>> = {};
+
 const getInventoryItem = (id: string | null): GearItem | undefined => {
   if (!id) return undefined;
   return useInventoryStore.getState().getById(id);
@@ -63,6 +67,51 @@ const isOrdnance = (item: GearItem | undefined): item is Ordnance =>
 const isRelic = (item: GearItem | undefined): item is Relic =>
   !!(item && 'affixes' in item && !isWeapon(item) && !isShield(item) && !isClassMod(item) && !isOrdnance(item));
 
+function applyClassModSideEffects(previousId: string | null, nextId: string | null): void {
+  if (previousId === nextId) return;
+
+  const skillStore = useSkillStore.getState();
+
+  if (previousId) {
+    skillStore.removeClassMod();
+  }
+
+  if (nextId) {
+    const item = getInventoryItem(nextId);
+    if (isClassMod(item)) {
+      skillStore.applyClassMod(item);
+    }
+  }
+}
+
+async function persistVerifiedSlotChange(slot: LoadoutSlot, itemId: string | null, previousId: string | null): Promise<void> {
+  const sequence = ++persistSequence;
+  latestPersistBySlot[slot] = sequence;
+
+  try {
+    const { verifiedOps } = await import('@/lib/supabase/verifiedOps');
+    if (itemId) {
+      await verifiedOps.equipItem(itemId, slot);
+    } else {
+      await verifiedOps.unequipSlot(slot);
+    }
+  } catch (error) {
+    if (latestPersistBySlot[slot] === sequence) {
+      console.warn('[loadout] verified slot mutation failed; rolling back local slot:', error instanceof Error ? error.message : error);
+      applyAuthoritativeLoadoutSlot(slot, previousId);
+    }
+  }
+}
+
+function persistChangedSlots(previous: Record<LoadoutSlot, string | null>, next: Record<LoadoutSlot, string | null>): void {
+  if (applyingAuthoritativeLoadoutState) return;
+
+  (Object.keys(next) as LoadoutSlot[]).forEach((slot) => {
+    if (previous[slot] === next[slot]) return;
+    void persistVerifiedSlotChange(slot, next[slot], previous[slot]);
+  });
+}
+
 export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
   slots: emptySlots,
   consumables: {
@@ -72,49 +121,28 @@ export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
   },
 
   setSlots: (slots) => {
-    // Handle class mod equip / unequip if classMod is in the new slots.
-    if ('classMod' in slots) {
-      const skillStore = useSkillStore.getState();
-      const prevId = get().slots.classMod;
+    const previousSlots = get().slots;
+    const nextSlots = { ...emptySlots, ...slots };
 
-      if (prevId) {
-        skillStore.removeClassMod();
-      }
+    applyClassModSideEffects(previousSlots.classMod, nextSlots.classMod);
 
-      const newClassModId = slots.classMod;
-      if (newClassModId) {
-        const item = getInventoryItem(newClassModId);
-        if (isClassMod(item)) {
-          skillStore.applyClassMod(item);
-        }
-      }
-    }
-
-    set({ slots: { ...emptySlots, ...slots } });
+    set({ slots: nextSlots });
+    persistChangedSlots(previousSlots, nextSlots);
   },
 
   setSlot: (slot, itemId) => {
     const prevId = get().slots[slot];
+    if (prevId === itemId) return;
 
-    // Handle class mod equip / unequip side effects.
     if (slot === 'classMod') {
-      const skillStore = useSkillStore.getState();
-
-      // Remove previous class mod boosts if any.
-      if (prevId) {
-        skillStore.removeClassMod();
-      }
-
-      // Apply new class mod boosts.
-      if (itemId) {
-        const item = getInventoryItem(itemId);
-        if (isClassMod(item)) {
-          skillStore.applyClassMod(item);
-        }
-      }
+      applyClassModSideEffects(prevId, itemId);
     }
 
     set((s) => ({ slots: { ...s.slots, [slot]: itemId } }));
+
+    if (!applyingAuthoritativeLoadoutState) {
+      void persistVerifiedSlotChange(slot, itemId, prevId);
+    }
   },
 
   getEquipped: (slot) => get().slots[slot],
@@ -152,3 +180,21 @@ export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
       consumables: { ...s.consumables, [slot]: type },
     })),
 }));
+
+export function applyAuthoritativeLoadoutSlot(slot: LoadoutSlot, itemId: string | null): void {
+  applyingAuthoritativeLoadoutState = true;
+  try {
+    useLoadoutStore.getState().setSlot(slot, itemId);
+  } finally {
+    applyingAuthoritativeLoadoutState = false;
+  }
+}
+
+export function applyAuthoritativeLoadoutSlots(slots: Partial<Record<LoadoutSlot, string | null>>): void {
+  applyingAuthoritativeLoadoutState = true;
+  try {
+    useLoadoutStore.getState().setSlots(slots);
+  } finally {
+    applyingAuthoritativeLoadoutState = false;
+  }
+}
