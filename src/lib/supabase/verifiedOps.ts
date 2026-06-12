@@ -48,10 +48,14 @@ const claimRoamingRewards = async (input: { ticks: number; areaId: string; tickC
       action_type: 'cc_claim_roaming_rewards:fallback',
       xp_awarded: Number(rewards.xp ?? 0),
       credits_awarded: Number(rewards.credits ?? 0),
-      scrap_awarded: 0,
-      cache_fragments_awarded: 0,
-      materials: {},
-      essences: {},
+      scrap_awarded: Number(rewards.scrap ?? 0),
+      cache_fragments_awarded: Number(rewards.fragments ?? 0),
+      materials: rewards.materials && typeof rewards.materials === 'object' && !Array.isArray(rewards.materials)
+        ? rewards.materials as Record<string, number>
+        : {},
+      essences: rewards.essences && typeof rewards.essences === 'object' && !Array.isArray(rewards.essences)
+        ? rewards.essences as Record<string, number>
+        : {},
     };
   }
 };
