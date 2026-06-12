@@ -242,7 +242,7 @@ function defineConsumable(def: ConsumableDefInput): ConsumableDef {
   };
 }
 
-function quality(vendorPrice: number, craftMin: number, craftMax: number, scalingSummary: string, cap = 175): ConsumableQualityConfig {
+function quality(_vendorPrice: number, craftMin: number, craftMax: number, scalingSummary: string, cap = 175): ConsumableQualityConfig {
   return {
     vendorQuality: VENDOR_QUALITY,
     craftMin,
