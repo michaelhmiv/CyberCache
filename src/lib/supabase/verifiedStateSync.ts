@@ -1,6 +1,6 @@
 import { useBossStore } from '@/store/slices/bossSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
-import { useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
+import { emptySlots, useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { RiskSetting } from '@/types/game';
@@ -26,6 +26,8 @@ export type RuntimeProfilePayload = {
   last_roaming_settled_at?: string;
   last_settlement_nonce?: string;
 };
+
+export type LoadoutSnapshotPayload = Partial<Record<LoadoutSlot, string | null>>;
 
 const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic']);
 
@@ -75,6 +77,34 @@ function toLoadoutSlot(value: string | null | undefined): LoadoutSlot | null {
   return validSlots.has(value as LoadoutSlot) ? (value as LoadoutSlot) : null;
 }
 
+function loadoutSnapshotValue(value: unknown): LoadoutSnapshotPayload | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const result: LoadoutSnapshotPayload = {};
+  Object.entries(value as Record<string, unknown>).forEach(([rawSlot, rawItemId]) => {
+    const slot = toLoadoutSlot(rawSlot);
+    if (!slot) return;
+    result[slot] = typeof rawItemId === 'string' && rawItemId.length > 0 ? rawItemId : null;
+  });
+
+  return result;
+}
+
+function syncLoadoutSnapshot(value: unknown): void {
+  const snapshot = loadoutSnapshotValue(value);
+  if (!snapshot) return;
+  useLoadoutStore.getState().setSlots({ ...emptySlots, ...snapshot });
+}
+
+function clearItemFromLoadout(itemId: string): void {
+  const loadout = useLoadoutStore.getState();
+  const slotsToClear = Object.entries(loadout.slots)
+    .filter(([, equippedId]) => equippedId === itemId)
+    .map(([slot]) => slot as LoadoutSlot);
+
+  slotsToClear.forEach((slot) => loadout.setSlot(slot, null));
+}
+
 export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): void {
   if (!profile) return;
 
@@ -116,20 +146,35 @@ function syncRuntimeItem(row: ServerItemRow | undefined): void {
   if (!row?.id) return;
   if (row.runtime_state === 'salvaged' || row.runtime_state === 'consumed') {
     useInventoryStore.getState().removeItem(row.id);
+    clearItemFromLoadout(row.id);
     return;
   }
+
   useInventoryStore.getState().upsertItem(serverItemRowToDisplayGear(row));
   const slot = toLoadoutSlot(row.equipped_slot);
   if (slot) useLoadoutStore.getState().setSlot(slot, row.id);
 }
 
+function syncRuntimeItems(rows: unknown): void {
+  if (!Array.isArray(rows)) return;
+  rows.forEach((row) => syncRuntimeItem(row as ServerItemRow));
+}
+
 export function syncVerifiedResult(result: Record<string, unknown>): void {
   syncRuntimeProfile(result.profile as RuntimeProfilePayload | undefined);
+  syncRuntimeItems(result.items);
   syncRuntimeItem(result.item as ServerItemRow | undefined);
+
+  // Backward-compatible support for older cc_unequip_slot payloads that predate
+  // the authoritative loadout snapshot contract.
   const clearedSlot = toLoadoutSlot(result.slot_name as string | undefined);
   if (clearedSlot && result.action_type === 'cc_unequip_slot') {
     useLoadoutStore.getState().setSlot(clearedSlot, null);
   }
+
+  // Apply the server's final loadout snapshot last so any slot clears caused by
+  // item movement, salvage, or replacement override local optimistic state.
+  syncLoadoutSnapshot(result.loadout);
 }
 
 export function syncBossAttemptResult(result: {
