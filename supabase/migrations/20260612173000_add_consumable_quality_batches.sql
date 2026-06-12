@@ -61,16 +61,16 @@ grant select on public.consumable_batches to authenticated;
 grant select on public.consumable_events to authenticated;
 
 create or replace function public.cc_add_consumable_batch(
-  owner_id uuid,
-  item_key text,
-  quantity integer,
-  quality_percent numeric default 100,
-  origin text default 'vendor',
-  creator_id uuid default null,
-  source_recipe_id text default null,
-  event_type text default 'vendor_buy',
-  reason text default null,
-  metadata jsonb default '{}'::jsonb
+  p_owner_id uuid,
+  p_item_key text,
+  p_quantity integer,
+  p_quality_percent numeric default 100,
+  p_origin text default 'vendor',
+  p_creator_id uuid default null,
+  p_source_recipe_id text default null,
+  p_event_type text default 'vendor_buy',
+  p_reason text default null,
+  p_metadata jsonb default '{}'::jsonb
 )
 returns uuid
 language plpgsql
@@ -78,40 +78,40 @@ security definer
 set search_path = public
 as $$
 declare
-  qty integer := greatest(1, coalesce(quantity, 1));
-  q numeric := greatest(1, least(250, coalesce(quality_percent, 100)));
+  qty integer := greatest(1, coalesce(p_quantity, 1));
+  q numeric := greatest(1, least(250, coalesce(p_quality_percent, 100)));
   batch_id uuid;
 begin
-  if owner_id is null then raise exception 'owner_id is required'; end if;
-  if item_key is null or length(trim(item_key)) = 0 then raise exception 'item_key is required'; end if;
-  if origin not in ('vendor', 'crafted', 'market', 'reward', 'admin') then raise exception 'invalid consumable origin'; end if;
-  if event_type not in ('vendor_buy', 'crafted', 'market_buy', 'market_sell', 'used', 'expired', 'admin_adjust', 'reset') then raise exception 'invalid consumable event type'; end if;
+  if p_owner_id is null then raise exception 'owner_id is required'; end if;
+  if p_item_key is null or length(trim(p_item_key)) = 0 then raise exception 'item_key is required'; end if;
+  if p_origin not in ('vendor', 'crafted', 'market', 'reward', 'admin') then raise exception 'invalid consumable origin'; end if;
+  if p_event_type not in ('vendor_buy', 'crafted', 'market_buy', 'market_sell', 'used', 'expired', 'admin_adjust', 'reset') then raise exception 'invalid consumable event type'; end if;
 
-  select id into batch_id
-  from public.consumable_batches
-  where owner_user_id = owner_id
-    and consumable_type = item_key
-    and quality_percent = q
-    and origin = cc_add_consumable_batch.origin
-    and coalesce(creator_user_id, '00000000-0000-0000-0000-000000000000'::uuid) = coalesce(creator_id, '00000000-0000-0000-0000-000000000000'::uuid)
-    and coalesce(source_recipe_id, '') = coalesce(cc_add_consumable_batch.source_recipe_id, '')
+  select b.id into batch_id
+  from public.consumable_batches b
+  where b.owner_user_id = p_owner_id
+    and b.consumable_type = p_item_key
+    and b.quality_percent = q
+    and b.origin = p_origin
+    and coalesce(b.creator_user_id, '00000000-0000-0000-0000-000000000000'::uuid) = coalesce(p_creator_id, '00000000-0000-0000-0000-000000000000'::uuid)
+    and coalesce(b.source_recipe_id, '') = coalesce(p_source_recipe_id, '')
   for update
   limit 1;
 
   if batch_id is null then
     insert into public.consumable_batches(owner_user_id, consumable_type, quality_percent, quantity, origin, creator_user_id, source_recipe_id, metadata)
-    values (owner_id, item_key, q, qty, origin, creator_id, source_recipe_id, coalesce(metadata, '{}'::jsonb))
+    values (p_owner_id, p_item_key, q, qty, p_origin, p_creator_id, p_source_recipe_id, coalesce(p_metadata, '{}'::jsonb))
     returning id into batch_id;
   else
     update public.consumable_batches
     set quantity = quantity + qty,
-        metadata = coalesce(consumable_batches.metadata, '{}'::jsonb) || coalesce(cc_add_consumable_batch.metadata, '{}'::jsonb),
+        metadata = coalesce(public.consumable_batches.metadata, '{}'::jsonb) || coalesce(p_metadata, '{}'::jsonb),
         updated_at = now()
     where id = batch_id;
   end if;
 
   insert into public.consumable_events(user_id, batch_id, consumable_type, quantity_delta, quality_percent, event_type, reason, metadata)
-  values (owner_id, batch_id, item_key, qty, q, event_type, reason, coalesce(metadata, '{}'::jsonb));
+  values (p_owner_id, batch_id, p_item_key, qty, q, p_event_type, p_reason, coalesce(p_metadata, '{}'::jsonb));
 
   return batch_id;
 end;
@@ -119,6 +119,68 @@ $$;
 
 revoke execute on function public.cc_add_consumable_batch(uuid, text, integer, numeric, text, uuid, text, text, text, jsonb) from public, anon, authenticated;
 grant execute on function public.cc_add_consumable_batch(uuid, text, integer, numeric, text, uuid, text, text, text, jsonb) to service_role;
+
+create or replace function public.cc_consume_consumable_batch(
+  p_owner_id uuid,
+  p_item_key text,
+  p_quantity integer default 1,
+  p_activity_type text default null,
+  p_reason text default null,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  remaining integer := greatest(1, coalesce(p_quantity, 1));
+  take_qty integer;
+  consumed jsonb := '[]'::jsonb;
+  batch record;
+begin
+  if p_owner_id is null then raise exception 'owner_id is required'; end if;
+  if p_item_key is null or length(trim(p_item_key)) = 0 then raise exception 'item_key is required'; end if;
+
+  for batch in
+    select *
+    from public.consumable_batches
+    where owner_user_id = p_owner_id
+      and consumable_type = p_item_key
+      and quantity > 0
+    order by quality_percent asc, created_at asc
+    for update
+  loop
+    exit when remaining <= 0;
+    take_qty := least(remaining, batch.quantity);
+
+    update public.consumable_batches
+    set quantity = quantity - take_qty,
+        updated_at = now()
+    where id = batch.id;
+
+    insert into public.consumable_events(user_id, batch_id, consumable_type, quantity_delta, quality_percent, event_type, activity_type, reason, metadata)
+    values (p_owner_id, batch.id, p_item_key, -take_qty, batch.quality_percent, 'used', p_activity_type, p_reason, coalesce(p_metadata, '{}'::jsonb));
+
+    consumed := consumed || jsonb_build_array(jsonb_build_object(
+      'batch_id', batch.id,
+      'consumable_type', p_item_key,
+      'quality_percent', batch.quality_percent,
+      'quantity', take_qty
+    ));
+    remaining := remaining - take_qty;
+  end loop;
+
+  if remaining > 0 then
+    raise exception 'Insufficient consumable quantity for %', p_item_key;
+  end if;
+
+  return jsonb_build_object('consumed', consumed, 'requested_quantity', p_quantity, 'remaining_shortfall', remaining);
+end;
+$$;
+
+revoke execute on function public.cc_consume_consumable_batch(uuid, text, integer, text, text, jsonb) from public, anon, authenticated;
+grant execute on function public.cc_consume_consumable_batch(uuid, text, integer, text, text, jsonb) to service_role;
 
 create or replace function public.cc_vendor_price(item_key text)
 returns integer
@@ -139,7 +201,6 @@ as $$
 $$;
 
 revoke execute on function public.cc_vendor_price(text) from public, anon;
-
 grant execute on function public.cc_vendor_price(text) to authenticated, service_role;
 
 create or replace function public.cc_profile_snapshot(profile_row public.profiles)
