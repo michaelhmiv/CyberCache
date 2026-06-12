@@ -380,12 +380,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const scrapPerTick = Math.round((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0)));
   const targetLabel = activity.current.targetLabel ?? (currentKind === 'idle_standby' || currentKind === 'none' ? 'No target selected' : selectedArea.name);
   const detail = copy[currentKind] ?? copy.idle_standby;
-  // Merge tick-feed events (from the canonical ticker) with lifecycle events
-  // (action start/stop, cache open). The ticker is the single source of truth
-  // for roaming rewards; the Action screen is a consumer, not an engine.
-  const tickDisplayEvents: Array<{ id: string; label: string; detail: string; tone: string; eventType?: string; value?: number; areaId?: string }> = tickEvents
-    .filter((e) => !e.areaId || e.areaId === selectedArea.id)
-    .slice(0, LOG_LIMIT);
+  // Merge tick-feed events (from the canonical ticker) with lifecycle events\n  // (action start/stop, cache open). The ticker is the single source of truth\n  // for roaming rewards; the Action screen is a consumer, not an engine.\n  // Filter by both selectedArea AND the active activity targetId — either\n  // must match, so events show regardless of which path started the activity.\n  const roamingTargetId = activity.current.targetId;\n  const tickDisplayEvents: Array<{ id: string; label: string; detail: string; tone: string; eventType?: string; value?: number; areaId?: string }> = tickEvents\n    .filter((e) => !e.areaId || e.areaId === selectedArea.id || e.areaId === roamingTargetId)\n    .slice(0, LOG_LIMIT);
   const visualFeed = (currentKind === 'idle_standby' || currentKind === 'none')
     ? feed
     : [...tickDisplayEvents, ...feed.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT);
@@ -534,11 +529,18 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return () => window.clearInterval(iv);
   }, [activity, canTick]);
 
-  const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => ({
-    ...event,
-    gear: gearLookup[event.id],
-    onInspect: gearLookup[event.id] ? () => setInspectGear(gearLookup[event.id]) : undefined,
-  }));
+  const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => {
+    // Preserve gear from tick events — gearLookup only has cache-open items.
+    // Don't let gearLookup[undefined] overwrite event.gear from the ticker.
+    const cachedGear = gearLookup[event.id];
+    const eventGear = (event as { gear?: GearItem }).gear;
+    const resolvedGear = cachedGear || eventGear;
+    return {
+      ...event,
+      gear: resolvedGear,
+      onInspect: resolvedGear ? () => setInspectGear(resolvedGear) : undefined,
+    };
+  });
 
   const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
 
