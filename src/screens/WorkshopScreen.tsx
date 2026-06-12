@@ -4,8 +4,10 @@ import { Activity, Clock, ChevronDown } from 'lucide-react';
 import { useActivityStore, usePlayerStore, useWorkshopStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
+import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
 import { buildCraftingActivity } from '@/lib/activity/activityBuilders';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import type { WorkshopQueue } from '@/types/workshop';
 
 const MAX_BENCHES = 3;
@@ -66,6 +68,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const [justCrafted, setJustCrafted] = useState<string | null>(null);
   const [expandedQueue, setExpandedQueue] = useState<string | null>(null);
   const [activityError, setActivityError] = useState<string | null>(null);
+  const [claimingQueueId, setClaimingQueueId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -137,19 +140,33 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   );
 
   const handleClaim = useCallback(
-    (queueId: string) => {
+    async (queueId: string) => {
       const queue = workshop.activeQueues.find((q) => q.id === queueId);
-      const beforeClaim = queue?.claimedCount || 0;
-      const claimed = workshop.claimQueue(queueId);
-      if (claimed) {
-        const recipe = CRAFTING_RECIPES.find((r) => r.id === claimed.recipeId);
-        if (recipe) {
-          const newlyCompleted = claimed.claimedCount - beforeClaim;
-          player.addConsumable(recipe.consumableType, newlyCompleted * recipe.outputCount);
-        }
+      if (!queue || claimingQueueId) return;
+      const recipe = CRAFTING_RECIPES.find((r) => r.id === queue.recipeId);
+      if (!recipe) return;
+
+      const elapsed = Date.now() - queue.startedAt;
+      const completed = Math.min(queue.count, Math.floor(elapsed / queue.durationMs));
+      const newlyCompleted = completed - queue.claimedCount;
+      if (newlyCompleted <= 0) return;
+
+      setClaimingQueueId(queueId);
+      setActivityError(null);
+      try {
+        await verifiedOps.claimCraftedConsumable({
+          recipeId: recipe.id,
+          itemKey: recipe.consumableType,
+          quantity: newlyCompleted * recipe.outputCount,
+        });
+        workshop.claimQueue(queueId);
+      } catch (error) {
+        setActivityError(error instanceof Error ? error.message : 'Unable to claim crafted consumable batch.');
+      } finally {
+        setClaimingQueueId(null);
       }
     },
-    [workshop, player],
+    [workshop, claimingQueueId],
   );
 
   const handleCancel = useCallback(
@@ -189,14 +206,14 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           <span className="ml-1">{workshop.unlockedBenchCount - usedBenchIds.size}/{workshop.unlockedBenchCount} free</span>
         </div>
       </div>
-      <div className="text-xs text-text-muted">Craft consumables and ammo from salvaged materials.</div>
+      <div className="text-xs text-text-muted">Craft quality-rolled consumable batches from salvaged materials.</div>
 
       <MobileCard className="space-y-1 border-amber/30 bg-amber/5">
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-amber">
           <Activity size={13} /> Workshop Activity
         </div>
         <div className="text-[10px] text-text-secondary leading-relaxed">
-          Craft dispatch briefly claims the character activity. Bench timers remain passive machine queues after dispatch.
+          Craft dispatch briefly claims the character activity. Claiming a completed queue now creates a verified quality batch.
         </div>
         <div className="text-[10px] text-text-muted">{activity.pending ? 'Syncing activity...' : activityDetail}</div>
         {activityError && <div className="text-[10px] text-red">{activityError}</div>}
@@ -242,12 +259,14 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
             <div className="text-xs font-bold text-text-muted uppercase">Passive Bench Queues</div>
             {workshop.activeQueues.map((q) => {
               const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId);
+              const def = recipe ? CONSUMABLES[recipe.consumableType] : undefined;
               const elapsed = now - q.startedAt;
               const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs));
               const pct = Math.min(100, (elapsed % q.durationMs) / q.durationMs * 100);
               const timeLeft = formatTimeRemaining(now, q.startedAt, q.durationMs);
               const hasReady = completed > q.claimedCount;
               const isExpanded = expandedQueue === q.id;
+              const claiming = claimingQueueId === q.id;
 
               return (
                 <motion.div key={q.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
@@ -261,7 +280,13 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                         {isExpanded ? 'Less' : 'More'}
                       </button>
                     </div>
-                    <div className="text-xs font-bold text-text-primary">{recipe?.name || q.recipeId}</div>
+                    <div className="flex items-center gap-2">
+                      {def && <span className="grid h-7 w-7 place-items-center rounded border border-border bg-bg text-sm font-black">{def.visual.glyph}</span>}
+                      <div>
+                        <div className="text-xs font-bold text-text-primary">{recipe?.name || q.recipeId}</div>
+                        {def && <div className="text-[9px] text-amber">Rolls {def.quality.craftMin}%–{def.quality.craftMax}% · {getConsumableQualityBand(def.quality.craftMax)} ceiling</div>}
+                      </div>
+                    </div>
                     <div className="flex items-center justify-between text-[10px] text-text-muted">
                       <span>{completed}/{q.count} completed</span>
                       <span className="flex items-center gap-1"><Clock size={10} /> {timeLeft}</span>
@@ -271,8 +296,8 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                     </div>
                     <div className="flex gap-2">
                       {hasReady && (
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleClaim(q.id)} className="flex-1 py-2 rounded-lg bg-amber text-bg text-[11px] font-bold active:bg-amber/80 transition-colors">
-                          Claim Ready ({completed - q.claimedCount})
+                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => { void handleClaim(q.id); }} disabled={claiming} className="flex-1 py-2 rounded-lg bg-amber text-bg text-[11px] font-bold active:bg-amber/80 transition-colors disabled:opacity-50">
+                          {claiming ? 'Claiming…' : `Claim Ready (${completed - q.claimedCount})`}
                         </motion.button>
                       )}
                       <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleCancel(q.id)} className="py-2 px-3 rounded-lg bg-red/10 border border-red/30 text-red text-[10px] font-bold active:bg-red/20 transition-colors">
@@ -307,6 +332,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         ) : (
           filteredRecipes.map((recipe) => {
             const { can } = canStartCraft(recipe.id, player.materials, player.essences, player.level);
+            const def = CONSUMABLES[recipe.consumableType];
             const isLevelLocked = recipe.requiresLevel !== undefined && player.level < recipe.requiresLevel;
             const benchFull = nextAvailableBench === null;
             const justClicked = justCrafted === recipe.id;
@@ -327,12 +353,18 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
 
             return (
               <MobileCard key={recipe.id} className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-text-primary">{recipe.name}</span>
-                    {recipe.requiresLevel !== undefined && (
-                      <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${isLevelLocked ? 'bg-red/15 text-red' : 'bg-surface-raised text-text-muted'}`}>Lv.{recipe.requiresLevel}</span>
-                    )}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {def && <span className="grid h-8 w-8 shrink-0 place-items-center rounded border border-border bg-bg text-sm font-black">{def.visual.glyph}</span>}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-bold text-text-primary">{recipe.name}</span>
+                        {recipe.requiresLevel !== undefined && (
+                          <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${isLevelLocked ? 'bg-red/15 text-red' : 'bg-surface-raised text-text-muted'}`}>Lv.{recipe.requiresLevel}</span>
+                        )}
+                      </div>
+                      {def && <div className="text-[9px] text-amber">Quality roll {def.quality.craftMin}%–{def.quality.craftMax}% · {def.runtime.layoutChannel}</div>}
+                    </div>
                   </div>
                   <span className="text-[10px] text-text-muted flex items-center gap-1"><Clock size={10} />{recipe.craftTimeMs >= 60000 ? `${(recipe.craftTimeMs / 60000).toFixed(0)}m` : `${(recipe.craftTimeMs / 1000).toFixed(0)}s`}</span>
                 </div>
