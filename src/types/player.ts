@@ -19,4 +19,6 @@ export interface PlayerProfile {
   essences: Record<string, number>;
   workshopQueues: WorkshopQueue[];
   lastWorkshopTick: number;
+  /** Server-authoritative tick counter — used to seed the client ticker on page load. */
+  lastClaimedTick: number;
 }

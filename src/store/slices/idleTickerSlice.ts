@@ -722,6 +722,16 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       // Phase 2d: deterministic tick RNG. The same (player, area, tickCount)
       // tuple produces the same random stream. The server uses the same tuple
       // in cc_claim_roaming_rewards via the Mulberry32 port (migration 003).
+      // Seed totalTickCount from the server-authoritative lastClaimedTick on first
+      // tick after page load. Without this, the client counter starts at 0 while
+      // the server profile.last_claimed_tick persists across sessions, causing the
+      // RPC ordering guard (tick_count <= last_claimed_tick) to reject every claim.
+      if (totalTickCount === 0) {
+        const serverTick = usePlayerStore.getState().lastClaimedTick;
+        if (serverTick > 0) {
+          totalTickCount = serverTick;
+        }
+      }
       totalTickCount += 1;
       const playerId = usePlayerStore.getState().id;
       const tickRng = playerId ? createTickRng(playerId, areaId, totalTickCount) : Math.random;

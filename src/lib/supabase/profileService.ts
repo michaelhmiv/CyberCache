@@ -18,6 +18,7 @@ export interface ProfileRow {
   skill_spends: Record<string, number>;
   boss_state: Record<string, unknown>;
   last_idle_claim_at: string;
+  last_claimed_tick: number;
   created_at: string;
   updated_at: string;
   account_type: AccountType;

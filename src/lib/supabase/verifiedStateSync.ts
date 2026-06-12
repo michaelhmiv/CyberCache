@@ -22,6 +22,7 @@ export type RuntimeProfilePayload = {
   skill_spends?: Record<string, number>;
   boss_state?: Record<string, unknown>;
   last_idle_claim_at?: string;
+  last_claimed_tick?: number | string;
 };
 
 const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic']);
@@ -88,6 +89,7 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
     essences: profile.essences ?? player.essences,
     consumables: profile.consumables ?? player.consumables,
     lastClaimTime: timestampValue(profile.last_idle_claim_at, player.lastClaimTime),
+    lastClaimedTick: numberValue(profile.last_claimed_tick, player.lastClaimedTick),
   });
 
   const skillSpends = recordValue(profile.skill_spends);

@@ -47,6 +47,7 @@ const initialPlayerState = (): PlayerProfile => ({
   essences: {},
   workshopQueues: [],
   lastWorkshopTick: Date.now(),
+  lastClaimedTick: 0,
 });
 
 export const usePlayerStore = create<PlayerState>()((set, get) => ({
