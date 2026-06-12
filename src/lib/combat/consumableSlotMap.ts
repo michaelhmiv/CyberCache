@@ -4,13 +4,9 @@
  * type they're holding, and look up the current count for each slot
  * in the player store.
  *
- * This is what the action tab's "Consumables Chips" component reads
- * to render the three little chips showing MedKit ×N / ShieldCell ×N
- * / ReviveToken ×N. The chips let the player see at a glance whether
- * their auto-eat triggers have anything to fire.
- *
- * The slot→type mapping is read from `useLoadoutStore`; the count is
- * read from `usePlayerStore`. Both reads are pure (no state mutation).
+ * Visual identity is resolved from `src/constants/consumables.ts` so
+ * every chip uses the same consumable glyph as inspect, vendor, crafting,
+ * and future market surfaces.
  */
 
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
@@ -28,18 +24,9 @@ export interface ConsumableSlotView {
   label: string;
   /** How many the player currently has. 0 if slot is empty. */
   count: number;
-  /** Icon hint (emoji) for the chip. */
+  /** Icon hint (emoji/glyph) for the chip. */
   icon: string;
 }
-
-/** Map consumable type ID → emoji chip icon. */
-const CONSUMABLE_ICONS: Record<string, string> = {
-  MedKit: '🧪',
-  ShieldCell: '🛡',
-  ReviveToken: '🎟',
-  NanoSwarm: '🐝',
-  AdrenalineShot: '💉',
-};
 
 function consumableLabel(typeId: string | null): string {
   if (!typeId) return 'Empty';
@@ -48,17 +35,14 @@ function consumableLabel(typeId: string | null): string {
 
 function consumableIcon(typeId: string | null): string {
   if (!typeId) return '—';
-  return CONSUMABLE_ICONS[typeId] ?? '📦';
+  if (typeId === 'ReviveToken') return '🎟';
+  return CONSUMABLES[typeId]?.visual.glyph ?? '📦';
 }
 
 /**
  * Read the three consumable slots and resolve them to display views.
  * Each view carries the slot name, the consumable type it holds, the
- * player's current count of that consumable, and a label/icon.
- *
- * Cheap to call (no store subscriptions, just `.getState()` reads).
- * The ConsumablesChips component should call this in a `useMemo` or
- * via a stable selector to avoid re-rendering on every tick.
+ * player's current count of that consumable, and a source-of-truth visual.
  */
 export function readConsumableSlots(): ConsumableSlotView[] {
   const loadout = useLoadoutStore.getState();
