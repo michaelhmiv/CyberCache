@@ -67,6 +67,12 @@ export interface ClaimRequest {
   /** Skill tree bonuses (Scavenger tree affects idle economy). */
   skillBonuses?: Record<string, number>;
   /**
+   * Maximum ticks to process. Foreground live claims use 20;
+   * offline settlement uses Infinity (capped by elapsed time only).
+   * Default: 20 for backward compatibility.
+   */
+  maxTicks?: number;
+  /**
    * Activity modifiers computed by the client from equipped gear via
    * `sumActivityModifier`. The Chef applies these to roaming rewards.
    * In a future enforcement pass the Chef will re-derive them from
@@ -225,8 +231,9 @@ export function processRoamingClaim(
   const effectiveScrapPerTick = Math.round(scrapPerTick * scrapMult * activityScrapMult);
   const effectiveXpPerTick = Math.round(xpPerTick * activityXpMult);
 
-  // Clamp ticks to prevent abuse
-  const ticks = Math.max(1, Math.min(requestedTicks, 20));
+  // Clamp ticks to maxTicks (foreground: 20; offline settlement: Infinity)
+  const maxTicks = request.maxTicks ?? 20;
+  const ticks = Math.max(1, Math.min(requestedTicks, maxTicks));
 
   let creditsAwarded = 0;
   let scrapAwarded = 0;

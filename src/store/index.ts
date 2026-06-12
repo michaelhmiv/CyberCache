@@ -14,6 +14,7 @@ import { useSurvivalStore } from './slices/survivalSlice';
 import { useKillCycleStore } from './slices/killCycleSlice';
 import { useLoadoutPresetsStore } from './slices/loadoutPresetsSlice';
 import { useSalvageFeedStore } from './slices/salvageFeedSlice';
+import { useOfflineRecapStore } from './slices/offlineRecapSlice';
 export { combatStatsSelectors };
 
 export {
@@ -35,4 +36,5 @@ export {
   useKillCycleStore,
   useLoadoutPresetsStore,
   useSalvageFeedStore,
+  useOfflineRecapStore,
 };

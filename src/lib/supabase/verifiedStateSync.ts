@@ -23,6 +23,8 @@ export type RuntimeProfilePayload = {
   boss_state?: Record<string, unknown>;
   last_idle_claim_at?: string;
   last_claimed_tick?: number | string;
+  last_roaming_settled_at?: string;
+  last_settlement_nonce?: string;
 };
 
 const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic']);

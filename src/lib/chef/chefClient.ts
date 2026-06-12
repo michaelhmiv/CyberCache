@@ -34,6 +34,8 @@ export interface ChefClaimRequest {
   ticks: number;
   tickCount: number;
   playerLevel: number;
+  /** Max ticks to process. Omit for default (20); use Infinity for offline settlement. */
+  maxTicks?: number;
   /** Idle economy modifiers from equipped weapons/relics (Phase 2d). */
   idleMods?: {
     offlineEarningsMod: number;
@@ -206,6 +208,94 @@ export async function salvageItem(request: { playerId: string; itemId: string; j
     const errorBody = await response.json().catch(() => ({}));
     const detail = (errorBody as { detail?: string }).detail || response.statusText;
     throw new Error(`Chef salvage failed (${response.status}): ${detail}`);
+  }
+
+  return response.json();
+}
+
+// --- Offline Settlement ---
+
+export interface OfflineSettlementRequest {
+  playerId: string;
+  /** Client-generated idempotency nonce (UUID). */
+  settlementNonce: string;
+  jwt?: string;
+}
+
+export interface OfflineSettlementResult {
+  settled: true;
+  areaId: string;
+  areaName: string;
+  /** Human-readable time away (e.g. "2h 34m"). */
+  timeAway: string;
+  /** Milliseconds of elapsed time used for settlement. */
+  elapsedMs: number;
+  /** Milliseconds of elapsed time before cap was applied. */
+  cappedMs: number;
+  /** Whether the offline cap was reached. */
+  capReached: boolean;
+  /** Offline cap in hours. */
+  capHours: number;
+  /** Number of ticks settled. */
+  ticksSettled: number;
+  /** Starting tick (last_claimed_tick before settlement). */
+  startTick: number;
+  /** Ending tick (last_claimed_tick after settlement). */
+  endTick: number;
+  /** Server-authoritative profile snapshot after settlement. */
+  profile: Record<string, unknown>;
+  /** Rewards earned. */
+  rewards: {
+    creditsAwarded: number;
+    scrapAwarded: number;
+    xpAwarded: number;
+    cacheFragmentsAwarded: number;
+    materials: Record<string, number>;
+    essences: Record<string, number>;
+    killsRecorded: number;
+    ticks: number;
+  };
+  /** Items generated during settlement. */
+  items: GearItem[];
+  /** Feed events for UI display. */
+  feedEvents: ChefClaimResult['feedEvents'];
+  /** Whether this is a cached (idempotent) result. */
+  idempotent: boolean;
+}
+
+export type OfflineSettlementNoOp = {
+  settled: false;
+  reason: 'not_roaming' | 'no_elapsed' | 'error';
+  detail?: string;
+};
+
+/**
+ * Request server-authoritative offline settlement.
+ *
+ * The server computes elapsed time using DB timestamps (not client
+ * Date.now()), processes all eligible ticks (capped by offline_cap_hours,
+ * NOT by the 20-tick foreground limit), and returns a full settlement
+ * summary. Idempotent — sending the same nonce twice returns the cached
+ * result without double-awarding rewards.
+ */
+export async function settleOffline(
+  request: OfflineSettlementRequest,
+): Promise<OfflineSettlementResult | OfflineSettlementNoOp> {
+  const jwt = request.jwt || (await getSessionJwt());
+
+  const response = await fetch(chefUrl('/settle-offline'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+    },
+    body: JSON.stringify({ ...request, jwt }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const detail = (errorBody as { detail?: string }).detail || response.statusText;
+    throw new Error(`Chef offline settlement failed (${response.status}): ${detail}`);
   }
 
   return response.json();

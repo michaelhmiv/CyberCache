@@ -21,6 +21,8 @@ import { useAuth } from './auth/AuthProvider';
 import { useEffect } from 'react';
 import { mountIdleTicker, unmountIdleTicker } from './store';
 import { SalvageToastContainer } from './components/action/SalvageToast';
+import { OfflineRecap } from './components/activity/OfflineRecap';
+import { useOfflineRecapListener } from './components/activity/useOfflineRecapListener';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | null;
@@ -54,6 +56,9 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
+
+  // Listen for offline settlement completion events and route to recap store.
+  useOfflineRecapListener();
 
   // Mount the singleton idle ticker once per authenticated session. The ticker
   // is the single source of truth for roaming rewards: it reads the active
@@ -199,6 +204,7 @@ function App() {
       <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); }} />
       <DeathOverlay />
       <SalvageToastContainer />
+      <OfflineRecap />
     </div>
   );
 }

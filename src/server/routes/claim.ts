@@ -235,6 +235,233 @@ async function handleSalvage(req: Request, res: Response): Promise<void> {
   }
 }
 
+/**
+ * Format milliseconds as a human-readable time-away string.
+ * e.g. 9240000 → "2h 34m"
+ */
+function formatTimeAway(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+async function handleSettleOffline(req: Request, res: Response): Promise<void> {
+  try {
+    const body = req.body as { playerId?: string; settlementNonce?: string; jwt?: string };
+    if (!body.settlementNonce) {
+      res.status(400).json({ error: 'Missing settlementNonce' });
+      return;
+    }
+
+    const supabase = getSupabase();
+    const playerId = await requireAuthenticatedPlayerId(supabase, req, body.jwt, body.playerId);
+
+    // --- Idempotency check ---
+    const { data: idemProfile, error: idemError } = await supabase
+      .from('profiles')
+      .select('last_settlement_nonce, last_roaming_settled_at')
+      .eq('id', playerId)
+      .single();
+
+    if (idemError && (idemError as { code?: string }).code !== 'PGRST116') {
+      res.status(500).json({ error: 'Failed to read profile', detail: idemError.message });
+      return;
+    }
+
+    if (idemProfile?.last_settlement_nonce === body.settlementNonce) {
+      // Nonce already processed — return no-op (idempotent). The client
+      // should have the cached result from the previous response.
+      console.log('[chef] settlement idempotent — nonce already processed', {
+        playerId, nonce: body.settlementNonce,
+      });
+      res.json({
+        settled: false,
+        reason: 'idempotent',
+        detail: 'This settlement nonce was already processed. Refresh if you need updated rewards.',
+      });
+      return;
+    }
+
+    // --- Read active action ---
+    const { data: activeAction, error: actionError } = await supabase
+      .from('active_actions')
+      .select('kind, target_id, started_at, activity_payload')
+      .eq('player_id', playerId)
+      .single();
+
+    if (actionError) {
+      res.status(500).json({ error: 'Failed to read active action', detail: actionError.message });
+      return;
+    }
+
+    if (!activeAction || activeAction.kind !== 'roaming_loot') {
+      console.log('[chef] settlement no-op — not roaming', { playerId, kind: activeAction?.kind });
+      res.json({ settled: false, reason: 'not_roaming' });
+      return;
+    }
+
+    // --- Read full profile for economy state ---
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', playerId)
+      .single();
+
+    if (profileError) {
+      res.status(500).json({ error: 'Failed to read profile', detail: profileError.message });
+      return;
+    }
+
+    // --- Compute elapsed time using server-authoritative timestamps ---
+    const settleFrom = profile.last_roaming_settled_at || activeAction.started_at;
+    if (!settleFrom) {
+      res.json({ settled: false, reason: 'no_elapsed', detail: 'No settlement start timestamp' });
+      return;
+    }
+
+    const settleFromMs = new Date(settleFrom).getTime();
+    const nowMs = Date.now();
+    const capHours = Number(profile.offline_cap_hours) || 2;
+    const capMs = capHours * 60 * 60 * 1000;
+    const rawElapsedMs = Math.max(0, nowMs - settleFromMs);
+    const elapsedMs = Math.min(rawElapsedMs, capMs);
+    const capReached = rawElapsedMs > capMs;
+
+    const TICK_MS = 3000;
+    const ticksRequested = Math.floor(elapsedMs / TICK_MS);
+
+    if (ticksRequested <= 0) {
+      console.log('[chef] settlement no-op — no elapsed ticks', { playerId, elapsedMs });
+      res.json({ settled: false, reason: 'no_elapsed' });
+      return;
+    }
+
+    // --- Process all eligible ticks (no 20-tick clamp!) ---
+    const area = await import('../../constants/roamingAreas').then((m) => m.getRoamingArea(activeAction.target_id));
+    const areaId = area.id;
+    const areaName = area.name;
+
+    const claim: ClaimRequest = {
+      playerId,
+      areaId,
+      ticks: ticksRequested,
+      tickCount: (profile.last_claimed_tick || 0) + ticksRequested,
+      playerLevel: profile.player_level || 1,
+      maxTicks: Infinity, // ← NO 20-TICK CLAMP for offline settlement
+      effectiveDps: 0, // offline settlement skips combat simulation
+    };
+
+    const result = processRoamingClaim(claim);
+
+    // --- Persist rewards atomically ---
+    const newTickCount = (profile.last_claimed_tick || 0) + result.rewards.ticks;
+    const settledAt = new Date().toISOString();
+
+    const { error: rpcError } = await supabase.rpc('cc_apply_chef_rewards', {
+      _player_id: playerId,
+      _credits: result.rewards.creditsAwarded,
+      _scrap: result.rewards.scrapAwarded,
+      _xp: result.rewards.xpAwarded,
+      _fragments: result.rewards.cacheFragmentsAwarded,
+      _materials: result.rewards.materials,
+      _essences: result.rewards.essences,
+      _kills: result.rewards.killsRecorded,
+      _tick_count: newTickCount,
+      _area_id: areaId,
+    });
+
+    if (rpcError) {
+      res.status(500).json({ error: 'Failed to apply rewards', detail: rpcError.message });
+      return;
+    }
+
+    // Store items
+    if (result.items.length > 0) {
+      const { error: storeError } = await supabase.rpc('cc_store_chef_items', {
+        _player_id: playerId,
+        _items: result.items,
+      });
+      if (storeError) console.error('[chef] settlement store items failed:', storeError.message);
+    }
+
+    // --- Update settlement tracking ---
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        last_roaming_settled_at: settledAt,
+        last_settlement_nonce: body.settlementNonce,
+      })
+      .eq('id', playerId);
+
+    if (updateError) {
+      console.error('[chef] settlement tracking update failed:', updateError.message);
+      // Non-fatal — rewards are already applied
+    }
+
+    // --- Read fresh profile snapshot ---
+    const { data: freshProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', playerId)
+      .single();
+
+    const profileSnapshot = freshProfile
+      ? await supabase.rpc('cc_profile_snapshot', { profile_row: freshProfile }).then(
+          (r) => (r.error ? null : r.data),
+          () => null,
+        )
+      : null;
+
+    // --- Structured log ---
+    console.log('[chef] settlement complete', {
+      userId: playerId,
+      areaId,
+      startedAt: settleFrom,
+      lastSettledAt: settledAt,
+      elapsedMs,
+      cappedMs: capMs,
+      capReached,
+      ticksRequested,
+      ticksSettled: result.rewards.ticks,
+      startTick: profile.last_claimed_tick || 0,
+      endTick: newTickCount,
+      xp: result.rewards.xpAwarded,
+      credits: result.rewards.creditsAwarded,
+      scrap: result.rewards.scrapAwarded,
+      fragments: result.rewards.cacheFragmentsAwarded,
+      gearCount: result.items.length,
+      materialCount: Object.keys(result.rewards.materials).length,
+    });
+
+    // --- Return full settlement summary ---
+    res.json({
+      settled: true,
+      areaId,
+      areaName,
+      timeAway: formatTimeAway(elapsedMs),
+      elapsedMs,
+      cappedMs: capMs,
+      capReached,
+      capHours,
+      ticksSettled: result.rewards.ticks,
+      startTick: profile.last_claimed_tick || 0,
+      endTick: newTickCount,
+      profile: profileSnapshot ?? {},
+      rewards: result.rewards,
+      items: result.items,
+      feedEvents: result.feedEvents,
+      idempotent: false,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[chef] settlement error:', message);
+    sendRouteError(res, 'Offline settlement failed', err);
+  }
+}
+
 export function mountChefRoutes(app: Express): void {
   app.post('/api/claim', handleClaim);
   app.get('/api/health', (_req, res) => {
@@ -242,5 +469,6 @@ export function mountChefRoutes(app: Express): void {
   });
   app.post('/api/verify-boss', handleVerifyBoss);
   app.post('/api/salvage', handleSalvage);
-  console.log('[chef] routes mounted: POST /api/claim, GET /api/health, POST /api/verify-boss, POST /api/salvage');
+  app.post('/api/settle-offline', handleSettleOffline);
+  console.log('[chef] routes mounted: POST /api/claim, GET /api/health, POST /api/verify-boss, POST /api/salvage, POST /api/settle-offline');
 }

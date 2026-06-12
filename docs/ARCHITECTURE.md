@@ -25,6 +25,7 @@ in screens or components is forbidden.
 | **Roaming tick processing** | `src/server/chef.ts` (Chef worker) | Authoritative engine. Processes claims, generates items, awards resources. Runs on Railway server process. |
 | **Roaming tick preview** (UI-only) | `src/store/slices/idleTickerSlice.ts` → `rollPreviewEvents` | COSMETIC ONLY. Shows placeholder events until Chef response. No store mutations. |
 | **Server reward claiming** | `src/lib/supabase/verifiedOps.ts` → `cc_apply_chef_rewards` RPC | Fallback when Chef is unavailable; Chef is primary path |
+| **Offline settlement** | `src/server/routes/claim.ts` → `POST /api/settle-offline` | Server-authoritative. Computes elapsed time from DB timestamps, processes all eligible ticks (capped by hours, not 20-tick limit). Idempotent via nonce. |
 | **Item generation** | `src/server/chef.ts` + `src/lib/generators/*` | Chef calls the same TS generators as the client imports. ONE source of truth. |
 | **Tick feed events** | `src/store/slices/tickSlice.ts` | `TickEvent` / `TickEventTone`. Capped at 50, FIFO. |
 | **Inventory mutation** | `src/store/slices/inventorySlice.ts` | `receiveServerItems` (Chef path) or `addItem`/`removeItem` (user actions) |
@@ -61,7 +62,7 @@ Every displayed or awarded gameplay number must point to one owner:
 | Salvage economy | `cc_recycle_item` RPC | UI submits item id and syncs verified profile/item state |
 | Gear generation | `src/lib/generators/*` called by Chef/server | Client may preview/render, not mint authoritative inventory |
 | Rarity/drop odds and area modifiers | `src/content/*`, `src/constants/roamingAreas.ts`, Chef claim code | Snapshot exposes activity/area buckets for display |
-| Offline cap / offline settlement | Profile/RPC state plus Chef settlement | Runtime snapshot is not offline reward truth |
+| Offline cap / offline settlement | `POST /api/settle-offline` (server-authoritative) | Runtime snapshot is not offline reward truth |
 | Skill and gear modifiers | `skillSlice.getBonuses()`, item payload affixes, `buildCharacterMechanicsSnapshot()` | Snapshot buckets separate `skill`, `gear`, `weapon`, `activity`, `consumable`, `server`, and `runtime` |
 
 ---
@@ -84,6 +85,19 @@ idleTickerSlice.tickNow()
   → survivalSlice.applyDamage()     # state mutation
   → decideAutoEat()                 # pure function
   → playerSlice.consumeConsumable() # state mutation
+```
+
+### Offline settlement
+```
+AuthProvider.loadUser()
+  → profile sync + items sync + activity hydrate
+  → settleActiveActivityRewards()     # thin adapter — delegates to Chef
+  → settleOffline({ settlementNonce })  # POST /api/settle-offline
+  → Chef computes elapsed from DB timestamps (not client Date.now())
+  → Chef processes all ticks (capped by offline_cap_hours, NOT 20)
+  → Chef persists rewards atomically (last_claimed_tick += ticksSettled)
+  → Client syncs returned profile/items, saves display snapshot
+  → OfflineRecap component shows durable "While You Were Away" card
 ```
 
 ### Cache opening
@@ -124,6 +138,8 @@ Screens and visual components are **consumers, not engines**. They must NOT:
 - Run combat math
 - Run survival/death logic
 - Own gameplay `setInterval` timers
+- **Calculate offline rewards client-side** (no `Date.now()` for elapsed time computation)
+- **Restore economy state from `player_runtime_snapshots`** (credits, XP, scrap, materials, cache keys, inventory, boss wins)
 
 **Exception:** Client-side randomness in `rollClientEvents()` inside
 `idleTickerSlice.ts` is the ONLY allowed gameplay `Math.random` outside of
@@ -144,7 +160,7 @@ UI components read from canonical stores:
 | `ProfileScreen` | `usePlayerStore`, `useInventoryStore`, `useLoadoutStore` | Must not mutate |
 | `InventoryScreen` | `useInventoryStore`, `useLoadoutStore` | Must not generate items |
 | `LiveTurfDiorama` | `useTickFeedStore` (latest event), `usePlayerStore` (stats) | Must not generate rewards |
-| `ActionStage` | `useActionStageOrchestrator` (beat index), `activityStore` (kind) | Must not generate gameplay outcomes |
+| `OfflineRecap` | `useOfflineRecapStore` (settlement result) | Must not compute rewards |
 
 Display-only timers are allowed for:
 - Elapsed time display (seconds since activity started)
@@ -196,8 +212,8 @@ document its owner here.
   in `verifiedOps` + `verifiedStateSync`.
 - **Client-side randomness** is only for instant animation feedback.
   The server re-rolls and the server response is authoritative.
-- **localStorage may only be used for:** UI preferences and cross-tab coordination
-  locks (`activitySettlement.ts`).
+- **localStorage may only be used for:** UI preferences. Settlement deduplication
+  uses server-side nonce (`profiles.last_settlement_nonce`), NOT localStorage locks.
 - **Authenticated game progression must not depend on localStorage.**
 - **`player_runtime_snapshots` are display hydration only.** They may restore
   UI/runtime state such as selected area, boss selection/risk, loadout
@@ -265,7 +281,7 @@ document its owner here.
 
 ---
 
-## 8. Chef Architecture (Server-Side Engine)
+## 10. Chef Architecture (Server-Side Engine)
 
 The Chef (`src/server/chef.ts`) runs in the same Railway process as the web app.
 It is the **authoritative engine** for all gameplay outcomes.
@@ -281,6 +297,7 @@ override `Math.random` to force legendary drops. The Chef runs on your server.
 - Item generation (weapons, shields, classMods, relics, ordnance)
 - Resource awards (credits, XP, scrap, materials, essences)
 - Boss fight verification (plausibility checks)
+- **Offline settlement** (`POST /api/settle-offline`) — computes elapsed time from DB timestamps, processes all eligible ticks, persists atomically
 
 ### What the Chef does NOT own
 
@@ -301,7 +318,49 @@ Both use the same Mulberry32 RNG. Same seed = same item.
 
 ---
 
-## 9. Agent Checklist Before Opening a PR
+## 11. Offline Settlement Contract
+
+### Foreground Live Tick Contract
+
+- **Route:** `POST /api/claim`
+- **Cap:** ≤20 ticks per claim (`maxTicks` defaults to 20)
+- **Cadence:** 3 seconds per tick (TICK_MS = 3000)
+- **Nonce guard:** `tick_count` must be > `last_claimed_tick`
+- **Owner:** `processRoamingClaim()` in `src/server/chef.ts`
+- **UI:** `idleTickerSlice` runs the foreground loop, reads from Chef responses
+
+### Offline Settlement Contract
+
+- **Route:** `POST /api/settle-offline`
+- **Cap:** `offline_cap_hours` (default 2h, max 168h), NOT the 20-tick foreground limit
+- **Clock:** Server DB timestamps (`last_roaming_settled_at` or `active_actions.started_at`), NOT client `Date.now()`
+- **Tick semantics:** `last_claimed_tick` advances by `ticksSettled`, NOT by +1
+- **Idempotency:** Client-generated `settlementNonce` (UUID); server stores in `profiles.last_settlement_nonce`; duplicate nonce = cached result, no re-processing
+- **Owner:** `handleSettleOffline()` in `src/server/routes/claim.ts`
+- **Client adapter:** `settleActiveActivityRewards()` in `src/lib/activity/activitySettlement.ts` — delegates to Chef, applies returned state
+- **UI:** `OfflineRecap` component (in `src/components/activity/OfflineRecap.tsx`) reads from `useOfflineRecapStore`, shows persistent "While You Were Away" card until dismissed
+
+### Canonical Fields
+
+| Field | Location | Semantics |
+|---|---|---|
+| `last_claimed_tick` | `profiles` | Highest tick fully settled (monotonic, advances by ticksSettled) |
+| `last_roaming_settled_at` | `profiles` | Server-authoritative timestamp of most recent offline settlement |
+| `last_settlement_nonce` | `profiles` | Client-generated idempotency key for settlement |
+| `last_idle_claim_at` | `profiles` | Legacy idle claim timestamp (NOT authoritative for roaming) |
+
+### Forbidden Patterns
+
+- Client-side offline reward calculation (`Date.now()` for elapsed time)
+- Screen-level reward loops (any `setInterval` that mints rewards)
+- Restoring economy state from `player_runtime_snapshots` (credits, XP, scrap, materials, cache keys, inventory, boss wins)
+- Using `last_claimed_tick` as a request nonce with `+1` pattern
+- 20-tick clamp for offline settlement
+- `localStorage` locks for settlement deduplication (use server nonce)
+
+---
+
+## 12. Agent Checklist Before Opening a PR
 
 - [ ] `npm test` passes
 - [ ] `npm run build` passes
@@ -317,6 +376,9 @@ Both use the same Mulberry32 RNG. Same seed = same item.
 - [ ] Items are generated by the Chef, not the client
 - [ ] New generators have determinism tests in `src/test/chefDeterminism.test.ts`
 - [ ] Boss fight results are verified through `POST /api/verify-boss`
+- [ ] Offline settlement uses `POST /api/settle-offline` — never client-side Date.now()
+- [ ] Offline settlement advances `last_claimed_tick` by ticksSettled, not by +1
+- [ ] No `localStorage` locks for settlement deduplication
 - [ ] Authenticated progression does not depend on localStorage
 - [ ] Architecture doc is updated if a new source of truth is introduced
 - [ ] `AGENTS.md` rules are followed
@@ -324,4 +386,4 @@ Both use the same Mulberry32 RNG. Same seed = same item.
 
 ---
 
-*Last updated: 2026-06-10 — Phase 5: wired skill tree, shield defense, relic affixes, ordnance damage into all gameplay consumers.*
+*Last updated: 2026-06-12 — Offline settlement repair: server-authoritative /api/settle-offline, correct tick semantics, idempotent nonce, durable recap UI, 18 regression tests.*
