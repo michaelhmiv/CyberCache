@@ -3,6 +3,7 @@ import { ChevronRight, Plus } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { useInventoryStore, useLoadoutStore } from '@/store';
+import { applyAuthoritativeLoadoutSlot } from '@/store/slices/loadoutSlice';
 import { GearCompare } from '@/components/gear/GearCompare';
 import type { GearItem } from '@/types/items';
 
@@ -54,7 +55,7 @@ export const SyncedLoadoutScreen: React.FC = () => {
     setError(null);
     try {
       await verifiedOps.equipItem(itemId, slot);
-      loadout.setSlot(slot, itemId);
+      applyAuthoritativeLoadoutSlot(slot, itemId);
       setActiveSlot(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update loadout.');
@@ -68,7 +69,7 @@ export const SyncedLoadoutScreen: React.FC = () => {
     setError(null);
     try {
       await verifiedOps.unequipSlot(slot);
-      loadout.setSlot(slot, null);
+      applyAuthoritativeLoadoutSlot(slot, null);
       setActiveSlot(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to clear slot.');
