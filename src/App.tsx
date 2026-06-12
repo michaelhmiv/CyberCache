@@ -83,7 +83,7 @@ function App() {
   }
 
   const handleNavigate = (screen: string) => {
-    if (screen === 'loadout' || screen === 'loot' || screen === 'fusion') {
+    if (screen === 'loadout' || screen === 'loot') {
       setActiveTab('inventory');
       setSubScreen(null);
       return;
@@ -100,11 +100,6 @@ function App() {
     }
     if (screen === 'market') {
       setActiveTab('market');
-      setSubScreen(null);
-      return;
-    }
-    if (screen === 'more') {
-      setActiveTab('profile');
       setSubScreen(null);
       return;
     }
