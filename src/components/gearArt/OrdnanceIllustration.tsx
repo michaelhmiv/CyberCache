@@ -2,7 +2,8 @@ import React from 'react';
 import type { Ordnance } from '@/types/items';
 import { Element, Rarity } from '@/types/game';
 import { buildOrdnanceVisualSpec, type OrdnanceVisualSpec } from '@/lib/gearArt/buildOrdnanceVisualSpec';
-import { SharedDefs, surfaceFilterId } from '@/components/gearArt/SharedDefs';
+import { SharedDefs } from '@/components/gearArt/SharedDefs';
+import { surfaceFilterId } from '@/lib/gearArt/surfaceFilter';
 import { Decal } from './Decal';
 
 export type IllustrationSize = 'thumb' | 'card' | 'showcase';
@@ -32,7 +33,7 @@ function fallbackSpec(props: OrdnanceIllustrationProps): OrdnanceVisualSpec {
     element: props.element || Element.Kinetic,
     rarity: props.rarity ?? Rarity.Common,
     damage: 50, effect: 'frag',
-  } as any);
+  });
 }
 
 const innerStroke = {
@@ -44,7 +45,7 @@ export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = ({
   ordnance, element, rarity, size = 'card', className = '', showBadges = true, animate = false,
 }) => {
   const sizing = toSize(size);
-  const spec = ordnance ? buildOrdnanceVisualSpec(ordnance as any) : fallbackSpec({ element, rarity });
+  const spec = ordnance ? buildOrdnanceVisualSpec(ordnance) : fallbackSpec({ element, rarity });
   const sil = spec.silhouette;
   const frame = spec.rarityFrame;
   const filterId = `ordnance-glow-${spec.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;

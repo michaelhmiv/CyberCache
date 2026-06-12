@@ -2,12 +2,10 @@ import { Rarity } from '@/types/game';
 import type { ClassMod } from '@/types/items';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import {
-  type ClassModSilhouette,
   type ClassModVisualSpec,
   pickClassModSilhouette,
-  DEFAULT_CLASSMOD_SILHOUETTE,
 } from '@/constants/classModSilhouettes';
-import { buildDecals, type WeaponVisualDecal } from '@/lib/weaponArt/buildWeaponVisualSpec';
+import { buildDecals } from '@/lib/weaponArt/buildWeaponVisualSpec';
 
 function normalizeRarity(rarity: Rarity | string): Rarity {
   return (Object.values(Rarity) as string[]).includes(rarity) ? (rarity as Rarity) : Rarity.Common;
@@ -36,7 +34,7 @@ export function buildClassModVisualSpec(mod: Partial<ClassMod> & {
     treeBonus: mod.treeBonus ?? 'Balanced',
     silhouette: pickClassModSilhouette(mod.treeBonus ?? 'Balanced'),
     rarityFrame: RARITY_FRAME_STYLES[rarity],
-    decals: buildDecals((mod as any).affixes, seed, undefined),
+    decals: buildDecals(mod.affixes, seed, undefined),
     texture: 'data',
     nodeCount: Object.keys(mod.nodeBoosts || {}).length,
   };

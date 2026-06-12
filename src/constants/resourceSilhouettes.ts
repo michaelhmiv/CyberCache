@@ -167,7 +167,7 @@ const MASTERY_SILHOUETTES: ResourceSilhouette[] = [
 
 // ── Consumables ────────────────────────────────────────────────────────────────
 
-const CONSUMABLE_SILHOUETTES: Record<string, ResourceSilhouette[]> = {
+export const CONSUMABLE_SILHOUETTES: Record<string, ResourceSilhouette[]> = {
   medKit: [{ id: 'medkit', body: 'M7 3H17L20 7V17L17 21H7L4 17V7L7 3Z', core: 'M9 8H15V16H9V8Z M12 5V19 M5 12H19', highlight: 'M10 9H14V15H10V9Z' }],
   grenade: [{ id: 'grenade', body: 'M8 3H16L14 5L14 6H10L10 5L8 3Z M6 6H18Q18 12 14 18L12 22L10 18Q6 12 6 6Z', core: 'M8 8H16Q16 12 13 16L12 18L11 16Q8 12 8 8Z', highlight: 'M10 10H14V14H10V10Z' }],
   ammoPack: [{ id: 'ammo', body: 'M5 4H16L19 8V18L16 21H5V4Z', core: 'M8 7H14V10H8V7Z M8 12H14V15H8V12Z', highlight: 'M10 8H12V9H10V8Z' }],

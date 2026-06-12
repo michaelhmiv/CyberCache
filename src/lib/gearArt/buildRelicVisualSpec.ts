@@ -2,12 +2,10 @@ import { Rarity, DropSource } from '@/types/game';
 import type { Relic } from '@/types/items';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import {
-  type RelicSilhouette,
   type RelicVisualSpec,
   pickRelicSilhouette,
-  DEFAULT_RELIC_SILHOUETTE,
 } from '@/constants/relicSilhouettes';
-import { buildDecals, type WeaponVisualDecal } from '@/lib/weaponArt/buildWeaponVisualSpec';
+import { buildDecals } from '@/lib/weaponArt/buildWeaponVisualSpec';
 
 function normalizeRarity(rarity: Rarity | string): Rarity {
   return (Object.values(Rarity) as string[]).includes(rarity) ? (rarity as Rarity) : Rarity.Common;
@@ -35,7 +33,7 @@ export function buildRelicVisualSpec(relic: Partial<Relic> & {
     sourceTag: relic.sourceTag ?? DropSource.WorldDrop,
     silhouette: pickRelicSilhouette(relic.sourceTag ?? DropSource.WorldDrop, seed),
     rarityFrame: RARITY_FRAME_STYLES[rarity],
-    decals: buildDecals((relic as any).affixes, seed, undefined),
+    decals: buildDecals(relic.affixes, seed, undefined),
     texture: 'crystal',
   };
 }

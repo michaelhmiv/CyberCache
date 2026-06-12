@@ -3,12 +3,10 @@ import type { Shield } from '@/types/items';
 import { getElementVisual } from '@/constants/visualAssets';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import {
-  type ShieldSilhouette,
   type ShieldVisualSpec,
   pickShieldSilhouette,
-  DEFAULT_SHIELD_SILHOUETTE,
 } from '@/constants/shieldSilhouettes';
-import { type WeaponVisualDecal, buildDecals } from '@/lib/weaponArt/buildWeaponVisualSpec';
+import { buildDecals } from '@/lib/weaponArt/buildWeaponVisualSpec';
 
 function normalizeRarity(rarity: Rarity | string): Rarity {
   return (Object.values(Rarity) as string[]).includes(rarity) ? (rarity as Rarity) : Rarity.Common;
@@ -31,8 +29,8 @@ export function buildShieldVisualSpec(shield: Partial<Shield> & {
   rarity: Rarity | string;
 }): ShieldVisualSpec {
   const rarity = normalizeRarity(shield.rarity);
-  const seed = typeof (shield as any).pixelSeed === 'number'
-    ? (shield as any).pixelSeed
+  const seed = typeof shield.pixelSeed === 'number'
+    ? shield.pixelSeed
     : hashString(`${shield.id || ''}:${shield.name || ''}:${shield.element}:${shield.rarity}`);
 
   return {
@@ -45,7 +43,7 @@ export function buildShieldVisualSpec(shield: Partial<Shield> & {
     silhouette: pickShieldSilhouette(shield.element, seed),
     rarityFrame: RARITY_FRAME_STYLES[rarity],
     elementVisual: getElementVisual(shield.element),
-    decals: buildDecals((shield as any).affixes, seed, undefined),
+    decals: buildDecals(shield.affixes, seed, undefined),
     texture: getElementVisual(shield.element).texture || 'energy',
   };
 }

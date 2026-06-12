@@ -13,9 +13,10 @@ export type DpsContext = {
   bossResistances?: Element[];
   /**
    * Pre-fight consumable counts, in `Record<string, number>` shape.
-   * The chain only consumes the keys listed in `DPS_CONSUMABLE_EFFECTS`
-   * (TargetPainter, OverchargeStim, IncendiaryAmmo, VoidAmmo). Other
-   * consumables affect survival/break/loot and stay in the sim.
+   * The chain only consumes DPS-relevant keys from `DPS_CONSUMABLE_EFFECTS`,
+   * which is derived from the source-of-truth consumable runtime table.
+   * Survival, break, loot, and utility effects stay in the simulator or
+   * activity settlement layer.
    */
   consumables?: Record<string, number>;
   /**
@@ -55,10 +56,9 @@ const counterElementMultiplier = (
 };
 
 /**
- * Compute the consumable multiplier step. Only the keys listed in
- * `DPS_CONSUMABLE_EFFECTS` contribute; everything else is silently
- * ignored. The shape is `Record<string, number>` so callers can pass
- * the full consumables table without filtering.
+ * Compute the consumable multiplier step. Only DPS-runtime consumables
+ * exposed by `src/constants/consumables.ts` contribute here; the caller can
+ * pass the full consumables table without creating a second DPS item list.
  */
 function consumableMultiplier(consumables: Record<string, number> | undefined): number {
   if (!consumables) return 1;
@@ -84,7 +84,7 @@ function consumableMultiplier(consumables: Record<string, number> | undefined): 
  *   3. Manufacturer legendary damage multiplier
  *   4. Element matchup vs boss weakness / resistance (3-state counter table)
  *   5. Ammo-window efficiency (caller-provided, default 1.0)
- *   6. Pre-fight consumables (DPS-relevant subset, see DPS_CONSUMABLE_EFFECTS)
+ *   6. DPS consumables from the source-of-truth runtime table
  *   7. Per-weapon boss damage modifier (from weapon affixes)
  *
  * The chain knows nothing about per-slot contribution (secondary × 0.3,
@@ -122,8 +122,7 @@ export function computeWeaponDps(ctx: DpsContext): number {
   // Step 5: Ammo-window efficiency. Caller pre-computes this from
   // `calculateAmmoWindows`; the chain just multiplies it in.
   const ammoDps = elementalDps * ammoEfficiency;
-  // Step 6: Pre-fight consumables. Only the keys in
-  // DPS_CONSUMABLE_EFFECTS contribute; everything else is a no-op.
+  // Step 6: DPS consumables derived from the consumable runtime table.
   const consumableDps = ammoDps * consumableMultiplier(consumables);
   // Step 7: Per-weapon boss damage modifier (from weapon affixes).
   return consumableDps * (1 + bossDamageMod);

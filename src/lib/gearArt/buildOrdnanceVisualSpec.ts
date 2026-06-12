@@ -3,12 +3,10 @@ import type { Ordnance } from '@/types/items';
 import { getElementVisual } from '@/constants/visualAssets';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import {
-  type OrdnanceSilhouette,
   type OrdnanceVisualSpec,
   pickOrdnanceSilhouette,
-  DEFAULT_ORDNANCE_SILHOUETTE,
 } from '@/constants/ordnanceSilhouettes';
-import { buildDecals, type WeaponVisualDecal } from '@/lib/weaponArt/buildWeaponVisualSpec';
+import { buildDecals } from '@/lib/weaponArt/buildWeaponVisualSpec';
 
 function normalizeRarity(rarity: Rarity | string): Rarity {
   return (Object.values(Rarity) as string[]).includes(rarity) ? (rarity as Rarity) : Rarity.Common;
@@ -29,8 +27,8 @@ export function buildOrdnanceVisualSpec(ordnance: Partial<Ordnance> & {
   effect: string;
 }): OrdnanceVisualSpec {
   const rarity = normalizeRarity(ordnance.rarity);
-  const seed = typeof (ordnance as any).pixelSeed === 'number'
-    ? (ordnance as any).pixelSeed
+  const seed = typeof ordnance.pixelSeed === 'number'
+    ? ordnance.pixelSeed
     : hashString(`${ordnance.id || ''}:${ordnance.name || ''}:${ordnance.element}:${ordnance.effect}:${ordnance.rarity}`);
 
   return {
@@ -43,7 +41,7 @@ export function buildOrdnanceVisualSpec(ordnance: Partial<Ordnance> & {
     silhouette: pickOrdnanceSilhouette(ordnance.effect ?? 'frag', seed),
     rarityFrame: RARITY_FRAME_STYLES[rarity],
     elementVisual: getElementVisual(ordnance.element),
-    decals: buildDecals((ordnance as any).affixes, seed, undefined),
+    decals: buildDecals(ordnance.affixes, seed, undefined),
     texture: 'ordnance',
   };
 }

@@ -23,13 +23,17 @@ import { useActivityStore, useOfflineRecapStore, usePlayerStore } from '@/store'
 // Read debug flag at module level
 const DEBUG =
   typeof import.meta !== 'undefined' &&
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (import.meta as any).env?.VITE_DEBUG_SETTLEMENT === 'true';
+  import.meta.env?.VITE_DEBUG_SETTLEMENT === 'true';
 
 export function SettlementDebugOverlay() {
   // Hooks must be called unconditionally — the if (!DEBUG) return null
   // gate applies only to rendering, not to hook declarations.
-  const [visibleSince, setVisibleSince] = useState<number | null>(null);
+  const [visibleSince, setVisibleSince] = useState<number | null>(() =>
+    DEBUG && typeof document !== 'undefined' && document.visibilityState === 'visible'
+      ? Date.now()
+      : null
+  );
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!DEBUG) return;
@@ -44,11 +48,12 @@ export function SettlementDebugOverlay() {
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', handleVisible);
 
-    if (!document.hidden) handleVisible();
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', handleVisible);
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -80,15 +85,15 @@ export function SettlementDebugOverlay() {
   };
 
   const nowVisible = document.visibilityState === 'visible';
-  const hiddenDuration = visibleSince ? Date.now() - visibleSince : 0;
+  const hiddenDuration = visibleSince ? now - visibleSince : 0;
 
   return (
     <div className="fixed bottom-20 right-2 z-[999] bg-black/85 border border-amber/30 rounded p-2 text-[9px] font-mono text-amber/70 max-w-[220px] backdrop-blur select-none pointer-events-none">
       <div className="text-[10px] font-black text-amber mb-1">🔍 SETTLEMENT DIAG</div>
       <div className="space-y-0.5">
         <Row label="Activity" value={diag.activeAction} />
-        <Row label="Heartbeat" value={diag.lastHeartbeat ? fmtAgo(diag.lastHeartbeat) : 'none'} />
-        <Row label="SettledAt" value={diag.lastRoamingSettledAt ? fmtAgo(diag.lastRoamingSettledAt) : 'null'} />
+        <Row label="Heartbeat" value={diag.lastHeartbeat ? fmtAgo(diag.lastHeartbeat, now) : 'none'} />
+        <Row label="SettledAt" value={diag.lastRoamingSettledAt ? fmtAgo(diag.lastRoamingSettledAt, now) : 'null'} />
         <Row label="Tick" value={String(diag.lastClaimedTick)} />
         <Row label="Result" value={diag.lastSettlementResult} />
         {dismissed && lastSettlement && <Row label="Dismissed" value="yes" warn />}
@@ -108,8 +113,8 @@ function Row({ label, value, warn }: { label: string; value: string; warn?: bool
   );
 }
 
-function fmtAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
+function fmtAgo(iso: string, now: number): string {
+  const ms = now - new Date(iso).getTime();
   if (ms < 60000) return `${Math.floor(ms / 1000)}s ago`;
   if (ms < 3600000) return `${Math.floor(ms / 60000)}m ago`;
   return `${Math.floor(ms / 3600000)}h ago`;

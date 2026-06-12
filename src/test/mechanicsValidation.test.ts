@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CONSUMABLES, CONSUMABLE_SLOTS } from '../constants/consumables';
+import {
+  CONSUMABLES,
+  CONSUMABLE_SLOTS,
+  getConsumableRuntimeEffects,
+  getConsumablesForActivity,
+  getConsumablesForLayoutChannel,
+  VENDOR_CONSUMABLES,
+} from '../constants/consumables';
 import { CRAFTING_RECIPES } from '../constants/craftingRecipes';
 import { LEGENDARY_EFFECTS } from '../constants/legendaryEffects';
 import { REGION_1_BOSSES } from '../constants/bosses';
@@ -18,9 +25,9 @@ describe('mechanics foundation validation', () => {
     expect(report.checkCount).toBeGreaterThan(200);
   });
 
-  it('keeps consumables V2 metadata complete enough for boss prep', () => {
+  it('keeps consumables metadata complete enough for runtime, market, and visuals', () => {
     const all = Object.values(CONSUMABLES);
-    expect(all.length).toBeGreaterThan(16);
+    expect(all.length).toBeGreaterThan(24);
 
     for (const consumable of all) {
       expect(consumable.id).toBeTruthy();
@@ -33,16 +40,60 @@ describe('mechanics foundation validation', () => {
       expect(consumable.trigger).toBeTruthy();
       expect(consumable.consumePolicy).toBeTruthy();
       expect(consumable.implementationStatus).toBeTruthy();
+
+      expect(consumable.visual.glyph.length).toBeGreaterThan(0);
+      expect(consumable.visual.accent).toBeTruthy();
+      expect(consumable.visual.silhouette).toBeTruthy();
+      expect(consumable.runtime.activityScopes.length).toBeGreaterThan(0);
+      expect(consumable.runtime.layoutChannel).toBeTruthy();
+      expect(consumable.runtime.trigger).toBeTruthy();
+      expect(consumable.runtime.consumePolicy).toBeTruthy();
+      expect(consumable.runtime.zeroBehavior).toBeTruthy();
+      expect(consumable.runtime.ledgerText.length).toBeGreaterThan(0);
+      expect(Object.keys(consumable.runtime.baseEffects).length).toBeGreaterThan(0);
+      expect(consumable.quality.vendorQuality).toBe(100);
+      expect(consumable.quality.craftMin).toBeGreaterThan(0);
+      expect(consumable.quality.craftMax).toBeGreaterThanOrEqual(consumable.quality.craftMin);
+      expect(consumable.market.vendorPrice).toBeGreaterThan(0);
     }
+  });
+
+  it('backs quality perks with actual runtime effect keys', () => {
+    for (const consumable of Object.values(CONSUMABLES)) {
+      const vendorEffects = getConsumableRuntimeEffects(consumable.id, 100);
+      expect(Object.keys(vendorEffects).length).toBeGreaterThan(0);
+
+      for (const perk of consumable.runtime.highQualityPerks ?? []) {
+        expect(perk.minQuality).toBeGreaterThan(100);
+        expect(perk.label.length).toBeGreaterThan(0);
+        expect(Object.keys(perk.effects).length).toBeGreaterThan(0);
+        const perkQualityEffects = getConsumableRuntimeEffects(consumable.id, perk.minQuality);
+        for (const key of Object.keys(perk.effects)) {
+          expect(perkQualityEffects).toHaveProperty(key);
+        }
+      }
+    }
+  });
+
+  it('derives activity and layout views from the consumable source of truth', () => {
+    expect(getConsumablesForActivity('boss').map((c) => c.id)).toContain('AmmoPack');
+    expect(getConsumablesForActivity('roaming').map((c) => c.id)).toContain('LootBeacon');
+    expect(getConsumablesForActivity('scrapping').map((c) => c.id)).toContain('SalvageContract');
+    expect(getConsumablesForActivity('crafting').map((c) => c.id)).toContain('WorkshopRushTicket');
+    expect(getConsumablesForLayoutChannel('ammo').map((c) => c.id)).toContain('HighCapacityAmmoPack');
+    expect(getConsumablesForLayoutChannel('emergency').map((c) => c.id)).toContain('MedKit');
+    expect(VENDOR_CONSUMABLES.map((c) => c.id)).toContain('AmmoPack');
+    expect(VENDOR_CONSUMABLES.map((c) => c.id)).not.toContain('ElementalCoating');
   });
 
   it('keeps boss-prep-visible consumables tagged and explainable', () => {
     const prepVisible = Object.values(CONSUMABLES).filter((item) => item.isBossPrepVisible);
-    expect(prepVisible.length).toBeGreaterThan(12);
+    expect(prepVisible.length).toBeGreaterThan(18);
 
     for (const consumable of prepVisible) {
       expect(consumable.counterTags.length).toBeGreaterThan(0);
       expect(consumable.uiHints.length).toBeGreaterThan(0);
+      expect(consumable.runtime.activityScopes).toContain('boss');
     }
   });
 

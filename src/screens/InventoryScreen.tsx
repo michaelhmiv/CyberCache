@@ -90,7 +90,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
       <div>
         {activeTab === 'gear' && <GearHub onNavigate={onNavigate} />}
         {activeTab === 'loadout' && <SyncedLoadoutScreen />}
-        {activeTab === 'consumables' && <ConsumablesScreen />}
+        {activeTab === 'consumables' && <ConsumablesScreen onNavigate={onNavigate} />}
         {activeTab === 'workshop' && <WorkshopScreen onNavigate={onNavigate} />}
       </div>
     </div>

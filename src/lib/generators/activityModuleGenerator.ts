@@ -20,7 +20,6 @@ import {
   ACTIVITY_MODULE_DEFS,
   RARITY_MULT,
   QUALITY_MIN,
-  LEVEL_GROWTH_RATE,
   MFG_BIAS_MULT,
   SLOT_ACTIVITY_WEIGHTS,
   MODULE_ACTIVITY_KINDS,
@@ -151,7 +150,6 @@ function buildDisplayText(
   def: ActivityModuleDef,
   subStats: Record<string, number>,
   quality: number,
-  manufacturer: Manufacturer,
 ): string {
   const qualityPct = Math.round(quality * 100);
   const primary = def.subStats.find((s) => s.isPrimary) ?? def.subStats[0];
@@ -214,7 +212,7 @@ export function generateActivityModule(ctx: ActivityModuleContext): Affix | null
     stat: `${ctx.activityKind}Module`,
     value: quality, // quality roll 0–1, shown as progress bar
     subStats,
-    displayText: buildDisplayText(moduleDef, subStats, quality, ctx.manufacturer),
+    displayText: buildDisplayText(moduleDef, subStats, quality),
   };
 
   return affix;

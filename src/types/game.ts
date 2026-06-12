@@ -50,8 +50,11 @@ export enum SkillTreeType {
 
 export enum ConsumableType {
   MedKit = 'MedKit',
+  MedKitRefined = 'MedKitRefined',
   Grenade = 'Grenade',
+  OrdnanceCharge = 'OrdnanceCharge',
   AmmoPack = 'AmmoPack',
+  HighCapacityAmmoPack = 'HighCapacityAmmoPack',
   ShieldCell = 'ShieldCell',
   ElementalCoating = 'ElementalCoating',
   LuckBooster = 'LuckBooster',
@@ -59,12 +62,24 @@ export enum ConsumableType {
   InsuranceToken = 'InsuranceToken',
   NanoSwarm = 'NanoSwarm',
   AdrenalineShot = 'AdrenalineShot',
+  ArmorPiercingAmmo = 'ArmorPiercingAmmo',
+  IncendiaryAmmo = 'IncendiaryAmmo',
   ShockAmmo = 'ShockAmmo',
   CorrosiveAmmo = 'CorrosiveAmmo',
+  CryoAmmo = 'CryoAmmo',
   VoidAmmo = 'VoidAmmo',
+  OverchargeStim = 'OverchargeStim',
   TargetPainter = 'TargetPainter',
+  PhaseShiftGrenade = 'PhaseShiftGrenade',
+  EMPCharge = 'EMPCharge',
+  CorrosiveCharge = 'CorrosiveCharge',
+  MagnetizedPayload = 'MagnetizedPayload',
   Jammer = 'Jammer',
   DataSkimmer = 'DataSkimmer',
+  SignalScrambler = 'SignalScrambler',
+  LootBeacon = 'LootBeacon',
+  SalvageContract = 'SalvageContract',
+  WorkshopRushTicket = 'WorkshopRushTicket',
 }
 
 export enum MaterialType {
@@ -90,6 +105,7 @@ export enum CraftedConsumableType {
   NanoSwarm = 'NanoSwarm',
   AdrenalineShot = 'AdrenalineShot',
   AmmoPack = 'AmmoPack',
+  HighCapacityAmmoPack = 'HighCapacityAmmoPack',
   ArmorPiercingAmmo = 'ArmorPiercingAmmo',
   IncendiaryAmmo = 'IncendiaryAmmo',
   ShockAmmo = 'ShockAmmo',
@@ -100,12 +116,18 @@ export enum CraftedConsumableType {
   OverchargeStim = 'OverchargeStim',
   TargetPainter = 'TargetPainter',
   PhaseShiftGrenade = 'PhaseShiftGrenade',
+  EMPCharge = 'EMPCharge',
+  CorrosiveCharge = 'CorrosiveCharge',
   LuckBooster = 'LuckBooster',
   BossScanner = 'BossScanner',
   InsuranceToken = 'InsuranceToken',
   DataSkimmer = 'DataSkimmer',
   Jammer = 'Jammer',
   MagnetizedPayload = 'MagnetizedPayload',
+  SignalScrambler = 'SignalScrambler',
+  LootBeacon = 'LootBeacon',
+  SalvageContract = 'SalvageContract',
+  WorkshopRushTicket = 'WorkshopRushTicket',
 }
 
 export enum ConsumableSlot {

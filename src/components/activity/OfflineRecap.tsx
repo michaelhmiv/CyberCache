@@ -10,7 +10,6 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Clock, Zap, Coins, Wrench, Key, Gem, Package } from 'lucide-react';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
-import type { SettlementRecap } from '@/lib/activity/activitySettlement';
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;

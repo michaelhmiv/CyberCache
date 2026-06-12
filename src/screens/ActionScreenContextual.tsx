@@ -63,7 +63,6 @@ import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/supabase/s
 import type { ActivityKind, StartActivityInput } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
-import { Rarity } from '@/types/game';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LegendaryDropFlash } from '@/components/action/LegendaryDropFlash';
 
@@ -236,7 +235,7 @@ const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBos
   );
 };
 
-const BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: () => void }> = ({ boss, fightPower, openBoss }) => {
+const _BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: () => void }> = ({ boss, fightPower, openBoss }) => {
   if (!boss) return <Section title="No Boss Selected" icon={Skull}><button type="button" onClick={openBoss} className="bl-primary w-full py-2 text-xs font-black">Choose Boss</button></Section>;
   const readiness = Math.round((fightPower / Math.max(1, boss.recommendedPower)) * 100);
   return (
@@ -302,7 +301,7 @@ const MarketPanel: React.FC<CommonPanelProps & { listings: number; history: numb
   <div className="space-y-3"><RewardIntelPanel title="Trade kiosk" eyebrow="market intel" stats={[{ label: 'Credits', value: credits.toLocaleString(), tone: 'cyan' }, { label: 'Sellable', value: sellableItems.length }, { label: 'Listed', value: listings, tone: 'amber' }, { label: 'History', value: history }, { label: 'Fees', value: '10%' }, { label: 'Mode', value: 'Listing' }]} /> <Section title="Listing Control" eyebrow="item selector" icon={ShoppingCart}><button type="button" onClick={onMarketPicker} className="bl-primary w-full py-2 text-xs font-black">Choose Listing Candidate</button><button type="button" onClick={startMarket} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Market As Current Action</button><button type="button" onClick={() => onNavigate?.('market')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Market</button></Section></div>
 );
 
-const IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate, selectedArea }) => (
+const _IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate, selectedArea }) => (
   <div className="space-y-3">
     <Section title="Recommended Dispatch" eyebrow="no action active" icon={Activity}>
       <div className="grid grid-cols-2 gap-2">
@@ -737,7 +736,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           </div>
         </div>
         <div className="grid grid-cols-4 gap-1.5">
-          {switchActions.slice(0, 8).map(({ label, detail: rowDetail, icon: Icon, run }) => (
+          {switchActions.slice(0, 8).map(({ label, icon: Icon, run }) => (
             <button
               key={label}
               type="button"

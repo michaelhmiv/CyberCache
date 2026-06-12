@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Crosshair, PackagePlus, Radio, Shield, Star } from 'lucide-react';
-import { CONSUMABLES } from '@/constants/consumables';
+import { AlertTriangle, Crosshair, PackagePlus, Radio, Shield, Star, Store } from 'lucide-react';
+import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import type { ConsumableDef, ConsumableFamily } from '@/constants/consumables';
-import { usePlayerStore } from '@/store';
+import { useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
 import { ConsumableInspectSheet } from '@/components/consumables/ConsumableInspectSheet';
 
 const FAMILY_ICONS: Record<ConsumableFamily, React.ElementType> = {
@@ -34,14 +34,16 @@ const FAMILY_LABELS: Record<ConsumableFamily, string> = {
 
 const FAMILY_ORDER: ConsumableFamily[] = ['survival', 'ammo', 'ordnance', 'tactical', 'economy', 'corrupted'];
 
-export const ConsumablesScreen: React.FC = () => {
+export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void }> = ({ onNavigate }) => {
   const player = usePlayerStore();
+  const loadout = useLoadoutStore();
+  const market = useMarketStore();
   const [inspecting, setInspecting] = useState<ConsumableDef | null>(null);
   const [expandedFamily, setExpandedFamily] = useState<ConsumableFamily | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // Group owned consumables by family
   const grouped = useMemo(() => {
-    const result: Record<ConsumableFamily, { def: ConsumableDef; count: number }[]> = {
+    const result: Record<ConsumableFamily, { def: ConsumableDef; count: number; bestQuality: number }[]> = {
       survival: [],
       ammo: [],
       ordnance: [],
@@ -53,7 +55,7 @@ export const ConsumablesScreen: React.FC = () => {
     Object.values(CONSUMABLES).forEach((def) => {
       const count = player.getConsumableCount(def.id);
       if (count > 0) {
-        result[def.family].push({ def, count });
+        result[def.family].push({ def, count, bestQuality: player.getBestConsumableQuality(def.id) });
       }
     });
 
@@ -66,27 +68,52 @@ export const ConsumablesScreen: React.FC = () => {
   );
 
   const handleEquip = (id: string) => {
-    // Navigate to loadout tab with consumable pre-selected
-    // For now, just close the inspect
+    const def = CONSUMABLES[id];
+    const slot = def?.allowedSlots[0];
+    if (!def || !slot) {
+      setNotice('This consumable cannot be equipped.');
+      return;
+    }
+    if (player.getConsumableCount(id) <= 0) {
+      setNotice('You do not own any of this consumable.');
+      return;
+    }
+    loadout.setConsumableSlot(slot, id);
+    setNotice(`${def.name} equipped to ${slot}.`);
     setInspecting(null);
+  };
+
+  const openVendor = () => {
+    market.setActiveTab('vendor');
+    onNavigate?.('market');
   };
 
   return (
     <div className="space-y-3 p-3 pb-20">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-lg font-black text-text-primary">Consumables</div>
-          <div className="text-[10px] text-text-muted">Tap any item to inspect effects, triggers, and loadout slots.</div>
+          <div className="text-[10px] text-text-muted">Tap any item to inspect effects, quality batches, triggers, and loadout slots.</div>
         </div>
-        <div className="rounded-full border border-border bg-surface px-2 py-1 text-[10px] font-black text-amber">
-          {totalOwned} total
-        </div>
+        <button type="button" onClick={openVendor} className="rounded-full border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] font-black text-amber">
+          <span className="inline-flex items-center gap-1"><Store size={11} /> Vendor</span>
+        </button>
       </div>
+
+      <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2">
+        <div className="text-[10px] text-text-muted">Total owned</div>
+        <div className="text-xs font-black text-amber">{totalOwned}</div>
+      </div>
+
+      {notice && <div className="rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[10px] text-amber">{notice}</div>}
 
       {totalOwned === 0 && (
         <div className="py-10 text-center">
           <div className="text-sm text-text-muted">No consumables in inventory.</div>
-          <div className="mt-1 text-[10px] text-text-muted">Visit the Market → Vendor to buy consumables.</div>
+          <div className="mt-1 text-[10px] text-text-muted">Vendor stock is 100% quality. Crafted batches roll variable quality.</div>
+          <button type="button" onClick={openVendor} className="mt-3 rounded-xl border border-amber/40 bg-amber/10 px-3 py-2 text-xs font-black text-amber">
+            Open Vendor
+          </button>
         </div>
       )}
 
@@ -118,20 +145,22 @@ export const ConsumablesScreen: React.FC = () => {
 
             {expanded && (
               <div className="border-t border-border px-3 pb-3 space-y-1.5">
-                {items.map(({ def, count }) => (
+                {items.map(({ def, count, bestQuality }) => (
                   <button
                     key={def.id}
                     type="button"
                     onClick={() => setInspecting(def)}
                     className="flex w-full items-center gap-3 rounded-lg border border-border bg-bg/60 p-2.5 text-left active:scale-[0.98] transition-transform"
                   >
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${colorClass.split(' ').slice(1).join(' ')}`}>
-                      <Icon size={15} className={colorClass.split(' ')[0]} />
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-lg font-black ${colorClass.split(' ').slice(1).join(' ')}`}>
+                      {def.visual.glyph}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs font-black text-text-primary">{def.name}</div>
                       <div className="text-[9px] text-text-muted">{def.shortDescription}</div>
                       <div className="mt-0.5 flex flex-wrap gap-1">
+                        <span className="rounded-full border border-border bg-surface px-1.5 py-0.5 text-[8px] text-text-muted">{def.runtime.layoutChannel}</span>
+                        <span className="rounded-full border border-amber/30 bg-amber/10 px-1.5 py-0.5 text-[8px] text-amber">Best {bestQuality.toFixed(0)}% · {getConsumableQualityBand(bestQuality)}</span>
                         {def.allowedSlots.map((slot) => (
                           <span key={slot} className="rounded-full border border-border bg-surface px-1.5 py-0.5 text-[8px] text-text-muted">{slot}</span>
                         ))}

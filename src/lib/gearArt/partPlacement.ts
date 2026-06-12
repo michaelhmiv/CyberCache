@@ -1,4 +1,3 @@
-import type { WeaponTypeSilhouette } from '@/constants/weaponVisuals';
 import type { WeaponVisualSpec } from '@/lib/weaponArt/buildWeaponVisualSpec';
 
 /**
@@ -140,7 +139,6 @@ export function barrelAttachments(spec: WeaponVisualSpec): Array<{ d: string; va
   const pts = computeAttachPoints(spec);
   const base = pts.barrelBase;
   const tip = pts.barrelTip;
-  const dy = tip.y - base.y;
   const length = tip.x - base.x;
 
   const variants: Array<{ d: string; variant: number }> = [];

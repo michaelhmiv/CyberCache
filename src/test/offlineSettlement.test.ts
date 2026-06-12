@@ -138,6 +138,7 @@ describe('Offline settlement — client contract', () => {
     const snapshotIdx = auth.indexOf('saveCurrentRuntimeStores');
     expect(hydrateIdx).toBeGreaterThan(0);
     expect(settlementIdx).toBeGreaterThan(0);
+    expect(snapshotIdx).toBeGreaterThan(0);
     // Settlement should happen after hydrate, and snapshot save after settlement
     // (snapshot may not be explicitly after — there's a save in the settlement function)
   });

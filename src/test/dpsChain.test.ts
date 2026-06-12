@@ -233,11 +233,11 @@ describe('DPS modifier chain', () => {
       expect(result).toBeCloseTo(rawDps * 1.08, 4);
     });
 
-    it('applies VoidAmmo (+20% per stack)', () => {
+    it('applies VoidAmmo (+22% per stack)', () => {
       const weapon = makeWeapon({ element: Element.Shock });
       const rawDps = 100 * 5 * (1 + 0.2 * 1.5);
       const result = computeWeaponDps({ weapon, consumables: { VoidAmmo: 1 } });
-      expect(result).toBeCloseTo(rawDps * 1.20, 4);
+      expect(result).toBeCloseTo(rawDps * 1.22, 4);
     });
 
     it('stacks multiple consumable types multiplicatively', () => {
@@ -247,8 +247,8 @@ describe('DPS modifier chain', () => {
         weapon,
         consumables: { TargetPainter: 1, OverchargeStim: 1, IncendiaryAmmo: 1, VoidAmmo: 1 },
       });
-      // 1.15 * 1.12 * 1.08 * 1.20 = 1.669248
-      expect(result).toBeCloseTo(rawDps * 1.669248, 3);
+      // 1.15 * 1.12 * 1.08 * 1.22 = 1.6970688
+      expect(result).toBeCloseTo(rawDps * 1.6970688, 3);
     });
 
     it('stacks multiple of the same consumable type linearly then percentified', () => {
@@ -279,7 +279,15 @@ describe('DPS modifier chain', () => {
       // someone adds a new DPS-affecting consumable, they should also
       // add it here (and a test above).
       expect(Object.keys(DPS_CONSUMABLE_EFFECTS).sort()).toEqual(
-        ['IncendiaryAmmo', 'OverchargeStim', 'TargetPainter', 'VoidAmmo'],
+        [
+          'AdrenalineShot',
+          'AmmoPack',
+          'HighCapacityAmmoPack',
+          'IncendiaryAmmo',
+          'OverchargeStim',
+          'TargetPainter',
+          'VoidAmmo',
+        ],
       );
     });
   });
