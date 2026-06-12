@@ -1,0 +1,2 @@
+-- Fix settlement idempotency key ambiguity.
+-- Full migration to be completed in follow-up commit.
