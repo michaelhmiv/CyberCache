@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PlayerProfile } from '../../types/player';
+import { ConsumableBatch, PlayerProfile } from '../../types/player';
 import { WorkshopQueue } from '../../types/workshop';
 import { XP_CURVE_FORMULA } from '@/content/simulation';
 
@@ -18,6 +18,11 @@ export interface PlayerState extends PlayerProfile {
   addConsumable: (type: string, count: number) => void;
   removeConsumable: (type: string, count: number) => void;
   getConsumableCount: (type: string) => number;
+  setConsumableBatches: (batches: ConsumableBatch[]) => void;
+  addConsumableBatch: (batch: ConsumableBatch) => void;
+  consumeBestConsumableBatch: (type: string, count: number) => void;
+  getBestConsumableQuality: (type: string) => number;
+  getConsumableBatchesByType: (type: string) => ConsumableBatch[];
   addMaterial: (type: string, count: number) => void;
   removeMaterial: (type: string, count: number) => void;
   addEssence: (type: string, count: number) => void;
@@ -43,12 +48,21 @@ const initialPlayerState = (): PlayerProfile => ({
   lastClaimTime: Date.now(),
   deathFeeInsurance: false,
   consumables: {},
+  consumableBatches: [],
   materials: {},
   essences: {},
   workshopQueues: [],
   lastWorkshopTick: Date.now(),
   lastClaimedTick: 0,
 });
+
+function normalizeBatch(raw: ConsumableBatch): ConsumableBatch {
+  return {
+    ...raw,
+    quality_percent: Number(raw.quality_percent) || 100,
+    quantity: Math.max(0, Number(raw.quantity) || 0),
+  };
+}
 
 export const usePlayerStore = create<PlayerState>()((set, get) => ({
   ...initialPlayerState(),
@@ -68,7 +82,10 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     for (const [k, v] of Object.entries(p.materials)) materials[k] = (materials[k] || 0) + v;
     const essences: Record<string, number> = { ...serverEss };
     for (const [k, v] of Object.entries(p.essences)) essences[k] = (essences[k] || 0) + v;
-    return { ...state, ...server, xp, level, credits, scrap, materials, essences, _pending: { xp: 0, credits: 0, scrap: 0, materials: {}, essences: {} } };
+    const consumableBatches = Array.isArray(server.consumableBatches)
+      ? server.consumableBatches.map(normalizeBatch).filter((batch) => batch.quantity > 0)
+      : state.consumableBatches;
+    return { ...state, ...server, xp, level, credits, scrap, materials, essences, consumableBatches, _pending: { xp: 0, credits: 0, scrap: 0, materials: {}, essences: {} } };
   }),
 
   setPlayer: (partial) => set((state) => ({ ...state, ...partial })),
@@ -106,6 +123,43 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     const s = get();
     return s.consumables[type] || 0;
   },
+  setConsumableBatches: (batches) => set({ consumableBatches: batches.map(normalizeBatch).filter((batch) => batch.quantity > 0) }),
+  addConsumableBatch: (batch) => set((s) => {
+    const normalized = normalizeBatch(batch);
+    const existingIndex = s.consumableBatches.findIndex((entry) =>
+      entry.consumable_type === normalized.consumable_type &&
+      entry.quality_percent === normalized.quality_percent &&
+      entry.origin === normalized.origin &&
+      (entry.creator_user_id ?? null) === (normalized.creator_user_id ?? null) &&
+      (entry.source_recipe_id ?? null) === (normalized.source_recipe_id ?? null)
+    );
+    if (existingIndex === -1) return { consumableBatches: [normalized, ...s.consumableBatches] };
+    return {
+      consumableBatches: s.consumableBatches.map((entry, index) => index === existingIndex ? { ...entry, quantity: entry.quantity + normalized.quantity } : entry),
+    };
+  }),
+  consumeBestConsumableBatch: (type, count) => set((s) => {
+    let remaining = count;
+    const sorted = [...s.consumableBatches].sort((a, b) => {
+      if (a.consumable_type !== b.consumable_type) return 0;
+      return a.quality_percent - b.quality_percent || String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''));
+    });
+    const next = sorted.map((batch) => {
+      if (remaining <= 0 || batch.consumable_type !== type || batch.quantity <= 0) return batch;
+      const consumed = Math.min(remaining, batch.quantity);
+      remaining -= consumed;
+      return { ...batch, quantity: batch.quantity - consumed };
+    }).filter((batch) => batch.quantity > 0);
+    return { consumableBatches: next };
+  }),
+  getBestConsumableQuality: (type) => {
+    const batches = get().consumableBatches.filter((batch) => batch.consumable_type === type && batch.quantity > 0);
+    if (!batches.length) return 100;
+    return Math.max(...batches.map((batch) => batch.quality_percent));
+  },
+  getConsumableBatchesByType: (type) => get().consumableBatches
+    .filter((batch) => batch.consumable_type === type && batch.quantity > 0)
+    .sort((a, b) => b.quality_percent - a.quality_percent || String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))),
   addMaterial: (type, count) =>
     set((s) => ({
       _pending: { ...s._pending, materials: { ...s._pending.materials, [type]: (s._pending.materials[type] || 0) + count } },
