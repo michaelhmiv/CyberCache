@@ -1,5 +1,5 @@
 import { useInventoryStore } from '@/store/slices/inventorySlice';
-import { useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
+import { emptySlots, useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { supabase } from './client';
 import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
 
@@ -37,5 +37,9 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
   // across authenticated hydration; generated items must arrive through Chef/RPC
   // persistence before becoming inventory truth.
   useInventoryStore.getState().setItems(serverItems);
-  useLoadoutStore.setState((state) => ({ slots: { ...state.slots, ...serverSlots } }));
+
+  // Supabase is the authoritative loadout source. Clear any local slot that the
+  // server did not return; otherwise stale local slots can make Action/Loadout
+  // tabs disagree after refreshes, equipment moves, or item salvage.
+  useLoadoutStore.getState().setSlots({ ...emptySlots, ...serverSlots });
 }
