@@ -4,6 +4,16 @@ import { processBossAttempt, processRoamingClaim, type BossAttemptRequest, type 
 
 let _supabase: SupabaseClient | null = null;
 
+class ChefRouteError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly detail?: string,
+  ) {
+    super(message);
+  }
+}
+
 function getSupabase(): SupabaseClient {
   if (!_supabase) {
     const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
@@ -18,26 +28,70 @@ function getSupabase(): SupabaseClient {
   return _supabase;
 }
 
+function requestJwt(req: Request, bodyJwt?: string): string | undefined {
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+    return authHeader.slice('bearer '.length).trim();
+  }
+  return bodyJwt;
+}
+
 async function applyJwt(supabase: SupabaseClient, jwt?: string): Promise<void> {
   if (!jwt) return;
   await supabase.auth.setSession({ access_token: jwt, refresh_token: '' });
 }
 
+async function requireAuthenticatedPlayerId(
+  supabase: SupabaseClient,
+  req: Request,
+  bodyJwt?: string,
+  claimedPlayerId?: string,
+): Promise<string> {
+  const jwt = requestJwt(req, bodyJwt);
+  if (!jwt) {
+    throw new ChefRouteError(401, 'Authentication required', 'Missing bearer token');
+  }
+
+  const { data, error } = await supabase.auth.getUser(jwt);
+  const authedPlayerId = data.user?.id;
+  if (error || !authedPlayerId) {
+    throw new ChefRouteError(401, 'Authentication required', error?.message ?? 'Invalid bearer token');
+  }
+
+  if (claimedPlayerId && claimedPlayerId !== authedPlayerId) {
+    throw new ChefRouteError(403, 'Player mismatch', 'Request playerId does not match the authenticated user');
+  }
+
+  await applyJwt(supabase, jwt);
+  return authedPlayerId;
+}
+
+function sendRouteError(res: Response, fallback: string, err: unknown): void {
+  if (err instanceof ChefRouteError) {
+    res.status(err.status).json({ error: err.message, detail: err.detail });
+    return;
+  }
+
+  const message = err instanceof Error ? err.message : String(err);
+  res.status(500).json({ error: fallback, detail: message });
+}
+
 async function handleClaim(req: Request, res: Response): Promise<void> {
   try {
     const body = req.body as ClaimRequest & { jwt?: string };
-    if (!body.playerId || !body.areaId || !body.ticks || body.tickCount == null) {
-      res.status(400).json({ error: 'Missing required fields: playerId, areaId, ticks, tickCount' });
+    if (!body.areaId || !body.ticks || body.tickCount == null) {
+      res.status(400).json({ error: 'Missing required fields: areaId, ticks, tickCount' });
       return;
     }
 
     const supabase = getSupabase();
-    await applyJwt(supabase, body.jwt);
+    const playerId = await requireAuthenticatedPlayerId(supabase, req, body.jwt, body.playerId);
+    const claim: ClaimRequest = { ...body, playerId };
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('last_claimed_tick')
-      .eq('id', body.playerId)
+      .eq('id', playerId)
       .single();
 
     if (profileError) {
@@ -50,9 +104,9 @@ async function handleClaim(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const result = processRoamingClaim(body);
+    const result = processRoamingClaim(claim);
     const { data: rpcResult, error: rpcError } = await supabase.rpc('cc_apply_chef_rewards', {
-      _player_id: body.playerId,
+      _player_id: playerId,
       _credits: result.rewards.creditsAwarded,
       _scrap: result.rewards.scrapAwarded,
       _xp: result.rewards.xpAwarded,
@@ -71,7 +125,7 @@ async function handleClaim(req: Request, res: Response): Promise<void> {
 
     if (result.items.length > 0) {
       const { error: storeError } = await supabase.rpc('cc_store_chef_items', {
-        _player_id: body.playerId,
+        _player_id: playerId,
         _items: result.items,
       });
       if (storeError) console.error('[chef] Failed to store items:', storeError.message);
@@ -81,25 +135,26 @@ async function handleClaim(req: Request, res: Response): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[chef] claim error:', message);
-    res.status(500).json({ error: 'Chef processing failed', detail: message });
+    sendRouteError(res, 'Chef processing failed', err);
   }
 }
 
 async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
   try {
     const body = req.body as BossAttemptRequest & { jwt?: string };
-    if (!body.playerId || !body.bossId) {
-      res.status(400).json({ error: 'Missing required fields: playerId, bossId' });
+    if (!body.bossId) {
+      res.status(400).json({ error: 'Missing required field: bossId' });
       return;
     }
 
     const supabase = getSupabase();
-    await applyJwt(supabase, body.jwt);
+    const playerId = await requireAuthenticatedPlayerId(supabase, req, body.jwt, body.playerId);
 
     const attemptNonce = body.attemptNonce || Date.now();
-    const result = processBossAttempt({ ...body, attemptNonce });
+    const request: BossAttemptRequest = { ...body, playerId, attemptNonce };
+    const result = processBossAttempt(request);
     const { data: rpcResult, error: rpcError } = await supabase.rpc('cc_apply_chef_boss_attempt', {
-      _player_id: body.playerId,
+      _player_id: playerId,
       _boss_id: body.bossId,
       _attempt_nonce: attemptNonce,
       _victory: result.result.victory,
@@ -117,7 +172,7 @@ async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
 
     if (result.items.length > 0) {
       const { error: storeError } = await supabase.rpc('cc_store_chef_items', {
-        _player_id: body.playerId,
+        _player_id: playerId,
         _items: result.items,
       });
       if (storeError) console.error('[chef] Failed to store boss loot:', storeError.message);
@@ -133,71 +188,50 @@ async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[chef] boss verify error:', message);
-    res.status(500).json({ error: 'Boss verification failed', detail: message });
+    sendRouteError(res, 'Boss verification failed', err);
   }
 }
 
 async function handleSalvage(req: Request, res: Response): Promise<void> {
   try {
-    const body = req.body as { playerId: string; itemId: string; jwt?: string };
-    if (!body.playerId || !body.itemId) {
-      res.status(400).json({ error: 'Missing playerId or itemId' });
+    const body = req.body as { playerId?: string; itemId: string; jwt?: string; nonce?: string };
+    if (!body.itemId) {
+      res.status(400).json({ error: 'Missing itemId' });
       return;
     }
 
     const supabase = getSupabase();
-    await applyJwt(supabase, body.jwt);
+    const playerId = await requireAuthenticatedPlayerId(supabase, req, body.jwt, body.playerId);
+    const nonce = body.nonce || `salvage:${playerId}:${body.itemId}:${Date.now()}`;
 
-    const { data: item, error: itemError } = await supabase
-      .from('player_items')
-      .select('*')
-      .eq('id', body.itemId)
-      .eq('owner_id', body.playerId)
-      .single();
-
-    if (itemError || !item) {
-      res.status(404).json({ error: 'Item not found in your inventory' });
-      return;
-    }
-
-    const { calculateSalvageYield } = await import('../../constants/salvageRules');
-    const yield_ = calculateSalvageYield(item);
-    const { error: deleteError } = await supabase
-      .from('player_items')
-      .delete()
-      .eq('id', body.itemId)
-      .eq('owner_id', body.playerId);
-
-    if (deleteError) {
-      res.status(500).json({ error: 'Failed to remove item', detail: deleteError.message });
-      return;
-    }
-
-    const { error: rpcError } = await supabase.rpc('cc_apply_chef_rewards', {
-      _player_id: body.playerId,
-      _scrap: yield_.scrapValue,
-      _materials: yield_.materials,
-      _essences: yield_.essences,
-      _credits: 0,
-      _xp: 0,
-      _fragments: 0,
-      _kills: 0,
-      _tick_count: 0,
-      _area_id: 'salvage',
+    // Keep salvage on the same verified path as the rest of item mutation.
+    // This fixes the stale `player_items` / `owner_id` route that no longer
+    // matches the live Supabase schema (`item_instances.owner_user_id`).
+    const { data: recycleResult, error: recycleError } = await supabase.rpc('cc_recycle_item', {
+      nonce,
+      item_id: body.itemId,
     });
-    if (rpcError) console.error('[chef] salvage reward apply failed:', rpcError.message);
 
+    if (recycleError) {
+      res.status(500).json({ error: 'Failed to recycle item', detail: recycleError.message });
+      return;
+    }
+
+    const result = recycleResult as Record<string, unknown> | null;
     res.json({
       salvaged: true,
+      verified: true,
       itemId: body.itemId,
-      scrapValue: yield_.scrapValue,
-      materials: yield_.materials,
-      essences: yield_.essences,
+      scrapValue: Number(result?.scrap_award ?? 0),
+      materials: {},
+      essences: {},
+      profile: result?.profile,
+      item: result?.item,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[chef] salvage error:', message);
-    res.status(500).json({ error: 'Salvage failed', detail: message });
+    sendRouteError(res, 'Salvage failed', err);
   }
 }
 
