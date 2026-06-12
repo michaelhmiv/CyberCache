@@ -1,21 +1,33 @@
 /**
- * GearHub — full-featured inventory management component.
+ * GearHub — mobile-first inventory management.
  *
- * Features:
- *   - Text search (name, element, manufacturer, weapon type, rarity)
- *   - Multi-filter chips (rarity, element, manufacturer, weapon type, source, lock)
- *   - Sort options (combat power, boss power, farm power, economy, level, rarity, roll quality, name, recent)
- *   - Grid / List view toggle
- *   - Multi-select mode with bulk salvage + bulk lock/unlock
- *   - Compare view (select two items side-by-side)
- *   - Junk marking system with "salvage all junk" action
- *   - Inspect sheet on tap
+ * Design rules:
+ *   - Keep the main Gear tab dense: gear-kind rail, search, one compact toolbar, then items.
+ *   - Move high-cardinality filters into a bottom sheet so the inventory stays readable.
+ *   - Show type-specific decision stats on every row; inspect is for the full poster, not basic triage.
  */
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, ArrowUpDown, X, LayoutGrid, List, Trash2, Lock, Unlock,
-  CheckSquare, Square, ArrowLeftRight, Sword,
+  Search,
+  ArrowUpDown,
+  X,
+  LayoutGrid,
+  List,
+  Trash2,
+  Lock,
+  Unlock,
+  CheckSquare,
+  Square,
+  ArrowLeftRight,
+  Sword,
+  SlidersHorizontal,
+  Shield as ShieldIcon,
+  Bomb,
+  Gem,
+  Package,
+  Sparkles,
+  Crosshair,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
@@ -23,70 +35,242 @@ import { useInventoryStore, useLoadoutStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { RARITIES } from '@/constants/rarities';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
-import type { GearItem, Weapon } from '@/types/items';
+import type { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance, Affix } from '@/types/items';
+import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
+import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const RARITY_RANK: Record<string, number> = {
-  Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5,
+  Common: 1,
+  Uncommon: 2,
+  Rare: 3,
+  Epic: 4,
+  Legendary: 5,
 };
-const RARITY_ORDER = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
-const ELEMENTS = ['Kinetic', 'Fire', 'Shock', 'Corrosive', 'Cryo', 'Void'];
-const MANUFACTURERS = ['Redline', 'Ironwood', 'BlastForge', 'Prismatek', 'ThrowTech', 'HelixWorks'];
-const WEAPON_TYPES = ['Pistol', 'SMG', 'Shotgun', 'Sniper', 'Launcher', 'Beam'];
-const SOURCES = ['World Drop', 'Boss Drop', 'Cache-Forged', 'Crafted'];
 
-type SortKey = 'combatPower' | 'bossPower' | 'farmPower' | 'economy' | 'level' | 'rarity' | 'rollQuality' | 'name' | 'recent';
+const RARITY_ORDER = Object.values(Rarity);
+const ELEMENTS = Object.values(Element);
+const MANUFACTURERS = Object.values(Manufacturer);
+const WEAPON_TYPES = Object.values(WeaponType);
+const SOURCE_ORDER = Object.values(DropSource);
+
+type SortKey =
+  | 'combatPower'
+  | 'bossPower'
+  | 'farmPower'
+  | 'economy'
+  | 'level'
+  | 'rarity'
+  | 'rollQuality'
+  | 'name'
+  | 'recent'
+  | 'shieldHp'
+  | 'mitigation'
+  | 'recharge'
+  | 'payload'
+  | 'shieldBreak'
+  | 'armorBreak'
+  | 'skillBoost'
+  | 'nodeCount'
+  | 'affixCount'
+  | 'activityValue'
+  | 'idleValue'
+  | 'dropValue'
+  | 'scrapValue';
+
+type GearKind = 'all' | 'weapon' | 'shield' | 'ordnance' | 'classMod' | 'relic';
 type ViewMode = 'list' | 'grid';
 
-const SORT_LABELS: Record<SortKey, string> = {
-  combatPower: 'Combat Power', bossPower: 'Boss Power', farmPower: 'Farm Power',
-  economy: 'Economy', level: 'Level', rarity: 'Rarity', rollQuality: 'Roll',
-  name: 'Name A-Z', recent: 'Recent',
+interface SortOption {
+  key: SortKey;
+  label: string;
+}
+
+const SORTS_BY_KIND: Record<GearKind, SortOption[]> = {
+  all: [
+    { key: 'combatPower', label: 'Best Overall' },
+    { key: 'level', label: 'Level' },
+    { key: 'rarity', label: 'Rarity' },
+    { key: 'recent', label: 'Newest' },
+    { key: 'activityValue', label: 'Activity Value' },
+    { key: 'name', label: 'Name A-Z' },
+  ],
+  weapon: [
+    { key: 'combatPower', label: 'DPS' },
+    { key: 'bossPower', label: 'Boss' },
+    { key: 'farmPower', label: 'Farm' },
+    { key: 'economy', label: 'Economy' },
+    { key: 'rollQuality', label: 'Roll' },
+    { key: 'level', label: 'Level' },
+    { key: 'rarity', label: 'Rarity' },
+    { key: 'recent', label: 'Newest' },
+  ],
+  shield: [
+    { key: 'shieldHp', label: 'HP' },
+    { key: 'mitigation', label: 'Mitigation' },
+    { key: 'recharge', label: 'Recharge' },
+    { key: 'activityValue', label: 'Activity Value' },
+    { key: 'level', label: 'Level' },
+    { key: 'rarity', label: 'Rarity' },
+    { key: 'recent', label: 'Newest' },
+  ],
+  ordnance: [
+    { key: 'payload', label: 'Payload' },
+    { key: 'shieldBreak', label: 'Shield Break' },
+    { key: 'armorBreak', label: 'Armor Break' },
+    { key: 'activityValue', label: 'Activity Value' },
+    { key: 'level', label: 'Level' },
+    { key: 'rarity', label: 'Rarity' },
+    { key: 'recent', label: 'Newest' },
+  ],
+  classMod: [
+    { key: 'skillBoost', label: 'Skill Boost' },
+    { key: 'nodeCount', label: 'Nodes' },
+    { key: 'activityValue', label: 'Activity Value' },
+    { key: 'level', label: 'Level' },
+    { key: 'rarity', label: 'Rarity' },
+    { key: 'recent', label: 'Newest' },
+  ],
+  relic: [
+    { key: 'idleValue', label: 'Idle Value' },
+    { key: 'dropValue', label: 'Drop Value' },
+    { key: 'scrapValue', label: 'Scrap Value' },
+    { key: 'affixCount', label: 'Affix Count' },
+    { key: 'activityValue', label: 'Activity Value' },
+    { key: 'level', label: 'Level' },
+    { key: 'rarity', label: 'Rarity' },
+    { key: 'recent', label: 'Newest' },
+  ],
 };
+
+const LOADOUT_LABELS: Record<LoadoutSlot, string> = {
+  primary: 'Primary',
+  secondary: 'Secondary',
+  heavy: 'Heavy',
+  ordnance: 'Ordnance',
+  shield: 'Shield',
+  classMod: 'Class Mod',
+  relic: 'Relic',
+};
+
+const KIND_DEFS: Array<{ id: GearKind; label: string; short: string; icon: React.ElementType }> = [
+  { id: 'all', label: 'All Gear', short: 'All', icon: Package },
+  { id: 'weapon', label: 'Weapons', short: 'Weapons', icon: Crosshair },
+  { id: 'shield', label: 'Shields', short: 'Shields', icon: ShieldIcon },
+  { id: 'ordnance', label: 'Ordnance', short: 'Ordnance', icon: Bomb },
+  { id: 'classMod', label: 'Class Mods', short: 'Mods', icon: Sparkles },
+  { id: 'relic', label: 'Relics', short: 'Relics', icon: Gem },
+];
 
 // ── Type Guards ──────────────────────────────────────────────────────────────
 
 const isWeapon = (item: GearItem): item is Weapon => 'weaponType' in item;
-const kindOf = (item: GearItem): string =>
-  isWeapon(item) ? 'Weapon'
-    : 'hp' in item ? 'Shield'
-    : 'treeBonus' in item ? 'Class Mod'
-    : 'effect' in item && 'damage' in item ? 'Ordnance'
-    : 'Relic';
+const isShield = (item: GearItem): item is Shield => 'hp' in item && !isWeapon(item);
+const isClassMod = (item: GearItem): item is ClassMod => 'treeBonus' in item;
+const isOrdnance = (item: GearItem): item is Ordnance => 'effect' in item && 'damage' in item && !isWeapon(item);
+const isRelic = (item: GearItem): item is Relic => !isWeapon(item) && !isShield(item) && !isClassMod(item) && !isOrdnance(item);
+
+const kindOf = (item: GearItem): GearKind =>
+  isWeapon(item) ? 'weapon'
+    : isShield(item) ? 'shield'
+      : isClassMod(item) ? 'classMod'
+        : isOrdnance(item) ? 'ordnance'
+          : 'relic';
+
+const kindLabel = (item: GearItem): string =>
+  KIND_DEFS.find((kind) => kind.id === kindOf(item))?.label.replace(/s$/, '') ?? 'Gear';
 
 const colorOf = (item: GearItem) => RARITIES[item.rarity]?.color ?? '#F5B544';
+const affixesOf = (item: GearItem): Affix[] => ('affixes' in item && Array.isArray(item.affixes) ? item.affixes : []);
 
-// ── Sort / Filter Helpers ────────────────────────────────────────────────────
+// ── Formatting / Scoring Helpers ─────────────────────────────────────────────
+
+const formatNumber = (value: number): string => Number.isFinite(value) ? Math.round(value).toLocaleString() : '0';
+const formatPct = (value: number): string => `${Math.round(value * 100)}%`;
+const formatSignedPct = (value: number): string => `${value >= 0 ? '+' : ''}${Math.round(value * 100)}%`;
+
+function readNumber(item: GearItem, key: string): number {
+  const value = (item as unknown as Record<string, unknown>)[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function sumNodeBoosts(item: GearItem): number {
+  if (!isClassMod(item)) return 0;
+  return Object.values(item.nodeBoosts).reduce((sum, value) => sum + value, 0);
+}
+
+function topActivityModule(item: GearItem): { label: string; value: number } | null {
+  const activityAffix = affixesOf(item).find((affix) => affix.category === 'activity' && affix.subStats);
+  if (!activityAffix?.subStats) return null;
+
+  const entries = Object.entries(activityAffix.subStats).filter(([, value]) => typeof value === 'number');
+  if (entries.length === 0) return null;
+
+  const [, bestValue] = entries.reduce((best, entry) => Math.abs(entry[1]) > Math.abs(best[1]) ? entry : best, entries[0]);
+  const parts = activityAffix.displayText.split(' · ');
+  const moduleName = parts[0]?.replace(/\s*\[\d+%\]/, '').replace(' Module', '') || 'Activity';
+  const primaryText = parts[1] || `${formatSignedPct(bestValue)} activity`;
+  return {
+    label: `${moduleName}: ${primaryText}`,
+    value: entries.reduce((sum, [, value]) => sum + Math.abs(value), 0),
+  };
+}
+
+function affixValue(item: GearItem, statKeys: string[]): number {
+  const keySet = new Set(statKeys);
+  let total = statKeys.reduce((sum, key) => sum + readNumber(item, key), 0);
+  for (const affix of affixesOf(item)) {
+    if (keySet.has(String(affix.stat)) && typeof affix.value === 'number') total += affix.value;
+    if (affix.subStats) {
+      for (const [key, value] of Object.entries(affix.subStats)) {
+        if (keySet.has(key) && typeof value === 'number') total += value;
+      }
+    }
+  }
+  return total;
+}
 
 function itemComparable(item: GearItem, key: SortKey): number {
+  const activity = topActivityModule(item)?.value ?? 0;
   switch (key) {
-    case 'combatPower': return isWeapon(item) ? item.combatPower : ('hp' in item ? (item as { hp: number }).hp : ('damage' in item ? (item as { damage: number }).damage : 0));
-    case 'bossPower': return isWeapon(item) ? item.bossPower : 0;
-    case 'farmPower': return isWeapon(item) ? item.farmPower : 0;
-    case 'economy': return isWeapon(item) ? item.economyScore : 0;
+    case 'combatPower': return isWeapon(item) ? item.combatPower : isShield(item) ? item.hp : isOrdnance(item) ? item.damage : affixesOf(item).length * 20;
+    case 'bossPower': return isWeapon(item) ? item.bossPower : affixValue(item, ['bossDamageMod', 'survivalBoost']);
+    case 'farmPower': return isWeapon(item) ? item.farmPower : affixValue(item, ['creditsPerKill', 'rareDropChanceMod', 'xpBoostMod']);
+    case 'economy': return isWeapon(item) ? item.economyScore : affixValue(item, ['offlineEarningsMod', 'rareDropChanceMod', 'scrapYieldMod']) * 100;
     case 'level': return item.level ?? 1;
     case 'rarity': return RARITY_RANK[item.rarity] ?? 0;
-    case 'rollQuality': return isWeapon(item) ? item.rollQuality : 0;
-    case 'name': return 0; // handled separately
-    case 'recent': return 0;
-    default: return 0;
+    case 'rollQuality': return isWeapon(item) ? item.rollQuality : activity * 100;
+    case 'shieldHp': return isShield(item) ? item.hp : 0;
+    case 'mitigation': return isShield(item) ? item.mitigation : 0;
+    case 'recharge': return isShield(item) ? item.rechargeRate : 0;
+    case 'payload': return isOrdnance(item) ? item.damage : 0;
+    case 'shieldBreak': return isOrdnance(item) ? item.shieldDamage : isWeapon(item) ? item.shieldDamageMod : 0;
+    case 'armorBreak': return isOrdnance(item) ? item.armorDamage : isWeapon(item) ? item.armorDamageMod : 0;
+    case 'skillBoost': return sumNodeBoosts(item) + affixValue(item, ['skillPoints', 'weaponDamage', 'critChance']) * 100;
+    case 'nodeCount': return isClassMod(item) ? Object.keys(item.nodeBoosts).length : 0;
+    case 'affixCount': return affixesOf(item).length;
+    case 'activityValue': return activity * 100;
+    case 'idleValue': return affixValue(item, ['offlineEarningsMod', 'offlineScrapMod', 'offlineXpMod', 'offlineMaterialMod']) * 100;
+    case 'dropValue': return affixValue(item, ['rareDropChanceMod', 'cacheKeyChanceMod', 'cacheFragmentChance', 'materialFindChance']) * 100;
+    case 'scrapValue': return affixValue(item, ['scrapYieldMod', 'salvageYield', 'rareMaterialChance', 'essenceExtraction']) * 100;
+    case 'name':
+    case 'recent':
+    default:
+      return 0;
   }
 }
 
 function itemElement(item: GearItem): string | null {
-  if ('element' in item && typeof item.element === 'string') return item.element;
-  return null;
+  return 'element' in item && typeof item.element === 'string' ? item.element : null;
 }
 
 function itemManufacturer(item: GearItem): string | null {
-  if ('manufacturer' in item && typeof item.manufacturer === 'string') return item.manufacturer;
-  return null;
+  return 'manufacturer' in item && typeof item.manufacturer === 'string' ? item.manufacturer : null;
 }
 
 function itemWeaponType(item: GearItem): string | null {
-  if ('weaponType' in item && typeof item.weaponType === 'string') return item.weaponType;
-  return null;
+  return 'weaponType' in item && typeof item.weaponType === 'string' ? item.weaponType : null;
 }
 
 function itemNameSearch(item: GearItem, query: string): boolean {
@@ -94,24 +278,16 @@ function itemNameSearch(item: GearItem, query: string): boolean {
   if (item.name.toLowerCase().includes(q)) return true;
   if (item.rarity.toLowerCase().includes(q)) return true;
   if (item.sourceTag.toLowerCase().includes(q)) return true;
+  const kind = kindLabel(item);
+  if (kind.toLowerCase().includes(q)) return true;
   const el = itemElement(item);
   if (el && el.toLowerCase().includes(q)) return true;
   const mfg = itemManufacturer(item);
   if (mfg && mfg.toLowerCase().includes(q)) return true;
   const wt = itemWeaponType(item);
   if (wt && wt.toLowerCase().includes(q)) return true;
-  return false;
+  return affixesOf(item).some((affix) => affix.displayText.toLowerCase().includes(q));
 }
-
-function itemStatLine(item: GearItem): string {
-  if (isWeapon(item)) return `PWR ${item.combatPower} · ${item.element} · ${item.manufacturer}`;
-  if ('hp' in item) return `HP ${(item as { hp: number }).hp} · Mit ${Math.round((item as { mitigation: number }).mitigation * 100)}%`;
-  if ('treeBonus' in item) return `${(item as { treeBonus: string }).treeBonus} · ${Object.keys((item as { nodeBoosts: Record<string, number> }).nodeBoosts).length} nodes`;
-  if ('damage' in item && 'effect' in item) return `DMG ${(item as { damage: number }).damage} · ${(item as { element: string }).element} · ${(item as { effect: string }).effect}`;
-  return `${item.affixes?.length ?? 0} affixes · ${item.sourceTag}`;
-}
-
-// ── Compare ──────────────────────────────────────────────────────────────────
 
 function compareDiff(a: number, b: number, higherIsBetter = true): string {
   if (a === b) return '=';
@@ -119,6 +295,150 @@ function compareDiff(a: number, b: number, higherIsBetter = true): string {
   if (diff === 0) return '=';
   const better = higherIsBetter ? diff > 0 : diff < 0;
   return better ? `↑ ${diff > 0 ? '+' : ''}${Math.round(diff)}` : `↓ ${diff > 0 ? '+' : ''}${Math.round(diff)}`;
+}
+
+function loadoutSlotFor(itemId: string, slots: Record<LoadoutSlot, string | null>): LoadoutSlot | null {
+  const entry = Object.entries(slots).find(([, equippedId]) => equippedId === itemId) as [LoadoutSlot, string | null] | undefined;
+  return entry?.[0] ?? null;
+}
+
+interface CardStat {
+  label: string;
+  value: string;
+  tone?: string;
+}
+
+interface GearCardSummary {
+  meta: string[];
+  primaryStats: CardStat[];
+  secondaryStats: CardStat[];
+  badges: string[];
+}
+
+function bestAffixText(item: GearItem): string | null {
+  const activity = topActivityModule(item);
+  if (activity) return activity.label;
+  const affix = affixesOf(item)[0];
+  if (!affix) return null;
+  return affix.displayText.split(' · ')[0] || affix.displayText;
+}
+
+function gearCardSummary(item: GearItem): GearCardSummary {
+  const activity = topActivityModule(item);
+  if (isWeapon(item)) {
+    return {
+      meta: [item.rarity, `Lv.${item.level}`, item.weaponType, item.element, item.manufacturer],
+      primaryStats: [
+        { label: 'DPS', value: formatNumber(item.combatPower), tone: 'text-red' },
+        { label: 'Boss', value: formatNumber(item.bossPower), tone: 'text-amber' },
+        { label: 'Farm', value: formatNumber(item.farmPower), tone: 'text-green' },
+      ],
+      secondaryStats: [
+        { label: 'Roll', value: String(item.rollQuality), tone: 'text-amber' },
+        { label: 'Crit', value: formatPct(item.critChance), tone: 'text-cyan' },
+        item.economyScore !== 0
+          ? { label: 'Econ', value: `${item.economyScore >= 0 ? '+' : ''}${item.economyScore}`, tone: 'text-green' }
+          : { label: 'DMG', value: formatNumber(item.baseDamage), tone: 'text-text-secondary' },
+      ],
+      badges: [
+        ...(activity ? [activity.label] : []),
+        ...(item.legendaryEffectId ? ['Legendary effect'] : []),
+      ],
+    };
+  }
+  if (isShield(item)) {
+    return {
+      meta: [item.rarity, `Lv.${item.level}`, 'Shield', item.element],
+      primaryStats: [
+        { label: 'HP', value: formatNumber(item.hp), tone: 'text-cyan' },
+        { label: 'Mit', value: formatPct(item.mitigation), tone: 'text-green' },
+        { label: 'Rech', value: `${formatNumber(item.rechargeRate)}/s`, tone: 'text-amber' },
+      ],
+      secondaryStats: [
+        { label: 'Affix', value: String(item.affixes.length), tone: 'text-text-secondary' },
+        { label: 'Source', value: item.sourceTag, tone: 'text-text-secondary' },
+      ],
+      badges: activity ? [activity.label] : [],
+    };
+  }
+  if (isOrdnance(item)) {
+    return {
+      meta: [item.rarity, `Lv.${item.level}`, 'Ordnance', item.element],
+      primaryStats: [
+        { label: 'DMG', value: formatNumber(item.damage), tone: 'text-red' },
+        { label: 'Shield', value: formatNumber(item.shieldDamage), tone: 'text-cyan' },
+        { label: 'Armor', value: formatNumber(item.armorDamage), tone: 'text-purple' },
+      ],
+      secondaryStats: [
+        { label: 'Effect', value: item.effect.split(':')[0], tone: 'text-amber' },
+        { label: 'Affix', value: String(item.affixes.length), tone: 'text-text-secondary' },
+      ],
+      badges: activity ? [activity.label] : [item.effect],
+    };
+  }
+  if (isClassMod(item)) {
+    return {
+      meta: [item.rarity, `Lv.${item.level}`, 'Class Mod', item.treeBonus],
+      primaryStats: [
+        { label: 'Tree', value: item.treeBonus, tone: 'text-purple' },
+        { label: 'Nodes', value: String(Object.keys(item.nodeBoosts).length), tone: 'text-cyan' },
+        { label: 'Boost', value: `+${sumNodeBoosts(item)}`, tone: 'text-amber' },
+      ],
+      secondaryStats: [
+        { label: 'Affix', value: String(item.affixes.length), tone: 'text-text-secondary' },
+        { label: 'Source', value: item.sourceTag, tone: 'text-text-secondary' },
+      ],
+      badges: activity ? [activity.label] : [],
+    };
+  }
+  const firstUseful = bestAffixText(item);
+  return {
+    meta: [item.rarity, `Lv.${item.level}`, 'Relic', item.sourceTag],
+    primaryStats: [
+      { label: 'Affix', value: String(item.affixes.length), tone: 'text-amber' },
+      { label: 'Idle', value: `${Math.round(affixValue(item, ['offlineEarningsMod', 'offlineScrapMod', 'offlineXpMod']) * 100)}`, tone: 'text-green' },
+      { label: 'Drop', value: `${Math.round(affixValue(item, ['rareDropChanceMod', 'cacheKeyChanceMod']) * 100)}`, tone: 'text-cyan' },
+    ],
+    secondaryStats: [
+      { label: 'Scrap', value: `${Math.round(affixValue(item, ['scrapYieldMod', 'salvageYield']) * 100)}`, tone: 'text-orange' },
+      { label: 'Source', value: item.sourceTag, tone: 'text-text-secondary' },
+    ],
+    badges: firstUseful ? [firstUseful] : [],
+  };
+}
+
+// ── Small UI Components ──────────────────────────────────────────────────────
+
+function StatPill({ stat }: { stat: CardStat }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1 rounded-md border border-border bg-bg/80 px-1.5 py-0.5">
+      <span className="text-[8px] font-black uppercase tracking-wide text-text-muted">{stat.label}</span>
+      <span className={`truncate text-[10px] font-black ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
+    </span>
+  );
+}
+
+function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-1.5">
+      <div className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">{title}</div>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </section>
+  );
+}
+
+function FilterChip({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-2.5 py-1 text-[10px] font-black transition-colors ${
+        active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -131,7 +451,8 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
 
-  // Filters
+  // Browsing + filters
+  const [activeKind, setActiveKind] = useState<GearKind>('all');
   const [search, setSearch] = useState('');
   const [filterRarity, setFilterRarity] = useState<Set<string>>(new Set());
   const [filterElement, setFilterElement] = useState<Set<string>>(new Set());
@@ -140,11 +461,13 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   const [filterSource, setFilterSource] = useState<Set<string>>(new Set());
   const [filterLocked, setFilterLocked] = useState<'all' | 'locked' | 'unlocked'>('all');
   const [filterJunk, setFilterJunk] = useState(false);
+  const [filterEquippedOnly, setFilterEquippedOnly] = useState(false);
 
   // Sort & View
   const [sort, setSort] = useState<SortKey>('combatPower');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showSort, setShowSort] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Multi-select
   const [selectMode, setSelectMode] = useState(false);
@@ -158,18 +481,51 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   // Inspect
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-
   const equippedIds = useMemo(
     () => new Set(Object.values(loadout.slots).filter(Boolean) as string[]),
     [loadout.slots],
   );
 
-  const hasAnyFilter = search !== '' || filterRarity.size > 0 || filterElement.size > 0
-    || filterMfg.size > 0 || filterWtype.size > 0 || filterSource.size > 0
-    || filterLocked !== 'all' || filterJunk;
+  const kindCounts = useMemo(() => {
+    const counts: Record<GearKind, { total: number; equipped: number }> = {
+      all: { total: inventory.items.length, equipped: 0 },
+      weapon: { total: 0, equipped: 0 },
+      shield: { total: 0, equipped: 0 },
+      ordnance: { total: 0, equipped: 0 },
+      classMod: { total: 0, equipped: 0 },
+      relic: { total: 0, equipped: 0 },
+    };
+    for (const item of inventory.items) {
+      const kind = kindOf(item);
+      counts[kind].total += 1;
+      if (equippedIds.has(item.id)) {
+        counts[kind].equipped += 1;
+        counts.all.equipped += 1;
+      }
+    }
+    return counts;
+  }, [inventory.items, equippedIds]);
+
+  const sourceOptions = useMemo(() => {
+    const fromInventory = inventory.items.map((item) => item.sourceTag);
+    return Array.from(new Set([...SOURCE_ORDER, ...fromInventory]));
+  }, [inventory.items]);
+
+  const activeSortOptions = SORTS_BY_KIND[activeKind];
+  const effectiveSort = activeSortOptions.some((option) => option.key === sort)
+    ? sort
+    : activeSortOptions[0].key;
+  const activeSortLabel = activeSortOptions.find((option) => option.key === effectiveSort)?.label ?? 'Sort';
+
+  const filterCount = filterRarity.size + filterElement.size + filterMfg.size + filterWtype.size + filterSource.size
+    + (filterLocked !== 'all' ? 1 : 0)
+    + (filterJunk ? 1 : 0)
+    + (filterEquippedOnly ? 1 : 0);
+
+  const hasAnyFilter = search !== '' || activeKind !== 'all' || filterCount > 0;
 
   const clearFilters = useCallback(() => {
+    setActiveKind('all');
     setSearch('');
     setFilterRarity(new Set());
     setFilterElement(new Set());
@@ -178,82 +534,96 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
     setFilterSource(new Set());
     setFilterLocked('all');
     setFilterJunk(false);
+    setFilterEquippedOnly(false);
   }, []);
 
   const items = useMemo(() => {
     let result = [...inventory.items];
 
-    // Search
-    if (search) result = result.filter((i) => itemNameSearch(i, search));
-
-    // Rarity filter
-    if (filterRarity.size > 0) result = result.filter((i) => filterRarity.has(i.rarity));
-
-    // Element filter (only items with element)
+    if (activeKind !== 'all') result = result.filter((item) => kindOf(item) === activeKind);
+    if (search) result = result.filter((item) => itemNameSearch(item, search));
+    if (filterRarity.size > 0) result = result.filter((item) => filterRarity.has(item.rarity));
     if (filterElement.size > 0) {
-      result = result.filter((i) => {
-        const el = itemElement(i);
+      result = result.filter((item) => {
+        const el = itemElement(item);
         return el && filterElement.has(el);
       });
     }
-
-    // Manufacturer filter (only weapons)
     if (filterMfg.size > 0) {
-      result = result.filter((i) => {
-        const mfg = itemManufacturer(i);
+      result = result.filter((item) => {
+        const mfg = itemManufacturer(item);
         return mfg && filterMfg.has(mfg);
       });
     }
-
-    // Weapon type filter
     if (filterWtype.size > 0) {
-      result = result.filter((i) => {
-        const wt = itemWeaponType(i);
+      result = result.filter((item) => {
+        const wt = itemWeaponType(item);
         return wt && filterWtype.has(wt);
       });
     }
+    if (filterSource.size > 0) result = result.filter((item) => filterSource.has(item.sourceTag));
+    if (filterLocked === 'locked') result = result.filter((item) => item.isLocked);
+    if (filterLocked === 'unlocked') result = result.filter((item) => !item.isLocked);
+    if (filterEquippedOnly) result = result.filter((item) => equippedIds.has(item.id));
+    if (filterJunk) result = result.filter((item) => !item.isLocked && !equippedIds.has(item.id));
 
-    // Source filter
-    if (filterSource.size > 0) result = result.filter((i) => filterSource.has(i.sourceTag));
-
-    // Lock filter
-    if (filterLocked === 'locked') result = result.filter((i) => i.isLocked);
-    if (filterLocked === 'unlocked') result = result.filter((i) => !i.isLocked);
-
-    // Junk filter — show only non-equipped, non-locked items (scrap candidates)
-    if (filterJunk) result = result.filter((i) => !i.isLocked && !equippedIds.has(i.id));
-
-    // Sort
     result.sort((a, b) => {
-      // Equipped items always first
       const aEq = equippedIds.has(a.id) ? 1 : 0;
       const bEq = equippedIds.has(b.id) ? 1 : 0;
       if (aEq !== bEq) return bEq - aEq;
 
-      if (sort === 'name') return a.name.localeCompare(b.name);
-      if (sort === 'recent') return 0; // preserve array order (newest first)
-      if (sort === 'rarity') {
+      if (effectiveSort === 'name') return a.name.localeCompare(b.name);
+      if (effectiveSort === 'recent') return 0;
+      if (effectiveSort === 'rarity') {
         const ra = RARITY_RANK[a.rarity] ?? 0;
         const rb = RARITY_RANK[b.rarity] ?? 0;
         if (ra !== rb) return rb - ra;
       }
-      const ca = itemComparable(a, sort);
-      const cb = itemComparable(b, sort);
+      const ca = itemComparable(a, effectiveSort);
+      const cb = itemComparable(b, effectiveSort);
       return cb - ca;
     });
 
     return result;
-  }, [inventory.items, search, filterRarity, filterElement, filterMfg, filterWtype, filterSource, filterLocked, filterJunk, sort, equippedIds]);
+  }, [
+    inventory.items,
+    activeKind,
+    search,
+    filterRarity,
+    filterElement,
+    filterMfg,
+    filterWtype,
+    filterSource,
+    filterLocked,
+    filterEquippedOnly,
+    filterJunk,
+    effectiveSort,
+    equippedIds,
+  ]);
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  const junkItems = useMemo(
+    () => inventory.items.filter((item) => !item.isLocked && !equippedIds.has(item.id)),
+    [inventory.items, equippedIds],
+  );
+
+  const compareItemA = compareA ? inventory.getById(compareA) : null;
+  const compareItemB = compareB ? inventory.getById(compareB) : null;
+
+  const toggleFilter = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value); else next.add(value);
+      return next;
+    });
+  };
 
   const equip = (item: GearItem) => {
-    if ('hp' in item && !isWeapon(item)) { loadout.setSlot('shield', item.id); setInspectItem(null); return; }
-    if ('treeBonus' in item) { loadout.setSlot('classMod', item.id); setInspectItem(null); return; }
-    if ('effect' in item && 'damage' in item && !isWeapon(item)) { loadout.setSlot('ordnance', item.id); setInspectItem(null); return; }
-    if (!isWeapon(item) && 'affixes' in item) { loadout.setSlot('relic', item.id); setInspectItem(null); return; }
+    if (isShield(item)) { loadout.setSlot('shield', item.id); setInspectItem(null); return; }
+    if (isClassMod(item)) { loadout.setSlot('classMod', item.id); setInspectItem(null); return; }
+    if (isOrdnance(item)) { loadout.setSlot('ordnance', item.id); setInspectItem(null); return; }
+    if (isRelic(item)) { loadout.setSlot('relic', item.id); setInspectItem(null); return; }
     const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
-    const firstEmpty = weaponSlots.find((s) => !loadout.slots[s]);
+    const firstEmpty = weaponSlots.find((slot) => !loadout.slots[slot]);
     if (firstEmpty) {
       loadout.setSlot(firstEmpty, item.id);
     } else {
@@ -321,7 +691,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   };
 
   const selectAll = () => {
-    setSelectedIds(new Set(items.map((i) => i.id)));
+    setSelectedIds(new Set(items.map((item) => item.id)));
   };
 
   const deselectAll = () => {
@@ -333,7 +703,6 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
       toggleSelect(item.id);
       return;
     }
-    // Compare mode
     if (compareA !== null && compareA !== item.id) {
       setCompareB(item.id);
       return;
@@ -346,16 +715,6 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
     setCompareB(null);
   };
 
-  const compareItemA = compareA ? inventory.getById(compareA) : null;
-  const compareItemB = compareB ? inventory.getById(compareB) : null;
-
-  // ── Salvage all junk ───────────────────────────────────────────────────────
-
-  const junkItems = useMemo(
-    () => inventory.items.filter((i) => !i.isLocked && !equippedIds.has(i.id)),
-    [inventory.items, equippedIds],
-  );
-
   const salvageAllJunk = () => {
     void (async () => {
       for (const item of junkItems) {
@@ -364,44 +723,71 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
     })();
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
-  const toggleFilter = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
-    setter((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value); else next.add(value);
-      return next;
-    });
-  };
+  const activeFilterLabels = [
+    activeKind !== 'all' ? KIND_DEFS.find((kind) => kind.id === activeKind)?.short ?? 'Kind' : null,
+    ...Array.from(filterRarity),
+    ...Array.from(filterElement),
+    ...Array.from(filterMfg),
+    ...Array.from(filterWtype),
+    ...Array.from(filterSource),
+    filterLocked !== 'all' ? (filterLocked === 'locked' ? 'Locked' : 'Unlocked') : null,
+    filterEquippedOnly ? 'Equipped' : null,
+    filterJunk ? 'Scrap candidates' : null,
+  ].filter(Boolean) as string[];
 
   return (
-    <div className="space-y-3 p-3 pb-20">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-lg font-black text-text-primary">Cache Inventory</div>
-          <div className="text-[10px] text-text-muted">Search, filter, compare, and manage all gear.</div>
+    <div className="space-y-2.5 px-3 pb-20">
+      {/* Compact header */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-base font-black leading-tight text-text-primary">Cache Inventory</div>
+          <div className="truncate text-[10px] text-text-muted">Mobile gear triage: compare, equip, scrap, sell.</div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1">
           {hasAnyFilter && (
             <button onClick={clearFilters} className="rounded-full border border-red/30 bg-red/10 px-2 py-1 text-[9px] font-black text-red">
-              Clear all
+              Reset
             </button>
           )}
           <div className="rounded-full border border-border bg-surface px-2 py-1 text-[10px] font-black text-amber">
-            {items.length} / {inventory.items.length}
+            {items.length}/{inventory.items.length}
           </div>
         </div>
       </div>
 
-      {/* Search bar */}
+      {/* Gear-kind rail: first-class mobile navigation, one row only. */}
+      <div className="-mx-3 overflow-x-auto px-3 pb-0.5">
+        <div className="flex min-w-max gap-1.5">
+          {KIND_DEFS.map(({ id, short, icon: Icon }) => {
+            const active = activeKind === id;
+            const counts = kindCounts[id];
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveKind(id)}
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-black transition-colors ${
+                  active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
+                }`}
+              >
+                <Icon size={12} />
+                <span>{short}</span>
+                <span className={active ? 'text-amber/80' : 'text-text-muted/70'}>{counts.total}</span>
+                {counts.equipped > 0 && <span className="rounded-full bg-amber px-1 py-0 text-[7px] text-bg">{counts.equipped} EQ</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Search */}
       <div className="relative">
         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name, element, manufacturer, rarity..."
-          className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-8 text-xs text-text-primary placeholder:text-text-muted"
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search name, stat, effect, source..."
+          className="h-9 w-full rounded-lg border border-border bg-surface-raised pl-8 pr-8 text-xs text-text-primary placeholder:text-text-muted"
         />
         {search && (
           <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted">
@@ -410,175 +796,104 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
         )}
       </div>
 
-      {/* Filter chips */}
-      <div className="space-y-1.5">
-        {/* Rarity */}
-        <div className="flex flex-wrap gap-1">
-          {RARITY_ORDER.map((r) => (
-            <button
-              key={r}
-              onClick={() => toggleFilter(setFilterRarity, r)}
-              className="rounded-full border px-2 py-0.5 text-[9px] font-black transition-colors"
-              style={{
-                borderColor: filterRarity.has(r) ? RARITIES[r]?.color ?? '#F5B544' : undefined,
-                backgroundColor: filterRarity.has(r) ? `${RARITIES[r]?.color ?? '#F5B544'}20` : undefined,
-                color: filterRarity.has(r) ? RARITIES[r]?.color ?? '#F5B544' : undefined,
-              }}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-
-        {/* Element */}
-        <div className="flex flex-wrap gap-1">
-          {ELEMENTS.map((el) => (
-            <button
-              key={el}
-              onClick={() => toggleFilter(setFilterElement, el)}
-              className={`rounded-full border px-2 py-0.5 text-[9px] font-black transition-colors ${
-                filterElement.has(el) ? 'border-cyan bg-cyan/10 text-cyan' : 'border-border bg-surface text-text-muted'
-              }`}
-            >
-              {el}
-            </button>
-          ))}
-        </div>
-
-        {/* Manufacturer */}
-        <div className="flex flex-wrap gap-1">
-          {MANUFACTURERS.map((m) => (
-            <button
-              key={m}
-              onClick={() => toggleFilter(setFilterMfg, m)}
-              className={`rounded-full border px-2 py-0.5 text-[9px] font-black transition-colors ${
-                filterMfg.has(m) ? 'border-orange bg-orange/10 text-orange' : 'border-border bg-surface text-text-muted'
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-
-        {/* Weapon Type */}
-        <div className="flex flex-wrap gap-1">
-          {WEAPON_TYPES.map((w) => (
-            <button
-              key={w}
-              onClick={() => toggleFilter(setFilterWtype, w)}
-              className={`rounded-full border px-2 py-0.5 text-[9px] font-black transition-colors ${
-                filterWtype.has(w) ? 'border-red bg-red/10 text-red' : 'border-border bg-surface text-text-muted'
-              }`}
-            >
-              {w}
-            </button>
-          ))}
-        </div>
-
-        {/* Source */}
-        <div className="flex flex-wrap gap-1">
-          {SOURCES.map((s) => (
-            <button
-              key={s}
-              onClick={() => toggleFilter(setFilterSource, s)}
-              className={`rounded-full border px-2 py-0.5 text-[9px] font-black transition-colors ${
-                filterSource.has(s) ? 'border-purple bg-purple/10 text-purple' : 'border-border bg-surface text-text-muted'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {/* Lock + Junk */}
-        <div className="flex flex-wrap gap-1">
-          <button
-            onClick={() => setFilterLocked((p) => (p === 'locked' ? 'all' : 'locked'))}
-            className={`rounded-full border px-2 py-0.5 text-[9px] font-black transition-colors ${
-              filterLocked === 'locked' ? 'border-red bg-red/10 text-red' : 'border-border bg-surface text-text-muted'
-            }`}
-          >
-            🔒 Locked
-          </button>
-          <button
-            onClick={() => setFilterJunk((p) => !p)}
-            className={`rounded-full border px-2 py-0.5 text-[9px] font-black transition-colors ${
-              filterJunk ? 'border-amber bg-amber/10 text-amber' : 'border-border bg-surface text-text-muted'
-            }`}
-          >
-            ♻ Scrap candidates
-          </button>
-        </div>
-      </div>
-
-      {/* Sort + View + Select toolbar */}
-      <div className="flex items-center gap-2">
-        {/* Sort */}
+      {/* Compact toolbar */}
+      <div className="flex items-center gap-1.5">
         <div className="relative">
           <button
-            onClick={() => setShowSort((p) => !p)}
-            className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[10px] font-black text-text-muted"
+            type="button"
+            onClick={() => setShowSort((prev) => !prev)}
+            className="flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-[10px] font-black text-text-muted"
           >
             <ArrowUpDown size={12} />
-            {SORT_LABELS[sort]}
+            {activeSortLabel}
           </button>
           {showSort && (
-            <div className="absolute left-0 top-full z-30 mt-1 w-44 rounded-xl border border-border bg-surface shadow-lg overflow-hidden">
-              {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+            <div className="absolute left-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+              {activeSortOptions.map((option) => (
                 <button
-                  key={key}
-                  onClick={() => { setSort(key); setShowSort(false); }}
+                  key={option.key}
+                  type="button"
+                  onClick={() => { setSort(option.key); setShowSort(false); }}
                   className={`w-full px-3 py-1.5 text-left text-[10px] font-black transition-colors ${
-                    sort === key ? 'bg-amber/15 text-amber' : 'text-text-muted hover:bg-surface-raised'
+                    effectiveSort === option.key ? 'bg-amber/15 text-amber' : 'text-text-muted hover:bg-surface-raised'
                   }`}
                 >
-                  {SORT_LABELS[key]}
+                  {option.label}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* View toggle */}
         <button
-          onClick={() => setViewMode((v) => (v === 'list' ? 'grid' : 'list'))}
-          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-text-muted"
+          type="button"
+          onClick={() => setShowFilters(true)}
+          className={`flex h-8 items-center gap-1 rounded-lg border px-2 text-[10px] font-black transition-colors ${
+            filterCount > 0 ? 'border-amber bg-amber/10 text-amber' : 'border-border bg-surface text-text-muted'
+          }`}
+        >
+          <SlidersHorizontal size={12} />
+          Filters{filterCount > 0 ? ` ${filterCount}` : ''}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setViewMode((mode) => (mode === 'list' ? 'grid' : 'list'))}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-text-muted"
+          aria-label="Toggle inventory layout"
         >
           {viewMode === 'list' ? <LayoutGrid size={14} /> : <List size={14} />}
         </button>
 
-        {/* Select mode */}
         <button
-          onClick={() => { setSelectMode((p) => !p); setSelectedIds(new Set()); }}
-          className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-black transition-colors ${
+          type="button"
+          onClick={() => { setSelectMode((prev) => !prev); setSelectedIds(new Set()); }}
+          className={`h-8 rounded-lg border px-2 text-[10px] font-black transition-colors ${
             selectMode ? 'border-amber bg-amber/10 text-amber' : 'border-border bg-surface text-text-muted'
           }`}
         >
           {selectMode ? 'Done' : 'Select'}
         </button>
 
-        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Salvage all junk */}
         {junkItems.length > 0 && (
           <button
+            type="button"
             onClick={salvageAllJunk}
-            className="flex items-center gap-1 rounded-lg border border-red/30 bg-red/10 px-2 py-1 text-[9px] font-black text-red"
+            className="flex h-8 items-center gap-1 rounded-lg border border-red/30 bg-red/10 px-2 text-[9px] font-black text-red"
           >
             <Trash2 size={11} />
-            Salvage {junkItems.length}
+            {junkItems.length}
           </button>
         )}
       </div>
 
-      {/* Bulk action bar (when in select mode with items selected) */}
+      {/* Active filters: one horizontal row, never a wrapped wall. */}
+      {activeFilterLabels.length > 0 && (
+        <div className="-mx-3 overflow-x-auto px-3">
+          <div className="flex min-w-max gap-1.5">
+            {activeFilterLabels.slice(0, 10).map((label) => (
+              <span key={label} className="rounded-full border border-amber/30 bg-amber/10 px-2 py-0.5 text-[9px] font-black text-amber">
+                {label}
+              </span>
+            ))}
+            {activeFilterLabels.length > 10 && (
+              <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[9px] font-black text-text-muted">
+                +{activeFilterLabels.length - 10}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bulk action bar */}
       <AnimatePresence>
         {selectMode && selectedIds.size > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -6 }}
             className="flex items-center gap-2 rounded-xl border border-amber/40 bg-amber/10 p-2"
           >
             <span className="text-[10px] font-black text-amber">{selectedIds.size} selected</span>
@@ -600,21 +915,23 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
 
       {/* Item list */}
       {items.length === 0 && (
-        <div className="py-10 text-center">
+        <div className="py-8 text-center">
           <div className="text-sm text-text-muted">
             {hasAnyFilter ? 'No gear matches these filters.' : 'No gear in inventory.'}
           </div>
           {hasAnyFilter && (
-            <button onClick={clearFilters} className="mt-2 text-xs font-black text-amber">Clear all filters</button>
+            <button onClick={clearFilters} className="mt-2 text-xs font-black text-amber">Clear filters</button>
           )}
         </div>
       )}
 
-      <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>
+      <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-2' : 'space-y-1.5'}>
         {items.map((item) => {
           const selected = selectedIds.has(item.id);
-          const equipped = equippedIds.has(item.id);
+          const equippedSlot = loadoutSlotFor(item.id, loadout.slots);
+          const equipped = !!equippedSlot;
           const color = colorOf(item);
+          const summary = gearCardSummary(item);
 
           if (viewMode === 'grid') {
             return (
@@ -623,73 +940,186 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
                 layout
                 whileTap={{ scale: 0.97 }}
                 onClick={() => handleItemTap(item)}
-                className={`relative flex flex-col items-center gap-1.5 rounded-xl border bg-surface p-2.5 text-center ${
+                className={`relative flex min-h-[132px] flex-col gap-1.5 rounded-xl border bg-surface p-2 text-left ${
                   selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
                 }`}
                 style={{ borderLeftColor: color, borderLeftWidth: 3 }}
               >
-                {selectMode && (
-                  <div className="absolute top-1.5 right-1.5 z-10">
-                    {selected ? <CheckSquare size={14} className="text-amber" /> : <Square size={14} className="text-text-muted" />}
-                  </div>
-                )}
-                {equipped && !selectMode && (
-                  <div className="absolute top-1.5 left-1.5 rounded-full bg-amber px-1.5 py-0.5 text-[7px] font-black text-bg">EQ</div>
-                )}
-                <div className="flex h-16 w-16 items-center justify-center">
-                  <GearIllustration item={item} size={58} showBadges={false} />
+                <div className="flex items-start justify-between gap-1">
+                  {selectMode ? (
+                    selected ? <CheckSquare size={14} className="text-amber" /> : <Square size={14} className="text-text-muted" />
+                  ) : equippedSlot ? (
+                    <span className="rounded-full bg-amber px-1.5 py-0.5 text-[7px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>
+                  ) : <span />}
+                  {item.isLocked && <Lock size={10} className="text-red" />}
                 </div>
-                <div className="w-full min-w-0">
+                <div className="flex h-14 items-center justify-center">
+                  <GearIllustration item={item} size={50} showBadges={false} />
+                </div>
+                <div className="min-w-0">
                   <div className="truncate text-[10px] font-black" style={{ color }}>{item.name}</div>
-                  <div className="text-[8px] text-text-muted">{item.rarity} · Lv.{item.level}</div>
-                  <div className="mt-0.5 truncate text-[8px] text-amber">{itemStatLine(item)}</div>
+                  <div className="truncate text-[8px] text-text-muted">{summary.meta.join(' · ')}</div>
                 </div>
+                <div className="flex flex-wrap gap-1">
+                  {summary.primaryStats.slice(0, 2).map((stat) => <StatPill key={stat.label} stat={stat} />)}
+                </div>
+                {summary.badges[0] && <div className="truncate text-[8px] font-bold text-amber">{summary.badges[0]}</div>}
               </motion.button>
             );
           }
 
           return (
-            <motion.button
+            <motion.div
               key={item.id}
               layout
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.99 }}
               onClick={() => handleItemTap(item)}
-              className={`relative flex w-full items-center gap-3 border bg-surface p-3 text-left ${
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') handleItemTap(item);
+              }}
+              className={`relative flex w-full items-start gap-2.5 rounded-xl border bg-surface p-2.5 text-left ${
                 selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
               }`}
               style={{ borderLeftColor: color, borderLeftWidth: 4 }}
             >
               {selectMode && (
-                <div className="shrink-0">
+                <div className="mt-4 shrink-0">
                   {selected ? <CheckSquare size={16} className="text-amber" /> : <Square size={16} className="text-text-muted" />}
                 </div>
               )}
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center border border-border bg-bg">
-                <GearIllustration item={item} size={50} showBadges={false} />
+
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-bg">
+                <GearIllustration item={item} size={44} showBadges={false} />
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <div className="truncate text-xs font-black" style={{ color }}>{item.name}</div>
-                  {equipped && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[7px] font-black text-bg">EQ</span>}
+
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <div className="truncate text-xs font-black leading-tight" style={{ color }}>{item.name}</div>
+                  {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[7px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
                   {item.isLocked && <Lock size={10} className="shrink-0 text-red" />}
                 </div>
-                <div className="mt-0.5 text-[10px] text-text-muted">
-                  {item.rarity} · Lv.{item.level} · {kindOf(item)}
+
+                <div className="truncate text-[9px] text-text-muted">{summary.meta.join(' · ')}</div>
+
+                <div className="flex flex-wrap gap-1">
+                  {summary.primaryStats.map((stat) => <StatPill key={stat.label} stat={stat} />)}
                 </div>
-                <div className="mt-1 truncate text-[10px] text-text-secondary">{itemStatLine(item)}</div>
+
+                <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+                  {summary.secondaryStats.slice(0, 3).map((stat) => <StatPill key={stat.label} stat={stat} />)}
+                </div>
+
+                {summary.badges[0] && (
+                  <div className="truncate text-[9px] font-bold text-amber">{summary.badges[0]}</div>
+                )}
               </div>
+
               {!selectMode && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); startCompare(item.id); }}
-                  className="shrink-0 rounded-lg border border-border bg-surface p-1.5 text-text-muted"
+                  type="button"
+                  onClick={(event) => { event.stopPropagation(); startCompare(item.id); }}
+                  className="mt-3 shrink-0 rounded-lg border border-border bg-surface p-1.5 text-text-muted"
+                  aria-label={`Compare ${item.name}`}
                 >
                   <ArrowLeftRight size={13} />
                 </button>
               )}
-            </motion.button>
+            </motion.div>
           );
         })}
       </div>
+
+      {/* Filter sheet */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowFilters(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="max-h-[78vh] w-full max-w-[480px] overflow-y-auto rounded-t-2xl border-t-2 border-border bg-bg p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.75)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-black text-text-primary">Filters</div>
+                  <div className="text-[10px] text-text-muted">Hidden by default so the Gear tab stays dense.</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {filterCount > 0 && <button type="button" onClick={clearFilters} className="text-[10px] font-black text-red">Reset</button>}
+                  <button type="button" onClick={() => setShowFilters(false)} className="rounded-lg border border-border bg-surface p-2 text-text-muted">
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <FilterSection title="State">
+                  <FilterChip active={filterEquippedOnly} onClick={() => setFilterEquippedOnly((prev) => !prev)}>Equipped</FilterChip>
+                  <FilterChip active={filterLocked === 'locked'} onClick={() => setFilterLocked((prev) => (prev === 'locked' ? 'all' : 'locked'))}>Locked</FilterChip>
+                  <FilterChip active={filterLocked === 'unlocked'} onClick={() => setFilterLocked((prev) => (prev === 'unlocked' ? 'all' : 'unlocked'))}>Unlocked</FilterChip>
+                  <FilterChip active={filterJunk} onClick={() => setFilterJunk((prev) => !prev)}>Scrap candidates</FilterChip>
+                </FilterSection>
+
+                <FilterSection title="Rarity">
+                  {RARITY_ORDER.map((rarity) => (
+                    <FilterChip key={rarity} active={filterRarity.has(rarity)} onClick={() => toggleFilter(setFilterRarity, rarity)}>
+                      {rarity}
+                    </FilterChip>
+                  ))}
+                </FilterSection>
+
+                {(activeKind === 'all' || activeKind === 'weapon' || activeKind === 'shield' || activeKind === 'ordnance') && (
+                  <FilterSection title="Element">
+                    {ELEMENTS.map((element) => (
+                      <FilterChip key={element} active={filterElement.has(element)} onClick={() => toggleFilter(setFilterElement, element)}>
+                        {element}
+                      </FilterChip>
+                    ))}
+                  </FilterSection>
+                )}
+
+                {(activeKind === 'all' || activeKind === 'weapon') && (
+                  <>
+                    <FilterSection title="Weapon Type">
+                      {WEAPON_TYPES.map((weaponType) => (
+                        <FilterChip key={weaponType} active={filterWtype.has(weaponType)} onClick={() => toggleFilter(setFilterWtype, weaponType)}>
+                          {weaponType}
+                        </FilterChip>
+                      ))}
+                    </FilterSection>
+
+                    <FilterSection title="Manufacturer">
+                      {MANUFACTURERS.map((manufacturer) => (
+                        <FilterChip key={manufacturer} active={filterMfg.has(manufacturer)} onClick={() => toggleFilter(setFilterMfg, manufacturer)}>
+                          {manufacturer}
+                        </FilterChip>
+                      ))}
+                    </FilterSection>
+                  </>
+                )}
+
+                <FilterSection title="Source">
+                  {sourceOptions.map((source) => (
+                    <FilterChip key={source} active={filterSource.has(source)} onClick={() => toggleFilter(setFilterSource, source)}>
+                      {source}
+                    </FilterChip>
+                  ))}
+                </FilterSection>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Compare sheet */}
       <AnimatePresence>
@@ -707,16 +1137,15 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
               className="max-h-[85vh] w-full max-w-[480px] overflow-y-auto rounded-t-2xl border-t-2 border-border bg-bg p-4"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-sm font-black text-text-primary">Compare Gear</div>
                 <button onClick={() => { setCompareA(null); setCompareB(null); }} className="text-text-muted"><X size={18} /></button>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {/* Item A */}
                 <div className="rounded-xl border border-border bg-surface p-3">
-                  <div className="flex justify-center mb-2">
+                  <div className="mb-2 flex justify-center">
                     <GearIllustration item={compareItemA} size={72} showBadges={false} />
                   </div>
                   <div className="text-[10px] font-black" style={{ color: colorOf(compareItemA) }}>{compareItemA.name}</div>
@@ -729,9 +1158,8 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
                     </div>
                   )}
                 </div>
-                {/* Item B */}
                 <div className="rounded-xl border border-border bg-surface p-3">
-                  <div className="flex justify-center mb-2">
+                  <div className="mb-2 flex justify-center">
                     <GearIllustration item={compareItemB} size={72} showBadges={false} />
                   </div>
                   <div className="text-[10px] font-black" style={{ color: colorOf(compareItemB) }}>{compareItemB.name}</div>
@@ -767,17 +1195,17 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
         contextLabel="Inventory Inspect"
         actions={inspectItem ? (
           <div className="grid grid-cols-4 gap-2">
-            <button type="button" onClick={() => equip(inspectItem!)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
+            <button type="button" onClick={() => equip(inspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
               <Sword size={15} />Equip
             </button>
             <button type="button" onClick={() => onNavigate?.('market')} className="flex flex-col items-center gap-1 border border-green/40 bg-green/10 py-2 text-[9px] font-black text-green">
               <ArrowLeftRight size={15} />Market
             </button>
-            <button type="button" onClick={() => inspectItem!.isLocked ? inventory.unlockItem(inspectItem!.id) : inventory.lockItem(inspectItem!.id)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[9px] font-black text-text-secondary">
-              {inspectItem!.isLocked ? <Unlock size={15} /> : <Lock size={15} />}
-              {inspectItem!.isLocked ? 'Unlock' : 'Lock'}
+            <button type="button" onClick={() => inspectItem.isLocked ? inventory.unlockItem(inspectItem.id) : inventory.lockItem(inspectItem.id)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[9px] font-black text-text-secondary">
+              {inspectItem.isLocked ? <Unlock size={15} /> : <Lock size={15} />}
+              {inspectItem.isLocked ? 'Unlock' : 'Lock'}
             </button>
-            <button type="button" onClick={() => void scrap(inspectItem!)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
+            <button type="button" onClick={() => void scrap(inspectItem)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
               <Trash2 size={15} />Scrap
             </button>
           </div>
