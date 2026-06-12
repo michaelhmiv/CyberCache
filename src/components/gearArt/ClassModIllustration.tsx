@@ -2,7 +2,8 @@ import React from 'react';
 import type { ClassMod } from '@/types/items';
 import { Rarity } from '@/types/game';
 import { buildClassModVisualSpec, type ClassModVisualSpec } from '@/lib/gearArt/buildClassModVisualSpec';
-import { SharedDefs, surfaceFilterId } from '@/components/gearArt/SharedDefs';
+import { SharedDefs } from '@/components/gearArt/SharedDefs';
+import { surfaceFilterId } from '@/lib/gearArt/surfaceFilter';
 import { Decal } from './Decal';
 
 interface ClassModIllustrationProps {
@@ -24,7 +25,7 @@ function toSize(size: ClassModIllustrationProps['size']) {
 }
 
 function fallbackSpec(props: ClassModIllustrationProps): ClassModVisualSpec {
-  return buildClassModVisualSpec({ id: 'classmod-preview', name: 'Preview Class Mod', rarity: props.rarity ?? Rarity.Common, treeBonus: 'Balanced', nodeBoosts: {} } as any);
+  return buildClassModVisualSpec({ id: 'classmod-preview', name: 'Preview Class Mod', rarity: props.rarity ?? Rarity.Common, treeBonus: 'Balanced', nodeBoosts: {} });
 }
 
 const innerStroke = {
@@ -36,7 +37,7 @@ export const ClassModIllustration: React.FC<ClassModIllustrationProps> = ({
   mod, rarity, size = 'card', className = '', showBadges = true, animate = false,
 }) => {
   const sizing = toSize(size);
-  const spec = mod ? buildClassModVisualSpec(mod as any) : fallbackSpec({ rarity });
+  const spec = mod ? buildClassModVisualSpec(mod) : fallbackSpec({ rarity });
   const sil = spec.silhouette;
   const frame = spec.rarityFrame;
   const filterId = `classmod-glow-${spec.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;

@@ -32,7 +32,6 @@ import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
-import { resolveSceneLabel } from '@/lib/dashboard/sceneLabel';
 import type { TickEvent, TickEventTone } from '@/store/slices/tickSlice';
 
 interface DashboardScreenProps {
@@ -92,11 +91,6 @@ const idleGainHint: DisplayGainEvent = {
   tone: 'xp',
 };
 
-const compact = (value: number) => new Intl.NumberFormat('en', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-}).format(value);
-
 const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
 
 const Panel: React.FC<React.PropsWithChildren<{ label?: string; className?: string }>> = ({ label, className = '', children }) => (
@@ -113,18 +107,6 @@ const Panel: React.FC<React.PropsWithChildren<{ label?: string; className?: stri
     <div className="relative">{children}</div>
   </section>
 );
-
-const HudChip: React.FC<{ label: string; value: string | number; detail: string; tone: Tone }> = ({ label, value, detail, tone }) => {
-  const color = toneClass[tone];
-  return (
-    <div className="relative min-w-[82px] flex-1 overflow-hidden border-2 border-border bg-bg px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" style={signClip}>
-      <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} />
-      <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{label}</div>
-      <div className={`text-base font-black leading-none ${color.text}`}>{value}</div>
-      <div className="truncate text-[8px] text-text-muted">{detail}</div>
-    </div>
-  );
-};
 
 const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
   const color = getGainToneClass(tone);
@@ -211,7 +193,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const activePayload = activity.current.publicPayload;
   const activityLabel = safeText(activePayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
   const activityTarget = activity.current.targetLabel ?? safeText(activePayload.target_label) ?? 'No target';
-  const activityScene = resolveSceneLabel(activity.current.sceneKey, safeText(activePayload.scene_key));
   const selectedRoamingActive = activity.current.kind === 'roaming_loot' && activity.current.targetType === 'roaming_area' && activity.current.targetId === selectedArea.id;
   const productiveTickLabel = selectedRoamingActive ? `+${selectedArea.idleXpPerTick}/tick` : 'gated';
   const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : `start ${selectedArea.name}`;
@@ -265,6 +246,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
         <ResourceBar className="mb-2" />
+        {activityError && <Panel label="Action Error"><div className="text-xs font-bold text-red">{activityError}</div></Panel>}
         <Panel label="Level Strip"><div className="flex items-center gap-2"><div className="relative flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-4 border-border bg-amber/15 shadow-[5px_5px_0_rgba(0,0,0,0.75)]"><div className="absolute inset-1 border border-amber/40" /><div className="text-center"><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Level</div><div className="text-3xl font-black leading-none text-amber">{player.level}</div></div></div><div className="min-w-0 flex-1"><div className="flex items-end justify-between gap-2"><div><div className="text-sm font-black uppercase tracking-wide text-text-primary">XP Chalk Mark</div><div className="text-[9px] text-text-muted">{player.xp.toLocaleString()} / {xpToNextLevelValue.toLocaleString()} XP · {xpRemaining.toLocaleString()} left</div></div><div className={`text-right text-[9px] font-black ${selectedRoamingActive ? 'text-green' : 'text-text-muted'}`}>{productiveTickLabel}</div></div><div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}><motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} /><div className="absolute inset-0 grid grid-cols-5">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}</div></div><div className="mt-1 flex items-center justify-between gap-2 text-[8px] uppercase tracking-wide text-text-muted"><span>{selectedRoamingActive ? `${TICK_SECONDS}.00s tick` : 'activity required'}</span><span>{FIELD_FIND_CHANCE}% loot</span><span>{CACHE_FRAGMENT_CHANCE}% frag</span></div></div></div></Panel>
         <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} boss={currentBoss ?? undefined} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} activityLabel={activityLabel} activityTarget={activityTarget} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
         <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>

@@ -2,7 +2,8 @@ import React from 'react';
 import type { Relic } from '@/types/items';
 import { Rarity } from '@/types/game';
 import { buildRelicVisualSpec, type RelicVisualSpec } from '@/lib/gearArt/buildRelicVisualSpec';
-import { SharedDefs, surfaceFilterId } from '@/components/gearArt/SharedDefs';
+import { SharedDefs } from '@/components/gearArt/SharedDefs';
+import { surfaceFilterId } from '@/lib/gearArt/surfaceFilter';
 import { Decal } from './Decal';
 
 interface RelicIllustrationProps {
@@ -24,7 +25,7 @@ function toSize(size: RelicIllustrationProps['size']) {
 }
 
 function fallbackSpec(props: RelicIllustrationProps): RelicVisualSpec {
-  return buildRelicVisualSpec({ id: 'relic-preview', name: 'Preview Relic', rarity: props.rarity ?? Rarity.Common } as any);
+  return buildRelicVisualSpec({ id: 'relic-preview', name: 'Preview Relic', rarity: props.rarity ?? Rarity.Common });
 }
 
 const innerStroke = {
@@ -36,7 +37,7 @@ export const RelicIllustration: React.FC<RelicIllustrationProps> = ({
   relic, rarity, size = 'card', className = '', showBadges = true, animate = false,
 }) => {
   const sizing = toSize(size);
-  const spec = relic ? buildRelicVisualSpec(relic as any) : fallbackSpec({ rarity });
+  const spec = relic ? buildRelicVisualSpec(relic) : fallbackSpec({ rarity });
   const sil = spec.silhouette;
   const frame = spec.rarityFrame;
   const filterId = `relic-glow-${spec.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;

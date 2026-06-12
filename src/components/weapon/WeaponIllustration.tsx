@@ -2,7 +2,8 @@ import React from 'react';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
 import { buildWeaponVisualSpec, type WeaponVisualSpec } from '@/lib/weaponArt/buildWeaponVisualSpec';
-import { SharedDefs, surfaceFilterId } from '@/components/gearArt/SharedDefs';
+import { SharedDefs } from '@/components/gearArt/SharedDefs';
+import { surfaceFilterId } from '@/lib/gearArt/surfaceFilter';
 import { computeAttachPoints, barrelAttachments, sightAttachments, gripAttachments } from '@/lib/gearArt/partPlacement';
 
 export type WeaponIllustrationSize = 'thumb' | 'card' | 'showcase';

@@ -2,7 +2,8 @@ import React from 'react';
 import type { Shield } from '@/types/items';
 import { Element, Rarity } from '@/types/game';
 import { buildShieldVisualSpec, type ShieldVisualSpec } from '@/lib/gearArt/buildShieldVisualSpec';
-import { SharedDefs, surfaceFilterId } from '@/components/gearArt/SharedDefs';
+import { SharedDefs } from '@/components/gearArt/SharedDefs';
+import { surfaceFilterId } from '@/lib/gearArt/surfaceFilter';
 import { Decal } from './Decal';
 
 export type IllustrationSize = 'thumb' | 'card' | 'showcase';
@@ -32,7 +33,7 @@ function fallbackSpec(props: ShieldIllustrationProps): ShieldVisualSpec {
     element: props.element || Element.Kinetic,
     rarity: props.rarity ?? Rarity.Common,
     hp: 100, rechargeRate: 10,
-  } as any);
+  });
 }
 
 const innerStroke = {
@@ -46,7 +47,7 @@ export const ShieldIllustration: React.FC<ShieldIllustrationProps> = ({
   shield, element, rarity, size = 'card', className = '', showBadges = true, animate = false,
 }) => {
   const sizing = toSize(size);
-  const spec = shield ? buildShieldVisualSpec(shield as any) : fallbackSpec({ element, rarity });
+  const spec = shield ? buildShieldVisualSpec(shield) : fallbackSpec({ element, rarity });
   const sil = spec.silhouette;
   const frame = spec.rarityFrame;
   const el = spec.elementVisual;

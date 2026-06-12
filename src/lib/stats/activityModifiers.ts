@@ -25,9 +25,6 @@ export interface ActivityModifiers {
   [statKey: string]: number;
 }
 
-/** Empty modifier record — used as default when no gear contributes. */
-const EMPTY: ActivityModifiers = {};
-
 /**
  * Sum all activity modifiers contributed by equipped gear for a specific
  * activity kind.

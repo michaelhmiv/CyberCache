@@ -4,24 +4,16 @@
  * Watches the tick feed store for tone:'loot' events where the detail includes 'Legendary'.
  * Renders an animated radial gradient flash that fades out over 600ms.
  */
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 
 export const LegendaryDropFlash: React.FC = () => {
   const events = useTickFeedStore((s) => s.events);
-  const [trigger, setTrigger] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (events.length === 0) return;
-    const latest = events[0];
-    if (latest.tone === 'loot' && latest.detail?.includes('Legendary')) {
-      setTrigger(latest.id);
-      const timer = setTimeout(() => setTrigger(null), 800);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [events]);
+  const latest = events[0];
+  const trigger = latest?.tone === 'loot' && latest.detail?.includes('Legendary')
+    ? latest.id
+    : null;
 
   return (
     <AnimatePresence>

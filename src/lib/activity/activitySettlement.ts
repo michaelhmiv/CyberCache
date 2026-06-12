@@ -22,7 +22,7 @@
 
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { syncRuntimeProfile } from '@/lib/supabase/verifiedStateSync';
-import type { OfflineSettlementResult, OfflineSettlementNoOp } from '@/lib/chef/chefClient';
+import type { OfflineSettlementResult } from '@/lib/chef/chefClient';
 
 /**
  * Result shape for downstream consumers (OfflineRecap component).

@@ -8,7 +8,7 @@
 import React, { useMemo } from 'react';
 import { Wrench, Recycle, ShoppingCart, Clock, Radar, Zap } from 'lucide-react';
 import { useLoadoutStore, useInventoryStore } from '@/store';
-import { sumActivityModifier, type ActivityModifiers } from '@/lib/stats/activityModifiers';
+import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import type { ActivityKind } from '@/types/activity';
 import type { GearItem } from '@/types/items';
 
@@ -37,11 +37,6 @@ const ACTIVITY_LABELS: Partial<Record<ActivityKind, string>> = {
 const SLOT_ORDER: Array<keyof ReturnType<typeof useLoadoutStore.getState>['slots']> = [
   'primary', 'secondary', 'heavy', 'shield', 'ordnance', 'relic', 'classMod',
 ];
-
-const SLOT_LABELS: Record<string, string> = {
-  primary: 'Primary', secondary: 'Secondary', heavy: 'Heavy',
-  shield: 'Shield', ordnance: 'Ordnance', relic: 'Relic', classMod: 'Mod',
-};
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -116,7 +111,7 @@ export const ActivityModifierPanel: React.FC<{
   const mods = useMemo(() => {
     const gear = getEquippedGear(loadout, inventory);
     return sumActivityModifier(gear, activityKind);
-  }, [loadout.slots, inventory.items, activityKind]);
+  }, [loadout, inventory, activityKind]);
 
   const contributingGear = useMemo(() => {
     const gear = getEquippedGear(loadout, inventory);
@@ -125,7 +120,7 @@ export const ActivityModifierPanel: React.FC<{
       const affixes = item.affixes as Array<{ category?: string; stat?: string; subStats?: Record<string, number> }>;
       return affixes.some((a) => a.category === 'activity' && a.stat === `${activityKind}Module` && a.subStats);
     });
-  }, [loadout.slots, inventory.items, activityKind]);
+  }, [loadout, inventory, activityKind]);
 
   const entries = Object.entries(mods).filter(([, v]) => v > 0);
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readConsumableSlots, readReviveTokenCount } from '@/lib/combat/consumableSlotMap';
+import { CONSUMABLES } from '@/constants/consumables';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 
@@ -55,8 +56,8 @@ describe('readConsumableSlots', () => {
   it('returns an icon for known consumable types', () => {
     useLoadoutStore.setState({ consumables: { PreFight: 'MedKit', MidFight: 'ShieldCell', Emergency: 'ReviveToken' } });
     const views = readConsumableSlots();
-    expect(views[0].icon).toBe('🧪');
-    expect(views[1].icon).toBe('🛡');
+    expect(views[0].icon).toBe(CONSUMABLES.MedKit.visual.glyph);
+    expect(views[1].icon).toBe(CONSUMABLES.ShieldCell.visual.glyph);
     expect(views[2].icon).toBe('🎟');
   });
 });

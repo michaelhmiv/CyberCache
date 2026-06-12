@@ -31,10 +31,6 @@ function delta(current: number, candidate: number, fmt?: (v: number) => string):
   return diff > 0 ? `↑ ${sign}${val}` : `↓ ${sign}${val}`;
 }
 
-function pct(n: number): string {
-  return `${Math.round(n * 100)}%`;
-}
-
 function deltaPct(current: number, candidate: number): string {
   return delta(current, candidate, (v) => `${Math.round(v * 100)}%`);
 }
