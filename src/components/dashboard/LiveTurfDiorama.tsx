@@ -356,73 +356,63 @@ const DropVisualIcon: React.FC<{ tone: string; label: string; x: number; y: numb
 
 // ── Loot Drop Gear — shows the actual dropped item rising from the kill site ─────
 
-const LootDropGear: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
+/** SVG-native drops (materials, essences, fragments, cash) rendered inside <svg> */
+const LootDropSvg: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
   if (!event || reduced) return null;
+  if (event.tone !== 'material' && event.tone !== 'essence' && event.tone !== 'fragment' && event.tone !== 'cash') return null;
 
-  // Weapon / gear drops — use WeaponIllustration for weapons, gear-type icon for others
-  if (event.tone === 'loot' && event.gear) {
-    const gear = event.gear;
-    const isWeaponDrop = 'weaponType' in gear;
-    const rarityColor = gear.rarity === 'Legendary' ? '#FFEA3A'
-      : gear.rarity === 'Epic' ? '#FF9DF5'
-      : gear.rarity === 'Rare' ? '#5AA7FF'
-      : gear.rarity === 'Uncommon' ? '#7CFC00'
-      : '#A5A7B5';
-    const gearCat = gearTypeCategory(gear);
-    const gearVis = (GEAR_VISUALS as Record<string, { color: string; label: string }>)[gearCat];
+  return (
+    <motion.g
+      initial={{ y: 0, opacity: 0, scale: 0.5 }}
+      animate={{ y: -35, opacity: [0, 1, 1, 0], scale: [0.5, 1.1, 1, 0.7] }}
+      transition={{ duration: 1.8, ease: 'easeOut', times: [0, 0.2, 0.65, 1] }}
+    >
+      <DropVisualIcon tone={event.tone} label={event.label} x={320} y={105} size={34} />
+    </motion.g>
+  );
+};
 
-    return (
-      <motion.g
-        initial={{ y: 0, opacity: 0, scale: 0.6 }}
-        animate={{ y: -40, opacity: [0, 1, 1, 0], scale: [0.6, 1, 1, 0.8] }}
-        transition={{ duration: 2.0, ease: 'easeOut', times: [0, 0.15, 0.7, 1] }}
-      >
-        <g transform="translate(320, 100)">
-          {isWeaponDrop ? (
-            <WeaponIllustration
-              weapon={gear as Weapon}
-              size={48}
-              showBadges={false}
-              animate={true}
-            />
-          ) : (
-            /* Non-weapon gear: gear-type colored hex with icon label */
-            <g>
-              <polygon
-                points="0,-20 18,-10 18,10 0,20 -18,10 -18,-10"
-                fill={gearVis?.color ?? '#A5A7B5'}
-                fillOpacity="0.25"
-                stroke={gearVis?.color ?? '#A5A7B5'}
-                strokeWidth="2"
-              />
-              <text x="0" y="4" textAnchor="middle" fill={rarityColor} fontSize="9" fontWeight="900" stroke="#000" strokeWidth="2">
-                {gearCat.toUpperCase().slice(0, 4)}
-              </text>
-            </g>
-          )}
-          {/* Rarity label */}
-          <text x="0" y="38" textAnchor="middle" fill={rarityColor} fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
-            {gear.rarity.toUpperCase()}
-          </text>
-        </g>
-      </motion.g>
-    );
-  }
+/** HTML overlay drops (weapons, gear) — renders OUTSIDE SVG because WeaponIllustration uses <div> */
+const LootDropHtml: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = ({ event, reduced }) => {
+  if (!event || reduced) return null;
+  if (event.tone !== 'loot' || !event.gear) return null;
 
-  // Material / Essence / Fragment / Cash drops — show type-specific icon
-  if (event.tone === 'material' || event.tone === 'essence' || event.tone === 'fragment' || event.tone === 'cash') {
-    return (
-      <motion.g
-        initial={{ y: 0, opacity: 0, scale: 0.5 }}
-        animate={{ y: -35, opacity: [0, 1, 1, 0], scale: [0.5, 1.1, 1, 0.7] }}
-        transition={{ duration: 1.8, ease: 'easeOut', times: [0, 0.2, 0.65, 1] }}
-      >
-        <DropVisualIcon tone={event.tone} label={event.label} x={320} y={105} size={34} />
-      </motion.g>
-    );
-  }
+  const gear = event.gear;
+  const isWeaponDrop = 'weaponType' in gear;
+  const rarityColor = gear.rarity === 'Legendary' ? '#FFEA3A'
+    : gear.rarity === 'Epic' ? '#FF9DF5'
+    : gear.rarity === 'Rare' ? '#5AA7FF'
+    : gear.rarity === 'Uncommon' ? '#7CFC00'
+    : '#A5A7B5';
+  const gearCat = gearTypeCategory(gear);
+  const gearVis = (GEAR_VISUALS as Record<string, { color: string; label: string }>)[gearCat];
 
-  return null;
+  return (
+    <motion.div
+      className="pointer-events-none absolute z-20"
+      style={{ left: '46%', top: '34%' }}
+      initial={{ y: 0, opacity: 0, scale: 0.6 }}
+      animate={{ y: -40, opacity: [0, 1, 1, 0], scale: [0.6, 1, 1, 0.8] }}
+      transition={{ duration: 2.0, ease: 'easeOut', times: [0, 0.15, 0.7, 1] }}
+    >
+      <div className="flex flex-col items-center">
+        {isWeaponDrop ? (
+          <WeaponIllustration weapon={gear as Weapon} size={48} showBadges={false} animate={true} />
+        ) : (
+          <div className="flex flex-col items-center">
+            <svg width="40" height="40" viewBox="0 0 40 40">
+              <polygon points="20,2 34,12 34,28 20,38 6,28 6,12" fill={gearVis?.color ?? '#A5A7B5'} fillOpacity="0.25" stroke={gearVis?.color ?? '#A5A7B5'} strokeWidth="2" />
+              <text x="20" y="23" textAnchor="middle" fill={rarityColor} fontSize="9" fontWeight="900" stroke="#000" strokeWidth="2">{gearCat.toUpperCase().slice(0, 4)}</text>
+            </svg>
+            <span className="mt-1 text-[8px] font-black" style={{ color: rarityColor, textShadow: '0 0 6px #000' }}>{gear.rarity.toUpperCase()}</span>
+          </div>
+        )}
+        {isWeaponDrop && (
+          <span className="mt-1 text-[8px] font-black" style={{ color: rarityColor, textShadow: '0 0 6px #000' }}>{gear.rarity.toUpperCase()}</span>
+        )}
+      </div>
+    </motion.div>
+  );
 };
 
 // ── Loot Particles — type-specific burst particles ───────────────────────────────
@@ -723,15 +713,18 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <EnemyHpBarSvg active={activityKind === 'roaming_loot'} accentColor={scene.accent} enemyX={enemyX} enemyY={enemyY} />
         {/* Hit flash + damage numbers on enemy */}
         <EnemyHitEffects event={latestEvent} enemyX={enemyX} enemyY={enemyY} reduced={reduced} />
-        {/* Drop visuals — gear, materials, essences, fragments, scrap, credits */}
-        <LootDropGear event={latestEvent} reduced={reduced} />
+        {/* Drop visuals — materials, essences, fragments, cash (SVG-native only) */}
+        <LootDropSvg event={latestEvent} reduced={reduced} />
         {/* Particle burst */}
         <LootParticles event={latestEvent} reduced={reduced} />
         {/* Player damage flash (screen-wide red overlay) */}
         <PlayerDamageFlash event={latestEvent} reduced={reduced} eventActive={eventActive} />
         <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
       </svg>
-      {/* HTML overlays for boss HP and detailed target info */}
+      {/* HTML overlays — any component that renders <div> must live OUTSIDE the <svg> */}
+      {/* Loot drop gear (weapons/gear render HTML <div> internally, must be outside SVG) */}
+      <LootDropHtml event={latestEvent} reduced={reduced} />
+      {/* Target HP overlay */}
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
       <BossHpOverlay active={activityKind === 'boss_fight' || activityKind === 'boss_prep'} accentColor={scene.accent} />
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
