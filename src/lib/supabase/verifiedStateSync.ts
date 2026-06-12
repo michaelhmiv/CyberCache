@@ -1,6 +1,6 @@
 import { useBossStore } from '@/store/slices/bossSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
-import { applyAuthoritativeLoadoutSlot, type LoadoutSlot } from '@/store/slices/loadoutSlice';
+import { applyAuthoritativeLoadoutSlot, useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { RiskSetting } from '@/types/game';
@@ -75,6 +75,15 @@ function toLoadoutSlot(value: string | null | undefined): LoadoutSlot | null {
   return validSlots.has(value as LoadoutSlot) ? (value as LoadoutSlot) : null;
 }
 
+function clearEquippedReferencesToItem(itemId: string): void {
+  const slots = useLoadoutStore.getState().slots;
+  (Object.entries(slots) as [LoadoutSlot, string | null][]).forEach(([slot, equippedItemId]) => {
+    if (equippedItemId === itemId) {
+      applyAuthoritativeLoadoutSlot(slot, null);
+    }
+  });
+}
+
 export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): void {
   if (!profile) return;
 
@@ -115,6 +124,7 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
 function syncRuntimeItem(row: ServerItemRow | undefined): void {
   if (!row?.id) return;
   if (row.runtime_state === 'salvaged' || row.runtime_state === 'consumed') {
+    clearEquippedReferencesToItem(row.id);
     useInventoryStore.getState().removeItem(row.id);
     return;
   }
