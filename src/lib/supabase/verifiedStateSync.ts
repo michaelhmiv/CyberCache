@@ -1,6 +1,6 @@
 import { useBossStore } from '@/store/slices/bossSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
-import { useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
+import { applyAuthoritativeLoadoutSlot, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { RiskSetting } from '@/types/game';
@@ -120,7 +120,7 @@ function syncRuntimeItem(row: ServerItemRow | undefined): void {
   }
   useInventoryStore.getState().upsertItem(serverItemRowToDisplayGear(row));
   const slot = toLoadoutSlot(row.equipped_slot);
-  if (slot) useLoadoutStore.getState().setSlot(slot, row.id);
+  if (slot) applyAuthoritativeLoadoutSlot(slot, row.id);
 }
 
 export function syncVerifiedResult(result: Record<string, unknown>): void {
@@ -128,7 +128,7 @@ export function syncVerifiedResult(result: Record<string, unknown>): void {
   syncRuntimeItem(result.item as ServerItemRow | undefined);
   const clearedSlot = toLoadoutSlot(result.slot_name as string | undefined);
   if (clearedSlot && result.action_type === 'cc_unequip_slot') {
-    useLoadoutStore.getState().setSlot(clearedSlot, null);
+    applyAuthoritativeLoadoutSlot(clearedSlot, null);
   }
 }
 
