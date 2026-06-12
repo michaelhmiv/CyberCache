@@ -1,54 +1,48 @@
 import { create } from 'zustand';
-import { MarketFilter, Listing, MarketHistory } from '../../types/market';
-import { generateWeapon } from '../../lib/generators/weaponGenerator';
-import { DropSource } from '../../types/game';
+import type { MarketListing, MarketHistoryEntry, MarketFilters } from '@/types/market';
+import { generateWeapon } from '@/lib/generators/weaponGenerator';
+import { createTickRng } from '@/lib/rng/tickRng';
 
-export interface MarketState {
-  activeTab: 'buy' | 'vendor' | 'sell' | 'mylistings' | 'history';
-  listings: Listing[];
-  history: MarketHistory[];
-  filters: MarketFilter;
+interface MarketState {
+  activeTab: string;
+  listings: MarketListing[];
+  history: MarketHistoryEntry[];
+  filters: MarketFilters;
   watchlist: string[];
-  seeded: boolean;
-  setActiveTab: (tab: 'buy' | 'vendor' | 'sell' | 'mylistings' | 'history') => void;
-  addListing: (listing: Listing) => void;
+  /** Timestamp (ms) of last NPC listing rotation. */
+  lastRotated: number;
+  /** How many times NPC listings have been rotated this session. */
+  rotateCount: number;
+  setActiveTab: (tab: string) => void;
+  addListing: (listing: MarketListing) => void;
   removeListing: (id: string) => void;
-  addHistory: (entry: MarketHistory) => void;
-  setFilters: (f: Partial<MarketFilter>) => void;
+  addHistory: (entry: MarketHistoryEntry) => void;
+  setFilters: (f: Partial<MarketFilters>) => void;
   toggleWatchlist: (id: string) => void;
-  seedMarket: () => void;
+  /** Rotate NPC vendor listings. Call on market tab mount / manual refresh. */
+  rotateListings: () => void;
 }
 
-const NPC_SELLERS = [
-  { id: 'npc_scrapbaron', name: 'ScrapBaron' },
-  { id: 'npc_techrunner', name: 'TechRunner_77' },
-  { id: 'npc_cachevault', name: 'CacheVault' },
-  { id: 'npc_circuitghost', name: 'CircuitGhost' },
-  { id: 'npc_ironsage', name: 'IronSage' },
-  { id: 'npc_rustmerchant', name: 'RustMerchant' },
-  { id: 'npc_gridwitch', name: 'GridWitch' },
-  { id: 'npc_datasmith', name: 'DataSmith' },
-];
-
-function generateSeedListings(): Listing[] {
-  const listings: Listing[] = [];
-  for (let i = 0; i < 25; i++) {
-    const seller = NPC_SELLERS[i % NPC_SELLERS.length];
-    const level = 1 + Math.floor(Math.random() * 15);
-    const weapon = generateWeapon({ source: DropSource.WorldDrop, level });
-    const price = Math.round(weapon.combatPower * 8 + weapon.rollQuality * 40 + 200 + Math.random() * 500);
-    listings.push({
-      id: `seed_${i}_${Date.now()}`,
-      sellerId: seller.id,
-      sellerName: seller.name,
-      itemId: weapon.id,
-      itemSnapshot: JSON.parse(JSON.stringify(weapon)),
-      price,
-      listedAt: Date.now() - Math.floor(Math.random() * 86400000),
-      feePaid: Math.round(price * 0.1),
-    });
-  }
-  return listings;
+function generateSeedListings(): MarketListing[] {
+  const rng = createTickRng('market_npc', 'vendor', Date.now());
+  const weapons = Array.from({ length: 12 }, (_, i) => {
+    const level = 1 + Math.floor(rng() * 15);
+    const weapon = generateWeapon({
+      source: 'BossDrop' as never,
+      level,
+      bossTier: 1,
+    }, rng);
+    const price = Math.round(weapon.combatPower * 8 + weapon.rollQuality * 40 + 200 + rng() * 500);
+    return {
+      id: `npc_${i}_${Date.now()}`,
+      itemSnapshot: weapon,
+      priceCredits: price,
+      sellerId: 'npc_vendor',
+      sellerName: 'Vault Trader',
+      listedAt: Date.now() - Math.floor(rng() * 86_400_000),
+    } satisfies MarketListing;
+  });
+  return weapons;
 }
 
 export const useMarketStore = create<MarketState>()((set, get) => ({
@@ -57,7 +51,8 @@ export const useMarketStore = create<MarketState>()((set, get) => ({
   history: [],
   filters: { sortBy: 'newest', sortDir: 'desc' },
   watchlist: [],
-  seeded: false,
+  lastRotated: 0,
+  rotateCount: 0,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   addListing: (listing) => set((s) => ({ listings: [listing, ...s.listings] })),
@@ -70,10 +65,13 @@ export const useMarketStore = create<MarketState>()((set, get) => ({
         ? s.watchlist.filter((w) => w !== id)
         : [...s.watchlist, id],
     })),
-  seedMarket: () => {
-    const state = get();
-    if (state.seeded) return;
-    const seedListings = generateSeedListings();
-    set({ listings: seedListings, seeded: true });
+  rotateListings: () => {
+    const fresh = generateSeedListings();
+    const playerListings = get().listings.filter((l) => l.sellerId !== 'npc_vendor');
+    set({
+      listings: [...fresh, ...playerListings],
+      lastRotated: Date.now(),
+      rotateCount: get().rotateCount + 1,
+    });
   },
 }));

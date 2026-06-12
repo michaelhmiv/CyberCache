@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, History, List, Search, ShoppingCart, Store, Tag, Wallet, X } from 'lucide-react';
+import { Filter, History, List, RefreshCw, Search, ShoppingCart, Store, Tag, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useMarketStore, usePlayerStore } from '@/store';
@@ -89,8 +89,9 @@ export const MarketScreen: React.FC = () => {
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
 
   useEffect(() => {
-    if (!market.seeded) market.seedMarket();
-  }, [market]);
+    market.rotateListings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -161,7 +162,13 @@ export const MarketScreen: React.FC = () => {
 
       {market.activeTab === 'buy' && (
         <div className="space-y-3">
-          <div className="text-center text-[10px] italic text-text-muted">Local NPC Market — simulated traders only</div>
+          <button
+            onClick={() => market.rotateListings()}
+            className="flex items-center justify-center gap-1 text-center text-[10px] italic text-text-muted hover:text-amber active:text-amber transition-colors mx-auto"
+          >
+            <RefreshCw size={12} className={market.rotateCount > 0 ? '' : 'animate-spin'} />
+            NPC Market — tap to refresh listings
+          </button>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
