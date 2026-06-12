@@ -1,5 +1,18 @@
 import { WorkshopQueue } from './workshop';
 
+export interface ConsumableBatch {
+  id: string;
+  consumable_type: string;
+  quality_percent: number;
+  quantity: number;
+  origin: 'vendor' | 'crafted' | 'market' | 'reward';
+  creator_user_id?: string | null;
+  source_recipe_id?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface PlayerProfile {
   id: string;
   name: string;
@@ -15,6 +28,7 @@ export interface PlayerProfile {
   lastClaimTime: number;
   deathFeeInsurance: boolean;
   consumables: Record<string, number>;
+  consumableBatches: ConsumableBatch[];
   materials: Record<string, number>;
   essences: Record<string, number>;
   workshopQueues: WorkshopQueue[];
