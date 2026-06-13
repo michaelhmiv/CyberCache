@@ -30,6 +30,14 @@ Run the `Play Internal Release` workflow from GitHub Actions. It builds the web 
 
 The checked-in AdMob app id is Google's sample id so local debug builds do not crash before production credentials exist. The workflow replaces it with `ADMOB_APP_ID_ANDROID`.
 
+Internal tester opt-in link:
+
+```text
+https://play.google.com/apps/testing/com.michaelhmiv.cybercache
+```
+
+The Play Developer API can upload builds to the internal track, but individual tester email lists are managed in Play Console. Add `michaelhmiv@gmail.com` to the CyberCache internal testing email list there, or configure a Google Group for the internal track. After the tester opens the opt-in link once, new internal builds uploaded by GitHub Actions should arrive through the Play Store update flow.
+
 Version-code bands follow the existing Play release convention:
 
 - Internal testing: `200000 + GITHUB_RUN_NUMBER`

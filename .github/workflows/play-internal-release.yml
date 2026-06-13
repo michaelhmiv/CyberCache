@@ -122,3 +122,17 @@ jobs:
           tracks: internal
           status: completed
           releaseName: ${{ env.PLAY_RELEASE_NAME }}
+
+      - name: Summarize tester install links
+        run: |
+          {
+            echo "## CyberCache internal release"
+            echo ""
+            echo "- Release: \`${PLAY_RELEASE_NAME}\`"
+            echo "- Package: \`com.michaelhmiv.cybercache\`"
+            echo "- Track: \`internal\`"
+            echo "- Tester opt-in: https://play.google.com/apps/testing/com.michaelhmiv.cybercache"
+            echo "- Play listing: https://play.google.com/store/apps/details?id=com.michaelhmiv.cybercache"
+            echo ""
+            echo "Testers must be added to the CyberCache internal testing email list or Google Group in Play Console, then open the opt-in link once on their Android device."
+          } >> "$GITHUB_STEP_SUMMARY"
