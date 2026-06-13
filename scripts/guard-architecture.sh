@@ -68,6 +68,9 @@ ALLOWED_TIMERS=(
   "$SRC/screens/MarketScreen.tsx:toast dismissal timer"
   "$SRC/screens/DashboardScreen.tsx:no setInterval (uses tickFeed store)"
   "$SRC/components/action/DeathOverlay.tsx:resurrection countdown timer (display-only)"
+  "$SRC/components/action/SalvageToast.tsx:toast dismissal timer"
+  "$SRC/components/activity/SettlementDebugOverlay.tsx:debug overlay display clock"
+  "$SRC/components/activity/useLeaveSignals.ts:best-effort leave signal throttle reset"
   "$SRC/components/fight/BossPrepModal.tsx:fight animation delay (display-only)"
   "$SRC/hooks/useNow.ts:shared reactive clock hook"
   "$SRC/lib/activity/useActionStageOrchestrator.ts:animation beat pacing (display-only)"
@@ -206,6 +209,7 @@ echo ""
 echo -n "Rule 6: No unapproved localStorage usage... "
 ALLOWED_STORAGE=(
   "$SRC/lib/activity/activitySettlement.ts:cross-tab lock (coordination, not progression)"
+  "$SRC/components/action/ActionLoadout.tsx:UI collapse preference (not progression)"
   "$SRC/test/:test files"
 )
 

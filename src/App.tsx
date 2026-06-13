@@ -26,6 +26,7 @@ import { useOfflineRecapListener } from './components/activity/useOfflineRecapLi
 import { useOfflineResumeSettlement } from './components/activity/useOfflineResumeSettlement';
 import { useLeaveSignals } from './components/activity/useLeaveSignals';
 import { SettlementDebugOverlay } from './components/activity/SettlementDebugOverlay';
+import { registerPushNotifications } from './lib/notifications/pushNotifications';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | null;
@@ -78,6 +79,7 @@ function App() {
   useEffect(() => {
     if (!user || loading) return undefined;
     mountIdleTicker();
+    void registerPushNotifications();
     return () => {
       unmountIdleTicker();
     };

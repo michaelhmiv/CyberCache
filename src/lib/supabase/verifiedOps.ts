@@ -63,6 +63,17 @@ const claimRoamingRewards = async (input: { ticks: number; areaId: string; tickC
 export const verifiedOps = {
   initialBundle: () => rpc('cc_initial_bundle', { nonce: requestId('initial') }),
   makeItem: () => rpc('cc_make_item', { nonce: requestId('make') }),
+  claimRewardedCacheKey: (input: { adUnitId: string; rewardSource?: string }) => rpc('cc_claim_rewarded_cache_key', {
+    nonce: requestId('ad-cache-key'),
+    ad_unit_id: input.adUnitId,
+    reward_source: input.rewardSource ?? 'admob_rewarded',
+  }),
+  registerPushDevice: (input: { token: string; platform?: string; appVersion?: string }) => rpc('cc_register_push_device', {
+    push_token: input.token,
+    platform: input.platform ?? 'android',
+    app_version: input.appVersion ?? null,
+  }),
+  disablePushDevice: (token: string) => rpc('cc_disable_push_device', { push_token: token }),
   vendorBuy: (itemKey: string, quantity = 1) => rpc('cc_vendor_buy', { nonce: requestId('vendor'), item_key: itemKey, quantity }),
   claimCraftedConsumable: (input: { recipeId: string; itemKey: string; quantity: number }) => rpc('cc_claim_crafted_consumable', {
     nonce: requestId('craft-consumable'),

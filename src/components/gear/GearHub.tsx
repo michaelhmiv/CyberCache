@@ -473,7 +473,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingScrapIds, setPendingScrapIds] = useState<Set<string>>(new Set());
-  const [busyEquip, setBusyEquip] = useState(false);
+  const [, setBusyEquip] = useState(false);
 
   // Compare
   const [compareA, setCompareA] = useState<string | null>(null);

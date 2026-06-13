@@ -199,7 +199,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
     } finally {
       setBusy(false);
     }
-  }, [pickerSlot]);
+  }, [pickerSlot, setPickerSlot]);
 
   const onUnequip = useCallback(async () => {
     if (!pickerSlot) return;
@@ -213,7 +213,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
     } finally {
       setBusy(false);
     }
-  }, [pickerSlot]);
+  }, [pickerSlot, setPickerSlot]);
 
   const currentItemId = pickerSlot ? loadout.slots[pickerSlot] : null;
 
