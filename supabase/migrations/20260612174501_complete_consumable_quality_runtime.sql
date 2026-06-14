@@ -4,7 +4,7 @@ language sql
 immutable
 set search_path = public
 as $$
-  select * from (values
+  select craft_min, craft_max from (values
     ('MedKit', 75::numeric, 125::numeric),
     ('MedKitRefined', 80::numeric, 140::numeric),
     ('ShieldCell', 75::numeric, 130::numeric),
