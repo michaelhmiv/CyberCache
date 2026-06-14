@@ -56,9 +56,7 @@ export async function signInWithGoogleNative(): Promise<void> {
   try {
     result = await SocialLogin.login({
       provider: 'google',
-      options: {
-        scopes: ['email', 'profile'],
-      },
+      options: {},
     });
     log('SocialLogin.login succeeded', { provider: result.provider, responseType: result.result.responseType });
   } catch (error) {
