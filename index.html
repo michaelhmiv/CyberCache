@@ -6,9 +6,58 @@
     <link rel="apple-touch-icon" href="/cybercache-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>cybercache</title>
+    <style>
+      #root:empty::before {
+        content: '';
+      }
+      .boot-fallback {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #08090d;
+        color: #f3f4f6;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        text-align: center;
+        gap: 12px;
+      }
+      .boot-fallback-title {
+        font-size: 22px;
+        font-weight: 900;
+        color: #ff4b5c;
+      }
+      .boot-fallback-body {
+        font-size: 13px;
+        color: #9ca3af;
+        max-width: 320px;
+        line-height: 1.5;
+      }
+    </style>
+    <script>
+      window.__cybercacheBootTimeout = setTimeout(function () {
+        const root = document.getElementById('root');
+        if (root && root.childElementCount === 0) {
+          root.innerHTML =
+            '<div class="boot-fallback">' +
+            '<div class="boot-fallback-title">App did not boot</div>' +
+            '<div class="boot-fallback-body">The JavaScript bundle failed to load or execute. This usually means an asset path is wrong or the bundle crashed before React mounted.</div>' +
+            '</div>';
+        }
+      }, 5000);
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <noscript>
+      <div class="boot-fallback">
+        <div class="boot-fallback-title">JavaScript required</div>
+        <div class="boot-fallback-body">CyberCache requires JavaScript to run. Please enable JavaScript in your browser settings.</div>
+      </div>
+    </noscript>
   </body>
 </html>
