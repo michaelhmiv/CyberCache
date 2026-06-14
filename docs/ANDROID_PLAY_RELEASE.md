@@ -8,6 +8,10 @@ CyberCache ships to Android through Capacitor from the repo-root Vite app.
 - AdMob Android app id: `ADMOB_APP_ID_ANDROID`
 - AdMob rewarded ad unit id: `ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID`
 - Firebase Android config JSON: `GOOGLE_SERVICES_JSON`
+- Firebase App Distribution Android app id: `FIREBASE_APP_ID`
+- Firebase service account JSON for App Distribution upload: `FIREBASE_SERVICE_ACCOUNT`
+- Optional Firebase tester emails: `FIREBASE_DISTRIBUTION_TESTERS`
+- Optional Firebase tester group aliases: `FIREBASE_DISTRIBUTION_GROUPS`
 - Play upload service account: `PLAY_SERVICE_ACCOUNT_JSON`
 - Upload signing secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`
 
@@ -24,7 +28,30 @@ Open the Android project with:
 npm run android:open
 ```
 
-## Release Flow
+## Release Flows
+
+### Firebase App Distribution
+
+Run the `Firebase App Distribution` workflow from GitHub Actions when you want a fast installable APK sent directly to test devices. This is the quick tester-download lane.
+
+The workflow builds the Vite app, syncs Capacitor Android, signs a release APK, uploads the APK artifact to GitHub Actions, and distributes the APK through Firebase App Distribution. It always includes `michaelhmiv@gmail.com` as a tester.
+
+Required GitHub secrets:
+
+- `FIREBASE_APP_ID`: CyberCache Firebase Android app id, for example `1:662321788886:android:87a5c0b279c0737c009677`
+- `FIREBASE_SERVICE_ACCOUNT`: Firebase service account JSON with permission to upload App Distribution releases
+- `GOOGLE_SERVICES_JSON`
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Optional GitHub secrets:
+
+- `FIREBASE_DISTRIBUTION_TESTERS`: comma-separated tester emails
+- `FIREBASE_DISTRIBUTION_GROUPS`: comma-separated Firebase App Distribution group aliases
+
+### Play Internal Testing
 
 Run the `Play Internal Release` workflow from GitHub Actions. It builds the web app, syncs Capacitor, signs an Android App Bundle, uploads the AAB artifact, and sends it to the Play internal testing track.
 
@@ -38,9 +65,24 @@ https://play.google.com/apps/testing/com.michaelhmiv.cybercache
 
 The Play Developer API can upload builds to the internal track, but individual tester email lists are managed in Play Console. Add `michaelhmiv@gmail.com` to the CyberCache internal testing email list there, or configure a Google Group for the internal track. After the tester opens the opt-in link once, new internal builds uploaded by GitHub Actions should arrive through the Play Store update flow.
 
+### Play Closed Testing
+
+Run the `Play Closed Testing` workflow from GitHub Actions when you want a build on the Play Console closed testing track. This is the lane to use for Play's closed-testing requirement.
+
+The workflow defaults to the `closed` track. If you create a custom closed track in Play Console, pass that exact track name through the workflow's `closed_track` input.
+
+Closed testing still requires Play Console setup outside GitHub Actions:
+
+- Create or select the closed testing track.
+- Add the required tester email list or Google Group.
+- Set countries/regions for the track.
+- Copy the closed-track opt-in link from Play Console and send it to testers.
+- Testers must opt in and keep the app installed/available for the required testing window.
+
 Version-code bands follow the existing Play release convention:
 
 - Internal testing: `200000 + GITHUB_RUN_NUMBER`
+- Firebase App Distribution: `300000 + GITHUB_RUN_NUMBER`
 - Closed testing: `400000 + GITHUB_RUN_NUMBER`
 - Production: `600000 + GITHUB_RUN_NUMBER`
 
@@ -49,6 +91,7 @@ Version-code bands follow the existing Play release convention:
 GitHub environments are configured for release-track-specific config:
 
 - `CyberCache / internal`
+- `CyberCache / firebase-distribution`
 - `CyberCache / closed-testing`
 - `CyberCache / production`
 
@@ -74,6 +117,8 @@ These app-specific secrets are intentionally not copied from Sportfolio:
 - `ADMOB_APP_ID_ANDROID`
 - `ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID`
 - `GOOGLE_SERVICES_JSON`
+- `FIREBASE_APP_ID`
+- `FIREBASE_SERVICE_ACCOUNT`
 
 Use `.env.example` for local web/native development variables and `.env.android.example` as the template for release signing, Play upload, AdMob, and Firebase configuration.
 
