@@ -1,6 +1,8 @@
-import React from 'react';
-import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Skull, Target, TrendingUp, User, Zap } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Skull, Sword, Target, TrendingUp, User, Zap } from 'lucide-react';
 import { useActivityStore, useBossStore, useInventoryStore, usePlayerStore, useSkillStore } from '@/store';
+import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/supabase/statsService';
+import { formatDuration, topBreakdown } from '@/lib/stats/statsHelpers';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -40,6 +42,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const skillStore = useSkillStore();
   const deathLog = useSurvivalStore((s) => s.deathLog);
   const { account, user, signOut, actionLoading } = useAuth();
+  const [stats, setStats] = useState<PlayerPublicStats | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getMyStatsSummary().then((data) => {
+      if (cancelled) return;
+      setStats(data);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const weapons = inventory.getWeapons();
   const totalItems = inventory.items.length;
@@ -60,6 +72,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const activityLabel = safeText(payload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
   const activityTarget = activity.current.targetLabel ?? safeText(payload.target_label) ?? 'No target';
   const activityScene = activity.current.sceneKey ?? safeText(payload.scene_key) ?? 'standby';
+  const topAreas = topBreakdown(stats?.kills_by_area, 3);
+  const topWeaponTypes = topBreakdown(stats?.kills_by_weapon_type, 3);
 
   return (
     <div className="bl-page space-y-4 p-4 pb-20">
@@ -168,10 +182,91 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
       <MobileCard className="space-y-2" rarityColor="#FFEA3A">
         <div className="text-xs font-black uppercase tracking-wide text-text-muted">Collection Patch</div>
         <div className="space-y-1 text-xs text-text-secondary">
-          <div className="flex justify-between"><span>Weapons</span><span className="text-text-primary">{weapons.length}</span></div>
-          <div className="flex justify-between"><span>Favorite Type</span><span className="font-bold text-amber">{favoriteType ? favoriteType[0] : 'None'}</span></div>
-          <div className="flex justify-between"><span>Legendary Items</span><span className="font-bold text-amber">{weapons.filter((w) => w.rarity === 'Legendary').length}</span></div>
+          <div className="flex justify-between"><span>Total Items</span><span className="text-text-primary">{stats?.total_items ?? totalItems}</span></div>
+          <div className="flex justify-between"><span>Weapons</span><span className="text-text-primary">{stats?.weapons_owned ?? weapons.length}</span></div>
+          <div className="flex justify-between"><span>Legendary Items</span><span className="font-bold text-amber">{stats?.legendary_items ?? weapons.filter((w) => w.rarity === 'Legendary').length}</span></div>
+          <div className="flex justify-between"><span>Highest Item Level</span><span className="text-text-primary">{stats?.highest_item_level ?? '—'}</span></div>
           <div className="flex justify-between"><span>Unique Affixes</span><span className="text-text-primary">{new Set(weapons.flatMap((w) => w.affixes.map((a) => a.id))).size}</span></div>
+          <div className="flex justify-between"><span>Favorite Type</span><span className="font-bold text-amber">{favoriteType ? favoriteType[0] : 'None'}</span></div>
+        </div>
+      </MobileCard>
+
+      <MobileCard className="space-y-3" rarityColor="#FF9000">
+        <div className="flex items-center gap-2">
+          <Sword size={16} className="text-amber" />
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Field Stats</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="space-y-1">
+            <div className="text-text-muted">Kills</div>
+            <div className="font-black text-text-primary">{(stats?.total_kills ?? 0).toLocaleString()}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-text-muted">Deaths</div>
+            <div className="font-black text-text-primary">{(stats?.total_deaths ?? 0).toLocaleString()}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-text-muted">K/D</div>
+            <div className="font-black text-text-primary">{(stats?.kill_death_ratio ?? 0).toFixed(2)}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-text-muted">Best Streak</div>
+            <div className="font-black text-text-primary">{(stats?.longest_kill_streak ?? 0).toLocaleString()}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-text-muted">Active Time</div>
+            <div className="font-black text-text-primary">{formatDuration(stats?.active_play_seconds ?? 0)}</div>
+          </div>
+        </div>
+      </MobileCard>
+
+      <MobileCard className="space-y-3" rarityColor="#FF4B5C">
+        <div className="flex items-center gap-2">
+          <Target size={16} className="text-red" />
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Combat Breakdown</div>
+        </div>
+        <div className="space-y-2 text-xs">
+          <div>
+            <div className="mb-1 text-text-muted">Top Areas</div>
+            {topAreas.length === 0 ? (
+              <div className="text-text-muted">No data yet.</div>
+            ) : (
+              <ul className="space-y-1">
+                {topAreas.map((a) => (
+                  <li key={a.name} className="flex justify-between">
+                    <span className="text-text-secondary">{a.name}</span>
+                    <span className="font-bold text-text-primary">{a.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <div className="mb-1 text-text-muted">Top Weapon Types</div>
+            {topWeaponTypes.length === 0 ? (
+              <div className="text-text-muted">No data yet.</div>
+            ) : (
+              <ul className="space-y-1">
+                {topWeaponTypes.map((t) => (
+                  <li key={t.name} className="flex justify-between">
+                    <span className="text-text-secondary">{t.name}</span>
+                    <span className="font-bold text-text-primary">{t.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </MobileCard>
+
+      <MobileCard className="space-y-2" rarityColor="#7CFC00">
+        <div className="flex items-center gap-2">
+          <Award size={16} className="text-green" />
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Mastery</div>
+        </div>
+        <div className="space-y-1 text-xs text-text-secondary">
+          <div className="flex justify-between"><span>Total Mastery XP</span><span className="font-bold text-text-primary">{(stats?.total_mastery_xp ?? 0).toLocaleString()}</span></div>
+          <div className="flex justify-between"><span>Highest Mastery Level</span><span className="font-bold text-text-primary">{stats?.highest_mastery_level ?? 0}</span></div>
         </div>
       </MobileCard>
 
