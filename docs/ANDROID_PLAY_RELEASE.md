@@ -71,6 +71,8 @@ Run the `Play Closed Testing` workflow from GitHub Actions when you want a build
 
 The workflow defaults to the `beta` track, which is the closed-testing track exposed by the Play Developer API for this app. If you create a custom closed track in Play Console, pass that exact track name through the workflow's `closed_track` input.
 
+The workflow defaults `release_status` to `completed`, which is the status that makes the release available after Play accepts it. If Play rejects the upload with `Precondition check failed`, rerun the workflow with `release_status=draft`, finish the required Play Console checklist items, then promote/roll out the draft or rerun with `release_status=completed`.
+
 Closed testing still requires Play Console setup outside GitHub Actions:
 
 - Create or select the closed testing track.
