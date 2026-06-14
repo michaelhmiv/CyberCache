@@ -118,6 +118,11 @@ export const AuthScreen: React.FC = () => {
 
         {auth.authMode === 'guest' && (
           <div className="space-y-3">
+            {(message || auth.authMessage) && (
+              <div className={`bl-card px-3 py-2 text-xs ${message ? 'text-red' : 'text-green'}`}>
+                {message ?? auth.authMessage}
+              </div>
+            )}
             <button
               onClick={handleGuest}
               disabled={auth.actionLoading}
