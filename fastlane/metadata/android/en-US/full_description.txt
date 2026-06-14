@@ -1,0 +1,11 @@
+CyberCache is a mobile-first idle roguelite looter RPG built around quick runs, cache openings, gear builds, and boss progression.
+
+Send your hunter into roaming activities, collect credits and loot, open caches for new gear, tune your loadout, and push deeper into tougher encounters. Progress is built for short sessions, with server-verified rewards and account-backed saves.
+
+Features:
+- Idle roaming activities with offline progress
+- Cache openings, gear drops, and loadout upgrades
+- Boss fights with preparation and build checks
+- Crafting, salvage, workshop, and marketplace systems
+- Guest-first play with optional account progression
+- Optional rewarded ads for extra cache keys
