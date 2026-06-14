@@ -71,6 +71,9 @@ describe('Supabase authority grants', () => {
     'public.cc_is_username_available(text)',
     'public.cc_set_username(text)',
     'public.cc_my_profile_summary()',
+    'public.cc_get_leaderboard(text, text, int)',
+    'public.cc_get_my_leaderboard_rank(text, text)',
+    'public.cc_get_public_profile(uuid)',
   ])('%s is granted to authenticated clients after all migrations', (signature) => {
     expect(lastAuthenticatedGrantAction(signature)).toMatch(/:grant$/);
   });
@@ -80,5 +83,14 @@ describe('Supabase authority grants', () => {
     'public.cc_generate_guest_username(uuid)',
   ])('%s is revoked from authenticated clients after all migrations', (signature) => {
     expect(lastAuthenticatedGrantAction(signature)).toMatch(/:revoke$/);
+  });
+
+  it('public profile RPC does not expose credits or scrap', () => {
+    const allSql = orderedMigrations.map((m) => m.sql).join('\n');
+    const match = allSql.match(/create\s+or\s+replace\s+function\s+public\.cc_get_public_profile[\s\S]*?as\s+\$\$[\s\S]*?\$\$/i);
+    expect(match).toBeTruthy();
+    const body = match![0].toLowerCase();
+    expect(body).not.toContain('credits');
+    expect(body).not.toContain('scrap');
   });
 });

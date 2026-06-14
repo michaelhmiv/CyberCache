@@ -13,7 +13,11 @@ import { useAuth } from '@/auth/AuthProvider';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/supabase/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
+import { StatCard } from '@/components/profile/StatCard';
+import { StatDetailPanel } from '@/components/profile/StatDetailPanel';
 import { ProgressionHistoryCard } from '@/components/progression/ProgressionHistoryCard';
+import { getMyProgressionSnapshots, type ProgressionMetric } from '@/lib/supabase/progressionService';
+import type { LeaderboardMetric } from '@/lib/supabase/leaderboardService';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: string) => void;
@@ -49,6 +53,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [detailMetric, setDetailMetric] = useState<{ metric: ProgressionMetric; leaderboardMetric?: LeaderboardMetric; label: string; value: number; color: string } | null>(null);
+  const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -60,6 +66,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
     getMyProfileSummary().then((data) => {
       if (cancelled) return;
       setProfileSummary(data);
+    });
+    getMyProgressionSnapshots({ limit: 30 }).then((data) => {
+      if (cancelled) return;
+      setSnapshots(data);
     });
     return () => { cancelled = true; };
   }, [user]);
@@ -85,6 +95,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const activityScene = activity.current.sceneKey ?? safeText(payload.scene_key) ?? 'standby';
   const topAreas = topBreakdown(stats?.kills_by_area, 3);
   const topWeaponTypes = topBreakdown(stats?.kills_by_weapon_type, 3);
+
+  const sparklineFor = (metric: ProgressionMetric): number[] => {
+    return snapshots.map((s) => (typeof s[metric] === 'number' ? (s[metric] as number) : 0));
+  };
+
+  const openDetail = (payload: { metric: ProgressionMetric; leaderboardMetric?: LeaderboardMetric; label: string; value: number; color: string }) => {
+    setDetailMetric(payload);
+  };
 
   return (
     <div className="bl-page space-y-4 p-4 pb-20">
@@ -197,23 +215,37 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         </div>
       </MobileCard>
 
-      <div className="grid grid-cols-2 gap-2">
-        <MobileCard className="space-y-1" rarityColor="#FF9000">
-          <div className="flex items-center gap-2"><TrendingUp size={16} className="text-amber" /><div className="text-xs font-bold text-text-primary">Credits</div></div>
-          <div className="text-lg font-black text-text-primary">{player.credits.toLocaleString()}</div>
-        </MobileCard>
-        <MobileCard className="space-y-1" rarityColor="#A855F7">
-          <div className="flex items-center gap-2"><Box size={16} className="text-purple" /><div className="text-xs font-bold text-text-primary">Scrap</div></div>
-          <div className="text-lg font-black text-text-primary">{player.scrap.toLocaleString()}</div>
-        </MobileCard>
-        <MobileCard className="space-y-1" rarityColor="#FF4B5C">
-          <div className="flex items-center gap-2"><Target size={16} className="text-red" /><div className="text-xs font-bold text-text-primary">Bosses</div></div>
-          <div className="text-lg font-black text-text-primary">{bossStore.defeatedBossIds.length} / {REGION_1_BOSSES.length}</div>
-        </MobileCard>
-        <MobileCard className="space-y-1" rarityColor="#7CFC00">
-          <div className="flex items-center gap-2"><Award size={16} className="text-green" /><div className="text-xs font-bold text-text-primary">Items</div></div>
-          <div className="text-lg font-black text-text-primary">{totalItems}</div>
-        </MobileCard>
+      <div className="space-y-3">
+        <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Progression</div>
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard label="Level" value={stats?.player_level ?? player.level} color="#FF9000" metric="level" leaderboardMetric="level" sparklineValues={sparklineFor('level')} onClick={() => openDetail({ metric: 'level', leaderboardMetric: 'level', label: 'Level', value: stats?.player_level ?? player.level, color: '#FF9000' })} />
+          <StatCard label="XP" value={stats?.player_xp ?? player.xp} color="#FF9000" metric="xp" leaderboardMetric="xp" sparklineValues={sparklineFor('xp')} onClick={() => openDetail({ metric: 'xp', leaderboardMetric: 'xp', label: 'XP', value: stats?.player_xp ?? player.xp, color: '#FF9000' })} />
+          <StatCard label="Mastery XP" value={stats?.total_mastery_xp ?? 0} color="#7CFC00" metric="total_mastery_xp" leaderboardMetric="total_mastery_xp" sparklineValues={sparklineFor('total_mastery_xp')} onClick={() => openDetail({ metric: 'total_mastery_xp', leaderboardMetric: 'total_mastery_xp', label: 'Mastery XP', value: stats?.total_mastery_xp ?? 0, color: '#7CFC00' })} />
+          <StatCard label="Mastery Lv" value={stats?.highest_mastery_level ?? 0} color="#7CFC00" metric="highest_mastery_level" leaderboardMetric="highest_mastery_level" sparklineValues={sparklineFor('highest_mastery_level')} onClick={() => openDetail({ metric: 'highest_mastery_level', leaderboardMetric: 'highest_mastery_level', label: 'Highest Mastery Level', value: stats?.highest_mastery_level ?? 0, color: '#7CFC00' })} />
+        </div>
+
+        <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Combat</div>
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard label="Kills" value={stats?.total_kills ?? 0} color="#FF4B5C" metric="total_kills" leaderboardMetric="total_kills" sparklineValues={sparklineFor('total_kills')} onClick={() => openDetail({ metric: 'total_kills', leaderboardMetric: 'total_kills', label: 'Kills', value: stats?.total_kills ?? 0, color: '#FF4B5C' })} />
+          <StatCard label="Deaths" value={stats?.total_deaths ?? 0} color="#FF4B5C" metric="total_deaths" sparklineValues={sparklineFor('total_deaths')} />
+          <StatCard label="K/D" value={(stats?.kill_death_ratio ?? 0).toFixed(2)} color="#FF4B5C" metric="total_kills" leaderboardMetric="kdr" sparklineValues={sparklineFor('total_kills')} onClick={() => openDetail({ metric: 'total_kills', leaderboardMetric: 'kdr', label: 'Kill / Death Ratio', value: stats?.kill_death_ratio ?? 0, color: '#FF4B5C' })} />
+          <StatCard label="Boss Tier" value={stats?.highest_boss_tier ?? 0} color="#FF4B5C" metric="highest_boss_tier" leaderboardMetric="highest_boss_tier" sparklineValues={sparklineFor('highest_boss_tier')} onClick={() => openDetail({ metric: 'highest_boss_tier', leaderboardMetric: 'highest_boss_tier', label: 'Highest Boss Tier', value: stats?.highest_boss_tier ?? 0, color: '#FF4B5C' })} />
+        </div>
+
+        <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Economy</div>
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard label="Net Worth" value={stats?.net_worth ?? 0} color="#7CFC00" metric="net_worth" leaderboardMetric="net_worth" sparklineValues={sparklineFor('net_worth')} onClick={() => openDetail({ metric: 'net_worth', leaderboardMetric: 'net_worth', label: 'Net Worth', value: stats?.net_worth ?? 0, color: '#7CFC00' })} />
+          <StatCard label="Credits" value={player.credits} color="#5AA7FF" metric="credits" isPrivate sparklineValues={sparklineFor('credits')} onClick={() => openDetail({ metric: 'credits', label: 'Credits', value: player.credits, color: '#5AA7FF' })} />
+          <StatCard label="Scrap" value={player.scrap} color="#A855F7" metric="scrap" isPrivate sparklineValues={sparklineFor('scrap')} onClick={() => openDetail({ metric: 'scrap', label: 'Scrap', value: player.scrap, color: '#A855F7' })} />
+        </div>
+
+        <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Collection</div>
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard label="Items" value={stats?.total_items ?? totalItems} color="#FFEA3A" metric="total_items" leaderboardMetric="total_items" sparklineValues={sparklineFor('total_items')} onClick={() => openDetail({ metric: 'total_items', leaderboardMetric: 'total_items', label: 'Total Items', value: stats?.total_items ?? totalItems, color: '#FFEA3A' })} />
+          <StatCard label="Weapons" value={stats?.weapons_owned ?? weapons.length} color="#FFEA3A" metric="weapons_owned" sparklineValues={sparklineFor('weapons_owned')} />
+          <StatCard label="Legendaries" value={stats?.legendary_items ?? 0} color="#FFEA3A" metric="legendary_items" leaderboardMetric="legendary_items" sparklineValues={sparklineFor('legendary_items')} onClick={() => openDetail({ metric: 'legendary_items', leaderboardMetric: 'legendary_items', label: 'Legendary Items', value: stats?.legendary_items ?? 0, color: '#FFEA3A' })} />
+          <StatCard label="Highest IL" value={stats?.highest_item_level ?? 0} color="#FFEA3A" metric="highest_item_level" sparklineValues={sparklineFor('highest_item_level')} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -342,6 +374,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
             getMyProfileSummary().then(setProfileSummary);
           }}
           onClose={() => setRenameOpen(false)}
+        />
+      )}
+      {detailMetric && (
+        <StatDetailPanel
+          open={!!detailMetric}
+          onClose={() => setDetailMetric(null)}
+          metric={detailMetric.metric}
+          leaderboardMetric={detailMetric.leaderboardMetric}
+          label={detailMetric.label}
+          value={detailMetric.value}
+          color={detailMetric.color}
         />
       )}
     </div>

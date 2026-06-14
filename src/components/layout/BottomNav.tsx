@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Backpack, Gauge, PlayCircle, ShoppingCart, User } from 'lucide-react';
+import { Backpack, Gauge, PlayCircle, ShoppingCart, Trophy, User } from 'lucide-react';
 
-type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
+type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'leaderboards' | 'profile';
 
 interface BottomNavProps {
   activeTab: TabId;
@@ -14,13 +14,14 @@ const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'fight', label: 'Action', icon: PlayCircle },
   { id: 'inventory', label: 'Gear', icon: Backpack },
   { id: 'market', label: 'Market', icon: ShoppingCart },
+  { id: 'leaderboards', label: 'Rank', icon: Trophy },
   { id: 'profile', label: 'Hunter', icon: User },
 ];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => {
   return (
     <nav className="shrink-0 h-[66px] bg-bg border-t-[3px] border-border z-50 px-2 pt-1.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] shadow-[0_-8px_18px_rgba(0,0,0,0.65)]">
-      <div className="grid h-full grid-cols-5 gap-1.5">
+      <div className="grid h-full grid-cols-6 gap-1.5">
         {tabs.map((t) => {
           const isActive = activeTab === t.id;
           return (

@@ -8,6 +8,7 @@ import { InventoryScreen } from './screens/InventoryScreen';
 import { MarketScreen } from './screens/MarketScreen';
 import { ChestScreen } from './screens/ChestScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { LeaderboardsScreen } from './screens/LeaderboardsScreen';
 import { TabErrorBoundary } from './components/layout/TabErrorBoundary';
 import { DeathOverlay } from './components/action/DeathOverlay';
 import { SettingsScreen } from './screens/SettingsScreen';
@@ -29,9 +30,9 @@ import { useLeaveSignals } from './components/activity/useLeaveSignals';
 import { SettlementDebugOverlay } from './components/activity/SettlementDebugOverlay';
 import { registerPushNotifications } from './lib/notifications/pushNotifications';
 
-type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
+type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'leaderboards' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | null;
-const topLevelTabs: TabId[] = ['dashboard', 'fight', 'inventory', 'market', 'profile'];
+const topLevelTabs: TabId[] = ['dashboard', 'fight', 'inventory', 'market', 'leaderboards', 'profile'];
 
 function VerificationReminderBanner() {
   const { account, markVerificationReminderSeen, actionLoading } = useAuth();
@@ -215,6 +216,7 @@ function App() {
               </FeatureGate>
             </TabErrorBoundary>
           )}
+          {activeTab === 'leaderboards' && <TabErrorBoundary surface="Leaderboards"><LeaderboardsScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
           {activeTab === 'profile' && <TabErrorBoundary surface="Profile"><ProfileScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
         </ScreenWrapper>
       )}
