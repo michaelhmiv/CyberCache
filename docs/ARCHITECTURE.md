@@ -108,6 +108,15 @@ ActionScreenContextual.openCache()
   → inventory.addItem()              # state mutation (server-authoritative item)
 ```
 
+### Rewarded ad cache keys
+```
+ResourceBar cache-key plus button
+  → AdMob rewarded video completion      # Android app only; no economy mutation
+  → verifiedOps.claimRewardedCacheKey()  # cc_claim_rewarded_cache_key RPC
+  → profiles.cache_tokens += 1           # server-side cap/cooldown/idempotency
+  → syncVerifiedResult()                 # client syncs returned profile
+```
+
 ### Boss attempt
 ```
 BossPrepModal
