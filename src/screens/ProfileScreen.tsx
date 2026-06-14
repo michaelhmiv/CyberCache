@@ -10,6 +10,8 @@ import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { useAuth } from '@/auth/AuthProvider';
+import { getMyProfileSummary, type ProfileSummary } from '@/lib/supabase/usernameService';
+import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 
 interface ProfileScreenProps {
@@ -43,6 +45,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const deathLog = useSurvivalStore((s) => s.deathLog);
   const { account, user, signOut, actionLoading } = useAuth();
   const [stats, setStats] = useState<PlayerPublicStats | null>(null);
+  const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -50,6 +55,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
     getMyStatsSummary().then((data) => {
       if (cancelled) return;
       setStats(data);
+    });
+    getMyProfileSummary().then((data) => {
+      if (cancelled) return;
+      setProfileSummary(data);
     });
     return () => { cancelled = true; };
   }, [user]);
@@ -87,7 +96,33 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
           </div>
           <div className="min-w-0 flex-1">
             <div className="truncate text-lg font-black uppercase tracking-wide text-text-primary">{player.name}</div>
-            <div className="text-xs text-text-muted">Level {player.level} Gunrunner</div>
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              {account?.hasUsername ? (
+                <>
+                  <span className="text-amber">@{account.username ?? profileSummary?.username}</span>
+                  {!account.isAnonymous && (
+                    <button
+                      onClick={() => setRenameOpen(true)}
+                      className="text-[10px] underline hover:text-amber"
+                    >
+                      Rename
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span>No handle set</span>
+                  {!account.isAnonymous && (
+                    <button
+                      onClick={() => setSetupOpen(true)}
+                      className="text-amber underline"
+                    >
+                      Set username
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
             <div className="mt-1.5 h-2 overflow-hidden border-2 border-border bg-bg" style={{ clipPath: 'polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)' }}>
               <div className="h-full bg-amber transition-all" style={{ width: `${Math.min(100, xpProgress)}%` }} />
             </div>
@@ -278,6 +313,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         <ActionRow icon={User} label="Identity" desc="Titles, badges, collections, and profile hooks" onClick={() => onNavigate?.('profile')} tone="#5AA7FF" />
         <ActionRow icon={LogOut} label={actionLoading ? 'Signing out…' : 'Sign Out'} desc="End this CyberCache session on this device" onClick={() => signOut()} tone="#FF4B5C" />
       </div>
+      {setupOpen && (
+        <UsernameSetupModal
+          force={false}
+          onComplete={() => {
+            setSetupOpen(false);
+            getMyProfileSummary().then(setProfileSummary);
+          }}
+          onClose={() => setSetupOpen(false)}
+        />
+      )}
+      {renameOpen && (
+        <UsernameSetupModal
+          mode="rename"
+          force={false}
+          currentUsername={account?.username ?? profileSummary?.username}
+          canRenameAt={profileSummary?.can_rename_at}
+          onComplete={() => {
+            setRenameOpen(false);
+            getMyProfileSummary().then(setProfileSummary);
+          }}
+          onClose={() => setRenameOpen(false)}
+        />
+      )}
     </div>
   );
 };

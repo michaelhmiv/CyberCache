@@ -15,6 +15,7 @@ import { HelpScreen } from './screens/HelpScreen';
 import { WorkshopScreen } from './screens/WorkshopScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { BossSelectModal } from './components/fight/BossSelectModal';
+import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
 import { isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
 import { FeatureGate } from './auth/FeatureGate';
 import { useAuth } from './auth/AuthProvider';
@@ -56,7 +57,7 @@ function VerificationReminderBanner() {
 }
 
 function App() {
-  const { user, loading, authError } = useAuth();
+  const { user, account, loading, authError } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
@@ -195,6 +196,10 @@ function App() {
         </div>
       )}
       <VerificationReminderBanner />
+
+      {account && !account.hasUsername && !account.isAnonymous && (
+        <UsernameSetupModal force />
+      )}
 
       {subScreen ? (
         renderSubScreen()

@@ -9,6 +9,8 @@ import {
 const baseAccount: AccountState = {
   userId: 'user-1',
   accountType: 'registered_unverified',
+  username: null,
+  hasUsername: false,
   email: 'player@example.com',
   emailVerifiedAt: null,
   verificationGraceExpiresAt: '2026-06-15T00:00:00.000Z',

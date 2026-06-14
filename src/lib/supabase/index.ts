@@ -3,3 +3,4 @@ export * from './client';
 export * from './config';
 export * from './profileService';
 export * from './statsService';
+export * from './usernameService';

@@ -49,7 +49,17 @@ describe('Supabase authority grants', () => {
   it.each([
     'public.cc_my_stats_summary()',
     'public.cc_public_stats(uuid)',
+    'public.cc_is_username_available(text)',
+    'public.cc_set_username(text)',
+    'public.cc_my_profile_summary()',
   ])('%s is granted to authenticated clients after all migrations', (signature) => {
     expect(lastAuthenticatedGrantAction(signature)).toMatch(/:grant$/);
+  });
+
+  it.each([
+    'public.cc_validate_username(text)',
+    'public.cc_generate_guest_username(uuid)',
+  ])('%s is revoked from authenticated clients after all migrations', (signature) => {
+    expect(lastAuthenticatedGrantAction(signature)).toMatch(/:revoke$/);
   });
 });

@@ -3,6 +3,8 @@ export type AccountType = 'guest' | 'registered_unverified' | 'verified';
 export interface AccountState {
   userId: string | null;
   accountType: AccountType;
+  username: string | null;
+  hasUsername: boolean;
   email: string | null;
   emailVerifiedAt: string | null;
   verificationGraceExpiresAt: string | null;
@@ -56,6 +58,10 @@ export function isVerificationGraceExpired(account: AccountState | null, now = n
   return now.getTime() >= new Date(account.verificationGraceExpiresAt).getTime();
 }
 
+export function hasUsernameSet(account: AccountState | null): boolean {
+  return Boolean(account?.hasUsername);
+}
+
 export function canUseFeature(account: AccountState | null, feature: GatedFeature): GateDecision {
   if (feature === 'solo_play') return { allowed: true };
 
@@ -64,6 +70,23 @@ export function canUseFeature(account: AccountState | null, feature: GatedFeatur
   }
 
   if (feature === 'persistent_inventory') {
+    return { allowed: true };
+  }
+
+  if (feature === 'leaderboards') {
+    if (!isVerifiedAccount(account)) {
+      return { allowed: false, reason: 'Verify your email to unlock leaderboards.' };
+    }
+    if (!hasUsernameSet(account)) {
+      return { allowed: false, reason: 'Set a username to appear on leaderboards.' };
+    }
+    return { allowed: true };
+  }
+
+  if (feature === 'social') {
+    if (!hasUsernameSet(account)) {
+      return { allowed: false, reason: 'Set a username to use social features.' };
+    }
     return { allowed: true };
   }
 

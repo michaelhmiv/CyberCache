@@ -41,6 +41,8 @@ export function profileRowToAccountState(profile: ProfileRow, user?: User | null
   return {
     userId: profile.id,
     accountType: profile.account_type,
+    username: profile.username,
+    hasUsername: profile.username !== null && profile.username.trim() !== '',
     email: profile.email,
     emailVerifiedAt: profile.email_verified_at,
     verificationGraceExpiresAt: profile.verification_grace_expires_at,

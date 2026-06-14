@@ -2,6 +2,7 @@ import React, { FormEvent, useState } from 'react';
 import { motion } from 'framer-motion';
 import { LogIn, Mail, UserPlus, Zap } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
+import { validateUsername } from '../lib/validation/username';
 import type { AuthMode } from '../auth/authTypes';
 
 function modeTitle(mode: AuthMode): string {
@@ -69,6 +70,11 @@ export const AuthScreen: React.FC = () => {
     if (auth.authMode === 'register') {
       if (!username.trim()) {
         setLocalError('Username is required.');
+        return;
+      }
+      const validation = validateUsername(username);
+      if (!validation.ok) {
+        setLocalError(validation.error ?? 'Invalid username.');
         return;
       }
       if (!requireEmail() || !requireMatchingSecret()) return;
