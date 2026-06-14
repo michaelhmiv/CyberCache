@@ -14,9 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/setup-node@v6
         with:
-          ruby-version: "3.3"
+          node-version: 22
 
       - name: Validate Play listing secret
         env:
@@ -27,8 +27,8 @@ jobs:
             exit 1
           fi
 
-      - name: Install fastlane
-        run: gem install fastlane --no-document
+      - name: Install Play API client
+        run: npm install --no-save googleapis
 
       - name: Upload Play Store listing metadata
         env:
@@ -36,14 +36,7 @@ jobs:
         run: |
           JSON_KEY="$RUNNER_TEMP/play-service-account.json"
           printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$JSON_KEY"
-
-          fastlane supply \
-            --json_key "$JSON_KEY" \
-            --package_name com.michaelhmiv.cybercache \
-            --metadata_path fastlane/metadata/android \
-            --skip_upload_apk true \
-            --skip_upload_aab true \
-            --skip_upload_changelogs true
+          node scripts/upload-play-listing.mjs "$JSON_KEY"
 
       - name: Summarize listing update
         run: |
