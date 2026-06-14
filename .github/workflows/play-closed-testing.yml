@@ -102,3 +102,18 @@ jobs:
           tracks: ${{ github.event.inputs.closed_track || 'closed' }}
           status: completed
           releaseName: ${{ env.PLAY_RELEASE_NAME }}
+
+      - name: Summarize closed testing release
+        env:
+          CLOSED_TRACK: ${{ github.event.inputs.closed_track || 'closed' }}
+        run: |
+          {
+            echo "## CyberCache closed testing release"
+            echo ""
+            echo "- Release: \`${PLAY_RELEASE_NAME}\`"
+            echo "- Package: \`com.michaelhmiv.cybercache\`"
+            echo "- Track: \`${CLOSED_TRACK}\`"
+            echo "- Play listing: https://play.google.com/store/apps/details?id=com.michaelhmiv.cybercache"
+            echo ""
+            echo "Use this workflow for the Play Console closed testing requirement. Tester lists, Google Groups, country availability, and the closed-track opt-in link are managed in Play Console."
+          } >> "$GITHUB_STEP_SUMMARY"

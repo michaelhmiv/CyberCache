@@ -1,0 +1,207 @@
+name: Firebase App Distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: Optional Firebase release name
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  DEFAULT_FIREBASE_DISTRIBUTION_TESTERS: michaelhmiv@gmail.com
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    environment:
+      name: CyberCache / firebase-distribution
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/upload-keystore.jks
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        env:
+          VITE_ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID: ${{ secrets.ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID }}
+          VITE_ADMOB_TEST_ADS: "false"
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Validate Firebase + signing secrets
+        env:
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          required=(
+            FIREBASE_APP_ID
+            FIREBASE_SERVICE_ACCOUNT
+            GOOGLE_SERVICES_JSON
+            ANDROID_KEYSTORE_BASE64
+            ANDROID_KEYSTORE_PASSWORD
+            ANDROID_KEY_ALIAS
+            ANDROID_KEY_PASSWORD
+          )
+
+          for name in "${required[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required secret ${name}"
+              exit 1
+            fi
+          done
+
+      - name: Write Firebase config
+        run: printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
+      - name: Decode upload keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          chmod 600 "$ANDROID_KEYSTORE_PATH"
+
+      - name: Compute release metadata
+        env:
+          INPUT_RELEASE_NAME: ${{ github.event.inputs.release_name }}
+        run: |
+          VERSION_CODE=$((300000 + GITHUB_RUN_NUMBER))
+          echo "MOBILE_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+
+          if [ -n "$INPUT_RELEASE_NAME" ]; then
+            SANITIZED_RELEASE_NAME="$(printf '%s' "$INPUT_RELEASE_NAME" | tr '\r\n' '-' | tr -cd '[:alnum:]._-' | cut -c1-50)"
+            if [ -z "$SANITIZED_RELEASE_NAME" ]; then
+              echo "::error::release_name must contain at least one alphanumeric character after sanitization."
+              exit 1
+            fi
+            echo "FIREBASE_RELEASE_NAME=$SANITIZED_RELEASE_NAME" >> "$GITHUB_ENV"
+          else
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            echo "FIREBASE_RELEASE_NAME=firebase-${SHORT_SHA}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build signed release APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ env.ANDROID_KEYSTORE_PATH }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          MOBILE_VERSION_CODE: ${{ env.MOBILE_VERSION_CODE }}
+          MOBILE_VERSION_NAME: ${{ env.FIREBASE_RELEASE_NAME }}
+          ADMOB_APP_ID_ANDROID: ${{ secrets.ADMOB_APP_ID_ANDROID }}
+        run: node scripts/run-gradle-wrapper.mjs assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cybercache-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Configure Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          FIREBASE_SERVICE_ACCOUNT_PATH="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$FIREBASE_SERVICE_ACCOUNT_PATH"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$FIREBASE_SERVICE_ACCOUNT_PATH" >> "$GITHUB_ENV"
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Distribute APK
+        env:
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_DISTRIBUTION_TESTERS: ${{ secrets.FIREBASE_DISTRIBUTION_TESTERS }}
+          FIREBASE_DISTRIBUTION_GROUPS: ${{ secrets.FIREBASE_DISTRIBUTION_GROUPS }}
+        run: |
+          node <<'NODE' > "$RUNNER_TEMP/firebase-distribution-env"
+          const testers = new Set();
+          for (const raw of [
+            process.env.DEFAULT_FIREBASE_DISTRIBUTION_TESTERS,
+            process.env.FIREBASE_DISTRIBUTION_TESTERS,
+          ]) {
+            for (const email of (raw || '').split(',')) {
+              const normalized = email.trim().toLowerCase();
+              if (normalized) testers.add(normalized);
+            }
+          }
+
+          const groups = new Set();
+          for (const raw of [process.env.FIREBASE_DISTRIBUTION_GROUPS]) {
+            for (const group of (raw || '').split(',')) {
+              const normalized = group.trim();
+              if (normalized) groups.add(normalized);
+            }
+          }
+
+          console.log(`FIREBASE_TESTERS=${Array.from(testers).join(',')}`);
+          console.log(`FIREBASE_GROUPS=${Array.from(groups).join(',')}`);
+          NODE
+
+          source "$RUNNER_TEMP/firebase-distribution-env"
+
+          args=(
+            "android/app/build/outputs/apk/release/app-release.apk"
+            "--app" "$FIREBASE_APP_ID"
+            "--release-notes" "CyberCache ${FIREBASE_RELEASE_NAME} (${GITHUB_SHA})"
+          )
+
+          if [ -n "$FIREBASE_TESTERS" ]; then
+            args+=("--testers" "$FIREBASE_TESTERS")
+          fi
+
+          if [ -n "$FIREBASE_GROUPS" ]; then
+            args+=("--groups" "$FIREBASE_GROUPS")
+          fi
+
+          firebase appdistribution:distribute "${args[@]}"
+
+          {
+            echo "FIREBASE_TESTERS=$FIREBASE_TESTERS"
+            echo "FIREBASE_GROUPS=$FIREBASE_GROUPS"
+          } >> "$GITHUB_ENV"
+
+      - name: Summarize Firebase distribution
+        run: |
+          {
+            echo "## CyberCache Firebase App Distribution"
+            echo ""
+            echo "- Release: \`${FIREBASE_RELEASE_NAME}\`"
+            echo "- Package: \`com.michaelhmiv.cybercache\`"
+            echo "- Firebase app id: \`${{ secrets.FIREBASE_APP_ID }}\`"
+            echo "- Testers: \`${FIREBASE_TESTERS:-none}\`"
+            echo "- Groups: \`${FIREBASE_GROUPS:-none}\`"
+            echo ""
+            echo "Firebase emails testers an install invite/update link after the upload completes."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f "$ANDROID_KEYSTORE_PATH"
