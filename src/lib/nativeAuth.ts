@@ -12,6 +12,29 @@ function log(stage: string, details?: unknown) {
   console.log(`[native-auth] ${stage}${details !== undefined ? ': ' + payload : ''}`);
 }
 
+function generateNonce(): string {
+  const array = new Uint8Array(32);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(array);
+  } else {
+    for (let i = 0; i < array.length; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+  // Fallback for environments without crypto.subtle (unlikely in Capacitor webview)
+  throw new Error('SHA-256 not available in this environment.');
+}
+
 export function isNativePlatform(): boolean {
   return Capacitor.isNativePlatform();
 }
@@ -53,10 +76,16 @@ export async function signInWithGoogleNative(): Promise<void> {
   log('calling SocialLogin.login');
 
   let result;
+  const rawNonce = generateNonce();
+  const nonceDigest = await sha256Hex(rawNonce);
+  log('generated nonce', { rawNonceLength: rawNonce.length, nonceDigestLength: nonceDigest.length });
+
   try {
     result = await SocialLogin.login({
       provider: 'google',
-      options: {},
+      options: {
+        nonce: nonceDigest,
+      },
     });
     log('SocialLogin.login succeeded', { provider: result.provider, responseType: result.result.responseType });
   } catch (error) {
@@ -82,6 +111,7 @@ export async function signInWithGoogleNative(): Promise<void> {
   const { error } = await supabase.auth.signInWithIdToken({
     provider: 'google',
     token: idToken,
+    nonce: rawNonce,
   });
 
   if (error) {
