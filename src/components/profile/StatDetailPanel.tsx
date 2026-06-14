@@ -36,7 +36,6 @@ export const StatDetailPanel: React.FC<StatDetailPanelProps> = ({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
     Promise.all([
       getMyProgressionSnapshots({ limit: 30 }),
       leaderboardMetric ? getMyLeaderboardRank(leaderboardMetric) : Promise.resolve(null),

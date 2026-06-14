@@ -39,7 +39,6 @@ export const ProgressionHistoryCard: React.FC<ProgressionHistoryCardProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     getMyProgressionSnapshots({ limit }).then((data) => {
       if (cancelled) return;
       setSnapshots(data);

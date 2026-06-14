@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Skull, Sword, Target, TrendingUp, User, Zap } from 'lucide-react';
-import { useActivityStore, useBossStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
+import { Activity, Award, HelpCircle, LogOut, Settings, ShieldCheck, Skull, Sword, Target, User, Zap } from 'lucide-react';
+import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
 import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/supabase/statsService';
 import { formatDuration, topBreakdown } from '@/lib/stats/statsHelpers';
 import { ResourceBar } from '@/components/layout/ResourceBar';
@@ -8,7 +8,6 @@ import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { SkillTreeScreen } from './SkillTreeScreen';
-import { REGION_1_BOSSES } from '@/constants/bosses';
 import { useAuth } from '@/auth/AuthProvider';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/supabase/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
@@ -44,7 +43,6 @@ const safeText = (value: unknown): string | null => typeof value === 'string' &&
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
-  const bossStore = useBossStore();
   const activity = useActivityStore();
   const skillStore = useSkillStore();
   const deathLog = useSurvivalStore((s) => s.deathLog);

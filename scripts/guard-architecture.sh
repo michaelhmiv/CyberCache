@@ -72,6 +72,7 @@ ALLOWED_TIMERS=(
   "$SRC/components/activity/SettlementDebugOverlay.tsx:debug overlay display clock"
   "$SRC/components/activity/useLeaveSignals.ts:best-effort leave signal throttle reset"
   "$SRC/components/fight/BossPrepModal.tsx:fight animation delay (display-only)"
+  "$SRC/components/profile/UsernameSetupModal.tsx:username availability debounce (form validation)"
   "$SRC/hooks/useNow.ts:shared reactive clock hook"
   "$SRC/lib/activity/useActionStageOrchestrator.ts:animation beat pacing (display-only)"
   "$SRC/lib/animation/fightTimeline.ts:animation phase timing (display-only)"

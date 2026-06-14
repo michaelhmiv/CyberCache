@@ -23,7 +23,6 @@ export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     getLeaderboard(metric, period, 100).then((data) => {
       if (cancelled) return;
       setEntries(data);
@@ -33,10 +32,7 @@ export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
   }, [metric, period]);
 
   useEffect(() => {
-    if (!selectedPlayerId) {
-      setSelectedProfile(null);
-      return;
-    }
+    if (!selectedPlayerId) return;
     let cancelled = false;
     getPublicProfile(selectedPlayerId).then((data) => {
       if (cancelled) return;
@@ -65,13 +61,19 @@ export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
         entries={entries}
         myPlayerId={user?.id}
         loading={loading}
-        onRowClick={setSelectedPlayerId}
+        onRowClick={(playerId) => {
+          setSelectedProfile(null);
+          setSelectedPlayerId(playerId);
+        }}
       />
 
       {selectedPlayerId && (
         <PublicProfilePanel
           open={!!selectedPlayerId}
-          onClose={() => setSelectedPlayerId(null)}
+          onClose={() => {
+            setSelectedPlayerId(null);
+            setSelectedProfile(null);
+          }}
           profile={selectedProfile}
         />
       )}

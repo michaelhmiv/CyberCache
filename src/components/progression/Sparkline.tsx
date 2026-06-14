@@ -24,7 +24,6 @@ export const Sparkline: React.FC<SparklineProps> = ({
     () => buildSparkline(values, width, height),
     [values, width, height]
   );
-  const path = useMemo(() => sparklinePolyline(data.points), [data.points]);
   const trend = useMemo(() => sparklineTrend(values), [values]);
 
   const stroke = trend === 'up' ? color : trend === 'down' ? '#FF4B5C' : fallbackColor;
