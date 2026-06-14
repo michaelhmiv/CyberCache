@@ -6,7 +6,7 @@ on:
       closed_track:
         description: Closed testing track name
         required: false
-        default: closed
+        default: beta
         type: string
       release_name:
         description: Optional Play release name
@@ -99,13 +99,13 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.michaelhmiv.cybercache
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
-          tracks: ${{ github.event.inputs.closed_track || 'closed' }}
+          tracks: ${{ github.event.inputs.closed_track || 'beta' }}
           status: completed
           releaseName: ${{ env.PLAY_RELEASE_NAME }}
 
       - name: Summarize closed testing release
         env:
-          CLOSED_TRACK: ${{ github.event.inputs.closed_track || 'closed' }}
+          CLOSED_TRACK: ${{ github.event.inputs.closed_track || 'beta' }}
         run: |
           {
             echo "## CyberCache closed testing release"

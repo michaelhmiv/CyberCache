@@ -69,7 +69,7 @@ The Play Developer API can upload builds to the internal track, but individual t
 
 Run the `Play Closed Testing` workflow from GitHub Actions when you want a build on the Play Console closed testing track. This is the lane to use for Play's closed-testing requirement.
 
-The workflow defaults to the `closed` track. If you create a custom closed track in Play Console, pass that exact track name through the workflow's `closed_track` input.
+The workflow defaults to the `beta` track, which is the closed-testing track exposed by the Play Developer API for this app. If you create a custom closed track in Play Console, pass that exact track name through the workflow's `closed_track` input.
 
 Closed testing still requires Play Console setup outside GitHub Actions:
 
