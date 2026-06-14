@@ -43,7 +43,7 @@ describe('shieldGenerator — affixes baked into stats', () => {
       if (mitAffixes.length > 0) {
         const affixSum = mitAffixes.reduce((sum, a) => sum + a.value, 0);
         // mitigation starts at ~0.05 + rarity bias; affix adds to it.
-        expect(shield.mitigation).toBeGreaterThanOrEqual(0.05 + affixSum);
+        expect(shield.mitigation).toBeGreaterThanOrEqual(0.05 + affixSum - Number.EPSILON);
         return;
       }
     }
