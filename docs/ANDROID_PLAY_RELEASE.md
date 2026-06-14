@@ -69,9 +69,9 @@ The Play Developer API can upload builds to the internal track, but individual t
 
 Run the `Play Closed Testing` workflow from GitHub Actions when you want a build on the Play Console closed testing track. This is the lane to use for Play's closed-testing requirement.
 
-The workflow defaults to the `beta` track, which is the closed-testing track exposed by the Play Developer API for this app. If you create a custom closed track in Play Console, pass that exact track name through the workflow's `closed_track` input.
+The workflow defaults to the `alpha` track, which is the closed-testing track currently shown in Play Console for this app. If you create a custom closed track in Play Console, pass that exact track name through the workflow's `closed_track` input.
 
-The workflow defaults `release_status` to `completed`, which is the status that makes the release available after Play accepts it. If Play rejects the upload with `Precondition check failed`, rerun the workflow with `release_status=draft`, finish the required Play Console checklist items, then promote/roll out the draft or rerun with `release_status=completed`.
+The workflow defaults `release_status` to `draft` while CyberCache is still an unreviewed Play app. After Play accepts the app setup and closed testing track, use `release_status=completed` for direct rollout uploads.
 
 Closed testing still requires Play Console setup outside GitHub Actions:
 
