@@ -12,6 +12,14 @@ on:
         description: Optional Play release name
         required: false
         type: string
+      release_status:
+        description: Play release status. Use draft if Play Console prerequisites block completed.
+        required: false
+        default: completed
+        type: choice
+        options:
+          - completed
+          - draft
 
 permissions:
   contents: read
@@ -100,12 +108,13 @@ jobs:
           packageName: com.michaelhmiv.cybercache
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           tracks: ${{ github.event.inputs.closed_track || 'beta' }}
-          status: completed
+          status: ${{ github.event.inputs.release_status || 'completed' }}
           releaseName: ${{ env.PLAY_RELEASE_NAME }}
 
       - name: Summarize closed testing release
         env:
           CLOSED_TRACK: ${{ github.event.inputs.closed_track || 'beta' }}
+          RELEASE_STATUS: ${{ github.event.inputs.release_status || 'completed' }}
         run: |
           {
             echo "## CyberCache closed testing release"
@@ -113,6 +122,7 @@ jobs:
             echo "- Release: \`${PLAY_RELEASE_NAME}\`"
             echo "- Package: \`com.michaelhmiv.cybercache\`"
             echo "- Track: \`${CLOSED_TRACK}\`"
+            echo "- Status: \`${RELEASE_STATUS}\`"
             echo "- Play listing: https://play.google.com/store/apps/details?id=com.michaelhmiv.cybercache"
             echo ""
             echo "Use this workflow for the Play Console closed testing requirement. Tester lists, Google Groups, country availability, and the closed-track opt-in link are managed in Play Console."
