@@ -70,6 +70,8 @@ Security and deletion disclosures:
 - Data is encrypted in transit where supported.
 - Users can request deletion through
   `https://cybercache-production.up.railway.app/data-deletion.html`.
+- Users can also open the deletion request page from Settings -> Danger Zone ->
+  Delete Account / Data.
 - CyberCache does not sell personal information.
 
 ## Content rating notes

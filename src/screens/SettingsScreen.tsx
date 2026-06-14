@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Clock, Zap, AlertTriangle, Info, Settings } from 'lucide-react';
+import { Clock, Zap, AlertTriangle, Info, Settings, ExternalLink } from 'lucide-react';
 import { usePlayerStore, useIdleStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
+
+const DATA_DELETION_URL = 'https://cybercache-production.up.railway.app/data-deletion.html';
 
 export const SettingsScreen: React.FC = () => {
   const player = usePlayerStore();
@@ -149,6 +151,18 @@ export const SettingsScreen: React.FC = () => {
             </button>
           </div>
         )}
+        <div className="border-t border-border/60 pt-3">
+          <div className="mb-2 text-[10px] text-text-muted">
+            Request deletion of your CyberCache account and associated server-side gameplay data.
+          </div>
+          <button
+            onClick={() => window.open(DATA_DELETION_URL, '_blank', 'noopener,noreferrer')}
+            className="bl-secondary flex w-full items-center justify-center gap-2 py-2 text-xs font-black text-red"
+          >
+            <ExternalLink size={14} />
+            Delete Account / Data
+          </button>
+        </div>
       </MobileCard>
     </div>
   );

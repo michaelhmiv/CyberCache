@@ -25,7 +25,8 @@ export const UsernameSetupModal: React.FC<Props> = ({
 }) => {
   const auth = useAuth();
   const [value, setValue] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<{ value: string; message: string } | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<{ value: string; message: string } | null>(null);
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,47 +36,48 @@ export const UsernameSetupModal: React.FC<Props> = ({
     return new Date() < new Date(canRenameAt);
   }, [isRename, canRenameAt]);
 
-  useEffect(() => {
-    if (!value.trim()) {
-      setError(null);
-      return;
-    }
+  const validationError = useMemo(() => {
+    if (!value.trim()) return null;
     const validation = validateUsername(value);
-    if (!validation.ok) {
-      setError(validation.error ?? null);
-      return;
-    }
+    if (!validation.ok) return validation.error ?? null;
     if (isRename && value.trim().toLowerCase() === (currentUsername ?? '').trim().toLowerCase()) {
-      setError('This is already your current username.');
-      return;
+      return 'This is already your current username.';
     }
-    setError(null);
+    return null;
+  }, [currentUsername, isRename, value]);
+
+  const error = submitError?.value === value
+    ? submitError.message
+    : validationError ?? (availabilityError?.value === value ? availabilityError.message : null);
+
+  useEffect(() => {
+    if (!value.trim() || validationError) return;
 
     const timer = setTimeout(async () => {
       setChecking(true);
       const available = await isUsernameAvailable(value);
       setChecking(false);
       if (!available) {
-        setError('That username is already taken.');
+        setAvailabilityError({ value, message: 'That username is already taken.' });
       }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [value, isRename, currentUsername]);
+  }, [validationError, value]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLocked) return;
     const validation = validateUsername(value);
     if (!validation.ok) {
-      setError(validation.error ?? 'Invalid username.');
+      setSubmitError({ value, message: validation.error ?? 'Invalid username.' });
       return;
     }
     setSubmitting(true);
     const result = await setUsername(value);
     setSubmitting(false);
     if (!result.ok) {
-      setError(result.error ?? 'Could not set username.');
+      setSubmitError({ value, message: result.error ?? 'Could not set username.' });
       return;
     }
     await auth.refreshAccount();
