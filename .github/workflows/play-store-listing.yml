@@ -1,0 +1,56 @@
+name: Play Store Listing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    environment:
+      name: CyberCache / play-listing
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Validate Play listing secret
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Missing required secret PLAY_SERVICE_ACCOUNT_JSON"
+            exit 1
+          fi
+
+      - name: Install fastlane
+        run: gem install fastlane --no-document
+
+      - name: Upload Play Store listing metadata
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          JSON_KEY="$RUNNER_TEMP/play-service-account.json"
+          printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$JSON_KEY"
+
+          fastlane supply \
+            --json_key "$JSON_KEY" \
+            --package_name com.michaelhmiv.cybercache \
+            --metadata_path fastlane/metadata/android \
+            --skip_upload_apk true \
+            --skip_upload_aab true \
+            --skip_upload_changelogs true
+
+      - name: Summarize listing update
+        run: |
+          {
+            echo "## CyberCache Play Store listing"
+            echo ""
+            echo "- Package: \`com.michaelhmiv.cybercache\`"
+            echo "- Metadata path: \`fastlane/metadata/android\`"
+            echo "- Listing: https://play.google.com/store/apps/details?id=com.michaelhmiv.cybercache"
+          } >> "$GITHUB_STEP_SUMMARY"
