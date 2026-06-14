@@ -65,18 +65,11 @@ as $$
 declare
   v_stats public.player_public_stats%rowtype;
   v_snapshot public.player_progression_snapshots;
-  v_runtime public.player_runtime_snapshots%rowtype;
   v_action text;
 begin
   select * into v_stats
   from public.player_public_stats
   where user_id = _player_id;
-
-  select * into v_runtime
-  from public.player_runtime_snapshots
-  where user_id = _player_id
-  order by snapshot_at desc
-  limit 1;
 
   select coalesce(public_payload->>'activity_label', active_action)
   into v_action
@@ -87,10 +80,11 @@ begin
 
   v_snapshot.player_id := _player_id;
   v_snapshot.snapshot_at := now();
-  v_snapshot.level := v_runtime.level;
-  v_snapshot.xp := v_runtime.xp;
-  v_snapshot.credits := v_runtime.credits;
-  v_snapshot.scrap := v_runtime.scrap;
+  v_snapshot.snapshot_version := 1;
+  v_snapshot.level := v_stats.player_level;
+  v_snapshot.xp := v_stats.player_xp;
+  v_snapshot.credits := v_stats.credits;
+  v_snapshot.scrap := v_stats.scrap;
   v_snapshot.total_kills := v_stats.total_kills;
   v_snapshot.total_deaths := v_stats.total_deaths;
   v_snapshot.net_worth := v_stats.net_worth;
