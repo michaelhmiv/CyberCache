@@ -287,9 +287,12 @@ New route/screen: `PlayerProfileScreen(userId)`.
 
 New screen: `LeaderboardsScreen`.
 
-- Tabs for each metric: Level, Net Worth, Kills, Weapons Owned, Legendary Items, Boss Tier, Mastery.
-- Top 100 paginated.
+- Identity-first: every row shows the player's username; no anonymous entries.
+- Category tabs: Level, Net Worth, Kills, Weapons Owned, Legendary Items, Boss Tier, Mastery.
+- **Ranking snapshot:** the current user's rank in each category is shown at the top as a quick "where do I stand" overview, so players get a broad sense of their position without scrolling through each full list.
+- Top 100 paginated per category.
 - Highlight current user's row.
+- Tap a row to open that player's public profile.
 - Optional: global rank badge on the user's profile card.
 
 ### 4.4 Milestones / badges (future)
@@ -315,7 +318,16 @@ Stored in a new `player_milestones` table or derived from thresholds.
 - Add tests for RPC security and view shape.
 - **Deliverable:** Richer profile page backed by authoritative data.
 
-### Phase 2: Time-series snapshots
+### Phase 2: Username enforcement gate
+
+- Add unique username constraint, reserved-name table, and username RPCs.
+- Auto-assign `guest_xxxxxxxx` handles to anonymous accounts.
+- Add rename support with a 7-day cooldown.
+- Add username setup modal for existing registered users without a handle.
+- Update `FeatureGate` to require username for leaderboards/social features.
+- **Deliverable:** Every visible identity has a unique handle; leaderboards are unblocked.
+
+### Phase 3: Time-series snapshots
 
 - Create `player_progression_snapshots` table.
 - Add `cc_record_snapshot(source)` RPC.
@@ -324,7 +336,7 @@ Stored in a new `player_milestones` table or derived from thresholds.
 - Add `cc_progression_curve(hours)` RPC.
 - **Deliverable:** Backend progression dataset exists; analytics-ready.
 
-### Phase 3: Activity history
+### Phase 4: Activity history
 
 - Create `player_activity_history` table.
 - Modify activity lifecycle RPCs to close/open rows.
@@ -332,15 +344,15 @@ Stored in a new `player_milestones` table or derived from thresholds.
 - Show activity log on profile.
 - **Deliverable:** Session/area-time analytics + user activity timeline.
 
-### Phase 4: Leaderboards
+### Phase 5: Leaderboards
 
 - Create `cc_leaderboard(metric, limit, offset)` RPC.
-- Add `LeaderboardsScreen`.
+- Add `LeaderboardsScreen` with identity-first rows and a ranking snapshot for the current user.
 - Add navigation entry.
 - Add public profile deep-linking from leaderboard rows.
 - **Deliverable:** Social leaderboard surface.
 
-### Phase 5: Ledger enrichment + advanced analytics
+### Phase 6: Ledger enrichment + advanced analytics
 
 - Add area/weapon/activity context to `cc_apply_chef_rewards` payload.
 - Build per-area reward efficiency view for internal balance analysis.
@@ -354,9 +366,9 @@ Stored in a new `player_milestones` table or derived from thresholds.
 1. **Snapshot frequency vs. cost.** Every 15 min for active players is ~100 rows/player/week. Is that acceptable, or do we want event-only snapshots initially?
 2. **Public profile visibility.** Should all stats be public by default, or do we need a privacy flag per player?
 3. **Leaderboard refresh cadence.** Real-time query or materialized cache refreshed every N minutes?
-4. **Username/display_name requirement.** `cc_public_stats` needs a human-readable name. Do we enforce usernames before leaderboards ship?
+4. **Username/display_name requirement.** Resolved: enforce usernames before leaderboards ship; guests get auto-generated handles.
 5. **Retention policy.** How long keep raw snapshots? Suggest: 30 days raw, then daily rollup forever.
-6. **Scope of Phase 1.** Should I start with just the public-stats view + profile expansion, or do you want the snapshots table created at the same time?
+6. **Rename cooldown.** 7 days chosen as default; adjust if desired.
 
 ---
 
@@ -365,18 +377,21 @@ Stored in a new `player_milestones` table or derived from thresholds.
 - `supabase/migrations/` — new migration(s) for tables, views, RPCs.
 - `src/server/chef.ts` — call snapshot recording after reward application.
 - `src/server/routes/claim.ts` — call snapshot recording after settlement.
-- `src/lib/supabase/` — new `statsService.ts` with RPC wrappers.
-- `src/screens/ProfileScreen.tsx` — expanded UI.
+- `src/lib/supabase/` — `statsService.ts`, `usernameService.ts`.
+- `src/lib/validation/username.ts` — client validation rules.
+- `src/auth/accountState.ts` — username gating.
+- `src/screens/ProfileScreen.tsx` — username display + rename.
+- `src/components/profile/UsernameSetupModal.tsx` — new modal.
 - `src/screens/LeaderboardsScreen.tsx` — new screen.
 - `src/screens/PublicProfileScreen.tsx` — new screen.
-- `src/App.tsx` — route registration.
+- `src/App.tsx` — route registration + forced username prompt.
 - `src/types/player.ts` — possibly new stat summary types.
-- `src/test/` — new tests for RPC authority and view shape.
+- `src/test/` — new tests for RPC authority, validation, and feature gating.
 
 ---
 
 ## 8. Immediate next step recommendation
 
-Start with **Phase 1 only**: create the `player_public_stats` view and the two RPCs, then expand `ProfileScreen` to surface weapons-owned, kill/death/KD, net worth, mastery totals, and rarity breakdown. This gives users visible value immediately and validates the public-stats projection before we commit to snapshots and leaderboards.
+Phase 1 is complete. Proceed with **Phase 2: Username enforcement gate** to unblock leaderboards and public profiles.
 
-Want me to proceed with a detailed Phase 1 implementation plan?
+Want me to proceed with the Phase 2 implementation plan?
