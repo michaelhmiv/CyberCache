@@ -256,18 +256,18 @@ grant execute on function public.cc_record_boss_victory(uuid, text, integer, int
 -- ---------------------------------------------------------------------------
 -- Authority
 -- ---------------------------------------------------------------------------
-revoke all on function public.cc_compute_player_snapshot(uuid) from anon, authenticated, service_role;
+revoke execute on function public.cc_compute_player_snapshot(uuid) from anon, authenticated, service_role;
 grant execute on function public.cc_compute_player_snapshot(uuid) to service_role;
 
-revoke all on function public.cc_record_player_snapshot(uuid, text, jsonb) from anon, authenticated;
+revoke execute on function public.cc_record_player_snapshot(uuid, text, jsonb) from anon, authenticated;
 grant execute on function public.cc_record_player_snapshot(uuid, text, jsonb) to service_role;
 
-revoke all on function public.cc_record_daily_heartbeats() from anon, authenticated;
+revoke execute on function public.cc_record_daily_heartbeats() from anon, authenticated;
 grant execute on function public.cc_record_daily_heartbeats() to service_role;
 
 revoke all on table public.player_progression_snapshots from anon;
-grant select on table public.player_progression_snapshots to authenticated;
-grant all on table public.player_progression_snapshots to service_role;
+grant select on public.player_progression_snapshots to authenticated;
+grant insert on public.player_progression_snapshots to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Trigger: record snapshot on meaningful verified actions

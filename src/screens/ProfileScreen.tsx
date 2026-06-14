@@ -13,6 +13,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/supabase/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
+import { ProgressionHistoryCard } from '@/components/progression/ProgressionHistoryCard';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: string) => void;
@@ -213,6 +214,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-2"><Award size={16} className="text-green" /><div className="text-xs font-bold text-text-primary">Items</div></div>
           <div className="text-lg font-black text-text-primary">{totalItems}</div>
         </MobileCard>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <ProgressionHistoryCard metric="level" label="Level" color="#FF9000" />
+        <ProgressionHistoryCard metric="net_worth" label="Net Worth" color="#7CFC00" />
+        <ProgressionHistoryCard metric="total_kills" label="Kills" color="#FF4B5C" />
+        <ProgressionHistoryCard metric="credits" label="Credits" color="#5AA7FF" />
       </div>
 
       <MobileCard className="space-y-2" rarityColor="#FFEA3A">

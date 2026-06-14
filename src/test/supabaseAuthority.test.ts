@@ -32,6 +32,9 @@ describe('Supabase authority grants', () => {
     'public.cc_set_stat(uuid, text, bigint)',
     'public.cc_add_mastery_xp(uuid, text, bigint)',
     'public.cc_set_mastery_xp(uuid, text, bigint)',
+    'public.cc_record_player_snapshot(uuid, text, jsonb)',
+    'public.cc_record_daily_heartbeats()',
+    'public.cc_compute_player_snapshot(uuid)',
   ])('%s is not executable by authenticated clients after all migrations', (signature) => {
     expect(lastAuthenticatedGrantAction(signature)).toMatch(/:revoke$/);
   });
@@ -44,6 +47,22 @@ describe('Supabase authority grants', () => {
     const lastGrant = grants[grants.length - 1];
     expect(lastGrant).toMatch(/authenticated/);
     expect(lastGrant).not.toMatch(/anon|public/);
+  });
+
+  it('player_progression_snapshots table is readable but not writable by authenticated clients', () => {
+    const selectGrants = orderedMigrations
+      .flatMap((m) => Array.from(m.sql.matchAll(/grant\s+select\s+on\s+public\.player_progression_snapshots\s+to\s+([^;]+)/gi)))
+      .map((m) => m[1]);
+    expect(selectGrants.length).toBeGreaterThan(0);
+    const lastSelect = selectGrants[selectGrants.length - 1];
+    expect(lastSelect).toMatch(/authenticated/);
+    expect(lastSelect).not.toMatch(/anon|public/);
+
+    const insertGrants = orderedMigrations
+      .flatMap((m) => Array.from(m.sql.matchAll(/grant\s+insert\s+on\s+public\.player_progression_snapshots\s+to\s+([^;]+)/gi)))
+      .map((m) => m[1]);
+    const lastInsert = insertGrants.length > 0 ? insertGrants[insertGrants.length - 1] : '';
+    expect(lastInsert).not.toMatch(/authenticated|anon|public/);
   });
 
   it.each([
