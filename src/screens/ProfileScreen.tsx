@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, Award, Box, HelpCircle, LogOut, Settings, ShieldCheck, Skull, Sword, Target, TrendingUp, User, Zap } from 'lucide-react';
-import { useActivityStore, useBossStore, useInventoryStore, usePlayerStore, useSkillStore } from '@/store';
+import { useActivityStore, useBossStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
 import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/supabase/statsService';
 import { formatDuration, topBreakdown } from '@/lib/stats/statsHelpers';
 import { ResourceBar } from '@/components/layout/ResourceBar';
@@ -45,13 +45,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const [stats, setStats] = useState<PlayerPublicStats | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     getMyStatsSummary().then((data) => {
       if (cancelled) return;
       setStats(data);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [user]);
 
   const weapons = inventory.getWeapons();
   const totalItems = inventory.items.length;
@@ -185,7 +186,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
           <div className="flex justify-between"><span>Total Items</span><span className="text-text-primary">{stats?.total_items ?? totalItems}</span></div>
           <div className="flex justify-between"><span>Weapons</span><span className="text-text-primary">{stats?.weapons_owned ?? weapons.length}</span></div>
           <div className="flex justify-between"><span>Legendary Items</span><span className="font-bold text-amber">{stats?.legendary_items ?? weapons.filter((w) => w.rarity === 'Legendary').length}</span></div>
-          <div className="flex justify-between"><span>Highest Item Level</span><span className="text-text-primary">{stats?.highest_item_level ?? '—'}</span></div>
+          <div className="flex justify-between"><span>Highest Item Level</span><span className="text-text-primary">{stats ? stats.highest_item_level : '—'}</span></div>
           <div className="flex justify-between"><span>Unique Affixes</span><span className="text-text-primary">{new Set(weapons.flatMap((w) => w.affixes.map((a) => a.id))).size}</span></div>
           <div className="flex justify-between"><span>Favorite Type</span><span className="font-bold text-amber">{favoriteType ? favoriteType[0] : 'None'}</span></div>
         </div>

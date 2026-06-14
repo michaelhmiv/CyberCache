@@ -35,4 +35,21 @@ describe('Supabase authority grants', () => {
   ])('%s is not executable by authenticated clients after all migrations', (signature) => {
     expect(lastAuthenticatedGrantAction(signature)).toMatch(/:revoke$/);
   });
+
+  it('player_public_stats view is granted select to authenticated only', () => {
+    const grants = orderedMigrations
+      .flatMap((m) => Array.from(m.sql.matchAll(/grant\s+select\s+on\s+public\.player_public_stats\s+to\s+([^;]+)/gi)))
+      .map((m) => m[1]);
+    expect(grants.length).toBeGreaterThan(0);
+    const lastGrant = grants[grants.length - 1];
+    expect(lastGrant).toMatch(/authenticated/);
+    expect(lastGrant).not.toMatch(/anon|public/);
+  });
+
+  it.each([
+    'public.cc_my_stats_summary()',
+    'public.cc_public_stats(uuid)',
+  ])('%s is granted to authenticated clients after all migrations', (signature) => {
+    expect(lastAuthenticatedGrantAction(signature)).toMatch(/:grant$/);
+  });
 });
