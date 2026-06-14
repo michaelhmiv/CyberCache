@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { chmodSync } from 'node:fs';
 import process from 'node:process';
 
 const gradleArgs = process.argv.slice(2);
@@ -10,6 +11,10 @@ if (gradleArgs.length === 0) {
 
 const isWindows = process.platform === 'win32';
 const gradleCommand = isWindows ? 'gradlew.bat' : './gradlew';
+
+if (!isWindows) {
+  chmodSync('android/gradlew', 0o755);
+}
 
 const result = spawnSync(gradleCommand, gradleArgs, {
   cwd: 'android',
