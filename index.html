@@ -38,16 +38,86 @@
       }
     </style>
     <script>
+      window.__cybercacheBoot = {
+        stage: 'html-parsed',
+        errors: [],
+        logs: ['HTML parsed at ' + new Date().toISOString()],
+        mark: function (stage) {
+          this.stage = stage;
+          this.logs.push(stage + ' at ' + new Date().toISOString());
+          try { console.log('[boot]', stage); } catch (e) {}
+        }
+      };
+
+      window.addEventListener('error', function (event) {
+        window.__cybercacheBoot.errors.push({
+          type: 'error',
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error ? String(event.error) : null,
+        });
+        window.__cybercacheBoot.mark('error: ' + (event.message || 'unknown'));
+      });
+
+      window.addEventListener('unhandledrejection', function (event) {
+        window.__cybercacheBoot.errors.push({
+          type: 'unhandledrejection',
+          reason: event.reason ? String(event.reason) : null,
+        });
+        window.__cybercacheBoot.mark('unhandledrejection');
+      });
+
+      // Attach listeners to the Vite module script once Vite injects it.
+      var bootObserver = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          mutation.addedNodes.forEach(function (node) {
+            if (node.tagName === 'SCRIPT' && node.type === 'module') {
+              window.__cybercacheBoot.mark('module-script-injected');
+              node.addEventListener('load', function () {
+                window.__cybercacheBoot.mark('module-script-loaded');
+              });
+              node.addEventListener('error', function (e) {
+                window.__cybercacheBoot.mark('module-script-error');
+                window.__cybercacheBoot.errors.push({
+                  type: 'script-error',
+                  src: node.src,
+                  message: e && e.message ? e.message : 'script failed to load'
+                });
+              });
+              bootObserver.disconnect();
+            }
+          });
+        });
+      });
+      bootObserver.observe(document.documentElement, { childList: true, subtree: true });
+
       window.__cybercacheBootTimeout = setTimeout(function () {
         const root = document.getElementById('root');
         if (root && root.childElementCount === 0) {
+          const info = window.__cybercacheBoot;
+          const errorList = info.errors.length
+            ? '<ul style="text-align:left;font-size:11px;color:#ff4b5c;margin:8px 0;padding-left:18px;">' +
+              info.errors.map(function (e) {
+                return '<li>' + (e.type || 'error') + ': ' + String(e.message || e.reason || e.src || JSON.stringify(e)).slice(0, 200) + '</li>';
+              }).join('') +
+              '</ul>'
+            : '<div style="font-size:11px;color:#9ca3af;margin-top:8px;">No window errors captured.</div>';
+          const logs = info.logs.length
+            ? '<div style="text-align:left;font-size:10px;color:#6b7280;margin-top:12px;max-height:120px;overflow:auto;background:#0e1016;padding:8px;border-radius:6px;">' +
+              info.logs.map(function (l) { return '<div>' + l + '</div>'; }).join('') +
+              '</div>'
+            : '';
           root.innerHTML =
             '<div class="boot-fallback">' +
             '<div class="boot-fallback-title">App did not boot</div>' +
-            '<div class="boot-fallback-body">The JavaScript bundle failed to load or execute. This usually means an asset path is wrong or the bundle crashed before React mounted.</div>' +
+            '<div class="boot-fallback-body">Stage: <b>' + info.stage + '</b><br>JS runtime is ' + (typeof window !== 'undefined' ? 'available' : 'missing') + '.</div>' +
+            errorList +
+            logs +
             '</div>';
         }
-      }, 5000);
+      }, 3000);
     </script>
   </head>
   <body>
