@@ -1,6 +1,7 @@
 import type { Session, Subscription, User } from '@supabase/supabase-js';
 import { getAuthRedirectConfig } from '../../auth/authTypes';
 import { supabase } from './client';
+import { signInWithGoogleNative } from '../nativeAuth';
 
 export type AuthStateCallback = (session: Session | null) => void;
 
@@ -54,12 +55,7 @@ export async function updatePassword(secret: string): Promise<User> {
 }
 
 export async function signInWithGoogle(): Promise<void> {
-  const redirects = getAuthRedirectConfig();
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: redirects.confirmedUrl },
-  });
-  if (error) throw error;
+  await signInWithGoogleNative();
 }
 
 export async function signOut(): Promise<void> {

@@ -5,6 +5,7 @@ import * as profileService from '../lib/supabase/profileService';
 import { settleActiveActivityRewards } from '../lib/activity/activitySettlement';
 import { syncRuntimeItemsForUser } from '../lib/supabase/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/supabase/verifiedStateSync';
+import { initializeNativeAuth } from '../lib/nativeAuth';
 import {
   resetRuntimeStoresToInitialState,
   restoreRuntimeStoresFromSupabase,
@@ -107,6 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [rawUser]);
 
   useEffect(() => {
+    initializeNativeAuth().catch((error) => console.warn('Native auth initialization failed:', error));
+
     let mounted = true;
     authService.getCurrentSession()
       .then((session) => loadUser(session?.user ?? null))

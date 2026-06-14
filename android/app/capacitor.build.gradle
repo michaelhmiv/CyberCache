@@ -12,6 +12,7 @@ dependencies {
     implementation project(':capacitor-community-admob')
     implementation project(':capacitor-push-notifications')
     implementation project(':capacitor-splash-screen')
+    implementation project(':capgo-capacitor-social-login')
 
 }
 
