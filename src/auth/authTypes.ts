@@ -1,4 +1,5 @@
 import type { AccountState } from './accountState';
+import type { NativeAuthDiagnostic } from '../lib/nativeAuth';
 
 export type AuthMode = 'guest' | 'login' | 'register' | 'forgot_password' | 'reset_password';
 
@@ -21,6 +22,7 @@ export interface AuthContextValue {
   authMode: AuthMode;
   authMessage: string | null;
   authError: string | null;
+  authDiagnostic: NativeAuthDiagnostic | null;
   setAuthMode: (mode: AuthMode) => void;
   clearAuthStatus: () => void;
   continueAsGuest: () => Promise<AuthActionResult>;

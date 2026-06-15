@@ -95,6 +95,7 @@ export const AuthScreen: React.FC = () => {
   };
 
   const message = localError ?? auth.authError;
+  const diagnosticText = auth.authDiagnostic ? JSON.stringify(auth.authDiagnostic, null, 2) : null;
 
   return (
     <div className="bl-page flex min-h-full items-center justify-center p-4 text-text-primary">
@@ -122,6 +123,14 @@ export const AuthScreen: React.FC = () => {
               <div className={`bl-card px-3 py-2 text-xs ${message ? 'text-red' : 'text-green'}`}>
                 {message ?? auth.authMessage}
               </div>
+            )}
+            {diagnosticText && (
+              <details className="bl-card px-3 py-2 text-[10px] text-text-muted" open>
+                <summary className="cursor-pointer font-black uppercase tracking-wide text-amber">Google debug packet</summary>
+                <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-words font-mono leading-snug text-text-primary">
+                  {diagnosticText}
+                </pre>
+              </details>
             )}
             <button
               onClick={handleGuest}
@@ -211,6 +220,14 @@ export const AuthScreen: React.FC = () => {
               <div className={`bl-card px-3 py-2 text-xs ${message ? 'text-red' : 'text-green'}`}>
                 {message ?? auth.authMessage}
               </div>
+            )}
+            {diagnosticText && (
+              <details className="bl-card px-3 py-2 text-[10px] text-text-muted" open>
+                <summary className="cursor-pointer font-black uppercase tracking-wide text-amber">Google debug packet</summary>
+                <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-words font-mono leading-snug text-text-primary">
+                  {diagnosticText}
+                </pre>
+              </details>
             )}
 
             <button

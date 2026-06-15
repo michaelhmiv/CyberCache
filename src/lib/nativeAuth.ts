@@ -7,12 +7,96 @@ export const GOOGLE_WEB_CLIENT_ID_ENV = 'VITE_GOOGLE_WEB_CLIENT_ID';
 export const ANDROID_GOOGLE_SIGN_IN_BLOCKED_MESSAGE =
   'Google sign-in did not complete on Android. Verify the Google Cloud Android OAuth client uses package com.michaelhmiv.cybercache and the SHA-1 fingerprint for the exact installed build.';
 
+export interface NativeAuthDiagnostic {
+  stage: string;
+  platform: string;
+  isNative: boolean;
+  webClientIdSuffix: string;
+  packageName: string;
+  expectedFirebaseSha1: string;
+  rawError: Record<string, unknown>;
+}
+
+export interface NativeAuthDiagnosticError extends Error {
+  nativeAuthDiagnostic?: NativeAuthDiagnostic;
+}
+
+const CYBERCACHE_ANDROID_PACKAGE = 'com.michaelhmiv.cybercache';
+const FIREBASE_APP_DISTRIBUTION_SHA1 = '12:12:4F:DD:B8:5A:4D:9D:68:6B:09:58:05:1B:CB:9E:6C:0B:37:5B';
+
+const SENSITIVE_KEY_PATTERN = /token|secret|credential|password|authorization|assertion/i;
+
 let initialized = false;
 
 function debugNativeAuth(stage: string, details?: unknown) {
   if (!import.meta.env.DEV && import.meta.env.VITE_DEBUG_NATIVE_AUTH !== 'true') return;
   const payload = typeof details === 'object' ? JSON.stringify(details) : String(details);
   console.debug(`[native-auth] ${stage}${details !== undefined ? ': ' + payload : ''}`);
+}
+
+function safeDiagnosticValue(key: string, value: unknown): unknown {
+  if (SENSITIVE_KEY_PATTERN.test(key)) return '[redacted]';
+  if (value instanceof Error) return serializeNativeAuthError(value);
+  if (typeof value === 'function') return `[function ${value.name || 'anonymous'}]`;
+  if (typeof value === 'symbol') return value.toString();
+  if (value && typeof value === 'object') {
+    if (Array.isArray(value)) return value.map((item, index) => safeDiagnosticValue(String(index), item));
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([entryKey, entryValue]) => [
+        entryKey,
+        safeDiagnosticValue(entryKey, entryValue),
+      ]),
+    );
+  }
+  return value;
+}
+
+export function serializeNativeAuthError(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    const ownEntries = Object.fromEntries(
+      Object.getOwnPropertyNames(error)
+        .filter((key) => key !== 'stack')
+        .map((key) => [key, safeDiagnosticValue(key, (error as unknown as Record<string, unknown>)[key])]),
+    );
+    return {
+      type: error.constructor.name,
+      name: error.name,
+      message: error.message,
+      ...ownEntries,
+    };
+  }
+
+  if (error && typeof error === 'object') {
+    return Object.fromEntries(
+      Object.entries(error as Record<string, unknown>).map(([key, value]) => [key, safeDiagnosticValue(key, value)]),
+    );
+  }
+
+  return { value: String(error) };
+}
+
+function webClientIdSuffix(webClientId: string): string {
+  const [clientPrefix, ...rest] = webClientId.split('-');
+  return rest.length > 0 ? `${clientPrefix}-…` : 'unknown';
+}
+
+function createNativeAuthDiagnostic(stage: string, error: unknown): NativeAuthDiagnostic {
+  let webClientId = 'missing';
+  try {
+    webClientId = getGoogleWebClientId();
+  } catch {
+    // The missing env itself will be surfaced by the thrown app error elsewhere.
+  }
+
+  return {
+    stage,
+    platform: Capacitor.getPlatform(),
+    isNative: Capacitor.isNativePlatform(),
+    webClientIdSuffix: webClientIdSuffix(webClientId),
+    packageName: CYBERCACHE_ANDROID_PACKAGE,
+    expectedFirebaseSha1: FIREBASE_APP_DISTRIBUTION_SHA1,
+    rawError: serializeNativeAuthError(error),
+  };
 }
 
 export function getGoogleWebClientId(env: ImportMetaEnv = import.meta.env): string {
@@ -26,9 +110,15 @@ export function getGoogleWebClientId(env: ImportMetaEnv = import.meta.env): stri
 export function toNativeGoogleSignInError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
   if (/cancelled by user/i.test(message)) {
-    return new Error(ANDROID_GOOGLE_SIGN_IN_BLOCKED_MESSAGE, { cause: error });
+    const diagnostic = createNativeAuthDiagnostic('SocialLogin.login', error);
+    const wrapped = new Error(ANDROID_GOOGLE_SIGN_IN_BLOCKED_MESSAGE, { cause: error }) as NativeAuthDiagnosticError;
+    wrapped.nativeAuthDiagnostic = diagnostic;
+    return wrapped;
   }
-  return error instanceof Error ? error : new Error(message);
+
+  const normalized = (error instanceof Error ? error : new Error(message)) as NativeAuthDiagnosticError;
+  normalized.nativeAuthDiagnostic = createNativeAuthDiagnostic('SocialLogin.login', error);
+  return normalized;
 }
 
 function generateNonce(): string {
