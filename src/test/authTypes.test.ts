@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getAuthRedirectConfig,
+  NATIVE_AUTH_REDIRECT_URL,
   parseAuthStatusMessage,
   parseInitialAuthMode,
   toAuthSessionUser,
@@ -30,6 +31,12 @@ describe('auth type helpers', () => {
       const config = getAuthRedirectConfig('https://example.test');
       expect(config.confirmedUrl).toBe('https://example.test/?auth=confirmed');
       expect(config.resetPasswordUrl).toBe('https://example.test/?auth=reset-password');
+    });
+
+    it('returns the native OAuth redirect URL for Capacitor sign-in', () => {
+      const config = getAuthRedirectConfig('https://example.test');
+      expect(config.nativeOAuthUrl).toBe(NATIVE_AUTH_REDIRECT_URL);
+      expect(config.nativeOAuthUrl).toBe('com.michaelhmiv.cybercache://auth/callback');
     });
   });
 

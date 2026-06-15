@@ -37,12 +37,16 @@ export interface AuthContextValue {
 export interface AuthRedirectConfig {
   confirmedUrl: string;
   resetPasswordUrl: string;
+  nativeOAuthUrl: string;
 }
+
+export const NATIVE_AUTH_REDIRECT_URL = 'com.michaelhmiv.cybercache://auth/callback';
 
 export function getAuthRedirectConfig(origin = globalThis.location?.origin ?? ''): AuthRedirectConfig {
   return {
     confirmedUrl: `${origin}/?auth=confirmed`,
     resetPasswordUrl: `${origin}/?auth=reset-password`,
+    nativeOAuthUrl: NATIVE_AUTH_REDIRECT_URL,
   };
 }
 
