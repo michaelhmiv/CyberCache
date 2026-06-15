@@ -196,22 +196,25 @@ export async function signInWithGoogleNative(): Promise<void> {
   debugNativeAuth('generated nonce', { rawNonceLength: rawNonce.length, nonceDigestLength: nonceDigest.length });
 
   async function loginWithGoogleCredentialManager(style: 'bottom' | 'standard') {
-    // Capgo's Android implementation reads nonce from the top-level PluginCall data
-    // (`config.optString("nonce")`), but its TypeScript definition only exposes
-    // GoogleLoginOptions under `options`. Keep this narrow cast until upstream types
-    // include the Android nonce shape.
+    // Capgo's Android implementation reads nonce from the `options` object
+    // that it passes as `config` to GoogleProvider.login(), then forwards it
+    // via GetGoogleIdOption.setNonce() / GetSignInWithGoogleOption.setNonce().
+    // Keep the `nonce` field inside `options` and use a cast until upstream
+    // TypeScript types expose the Android nonce shape.
     const loginPayload = {
       provider: 'google',
-      nonce: nonceDigest,
       options:
         style === 'bottom'
           ? {
+              nonce: nonceDigest,
               style: 'bottom',
               filterByAuthorizedAccounts: false,
               autoSelectEnabled: false,
               forcePrompt: true,
             }
-          : {},
+          : {
+              nonce: nonceDigest,
+            },
     } as unknown as Extract<LoginOptions, { provider: 'google' }>;
     return SocialLogin.login(loginPayload);
   }
