@@ -46,12 +46,25 @@ jobs:
       - uses: android-actions/setup-android@v4
 
       - run: npm ci
+      - name: Validate web build secrets
+        env:
+          VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          for name in VITE_GOOGLE_WEB_CLIENT_ID VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required secret ${name}"
+              exit 1
+            fi
+          done
       - run: npm run build
         env:
           VITE_ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID: ${{ secrets.ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID }}
           VITE_ADMOB_TEST_ADS: "false"
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
       - run: npx cap sync android
 
       - name: Validate Play + signing secrets
