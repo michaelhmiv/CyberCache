@@ -192,8 +192,11 @@ export async function signInWithGoogleNative(): Promise<void> {
   try {
     result = await SocialLogin.login({
       provider: 'google',
+      nonce: nonceDigest,
       options: {
-        nonce: nonceDigest,
+        style: 'bottom',
+        filterByAuthorizedAccounts: false,
+        autoSelectEnabled: false,
       },
     });
     debugNativeAuth('SocialLogin.login succeeded', { provider: result.provider, responseType: result.result.responseType });
