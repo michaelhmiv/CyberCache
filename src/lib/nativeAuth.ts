@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 import type { GoogleLoginResponseOnline } from '@capgo/capacitor-social-login';
+import type { LoginOptions } from '@capgo/capacitor-social-login/dist/esm/definitions';
 import { supabase } from './supabase/client';
 
 export const GOOGLE_WEB_CLIENT_ID_ENV = 'VITE_GOOGLE_WEB_CLIENT_ID';
@@ -121,6 +122,12 @@ export function toNativeGoogleSignInError(error: unknown): Error {
   return normalized;
 }
 
+export function isGoogleAccountReauthFailure(error: unknown): boolean {
+  const serialized = serializeNativeAuthError(error);
+  const message = String(serialized.message ?? serialized.value ?? '');
+  return /Account reauth failed/i.test(message) || /\[16\]/.test(message);
+}
+
 function generateNonce(): string {
   const array = new Uint8Array(32);
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -184,25 +191,59 @@ export async function signInWithGoogleNative(): Promise<void> {
   await initializeNativeAuth();
   debugNativeAuth('calling SocialLogin.login');
 
-  let result;
   const rawNonce = generateNonce();
   const nonceDigest = await sha256Hex(rawNonce);
   debugNativeAuth('generated nonce', { rawNonceLength: rawNonce.length, nonceDigestLength: nonceDigest.length });
 
-  try {
-    result = await SocialLogin.login({
+  async function loginWithGoogleCredentialManager(style: 'bottom' | 'standard') {
+    // Capgo's Android implementation reads nonce from the top-level PluginCall data
+    // (`config.optString("nonce")`), but its TypeScript definition only exposes
+    // GoogleLoginOptions under `options`. Keep this narrow cast until upstream types
+    // include the Android nonce shape.
+    const loginPayload = {
       provider: 'google',
       nonce: nonceDigest,
-      options: {
-        style: 'bottom',
-        filterByAuthorizedAccounts: false,
-        autoSelectEnabled: false,
-      },
-    });
+      options:
+        style === 'bottom'
+          ? {
+              style: 'bottom',
+              filterByAuthorizedAccounts: false,
+              autoSelectEnabled: false,
+              forcePrompt: true,
+            }
+          : {},
+    } as unknown as Extract<LoginOptions, { provider: 'google' }>;
+    return SocialLogin.login(loginPayload);
+  }
+
+  let result;
+
+  try {
+    result = await loginWithGoogleCredentialManager('bottom');
     debugNativeAuth('SocialLogin.login succeeded', { provider: result.provider, responseType: result.result.responseType });
   } catch (error) {
-    debugNativeAuth('SocialLogin.login failed', error);
-    throw toNativeGoogleSignInError(error);
+    if (!isGoogleAccountReauthFailure(error)) {
+      debugNativeAuth('SocialLogin.login failed', error);
+      throw toNativeGoogleSignInError(error);
+    }
+
+    debugNativeAuth('Google account reauth failed; clearing credential state and retrying standard UI', error);
+    try {
+      await SocialLogin.logout({ provider: 'google' });
+    } catch (logoutError) {
+      debugNativeAuth('SocialLogin.logout before retry failed; continuing with standard retry', logoutError);
+    }
+
+    try {
+      result = await loginWithGoogleCredentialManager('standard');
+      debugNativeAuth('SocialLogin.login standard retry succeeded', {
+        provider: result.provider,
+        responseType: result.result.responseType,
+      });
+    } catch (retryError) {
+      debugNativeAuth('SocialLogin.login standard retry failed', retryError);
+      throw toNativeGoogleSignInError(retryError);
+    }
   }
 
   if (result.result.responseType !== 'online') {

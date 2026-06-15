@@ -3,6 +3,7 @@ import {
   ANDROID_GOOGLE_SIGN_IN_BLOCKED_MESSAGE,
   getGoogleWebClientId,
   GOOGLE_WEB_CLIENT_ID_ENV,
+  isGoogleAccountReauthFailure,
   type NativeAuthDiagnosticError,
   serializeNativeAuthError,
   toNativeGoogleSignInError,
@@ -43,6 +44,17 @@ describe('native auth config', () => {
     expect((toNativeGoogleSignInError(original) as NativeAuthDiagnosticError).nativeAuthDiagnostic?.rawError).toMatchObject({
       message: 'Google Sign-In failed: Client ID is not set',
     });
+  });
+
+  it('detects Android Credential Manager account reauth failures', () => {
+    expect(
+      isGoogleAccountReauthFailure(
+        new Error(
+          'Google Sign-In cancelled by user [nativeClass=androidx.credentials.exceptions.GetCredentialCancellationException, nativeType=android.credentials.GetCredentialException.TYPE_USER_CANCELED, nativeMessage=[16] Account reauth failed., nativeCause=null]',
+        ),
+      ),
+    ).toBe(true);
+    expect(isGoogleAccountReauthFailure(new Error('Google Sign-In cancelled by user'))).toBe(false);
   });
 
   it('redacts token-like fields from native auth diagnostics', () => {
