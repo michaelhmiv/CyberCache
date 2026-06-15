@@ -15,7 +15,8 @@
     "android:open": "cap open android",
     "android:bundle": "npm run android:sync && node scripts/run-gradle-wrapper.mjs bundleRelease",
     "start": "tsx --tsconfig tsconfig.server.json src/server/index.ts",
-    "server": "tsx --tsconfig tsconfig.server.json src/server/index.ts"
+    "server": "tsx --tsconfig tsconfig.server.json src/server/index.ts",
+    "postinstall": "node scripts/patch-capgo-social-login.mjs"
   },
   "dependencies": {
     "@capacitor-community/admob": "^8.0.0",
