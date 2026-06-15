@@ -5,6 +5,7 @@ CyberCache ships to Android through Capacitor from the repo-root Vite app.
 ## Required Accounts And Secrets
 
 - Google Play package: `com.michaelhmiv.cybercache`
+- Google OAuth web client id used by Supabase and native Android sign-in: `VITE_GOOGLE_WEB_CLIENT_ID`
 - AdMob Android app id: `ADMOB_APP_ID_ANDROID`
 - AdMob rewarded ad unit id: `ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID`
 - Firebase Android config JSON: `GOOGLE_SERVICES_JSON`
@@ -45,6 +46,7 @@ Required GitHub secrets:
 - `ANDROID_KEYSTORE_PASSWORD`
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
+- `VITE_GOOGLE_WEB_CLIENT_ID`: Google Web OAuth client id configured in Supabase Auth. Android native Google Sign-In uses this client id to request an ID token, then signs into Supabase with `signInWithIdToken`.
 
 Optional GitHub secrets:
 
@@ -118,6 +120,7 @@ These app-specific secrets are intentionally not copied from Sportfolio:
 
 - `ADMOB_APP_ID_ANDROID`
 - `ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID`
+- `VITE_GOOGLE_WEB_CLIENT_ID`
 - `GOOGLE_SERVICES_JSON`
 - `FIREBASE_APP_ID`
 - `FIREBASE_SERVICE_ACCOUNT`
@@ -129,4 +132,5 @@ Use `.env.example` for local web/native development variables and `.env.android.
 - The only rewarded-ad entry point is the small plus button in the top cache-key chip.
 - The client shows a rewarded ad, then calls `cc_claim_rewarded_cache_key`.
 - Supabase increments `profiles.cache_tokens` server-side, with daily cap, cooldown, and idempotency.
+- Google sign-in uses native Android Google Sign-In to obtain an ID token, then Supabase Auth exchanges it through `signInWithIdToken`. The Android OAuth client in Google Cloud still needs the package name and signing certificate fingerprints, but the app does not read an Android OAuth JSON file for sign-in.
 - Push notification registration only runs in native builds and stores FCM tokens through `cc_register_push_device`.
