@@ -6,6 +6,7 @@ import { settleActiveActivityRewards } from '../lib/activity/activitySettlement'
 import { syncRuntimeItemsForUser } from '../lib/supabase/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/supabase/verifiedStateSync';
 import { initializeNativeAuth } from '../lib/nativeAuth';
+import type { NativeAuthDiagnostic, NativeAuthDiagnosticError } from '../lib/nativeAuth';
 import {
   resetRuntimeStoresToInitialState,
   restoreRuntimeStoresFromSupabase,
@@ -34,6 +35,11 @@ function toMessage(error: unknown): string {
   return 'Something went wrong.';
 }
 
+function toNativeAuthDiagnostic(error: unknown): NativeAuthDiagnostic | null {
+  if (!error || typeof error !== 'object') return null;
+  return (error as NativeAuthDiagnosticError).nativeAuthDiagnostic ?? null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [rawUser, setRawUser] = useState<User | null>(null);
   const [user, setUser] = useState<AuthSessionUser | null>(null);
@@ -43,9 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authMode, setAuthMode] = useState<AuthMode>(() => parseInitialAuthMode());
   const [authMessage, setAuthMessage] = useState<string | null>(() => parseAuthStatusMessage());
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authDiagnostic, setAuthDiagnostic] = useState<NativeAuthDiagnostic | null>(null);
 
   const clearAuthStatus = useCallback(() => {
     setAuthError(null);
+    setAuthDiagnostic(null);
     setAuthMessage(null);
   }, []);
 
@@ -131,12 +139,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const run = useCallback(async (action: () => Promise<AuthActionResult>): Promise<AuthActionResult> => {
     setActionLoading(true);
     setAuthError(null);
+    setAuthDiagnostic(null);
     try {
       const result = await action();
       if (result.message) setAuthMessage(result.message);
       return result;
     } catch (error) {
       const message = toMessage(error);
+      setAuthDiagnostic(toNativeAuthDiagnostic(error));
       setAuthError(message);
       return { ok: false, message };
     } finally {
@@ -204,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authMode,
     authMessage,
     authError,
+    authDiagnostic,
     setAuthMode,
     clearAuthStatus,
     continueAsGuest,
@@ -215,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     markVerificationReminderSeen,
     signOut,
     refreshAccount,
-  }), [user, account, loading, actionLoading, authMode, authMessage, authError, clearAuthStatus, continueAsGuest, signInWithEmail, signInWithGoogle, registerWithEmail, sendPasswordReset, updatePassword, markVerificationReminderSeen, signOut, refreshAccount]);
+  }), [user, account, loading, actionLoading, authMode, authMessage, authError, authDiagnostic, clearAuthStatus, continueAsGuest, signInWithEmail, signInWithGoogle, registerWithEmail, sendPasswordReset, updatePassword, markVerificationReminderSeen, signOut, refreshAccount]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
