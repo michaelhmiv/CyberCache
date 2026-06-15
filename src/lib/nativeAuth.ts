@@ -4,6 +4,8 @@ import type { GoogleLoginResponseOnline } from '@capgo/capacitor-social-login';
 import { supabase } from './supabase/client';
 
 export const GOOGLE_WEB_CLIENT_ID_ENV = 'VITE_GOOGLE_WEB_CLIENT_ID';
+export const ANDROID_GOOGLE_SIGN_IN_BLOCKED_MESSAGE =
+  'Google sign-in did not complete on Android. Verify the Google Cloud Android OAuth client uses package com.michaelhmiv.cybercache and the SHA-1 fingerprint for the exact installed build.';
 
 let initialized = false;
 
@@ -19,6 +21,14 @@ export function getGoogleWebClientId(env: ImportMetaEnv = import.meta.env): stri
     throw new Error('Missing VITE_GOOGLE_WEB_CLIENT_ID. Use the Google Web OAuth client ID configured in Supabase.');
   }
   return webClientId;
+}
+
+export function toNativeGoogleSignInError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/cancelled by user/i.test(message)) {
+    return new Error(ANDROID_GOOGLE_SIGN_IN_BLOCKED_MESSAGE, { cause: error });
+  }
+  return error instanceof Error ? error : new Error(message);
 }
 
 function generateNonce(): string {
@@ -99,7 +109,7 @@ export async function signInWithGoogleNative(): Promise<void> {
     debugNativeAuth('SocialLogin.login succeeded', { provider: result.provider, responseType: result.result.responseType });
   } catch (error) {
     debugNativeAuth('SocialLogin.login failed', error);
-    throw error;
+    throw toNativeGoogleSignInError(error);
   }
 
   if (result.result.responseType !== 'online') {

@@ -116,6 +116,15 @@ Upload key fingerprints:
 - SHA1: `12:12:4F:DD:B8:5A:4D:9D:68:6B:09:58:05:1B:CB:9E:6C:0B:37:5B`
 - SHA256: `91:46:88:51:19:3D:49:8D:2E:C2:63:44:6F:D0:C1:22:30:66:40:51:72:CE:4F:60:20:9D:EB:F7:EA:CC:5D:E5`
 
+Google native sign-in requires the Android OAuth client to match the exact
+installed app signature:
+
+- Local debug APKs use the debug keystore SHA1: `35:4D:73:9E:56:2F:BB:CB:B5:67:1C:EC:0B:0C:BD:29:C6:B3:C9:52`.
+- Firebase App Distribution APKs are signed with the upload key SHA1 above.
+- Play-distributed AABs are re-signed by Google Play App Signing; add the app
+  signing certificate SHA1 from Play Console (`Setup` -> `App integrity`) as a
+  separate Android OAuth client/fingerprint.
+
 These app-specific secrets are intentionally not copied from Sportfolio:
 
 - `ADMOB_APP_ID_ANDROID`
