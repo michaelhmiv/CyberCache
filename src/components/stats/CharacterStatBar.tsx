@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Crosshair, HeartPulse, Radar, Shield, Sparkles, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
@@ -47,7 +47,7 @@ function StackedBar({ segments, total }: { segments: NonNullable<StatMetric['sta
   );
 }
 
-function MiniMetric({ metric, currentHp, maxHp, ...rest }: { metric: StatMetric; currentHp?: number; maxHp?: number } & React.HTMLAttributes<HTMLDivElement>) {
+const MiniMetric = memo(function MiniMetric({ metric, currentHp, maxHp, ...rest }: { metric: StatMetric; currentHp?: number; maxHp?: number } & React.HTMLAttributes<HTMLDivElement>) {
   const tone = toneClass[metric.tone];
   const { key } = metric;
   const display = (key === 'health' && currentHp != null && maxHp != null)
@@ -66,9 +66,9 @@ function MiniMetric({ metric, currentHp, maxHp, ...rest }: { metric: StatMetric;
       {metric.stacked && metric.stacked.length > 0 && <StackedBar segments={metric.stacked} total={metric.value} />}
     </div>
   );
-}
+});
 
-function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
+const SourceRow = memo(function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
   const tone = toneClass[metric.tone];
   return (
     <div className="border-2 border-border bg-bg/80 p-2" style={panelClip}>
@@ -100,7 +100,7 @@ function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
       </div>
     </div>
   );
-}
+});
 
 /**
  * TopContribsStrip — a single dense row of the N largest source
@@ -116,7 +116,7 @@ function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
  * here) so React Fast Refresh isn't broken by a non-component export
  * in a components file.
  */
-function TopContribsStrip({ summary, n = 3 }: { summary: CharacterStatSummary; n?: number }) {
+const TopContribsStrip = memo(function TopContribsStrip({ summary, n = 3 }: { summary: CharacterStatSummary; n?: number }) {
   const top = useMemo(() => pickTopContributions(summary, n), [summary, n]);
   if (top.length === 0) {
     return <div className="mt-1 px-1 text-[9px] text-text-muted" data-testid="top-contribs-empty">No slotted sources contributing</div>;
@@ -140,9 +140,9 @@ function TopContribsStrip({ summary, n = 3 }: { summary: CharacterStatSummary; n
       })}
     </div>
   );
-}
+});
 
-export function CharacterStatBar({ summary, currentHp, maxHp }: { summary: CharacterStatSummary; currentHp?: number; maxHp?: number }) {
+export const CharacterStatBar = memo(function CharacterStatBar({ summary, currentHp, maxHp }: { summary: CharacterStatSummary; currentHp?: number; maxHp?: number }) {
   const [open, setOpen] = useState(false);
   const sourceMax = useMemo(() => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))), [summary]);
   return (
@@ -172,4 +172,4 @@ export function CharacterStatBar({ summary, currentHp, maxHp }: { summary: Chara
       </AnimatePresence>
     </>
   );
-}
+});

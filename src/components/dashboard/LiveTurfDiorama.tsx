@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Box, ChevronDown, Crosshair, Sparkles } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
@@ -664,16 +664,30 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const primaryWeapon = loadout.getWeapon('primary');
   const secondaryWeapon = loadout.getWeapon('secondary');
   const heavyWeapon = loadout.getWeapon('heavy');
-  const equippedWeapons = [primaryWeapon, secondaryWeapon, heavyWeapon].filter((w): w is Weapon => !!w);
-  const weaponIds = new Set(equippedWeapons.map((w) => w.id));
-  const statWeapons = weapon && !weaponIds.has(weapon.id)
-    ? [weapon, ...equippedWeapons]
-    : equippedWeapons.length > 0
-      ? equippedWeapons
-      : weapon
-        ? [weapon]
-        : [];
-  const computedStats = statSummary ?? buildCharacterStatSummary({ player, weapons: statWeapons, shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent, boss });
+  const computedStats = useMemo(() => {
+    if (statSummary) return statSummary;
+    const equipped = [primaryWeapon, secondaryWeapon, heavyWeapon].filter((w): w is Weapon => !!w);
+    const statWeapons = weapon && !equipped.some((w) => w.id === weapon.id)
+      ? [weapon, ...equipped]
+      : equipped.length > 0
+        ? equipped
+        : weapon
+          ? [weapon]
+          : [];
+    return buildCharacterStatSummary({
+      player,
+      weapons: statWeapons,
+      shield: loadout.getShield(),
+      classMod: loadout.getClassMod(),
+      relic: loadout.getRelic(),
+      ordnance: loadout.getOrdnance(),
+      spentSkills: skills.spent,
+      boss,
+    });
+    // player.level is the only profile field that affects stat math; using the
+    // whole player store as a dependency would rebuild this on every credits/xp tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statSummary, player.level, primaryWeapon, secondaryWeapon, heavyWeapon, weapon, loadout, skills.spent, boss]);
   const scene = getLiveTurfScene(area);
   const mode = modeFromActivity(activityKind);
   const copy = modeInfo[mode];
