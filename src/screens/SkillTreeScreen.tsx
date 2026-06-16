@@ -5,6 +5,7 @@ import { getSkillTreeNodes } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import { SkillNode } from '@/types/skill';
 import { usePlayerStore, useSkillStore } from '@/store';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
 
 const TREES = [
   { id: SkillTreeType.Gunslinger, label: 'Gunslinger', color: '#FF4B5C', desc: 'Weapon damage, crits, speed' },
@@ -23,6 +24,8 @@ const nodeTone = (node: SkillNode, isAvailable: boolean, isMaxed: boolean) => {
 export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [activeTree, setActiveTree] = useState(SkillTreeType.Gunslinger);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [pendingNodeId, setPendingNodeId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const player = usePlayerStore();
   const skillStore = useSkillStore();
 
@@ -53,16 +56,33 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     return true;
   };
 
-  const spendPoint = (nodeId: string) => {
+  const spendPoint = async (nodeId: string) => {
     setSelectedNodeId(nodeId);
-    if (!canSpend(nodeId)) return;
+    setErrorMessage(null);
+    if (!canSpend(nodeId) || pendingNodeId) return;
+    const previousSpent = skillStore.spent;
+    // Optimistic local update — the server-authoritative snapshot from
+    // syncVerifiedResult will overwrite this on success. On RPC failure we
+    // roll back to the pre-tap state so the UI never disagrees with the
+    // server's skill_spends.
     skillStore.spendPoint(nodeId);
+    setPendingNodeId(nodeId);
+    try {
+      await verifiedOps.trainSkill(nodeId);
+    } catch (error) {
+      useSkillStore.setState({ spent: previousSpent });
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to train skill');
+    } finally {
+      setPendingNodeId(null);
+    }
   };
 
-  const respec = () => {
-    const cost = skillStore.respecCost();
-    if (skillStore.respec(player.credits)) {
-      player.removeCredits(cost);
+  const respec = async () => {
+    setErrorMessage(null);
+    try {
+      await verifiedOps.retrain();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to respec');
     }
   };
 
@@ -74,10 +94,10 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
       </div>
       <button
         onClick={respec}
-        className="bl-secondary flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs font-black text-amber"
+        disabled={pendingNodeId !== null}
+        className="bl-secondary flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs font-black text-amber disabled:opacity-50"
       >
-        <RotateCcw size={12} />
-        Respec
+        <RotateCcw size={12} /> Respec
       </button>
     </div>
   );
@@ -121,6 +141,15 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
           <Sparkles size={16} style={{ color: activeTreeDef.color }} />
         </div>
 
+        {errorMessage && (
+          <div
+            role="alert"
+            className="border-b-2 border-red/40 bg-red/10 px-3 py-2 text-[10px] font-black uppercase text-red"
+          >
+            {errorMessage}
+          </div>
+        )}
+
         <div className="overflow-x-auto p-3">
           <div className="min-w-[520px] space-y-3">
             {tiers.map(([tier, tierNodes], tierIndex) => (
@@ -135,8 +164,9 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
 
                       const currentPoints = skillStore.spent[node.id] || 0;
                       const isMaxed = currentPoints >= node.maxPoints;
-                      const isAvailable = canSpend(node.id);
+                      const isAvailable = canSpend(node.id) && pendingNodeId === null;
                       const isSelected = selectedNode?.id === node.id;
+                      const isPending = pendingNodeId === node.id;
                       const size = node.type === 'keystone' ? 'min-h-[76px]' : node.type === 'major' ? 'min-h-[68px]' : 'min-h-[58px]';
 
                       return (
@@ -157,7 +187,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                           </div>
                           <div className="mt-1 line-clamp-2 text-[9px] text-text-muted">{node.description}</div>
                           <div className="absolute bottom-1 right-2 text-[10px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
-                            {currentPoints}/{node.maxPoints}
+                            {isPending ? '…' : `${currentPoints}/${node.maxPoints}`}
                           </div>
                         </motion.button>
                       );
@@ -184,8 +214,12 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
             <div className="text-[10px] text-text-muted">Requires: {selectedNode.requires.join(', ')}</div>
           )}
           {canSpend(selectedNode.id) && (
-            <button onClick={() => spendPoint(selectedNode.id)} className="bl-primary w-full py-2 text-xs font-black">
-              Spend {selectedNode.cost} Point{selectedNode.cost === 1 ? '' : 's'}
+            <button
+              onClick={() => spendPoint(selectedNode.id)}
+              disabled={pendingNodeId !== null}
+              className="bl-primary w-full py-2 text-xs font-black disabled:opacity-50"
+            >
+              {pendingNodeId === selectedNode.id ? 'Training…' : `Spend ${selectedNode.cost} Point${selectedNode.cost === 1 ? '' : 's'}`}
             </button>
           )}
         </div>
