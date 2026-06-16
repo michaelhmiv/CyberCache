@@ -10,23 +10,48 @@
  * resources independently.
  */
 
+import { Capacitor } from '@capacitor/core';
 import type { GearItem } from '@/types/items';
 import type { BossAttemptResult } from '@/types/boss';
 import type { BossSimulationInput } from '@/lib/simulation/bossSimulator';
 
-const CHEF_BASE = (() => {
-  // Explicit env var takes priority (should be full base URL, e.g. 'https://app.up.railway.app')
-  if (import.meta.env.VITE_CHEF_URL) return import.meta.env.VITE_CHEF_URL;
-  // In production, use the same origin — the Express server handles /api/*
-  if (typeof window !== 'undefined' && window.location.origin) {
-    return window.location.origin;
-  }
-  // Fallback for SSR / test environments
+export const CYBERCACHE_PRODUCTION_API_BASE = 'https://cybercache-production.up.railway.app';
+
+interface ChefBaseResolutionInput {
+  viteChefUrl?: string;
+  isNativePlatform?: boolean;
+  windowOrigin?: string;
+}
+
+function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, '');
+}
+
+export function resolveChefBase({
+  viteChefUrl = import.meta.env.VITE_CHEF_URL,
+  isNativePlatform = Capacitor.isNativePlatform(),
+  windowOrigin = typeof window !== 'undefined' ? window.location.origin : '',
+}: ChefBaseResolutionInput = {}): string {
+  // Explicit env var takes priority (should be full base URL, e.g. 'https://app.up.railway.app').
+  if (viteChefUrl) return normalizeBaseUrl(viteChefUrl);
+
+  // Capacitor serves the native WebView from a local app origin. That origin is
+  // correct for static assets but cannot serve Chef routes like /api/settle-offline.
+  // Keep all economy-changing calls server-authoritative by sending native builds
+  // to the Railway Chef service instead of inventing any client-side fallback.
+  if (isNativePlatform) return CYBERCACHE_PRODUCTION_API_BASE;
+
+  // In hosted web production, use the same origin — the Express server handles /api/*.
+  if (windowOrigin) return normalizeBaseUrl(windowOrigin);
+
+  // Fallback for SSR / test environments.
   return '';
-})();
+}
+
+const CHEF_BASE = resolveChefBase();
 
 /** Full API path builder. Express mounts Chef at /api/*, not root. */
-const chefUrl = (path: string) => `${CHEF_BASE}/api${path}`;
+export const chefUrl = (path: string) => `${CHEF_BASE}/api${path}`;
 
 export interface ChefClaimRequest {
   playerId: string;
