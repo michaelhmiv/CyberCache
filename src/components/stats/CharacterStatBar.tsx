@@ -166,7 +166,7 @@ export const CharacterStatBar = memo(function CharacterStatBar({
     .map((k) => summary.all.find((m) => m.key === k))
     .filter((m): m is StatMetric => Boolean(m));
   const sourceMax = useMemo(() => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))), [summary]);
-  const showOverride = Boolean(overrideActivity);
+  const showOverride = Boolean(overrideActivity) && Boolean(onChangeOverride);
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 will-change-transform border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip} aria-label="Open hunter totals source breakdown" aria-expanded={open} aria-controls="hunter-totals-breakdown">
@@ -176,6 +176,7 @@ export const CharacterStatBar = memo(function CharacterStatBar({
             <span
               role="button"
               tabIndex={0}
+              aria-label={`Clear activity override (currently viewing ${effectiveKind}) and follow current activity`}
               data-testid="hud-activity-override"
               onClick={(e) => { e.stopPropagation(); onChangeOverride?.(null); }}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onChangeOverride?.(null); } }}

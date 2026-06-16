@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CharacterStatBar } from '@/components/stats/CharacterStatBar';
 import type { CharacterStatSummary } from '@/lib/stats/characterStats';
@@ -28,7 +28,16 @@ describe('CharacterStatBar rotating chips', () => {
   });
 
   it('shows an activity override indicator when overrideActivity is set', () => {
-    render(<CharacterStatBar summary={summary} activityKind="roaming_loot" overrideActivity="crafting" />);
+    const onChange = vi.fn();
+    render(<CharacterStatBar summary={summary} activityKind="roaming_loot" overrideActivity="crafting" onChangeOverride={onChange} />);
     expect(screen.getByTestId('hud-activity-override')).toHaveTextContent(/crafting/i);
+    // The override should switch the chip set to the override activity's roster, not the current activity's.
+    expect(screen.getByTestId('hud-metric-craftingSpeed')).toBeInTheDocument();
+  });
+
+  it('does not show the override indicator when no onChangeOverride handler is provided', () => {
+    render(<CharacterStatBar summary={summary} activityKind="roaming_loot" overrideActivity="crafting" />);
+    // Without a handler, the dismiss affordance has nowhere to call — don't tease the user with a no-op X.
+    expect(screen.queryByTestId('hud-activity-override')).toBeNull();
   });
 });
