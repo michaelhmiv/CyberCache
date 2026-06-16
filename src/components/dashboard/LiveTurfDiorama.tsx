@@ -4,6 +4,7 @@ import { Box, ChevronDown, Crosshair, Sparkles } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import { ConsumableRing } from '@/components/stats/ConsumableRing';
+import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore, useBossStore } from '@/store';
@@ -691,6 +692,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // (e.g. compare crafting vs roaming without leaving the dashboard). Lives
   // locally — it's a HUD-only view toggle, not part of the player state model.
   const [overrideActivity, setOverrideActivity] = useState<ActivityKind | null>(null);
+  // Task 6: track whether the consumable ledger modal is open. The ring
+  // toggles this on tap; the modal itself controls close. Lives locally
+  // because the ledger is ephemeral HUD state, not persisted loadout data.
+  const [ledgerOpen, setLedgerOpen] = useState(false);
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'fallback'}-${mode}`);
   const element = weapon?.element ?? fallbackElement(area);
   const projectile = ELEMENT_PROJECTILE[element];
@@ -767,9 +772,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           />
         </button>
         <div data-testid="hud-consumable-ring" className="flex shrink-0 items-center">
-          <ConsumableRing consumables={loadout.consumables} onClick={() => { /* Task 6: open consumable ledger */ }} />
+          <ConsumableRing consumables={loadout.consumables} onClick={() => setLedgerOpen(true)} />
         </div>
       </div>
+      {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} onClose={() => setLedgerOpen(false)} />}
       <div className="absolute bottom-0 left-0 right-0 grid grid-cols-2 border-t-2 border-border bg-surface/95 text-[9px]"><button type="button" onClick={onFight} className="flex items-center justify-between gap-2 border-r border-border px-3 py-2 text-left active:bg-red/10"><span><span className="block font-black uppercase tracking-wide text-red">{primaryLabel}</span><span className="block truncate text-text-muted">{primaryDetail}</span></span><Crosshair size={14} className="shrink-0 text-red" /></button><button type="button" onClick={onSecondary} className="flex items-center justify-between gap-2 px-3 py-2 text-left active:bg-amber/10"><span><span className="block font-black uppercase tracking-wide text-amber">{secondaryLabel}</span><span className="block truncate text-text-muted">{secondaryDetail}</span></span>{secondaryActionLabel ? <ChevronDown size={14} className="shrink-0 text-amber" /> : <Box size={14} className="shrink-0 text-amber" />}</button></div>
     </section>
   );
