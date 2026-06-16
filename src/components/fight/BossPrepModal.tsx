@@ -10,6 +10,7 @@ import { buildBossFightActivity, buildBossPrepActivity } from '../../lib/activit
 import { computeLoadoutDps } from '../../lib/stats/dpsChain';
 import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
 import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
+import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/supabase/verifiedStateSync';
 import { useActivityStore, useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
@@ -368,6 +369,10 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         playerCredits: player.credits,
       });
       syncBossAttemptResult(outcome);
+      applyBossConsumableDisplayEvents({
+        attemptId: outcome.result.id,
+        consumedConsumables: outcome.consumedConsumables,
+      });
     } catch (chefError) {
       setSimulating(false);
       setError(chefError instanceof Error ? chefError.message : 'Chef boss attempt failed.');

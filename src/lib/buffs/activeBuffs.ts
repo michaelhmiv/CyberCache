@@ -55,11 +55,17 @@ export const FULL_DURATION_FALLBACK_MS = 30_000;
 
 /** Source of an ActiveBuff — drives tick-feed tone and ring treatment. */
 export type BuffSource =
-  | 'auto-eat'        // client ticker fired it (Med Kit, Shield Cell, etc.)
-  | 'chef-result'     // boss attempt result included this consumable
-  | 'activity-result' // craft/repair/scrap activity used this consumable
-  | 'ammo-tick'       // roaming combat — per-interval trigger fired
-  | 'phase-trigger';  // boss phase break fired the consumable
+  | 'auto-eat'          // client ticker fired it (Med Kit, Shield Cell, etc.)
+  | 'chef-result'       // legacy alias for boss attempt result
+  | 'boss-result'       // boss attempt result included this consumable
+  | 'activity-result'   // craft/repair/scrap activity used this consumable
+  | 'ammo-tick'         // legacy alias for roaming coverage
+  | 'loadout-armed'     // loaded long-window consumable is armed, not consumed
+  | 'roaming-coverage'  // roaming coverage window display
+  | 'phase-trigger'     // boss phase break fired the consumable
+  | 'instant-event';    // zero-duration consumed event
+
+export type BuffDisplayState = 'active' | 'armed' | 'recent' | 'expired';
 
 /**
  * A single in-flight consumable effect with a known expiry.
@@ -71,7 +77,7 @@ export interface ActiveBuff {
   /** Unique id — `${consumableId}:${attemptId}:${triggerIndex}`. */
   id: string;
   /** ConsumableType ID (e.g. 'MedKit', 'AmmoPack'). */
-  consumableId: string;
+  consumableId: ConsumableType;
   /** Family of the consumable (used for ring color/accent). */
   family: ConsumableFamily;
   /** What triggered the buff: 'auto-eat', 'chef-result', 'ammo-tick', etc. */
@@ -84,6 +90,12 @@ export interface ActiveBuff {
   expiresAt: number;
   /** Original duration in milliseconds (cached for ring/UI calculations). */
   durationMs: number;
+  /** active = fired timer, armed = loaded/ready, recent = instant flash. */
+  displayState: BuffDisplayState;
+  /** Optional short visual TTL for instant zero-duration effects. */
+  visualTtlMs?: number;
+  /** Batch quality if known; otherwise display duration is approximate. */
+  qualityPercent?: number;
   /** Optional numeric value (heal amount, DPS multiplier, etc. for display). */
   value?: number;
   /** For per-interval consumables: how many ticks fired. */
@@ -110,6 +122,21 @@ export interface ConsumableActivator {
   defaultValue: number;
   /** Source type for the buff (used for tick-feed tone selection). */
   source: BuffSource;
+  /** Default UI state when this activator is converted to a display row. */
+  defaultDisplayState?: BuffDisplayState;
+  /** Optional short visual TTL for durationSource='none'. */
+  visualTtlMs?: number;
+  /** Human-readable mechanic class for inspect/ledger copy. */
+  mechanicKind?:
+    | 'survival-repair'
+    | 'survival-boost'
+    | 'ammo-coverage'
+    | 'phase-break'
+    | 'boss-prep'
+    | 'boss-mechanic'
+    | 'economy-outcome'
+    | 'activity-start'
+    | 'legacy-instant';
 }
 
 /**
@@ -318,6 +345,34 @@ export const CONSUMABLE_ACTIVATORS: Record<ConsumableType, ConsumableActivator> 
     source: 'chef-result',
   },
 };
+
+
+export const INSTANT_EVENT_VISUAL_TTL_MS = 2_500;
+
+export function getConsumableDisplayState(consumableId: ConsumableType, durationMs: number): BuffDisplayState {
+  const activator = CONSUMABLE_ACTIVATORS[consumableId];
+  if (activator.defaultDisplayState) return activator.defaultDisplayState;
+  return durationMs > 0 ? 'active' : 'recent';
+}
+
+export function getConsumableVisualTtl(consumableId: ConsumableType, durationMs: number): number | undefined {
+  const activator = CONSUMABLE_ACTIVATORS[consumableId];
+  if (durationMs > 0) return undefined;
+  return activator.visualTtlMs ?? INSTANT_EVENT_VISUAL_TTL_MS;
+}
+
+export function getConsumableMechanicKind(consumableId: ConsumableType): NonNullable<ConsumableActivator['mechanicKind']> {
+  const activator = CONSUMABLE_ACTIVATORS[consumableId];
+  if (activator.mechanicKind) return activator.mechanicKind;
+  const def = CONSUMABLES[consumableId];
+  if (consumableId === ConsumableType.Grenade) return 'legacy-instant';
+  if (def?.family === 'survival') return activator.durationSource === 'registryRepair' ? 'survival-repair' : 'survival-boost';
+  if (activator.durationSource === 'registryCoverage') return 'ammo-coverage';
+  if (def?.family === 'ordnance' || def?.trigger === 'shieldPhase' || def?.trigger === 'armorPhase') return 'phase-break';
+  if (def?.family === 'economy') return def.runtime.activityScopes.some((scope) => ['crafting', 'scrapping', 'repair'].includes(scope)) ? 'activity-start' : 'economy-outcome';
+  if (def?.family === 'tactical') return def.trigger === 'bossMechanic' ? 'boss-mechanic' : 'boss-prep';
+  return 'boss-prep';
+}
 
 /**
  * Resolve the duration (in milliseconds) for a consumable at a given quality.

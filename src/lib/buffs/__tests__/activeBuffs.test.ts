@@ -223,6 +223,7 @@ describe('ActiveBuff interface shape', () => {
       startedAt: 1000,
       expiresAt: 1000 + 9000,
       durationMs: 9000,
+      displayState: 'active',
       value: 150,
     };
     expect(buff.id).toBe('MedKit:attempt-1:0');
@@ -241,6 +242,7 @@ describe('ActiveBuff interface shape', () => {
       startedAt: 0,
       expiresAt: 9000,
       durationMs: 9000,
+      displayState: 'active',
     };
     const interval: ActiveBuff = {
       id: 'y:1:0',
@@ -251,6 +253,7 @@ describe('ActiveBuff interface shape', () => {
       startedAt: 0,
       expiresAt: 600000,
       durationMs: 600000,
+      displayState: 'active',
       ticksFired: 3,
     };
     expect(oneShot.ticksFired).toBeUndefined();

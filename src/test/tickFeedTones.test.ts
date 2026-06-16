@@ -26,12 +26,13 @@ const CURRENT_TONES: TickEventTone[] = [
   'damage',
   'heal',
   'death',
+  'consumable',
 ];
 
 describe('TickEventTone (canonical)', () => {
-  it('includes all 12 current tones', () => {
+  it('includes all 13 current tones', () => {
     // If you add a new tone, add it to CURRENT_TONES above.
-    expect(CURRENT_TONES).toHaveLength(12);
+    expect(CURRENT_TONES).toHaveLength(13);
   });
 
   for (const tone of CURRENT_TONES) {
@@ -68,6 +69,7 @@ const gainToneClass: Record<DisplayTone, { text: string; bg: string; border: str
   damage: { text: 'text-red', bg: 'bg-red/10', border: 'border-red/70', fill: 'bg-red' },
   heal: { text: 'text-green', bg: 'bg-green/10', border: 'border-green/70', fill: 'bg-green' },
   death: { text: 'text-red', bg: 'bg-red/15', border: 'border-red/80', fill: 'bg-red' },
+  consumable: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   unknown: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
 };
 
@@ -106,10 +108,10 @@ describe('Tick event display mapping', () => {
     expect(cls).toBe(gainToneClass.unknown);
   });
 
-  it('display mapping has entries for all 12 current tones plus unknown', () => {
+  it('display mapping has entries for all 13 current tones plus unknown', () => {
     const keys = Object.keys(gainToneClass);
-    // 12 tones + 'unknown' = 13 entries
-    expect(keys).toHaveLength(13);
+    // 13 tones + 'unknown' = 14 entries
+    expect(keys).toHaveLength(14);
     for (const tone of CURRENT_TONES) {
       expect(gainToneClass[tone]).toBeDefined();
     }
@@ -131,7 +133,7 @@ describe('TickEvent construction', () => {
       gear: tone === 'loot' ? { id: 'g1', name: 'Test Gun', level: 1, rarity: 'Common' } as TickEvent['gear'] : undefined,
     }));
 
-    expect(events).toHaveLength(12);
+    expect(events).toHaveLength(13);
     for (const event of events) {
       expect(event.tone).toBeTruthy();
       expect(event.id).toBeTruthy();

@@ -1,481 +1,787 @@
-# Plan: Active Consumable Buffs (all 29, full chef integration)
+# Plan: Active Consumable Feedback Across CyberCache (all ConsumableType entries, display-only client tracker)
 
-> **Status:** Plan, awaiting execution.
+> **Status:** Revised plan, awaiting execution. No implementation started from this revision.
 > **Date:** 2026-06-16
 > **Companion docs:** `20260616-consumable-buff-mechanic-observations.md` (Task 9 research), `20260616-active-buff-per-consumable-trigger-map.md` (per-consumable trigger map), `20260616-active-buff-data-audit-and-recommendation.md` (data audit)
-> **Scope:** Single PR. 11 sequenced tasks. All 29 consumables get full client-side active-state visibility. Chef emits an `activeBuffs` field alongside the existing `consumedConsumables` count. Client derives per-buff duration from the static `CONSUMABLES` registry.
-> **Branch:** new `feat/active-consumable-buffs` from master.
+> **Scope:** Single PR. Cover every `ConsumableType` enum member across the site, including legacy `Grenade`, by adding a declarative activation registry, an ephemeral client display store, and UI surfaces for active/timed, armed/coverage, and instant consumable feedback.
+> **Branch:** continue `feat/active-consumable-buffs` from current branch state.
+> **Current state:** Task 1 data layer has already begun in commit `7147885 feat(hud): add ActiveBuff data model and ConsumableActivator registry`; verify and adapt rather than duplicating it.
 
 ---
 
 ## Goal
 
-Make every consumable the player loads visible in three places, with consistent semantics:
+Make consumable behavior understandable everywhere the player makes or reviews consumable decisions:
 
-1. **ConsumableLedger — "Active" section** at the top: live timer pills with countdown bars for currently-firing buffs. Below that, the existing "Loaded Slots" section.
-2. **ConsumableRing** — re-ordered: **active > loaded > empty** (currently only "loaded > empty"). Active slices get a glow/pulse treatment.
-3. **Source Breakdown modal — `consumable` bucket** — finally populated with the live effects of active buffs. Today it's always empty.
+1. **ConsumableLedger**
+   - Add a top **Live Effects** section.
+   - Timed active buffs show countdown pills and progress bars.
+   - Armed/coverage consumables show a distinct “armed” treatment if we choose to show loaded coverage before actual consumption.
+   - Instant consumables show recent-use feedback only if they have an explicit short visual TTL.
+   - Existing loaded slots remain below as **Loaded Slots**.
 
-Plus one client-side UX:
+2. **ConsumableRing**
+   - Re-order slices by status: **active/timed > armed/coverage > loaded > empty**.
+   - Active slices glow/pulse.
+   - Armed coverage slices are visually distinct from fired active buffs so the HUD does not imply the item already triggered.
 
-4. **The pre-existing 2.5 wired consumables (Med Kit, Med Kit Refined, Shield Cell) keep their auto-eat tick-feed toasts**, but they ALSO spawn an active-buff pill so the player sees "Med Kit firing — 7s remaining" after the heal.
+3. **Source Breakdown modal — `consumable` bucket**
+   - Populate from display-only active consumable contributions.
+   - Rows are transient and amber/pulsing.
+   - Rows are explicit presentation metadata; they do **not** drive gameplay math.
 
----
+4. **Tick feed / recent event feedback**
+   - Every consumed/triggered consumable gets a visible event, including zero-duration consumables.
+   - Current auto-eat paths must not silently consume zero-heal consumables.
 
-## Architecture: what the chef actually does vs. what we model client-side
-
-The chef's `executeBossAttempt` (in `src/lib/simulation/bossSimulator.ts:698-778`) runs the entire boss fight as **one synchronous unit** — no per-tick loop. It returns `consumedConsumables: Record<string, number>` (just a count). It does **not** track per-buff timing, per-buff duration, or per-buff effect application timing.
-
-**Implication for the design:** the chef can authoritatively say *"these consumables were used in this attempt"* but it cannot say *"Adrenaline Shot fired at attempt-tick 3 and lasted 8 seconds."* Per-buff timing in the HUD is therefore **client-derived display state**, not chef-authoritative.
-
-This is the right call for a HUD PR:
-- The chef's actual game-math (damage, healing, regen) is applied during the fight and is correct.
-- The HUD's countdown pill is *display feedback* — the player sees "Adrenaline Shot: 5s left" because the registry says `repairDurationSeconds: 20` and the chef said the consumable was used.
-- If the chef ever moves to a per-tick model, the client can switch to chef-derived timing without changing the UI.
-
-**Authoritative boundary:**
-- **Chef authoritative for:** which consumables were used, in what attempt, with what outcome.
-- **Client authoritative for:** *when to start the countdown* (chef result receipt = "the consumable is firing NOW") and *what the countdown duration is* (read from the static `CONSUMABLES` registry).
-
-This matches the existing `useTickFeedStore` model: the chef is the truth source, the client renders toasts/pills from the chef's result.
+5. **Consumable inventory / inspect / slotting screens**
+   - Make trigger semantics visible enough that players understand whether a consumable is timed, instant, armed/coverage, activity-start, victory/defeat-gated, or legacy.
+   - Do not add decorative filler text. Show decision-relevant mechanics: trigger, consume policy, duration/TTL, scope, and whether the effect is display-tracked.
 
 ---
 
-## Data model: `BuffInstance` + `ConsumableActivator`
+## Core architecture decision
 
-New file: `src/lib/buffs/activeBuffs.ts` (~150 lines, pure data + helpers, no React).
+### Chosen model for this PR: client-derived display state from existing consumption signals
+
+The chef remains authoritative for gameplay math and item consumption. The client derives display rows from existing signals:
+
+- Boss result: `consumedConsumables: Record<string, number>`
+- Roaming auto-eat: local `decideAutoEat` / survival ticker event
+- Activity completion/start: crafting, repair, scrapping, and roaming coverage hooks
+- Loaded slot state: optional “armed/coverage” display for long-window consumables
+
+**Do not add a chef-emitted `activeBuffs` field in this PR.**
+
+Rationale:
+
+- Current chef boss simulation is one synchronous unit, not a per-tick simulation.
+- `BossSimulationInput.consumables` is aggregate count data (`Record<string, number>`), not batch-quality-specific usage.
+- High-quality durations depend on quality, but the boss request currently does not carry exact consumed batch quality.
+- A chef-emitted `activeBuffs` field would look authoritative while still relying on approximations.
+
+Therefore:
+
+- **Chef authoritative for:** which consumables were consumed, boss attempt outcome, resource/item mutations, combat math.
+- **Client display layer authoritative for:** countdown start time, visual TTL, UI categorization, and presentation rows.
+- **Future PR:** if we add per-batch slot quality and/or per-tick chef simulation, the display store can switch to chef-provided rows without changing the UI surfaces.
+
+---
+
+## Terminology: timed active vs armed coverage vs instant event
+
+The previous plan blurred these concepts. This revision separates them so all consumables can be represented honestly.
+
+### 1. Timed active effect
+
+A consumable with `durationMs > 0` after an actual trigger/consumption event.
+
+Examples:
+
+- High-quality Med Kit repair window
+- Nano Swarm repair window
+- Adrenaline Shot window
+- Ammo Pack if a confirmed result says it fired and we choose to represent the coverage window
+
+UI:
+
+- Ledger countdown pill
+- Ring active slice
+- Source breakdown contribution while active
+- Tick feed event
+
+### 2. Armed / coverage display
+
+A loaded long-window consumable that is ready to cover an activity window, but has not necessarily been consumed yet.
+
+Examples:
+
+- Ammo Pack loaded for roaming ammo interval
+- High Capacity Ammo Pack loaded for roaming ammo interval
+- Signal Scrambler / Loot Beacon loaded for roaming activity-start coverage
+
+UI:
+
+- Ledger “armed” row, not “active” row
+- Ring armed slice, visually distinct from active pulse
+- No gameplay contribution row unless actually triggered or we explicitly label it as armed/display-only
+
+Important: if we add armed coverage, the copy must not say “firing now.” It should say “armed for next ammo interval / roaming window.”
+
+### 3. Instant event
+
+A consumed/triggered item with no meaningful active timer.
+
+Examples:
+
+- Magnetized Payload
+- Ordnance Charge
+- Boss Scanner
+- Insurance Token
+- many victory/defeat/phase consumables
+- legacy `Grenade`
+
+UI:
+
+- Tick feed event
+- Optional short “recently fired” visual TTL, e.g. 2500ms, if we want it to flash in ledger/ring.
+- No countdown bar unless we explicitly assign `visualTtlMs`.
+
+### 4. Legacy item
+
+`ConsumableType.Grenade` remains in the enum for save compatibility. It must have an activator entry so `Record<ConsumableType, ConsumableActivator>` stays exhaustive, but UI copy should mark it legacy/not vendor-stocked if surfaced.
+
+---
+
+## Data model
+
+Current file exists:
+
+- `src/lib/buffs/activeBuffs.ts`
+- `src/lib/buffs/__tests__/activeBuffs.test.ts`
+
+Verify and adjust instead of recreating it.
+
+### Required concepts
 
 ```ts
-/**
- * ActiveBuff — a single in-flight consumable effect with a known expiry.
- * 
- * The chef emits `consumablesUsed: Record<string, number>` after a boss attempt.
- * The client expands this to one ActiveBuff per *fired* consumable, deriving
- * the duration from the static CONSUMABLES registry (repairDurationSeconds
- * for high-Q perks, durationSeconds for per-interval coverage).
- * 
- * For per-interval consumables (Ammo Pack, Signal Scrambler, Loot Beacon),
- * the buff represents the *coverage window*, not a single tick. The duration
- * is durationSeconds; the expiry is start + duration.
- * 
- * For survival/phase triggers (Med Kit, Adrenaline Shot, etc.), the buff
- * represents the *post-trigger regen/repair* effect, with duration from
- * repairDurationSeconds.
- */
+export type BuffDisplayState = 'active' | 'armed' | 'recent' | 'expired';
+
 export interface ActiveBuff {
-  /** Unique id — `${consumableId}:${attemptId}:${triggerIndex}`. */
   id: string;
-  /** ConsumableType ID (e.g. 'MedKit', 'AmmoPack'). */
-  consumableId: string;
-  /** Family of the consumable (used for ring color/accent). */
+  consumableId: ConsumableType;
   family: ConsumableFamily;
-  /** What triggered the buff: 'auto-eat', 'chef-result', 'ammo-tick', etc. */
   source: BuffSource;
-  /** Source attempt ID (for chef-result) or 'roaming-tick-N' (for client-side). */
   sourceId: string;
-  /** Wall-clock time the buff started. */
   startedAt: number;
-  /** Wall-clock time the buff expires. */
   expiresAt: number;
-  /** Original duration in milliseconds (cached for ring/UI calculations). */
   durationMs: number;
-  /** Optional numeric value (heal amount, DPS multiplier, etc. for display). */
+  /** Optional short TTL for instant/recent visual feedback. */
+  visualTtlMs?: number;
+  /** active = actually fired, armed = loaded/ready, recent = instant visual flash. */
+  displayState: BuffDisplayState;
+  /** Display-only value; chef/server remains authoritative for actual math. */
   value?: number;
-  /** For per-interval consumables: how many ticks fired. */
+  /** Batch quality if known; otherwise undefined and resolver uses fallback. */
+  qualityPercent?: number;
   ticksFired?: number;
 }
-
-export type BuffSource =
-  | 'auto-eat'           // client ticker fired it (Med Kit, Shield Cell, Med Kit Refined)
-  | 'chef-result'        // boss attempt result included this consumable
-  | 'activity-result'    // craft/repair/scrap activity used this consumable
-  | 'ammo-tick'          // roaming combat — per-interval trigger fired
-  | 'phase-trigger';     // boss phase break fired the consumable
 ```
 
-And a registry that maps every consumable to its activation pattern:
+`BuffSource` should remain broad enough for all site paths:
 
 ```ts
-/**
- * ConsumableActivator — declarative map of consumableId -> how to derive
- * an ActiveBuff from a triggering event.
- * 
- * This is the *single source of truth* for "what does it mean for X to fire?"
- * The chef just returns the count; the client uses this to expand.
- */
-export const CONSUMABLE_ACTIVATORS: Record<string, ConsumableActivator> = {
-  // SURVIVAL (5) — auto-eat path
-  MedKit:           { durationSource: 'highQualityPerk', defaultDurationMs: 0,   defaultValue: 150, source: 'auto-eat' },
-  MedKitRefined:    { durationSource: 'highQualityPerk', defaultDurationMs: 0,   defaultValue: 260, source: 'auto-eat' },
-  ShieldCell:       { durationSource: 'highQualityPerk', defaultDurationMs: 0,   defaultValue: 120, source: 'auto-eat' },
-  NanoSwarm:        { durationSource: 'registryRepair',  defaultDurationMs: 30000, defaultValue: 300, source: 'auto-eat' },
-  AdrenalineShot:   { durationSource: 'registryRepair',  defaultDurationMs: 20000, defaultValue: 1.1, source: 'auto-eat' },
-  
-  // AMMO (8) — chef-side decision (boss) + per-interval (roaming)
-  AmmoPack:                 { durationSource: 'registryCoverage',  defaultDurationMs: 600000, source: 'chef-result' },
-  HighCapacityAmmoPack:     { durationSource: 'registryCoverage',  defaultDurationMs: 1200000, source: 'chef-result' },
-  ArmorPiercingAmmo:        { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  CorrosiveAmmo:            { durationSource: 'highQualityPerk',   defaultDurationMs: 10000, source: 'chef-result' },
-  CryoAmmo:                 { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  ElementalCoating:         { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  IncendiaryAmmo:           { durationSource: 'highQualityPerk',   defaultDurationMs: 6000, source: 'chef-result' },
-  ShockAmmo:                { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  
-  // TACTICAL (5) — fightStart or bossMechanic
-  BossScanner:              { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  Jammer:                   { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  SignalScrambler:          { durationSource: 'registryCoverage',  defaultDurationMs: 600000, source: 'chef-result' },
-  TargetPainter:            { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  OverchargeStim:           { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' }, // corrupted, fights
-  
-  // ORDNANCE (6) — phase break
-  CorrosiveCharge:          { durationSource: 'highQualityPerk',   defaultDurationMs: 8000, source: 'chef-result' },
-  EMPCharge:                { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  MagnetizedPayload:        { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  OrdnanceCharge:           { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  PhaseShiftGrenade:        { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  VoidAmmo:                 { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' }, // corrupted
-  
-  // ECONOMY (5) — outcome-gated or per-activity
-  DataSkimmer:              { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  InsuranceToken:           { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  LootBeacon:               { durationSource: 'registryCoverage',  defaultDurationMs: 600000, source: 'chef-result' },
-  LuckBooster:              { durationSource: 'none',              defaultDurationMs: 0, source: 'chef-result' },
-  SalvageContract:          { durationSource: 'none',              defaultDurationMs: 0, source: 'activity-result' },
-  WorkshopRushTicket:       { durationSource: 'none',              defaultDurationMs: 0, source: 'activity-result' },
-};
+export type BuffSource =
+  | 'auto-eat'
+  | 'boss-result'
+  | 'activity-result'
+  | 'loadout-armed'
+  | 'roaming-coverage'
+  | 'phase-trigger'
+  | 'instant-event';
+```
 
+### Activator registry requirements
+
+`CONSUMABLE_ACTIVATORS` must be typed as:
+
+```ts
+Record<ConsumableType, ConsumableActivator>
+```
+
+so every enum member is compile-time covered.
+
+`ConsumableActivator` should include enough metadata to drive UI semantics, not just duration lookup:
+
+```ts
 export interface ConsumableActivator {
-  /** Where to look up the duration. 'none' = no timer pill, just 'consumed' toast. */
   durationSource: 'highQualityPerk' | 'registryRepair' | 'registryCoverage' | 'none';
-  /** Fallback if durationSource returns nothing. */
   defaultDurationMs: number;
-  /** Display value (heal amount, multiplier, etc.). */
   defaultValue: number;
-  /** Source type for the buff (used for tick-feed tone selection). */
+  defaultDisplayState: 'active' | 'armed' | 'recent';
+  /** For durationSource='none', optional brief flash duration. */
+  visualTtlMs?: number;
   source: BuffSource;
+  /** Human-readable mechanic class for inventory/inspect/ledger copy. */
+  mechanicKind:
+    | 'survival-repair'
+    | 'survival-boost'
+    | 'ammo-coverage'
+    | 'phase-break'
+    | 'boss-prep'
+    | 'boss-mechanic'
+    | 'economy-outcome'
+    | 'activity-start'
+    | 'legacy-instant';
 }
 ```
 
-`resolveConsumableDuration(consumableId, playerQuality)` returns the millisecond duration for any consumable. Reads:
-- `highQualityPerk`: looks up `runtime.highQualityPerks[0].effects.repairDurationSeconds` for the matching quality tier
-- `registryRepair`: reads `runtime.baseEffects.repairDurationSeconds`
-- `registryCoverage`: reads `activityRules.roaming.durationSeconds` (or `boss` if applicable)
-- `none`: returns 0 (no pill, just toast)
+### Duration resolution constraints
+
+`resolveConsumableDuration(consumableId, qualityPercent)`:
+
+- `highQualityPerk`: read `runtime.highQualityPerks[]` and use the highest matched `repairDurationSeconds`.
+- `registryRepair`: read `runtime.baseEffects.repairDurationSeconds`; fall back to `defaultDurationMs` only for display.
+- `registryCoverage`: read `runtime.activityRules.roaming.durationSeconds`, or boss/activity-specific rule where appropriate.
+- `none`: return 0.
+
+Quality caveat:
+
+- If batch quality is unknown, resolver uses vendor/default quality (currently 100) or the activator fallback.
+- UI copy must not imply high-quality duration is exact unless `qualityPercent` is known.
+
+---
+
+## Store design
+
+New file:
+
+- `src/store/slices/activeBuffsSlice.ts`
+
+Do **not** persist this store. It is presentation state like the tick feed.
+
+Required API:
+
+```ts
+interface ActiveBuffsState {
+  buffs: ActiveBuff[];
+  add: (buff: ActiveBuff) => void;
+  upsert: (buff: ActiveBuff) => void;
+  remove: (id: string) => void;
+  clear: () => void;
+  pruneExpired: (now?: number) => void;
+  getVisible: (now?: number) => ActiveBuff[];
+  getActive: (now?: number) => ActiveBuff[];
+  getArmed: (now?: number) => ActiveBuff[];
+  getRecent: (now?: number) => ActiveBuff[];
+}
+```
+
+Rules:
+
+- UI components should not rely on raw `buffs` without filtering expired rows.
+- Avoid Zustand selectors that allocate arrays inline, e.g. do not use `useActiveBuffsStore((s) => s.getVisible())` directly in render.
+- Subscribe to `buffs`, then filter with `useMemo`, or use stable primitive selectors.
+- `pruneExpired()` should be called by a small hook or by each consumer interval; cleanup must not depend only on opening the ledger.
+
+---
+
+## Tick feed integration
+
+Add a new tone only if all render/test surfaces are updated together:
+
+```ts
+export type TickEventTone = ... | 'consumable';
+```
+
+Prefer `consumable` over `consumable-fired` because events may be armed, triggered, refunded, or instant.
+
+Update all required places:
+
+- `src/store/slices/tickSlice.ts`
+- `src/test/tickFeedTones.test.ts`
+- any tone-to-style maps in Dashboard / Action screens / diorama event rendering
+- tests for a consumable event render
+
+Every actual consumed/triggered consumable should produce a tick feed event, including zero-duration consumables.
+
+---
+
+## Site-wide UI responsibilities
+
+### ConsumableLedger
+
+File:
+
+- `src/components/stats/ConsumableLedger.tsx`
+
+Add sections:
+
+1. **Live Effects**
+   - timed active rows only
+   - countdown text and progress bar
+   - empty state: “No timed effects active.”
+
+2. **Armed Windows**
+   - loaded long-coverage items if armed display is enabled
+   - copy like “armed for next roaming ammo interval”
+   - no active countdown unless the window has actually started
+
+3. **Recent Triggers**
+   - optional rows for instant events within `visualTtlMs`
+   - copy like “fired just now” instead of countdown
+
+4. **Loaded Slots**
+   - existing Pre-Fight / Mid-Fight / Emergency rows
+   - remove stale “Future PR will add live timer pills here” copy
+
+### ConsumableRing
+
+File:
+
+- `src/components/stats/ConsumableRing.tsx`
+
+Render order:
+
+1. active timed buffs
+2. armed coverage windows
+3. loaded slots not already represented
+4. omit empty slots unless existing visual design requires placeholders
+
+Rules:
+
+- Multiple active buffs can exceed the number of loaded slots.
+- Active glow/pulse only for actual active/recent rows, not merely loaded rows.
+- Armed coverage uses a distinct border/dash/opacity treatment.
+
+### Source Breakdown modal
+
+Files:
+
+- `src/components/stats/CharacterStatBar.tsx`
+- new helper: `src/lib/stats/activeConsumableContribs.ts`
+- tests in `src/test/sourceBreakdownBuckets.test.tsx`
+
+Do not put Zustand logic into `characterStats.ts`.
+
+Add a pure augmentation helper:
+
+```ts
+export function augmentSummaryWithActiveConsumables(
+  summary: CharacterStatSummary,
+  buffs: ActiveBuff[],
+  now = Date.now(),
+): CharacterStatSummary
+```
+
+`CharacterStatBar` should:
+
+- subscribe to raw `buffs`
+- memoize `summaryWithBuffs`
+- render existing `SourceRow` grouped buckets
+
+Contribution rules:
+
+- Only timed active/recent triggered rows should populate the `consumable` bucket.
+- Armed-but-not-triggered rows should either be omitted or clearly labeled as armed/display-only.
+- Map consumables to relevant metrics instead of adding every buff to every stat.
+- Include code comment: “Consumable contribution rows are display-only; chef/server math remains authoritative.”
+
+### Consumable inspect / inventory / slotting surfaces
+
+Files to audit during implementation:
+
+- `src/components/consumables/ConsumableInspectSheet.tsx`
+- `src/screens/ConsumablesScreen.tsx`
+- slot/loadout UI that displays consumable mechanics
+
+Add or verify decision-relevant fields:
+
+- trigger
+- consume policy
+- scope: roaming / boss / crafting / repair / scrapping / market
+- duration / visual TTL / instant
+- active vs armed semantics
+- zero behavior
+- implementation status if approximated/legacy
+
+Do not use decorative text. The player is deciding what to slot; show what will happen and when.
+
+---
+
+## Adapter strategy
+
+### Boss result adapter
+
+New file:
+
+- `src/lib/chef/bossResultAdapter.ts`
+
+Purpose:
+
+1. Read `ChefVerifyBossResult.consumedConsumables` or `result.consumablesUsed`.
+2. Expand each count into one display row using `CONSUMABLE_ACTIVATORS`.
+3. Add timed/recent rows to `useActiveBuffsStore`.
+4. Push `consumable` tick events to `useTickFeedStore`.
+
+Important:
+
+- Do **not** add `activeBuffs` to `src/server/chef.ts` in this PR.
+- Do **not** double-expand if a future field appears. The adapter should have one source of truth.
+- If quality is unknown, pass `undefined` or default quality and mark display duration as approximate where visible.
+
+### Auto-eat adapter
+
+Files:
+
+- `src/store/slices/idleTickerSlice.ts`
+- `src/lib/combat/damageContract.ts`
+- tests in `src/test/damageContract.test.ts` and idle ticker tests
+
+Current reality to preserve/audit:
+
+```ts
+AUTO_EAT_PRIORITY = ['MedKit', 'ShieldCell', 'NanoSwarm', 'AdrenalineShot']
+```
+
+Current gaps:
+
+- `MedKitRefined` is not in the priority list.
+- `NanoSwarm` and `AdrenalineShot` have `computeHealAmount() === 0`.
+- Zero-heal auto-eat can be consumed without a visible heal event if not handled explicitly.
+
+Implementation decisions required before coding:
+
+1. Should `MedKitRefined` be auto-eat? If yes, where in priority and what heal amount?
+2. Should `NanoSwarm` and `AdrenalineShot` auto-trigger from HP threshold despite no direct heal?
+3. What is the intended priority order?
+
+Recommended default for this plan:
+
+- `MedKitRefined` should be included before basic `MedKit` if it is a stronger medkit.
+- Zero-heal survival items should create explicit consumable tick events even if they do not call `heal()`.
+- Do not change NanoSwarm/AdrenalineShot priority without calling it out in PR body.
+
+### Armed coverage / loadout adapter
+
+New file if we keep armed coverage:
+
+- `src/lib/combat/consumableCoverageTracker.ts`
+
+Purpose:
+
+- Watch loaded consumables.
+- Add/update `displayState: 'armed'` rows for long-coverage consumables.
+- Remove armed rows when unloaded.
+
+Rules:
+
+- Armed rows are not active buffs.
+- They should not say the consumable was consumed.
+- If actual consumption later arrives from boss/activity result, the adapter should promote/add an active/recent row rather than mutating semantics ambiguously.
+
+### Activity result adapter
+
+New file:
+
+- `src/lib/activity/activityResultAdapter.ts`
+
+Purpose:
+
+- Convert crafting/repair/scrapping/roaming activity consumable usage into display rows and tick events.
+- Cover:
+  - Salvage Contract
+  - Workshop Rush Ticket
+  - Loot Beacon
+  - Signal Scrambler
+  - any future activity-scoped consumable from registry metadata
+
+Do not invent gameplay-side consumption in this adapter. It should respond to existing activity result signals or explicit start hooks.
 
 ---
 
 ## Tasks
 
-### Task 1: Data layer (BuffInstance + ConsumableActivator)
+### Task 1: Reconcile existing ActiveBuff data layer
 
-**Files:** `src/lib/buffs/activeBuffs.ts` (new, ~150 lines), `src/lib/buffs/__tests__/activeBuffs.test.ts` (new, ~80 lines)
+**Files:**
 
-**TDD:** write tests for `resolveConsumableDuration` covering all 4 `durationSource` modes. Verify the registry is exhaustive (`Record<string, ConsumableActivator>` with no fallback — adding a new consumable to the registry without an activator entry is a TypeScript error).
+- `src/lib/buffs/activeBuffs.ts`
+- `src/lib/buffs/__tests__/activeBuffs.test.ts`
 
-**Pitfall:** the registry must be `Record<ConsumableType, ConsumableActivator>` not `Record<string, ...>` so missing entries fail at compile time. Same pattern as `ConsumableRing` accent typing in the previous PR.
+**Work:**
 
-### Task 2: Chef `activeBuffs` field (3-place wiring)
+- Keep current exhaustive `Record<ConsumableType, ConsumableActivator>` approach.
+- Add/verify `displayState`, `visualTtlMs`, `mechanicKind`, quality caveat support.
+- Confirm every current enum member is covered, including legacy `Grenade`.
+- Update tests for:
+  - all duration source modes
+  - `durationMs === 0` instant behavior
+  - visual TTL behavior
+  - long coverage behavior
+  - legacy `Grenade`
 
-**Files:** `src/server/chef.ts`, `src/lib/chef/chefClient.ts`, `src/store/slices/idleTickerSlice.ts`
+**Verification:**
 
-This is the "3-place wiring trap" the skill warns about. **All three must be updated together** or the client will never see the field.
+```bash
+npx vitest run src/lib/buffs/__tests__/activeBuffs.test.ts
+npx tsc --noEmit
+```
 
-**Chef side** (`src/server/chef.ts`):
-- Add `activeBuffs: BuffInstance[]` to `BossAttemptChefResult` (the chef-side type).
-- In the `executeBossAttempt` path (called from `verifyBossAttempt` or wherever `consumedConsumables` is computed), expand `consumedConsumables: Record<string, number>` into one `BuffInstance` per `count`.
-- For each: derive `expiresAt = now + resolveConsumableDuration(type, ...)` server-side too. The chef knows the duration; emit it. The client can re-derive for display, but having it server-side means the field is *chef-truth*.
-- For long-coverage consumables (Ammo Pack, Signal Scrambler, Loot Beacon), the chef tracks the coverage window separately. The "current coverage" buff represents the *remaining* window. For a first attempt, full duration; for a re-attempt, the chef should look up the player's existing coverage state and emit the remaining ms.
+---
 
-**Wait** — that last point is complex. For this PR, **simplification:** the chef emits `activeBuffs` only for consumables the player has *newly loaded this attempt*. Long-coverage buffs are tracked client-side only (the client reads `loadout.consumables` and the registry, then derives the window). This is good enough for a first PR; we can wire chef-side coverage in a follow-up.
+### Task 2: Add `useActiveBuffsStore`
 
-**So the chef-side emit is simple:** for each `consumedConsumables[type]`, emit one `BuffInstance` with `source: 'chef-result'`, `sourceId: bossAttemptId`, `durationMs: resolveConsumableDuration(type)`, `expiresAt: now + durationMs`.
+**Files:**
 
-**Client side** (`src/lib/chef/chefClient.ts`):
-- Mirror the field on `ChefVerifyBossResult`.
-- No transformation — the chef already did it.
+- `src/store/slices/activeBuffsSlice.ts`
+- `src/store/index.ts`
+- `src/store/slices/__tests__` or nearest test location
 
-**Call site** (`src/store/slices/idleTickerSlice.ts`):
-- In the `verifyBoss` success handler (around line 560 where `consumedConsumables` is processed), dispatch each `activeBuff` to `useActiveBuffsStore.add()`.
-- Also dispatch `'consumable-fired'` events to the tick feed for each `activeBuff` so the toasts show. (New `TickEventTone: 'consumable-fired'`.)
+**Work:**
+
+- Non-persisted Zustand store.
+- Add `add`, `upsert`, `remove`, `clear`, `pruneExpired`, `getVisible`, `getActive`, `getArmed`, `getRecent`.
+- Tests for expiry behavior and no stale visible rows.
+
+**Pitfall:** do not make cleanup depend only on the ledger being mounted.
+
+---
+
+### Task 3: Tick feed tone and event rendering
+
+**Files:**
+
+- `src/store/slices/tickSlice.ts`
+- `src/test/tickFeedTones.test.ts`
+- Dashboard/action/diorama tick feed render sites
+
+**Work:**
+
+- Add `consumable` tone.
+- Update all tone maps.
+- Add rendering tests.
+
+**Verification:**
+
+```bash
+npx vitest run src/test/tickFeedTones.test.ts
+```
+
+---
+
+### Task 4: Boss result adapter, client-derived only
+
+**Files:**
+
+- `src/lib/chef/bossResultAdapter.ts`
+- `src/test/bossResultAdapter.test.ts`
+- `src/store/slices/idleTickerSlice.ts` or boss verify call site
+
+**Work:**
+
+- Expand `consumedConsumables` into display rows.
+- Push rows into `useActiveBuffsStore`.
+- Push `consumable` tick events.
+- Treat zero-duration consumables as recent/instant events with optional visual TTL.
+
+**Explicit non-work:**
+
+- Do not edit `src/server/chef.ts` to add `activeBuffs`.
+- Do not add `ChefVerifyBossResult.activeBuffs`.
+
+---
+
+### Task 5: Auto-eat audit and adapter
+
+**Files:**
+
+- `src/lib/combat/damageContract.ts`
+- `src/store/slices/idleTickerSlice.ts`
+- `src/test/damageContract.test.ts`
+- `src/test/idleTickerSurvival.test.ts`
+
+**Work:**
+
+- Audit current priority and behavior.
+- Decide and test `MedKitRefined` behavior.
+- Ensure zero-heal auto-eat items create visible events.
+- Spawn active/recent display rows after consumption.
+- Preserve “do not consume every tick” behavior.
+
+**PR body must call out:** any priority or behavior change.
+
+---
+
+### Task 6: Armed coverage tracker for loaded long-window consumables
+
+**Files:**
+
+- `src/lib/combat/consumableCoverageTracker.ts`
+- loadout slot change call site
+- tests for add/remove/promote behavior
+
+**Work:**
+
+- Add armed rows for long-coverage items when loaded.
+- Remove rows when unloaded.
+- Do not call armed rows “active.”
+- Do not imply consumption.
+
+**Decision checkpoint:** if this feels too confusing, skip armed rows in this PR and only show loaded-slot metadata.
+
+---
+
+### Task 7: ConsumableLedger live sections
+
+**Files:**
+
+- `src/components/stats/ConsumableLedger.tsx`
+- `src/test/ConsumableLedger.test.tsx`
+
+**Work:**
+
+- Add Live Effects, Armed Windows, Recent Triggers, Loaded Slots sections.
+- Add countdown/progress bars for timed active rows.
+- Add distinct styling for armed vs active vs recent.
+- Remove stale future-PR banner.
 
 **Tests:**
-- Server: write a unit test for the chef's `activeBuffs` derivation. Verify Med Kit, Med Kit Refined, and Shield Cell all produce `activeBuffs` rows when used. Verify Ammo Pack produces a 600000ms-duration row.
-- Client: write a unit test for the dispatch adapter. Verify the store receives the right rows.
 
-### Task 3: `useActiveBuffsStore` (Zustand, ephemeral, not persisted)
+- empty active state
+- active timed row
+- armed coverage row
+- recent instant row
+- loaded slots still render
+- expired rows do not render
 
-**Files:** `src/store/slices/activeBuffsSlice.ts` (new, ~80 lines), `src/store/index.ts` (modified, +1 line to combine the slice)
+---
 
-```ts
-import { create } from 'zustand';
-import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
+### Task 8: ConsumableRing status ordering
 
-interface ActiveBuffsState {
-  buffs: ActiveBuff[];
-  add: (buff: ActiveBuff) => void;
-  remove: (id: string) => void;
-  clear: () => void;
-  /** Returns a snapshot for the source breakdown modal. */
-  getActiveForBucket: () => ActiveBuff[];
-}
+**Files:**
 
-export const useActiveBuffsStore = create<ActiveBuffsState>((set, get) => ({
-  buffs: [],
-  add: (buff) => set((state) => ({ buffs: [...state.buffs, buff] })),
-  remove: (id) => set((state) => ({ buffs: state.buffs.filter((b) => b.id !== id) })),
-  clear: () => set({ buffs: [] }),
-  getActiveForBucket: () => get().buffs.filter((b) => b.expiresAt > Date.now()),
-}));
-```
+- `src/components/stats/ConsumableRing.tsx`
+- `src/test/ConsumableRing.test.tsx`
 
-**NOT persisted** — ephemeral state. Loses on refresh, like `useTickFeedStore`. (Player on page refresh: active buffs reset. The chef has already applied the effects, so the only loss is visual feedback. The high-Q perk math is server-authoritative, not client-tracked.)
+**Work:**
 
-**Tick cleanup:** the ledger component will run a `setInterval(1000)` to call `remove(id)` on any buff where `expiresAt <= Date.now()`. (Could do this in a hook, but the ledger is the only consumer of the cleanup — keep it close.)
+- Render active > armed > loaded.
+- Active count can exceed loaded slots.
+- Empty slots do not create misleading slices unless required by existing design.
 
-**Test:** add/remove/clear/getActiveForBucket. The store has no React dependencies; pure Zustand.
+**Tests:**
 
-### Task 4: Client-side auto-eat hooks (Med Kit, Shield Cell, Med Kit Refined)
+- active row adds slice
+- armed row uses armed treatment
+- loaded row omitted if already represented active/armed
+- active count can exceed loaded count
 
-**Files:** `src/store/slices/idleTickerSlice.ts` (modified, ~30 lines added)
+---
 
-Today, the auto-eat code path is at lines 258-294 of `idleTickerSlice.ts`. It calls `decideAutoEat`, then either `refillShield` or `heal`, then pushes a `'heal'` event. We extend this path:
+### Task 9: Source breakdown consumable bucket
 
-1. After the heal/refill, if the consumable has a high-Q perk with `repairDurationSeconds`, spawn an `ActiveBuff` with `source: 'auto-eat'`, `durationMs` from the registry, `expiresAt: now + durationMs`.
-2. For the 2 consumables with `repairDurationSeconds` in `runtime.baseEffects` (Nano Swarm, Adrenaline Shot — but those aren't in the auto-eat path today), the same pattern applies once the auto-eat path is extended to handle them.
+**Files:**
 
-**Important:** Nano Swarm and Adrenaline Shot are not currently in the auto-eat path. The `decideAutoEat` function (in `src/lib/survival/decideAutoEat.ts` or similar) only knows about Med Kit / Shield Cell. **For this PR, we extend `decideAutoEat` to include all 5 survival consumables.** Find that function and add Nano Swarm (60% threshold) and Adrenaline Shot (20% threshold) to its priority order.
+- `src/lib/stats/activeConsumableContribs.ts`
+- `src/components/stats/CharacterStatBar.tsx`
+- `src/test/sourceBreakdownBuckets.test.tsx`
 
-Wait — that's a behavior change, not just a HUD change. The user said "every consumable planned out and implemented" but I should not silently change the survival-eat priority without flagging it. **Decision:** add a test for the new behavior, document the priority change in the PR body, and let the user review the priority order before merge.
+**Work:**
 
-**TDD:** write a test for the new `decideAutoEat` priority: Nano Swarm > Med Kit > Adrenaline Shot (60% > 50% > 20%). Then implement.
+- Add pure `augmentSummaryWithActiveConsumables()` helper.
+- CharacterStatBar subscribes to buffs and memoizes augmented summary.
+- Add display-only consumable rows to relevant metric buckets.
+- Do not mutate gameplay/stat math.
 
-### Task 5: Roaming ammo-interval and activity-start hooks
+**Tests:**
 
-**Files:** `src/lib/combat/ammoIntervalTracker.ts` (new, ~60 lines), `src/store/slices/idleTickerSlice.ts` (modified, ~20 lines added)
+- active buff adds consumable bucket row
+- row has transient styling
+- armed-only row does not masquerade as active contribution unless explicitly labeled
+- expired row omitted
 
-This is the trickiest part. Today, no client code tracks per-shot ammo intervals. The chef says "Ammo Pack was used" but the client never decrements an Ammo Pack per shot.
+---
 
-**For this PR, we add a *display-only* interval tracker:** when a player loads an Ammo Pack, the active-buff store receives a 600000ms coverage window. The HUD shows "Ammo Pack covering 9:42 remaining" counting down. The client doesn't actually decrement the Ammo Pack on shot; the chef does that on the next boss attempt or activity settlement. The HUD is showing *intended coverage* based on the loaded state.
+### Task 10: Consumable inspect / inventory / slotting metadata
 
-**Implementation:** a new module `ammoIntervalTracker.ts` reads the player's loadout, finds loaded ammo-interval consumables, and dispatches `ActiveBuff` rows to the store whenever the loadout changes. The store already has the data; we just need the wiring.
+**Files:**
 
-```ts
-// src/lib/combat/ammoIntervalTracker.ts
-import { CONSUMABLE_ACTIVATORS, resolveConsumableDuration } from '@/lib/buffs/activeBuffs';
-import { useLoadoutStore } from '@/store/slices/loadoutSlice';
-import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
+- `src/components/consumables/ConsumableInspectSheet.tsx`
+- `src/screens/ConsumablesScreen.tsx`
+- relevant slot/loadout UI tests
 
-/**
- * Sync loaded long-coverage consumables to the active-buff store.
- * Call this whenever the loadout changes (slot assignment).
- * 
- * Adds a coverage-window buff for each ammo-interval/activity-start
- * consumable in the loadout. Removes coverage buffs whose consumable
- * is no longer in the loadout.
- */
-export function syncLoadoutCoverage(): void {
-  const loadout = useLoadoutStore.getState().consumables;
-  const activeStore = useActiveBuffsStore.getState();
-  const now = Date.now();
-  
-  // For each slot, check if the consumable is a coverage-type and add a buff.
-  Object.entries(loadout).forEach(([slot, consumableId]) => {
-    if (!consumableId) return;
-    const activator = CONSUMABLE_ACTIVATORS[consumableId];
-    if (!activator || activator.durationSource !== 'registryCoverage') return;
-    
-    // Skip if already covered.
-    const existing = activeStore.buffs.find((b) => b.consumableId === consumableId && b.source === 'ammo-tick');
-    if (existing) return;
-    
-    const duration = resolveConsumableDuration(consumableId, 0);
-    activeStore.add({
-      id: `coverage:${consumableId}:${slot}:${now}`,
-      consumableId,
-      family: CONSUMABLES[consumableId].family,
-      source: 'ammo-tick',
-      sourceId: slot,
-      startedAt: now,
-      expiresAt: now + duration,
-      durationMs: duration,
-    });
-  });
-}
-```
+**Work:**
 
-**Call site:** in `idleTickerSlice.ts` (or wherever the loadout changes are observed), add a subscriber that calls `syncLoadoutCoverage()` on slot changes.
+- Show trigger, consume policy, scope, duration/instant/armed behavior.
+- For quality-dependent duration, show exact duration only when quality known; otherwise show base/default behavior.
+- Mark legacy/approximated statuses accurately.
 
-**Test:** write a unit test for `syncLoadoutCoverage` covering add/remove cases.
+**Decision framing:** help the user answer “what should I slot for this activity?”
 
-### Task 6: ConsumableLedger "Active" section
+---
 
-**Files:** `src/components/stats/ConsumableLedger.tsx` (modified, ~80 lines added), `src/components/stats/__tests__/ConsumableLedger.test.tsx` (modified, +2 tests)
+### Task 11: Activity result adapter
 
-The current ledger has 3 rows (PreFight / MidFight / Emergency) plus an amber banner. We add an "Active" section at the top with:
+**Files:**
 
-- An empty state: "No active buffs." (when the store is empty)
-- One row per active buff: consumable name, family-colored icon, countdown bar (proportional to `expiresAt - now / durationMs`), and remaining time in seconds (e.g. "5s")
-- The pill row scrolls horizontally if there are >3 active buffs (rare but possible — boss attempts with 6+ consumables used)
-- A `setInterval(1000)` in the component to update the countdown; also calls `remove(id)` on expired buffs
+- `src/lib/activity/activityResultAdapter.ts`
+- activity store/call sites
+- tests
 
-**Visual treatment:** keep the same `Record<ConsumableVisual['accent'], string>` pattern from the previous PR. Orange ≠ amber (we already fixed this in commit `9b7e5c3`).
+**Work:**
 
-**Update the amber banner:** remove the "Future PR will add live timer pills here" line. Replace with a tighter description: "Loaded slots below. Active effects at the top — count down to expiry."
+- Add display rows/tick events for activity-scoped consumables when existing activity signals indicate use.
+- Cover Salvage Contract, Workshop Rush Ticket, Loot Beacon, Signal Scrambler, and future registry-driven activity entries.
 
-**TDD:** test the new "Active" section renders 0 rows when store is empty, N rows when N buffs are active, and a countdown bar appears. Test the empty-state text.
+---
 
-### Task 7: ConsumableRing re-order
+### Task 12: Verification, docs, PR
 
-**Files:** `src/components/stats/ConsumableRing.tsx` (modified, ~40 lines added), `src/test/ConsumableRing.test.tsx` (modified, +3 tests)
+**Files:**
 
-Today the ring shows one slice per *loaded slot* (3 slices max). We extend to:
+- tests above
+- `docs/plans/20260616-active-buff-implementation-summary.md`
 
-- **Active buffs** get a slice each (no slot limit). If a player has 3 loaded Ammo Packs and a Med Kit fires, the ring shows 4 slices.
-- **Loaded slots** that are *not* active get a slice each (existing behavior).
-- **Empty slots** (loaded=null) get no slice.
-
-Visual:
-- Active slices have a glow/pulse treatment (CSS `animate-pulse` like the source-breakdown modal's consumable bucket).
-- Active slices use the same family color but with a brighter border.
-
-**TDD:** test that an active buff adds a slice, an empty slot does not, and the active count can exceed the loaded count.
-
-### Task 8: Source-breakdown modal's `consumable` bucket
-
-**Files:** `src/components/stats/CharacterStatBar.tsx` (modified, ~30 lines added), `src/lib/stats/characterStats.ts` (modified, 1 line), `src/test/sourceBreakdownBuckets.test.tsx` (modified, +2 tests)
-
-The `consumable` bucket of the source breakdown modal is declared and tested but always empty. We populate it from `useActiveBuffsStore.getActiveForBucket()`.
-
-The existing `SourceRow` component handles the bucketed layout. We just need to:
-
-1. Subscribe the `CharacterStatBar` to `useActiveBuffsStore` (selector-style: `useActiveBuffsStore((s) => s.buffs)`).
-2. For each active buff, generate a `MechanicsContribution` row with:
-   - `bucket: 'consumable'`
-   - `source: <consumable name>`
-   - `value: <defaultValue from activator>`
-   - `display: '<value formatted>'`
-   - `detail: '<consumable shortDescription>'`
-3. Pass these to the `consumable` bucket of the `SourceRow` component.
-
-**Important constraint:** the chef's actual game-math is already applied during the attempt. The HUD is showing the *contribution* of the active buff, but the math is server-authoritative. We add a comment in the code: "These rows are display-only; the actual modifiers were applied by the chef during the attempt."
-
-**TDD:** test that an active buff produces a `consumable`-bucket row in the source breakdown. Test that the row uses the amber/transient styling.
-
-### Task 9: Boss-attempt-result adapter (the integration glue)
-
-**Files:** `src/lib/chef/bossResultAdapter.ts` (new, ~60 lines), `src/test/bossResultAdapter.test.ts` (new, ~50 lines)
-
-A small adapter module that takes a `BossAttemptChefResult` and:
-1. Iterates `consumedConsumables`
-2. For each, expands to one or more `ActiveBuff` rows (using `ConsumableActivator`)
-3. Dispatches to `useActiveBuffsStore.add()`
-4. Dispatches `'consumable-fired'` events to `useTickFeedStore`
-
-**Why a separate module:** the `idleTickerSlice` already has a `verifyBoss` handler that's hard to test in isolation. A pure-function adapter is easy to unit-test.
-
-**TDD:** write the test first, then implement.
-
-### Task 10: Activity-result adapter (crafting/repair/scrap)
-
-**Files:** `src/lib/activity/activityResultAdapter.ts` (new, ~40 lines), `src/test/activityResultAdapter.test.ts` (new, ~30 lines)
-
-Same pattern as Task 9 but for crafting/repair/scrap outcomes. The current `useActivityStore` has start/clear methods; we add a `completeActivity(consumablesUsed: string[])` method that the activity results can call.
-
-**Scope:** 3 consumables use this path — Salvage Contract (scrapping), Workshop Rush Ticket (crafting/repair), and the 2 activityStart consumables (Loot Beacon, Signal Scrambler) for their *first-window* emit.
-
-**TDD:** test the adapter dispatches the right `ActiveBuff` rows for each consumable.
-
-### Task 11: Tests, verification, docs, PR
-
-**Files:** all the tests above + `docs/plans/20260616-active-buff-implementation-summary.md` (new) + `references/active-buff-tracker.md` (new, in `cybercache-dev` skill) + `src/lib/buffs/activeBuffs.ts` (with full TSDoc).
+**Do not include Hermes skill reference edits in the repo PR.** If the implementation produces durable workflow knowledge, update the `cybercache-dev` skill separately after verification.
 
 **Verification suite:**
+
 ```bash
 cd /data/cybercache
-npx tsc --noEmit                                    # clean
-npx vitest run                                       # all tests pass (expecting ~700, was 667)
-npx eslint .                                         # 0 new errors (pre-existing 22 are NOT in scope for this PR — separate hotfix)
-npx vite build                                       # exit 0
-bash scripts/guard-architecture.sh                   # 0 violations
+npx tsc --noEmit
+npx vitest run
+npx eslint .
+npx vite build
+bash scripts/guard-architecture.sh
 ```
 
-**Visual smoke test on prod** (after PR merges):
-1. Start a roaming combat. Load Med Kit. Get hit below 50% HP. Med Kit auto-eats. Active section in ledger shows "Med Kit" with countdown (0s if no high-Q, 9s if quality ≥ 125). Ring shows 1 active slice.
-2. Load Ammo Pack. Start a roaming combat. Active section shows "Ammo Pack" with a 10-min countdown. Ring shows 1 active slice. Reload the page — countdown resets (ephemeral state, not persisted; consistent with design).
-3. Open the source breakdown modal. The `consumable` bucket now has rows for any active buffs. Amber pulse treatment.
-4. Boss attempt: load Magnetized Payload, fight a boss. Active section shows "Magnetized Payload" briefly (no duration, just a "consumed" toast). Source breakdown shows the contribution.
+Lint note:
 
-**PR title:** `feat(hud): active consumable buff tracker (all 29, chef-integrated)`
+- If existing lint errors are still present on master, do not fix unrelated files in this PR.
+- Document “no new lint errors” by comparing touched files or master baseline.
 
-**PR body outline:**
-- 11 tasks, 11 commits (one per task)
-- ~20 files changed, +2000/-100 lines
-- The chef-side changes are scoped to 1 file (chef.ts) and 1 call site
-- The auto-eat priority change (Nano Swarm > Med Kit > Adrenaline Shot) is called out in the body
-- The 22 pre-existing lint errors are NOT addressed (separate hotfix)
-- The PR is mergeable when CI is green; user reviews individually
+**PR title:**
 
----
+```text
+feat(hud): display active, armed, and instant consumable feedback
+```
 
-## Sequence
+**PR body must call out:**
 
-| Task | Subagent | Files | Estimated calls |
-|---|---|---|---|
-| 1 | leaf | 2 new | ~30 |
-| 2 | leaf (server-side awareness) | 3 modified | ~50 |
-| 3 | leaf | 1 new + 1 modified | ~25 |
-| 4 | leaf (extends existing auto-eat) | 1 modified + tests | ~40 |
-| 5 | leaf (new tracker module) | 1 new + 1 modified | ~35 |
-| 6 | leaf (UI work) | 1 modified + tests | ~50 |
-| 7 | leaf (UI work, related to 6) | 1 modified + tests | ~30 |
-| 8 | leaf (snapshot plumbing) | 2 modified + tests | ~40 |
-| 9 | leaf (pure-function adapter) | 1 new + 1 modified | ~25 |
-| 10 | leaf (similar to 9) | 1 new + 1 modified | ~25 |
-| 11 | orchestrator (coordinator) | docs + PR | ~50 |
-
-Total: ~10 leaf dispatches + 1 orchestrator = ~400 tool calls. Estimated 1-2 hours of work. Single PR with 11 commits, all reviewed together.
-
-## Pitfalls (the things that will burn subagent iterations)
-
-1. **The 3-place wiring trap.** Task 2 must update chef.ts, chefClient.ts, AND idleTickerSlice.ts in a single dispatch. If the subagent updates only 2 of 3, the field is invisible. Verification: after Task 2, `grep -n "activeBuffs" src/server/chef.ts src/lib/chef/chefClient.ts src/store/slices/idleTickerSlice.ts` should show 3 hits minimum.
-
-2. **`decideAutoEat` priority change is a behavior change.** Task 4 extends the auto-eat path. This is intentional, but the user should know. The subagent must call this out in the commit message body and the PR description.
-
-3. **Coverage windows are display-only, not actual interval ticking.** Task 5's `ammoIntervalTracker` doesn't actually decrement ammo on shot. It shows the loaded coverage window. The chef does the real decrementing. This is good enough for a first PR; subsequent PRs can wire chef-side tracking.
-
-4. **Source breakdown's `consumable` bucket is display-only.** Task 8's contribution rows are not used by the snapshot's actual modifier computation. The chef has already applied the modifiers. We add a comment in the code so future readers don't think the rows affect gameplay.
-
-5. **The auto-eat path runs once per threshold-cross.** Today it does. We must NOT make it run on every tick (that would burn through Med Kits instantly). The `decideAutoEat` function already handles this — it only fires when HP drops below threshold. We just need to preserve that behavior.
-
-6. **Tests fail before implementing.** The subagent must follow the TDD pattern: write tests, verify they fail (with the right reason — "missing module" or "not implemented", not "syntax error"), then implement. The previous PR series established this pattern; the same subagent style works here.
-
-7. **The skill's "delegation.max_iterations: 100" is bumped.** Tasks 1, 4, 6, 8, 11 are the most likely to hit 50+ calls. The previous bump to 100 is still in place; verify before dispatching.
-
-8. **Pre-existing lint errors don't block this PR.** 22 errors in `SlotGearPicker.tsx`, `GearHub.tsx`, `ConsumablesScreen.tsx`, `MarketScreen.tsx`, `VendorScreen.tsx`, `WorkshopScreen.tsx` are out of scope. The subagent must NOT touch them. If the lint step fails on this PR with the same 22 errors, that's the same as `master` — the PR is no worse than master. The user said they'd review individually; the PR is mergeable.
-
----
-
-## Out of scope (for follow-up PRs)
-
-- **Per-tick chef simulation.** Today's `executeBossAttempt` is 1-shot. A per-tick model would let the chef emit per-buff timing precisely. Big refactor; future PR.
-- **Offline-settlement retroactive buffs.** Buffs that would have fired during a 4-hour offline session don't fire today. A coordinated chef + client change is needed. Future PR.
-- **Stacking rules.** What if two Med Kits fire in the same fight? The chef has a "first-wins" rule but the client doesn't model it. Future PR.
-- **Cross-activity persistence.** If a player switches from boss to crafting mid-buff, does the buff continue? The chef's `inactive_continue` zeroBehavior suggests yes, but the client doesn't track. Future PR.
-- **Buff extension on refresh.** When a Med Kit fires, does the high-Q perk refresh if the player heals more? The chef says no (consumable is consumed); the client should match. Already true by design (the buff is one-shot per use).
+- Client-derived display model; no chef `activeBuffs` field yet.
+- All `ConsumableType` enum members covered, including legacy `Grenade`.
+- Quality caveat for aggregate consumable counts.
+- Any auto-eat priority/behavior changes.
+- Difference between active, armed, and instant/recent feedback.
+- Existing lint baseline if applicable.
 
 ---
 
 ## Acceptance criteria
 
-1. **Every consumable in the registry has a `ConsumableActivator` entry.** The `Record<ConsumableType, ConsumableActivator>` typing makes this a compile-time guarantee.
-2. **The chef emits `activeBuffs` for boss attempts.** Verified by a chef unit test.
-3. **The client receives and stores the buff list.** Verified by the boss-result-adapter test.
-4. **The ledger's "Active" section renders the buffs with countdown bars.** Verified by the ledger test.
-5. **The ring re-orders active > loaded > empty.** Verified by the ring test.
-6. **The source breakdown's `consumable` bucket is no longer empty.** Verified by the breakdown test (with a buff active).
-7. **The auto-eat path spawns an active buff for the 5 survival consumables.** Verified by the auto-eat test.
-8. **Long-coverage consumables (Ammo Pack, Signal Scrambler, Loot Beacon, High-Capacity Ammo Pack) display a countdown from the registry's `durationSeconds`.** Verified by the coverage-tracker test.
-9. **All existing tests still pass.** 667 → ~700 expected.
-10. **`tsc --noEmit` is clean, `vite build` exits 0, `guard-architecture.sh` passes.**
-11. **22 pre-existing lint errors are NOT introduced or fixed by this PR.** The diff is 0 in `SlotGearPicker.tsx`, `GearHub.tsx`, `ConsumablesScreen.tsx`, `MarketScreen.tsx`, `VendorScreen.tsx`, `WorkshopScreen.tsx`.
+1. Every `ConsumableType` enum member has an activator entry, including legacy `Grenade`.
+2. Timed active effects render in ledger, ring, and source breakdown while unexpired.
+3. Instant zero-duration consumables produce visible tick feed events and optional recent visual flash; they do not silently disappear.
+4. Armed/coverage consumables are visually distinct from active fired buffs.
+5. Boss-result consumable display is derived client-side from existing `consumedConsumables`; no chef `activeBuffs` field is added in this PR.
+6. Auto-eat behavior is fully tested, including `MedKitRefined`, `NanoSwarm`, and `AdrenalineShot` decisions.
+7. Source breakdown consumable bucket is populated through a pure summary augmentation helper and remains display-only.
+8. Consumable inspect/inventory/slotting screens show trigger, policy, scope, and duration/instant semantics.
+9. Zustand selectors avoid allocation-instability patterns.
+10. `npx tsc --noEmit` passes.
+11. Relevant focused tests pass, then full `npx vitest run` passes.
+12. Build and architecture guard pass.
+13. PR body documents caveats and any behavior changes.
+
+---
+
+## Out of scope / follow-up PRs
+
+- Chef-emitted authoritative `activeBuffs` rows.
+- Per-tick boss simulation.
+- Exact batch-quality-aware consumed buff durations for boss attempts.
+- Offline-settlement retroactive buff reconstruction.
+- Cross-refresh buff persistence.
+- Stacking/refresh rules beyond current display dedupe.
+- Server-side coverage-window state for Ammo Pack / Signal Scrambler / Loot Beacon.
