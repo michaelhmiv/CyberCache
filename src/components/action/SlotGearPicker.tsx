@@ -15,6 +15,7 @@ import { Element, Rarity, Manufacturer, WeaponType } from '@/types/game';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 import type { GearItem, Weapon } from '@/types/items';
 import { GearCompare } from '@/components/gear/GearCompare';
+import { gearCardSummary } from '@/lib/gear/gearCardSummary';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 const chipClip = { clipPath: 'polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)' };
@@ -65,23 +66,6 @@ function itemPower(item: GearItem): number {
   if ('hp' in item) return (item as { hp: number }).hp;
   if ('damage' in item) return (item as { damage: number }).damage;
   return 0;
-}
-
-function itemSubtext(item: GearItem): string {
-  const parts: string[] = [item.rarity];
-  if ('weaponType' in item) {
-    const w = item as Weapon;
-    parts.push(w.weaponType, w.element, w.manufacturer, `Lv ${w.level}`, `PWR ${w.combatPower}`);
-  } else if ('hp' in item) {
-    const s = item as { hp: number; element?: string; level: number };
-    parts.push(`HP ${s.hp}`, `Lv ${s.level}`);
-    if (s.element) parts.push(s.element);
-  } else if ('treeBonus' in item) {
-    parts.push((item as { treeBonus: string }).treeBonus, `Lv ${item.level}`);
-  } else if ('damage' in item && 'effect' in item) {
-    parts.push(`DMG ${(item as { damage: number }).damage}`, `Lv ${item.level}`);
-  }
-  return parts.join(' · ');
 }
 
 function getItemElement(item: GearItem): string | null {
@@ -353,7 +337,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
             <div className="border-2 border-amber/50 bg-amber/5 p-2.5 flex items-center justify-between gap-2" style={signClip}>
               <div className="min-w-0">
                 <div className="text-sm font-black text-text-primary truncate">{currentItem.name}</div>
-                <div className="text-[10px] text-amber">{itemSubtext(currentItem)}</div>
+                <div className="text-[10px] text-text-muted">{currentItem.rarity} · Lv.{currentItem.level}</div>
               </div>
               <button type="button" onClick={onUnequip} disabled={busy} className="bl-secondary px-2 py-1 text-[9px] font-black text-red shrink-0 disabled:opacity-50">
                 {busy ? 'Working…' : 'Unequip'}
@@ -374,6 +358,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                 .filter((item) => item.id !== currentItemId)
                 .map((item) => {
                   const accent = RARITY_COLORS[item.rarity] ?? '#A5A7B5';
+                  const summary = gearCardSummary(item);
                   return (
                     <button
                       key={item.id}
@@ -385,8 +370,21 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-black text-text-primary truncate">{item.name}</div>
-                          <div className="text-[10px] text-text-muted mt-0.5">{itemSubtext(item)}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black truncate" style={{ color: accent }}>{item.name}</span>
+                            <span className="text-[9px] text-text-muted shrink-0">{item.rarity} · Lv.{item.level}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {summary.primaryStats.map((stat) => (
+                              <span key={stat.label} className="inline-flex items-center gap-0.5 rounded border border-border bg-bg px-1 py-0.5 text-[9px]">
+                                <span className="text-text-muted">{stat.label}</span>
+                                <span className={`font-bold ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
+                              </span>
+                            ))}
+                          </div>
+                          {summary.badges[0] && (
+                            <div className="text-[9px] text-amber mt-0.5 truncate">{summary.badges[0]}</div>
+                          )}
                           {currentItem && (
                             <GearCompare current={currentItem} candidate={item} compact />
                           )}

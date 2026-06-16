@@ -9,6 +9,7 @@ import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
 import type { GearItem, Weapon } from '@/types/items';
 import type { Listing, MarketHistory } from '@/types/market';
+import { gearCardSummary } from '@/lib/gear/gearCardSummary';
 
 const generateId = () => crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 const getNow = () => Date.now();
@@ -61,6 +62,7 @@ function defaultPrice(item: GearItem): number {
 
 function GearMiniCard({ item, right, onInspect }: { item: GearItem; right?: React.ReactNode; onInspect: () => void }) {
   const color = rarityColor(item.rarity);
+  const summary = gearCardSummary(item);
   return (
     <div className="flex items-center gap-3">
       <button type="button" onClick={onInspect} className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]">
@@ -70,7 +72,17 @@ function GearMiniCard({ item, right, onInspect }: { item: GearItem; right?: Reac
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-black" style={{ color }}>{item.name}</div>
           <div className="text-[10px] text-text-muted">{item.rarity} · Lv.{item.level ?? 1} · {itemKind(item)}</div>
-          <div className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-amber">Inspect full stats / value / market supply</div>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {summary.primaryStats.slice(0, 3).map((stat) => (
+              <span key={stat.label} className="inline-flex items-center gap-0.5 rounded border border-border bg-bg px-1 py-0.5 text-[9px]">
+                <span className="text-text-muted">{stat.label}</span>
+                <span className={`font-bold ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
+              </span>
+            ))}
+          </div>
+          {summary.badges[0] && (
+            <div className="text-[9px] text-amber mt-0.5 truncate">{summary.badges[0]}</div>
+          )}
         </div>
       </button>
       {right}
