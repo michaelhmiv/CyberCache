@@ -94,6 +94,7 @@ export const verifiedOps = {
   unequipSlot: (slotName: string) => rpc('cc_unequip_slot', { nonce: requestId('unequip'), slot_name: slotName }),
   idleClaim: () => rpc('cc_idle_claim', { nonce: requestId('idle') }),
   retrain: () => rpc('cc_retrain', { nonce: requestId('retrain') }),
+  trainSkill: (nodeId: string) => rpc('cc_train_skill', { nonce: requestId(`train:${nodeId}`), node_id: nodeId }),
   battleResult: (targetId: string, stance = 'balanced') => rpc('cc_battle_result', { nonce: requestId('battle'), target_id: targetId, stance }),
   marketCreate: (itemId: string, priceCredits: number) => rpc('cc_market_create', { nonce: requestId('list'), item_id: itemId, price_credits: priceCredits }),
   marketCancel: (listingId: string) => rpc('cc_market_cancel', { nonce: requestId('cancel'), listing_id: listingId }),
