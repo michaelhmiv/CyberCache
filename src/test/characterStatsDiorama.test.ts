@@ -5,7 +5,8 @@ import { buildCharacterMechanicsSnapshot } from '../lib/mechanics/buildCharacter
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '../types/game';
 import type { BossDef } from '../types/boss';
 import type { PlayerProfile } from '../types/player';
-import type { Weapon } from '../types/items';
+import type { Relic, Weapon } from '../types/items';
+import { ACTIVITY_MODULE_DEFS } from '../content/activityModuleDefs';
 
 function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
   return {
@@ -279,5 +280,36 @@ describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () =>
     expect(headlineHealth.stacked).toBeDefined();
     expect(headlineHealth.stacked!.length).toBeGreaterThan(0);
     expect(headlineDps.label).toBe('Base DPS');
+  });
+});
+
+describe('buildCharacterStatSummary — activity module metrics (PR #2)', () => {
+  it('exposes crafting-module subStats as StatMetric rows when a crafting module is equipped', () => {
+    const player = makePlayer();
+    const relic: Relic = {
+      id: 'r1', name: 'Test Relic', level: 50, rarity: Rarity.Epic,
+      affixes: [{
+        id: 'craft-mod', category: 'activity', stat: 'craftingModule',
+        value: 1, displayText: 'Crafting Module',
+        subStats: { craftingSpeed: 0.2, materialEfficiency: 0.1, critCraftChance: 0.05, burstCraftChance: 0.04 },
+      }],
+      sourceTag: 'crafted' as DropSource, isLocked: false,
+    };
+    const summary = buildCharacterStatSummary({
+      player, weapons: [], relic, spentSkills: {},
+    });
+    const speed = summary.all.find((m) => m.key === 'craftingSpeed');
+    expect(speed).toBeDefined();
+    expect(speed!.value).toBeCloseTo(0.2, 5);
+  });
+
+  it('every activity sub-stat key in ACTIVITY_MODULE_DEFS is represented as a StatMetric', () => {
+    const player = makePlayer();
+    const summary = buildCharacterStatSummary({ player, weapons: [], spentSkills: {} });
+    const allKeys = new Set(summary.all.map((m) => m.key));
+    const moduleKeys = Object.values(ACTIVITY_MODULE_DEFS).flatMap((def) => def.subStats.map((s) => s.key));
+    moduleKeys.forEach((key) => {
+      expect(allKeys.has(key)).toBe(true);
+    });
   });
 });

@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Crosshair, HeartPulse, Radar, Shield, Sparkles, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
 import { pickTopContributions } from '@/lib/stats/topContribs';
+import { getHeadlineMetricKeys } from '@/lib/hud/headlineMetrics';
+import type { ActivityKind } from '@/types/activity';
 
 const panelClip = { clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' };
 const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -14,6 +16,32 @@ const toneClass: Record<StatTone, { text: string; rail: string; bg: string }> = 
   cyan: { text: 'text-cyan', rail: 'bg-cyan', bg: 'bg-cyan/10' },
   purple: { text: 'text-purple', rail: 'bg-purple', bg: 'bg-purple/10' },
   muted: { text: 'text-text-muted', rail: 'bg-text-muted', bg: 'bg-surface' },
+};
+
+/**
+ * Canonical bucket order, mirrored from
+ * `MechanicsContributionBucket` in the mechanics module. Declared
+ * locally so this file does not import from the mechanics module
+ * (that would create a circular type dependency through
+ * `characterStats.ts`).
+ */
+type Bucket = 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime';
+const BUCKET_ORDER: readonly Bucket[] = ['base', 'gear', 'weapon', 'skill', 'activity', 'consumable', 'server', 'runtime'];
+
+/**
+ * Human-readable label for each contribution bucket, used as a section
+ * header when `SourceRow` is in `groupByBucket` mode. Keys mirror the
+ * `BUCKET_ORDER` entries above.
+ */
+const BUCKET_LABEL: Record<Bucket, string> = {
+  base: 'Base chassis',
+  gear: 'Gear (shield / ordnance / relic / class mod)',
+  weapon: 'Weapons',
+  skill: 'Skill tree',
+  activity: 'Activity modules',
+  consumable: 'Consumables (transient)',
+  server: 'Server override',
+  runtime: 'Runtime modifier',
 };
 
 /**
@@ -68,8 +96,51 @@ const MiniMetric = memo(function MiniMetric({ metric, currentHp, maxHp, ...rest 
   );
 });
 
-const SourceRow = memo(function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
+export const SourceRow = memo(function SourceRow({ metric, max, groupByBucket = false }: { metric: StatMetric; max: number; groupByBucket?: boolean }) {
   const tone = toneClass[metric.tone];
+  if (!groupByBucket) {
+    return (
+      <div className="border-2 border-border bg-bg/80 p-2" style={panelClip}>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <div className={`text-sm font-black uppercase tracking-wide ${tone.text}`}>{metric.label} {metric.display}</div>
+            <div className="text-[9px] text-text-muted">{metric.detail}</div>
+          </div>
+          <div className="text-[9px] font-black uppercase text-text-muted">{metric.contributions.length} sources</div>
+        </div>
+        <div className="mt-2 space-y-1.5">
+          {metric.contributions.length === 0 && <div className="border border-border bg-surface/80 p-2 text-[10px] text-text-muted">No slotted source is currently contributing to this metric.</div>}
+          {metric.contributions.map((source) => {
+            const sourceTone = toneClass[source.tone ?? metric.tone];
+            const width = Math.max(4, Math.min(100, Math.abs(source.value) / Math.max(1, max) * 100));
+            return (
+              <div key={`${metric.key}-${source.source}-${source.detail}`} className="relative overflow-hidden border border-border bg-surface/80 p-2" style={slashClip}>
+                <div className={`absolute bottom-0 left-0 h-1 ${sourceTone.rail}`} style={{ width: `${width}%` }} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-[11px] font-black text-text-primary">{source.source}</div>
+                    <div className="text-[9px] text-text-muted">{source.detail}</div>
+                  </div>
+                  <div className={`shrink-0 text-xs font-black ${sourceTone.text}`}>{source.display}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  // Bucketed view: group contributions by `bucket` in the canonical
+  // order. The "consumable" bucket is marked transient (amber border
+  // + pulse animation) because its modifiers are time-limited and the
+  // player should be able to see at a glance which rows will disappear
+  // when the buff expires. Un-tagged contributions (no `bucket` field)
+  // are bucketed as 'gear' so they don't disappear from the grouped
+  // view — defense in depth while existing call sites migrate.
+  const grouped = BUCKET_ORDER.map((bucket) => ({
+    bucket,
+    rows: metric.contributions.filter((c) => (c.bucket ?? 'gear') === bucket),
+  })).filter((g) => g.rows.length > 0);
   return (
     <div className="border-2 border-border bg-bg/80 p-2" style={panelClip}>
       <div className="flex items-end justify-between gap-3">
@@ -79,24 +150,40 @@ const SourceRow = memo(function SourceRow({ metric, max }: { metric: StatMetric;
         </div>
         <div className="text-[9px] font-black uppercase text-text-muted">{metric.contributions.length} sources</div>
       </div>
-      <div className="mt-2 space-y-1.5">
-        {metric.contributions.length === 0 && <div className="border border-border bg-surface/80 p-2 text-[10px] text-text-muted">No slotted source is currently contributing to this metric.</div>}
-        {metric.contributions.map((source) => {
-          const sourceTone = toneClass[source.tone ?? metric.tone];
-          const width = Math.max(4, Math.min(100, Math.abs(source.value) / Math.max(1, max) * 100));
-          return (
-            <div key={`${metric.key}-${source.source}-${source.detail}`} className="relative overflow-hidden border border-border bg-surface/80 p-2" style={slashClip}>
-              <div className={`absolute bottom-0 left-0 h-1 ${sourceTone.rail}`} style={{ width: `${width}%` }} />
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate text-[11px] font-black text-text-primary">{source.source}</div>
-                  <div className="text-[9px] text-text-muted">{source.detail}</div>
-                </div>
-                <div className={`shrink-0 text-xs font-black ${sourceTone.text}`}>{source.display}</div>
-              </div>
+      <div className="mt-2 space-y-2">
+        {grouped.length === 0 && <div className="border border-border bg-surface/80 p-2 text-[10px] text-text-muted">No slotted source is currently contributing to this metric.</div>}
+        {grouped.map(({ bucket, rows }) => (
+          <div key={bucket} data-testid={`source-bucket-${bucket}`}>
+            <div className={`mb-1 text-[8px] font-black uppercase tracking-[0.18em] ${bucket === 'consumable' ? 'text-amber' : 'text-text-muted'}`}>
+              {BUCKET_LABEL[bucket]}
             </div>
-          );
-        })}
+            <div className="space-y-1">
+              {rows.map((source) => {
+                const sourceTone = toneClass[source.tone ?? metric.tone];
+                const width = Math.max(4, Math.min(100, Math.abs(source.value) / Math.max(1, max) * 100));
+                const transient = bucket === 'consumable';
+                return (
+                  <div
+                    key={`${metric.key}-${source.source}-${source.detail}`}
+                    data-testid={`source-row-${source.source}-${source.detail}`}
+                    data-transient={transient ? 'true' : 'false'}
+                    className={`relative overflow-hidden border bg-surface/80 p-2 ${transient ? 'border-amber/60 animate-pulse' : 'border-border'}`}
+                    style={slashClip}
+                  >
+                    <div className={`absolute bottom-0 left-0 h-1 ${sourceTone.rail}`} style={{ width: `${width}%` }} />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-[11px] font-black text-text-primary">{source.source}</div>
+                        <div className="text-[9px] text-text-muted">{source.detail}</div>
+                      </div>
+                      <div className={`shrink-0 text-xs font-black ${sourceTone.text}`}>{source.display}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -142,15 +229,101 @@ const TopContribsStrip = memo(function TopContribsStrip({ summary, n = 3 }: { su
   );
 });
 
-export const CharacterStatBar = memo(function CharacterStatBar({ summary, currentHp, maxHp }: { summary: CharacterStatSummary; currentHp?: number; maxHp?: number }) {
+export const CharacterStatBarBody = memo(function CharacterStatBarBody({
+  summary,
+  currentHp,
+  maxHp,
+  activityKind,
+  overrideActivity,
+  onChangeOverride,
+  onCycleActivity,
+}: {
+  summary: CharacterStatSummary;
+  currentHp?: number;
+  maxHp?: number;
+  activityKind?: ActivityKind;
+  overrideActivity?: ActivityKind | null;
+  onChangeOverride?: (next: ActivityKind | null) => void;
+  onCycleActivity?: () => void;
+}) {
+  const effectiveKind = overrideActivity ?? activityKind;
+  const keys = getHeadlineMetricKeys(effectiveKind);
+  const headline = keys
+    .map((k) => summary.all.find((m) => m.key === k))
+    .filter((m): m is StatMetric => Boolean(m));
+  const showOverride = Boolean(overrideActivity) && Boolean(onChangeOverride);
+  // Cycle affordance is only available in "follow current activity" mode —
+  // when the override indicator is up the X-button owns the title-row
+  // affordance and cycling would be confusing (the player is already pinned).
+  const showCycle = !showOverride && Boolean(onCycleActivity);
+  return (
+    <>
+      <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted">
+        {showCycle ? (
+          <button
+            type="button"
+            data-testid="hud-cycle-activity"
+            aria-label="Cycle activity override"
+            onClick={(e) => { e.stopPropagation(); onCycleActivity!(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onCycleActivity!(); } }}
+            className="cursor-pointer uppercase tracking-[0.18em] text-text-muted transition-colors hover:text-amber focus:outline-none focus-visible:text-amber"
+          >
+            Hunter Totals
+          </button>
+        ) : (
+          <span>Hunter Totals</span>
+        )}
+        {showOverride ? (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label={`Clear activity override (currently viewing ${effectiveKind}) and follow current activity`}
+            data-testid="hud-activity-override"
+            onClick={(e) => { e.stopPropagation(); onChangeOverride(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onChangeOverride(null); } }}
+            className="flex cursor-pointer items-center gap-1 text-amber"
+          >
+            <span>viewing: {effectiveKind}</span>
+            <X size={10} />
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span>
+        )}
+      </div>
+      <div className="flex gap-1">{headline.map((metric) => <MiniMetric key={metric.key} metric={metric} currentHp={metric.key === 'health' ? currentHp : undefined} maxHp={metric.key === 'health' ? maxHp : undefined} data-testid={`hud-metric-${metric.key}`} />)}</div>
+      <TopContribsStrip summary={summary} n={3} />
+    </>
+  );
+});
+
+export const CharacterStatBar = memo(function CharacterStatBar({
+  summary,
+  currentHp,
+  maxHp,
+  activityKind,
+  overrideActivity,
+  onChangeOverride,
+}: {
+  summary: CharacterStatSummary;
+  currentHp?: number;
+  maxHp?: number;
+  activityKind?: ActivityKind;
+  overrideActivity?: ActivityKind | null;
+  onChangeOverride?: (next: ActivityKind | null) => void;
+}) {
   const [open, setOpen] = useState(false);
   const sourceMax = useMemo(() => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))), [summary]);
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 will-change-transform border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip} aria-label="Open hunter totals source breakdown" aria-expanded={open} aria-controls="hunter-totals-breakdown">
-        <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted"><span>Hunter Totals</span><span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span></div>
-        <div className="flex gap-1">{summary.headline.map((metric) => <MiniMetric key={metric.key} metric={metric} currentHp={metric.key === 'health' ? currentHp : undefined} maxHp={metric.key === 'health' ? maxHp : undefined} data-testid={`hud-metric-${metric.key}`} />)}</div>
-        <TopContribsStrip summary={summary} n={3} />
+        <CharacterStatBarBody
+          summary={summary}
+          currentHp={currentHp}
+          maxHp={maxHp}
+          activityKind={activityKind}
+          overrideActivity={overrideActivity}
+          onChangeOverride={onChangeOverride}
+        />
       </button>
       <AnimatePresence>
         {open && (
@@ -165,7 +338,7 @@ export const CharacterStatBar = memo(function CharacterStatBar({ summary, curren
                 <button type="button" onClick={() => setOpen(false)} className="bl-secondary shrink-0 p-2 text-text-muted"><X size={15} /></button>
               </div>
               <div className="mb-3 border-2 border-amber/40 bg-amber/10 p-2 text-[10px] font-bold text-amber" style={slashClip}>This is a presentation HUD for the current loadout. It makes hidden modifiers visible without replacing server-verified combat math.</div>
-              <div className="space-y-2">{summary.all.map((metric) => <SourceRow key={metric.key} metric={metric} max={sourceMax} />)}</div>
+              <div className="space-y-2">{summary.all.map((metric) => <SourceRow key={metric.key} metric={metric} max={sourceMax} groupByBucket />)}</div>
             </motion.div>
           </motion.div>
         )}
