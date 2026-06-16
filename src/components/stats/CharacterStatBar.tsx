@@ -5,8 +5,6 @@ import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/cha
 import { pickTopContributions } from '@/lib/stats/topContribs';
 import { getHeadlineMetricKeys } from '@/lib/hud/headlineMetrics';
 import type { ActivityKind } from '@/types/activity';
-import { MECHANICS_CONTRIBUTION_BUCKETS } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
-import type { MechanicsContributionBucket } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 
 const panelClip = { clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' };
 const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -21,13 +19,21 @@ const toneClass: Record<StatTone, { text: string; rail: string; bg: string }> = 
 };
 
 /**
- * Human-readable label for each contribution bucket, used as a section
- * header when `SourceRow` is in `groupByBucket` mode. The bucket order
- * itself is controlled by `MECHANICS_CONTRIBUTION_BUCKETS` from the
- * mechanics module — labels are decoupled so the ordering can change
- * without rewriting every header.
+ * Canonical bucket order, mirrored from
+ * `MechanicsContributionBucket` in the mechanics module. Declared
+ * locally so this file does not import from the mechanics module
+ * (that would create a circular type dependency through
+ * `characterStats.ts`).
  */
-const BUCKET_LABEL: Record<MechanicsContributionBucket, string> = {
+type Bucket = 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime';
+const BUCKET_ORDER: readonly Bucket[] = ['base', 'gear', 'weapon', 'skill', 'activity', 'consumable', 'server', 'runtime'];
+
+/**
+ * Human-readable label for each contribution bucket, used as a section
+ * header when `SourceRow` is in `groupByBucket` mode. Keys mirror the
+ * `BUCKET_ORDER` entries above.
+ */
+const BUCKET_LABEL: Record<Bucket, string> = {
   base: 'Base chassis',
   gear: 'Gear (shield / ordnance / relic / class mod)',
   weapon: 'Weapons',
@@ -125,13 +131,15 @@ export const SourceRow = memo(function SourceRow({ metric, max, groupByBucket = 
     );
   }
   // Bucketed view: group contributions by `bucket` in the canonical
-  // MECHANICS_CONTRIBUTION_BUCKETS order. The "consumable" bucket is
-  // marked transient (amber border + pulse animation) because its
-  // modifiers are time-limited and the player should be able to see at
-  // a glance which rows will disappear when the buff expires.
-  const grouped = MECHANICS_CONTRIBUTION_BUCKETS.map((bucket) => ({
+  // order. The "consumable" bucket is marked transient (amber border
+  // + pulse animation) because its modifiers are time-limited and the
+  // player should be able to see at a glance which rows will disappear
+  // when the buff expires. Un-tagged contributions (no `bucket` field)
+  // are bucketed as 'gear' so they don't disappear from the grouped
+  // view — defense in depth while existing call sites migrate.
+  const grouped = BUCKET_ORDER.map((bucket) => ({
     bucket,
-    rows: metric.contributions.filter((c) => c.bucket === bucket),
+    rows: metric.contributions.filter((c) => (c.bucket ?? 'gear') === bucket),
   })).filter((g) => g.rows.length > 0);
   return (
     <div className="border-2 border-border bg-bg/80 p-2" style={panelClip}>

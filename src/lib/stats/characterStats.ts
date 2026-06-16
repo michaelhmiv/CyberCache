@@ -6,7 +6,6 @@ import { computeStandardDps } from '@/lib/stats/dpsChain';
 import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
-import type { MechanicsContributionBucket } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
@@ -17,15 +16,16 @@ export type StatContribution = {
   display: string;
   tone?: StatTone;
   /**
-   * Optional bucket classification, mirrored from the canonical
-   * `MechanicsContributionBucket` union. The breakdown modal groups
-   * contributions by this field; when omitted, the contribution is
-   * treated as un-bucketed (flat list / "no slotted source" empty
-   * state depending on call site). Kept optional for backward
-   * compatibility with existing tests and call sites that don't
-   * populate it.
+   * Optional bucket classification. Mirrors the canonical
+   * `MechanicsContributionBucket` union in the mechanics module, but
+   * is redeclared here as a literal union to avoid a circular
+   * dependency (the mechanics module is a value-import of this file's
+   * snapshot pipeline, so re-importing the type union would create a
+   * cycle). The breakdown modal groups contributions by this field;
+   * when omitted, the row is bucketed as 'gear' so existing un-tagged
+   * contributions don't disappear from the grouped view.
    */
-  bucket?: MechanicsContributionBucket;
+  bucket?: 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime';
 };
 
 export type StatMetric = {
@@ -94,14 +94,14 @@ function skillContribs(spent: Record<string, number>, key: string, scalar: numbe
     const raw = (node?.effects[key] ?? 0) * points;
     if (!node || !raw) return [];
     const value = raw * scalar;
-    return [{ source: node.name, detail: `${points}/${node.maxPoints} · ${node.tree}`, value, display: format(value), tone: 'purple' as StatTone, bucket: 'skill' as MechanicsContributionBucket }];
+    return [{ source: node.name, detail: `${points}/${node.maxPoints} · ${node.tree}`, value, display: format(value), tone: 'purple' as StatTone, bucket: 'skill' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' }];
   });
 }
 
 function affixContribs(gear: Array<GearItem | undefined>, key: string, scalar: number, format: (value: number) => string): StatContribution[] {
   return gearAffixes(gear, key).map(({ item, affix }) => {
     const value = affix.value * scalar;
-    return { source: item?.name ?? 'Gear affix', detail: affix.displayText, value, display: format(value), tone: 'amber' as StatTone, bucket: 'gear' as MechanicsContributionBucket };
+    return { source: item?.name ?? 'Gear affix', detail: affix.displayText, value, display: format(value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' };
   });
 }
 
@@ -140,17 +140,17 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const scrap = mechanics.scrapModifier.value;
 
   const healthContribs: StatContribution[] = [
-    { source: 'Hunter chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted', bucket: 'base' as MechanicsContributionBucket },
-    shield ? { source: shield.name, detail: 'Shield HP pool', value: shieldHp, display: whole(shieldHp), tone: 'cyan', bucket: 'gear' as MechanicsContributionBucket } : undefined,
+    { source: 'Hunter chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
+    shield ? { source: shield.name, detail: 'Shield HP pool', value: shieldHp, display: whole(shieldHp), tone: 'cyan', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
   ].filter(Boolean) as StatContribution[];
 
   const effectiveHpContribs: StatContribution[] = [
-    { source: 'Max HP', detail: 'Combat HP before mitigation', value: totalHealth, display: whole(totalHealth), tone: 'green', bucket: 'base' as MechanicsContributionBucket },
-    shield ? { source: shield.name, detail: `Mitigation ${pct(shield.mitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'cyan', bucket: 'gear' as MechanicsContributionBucket } : undefined,
+    { source: 'Max HP', detail: 'Combat HP before mitigation', value: totalHealth, display: whole(totalHealth), tone: 'green', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
+    shield ? { source: shield.name, detail: `Mitigation ${pct(shield.mitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'cyan', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
   ].filter(Boolean) as StatContribution[];
 
   const dpsContribs: StatContribution[] = [
-    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `${weapon.weaponType} · ${weapon.element}`, value: weaponDps(weapon), display: whole(weaponDps(weapon)), tone: 'red' as StatTone, bucket: 'weapon' as MechanicsContributionBucket })),
+    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `${weapon.weaponType} · ${weapon.element}`, value: weaponDps(weapon), display: whole(weaponDps(weapon)), tone: 'red' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })),
     ...skillContribs(spentSkills, 'weaponDamage', baseDps, whole),
     ...skillContribs(spentSkills, 'attackSpeed', baseDps, whole),
     ...skillContribs(spentSkills, 'critChance', baseDps * 0.5, whole),
@@ -164,26 +164,26 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const dpsLabel = boss ? 'Effective DPS' : 'Base DPS';
 
   const bossContribs: StatContribution[] = [
-    { source: 'Base DPS', detail: 'Weapons + skills + affixes before boss mods', value: totalDps, display: whole(totalDps), tone: 'red', bucket: 'base' as MechanicsContributionBucket },
-    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `Boss dmg mod +${Math.round(weapon.bossDamageMod * 100)}%`, value: totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length), display: whole(totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length)), tone: 'amber' as StatTone, bucket: 'weapon' as MechanicsContributionBucket })),
+    { source: 'Base DPS', detail: 'Weapons + skills + affixes before boss mods', value: totalDps, display: whole(totalDps), tone: 'red', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
+    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `Boss dmg mod +${Math.round(weapon.bossDamageMod * 100)}%`, value: totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length), display: whole(totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length)), tone: 'amber' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })),
     ...skillContribs(spentSkills, 'bossDamageMod', totalDps, whole),
     ...skillContribs(spentSkills, 'bossDamageSniperPistol', totalDps, whole),
     ...skillContribs(spentSkills, 'launcherBossDps', totalDps, whole),
     ...skillContribs(spentSkills, 'weaknessMatchDamage', totalDps, whole),
     // Relic & classMod contributions to boss DPS
-    ...(relic ? relic.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: relic.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as MechanicsContributionBucket })) : []),
-    ...(classMod ? classMod.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: classMod.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as MechanicsContributionBucket })) : []),
+    ...(relic ? relic.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: relic.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })) : []),
+    ...(classMod ? classMod.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: classMod.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })) : []),
   ];
 
   const breakContribs = (type: 'shield' | 'armor'): StatContribution[] => [
-    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `${type === 'shield' ? 'Shield' : 'Armor'} modifier`, value: weaponDps(weapon) * Math.max(0, type === 'shield' ? weapon.shieldDamageMod : weapon.armorDamageMod), display: whole(weaponDps(weapon) * Math.max(0, type === 'shield' ? weapon.shieldDamageMod : weapon.armorDamageMod)), tone: type === 'shield' ? 'cyan' as StatTone : 'amber' as StatTone, bucket: 'weapon' as MechanicsContributionBucket })),
-    ordnance ? { source: ordnance.name, detail: `${ordnance.effect} ordnance`, value: type === 'shield' ? ordnance.shieldDamage : ordnance.armorDamage, display: whole(type === 'shield' ? ordnance.shieldDamage : ordnance.armorDamage), tone: 'red' as StatTone, bucket: 'gear' as MechanicsContributionBucket } : undefined,
+    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `${type === 'shield' ? 'Shield' : 'Armor'} modifier`, value: weaponDps(weapon) * Math.max(0, type === 'shield' ? weapon.shieldDamageMod : weapon.armorDamageMod), display: whole(weaponDps(weapon) * Math.max(0, type === 'shield' ? weapon.shieldDamageMod : weapon.armorDamageMod)), tone: type === 'shield' ? 'cyan' as StatTone : 'amber' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })),
+    ordnance ? { source: ordnance.name, detail: `${ordnance.effect} ordnance`, value: type === 'shield' ? ordnance.shieldDamage : ordnance.armorDamage, display: whole(type === 'shield' ? ordnance.shieldDamage : ordnance.armorDamage), tone: 'red' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
     ...skillContribs(spentSkills, type === 'shield' ? 'shieldDamageMod' : 'armorDamageMod', baseDps, whole),
     ...skillContribs(spentSkills, type === 'shield' ? 'ordnanceShieldBreak' : 'explosiveArmorBreak', baseDps, whole),
   ].filter(Boolean) as StatContribution[];
 
   const utilityContribs = (keys: string[], scalar = 1): StatContribution[] => [
-    ...liveWeapons.flatMap((weapon) => keys.flatMap((key) => key in weapon ? [{ source: weapon.name, detail: key, value: Number((weapon as unknown as Record<string, number>)[key]), display: signedPct(Number((weapon as unknown as Record<string, number>)[key])), tone: 'amber' as StatTone, bucket: 'weapon' as MechanicsContributionBucket }] : [])),
+    ...liveWeapons.flatMap((weapon) => keys.flatMap((key) => key in weapon ? [{ source: weapon.name, detail: key, value: Number((weapon as unknown as Record<string, number>)[key]), display: signedPct(Number((weapon as unknown as Record<string, number>)[key])), tone: 'amber' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' }] : [])),
     ...keys.flatMap((key) => skillContribs(spentSkills, key, scalar, signedPct)),
     ...keys.flatMap((key) => affixContribs(gear, key, scalar, signedPct)),
   ];
@@ -201,7 +201,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', utilityContribs(['rareDropChanceMod', 'rareDropChance', 'postBossDropChance'])),
     metric('offline', 'Offline', offline, signedPct(offline), 'idle earning modifiers', 'green', utilityContribs(['offlineEarningsMod', 'offlineEarnings'])),
     metric('scrap', 'Scrap Yield', scrap, signedPct(scrap), 'salvage and scrap modifiers', 'cyan', utilityContribs(['scrapYieldMod', 'scrapYield', 'autoSalvageBonus', 'lowRarityScrapBonus'])),
-    metric('ordnance', 'Ordnance', ordnanceDamage, whole(ordnanceDamage), ordnance ? `${ordnance.effect} · ${ordnance.element}` : 'no ordnance slotted', 'red', ordnance ? [{ source: ordnance.name, detail: `${ordnance.effect} payload`, value: ordnanceDamage, display: whole(ordnanceDamage), tone: 'red', bucket: 'gear' as MechanicsContributionBucket }] : []),
+    metric('ordnance', 'Ordnance', ordnanceDamage, whole(ordnanceDamage), ordnance ? `${ordnance.effect} · ${ordnance.element}` : 'no ordnance slotted', 'red', ordnance ? [{ source: ordnance.name, detail: `${ordnance.effect} payload`, value: ordnanceDamage, display: whole(ordnanceDamage), tone: 'red', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' }] : []),
   ];
 
   // Activity-module metrics: one StatMetric per (module, sub-stat). The value
@@ -244,7 +244,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
                   value: a.subStats![sub.key],
                   display: signedPct(a.subStats![sub.key]),
                   tone: 'amber' as StatTone,
-                  bucket: 'activity' as MechanicsContributionBucket,
+                  bucket: 'activity' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime',
                 })))
           : [],
       );
