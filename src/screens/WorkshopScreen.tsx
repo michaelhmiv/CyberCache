@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Clock, ChevronDown } from 'lucide-react';
+import { Activity, Clock, ChevronDown, Search, X } from 'lucide-react';
 import { useActivityStore, usePlayerStore, useWorkshopStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
@@ -70,16 +70,32 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const [activityError, setActivityError] = useState<string | null>(null);
   const [claimingQueueId, setClaimingQueueId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'time' | 'level' | 'name'>('level');
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const filteredRecipes = useMemo(
-    () => selectedCategory === 'all' ? CRAFTING_RECIPES : CRAFTING_RECIPES.filter((r) => r.category === selectedCategory),
-    [selectedCategory],
-  );
+  const filteredRecipes = useMemo(() => {
+    let result = selectedCategory === 'all' 
+      ? CRAFTING_RECIPES 
+      : CRAFTING_RECIPES.filter((r) => r.category === selectedCategory);
+    
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      result = result.filter((r) => r.name.toLowerCase().includes(q));
+    }
+    
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'time') return a.craftTimeMs - b.craftTimeMs;
+      if (sortBy === 'level') return (a.requiresLevel ?? 0) - (b.requiresLevel ?? 0);
+      return a.name.localeCompare(b.name);
+    });
+    
+    return result;
+  }, [selectedCategory, search, sortBy]);
 
   const hasMaterials =
     Object.values(player.materials).some((count) => count > 0) ||
@@ -326,9 +342,37 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         ))}
       </div>
 
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search recipes…"
+            className="w-full h-9 pl-8 pr-8 rounded-lg border border-border bg-surface-raised text-xs text-text-primary placeholder:text-text-muted"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as any)}
+          className="shrink-0 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+        >
+          <option value="level">Sort: Level ↑</option>
+          <option value="time">Sort: Time ↑</option>
+          <option value="name">Sort: Name A-Z</option>
+        </select>
+      </div>
+
       <div className="space-y-2">
         {filteredRecipes.length === 0 ? (
-          <div className="text-center py-8 text-text-muted text-xs">No recipes in this category.</div>
+          <div className="text-center py-8 text-text-muted text-xs">
+            {search ? 'No recipes match your search.' : 'No recipes in this category.'}
+          </div>
         ) : (
           filteredRecipes.map((recipe) => {
             const { can } = canStartCraft(recipe.id, player.materials, player.essences, player.level);
