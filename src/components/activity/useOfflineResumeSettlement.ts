@@ -5,14 +5,20 @@
  * That does NOT cover mobile app switching — the page remains mounted
  * and no auth state change fires when the user returns from another app.
  *
- * This hook uses TWO detection paths:
+ * This hook uses THREE detection paths (ordered by reliability on mobile):
  *
- *   PATH A (native): Capacitor App.addListener('appStateChange').
- *     The @capacitor/app plugin fires reliably when the Android/iOS
- *     app moves between foreground and background — the only reliable
- *     signal on mobile WebViews where visibilitychange is flaky.
+ *   PATH A (native): Capacitor App plugin resume/pause events.
+ *     @capacitor/app fires 'resume' on every Activity.onResume() and
+ *     'pause' on every Activity.onPause(). These are more reliable than
+ *     appStateChange, which only fires from BridgeActivity.onStart/onStop
+ *     — a onPause→onResume cycle (e.g. Home→return) may skip onStop/onStart
+ *     entirely, causing appStateChange to never fire.
  *
- *   PATH B (web): document visibilitychange + window focus/pageshow.
+ *   PATH B (native): Capacitor App plugin appStateChange event.
+ *     Redundant with PATH A, kept as defense-in-depth. Fires from
+ *     BridgeActivity.onStart/onStop via bridge.getApp().fireStatusChange().
+ *
+ *   PATH C (web): document visibilitychange + window focus/pageshow.
  *     Fallback for browser dev and non-Capacitor environments.
  *
  * When the app becomes visible again after being hidden:
@@ -23,9 +29,9 @@
  *
  * Throttle: ignores hidden durations < MIN_HIDDEN_MS (15s) unless
  *           the debug flag is active.
- * Debounce: overlapping events (appStateChange + visibilitychange + focus
- *           + pageshow) within 2 seconds are coalesced into a single
- *           settlement call.
+ * Debounce: overlapping events (resume + appStateChange + visibilitychange
+ *           + focus + pageshow) within 2 seconds are coalesced into a
+ *           single settlement call.
  *
  * Mobile browsers frequently suspend JS without firing reliable unload
  * events. This hook makes resume the universal catch-up path — even if
@@ -35,6 +41,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
+import type { PluginListenerHandle } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { useAuth } from '@/auth/AuthProvider';
 import { useActivityStore } from '@/store';
@@ -171,34 +178,44 @@ export function useOfflineResumeSettlement() {
       maybeSettle();
     };
 
-    // PATH A (native): Capacitor appStateChange — the only reliable foreground/
-    // background signal on Android/iOS WebViews. visibilitychange is known to
-    // fire hidden=true on background but NOT hidden=false on foreground on some
-    // Android versions and WebView implementations.
-    let appStateListener: ReturnType<typeof App.addListener> | undefined;
+    // Collect Capacitor listener handles for cleanup.
+    const pluginHandles: PluginListenerHandle[] = [];
+
+    // PATH A (native): resume/pause events — fire on EVERY Activity.onResume()
+    // and Activity.onPause(). More reliable than appStateChange, which fires
+    // from onStart/onStop and can be skipped in a simple Home→return cycle.
+    // PATH B (native): appStateChange — defense-in-depth, fires from
+    // BridgeActivity.onStart/onStop.
     if (isNative) {
-      try {
-        appStateListener = App.addListener('appStateChange', ({ isActive }) => {
-          if (isDebugSettlement) {
-            console.log('[useOfflineResumeSettlement] appStateChange isActive =', isActive);
-          }
-          if (isActive) {
-            handleVisible();
-          } else {
-            handleHidden();
-          }
-        });
-      } catch (error) {
-        console.warn(
-          '[useOfflineResumeSettlement] App.addListener failed:',
-          error instanceof Error ? error.message : error,
-        );
-      }
+      const registerCapacitorListeners = async () => {
+        try {
+          const [resumeHandle, pauseHandle, stateHandle] = await Promise.all([
+            App.addListener('resume', handleVisible),
+            App.addListener('pause', handleHidden),
+            App.addListener('appStateChange', ({ isActive }) => {
+              if (isDebugSettlement) {
+                console.log('[useOfflineResumeSettlement] appStateChange isActive =', isActive);
+              }
+              if (isActive) {
+                handleVisible();
+              } else {
+                handleHidden();
+              }
+            }),
+          ]);
+          pluginHandles.push(resumeHandle, pauseHandle, stateHandle);
+        } catch (error) {
+          console.warn(
+            '[useOfflineResumeSettlement] Capacitor listener registration failed:',
+            error instanceof Error ? error.message : error,
+          );
+        }
+      };
+      void registerCapacitorListeners();
     }
 
-    // PATH B (web): visibilitychange, focus, pageshow — primary signals for
+    // PATH C (web): visibilitychange, focus, pageshow — primary signals for
     // browser dev and fallback for native if the Capacitor bridge isn't ready.
-    // visibilitychange: primary signal for mobile app switching.
     const handleVisibilityChange = () => {
       if (document.hidden) {
         handleHidden();
@@ -239,11 +256,12 @@ export function useOfflineResumeSettlement() {
     window.addEventListener('pagehide', handlePageHide);
 
     return () => {
-      if (appStateListener) {
+      // Remove all Capacitor plugin listeners.
+      for (const handle of pluginHandles) {
         try {
-          appStateListener.remove();
+          void handle.remove();
         } catch (error) {
-          console.warn('[useOfflineResumeSettlement] appStateListener.remove() failed:', error);
+          console.warn('[useOfflineResumeSettlement] handle.remove() failed:', error);
         }
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
