@@ -5,6 +5,8 @@ import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/cha
 import { pickTopContributions } from '@/lib/stats/topContribs';
 import { getHeadlineMetricKeys } from '@/lib/hud/headlineMetrics';
 import type { ActivityKind } from '@/types/activity';
+import { MECHANICS_CONTRIBUTION_BUCKETS } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
+import type { MechanicsContributionBucket } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 
 const panelClip = { clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' };
 const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -16,6 +18,24 @@ const toneClass: Record<StatTone, { text: string; rail: string; bg: string }> = 
   cyan: { text: 'text-cyan', rail: 'bg-cyan', bg: 'bg-cyan/10' },
   purple: { text: 'text-purple', rail: 'bg-purple', bg: 'bg-purple/10' },
   muted: { text: 'text-text-muted', rail: 'bg-text-muted', bg: 'bg-surface' },
+};
+
+/**
+ * Human-readable label for each contribution bucket, used as a section
+ * header when `SourceRow` is in `groupByBucket` mode. The bucket order
+ * itself is controlled by `MECHANICS_CONTRIBUTION_BUCKETS` from the
+ * mechanics module — labels are decoupled so the ordering can change
+ * without rewriting every header.
+ */
+const BUCKET_LABEL: Record<MechanicsContributionBucket, string> = {
+  base: 'Base chassis',
+  gear: 'Gear (shield / ordnance / relic / class mod)',
+  weapon: 'Weapons',
+  skill: 'Skill tree',
+  activity: 'Activity modules',
+  consumable: 'Consumables (transient)',
+  server: 'Server override',
+  runtime: 'Runtime modifier',
 };
 
 /**
@@ -70,8 +90,49 @@ const MiniMetric = memo(function MiniMetric({ metric, currentHp, maxHp, ...rest 
   );
 });
 
-const SourceRow = memo(function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
+export const SourceRow = memo(function SourceRow({ metric, max, groupByBucket = false }: { metric: StatMetric; max: number; groupByBucket?: boolean }) {
   const tone = toneClass[metric.tone];
+  if (!groupByBucket) {
+    return (
+      <div className="border-2 border-border bg-bg/80 p-2" style={panelClip}>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <div className={`text-sm font-black uppercase tracking-wide ${tone.text}`}>{metric.label} {metric.display}</div>
+            <div className="text-[9px] text-text-muted">{metric.detail}</div>
+          </div>
+          <div className="text-[9px] font-black uppercase text-text-muted">{metric.contributions.length} sources</div>
+        </div>
+        <div className="mt-2 space-y-1.5">
+          {metric.contributions.length === 0 && <div className="border border-border bg-surface/80 p-2 text-[10px] text-text-muted">No slotted source is currently contributing to this metric.</div>}
+          {metric.contributions.map((source) => {
+            const sourceTone = toneClass[source.tone ?? metric.tone];
+            const width = Math.max(4, Math.min(100, Math.abs(source.value) / Math.max(1, max) * 100));
+            return (
+              <div key={`${metric.key}-${source.source}-${source.detail}`} className="relative overflow-hidden border border-border bg-surface/80 p-2" style={slashClip}>
+                <div className={`absolute bottom-0 left-0 h-1 ${sourceTone.rail}`} style={{ width: `${width}%` }} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-[11px] font-black text-text-primary">{source.source}</div>
+                    <div className="text-[9px] text-text-muted">{source.detail}</div>
+                  </div>
+                  <div className={`shrink-0 text-xs font-black ${sourceTone.text}`}>{source.display}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  // Bucketed view: group contributions by `bucket` in the canonical
+  // MECHANICS_CONTRIBUTION_BUCKETS order. The "consumable" bucket is
+  // marked transient (amber border + pulse animation) because its
+  // modifiers are time-limited and the player should be able to see at
+  // a glance which rows will disappear when the buff expires.
+  const grouped = MECHANICS_CONTRIBUTION_BUCKETS.map((bucket) => ({
+    bucket,
+    rows: metric.contributions.filter((c) => c.bucket === bucket),
+  })).filter((g) => g.rows.length > 0);
   return (
     <div className="border-2 border-border bg-bg/80 p-2" style={panelClip}>
       <div className="flex items-end justify-between gap-3">
@@ -81,24 +142,40 @@ const SourceRow = memo(function SourceRow({ metric, max }: { metric: StatMetric;
         </div>
         <div className="text-[9px] font-black uppercase text-text-muted">{metric.contributions.length} sources</div>
       </div>
-      <div className="mt-2 space-y-1.5">
-        {metric.contributions.length === 0 && <div className="border border-border bg-surface/80 p-2 text-[10px] text-text-muted">No slotted source is currently contributing to this metric.</div>}
-        {metric.contributions.map((source) => {
-          const sourceTone = toneClass[source.tone ?? metric.tone];
-          const width = Math.max(4, Math.min(100, Math.abs(source.value) / Math.max(1, max) * 100));
-          return (
-            <div key={`${metric.key}-${source.source}-${source.detail}`} className="relative overflow-hidden border border-border bg-surface/80 p-2" style={slashClip}>
-              <div className={`absolute bottom-0 left-0 h-1 ${sourceTone.rail}`} style={{ width: `${width}%` }} />
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate text-[11px] font-black text-text-primary">{source.source}</div>
-                  <div className="text-[9px] text-text-muted">{source.detail}</div>
-                </div>
-                <div className={`shrink-0 text-xs font-black ${sourceTone.text}`}>{source.display}</div>
-              </div>
+      <div className="mt-2 space-y-2">
+        {grouped.length === 0 && <div className="border border-border bg-surface/80 p-2 text-[10px] text-text-muted">No slotted source is currently contributing to this metric.</div>}
+        {grouped.map(({ bucket, rows }) => (
+          <div key={bucket} data-testid={`source-bucket-${bucket}`}>
+            <div className={`mb-1 text-[8px] font-black uppercase tracking-[0.18em] ${bucket === 'consumable' ? 'text-amber' : 'text-text-muted'}`}>
+              {BUCKET_LABEL[bucket]}
             </div>
-          );
-        })}
+            <div className="space-y-1">
+              {rows.map((source) => {
+                const sourceTone = toneClass[source.tone ?? metric.tone];
+                const width = Math.max(4, Math.min(100, Math.abs(source.value) / Math.max(1, max) * 100));
+                const transient = bucket === 'consumable';
+                return (
+                  <div
+                    key={`${metric.key}-${source.source}-${source.detail}`}
+                    data-testid={`source-row-${source.source}-${source.detail}`}
+                    data-transient={transient ? 'true' : 'false'}
+                    className={`relative overflow-hidden border bg-surface/80 p-2 ${transient ? 'border-amber/60 animate-pulse' : 'border-border'}`}
+                    style={slashClip}
+                  >
+                    <div className={`absolute bottom-0 left-0 h-1 ${sourceTone.rail}`} style={{ width: `${width}%` }} />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-[11px] font-black text-text-primary">{source.source}</div>
+                        <div className="text-[9px] text-text-muted">{source.detail}</div>
+                      </div>
+                      <div className={`shrink-0 text-xs font-black ${sourceTone.text}`}>{source.display}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -234,7 +311,7 @@ export const CharacterStatBar = memo(function CharacterStatBar({
                 <button type="button" onClick={() => setOpen(false)} className="bl-secondary shrink-0 p-2 text-text-muted"><X size={15} /></button>
               </div>
               <div className="mb-3 border-2 border-amber/40 bg-amber/10 p-2 text-[10px] font-bold text-amber" style={slashClip}>This is a presentation HUD for the current loadout. It makes hidden modifiers visible without replacing server-verified combat math.</div>
-              <div className="space-y-2">{summary.all.map((metric) => <SourceRow key={metric.key} metric={metric} max={sourceMax} />)}</div>
+              <div className="space-y-2">{summary.all.map((metric) => <SourceRow key={metric.key} metric={metric} max={sourceMax} groupByBucket />)}</div>
             </motion.div>
           </motion.div>
         )}
