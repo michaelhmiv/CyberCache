@@ -236,6 +236,7 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
   activityKind,
   overrideActivity,
   onChangeOverride,
+  onCycleActivity,
 }: {
   summary: CharacterStatSummary;
   currentHp?: number;
@@ -243,6 +244,7 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
   activityKind?: ActivityKind;
   overrideActivity?: ActivityKind | null;
   onChangeOverride?: (next: ActivityKind | null) => void;
+  onCycleActivity?: () => void;
 }) {
   const effectiveKind = overrideActivity ?? activityKind;
   const keys = getHeadlineMetricKeys(effectiveKind);
@@ -250,10 +252,27 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
     .map((k) => summary.all.find((m) => m.key === k))
     .filter((m): m is StatMetric => Boolean(m));
   const showOverride = Boolean(overrideActivity) && Boolean(onChangeOverride);
+  // Cycle affordance is only available in "follow current activity" mode —
+  // when the override indicator is up the X-button owns the title-row
+  // affordance and cycling would be confusing (the player is already pinned).
+  const showCycle = !showOverride && Boolean(onCycleActivity);
   return (
     <>
       <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted">
-        <span>Hunter Totals</span>
+        {showCycle ? (
+          <button
+            type="button"
+            data-testid="hud-cycle-activity"
+            aria-label="Cycle activity override"
+            onClick={(e) => { e.stopPropagation(); onCycleActivity!(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onCycleActivity!(); } }}
+            className="cursor-pointer uppercase tracking-[0.18em] text-text-muted transition-colors hover:text-amber focus:outline-none focus-visible:text-amber"
+          >
+            Hunter Totals
+          </button>
+        ) : (
+          <span>Hunter Totals</span>
+        )}
         {showOverride ? (
           <span
             role="button"

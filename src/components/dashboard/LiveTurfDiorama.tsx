@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Box, ChevronDown, Crosshair, Sparkles } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
@@ -696,6 +696,17 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // toggles this on tap; the modal itself controls close. Lives locally
   // because the ledger is ephemeral HUD state, not persisted loadout data.
   const [ledgerOpen, setLedgerOpen] = useState(false);
+  // Manual cycle: only the activities a player *chooses* to switch into.
+  // `boss_prep` and `boss_fight` auto-bind the chip bar when the player is
+  // in those activities (no manual cycle target) — prep is a transitional
+  // state the player doesn't consciously "switch to."
+  const ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvaging', 'market_listing', 'workshop_service'];
+  const cycleOverride = useCallback(() => {
+    setOverrideActivity((current) => {
+      const idx = current ? ACTIVITY_CYCLE.indexOf(current) : -1;
+      return ACTIVITY_CYCLE[(idx + 1) % ACTIVITY_CYCLE.length];
+    });
+  }, []);
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'fallback'}-${mode}`);
   const element = weapon?.element ?? fallbackElement(area);
   const projectile = ELEMENT_PROJECTILE[element];
@@ -769,6 +780,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
             activityKind={activityKind}
             overrideActivity={overrideActivity}
             onChangeOverride={setOverrideActivity}
+            onCycleActivity={cycleOverride}
           />
         </button>
         <div data-testid="hud-consumable-ring" className="flex shrink-0 items-center">
