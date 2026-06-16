@@ -4,6 +4,8 @@ import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/type
 import type { BossDef } from '@/types/boss';
 import { computeStandardDps } from '@/lib/stats/dpsChain';
 import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
+import { sumActivityModifier } from '@/lib/stats/activityModifiers';
+import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
@@ -191,5 +193,55 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     metric('ordnance', 'Ordnance', ordnanceDamage, whole(ordnanceDamage), ordnance ? `${ordnance.effect} · ${ordnance.element}` : 'no ordnance slotted', 'red', ordnance ? [{ source: ordnance.name, detail: `${ordnance.effect} payload`, value: ordnanceDamage, display: whole(ordnanceDamage), tone: 'red' }] : []),
   ];
 
-  return { headline: [all[0], all[1], all[2], all[5]], all };
+  // Activity-module metrics: one StatMetric per (module, sub-stat). The value
+  // comes from the canonical sumActivityModifier aggregator (the single
+  // read-path for activity-modifier math). The `contributions` list is built
+  // from contributing gear pieces — each gear item's matching activity affix
+  // becomes a row so the HUD's source list shows exactly which piece of gear
+  // is fueling the buff.
+  const gearForMods = [...liveWeapons, shield, classMod, relic, ordnance].filter(
+    (g): g is NonNullable<typeof g> => Boolean(g),
+  );
+  const activityModTotals = {
+    crafting: sumActivityModifier(gearForMods, 'crafting'),
+    salvaging: sumActivityModifier(gearForMods, 'salvaging'),
+    market_listing: sumActivityModifier(gearForMods, 'market_listing'),
+    workshop_service: sumActivityModifier(gearForMods, 'workshop_service'),
+    roaming_loot: sumActivityModifier(gearForMods, 'roaming_loot'),
+    idle_standby: sumActivityModifier(gearForMods, 'idle_standby'),
+  };
+
+  const activityModuleMetrics: StatMetric[] = Object.values(ACTIVITY_MODULE_DEFS).flatMap((def) =>
+    def.subStats.map((sub) => {
+      const value = activityModTotals[def.activityKind][sub.key] ?? 0;
+      return metric(
+        sub.key,
+        sub.label,
+        value,
+        signedPct(value),
+        `${def.name} · sub-stat`,
+        'amber',
+        value > 0
+          ? gearForMods
+              .filter((g) => 'affixes' in g && Array.isArray(g.affixes))
+              .flatMap((g) => (g.affixes as Array<{
+                category?: string;
+                stat?: string;
+                subStats?: Record<string, number>;
+                displayText?: string;
+              }>)
+                .filter((a) => a.category === 'activity' && a.stat === `${def.activityKind}Module` && a.subStats?.[sub.key])
+                .map((a) => ({
+                  source: (g as { name?: string }).name ?? 'Gear',
+                  detail: a.displayText ?? sub.label,
+                  value: a.subStats![sub.key],
+                  display: signedPct(a.subStats![sub.key]),
+                  tone: 'amber' as StatTone,
+                })))
+          : [],
+      );
+    }),
+  );
+
+  return { headline: [all[0], all[1], all[2], all[5]], all: [...all, ...activityModuleMetrics] };
 }
