@@ -113,7 +113,7 @@ export const ActionFeed: React.FC<{
           <div className="text-sm font-black text-text-primary">{title}</div>
         </div>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2" style={{ minHeight: '3.25rem' }} data-testid="action-feed-list">
         {entries.length === 0 && <div className="border border-border bg-bg/70 p-2 text-xs text-text-muted">{empty}</div>}
         {entries.map((entry) => {
           const clickable = !!entry.onInspect || !!entry.gear;
@@ -122,7 +122,6 @@ export const ActionFeed: React.FC<{
           const isWeapon = (g: GearItem): g is Weapon => 'weaponType' in g;
           const Inner = (
             <motion.div
-              layout
               initial={{ opacity: 0, y: 8, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}

@@ -65,6 +65,7 @@ import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LegendaryDropFlash } from '@/components/action/LegendaryDropFlash';
+import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 
 const TICK_SECONDS = 3;
 const LOG_LIMIT = 10;
@@ -336,7 +337,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
   const [showMarketPicker, setShowMarketPicker] = useState(false);
   const [prepBoss, setPrepBoss] = useState<BossDef | null>(null);
-  const [elapsed, setElapsed] = useState(0);
   const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
   const [cacheError, setCacheError] = useState<string | null>(null);
   // Tick feed events from the canonical ticker — the single source of truth
@@ -365,16 +365,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const activeRoamingAreaId = activity.current.targetType === 'roaming_area' ? activity.current.targetId : null;
   const canTick = isRoaming && activeRoamingAreaId === selectedArea.id && !activity.pending;
 
-  // Display-only timer: increments elapsed once per second for the UI clock.
-  // The actual reward tick is handled by the singleton ticker in idleTickerSlice.
-  // MUST be below `canTick` — referencing it before declaration is a TDZ error.
-  useEffect(() => {
-    if (!canTick) return undefined;
-    const iv = window.setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => window.clearInterval(iv);
-  }, [canTick]);
-  const activeMinutes = Math.floor((elapsed * TICK_SECONDS) / 60);
-  const activeSeconds = (elapsed * TICK_SECONDS) % 60;
+  // Display-only timer. The 1-second increment lives inside the
+  // ActionTickTimer child (its own useElapsedSeconds subscription) so the
+  // rest of the screen does not re-render every second — eliminating the
+  // vertical reflow that the layout-thrash bug was caused by. The actual
+  // reward tick is handled by the singleton ticker in idleTickerSlice.
   const creditsPerTick = Math.round((selectedArea.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0)));
   const scrapPerTick = Math.round((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0)));
   const targetLabel = activity.current.targetLabel ?? (currentKind === 'idle_standby' || currentKind === 'none' ? 'No target selected' : selectedArea.name);
@@ -408,7 +403,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     try {
       await activity.start(input);
       idle.setFarming(input.kind === 'roaming_loot');
-      setElapsed(0);
       setShowSwitch(false);
       setShowAreaSelect(false);
       setShowBossPicker(false);
@@ -490,7 +484,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     try {
       await activity.clear();
       idle.setFarming(false);
-      setElapsed(0);
       setFeed([idleEvent]);
     } catch (error) {
       pushEvents([makeRunEvent('STOP FAILED', error instanceof Error ? error.message : 'The action service rejected the stop request.', 'patrol', 'run_stopped')]);
@@ -594,7 +587,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             </div>
           </div>
           <div className="relative mt-2 pt-2 border-t border-border/40 text-[9px] text-text-muted">
-            {selectedArea.gameplayIdentity} · Active for {activeMinutes}m {activeSeconds}s · {equippedCount}/7 gear equipped
+            {selectedArea.gameplayIdentity} · <ActionTickTimer key={`tick-${selectedArea.id}-${currentKind}`} tickSeconds={TICK_SECONDS} enabled={canTick} variant="active" className="text-amber" /> · {equippedCount}/7 gear equipped
           </div>
         </div>
       );
@@ -789,8 +782,8 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         </div>
         <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
           <span className="text-text-muted">Tick </span>
-          <span className={`font-black ${canTick ? 'text-green' : 'text-text-muted'}`}>
-            {canTick ? `${activeMinutes}m ${activeSeconds}s` : 'paused'}
+          <span className="inline-flex font-black">
+            <ActionTickTimer key={`tick-${selectedArea.id}-${currentKind}`} tickSeconds={TICK_SECONDS} enabled={canTick} variant="compact" className={canTick ? 'text-green' : 'text-text-muted'} />
           </span>
         </div>
       </div>
