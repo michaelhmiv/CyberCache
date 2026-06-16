@@ -20,7 +20,7 @@ const SLOT_ORDER: Array<keyof LoadoutConsumables> = ['PreFight', 'MidFight', 'Em
 const accentClass: Record<ConsumableVisual['accent'], string> = {
   green: 'text-green border-green/50 bg-green/10',
   red: 'text-red border-red/55 bg-red/10',
-  orange: 'text-amber border-amber/55 bg-amber/10',
+  orange: 'text-orange border-orange/55 bg-orange/10',
   cyan: 'text-cyan border-cyan/45 bg-cyan/10',
   amber: 'text-amber border-amber/55 bg-amber/10',
   purple: 'text-purple border-purple/50 bg-purple/10',
