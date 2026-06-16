@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Crosshair, HeartPulse, Radar, Shield, Sparkles, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
@@ -24,7 +24,7 @@ const toneClass: Record<StatTone, { text: string; rail: string; bg: string }> = 
  * outline. Used for the Health metric (chassis + shield + mitigation)
  * and reusable for any future metric that has a `stacked` breakdown.
  */
-function StackedBar({ segments, total }: { segments: NonNullable<StatMetric['stacked']>; total: number }) {
+const StackedBar = memo(function StackedBar({ segments, total }: { segments: NonNullable<StatMetric['stacked']>; total: number }) {
   const safeTotal = Math.max(1, total);
   return (
     <div className="relative h-1 w-full overflow-hidden border border-border bg-surface" aria-hidden="true">
@@ -45,9 +45,9 @@ function StackedBar({ segments, total }: { segments: NonNullable<StatMetric['sta
       </div>
     </div>
   );
-}
+});
 
-function MiniMetric({ metric, currentHp, maxHp, ...rest }: { metric: StatMetric; currentHp?: number; maxHp?: number } & React.HTMLAttributes<HTMLDivElement>) {
+const MiniMetric = memo(function MiniMetric({ metric, currentHp, maxHp, ...rest }: { metric: StatMetric; currentHp?: number; maxHp?: number } & React.HTMLAttributes<HTMLDivElement>) {
   const tone = toneClass[metric.tone];
   const { key } = metric;
   const display = (key === 'health' && currentHp != null && maxHp != null)
@@ -66,9 +66,9 @@ function MiniMetric({ metric, currentHp, maxHp, ...rest }: { metric: StatMetric;
       {metric.stacked && metric.stacked.length > 0 && <StackedBar segments={metric.stacked} total={metric.value} />}
     </div>
   );
-}
+});
 
-function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
+const SourceRow = memo(function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
   const tone = toneClass[metric.tone];
   return (
     <div className="border-2 border-border bg-bg/80 p-2" style={panelClip}>
@@ -100,7 +100,7 @@ function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
       </div>
     </div>
   );
-}
+});
 
 /**
  * TopContribsStrip — a single dense row of the N largest source
@@ -116,7 +116,7 @@ function SourceRow({ metric, max }: { metric: StatMetric; max: number }) {
  * here) so React Fast Refresh isn't broken by a non-component export
  * in a components file.
  */
-function TopContribsStrip({ summary, n = 3 }: { summary: CharacterStatSummary; n?: number }) {
+const TopContribsStrip = memo(function TopContribsStrip({ summary, n = 3 }: { summary: CharacterStatSummary; n?: number }) {
   const top = useMemo(() => pickTopContributions(summary, n), [summary, n]);
   if (top.length === 0) {
     return <div className="mt-1 px-1 text-[9px] text-text-muted" data-testid="top-contribs-empty">No slotted sources contributing</div>;
@@ -140,14 +140,14 @@ function TopContribsStrip({ summary, n = 3 }: { summary: CharacterStatSummary; n
       })}
     </div>
   );
-}
+});
 
-export function CharacterStatBar({ summary, currentHp, maxHp }: { summary: CharacterStatSummary; currentHp?: number; maxHp?: number }) {
+export const CharacterStatBar = memo(function CharacterStatBar({ summary, currentHp, maxHp }: { summary: CharacterStatSummary; currentHp?: number; maxHp?: number }) {
   const [open, setOpen] = useState(false);
   const sourceMax = useMemo(() => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))), [summary]);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip}>
+      <button type="button" onClick={() => setOpen(true)} className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 will-change-transform border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip} aria-label="Open hunter totals source breakdown" aria-expanded={open} aria-controls="hunter-totals-breakdown">
         <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted"><span>Hunter Totals</span><span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span></div>
         <div className="flex gap-1">{summary.headline.map((metric) => <MiniMetric key={metric.key} metric={metric} currentHp={metric.key === 'health' ? currentHp : undefined} maxHp={metric.key === 'health' ? maxHp : undefined} data-testid={`hud-metric-${metric.key}`} />)}</div>
         <TopContribsStrip summary={summary} n={3} />
@@ -155,7 +155,7 @@ export function CharacterStatBar({ summary, currentHp, maxHp }: { summary: Chara
       <AnimatePresence>
         {open && (
           <motion.div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)}>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 320 }} className="max-h-[90vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-4 shadow-[0_-12px_32px_rgba(0,0,0,0.7)]" style={panelClip} onClick={(event) => event.stopPropagation()}>
+            <motion.div id="hunter-totals-breakdown" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 320 }} className="max-h-[90vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-4 shadow-[0_-12px_32px_rgba(0,0,0,0.7)]" style={panelClip} onClick={(event) => event.stopPropagation()}>
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">Character Math</div>
@@ -172,4 +172,4 @@ export function CharacterStatBar({ summary, currentHp, maxHp }: { summary: Chara
       </AnimatePresence>
     </>
   );
-}
+});
