@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Box, ChevronDown, Crosshair, Sparkles } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
-import { CharacterStatBar } from '@/components/stats/CharacterStatBar';
+import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
+import { ConsumableRing } from '@/components/stats/ConsumableRing';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore, useBossStore } from '@/store';
@@ -686,6 +687,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const scene = getLiveTurfScene(area);
   const mode = modeFromActivity(activityKind);
   const copy = modeInfo[mode];
+  // Task 5: allow the player to pin the headline chips to a specific activity
+  // (e.g. compare crafting vs roaming without leaving the dashboard). Lives
+  // locally — it's a HUD-only view toggle, not part of the player state model.
+  const [overrideActivity, setOverrideActivity] = useState<ActivityKind | null>(null);
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'fallback'}-${mode}`);
   const element = weapon?.element ?? fallbackElement(area);
   const projectile = ELEMENT_PROJECTILE[element];
@@ -742,7 +747,27 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       </div>
       <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${weapon?.id ?? 'fallback'}`} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44 } : undefined}><WeaponIllustration weapon={weapon} type={fallbackType(area)} manufacturer={fallbackMaker(area)} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
       <div className="pointer-events-none absolute bottom-[82px] left-2 right-2 grid grid-cols-[1fr_auto] gap-2"><div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate text-[9px] font-black uppercase tracking-wide text-text-primary">{weaponLabel}</div><div className="truncate text-[8px] text-text-muted">{motionCaption}</div></div><div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>{latestEvent ? <Sparkles size={13} className="text-amber" /> : <Crosshair size={13} className="text-red" />}<div><div className="text-[8px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div><div className="max-w-[92px] truncate text-[9px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel(area, bossName)}</div></div></div></div>
-      <CharacterStatBar summary={computedStats} currentHp={hunterCurrentHp} maxHp={hunterMaxHp} />
+      <div className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 flex items-stretch gap-1.5" data-testid="hunter-totals-bar">
+        <button
+          type="button"
+          onClick={() => {/* The body is intentionally click-target-less: the diorama owns the wrapper button so the row stays aligned with the consumable ring. The full modal is opened via the same flow as CharacterStatBar's wrapper. */}}
+          className="min-w-0 flex-1 border-2 border-border bg-surface/95 p-1 text-left shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]"
+          style={panelClip}
+          aria-label="Open hunter totals source breakdown"
+        >
+          <CharacterStatBarBody
+            summary={computedStats}
+            currentHp={hunterCurrentHp}
+            maxHp={hunterMaxHp}
+            activityKind={activityKind}
+            overrideActivity={overrideActivity}
+            onChangeOverride={setOverrideActivity}
+          />
+        </button>
+        <div data-testid="hud-consumable-ring" className="flex shrink-0 items-center">
+          <ConsumableRing consumables={loadout.consumables} onClick={() => { /* Task 6: open consumable ledger */ }} />
+        </div>
+      </div>
       <div className="absolute bottom-0 left-0 right-0 grid grid-cols-2 border-t-2 border-border bg-surface/95 text-[9px]"><button type="button" onClick={onFight} className="flex items-center justify-between gap-2 border-r border-border px-3 py-2 text-left active:bg-red/10"><span><span className="block font-black uppercase tracking-wide text-red">{primaryLabel}</span><span className="block truncate text-text-muted">{primaryDetail}</span></span><Crosshair size={14} className="shrink-0 text-red" /></button><button type="button" onClick={onSecondary} className="flex items-center justify-between gap-2 px-3 py-2 text-left active:bg-amber/10"><span><span className="block font-black uppercase tracking-wide text-amber">{secondaryLabel}</span><span className="block truncate text-text-muted">{secondaryDetail}</span></span>{secondaryActionLabel ? <ChevronDown size={14} className="shrink-0 text-amber" /> : <Box size={14} className="shrink-0 text-amber" />}</button></div>
     </section>
   );
