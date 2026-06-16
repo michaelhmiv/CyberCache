@@ -325,6 +325,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
             onEquip={onEquip}
             onUnequip={onUnequip}
             busy={busy}
+            error={error}
           />
         )}
       </AnimatePresence>

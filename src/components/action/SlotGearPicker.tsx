@@ -35,6 +35,7 @@ interface SlotGearPickerProps {
   onEquip: (itemId: string) => Promise<void>;
   onUnequip: () => Promise<void>;
   busy?: boolean;
+  error?: string | null;
 }
 
 function isSlotCompatible(item: GearItem, slot: LoadoutSlot): boolean {
@@ -99,7 +100,7 @@ function getItemWeaponType(item: GearItem): string | null {
 }
 
 export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
-  slot, currentItemId, onClose, onEquip, onUnequip, busy = false,
+  slot, currentItemId, onClose, onEquip, onUnequip, busy = false, error = null,
 }) => {
   const inventory = useInventoryStore();
   const allItems = inventory.items;
@@ -338,6 +339,14 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
         </div>
 
         {/* ── Currently equipped ───────────────────────────────── */}
+        {error && (
+          <div className="shrink-0 px-4 pb-2">
+            <div className="border-2 border-red/40 bg-red/10 p-2 text-[11px] font-bold text-red-light" style={signClip}>
+              {error}
+            </div>
+          </div>
+        )}
+
         {currentItem && (
           <div className="shrink-0 px-4 pb-2">
             <div className="text-[8px] font-black uppercase tracking-[0.18em] text-amber mb-1">Currently Equipped</div>
@@ -347,7 +356,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                 <div className="text-[10px] text-amber">{itemSubtext(currentItem)}</div>
               </div>
               <button type="button" onClick={onUnequip} disabled={busy} className="bl-secondary px-2 py-1 text-[9px] font-black text-red shrink-0 disabled:opacity-50">
-                Unequip
+                {busy ? 'Working…' : 'Unequip'}
               </button>
             </div>
           </div>
@@ -383,7 +392,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                           )}
                         </div>
                         <div className="bl-primary px-3 py-1 text-[9px] font-black shrink-0">
-                          Equip
+                          {busy ? 'Equipping…' : 'Equip'}
                         </div>
                       </div>
                     </button>

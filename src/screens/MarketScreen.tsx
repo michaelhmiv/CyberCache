@@ -140,6 +140,12 @@ export const MarketScreen: React.FC = () => {
     setToastMessage('Listing cancelled. Item returned to inventory.');
   };
 
+  const clearBuyFilters = () => {
+    setSearch('');
+    setFilterRarity(null);
+    setToastMessage('Market filters cleared.');
+  };
+
   const historyPartyLabel = (h: MarketHistory): string => {
     const name = resolveOtherPartyName(h.otherPartyId, player.name);
     return h.type === 'buy' ? `Bought from ${name}` : `Sold to ${name}`;
@@ -174,7 +180,15 @@ export const MarketScreen: React.FC = () => {
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search caches…" className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted" />
             </div>
-            <button className="rounded-lg border border-border bg-surface-raised px-3 py-2 text-text-muted"><Filter size={14} /></button>
+            <button
+              type="button"
+              onClick={clearBuyFilters}
+              disabled={!search && !filterRarity}
+              aria-label="Clear market filters"
+              className="rounded-lg border border-border bg-surface-raised px-3 py-2 text-text-muted transition-colors active:text-amber disabled:opacity-40"
+            >
+              <Filter size={14} />
+            </button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setFilterRarity(filterRarity === r ? null : r)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${filterRarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{r}</button>)}

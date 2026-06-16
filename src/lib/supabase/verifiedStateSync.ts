@@ -181,7 +181,13 @@ function syncRuntimeItem(row: ServerItemRow | undefined): void {
 
   useInventoryStore.getState().upsertItem(serverItemRowToDisplayGear(row));
   const slot = toLoadoutSlot(row.equipped_slot);
-  if (slot) useLoadoutStore.getState().setSlot(slot, row.id);
+  if (slot) {
+    clearItemFromLoadout(row.id);
+    useLoadoutStore.getState().setSlot(slot, row.id);
+    return;
+  }
+
+  clearItemFromLoadout(row.id);
 }
 
 function syncRuntimeItems(rows: unknown): void {
