@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Crosshair, HeartPulse, Radar, Shield, Sparkles, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
 import { pickTopContributions } from '@/lib/stats/topContribs';
+import { getHeadlineMetricKeys } from '@/lib/hud/headlineMetrics';
+import type { ActivityKind } from '@/types/activity';
 
 const panelClip = { clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' };
 const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -142,14 +144,51 @@ const TopContribsStrip = memo(function TopContribsStrip({ summary, n = 3 }: { su
   );
 });
 
-export const CharacterStatBar = memo(function CharacterStatBar({ summary, currentHp, maxHp }: { summary: CharacterStatSummary; currentHp?: number; maxHp?: number }) {
+export const CharacterStatBar = memo(function CharacterStatBar({
+  summary,
+  currentHp,
+  maxHp,
+  activityKind,
+  overrideActivity,
+  onChangeOverride,
+}: {
+  summary: CharacterStatSummary;
+  currentHp?: number;
+  maxHp?: number;
+  activityKind?: ActivityKind;
+  overrideActivity?: ActivityKind | null;
+  onChangeOverride?: (next: ActivityKind | null) => void;
+}) {
   const [open, setOpen] = useState(false);
+  const effectiveKind = overrideActivity ?? activityKind;
+  const keys = getHeadlineMetricKeys(effectiveKind);
+  const headline = keys
+    .map((k) => summary.all.find((m) => m.key === k))
+    .filter((m): m is StatMetric => Boolean(m));
   const sourceMax = useMemo(() => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))), [summary]);
+  const showOverride = Boolean(overrideActivity);
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 will-change-transform border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip} aria-label="Open hunter totals source breakdown" aria-expanded={open} aria-controls="hunter-totals-breakdown">
-        <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted"><span>Hunter Totals</span><span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span></div>
-        <div className="flex gap-1">{summary.headline.map((metric) => <MiniMetric key={metric.key} metric={metric} currentHp={metric.key === 'health' ? currentHp : undefined} maxHp={metric.key === 'health' ? maxHp : undefined} data-testid={`hud-metric-${metric.key}`} />)}</div>
+        <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted">
+          <span>Hunter Totals</span>
+          {showOverride ? (
+            <span
+              role="button"
+              tabIndex={0}
+              data-testid="hud-activity-override"
+              onClick={(e) => { e.stopPropagation(); onChangeOverride?.(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onChangeOverride?.(null); } }}
+              className="flex cursor-pointer items-center gap-1 text-amber"
+            >
+              <span>viewing: {effectiveKind}</span>
+              <X size={10} />
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span>
+          )}
+        </div>
+        <div className="flex gap-1">{headline.map((metric) => <MiniMetric key={metric.key} metric={metric} currentHp={metric.key === 'health' ? currentHp : undefined} maxHp={metric.key === 'health' ? maxHp : undefined} data-testid={`hud-metric-${metric.key}`} />)}</div>
         <TopContribsStrip summary={summary} n={3} />
       </button>
       <AnimatePresence>
