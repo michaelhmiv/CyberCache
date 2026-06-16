@@ -7,6 +7,7 @@ import { RARITIES } from '@/constants/rarities';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/supabase/serverItemAdapter';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
+import { GearIllustration } from '@/components/gearArt/GearIllustration';
 
 // ─── helpers ──────────────────────────────────────────────────────────
 
@@ -58,6 +59,11 @@ const GearItemCard: React.FC<{
       className="relative rounded-xl p-4 bg-surface border border-border overflow-hidden"
       style={{ borderLeftColor: rarityDef.color, borderLeftWidth: 4 }}
     >
+      <div className="flex justify-center mb-3">
+        <div className="flex h-20 w-20 items-center justify-center rounded-lg border border-border bg-bg">
+          <GearIllustration item={item} size={72} showBadges={false} />
+        </div>
+      </div>
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold" style={{ color: rarityDef.color }}>

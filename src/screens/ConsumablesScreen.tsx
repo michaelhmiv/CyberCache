@@ -159,11 +159,11 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                       <div className="truncate text-xs font-black text-text-primary">{def.name}</div>
                       <div className="text-[9px] text-text-muted">{def.shortDescription}</div>
                       <div className="mt-0.5 flex flex-wrap gap-1">
-                        <span className="rounded-full border border-border bg-surface px-1.5 py-0.5 text-[8px] text-text-muted">{def.runtime.layoutChannel}</span>
-                        <span className="rounded-full border border-amber/30 bg-amber/10 px-1.5 py-0.5 text-[8px] text-amber">Best {bestQuality.toFixed(0)}% · {getConsumableQualityBand(bestQuality)}</span>
-                        {def.allowedSlots.map((slot) => (
-                          <span key={slot} className="rounded-full border border-border bg-surface px-1.5 py-0.5 text-[8px] text-text-muted">{slot}</span>
-                        ))}
+                        <span className="rounded border border-amber/30 bg-amber/10 px-1.5 py-0.5 text-[8px] font-bold text-amber">{def.tacticalRole}</span>
+                        <span className="rounded border border-border bg-surface px-1.5 py-0.5 text-[8px] text-text-muted">Q{bestQuality.toFixed(0)}% · {getConsumableQualityBand(bestQuality)}</span>
+                        {def.allowedSlots.some(slot => loadout.consumables[slot] === def.id) && (
+                          <span className="rounded border border-green/30 bg-green/10 px-1.5 py-0.5 text-[8px] font-bold text-green">Equipped</span>
+                        )}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">

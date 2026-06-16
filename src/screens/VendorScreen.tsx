@@ -77,10 +77,10 @@ export const VendorScreen: React.FC = () => {
 
               <div className="flex flex-wrap gap-1.5">
                 {c.allowedSlots.map((slot) => (
-                  <span key={slot} className="text-[10px] px-1.5 py-0.5 rounded bg-surface text-text-secondary">{slot}</span>
+                  <span key={slot} className="text-[9px] px-1.5 py-0.5 rounded border border-border bg-surface text-text-muted">{slot}</span>
                 ))}
                 {c.counterTags.map((tag) => (
-                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-amber/10 text-amber">#{tag}</span>
+                  <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded border border-amber/30 bg-amber/10 text-amber font-bold">{tag}</span>
                 ))}
               </div>
 
