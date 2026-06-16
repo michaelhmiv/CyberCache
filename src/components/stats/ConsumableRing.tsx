@@ -1,10 +1,16 @@
 import React, { memo } from 'react';
-import { CONSUMABLES } from '@/constants/consumables';
+import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 
 const SLOT_ORDER: Array<keyof LoadoutConsumables> = ['PreFight', 'MidFight', 'Emergency'];
 
-const accentClass: Record<string, string> = {
+// The fallback below catches a `ConsumableVisual.accent` value that exists
+// at runtime but isn't in this map (forward-compat safety). If the
+// ConsumableVisual union grows, TypeScript will require this map to
+// enumerate the new value — which is the correct behavior: a missing
+// entry should fail at compile time, not silently fall through to a
+// hard-coded colour.
+const accentClass: Record<ConsumableVisual['accent'], string> = {
   green: '#7CFC00',
   red: '#FF4B5C',
   orange: '#FF9000',
@@ -84,7 +90,7 @@ export const ConsumableRing = memo(function ConsumableRing({
           const largeArc = sliceAngle > 180 ? 1 : 0;
           const d = `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4} ${y4} Z`;
           cursor += sliceAngle;
-          const color = accentClass[def.visual.accent] ?? '#FF9000';
+          const color = accentClass[def.visual.accent];
           return (
             <path
               key={slot}

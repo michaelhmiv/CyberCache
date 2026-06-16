@@ -32,4 +32,51 @@ describe('ConsumableRing', () => {
     fireEvent.click(container.querySelector('[data-consumable-ring]')!);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it('renders three slices when all slots are loaded', () => {
+    const { container } = render(
+      <ConsumableRing
+        consumables={{ PreFight: 'MedKit', MidFight: 'AmmoPack', Emergency: 'AdrenalineShot' }}
+        onClick={() => {}}
+      />
+    );
+    expect(container.querySelectorAll('[data-consumable-slice]')).toHaveLength(3);
+  });
+
+  it('ignores invalid consumable IDs without crashing', () => {
+    // Defensive: a stale persisted loadout might reference a consumable
+    // that no longer exists. The component should render only the valid
+    // slots, not throw.
+    const { container } = render(
+      <ConsumableRing
+        consumables={{ PreFight: 'MedKit', MidFight: 'NotARealConsumable', Emergency: null }}
+        onClick={() => {}}
+      />
+    );
+    expect(container.querySelectorAll('[data-consumable-slice]')).toHaveLength(1);
+  });
+
+  it('honors the size prop for the SVG viewport', () => {
+    const { container } = render(
+      <ConsumableRing
+        consumables={{ PreFight: null, MidFight: null, Emergency: null }}
+        onClick={() => {}}
+        size={80}
+      />
+    );
+    const svg = container.querySelector('svg');
+    expect(svg?.getAttribute('width')).toBe('80');
+    expect(svg?.getAttribute('height')).toBe('80');
+  });
+
+  it('uses the singular "consumable" in the aria-label when exactly one is loaded', () => {
+    const { container } = render(
+      <ConsumableRing
+        consumables={{ PreFight: 'MedKit', MidFight: null, Emergency: null }}
+        onClick={() => {}}
+      />
+    );
+    const ring = container.querySelector('[data-consumable-ring]');
+    expect(ring?.getAttribute('aria-label')).toMatch(/^1 consumable\b/);
+  });
 });
