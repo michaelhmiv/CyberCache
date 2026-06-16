@@ -750,10 +750,12 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       <div className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 flex items-stretch gap-1.5" data-testid="hunter-totals-bar">
         <button
           type="button"
-          onClick={() => {/* The body is intentionally click-target-less: the diorama owns the wrapper button so the row stays aligned with the consumable ring. The full modal is opened via the same flow as CharacterStatBar's wrapper. */}}
-          className="min-w-0 flex-1 border-2 border-border bg-surface/95 p-1 text-left shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]"
+          // Body click is intentionally inert until Task 6/8 wire the source-breakdown modal.
+          // aria-disabled + a clearer label so screen readers don't announce an action that does nothing.
+          aria-disabled="true"
+          aria-label="Hunter Totals (tap to open source breakdown — coming soon)"
+          className="min-w-0 flex-1 border-2 border-border bg-surface/95 p-1 text-left shadow-[4px_4px_0_rgba(0,0,0,0.72)]"
           style={panelClip}
-          aria-label="Open hunter totals source breakdown"
         >
           <CharacterStatBarBody
             summary={computedStats}

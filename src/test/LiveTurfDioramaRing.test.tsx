@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
-import { getRoamingArea } from '@/constants/roamingAreas';
+import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
 
 const weapon = { id: 'w1', name: 'Test Gun' } as unknown as Weapon;
-const area = getRoamingArea('wastes');
+const area = getRoamingArea(DEFAULT_ROAMING_AREA_ID);
 
 describe('LiveTurfDiorama consumable ring + activity binding', () => {
   it('renders the consumable ring', () => {
