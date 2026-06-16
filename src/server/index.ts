@@ -11,14 +11,48 @@
  * (src/lib/generators/*). One source of truth for game logic.
  */
 
-import express from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
 import { mountChefRoutes } from './routes/chefRoutes';
 
 const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, '../../dist');
 
+const NATIVE_API_ORIGINS = new Set([
+  'http://localhost',
+  'https://localhost',
+  'capacitor://localhost',
+  'ionic://localhost',
+]);
+
+function isAllowedApiOrigin(origin?: string): boolean {
+  if (!origin) return false;
+  if (NATIVE_API_ORIGINS.has(origin)) return true;
+  // Hosted browser builds are same-origin, but keeping the production host in
+  // this allow-list makes API smoke tests and future custom-domain moves safe.
+  return /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin);
+}
+
+function apiCors(req: Request, res: Response, next: NextFunction): void {
+  const origin = req.headers.origin;
+  if (typeof origin === 'string' && isAllowedApiOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
+  next();
+}
+
 const app = express();
+app.use('/api', apiCors);
 app.use(express.json({ limit: '1mb' }));
 
 // Chef API — authoritative gameplay engine
