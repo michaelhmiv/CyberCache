@@ -5,8 +5,17 @@
  * That does NOT cover mobile app switching — the page remains mounted
  * and no auth state change fires when the user returns from another app.
  *
- * This hook listens to document visibility changes and window focus/
- * pageshow events. When the app becomes visible again after being hidden:
+ * This hook uses TWO detection paths:
+ *
+ *   PATH A (native): Capacitor App.addListener('appStateChange').
+ *     The @capacitor/app plugin fires reliably when the Android/iOS
+ *     app moves between foreground and background — the only reliable
+ *     signal on mobile WebViews where visibilitychange is flaky.
+ *
+ *   PATH B (web): document visibilitychange + window focus/pageshow.
+ *     Fallback for browser dev and non-Capacitor environments.
+ *
+ * When the app becomes visible again after being hidden:
  *   1. Hydrates active activity from server
  *   2. Calls settleActiveActivityRewards for server-authoritative catch-up
  *   3. Saves runtime snapshot after authoritative state is applied
@@ -14,8 +23,9 @@
  *
  * Throttle: ignores hidden durations < MIN_HIDDEN_MS (15s) unless
  *           the debug flag is active.
- * Debounce: overlapping events (focus + visibilitychange + pageshow)
- *           within 2 seconds are coalesced into a single settlement call.
+ * Debounce: overlapping events (appStateChange + visibilitychange + focus
+ *           + pageshow) within 2 seconds are coalesced into a single
+ *           settlement call.
  *
  * Mobile browsers frequently suspend JS without firing reliable unload
  * events. This hook makes resume the universal catch-up path — even if
@@ -24,6 +34,8 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { useAuth } from '@/auth/AuthProvider';
 import { useActivityStore } from '@/store';
 import { settleActiveActivityRewards } from '@/lib/activity/activitySettlement';
@@ -140,10 +152,12 @@ export function useOfflineResumeSettlement() {
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
 
+    const isNative = Capacitor.isNativePlatform();
+
     const handleHidden = () => {
       hiddenSinceRef.current = Date.now();
       if (isDebugSettlement) {
-        console.log('[useOfflineResumeSettlement] document hidden at', hiddenSinceRef.current);
+        console.log('[useOfflineResumeSettlement] app hidden at', hiddenSinceRef.current);
       }
     };
 
@@ -152,11 +166,38 @@ export function useOfflineResumeSettlement() {
         const hiddenDuration = hiddenSinceRef.current
           ? Date.now() - hiddenSinceRef.current
           : 0;
-        console.log('[useOfflineResumeSettlement] document visible — hidden', hiddenDuration, 'ms');
+        console.log('[useOfflineResumeSettlement] app visible — hidden', hiddenDuration, 'ms');
       }
       maybeSettle();
     };
 
+    // PATH A (native): Capacitor appStateChange — the only reliable foreground/
+    // background signal on Android/iOS WebViews. visibilitychange is known to
+    // fire hidden=true on background but NOT hidden=false on foreground on some
+    // Android versions and WebView implementations.
+    let appStateListener: ReturnType<typeof App.addListener> | undefined;
+    if (isNative) {
+      try {
+        appStateListener = App.addListener('appStateChange', ({ isActive }) => {
+          if (isDebugSettlement) {
+            console.log('[useOfflineResumeSettlement] appStateChange isActive =', isActive);
+          }
+          if (isActive) {
+            handleVisible();
+          } else {
+            handleHidden();
+          }
+        });
+      } catch (error) {
+        console.warn(
+          '[useOfflineResumeSettlement] App.addListener failed:',
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    // PATH B (web): visibilitychange, focus, pageshow — primary signals for
+    // browser dev and fallback for native if the Capacitor bridge isn't ready.
     // visibilitychange: primary signal for mobile app switching.
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -198,6 +239,13 @@ export function useOfflineResumeSettlement() {
     window.addEventListener('pagehide', handlePageHide);
 
     return () => {
+      if (appStateListener) {
+        try {
+          appStateListener.remove();
+        } catch (error) {
+          console.warn('[useOfflineResumeSettlement] appStateListener.remove() failed:', error);
+        }
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('pageshow', handlePageShow);
