@@ -162,7 +162,8 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
 
   // ── State ──────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<string>('combatPower');
+  const defaultSort = SLOT_SORT_OPTIONS[slot]?.[0]?.key ?? 'combatPower';
+  const [sortBy, setSortBy] = useState<string>(defaultSort);
   const [filters, setFilters] = useState<{
     rarities: Set<string>;
     elements: Set<string>;
