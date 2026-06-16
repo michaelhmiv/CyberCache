@@ -30,6 +30,7 @@ import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '@/constant
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
+import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
 import type { TickEvent, TickEventTone } from '@/store/slices/tickSlice';
@@ -184,6 +185,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
   const bestWeapon = [...inventory.getWeapons()].sort((a, b) => b.combatPower - a.combatPower)[0];
   const equippedWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy') ?? bestWeapon;
+  const shieldHp = loadout.getShield()?.hp ?? 0;
+  useSyncSurvivalMaxHp(player.level, shieldHp);
   const openWorkshopJobs = workshop.activeQueues.length;
   const xpToNextLevelValue = xpToNextLevel(player.level);
   const xpProgress = Math.min(100, Math.max(0, (player.xp / xpToNextLevelValue) * 100));
