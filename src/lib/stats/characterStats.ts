@@ -191,5 +191,5 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     metric('ordnance', 'Ordnance', ordnanceDamage, whole(ordnanceDamage), ordnance ? `${ordnance.effect} · ${ordnance.element}` : 'no ordnance slotted', 'red', ordnance ? [{ source: ordnance.name, detail: `${ordnance.effect} payload`, value: ordnanceDamage, display: whole(ordnanceDamage), tone: 'red' }] : []),
   ];
 
-  return { headline: [all[0], all[1], all[2], all[5]], all };
+  return { headline: [all[0], all[1], all[2], all[6]], all };
 }

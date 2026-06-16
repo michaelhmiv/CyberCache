@@ -57,9 +57,9 @@ const MiniMetric = memo(function MiniMetric({ metric, currentHp, maxHp, ...rest 
     <div {...rest} className={`relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-2 py-1.5 ${rest.className ?? ''}`} style={slashClip}>
       <div className={`absolute left-0 top-0 h-full w-1 ${tone.rail}`} />
       <div className="flex items-center gap-1.5 pl-0.5">
-        {key === 'health' ? <HeartPulse size={12} className={tone.text} /> : key === 'dps' ? <Crosshair size={12} className={tone.text} /> : key === 'boss' ? <Shield size={12} className={tone.text} /> : key === 'rareFind' ? <Sparkles size={12} className={tone.text} /> : <Radar size={12} className={tone.text} />}
+        {key === 'health' ? <HeartPulse size={12} className={tone.text} /> : key === 'dps' ? <Crosshair size={12} className={tone.text} /> : key === 'boss' ? <Shield size={12} className={tone.text} /> : key === 'effectiveHp' ? <Shield size={12} className={tone.text} /> : key === 'rareFind' ? <Sparkles size={12} className={tone.text} /> : <Radar size={12} className={tone.text} />}
         <div className="min-w-0 leading-none">
-          <div className="truncate text-[8px] font-black uppercase tracking-wide text-text-muted">{metric.label}</div>
+          <div className="truncate text-[8px] font-black uppercase tracking-wide text-text-muted">{key === 'health' && currentHp != null && maxHp != null ? 'HP' : metric.label}</div>
           <div className={`truncate text-[11px] font-black ${tone.text}`}>{display}</div>
         </div>
       </div>
@@ -147,15 +147,15 @@ export const CharacterStatBar = memo(function CharacterStatBar({ summary, curren
   const sourceMax = useMemo(() => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))), [summary]);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 will-change-transform border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip}>
+      <button type="button" onClick={() => setOpen(true)} aria-label="Open Hunter Totals source breakdown" aria-expanded={open} aria-controls="hunter-totals-panel" className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 will-change-transform border-2 border-border bg-surface/95 p-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)] active:scale-[0.99]" style={panelClip}>
         <div className="mb-1 flex items-center justify-between px-1 text-[8px] font-black uppercase tracking-[0.18em] text-text-muted"><span>Hunter Totals</span><span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span></div>
         <div className="flex gap-1">{summary.headline.map((metric) => <MiniMetric key={metric.key} metric={metric} currentHp={metric.key === 'health' ? currentHp : undefined} maxHp={metric.key === 'health' ? maxHp : undefined} data-testid={`hud-metric-${metric.key}`} />)}</div>
         <TopContribsStrip summary={summary} n={3} />
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)}>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 320 }} className="max-h-[90vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-4 shadow-[0_-12px_32px_rgba(0,0,0,0.7)]" style={panelClip} onClick={(event) => event.stopPropagation()}>
+          <motion.div id="hunter-totals-panel" className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 320 }} className="max-h-[90vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-4 shadow-[0_-12px_32px_rgba(0,0,0,0.7)]" style={{ ...panelClip, paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }} onClick={(event) => event.stopPropagation()}>
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">Character Math</div>

@@ -30,7 +30,6 @@ interface LiveTurfDioramaProps {
   bossName?: string;
   bossWeaknessCount?: number;
   boss?: BossDef;
-  playerLevel: number;
   equippedCount: number;
   cacheKeys: number;
   activityKind?: ActivityKind;
@@ -53,6 +52,13 @@ const fallbackMaker = (area: RoamingAreaDef) => area.manufacturerInfluence === '
 const fallbackType = (area: RoamingAreaDef) => area.weaponBias[0] ?? WeaponType.Pistol;
 const fallbackElement = (area: RoamingAreaDef) => area.elementBias?.[0] ?? Element.Kinetic;
 const enemyLabel = (area: RoamingAreaDef, bossName?: string) => bossName ?? area.enemyType.split(',')[0] ?? 'Target contact';
+const areaArchetype = (area: RoamingAreaDef): EnemyArchetype => {
+  const type = area.enemyType.toLowerCase();
+  if (type.includes('drone')) return 'fodder';
+  if (type.includes('marksman') || type.includes('sniper') || type.includes('scout')) return 'sniper';
+  if (type.includes('brute') || type.includes('armored') || type.includes('captain') || type.includes('machine') || type.includes('bot') || type.includes('construct') || type.includes('turret') || type.includes('crew')) return 'brute';
+  return 'runner';
+};
 const isImpact = (event?: LiveTurfFeedEvent): event is LiveTurfFeedEvent => !!event && event.id !== 'idle-loop-ready';
 const isLootLike = (event: LiveTurfFeedEvent | undefined): boolean => {
   if (!isImpact(event)) return false;
@@ -228,7 +234,7 @@ const EnemyHitEffects: React.FC<{ event?: LiveTurfFeedEvent; enemyX: number; ene
   const dmg = event.value ?? 0;
 
   return (
-    <motion.g
+    <motion.g key={`hit-${event.id}`}
       initial={{ opacity: 0, y: 0 }}
       animate={{ opacity: [0, 1, 0], y: [0, -20, -35] }}
       transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -362,7 +368,7 @@ const LootDropSvg: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = (
   if (event.tone !== 'material' && event.tone !== 'essence' && event.tone !== 'fragment' && event.tone !== 'cash') return null;
 
   return (
-    <motion.g
+    <motion.g key={`drop-${event.id}`}
       initial={{ y: 0, opacity: 0, scale: 0.5 }}
       animate={{ y: -35, opacity: [0, 1, 1, 0], scale: [0.5, 1.1, 1, 0.7] }}
       transition={{ duration: 1.8, ease: 'easeOut', times: [0, 0.2, 0.65, 1] }}
@@ -433,7 +439,7 @@ const LootParticles: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> =
   const colors = colorSchemes[tone] ?? colorSchemes.kill;
 
   return (
-    <motion.g>
+    <motion.g key={`particles-${event?.id ?? 'idle'}`}>
       {Array.from({ length: count }).map((_, i) => {
         // Deterministic pseudo-random values from event id + particle index
         const seed = (event?.id ?? '').split('').reduce((s, c) => s + c.charCodeAt(0), i * 7);
@@ -471,7 +477,7 @@ const PlayerDamageFlash: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean;
 
   const damageValue = event.value ?? 0;
   return (
-    <motion.g
+    <motion.g key={`dmg-flash-${event.id}`}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: [0, 1, 0], scale: [0.8, 1.2, 1], y: [0, -30, -50] }}
       transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -653,7 +659,7 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ act
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, boss, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, boss, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
@@ -722,7 +728,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <ProjectileTape projectile={projectile} weaponType={weapon?.weaponType} mode={mode} event={latestEvent} reduced={reduced} />
         <ScrapSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
         <RunnerSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
-        <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} archetype="runner" boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
+        <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} archetype={areaArchetype(area)} boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
         {/* SVG HP bar integrated above enemy */}
         <EnemyHpBarSvg active={activityKind === 'roaming_loot'} accentColor={scene.accent} enemyX={enemyX} enemyY={enemyY} />
         {/* Hit flash + damage numbers on enemy */}
@@ -745,7 +751,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
       </div>
-      <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${eventActive ? latestEvent?.id : mode}`} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44 } : undefined}><WeaponIllustration weapon={weapon} type={fallbackType(area)} manufacturer={fallbackMaker(area)} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
+      <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${weapon?.id ?? 'fallback'}`} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44 } : undefined}><WeaponIllustration weapon={weapon} type={fallbackType(area)} manufacturer={fallbackMaker(area)} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
       <div className="pointer-events-none absolute bottom-[82px] left-2 right-2 grid grid-cols-[1fr_auto] gap-2"><div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate text-[9px] font-black uppercase tracking-wide text-text-primary">{weaponLabel}</div><div className="truncate text-[8px] text-text-muted">{motionCaption}</div></div><div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>{latestEvent ? <Sparkles size={13} className="text-amber" /> : <Crosshair size={13} className="text-red" />}<div><div className="text-[8px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div><div className="max-w-[92px] truncate text-[9px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel(area, bossName)}</div></div></div></div>
       <CharacterStatBar summary={computedStats} currentHp={hunterCurrentHp} maxHp={hunterMaxHp} />
       <div className="absolute bottom-0 left-0 right-0 grid grid-cols-2 border-t-2 border-border bg-surface/95 text-[9px]"><button type="button" onClick={onFight} className="flex items-center justify-between gap-2 border-r border-border px-3 py-2 text-left active:bg-red/10"><span><span className="block font-black uppercase tracking-wide text-red">{primaryLabel}</span><span className="block truncate text-text-muted">{primaryDetail}</span></span><Crosshair size={14} className="shrink-0 text-red" /></button><button type="button" onClick={onSecondary} className="flex items-center justify-between gap-2 px-3 py-2 text-left active:bg-amber/10"><span><span className="block font-black uppercase tracking-wide text-amber">{secondaryLabel}</span><span className="block truncate text-text-muted">{secondaryDetail}</span></span>{secondaryActionLabel ? <ChevronDown size={14} className="shrink-0 text-amber" /> : <Box size={14} className="shrink-0 text-amber" />}</button></div>

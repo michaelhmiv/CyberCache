@@ -705,7 +705,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         bossName={prepBossTarget?.name}
         bossWeaknessCount={currentBoss?.weaknesses.length ?? 0}
         boss={currentKind === 'boss_prep' || currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : undefined}
-        playerLevel={player.level}
         equippedCount={equippedCount}
         cacheKeys={player.cacheKeys}
         activityKind={currentKind}
