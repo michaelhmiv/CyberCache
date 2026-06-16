@@ -29,6 +29,7 @@ import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '@/constants/roamingAreas';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
+import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
@@ -176,6 +177,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const tickEvents = useTickFeedStore((state) => state.events);
   const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.slice(0, 5), [tickEvents]);
   const [activityError, setActivityError] = useState<string | null>(null);
+  const shieldHp = loadout.getShield()?.hp ?? 0;
+  useSyncSurvivalMaxHp(player.level, shieldHp);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
