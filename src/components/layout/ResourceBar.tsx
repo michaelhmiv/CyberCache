@@ -40,7 +40,7 @@ const Chip: React.FC<ChipProps> = ({ resourceId, value, sub, seed = 0, action })
   >
     {/* Left color bar derived from the resource's visualAsset */}
     <ResourceIcon id={resourceId} size={18} seed={seed} className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-70" />
-    <div className={`ml-6 ${action ? 'mr-5' : ''}`}>
+    <div className={`ml-6 ${action ? 'mr-7' : ''}`}>
       <div className="text-sm font-black leading-none text-text-primary">{value}</div>
       <div className="truncate text-[8px] text-text-muted">{sub}</div>
     </div>
@@ -116,7 +116,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
               type="button"
               aria-label="Watch ad for cache key"
               onClick={openRewardDialog}
-              className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-amber/70 bg-amber text-bg shadow-[0_0_10px_rgba(247,210,11,0.35)] active:scale-95"
+              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border border-amber/70 bg-amber text-bg shadow-[0_0_10px_rgba(247,210,11,0.35)] active:scale-95"
             >
               <Plus size={13} strokeWidth={3} />
             </button>
