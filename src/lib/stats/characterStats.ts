@@ -1,6 +1,6 @@
 import { SKILL_NODES } from '@/constants/skillTrees';
 import type { PlayerProfile } from '@/types/player';
-import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
+import type { Affix, ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
 import { computeStandardDps } from '@/lib/stats/dpsChain';
 import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
@@ -223,16 +223,12 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
         'amber',
         value > 0
           ? gearForMods
-              .filter((g) => 'affixes' in g && Array.isArray(g.affixes))
-              .flatMap((g) => (g.affixes as Array<{
-                category?: string;
-                stat?: string;
-                subStats?: Record<string, number>;
-                displayText?: string;
-              }>)
+              .filter((g): g is Extract<typeof g, { affixes: Affix[] }> =>
+                'affixes' in g && Array.isArray(g.affixes))
+              .flatMap((g) => g.affixes
                 .filter((a) => a.category === 'activity' && a.stat === `${def.activityKind}Module` && a.subStats?.[sub.key])
                 .map((a) => ({
-                  source: (g as { name?: string }).name ?? 'Gear',
+                  source: g.name ?? 'Gear',
                   detail: a.displayText ?? sub.label,
                   value: a.subStats![sub.key],
                   display: signedPct(a.subStats![sub.key]),
