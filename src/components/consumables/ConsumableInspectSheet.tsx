@@ -6,6 +6,7 @@ import {
 import type { ConsumableDef, ConsumableFamily, ConsumableRuntimeEffects } from '@/constants/consumables';
 import { getConsumableQualityBand, getConsumableRuntimeEffects } from '@/constants/consumables';
 import { usePlayerStore } from '@/store';
+import { getConsumableMechanicKind, resolveConsumableDuration } from '@/lib/buffs/activeBuffs';
 
 const FAMILY_ICONS: Record<ConsumableFamily, React.ElementType> = {
   survival: Shield,
@@ -82,6 +83,14 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
   const visualTone = VISUAL_ACCENTS[consumable.visual.accent];
   const rules = consumable.effectRules;
   const drawbacks = consumable.drawbackRules;
+  const mechanicKind = getConsumableMechanicKind(consumable.id);
+  const vendorDurationMs = resolveConsumableDuration(consumable.id, consumable.quality.vendorQuality);
+  const decisionWindow = vendorDurationMs > 0 ? `${Math.ceil(vendorDurationMs / 1000)}s visible window` : 'instant event / recent feed';
+  const decisionUse = consumable.runtime.activityScopes.includes('boss')
+    ? 'Boss plan: slot when this trigger answers a phase, mechanic, or pre-fight risk.'
+    : consumable.runtime.activityScopes.includes('roaming')
+      ? 'Roaming plan: slot when sustain, ammo coverage, or kill-cycle safety is the bottleneck.'
+      : 'Economy plan: slot before the matching workshop, market, salvage, or crafting action.';
 
   return (
     <AnimatePresence>
@@ -140,6 +149,16 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
               <div className="text-xs font-bold text-text-primary">{consumable.shortDescription}</div>
               <div className="mt-1 text-[10px] text-text-muted">{consumable.description}</div>
               <div className="mt-1 text-[10px] italic text-amber">{consumable.effect}</div>
+            </section>
+
+            <section data-testid="consumable-decision-brief" className="relative mt-3 overflow-hidden border-2 border-amber/45 bg-amber/10 p-3" style={panelClip}>
+              <div className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber">Decision Brief</div>
+              <div className="space-y-1.5">
+                <StatRow label="Use When" value={decisionUse} tone="text-text-primary" />
+                <StatRow label="Mechanic" value={mechanicKind.replace(/-/g, ' ')} tone="text-amber" />
+                <StatRow label="Visibility" value={decisionWindow} tone="text-cyan" />
+                <StatRow label="Risk Check" value={consumable.drawbackRules ? 'Has drawback — compare payoff before slotting' : 'No explicit drawback rules'} tone={consumable.drawbackRules ? 'text-red' : 'text-green'} />
+              </div>
             </section>
 
             <section className="relative mt-3 overflow-hidden border-2 border-border bg-surface/95 p-3" style={panelClip}>
