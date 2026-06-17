@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ActiveActivity, StartActivityInput } from '@/types/activity';
+import type { ActiveActivity, BossPhase, StartActivityInput } from '@/types/activity';
 import { IDLE_ACTIVITY } from '@/types/activity';
 import { migrateActivityForBossCollapse } from '@/lib/activity/activityMigration';
 import {
@@ -15,6 +15,7 @@ export interface ActivityState {
   pending: boolean;
   error: string | null;
   setCurrent: (activity: ActiveActivity) => void;
+  setBossPhase: (phase: BossPhase) => void;
   reset: () => void;
   hydrate: () => Promise<ActiveActivity>;
   start: (input: StartActivityInput) => Promise<ActiveActivity>;
@@ -33,6 +34,18 @@ export const useActivityStore = create<ActivityState>()((set) => ({
   error: null,
 
   setCurrent: (activity) => set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, error: null }),
+
+  /**
+   * Flip the boss phase on the active activity. No-op if the current
+   * activity isn't a boss_fight. This is how the boss prep modal's
+   * "Start Fight" button commits the prep→fight transition without
+   * starting a new activity (which would race with the chef).
+   */
+  setBossPhase: (phase) => set((s) => {
+    if (s.current.kind !== 'boss_fight') return s;
+    if (s.current.bossPhase === phase) return s;
+    return { current: { ...s.current, bossPhase: phase } };
+  }),
 
   reset: () => set({ current: IDLE_ACTIVITY, hydrated: false, pending: false, error: null }),
 
