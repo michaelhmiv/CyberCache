@@ -23,23 +23,36 @@ describe('CharacterStatBreakdownModal', () => {
     expect(container.querySelector('#hunter-totals-breakdown')).toBeNull();
   });
 
-  it('renders the modal with bucketed contributions when open is true', () => {
+  it('renders the modal with metric card when open is true', () => {
     render(<CharacterStatBreakdownModal summary={summary} open={true} onClose={() => {}} />);
     expect(screen.getByTestId('hunter-totals-breakdown-modal')).toBeInTheDocument();
     expect(screen.getByText('Source Breakdown')).toBeInTheDocument();
   });
 
-  it('groups contributions by bucket (weapon / skill / consumable visible)', () => {
+  it('renders composition bar for the active metric', () => {
     render(<CharacterStatBreakdownModal summary={summary} open={true} onClose={() => {}} />);
-    expect(screen.getByTestId('source-bucket-weapon')).toBeInTheDocument();
-    expect(screen.getByTestId('source-bucket-skill')).toBeInTheDocument();
-    expect(screen.getByTestId('source-bucket-consumable')).toBeInTheDocument();
+    // DPS is the first metric — should have a composition bar with 3 segments
+    expect(screen.getByTestId('composition-bar')).toBeInTheDocument();
+  });
+
+  it('shows bucket-grouped detail rows on expand', () => {
+    render(<CharacterStatBreakdownModal summary={summary} open={true} onClose={() => {}} />);
+    // Detail rows not visible by default
+    expect(screen.queryAllByTestId('metric-card-source-row')).toHaveLength(0);
+    // Expand
+    fireEvent.click(screen.getByText(/show 3 sources/i));
+    // Now detail rows visible, grouped by bucket
+    expect(screen.getByTestId('metric-card-bucket-weapon')).toBeInTheDocument();
+    expect(screen.getByTestId('metric-card-bucket-skill')).toBeInTheDocument();
+    expect(screen.getByTestId('metric-card-bucket-consumable')).toBeInTheDocument();
   });
 
   it('marks consumable-bucket rows as transient', () => {
     render(<CharacterStatBreakdownModal summary={summary} open={true} onClose={() => {}} />);
-    const consumableRow = screen.getByTestId('source-row-Med Kit-dpsMultiplier');
-    expect(consumableRow.dataset.transient).toBe('true');
+    fireEvent.click(screen.getByText(/show 3 sources/i));
+    const consumableBucket = screen.getByTestId('metric-card-bucket-consumable');
+    const consumableRow = consumableBucket.querySelector('[data-testid="metric-card-source-row"]')!;
+    expect(consumableRow.className).toContain('animate-pulse');
   });
 
   it('invokes onClose when the X button is tapped', () => {
@@ -60,12 +73,44 @@ describe('CharacterStatBreakdownModal', () => {
 
   it('switches active metric when a tab is clicked', () => {
     render(<CharacterStatBreakdownModal summary={summary} open={true} onClose={() => {}} />);
-    // Default: DPS tab active, shows Weapon A (in both compact chips and bucketed view)
-    expect(screen.getAllByText('Weapon A').length).toBeGreaterThanOrEqual(1);
+    // Default: DPS tab active, shows composition bar
+    expect(screen.getByTestId('composition-bar')).toBeInTheDocument();
 
     // Click Max HP tab
     fireEvent.click(screen.getByText('Max HP'));
     // Health has no contributions — should show empty state
-    expect(screen.getByText(/No slotted source/i)).toBeInTheDocument();
+    expect(screen.getByTestId('composition-bar-empty')).toBeInTheDocument();
+  });
+
+  it('filters metrics by activityKind', () => {
+    const summaryWithActivity: CharacterStatSummary = {
+      headline: [],
+      all: [
+        { key: 'dps', label: 'DPS', value: 50, display: '50', detail: '', tone: 'red', contributions: [] },
+        { key: 'craftingSpeed', label: 'Crafting Speed', value: 0.08, display: '+8%', detail: '', tone: 'amber', contributions: [], sourceActivity: 'crafting' },
+        { key: 'salvageYield', label: 'Salvage Yield', value: 0.10, display: '+10%', detail: '', tone: 'amber', contributions: [], sourceActivity: 'salvaging' },
+      ],
+    };
+    render(<CharacterStatBreakdownModal summary={summaryWithActivity} open={true} onClose={() => {}} activityKind="crafting" />);
+    // DPS and craftingSpeed should be visible as tabs
+    expect(screen.getAllByText('DPS').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Crafting Speed')).toBeInTheDocument();
+    // SalvageYield should NOT be visible
+    expect(screen.queryByText('Salvage Yield')).not.toBeInTheDocument();
+  });
+
+  it('disambiguates duplicate keys by sourceActivity', () => {
+    const summaryWithDup: CharacterStatSummary = {
+      headline: [],
+      all: [
+        { key: 'dps', label: 'DPS', value: 50, display: '50', detail: '', tone: 'red', contributions: [] },
+        { key: 'droneAssistSpeed', label: 'Drone Assist', value: 0.04, display: '+4%', detail: 'Crafting', tone: 'amber', contributions: [], sourceActivity: 'crafting' },
+        { key: 'droneAssistSpeed', label: 'Drone Assist', value: 0.04, display: '+4%', detail: 'Workshop', tone: 'amber', contributions: [], sourceActivity: 'workshop_service' },
+      ],
+    };
+    render(<CharacterStatBreakdownModal summary={summaryWithDup} open={true} onClose={() => {}} activityKind="crafting" />);
+    // Only the crafting variant should be present
+    const droneTabs = screen.getAllByText('Drone Assist');
+    expect(droneTabs).toHaveLength(1);
   });
 });
