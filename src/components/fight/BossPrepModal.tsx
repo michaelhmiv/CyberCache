@@ -272,7 +272,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     });
   }, [primary, secondary, heavy, boss.weaknesses, boss.resistances]);
   const loadoutDpsVsBoss = loadoutDpsPerWeapon.reduce((sum, entry) => sum + entry.dpsVsBoss, 0);
-  const isBossPrepActivity = activity.current.kind === 'boss_prep' && activity.current.targetType === 'boss' && activity.current.targetId === boss.id;
+  const isBossPrepActivity = activity.current.kind === 'boss_fight' && activity.current.bossPhase === 'prep' && activity.current.targetType === 'boss' && activity.current.targetId === boss.id;
   const isBossFightActivity = activity.current.kind === 'boss_fight' && activity.current.targetType === 'boss' && activity.current.targetId === boss.id;
   const activityLabel = isBossFightActivity ? 'Boss fight active' : isBossPrepActivity ? 'Boss prep active' : 'Boss prep not active';
   const activityDetail = isBossFightActivity
