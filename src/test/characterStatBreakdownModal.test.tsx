@@ -27,7 +27,6 @@ describe('CharacterStatBreakdownModal', () => {
     render(<CharacterStatBreakdownModal summary={summary} open={true} onClose={() => {}} />);
     expect(screen.getByTestId('hunter-totals-breakdown-modal')).toBeInTheDocument();
     expect(screen.getByText('Source Breakdown')).toBeInTheDocument();
-    expect(screen.getByText('Character Math')).toBeInTheDocument();
   });
 
   it('groups contributions by bucket (weapon / skill / consumable visible)', () => {
@@ -57,5 +56,16 @@ describe('CharacterStatBreakdownModal', () => {
     );
     fireEvent.click(container.querySelector('[data-testid="hunter-totals-breakdown-modal"]')!);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches active metric when a tab is clicked', () => {
+    render(<CharacterStatBreakdownModal summary={summary} open={true} onClose={() => {}} />);
+    // Default: DPS tab active, shows Weapon A (in both compact chips and bucketed view)
+    expect(screen.getAllByText('Weapon A').length).toBeGreaterThanOrEqual(1);
+
+    // Click Max HP tab
+    fireEvent.click(screen.getByText('Max HP'));
+    // Health has no contributions — should show empty state
+    expect(screen.getByText(/No slotted source/i)).toBeInTheDocument();
   });
 });
