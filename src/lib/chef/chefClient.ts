@@ -87,6 +87,16 @@ export interface ChefClaimRequest {
     shieldHp: number;
     maxHp: number;
   };
+  /** Loadout consumable slot assignments. */
+  loadoutConsumables?: {
+    PreFight: string | null;
+    MidFight: string | null;
+    Emergency: string | null;
+  };
+  /** Prior roaming consumable state (carried from previous claim). */
+  roamingConsumableState?: unknown;
+  /** Mastery levels for interval reductions. */
+  masteryLevels?: Record<string, number>;
   jwt?: string;
 }
 
@@ -127,7 +137,26 @@ export interface ChefClaimResult {
     currentHp: number;
     shieldHp: number;
     isDead?: boolean;
+    medKitBuffer?: number;
+    nanoSwarmTicksRemaining?: number;
+    adrenalineActive?: boolean;
+    shieldCellResistance?: number;
   };
+  /** Consumables consumed during this claim batch. */
+  consumedConsumables?: Record<string, number>;
+  /** Updated roaming consumable state for next claim's input. */
+  roamingConsumableState?: unknown;
+  /** Active buff display data for client UI. */
+  activeBuffs?: Array<{
+    consumableId: string;
+    slot: string;
+    remainingMs: number;
+    remainingBuffer?: number;
+    remainingTicks?: number;
+    armed?: boolean;
+    remainingBurstSeconds?: number;
+    ordnanceNextFireSeconds?: number;
+  }>;
 }
 
 export interface ChefVerifyBossRequest extends Omit<BossSimulationInput, 'boss'> {

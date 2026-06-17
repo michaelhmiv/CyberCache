@@ -49,10 +49,14 @@ const BuffPill = memo(function BuffPill({
   const accent = def ? accentClass[def.visual.accent] : '#888';
   const name = def?.name ?? buff.consumableId;
   const effectSummary = def?.runtime.ledgerText ?? '';
+  const isMedKit = buff.consumableId === 'MedKit' || buff.consumableId === 'MedKitRefined';
+  const isArmed = buff.displayState === 'armed';
   const remainingMs = Math.max(0, buff.expiresAt - now);
   const seconds = Math.ceil(remainingMs / 1000);
   const progress = buff.durationMs > 0 ? Math.min(1, Math.max(0, remainingMs / buff.durationMs)) : 0;
   const remainingLabel = seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`;
+  // Med Kit: show buffer HP instead of timer
+  const displayLabel = isMedKit && buff.value ? `${buff.value} HP` : isArmed ? 'ARMED' : remainingLabel;
 
   return (
     <div
@@ -69,9 +73,9 @@ const BuffPill = memo(function BuffPill({
           <span
             data-testid="buff-countdown"
             className="shrink-0 text-[9px] font-black text-amber tabular-nums"
-            style={{ fontVariantNumeric: 'tabular-nums' }}
+            style={{ fontVariantNumeric: 'tabular-nums', color: isArmed ? '#888' : undefined }}
           >
-            {remainingLabel}
+            {displayLabel}
           </span>
         </div>
         <div
@@ -114,7 +118,7 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
   }, []);
 
   const activeBuffs = useMemo(
-    () => storeBuffs.filter((buff) => buff.expiresAt > now && (buff.displayState === 'active' || buff.displayState === 'recent')),
+    () => storeBuffs.filter((buff) => buff.expiresAt > now && (buff.displayState === 'active' || buff.displayState === 'recent' || buff.displayState === 'armed')),
     [storeBuffs, now],
   );
 

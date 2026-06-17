@@ -170,15 +170,15 @@ describe('idleTickerSlice — survival wiring', () => {
     expect(after).toBe(before);
   });
 
-  it('auto-eats a medkit when HP drops below threshold', async () => {
+  it('does NOT auto-eat medkits client-side (Chef handles consumption)', async () => {
     enterRoamingArea('redline_circuit'); // T2 = 11-14 attack, fast
-    // Load 10 medkits and set HP just above threshold. A single hit
-    // drops HP below 70% and triggers auto-eat.
+    // Load 10 medkits and set HP just above threshold.
+    // The client survival tick no longer consumes medkits — that's the
+    // Chef's responsibility. Verify no client-side consumption occurs.
     usePlayerStore.setState({ consumables: { MedKit: 10 } });
-    useSurvivalStore.setState({ currentHp: 495, maxHp: 700 }); // 495/700 = 0.707, just over
-    // Run several ticks; one or more should drop below 490 and auto-eat.
+    useSurvivalStore.setState({ currentHp: 495, maxHp: 700 });
     let autoEatFired = false;
-    for (let i = 0; i < 30; i += 1) {
+    for (let i = 0; i < 10; i += 1) {
       if (useSurvivalStore.getState().isDead) break;
       const medkitsBefore = usePlayerStore.getState().consumables.MedKit ?? 0;
       try {
@@ -192,7 +192,8 @@ describe('idleTickerSlice — survival wiring', () => {
         break;
       }
     }
-    expect(autoEatFired).toBe(true);
+    // Client should NOT consume medkits — consumption is server-authoritative
+    expect(autoEatFired).toBe(false);
   });
 
   it('sets isDead and stops the ticker when HP reaches 0', async () => {
