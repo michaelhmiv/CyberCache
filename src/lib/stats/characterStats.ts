@@ -152,33 +152,45 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const offline = mechanics.offlineEarningModifier.value;
   const scrap = mechanics.scrapModifier.value;
 
+  // Route active consumable contributions by family so a Med Kit (survival)
+  // doesn't show as a DPS source, and an Ammo Pack (ammo) doesn't show as
+  // an HP source. Each family goes only to the metrics it actually affects.
+  const activeConsumableContribsByFamily = (families: string[]): StatContribution[] =>
+    activeBuffs
+      .filter((buff) => buff.displayState === 'active' || buff.displayState === 'recent')
+      .filter((buff) => {
+        const def = CONSUMABLES[buff.consumableId];
+        return def && families.includes(def.family);
+      })
+      .map((buff) => {
+        const def = CONSUMABLES[buff.consumableId];
+        const remainingMs = Math.max(0, buff.expiresAt - Date.now());
+        return {
+          source: def?.name ?? buff.consumableId,
+          detail: buff.displayState === 'recent'
+            ? 'Recently triggered consumable feedback'
+            : `${Math.ceil(remainingMs / 1000)}s remaining · ${buff.source}`,
+          value: buff.value ?? 0,
+          display: buff.value ? (Math.abs(buff.value) < 10 ? `${buff.value.toFixed(2)}×` : whole(buff.value)) : 'active',
+          tone: 'amber' as StatTone,
+          bucket: 'consumable' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime',
+        };
+      });
+
+  const dpsConsumableContribs = activeConsumableContribsByFamily(['ammo', 'corrupted', 'tactical']);
+  const survivalConsumableContribs = activeConsumableContribsByFamily(['survival']);
+  const economyConsumableContribs = activeConsumableContribsByFamily(['economy']);
+
   const healthContribs: StatContribution[] = [
     { source: 'Hunter chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
     shield ? { source: shield.name, detail: 'Shield HP pool', value: shieldHp, display: whole(shieldHp), tone: 'cyan', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
+    ...survivalConsumableContribs.filter((entry) => entry.value !== 0),
   ].filter(Boolean) as StatContribution[];
 
   const effectiveHpContribs: StatContribution[] = [
     { source: 'Max HP', detail: 'Combat HP before mitigation', value: totalHealth, display: whole(totalHealth), tone: 'green', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
     shield ? { source: shield.name, detail: `Mitigation ${pct(shield.mitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'cyan', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
   ].filter(Boolean) as StatContribution[];
-
-
-  const activeConsumableContribs: StatContribution[] = activeBuffs
-    .filter((buff) => buff.displayState === 'active' || buff.displayState === 'recent')
-    .map((buff) => {
-      const def = CONSUMABLES[buff.consumableId];
-      const remainingMs = Math.max(0, buff.expiresAt - Date.now());
-      return {
-        source: def?.name ?? buff.consumableId,
-        detail: buff.displayState === 'recent'
-          ? 'Recently triggered consumable feedback'
-          : `${Math.ceil(remainingMs / 1000)}s remaining · ${buff.source}`,
-        value: buff.value ?? 0,
-        display: buff.value ? (Math.abs(buff.value) < 10 ? `${buff.value.toFixed(2)}×` : whole(buff.value)) : 'active',
-        tone: 'amber' as StatTone,
-        bucket: 'consumable' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime',
-      };
-    });
 
   const dpsContribs: StatContribution[] = [
     ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `${weapon.weaponType} · ${weapon.element}`, value: weaponDps(weapon), display: whole(weaponDps(weapon)), tone: 'red' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })),
@@ -187,7 +199,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     ...skillContribs(spentSkills, 'critChance', baseDps * 0.5, whole),
     ...skillContribs(spentSkills, 'critDamage', baseDps * 0.5, whole),
     ...affixContribs(gear, 'weaponDamage', baseDps, whole),
-    ...activeConsumableContribs.filter((entry) => entry.value !== 0),
+    ...dpsConsumableContribs.filter((entry) => entry.value !== 0),
   ];
 
   // DPS label: shows "Base DPS" (raw pooled weapon power) or "Effective DPS"
@@ -202,7 +214,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     ...skillContribs(spentSkills, 'bossDamageSniperPistol', totalDps, whole),
     ...skillContribs(spentSkills, 'launcherBossDps', totalDps, whole),
     ...skillContribs(spentSkills, 'weaknessMatchDamage', totalDps, whole),
-    ...activeConsumableContribs.filter((entry) => entry.value !== 0),
+    ...dpsConsumableContribs.filter((entry) => entry.value !== 0),
     // Relic & classMod contributions to boss DPS
     ...(relic ? relic.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: relic.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })) : []),
     ...(classMod ? classMod.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: classMod.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })) : []),
@@ -231,7 +243,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
     metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', breakContribs('shield')),
     metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', breakContribs('armor')),
-    metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', utilityContribs(['rareDropChanceMod', 'rareDropChance', 'postBossDropChance'])),
+    metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', [...utilityContribs(['rareDropChanceMod', 'rareDropChance', 'postBossDropChance']), ...economyConsumableContribs.filter((entry) => entry.value !== 0)]),
     metric('offline', 'Offline', offline, signedPct(offline), 'idle earning modifiers', 'green', utilityContribs(['offlineEarningsMod', 'offlineEarnings'])),
     metric('scrap', 'Scrap Yield', scrap, signedPct(scrap), 'salvage and scrap modifiers', 'cyan', utilityContribs(['scrapYieldMod', 'scrapYield', 'autoSalvageBonus', 'lowRarityScrapBonus'])),
     metric('ordnance', 'Ordnance', ordnanceDamage, whole(ordnanceDamage), ordnance ? `${ordnance.effect} · ${ordnance.element}` : 'no ordnance slotted', 'red', ordnance ? [{ source: ordnance.name, detail: `${ordnance.effect} payload`, value: ordnanceDamage, display: whole(ordnanceDamage), tone: 'red', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' }] : []),

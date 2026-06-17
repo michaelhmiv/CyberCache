@@ -316,7 +316,7 @@ describe('buildCharacterStatSummary — activity module metrics (PR #2)', () => 
 
 
 describe('buildCharacterStatSummary — consumable active buff source rows', () => {
-  it('adds active consumables to the consumable contribution bucket', () => {
+  it('adds active consumables to the correct contribution bucket by family', () => {
     const player = makePlayer();
     const weapon = makeWeapon({ id: 'w1' });
     const summary = buildCharacterStatSummary({
@@ -325,6 +325,27 @@ describe('buildCharacterStatSummary — consumable active buff source rows', () 
       spentSkills: {},
       activeBuffs: [{
         id: 'buff-1',
+        consumableId: 'AmmoPack' as never,
+        family: 'ammo',
+        source: 'auto-eat',
+        sourceId: 'test',
+        startedAt: Date.now(),
+        expiresAt: Date.now() + 600_000,
+        durationMs: 600_000,
+        displayState: 'active',
+        value: 1.05,
+      }],
+    });
+    // Ammo family → DPS contributions
+    const dps = summary.all.find((metric) => metric.key === 'dps')!;
+    expect(dps.contributions.some((entry) => entry.bucket === 'consumable' && /Ammo Pack/i.test(entry.source))).toBe(true);
+    // Survival family should NOT appear in DPS
+    const summary2 = buildCharacterStatSummary({
+      player,
+      weapons: [weapon],
+      spentSkills: {},
+      activeBuffs: [{
+        id: 'buff-2',
         consumableId: 'AdrenalineShot' as never,
         family: 'survival',
         source: 'auto-eat',
@@ -336,7 +357,7 @@ describe('buildCharacterStatSummary — consumable active buff source rows', () 
         value: 1.1,
       }],
     });
-    const dps = summary.all.find((metric) => metric.key === 'dps')!;
-    expect(dps.contributions.some((entry) => entry.bucket === 'consumable' && /Adrenaline/i.test(entry.source))).toBe(true);
+    const dps2 = summary2.all.find((metric) => metric.key === 'dps')!;
+    expect(dps2.contributions.some((entry) => entry.bucket === 'consumable' && /Adrenaline/i.test(entry.source))).toBe(false);
   });
 });
