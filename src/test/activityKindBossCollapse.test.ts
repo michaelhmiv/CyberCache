@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { PRODUCTIVE_ACTIVITY_LABELS, IDLE_ACTIVITY, DEFAULT_BOSS_PHASE, isBossPhase, type BossPhase } from '@/types/activity';
+import { PRODUCTIVE_ACTIVITY_LABELS, IDLE_ACTIVITY, DEFAULT_BOSS_PHASE, isBossPhase } from '@/types/activity';
+import type { BossPhase } from '@/types/activity';
 
 describe('ActivityKind — boss_prep removed, bossPhase added', () => {
   it('does not include boss_prep in the union (via label map keys)', () => {
@@ -12,7 +13,7 @@ describe('ActivityKind — boss_prep removed, bossPhase added', () => {
   });
 
   it('IDLE_ACTIVITY has bossPhase prep', () => {
-    expect((IDLE_ACTIVITY as any).bossPhase).toBe('prep');
+    expect(IDLE_ACTIVITY.bossPhase).toBe('prep');
   });
 
   it('DEFAULT_BOSS_PHASE is prep', () => {
@@ -28,7 +29,6 @@ describe('ActivityKind — boss_prep removed, bossPhase added', () => {
   });
 
   it('BossPhase type is "prep" | "fight"', () => {
-    // Type-only check via const assertion
     const valid: BossPhase[] = ['prep', 'fight'];
     expect(valid).toHaveLength(2);
   });

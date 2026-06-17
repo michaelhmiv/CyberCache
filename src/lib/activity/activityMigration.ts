@@ -1,4 +1,4 @@
-import type { ActiveActivity, BossPhase } from '@/types/activity';
+import type { ActiveActivity } from '@/types/activity';
 import { DEFAULT_BOSS_PHASE } from '@/types/activity';
 
 /**

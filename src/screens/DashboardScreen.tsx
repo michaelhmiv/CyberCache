@@ -38,7 +38,7 @@ import { ActiveBuffPills } from '@/components/stats/ActiveBuffPills';
 import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { buildConsumableMods } from '@/lib/buffs/consumableModsAdapter';
-import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
+import { buildBossFightActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
@@ -290,7 +290,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     }
     setActivityError(null);
     try {
-      await activity.start(buildBossPrepActivity(currentBoss, equippedWeapon));
+      await activity.start(buildBossFightActivity(currentBoss, equippedWeapon, 'prep'));
       idle.setFarming(false);
     } catch (error) {
       setActivityError(error instanceof Error ? error.message : 'Unable to start boss prep activity.');
