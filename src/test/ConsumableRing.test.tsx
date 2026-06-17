@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { ConsumableRing } from '@/components/stats/ConsumableRing';
+import { ConsumableType } from '@/types/game';
 
 describe('ConsumableRing', () => {
   it('renders an empty ring with no slices when no consumables are loaded', () => {
@@ -67,6 +68,20 @@ describe('ConsumableRing', () => {
     const svg = container.querySelector('svg');
     expect(svg?.getAttribute('width')).toBe('80');
     expect(svg?.getAttribute('height')).toBe('80');
+  });
+
+  it('shows an active pulse when active buffs are supplied', () => {
+    const { container } = render(
+      <ConsumableRing
+        consumables={{ PreFight: 'MedKit', MidFight: null, Emergency: null }}
+        activeBuffs={[{
+          id: 'buff-1', consumableId: ConsumableType.MedKit, family: 'survival', source: 'auto-eat', sourceId: 'test', startedAt: 0, expiresAt: Date.now() + 1000, durationMs: 1000, displayState: 'active',
+        }]}
+        onClick={() => {}}
+      />
+    );
+    expect(container.querySelector('[data-consumable-active-pulse]')).toBeInTheDocument();
+    expect(container.querySelector('[data-consumable-ring]')?.getAttribute('data-active-consumables')).toBe('1');
   });
 
   it('uses the singular "consumable" in the aria-label when exactly one is loaded', () => {

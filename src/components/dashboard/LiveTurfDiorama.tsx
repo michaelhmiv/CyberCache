@@ -7,7 +7,7 @@ import { ConsumableRing } from '@/components/stats/ConsumableRing';
 import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
-import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore, useBossStore } from '@/store';
+import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore, useBossStore, useActiveBuffsStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { MONSTERS } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -678,12 +678,13 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // A new tick event re-renders this diorama so the SVG fight can react.
   // Keep the expensive, mostly-static Hunter Totals object graph stable so
   // Android WebView does not repaint the HTML overlay on every combat event.
+  const activeBuffs = useActiveBuffsStore((state) => state.buffs).filter((buff) => buff.expiresAt > Date.now());
   const computedStats = useMemo<CharacterStatSummary>(
-    () => statSummary ?? buildCharacterStatSummary({ player, weapons: statWeapons, shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent, boss }),
+    () => statSummary ?? buildCharacterStatSummary({ player, weapons: statWeapons, shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent, boss, activeBuffs }),
     // player.level is the only player-store field used by stat math here.
     // Loadout/skill slot references are included directly; statWeapons is derived.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [statSummary, player.level, primaryWeapon, secondaryWeapon, heavyWeapon, weapon, loadout, skills.spent, boss],
+    [statSummary, player.level, primaryWeapon, secondaryWeapon, heavyWeapon, weapon, loadout, skills.spent, boss, activeBuffs],
   );
   const scene = getLiveTurfScene(area);
   const mode = modeFromActivity(activityKind);
@@ -784,7 +785,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           />
         </button>
         <div data-testid="hud-consumable-ring" className="flex shrink-0 items-center">
-          <ConsumableRing consumables={loadout.consumables} onClick={() => setLedgerOpen(true)} />
+          <ConsumableRing consumables={loadout.consumables} activeBuffs={activeBuffs} onClick={() => setLedgerOpen(true)} />
         </div>
       </div>
       {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} onClose={() => setLedgerOpen(false)} />}

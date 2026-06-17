@@ -6,6 +6,8 @@ import { computeStandardDps } from '@/lib/stats/dpsChain';
 import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
+import { CONSUMABLES } from '@/constants/consumables';
+import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
@@ -70,6 +72,7 @@ type Input = {
    * "vs standard target" to "vs {boss.name} ({weakness1})".
    */
   boss?: BossDef;
+  activeBuffs?: ActiveBuff[];
 };
 
 const pct = (value: number) => `${Math.round(value * 100)}%`;
@@ -110,7 +113,7 @@ function metric(key: string, label: string, value: number, display: string, deta
 }
 
 export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
-  const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss } = input;
+  const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss, activeBuffs = [] } = input;
   const mechanics = buildCharacterMechanicsSnapshot(input);
   const liveWeapons = weapons.filter((weapon): weapon is Weapon => !!weapon);
   const gear = [...liveWeapons, shield, classMod, relic, ordnance];
@@ -149,6 +152,24 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     shield ? { source: shield.name, detail: `Mitigation ${pct(shield.mitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'cyan', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
   ].filter(Boolean) as StatContribution[];
 
+
+  const activeConsumableContribs: StatContribution[] = activeBuffs
+    .filter((buff) => buff.displayState === 'active' || buff.displayState === 'recent')
+    .map((buff) => {
+      const def = CONSUMABLES[buff.consumableId];
+      const remainingMs = Math.max(0, buff.expiresAt - Date.now());
+      return {
+        source: def?.name ?? buff.consumableId,
+        detail: buff.displayState === 'recent'
+          ? 'Recently triggered consumable feedback'
+          : `${Math.ceil(remainingMs / 1000)}s remaining · ${buff.source}`,
+        value: buff.value ?? 0,
+        display: buff.value ? (Math.abs(buff.value) < 10 ? `${buff.value.toFixed(2)}×` : whole(buff.value)) : 'active',
+        tone: 'amber' as StatTone,
+        bucket: 'consumable' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime',
+      };
+    });
+
   const dpsContribs: StatContribution[] = [
     ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `${weapon.weaponType} · ${weapon.element}`, value: weaponDps(weapon), display: whole(weaponDps(weapon)), tone: 'red' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })),
     ...skillContribs(spentSkills, 'weaponDamage', baseDps, whole),
@@ -156,6 +177,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     ...skillContribs(spentSkills, 'critChance', baseDps * 0.5, whole),
     ...skillContribs(spentSkills, 'critDamage', baseDps * 0.5, whole),
     ...affixContribs(gear, 'weaponDamage', baseDps, whole),
+    ...activeConsumableContribs.filter((entry) => entry.value !== 0),
   ];
 
   // DPS label: shows "Base DPS" (raw pooled weapon power) or "Effective DPS"
@@ -170,6 +192,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     ...skillContribs(spentSkills, 'bossDamageSniperPistol', totalDps, whole),
     ...skillContribs(spentSkills, 'launcherBossDps', totalDps, whole),
     ...skillContribs(spentSkills, 'weaknessMatchDamage', totalDps, whole),
+    ...activeConsumableContribs.filter((entry) => entry.value !== 0),
     // Relic & classMod contributions to boss DPS
     ...(relic ? relic.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: relic.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })) : []),
     ...(classMod ? classMod.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: classMod.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })) : []),

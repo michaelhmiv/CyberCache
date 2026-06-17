@@ -313,3 +313,30 @@ describe('buildCharacterStatSummary — activity module metrics (PR #2)', () => 
     });
   });
 });
+
+
+describe('buildCharacterStatSummary — consumable active buff source rows', () => {
+  it('adds active consumables to the consumable contribution bucket', () => {
+    const player = makePlayer();
+    const weapon = makeWeapon({ id: 'w1' });
+    const summary = buildCharacterStatSummary({
+      player,
+      weapons: [weapon],
+      spentSkills: {},
+      activeBuffs: [{
+        id: 'buff-1',
+        consumableId: 'AdrenalineShot' as never,
+        family: 'survival',
+        source: 'auto-eat',
+        sourceId: 'test',
+        startedAt: Date.now(),
+        expiresAt: Date.now() + 20_000,
+        durationMs: 20_000,
+        displayState: 'active',
+        value: 1.1,
+      }],
+    });
+    const dps = summary.all.find((metric) => metric.key === 'dps')!;
+    expect(dps.contributions.some((entry) => entry.bucket === 'consumable' && /Adrenaline/i.test(entry.source))).toBe(true);
+  });
+});

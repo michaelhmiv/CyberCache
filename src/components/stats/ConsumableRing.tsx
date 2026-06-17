@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
+import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
+import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
 
 const SLOT_ORDER: Array<keyof LoadoutConsumables> = ['PreFight', 'MidFight', 'Emergency'];
 
@@ -24,11 +26,17 @@ export const ConsumableRing = memo(function ConsumableRing({
   consumables,
   onClick,
   size = 56,
+  activeBuffs,
 }: {
   consumables: LoadoutConsumables;
   onClick: () => void;
   size?: number;
+  activeBuffs?: ActiveBuff[];
 }) {
+  const storeBuffs = useActiveBuffsStore((state) => state.buffs);
+  const now = Date.now();
+  const visibleBuffs = activeBuffs ?? storeBuffs.filter((buff) => buff.expiresAt > now);
+  const activeCount = visibleBuffs.filter((buff) => buff.displayState === 'active' || buff.displayState === 'recent').length;
   const loaded = SLOT_ORDER.map((slot) => {
     const id = consumables[slot];
     if (!id) return null;
@@ -71,7 +79,8 @@ export const ConsumableRing = memo(function ConsumableRing({
       type="button"
       onClick={onClick}
       data-consumable-ring
-      aria-label={`${loaded.length} consumable${loaded.length === 1 ? '' : 's'} loaded. Tap to manage.`}
+      aria-label={`${loaded.length} consumable${loaded.length === 1 ? '' : 's'} loaded${activeCount > 0 ? `, ${activeCount} active or recent` : ''}. Tap to manage.`}
+      data-active-consumables={activeCount}
       className="flex shrink-0 items-center justify-center"
       style={{ width: size, height: size }}
     >
@@ -105,6 +114,7 @@ export const ConsumableRing = memo(function ConsumableRing({
           );
         })}
         <circle cx={cx} cy={cy} r={innerR - 2} fill="#050608" />
+        {activeCount > 0 && <circle cx={cx} cy={cy} r={innerR - 5} fill="none" stroke="#FFB300" strokeWidth="2" strokeDasharray="3 2" data-consumable-active-pulse="true" />}
         <text x={cx} y={cy + 3} textAnchor="middle" fill="#FF9000" fontSize={size * 0.22} fontWeight="900">
           {loaded.length}
         </text>
