@@ -21,6 +21,7 @@
  *   - No persistence. The caller persists the result.
  */
 import type { Element } from '../../types/game';
+import { ConsumableType } from '../../types/game';
 import type { MonsterDef } from '../../constants/monsters';
 
 /** Minimal weapon shape the contract needs to compute damage. */
@@ -140,14 +141,15 @@ export interface AutoEatDecision {
   reason: 'below_threshold' | 'no_consumables' | 'no_action_needed';
 }
 
-const AUTO_EAT_PRIORITY: string[] = [
-  // Medkit first — restores the most HP. Then shield cell (refills
-  // shield), then nano swarm (status cleanse), then adrenaline shot
-  // (damage boost, doesn't restore HP — kept last).
-  'MedKit',
-  'ShieldCell',
-  'NanoSwarm',
-  'AdrenalineShot',
+const AUTO_EAT_PRIORITY: ConsumableType[] = [
+  // Refined medkit first, then basic HP repair, then shield refill,
+  // then non-heal survival effects. The zero-heal entries still emit
+  // recent consumable feedback so the player sees why a charge vanished.
+  ConsumableType.MedKitRefined,
+  ConsumableType.MedKit,
+  ConsumableType.ShieldCell,
+  ConsumableType.NanoSwarm,
+  ConsumableType.AdrenalineShot,
 ];
 
 export function decideAutoEat(
@@ -178,13 +180,15 @@ export const SHIELD_CELL_AMOUNT = 100;
 
 export function computeHealAmount(consumableId: string): number {
   switch (consumableId) {
-    case 'MedKit':
+    case ConsumableType.MedKitRefined:
+      return 260;
+    case ConsumableType.MedKit:
       return MEDKIT_HEAL_AMOUNT;
-    case 'ShieldCell':
+    case ConsumableType.ShieldCell:
       return SHIELD_CELL_AMOUNT;
-    case 'NanoSwarm':
+    case ConsumableType.NanoSwarm:
       return 0; // status cleanse, no direct heal
-    case 'AdrenalineShot':
+    case ConsumableType.AdrenalineShot:
       return 0; // damage boost, no direct heal
     default:
       return 0;

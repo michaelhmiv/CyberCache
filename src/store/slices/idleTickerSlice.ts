@@ -41,6 +41,7 @@ import { generateWeapon } from '@/lib/generators/weaponGenerator';
 import { generateShield } from '@/lib/generators/shieldGenerator';
 import { generateClassMod } from '@/lib/generators/classModGenerator';
 import { generateRelic } from '@/lib/generators/relicGenerator';
+import { applyBossConsumableDisplayEvents } from '@/lib/chef/bossResultAdapter';
 import { generateOrdnance } from '@/lib/generators/ordnanceGenerator';
 
 const TICK_MS = 3000;
@@ -268,6 +269,12 @@ const applySurvivalTick = (areaId: string, ticks: number): TickEvent[] => {
       const consumableId = decision.eatConsumable;
       const healAmount = computeHealAmount(consumableId);
       player.removeConsumable(consumableId, 1);
+      applyBossConsumableDisplayEvents({
+        attemptId: `auto-eat:${areaId}:${at}:${consumableId}`,
+        consumedConsumables: { [consumableId]: 1 },
+        now: at,
+        source: 'auto-eat',
+      });
       if (consumableId === 'ShieldCell') {
         survival.refillShield(healAmount);
         events.push({

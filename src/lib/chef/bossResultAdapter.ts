@@ -16,6 +16,7 @@ export interface BossConsumableDisplayInput {
   consumedConsumables: Record<string, number>;
   now?: number;
   qualityPercent?: number;
+  source?: ActiveBuff['source'];
 }
 
 const isConsumableType = (id: string): id is ConsumableType => id in CONSUMABLE_ACTIVATORS;
@@ -25,6 +26,7 @@ export function buildConsumableDisplayRows({
   consumedConsumables,
   now = Date.now(),
   qualityPercent,
+  source,
 }: BossConsumableDisplayInput): ActiveBuff[] {
   const rows: ActiveBuff[] = [];
   for (const [id, count] of Object.entries(consumedConsumables)) {
@@ -39,7 +41,7 @@ export function buildConsumableDisplayRows({
         id: `${id}:${attemptId}:${index}`,
         consumableId: id,
         family: def.family,
-        source: durationMs > 0 ? 'boss-result' : 'instant-event',
+        source: source ?? (durationMs > 0 ? 'boss-result' : 'instant-event'),
         sourceId: attemptId,
         startedAt: now,
         expiresAt: now + (durationMs > 0 ? durationMs : visualTtlMs ?? 0),
