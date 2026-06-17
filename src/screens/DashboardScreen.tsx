@@ -40,6 +40,7 @@ import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { buildConsumableMods } from '@/lib/buffs/consumableModsAdapter';
 import { buildBossFightActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
+import { computeMedKitBuffer } from '@/lib/combat/damageContract';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
 import type { TickEvent, TickEventTone } from '@/store/slices/tickSlice';
@@ -274,6 +275,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const startSelectedRoaming = useCallback(async () => {
     setActivityError(null);
     try {
+      // Activate survival consumables proactively on roaming start.
+      const survivalStore = useSurvivalStore.getState();
+      const playerState = usePlayerStore.getState();
+      // Med Kit: set HP buffer
+      if ((playerState.consumables['MedKit'] ?? 0) > 0) {
+        const bufferAmount = computeMedKitBuffer('MedKit');
+        survivalStore.setMedKitBuffer(bufferAmount);
+      }
+      // Nano Swarm: start per-tick regen
+      if ((playerState.consumables['NanoSwarm'] ?? 0) > 0) {
+        survivalStore.startNanoSwarm(30); // 30 ticks × 10 HP = 300 HP
+      }
       await activity.start(buildRoamingLootActivity(selectedArea, equippedWeapon));
       idle.setFarming(true);
     } catch (error) {

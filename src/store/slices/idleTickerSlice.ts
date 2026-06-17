@@ -26,7 +26,6 @@ import { pickAreaMonster, resolveAreaMonsters } from '@/lib/combat/areaMonsterSe
 import {
   computeMonsterDamageVsHunter,
   computePlayerDamageVsMonster,
-  decideAutoEat,
   computeHealAmount,
   type WeaponDamageSource,
 } from '@/lib/combat/damageContract';
@@ -256,46 +255,95 @@ const applySurvivalTick = (areaId: string, ticks: number): TickEvent[] => {
       });
     }
 
-    // Auto-eat: if HP dropped below threshold, burn a consumable.
-    const survival = useSurvivalStore.getState();
+    // Nano Swarm per-tick regen: if active, heal 10 HP and decrement.
+    const survivalState = useSurvivalStore.getState();
+    if (survivalState.nanoSwarmTicksRemaining > 0) {
+      const depleted = survivalState.tickNanoSwarm(10);
+      events.push({
+        id: '',
+        at,
+        tone: 'heal',
+        label: '+10 HP',
+        detail: `Nano Swarm repair cloud (${survivalState.nanoSwarmTicksRemaining} ticks left).`,
+        areaId,
+        value: 10,
+      });
+      if (depleted) {
+        events.push({
+          id: '',
+          at,
+          tone: 'consumable',
+          label: 'Nano Swarm expired',
+          detail: 'Repair cloud dissipated.',
+          areaId,
+          value: 0,
+        });
+      }
+    }
+
+    // Adrenaline Shot: reactive DPS burst when HP < 20%.
     const player = usePlayerStore.getState();
-    const decision = decideAutoEat(
-      survival.currentHp,
-      survival.maxHp,
-      player.consumables,
-      survival.autoEatThreshold
-    );
-    if (decision.eatConsumable) {
-      const consumableId = decision.eatConsumable;
-      const healAmount = computeHealAmount(consumableId);
-      player.removeConsumable(consumableId, 1);
+    if (!survivalState.isAdrenalineActive() &&
+        survivalState.currentHp > 0 &&
+        survivalState.maxHp > 0 &&
+        survivalState.currentHp / survivalState.maxHp < 0.2 &&
+        (player.consumables['AdrenalineShot'] ?? 0) > 0) {
+      player.removeConsumable('AdrenalineShot', 1);
+      survivalState.triggerAdrenaline(20000); // 20 second burst
       applyBossConsumableDisplayEvents({
-        attemptId: `auto-eat:${areaId}:${at}:${consumableId}`,
-        consumedConsumables: { [consumableId]: 1 },
+        attemptId: `adrenaline:${areaId}:${at}:AdrenalineShot`,
+        consumedConsumables: { AdrenalineShot: 1 },
         now: at,
         source: 'auto-eat',
       });
-      if (consumableId === 'ShieldCell') {
-        survival.refillShield(healAmount);
+      events.push({
+        id: '',
+        at,
+        tone: 'consumable',
+        label: 'Adrenaline Shot',
+        detail: 'Emergency DPS burst triggered! +10% DPS for 20s.',
+        areaId,
+        value: 0,
+      });
+    }
+
+    // Shield Cell: reactive shield restore when shield is depleted.
+    const survival = useSurvivalStore.getState();
+    if (survival.shieldHp <= 0 && (player.consumables['ShieldCell'] ?? 0) > 0) {
+      const healAmount = computeHealAmount('ShieldCell');
+      player.removeConsumable('ShieldCell', 1);
+      survival.refillShield(healAmount);
+      applyBossConsumableDisplayEvents({
+        attemptId: `auto-eat:${areaId}:${at}:ShieldCell`,
+        consumedConsumables: { ShieldCell: 1 },
+        now: at,
+        source: 'auto-eat',
+      });
+      events.push({
+        id: '',
+        at,
+        tone: 'heal',
+        label: 'Shield Cell',
+        detail: `Auto-ate a Shield Cell (+${healAmount} shield).`,
+        areaId,
+        value: healAmount,
+      });
+    }
+
+    // Med Kit buffer depletion: when buffer hits 0, consume the Med Kit.
+    const postSurvival = useSurvivalStore.getState();
+    if (postSurvival.medKitBuffer <= 0) {
+      const playerState = usePlayerStore.getState();
+      if ((playerState.consumables['MedKit'] ?? 0) > 0) {
+        playerState.removeConsumable('MedKit', 1);
         events.push({
           id: '',
           at,
-          tone: 'heal',
-          label: 'Shield Cell',
-          detail: `Auto-ate a Shield Cell (+${healAmount} shield).`,
+          tone: 'consumable',
+          label: 'Med Kit depleted',
+          detail: 'HP buffer absorbed all damage.',
           areaId,
-          value: healAmount,
-        });
-      } else if (healAmount > 0) {
-        survival.heal(healAmount);
-        events.push({
-          id: '',
-          at,
-          tone: 'heal',
-          label: `+${healAmount} HP`,
-          detail: `Auto-ate a ${consumableId} (+${healAmount} HP).`,
-          areaId,
-          value: healAmount,
+          value: 0,
         });
       }
     }

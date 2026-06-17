@@ -57,6 +57,13 @@ export interface SurvivalState {
   currentHp: number;
   maxHp: number;
   shieldHp: number;
+  /** Med Kit HP buffer — absorbs damage after shield, before HP. */
+  medKitBuffer: number;
+  /** Nano Swarm regen ticks remaining — heals N HP per tick. */
+  nanoSwarmTicksRemaining: number;
+  /** Adrenaline Shot DPS burst active state. */
+  adrenalineActive: boolean;
+  adrenalineExpiresAt: number;
   isDead: boolean;
   lastKilledBy: DeathLogEntry | null;
   deathLog: DeathLogEntry[];
@@ -71,6 +78,11 @@ export interface SurvivalState {
   applyDamage: (hpDamage: number) => void;
   heal: (amount: number) => void;
   refillShield: (amount: number) => void;
+  setMedKitBuffer: (amount: number) => void;
+  tickNanoSwarm: (healPerTick: number) => boolean;
+  startNanoSwarm: (ticks: number) => void;
+  triggerAdrenaline: (durationMs: number) => void;
+  isAdrenalineActive: () => boolean;
   consumeConsumable: (consumableId: string) => void;
   setAutoEatThreshold: (threshold: number) => void;
   die: (entry: DeathLogEntry) => void;
@@ -92,10 +104,14 @@ export interface SurvivalState {
 const INITIAL_MAX_HP = 700;
 const INITIAL_SHIELD_HP = 0;
 
-export const useSurvivalStore = create<SurvivalState>()((set) => ({
+export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
   currentHp: INITIAL_MAX_HP,
   maxHp: INITIAL_MAX_HP,
   shieldHp: INITIAL_SHIELD_HP,
+  medKitBuffer: 0,
+  nanoSwarmTicksRemaining: 0,
+  adrenalineActive: false,
+  adrenalineExpiresAt: 0,
   isDead: false,
   lastKilledBy: null,
   deathLog: [],
@@ -118,7 +134,15 @@ export const useSurvivalStore = create<SurvivalState>()((set) => ({
   applyDamage: (hpDamage) =>
     set((state) => {
       if (state.isDead) return state;
-      const newHp = Math.max(0, state.currentHp - hpDamage);
+      let remaining = hpDamage;
+      // Absorption order: med kit buffer → HP
+      // (shield absorption is handled by the caller before calling applyDamage)
+      if (state.medKitBuffer > 0 && remaining > 0) {
+        const absorbed = Math.min(state.medKitBuffer, remaining);
+        remaining -= absorbed;
+        return { medKitBuffer: state.medKitBuffer - absorbed, currentHp: Math.max(0, state.currentHp - remaining) };
+      }
+      const newHp = Math.max(0, state.currentHp - remaining);
       if (newHp <= 0) {
         return { currentHp: 0, isDead: true };
       }
@@ -134,6 +158,31 @@ export const useSurvivalStore = create<SurvivalState>()((set) => ({
 
   refillShield: (amount) =>
     set((state) => ({ shieldHp: state.shieldHp + amount })),
+
+  setMedKitBuffer: (amount) => set({ medKitBuffer: Math.max(0, amount) }),
+
+  tickNanoSwarm: (healPerTick) => {
+    const state = get();
+    if (state.nanoSwarmTicksRemaining <= 0) return false;
+    state.heal(healPerTick);
+    set({ nanoSwarmTicksRemaining: state.nanoSwarmTicksRemaining - 1 });
+    return get().nanoSwarmTicksRemaining <= 0;
+  },
+
+  startNanoSwarm: (ticks) => set({ nanoSwarmTicksRemaining: ticks }),
+
+  triggerAdrenaline: (durationMs) =>
+    set({ adrenalineActive: true, adrenalineExpiresAt: Date.now() + durationMs }),
+
+  isAdrenalineActive: () => {
+    const state = get();
+    if (!state.adrenalineActive) return false;
+    if (Date.now() >= state.adrenalineExpiresAt) {
+      set({ adrenalineActive: false });
+      return false;
+    }
+    return true;
+  },
 
   consumeConsumable: (consumableId) => {
     // Caller is responsible for decrementing the player inventory.
@@ -162,6 +211,10 @@ export const useSurvivalStore = create<SurvivalState>()((set) => ({
       isDead: false,
       currentHp: state.maxHp,
       shieldHp: 0,
+      medKitBuffer: 0,
+      nanoSwarmTicksRemaining: 0,
+      adrenalineActive: false,
+      adrenalineExpiresAt: 0,
       resurrectionStartedAt: null,
       resurrectionReadyAt: null,
     })),
@@ -173,6 +226,10 @@ export const useSurvivalStore = create<SurvivalState>()((set) => ({
         isDead: false,
         currentHp: state.maxHp,
         shieldHp: 0,
+        medKitBuffer: 0,
+        nanoSwarmTicksRemaining: 0,
+        adrenalineActive: false,
+        adrenalineExpiresAt: 0,
         resurrectionStartedAt: null,
         resurrectionReadyAt: null,
       };
@@ -185,6 +242,10 @@ export const useSurvivalStore = create<SurvivalState>()((set) => ({
         isDead: false,
         currentHp: state.maxHp,
         shieldHp: 0,
+        medKitBuffer: 0,
+        nanoSwarmTicksRemaining: 0,
+        adrenalineActive: false,
+        adrenalineExpiresAt: 0,
         resurrectionStartedAt: null,
         resurrectionReadyAt: null,
       };
@@ -194,6 +255,10 @@ export const useSurvivalStore = create<SurvivalState>()((set) => ({
     set((state) => ({
       currentHp: state.maxHp,
       shieldHp: 0,
+      medKitBuffer: 0,
+      nanoSwarmTicksRemaining: 0,
+      adrenalineActive: false,
+      adrenalineExpiresAt: 0,
       isDead: false,
       resurrectionStartedAt: null,
       resurrectionReadyAt: null,

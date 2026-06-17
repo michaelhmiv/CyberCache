@@ -5,7 +5,7 @@ import {
   decideAutoEat,
   computeHealAmount,
   computeHunterMaxHp,
-  MEDKIT_HEAL_AMOUNT,
+  MEDKIT_BUFFER_AMOUNT,
   SHIELD_CELL_AMOUNT,
   type WeaponDamageSource,
   type HunterSurvivalStats,
@@ -110,25 +110,19 @@ describe('damage contract', () => {
 
   describe('decideAutoEat', () => {
     it('returns no_action_needed above threshold', () => {
-      const result = decideAutoEat(800, 1000, { MedKit: 5 }, 0.7);
+      const result = decideAutoEat(800, 1000, { ShieldCell: 2 }, 0.7);
       expect(result.eatConsumable).toBeNull();
       expect(result.reason).toBe('no_action_needed');
     });
 
-    it('uses refined medkit before basic medkit when below threshold', () => {
-      const result = decideAutoEat(600, 1000, { MedKitRefined: 1, MedKit: 5, ShieldCell: 2 }, 0.7);
-      expect(result.eatConsumable).toBe('MedKitRefined');
+    it('uses shield cell when below threshold', () => {
+      const result = decideAutoEat(600, 1000, { ShieldCell: 2, AdrenalineShot: 1 }, 0.7);
+      expect(result.eatConsumable).toBe('ShieldCell');
       expect(result.reason).toBe('below_threshold');
     });
 
-    it('falls back to medkit then shield cell when no refined medkits', () => {
-      expect(decideAutoEat(600, 1000, { MedKit: 5, ShieldCell: 2 }, 0.7).eatConsumable).toBe('MedKit');
-      expect(decideAutoEat(600, 1000, { MedKit: 0, ShieldCell: 2 }, 0.7).eatConsumable).toBe('ShieldCell');
-    });
-
-    it('keeps zero-heal survival items at the end of priority', () => {
-      expect(decideAutoEat(600, 1000, { NanoSwarm: 1, AdrenalineShot: 1 }, 0.7).eatConsumable).toBe('NanoSwarm');
-      expect(decideAutoEat(600, 1000, { NanoSwarm: 0, AdrenalineShot: 1 }, 0.7).eatConsumable).toBe('AdrenalineShot');
+    it('falls back to adrenaline shot when no shield cells', () => {
+      expect(decideAutoEat(600, 1000, { ShieldCell: 0, AdrenalineShot: 1 }, 0.7).eatConsumable).toBe('AdrenalineShot');
     });
 
     it('returns no_consumables when inventory is empty', () => {
@@ -138,16 +132,16 @@ describe('damage contract', () => {
     });
 
     it('threshold 1.0 means eat on any damage', () => {
-      const result = decideAutoEat(999, 1000, { MedKit: 1 }, 1.0);
-      expect(result.eatConsumable).toBe('MedKit');
+      const result = decideAutoEat(999, 1000, { ShieldCell: 1 }, 1.0);
+      expect(result.eatConsumable).toBe('ShieldCell');
     });
   });
 
   describe('heal amounts', () => {
-    it('medkit restores 150, shield cell restores 100', () => {
-      expect(MEDKIT_HEAL_AMOUNT).toBe(150);
+    it('medkit buffer is 150, shield cell restores 100', () => {
+      expect(MEDKIT_BUFFER_AMOUNT).toBe(150);
       expect(SHIELD_CELL_AMOUNT).toBe(100);
-      expect(computeHealAmount('MedKit')).toBe(150);
+      expect(computeHealAmount('MedKit')).toBe(0); // Med Kit is now a buffer, not a heal
       expect(computeHealAmount('ShieldCell')).toBe(100);
     });
 

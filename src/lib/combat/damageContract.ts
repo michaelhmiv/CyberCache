@@ -142,13 +142,11 @@ export interface AutoEatDecision {
 }
 
 const AUTO_EAT_PRIORITY: ConsumableType[] = [
-  // Refined medkit first, then basic HP repair, then shield refill,
-  // then non-heal survival effects. The zero-heal entries still emit
-  // recent consumable feedback so the player sees why a charge vanished.
-  ConsumableType.MedKitRefined,
-  ConsumableType.MedKit,
+  // Shield Cell still uses reactive auto-eat for shield restore.
+  // Med Kit is now a proactive buffer (set on roaming start, not reactive).
+  // Nano Swarm is now per-tick regen (started on roaming start).
+  // Adrenaline Shot is a reactive DPS burst (triggered on low HP).
   ConsumableType.ShieldCell,
-  ConsumableType.NanoSwarm,
   ConsumableType.AdrenalineShot,
 ];
 
@@ -181,15 +179,32 @@ export const SHIELD_CELL_AMOUNT = 100;
 export function computeHealAmount(consumableId: string): number {
   switch (consumableId) {
     case ConsumableType.MedKitRefined:
-      return 260;
+      return 260; // legacy — still used by boss sim
     case ConsumableType.MedKit:
-      return MEDKIT_HEAL_AMOUNT;
+      return 0; // Med Kit is now a proactive buffer, not a reactive heal
     case ConsumableType.ShieldCell:
       return SHIELD_CELL_AMOUNT;
     case ConsumableType.NanoSwarm:
-      return 0; // status cleanse, no direct heal
+      return 0; // Nano Swarm is now per-tick regen, handled by survivalSlice
     case ConsumableType.AdrenalineShot:
-      return 0; // damage boost, no direct heal
+      return 0; // Adrenaline is a DPS burst, not a heal
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Med Kit HP buffer amount. The buffer is set proactively when roaming
+ * starts and absorbs damage after shield but before HP.
+ */
+export const MEDKIT_BUFFER_AMOUNT = 150;
+
+export function computeMedKitBuffer(consumableId: string): number {
+  switch (consumableId) {
+    case ConsumableType.MedKit:
+      return MEDKIT_BUFFER_AMOUNT;
+    case ConsumableType.MedKitRefined:
+      return 260; // legacy
     default:
       return 0;
   }
