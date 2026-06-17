@@ -33,9 +33,8 @@ import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useLoadoutStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
-import { RARITIES } from '@/constants/rarities';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
-import type { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance, Affix } from '@/types/items';
+import type { GearItem } from '@/types/items';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 import {
@@ -50,8 +49,7 @@ import {
   topActivityModule,
   sumNodeBoosts,
   gearCardSummary,
-  type CardStat,
-  type GearCardSummary,
+  type CardStat
 } from '@/lib/gear/gearCardSummary';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -191,14 +189,6 @@ const kindLabel = (item: GearItem): string =>
   KIND_DEFS.find((kind) => kind.id === kindOf(item))?.label.replace(/s$/, '') ?? 'Gear';
 
 // ── Formatting / Scoring Helpers ─────────────────────────────────────────────
-
-const formatNumber = (value: number): string => Number.isFinite(value) ? Math.round(value).toLocaleString() : '0';
-const formatPct = (value: number): string => `${Math.round(value * 100)}%`;
-
-function readNumber(item: GearItem, key: string): number {
-  const value = (item as unknown as Record<string, unknown>)[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
 
 function itemComparable(item: GearItem, key: SortKey): number {
   const activity = topActivityModule(item)?.value ?? 0;

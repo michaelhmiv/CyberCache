@@ -146,7 +146,7 @@ export const VendorScreen: React.FC = () => {
         </div>
         <select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as any)}
+          onChange={(e) => setSortBy(e.target.value as 'price' | 'owned' | 'name')}
           className="shrink-0 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
         >
           <option value="price">Cheapest First</option>

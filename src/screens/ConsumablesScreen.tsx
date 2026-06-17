@@ -70,13 +70,8 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
   );
 
   const displayItems = useMemo(() => {
-    let result: Array<{ def: ConsumableDef; count: number; bestQuality: number }> = [];
-
-    if (filterFamily === 'all') {
-      result = Object.values(grouped).flat();
-    } else {
-      result = grouped[filterFamily];
-    }
+    let result: Array<{ def: ConsumableDef; count: number; bestQuality: number }> =
+      filterFamily === 'all' ? Object.values(grouped).flat() : grouped[filterFamily];
 
     if (search.trim()) {
       const q = search.toLowerCase().trim();
@@ -184,7 +179,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
         </div>
         <select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as any)}
+          onChange={(e) => setSortBy(e.target.value as 'count' | 'quality' | 'name')}
           className="shrink-0 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
         >
           <option value="count">Most Owned</option>
@@ -207,7 +202,6 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
       ) : (
         <div className="space-y-1.5">
           {displayItems.map(({ def, count, bestQuality }) => {
-            const Icon = FAMILY_ICONS[def.family];
             const colorClass = FAMILY_COLORS[def.family];
             return (
               <button
