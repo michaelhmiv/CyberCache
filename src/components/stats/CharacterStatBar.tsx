@@ -381,7 +381,7 @@ export const CharacterStatBar = memo(function CharacterStatBar({
           onChangeOverride={onChangeOverride}
         />
       </button>
-      <CharacterStatBreakdownModal summary={summary} open={open} onClose={() => setOpen(false)} />
+      <CharacterStatBreakdownModal summary={summary} open={open} onClose={() => setOpen(false)} activityKind={activityKind} />
     </>
   );
 });

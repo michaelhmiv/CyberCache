@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import type { CharacterStatSummary, StatTone } from '@/lib/stats/characterStats';
-import { SourceRow } from './CharacterStatBar';
+import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
+import { getBreakdownMetricKeys } from '@/lib/hud/headlineMetrics';
+import { MetricCard } from './MetricCard';
+import type { ActivityKind } from '@/types/activity';
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -17,25 +19,66 @@ const tabToneClass: Record<StatTone, { text: string; border: string; bg: string 
 };
 
 /**
- * The full source-breakdown modal: lists every StatMetric in the summary
- * with its contributions grouped by `bucket`. Extracted from
- * `CharacterStatBar` so the dashboard can mount it from a panel
- * `headerActions` button without dragging in the bar wrapper.
+ * Filter the full metric list down to only those relevant to the player's
+ * current activity. Uses `getBreakdownMetricKeys` for the key set, then
+ * disambiguates duplicate keys (e.g. `droneAssistSpeed` exists in both
+ * crafting and workshop modules) by matching `metric.sourceActivity`
+ * against the current activity kind.
  *
- * Mounts at z-80 to match the existing bar variant. The `open` prop
- * drives AnimatePresence; when `false` the modal is unmounted entirely
- * (no DOM, no backdrop).
+ * Core combat metrics (health, effectiveHp, dps, shieldBreak) have no
+ * `sourceActivity` and are always included via the key set.
+ */
+function filterByActivity(summary: CharacterStatSummary, activityKind?: ActivityKind): StatMetric[] {
+  const keys = getBreakdownMetricKeys(activityKind);
+  const keySet = new Set(keys);
+
+  return summary.all.filter((metric) => {
+    if (!keySet.has(metric.key)) return false;
+    // If the key is in the set, check whether the metric's sourceActivity
+    // matches the current activity. Core metrics have no sourceActivity
+    // and always pass. Activity-module metrics must match.
+    if (metric.sourceActivity && activityKind && metric.sourceActivity !== activityKind) {
+      // Allow through only if the key set explicitly includes this key
+      // for this activity — prevents workshop's droneAssistSpeed from
+      // showing when the player is crafting.
+      return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * The full source-breakdown modal: lists every relevant StatMetric for the
+ * player's current activity, each rendered as a MetricCard with a
+ * composition bar and collapsible detail list.
+ *
+ * Activity-scoped: pass `activityKind` to filter the metric list down to
+ * only the stats that matter for what the player is currently doing. This
+ * replaces the old 44-tab flat list with 8–14 tabs per activity.
+ *
+ * Mounts at z-80. The `open` prop drives AnimatePresence.
  */
 export const CharacterStatBreakdownModal: React.FC<{
   summary: CharacterStatSummary;
   open: boolean;
   onClose: () => void;
-}> = ({ summary, open, onClose }) => {
+  activityKind?: ActivityKind;
+}> = ({ summary, open, onClose, activityKind }) => {
   const [activeMetric, setActiveMetric] = useState(0);
+
+  const scopedMetrics = useMemo(
+    () => filterByActivity(summary, activityKind),
+    [summary, activityKind],
+  );
+
+  // Clamp activeMetric when the scoped set changes (e.g. activity switch)
+  const safeActiveIndex = Math.min(activeMetric, Math.max(0, scopedMetrics.length - 1));
+
   const sourceMax = useMemo(
     () => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))),
     [summary],
   );
+
   return (
     <AnimatePresence>
       {open && (
@@ -61,7 +104,9 @@ export const CharacterStatBreakdownModal: React.FC<{
               <div>
                 <div className="bl-title text-xl leading-none text-text-primary">Source Breakdown</div>
                 <div className="mt-0.5 text-[9px] text-text-muted">
-                  Tap a stat to see contributing gear, skills, and buffs.
+                  {activityKind && activityKind !== 'none'
+                    ? `Stats for ${activityKind.replace(/_/g, ' ')} · tap a stat to see sources`
+                    : 'Tap a stat to see contributing gear, skills, and buffs.'}
                 </div>
               </div>
               <button
@@ -73,15 +118,16 @@ export const CharacterStatBreakdownModal: React.FC<{
                 <X size={15} />
               </button>
             </div>
-            {/* Metric tab strip */}
-            {summary.all.length > 1 && (
+
+            {/* Metric tab strip (activity-scoped) */}
+            {scopedMetrics.length > 1 && (
               <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
-                {summary.all.map((metric, index) => {
+                {scopedMetrics.map((metric, index) => {
                   const tone = tabToneClass[metric.tone];
-                  const isActive = index === activeMetric;
+                  const isActive = index === safeActiveIndex;
                   return (
                     <button
-                      key={metric.key}
+                      key={`${metric.key}-${metric.sourceActivity ?? 'core'}`}
                       type="button"
                       onClick={() => setActiveMetric(index)}
                       className={`shrink-0 border px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-colors ${
@@ -92,27 +138,30 @@ export const CharacterStatBreakdownModal: React.FC<{
                       style={slashClip}
                     >
                       {metric.label}
-                      <span className="ml-1 opacity-60">{metric.contributions.length}</span>
+                      {metric.contributions.filter((c) => c.value !== 0).length > 0 && (
+                        <span className="ml-1 opacity-60">{metric.contributions.filter((c) => c.value !== 0).length}</span>
+                      )}
                     </button>
                   );
                 })}
               </div>
             )}
-            {/* Active metric's sources */}
-            {summary.all.length > 0 && (
-              <SourceRow
-                metric={summary.all[activeMetric]}
+
+            {/* Active metric's MetricCard */}
+            {scopedMetrics.length > 0 && (
+              <MetricCard
+                metric={scopedMetrics[safeActiveIndex]}
                 max={sourceMax}
-                groupByBucket
-                compact
               />
             )}
+
             {/* Empty state */}
-            {summary.all.length === 0 && (
+            {scopedMetrics.length === 0 && (
               <div className="border border-border bg-surface/80 p-3 text-[10px] text-text-muted">
                 No stats available for the current loadout.
               </div>
             )}
+
             <div className="mt-2 text-[8px] font-black uppercase tracking-wider text-text-muted/60">
               Presentation HUD · server math is authoritative
             </div>

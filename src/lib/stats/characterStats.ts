@@ -8,6 +8,7 @@ import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
 import { CONSUMABLES } from '@/constants/consumables';
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
+import type { ActivityKind } from '@/types/activity';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
@@ -43,13 +44,21 @@ export type StatMetric = {
    * Each segment is a (value, display, tone) triple that, summed, equals
    * `value`. The HUD uses this to render a single horizontal bar split
    * by source (e.g., HP bar: base chassis + shield + mitigation). The
-   * SourceRow in the modal renders the same data as a contribution list.
+   * MetricCard in the modal renders the same data as a contribution list.
    *
    * If absent, the HUD renders no bar for the metric (default text-only).
    * Idle-game convention: a single non-stacked bar uses `stacked = [{...}]`
    * with one entry equal to `value`.
    */
   stacked?: Array<{ value: number; display: string; tone: StatTone; label: string }>;
+  /**
+   * When this metric is an activity-module sub-stat, this field records
+   * which activity it belongs to. This disambiguates metrics that share
+   * the same key across activities (e.g., `droneAssistSpeed` exists in
+   * both crafting and workshop modules). The breakdown modal uses this
+   * to filter metrics by the player's current activity.
+   */
+  sourceActivity?: ActivityKind;
 };
 
 export type CharacterStatSummary = {
@@ -109,8 +118,8 @@ function affixContribs(gear: Array<GearItem | undefined>, key: string, scalar: n
   });
 }
 
-function metric(key: string, label: string, value: number, display: string, detail: string, tone: StatTone, contributions: StatContribution[], stacked?: StatMetric['stacked']): StatMetric {
-  return { key, label, value, display, detail, tone, contributions: contributions.filter((entry) => entry.value !== 0), stacked };
+function metric(key: string, label: string, value: number, display: string, detail: string, tone: StatTone, contributions: StatContribution[], stacked?: StatMetric['stacked'], sourceActivity?: ActivityKind): StatMetric {
+  return { key, label, value, display, detail, tone, contributions: contributions.filter((entry) => entry.value !== 0), stacked, sourceActivity };
 }
 
 export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
@@ -271,6 +280,8 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
                   bucket: 'activity' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime',
                 })))
           : [],
+        undefined,
+        def.activityKind,
       );
     }),
   );
