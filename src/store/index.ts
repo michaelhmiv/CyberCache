@@ -8,6 +8,7 @@ import { useSkillStore } from './slices/skillSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
 import { useActivityStore } from './slices/activitySlice';
 import { useTickFeedStore } from './slices/tickSlice';
+import { useActiveBuffsStore } from './slices/activeBuffsSlice';
 import { useIdleTickerStore, mountIdleTicker, unmountIdleTicker } from './slices/idleTickerSlice';
 import { useCombatStatsStore, combatStatsSelectors } from './slices/combatStatsSlice';
 import { useSurvivalStore } from './slices/survivalSlice';
@@ -28,6 +29,7 @@ export {
   useWorkshopStore,
   useActivityStore,
   useTickFeedStore,
+  useActiveBuffsStore,
   useIdleTickerStore,
   mountIdleTicker,
   unmountIdleTicker,

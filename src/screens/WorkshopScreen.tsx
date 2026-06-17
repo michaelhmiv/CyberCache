@@ -359,7 +359,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         </div>
         <select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as any)}
+          onChange={(e) => setSortBy(e.target.value as 'time' | 'level' | 'name')}
           className="shrink-0 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
         >
           <option value="level">Sort: Level ↑</option>

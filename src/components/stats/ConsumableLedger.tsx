@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, PackageOpen } from 'lucide-react';
+import { X, PackageOpen, TimerReset } from 'lucide-react';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
+import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
+import { getLoadoutConsumableCoverage } from '@/lib/buffs/loadoutCoverage';
 
 const SLOT_LABELS: Record<keyof LoadoutConsumables, string> = {
   PreFight: 'Pre-Fight',
@@ -33,8 +35,15 @@ export const ConsumableLedger: React.FC<{
   consumables: LoadoutConsumables;
   onClose: () => void;
 }> = ({ consumables, onClose }) => {
-  // Future: when the project gains an active-buff store, replace the static
-  // "loaded" rows with "active" rows that show time-to-expire.
+  const [now] = React.useState(Date.now);
+  const buffs = useActiveBuffsStore((state) => state.buffs);
+  const activeRows = buffs.filter((buff) => buff.expiresAt > now && buff.displayState !== 'armed');
+  const coverageRows = getLoadoutConsumableCoverage(consumables);
+  const formatRemaining = (expiresAt: number) => {
+    const remaining = Math.max(0, expiresAt - now);
+    if (remaining >= 60_000) return `${Math.ceil(remaining / 60_000)}m`;
+    return `${Math.ceil(remaining / 1000)}s`;
+  };
   return (
     <AnimatePresence>
       <motion.div
@@ -70,11 +79,30 @@ export const ConsumableLedger: React.FC<{
               <X size={15} />
             </button>
           </div>
-          <div
-            className="mb-3 border-2 border-amber/40 bg-amber/10 p-2 text-[10px] font-bold text-amber"
-            style={{ clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' }}
-          >
-            This shows loaded consumables only. In-flight buffs and their expiry are not yet tracked client-side — that data lives on the server. Future PR will add live timer pills here.
+          <div className="mb-3 space-y-2" data-testid="active-consumable-section">
+            <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.2em] text-amber">
+              <span>Active / Recent</span>
+              <span>{activeRows.length} live</span>
+            </div>
+            {activeRows.length === 0 ? (
+              <div className="border-2 border-border bg-bg/70 p-2 text-[10px] text-text-muted" style={panelClip}>No active consumable effect has fired yet. Loaded slots below show what is armed.</div>
+            ) : activeRows.map((buff) => {
+              const def = CONSUMABLES[buff.consumableId];
+              const tone = def ? (accentClass[def.visual.accent] ?? 'text-text-primary border-border bg-bg/80') : 'text-text-muted border-border bg-bg/60';
+              return (
+                <div key={buff.id} data-testid="active-consumable-row" data-state={buff.displayState} className={`relative flex items-center gap-3 border-2 p-2 ${tone}`} style={panelClip}>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-bg/80 text-lg">{def?.visual.glyph ?? <TimerReset size={18} />}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">{buff.displayState === 'recent' ? 'Recently Triggered' : 'Active Effect'}</div>
+                    <div className="truncate text-sm font-black text-text-primary">{def?.name ?? buff.consumableId}</div>
+                    <div className="truncate text-[9px] text-text-muted">{buff.displayState === 'recent' ? 'instant feedback window' : `${formatRemaining(buff.expiresAt)} remaining`}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mb-3 border-2 border-cyan/40 bg-cyan/10 p-2 text-[10px] font-bold text-cyan" style={{ clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' }}>
+            Armed coverage: {coverageRows.length > 0 ? coverageRows.map((row) => row.decisionHint).join(' ') : 'No consumables loaded.'}
           </div>
           <div className="space-y-2">
             {SLOT_ORDER.map((slot) => {

@@ -7,7 +7,7 @@ import { ConsumableRing } from '@/components/stats/ConsumableRing';
 import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
-import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore, useBossStore } from '@/store';
+import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore, useBossStore, useActiveBuffsStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { MONSTERS } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -25,6 +25,7 @@ import type { TickEvent } from '@/store/slices/tickSlice';
 export type LiveTurfFeedEvent = TickEvent;
 
 type DioramaMode = 'idle' | 'roaming' | 'bossPrep' | 'bossFight' | 'crafting' | 'salvaging' | 'workshopService' | 'marketListing';
+const HUD_ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvaging', 'market_listing', 'workshop_service'];
 
 interface LiveTurfDioramaProps {
   area: RoamingAreaDef;
@@ -678,12 +679,15 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // A new tick event re-renders this diorama so the SVG fight can react.
   // Keep the expensive, mostly-static Hunter Totals object graph stable so
   // Android WebView does not repaint the HTML overlay on every combat event.
+  const activeBuffRows = useActiveBuffsStore((state) => state.buffs);
+  const [activeBuffNow] = useState(Date.now);
+  const activeBuffs = activeBuffRows.filter((buff) => buff.expiresAt > activeBuffNow);
   const computedStats = useMemo<CharacterStatSummary>(
-    () => statSummary ?? buildCharacterStatSummary({ player, weapons: statWeapons, shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent, boss }),
+    () => statSummary ?? buildCharacterStatSummary({ player, weapons: statWeapons, shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent, boss, activeBuffs }),
     // player.level is the only player-store field used by stat math here.
     // Loadout/skill slot references are included directly; statWeapons is derived.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [statSummary, player.level, primaryWeapon, secondaryWeapon, heavyWeapon, weapon, loadout, skills.spent, boss],
+    [statSummary, player.level, primaryWeapon, secondaryWeapon, heavyWeapon, weapon, loadout, skills.spent, boss, activeBuffs],
   );
   const scene = getLiveTurfScene(area);
   const mode = modeFromActivity(activityKind);
@@ -700,11 +704,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // `boss_prep` and `boss_fight` auto-bind the chip bar when the player is
   // in those activities (no manual cycle target) — prep is a transitional
   // state the player doesn't consciously "switch to."
-  const ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvaging', 'market_listing', 'workshop_service'];
   const cycleOverride = useCallback(() => {
     setOverrideActivity((current) => {
-      const idx = current ? ACTIVITY_CYCLE.indexOf(current) : -1;
-      return ACTIVITY_CYCLE[(idx + 1) % ACTIVITY_CYCLE.length];
+      const idx = current ? HUD_ACTIVITY_CYCLE.indexOf(current) : -1;
+      return HUD_ACTIVITY_CYCLE[(idx + 1) % HUD_ACTIVITY_CYCLE.length];
     });
   }, []);
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'fallback'}-${mode}`);
@@ -784,7 +787,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           />
         </button>
         <div data-testid="hud-consumable-ring" className="flex shrink-0 items-center">
-          <ConsumableRing consumables={loadout.consumables} onClick={() => setLedgerOpen(true)} />
+          <ConsumableRing consumables={loadout.consumables} activeBuffs={activeBuffs} onClick={() => setLedgerOpen(true)} />
         </div>
       </div>
       {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} onClose={() => setLedgerOpen(false)} />}

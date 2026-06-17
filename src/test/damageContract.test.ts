@@ -115,15 +115,20 @@ describe('damage contract', () => {
       expect(result.reason).toBe('no_action_needed');
     });
 
-    it('eats a medkit first when below threshold', () => {
-      const result = decideAutoEat(600, 1000, { MedKit: 5, ShieldCell: 2 }, 0.7);
-      expect(result.eatConsumable).toBe('MedKit');
+    it('uses refined medkit before basic medkit when below threshold', () => {
+      const result = decideAutoEat(600, 1000, { MedKitRefined: 1, MedKit: 5, ShieldCell: 2 }, 0.7);
+      expect(result.eatConsumable).toBe('MedKitRefined');
       expect(result.reason).toBe('below_threshold');
     });
 
-    it('falls back to shield cell when no medkits', () => {
-      const result = decideAutoEat(600, 1000, { MedKit: 0, ShieldCell: 2 }, 0.7);
-      expect(result.eatConsumable).toBe('ShieldCell');
+    it('falls back to medkit then shield cell when no refined medkits', () => {
+      expect(decideAutoEat(600, 1000, { MedKit: 5, ShieldCell: 2 }, 0.7).eatConsumable).toBe('MedKit');
+      expect(decideAutoEat(600, 1000, { MedKit: 0, ShieldCell: 2 }, 0.7).eatConsumable).toBe('ShieldCell');
+    });
+
+    it('keeps zero-heal survival items at the end of priority', () => {
+      expect(decideAutoEat(600, 1000, { NanoSwarm: 1, AdrenalineShot: 1 }, 0.7).eatConsumable).toBe('NanoSwarm');
+      expect(decideAutoEat(600, 1000, { NanoSwarm: 0, AdrenalineShot: 1 }, 0.7).eatConsumable).toBe('AdrenalineShot');
     });
 
     it('returns no_consumables when inventory is empty', () => {

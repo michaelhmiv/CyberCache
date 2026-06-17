@@ -31,6 +31,10 @@ function resolveOtherPartyName(id: string, playerName: string): string {
   return id;
 }
 
+type BuySort = 'price' | 'rarity' | 'name';
+type SellSort = 'power' | 'rarity' | 'name';
+type MyListSort = 'price' | 'rarity' | 'name';
+
 const TABS = [
   { id: 'buy', label: 'Buy', icon: ShoppingCart },
   { id: 'vendor', label: 'Vendor', icon: Store },
@@ -119,8 +123,8 @@ export const MarketScreen: React.FC = () => {
   const sortedTradeableItems = useMemo(() => {
     return [...tradeableItems].sort((a, b) => {
       if (sellSort === 'power') {
-        const aPow = 'combatPower' in a ? (a as any).combatPower : 0;
-        const bPow = 'combatPower' in b ? (b as any).combatPower : 0;
+        const aPow = isWeapon(a) ? a.combatPower : 0;
+        const bPow = isWeapon(b) ? b.combatPower : 0;
         return bPow - aPow;
       }
       if (sellSort === 'rarity') {
@@ -232,7 +236,7 @@ export const MarketScreen: React.FC = () => {
           </div>
           <select
             value={buySort}
-            onChange={(e) => setBuySort(e.target.value as any)}
+            onChange={(e) => setBuySort(e.target.value as BuySort)}
             className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
           >
             <option value="price">Sort: Cheapest</option>
@@ -250,7 +254,7 @@ export const MarketScreen: React.FC = () => {
         <div className="space-y-2">
           <select
             value={sellSort}
-            onChange={(e) => setSellSort(e.target.value as any)}
+            onChange={(e) => setSellSort(e.target.value as SellSort)}
             className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
           >
             <option value="power">Sort: Power ↓</option>
@@ -270,7 +274,7 @@ export const MarketScreen: React.FC = () => {
         <div className="space-y-2">
           <select
             value={myListSort}
-            onChange={(e) => setMyListSort(e.target.value as any)}
+            onChange={(e) => setMyListSort(e.target.value as MyListSort)}
             className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
           >
             <option value="price">Sort: Price ↓</option>

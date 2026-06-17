@@ -109,13 +109,6 @@ const SLOT_SORT_OPTIONS: Record<LoadoutSlot, Array<{ key: string; label: string 
 SLOT_SORT_OPTIONS.secondary = SLOT_SORT_OPTIONS.primary;
 SLOT_SORT_OPTIONS.heavy = SLOT_SORT_OPTIONS.primary;
 
-function itemPower(item: GearItem): number {
-  if ('combatPower' in item) return (item as Weapon).combatPower;
-  if ('hp' in item) return (item as { hp: number }).hp;
-  if ('damage' in item) return (item as { damage: number }).damage;
-  return 0;
-}
-
 function getItemElement(item: GearItem): string | null {
   if ('element' in item) return (item as { element?: string }).element ?? null;
   return null;
