@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ActiveActivity, StartActivityInput } from '@/types/activity';
 import { IDLE_ACTIVITY } from '@/types/activity';
+import { migrateActivityForBossCollapse } from '@/lib/activity/activityMigration';
 import {
   clearActiveActivity,
   getMyActiveActivity,
@@ -31,7 +32,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
   pending: false,
   error: null,
 
-  setCurrent: (activity) => set({ current: activity, hydrated: true, error: null }),
+  setCurrent: (activity) => set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, error: null }),
 
   reset: () => set({ current: IDLE_ACTIVITY, hydrated: false, pending: false, error: null }),
 
@@ -39,7 +40,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
     set({ pending: true, error: null });
     try {
       const activity = await getMyActiveActivity();
-      set({ current: activity, hydrated: true, pending: false, error: null });
+      set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, pending: false, error: null });
       return activity;
     } catch (error) {
       set({ pending: false, hydrated: true, error: toMessage(error) });
@@ -51,7 +52,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
     set({ pending: true, error: null });
     try {
       const activity = await startActiveActivity(input);
-      set({ current: activity, hydrated: true, pending: false, error: null });
+      set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, pending: false, error: null });
       return activity;
     } catch (error) {
       set({ pending: false, error: toMessage(error) });
@@ -63,7 +64,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
     set({ pending: true, error: null });
     try {
       const activity = await clearActiveActivity();
-      set({ current: activity, hydrated: true, pending: false, error: null });
+      set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, pending: false, error: null });
       return activity;
     } catch (error) {
       set({ pending: false, error: toMessage(error) });
@@ -74,7 +75,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
   heartbeat: async () => {
     try {
       const activity = await heartbeatActiveActivity();
-      set({ current: activity, hydrated: true, error: null });
+      set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, error: null });
       return activity;
     } catch (error) {
       set({ error: toMessage(error) });
