@@ -106,7 +106,12 @@ const idleGainHint: DisplayGainEvent = {
 
 const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
 
-const Panel: React.FC<React.PropsWithChildren<{ label?: string; className?: string }>> = ({ label, className = '', children }) => (
+const Panel: React.FC<React.PropsWithChildren<{
+  label?: string;
+  className?: string;
+  /** Trailing affordance slot — rendered inside the label row, right-aligned. */
+  headerActions?: React.ReactNode;
+}>> = ({ label, className = '', headerActions, children }) => (
   <section className={`relative overflow-hidden border-2 border-border bg-surface/95 p-2 shadow-[0_8px_18px_rgba(0,0,0,0.55)] ${className}`} style={panelClip}>
     <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(255,144,0,0.12)_0,transparent_34%,rgba(255,75,92,0.08)_100%)]" />
     <div className="pointer-events-none absolute -left-10 top-3 h-3 w-32 -rotate-12 bg-amber/20" />
@@ -114,6 +119,7 @@ const Panel: React.FC<React.PropsWithChildren<{ label?: string; className?: stri
       <div className="relative mb-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">
         <span className="h-px flex-1 bg-border-light" />
         <span>{label}</span>
+        {headerActions && <span className="flex shrink-0 items-center gap-1.5">{headerActions}</span>}
         <span className="h-px flex-1 bg-border-light" />
       </div>
     )}
