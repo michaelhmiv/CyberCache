@@ -17,6 +17,15 @@ import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 
+const ACCENT_COLORS: Record<ChipProps['resourceId'], string> = {
+  credits: 'bg-cyan',
+  scrap: 'bg-amber',
+  cacheKey: 'bg-green',
+  cacheFragment: 'bg-green',
+  loot: 'bg-red',
+  level: 'bg-amber',
+};
+
 function compact(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -38,10 +47,12 @@ const Chip: React.FC<ChipProps> = ({ resourceId, value, sub, seed = 0, action })
     style={signClip}
     whileTap={{ scale: 0.97 }}
   >
+    {/* Colored left-edge accent bar */}
+    <div className={`absolute left-0 top-0 h-full w-1 ${ACCENT_COLORS[resourceId]}`} />
     {/* Left color bar derived from the resource's visualAsset */}
     <ResourceIcon id={resourceId} size={18} seed={seed} className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-70" />
     <div className={`ml-6 ${action ? 'mr-7' : ''}`}>
-      <div className="text-sm font-black leading-none text-text-primary">{value}</div>
+      <div className="text-base font-black leading-none text-text-primary">{value}</div>
       <div className="truncate text-[8px] text-text-muted">{sub}</div>
     </div>
     {action}

@@ -73,6 +73,7 @@ type Input = {
    */
   boss?: BossDef;
   activeBuffs?: ActiveBuff[];
+  consumableMods?: Record<string, number>;
 };
 
 const pct = (value: number) => `${Math.round(value * 100)}%`;

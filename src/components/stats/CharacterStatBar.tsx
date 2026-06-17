@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Crosshair, HeartPulse, Radar, Shield, Sparkles, X } from 'lucide-react';
+import { ChevronDown, Crosshair, HeartPulse, Radar, RefreshCw, Shield, Sparkles, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
 import { pickTopContributions } from '@/lib/stats/topContribs';
 import { getHeadlineMetricKeys } from '@/lib/hud/headlineMetrics';
@@ -266,9 +266,10 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
             aria-label="Cycle activity override"
             onClick={(e) => { e.stopPropagation(); onCycleActivity!(); }}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onCycleActivity!(); } }}
-            className="cursor-pointer uppercase tracking-[0.18em] text-text-muted transition-colors hover:text-amber focus:outline-none focus-visible:text-amber"
+            className="flex cursor-pointer items-center gap-1 uppercase tracking-[0.18em] text-text-muted transition-colors hover:text-amber focus:outline-none focus-visible:text-amber"
           >
             Hunter Totals
+            <RefreshCw size={10} className="text-text-muted" />
           </button>
         ) : (
           <span>Hunter Totals</span>
