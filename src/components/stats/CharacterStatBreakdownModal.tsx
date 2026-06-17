@@ -1,22 +1,23 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
+import type { CharacterStatSummary, StatMetric } from '@/lib/stats/characterStats';
 import { getBreakdownMetricKeys } from '@/lib/hud/headlineMetrics';
 import { MetricCard } from './MetricCard';
 import type { ActivityKind } from '@/types/activity';
 
-const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
-const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
-
-const tabToneClass: Record<StatTone, { text: string; border: string; bg: string }> = {
-  amber:  { text: 'text-amber',  border: 'border-amber/60',  bg: 'bg-amber/15' },
-  green:  { text: 'text-green',  border: 'border-green/60',  bg: 'bg-green/15' },
-  red:    { text: 'text-red',    border: 'border-red/60',    bg: 'bg-red/15' },
-  cyan:   { text: 'text-cyan',   border: 'border-cyan/60',   bg: 'bg-cyan/15' },
-  purple: { text: 'text-purple', border: 'border-purple/60', bg: 'bg-purple/15' },
-  muted:  { text: 'text-text-muted', border: 'border-border', bg: 'bg-surface' },
+const ACTIVITY_LABELS: Record<string, string> = {
+  roaming_loot: 'Roaming Loot',
+  boss_fight: 'Boss Fight',
+  crafting: 'Crafting',
+  salvaging: 'Salvaging',
+  workshop_service: 'Workshop',
+  market_listing: 'Market',
+  idle_standby: 'Idle Standby',
+  none: 'General',
 };
+
+const COMBAT_CORE_KEYS = new Set(['health', 'effectiveHp', 'dps', 'shieldBreak']);
 
 /**
  * Filter the full metric list down to only those relevant to the player's
@@ -24,9 +25,6 @@ const tabToneClass: Record<StatTone, { text: string; border: string; bg: string 
  * disambiguates duplicate keys (e.g. `droneAssistSpeed` exists in both
  * crafting and workshop modules) by matching `metric.sourceActivity`
  * against the current activity kind.
- *
- * Core combat metrics (health, effectiveHp, dps, shieldBreak) have no
- * `sourceActivity` and are always included via the key set.
  */
 function filterByActivity(summary: CharacterStatSummary, activityKind?: ActivityKind): StatMetric[] {
   const keys = getBreakdownMetricKeys(activityKind);
@@ -34,13 +32,7 @@ function filterByActivity(summary: CharacterStatSummary, activityKind?: Activity
 
   return summary.all.filter((metric) => {
     if (!keySet.has(metric.key)) return false;
-    // If the key is in the set, check whether the metric's sourceActivity
-    // matches the current activity. Core metrics have no sourceActivity
-    // and always pass. Activity-module metrics must match.
     if (metric.sourceActivity && activityKind && metric.sourceActivity !== activityKind) {
-      // Allow through only if the key set explicitly includes this key
-      // for this activity — prevents workshop's droneAssistSpeed from
-      // showing when the player is crafting.
       return false;
     }
     return true;
@@ -48,15 +40,14 @@ function filterByActivity(summary: CharacterStatSummary, activityKind?: Activity
 }
 
 /**
- * The full source-breakdown modal: lists every relevant StatMetric for the
- * player's current activity, each rendered as a MetricCard with a
- * composition bar and collapsible detail list.
+ * Full-screen Source Breakdown overlay.
  *
- * Activity-scoped: pass `activityKind` to filter the metric list down to
- * only the stats that matter for what the player is currently doing. This
- * replaces the old 44-tab flat list with 8–14 tabs per activity.
+ * Replaces the old bottom-sheet tabbed modal with a full-screen scrollable
+ * grid of MetricCards. All activity-scoped metrics are visible at once —
+ * no tabs, no clicking between stats. Cards are split into "Combat Core"
+ * and activity-specific sections with labeled dividers.
  *
- * Mounts at z-80. The `open` prop drives AnimatePresence.
+ * The header is sticky so the player always knows their activity context.
  */
 export const CharacterStatBreakdownModal: React.FC<{
   summary: CharacterStatSummary;
@@ -64,106 +55,125 @@ export const CharacterStatBreakdownModal: React.FC<{
   onClose: () => void;
   activityKind?: ActivityKind;
 }> = ({ summary, open, onClose, activityKind }) => {
-  const [activeMetric, setActiveMetric] = useState(0);
-
   const scopedMetrics = useMemo(
     () => filterByActivity(summary, activityKind),
     [summary, activityKind],
   );
-
-  // Clamp activeMetric when the scoped set changes (e.g. activity switch)
-  const safeActiveIndex = Math.min(activeMetric, Math.max(0, scopedMetrics.length - 1));
 
   const sourceMax = useMemo(
     () => Math.max(1, ...summary.all.flatMap((metric) => metric.contributions.map((entry) => Math.abs(entry.value)))),
     [summary],
   );
 
+  const activityLabel = activityKind && activityKind !== 'none'
+    ? (ACTIVITY_LABELS[activityKind] ?? activityKind.replace(/_/g, ' '))
+    : 'General';
+
+  const activeSourceCount = useMemo(
+    () => scopedMetrics.reduce((sum, m) => sum + m.contributions.filter((c) => c.value !== 0).length, 0),
+    [scopedMetrics],
+  );
+
+  // Split metrics: combat core vs activity-specific
+  const coreMetrics = scopedMetrics.filter((m) => COMBAT_CORE_KEYS.has(m.key));
+  const activityMetrics = scopedMetrics.filter((m) => !COMBAT_CORE_KEYS.has(m.key));
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
           data-testid="hunter-totals-breakdown-modal"
-          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80"
+          className="fixed inset-0 z-[80] bg-bg"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
           onClick={onClose}
         >
           <motion.div
             id="hunter-totals-breakdown"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="max-h-[90vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.7)]"
-            style={panelClip}
+            initial={{ scale: 0.97, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.97, opacity: 0 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 380 }}
+            className="flex h-full w-full flex-col bg-bg"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mb-2 flex items-start justify-between gap-3">
-              <div>
+            {/* Sticky header */}
+            <div
+              className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b-2 border-border bg-bg/95 px-3 pb-2 pt-3 backdrop-blur-sm"
+              data-testid="breakdown-header"
+            >
+              <div className="min-w-0">
                 <div className="bl-title text-xl leading-none text-text-primary">Source Breakdown</div>
-                <div className="mt-0.5 text-[9px] text-text-muted">
-                  {activityKind && activityKind !== 'none'
-                    ? `Stats for ${activityKind.replace(/_/g, ' ')} · tap a stat to see sources`
-                    : 'Tap a stat to see contributing gear, skills, and buffs.'}
+                <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-text-muted">
+                  {activityLabel} · {scopedMetrics.length} stats · {activeSourceCount} sources
                 </div>
               </div>
               <button
                 type="button"
                 aria-label="Close source breakdown"
                 onClick={onClose}
-                className="bl-secondary shrink-0 p-2 text-text-muted"
+                className="bl-secondary shrink-0 border-2 border-border bg-surface p-2 text-text-muted transition-colors hover:text-amber"
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
 
-            {/* Metric tab strip (activity-scoped) */}
-            {scopedMetrics.length > 1 && (
-              <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
-                {scopedMetrics.map((metric, index) => {
-                  const tone = tabToneClass[metric.tone];
-                  const isActive = index === safeActiveIndex;
-                  return (
-                    <button
-                      key={`${metric.key}-${metric.sourceActivity ?? 'core'}`}
-                      type="button"
-                      onClick={() => setActiveMetric(index)}
-                      className={`shrink-0 border px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-colors ${
-                        isActive
-                          ? `${tone.border} ${tone.bg} ${tone.text}`
-                          : 'border-border bg-surface text-text-muted hover:text-text-primary'
-                      }`}
-                      style={slashClip}
-                    >
-                      {metric.label}
-                      {metric.contributions.filter((c) => c.value !== 0).length > 0 && (
-                        <span className="ml-1 opacity-60">{metric.contributions.filter((c) => c.value !== 0).length}</span>
-                      )}
-                    </button>
-                  );
-                })}
+            {/* Scrollable metric grid */}
+            <div className="flex-1 overflow-y-auto px-3 py-2 pb-8">
+              {/* Combat Core section */}
+              {coreMetrics.length > 0 && (
+                <>
+                  <div className="mb-1.5 mt-1 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-border-light" />
+                    <span className="text-[8px] font-black uppercase tracking-[0.18em] text-text-muted/60">Combat Core</span>
+                    <span className="h-px flex-1 bg-border-light" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {coreMetrics.map((metric) => (
+                      <MetricCard
+                        key={`${metric.key}-${metric.sourceActivity ?? 'core'}`}
+                        metric={metric}
+                        max={sourceMax}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Activity-specific section */}
+              {activityMetrics.length > 0 && (
+                <>
+                  <div className="mb-1.5 mt-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-border-light" />
+                    <span className="text-[8px] font-black uppercase tracking-[0.18em] text-text-muted/60">
+                      {activityLabel}
+                    </span>
+                    <span className="h-px flex-1 bg-border-light" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {activityMetrics.map((metric) => (
+                      <MetricCard
+                        key={`${metric.key}-${metric.sourceActivity ?? 'activity'}`}
+                        metric={metric}
+                        max={sourceMax}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Empty state */}
+              {scopedMetrics.length === 0 && (
+                <div className="border border-border bg-surface/80 p-3 text-[10px] text-text-muted">
+                  No stats available for the current loadout.
+                </div>
+              )}
+
+              <div className="mt-3 text-center text-[8px] font-black uppercase tracking-wider text-text-muted/40">
+                Presentation HUD · server math is authoritative
               </div>
-            )}
-
-            {/* Active metric's MetricCard */}
-            {scopedMetrics.length > 0 && (
-              <MetricCard
-                metric={scopedMetrics[safeActiveIndex]}
-                max={sourceMax}
-              />
-            )}
-
-            {/* Empty state */}
-            {scopedMetrics.length === 0 && (
-              <div className="border border-border bg-surface/80 p-3 text-[10px] text-text-muted">
-                No stats available for the current loadout.
-              </div>
-            )}
-
-            <div className="mt-2 text-[8px] font-black uppercase tracking-wider text-text-muted/60">
-              Presentation HUD · server math is authoritative
             </div>
           </motion.div>
         </motion.div>

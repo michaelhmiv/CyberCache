@@ -151,13 +151,19 @@ const DetailList: React.FC<{ metric: StatMetric; max: number }> = memo(function 
  */
 export const MetricCard: React.FC<{
   metric: StatMetric;
-  max: number;
+  max?: number;
 }> = memo(function MetricCard({ metric, max }) {
   const [expanded, setExpanded] = useState(false);
   const tone = toneText[metric.tone];
   const showBar = shouldShowBar(metric);
   const segments = useMemo(() => buildSegments(metric), [metric]);
   const sourceCount = metric.contributions.filter((c) => c.value !== 0).length;
+  // Each card computes its own max from its own contributions when not
+  // provided. This keeps grid cards self-contained.
+  const effectiveMax = useMemo(
+    () => max ?? Math.max(1, ...metric.contributions.map((c) => Math.abs(c.value))),
+    [max, metric.contributions],
+  );
 
   return (
     <div
@@ -202,7 +208,7 @@ export const MetricCard: React.FC<{
       )}
       {expanded && sourceCount > 0 && (
         <div className="mt-2">
-          <DetailList metric={metric} max={max} />
+          <DetailList metric={metric} max={effectiveMax} />
         </div>
       )}
     </div>
