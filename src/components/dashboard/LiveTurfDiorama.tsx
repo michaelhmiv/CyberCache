@@ -25,6 +25,7 @@ import type { TickEvent } from '@/store/slices/tickSlice';
 export type LiveTurfFeedEvent = TickEvent;
 
 type DioramaMode = 'idle' | 'roaming' | 'bossPrep' | 'bossFight' | 'crafting' | 'salvaging' | 'workshopService' | 'marketListing';
+const HUD_ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvaging', 'market_listing', 'workshop_service'];
 
 interface LiveTurfDioramaProps {
   area: RoamingAreaDef;
@@ -678,7 +679,9 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // A new tick event re-renders this diorama so the SVG fight can react.
   // Keep the expensive, mostly-static Hunter Totals object graph stable so
   // Android WebView does not repaint the HTML overlay on every combat event.
-  const activeBuffs = useActiveBuffsStore((state) => state.buffs).filter((buff) => buff.expiresAt > Date.now());
+  const activeBuffRows = useActiveBuffsStore((state) => state.buffs);
+  const [activeBuffNow] = useState(Date.now);
+  const activeBuffs = activeBuffRows.filter((buff) => buff.expiresAt > activeBuffNow);
   const computedStats = useMemo<CharacterStatSummary>(
     () => statSummary ?? buildCharacterStatSummary({ player, weapons: statWeapons, shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent, boss, activeBuffs }),
     // player.level is the only player-store field used by stat math here.
@@ -701,11 +704,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // `boss_prep` and `boss_fight` auto-bind the chip bar when the player is
   // in those activities (no manual cycle target) — prep is a transitional
   // state the player doesn't consciously "switch to."
-  const ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvaging', 'market_listing', 'workshop_service'];
   const cycleOverride = useCallback(() => {
     setOverrideActivity((current) => {
-      const idx = current ? ACTIVITY_CYCLE.indexOf(current) : -1;
-      return ACTIVITY_CYCLE[(idx + 1) % ACTIVITY_CYCLE.length];
+      const idx = current ? HUD_ACTIVITY_CYCLE.indexOf(current) : -1;
+      return HUD_ACTIVITY_CYCLE[(idx + 1) % HUD_ACTIVITY_CYCLE.length];
     });
   }, []);
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'fallback'}-${mode}`);

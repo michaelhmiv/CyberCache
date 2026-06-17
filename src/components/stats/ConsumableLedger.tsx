@@ -35,7 +35,7 @@ export const ConsumableLedger: React.FC<{
   consumables: LoadoutConsumables;
   onClose: () => void;
 }> = ({ consumables, onClose }) => {
-  const now = Date.now();
+  const [now] = React.useState(Date.now);
   const buffs = useActiveBuffsStore((state) => state.buffs);
   const activeRows = buffs.filter((buff) => buff.expiresAt > now && buff.displayState !== 'armed');
   const coverageRows = getLoadoutConsumableCoverage(consumables);

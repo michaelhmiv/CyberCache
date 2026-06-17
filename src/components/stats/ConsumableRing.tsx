@@ -34,7 +34,7 @@ export const ConsumableRing = memo(function ConsumableRing({
   activeBuffs?: ActiveBuff[];
 }) {
   const storeBuffs = useActiveBuffsStore((state) => state.buffs);
-  const now = Date.now();
+  const [now] = React.useState(Date.now);
   const visibleBuffs = activeBuffs ?? storeBuffs.filter((buff) => buff.expiresAt > now);
   const activeCount = visibleBuffs.filter((buff) => buff.displayState === 'active' || buff.displayState === 'recent').length;
   const loaded = SLOT_ORDER.map((slot) => {
