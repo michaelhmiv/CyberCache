@@ -6,7 +6,7 @@ import { ConsumableSlot, RiskSetting } from '../../types/game';
 import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts, getConsumablesForSlot } from '../../constants/consumables';
 import { RARITIES } from '../../constants/rarities';
 import { simulateBoss } from '../../lib/simulation/bossSimulator';
-import { buildBossFightActivity, buildBossPrepActivity } from '../../lib/activity/activityBuilders';
+import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
 import { computeLoadoutDps } from '../../lib/stats/dpsChain';
 import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
 import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
@@ -319,7 +319,10 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
   const syncBossPrepActivity = async () => {
     try {
-      await activity.start(buildBossPrepActivity(boss, activityWeapon));
+      // The prep phase is now just a sub-state of boss_fight — we
+      // build the same activity shape with bossPhase='prep' rather
+      // than starting a distinct 'boss_prep' activity.
+      await activity.start(buildBossFightActivity(boss, activityWeapon, 'prep'));
       setError(null);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to set boss prep activity.');
@@ -340,13 +343,10 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     setError(null);
     setResult(null);
 
-    try {
-      await activity.start(buildBossFightActivity(boss, activityWeapon));
-    } catch (nextError) {
-      setSimulating(false);
-      setError(nextError instanceof Error ? nextError.message : 'Unable to set boss fight activity.');
-      return;
-    }
+    // Flip the existing prep activity into the fight phase. This avoids
+    // racing the chef with a fresh `start()` call — the boss_id and
+    // target_id are preserved on the same activity, just the phase flips.
+    activity.setBossPhase('fight');
 
     let outcome: ChefVerifyBossResult;
     try {

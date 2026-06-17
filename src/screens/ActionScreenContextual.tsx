@@ -50,7 +50,6 @@ import {
 import { calculateSalvageYield } from '@/constants/salvageRules';
 import {
   buildBossFightActivity,
-  buildBossPrepActivity,
   buildCraftingActivity,
   buildRoamingLootActivity,
   buildSalvagingActivity,
@@ -425,14 +424,14 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     const target = boss ?? prepBossTarget;
     if (!target) return;
     bossStore.setCurrentBoss(target.id);
-    startAction(buildBossPrepActivity(target, activityWeapon), makeRunEvent('BOSS PREP', `Prep started for ${target.name}.`, 'patrol', 'boss_prep'));
+    startAction(buildBossFightActivity(target, activityWeapon, 'prep'), makeRunEvent('BOSS PREP', `Prep started for ${target.name}.`, 'patrol', 'boss_fight'));
   }, [activityWeapon, bossStore, prepBossTarget, startAction]);
 
   const startBossFight = useCallback((boss?: BossDef) => {
     const target = boss ?? prepBossTarget;
     if (!target) return;
     bossStore.setCurrentBoss(target.id);
-    startAction(buildBossFightActivity(target, activityWeapon), makeRunEvent('BOSS FIGHT', `Encounter started against ${target.name}.`, 'xp', 'boss_fight'));
+    startAction(buildBossFightActivity(target, activityWeapon, 'fight'), makeRunEvent('BOSS FIGHT', `Encounter started against ${target.name}.`, 'xp', 'boss_fight'));
   }, [activityWeapon, bossStore, prepBossTarget, startAction]);
 
   const startCrafting = useCallback((recipe = craftable.find(({ check }) => check.can)?.recipe ?? CRAFTING_RECIPES[0]) => {
