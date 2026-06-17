@@ -1,14 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Box, ChevronDown, Crosshair, Sparkles } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
-import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
-import { ConsumableRing } from '@/components/stats/ConsumableRing';
-import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
-import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
-import { useKillCycleStore, useLoadoutStore, usePlayerStore, useSkillStore, useTickFeedStore, useBossStore, useActiveBuffsStore } from '@/store';
-import { useSurvivalStore } from '@/store/slices/survivalSlice';
+import { useKillCycleStore, useTickFeedStore, useBossStore } from '@/store';
 import { MONSTERS } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ARCHETYPE_SILHOUETTES, type EnemyArchetype } from '@/components/diorama/EnemySilhouettes';
@@ -25,7 +20,6 @@ import type { TickEvent } from '@/store/slices/tickSlice';
 export type LiveTurfFeedEvent = TickEvent;
 
 type DioramaMode = 'idle' | 'roaming' | 'bossPrep' | 'bossFight' | 'crafting' | 'salvaging' | 'workshopService' | 'marketListing';
-const HUD_ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvaging', 'market_listing', 'workshop_service'];
 
 interface LiveTurfDioramaProps {
   area: RoamingAreaDef;
@@ -656,60 +650,15 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ act
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, boss, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, statSummary, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
-  const player = usePlayerStore();
-  const loadout = useLoadoutStore();
-  const skills = useSkillStore();
-  const hunterCurrentHp = useSurvivalStore((state) => state.currentHp);
-  const hunterMaxHp = useSurvivalStore((state) => state.maxHp);
   const latestEvent = useTickFeedStore((state) => state.events[0]);
-  const primaryWeapon = loadout.getWeapon('primary');
-  const secondaryWeapon = loadout.getWeapon('secondary');
-  const heavyWeapon = loadout.getWeapon('heavy');
-  const equippedWeapons = [primaryWeapon, secondaryWeapon, heavyWeapon].filter((w): w is Weapon => !!w);
-  const weaponIds = new Set(equippedWeapons.map((w) => w.id));
-  const statWeapons = weapon && !weaponIds.has(weapon.id)
-    ? [weapon, ...equippedWeapons]
-    : equippedWeapons.length > 0
-      ? equippedWeapons
-      : weapon
-        ? [weapon]
-        : [];
   // A new tick event re-renders this diorama so the SVG fight can react.
-  // Keep the expensive, mostly-static Hunter Totals object graph stable so
-  // Android WebView does not repaint the HTML overlay on every combat event.
-  const activeBuffRows = useActiveBuffsStore((state) => state.buffs);
-  const [activeBuffNow] = useState(Date.now);
-  const activeBuffs = activeBuffRows.filter((buff) => buff.expiresAt > activeBuffNow);
-  const computedStats = useMemo<CharacterStatSummary>(
-    () => statSummary ?? buildCharacterStatSummary({ player, weapons: statWeapons, shield: loadout.getShield(), classMod: loadout.getClassMod(), relic: loadout.getRelic(), ordnance: loadout.getOrdnance(), spentSkills: skills.spent, boss, activeBuffs }),
-    // player.level is the only player-store field used by stat math here.
-    // Loadout/skill slot references are included directly; statWeapons is derived.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [statSummary, player.level, primaryWeapon, secondaryWeapon, heavyWeapon, weapon, loadout, skills.spent, boss, activeBuffs],
-  );
+  // Hunter Totals computation has been lifted to DashboardScreen.
+  // statSummary prop is provided by the parent; diorama uses it directly.
   const scene = getLiveTurfScene(area);
   const mode = modeFromActivity(activityKind);
   const copy = modeInfo[mode];
-  // Task 5: allow the player to pin the headline chips to a specific activity
-  // (e.g. compare crafting vs roaming without leaving the dashboard). Lives
-  // locally — it's a HUD-only view toggle, not part of the player state model.
-  const [overrideActivity, setOverrideActivity] = useState<ActivityKind | null>(null);
-  // Task 6: track whether the consumable ledger modal is open. The ring
-  // toggles this on tap; the modal itself controls close. Lives locally
-  // because the ledger is ephemeral HUD state, not persisted loadout data.
-  const [ledgerOpen, setLedgerOpen] = useState(false);
-  // Manual cycle: only the activities a player *chooses* to switch into.
-  // `boss_prep` and `boss_fight` auto-bind the chip bar when the player is
-  // in those activities (no manual cycle target) — prep is a transitional
-  // state the player doesn't consciously "switch to."
-  const cycleOverride = useCallback(() => {
-    setOverrideActivity((current) => {
-      const idx = current ? HUD_ACTIVITY_CYCLE.indexOf(current) : -1;
-      return HUD_ACTIVITY_CYCLE[(idx + 1) % HUD_ACTIVITY_CYCLE.length];
-    });
-  }, []);
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'fallback'}-${mode}`);
   const element = weapon?.element ?? fallbackElement(area);
   const projectile = ELEMENT_PROJECTILE[element];
@@ -766,31 +715,6 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       </div>
       <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${weapon?.id ?? 'fallback'}`} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44 } : undefined}><WeaponIllustration weapon={weapon} type={fallbackType(area)} manufacturer={fallbackMaker(area)} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
       <div className="pointer-events-none absolute bottom-[82px] left-2 right-2 grid grid-cols-[1fr_auto] gap-2"><div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate text-[9px] font-black uppercase tracking-wide text-text-primary">{weaponLabel}</div><div className="truncate text-[8px] text-text-muted">{motionCaption}</div></div><div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>{latestEvent ? <Sparkles size={13} className="text-amber" /> : <Crosshair size={13} className="text-red" />}<div><div className="text-[8px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div><div className="max-w-[92px] truncate text-[9px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel(area, bossName)}</div></div></div></div>
-      <div className="pointer-events-auto absolute bottom-[43px] left-2 right-2 z-20 flex items-stretch gap-1.5" data-testid="hunter-totals-bar">
-        <button
-          type="button"
-          // Body click is intentionally inert until Task 6/8 wire the source-breakdown modal.
-          // aria-disabled + a clearer label so screen readers don't announce an action that does nothing.
-          aria-disabled="true"
-          aria-label="Hunter Totals (tap to open source breakdown — coming soon)"
-          className="min-w-0 flex-1 border-2 border-border bg-surface/95 p-1 text-left shadow-[4px_4px_0_rgba(0,0,0,0.72)]"
-          style={panelClip}
-        >
-          <CharacterStatBarBody
-            summary={computedStats}
-            currentHp={hunterCurrentHp}
-            maxHp={hunterMaxHp}
-            activityKind={activityKind}
-            overrideActivity={overrideActivity}
-            onChangeOverride={setOverrideActivity}
-            onCycleActivity={cycleOverride}
-          />
-        </button>
-        <div data-testid="hud-consumable-ring" className="flex shrink-0 items-center">
-          <ConsumableRing consumables={loadout.consumables} activeBuffs={activeBuffs} onClick={() => setLedgerOpen(true)} />
-        </div>
-      </div>
-      {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} onClose={() => setLedgerOpen(false)} />}
       <div className="absolute bottom-0 left-0 right-0 grid grid-cols-2 border-t-2 border-border bg-surface/95 text-[9px]"><button type="button" onClick={onFight} className="flex items-center justify-between gap-2 border-r border-border px-3 py-2 text-left active:bg-red/10"><span><span className="block font-black uppercase tracking-wide text-red">{primaryLabel}</span><span className="block truncate text-text-muted">{primaryDetail}</span></span><Crosshair size={14} className="shrink-0 text-red" /></button><button type="button" onClick={onSecondary} className="flex items-center justify-between gap-2 px-3 py-2 text-left active:bg-amber/10"><span><span className="block font-black uppercase tracking-wide text-amber">{secondaryLabel}</span><span className="block truncate text-text-muted">{secondaryDetail}</span></span>{secondaryActionLabel ? <ChevronDown size={14} className="shrink-0 text-amber" /> : <Box size={14} className="shrink-0 text-amber" />}</button></div>
     </section>
   );
