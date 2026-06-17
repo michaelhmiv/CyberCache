@@ -5,7 +5,6 @@ export const HEADLINE_METRIC_KEYS: Record<'universal' | ActivityKind, readonly s
   none: ['health', 'effectiveHp', 'dps', 'shieldBreak'],
   idle_standby: ['health', 'effectiveHp', 'dps', 'shieldBreak'],
   roaming_loot: ['rareFind', 'scrap', 'offline', 'dps'],
-  boss_prep: ['boss', 'dps', 'shieldBreak', 'armorBreak'],
   boss_fight: ['boss', 'dps', 'shieldBreak', 'armorBreak'],
   crafting: ['craftingSpeed', 'materialEfficiency', 'critCraftChance', 'burstCraftChance'],
   salvaging: ['salvageYield', 'rareMaterialChance', 'essenceExtraction', 'explosiveSalvage'],

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { ActiveActivity, StartActivityInput } from '@/types/activity';
+import type { ActiveActivity, BossPhase, StartActivityInput } from '@/types/activity';
 import { IDLE_ACTIVITY } from '@/types/activity';
+import { migrateActivityForBossCollapse } from '@/lib/activity/activityMigration';
 import {
   clearActiveActivity,
   getMyActiveActivity,
@@ -14,6 +15,7 @@ export interface ActivityState {
   pending: boolean;
   error: string | null;
   setCurrent: (activity: ActiveActivity) => void;
+  setBossPhase: (phase: BossPhase) => void;
   reset: () => void;
   hydrate: () => Promise<ActiveActivity>;
   start: (input: StartActivityInput) => Promise<ActiveActivity>;
@@ -31,7 +33,19 @@ export const useActivityStore = create<ActivityState>()((set) => ({
   pending: false,
   error: null,
 
-  setCurrent: (activity) => set({ current: activity, hydrated: true, error: null }),
+  setCurrent: (activity) => set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, error: null }),
+
+  /**
+   * Flip the boss phase on the active activity. No-op if the current
+   * activity isn't a boss_fight. This is how the boss prep modal's
+   * "Start Fight" button commits the prep→fight transition without
+   * starting a new activity (which would race with the chef).
+   */
+  setBossPhase: (phase) => set((s) => {
+    if (s.current.kind !== 'boss_fight') return s;
+    if (s.current.bossPhase === phase) return s;
+    return { current: { ...s.current, bossPhase: phase } };
+  }),
 
   reset: () => set({ current: IDLE_ACTIVITY, hydrated: false, pending: false, error: null }),
 
@@ -39,7 +53,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
     set({ pending: true, error: null });
     try {
       const activity = await getMyActiveActivity();
-      set({ current: activity, hydrated: true, pending: false, error: null });
+      set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, pending: false, error: null });
       return activity;
     } catch (error) {
       set({ pending: false, hydrated: true, error: toMessage(error) });
@@ -51,7 +65,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
     set({ pending: true, error: null });
     try {
       const activity = await startActiveActivity(input);
-      set({ current: activity, hydrated: true, pending: false, error: null });
+      set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, pending: false, error: null });
       return activity;
     } catch (error) {
       set({ pending: false, error: toMessage(error) });
@@ -63,7 +77,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
     set({ pending: true, error: null });
     try {
       const activity = await clearActiveActivity();
-      set({ current: activity, hydrated: true, pending: false, error: null });
+      set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, pending: false, error: null });
       return activity;
     } catch (error) {
       set({ pending: false, error: toMessage(error) });
@@ -74,7 +88,7 @@ export const useActivityStore = create<ActivityState>()((set) => ({
   heartbeat: async () => {
     try {
       const activity = await heartbeatActiveActivity();
-      set({ current: activity, hydrated: true, error: null });
+      set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, error: null });
       return activity;
     } catch (error) {
       set({ error: toMessage(error) });

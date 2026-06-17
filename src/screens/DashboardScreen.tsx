@@ -5,6 +5,7 @@ import {
   Backpack,
   BarChart3,
   Box,
+  ChevronDown,
   ChevronRight,
   Crosshair,
   Hammer,
@@ -32,11 +33,12 @@ import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '@/constant
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
+import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
 import { ActiveBuffPills } from '@/components/stats/ActiveBuffPills';
 import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { buildConsumableMods } from '@/lib/buffs/consumableModsAdapter';
-import { buildBossPrepActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
+import { buildBossFightActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
@@ -106,7 +108,12 @@ const idleGainHint: DisplayGainEvent = {
 
 const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
 
-const Panel: React.FC<React.PropsWithChildren<{ label?: string; className?: string }>> = ({ label, className = '', children }) => (
+const Panel: React.FC<React.PropsWithChildren<{
+  label?: string;
+  className?: string;
+  /** Trailing affordance slot — rendered inside the label row, right-aligned. */
+  headerActions?: React.ReactNode;
+}>> = ({ label, className = '', headerActions, children }) => (
   <section className={`relative overflow-hidden border-2 border-border bg-surface/95 p-2 shadow-[0_8px_18px_rgba(0,0,0,0.55)] ${className}`} style={panelClip}>
     <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(255,144,0,0.12)_0,transparent_34%,rgba(255,75,92,0.08)_100%)]" />
     <div className="pointer-events-none absolute -left-10 top-3 h-3 w-32 -rotate-12 bg-amber/20" />
@@ -114,6 +121,7 @@ const Panel: React.FC<React.PropsWithChildren<{ label?: string; className?: stri
       <div className="relative mb-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">
         <span className="h-px flex-1 bg-border-light" />
         <span>{label}</span>
+        {headerActions && <span className="flex shrink-0 items-center gap-1.5">{headerActions}</span>}
         <span className="h-px flex-1 bg-border-light" />
       </div>
     )}
@@ -204,6 +212,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const activeBuffsStore = useActiveBuffsStore();
   const [overrideActivity, setOverrideActivity] = useState<ActivityKind | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
   const cycleOverride = useCallback(() => {
     setOverrideActivity((current) => {
       const idx = current ? HUD_ACTIVITY_CYCLE.indexOf(current) : -1;
@@ -281,7 +290,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     }
     setActivityError(null);
     try {
-      await activity.start(buildBossPrepActivity(currentBoss, equippedWeapon));
+      await activity.start(buildBossFightActivity(currentBoss, equippedWeapon, 'prep'));
       idle.setFarming(false);
     } catch (error) {
       setActivityError(error instanceof Error ? error.message : 'Unable to start boss prep activity.');
@@ -321,8 +330,23 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         </div>
         {activityError && <Panel label="Action Error"><div className="text-xs font-bold text-red">{activityError}</div></Panel>}
         <Panel label="Level Strip"><div className="flex items-center gap-2"><div className="relative flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-4 border-border bg-amber/15 shadow-[5px_5px_0_rgba(0,0,0,0.75)]"><div className="absolute inset-1 border border-amber/40" /><div className="text-center"><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Level</div><div className="text-3xl font-black leading-none text-amber">{player.level}</div></div></div><div className="min-w-0 flex-1"><div className="flex items-end justify-between gap-2"><div><div className="text-sm font-black uppercase tracking-wide text-text-primary">XP Chalk Mark</div><div className="text-[9px] text-text-muted">{player.xp.toLocaleString()} / {xpToNextLevelValue.toLocaleString()} XP · {xpRemaining.toLocaleString()} left</div></div><div className={`text-right text-[9px] font-black ${selectedRoamingActive ? 'text-green' : 'text-text-muted'}`}>{productiveTickLabel}</div></div><div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}><motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} /><div className="absolute inset-0 grid grid-cols-5">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}</div></div><div className="mt-1 flex items-center justify-between gap-2 text-[8px] uppercase tracking-wide text-text-muted"><span>{selectedRoamingActive ? `${TICK_SECONDS}.00s tick` : 'activity required'}</span><span>{FIELD_FIND_CHANCE}% loot</span><span>{CACHE_FRAGMENT_CHANCE}% frag</span></div></div></div></Panel>
-        <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} boss={currentBoss ?? undefined} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} activityLabel={activityLabel} activityTarget={activityTarget} statSummary={computedStats} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
-        <Panel label="Hunter Totals">
+        <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} boss={currentBoss ?? undefined} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} bossPhase={activity.current.bossPhase} activityLabel={activityLabel} activityTarget={activityTarget} statSummary={computedStats} onFight={startSelectedRoaming} onSecondary={openBossPrep} />
+        <Panel
+          label="Hunter Totals"
+          headerActions={
+            <button
+              type="button"
+              data-testid="hunter-totals-sources-button"
+              onClick={() => setBreakdownOpen(true)}
+              className="flex items-center gap-1 border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber transition-colors hover:bg-amber/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber"
+              style={signClip}
+              aria-label="Open source breakdown for all character stats"
+            >
+              Sources
+              <ChevronDown size={9} />
+            </button>
+          }
+        >
           <CharacterStatBarBody
             summary={computedStats}
             currentHp={hunterCurrentHp}
@@ -337,6 +361,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           <ActiveBuffPills consumables={loadout.consumables} onClick={() => setLedgerOpen(true)} />
         </Panel>
         {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} onClose={() => setLedgerOpen(false)} />}
+        {breakdownOpen && (
+          <CharacterStatBreakdownModal
+            summary={computedStats}
+            open={breakdownOpen}
+            onClose={() => setBreakdownOpen(false)}
+          />
+        )}
         <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
         <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={selectedArea.dangerRating} icon={Map} tone="amber" /><InfoGauge label="Mastery" value={masteryScore.toLocaleString()} detail={`${availableSkillPoints} unspent points`} icon={Trophy} tone="purple" /><InfoGauge label="Best Gun" value={bestWeapon?.name ?? 'None'} detail={bestWeapon ? `${bestWeapon.combatPower} combat power` : 'Find gear in combat'} icon={Sparkles} tone="red" /><InfoGauge label="Workshop" value={openWorkshopJobs} detail={openWorkshopJobs > 0 ? `${openWorkshopJobs} passive queue${openWorkshopJobs === 1 ? '' : 's'} — tap` : 'open craft bench'} icon={Hammer} tone="green" onClick={() => onNavigate('workshop')} /></div>{nextArea && <div className="mt-2 flex items-center gap-2 border-2 border-border bg-bg/75 p-1.5" style={panelClip}><div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-surface-raised"><Lock size={14} className="text-text-muted" /></div><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-wide text-text-muted">Next turf unlock</div><div className="truncate text-xs font-black text-text-primary">{nextArea.name}</div></div><div className="text-right text-[9px] font-black text-amber">Reach LV {nextArea.unlockLevel}</div></div>}</Panel>
         <Panel label="Numbers Up"><div className="grid grid-cols-2 gap-1.5">{(gainFeed.length ? gainFeed : [idleGainHint]).slice(0, 4).map((event) => { const color = getGainToneClass(event.tone); return <div key={event.id} className="flex items-center gap-1.5 border-2 border-border bg-bg/75 p-1.5" style={signClip}><span className={`h-2 w-2 rounded-full ${color.fill}`} /><div className="min-w-0 flex-1"><div className={`truncate text-[9px] font-black uppercase tracking-wide ${color.text}`}>{event.label}</div><div className="truncate text-[8px] text-text-muted">{event.detail}</div></div><Activity size={11} className="text-text-muted" /></div>; })}</div></Panel>

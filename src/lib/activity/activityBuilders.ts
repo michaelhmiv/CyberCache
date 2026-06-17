@@ -1,5 +1,6 @@
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
-import type { StartActivityInput } from '@/types/activity';
+import type { BossPhase, StartActivityInput } from '@/types/activity';
+import { DEFAULT_BOSS_PHASE } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
 
 const weaponPublicSummary = (weapon?: Weapon) => {
@@ -52,39 +53,19 @@ export function buildRoamingLootActivity(area: RoamingAreaDef, weapon?: Weapon):
   };
 }
 
-export function buildBossPrepActivity(boss: { id: string; name: string; weaknesses?: string[] }, weapon?: Weapon): StartActivityInput {
-  return {
-    kind: 'boss_prep',
-    targetType: 'boss',
-    targetId: boss.id,
-    targetLabel: boss.name,
-    sceneKey: `boss:${boss.id}`,
-    notes: `Preparing for ${boss.name}`,
-    activityPayload: {
-      boss_id: boss.id,
-      boss_name: boss.name,
-      weaknesses: boss.weaknesses ?? [],
-      weapon_id: weapon?.id ?? null,
-    },
-    publicPayload: {
-      activity_label: `Preparing for ${boss.name}`,
-      target_label: boss.name,
-      weakness_count: boss.weaknesses?.length ?? 0,
-      scene_key: `boss:${boss.id}`,
-      ...weaponPublicSummary(weapon),
-    },
-    publicVisible: true,
-  };
-}
-
-export function buildBossFightActivity(boss: { id: string; name: string; level?: number; tier?: number }, weapon?: Weapon): StartActivityInput {
+export function buildBossFightActivity(
+  boss: { id: string; name: string; level?: number; tier?: number; weaknesses?: string[] },
+  weapon?: Weapon,
+  phase: BossPhase = DEFAULT_BOSS_PHASE,
+): StartActivityInput {
   return {
     kind: 'boss_fight',
+    bossPhase: phase,
     targetType: 'boss',
     targetId: boss.id,
     targetLabel: boss.name,
     sceneKey: `boss:${boss.id}`,
-    notes: `Fighting ${boss.name}`,
+    notes: phase === 'fight' ? `Fighting ${boss.name}` : `Preparing for ${boss.name}`,
     activityPayload: {
       boss_id: boss.id,
       boss_name: boss.name,
@@ -93,10 +74,11 @@ export function buildBossFightActivity(boss: { id: string; name: string; level?:
       weapon_id: weapon?.id ?? null,
     },
     publicPayload: {
-      activity_label: `Fighting ${boss.name}`,
+      activity_label: phase === 'fight' ? `Fighting ${boss.name}` : `Preparing for ${boss.name}`,
       target_label: boss.name,
       boss_level: boss.level ?? null,
       boss_tier: boss.tier ?? null,
+      weakness_count: boss.weaknesses?.length ?? 0,
       scene_key: `boss:${boss.id}`,
       ...weaponPublicSummary(weapon),
     },
