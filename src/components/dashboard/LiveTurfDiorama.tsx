@@ -13,7 +13,7 @@ import { pickResourceSilhouette, type ResourceSilhouetteId } from '@/constants/r
 import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
-import type { ActivityKind } from '@/types/activity';
+import type { ActivityKind, BossPhase } from '@/types/activity';
 import type { CharacterStatSummary } from '@/lib/stats/characterStats';
 import type { TickEvent } from '@/store/slices/tickSlice';
 
@@ -31,6 +31,7 @@ interface LiveTurfDioramaProps {
   equippedCount: number;
   cacheKeys: number;
   activityKind?: ActivityKind;
+  bossPhase?: BossPhase;
   activityLabel?: string;
   activityTarget?: string | null;
   statSummary?: CharacterStatSummary;
@@ -56,10 +57,9 @@ const isLootLike = (event: LiveTurfFeedEvent | undefined): boolean => {
   return event.tone === 'loot' || event.tone === 'cache' || event.tone === 'level' || event.tone === 'kill';
 };
 
-const modeFromActivity = (kind?: ActivityKind): DioramaMode => {
+const modeFromActivity = (kind?: ActivityKind, bossPhase?: BossPhase): DioramaMode => {
   if (kind === 'roaming_loot') return 'roaming';
-  if (kind === 'boss_prep') return 'bossPrep';
-  if (kind === 'boss_fight') return 'bossFight';
+  if (kind === 'boss_fight') return bossPhase === 'fight' ? 'bossFight' : 'bossPrep';
   if (kind === 'crafting') return 'crafting';
   if (kind === 'salvaging') return 'salvaging';
   if (kind === 'workshop_service') return 'workshopService';
@@ -708,7 +708,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       <LootDropHtml event={latestEvent} reduced={reduced} />
       {/* Target HP overlay */}
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
-      <BossHpOverlay active={activityKind === 'boss_fight' || activityKind === 'boss_prep'} accentColor={scene.accent} />
+      <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} />
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
