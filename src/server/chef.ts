@@ -49,6 +49,14 @@ import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterS
 import { pickNextTarget } from '../lib/combat/killCycleHelpers';
 import { computePlayerDamageVsMonster } from '../lib/combat/damageContract';
 import { computeMonsterDamageVsHunter, type HunterSurvivalStats } from '../lib/combat/damageContract';
+import {
+  activateLoadout,
+  processTick,
+  getSurvivalState,
+  buildActiveBuffs,
+  type RoamingConsumableState,
+  type LoadoutConsumableSlots,
+} from '../lib/consumables/roamingConsumableEngine';
 
 // --- Types ---
 
@@ -102,6 +110,14 @@ export interface ClaimRequest {
     maxHp: number;
     mitigation?: number;
   };
+  /** Loadout consumable slot assignments (which type is in each slot). */
+  loadoutConsumables?: LoadoutConsumableSlots;
+  /** Consumable inventory count map (server-authoritative, read from DB by claim route). */
+  consumableInventory?: Record<string, number>;
+  /** Prior roaming consumable state (carried from previous claim). */
+  roamingConsumableState?: RoamingConsumableState;
+  /** Mastery levels for interval reductions. */
+  masteryLevels?: Record<string, number>;
 }
 
 export interface ClaimResult {
@@ -133,7 +149,26 @@ export interface ClaimResult {
     currentHp: number;
     shieldHp: number;
     isDead: boolean;
+    medKitBuffer: number;
+    nanoSwarmTicksRemaining: number;
+    adrenalineActive: boolean;
+    shieldCellResistance: number;
   };
+  /** Consumables consumed during this claim batch (for inventory decrement). */
+  consumedConsumables: Record<string, number>;
+  /** Updated roaming consumable state (for next claim's input). */
+  roamingConsumableState?: RoamingConsumableState;
+  /** Active buff display data (for client UI). */
+  activeBuffs?: Array<{
+    consumableId: string;
+    slot: string;
+    remainingMs: number;
+    remainingBuffer?: number;
+    remainingTicks?: number;
+    armed?: boolean;
+    remainingBurstSeconds?: number;
+    ordnanceNextFireSeconds?: number;
+  }>;
 }
 
 export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
@@ -268,14 +303,75 @@ export function processRoamingClaim(
   const survMaxHp = request.survival?.maxHp ?? 700;
   let survDead = survHp <= 0;
 
+  // --- Consumable engine initialization ---
+  const consumableInventory = request.consumableInventory ?? {};
+  const masteryLevels = request.masteryLevels ?? {};
+  let roamingState: RoamingConsumableState | undefined = request.roamingConsumableState;
+  if (!roamingState && request.loadoutConsumables) {
+    roamingState = activateLoadout(request.loadoutConsumables, consumableInventory, tickCount - ticks);
+  }
+  const consumedConsumables: Record<string, number> = {};
+  // Import emptyMods lazily to avoid circular deps in client imports
+  let consumableMods = {
+    dpsMultiplier: 1, damageReductionPct: 0, bonusLootChance: 0,
+    extraLootRollChance: 0, scrapYieldMultiplier: 1, rareDropChanceMod: 0,
+    eventChanceBonus: 0, enemyPressureMultiplier: 1, xpMultiplier: 1,
+    incomingDpsMultiplier: 1, incomingAccuracyMultiplier: 1, ordnanceBonusDps: 0,
+  };
+
   for (let tickIdx = 0; tickIdx < ticks; tickIdx++) {
     // Deterministic RNG — same tuple, same stream as the client preview
     const rng = createTickRng(playerId, areaId, tickCount - ticks + tickIdx + 1);
 
+    // --- Consumable engine tick ---
+    if (roamingState) {
+      const currentTickIndex = tickCount - ticks + tickIdx;
+      const tickResult = processTick(roamingState, {
+        tickIndex: currentTickIndex,
+        currentHp: survHp,
+        maxHp: survMaxHp,
+        inventory: consumableInventory,
+        masteryLevels,
+      });
+      roamingState = tickResult.state;
+      consumableMods = tickResult.mods;
+
+      // Track consumed consumables
+      for (const c of tickResult.consumed) {
+        consumedConsumables[c.id] = (consumedConsumables[c.id] ?? 0) + c.count;
+      }
+
+      // Push consumable feed events
+      for (const ev of tickResult.feedEvents) {
+        feedEvents.push({
+          at: now - (ticks - 1 - tickIdx) * TICK_MS,
+          tone: ev.tone,
+          label: ev.label,
+          detail: ev.detail,
+          areaId,
+        });
+      }
+
+      // Apply Shield Cell shield restore
+      if (tickResult.shieldRestore > 0) {
+        survShield += tickResult.shieldRestore;
+      }
+
+      // Apply Nano Swarm regen
+      const survState = getSurvivalState(roamingState);
+      if (survState.nanoSwarmHealThisTick > 0 && survHp > 0 && !survDead) {
+        survHp = Math.min(survMaxHp, survHp + survState.nanoSwarmHealThisTick);
+      }
+    }
+
     // Single cumulative roll (Phase 1a: no if/else-if probability distortion).
     // rareDropChance mod increases the gear threshold linearly.
     // Activity modifiers add on top: rareDropChanceMod + materialFindChance.
-    const gearChance = clampChance(GEAR_THRESHOLD * (1 + totalRareDropMod + activityRareDropBonus));
+    // Consumable mods add: bonusLootChance (Luck Booster) + rareDropChanceMod.
+    const gearChance = clampChance(
+      GEAR_THRESHOLD * (1 + totalRareDropMod + activityRareDropBonus + consumableMods.rareDropChanceMod)
+      + consumableMods.bonusLootChance
+    );
     const fragmentChance = Math.max(0, FRAGMENT_CHANCE * (1 + activityFragmentBonus));
     const materialChance = Math.max(0, MATERIAL_CHANCE * (1 + activityMaterialBonus));
     const gearThreshold = gearChance;
@@ -364,13 +460,14 @@ export function processRoamingClaim(
       });
     }
 
-    // Every tick awards base resources (with idle mods + skill bonuses + activity mods applied)
+    // Every tick awards base resources (with idle mods + skill bonuses + activity mods + consumable mods)
     creditsAwarded += effectiveCreditsPerTick;
-    scrapAwarded += effectiveScrapPerTick;
-    xpAwarded += effectiveXpPerTick;
+    scrapAwarded += Math.round(effectiveScrapPerTick * consumableMods.scrapYieldMultiplier);
+    xpAwarded += Math.round(effectiveXpPerTick * consumableMods.xpMultiplier);
 
     // --- Kill cycle simulation (player → monster damage) ---
-    if (!survDead && effectiveDps > 0 && roster.length > 0) {
+    const tickEffectiveDps = effectiveDps * consumableMods.dpsMultiplier + consumableMods.ordnanceBonusDps;
+    if (!survDead && tickEffectiveDps > 0 && roster.length > 0) {
       // Spawn a target if none exists
       if (!kcTargetId) {
         const next = pickNextTarget(roster, kcLastKilledId);
@@ -385,7 +482,7 @@ export function processRoamingClaim(
       if (kcTargetId) {
         const monster = roster.find((m) => m.id === kcTargetId);
         if (monster) {
-          const dmg = computePlayerDamageVsMonster({ effectiveDps }, monster);
+          const dmg = computePlayerDamageVsMonster({ effectiveDps: tickEffectiveDps }, monster);
           kcTargetHp -= dmg;
 
           if (kcTargetHp <= 0) {
@@ -413,15 +510,40 @@ export function processRoamingClaim(
     if (!survDead && roster.length > 0) {
       const attacker = pickAreaMonster(area);
       if (attacker) {
+        // Apply consumable mods: incoming DPS multiplier (Cryo), enemy pressure (Loot Beacon)
+        const modifiedAttacker = {
+          ...attacker,
+          attackPower: Math.round(
+            attacker.attackPower * consumableMods.incomingDpsMultiplier * consumableMods.enemyPressureMultiplier
+          ),
+          accuracy: (attacker.accuracy ?? 0.85) * consumableMods.incomingAccuracyMultiplier,
+        };
+        // Apply consumable damage reduction (Shield Cell resistance)
         const hunter: HunterSurvivalStats = {
           maxHp: survMaxHp,
           shieldHp: survShield,
-          mitigation: request.survival?.mitigation ?? 0,
+          mitigation: Math.min(0.8, (request.survival?.mitigation ?? 0) + consumableMods.damageReductionPct),
         };
-        const hit = computeMonsterDamageVsHunter(attacker, hunter);
+        const hit = computeMonsterDamageVsHunter(modifiedAttacker, hunter);
         if (!hit.missed) {
           survShield = Math.max(0, survShield - hit.shieldAbsorbed);
-          survHp = Math.max(0, survHp - hit.hpDamage);
+
+          // Med Kit buffer absorbs damage after shield, before HP
+          let remainingHpDamage = hit.hpDamage;
+          if (roamingState) {
+            const survState = getSurvivalState(roamingState);
+            if (survState.medKitBuffer > 0 && remainingHpDamage > 0) {
+              const absorbed = Math.min(survState.medKitBuffer, remainingHpDamage);
+              remainingHpDamage -= absorbed;
+              // Update buffer in roaming state
+              const medKitSlot = roamingState.slots.find(
+                (s) => s.consumableId === 'MedKit' || s.consumableId === 'MedKitRefined'
+              );
+              if (medKitSlot) medKitSlot.remainingBuffer -= absorbed;
+            }
+          }
+
+          survHp = Math.max(0, survHp - remainingHpDamage);
           if (survHp <= 0) {
             survDead = true;
           }
@@ -455,11 +577,24 @@ export function processRoamingClaim(
       lastKilledMonsterId: kcLastKilledId,
     },
     // Server-authoritative survival HP for client synchronization
-    survival: {
-      currentHp: survHp,
-      shieldHp: survShield,
-      isDead: survDead,
-    },
+    survival: (() => {
+      const ss = roamingState ? getSurvivalState(roamingState) : null;
+      return {
+        currentHp: survHp,
+        shieldHp: survShield,
+        isDead: survDead,
+        medKitBuffer: ss?.medKitBuffer ?? 0,
+        nanoSwarmTicksRemaining: ss?.nanoSwarmTicksRemaining ?? 0,
+        adrenalineActive: ss?.adrenalineActive ?? false,
+        shieldCellResistance: ss?.shieldCellResistance ?? 0,
+      };
+    })(),
+    // Consumables consumed during this claim batch
+    consumedConsumables,
+    // Updated roaming consumable state for next claim
+    roamingConsumableState: roamingState,
+    // Active buff display data for client UI
+    activeBuffs: roamingState ? buildActiveBuffs(roamingState, tickCount) : [],
   };
 }
 

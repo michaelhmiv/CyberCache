@@ -1,6 +1,6 @@
 import { Express, Request, Response } from 'express';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { processBossAttempt, processRoamingClaim, type BossAttemptRequest, type ClaimRequest } from '../chef';
+import { processBossAttempt, processRoamingClaim, type BossAttemptRequest, type ClaimRequest, type ClaimResult } from '../chef';
 
 let _supabase: SupabaseClient | null = null;
 
@@ -90,7 +90,7 @@ async function handleClaim(req: Request, res: Response): Promise<void> {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('last_claimed_tick')
+      .select('last_claimed_tick, consumables')
       .eq('id', playerId)
       .single();
 
@@ -104,7 +104,19 @@ async function handleClaim(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const result = processRoamingClaim(claim);
+    // Read server-authoritative consumable inventory from profiles.consumables
+    const consumableInventory = (profile?.consumables ?? {}) as Record<string, number>;
+
+    // Merge inventory + roaming state into the claim
+    const claimWithConsumables: ClaimRequest = {
+      ...claim,
+      consumableInventory,
+      loadoutConsumables: body.loadoutConsumables,
+      roamingConsumableState: body.roamingConsumableState,
+      masteryLevels: body.masteryLevels,
+    };
+
+    const result = processRoamingClaim(claimWithConsumables);
     const { data: rpcResult, error: rpcError } = await supabase.rpc('cc_apply_chef_rewards', {
       _player_id: playerId,
       _credits: result.rewards.creditsAwarded,
@@ -131,7 +143,25 @@ async function handleClaim(req: Request, res: Response): Promise<void> {
       if (storeError) console.error('[chef] Failed to store items:', storeError.message);
     }
 
-    res.json({ ...result, profile: rpcResult?.profile ?? rpcResult });
+    // Persist consumable consumption atomically (server-authoritative)
+    const consumedConsumables = (result as ClaimResult).consumedConsumables;
+    if (consumedConsumables && Object.keys(consumedConsumables).length > 0) {
+      const { error: consumeError } = await supabase.rpc('cc_consume_roaming_consumables', {
+        _player_id: playerId,
+        _consumed: consumedConsumables,
+        _area_id: body.areaId,
+        _tick_count: body.tickCount,
+      });
+      if (consumeError) {
+        console.error('[chef] Failed to consume roaming consumables:', consumeError.message);
+      }
+    }
+
+    res.json({
+      ...result,
+      profile: rpcResult?.profile ?? rpcResult,
+      consumedConsumables,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[chef] claim error:', message);
@@ -349,6 +379,14 @@ async function handleSettleOffline(req: Request, res: Response): Promise<void> {
     const areaId = area.id;
     const areaName = area.name;
 
+    // Read consumable inventory from profile (server-authoritative)
+    const consumableInventory = (profile.consumables ?? {}) as Record<string, number>;
+    // Try to read loadout consumables from activity payload
+    const activityPayload = activeAction.activity_payload as
+      | { loadoutConsumables?: { PreFight: string | null; MidFight: string | null; Emergency: string | null } }
+      | null
+      | undefined;
+
     const claim: ClaimRequest = {
       playerId,
       areaId,
@@ -357,9 +395,23 @@ async function handleSettleOffline(req: Request, res: Response): Promise<void> {
       playerLevel: profile.player_level || 1,
       maxTicks: Infinity, // ← NO 20-TICK CLAMP for offline settlement
       effectiveDps: 0, // offline settlement skips combat simulation
+      consumableInventory,
+      loadoutConsumables: activityPayload?.loadoutConsumables,
     };
 
     const result = processRoamingClaim(claim);
+
+    // Persist consumable consumption for offline settlement
+    const offlineConsumed = result.consumedConsumables;
+    if (offlineConsumed && Object.keys(offlineConsumed).length > 0) {
+      const { error: consumeError } = await supabase.rpc('cc_consume_roaming_consumables', {
+        _player_id: playerId,
+        _consumed: offlineConsumed,
+        _area_id: areaId,
+        _tick_count: (profile.last_claimed_tick || 0) + ticksRequested,
+      });
+      if (consumeError) console.error('[chef] settlement consume consumables failed:', consumeError.message);
+    }
 
     // --- Persist rewards atomically via cc_settle_offline_roaming ---
     // This RPC locks the profile + active action, re-verifies roaming,

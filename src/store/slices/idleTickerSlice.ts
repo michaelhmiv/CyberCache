@@ -22,11 +22,11 @@ import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import type { GearItem, Weapon } from '@/types/items';
 import { useTickFeedStore, type TickEvent } from './tickSlice';
+import { useActiveBuffsStore } from './activeBuffsSlice';
 import { pickAreaMonster, resolveAreaMonsters } from '@/lib/combat/areaMonsterSelector';
 import {
   computeMonsterDamageVsHunter,
   computePlayerDamageVsMonster,
-  computeHealAmount,
   type WeaponDamageSource,
 } from '@/lib/combat/damageContract';
 import { loadoutSurvivalStats, loadoutEffectiveDps, equippedShieldRechargeRate, equippedShieldMitigation } from '@/lib/combat/loadoutSurvival';
@@ -40,7 +40,6 @@ import { generateWeapon } from '@/lib/generators/weaponGenerator';
 import { generateShield } from '@/lib/generators/shieldGenerator';
 import { generateClassMod } from '@/lib/generators/classModGenerator';
 import { generateRelic } from '@/lib/generators/relicGenerator';
-import { applyBossConsumableDisplayEvents } from '@/lib/chef/bossResultAdapter';
 import { generateOrdnance } from '@/lib/generators/ordnanceGenerator';
 
 const TICK_MS = 3000;
@@ -54,6 +53,7 @@ let lastTickAt = 0;
 let lastTickedAreaId: string | null = null;
 let ticking = false;
 let totalTickCount = 0;
+let roamingConsumableState: unknown = undefined;
 
 export interface IdleTickerState {
   running: boolean;
@@ -255,98 +255,10 @@ const applySurvivalTick = (areaId: string, ticks: number): TickEvent[] => {
       });
     }
 
-    // Nano Swarm per-tick regen: if active, heal 10 HP and decrement.
-    const survivalState = useSurvivalStore.getState();
-    if (survivalState.nanoSwarmTicksRemaining > 0) {
-      const depleted = survivalState.tickNanoSwarm(10);
-      events.push({
-        id: '',
-        at,
-        tone: 'heal',
-        label: '+10 HP',
-        detail: `Nano Swarm repair cloud (${survivalState.nanoSwarmTicksRemaining} ticks left).`,
-        areaId,
-        value: 10,
-      });
-      if (depleted) {
-        events.push({
-          id: '',
-          at,
-          tone: 'consumable',
-          label: 'Nano Swarm expired',
-          detail: 'Repair cloud dissipated.',
-          areaId,
-          value: 0,
-        });
-      }
-    }
-
-    // Adrenaline Shot: reactive DPS burst when HP < 20%.
-    const player = usePlayerStore.getState();
-    if (!survivalState.isAdrenalineActive() &&
-        survivalState.currentHp > 0 &&
-        survivalState.maxHp > 0 &&
-        survivalState.currentHp / survivalState.maxHp < 0.2 &&
-        (player.consumables['AdrenalineShot'] ?? 0) > 0) {
-      player.removeConsumable('AdrenalineShot', 1);
-      survivalState.triggerAdrenaline(20000); // 20 second burst
-      applyBossConsumableDisplayEvents({
-        attemptId: `adrenaline:${areaId}:${at}:AdrenalineShot`,
-        consumedConsumables: { AdrenalineShot: 1 },
-        now: at,
-        source: 'auto-eat',
-      });
-      events.push({
-        id: '',
-        at,
-        tone: 'consumable',
-        label: 'Adrenaline Shot',
-        detail: 'Emergency DPS burst triggered! +10% DPS for 20s.',
-        areaId,
-        value: 0,
-      });
-    }
-
-    // Shield Cell: reactive shield restore when shield is depleted.
-    const survival = useSurvivalStore.getState();
-    if (survival.shieldHp <= 0 && (player.consumables['ShieldCell'] ?? 0) > 0) {
-      const healAmount = computeHealAmount('ShieldCell');
-      player.removeConsumable('ShieldCell', 1);
-      survival.refillShield(healAmount);
-      applyBossConsumableDisplayEvents({
-        attemptId: `auto-eat:${areaId}:${at}:ShieldCell`,
-        consumedConsumables: { ShieldCell: 1 },
-        now: at,
-        source: 'auto-eat',
-      });
-      events.push({
-        id: '',
-        at,
-        tone: 'heal',
-        label: 'Shield Cell',
-        detail: `Auto-ate a Shield Cell (+${healAmount} shield).`,
-        areaId,
-        value: healAmount,
-      });
-    }
-
-    // Med Kit buffer depletion: when buffer hits 0, consume the Med Kit.
-    const postSurvival = useSurvivalStore.getState();
-    if (postSurvival.medKitBuffer <= 0) {
-      const playerState = usePlayerStore.getState();
-      if ((playerState.consumables['MedKit'] ?? 0) > 0) {
-        playerState.removeConsumable('MedKit', 1);
-        events.push({
-          id: '',
-          at,
-          tone: 'consumable',
-          label: 'Med Kit depleted',
-          detail: 'HP buffer absorbed all damage.',
-          areaId,
-          value: 0,
-        });
-      }
-    }
+    // Consumable processing (Nano Swarm regen, Adrenaline trigger,
+    // Shield Cell restore, Med Kit buffer depletion) is now handled
+    // server-side by the Chef. The client only sends loadout consumables
+    // and prior roaming state in the claim, then syncs from the response.
 
     // Death check — applies AFTER the damage event so the feed shows
     // the killing blow, then a death marker, in that order.
@@ -715,6 +627,27 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
   if (survival) {
     useSurvivalStore.getState().syncFromServer(survival);
   }
+
+  // Sync consumable state from Chef
+  const survivalData = payload.survival as
+    | { medKitBuffer?: number; nanoSwarmTicksRemaining?: number; adrenalineActive?: boolean; }
+    | undefined;
+  if (survival && survivalData) {
+    useSurvivalStore.getState().syncFromServer({ ...survival, ...survivalData });
+  }
+
+  // Store roaming consumable state for next claim
+  if (payload.roamingConsumableState) {
+    roamingConsumableState = payload.roamingConsumableState;
+  }
+
+  // Sync active buffs from Chef (server-authoritative roaming buffs)
+  const serverActiveBuffs = payload.activeBuffs as
+    | Array<{ consumableId: string; slot: string; remainingMs: number; remainingBuffer?: number; remainingTicks?: number; armed?: boolean; }>
+    | undefined;
+  if (serverActiveBuffs) {
+    useActiveBuffsStore.getState().syncRoamingFromServer(serverActiveBuffs);
+  }
 };
 
 export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
@@ -889,6 +822,8 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
               shieldHp: useSurvivalStore.getState().shieldHp,
               maxHp: useSurvivalStore.getState().maxHp,
             },
+            loadoutConsumables: useLoadoutStore.getState().consumables,
+            roamingConsumableState: roamingConsumableState,
           });
 
           // Apply canonical results from the Chef

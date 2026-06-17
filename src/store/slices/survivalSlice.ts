@@ -266,9 +266,17 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
 
   /** Sync authoritative survival state from the Chef server.
    *  Called when the Chef claim response includes survival data.
-   *  The server is the source of truth for HP/shield; local simulation
-   *  may have drifted due to latency or offline ticks. */
-  syncFromServer: (server) =>
+   *  The server is the source of truth for HP/shield and consumable state;
+   *  local simulation is cosmetic only and may drift. */
+  syncFromServer: (server: {
+    currentHp: number;
+    shieldHp: number;
+    isDead?: boolean;
+    medKitBuffer?: number;
+    nanoSwarmTicksRemaining?: number;
+    adrenalineActive?: boolean;
+    shieldCellResistance?: number;
+  }) =>
     set((state) => {
       // If server says we're dead but locally we're alive, trigger death flow
       const wasAlive = !state.isDead;
@@ -302,10 +310,14 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
       }
 
       // Normal HP/shield sync — preserve death state
+      // Include consumable survival state from Chef (display-only, synced)
       return {
         currentHp: newHp,
         shieldHp: newShield,
         isDead: serverDead,
+        medKitBuffer: typeof server.medKitBuffer === 'number' ? server.medKitBuffer : state.medKitBuffer,
+        nanoSwarmTicksRemaining: typeof server.nanoSwarmTicksRemaining === 'number' ? server.nanoSwarmTicksRemaining : state.nanoSwarmTicksRemaining,
+        adrenalineActive: typeof server.adrenalineActive === 'boolean' ? server.adrenalineActive : state.adrenalineActive,
       };
     }),
 }));
