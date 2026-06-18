@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy } from 'lucide-react';
+
 import { LeaderboardRow } from './LeaderboardRow';
 import { MobileCard } from '@/components/layout/MobileCard';
 import type { LeaderboardEntry } from '@/lib/supabase/leaderboardService';
@@ -35,7 +35,7 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
   if (entries.length === 0) {
     return (
       <MobileCard className="space-y-2 py-6 text-center" rarityColor="#9CA3AF">
-        <Trophy size={24} className="mx-auto text-text-muted" />
+        <span className="font-black text-text-muted mx-auto" style={{ fontSize: "24px" }}>♔</span>
         <div className="text-sm font-bold text-text-muted">No leaderboard data yet.</div>
         <div className="text-[10px] text-text-muted">Check back after the next daily snapshot.</div>
       </MobileCard>
@@ -50,7 +50,7 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
     <MobileCard className="space-y-1 overflow-hidden p-0" rarityColor="#FF9000">
       <div className="border-b border-border bg-surface/50 p-2">
         <div className="flex items-center gap-2">
-          <Trophy size={14} className="text-amber" />
+          <span className="font-black text-amber" style={{ fontSize: "14px" }}>♔</span>
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Global Rankings</div>
           <div className="ml-auto text-[10px] text-text-muted">{entries.length} players</div>
         </div>

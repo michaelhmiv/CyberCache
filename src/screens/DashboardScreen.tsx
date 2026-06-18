@@ -1,19 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Activity,
   Backpack,
   BarChart3,
-  Box,
   ChevronDown,
   ChevronRight,
   Crosshair,
-  Hammer,
   Lock,
-  Map,
-  PackageSearch,
-  Sparkles,
-  Trophy,
 } from 'lucide-react';
 import {
   useActivityStore,
@@ -43,6 +36,10 @@ import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { computeMedKitBuffer } from '@/lib/combat/damageContract';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
+import { getAreaVisual } from '@/constants/areaVisuals';
+import { AreaBackground } from '@/components/common/AreaBackground';
+import { getActivityVisual } from '@/constants/activityVisuals';
+import { getResourceVisual } from '@/constants/visualAssets';
 import type { TickEvent, TickEventTone } from '@/store/slices/tickSlice';
 import type { ActivityKind } from '@/types/activity';
 import type { Weapon } from '@/types/items';
@@ -130,18 +127,40 @@ const Panel: React.FC<React.PropsWithChildren<{
   </section>
 );
 
+const AreaGlyph: React.FC<{ areaId: string; size?: number; className?: string }> = ({ areaId, size = 14, className = '' }) => {
+  const visual = getAreaVisual(areaId);
+  return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px`, width: size, height: size }}>{visual.sigil}</span>;
+};
+
 const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
   const color = getGainToneClass(tone);
-  const Icon = tone === 'loot'
-    ? PackageSearch
+  // Map reward tones to game-entity resource visuals. The glyph + color
+  // from the registry replaces the old lucide icon set so every reward
+  // chip is visually consistent with the rest of the visual-asset system.
+  const resourceId = tone === 'loot'
+    ? 'loot'
     : tone === 'cache' || tone === 'fragment'
-      ? Box
+      ? 'cacheKey'
       : tone === 'level' || tone === 'kill' || tone === 'death'
-        ? Trophy
+        ? 'xp'
         : tone === 'cash'
-          ? Sparkles
-          : Activity;
-  return <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}><Icon size={17} className={color.text} /></div>;
+          ? 'credits'
+          : null;
+  if (resourceId) {
+    const visual = getResourceVisual(resourceId);
+    return (
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
+        <span className="shrink-0 font-black" style={{ color: visual.color, fontSize: '15px' }}>{visual.mark}</span>
+      </div>
+    );
+  }
+  // Fallback: activity glyph for non-resource tones
+  const actVisual = getActivityVisual('idle_standby');
+  return (
+    <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
+      <span className="shrink-0 font-black" style={{ color: color.text.includes('text-text-secondary') ? '#B8B0A8' : '#FF9000', fontSize: '15px' }}>{actVisual.glyph}</span>
+    </div>
+  );
 };
 
 const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
@@ -158,13 +177,13 @@ const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
   );
 };
 
-const ActionButton: React.FC<{ label: string; desc: string; stat?: string; icon: React.ElementType; tone: Tone; primary?: boolean; onClick: () => void }> = ({ label, desc, stat, icon: Icon, tone, primary = false, onClick }) => {
+const ActionButton: React.FC<{ label: string; desc: string; stat?: string; icon: React.ReactNode; tone: Tone; primary?: boolean; onClick: () => void }> = ({ label, desc, stat, icon, tone, primary = false, onClick }) => {
   const color = toneClass[tone];
   return (
     <button type="button" onClick={onClick} className={`group relative overflow-hidden border-2 text-left transition-transform active:scale-[0.98] ${primary ? `${color.border} ${color.bg}` : 'border-border bg-bg/80'}`} style={panelClip}>
       <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} />
       <div className="relative flex min-h-[56px] items-center gap-2 p-2 pl-3">
-        <div className={`flex h-9 w-9 shrink-0 -rotate-2 items-center justify-center border-2 border-border ${color.bg}`}><Icon size={16} className={color.text} /></div>
+        <div className={`flex h-9 w-9 shrink-0 -rotate-2 items-center justify-center border-2 border-border ${color.bg}`}>{icon}</div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2"><div className="text-xs font-black uppercase tracking-wide text-text-primary">{label}</div><ChevronRight size={14} className={`${color.text} opacity-75 transition-transform group-active:translate-x-0.5`} /></div>
           <div className="text-[9px] leading-snug text-text-muted">{desc}</div>
@@ -175,12 +194,12 @@ const ActionButton: React.FC<{ label: string; desc: string; stat?: string; icon:
   );
 };
 
-const InfoGauge: React.FC<{ label: string; value: string | number; detail: string; icon: React.ElementType; tone: Tone; onClick?: () => void }> = ({ label, value, detail, icon: Icon, tone, onClick }) => {
+const InfoGauge: React.FC<{ label: string; value: string | number; detail: string; icon: React.ReactNode; tone: Tone; onClick?: () => void }> = ({ label, value, detail, icon, tone, onClick }) => {
   const color = toneClass[tone];
   const isClickable = Boolean(onClick);
   return (
     <div onClick={onClick} className={`relative overflow-hidden border-2 border-border bg-bg/75 p-1.5 ${isClickable ? 'cursor-pointer transition-transform active:scale-[0.97] hover:border-amber' : ''}`} style={panelClip}>
-      <div className="flex items-center gap-1.5"><div className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}><Icon size={14} className={color.text} /></div><div className="min-w-0"><div className="text-[8px] uppercase tracking-wide text-text-muted">{label}</div><div className="truncate text-xs font-black leading-tight text-text-primary">{value}</div></div></div>
+      <div className="flex items-center gap-1.5"><div className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>{icon}</div><div className="min-w-0"><div className="text-[8px] uppercase tracking-wide text-text-muted">{label}</div><div className="truncate text-xs font-black leading-tight text-text-primary">{value}</div></div></div>
       <div className="mt-0.5 truncate text-[8px] text-text-muted">{detail}</div>
     </div>
   );
@@ -313,12 +332,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   }, [activity, currentBoss, equippedWeapon, idle, onNavigate]);
 
   const actions = [
-    { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync selected turf as the active route, then enter combat.', icon: Crosshair, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
-    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: Backpack, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('inventory') },
-    { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: Box, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
-    { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: Trophy, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
-    { id: 'workshop', label: 'Workshop', desc: 'Craft dispatch uses activity; bench timers stay passive.', icon: Hammer, tone: 'blue' as Tone, stat: `${openWorkshopJobs} queues`, onClick: () => onNavigate('workshop') },
-    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: BarChart3, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
+    { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync selected turf as the active route, then enter combat.', icon: <Crosshair size={16} className="text-red" />, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
+    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <Backpack size={16} className="text-amber" />, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('inventory') },
+    { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
+    { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <span style={{ fontSize: 16 }} className="text-purple">♕</span>, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
+    { id: 'workshop', label: 'Workshop', desc: 'Craft dispatch uses activity; bench timers stay passive.', icon: <span style={{ fontSize: 16 }} className="text-blue">⚒</span>, tone: 'blue' as Tone, stat: `${openWorkshopJobs} queues`, onClick: () => onNavigate('workshop') },
+    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: <BarChart3 size={16} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
   ];
 
   return (
@@ -383,9 +402,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           />
         )}
         <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
-        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={selectedArea.dangerRating} icon={Map} tone="amber" /><InfoGauge label="Mastery" value={masteryScore.toLocaleString()} detail={`${availableSkillPoints} unspent points`} icon={Trophy} tone="purple" /><InfoGauge label="Best Gun" value={bestWeapon?.name ?? 'None'} detail={bestWeapon ? `${bestWeapon.combatPower} combat power` : 'Find gear in combat'} icon={Sparkles} tone="red" /><InfoGauge label="Workshop" value={openWorkshopJobs} detail={openWorkshopJobs > 0 ? `${openWorkshopJobs} passive queue${openWorkshopJobs === 1 ? '' : 's'} — tap` : 'open craft bench'} icon={Hammer} tone="green" onClick={() => onNavigate('workshop')} /></div>{nextArea && <div className="mt-2 flex items-center gap-2 border-2 border-border bg-bg/75 p-1.5" style={panelClip}><div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-surface-raised"><Lock size={14} className="text-text-muted" /></div><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-wide text-text-muted">Next turf unlock</div><div className="truncate text-xs font-black text-text-primary">{nextArea.name}</div></div><div className="text-right text-[9px] font-black text-amber">Reach LV {nextArea.unlockLevel}</div></div>}</Panel>
-        <Panel label="Numbers Up"><div className="grid grid-cols-2 gap-1.5">{(gainFeed.length ? gainFeed : [idleGainHint]).slice(0, 4).map((event) => { const color = getGainToneClass(event.tone); return <div key={event.id} className="flex items-center gap-1.5 border-2 border-border bg-bg/75 p-1.5" style={signClip}><span className={`h-2 w-2 rounded-full ${color.fill}`} /><div className="min-w-0 flex-1"><div className={`truncate text-[9px] font-black uppercase tracking-wide ${color.text}`}>{event.label}</div><div className="truncate text-[8px] text-text-muted">{event.detail}</div></div><Activity size={11} className="text-text-muted" /></div>; })}</div></Panel>
-        <Panel label="Choose Turf"><div className="flex gap-1.5 overflow-x-auto pb-0.5">{ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; return <button type="button" key={area.id} disabled={!unlocked} onClick={() => idle.setSelectedRoamingArea(area.id)} className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left transition-transform active:scale-[0.98] ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`} style={panelClip}><div className="flex items-start justify-between gap-1.5"><div className="min-w-0"><div className="truncate text-[11px] font-black text-text-primary">{area.name}</div><div className="text-[8px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div></div>{!unlocked && <Lock size={11} className="shrink-0 text-text-muted" />}{selected && <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" />}</div><div className="mt-0.5 truncate text-[8px] text-amber">{area.lootBias[0]}</div></button>; })}</div></Panel>
+        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={selectedArea.dangerRating} icon={<AreaGlyph areaId={selectedArea.id} size={14} />} tone="amber" /><InfoGauge label="Mastery" value={masteryScore.toLocaleString()} detail={`${availableSkillPoints} unspent points`} icon={<span style={{ fontSize: 14 }} className="text-purple">♕</span> } tone="purple" /><InfoGauge label="Best Gun" value={bestWeapon?.name ?? 'None'} detail={bestWeapon ? `${bestWeapon.combatPower} combat power` : 'Find gear in combat'} icon={<span style={{ fontSize: 14 }} className="text-red">✦</span> } tone="red" /><InfoGauge label="Workshop" value={openWorkshopJobs} detail={openWorkshopJobs > 0 ? `${openWorkshopJobs} passive queue${openWorkshopJobs === 1 ? '' : 's'} — tap` : 'open craft bench'} icon={<span style={{ fontSize: 14 }} className="text-green">⚒</span> } tone="green" onClick={() => onNavigate('workshop')} /></div>{nextArea && <div className="mt-2 flex items-center gap-2 border-2 border-border bg-bg/75 p-1.5" style={panelClip}><div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-surface-raised"><Lock size={14} className="text-text-muted" /></div><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-wide text-text-muted">Next turf unlock</div><div className="truncate text-xs font-black text-text-primary">{nextArea.name}</div></div><div className="text-right text-[9px] font-black text-amber">Reach LV {nextArea.unlockLevel}</div></div>}</Panel>
+        <Panel label="Numbers Up"><div className="grid grid-cols-2 gap-1.5">{(gainFeed.length ? gainFeed : [idleGainHint]).slice(0, 4).map((event) => { const color = getGainToneClass(event.tone); const actVis = getActivityVisual(activity.current.kind); return <div key={event.id} className="flex items-center gap-1.5 border-2 border-border bg-bg/75 p-1.5" style={signClip}><span className={`h-2 w-2 rounded-full ${color.fill}`} /><div className="min-w-0 flex-1"><div className={`truncate text-[9px] font-black uppercase tracking-wide ${color.text}`}>{event.label}</div><div className="truncate text-[8px] text-text-muted">{event.detail}</div></div><span className="shrink-0 font-black" style={{ color: actVis.color, fontSize: '11px' }}>{actVis.glyph}</span></div>; })}</div></Panel>
+        <Panel label="Choose Turf"><div className="flex gap-1.5 overflow-x-auto pb-0.5">{ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; const areaVis = getAreaVisual(area.id); return <button type="button" key={area.id} disabled={!unlocked} onClick={() => idle.setSelectedRoamingArea(area.id)} className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left transition-transform active:scale-[0.98] ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`} style={panelClip}><AreaBackground areaId={area.id} opacity={unlocked ? 0.18 : 0.08} /><div className="relative flex items-start justify-between gap-1.5"><div className="min-w-0 flex items-center gap-1.5"><span className="shrink-0 font-black inline-flex items-center justify-center" style={{ color: areaVis.color, fontSize: '11px', width: 16, height: 16 }}>{areaVis.sigil}</span><div className="min-w-0"><div className="truncate text-[11px] font-black text-text-primary">{area.name}</div><div className="text-[8px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div></div></div>{!unlocked && <Lock size={11} className="shrink-0 text-text-muted" />}{selected && <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" />}</div><div className="relative mt-0.5 truncate text-[8px] text-amber">{area.lootBias[0]}</div></button>; })}</div></Panel>
       </div>
     </div>
   );

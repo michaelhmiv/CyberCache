@@ -6,7 +6,7 @@
  * shown with its sub-stat breakdown.
  */
 import React, { useMemo } from 'react';
-import { Wrench, Recycle, ShoppingCart, Clock, Radar, Zap } from 'lucide-react';
+import { getActivityVisual } from '@/constants/activityVisuals';
 import { useLoadoutStore, useInventoryStore } from '@/store';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import type { ActivityKind } from '@/types/activity';
@@ -14,13 +14,13 @@ import type { GearItem } from '@/types/items';
 
 // ── Icons per activity ────────────────────────────────────────────
 
-const ACTIVITY_ICONS: Partial<Record<ActivityKind, React.ElementType>> = {
-  crafting: Wrench,
-  salvaging: Recycle,
-  market_listing: ShoppingCart,
-  workshop_service: Clock,
-  roaming_loot: Radar,
-  idle_standby: Zap,
+const ACTIVITY_GLYPHS: Partial<Record<ActivityKind, string>> = {
+  crafting: getActivityVisual('crafting').glyph,
+  salvaging: getActivityVisual('salvaging').glyph,
+  market_listing: getActivityVisual('market_listing').glyph,
+  workshop_service: getActivityVisual('workshop_service').glyph,
+  roaming_loot: getActivityVisual('roaming_loot').glyph,
+  idle_standby: getActivityVisual('idle_standby').glyph,
 };
 
 const ACTIVITY_LABELS: Partial<Record<ActivityKind, string>> = {
@@ -127,7 +127,7 @@ export const ActivityModifierPanel: React.FC<{
   // Don't render if there are no modifiers
   if (entries.length === 0 && contributingGear.length === 0) return null;
 
-  const Icon = ACTIVITY_ICONS[activityKind] ?? Zap;
+  const activityGlyph = ACTIVITY_GLYPHS[activityKind] ?? '○';
   const label = ACTIVITY_LABELS[activityKind] ?? activityKind;
 
   return (
@@ -135,7 +135,7 @@ export const ActivityModifierPanel: React.FC<{
       style={{ clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' }}>
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Icon size={14} className="text-amber shrink-0" />
+        <span className="font-black text-amber shrink-0" style={{ fontSize: '14px' }}>{activityGlyph}</span>
         <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">{label} Modifiers</div>
       </div>
 

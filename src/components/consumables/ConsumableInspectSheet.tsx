@@ -1,21 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  AlertTriangle, Crosshair, PackagePlus, Radio, Shield, Star, X,
-} from 'lucide-react';
+import { X } from 'lucide-react';
 import type { ConsumableDef, ConsumableFamily, ConsumableRuntimeEffects } from '@/constants/consumables';
 import { getConsumableQualityBand, getConsumableRuntimeEffects } from '@/constants/consumables';
 import { usePlayerStore } from '@/store';
 import { getConsumableMechanicKind, resolveConsumableDuration } from '@/lib/buffs/activeBuffs';
-
-const FAMILY_ICONS: Record<ConsumableFamily, React.ElementType> = {
-  survival: Shield,
-  ammo: Crosshair,
-  ordnance: PackagePlus,
-  tactical: Radio,
-  economy: Star,
-  corrupted: AlertTriangle,
-};
 
 const FAMILY_COLORS: Record<ConsumableFamily, string> = {
   survival: 'text-green',
@@ -75,7 +64,6 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
 
   if (!consumable) return null;
 
-  const Icon = FAMILY_ICONS[consumable.family];
   const familyColor = FAMILY_COLORS[consumable.family];
   const owned = player.getConsumableCount(consumable.id);
   const vendorEffects = getConsumableRuntimeEffects(consumable.id, consumable.quality.vendorQuality);
@@ -125,7 +113,9 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
                   <div className="min-w-0">
                     <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">Consumable Inspect</div>
                     <div className="mt-1 flex items-center gap-2">
-                      <Icon size={20} className={familyColor} />
+                      <span className={`shrink-0 text-xs font-black uppercase tracking-wide ${familyColor}`}>
+                        {consumable.family}
+                      </span>
                       <div className="truncate text-xl font-black leading-none text-text-primary">{consumable.name}</div>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-text-muted">

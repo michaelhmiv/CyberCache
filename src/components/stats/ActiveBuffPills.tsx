@@ -1,10 +1,8 @@
 import React, { memo, useState, useEffect, useMemo, useRef } from 'react';
-import { Shield, Zap, Crosshair, PackageOpen } from 'lucide-react';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
-import { getConsumableMechanicKind } from '@/lib/buffs/activeBuffs';
 
 const SLOT_ORDER: Array<keyof LoadoutConsumables> = ['PreFight', 'MidFight', 'Emergency'];
 
@@ -27,15 +25,6 @@ const SLOT_LABEL: Record<keyof LoadoutConsumables, string> = {
   Emergency: 'Emg',
 };
 
-function iconForMechanicKind(kind: string) {
-  if (kind === 'survival-repair' || kind === 'survival-boost') return Shield;
-  if (kind === 'ammo-coverage') return Crosshair;
-  if (kind === 'phase-break' || kind === 'boss-mechanic') return Zap;
-  if (kind === 'boss-prep') return Crosshair;
-  if (kind === 'economy-outcome' || kind === 'activity-start') return PackageOpen;
-  return PackageOpen;
-}
-
 const BuffPill = memo(function BuffPill({
   buff,
   now,
@@ -44,9 +33,8 @@ const BuffPill = memo(function BuffPill({
   now: number;
 }) {
   const def = CONSUMABLES[buff.consumableId];
-  const mechanicKind = getConsumableMechanicKind(buff.consumableId);
-  const Icon = iconForMechanicKind(mechanicKind);
   const accent = def ? accentClass[def.visual.accent] : '#888';
+  const glyph = def?.visual.glyph;
   const name = def?.name ?? buff.consumableId;
   const effectSummary = def?.runtime.ledgerText ?? '';
   const isMedKit = buff.consumableId === 'MedKit' || buff.consumableId === 'MedKitRefined';
@@ -64,7 +52,12 @@ const BuffPill = memo(function BuffPill({
       data-consumable-id={buff.consumableId}
       className="flex items-center gap-2 border-b border-border/40 px-2 py-1.5"
     >
-      <Icon size={14} style={{ color: accent }} className="shrink-0" />
+      <span
+        className="shrink-0 text-[14px] font-black leading-none"
+        style={{ color: accent }}
+      >
+        {glyph}
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-1">
           <span className="truncate text-[10px] font-black uppercase tracking-wide text-text-primary">

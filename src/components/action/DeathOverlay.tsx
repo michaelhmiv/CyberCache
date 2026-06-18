@@ -23,15 +23,28 @@
  */
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Coins, Ticket, Skull } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import {
   useSurvivalStore,
   usePlayerStore,
   useKillCycleStore,
   useActivityStore,
 } from '@/store';
+import { ResourceIcon } from '@/components/common/ResourceIcon';
+import { CONSUMABLES } from '@/constants/consumables';
 import { resurrectionCostForArea, formatCreditCost, RESURRECTION_FREE_TIMER_MS } from '@/lib/combat/resurrectionCost';
 import { mountIdleTicker } from '@/store/slices/idleTickerSlice';
+
+/** Hex colors for consumable visual accents — used for the revive-token glyph. */
+const CONSUMABLE_ACCENT_HEX: Record<string, string> = {
+  green: '#7CFC00',
+  red: '#FF4B5C',
+  orange: '#FF9000',
+  cyan: '#00E5FF',
+  amber: '#FFB300',
+  purple: '#B66BFF',
+  blue: '#5AA7FF',
+};
 
 export interface DeathOverlayProps {
   /** Optional className for the outer container. */
@@ -78,6 +91,13 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
   const creditCost = resurrectionCostForArea(areaId);
   const canPayCredits = credits >= creditCost;
   const canUseToken = reviveTokens > 0;
+
+  // Resolve the ReviveToken consumable's visual glyph for the token button.
+  // ReviveToken is not guaranteed to exist in the CONSUMABLES registry —
+  // fall back to a styled 'T' badge when it's absent.
+  const reviveDef = CONSUMABLES['ReviveToken'];
+  const reviveGlyph = reviveDef?.visual.glyph ?? 'T';
+  const reviveAccent = reviveDef ? CONSUMABLE_ACCENT_HEX[reviveDef.visual.accent] : '#FFB300';
 
   if (!isDead) return null;
 
@@ -134,7 +154,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
         >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-red bg-red/20 text-red">
-              <Skull size={22} />
+              <span style={{ fontSize: 22 }}>☠</span>
             </div>
             <div className="min-w-0 flex-1">
               <div
@@ -187,7 +207,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
                 : 'border-border bg-bg opacity-60'
             }`}
           >
-            <Coins size={20} className={canPayCredits ? 'text-amber' : 'text-text-muted'} />
+            <ResourceIcon id="credits" size={20} className={canPayCredits ? '' : 'opacity-40'} />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-black uppercase tracking-wide text-text-primary">Pay Credits</div>
               <div className="text-[10px] text-text-muted">
@@ -210,7 +230,12 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
                 : 'border-border bg-bg opacity-60'
             }`}
           >
-            <Ticket size={20} className={canUseToken ? 'text-amber' : 'text-text-muted'} />
+            <span
+              className={`flex h-5 w-5 items-center justify-center text-lg font-black leading-none ${canUseToken ? '' : 'opacity-40'}`}
+              style={{ color: canUseToken ? reviveAccent : '#888' }}
+            >
+              {reviveGlyph}
+            </span>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-black uppercase tracking-wide text-text-primary">Use Revive Token</div>
               <div className="text-[10px] text-text-muted">

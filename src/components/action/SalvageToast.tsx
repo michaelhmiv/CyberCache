@@ -5,7 +5,7 @@
  */
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Recycle, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import type { SalvageFeedEvent } from '@/store/slices/salvageFeedSlice';
 
@@ -55,7 +55,7 @@ const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
           className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-border"
           style={{ background: `${accent}18` }}
         >
-          <Recycle size={16} style={{ color: accent }} />
+          <span className="font-black" style={{ color: accent, fontSize: '16px' }}>♻</span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

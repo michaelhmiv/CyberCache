@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, RotateCcw, Sparkles, Zap } from 'lucide-react';
+import { Lock, RotateCcw } from 'lucide-react';
 import { getSkillTreeNodes } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import { SkillNode } from '@/types/skill';
 import { usePlayerStore, useSkillStore } from '@/store';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { SkillKeystoneArt } from '@/components/common/SkillKeystoneArt';
 
 const TREES = [
   { id: SkillTreeType.Gunslinger, label: 'Gunslinger', color: '#FF4B5C', desc: 'Weapon damage, crits, speed' },
@@ -138,7 +139,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
             <div className="text-xs font-black uppercase tracking-wide" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
             <div className="text-[10px] text-text-muted">Horizontal scroll is intentional on mobile. Tap a node to inspect or spend.</div>
           </div>
-          <Sparkles size={16} style={{ color: activeTreeDef.color }} />
+          <span className="font-black" style={{ color: activeTreeDef.color, fontSize: '16px' }}>✦</span>
         </div>
 
         {errorMessage && (
@@ -179,8 +180,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1">
-                              {node.type === 'keystone' && <Zap size={12} className="shrink-0 text-amber" />}
-                              {node.type === 'major' && <Sparkles size={11} className="shrink-0 text-purple" />}
+                              <SkillKeystoneArt tree={activeTree} nodeType={node.type} unlocked={currentPoints > 0} size={20} animate={node.type === 'keystone' && currentPoints > 0} />
                               <div className="truncate text-[10px] font-black text-text-primary">{node.name}</div>
                             </div>
                             {isMaxed && <Lock size={11} className="shrink-0 text-green" />}

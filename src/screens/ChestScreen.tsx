@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Box, Sparkles, Info, Lock, Unlock, Scissors, Sword } from 'lucide-react';
+import { Info, Lock, Unlock } from 'lucide-react';
 import { usePlayerStore, useInventoryStore } from '@/store';
 import { useLoadoutStore, LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { RARITIES } from '@/constants/rarities';
@@ -8,6 +8,7 @@ import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/supabase/serverItemAdapter';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
+import { ChestIllustration } from '@/components/common/ChestIllustration';
 
 // ─── helpers ──────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ const GearItemCard: React.FC<{
             onClick={onEquip}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber/20 text-amber text-[11px] font-bold active:scale-95 transition-transform"
           >
-            <Sword size={12} />
+            <span style={{ fontSize: '12px' }}>⚔</span>
             Equip
           </button>
         )}
@@ -147,7 +148,7 @@ const GearItemCard: React.FC<{
           disabled={itemIsLocked || action === 'scrapped'}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
-          <Scissors size={12} />
+          <span style={{ fontSize: 12 }}>♻</span>
           Recycle
         </button>
       </div>
@@ -270,8 +271,8 @@ export const ChestScreen: React.FC = () => {
       </div>
 
       <div className="bg-surface-raised border border-border rounded-2xl p-6 text-center space-y-3">
-        <div className="w-20 h-20 mx-auto rounded-full bg-amber/10 border-2 border-amber flex items-center justify-center">
-          <Box size={36} className="text-amber" />
+        <div className="w-20 h-20 mx-auto flex items-center justify-center">
+          <ChestIllustration tier="rare" size={80} open={opening} animate={opening} />
         </div>
         <button
           onClick={handleOpen}
@@ -309,7 +310,7 @@ export const ChestScreen: React.FC = () => {
               transition={{ repeat: Infinity, duration: 0.4 }}
               className="text-amber"
             >
-              <Box size={80} />
+              <span className="font-black text-amber" style={{ fontSize: '80px' }}>▤</span>
             </motion.div>
             <div className="absolute bottom-20 text-amber font-bold text-sm animate-pulse">
               DECRYPTING CACHE...
@@ -332,7 +333,7 @@ export const ChestScreen: React.FC = () => {
               transition={{ type: 'spring', delay: 0.1 }}
               className="text-amber mb-4"
             >
-              <Sparkles size={48} />
+              <span className="font-black text-amber" style={{ fontSize: '48px' }}>✦</span>
             </motion.div>
             <div className="text-xl font-black text-amber mb-4">CACHE DECRYPTED</div>
             <div className="w-full max-w-[480px] space-y-3 max-h-[55vh] overflow-y-auto">

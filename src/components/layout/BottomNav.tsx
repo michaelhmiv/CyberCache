@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Backpack, Gauge, PlayCircle, ShoppingCart, Trophy, User } from 'lucide-react';
+import { getNavSigil } from '@/constants/navSigils';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'leaderboards' | 'profile';
 
@@ -9,25 +9,19 @@ interface BottomNavProps {
   onChange: (tab: TabId) => void;
 }
 
-const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: 'dashboard', label: 'Board', icon: Gauge },
-  { id: 'fight', label: 'Action', icon: PlayCircle },
-  { id: 'inventory', label: 'Gear', icon: Backpack },
-  { id: 'market', label: 'Market', icon: ShoppingCart },
-  { id: 'leaderboards', label: 'Rank', icon: Trophy },
-  { id: 'profile', label: 'Hunter', icon: User },
-];
+const TAB_IDS: TabId[] = ['dashboard', 'fight', 'inventory', 'market', 'leaderboards', 'profile'];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => {
   return (
     <nav className="shrink-0 h-[66px] bg-bg border-t-[3px] border-border z-50 px-2 pt-1.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] shadow-[0_-8px_18px_rgba(0,0,0,0.65)]">
       <div className="grid h-full grid-cols-6 gap-1.5">
-        {tabs.map((t) => {
-          const isActive = activeTab === t.id;
+        {TAB_IDS.map((tabId) => {
+          const isActive = activeTab === tabId;
+          const sigil = getNavSigil(tabId);
           return (
             <button
-              key={t.id}
-              onClick={() => onChange(t.id)}
+              key={tabId}
+              onClick={() => onChange(tabId)}
               className={`relative flex min-w-0 flex-col items-center justify-center gap-0.5 border-2 border-border transition-transform active:scale-[0.96] ${
                 isActive ? 'bg-amber text-bg' : 'bg-surface text-text-muted'
               }`}
@@ -40,8 +34,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => 
                   transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
               )}
-              <t.icon className="relative z-10" size={18} strokeWidth={isActive ? 3 : 2.25} />
-              <span className="relative z-10 truncate px-1 text-[8px] font-black uppercase tracking-wide">{t.label}</span>
+              <span
+                className="relative z-10 font-black leading-none"
+                style={{
+                  fontSize: '18px',
+                  color: isActive ? undefined : sigil.color,
+                }}
+              >
+                {sigil.glyph}
+              </span>
+              <span className="relative z-10 truncate px-1 text-[8px] font-black uppercase tracking-wide">{sigil.label}</span>
               {isActive && <span className="absolute -top-1.5 left-1/2 z-20 h-2 w-2 -translate-x-1/2 rotate-45 border border-border bg-amber-glow" />}
             </button>
           );

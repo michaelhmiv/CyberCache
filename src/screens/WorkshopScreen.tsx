@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Clock, ChevronDown, Search, X } from 'lucide-react';
+import { Clock, ChevronDown, Search, X } from 'lucide-react';
 import { useActivityStore, usePlayerStore, useWorkshopStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
@@ -226,7 +226,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
 
       <MobileCard className="space-y-1 border-amber/30 bg-amber/5">
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-amber">
-          <Activity size={13} /> Workshop Activity
+          <span style={{ fontSize: '13px' }}>⚙</span> Workshop Activity
         </div>
         <div className="text-[10px] text-text-secondary leading-relaxed">
           Craft dispatch briefly claims the character activity. Claiming a completed queue now creates a verified quality batch.

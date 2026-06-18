@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, CheckCircle, Lock, Skull, Shield, Zap, Crosshair } from 'lucide-react';
+import { X, CheckCircle, Lock } from 'lucide-react';
 import { useBossStore } from '../../store/slices/bossSlice';
 import { useInventoryStore } from '../../store/slices/inventorySlice';
 import { useLoadoutStore } from '../../store/slices/loadoutSlice';
@@ -8,6 +8,7 @@ import { REGION_1_BOSSES } from '../../constants/bosses';
 import { BossDef } from '../../types/boss';
 import { MobileCard } from '../layout/MobileCard';
 import { computeLoadoutDps } from '../../lib/stats/dpsChain';
+import { BossSigil } from '@/components/common/BossSigil';
 
 interface BossSelectModalProps {
   onClose: () => void;
@@ -86,7 +87,7 @@ export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => 
                     ) : isLocked ? (
                       <Lock size={18} className="text-text-muted" />
                     ) : (
-                      <Skull size={18} className="text-red" />
+                      <BossSigil bossId={boss.id} size={20} showFrame={false} />
                     )}
                     <div>
                       <div className="text-sm font-bold text-text-primary">
@@ -117,9 +118,9 @@ export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => 
                 {/* Stats Row */}
                 <div className="flex items-center justify-between gap-2 text-[10px] text-text-secondary">
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-1"><Shield size={10} /> HP {boss.health.toLocaleString()}</div>
-                    {boss.shield > 0 && <div className="flex items-center gap-1"><Zap size={10} /> Shield {boss.shield.toLocaleString()}</div>}
-                    {boss.armor > 0 && <div className="flex items-center gap-1"><Crosshair size={10} /> Armor {boss.armor.toLocaleString()}</div>}
+                    <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>♥</span> HP {boss.health.toLocaleString()}</div>
+                    {boss.shield > 0 && <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>⚡</span> Shield {boss.shield.toLocaleString()}</div>}
+                    {boss.armor > 0 && <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>◈</span> Armor {boss.armor.toLocaleString()}</div>}
                   </div>
                   <div
                     className="border-2 border-border bg-bg/80 px-1.5 py-0.5"
