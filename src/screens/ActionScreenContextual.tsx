@@ -3,8 +3,6 @@ import { useNow } from '@/hooks/useNow';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Clock,
-  Crosshair,
-  Target,
   X,
 } from 'lucide-react';
 import {
@@ -226,7 +224,7 @@ const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBos
       >
         Weak: {boss.weaknesses.join(' / ') || 'None'}. Resist: {boss.resistances.join(' / ') || 'None'}. Dedicated drops: {boss.dedicatedDrops.join(' / ') || 'Unknown'}.
       </RewardIntelPanel>
-      <Section title="Phase Checklist" eyebrow="prep targets" icon={Target} action={<button type="button" onClick={onBossPicker} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Boss</button>}>
+      <Section title="Phase Checklist" eyebrow="prep targets" icon={<span style={{ fontSize: 15 }}>◎</span>} action={<button type="button" onClick={onBossPicker} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Boss</button>}>
         <div className="space-y-2">
           {boss.phases.map((phase, index) => (
             <div key={phase.id} className="border-2 border-border bg-bg/70 p-2" style={smallClip}>
@@ -261,7 +259,7 @@ const _BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: 
       >
         Dedicated drops: {boss.dedicatedDrops.join(' / ')}. Current fight view is event-driven and ready for richer HP/phase resolution.
       </RewardIntelPanel>
-      <Section title="Phase Breakdown" eyebrow="encounter replay" icon={Crosshair}>
+      <Section title="Phase Breakdown" eyebrow="encounter replay" icon={<span style={{ fontSize: 15 }}>⚔</span>}>
         <div className="space-y-2">
           {boss.phases.map((phase, index) => {
             const pass = fightPower >= boss.recommendedPower * phase.targetValue;
@@ -564,7 +562,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             <div>
               <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Active Route</div>
               <div className="flex items-center gap-2 mt-0.5">
-                <Radar size={15} className="text-amber shrink-0" />
+                <span style={{ fontSize: 15 }} className="text-amber shrink-0">📡</span>
                 <div>
                   <div className="text-sm font-black text-text-primary">{selectedArea.name}</div>
                   <div className="text-[10px] text-text-muted">{selectedArea.enemyType} · Lv.{selectedArea.unlockLevel} · {selectedArea.dangerRating}</div>
@@ -664,7 +662,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const switchActions = [
     { label: 'Roam', detail: selectedArea.name, icon: <ActivityGlyph kind="roaming_loot" size={16} /> as React.ReactNode, run: () => startRoam() },
     { label: 'Boss Prep', detail: prepBossTarget?.name ?? 'Choose target', icon: <ActivityGlyph kind="boss_fight" size={16} /> as React.ReactNode, run: () => startPrep() },
-    { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <Crosshair size={16} className="text-amber" /> as React.ReactNode, run: () => startBossFight() },
+    { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <span style={{ fontSize: 16 }} className="text-amber">⚔</span> as React.ReactNode, run: () => startBossFight() },
     { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: <ActivityGlyph kind="crafting" size={16} /> as React.ReactNode, run: () => startCrafting() },
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
     { label: 'Workshop', detail: `${workshop.activeQueues.length} queues`, icon: <ActivityGlyph kind="workshop_service" size={16} /> as React.ReactNode, run: startWorkshop },
@@ -730,7 +728,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* 1b. Compact Action Selector — always at top, replaces IdlePanel */}
       <div className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
         <div className="flex items-center gap-2 mb-2">
-          <Activity size={15} className="text-amber shrink-0" />
+          <span style={{ fontSize: 15 }} className="text-amber shrink-0">⚙</span>
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">
             {currentKind === 'idle_standby' || currentKind === 'none' ? 'Choose Action' : `${detail.title} · Controls`}
           </div>
@@ -804,7 +802,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* Drawers — unchanged */}
       <AnimatePresence>
         <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer instead of crowding the Action tab." onClose={() => setShowSwitch(false)}>
-          {switchActions.map(({ label, detail: rowDetail, icon: Icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber"><Icon size={18} /></div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
+          {switchActions.map(({ label, detail: rowDetail, icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber">{icon}</div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showAreaSelect} title="Choose Roaming Route" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Tap the scene title to switch routes.'} onClose={() => setShowAreaSelect(false)}>
           {/* Compact area stats strip — replaces the removed Roaming Intel card */}

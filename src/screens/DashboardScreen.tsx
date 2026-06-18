@@ -1,11 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Backpack,
-  BarChart3,
   ChevronDown,
   ChevronRight,
-  Crosshair,
   Lock,
 } from 'lucide-react';
 import {
@@ -332,12 +329,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   }, [activity, currentBoss, equippedWeapon, idle, onNavigate]);
 
   const actions = [
-    { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync selected turf as the active route, then enter combat.', icon: <Crosshair size={16} className="text-red" />, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
-    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <Backpack size={16} className="text-amber" />, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('inventory') },
+    { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync selected turf as the active route, then enter combat.', icon: <span style={{ fontSize: 16 }} className="text-red">⚔</span>, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
+    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <span style={{ fontSize: 16 }} className="text-amber">◈</span>, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('inventory') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
     { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <span style={{ fontSize: 16 }} className="text-purple">♕</span>, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
     { id: 'workshop', label: 'Workshop', desc: 'Craft dispatch uses activity; bench timers stay passive.', icon: <span style={{ fontSize: 16 }} className="text-blue">⚒</span>, tone: 'blue' as Tone, stat: `${openWorkshopJobs} queues`, onClick: () => onNavigate('workshop') },
-    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: <BarChart3 size={16} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
+    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: <span style={{ fontSize: 16 }} className="text-cyan">$</span>, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
   ];
 
   return (

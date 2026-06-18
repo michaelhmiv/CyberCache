@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ArrowRight,
   ChevronDown,
   ChevronUp,
-  Compass,
+  ArrowRight,
   Search,
   X,
 } from 'lucide-react';
@@ -345,7 +344,7 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ onTourJump }) => {
           className="flex w-full items-center gap-2 text-left transition-transform active:scale-[0.98]"
         >
           <div className="bl-icon-plate flex h-9 w-9 shrink-0 items-center justify-center bg-[#FF4B5C]/15">
-            <Compass size={16} className="text-[#FF4B5C]" />
+            <span style={{ fontSize: 16 }} className="text-[#FF4B5C]">🧭</span>
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-black uppercase tracking-wide text-text-primary">Guided Tour</div>
