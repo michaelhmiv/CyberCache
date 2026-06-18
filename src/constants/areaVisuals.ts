@@ -6,7 +6,7 @@
  * area cards and ActionScreenContextual area selectors.
  */
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
-import { Element, Manufacturer, WeaponType } from '@/types/game';
+import { Element, Manufacturer } from '@/types/game';
 
 export interface AreaVisual {
   id: string;

@@ -98,7 +98,7 @@ const accent = RARITY_COLORS[item.rarity] ?? '#A5A7B5';
     <span className="text-xs font-black truncate" style={{ color: accent }}>{item.name}</span>
     <span className="text-[9px] text-text-muted shrink-0">{item.rarity} · Lv.{item.level}</span>
   </div>
-  
+
   {/* Primary stats as compact pills — the decision info */}
   <div className="flex flex-wrap gap-1 mt-1">
     {summary.primaryStats.map(stat => (
@@ -108,7 +108,7 @@ const accent = RARITY_COLORS[item.rarity] ?? '#A5A7B5';
       </span>
     ))}
   </div>
-  
+
   {/* Best affix preview — one line */}
   {summary.badges[0] && (
     <div className="text-[9px] text-amber mt-0.5 truncate">{summary.badges[0]}</div>

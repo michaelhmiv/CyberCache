@@ -68,7 +68,7 @@ function deriveColor(tags: BossTag[], archetype: BossVisual['archetype']): strin
   return archetype === 'mechanical' ? '#3B82F6' : archetype === 'hybrid' ? '#A855F7' : '#7CFC00';
 }
 
-function deriveSigil(name: string, tier: number): string {
+function deriveSigil(name: string): string {
   // Build a 2-3 char sigil from the boss name
   const words = name.replace(/^(The|Gromm,\s*)/i, '').trim().split(/\s+/);
   if (words.length >= 2) {
@@ -94,7 +94,7 @@ export function registerBossVisual(
   const accentColor = weaknesses.length > 0
     ? (ELEMENT_ACCENT[weaknesses[0]] ?? color)
     : color;
-  const sigil = deriveSigil(name, tier);
+  const sigil = deriveSigil(name);
   const descriptions: Record<BossVisual['archetype'], string> = {
     organic: 'Biological threat. Weak to ballistic and elemental damage.',
     mechanical: 'Armored construct. Shields and repair cycles expected.',

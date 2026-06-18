@@ -48,7 +48,7 @@ Insert a centered `GearIllustration` between the opening `motion.div` and the na
 
 ```diff
 +import { GearIllustration } from '@/components/gearArt/GearIllustration';
- 
+
  const GearItemCard: React.FC<{...}> = ({ item, action, onEquip, onScrap, onLockToggle }) => {
    ...
    return (

@@ -28,6 +28,10 @@ export const BossSigil: React.FC<BossSigilProps> = ({
   const uid = useId().replace(/[:]/g, '');
   const glowId = `sigilGlow-${uid}`;
   const bgGradId = `sigilBg-${uid}`;
+  // Font size is in fixed 40×40 viewBox units. The SVG itself is scaled by
+  // width/height, so tying text size to the rendered pixel size makes compact
+  // sigils unreadably tiny.
+  const sigilFontSize = showFrame ? 14 : 15;
 
   return (
     <svg
@@ -90,7 +94,7 @@ export const BossSigil: React.FC<BossSigilProps> = ({
         x="20.5"
         y="25.5"
         textAnchor="middle"
-        fontSize={size * 0.36}
+        fontSize={sigilFontSize}
         fontWeight="900"
         fontFamily="monospace"
         fill="#000"
@@ -105,7 +109,7 @@ export const BossSigil: React.FC<BossSigilProps> = ({
         x="20"
         y="25"
         textAnchor="middle"
-        fontSize={size * 0.36}
+        fontSize={sigilFontSize}
         fontWeight="900"
         fontFamily="monospace"
         fill={visual.color}

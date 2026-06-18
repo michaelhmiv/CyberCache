@@ -165,6 +165,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
 
                       const currentPoints = skillStore.spent[node.id] || 0;
                       const isMaxed = currentPoints >= node.maxPoints;
+                      const prerequisitesMet = !node.requires || node.requires.every((req) => (skillStore.spent[req] || 0) > 0);
                       const isAvailable = canSpend(node.id) && pendingNodeId === null;
                       const isSelected = selectedNode?.id === node.id;
                       const isPending = pendingNodeId === node.id;
@@ -180,7 +181,14 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1">
-                              <SkillKeystoneArt tree={activeTree} nodeType={node.type} unlocked={currentPoints > 0} size={20} animate={node.type === 'keystone' && currentPoints > 0} />
+                              <SkillKeystoneArt
+                                tree={activeTree}
+                                nodeType={node.type}
+                                unlocked={prerequisitesMet || currentPoints > 0 || isMaxed}
+                                locked={!prerequisitesMet && currentPoints === 0 && !isMaxed}
+                                size={20}
+                                animate={node.type === 'keystone' && currentPoints > 0}
+                              />
                               <div className="truncate text-[10px] font-black text-text-primary">{node.name}</div>
                             </div>
                             {isMaxed && <Lock size={11} className="shrink-0 text-green" />}

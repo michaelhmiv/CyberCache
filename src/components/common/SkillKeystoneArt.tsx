@@ -17,6 +17,7 @@ interface SkillKeystoneArtProps {
   tree: SkillTreeType;
   nodeType?: NodeType;
   unlocked?: boolean;
+  locked?: boolean;
   size?: number;
   className?: string;
   animate?: boolean;
@@ -45,6 +46,7 @@ export const SkillKeystoneArt: React.FC<SkillKeystoneArtProps> = ({
   tree,
   nodeType = 'small',
   unlocked = false,
+  locked = !unlocked,
   size = 40,
   className = '',
   animate = false,
@@ -155,7 +157,7 @@ export const SkillKeystoneArt: React.FC<SkillKeystoneArtProps> = ({
       )}
 
       {/* Lock indicator */}
-      {!unlocked && (
+      {locked && (
         <text
           x="30"
           y="35"

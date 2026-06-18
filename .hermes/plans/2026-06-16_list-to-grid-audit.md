@@ -91,7 +91,7 @@
 **Files:** `src/screens/ConsumablesScreen.tsx:120-179`
 
 **Changes:**
-- Remove accordion expand/collapse logic (`expandedFamily` state)  
+- Remove accordion expand/collapse logic (`expandedFamily` state)
 - Add family filter chips at top: "All | Survival | Ammo | Ordnance | Tactical | Economy | Corrupted"
 - Render filtered items in `grid grid-cols-2 gap-2`
 - Each card is a compact tile: glyph icon centered → name → count → "Best XX%" quality

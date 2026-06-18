@@ -664,7 +664,7 @@ In `DashboardScreen.tsx`, after `<LiveTurfDiorama>`:
 
 ```tsx
 <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} ...>
-  {/* Stat bar and buff pills are children of diorama — 
+  {/* Stat bar and buff pills are children of diorama —
       rendered visually below the SVG but inside the diorama section */}
 </LiveTurfDiorama>
 
@@ -736,7 +736,7 @@ After the diorama in the scroll flow:
   /* … other props … */
 />
 
-{/* Hunter Totals — now a standalone panel */}  
+{/* Hunter Totals — now a standalone panel */}
 <Panel label="Hunter Totals">
   <CharacterStatBarBody
     summary={computedStats}
