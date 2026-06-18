@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Crosshair, Shield, Zap, Diamond, Gem } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useLoadoutStore, usePlayerStore, useInventoryStore } from '@/store';
 import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
@@ -38,18 +38,18 @@ function saveCollapsed(v: boolean) {
 const SLOT_CONFIG: Array<{
   slot: LoadoutSlot;
   label: string;
-  icon: React.ElementType;
+  glyph: string;
   row: number;
   col: number;
   isCenter?: boolean;
 }> = [
-  { slot: 'secondary',  label: 'Secondary', icon: Crosshair, row: 1, col: 2 },
-  { slot: 'heavy',      label: 'Heavy',     icon: Crosshair, row: 1, col: 3 },
-  { slot: 'shield',     label: 'Shield',    icon: Shield,    row: 2, col: 1 },
-  { slot: 'primary',    label: 'Primary',   icon: Crosshair, row: 2, col: 2, isCenter: true },
-  { slot: 'classMod',   label: 'Mod',       icon: Diamond,   row: 2, col: 3 },
-  { slot: 'relic',      label: 'Relic',     icon: Gem,       row: 3, col: 2 },
-  { slot: 'ordnance',   label: 'Ordnance',  icon: Zap,       row: 3, col: 3 },
+  { slot: 'secondary',  label: 'Secondary', glyph: '◎', row: 1, col: 2 },
+  { slot: 'heavy',      label: 'Heavy',     glyph: '◎', row: 1, col: 3 },
+  { slot: 'shield',     label: 'Shield',    glyph: '◈', row: 2, col: 1 },
+  { slot: 'primary',    label: 'Primary',   glyph: '◎', row: 2, col: 2, isCenter: true },
+  { slot: 'classMod',   label: 'Mod',       glyph: '◆', row: 2, col: 3 },
+  { slot: 'relic',      label: 'Relic',     glyph: '◇', row: 3, col: 2 },
+  { slot: 'ordnance',   label: 'Ordnance',  glyph: '⚡', row: 3, col: 3 },
 ];
 
 const SATURATED: Record<string, string> = {
@@ -103,11 +103,11 @@ const StarConnectors: React.FC = () => (
 
 const SlotChip: React.FC<{
   label: string;
-  icon: React.ElementType;
+  glyph: string;
   item: Weapon | ShieldItem | ClassMod | Relic | Ordnance | null;
   isCenter?: boolean;
   onClick: () => void;
-}> = ({ label, icon: Icon, item, isCenter, onClick }) => {
+}> = ({ label, glyph, item, isCenter, onClick }) => {
   const filled = !!item;
   const accent = item?.rarity ? SATURATED[item.rarity] ?? '#7B756D' : '#7B756D';
   const name = item?.name ?? (isCenter ? 'No weapon' : 'Open');
@@ -129,7 +129,7 @@ const SlotChip: React.FC<{
       }}
     >
       <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-text-muted">
-        <Icon size={isCenter ? 13 : 10} style={{ color: filled ? accent : undefined }} />
+        <span className="font-black" style={{ fontSize: isCenter ? '13px' : '10px', color: filled ? accent : undefined }}>{glyph}</span>
         <span>{label}</span>
       </div>
       <div
@@ -230,7 +230,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
           onClick={toggle}
           className="flex items-center gap-2 text-left hover:text-amber transition-colors"
         >
-          <Crosshair size={15} className="text-amber shrink-0" />
+          <span className="font-black text-amber shrink-0" style={{ fontSize: '15px' }}>◎</span>
           <div>
             <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Loadout</div>
             <div className="text-sm font-black text-text-primary">{equippedCount}/7 Gear</div>
@@ -295,13 +295,13 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
                 className="absolute inset-0 grid gap-1.5 z-10"
                 style={{ gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr 1fr 1fr' }}
               >
-                {SLOT_CONFIG.map(({ slot, label, icon, row, col, isCenter }) => {
+                {SLOT_CONFIG.map(({ slot, label, glyph, row, col, isCenter }) => {
                   const item = slotItem(loadout, slot);
                   return (
                     <div key={slot} style={{ gridRow: row, gridColumn: col }}>
                       <SlotChip
                         label={label}
-                        icon={icon}
+                        glyph={glyph}
                         item={item}
                         isCenter={isCenter}
                         onClick={() => setPickerSlot(slot)}

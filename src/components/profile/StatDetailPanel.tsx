@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, TrendingUp, TrendingDown, Minus, Trophy } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { Sparkline } from '@/components/progression/Sparkline';
 import { getMyProgressionSnapshots, type ProgressionMetric } from '@/lib/supabase/progressionService';
@@ -131,7 +131,7 @@ export const StatDetailPanel: React.FC<StatDetailPanelProps> = ({
             {leaderboardMetric && (
               <MobileCard className="space-y-2" rarityColor="#FFD700">
                 <div className="flex items-center gap-2">
-                  <Trophy size={16} className="text-amber" />
+                  <span style={{ fontSize: 16 }} className="text-amber">♕</span>
                   <div className="text-xs font-black uppercase tracking-wide text-text-primary">Global Rank</div>
                 </div>
                 <div className="flex items-end justify-between">

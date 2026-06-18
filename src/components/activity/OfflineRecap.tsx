@@ -8,7 +8,9 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Clock, Zap, Coins, Wrench, Key, Gem, Package } from 'lucide-react';
+import { X, Clock } from 'lucide-react';
+import { ResourceIcon } from '@/components/common/ResourceIcon';
+import { MaterialBadge } from '@/components/common/MaterialBadge';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 
 function formatNumber(n: number): string {
@@ -18,19 +20,19 @@ function formatNumber(n: number): string {
 }
 
 function RewardRow({
-  icon: Icon,
+  icon,
   label,
   value,
   accent = 'text-amber',
 }: {
-  icon: React.FC<{ className?: string; size?: number }>;
+  icon: React.ReactNode;
   label: string;
   value: string | number;
   accent?: string;
 }) {
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <Icon className={`w-4 h-4 shrink-0 ${accent}`} size={16} />
+      <span className="flex shrink-0 items-center">{icon}</span>
       <span className="text-xs text-zinc-400 flex-1">{label}</span>
       <span className={`text-sm font-bold tabular-nums ${accent}`}>{value}</span>
     </div>
@@ -102,7 +104,7 @@ export function OfflineRecap() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber/60" size={16} />
+              <span className="w-4 h-4 text-amber/60" style={{ fontSize: 16 }}>⚡</span>
               <span className="text-xs text-zinc-500">
                 {formatNumber(s.ticksSettled)} ticks settled
                 {s.capReached && (
@@ -120,7 +122,7 @@ export function OfflineRecap() {
             <div className="px-5 py-3 space-y-1">
               {s.rewards.creditsAwarded > 0 && (
                 <RewardRow
-                  icon={Coins}
+                  icon={<ResourceIcon id="credits" size={16} />}
                   label="Credits"
                   value={`+${formatNumber(s.rewards.creditsAwarded)}`}
                   accent="text-amber"
@@ -128,7 +130,7 @@ export function OfflineRecap() {
               )}
               {s.rewards.scrapAwarded > 0 && (
                 <RewardRow
-                  icon={Wrench}
+                  icon={<ResourceIcon id="scrap" size={16} />}
                   label="Scrap"
                   value={`+${formatNumber(s.rewards.scrapAwarded)}`}
                   accent="text-zinc-300"
@@ -136,7 +138,7 @@ export function OfflineRecap() {
               )}
               {s.rewards.xpAwarded > 0 && (
                 <RewardRow
-                  icon={Zap}
+                  icon={<ResourceIcon id="xp" size={16} />}
                   label="XP"
                   value={`+${formatNumber(s.rewards.xpAwarded)}`}
                   accent="text-purple-400"
@@ -144,7 +146,7 @@ export function OfflineRecap() {
               )}
               {s.rewards.cacheFragmentsAwarded > 0 && (
                 <RewardRow
-                  icon={Key}
+                  icon={<ResourceIcon id="cacheFragment" size={16} />}
                   label="Key Fragments"
                   value={`+${s.rewards.cacheFragmentsAwarded}`}
                   accent="text-cyan-400"
@@ -153,7 +155,7 @@ export function OfflineRecap() {
               {Object.entries(s.rewards.materials).map(([type, count]) => (
                 <RewardRow
                   key={`mat-${type}`}
-                  icon={Gem}
+                  icon={<MaterialBadge id={type} count={count} />}
                   label={type}
                   value={`+${count}`}
                   accent="text-blue-400"
@@ -162,7 +164,7 @@ export function OfflineRecap() {
               {Object.entries(s.rewards.essences).map(([type, count]) => (
                 <RewardRow
                   key={`ess-${type}`}
-                  icon={Gem}
+                  icon={<MaterialBadge id={type} count={count} />}
                   label={type}
                   value={`+${count}`}
                   accent="text-pink-400"
@@ -170,7 +172,7 @@ export function OfflineRecap() {
               ))}
               {s.items.length > 0 && (
                 <RewardRow
-                  icon={Package}
+                  icon={<ResourceIcon id="loot" size={16} />}
                   label="Gear Drops"
                   value={s.items.length}
                   accent="text-green-400"

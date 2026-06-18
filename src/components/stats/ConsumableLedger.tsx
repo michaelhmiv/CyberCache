@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, PackageOpen, TimerReset } from 'lucide-react';
+import { X } from 'lucide-react';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
@@ -91,7 +91,7 @@ export const ConsumableLedger: React.FC<{
               const tone = def ? (accentClass[def.visual.accent] ?? 'text-text-primary border-border bg-bg/80') : 'text-text-muted border-border bg-bg/60';
               return (
                 <div key={buff.id} data-testid="active-consumable-row" data-state={buff.displayState} className={`relative flex items-center gap-3 border-2 p-2 ${tone}`} style={panelClip}>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-bg/80 text-lg">{def?.visual.glyph ?? <TimerReset size={18} />}</div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-bg/80 text-lg">{def?.visual.glyph ?? '⏱'}</div>
                   <div className="min-w-0 flex-1">
                     <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">{buff.displayState === 'recent' ? 'Recently Triggered' : 'Active Effect'}</div>
                     <div className="truncate text-sm font-black text-text-primary">{def?.name ?? buff.consumableId}</div>
@@ -123,7 +123,7 @@ export const ConsumableLedger: React.FC<{
                     {def ? (
                       <span aria-hidden="true">{def.visual.glyph}</span>
                     ) : (
-                      <PackageOpen size={18} className="text-text-muted" />
+                      <span className="font-black text-text-muted" style={{ fontSize: '18px' }}>📦</span>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">

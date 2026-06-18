@@ -20,14 +20,7 @@ import {
   CheckSquare,
   Square,
   ArrowLeftRight,
-  Sword,
   SlidersHorizontal,
-  Shield as ShieldIcon,
-  Bomb,
-  Gem,
-  Package,
-  Sparkles,
-  Crosshair,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
@@ -167,13 +160,13 @@ const LOADOUT_LABELS: Record<LoadoutSlot, string> = {
   relic: 'Relic',
 };
 
-const KIND_DEFS: Array<{ id: GearKind; label: string; short: string; icon: React.ElementType }> = [
-  { id: 'all', label: 'All Gear', short: 'All', icon: Package },
-  { id: 'weapon', label: 'Weapons', short: 'Weapons', icon: Crosshair },
-  { id: 'shield', label: 'Shields', short: 'Shields', icon: ShieldIcon },
-  { id: 'ordnance', label: 'Ordnance', short: 'Ordnance', icon: Bomb },
-  { id: 'classMod', label: 'Class Mods', short: 'Mods', icon: Sparkles },
-  { id: 'relic', label: 'Relics', short: 'Relics', icon: Gem },
+const KIND_DEFS: Array<{ id: GearKind; label: string; short: string; glyph: string }> = [
+  { id: 'all', label: 'All Gear', short: 'All', glyph: '◈' },
+  { id: 'weapon', label: 'Weapons', short: 'Weapons', glyph: '⚔' },
+  { id: 'shield', label: 'Shields', short: 'Shields', glyph: '⬡' },
+  { id: 'ordnance', label: 'Ordnance', short: 'Ordnance', glyph: '◉' },
+  { id: 'classMod', label: 'Class Mods', short: 'Mods', glyph: '✦' },
+  { id: 'relic', label: 'Relics', short: 'Relics', glyph: '◇' },
 ];
 
 // ── Type Guards ──────────────────────────────────────────────────────────────
@@ -620,7 +613,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
       {/* Gear-kind rail: first-class mobile navigation, one row only. */}
       <div className="-mx-3 overflow-x-auto px-3 pb-0.5">
         <div className="flex min-w-max gap-1.5">
-          {KIND_DEFS.map(({ id, short, icon: Icon }) => {
+          {KIND_DEFS.map(({ id, short, glyph }) => {
             const active = activeKind === id;
             const counts = kindCounts[id];
             return (
@@ -632,7 +625,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
                   active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
                 }`}
               >
-                <Icon size={12} />
+                <span style={{ fontSize: 12 }}>{glyph}</span>
                 <span>{short}</span>
                 <span className={active ? 'text-amber/80' : 'text-text-muted/70'}>{counts.total}</span>
                 {counts.equipped > 0 && <span className="rounded-full bg-amber px-1 py-0 text-[7px] text-bg">{counts.equipped} EQ</span>}
@@ -1058,7 +1051,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
         actions={inspectItem ? (
           <div className="grid grid-cols-4 gap-2">
             <button type="button" onClick={() => equip(inspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
-              <Sword size={15} />Equip
+              <span style={{ fontSize: 15 }}>⚔</span>Equip
             </button>
             <button type="button" onClick={() => onNavigate?.('market')} className="flex flex-col items-center gap-1 border border-green/40 bg-green/10 py-2 text-[9px] font-black text-green">
               <ArrowLeftRight size={15} />Market

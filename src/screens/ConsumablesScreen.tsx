@@ -1,17 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Crosshair, PackagePlus, Radio, Search, Shield, Star, Store, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import type { ConsumableDef, ConsumableFamily } from '@/constants/consumables';
+import { getConsumableFamilyVisual } from '@/constants/consumableFamilyVisuals';
 import { useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
 import { ConsumableInspectSheet } from '@/components/consumables/ConsumableInspectSheet';
 
-const FAMILY_ICONS: Record<ConsumableFamily, React.ElementType> = {
-  survival: Shield,
-  ammo: Crosshair,
-  ordnance: PackagePlus,
-  tactical: Radio,
-  economy: Star,
-  corrupted: AlertTriangle,
+const FAMILY_GLYPHS: Record<ConsumableFamily, string> = {
+  survival: getConsumableFamilyVisual('survival').glyph,
+  ammo: getConsumableFamilyVisual('ammo').glyph,
+  ordnance: getConsumableFamilyVisual('ordnance').glyph,
+  tactical: getConsumableFamilyVisual('tactical').glyph,
+  economy: getConsumableFamilyVisual('economy').glyph,
+  corrupted: getConsumableFamilyVisual('corrupted').glyph,
 };
 
 const FAMILY_COLORS: Record<ConsumableFamily, string> = {
@@ -119,7 +120,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
           <div className="text-[10px] text-text-muted">Tap any item to inspect effects, quality batches, triggers, and loadout slots.</div>
         </div>
         <button type="button" onClick={openVendor} className="rounded-full border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] font-black text-amber">
-          <span className="inline-flex items-center gap-1"><Store size={11} /> Vendor</span>
+          <span className="inline-flex items-center gap-1"><span style={{ fontSize: '11px' }}>$</span> Vendor</span>
         </button>
       </div>
 
@@ -144,7 +145,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
           const items = grouped[family];
           const familyTotal = items.reduce((s, i) => s + i.count, 0);
           if (familyTotal === 0) return null;
-          const Icon = FAMILY_ICONS[family];
+          const familyGlyph = FAMILY_GLYPHS[family];
           const active = filterFamily === family;
           return (
             <button
@@ -155,7 +156,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                 active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
               }`}
             >
-              <Icon size={10} />
+              <span style={{ fontSize: '10px' }}>{familyGlyph}</span>
               <span>{FAMILY_LABELS[family]} ({familyTotal})</span>
             </button>
           );

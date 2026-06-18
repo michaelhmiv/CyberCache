@@ -2,17 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNow } from '@/hooks/useNow';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Activity,
   Clock,
-  Crosshair,
-  Hammer,
-  Package,
-  Radar,
-  Recycle,
-  ShoppingCart,
-  Skull,
-  Target,
-  Wrench,
   X,
 } from 'lucide-react';
 import {
@@ -59,6 +49,9 @@ import { makeRunEvent, type RunVisualEvent } from '@/lib/run/runEvents';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/supabase/serverItemAdapter';
+import { BossSigil } from '@/components/common/BossSigil';
+import { getActivityVisual } from '@/constants/activityVisuals';
+import { getResourceVisual } from '@/constants/visualAssets';
 import type { ActivityKind, StartActivityInput } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
@@ -75,6 +68,18 @@ const MAX_SWITCH_ROWS = 8;
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 const smallClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
+
+/** Renders an activity-kind glyph as a styled span (replaces lucide activity icons). */
+const ActivityGlyph: React.FC<{ kind: ActivityKind; size?: number; className?: string }> = ({ kind, size = 15, className = '' }) => {
+  const visual = getActivityVisual(kind);
+  return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px` }}>{visual.glyph}</span>;
+};
+
+/** Renders a resource glyph as a styled span (replaces lucide resource icons). */
+const ResourceGlyph: React.FC<{ id: 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'xp' | 'level' | 'masteryPoint' | 'loot'; size?: number; className?: string }> = ({ id, size = 15, className = '' }) => {
+  const visual = getResourceVisual(id);
+  return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px` }}>{visual.mark}</span>;
+};
 
 const copy: Record<ActivityKind, { title: string; detail: string }> = {
   none: { title: 'No Action', detail: 'Choose what the hunter should do next.' },
@@ -111,14 +116,14 @@ const formatDuration = (ms: number) => {
   return `${Math.max(1, Math.ceil(ms / 1000))}s`;
 };
 
-const Section: React.FC<{ title: string; eyebrow?: string; children: React.ReactNode; icon?: React.ElementType; action?: React.ReactNode }> = ({ title, eyebrow, children, icon: Icon, action }) => (
+const Section: React.FC<{ title: string; eyebrow?: string; children: React.ReactNode; icon?: React.ReactNode; action?: React.ReactNode }> = ({ title, eyebrow, children, icon, action }) => (
   <MobileCard className="relative overflow-hidden space-y-3 border-border/90 bg-surface/95">
     <div className="absolute -right-8 -top-8 h-24 w-24 rotate-12 border-[14px] border-amber/5" />
     <div className="relative flex items-start justify-between gap-3">
       <div>
         {eyebrow && <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">{eyebrow}</div>}
         <div className="flex items-center gap-2 text-sm font-black text-text-primary">
-          {Icon && <Icon size={15} className="text-amber" />}
+          {icon && <span className="text-amber">{icon}</span>}
           {title}
         </div>
       </div>
@@ -219,7 +224,7 @@ const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBos
       >
         Weak: {boss.weaknesses.join(' / ') || 'None'}. Resist: {boss.resistances.join(' / ') || 'None'}. Dedicated drops: {boss.dedicatedDrops.join(' / ') || 'Unknown'}.
       </RewardIntelPanel>
-      <Section title="Phase Checklist" eyebrow="prep targets" icon={Target} action={<button type="button" onClick={onBossPicker} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Boss</button>}>
+      <Section title="Phase Checklist" eyebrow="prep targets" icon={<span style={{ fontSize: 15 }}>◎</span>} action={<button type="button" onClick={onBossPicker} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Boss</button>}>
         <div className="space-y-2">
           {boss.phases.map((phase, index) => (
             <div key={phase.id} className="border-2 border-border bg-bg/70 p-2" style={smallClip}>
@@ -236,7 +241,7 @@ const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBos
 };
 
 const _BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: () => void }> = ({ boss, fightPower, openBoss }) => {
-  if (!boss) return <Section title="No Boss Selected" icon={Skull}><button type="button" onClick={openBoss} className="bl-primary w-full py-2 text-xs font-black">Choose Boss</button></Section>;
+  if (!boss) return <Section title="No Boss Selected" icon={<BossSigil bossId="unknown" size={15} showFrame={false} />}><button type="button" onClick={openBoss} className="bl-primary w-full py-2 text-xs font-black">Choose Boss</button></Section>;
   const readiness = Math.round((fightPower / Math.max(1, boss.recommendedPower)) * 100);
   return (
     <div className="space-y-3">
@@ -254,7 +259,7 @@ const _BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: 
       >
         Dedicated drops: {boss.dedicatedDrops.join(' / ')}. Current fight view is event-driven and ready for richer HP/phase resolution.
       </RewardIntelPanel>
-      <Section title="Phase Breakdown" eyebrow="encounter replay" icon={Crosshair}>
+      <Section title="Phase Breakdown" eyebrow="encounter replay" icon={<span style={{ fontSize: 15 }}>⚔</span>}>
         <div className="space-y-2">
           {boss.phases.map((phase, index) => {
             const pass = fightPower >= boss.recommendedPower * phase.targetValue;
@@ -273,8 +278,8 @@ const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<strin
   return (
     <div className="space-y-3">
       <RewardIntelPanel title="Bench output forecast" eyebrow="crafting intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Queued', value: queues.length }, { label: 'Craftable', value: canNow.length, tone: 'amber' }, { label: 'Recipes', value: CRAFTING_RECIPES.length }, { label: 'Reduction', value: `${skillReductionPoints}%`, tone: 'cyan' }, { label: 'Blocked', value: Math.max(0, CRAFTING_RECIPES.length - canNow.length), tone: 'red' }]}>Choose a recipe from the sheet; the action page stays focused on active output and queue status.</RewardIntelPanel>
-      {queues.length > 0 && <Section title="Active Bench Queues" eyebrow="machine deck" icon={Clock}><div className="space-y-2">{queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; return <div key={`${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {q.benchId}: {recipe?.name ?? q.recipeId}</span><span className="text-amber">{formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div></div>; })}</div></Section>}
-      <Section title="Recipe Control" eyebrow="selector moved" icon={Hammer}><button type="button" onClick={onRecipePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Recipe</button><button type="button" onClick={startCrafting} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Crafting As Current Action</button></Section>
+      {queues.length > 0 && <Section title="Active Bench Queues" eyebrow="machine deck" icon={<Clock size={15} />}><div className="space-y-2">{queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; return <div key={`${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {q.benchId}: {recipe?.name ?? q.recipeId}</span><span className="text-amber">{formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div></div>; })}</div></Section>}
+      <Section title="Recipe Control" eyebrow="selector moved" icon={<ActivityGlyph kind="crafting" />}><button type="button" onClick={onRecipePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Recipe</button><button type="button" onClick={startCrafting} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Crafting As Current Action</button></Section>
     </div>
   );
 };
@@ -286,7 +291,7 @@ const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePi
   return (
     <div className="space-y-3">
       <RewardIntelPanel title="Breakdown forecast" eyebrow="salvage intel" stats={[{ label: 'Candidates', value: candidates.length }, { label: 'Alloy', value: y?.scrapAlloy ?? 0, tone: 'green' }, { label: 'Parts', value: y?.ballisticParts ?? 0, tone: 'amber' }, { label: 'Reactive', value: y?.reactiveComponents ?? 0, tone: 'cyan' }, { label: 'Tech', value: y?.techFragments ?? 0 }, { label: 'Void', value: y?.voidDust ?? 0, tone: 'red' }]}>Top candidate: {top?.name ?? 'None'}. Higher rarity = dramatically more materials.</RewardIntelPanel>
-      <Section title="Salvage Control" eyebrow="item selector" icon={Recycle}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => startSalvage(top)} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Set Top Candidate As Action</button><button type="button" onClick={() => onNavigate?.('loot')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear Yard</button></Section>
+      <Section title="Salvage Control" eyebrow="item selector" icon={<ActivityGlyph kind="salvaging" />}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => startSalvage(top)} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Set Top Candidate As Action</button><button type="button" onClick={() => onNavigate?.('loot')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear Yard</button></Section>
     </div>
   );
 };
@@ -294,23 +299,23 @@ const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePi
 const WorkshopPanel: React.FC<CommonPanelProps & { queues: { id?: string; recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; benchesFree: number }> = ({ queues, benchesFree, onNavigate }) => {
   const now = useNow();
   const ready = queues.filter((q) => Math.floor((now - q.startedAt) / q.durationMs) > q.claimedCount).length;
-  return <div className="space-y-3"><RewardIntelPanel title="Machine queue" eyebrow="workshop intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Running', value: queues.length }, { label: 'Ready', value: ready, tone: ready ? 'amber' : 'muted' }, { label: 'Benches', value: benchesFree + queues.length }, { label: 'Next', value: queues[0] ? formatDuration(Math.max(0, queues[0].durationMs - ((now - queues[0].startedAt) % queues[0].durationMs))) : 'None' }, { label: 'State', value: ready ? 'Claim' : 'Service' }]} /> <Section title="Machine Queue" eyebrow="what needs attention" icon={Clock}><div className="space-y-2">{queues.length === 0 ? <div className="text-xs text-text-muted">No queues are running. Start a recipe from the Workshop.</div> : queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs)); return <div key={q.id ?? `${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between"><span className="text-xs font-black text-text-primary">Bench {q.benchId}</span><span className={completed > q.claimedCount ? 'text-green text-[10px] font-black' : 'text-amber text-[10px]'}>{completed > q.claimedCount ? 'READY' : formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe?.name ?? q.recipeId} · {completed}/{q.count} complete</div></div>; })}</div><button type="button" onClick={() => onNavigate?.('workshop')} className="mt-3 bl-primary w-full py-2 text-xs font-black">Open Workshop</button></Section></div>;
+  return <div className="space-y-3"><RewardIntelPanel title="Machine queue" eyebrow="workshop intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Running', value: queues.length }, { label: 'Ready', value: ready, tone: ready ? 'amber' : 'muted' }, { label: 'Benches', value: benchesFree + queues.length }, { label: 'Next', value: queues[0] ? formatDuration(Math.max(0, queues[0].durationMs - ((now - queues[0].startedAt) % queues[0].durationMs))) : 'None' }, { label: 'State', value: ready ? 'Claim' : 'Service' }]} /> <Section title="Machine Queue" eyebrow="what needs attention" icon={<Clock size={15} />}><div className="space-y-2">{queues.length === 0 ? <div className="text-xs text-text-muted">No queues are running. Start a recipe from the Workshop.</div> : queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs)); return <div key={q.id ?? `${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between"><span className="text-xs font-black text-text-primary">Bench {q.benchId}</span><span className={completed > q.claimedCount ? 'text-green text-[10px] font-black' : 'text-amber text-[10px]'}>{completed > q.claimedCount ? 'READY' : formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe?.name ?? q.recipeId} · {completed}/{q.count} complete</div></div>; })}</div><button type="button" onClick={() => onNavigate?.('workshop')} className="mt-3 bl-primary w-full py-2 text-xs font-black">Open Workshop</button></Section></div>;
 };
 
 const MarketPanel: React.FC<CommonPanelProps & { listings: number; history: number; sellableItems: GearItem[]; credits: number; onMarketPicker: () => void }> = ({ listings, history, sellableItems, credits, startMarket, onMarketPicker, onNavigate }) => (
-  <div className="space-y-3"><RewardIntelPanel title="Trade kiosk" eyebrow="market intel" stats={[{ label: 'Credits', value: credits.toLocaleString(), tone: 'cyan' }, { label: 'Sellable', value: sellableItems.length }, { label: 'Listed', value: listings, tone: 'amber' }, { label: 'History', value: history }, { label: 'Fees', value: '10%' }, { label: 'Mode', value: 'Listing' }]} /> <Section title="Listing Control" eyebrow="item selector" icon={ShoppingCart}><button type="button" onClick={onMarketPicker} className="bl-primary w-full py-2 text-xs font-black">Choose Listing Candidate</button><button type="button" onClick={startMarket} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Market As Current Action</button><button type="button" onClick={() => onNavigate?.('market')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Market</button></Section></div>
+  <div className="space-y-3"><RewardIntelPanel title="Trade kiosk" eyebrow="market intel" stats={[{ label: 'Credits', value: credits.toLocaleString(), tone: 'cyan' }, { label: 'Sellable', value: sellableItems.length }, { label: 'Listed', value: listings, tone: 'amber' }, { label: 'History', value: history }, { label: 'Fees', value: '10%' }, { label: 'Mode', value: 'Listing' }]} /> <Section title="Listing Control" eyebrow="item selector" icon={<ActivityGlyph kind="market_listing" />}><button type="button" onClick={onMarketPicker} className="bl-primary w-full py-2 text-xs font-black">Choose Listing Candidate</button><button type="button" onClick={startMarket} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Market As Current Action</button><button type="button" onClick={() => onNavigate?.('market')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Market</button></Section></div>
 );
 
 const _IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate, selectedArea }) => (
   <div className="space-y-3">
-    <Section title="Recommended Dispatch" eyebrow="no action active" icon={Activity}>
+    <Section title="Recommended Dispatch" eyebrow="no action active" icon={<ActivityGlyph kind="idle_standby" />}>
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => startRoam?.()} className="border-2 border-amber/40 bg-amber/10 p-3 text-left" style={panelClip}><Radar size={17} className="text-amber" /><div className="mt-2 text-sm font-black text-text-primary">Start Roam</div><div className="text-[10px] text-text-muted">{selectedArea?.name ?? 'Default route'}</div></button>
-        <button type="button" onClick={() => startPrep?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><Skull size={17} className="text-red" /><div className="mt-2 text-sm font-black text-text-primary">Prep Boss</div><div className="text-[10px] text-text-muted">Check counters first</div></button>
-        <button type="button" onClick={() => startCrafting?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><Hammer size={17} className="text-amber" /><div className="mt-2 text-sm font-black text-text-primary">Craft</div><div className="text-[10px] text-text-muted">Recipes and benches</div></button>
-        <button type="button" onClick={() => startSalvage?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><Recycle size={17} className="text-green" /><div className="mt-2 text-sm font-black text-text-primary">Salvage</div><div className="text-[10px] text-text-muted">Break down low gear</div></button>
-        <button type="button" onClick={() => startWorkshop?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><Wrench size={17} className="text-cyan" /><div className="mt-2 text-sm font-black text-text-primary">Workshop</div><div className="text-[10px] text-text-muted">Service queues</div></button>
-        <button type="button" onClick={() => startMarket?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ShoppingCart size={17} className="text-amber" /><div className="mt-2 text-sm font-black text-text-primary">Market</div><div className="text-[10px] text-text-muted">List gear</div></button>
+        <button type="button" onClick={() => startRoam?.()} className="border-2 border-amber/40 bg-amber/10 p-3 text-left" style={panelClip}><ActivityGlyph kind="roaming_loot" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Start Roam</div><div className="text-[10px] text-text-muted">{selectedArea?.name ?? 'Default route'}</div></button>
+        <button type="button" onClick={() => startPrep?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="boss_fight" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Prep Boss</div><div className="text-[10px] text-text-muted">Check counters first</div></button>
+        <button type="button" onClick={() => startCrafting?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="crafting" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Craft</div><div className="text-[10px] text-text-muted">Recipes and benches</div></button>
+        <button type="button" onClick={() => startSalvage?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="salvaging" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Salvage</div><div className="text-[10px] text-text-muted">Break down low gear</div></button>
+        <button type="button" onClick={() => startWorkshop?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="workshop_service" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Workshop</div><div className="text-[10px] text-text-muted">Service queues</div></button>
+        <button type="button" onClick={() => startMarket?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="market_listing" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Market</div><div className="text-[10px] text-text-muted">List gear</div></button>
       </div>
       <button type="button" onClick={() => onNavigate?.('chest')} className="mt-3 bl-secondary w-full py-2 text-xs font-black text-amber">Open Caches</button>
     </Section>
@@ -557,7 +562,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             <div>
               <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Active Route</div>
               <div className="flex items-center gap-2 mt-0.5">
-                <Radar size={15} className="text-amber shrink-0" />
+                <span style={{ fontSize: 15 }} className="text-amber shrink-0">📡</span>
                 <div>
                   <div className="text-sm font-black text-text-primary">{selectedArea.name}</div>
                   <div className="text-[10px] text-text-muted">{selectedArea.enemyType} · Lv.{selectedArea.unlockLevel} · {selectedArea.dangerRating}</div>
@@ -610,7 +615,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             <div>
               <div className="text-[9px] font-black uppercase tracking-[0.22em] text-red">Boss Encounter</div>
               <div className="flex items-center gap-2 mt-0.5">
-                <Skull size={15} className="text-red shrink-0" />
+                <span style={{ fontSize: 15 }} className="text-red shrink-0">☠</span>
                 <div>
                   <div className="text-sm font-black text-text-primary">{prepBossTarget.name}</div>
                   <div className="text-[10px] text-text-muted">Lv.{prepBossTarget.level} · {prepBossTarget.phases.length} phases · {prepBossTarget.dedicatedDrops.length} dedicated drops</div>
@@ -655,14 +660,14 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   })();
 
   const switchActions = [
-    { label: 'Roam', detail: selectedArea.name, icon: Radar, run: () => startRoam() },
-    { label: 'Boss Prep', detail: prepBossTarget?.name ?? 'Choose target', icon: Skull, run: () => startPrep() },
-    { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: Crosshair, run: () => startBossFight() },
-    { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: Hammer, run: () => startCrafting() },
-    { label: 'Salvage', detail: `${inventory.items.length} items`, icon: Recycle, run: () => startSalvage() },
-    { label: 'Workshop', detail: `${workshop.activeQueues.length} queues`, icon: Wrench, run: startWorkshop },
-    { label: 'Market', detail: `${sellableItems.length} sellable`, icon: ShoppingCart, run: startMarket },
-    { label: 'Caches', detail: openCacheDetail, icon: Package, run: openCache },
+    { label: 'Roam', detail: selectedArea.name, icon: <ActivityGlyph kind="roaming_loot" size={16} /> as React.ReactNode, run: () => startRoam() },
+    { label: 'Boss Prep', detail: prepBossTarget?.name ?? 'Choose target', icon: <ActivityGlyph kind="boss_fight" size={16} /> as React.ReactNode, run: () => startPrep() },
+    { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <span style={{ fontSize: 16 }} className="text-amber">⚔</span> as React.ReactNode, run: () => startBossFight() },
+    { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: <ActivityGlyph kind="crafting" size={16} /> as React.ReactNode, run: () => startCrafting() },
+    { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
+    { label: 'Workshop', detail: `${workshop.activeQueues.length} queues`, icon: <ActivityGlyph kind="workshop_service" size={16} /> as React.ReactNode, run: startWorkshop },
+    { label: 'Market', detail: `${sellableItems.length} sellable`, icon: <ActivityGlyph kind="market_listing" size={16} /> as React.ReactNode, run: startMarket },
+    { label: 'Caches', detail: openCacheDetail, icon: <ResourceGlyph id="cacheKey" size={16} /> as React.ReactNode, run: openCache },
   ].slice(0, MAX_SWITCH_ROWS);
 
   return (
@@ -723,13 +728,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* 1b. Compact Action Selector — always at top, replaces IdlePanel */}
       <div className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
         <div className="flex items-center gap-2 mb-2">
-          <Activity size={15} className="text-amber shrink-0" />
+          <span style={{ fontSize: 15 }} className="text-amber shrink-0">⚙</span>
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">
             {currentKind === 'idle_standby' || currentKind === 'none' ? 'Choose Action' : `${detail.title} · Controls`}
           </div>
         </div>
         <div className="grid grid-cols-4 gap-1.5">
-          {switchActions.slice(0, 8).map(({ label, icon: Icon, run }) => (
+          {switchActions.slice(0, 8).map(({ label, icon, run }) => (
             <button
               key={label}
               type="button"
@@ -747,7 +752,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
               }`}
               style={smallClip}
             >
-              <Icon size={16} className="text-amber" />
+              {icon}
               <span className="text-[9px] font-black uppercase tracking-wide text-text-primary">{label}</span>
             </button>
           ))}
@@ -797,7 +802,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* Drawers — unchanged */}
       <AnimatePresence>
         <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer instead of crowding the Action tab." onClose={() => setShowSwitch(false)}>
-          {switchActions.map(({ label, detail: rowDetail, icon: Icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber"><Icon size={18} /></div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
+          {switchActions.map(({ label, detail: rowDetail, icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber">{icon}</div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showAreaSelect} title="Choose Roaming Route" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Tap the scene title to switch routes.'} onClose={() => setShowAreaSelect(false)}>
           {/* Compact area stats strip — replaces the removed Roaming Intel card */}

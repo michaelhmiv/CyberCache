@@ -1,17 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { AlertTriangle, Crosshair, PackagePlus, Radio, Search, Shield, Star, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { usePlayerStore } from '@/store';
 import { VENDOR_CONSUMABLES, type ConsumableFamily } from '@/constants/consumables';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 
-const FAMILY_ICONS = {
-  survival: Shield,
-  ammo: Crosshair,
-  ordnance: PackagePlus,
-  tactical: Radio,
-  economy: Star,
-  corrupted: AlertTriangle,
+const FAMILY_COLORS: Record<ConsumableFamily, string> = {
+  survival: 'text-green',
+  ammo: 'text-red',
+  ordnance: 'text-orange',
+  tactical: 'text-cyan',
+  economy: 'text-amber',
+  corrupted: 'text-purple',
 };
 
 const FAMILY_LABELS: Record<ConsumableFamily, string> = {
@@ -111,7 +111,7 @@ export const VendorScreen: React.FC = () => {
         {(Object.keys(FAMILY_LABELS) as ConsumableFamily[]).map((family) => {
           const count = familyCounts[family] || 0;
           if (count === 0) return null;
-          const Icon = FAMILY_ICONS[family];
+          const familyColor = FAMILY_COLORS[family];
           const active = filterFamily === family;
           return (
             <button
@@ -119,10 +119,9 @@ export const VendorScreen: React.FC = () => {
               type="button"
               onClick={() => setFilterFamily(family)}
               className={`shrink-0 flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black transition-colors ${
-                active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
-              }`}
+                active ? 'border-amber bg-amber/15' : 'border-border bg-surface opacity-70'
+              } ${familyColor}`}
             >
-              <Icon size={10} />
               <span>{FAMILY_LABELS[family]} ({count})</span>
             </button>
           );
@@ -163,7 +162,6 @@ export const VendorScreen: React.FC = () => {
             {search || filterFamily !== 'all' ? 'No vendor items match your search or filter.' : 'No vendor items available.'}
           </div>
         ) : displayItems.map((c) => {
-          const Icon = FAMILY_ICONS[c.family];
           const owned = player.getConsumableCount(c.id);
           const buying = buyingId === c.id;
           return (
@@ -171,7 +169,9 @@ export const VendorScreen: React.FC = () => {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
                   <div className="bl-well w-10 h-10 flex items-center justify-center shrink-0">
-                    <Icon size={18} className={c.family === 'corrupted' ? 'text-red' : c.family === 'economy' ? 'text-amber' : c.family === 'survival' ? 'text-green' : 'text-red'} />
+                    <span className={`text-[10px] font-black uppercase ${FAMILY_COLORS[c.family]}`}>
+                      {FAMILY_LABELS[c.family].slice(0, 3)}
+                    </span>
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-text-primary truncate">{c.name}</div>

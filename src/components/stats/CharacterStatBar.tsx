@@ -1,5 +1,5 @@
 import React, { memo, useMemo, useState } from 'react';
-import { ChevronDown, Crosshair, HeartPulse, Radar, RefreshCw, Shield, Sparkles, X } from 'lucide-react';
+import { ChevronDown, RefreshCw, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
 import { pickTopContributions } from '@/lib/stats/topContribs';
 import { getHeadlineMetricKeys } from '@/lib/hud/headlineMetrics';
@@ -97,7 +97,7 @@ const MiniMetric = memo(function MiniMetric({ metric, currentHp, maxHp, ...rest 
     <div {...rest} className={`relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-2 py-1.5 ${rest.className ?? ''}`} style={slashClip}>
       <div className={`absolute left-0 top-0 h-full w-1 ${tone.rail}`} />
       <div className="flex items-center gap-1.5 pl-0.5">
-        {key === 'health' ? <HeartPulse size={12} className={tone.text} /> : key === 'dps' ? <Crosshair size={12} className={tone.text} /> : key === 'boss' ? <Shield size={12} className={tone.text} /> : key === 'rareFind' ? <Sparkles size={12} className={tone.text} /> : <Radar size={12} className={tone.text} />}
+        {key === 'health' ? <span className={tone.text} style={{ fontSize: '12px' }}>♥</span> : key === 'dps' ? <span className={tone.text} style={{ fontSize: '12px' }}>◎</span> : key === 'boss' ? <span className={tone.text} style={{ fontSize: '12px' }}>◈</span> : key === 'rareFind' ? <span className={tone.text} style={{ fontSize: '12px' }}>✦</span> : <span className={tone.text} style={{ fontSize: '12px' }}>📡</span>}
         <div className="min-w-0 leading-none">
           <div className="truncate text-[8px] font-black uppercase tracking-wide text-text-muted">{metric.label}</div>
           <div className={`truncate text-[11px] font-black ${tone.text}`}>{display}</div>

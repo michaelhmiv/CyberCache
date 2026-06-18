@@ -1,9 +1,10 @@
 import React, { FormEvent, useState } from 'react';
 import { motion } from 'framer-motion';
-import { LogIn, Mail, UserPlus, Zap } from 'lucide-react';
+import { LogIn, Mail, UserPlus } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { validateUsername } from '../lib/validation/username';
 import type { AuthMode } from '../auth/authTypes';
+import { AuthHero } from '@/components/common/AuthHero';
 
 function modeTitle(mode: AuthMode): string {
   if (mode === 'login') return 'Load Hunter';
@@ -105,9 +106,7 @@ export const AuthScreen: React.FC = () => {
         className="bl-card w-full max-w-sm space-y-4 p-5"
       >
         <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-16 w-16 -rotate-3 items-center justify-center border-[3px] border-border bg-amber text-bg shadow-[5px_5px_0_rgba(0,0,0,0.8)]">
-            <Zap size={30} />
-          </div>
+          <AuthHero className="mx-auto rounded-lg overflow-hidden" height={100} />
           <div>
             <div className="bl-title text-4xl leading-none text-amber">CyberCache</div>
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-text-muted">Load Hunter File</div>

@@ -8,6 +8,7 @@ import {
   WeaponType,
   ConsumableType,
 } from '@/types/game';
+import { CONSUMABLES, type ConsumableVisual } from './consumables';
 
 export type VisualAssetKind =
   | 'element'
@@ -238,17 +239,6 @@ export const DROP_SOURCE_VISUALS = {
   [DropSource.Marketplace]: { id: DropSource.Marketplace, kind: 'dropSource', label: 'Marketplace', shortLabel: 'MKT', mark: '$', color: '#F7D20B', accentColor: '#FF9000', description: 'Acquired from the vendor yard.', texture: 'metal' },
 } satisfies Record<DropSource, VisualAsset>;
 
-const BASIC_CONSUMABLE_VISUALS: Partial<Record<ConsumableType | CraftedConsumableType, VisualAsset>> = {
-  [ConsumableType.MedKit]: { id: ConsumableType.MedKit, kind: 'consumable', label: 'Med Kit', shortLabel: 'MED', mark: '+', color: '#7CFC00', accentColor: '#F5F5F5', description: 'Emergency health pack.', texture: 'organic' },
-  [ConsumableType.Grenade]: { id: ConsumableType.Grenade, kind: 'consumable', label: 'Grenade', shortLabel: 'GRN', mark: 'G', color: '#FF4B1F', accentColor: '#FFEA3A', description: 'Explosive throwable.', texture: 'ordnance' },
-  [ConsumableType.AmmoPack]: { id: ConsumableType.AmmoPack, kind: 'consumable', label: 'Ammo Pack', shortLabel: 'AMM', mark: 'A', color: '#FF9000', accentColor: '#FFEA3A', description: 'Ammunition supply.', texture: 'ordnance' },
-  [ConsumableType.ShieldCell]: { id: ConsumableType.ShieldCell, kind: 'consumable', label: 'Shield Cell', shortLabel: 'SHD', mark: 'S', color: '#3B82F6', accentColor: '#A5F3FC', description: 'Shield recharge cell.', texture: 'energy' },
-  [ConsumableType.ElementalCoating]: { id: ConsumableType.ElementalCoating, kind: 'consumable', label: 'Elemental Coating', shortLabel: 'ELM', mark: 'E', color: '#A855F7', accentColor: '#FF9DF5', description: 'Temporary elemental coating.', texture: 'liquid' },
-  [ConsumableType.LuckBooster]: { id: ConsumableType.LuckBooster, kind: 'consumable', label: 'Luck Booster', shortLabel: 'LCK', mark: 'L', color: '#FFEA3A', accentColor: '#FF9000', description: 'Loot chance booster.', texture: 'energy' },
-  [ConsumableType.BossScanner]: { id: ConsumableType.BossScanner, kind: 'consumable', label: 'Boss Scanner', shortLabel: 'SCN', mark: 'B', color: '#06B6D4', accentColor: '#A5F3FC', description: 'Boss intel scanner.', texture: 'data' },
-  [ConsumableType.InsuranceToken]: { id: ConsumableType.InsuranceToken, kind: 'consumable', label: 'Insurance Token', shortLabel: 'INS', mark: 'I', color: '#F7D20B', accentColor: '#FF9000', description: 'Risk insurance token.', texture: 'metal' },
-};
-
 export function getElementVisual(id: Element | string): VisualAsset {
   return (ELEMENT_VISUALS as Record<string, VisualAsset>)[id] ?? UNKNOWN_VISUAL;
 }
@@ -277,8 +267,52 @@ export function getDropSourceVisual(id: DropSource | string): VisualAsset {
   return (DROP_SOURCE_VISUALS as Record<string, VisualAsset>)[id] ?? UNKNOWN_VISUAL;
 }
 
+/**
+ * `consumables.ts` is the canonical source for consumable visuals. These tables
+ * translate its richer `ConsumableVisual` shape (glyph + accent + silhouette)
+ * into the flat `VisualAsset` contract consumed by the rest of the UI.
+ */
+const CONSUMABLE_ACCENT_COLOR: Record<ConsumableVisual['accent'], string> = {
+  green: '#7CFC00',
+  red: '#FF4B5C',
+  orange: '#FF9000',
+  cyan: '#00E5FF',
+  amber: '#FFB300',
+  purple: '#B66BFF',
+  blue: '#5AA7FF',
+};
+
+const CONSUMABLE_TEXTURE: Record<ConsumableVisual['silhouette'], NonNullable<VisualAsset['texture']>> = {
+  vial: 'liquid',
+  cell: 'energy',
+  swarm: 'organic',
+  syringe: 'liquid',
+  magazine: 'ordnance',
+  rounds: 'ordnance',
+  grenade: 'ordnance',
+  scanner: 'data',
+  beacon: 'data',
+  contract: 'data',
+  ticket: 'metal',
+};
+
 export function getConsumableVisual(id: ConsumableType | CraftedConsumableType | string): VisualAsset {
-  return (BASIC_CONSUMABLE_VISUALS as Record<string, VisualAsset>)[id] ?? {
+  const def = CONSUMABLES[id];
+  if (def) {
+    const color = CONSUMABLE_ACCENT_COLOR[def.visual.accent];
+    return {
+      id: String(id),
+      kind: 'consumable',
+      label: def.name,
+      shortLabel: def.name.slice(0, 3).toUpperCase(),
+      mark: def.visual.glyph,
+      color,
+      accentColor: color,
+      description: def.shortDescription,
+      texture: CONSUMABLE_TEXTURE[def.visual.silhouette],
+    };
+  }
+  return {
     ...UNKNOWN_VISUAL,
     id: String(id),
     kind: 'consumable',

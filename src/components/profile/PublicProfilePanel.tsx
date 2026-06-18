@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, User } from 'lucide-react';
+import { X } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import type { PlayerPublicProfile } from '@/lib/supabase/publicProfileService';
 
@@ -44,7 +44,7 @@ export const PublicProfilePanel: React.FC<PublicProfilePanelProps> = ({ open, on
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center border-2 border-border bg-surface">
-                  <User size={20} className="text-amber" />
+                  <span className="font-black text-amber" style={{ fontSize: '20px' }}>☻</span>
                 </div>
                 <div>
                   <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">Public Profile</div>

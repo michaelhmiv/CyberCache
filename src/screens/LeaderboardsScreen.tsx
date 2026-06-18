@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LeaderboardMetricPicker } from '@/components/leaderboard/LeaderboardMetricPicker';
@@ -46,7 +45,7 @@ export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
       <ResourceBar />
 
       <div className="flex items-center gap-2">
-        <Trophy size={18} className="text-amber" />
+        <span style={{ fontSize: 18 }} className="text-amber">♕</span>
         <div className="text-lg font-black uppercase tracking-wide text-text-primary">Leaderboards</div>
       </div>
 

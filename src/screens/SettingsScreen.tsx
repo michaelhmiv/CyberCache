@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Zap, AlertTriangle, Info, Settings, ExternalLink } from 'lucide-react';
+import { Clock, AlertTriangle, Info, Settings, ExternalLink } from 'lucide-react';
 import { usePlayerStore, useIdleStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
@@ -70,7 +70,7 @@ export const SettingsScreen: React.FC = () => {
 
       <MobileCard className="space-y-3" rarityColor="#FF9000">
         <div className="flex items-center gap-2">
-          <Zap size={16} className="text-amber" />
+          <span style={{ fontSize: 16 }} className="text-amber">♻</span>
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Auto-Salvage Rules</div>
         </div>
         <div className="space-y-2">

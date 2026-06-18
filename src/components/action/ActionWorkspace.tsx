@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, PackageSearch, Sparkles } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import type { GearItem, Weapon } from '@/types/items';
@@ -60,7 +60,7 @@ export const RewardIntelPanel: React.FC<{
 }> = ({ title = 'Reward Intel', eyebrow = 'drop logic', stats, children }) => (
   <section className="relative overflow-hidden border-2 border-border bg-surface/95 p-3" style={panelClip}>
     <div className="mb-3 flex items-center gap-2">
-      <Sparkles size={16} className="text-amber" />
+      <span style={{ fontSize: 16 }} className="text-amber">✦</span>
       <div>
         <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">{eyebrow}</div>
         <div className="text-sm font-black text-text-primary">{title}</div>
@@ -107,7 +107,7 @@ export const ActionFeed: React.FC<{
   return (
     <section className="relative overflow-hidden border-2 border-border bg-surface/95 p-3" style={panelClip}>
       <div className="mb-3 flex items-center gap-2">
-        <PackageSearch size={16} className="text-amber" />
+        <span style={{ fontSize: 16 }} className="text-amber">◈</span>
         <div>
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">reward stream</div>
           <div className="text-sm font-black text-text-primary">{title}</div>

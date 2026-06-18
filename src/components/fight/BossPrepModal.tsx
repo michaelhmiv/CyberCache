@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Activity, AlertTriangle, CheckCircle, Gauge, Heart, PackageCheck, Shield, Skull, Sparkles, Swords, Target, X, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { BossDef, PhaseAnalysis } from '../../types/boss';
 import { ConsumableSlot, RiskSetting } from '../../types/game';
 import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts, getConsumablesForSlot } from '../../constants/consumables';
@@ -15,6 +15,9 @@ import { syncBossAttemptResult } from '../../lib/supabase/verifiedStateSync';
 import { useActivityStore, useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
+import { BossSigil } from '@/components/common/BossSigil';
+import { BossPortrait } from '@/components/common/BossPortrait';
+import { getResourceVisual } from '@/constants/visualAssets';
 import type { Weapon } from '../../types/items';
 
 interface BossPrepModalProps {
@@ -70,7 +73,7 @@ const BossVitalsBars: React.FC<{ boss: BossDef }> = ({ boss }) => {
       {/* HP — red, the primary bar */}
       <div className="flex items-center gap-2">
         <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
-          <Heart size={11} className="text-red" />HP
+          <span className="text-red" style={{ fontSize: 11 }}>♥</span>HP
         </div>
         <div className="relative h-3 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
           <motion.div
@@ -87,7 +90,7 @@ const BossVitalsBars: React.FC<{ boss: BossDef }> = ({ boss }) => {
       {/* Shield — cyan */}
       <div className="flex items-center gap-2">
         <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
-          <Zap size={11} className="text-cyan" />Sh
+          <span className="text-cyan" style={{ fontSize: 11 }}>⚡</span>Sh
         </div>
         <div className="relative h-2 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
           <motion.div
@@ -104,7 +107,7 @@ const BossVitalsBars: React.FC<{ boss: BossDef }> = ({ boss }) => {
       {/* Armor — purple */}
       <div className="flex items-center gap-2">
         <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
-          <Shield size={11} className="text-purple" />Ar
+          <span className="text-purple" style={{ fontSize: 11 }}>◈</span>Ar
         </div>
         <div className="relative h-2 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
           <motion.div
@@ -184,7 +187,7 @@ const BossReadinessCard: React.FC<{ boss: BossDef; playerPower: number }> = ({ b
       style={slashClip}
       data-testid="boss-readiness"
     >
-      <Sparkles size={14} className={overgeared ? 'text-green' : 'text-red'} />
+      <span style={{ fontSize: 14 }} className={overgeared ? 'text-green' : 'text-red'}>✦</span>
       <div className="text-[10px] text-text-muted">Your power:</div>
       <div className="text-xs font-black text-text-primary">{playerPower.toFixed(0).toLocaleString()}</div>
       <div className="text-[10px] text-text-muted">vs</div>
@@ -441,9 +444,12 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex flex-col">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="bl-title text-3xl leading-none text-text-primary">{boss.name}</div>
-            <div className="text-xs text-text-muted">Tier {boss.tier} • Lv.{boss.level}</div>
+          <div className="flex items-center gap-3">
+            <BossPortrait bossId={boss.id} size={56} animate />
+            <div>
+              <div className="bl-title text-3xl leading-none text-text-primary">{boss.name}</div>
+              <div className="text-xs text-text-muted">Tier {boss.tier} • Lv.{boss.level}</div>
+            </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-full bl-secondary">
             <X size={20} />
@@ -452,7 +458,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
         <MobileCard className="space-y-2 border-amber/30 bg-amber/5">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber">
-            <Activity size={14} />
+            <span style={{ fontSize: 14 }}>📡</span>
             {activityLabel}
           </div>
           <div className="text-[10px] text-text-secondary leading-relaxed">{activityDetail}</div>
@@ -526,7 +532,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
             renders the animated HP bars and phase markers driven by the
             fightTimeline state (see runFightAnimation above). */}
         {!result && fightTimeline && (
-          <FightCard timeline={fightTimeline} phases={sim.phaseAnalyses} bossName={boss.name} reducedMotion={reducedMotion} />
+          <FightCard timeline={fightTimeline} phases={sim.phaseAnalyses} bossName={boss.name} bossId={boss.id} reducedMotion={reducedMotion} />
         )}
 
         {/* Hide the phase-plan and current-answers sections during the
@@ -536,7 +542,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         {!result && !fightTimeline && (
           <div className="space-y-2">
             <div className="text-xs font-bold text-text-muted uppercase flex items-center gap-2">
-              <Activity size={14} />
+              <span style={{ fontSize: 14 }}>📡</span>
               Phase Plan
             </div>
             {/* Segmented timeline — tap a segment to jump to the
@@ -574,7 +580,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           <div className="grid grid-cols-1 gap-3">
             <MobileCard className="space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold text-text-muted uppercase">
-                <Target size={14} />
+                <span style={{ fontSize: 14 }}>◎</span>
                 Current Answers
               </div>
               {sim.equippedAnswers.length > 0 ? (
@@ -719,7 +725,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
         {!result && (
           <div className="space-y-2">
             <div className="text-xs font-bold text-text-muted uppercase flex items-center gap-2">
-              <Gauge size={14} />
+              <span style={{ fontSize: 14 }}>◔</span>
               Risk Profile
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -770,13 +776,13 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
                   <div className="text-xs text-text-secondary">+{result.xpAwarded.toLocaleString()} XP</div>
                   {result.bonusLootRolls > 0 && (
                     <div className="text-xs text-amber flex justify-center items-center gap-1">
-                      <PackageCheck size={12} /> +{result.bonusLootRolls} bonus loot roll{result.bonusLootRolls > 1 ? 's' : ''}
+                      <span className="shrink-0 font-black" style={{ color: getResourceVisual('loot').color, fontSize: '12px' }}>{getResourceVisual('loot').mark}</span> +{result.bonusLootRolls} bonus loot roll{result.bonusLootRolls > 1 ? 's' : ''}
                     </div>
                   )}
                 </>
               ) : (
                 <>
-                  <Skull size={40} className="mx-auto text-red" />
+                  <BossSigil bossId={boss.id} size={40} className="mx-auto" />
                   <div className="text-xl font-black text-red">DEFEATED</div>
                   <div className="text-xs text-text-secondary">Failed during {result.result.phaseFailed} phase</div>
                   <div className="text-xs text-text-secondary">Boss HP remaining: {result.result.bossHpRemaining}%</div>
@@ -837,7 +843,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
 // Keep the FightCard component as a small subcomponent to keep the main
 // BossPrepModal JSX clean. It only renders when simulating && !result.
-const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bossName: string; reducedMotion: boolean | null }> = ({ timeline, phases, bossName, reducedMotion }) => {
+const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bossName: string; bossId: string; reducedMotion: boolean | null }> = ({ timeline, phases, bossName, bossId, reducedMotion }) => {
   const playerPct = timeline.playerHpMax > 0 ? (timeline.playerHp / timeline.playerHpMax) * 100 : 0;
   const bossPct = timeline.bossHpMax > 0 ? (timeline.bossHp / timeline.bossHpMax) * 100 : 0;
   const currentPhase = phases[Math.min(timeline.currentPhaseIndex, phases.length - 1)];
@@ -846,13 +852,13 @@ const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bo
   return (
     <MobileCard className="space-y-2 border-red/30 bg-red/5">
       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red">
-        <Swords size={14} />
+        <span style={{ fontSize: 14 }}>⚔</span>
         Combat Resolution
       </div>
       {/* Player HP bar */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
-          <span className="flex items-center gap-1"><Heart size={11} className="text-green" /> Player</span>
+          <span className="flex items-center gap-1"><span style={{ fontSize: 11 }} className="text-green">♥</span> Player</span>
           <span className="font-black text-text-primary">{timeline.playerHp.toLocaleString()} / {timeline.playerHpMax.toLocaleString()}</span>
         </div>
         <div className="relative h-4 overflow-hidden border-2 border-border bg-bg">
@@ -867,7 +873,7 @@ const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bo
       {/* Boss HP bar */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
-          <span className="flex items-center gap-1"><Skull size={11} className="text-red" /> {bossName}</span>
+          <span className="flex items-center gap-1"><BossSigil bossId={bossId} size={14} showFrame={false} /> {bossName}</span>
           <span className="font-black text-text-primary">{timeline.bossHp.toLocaleString()} / {timeline.bossHpMax.toLocaleString()}</span>
         </div>
         <div className="relative h-4 overflow-hidden border-2 border-border bg-bg">

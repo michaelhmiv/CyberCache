@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, History, List, RefreshCw, Search, ShoppingCart, Store, Tag, X } from 'lucide-react';
+import { Filter, History, List, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useMarketStore, usePlayerStore } from '@/store';
@@ -35,13 +35,13 @@ type BuySort = 'price' | 'rarity' | 'name';
 type SellSort = 'power' | 'rarity' | 'name';
 type MyListSort = 'price' | 'rarity' | 'name';
 
-const TABS = [
-  { id: 'buy', label: 'Buy', icon: ShoppingCart },
-  { id: 'vendor', label: 'Vendor', icon: Store },
-  { id: 'sell', label: 'Sell', icon: Tag },
+const TABS: { id: string; label: string; glyph?: string; icon?: React.ElementType }[] = [
+  { id: 'buy', label: 'Buy', glyph: '$' },
+  { id: 'vendor', label: 'Vendor', glyph: '🏪' },
+  { id: 'sell', label: 'Sell', glyph: '🏷' },
   { id: 'mylistings', label: 'My Listings', icon: List },
   { id: 'history', label: 'History', icon: History },
-] as const;
+];
 
 function rarityColor(rarity: string | undefined): string {
   if (!rarity) return '#9CA3AF';
@@ -199,7 +199,7 @@ export const MarketScreen: React.FC = () => {
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => market.setActiveTab(t.id)} className={`flex flex-1 flex-col items-center gap-1 rounded-xl border py-2 min-w-[60px] text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>
-            <t.icon size={16} />
+            {t.icon ? <t.icon size={16} /> : <span className="font-black" style={{ fontSize: '16px' }}>{t.glyph}</span>}
             {t.label}
           </button>
         ))}
