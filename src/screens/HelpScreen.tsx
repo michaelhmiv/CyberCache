@@ -7,6 +7,7 @@ import {
   X,
 } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { getNavSigil } from '@/constants/navSigils';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
 
@@ -88,7 +89,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '6. Trade at the Market',
     body:
       'Sell duplicates for credits, and use the Vendor to roll for gear you can afford. Locked items never get sold or salvaged. The Market uses server-minted credits only, so a successful sale reflects in your balance on the next 3s tick.',
-    target: { tab: 'market', label: 'Market', glyph: '📈' },
+    target: { tab: 'market', label: 'Market', glyph: getNavSigil('market').glyph },
     spotlight: 'Market tabs',
     cta: 'Open Market',
   },

@@ -136,13 +136,15 @@ const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
   // chip is visually consistent with the rest of the visual-asset system.
   const resourceId = tone === 'loot'
     ? 'loot'
-    : tone === 'cache' || tone === 'fragment'
+    : tone === 'cache'
       ? 'cacheKey'
-      : tone === 'level' || tone === 'kill' || tone === 'death'
-        ? 'xp'
-        : tone === 'cash'
-          ? 'credits'
-          : null;
+      : tone === 'fragment'
+        ? 'cacheFragment'
+        : tone === 'level' || tone === 'kill' || tone === 'death'
+          ? 'xp'
+          : tone === 'cash'
+            ? 'credits'
+            : null;
   if (resourceId) {
     const visual = getResourceVisual(resourceId);
     return (
