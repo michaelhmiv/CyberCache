@@ -233,10 +233,21 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     ...keys.flatMap((key) => affixContribs(gear, key, scalar, signedPct)),
   ];
 
+  // Build survival consumable stacked segments (MedKit buffer, NanoSwarm regen, etc.)
+  const survivalStacked = survivalConsumableContribs
+    .filter((c) => c.value > 0)
+    .map((c) => ({
+      value: c.value,
+      display: c.display,
+      tone: c.tone,
+      label: c.source,
+    }));
+
   const all = [
-    metric('health', 'Max HP', totalHealth, whole(totalHealth), 'combat HP: chassis + shield', 'green', healthContribs, [
+    metric('health', 'Max HP', totalHealth, whole(totalHealth), 'combat HP: chassis + shield + consumables', 'green', healthContribs, [
       { value: baseHealth, display: whole(baseHealth), tone: 'muted', label: 'Chassis' },
       ...(shield ? [{ value: shieldHp, display: whole(shieldHp), tone: 'cyan' as StatTone, label: 'Shield' }] : []),
+      ...survivalStacked,
     ]),
     metric('effectiveHp', 'Effective HP', mechanics.effectiveHp.value, whole(mechanics.effectiveHp.value), 'max HP adjusted by mitigation', 'cyan', effectiveHpContribs),
     metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),

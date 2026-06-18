@@ -773,13 +773,22 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* 2b. Activity modifiers — procedural gear bonuses for current action */}
       <ActivityModifierPanel activityKind={currentKind} />
 
-      {/* 3. Compact status strip — HP / Keys / Tick */}
+      {/* 3. Compact status strip — HP (with buffer/shield/nano) / Keys / Tick */}
       <div className="flex gap-2 text-[10px]">
         <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
           <span className="text-text-muted">HP </span>
           <span className={`font-black ${survival.currentHp < survival.maxHp * 0.3 ? 'text-red' : survival.currentHp < survival.maxHp * 0.6 ? 'text-amber' : 'text-green'}`}>
             {Math.round(survival.currentHp)}/{Math.round(survival.maxHp)}
           </span>
+          {survival.shieldHp > 0 && (
+            <span className="ml-1 font-black text-cyan">🛡 {Math.round(survival.shieldHp)}</span>
+          )}
+          {survival.medKitBuffer > 0 && (
+            <span className="ml-1 font-black text-green">✚ {Math.round(survival.medKitBuffer)}</span>
+          )}
+          {survival.nanoSwarmTicksRemaining > 0 && (
+            <span className="ml-1 font-black text-purple">✦ {survival.nanoSwarmTicksRemaining}t</span>
+          )}
         </div>
         <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
           <span className="text-text-muted">Keys </span>

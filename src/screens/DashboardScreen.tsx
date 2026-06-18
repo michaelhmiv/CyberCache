@@ -389,9 +389,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           />
         </Panel>
         <Panel label="Active Buffs">
-          <ActiveBuffPills consumables={loadout.consumables} onClick={() => setLedgerOpen(true)} />
+          <ActiveBuffPills consumables={loadout.consumables} inventory={player.consumables} onClick={() => setLedgerOpen(true)} />
         </Panel>
-        {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} onClose={() => setLedgerOpen(false)} />}
+        {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} inventory={player.consumables} onClose={() => setLedgerOpen(false)} />}
         {breakdownOpen && (
           <CharacterStatBreakdownModal
             summary={computedStats}

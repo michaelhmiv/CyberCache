@@ -12,6 +12,7 @@ describe('ActiveBuffPills', () => {
   it('renders "No consumables loaded" when empty', () => {
     const { container } = render(
       <ActiveBuffPills
+        inventory={{}}
         consumables={{ PreFight: null, MidFight: null, Emergency: null }}
         onClick={() => {}}
       />,
@@ -40,6 +41,7 @@ describe('ActiveBuffPills', () => {
 
     const { container } = render(
       <ActiveBuffPills
+        inventory={{}}
         consumables={{ PreFight: null, MidFight: ConsumableType.AmmoPack, Emergency: null }}
         onClick={() => {}}
       />,
@@ -56,6 +58,7 @@ describe('ActiveBuffPills', () => {
 
     const { container } = render(
       <ActiveBuffPills
+        inventory={{}}
         consumables={{ PreFight: ConsumableType.MedKit, MidFight: ConsumableType.AmmoPack, Emergency: null }}
         onClick={() => {}}
       />,
@@ -73,6 +76,7 @@ describe('ActiveBuffPills', () => {
 
     const { container } = render(
       <ActiveBuffPills
+        inventory={{}}
         consumables={{ PreFight: ConsumableType.MedKit, MidFight: null, Emergency: null }}
         onClick={onClick}
       />,
@@ -103,6 +107,7 @@ describe('ActiveBuffPills', () => {
 
     const { container } = render(
       <ActiveBuffPills
+        inventory={{}}
         consumables={{ PreFight: null, MidFight: ConsumableType.AmmoPack, Emergency: null }}
         onClick={() => {}}
       />,
@@ -134,6 +139,7 @@ describe('ActiveBuffPills', () => {
 
     const { container } = render(
       <ActiveBuffPills
+        inventory={{}}
         consumables={{ PreFight: null, MidFight: null, Emergency: ConsumableType.NanoSwarm }}
         onClick={() => {}}
       />,

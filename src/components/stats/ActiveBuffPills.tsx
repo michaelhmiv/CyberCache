@@ -28,9 +28,11 @@ const SLOT_LABEL: Record<keyof LoadoutConsumables, string> = {
 const BuffPill = memo(function BuffPill({
   buff,
   now,
+  inventoryCount,
 }: {
   buff: ActiveBuff;
   now: number;
+  inventoryCount: number;
 }) {
   const def = CONSUMABLES[buff.consumableId];
   const accent = def ? accentClass[def.visual.accent] : '#888';
@@ -38,13 +40,16 @@ const BuffPill = memo(function BuffPill({
   const name = def?.name ?? buff.consumableId;
   const effectSummary = def?.runtime.ledgerText ?? '';
   const isMedKit = buff.consumableId === 'MedKit' || buff.consumableId === 'MedKitRefined';
+  const isBufferConsumable = isMedKit && buff.value;
   const isArmed = buff.displayState === 'armed';
   const remainingMs = Math.max(0, buff.expiresAt - now);
   const seconds = Math.ceil(remainingMs / 1000);
   const progress = buff.durationMs > 0 ? Math.min(1, Math.max(0, remainingMs / buff.durationMs)) : 0;
   const remainingLabel = seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`;
-  // Med Kit: show buffer HP instead of timer
-  const displayLabel = isMedKit && buff.value ? `${buff.value} HP` : isArmed ? 'ARMED' : remainingLabel;
+  // Med Kit: show buffer HP + inventory count instead of timer
+  const displayLabel = isBufferConsumable
+    ? `${buff.value} HP${inventoryCount > 0 ? ` · ${inventoryCount}×` : ''}`
+    : isArmed ? 'ARMED' : remainingLabel;
 
   return (
     <div
@@ -92,10 +97,12 @@ const BuffPill = memo(function BuffPill({
 
 export const ActiveBuffPills = memo(function ActiveBuffPills({
   consumables,
+  inventory,
   onClick,
   size: _size,
 }: {
   consumables: LoadoutConsumables;
+  inventory: Record<string, number>;
   onClick: () => void;
   size?: number;
 }) {
@@ -166,9 +173,10 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
     >
       {activeBuffs.length > 0 && (
         <div data-testid="active-buffs-list">
-          {activeBuffs.map((buff) => (
-            <BuffPill key={buff.id} buff={buff} now={now} />
-          ))}
+          {activeBuffs.map((buff) => {
+            const invCount = inventory[buff.consumableId] ?? 0;
+            return <BuffPill key={buff.id} buff={buff} now={now} inventoryCount={invCount} />;
+          })}
         </div>
       )}
       {armedSlots.length > 0 && (

@@ -33,8 +33,9 @@ const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc
 
 export const ConsumableLedger: React.FC<{
   consumables: LoadoutConsumables;
+  inventory: Record<string, number>;
   onClose: () => void;
-}> = ({ consumables, onClose }) => {
+}> = ({ consumables, inventory, onClose }) => {
   const [now] = React.useState(Date.now);
   const buffs = useActiveBuffsStore((state) => state.buffs);
   const activeRows = buffs.filter((buff) => buff.expiresAt > now && buff.displayState !== 'armed');
@@ -134,6 +135,9 @@ export const ConsumableLedger: React.FC<{
                       <>
                         <div className="truncate text-sm font-black text-text-primary">{def.name}</div>
                         <div className="truncate text-[9px] text-text-muted">{def.runtime.ledgerText}</div>
+                        <div className="mt-0.5 text-[8px] font-black uppercase text-amber">
+                          {(inventory[id] ?? 0)} in stock
+                        </div>
                       </>
                     ) : (
                       <>
