@@ -11,7 +11,7 @@ describe('ConsumableLedger', () => {
   it('renders one row per slot, even when empty', () => {
     render(
       <ConsumableLedger
-        consumables={{ PreFight: null, MidFight: 'MedKit', Emergency: null }}
+        consumables={{ PreFight: null, MidFight: 'MedKit', Emergency: null }} inventory={{}}
         onClose={() => {}}
       />
     );
@@ -21,7 +21,7 @@ describe('ConsumableLedger', () => {
   it('shows the consumable name and effect for loaded slots', () => {
     render(
       <ConsumableLedger
-        consumables={{ PreFight: 'MedKit', MidFight: null, Emergency: null }}
+        consumables={{ PreFight: 'MedKit', MidFight: null, Emergency: null }} inventory={{}}
         onClose={() => {}}
       />
     );
@@ -50,7 +50,7 @@ describe('ConsumableLedger', () => {
       displayState: 'active',
       value: 1.1,
     });
-    render(<ConsumableLedger consumables={{ PreFight: null, MidFight: null, Emergency: null }} onClose={() => {}} />);
+    render(<ConsumableLedger consumables={{ PreFight: null, MidFight: null, Emergency: null }} inventory={{}} onClose={() => {}} />);
     expect(screen.getByTestId('active-consumable-section')).toHaveTextContent(/1 live/i);
     expect(screen.getByTestId('active-consumable-row')).toHaveTextContent(/Adrenaline/i);
   });
@@ -59,7 +59,7 @@ describe('ConsumableLedger', () => {
     const onClose = vi.fn();
     render(
       <ConsumableLedger
-        consumables={{ PreFight: null, MidFight: null, Emergency: null }}
+        consumables={{ PreFight: null, MidFight: null, Emergency: null }} inventory={{}}
         onClose={onClose}
       />
     );
