@@ -21,7 +21,7 @@ import type { CharacterStatSummary } from './characterStats';
 export function pickTopContributions(summary: CharacterStatSummary, n: number) {
   const all = summary.all.flatMap((metric) => metric.contributions);
   return all
-    .filter((c) => c.value !== 0)
+    .filter((c) => c.value !== 0 && c.display.includes('%'))
     .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
     .slice(0, Math.max(0, n));
 }

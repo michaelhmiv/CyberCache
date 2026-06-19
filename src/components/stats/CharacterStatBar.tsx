@@ -2,7 +2,7 @@ import React, { memo, useMemo, useState } from 'react';
 import { ChevronDown, RefreshCw, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric } from '@/lib/stats/characterStats';
 import { pickTopContributions } from '@/lib/stats/topContribs';
-import { getHeadlineMetricKeys } from '@/lib/hud/headlineMetrics';
+
 import type { ActivityKind } from '@/types/activity';
 import { CharacterStatBreakdownModal } from './CharacterStatBreakdownModal';
 import { statToneBgClass, statToneRailClass, statToneTextClass } from './statToneStyles';
@@ -85,7 +85,7 @@ const MiniMetric = memo(function MiniMetric({ metric, currentHp, maxHp, ...rest 
 const TopContribsStrip = memo(function TopContribsStrip({ summary, n = 3 }: { summary: CharacterStatSummary; n?: number }) {
   const top = useMemo(() => pickTopContributions(summary, n), [summary, n]);
   if (top.length === 0) {
-    return <div className="mt-1 px-1 text-[9px] text-text-muted" data-testid="top-contribs-empty">No slotted sources contributing</div>;
+    return <div className="mt-1 px-1 text-[9px] text-text-muted" data-testid="top-contribs-empty">No percentage modifiers active</div>;
   }
   return (
     <div className="mt-1 flex gap-1 overflow-hidden" data-testid="top-contribs-strip">
@@ -125,9 +125,7 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
   onChangeOverride?: (next: ActivityKind | null) => void;
   onCycleActivity?: () => void;
 }) {
-  const effectiveKind = overrideActivity ?? activityKind;
-  const keys = getHeadlineMetricKeys(effectiveKind);
-  const headline = keys
+  const headline = ['health', 'effectiveHp', 'dps', 'shieldBreak']
     .map((k) => summary.all.find((m) => m.key === k))
     .filter((m): m is StatMetric => Boolean(m));
   const showOverride = Boolean(overrideActivity) && Boolean(onChangeOverride);
