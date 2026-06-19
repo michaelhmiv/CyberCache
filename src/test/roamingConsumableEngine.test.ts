@@ -106,6 +106,17 @@ describe('roamingConsumableEngine', () => {
       expect(byId[ConsumableType.AdrenalineShot].expiresAtTick).toBe(0);
     });
 
+    it('stacks Med Kit buffer from inventory count', () => {
+      const loadout = {
+        PreFight: ConsumableType.MedKit,
+        MidFight: null,
+        Emergency: null,
+      };
+      const inventory = { [ConsumableType.MedKit]: 5 };
+      const state = activateLoadout(loadout, inventory, 0);
+      expect(state.slots[0].remainingBuffer).toBe(5 * MEDKIT_BUFFER_AMOUNT); // 750
+    });
+
     it('sets ordnanceNextFireTick based on start tick', () => {
       const state = activateLoadout(
         { ...EMPTY_LOADOUT, PreFight: ConsumableType.OrdnanceCharge },
@@ -161,39 +172,24 @@ describe('roamingConsumableEngine', () => {
   // ─── processTick — Med Kit buffer ──────────────────────────────────
 
   describe('processTick — Med Kit buffer', () => {
-    it('consumes the Med Kit when its buffer hits 0 and removes the slot if out of stock', () => {
-      const inventory = { [ConsumableType.MedKit]: 1 };
+    it('preserves remaining buffer through ticks (no per-tick consumption)', () => {
+      const inventory = { [ConsumableType.MedKit]: 5 };
       const state = activateLoadout(
         { ...EMPTY_LOADOUT, PreFight: ConsumableType.MedKit },
         inventory,
         0,
       );
-      // Simulate the buffer having absorbed all incoming damage.
-      state.slots[0].remainingBuffer = 0;
+      // Simulate 200 damage absorbed by Chef's damage loop
+      state.slots[0].remainingBuffer = 550; // 750 - 200
 
       const result = processTick(state, ctx({ tickIndex: 5, inventory }));
 
-      expect(result.consumed).toHaveLength(1);
-      expect(result.consumed[0].id).toBe(ConsumableType.MedKit);
-      expect(result.state.slots).toHaveLength(0);
-    });
-
-    it('auto-replenishes the buffer when more stock remains', () => {
-      const inventory = { [ConsumableType.MedKit]: 2 };
-      const state = activateLoadout(
-        { ...EMPTY_LOADOUT, PreFight: ConsumableType.MedKit },
-        inventory,
-        0,
-      );
-      state.slots[0].remainingBuffer = 0;
-
-      const result = processTick(state, ctx({ tickIndex: 5, inventory }));
-
-      expect(result.consumed).toHaveLength(1);
+      // Buffer preserved — Chef handles absorption, processTick doesn't touch it
+      expect(result.state.slots[0].remainingBuffer).toBe(550);
+      // No consumption from processTick
+      expect(result.consumed.filter((c) => c.id === ConsumableType.MedKit)).toHaveLength(0);
+      // Slot survives
       expect(result.state.slots).toHaveLength(1);
-      expect(result.state.slots[0].remainingBuffer).toBe(MEDKIT_BUFFER_AMOUNT);
-      // Survival helper reflects the refreshed buffer.
-      expect(getSurvivalState(result.state).medKitBuffer).toBe(MEDKIT_BUFFER_AMOUNT);
     });
   });
 

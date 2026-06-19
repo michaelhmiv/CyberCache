@@ -294,10 +294,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       // Activate survival consumables proactively on roaming start.
       const survivalStore = useSurvivalStore.getState();
       const playerState = usePlayerStore.getState();
-      // Med Kit: set HP buffer
-      if ((playerState.consumables['MedKit'] ?? 0) > 0) {
+      // Med Kit: set HP buffer (stacked from inventory count)
+      const medKitCount = playerState.consumables['MedKit'] ?? 0;
+      if (medKitCount > 0) {
         const bufferAmount = computeMedKitBuffer('MedKit');
-        survivalStore.setMedKitBuffer(bufferAmount);
+        survivalStore.setMedKitBuffer(medKitCount * bufferAmount);
       }
       // Nano Swarm: start per-tick regen
       if ((playerState.consumables['NanoSwarm'] ?? 0) > 0) {

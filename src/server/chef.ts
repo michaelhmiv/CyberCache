@@ -305,6 +305,7 @@ export function processRoamingClaim(
 
   // --- Consumable engine initialization ---
   const consumableInventory = request.consumableInventory ?? {};
+  const initialMedKitCount = consumableInventory['MedKit'] ?? 0;
   const masteryLevels = request.masteryLevels ?? {};
   let roamingState: RoamingConsumableState | undefined = request.roamingConsumableState;
   if (!roamingState && request.loadoutConsumables) {
@@ -548,6 +549,21 @@ export function processRoamingClaim(
             survDead = true;
           }
         }
+      }
+    }
+  }
+
+  // Compute MedKit consumption from buffer absorption (flat stacking model).
+  // Each 150 HP of buffer absorbed = 1 medkit consumed.
+  if (roamingState && initialMedKitCount > 0) {
+    const medKitSlot = roamingState.slots.find(
+      (s) => s.consumableId === 'MedKit' || s.consumableId === 'MedKitRefined'
+    );
+    if (medKitSlot) {
+      const remainingFull = Math.floor(Math.max(0, medKitSlot.remainingBuffer) / 150);
+      const consumed = initialMedKitCount - remainingFull;
+      if (consumed > 0) {
+        consumedConsumables['MedKit'] = (consumedConsumables['MedKit'] ?? 0) + consumed;
       }
     }
   }
