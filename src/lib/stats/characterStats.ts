@@ -83,6 +83,8 @@ type Input = {
   boss?: BossDef;
   activeBuffs?: ActiveBuff[];
   consumableMods?: Record<string, number>;
+  /** Server-authoritative MedKit HP buffer (from survival store / Chef result). */
+  medKitBuffer?: number;
 };
 
 const pct = (value: number) => `${Math.round(value * 100)}%`;
@@ -123,7 +125,7 @@ function metric(key: string, label: string, value: number, display: string, deta
 }
 
 export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
-  const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss, activeBuffs = [] } = input;
+  const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss, activeBuffs = [], medKitBuffer: survivalStoreBuffer = 0 } = input;
   const mechanics = buildCharacterMechanicsSnapshot(input);
   const liveWeapons = weapons.filter((weapon): weapon is Weapon => !!weapon);
   const gear = [...liveWeapons, shield, classMod, relic, ordnance];
@@ -185,8 +187,12 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const economyConsumableContribs = activeConsumableContribsByFamily(['economy']);
 
   // Survival consumable buffer (MedKit, ShieldCell, etc.) from active roaming buffs.
-  // Added to both Max HP and Effective HP totals so the numbers match the stacked bar.
-  const survivalContribBuffer = survivalConsumableContribs.reduce((sum, c) => sum + c.value, 0);
+  // Fall back to the survival store's medKitBuffer if activeBuffs are empty
+  // (e.g., offline, claim RPC fallback, or before the first Chef reply lands).
+  const survivalContribBufferFromBuffs = survivalConsumableContribs.reduce((sum, c) => sum + c.value, 0);
+  const survivalContribBuffer = survivalContribBufferFromBuffs > 0
+    ? survivalContribBufferFromBuffs
+    : survivalStoreBuffer;
   totalHealth = mechanics.maxHp.value + survivalContribBuffer;
   const totalMitigation = shield?.mitigation ?? 0;
   mitigationHp = Math.max(0, Math.round(totalHealth / Math.max(0.2, 1 - totalMitigation)) - totalHealth);
@@ -253,6 +259,16 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
       tone: c.tone,
       label: c.source,
     }));
+  // Fallback: when activeBuffs are empty but survival store has buffer,
+  // add a MedKit source row so the stacked bar + breakdown show the buffer.
+  if (survivalStacked.length === 0 && survivalStoreBuffer > 0) {
+    survivalStacked.push({
+      value: survivalStoreBuffer,
+      display: whole(survivalStoreBuffer),
+      tone: 'amber' as StatTone,
+      label: 'MedKit',
+    });
+  }
 
   const all = [
     metric('health', 'Max HP', totalHealth, whole(totalHealth), 'combat HP: chassis + shield + consumables', 'green', healthContribs, [

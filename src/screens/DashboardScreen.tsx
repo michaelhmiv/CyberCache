@@ -228,6 +228,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   useSyncSurvivalMaxHp(player.level, shieldHp);
   const hunterCurrentHp = useSurvivalStore((state) => state.currentHp);
   const hunterMaxHp = useSurvivalStore((state) => state.maxHp);
+  const survivalMedKitBuffer = useSurvivalStore((state) => state.medKitBuffer);
   const activeBuffsStore = useActiveBuffsStore();
   const [overrideActivity, setOverrideActivity] = useState<ActivityKind | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
@@ -275,8 +276,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       boss: currentBoss ?? undefined,
       activeBuffs,
       consumableMods,
+      medKitBuffer: survivalMedKitBuffer,
     }),
-    [player, statWeapons, loadout, skills.spent, currentBoss, activeBuffs, consumableMods],
+    [player, statWeapons, loadout, skills.spent, currentBoss, activeBuffs, consumableMods, survivalMedKitBuffer],
   );
   const openWorkshopJobs = workshop.activeQueues.length;
   const xpToNextLevelValue = xpToNextLevel(player.level);
