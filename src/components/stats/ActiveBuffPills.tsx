@@ -1,6 +1,5 @@
 import React, { memo, useState, useEffect, useMemo, useRef } from 'react';
-import { CONSUMABLES, type ConsumableVisual, type ConsumableRuntimeEffects, type ConsumableDef } from '@/constants/consumables';
-import { ConsumableType } from '@/types/game';
+import { CONSUMABLES, type ConsumableVisual, type ConsumableRuntimeEffects } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
@@ -19,45 +18,7 @@ const accentClass: Record<ConsumableVisual['accent'], string> = {
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' } as const;
 
-const SLOT_LABEL: Record<keyof LoadoutConsumables, string> = {
-  PreFight: '1',
-  MidFight: '2',
-  Emergency: '3',
-};
-
 const signedPct = (delta: number): string => `${delta >= 0 ? '+' : ''}${Math.round(delta * 100)}%`;
-
-/** The 5 survival-family consumables, always shown on the dashboard regardless of loadout. */
-const SURVIVAL_IDS: ConsumableType[] = [
-  ConsumableType.MedKit,
-  ConsumableType.MedKitRefined,
-  ConsumableType.ShieldCell,
-  ConsumableType.NanoSwarm,
-  ConsumableType.AdrenalineShot,
-];
-
-/** Human-readable trigger label from def.trigger + def.runtime.threshold (e.g. "@ 50% HP"). */
-function formatTriggerLabel(def: ConsumableDef): string {
-  const threshold = def.runtime.threshold;
-  if (threshold == null) return '';
-  const pct = Math.round(threshold * 100);
-  if (def.trigger === 'shieldBelowThreshold') return `@ ${pct}% Shield`;
-  if (def.trigger === 'hpBelowThreshold') return `@ ${pct}% HP`;
-  return '';
-}
-
-/** Synthetic buff for stock-row effect display — no timer, no value, no quality. */
-const STOCK_SYNTH_BUFF: ActiveBuff = {
-  id: 'stock-display',
-  consumableId: ConsumableType.MedKit, // overwritten per-row
-  family: 'survival',
-  source: 'loadout-armed',
-  sourceId: 'stock',
-  startedAt: 0,
-  expiresAt: 0,
-  durationMs: 0,
-  displayState: 'armed',
-};
 
 /**
  * Derive a one-line, glance-ready effect summary string from a consumable's
@@ -268,85 +229,6 @@ const BuffPill = memo(function BuffPill({
   );
 });
 
-const SurvivalStockRow = memo(function SurvivalStockRow({
-  def,
-  stockCount,
-  isLoaded,
-}: {
-  def: ConsumableDef;
-  stockCount: number;
-  isLoaded: boolean;
-}) {
-  const accent = accentClass[def.visual.accent] ?? '#888';
-  const glyph = def.visual.glyph;
-  const name = def.name;
-  const tacticalRole = def.tacticalRole;
-  const triggerLabel = formatTriggerLabel(def);
-  const isOutOfStock = stockCount === 0;
-
-  // Build effect summary using the synthetic buff (no active value/quality).
-  const synthBuff: ActiveBuff = {
-    ...STOCK_SYNTH_BUFF,
-    id: `stock:${def.id}`,
-    consumableId: def.id as ConsumableType,
-  };
-  const effectLine = buildEffectSummary(def, synthBuff, false);
-
-  return (
-    <div
-      data-testid="survival-stock-row"
-      data-consumable-id={def.id}
-      className={`flex items-center gap-2 border-b border-border/40 px-2 py-1.5 ${isOutOfStock ? 'opacity-50' : ''}`}
-    >
-      <span
-        className="shrink-0 text-[14px] font-black leading-none"
-        style={{ color: accent }}
-      >
-        {glyph}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-1">
-          <div className="min-w-0">
-            {tacticalRole && (
-              <div className="truncate text-[7px] uppercase tracking-wide text-text-muted">
-                {tacticalRole}
-              </div>
-            )}
-            <span className="truncate text-[10px] font-black uppercase tracking-wide text-text-primary">
-              {name}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {isLoaded && (
-              <span className="text-[7px] font-black uppercase tracking-wider text-amber">
-                LOADED
-              </span>
-            )}
-            <span
-              className={`text-[9px] font-black tabular-nums ${isOutOfStock ? 'text-red' : 'text-amber'}`}
-              style={{ fontVariantNumeric: 'tabular-nums' }}
-            >
-              {`×${stockCount}`}
-            </span>
-          </div>
-        </div>
-        <div className="mt-0.5 flex items-center gap-1.5">
-          {triggerLabel && (
-            <span className="shrink-0 text-[7px] uppercase tracking-wide text-text-muted">
-              {triggerLabel}
-            </span>
-          )}
-          {effectLine && (
-            <span className="truncate text-[7px] leading-tight text-text-muted">
-              · {effectLine}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
-
 export const ActiveBuffPills = memo(function ActiveBuffPills({
   consumables,
   inventory,
@@ -393,73 +275,63 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
       });
   }, [consumables, activeConsumableIds]);
 
-  // Survival stock rows — always rendered regardless of loadout state.
-  const survivalRows = useMemo(
-    () =>
-      SURVIVAL_IDS.map((id) => {
-        const def = CONSUMABLES[id];
-        if (!def) return null;
-        return {
-          def,
-          stockCount: inventory[id] ?? 0,
-          isLoaded: consumables.Emergency === id,
-        };
-      }).filter((r): r is { def: ConsumableDef; stockCount: number; isLoaded: boolean } => r !== null),
-    [inventory, consumables.Emergency],
-  );
-
   return (
     <button
       type="button"
       onClick={onClick}
       data-testid="active-buff-pills"
-      aria-label={`${activeBuffs.length} active buff${activeBuffs.length === 1 ? '' : 's'}, ${armedSlots.length} armed, ${survivalRows.length} survival items. Tap to open ledger.`}
+      aria-label={`${activeBuffs.length} active buff${activeBuffs.length === 1 ? '' : 's'}, ${armedSlots.length} armed. Tap to open ledger.`}
       className="flex shrink-0 flex-col border-2 border-border bg-surface/90 shadow-[4px_4px_0_rgba(0,0,0,0.72)]"
       style={panelClip}
     >
-      {/* Section A: Survival Stock — always visible, 5 rows for all survival consumables */}
-      <div data-testid="survival-stock-section">
-        {survivalRows.map(({ def, stockCount, isLoaded }) => (
-          <SurvivalStockRow
-            key={def.id}
-            def={def}
-            stockCount={stockCount}
-            isLoaded={isLoaded}
-          />
-        ))}
+      {/* 3 slots — what's loaded, tap to manage */}
+      <div data-testid="slots-section">
+        {SLOT_ORDER.map((slot) => {
+          const id = consumables[slot];
+          const def = id ? CONSUMABLES[id] : null;
+          const accent = def ? accentClass[def.visual.accent] : '#888';
+          const stockCount = id ? (inventory[id] ?? 0) : 0;
+          const isActive = activeConsumableIds.has(id ?? '');
+
+          return (
+            <div
+              key={slot}
+              data-testid="slot-row"
+              data-slot={slot}
+              className={`flex items-center gap-2 border-b border-border/40 px-2 py-1.5 ${!def ? 'opacity-60' : ''}`}
+            >
+              {/* Slot number or glyph */}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-bg/80">
+                {def ? (
+                  <span className="text-[14px] font-black leading-none" style={{ color: accent }}>{def.visual.glyph}</span>
+                ) : (
+                  <span className="text-[12px] font-black text-text-muted">{SLOT_ORDER.indexOf(slot) + 1}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-1">
+                  <div className="min-w-0">
+                    <div className="truncate text-[10px] font-black uppercase tracking-wide text-text-primary">
+                      {def ? def.name : `Slot ${SLOT_ORDER.indexOf(slot) + 1}`}
+                    </div>
+                    {def ? (
+                      <div className="truncate text-[7px] text-text-muted">
+                        {def.tacticalRole} · {stockCount} in stock
+                      </div>
+                    ) : (
+                      <div className="truncate text-[7px] text-text-muted">Empty — tap to assign</div>
+                    )}
+                  </div>
+                  {isActive && (
+                    <span className="shrink-0 text-[7px] font-black uppercase text-green animate-pulse">LIVE</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
-      {/* Section B: Armed Auto-Fire — compact chip row for Pre/Mid/Emg loaded slots */}
-      {armedSlots.length > 0 && (
-        <div
-          data-testid="armed-slots-row"
-          className="flex items-center gap-1.5 border-t border-border/30 px-2 py-1"
-        >
-          {armedSlots.map(({ slot, def }, i) => (
-            <React.Fragment key={slot}>
-              {i > 0 && <span className="text-[7px] text-text-muted">·</span>}
-              <span
-                className="text-[8px] font-bold uppercase tracking-wide"
-                style={{ color: accentClass[def.visual.accent], opacity: 0.6 }}
-              >
-                {SLOT_LABEL[slot]}
-              </span>
-              <span className="truncate text-[8px] font-medium text-text-muted">
-                {def.name}
-              </span>
-              <span
-                className="shrink-0 text-[7px] font-black"
-                style={{ color: accentClass[def.visual.accent], opacity: 0.7 }}
-              >
-                {def.tacticalRole}
-              </span>
-            </React.Fragment>
-          ))}
-          <span className="ml-auto shrink-0 text-[7px] font-black uppercase tracking-wider text-text-muted">
-            LOADED
-          </span>
-        </div>
-      )}
-      {/* Section C: Active — fired buff pills with timers (only when roaming/fight is live) */}
+      {/* Active buff pills with timers (only when roaming/fight is live) */}
       {activeBuffs.length > 0 && (
         <div data-testid="active-buffs-list" className="border-t border-border/30">
           {activeBuffs.map((buff) => {
