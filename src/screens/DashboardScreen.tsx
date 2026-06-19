@@ -376,7 +376,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             onCycleActivity={cycleOverride}
           />
         </Panel>
-        <Panel label="Active Buffs">
+        <Panel label="Consumables">
           <ActiveBuffPills consumables={loadout.consumables} inventory={player.consumables} onClick={() => setLedgerOpen(true)} />
         </Panel>
         {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} inventory={player.consumables} onClose={() => setLedgerOpen(false)} />}
