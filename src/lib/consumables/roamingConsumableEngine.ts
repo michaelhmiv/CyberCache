@@ -341,9 +341,9 @@ export function activateLoadout(
 
     // Family-specific initialization
     if (id === ConsumableType.MedKit) {
-      activeSlot.remainingBuffer = MEDKIT_BUFFER_AMOUNT;
+      activeSlot.remainingBuffer = (inventory[id] ?? 0) * MEDKIT_BUFFER_AMOUNT;
     } else if (id === 'MedKitRefined') {
-      activeSlot.remainingBuffer = MEDKIT_REFINED_BUFFER;
+      activeSlot.remainingBuffer = (inventory[id] ?? 0) * MEDKIT_REFINED_BUFFER;
     } else if (id === ConsumableType.NanoSwarm) {
       activeSlot.remainingRegenTicks = NANO_SWARM_TICKS;
     } else if (id === ConsumableType.AdrenalineShot) {
@@ -445,31 +445,6 @@ export function processTick(
         });
       } else {
         // No stock — deactivate this slot
-        state.slots.splice(i, 1);
-        i--;
-        continue;
-      }
-    }
-
-    // ── Check Med Kit buffer depletion ──
-    if (slot.consumableId === ConsumableType.MedKit && slot.remainingBuffer <= 0 && slot.expiresAtTick === 0) {
-      consumed.push({ id: slot.consumableId, count: 1, reason: 'Med Kit buffer depleted' });
-      feedEvents.push({
-        tone: 'consumable',
-        label: 'Med Kit depleted',
-        detail: 'HP buffer absorbed all incoming damage.',
-      });
-
-      const remainingAfterConsume = Math.max(0, (ctx.inventory[slot.consumableId] ?? 0) - 1);
-      if (remainingAfterConsume > 0) {
-        slot.remainingBuffer = MEDKIT_BUFFER_AMOUNT;
-        slot.activatedAtTick = ctx.tickIndex;
-        feedEvents.push({
-          tone: 'consumable',
-          label: 'Med Kit replenished',
-          detail: `+${MEDKIT_BUFFER_AMOUNT} HP buffer active.`,
-        });
-      } else {
         state.slots.splice(i, 1);
         i--;
         continue;

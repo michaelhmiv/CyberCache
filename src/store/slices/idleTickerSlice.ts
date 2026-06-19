@@ -743,14 +743,6 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       const allEvents = [...previewEvents, ...survivalEvents, ...killCycleEvents];
       pushPreviewEvents(allEvents);
 
-      // If the hunter died this tick, skip reward claims and the
-      // server reconciliation — the death is local-only for now
-      // (server-side HP persistence is a future PR).
-      if (useSurvivalStore.getState().isDead) {
-        return;
-      }
-
-
       // Phase 3: Chef is the authoritative engine. Try the Chef API first,
       // fall back to the Supabase RPC if the Chef is unreachable.
       //
