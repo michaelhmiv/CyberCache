@@ -5,7 +5,6 @@ describe('getBreakdownMetricKeys', () => {
   it('returns combat core for none/idle', () => {
     const keys = getBreakdownMetricKeys('none');
     expect(keys).toContain('health');
-    expect(keys).toContain('effectiveHp');
     expect(keys).toContain('dps');
     expect(keys).toContain('shieldBreak');
     // Should NOT include activity-specific stats

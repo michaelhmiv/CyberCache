@@ -31,8 +31,8 @@ describe('source breakdown duplicate registry guard', () => {
     const offenders = sourceFiles().filter((path) => {
       if (path.endsWith('src/lib/hud/headlineMetrics.ts')) return false;
       const text = readFileSync(path, 'utf8');
-      return text.includes("['health', 'effectiveHp', 'dps', 'shieldBreak']") ||
-        text.includes("'health', 'effectiveHp', 'dps', 'shieldBreak'");
+      return text.includes("['health', 'dps', 'shieldBreak']") ||
+        text.includes("'health', 'dps', 'shieldBreak'");
     });
 
     expect(offenders).toEqual([]);

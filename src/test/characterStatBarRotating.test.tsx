@@ -7,7 +7,6 @@ const summary: CharacterStatSummary = {
   headline: [],
   all: [
     { key: 'health', label: 'Max HP', value: 100, display: '100', detail: '', tone: 'green', contributions: [] },
-    { key: 'effectiveHp', label: 'Effective HP', value: 120, display: '120', detail: '', tone: 'cyan', contributions: [] },
     { key: 'dps', label: 'DPS', value: 50, display: '50', detail: '', tone: 'red', contributions: [] },
     { key: 'shieldBreak', label: 'Shield Break', value: 30, display: '30', detail: '', tone: 'cyan', contributions: [] },
     { key: 'craftingSpeed', label: 'Craft Speed', value: 0.2, display: '+20%', detail: '', tone: 'amber', contributions: [] },
@@ -16,10 +15,9 @@ const summary: CharacterStatSummary = {
 };
 
 describe('CharacterStatBar rotating chips', () => {
-  it('renders the 4 combat-core chips when activityKind is undefined', () => {
+  it('renders the 3 combat-core chips when activityKind is undefined', () => {
     render(<CharacterStatBar summary={summary} activityKind={undefined} />);
     expect(screen.getByTestId('hud-metric-health')).toBeInTheDocument();
-    expect(screen.getByTestId('hud-metric-effectiveHp')).toBeInTheDocument();
     expect(screen.getByTestId('hud-metric-dps')).toBeInTheDocument();
     expect(screen.getByTestId('hud-metric-shieldBreak')).toBeInTheDocument();
   });
@@ -28,7 +26,6 @@ describe('CharacterStatBar rotating chips', () => {
     // Headline chips are now pinned to combat-core regardless of activity.
     render(<CharacterStatBar summary={summary} activityKind="crafting" />);
     expect(screen.getByTestId('hud-metric-health')).toBeInTheDocument();
-    expect(screen.getByTestId('hud-metric-effectiveHp')).toBeInTheDocument();
     expect(screen.getByTestId('hud-metric-dps')).toBeInTheDocument();
     expect(screen.getByTestId('hud-metric-shieldBreak')).toBeInTheDocument();
     // Activity-module sub-stats no longer appear in the headline chips.

@@ -47,12 +47,10 @@ const StackedBar = memo(function StackedBar({ segments, total }: { segments: Non
   );
 });
 
-const MiniMetric = memo(function MiniMetric({ metric, currentHp, maxHp, ...rest }: { metric: StatMetric; currentHp?: number; maxHp?: number } & React.HTMLAttributes<HTMLDivElement>) {
+const MiniMetric = memo(function MiniMetric({ metric, ...rest }: { metric: StatMetric; currentHp?: number; maxHp?: number } & React.HTMLAttributes<HTMLDivElement>) {
   const tone = toneClass(metric.tone);
   const { key } = metric;
-  const display = (key === 'health' && currentHp != null && maxHp != null)
-    ? `${Math.round(currentHp)}/${Math.round(maxHp)}`
-    : metric.display;
+  const display = metric.display;
   return (
     <div {...rest} className={`relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-2 py-1.5 ${rest.className ?? ''}`} style={slashClip}>
       <div className={`absolute left-0 top-0 h-full w-1 ${tone.rail}`} />
