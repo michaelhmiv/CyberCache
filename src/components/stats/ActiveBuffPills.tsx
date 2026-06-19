@@ -241,7 +241,7 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
   size?: number;
 }) {
   const storeBuffs = useActiveBuffsStore((state) => state.buffs);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(Date.now);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {

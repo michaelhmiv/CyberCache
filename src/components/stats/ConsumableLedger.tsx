@@ -38,7 +38,7 @@ export const ConsumableLedger: React.FC<{
   focusedSlot?: keyof LoadoutConsumables | null;
   onClose: () => void;
 }> = ({ consumables, inventory, focusedSlot, onClose }) => {
-  const [now] = React.useState(Date.now());
+  const [now] = React.useState(Date.now);
   const [pickingSlot, setPickingSlot] = useState<keyof LoadoutConsumables | null>(null);
   const loadout = useLoadoutStore();
   const buffs = useActiveBuffsStore((state) => state.buffs);
