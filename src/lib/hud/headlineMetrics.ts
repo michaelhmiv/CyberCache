@@ -1,7 +1,7 @@
 import type { ActivityKind } from '@/types/activity';
 import { getActivityModuleStatKeys, getPrimaryActivityModuleStatKeys } from '@/lib/activity/activityStatMetadata';
 
-export const COMBAT_CORE_METRIC_KEYS = ['health', 'effectiveHp', 'dps', 'shieldBreak'] as const;
+export const COMBAT_CORE_METRIC_KEYS = ['health', 'dps', 'shieldBreak'] as const;
 
 export const HEADLINE_METRIC_KEYS: Record<'universal' | ActivityKind, readonly string[]> = {
   universal: COMBAT_CORE_METRIC_KEYS,
@@ -28,7 +28,7 @@ export function getHeadlineMetricKeys(kind: ActivityKind | string | undefined): 
  * inspect all dimensions of their current activity — without seeing stats
  * from unrelated activities.
  *
- * Core combat stats (health, effectiveHp, dps, shieldBreak) are always
+ * Core combat stats (health, dps, shieldBreak) are always
  * included so the player can reference their character power regardless
  * of context.
  */

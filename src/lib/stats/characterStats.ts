@@ -155,20 +155,25 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   // come from the canonical consumable source builder. It prefers server
   // state when present, then active buffs, then inventory-backed potential.
   const survivalContribBuffer = consumableSources.health.reduce((sum, c) => sum + c.value, 0);
-  const totalHealth = mechanics.maxHp.value + survivalContribBuffer;
+  // Survival skill multiplier applies to all HP sources uniformly.
+  const survivalMult = 1 + skillTotal(spentSkills, 'survival');
+  const baseHealthUnscaled = baseHealth; // raw chassis HP from mechanics (no survival multiplier yet)
+  const scaledBaseHealth = Math.round(baseHealthUnscaled * survivalMult);
+  const totalHealth = Math.round(mechanics.maxHp.value * survivalMult) + survivalContribBuffer;
   const totalMitigation = shield?.mitigation ?? 0;
   const mitigationHp = Math.max(0, Math.round(totalHealth / Math.max(0.2, 1 - totalMitigation)) - totalHealth);
   const effectiveHpWithBuffer = totalHealth + mitigationHp;
 
-  const healthContribs: StatContribution[] = [
-    { source: 'Hunter chassis', segmentLabel: 'Chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted', bucket: 'base' },
-    shield ? { source: shield.name, segmentLabel: 'Shield', detail: 'Shield HP pool', value: shieldHp, display: whole(shieldHp), tone: 'cyan', bucket: 'gear' } : undefined,
-    ...consumableSources.health.filter((entry) => entry.value !== 0),
-  ].filter(Boolean) as StatContribution[];
+  // Delta percentage: how far the effective HP is above/below the base chassis HP.
+  const hpDeltaPct = scaledBaseHealth > 0 ? Math.round((effectiveHpWithBuffer - scaledBaseHealth) / scaledBaseHealth * 100) : 0;
+  const hpDeltaSign = hpDeltaPct >= 0 ? '+' : '';
+  const hpDisplay = `${whole(effectiveHpWithBuffer)} (${hpDeltaSign}${hpDeltaPct}%)`;
 
-  const effectiveHpContribs: StatContribution[] = [
-    { source: 'Max HP', detail: 'Combat HP before mitigation', value: totalHealth, display: whole(totalHealth), tone: 'green', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
-    shield ? { source: shield.name, detail: `Mitigation ${pct(shield.mitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'cyan', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
+  const healthContribs: StatContribution[] = [
+    { source: 'Hunter chassis', segmentLabel: 'Chassis', detail: `Base + level ${player.level}`, value: scaledBaseHealth, display: whole(scaledBaseHealth), tone: 'muted', bucket: 'base' },
+    shield ? { source: shield.name, segmentLabel: 'Shield', detail: 'Shield HP pool', value: Math.round(shieldHp * survivalMult), display: whole(Math.round(shieldHp * survivalMult)), tone: 'cyan', bucket: 'gear' } : undefined,
+    ...consumableSources.health.filter((entry) => entry.value !== 0),
+    mitigationHp > 0 ? { source: shield?.name ?? 'Shield', detail: `Mitigation ${pct(totalMitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'cyan', bucket: 'gear' as (typeof healthContribs)[number]['bucket'] } : undefined,
   ].filter(Boolean) as StatContribution[];
 
   const dpsContribs: StatContribution[] = [
@@ -215,8 +220,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const healthStacked = sourcesToSegments(healthContribs, 'green');
 
   const all = [
-    metric('health', 'Max HP', totalHealth, whole(totalHealth), 'combat HP: chassis + shield + consumables', 'green', healthContribs, healthStacked),
-    metric('effectiveHp', 'Effective HP', effectiveHpWithBuffer, whole(effectiveHpWithBuffer), 'max HP adjusted by mitigation (includes consumable buffers)', 'cyan', effectiveHpContribs),
+    metric('health', 'HP', effectiveHpWithBuffer, hpDisplay, hpDeltaPct !== 0 ? `Effective HP (${hpDeltaSign}${hpDeltaPct}% from base)` : 'Effective HP', 'green', healthContribs, healthStacked),
     metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
     metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
     metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', [...breakContribs('shield'), ...consumableSources.shieldBreak]),

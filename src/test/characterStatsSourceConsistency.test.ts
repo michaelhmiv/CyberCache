@@ -36,7 +36,7 @@ describe('character stat source consistency', () => {
 
     const health = summary.all.find((metric) => metric.key === 'health');
     expect(health).toBeDefined();
-    expect(health!.display).toBe('1,210');
+    expect(health!.display).toBe('1,210 (+59%)');
 
     expect(health!.contributions).toEqual(
       expect.arrayContaining([
