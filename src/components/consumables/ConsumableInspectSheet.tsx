@@ -266,7 +266,7 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
 
             <div className="sticky bottom-0 mt-4 border-t-2 border-border bg-bg/95 pt-3 backdrop-blur">
               <div className="flex gap-2">
-                {onEquip && consumable.allowedSlots.length > 0 && (
+                {onEquip && (
                   <button
                     type="button"
                     onClick={() => onEquip(consumable.id)}

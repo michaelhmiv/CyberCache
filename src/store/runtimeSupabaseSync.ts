@@ -198,9 +198,22 @@ export function applyRuntimeDisplaySnapshot(snapshot: RuntimeStoreSnapshot): voi
     // from `player_runtime_snapshots`.
     const loadout = objectValue<{ consumables: LoadoutConsumables }>(snapshot.loadout);
     if (loadout) {
-      useLoadoutStore.setState((state) => ({
-        consumables: { ...state.consumables, ...(objectValue<LoadoutConsumables>(loadout.consumables) ?? {}) },
-      }));
+      const incoming = objectValue<LoadoutConsumables>(loadout.consumables);
+      // Sanitize: deduplicate any incoming consumable assignments before
+      // merging into state. Stale snapshots may contain duplicates from
+      // before the dedup guard was added.
+      if (incoming) {
+        const sanitized: LoadoutConsumables = { PreFight: null, MidFight: null, Emergency: null };
+        for (const slot of ['PreFight', 'MidFight', 'Emergency'] as const) {
+          const val = incoming[slot];
+          if (val && !Object.values(sanitized).includes(val)) {
+            sanitized[slot] = val;
+          }
+        }
+        useLoadoutStore.setState((state) => ({
+          consumables: { ...state.consumables, ...sanitized },
+        }));
+      }
     }
 
     const boss = objectValue<BossSnapshot>(snapshot.boss);
