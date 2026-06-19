@@ -25,16 +25,14 @@ describe('ConsumableLedger', () => {
         onClose={() => {}}
       />
     );
-    // The PreFight row should contain both the consumable name ("Med Kit")
-    // and its effect description from runtime.ledgerText. The effect text
-    // happens to start with the name, so two DOM nodes match the regex —
-    // we scope to the loaded row via its data-slot testid.
+    // The PreFight row should contain the consumable name ("Med Kit")
+    // and its tactical role. We scope to the loaded row via its data-slot testid.
     const preFightRow = screen
       .getAllByTestId('consumable-ledger-row')
       .find((row) => row.getAttribute('data-slot') === 'PreFight');
     expect(preFightRow).toBeDefined();
     expect(preFightRow!).toHaveTextContent(/Med Kit/i);
-    expect(preFightRow!).toHaveTextContent(/restored emergency HP/i);
+    expect(preFightRow!).toHaveTextContent(/Emergency Heal/i);
   });
 
   it('renders active consumable rows from the active buff store', () => {

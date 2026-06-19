@@ -1446,6 +1446,6 @@ export function consumableLoadoutToCounts(loadout: ConsumableLoadout): Record<st
   }, {});
 }
 
-export function getConsumablesForSlot(slot: ConsumableSlot): ConsumableDef[] {
-  return BOSS_PREP_CONSUMABLES.filter((c) => c.allowedSlots.includes(slot));
+export function getConsumablesForSlot(_slot: ConsumableSlot): ConsumableDef[] {
+  return BOSS_PREP_CONSUMABLES;
 }

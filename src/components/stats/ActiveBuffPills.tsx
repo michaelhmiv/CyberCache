@@ -20,9 +20,9 @@ const accentClass: Record<ConsumableVisual['accent'], string> = {
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' } as const;
 
 const SLOT_LABEL: Record<keyof LoadoutConsumables, string> = {
-  PreFight: 'Pre',
-  MidFight: 'Mid',
-  Emergency: 'Emg',
+  PreFight: '1',
+  MidFight: '2',
+  Emergency: '3',
 };
 
 const signedPct = (delta: number): string => `${delta >= 0 ? '+' : ''}${Math.round(delta * 100)}%`;
@@ -319,7 +319,7 @@ const SurvivalStockRow = memo(function SurvivalStockRow({
           <div className="flex shrink-0 items-center gap-1.5">
             {isLoaded && (
               <span className="text-[7px] font-black uppercase tracking-wider text-amber">
-                EMG
+                LOADED
               </span>
             )}
             <span

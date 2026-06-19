@@ -66,7 +66,7 @@ describe('ActiveBuffPills', () => {
     expect(shieldRow?.textContent).toContain('×1');
   });
 
-  it('shows EMG tag when survival item is loaded into Emergency slot', () => {
+  it('shows LOADED tag when survival item is equipped', () => {
     const { container } = render(
       <ActiveBuffPills
         inventory={{ MedKit: 2 }}
@@ -76,11 +76,11 @@ describe('ActiveBuffPills', () => {
     );
 
     const medKitRow = container.querySelector('[data-consumable-id="MedKit"]');
-    expect(medKitRow?.textContent).toContain('EMG');
+    expect(medKitRow?.textContent).toContain('LOADED');
 
-    // Other survival rows should NOT have EMG tag
+    // Other survival rows should NOT have LOADED tag
     const shieldRow = container.querySelector('[data-consumable-id="ShieldCell"]');
-    expect(shieldRow?.textContent).not.toContain('EMG');
+    expect(shieldRow?.textContent).not.toContain('LOADED');
   });
 
   it('shows trigger threshold label on survival rows', () => {

@@ -199,7 +199,7 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
               <div className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber">Tactical Profile</div>
               <div className="space-y-1.5">
                 <StatRow label="Tactical Role" value={consumable.tacticalRole} tone="text-amber" />
-                <StatRow label="Legacy Slot" value={consumable.allowedSlots.join(' · ')} tone="text-green" />
+                <StatRow label="Trigger" value={consumable.trigger} tone="text-green" />
                 {consumable.counterTags.length > 0 && (
                   <StatRow label="Counters" value={consumable.counterTags.map((t) => `#${t}`).join(' ')} tone="text-purple" />
                 )}
