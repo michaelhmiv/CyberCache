@@ -18,7 +18,7 @@ function makeContribution(overrides: Partial<StatContribution> = {}): StatContri
     source: 'Test Source',
     detail: 'Test detail',
     value: 100,
-    display: '100',
+    display: '+100%',
     tone: 'red',
     ...overrides,
   };
@@ -69,11 +69,29 @@ describe('pickTopContributions (PR #5)', () => {
       makeMetric('dps', 100, [
         makeContribution({ source: 'A', value: 100 }),
         makeContribution({ source: 'B', value: 0 }),
-        makeContribution({ source: 'C', value: -50 }),
+        makeContribution({ source: 'C', value: -50, display: '-50%' }),
       ]),
     ]);
     const top3 = pickTopContributions(summary, 3);
     expect(top3.map((c) => c.source)).toEqual(['A', 'C']);
+  });
+
+  it('excludes contributions whose display does not contain a % sign', () => {
+    // Only percentage-based modifiers (rareFind, scrap, offline,
+    // activity modules, etc.) should appear in the strip. Raw
+    // DPS/HP/damage numbers are excluded.
+    const summary = makeSummary([
+      makeMetric('dps', 500, [
+        makeContribution({ source: 'Raw DPS', value: 500, display: '500' }),
+        makeContribution({ source: 'Raw HP', value: 200, display: '200' }),
+      ]),
+      makeMetric('rareFind', 0.1, [
+        makeContribution({ source: 'Rare Find +10%', value: 0.10, display: '+10%' }),
+      ]),
+    ]);
+    const top3 = pickTopContributions(summary, 3);
+    expect(top3).toHaveLength(1);
+    expect(top3[0].source).toBe('Rare Find +10%');
   });
 
   it('sorts by absolute value, so negative contributions rank by magnitude', () => {
@@ -94,9 +112,9 @@ describe('pickTopContributions (PR #5)', () => {
     // The strip is *cross-metric* — it shows the largest contributions
     // regardless of which headline number they feed into.
     const summary = makeSummary([
-      makeMetric('dps', 500, [makeContribution({ source: 'Weapon', value: 500 })]),
-      makeMetric('health', 100, [makeContribution({ source: 'Chassis', value: 100 })]),
-      makeMetric('shieldBreak', 50, [makeContribution({ source: 'Ordnance', value: 50 })]),
+      makeMetric('rareFind', 0.15, [makeContribution({ source: 'Weapon', value: 0.15, display: '+15%' })]),
+      makeMetric('scrap', 0.10, [makeContribution({ source: 'Chassis', value: 0.10, display: '+10%' })]),
+      makeMetric('offline', 0.05, [makeContribution({ source: 'Ordnance', value: 0.05, display: '+5%' })]),
     ]);
     const top3 = pickTopContributions(summary, 3);
     expect(top3.map((c) => c.source)).toEqual(['Weapon', 'Chassis', 'Ordnance']);
