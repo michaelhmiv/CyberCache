@@ -62,4 +62,17 @@ describe('Dashboard Hunter Totals panel — Sources button', () => {
     fireEvent.click(screen.getByLabelText('Close source breakdown'));
     expect(screen.queryByTestId('hunter-totals-breakdown-modal')).toBeNull();
   });
+
+  it('passes player consumable inventory into the source breakdown', () => {
+    usePlayerStore.setState((state) => ({
+      ...state,
+      consumables: { MedKit: 12 },
+    }));
+
+    render(<DashboardScreen onNavigate={() => {}} />);
+    fireEvent.click(screen.getByTestId('hunter-totals-sources-button'));
+
+    expect(screen.getAllByText('Med Kit ×12').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('1,800').length).toBeGreaterThan(0);
+  });
 });
