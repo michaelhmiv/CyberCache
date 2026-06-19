@@ -9,40 +9,60 @@ describe('ActiveBuffPills', () => {
     useActiveBuffsStore.setState({ buffs: [] });
   });
 
-  it('renders 3 slot rows always, even when empty', () => {
+  it('renders 3 slot buttons always, even when empty', () => {
     const { container } = render(
       <ActiveBuffPills
         inventory={{}}
         consumables={{ PreFight: null, MidFight: null, Emergency: null }}
-        onClick={() => {}}
+        onSlotClick={() => {}}
       />,
     );
 
     const rows = container.querySelectorAll('[data-testid="slot-row"]');
     expect(rows.length).toBe(3);
 
-    // Empty slots show "Empty"
+    // Empty slots show "Slot N" and "Empty"
     expect(container.textContent).toContain('Empty');
     expect(container.textContent).toContain('Slot 1');
     expect(container.textContent).toContain('Slot 3');
   });
 
-  it('shows loaded consumable name and stock count in slot row', () => {
+  it('renders 3 slot buttons in a single horizontal row', () => {
+    const { container } = render(
+      <ActiveBuffPills
+        inventory={{}}
+        consumables={{ PreFight: null, MidFight: null, Emergency: null }}
+        onSlotClick={() => {}}
+      />,
+    );
+
+    const slotsSection = container.querySelector('[data-testid="slots-section"]');
+    expect(slotsSection?.className).toContain('flex-row');
+
+    // Each slot is a flex-1 button for equal horizontal sizing
+    const slots = container.querySelectorAll('[data-testid="slot-row"]');
+    slots.forEach((slot) => {
+      expect(slot.tagName).toBe('BUTTON');
+      expect(slot.className).toContain('flex-1');
+    });
+  });
+
+  it('shows loaded consumable name and stock count in slot button', () => {
     const { container } = render(
       <ActiveBuffPills
         inventory={{ MedKit: 3, AmmoPack: 1 }}
         consumables={{ PreFight: ConsumableType.MedKit, MidFight: ConsumableType.AmmoPack, Emergency: null }}
-        onClick={() => {}}
+        onSlotClick={() => {}}
       />,
     );
 
     const slot1Row = container.querySelector('[data-slot="PreFight"]');
     expect(slot1Row?.textContent).toContain('Med Kit');
-    expect(slot1Row?.textContent).toContain('3 in stock');
+    expect(slot1Row?.textContent).toContain('×3');
 
     const slot2Row = container.querySelector('[data-slot="MidFight"]');
     expect(slot2Row?.textContent).toContain('Ammo Pack');
-    expect(slot2Row?.textContent).toContain('1 in stock');
+    expect(slot2Row?.textContent).toContain('×1');
 
     const slot3Row = container.querySelector('[data-slot="Emergency"]');
     expect(slot3Row?.textContent).toContain('Empty');
@@ -53,17 +73,17 @@ describe('ActiveBuffPills', () => {
       <ActiveBuffPills
         inventory={{ MedKit: 1 }}
         consumables={{ PreFight: ConsumableType.MedKit, MidFight: null, Emergency: null }}
-        onClick={() => {}}
+        onSlotClick={() => {}}
       />,
     );
 
     // Slot 1 has a consumable → NOT dimmed
     const slot1Row = container.querySelector('[data-slot="PreFight"]');
-    expect(slot1Row?.className).not.toContain('opacity-60');
+    expect(slot1Row?.className).not.toContain('opacity-50');
 
     // Slot 2 is empty → dimmed
     const slot2Row = container.querySelector('[data-slot="MidFight"]');
-    expect(slot2Row?.className).toContain('opacity-60');
+    expect(slot2Row?.className).toContain('opacity-50');
   });
 
   it('shows LIVE tag on slot when consumable is actively firing', () => {
@@ -88,7 +108,7 @@ describe('ActiveBuffPills', () => {
       <ActiveBuffPills
         inventory={{ AmmoPack: 2 }}
         consumables={{ PreFight: null, MidFight: ConsumableType.AmmoPack, Emergency: null }}
-        onClick={() => {}}
+        onSlotClick={() => {}}
       />,
     );
 
@@ -98,6 +118,29 @@ describe('ActiveBuffPills', () => {
     // Slot 1 is empty → should NOT have LIVE
     const slot1Row = container.querySelector('[data-slot="PreFight"]');
     expect(slot1Row?.textContent).not.toContain('LIVE');
+  });
+
+  it('onSlotClick fires with the correct slot when a slot is tapped', () => {
+    const onSlotClick = vi.fn();
+    useActiveBuffsStore.setState({ buffs: [] });
+
+    const { container } = render(
+      <ActiveBuffPills
+        inventory={{}}
+        consumables={{ PreFight: ConsumableType.MedKit, MidFight: null, Emergency: null }}
+        onSlotClick={onSlotClick}
+      />,
+    );
+
+    // Click Slot 2 (MidFight)
+    const slot2 = container.querySelector('[data-slot="MidFight"]')!;
+    fireEvent.click(slot2);
+    expect(onSlotClick).toHaveBeenCalledWith('MidFight');
+
+    // Click Slot 1 (PreFight)
+    const slot1 = container.querySelector('[data-slot="PreFight"]')!;
+    fireEvent.click(slot1);
+    expect(onSlotClick).toHaveBeenCalledWith('PreFight');
   });
 
   it('renders active buff pills with countdown', () => {
@@ -122,7 +165,7 @@ describe('ActiveBuffPills', () => {
       <ActiveBuffPills
         inventory={{}}
         consumables={{ PreFight: null, MidFight: ConsumableType.AmmoPack, Emergency: null }}
-        onClick={() => {}}
+        onSlotClick={() => {}}
       />,
     );
 
@@ -130,23 +173,6 @@ describe('ActiveBuffPills', () => {
     expect(pills.length).toBeGreaterThanOrEqual(1);
     expect(container.querySelector('[data-testid="buff-countdown"]')).toBeInTheDocument();
     expect(container.querySelector('[data-testid="buff-progress"]')).toBeInTheDocument();
-  });
-
-  it('onClick fires when tapped', () => {
-    const onClick = vi.fn();
-    useActiveBuffsStore.setState({ buffs: [] });
-
-    const { container } = render(
-      <ActiveBuffPills
-        inventory={{}}
-        consumables={{ PreFight: ConsumableType.MedKit, MidFight: null, Emergency: null }}
-        onClick={onClick}
-      />,
-    );
-
-    const btn = container.querySelector('[data-testid="active-buff-pills"]')!;
-    fireEvent.click(btn);
-    expect(onClick).toHaveBeenCalledTimes(1);
   });
 
   it('countdown updates over time', async () => {
@@ -172,7 +198,7 @@ describe('ActiveBuffPills', () => {
       <ActiveBuffPills
         inventory={{}}
         consumables={{ PreFight: null, MidFight: null, Emergency: ConsumableType.NanoSwarm }}
-        onClick={() => {}}
+        onSlotClick={() => {}}
       />,
     );
 

@@ -26,6 +26,7 @@ import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
 import { ActiveBuffPills } from '@/components/stats/ActiveBuffPills';
 import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
+import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { buildConsumableMods } from '@/lib/buffs/consumableModsAdapter';
 import { buildBossFightActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
@@ -230,6 +231,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const activeBuffsStore = useActiveBuffsStore();
   const [overrideActivity, setOverrideActivity] = useState<ActivityKind | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [focusedSlot, setFocusedSlot] = useState<keyof LoadoutConsumables | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const cycleOverride = useCallback(() => {
     setOverrideActivity((current) => {
@@ -377,9 +379,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           />
         </Panel>
         <Panel label="Consumables">
-          <ActiveBuffPills consumables={loadout.consumables} inventory={player.consumables} onClick={() => setLedgerOpen(true)} />
+          <ActiveBuffPills consumables={loadout.consumables} inventory={player.consumables} onSlotClick={(slot) => { setFocusedSlot(slot); setLedgerOpen(true); }} />
         </Panel>
-        {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} inventory={player.consumables} onClose={() => setLedgerOpen(false)} />}
+        {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} inventory={player.consumables} focusedSlot={focusedSlot} onClose={() => { setLedgerOpen(false); setFocusedSlot(null); }} />}
         {breakdownOpen && (
           <CharacterStatBreakdownModal
             summary={computedStats}
