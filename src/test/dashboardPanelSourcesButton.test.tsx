@@ -72,7 +72,12 @@ describe('Dashboard Hunter Totals panel — Sources button', () => {
     render(<DashboardScreen onNavigate={() => {}} />);
     fireEvent.click(screen.getByTestId('hunter-totals-sources-button'));
 
+    // MedKit contribution visible in the health card's composition bar legend.
     expect(screen.getAllByText('Med Kit ×12').length).toBeGreaterThan(0);
+
+    // Expand the detail list inside the health metric card to reveal the raw value.
+    const showSources = screen.getByText('Show 2 sources');
+    fireEvent.click(showSources);
     expect(screen.getAllByText('1,800').length).toBeGreaterThan(0);
   });
 });
