@@ -232,16 +232,16 @@ const BuffPill = memo(function BuffPill({
 export const ActiveBuffPills = memo(function ActiveBuffPills({
   consumables,
   inventory,
-  onClick,
+  onSlotClick,
   size: _size,
 }: {
   consumables: LoadoutConsumables;
   inventory: Record<string, number>;
-  onClick: () => void;
+  onSlotClick: (slot: keyof LoadoutConsumables) => void;
   size?: number;
 }) {
   const storeBuffs = useActiveBuffsStore((state) => state.buffs);
-  const [now, setNow] = useState(Date.now);
+  const [now, setNow] = useState(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -261,73 +261,56 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
     [activeBuffs],
   );
 
-  const armedSlots = useMemo(() => {
-    return SLOT_ORDER
-      .map((slot) => {
-        const id = consumables[slot];
-        if (!id) return null;
-        const def = CONSUMABLES[id];
-        if (!def) return null;
-        return { slot, id, def };
-      })
-      .filter((entry): entry is { slot: keyof LoadoutConsumables; id: string; def: typeof CONSUMABLES[string] } => {
-        return !!entry && !activeConsumableIds.has(entry.id);
-      });
-  }, [consumables, activeConsumableIds]);
-
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       data-testid="active-buff-pills"
-      aria-label={`${activeBuffs.length} active buff${activeBuffs.length === 1 ? '' : 's'}, ${armedSlots.length} armed. Tap to open ledger.`}
       className="flex shrink-0 flex-col border-2 border-border bg-surface/90 shadow-[4px_4px_0_rgba(0,0,0,0.72)]"
       style={panelClip}
     >
-      {/* 3 slots — what's loaded, tap to manage */}
-      <div data-testid="slots-section">
+      {/* 3 slots — horizontal row, tap one to manage */}
+      <div data-testid="slots-section" className="flex flex-row divide-x divide-border/40">
         {SLOT_ORDER.map((slot) => {
           const id = consumables[slot];
           const def = id ? CONSUMABLES[id] : null;
           const accent = def ? accentClass[def.visual.accent] : '#888';
           const stockCount = id ? (inventory[id] ?? 0) : 0;
           const isActive = activeConsumableIds.has(id ?? '');
+          const slotNumber = SLOT_ORDER.indexOf(slot) + 1;
 
           return (
-            <div
+            <button
               key={slot}
+              type="button"
               data-testid="slot-row"
               data-slot={slot}
-              className={`flex items-center gap-2 border-b border-border/40 px-2 py-1.5 ${!def ? 'opacity-60' : ''}`}
+              onClick={() => onSlotClick(slot)}
+              aria-label={`Slot ${slotNumber}: ${def ? def.name : 'empty'}. Tap to manage.`}
+              className={`flex flex-1 flex-col items-center gap-1 px-1 py-2 transition-transform active:scale-[0.97] ${!def ? 'opacity-50' : ''}`}
             >
-              {/* Slot number or glyph */}
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border bg-bg/80">
+              {/* Glyph or slot number */}
+              <div className="flex h-7 w-7 items-center justify-center border-2 border-border bg-bg/80">
                 {def ? (
                   <span className="text-[14px] font-black leading-none" style={{ color: accent }}>{def.visual.glyph}</span>
                 ) : (
-                  <span className="text-[12px] font-black text-text-muted">{SLOT_ORDER.indexOf(slot) + 1}</span>
+                  <span className="text-[11px] font-black text-text-muted">{slotNumber}</span>
                 )}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline justify-between gap-1">
-                  <div className="min-w-0">
-                    <div className="truncate text-[10px] font-black uppercase tracking-wide text-text-primary">
-                      {def ? def.name : `Slot ${SLOT_ORDER.indexOf(slot) + 1}`}
-                    </div>
-                    {def ? (
-                      <div className="truncate text-[7px] text-text-muted">
-                        {def.tacticalRole} · {stockCount} in stock
-                      </div>
-                    ) : (
-                      <div className="truncate text-[7px] text-text-muted">Empty — tap to assign</div>
-                    )}
-                  </div>
+              {/* Name or "Slot N" */}
+              <div className="w-full truncate text-center text-[9px] font-black uppercase tracking-wide text-text-primary">
+                {def ? def.name : `Slot ${slotNumber}`}
+              </div>
+              {/* Stock or empty */}
+              {def ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-[7px] font-black uppercase text-amber">×{stockCount}</span>
                   {isActive && (
-                    <span className="shrink-0 text-[7px] font-black uppercase text-green animate-pulse">LIVE</span>
+                    <span className="text-[7px] font-black uppercase text-green animate-pulse">LIVE</span>
                   )}
                 </div>
-              </div>
-            </div>
+              ) : (
+                <div className="text-[7px] font-black uppercase text-text-muted">Empty</div>
+              )}
+            </button>
           );
         })}
       </div>
@@ -340,7 +323,7 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
           })}
         </div>
       )}
-    </button>
+    </div>
   );
 });
 
