@@ -129,8 +129,11 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const gear = [...liveWeapons, shield, classMod, relic, ordnance];
   const baseHealth = mechanics.maxHp.contributions.find((entry) => entry.stat === 'baseHp')?.value ?? mechanics.maxHp.value;
   const shieldHp = shield?.hp ?? 0;
-  const mitigationHp = Math.max(0, mechanics.effectiveHp.value - mechanics.maxHp.value);
-  const totalHealth = mechanics.maxHp.value;
+  // Start with mechanics-only values; consumable buffer is added below
+  // after the activeBuffs helper is defined.
+  let totalHealth = mechanics.maxHp.value;
+  let mitigationHp = Math.max(0, mechanics.effectiveHp.value - mechanics.maxHp.value);
+  let effectiveHpWithBuffer = mechanics.effectiveHp.value;
   const baseDps = mechanics.standardWeaponDps.value;
   const weaponDamageBonus = skillTotal(spentSkills, 'weaponDamage') + skillTotal(spentSkills, 'attackSpeed') + skillTotal(spentSkills, 'critChance') * 0.5 + skillTotal(spentSkills, 'critDamage') * 0.5;
   const affixDamageBonus = gearAffixes(gear, 'weaponDamage').reduce((sum, item) => sum + item.affix.value, 0);
@@ -180,6 +183,14 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const dpsConsumableContribs = activeConsumableContribsByFamily(['ammo', 'corrupted', 'tactical']);
   const survivalConsumableContribs = activeConsumableContribsByFamily(['survival']);
   const economyConsumableContribs = activeConsumableContribsByFamily(['economy']);
+
+  // Survival consumable buffer (MedKit, ShieldCell, etc.) from active roaming buffs.
+  // Added to both Max HP and Effective HP totals so the numbers match the stacked bar.
+  const survivalContribBuffer = survivalConsumableContribs.reduce((sum, c) => sum + c.value, 0);
+  totalHealth = mechanics.maxHp.value + survivalContribBuffer;
+  const totalMitigation = shield?.mitigation ?? 0;
+  mitigationHp = Math.max(0, Math.round(totalHealth / Math.max(0.2, 1 - totalMitigation)) - totalHealth);
+  effectiveHpWithBuffer = totalHealth + mitigationHp;
 
   const healthContribs: StatContribution[] = [
     { source: 'Hunter chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
@@ -249,7 +260,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
       ...(shield ? [{ value: shieldHp, display: whole(shieldHp), tone: 'cyan' as StatTone, label: 'Shield' }] : []),
       ...survivalStacked,
     ]),
-    metric('effectiveHp', 'Effective HP', mechanics.effectiveHp.value, whole(mechanics.effectiveHp.value), 'max HP adjusted by mitigation', 'cyan', effectiveHpContribs),
+    metric('effectiveHp', 'Effective HP', effectiveHpWithBuffer, whole(effectiveHpWithBuffer), 'max HP adjusted by mitigation (includes consumable buffers)', 'cyan', effectiveHpContribs),
     metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
     metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
     metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', breakContribs('shield')),
