@@ -147,8 +147,25 @@ export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
 
   getEquippedConsumables: () => get().consumables,
 
-  setConsumableSlot: (slot, type) =>
-    set((s) => ({
-      consumables: { ...s.consumables, [slot]: type },
-    })),
+  setConsumableSlot: (slot, type) => {
+    set((s) => {
+      // Dedup guard: if the consumable is already in another slot, clear it
+      // from that slot first (swap behavior, not block behavior). This is
+      // the single chokepoint — all callers (Ledger, ConsumablesScreen,
+      // BossPrepModal, presets) are protected by this guard.
+      const others = (['PreFight', 'MidFight', 'Emergency'] as const).filter(
+        (k) => k !== slot,
+      );
+      const consumables = { ...s.consumables };
+      if (type) {
+        for (const other of others) {
+          if (consumables[other] === type) {
+            consumables[other] = null;
+          }
+        }
+      }
+      consumables[slot] = type;
+      return { consumables };
+    });
+  },
 }));

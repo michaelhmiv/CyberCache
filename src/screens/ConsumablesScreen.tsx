@@ -60,7 +60,12 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
   };
 
   const handleEquipFromInspect = (id: string) => {
-    // Find first empty slot, or first slot already holding this consumable.
+    // If already equipped in any slot, don't duplicate — just close.
+    if (CONSUMABLE_SLOTS.some((s) => loadout.consumables[s] === id)) {
+      setInspecting(null);
+      return;
+    }
+    // Find first empty slot, or default to first slot.
     let targetSlot = CONSUMABLE_SLOTS.find((s) => !loadout.consumables[s]);
     if (!targetSlot) targetSlot = CONSUMABLE_SLOTS[0];
     loadout.setConsumableSlot(targetSlot, id);

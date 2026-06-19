@@ -122,10 +122,22 @@ export const useLoadoutPresetsStore = create<LoadoutPresetsState>()((set, get) =
     }
     await Promise.all(equipPromises);
 
-    // Consumable slots are local-display-only (not server-verified)
-    loadout.setConsumableSlot('PreFight', preset.consumables.PreFight);
-    loadout.setConsumableSlot('MidFight', preset.consumables.MidFight);
-    loadout.setConsumableSlot('Emergency', preset.consumables.Emergency);
+    // Consumable slots are local-display-only (not server-verified).
+    // The store's setConsumableSlot has a dedup guard, but we call them
+    // sequentially and each call sees the result of the previous one —
+    // so we sanitize the preset's consumables first to avoid stale
+    // duplicates in the preset data itself.
+    const sanitized: LoadoutConsumables = { PreFight: null, MidFight: null, Emergency: null };
+    const presetSlots: Array<keyof LoadoutConsumables> = ['PreFight', 'MidFight', 'Emergency'];
+    for (const ps of presetSlots) {
+      const val = preset.consumables[ps];
+      if (val && !Object.values(sanitized).includes(val)) {
+        sanitized[ps] = val;
+      }
+    }
+    loadout.setConsumableSlot('PreFight', sanitized.PreFight);
+    loadout.setConsumableSlot('MidFight', sanitized.MidFight);
+    loadout.setConsumableSlot('Emergency', sanitized.Emergency);
 
     set({ activePresetId: id });
   },
