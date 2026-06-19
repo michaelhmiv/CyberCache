@@ -1,5 +1,6 @@
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { emptySlots, useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
+import type { GearItem } from '@/types/items';
 import { supabase } from './client';
 import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
 
@@ -17,6 +18,7 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
     .eq('owner_user_id', userId)
     .neq('runtime_state', 'salvaged')
     .neq('runtime_state', 'consumed')
+    .neq('runtime_state', 'listed')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -25,7 +27,7 @@ export async function syncRuntimeItemsForUser(userId: string): Promise<void> {
   }
 
   const rows = (data ?? []) as ServerItemRow[];
-  const serverItems = rows.map(serverItemRowToDisplayGear);
+  const serverItems = rows.map(serverItemRowToDisplayGear).filter((item): item is GearItem => item !== null);
   const serverSlots: Partial<Record<LoadoutSlot, string | null>> = {};
 
   rows.forEach((row) => {

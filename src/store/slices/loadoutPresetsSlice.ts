@@ -18,6 +18,7 @@ import type { LoadoutSlot, LoadoutConsumables } from './loadoutSlice';
 import { useLoadoutStore } from './loadoutSlice';
 import { useInventoryStore } from './inventorySlice';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 
 export interface LoadoutPreset {
   id: string;
@@ -110,14 +111,15 @@ export const useLoadoutPresetsStore = create<LoadoutPresetsState>()((set, get) =
     // and returns the canonical state via syncVerifiedResult.
     const equipPromises: Promise<void>[] = [];
     for (const [slot, itemId] of Object.entries(preset.slots) as [LoadoutSlot, string | null][]) {
-      if (itemId && inventory.getById(itemId)) {
+      const item = itemId ? inventory.getById(itemId) : undefined;
+      if (item && isItemCompatibleWithSlot(item, slot)) {
         equipPromises.push(
           verifiedOps.equipItem(itemId, slot).catch((err) => {
             console.warn(`[loadoutPresets] Failed to equip ${itemId} to ${slot}:`, err instanceof Error ? err.message : err);
           }),
         );
       } else if (itemId) {
-        console.warn(`[loadoutPresets] Item ${itemId} (slot ${slot}) not found in inventory — skipping.`);
+        console.warn(`[loadoutPresets] Item ${itemId} (slot ${slot}) missing or incompatible — skipping.`);
       }
     }
     await Promise.all(equipPromises);

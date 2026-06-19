@@ -177,6 +177,10 @@ export const ChestScreen: React.FC = () => {
     try {
       const result = await verifiedOps.makeItem();
       const item = serverItemRowToDisplayGear(result.item as ServerItemRow);
+      if (!item) {
+        setError('Cache produced an unrecognizable item.');
+        return;
+      }
       setRevealed([item]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to open cache.');

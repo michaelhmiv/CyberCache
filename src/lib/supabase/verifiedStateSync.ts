@@ -173,13 +173,20 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
 
 function syncRuntimeItem(row: ServerItemRow | undefined): void {
   if (!row?.id) return;
-  if (row.runtime_state === 'salvaged' || row.runtime_state === 'consumed') {
+  if (row.runtime_state === 'salvaged' || row.runtime_state === 'consumed' || row.runtime_state === 'listed') {
     useInventoryStore.getState().removeItem(row.id);
     clearItemFromLoadout(row.id);
     return;
   }
 
-  useInventoryStore.getState().upsertItem(serverItemRowToDisplayGear(row));
+  const item = serverItemRowToDisplayGear(row);
+  if (!item) {
+    useInventoryStore.getState().removeItem(row.id);
+    clearItemFromLoadout(row.id);
+    return;
+  }
+
+  useInventoryStore.getState().upsertItem(item);
   const slot = toLoadoutSlot(row.equipped_slot);
   if (slot) {
     clearItemFromLoadout(row.id);

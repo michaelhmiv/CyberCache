@@ -507,6 +507,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       pushEvents([makeRunEvent('CACHE OPENING', 'Decrypting server-verified cache roll.', 'cache', 'cache_opening')]);
       const result = await verifiedOps.makeItem();
       const item = serverItemRowToDisplayGear(result.item as ServerItemRow);
+      if (!item) {
+        const msg = 'Cache produced an unrecognizable item. The roll has been recorded; support is needed to finalize it.';
+        setCacheError(msg);
+        pushEvents([makeRunEvent('CACHE FAILED', msg, 'cache', 'cache_corrupt')]);
+        return;
+      }
       const event = makeRunEvent('CACHE GEAR', `${item.name} (${describeGear(item)}) decrypted from a cache.`, 'loot', 'cache_opened');
       setGearLookup((current) => ({ ...current, [event.id]: item }));
       setInspectGear(item);
