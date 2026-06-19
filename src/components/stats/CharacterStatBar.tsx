@@ -2,7 +2,7 @@ import React, { memo, useMemo, useState } from 'react';
 import { ChevronDown, RefreshCw, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric } from '@/lib/stats/characterStats';
 import { pickTopContributions } from '@/lib/stats/topContribs';
-
+import { COMBAT_CORE_METRIC_KEYS } from '@/lib/hud/headlineMetrics';
 import type { ActivityKind } from '@/types/activity';
 import { CharacterStatBreakdownModal } from './CharacterStatBreakdownModal';
 import { statToneBgClass, statToneRailClass, statToneTextClass } from './statToneStyles';
@@ -125,7 +125,8 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
   onChangeOverride?: (next: ActivityKind | null) => void;
   onCycleActivity?: () => void;
 }) {
-  const headline = ['health', 'effectiveHp', 'dps', 'shieldBreak']
+  const effectiveKind = overrideActivity ?? activityKind;
+  const headline = COMBAT_CORE_METRIC_KEYS
     .map((k) => summary.all.find((m) => m.key === k))
     .filter((m): m is StatMetric => Boolean(m));
   const showOverride = Boolean(overrideActivity) && Boolean(onChangeOverride);
