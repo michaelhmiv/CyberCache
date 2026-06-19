@@ -320,7 +320,7 @@ export function activateFromInventory(
     const duration = DURATION_TICKS[id] ?? 0;
 
     // Skip consumables that aren't classified (unknown types)
-    if (!family || !DURATION_TICKS[id] === undefined) continue;
+    if (!family || DURATION_TICKS[id] === undefined) continue;
 
     const activeSlot: ActiveSlotState = {
       slot: 'active' as ConsumableSlotName, // loaded, active consumable

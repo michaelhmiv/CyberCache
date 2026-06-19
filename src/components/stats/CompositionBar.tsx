@@ -1,23 +1,6 @@
 import React, { useState } from 'react';
 import type { StatTone } from '@/lib/stats/characterStats';
-
-const toneRail: Record<StatTone, string> = {
-  amber: 'bg-amber',
-  green: 'bg-green',
-  red: 'bg-red',
-  cyan: 'bg-cyan',
-  purple: 'bg-purple',
-  muted: 'bg-text-muted',
-};
-
-const toneText: Record<StatTone, string> = {
-  amber: 'text-amber',
-  green: 'text-green',
-  red: 'text-red',
-  cyan: 'text-cyan',
-  purple: 'text-purple',
-  muted: 'text-text-muted',
-};
+import { statToneRailClass, statToneTextClass } from './statToneStyles';
 
 const slashClip = { clipPath: 'polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)' };
 
@@ -77,7 +60,7 @@ export const CompositionBar: React.FC<{
           return (
             <div
               key={`${seg.label}-${i}`}
-              className={`h-full ${toneRail[seg.tone]} ${seg.transient ? 'animate-pulse' : ''} transition-all ${isActive ? 'brightness-125' : 'brightness-100'}`}
+              className={`h-full ${statToneRailClass[seg.tone]} ${seg.transient ? 'animate-pulse' : ''} transition-all ${isActive ? 'brightness-125' : 'brightness-100'}`}
               style={{ width: `${pct}%` }}
               data-testid={`composition-segment-${i}`}
               data-segment-label={seg.label}
@@ -100,9 +83,9 @@ export const CompositionBar: React.FC<{
               onClick={() => setActiveIndex(isActive ? null : i)}
               className={`flex items-center gap-1 transition-opacity ${isActive ? 'opacity-100' : 'opacity-70 hover:opacity-100'}`}
             >
-              <span className={`h-1.5 w-1.5 shrink-0 ${toneRail[seg.tone]} ${seg.transient ? 'animate-pulse' : ''}`} />
+              <span className={`h-1.5 w-1.5 shrink-0 ${statToneRailClass[seg.tone]} ${seg.transient ? 'animate-pulse' : ''}`} />
               <span className="truncate max-w-[80px] text-[8px] font-black text-text-primary">{seg.label}</span>
-              <span className={`shrink-0 text-[8px] font-black ${toneText[seg.tone]}`}>
+              <span className={`shrink-0 text-[8px] font-black ${statToneTextClass[seg.tone]}`}>
                 {pct < 1 ? '<1' : Math.round(pct)}%
               </span>
             </button>

@@ -91,7 +91,7 @@ describe('CharacterStatBreakdownModal', () => {
 
   it('shows activity label in header when activityKind is provided', () => {
     render(<CharacterStatBreakdownModal summary={summary} open={true} onClose={() => {}} activityKind="roaming_loot" />);
-    expect(screen.getByText(/Roaming Loot/)).toBeInTheDocument();
+    expect(screen.getByText(/Roaming loot/)).toBeInTheDocument();
   });
 
   it('filters metrics by activityKind', () => {

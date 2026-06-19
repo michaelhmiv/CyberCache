@@ -9,8 +9,9 @@ import React, { useMemo } from 'react';
 import { getActivityVisual } from '@/constants/activityVisuals';
 import { useLoadoutStore, useInventoryStore } from '@/store';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
-import type { ActivityKind } from '@/types/activity';
+import { PRODUCTIVE_ACTIVITY_LABELS, type ActivityKind } from '@/types/activity';
 import type { GearItem } from '@/types/items';
+import { getActivityModuleStatLabel } from '@/lib/activity/activityStatMetadata';
 
 // ── Icons per activity ────────────────────────────────────────────
 
@@ -23,14 +24,6 @@ const ACTIVITY_GLYPHS: Partial<Record<ActivityKind, string>> = {
   idle_standby: getActivityVisual('idle_standby').glyph,
 };
 
-const ACTIVITY_LABELS: Partial<Record<ActivityKind, string>> = {
-  crafting: 'Crafting',
-  salvaging: 'Salvaging',
-  market_listing: 'Market',
-  workshop_service: 'Workshop',
-  roaming_loot: 'Roaming',
-  idle_standby: 'Idle',
-};
 
 // ── Slot order for display ────────────────────────────────────────
 
@@ -60,43 +53,8 @@ function formatModValue(value: number, isInteger = false): string {
   return `+${pct}%`;
 }
 
-function shortStatLabel(key: string): string {
-  const map: Record<string, string> = {
-    craftingSpeed: 'Speed',
-    materialEfficiency: 'Mat Eff',
-    critCraftChance: 'Crit',
-    burstCraftChance: 'Burst',
-    elementalCraftBonus: 'Elem',
-    droneAssistSpeed: 'Drone',
-    salvageYield: 'Yield',
-    rareMaterialChance: 'Rare Mat',
-    essenceExtraction: 'Essence',
-    explosiveSalvage: 'Burst',
-    precisionExtraction: 'Precision',
-    autoCollectChance: 'Auto',
-    marketFeeReduction: 'Fee',
-    marketSaleBonus: 'Sale',
-    listingDurationBonus: 'Duration',
-    premiumPricingChance: 'Premium',
-    affinityPricing: 'Affinity',
-    bulkListingSlots: 'Slots',
-    workshopSpeed: 'Speed',
-    parallelQueueSlots: 'Slots',
-    overclockChance: 'Overclock',
-    failureReduction: 'Stability',
-    qualityTierBonus: 'Quality',
-    creditsPerKill: 'Credits',
-    rareDropChanceMod: 'Rare',
-    scrapYieldMod: 'Scrap',
-    materialFindChance: 'Mats',
-    xpBoostMod: 'XP',
-    cacheFragmentChance: 'Frags',
-    offlineEarningsMod: 'Credits',
-    offlineScrapMod: 'Scrap',
-    offlineXpMod: 'XP',
-    offlineMaterialMod: 'Mats',
-  };
-  return map[key] ?? key;
+function shortStatLabel(activityKind: ActivityKind, key: string): string {
+  return getActivityModuleStatLabel(activityKind, key);
 }
 
 // ── Component ─────────────────────────────────────────────────────
@@ -128,7 +86,7 @@ export const ActivityModifierPanel: React.FC<{
   if (entries.length === 0 && contributingGear.length === 0) return null;
 
   const activityGlyph = ACTIVITY_GLYPHS[activityKind] ?? '○';
-  const label = ACTIVITY_LABELS[activityKind] ?? activityKind;
+  const label = PRODUCTIVE_ACTIVITY_LABELS[activityKind] ?? activityKind;
 
   return (
     <div className={`relative overflow-hidden border-2 border-border bg-surface/95 p-3 ${className ?? ''}`}
@@ -146,7 +104,7 @@ export const ActivityModifierPanel: React.FC<{
             <div key={key}
               className="border border-amber/30 bg-amber/5 px-2 py-0.5 text-[10px] font-black text-amber"
               style={{ clipPath: 'polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)' }}>
-              {shortStatLabel(key)} {formatModValue(val, key === 'bulkListingSlots' || key === 'parallelQueueSlots')}
+              {shortStatLabel(activityKind, key)} {formatModValue(val, key === 'bulkListingSlots' || key === 'parallelQueueSlots')}
             </div>
           ))}
         </div>
@@ -177,7 +135,7 @@ export const ActivityModifierPanel: React.FC<{
                 <div className="flex gap-1 text-[8px]">
                   {subEntries.slice(0, 3).map(([key, val]) => (
                     <span key={key} className="text-amber font-black">
-                      {shortStatLabel(key)} {formatModValue(val)}
+                      {shortStatLabel(activityKind, key)} {formatModValue(val)}
                     </span>
                   ))}
                   {subEntries.length > 3 && (

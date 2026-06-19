@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getHeadlineMetricKeys, HEADLINE_METRIC_KEYS } from '@/lib/hud/headlineMetrics';
+import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
 
 describe('headlineMetrics', () => {
   it('returns 4 keys for every activity kind', () => {
@@ -10,7 +11,6 @@ describe('headlineMetrics', () => {
   });
 
   it('falls back to universal for unknown kinds', () => {
-    // @ts-expect-error - intentionally bad input
     expect(getHeadlineMetricKeys('not_a_real_kind')).toEqual(HEADLINE_METRIC_KEYS.universal);
   });
 
@@ -29,15 +29,10 @@ describe('headlineMetrics', () => {
   it('every key in the registry is a key produced by buildCharacterStatSummary', () => {
     // Snapshot of the current `all` array keys in characterStats.ts.
     const knownKeys = new Set(['health', 'effectiveHp', 'dps', 'boss', 'shieldBreak', 'armorBreak', 'rareFind', 'offline', 'scrap', 'ordnance']);
+    const activityModuleKeys = new Set(Object.values(ACTIVITY_MODULE_DEFS).flatMap((def) => def.subStats.map((sub) => sub.key)));
     const registryKeys = Object.values(HEADLINE_METRIC_KEYS).flat();
     registryKeys.forEach((key) => {
-      // @ts-expect-error - test against Set membership
-      expect(knownKeys.has(key) || ['craftingSpeed','materialEfficiency','critCraftChance','burstCraftChance',
-        'salvageYield','rareMaterialChance','essenceExtraction','explosiveSalvage',
-        'marketFeeReduction','marketSaleBonus','listingDurationBonus','premiumPricingChance',
-        'workshopSpeed','parallelQueueSlots','overclockChance','failureReduction',
-        'creditsPerKill','cacheFragmentChance','materialFindChance','xpBoostMod',
-        'offlineScrapMod','offlineXpMod','offlineMaterialMod'].includes(key)).toBe(true);
+      expect(knownKeys.has(key) || activityModuleKeys.has(key)).toBe(true);
     });
   });
 });

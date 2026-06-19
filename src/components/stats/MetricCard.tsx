@@ -1,38 +1,12 @@
 import React, { memo, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import type { StatMetric, StatTone } from '@/lib/stats/characterStats';
+import type { StatMetric } from '@/lib/stats/characterStats';
 import { CompositionBar, type CompositionSegment } from './CompositionBar';
+import { STAT_SOURCE_BUCKETS, STAT_SOURCE_BUCKET_BADGE, isTransientStatSourceBucket } from '@/lib/stats/sourceBuckets';
+import { statToneRailClass, statToneTextClass } from './statToneStyles';
 
 const panelClip = { clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' };
 const slashClip = { clipPath: 'polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)' };
-
-const toneText: Record<StatTone, string> = {
-  amber: 'text-amber',
-  green: 'text-green',
-  red: 'text-red',
-  cyan: 'text-cyan',
-  purple: 'text-purple',
-  muted: 'text-text-muted',
-};
-
-const toneRail: Record<StatTone, string> = {
-  amber: 'bg-amber',
-  green: 'bg-green',
-  red: 'bg-red',
-  cyan: 'bg-cyan',
-  purple: 'bg-purple',
-  muted: 'bg-text-muted',
-};
-
-// ── Bucket grouping (mirrors CharacterStatBar's BUCKET_ORDER) ──────────────
-
-type Bucket = 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime';
-const BUCKET_ORDER: readonly Bucket[] = ['base', 'gear', 'weapon', 'skill', 'activity', 'consumable', 'server', 'runtime'];
-
-const BUCKET_BADGE: Record<Bucket, string> = {
-  base: 'base', gear: 'gear', weapon: 'wpn', skill: 'skl',
-  activity: 'act', consumable: 'cons', server: 'srv', runtime: 'run',
-};
 
 // ── Bar eligibility ────────────────────────────────────────────────────────
 
@@ -75,20 +49,20 @@ function buildSegments(metric: StatMetric): CompositionSegment[] {
   return metric.contributions
     .filter((c) => c.value !== 0)
     .map((c) => ({
-      label: c.source,
+      label: c.segmentLabel ?? c.source,
       detail: c.detail,
       value: c.value,
       display: c.display,
       tone: c.tone ?? metric.tone,
       bucket: c.bucket ?? 'gear',
-      transient: c.bucket === 'consumable',
+      transient: c.bucket ? isTransientStatSourceBucket(c.bucket) : false,
     }));
 }
 
 // ── Collapsible detail list ────────────────────────────────────────────────
 
 const DetailList: React.FC<{ metric: StatMetric; max: number }> = memo(function DetailList({ metric, max }) {
-  const grouped = BUCKET_ORDER.map((bucket) => ({
+  const grouped = STAT_SOURCE_BUCKETS.map((bucket) => ({
     bucket,
     rows: metric.contributions.filter((c) => (c.bucket ?? 'gear') === bucket),
   })).filter((g) => g.rows.length > 0);
@@ -101,13 +75,13 @@ const DetailList: React.FC<{ metric: StatMetric; max: number }> = memo(function 
     <div className="space-y-2">
       {grouped.map(({ bucket, rows }) => (
         <div key={bucket} data-testid={`metric-card-bucket-${bucket}`}>
-          <div className="mb-0.5 text-[7px] font-black uppercase tracking-[0.16em] text-text-muted/50">{BUCKET_BADGE[bucket]}</div>
+          <div className="mb-0.5 text-[7px] font-black uppercase tracking-[0.16em] text-text-muted/50">{STAT_SOURCE_BUCKET_BADGE[bucket]}</div>
           <div className="space-y-1">
             {rows.map((source, i) => {
-              const sourceTone = toneText[source.tone ?? metric.tone];
-              const sourceRail = toneRail[source.tone ?? metric.tone];
+              const sourceTone = statToneTextClass[source.tone ?? metric.tone];
+              const sourceRail = statToneRailClass[source.tone ?? metric.tone];
               const width = Math.max(4, Math.min(100, Math.abs(source.value) / Math.max(1, max) * 100));
-              const transient = bucket === 'consumable';
+              const transient = isTransientStatSourceBucket(bucket);
               return (
                 <div
                   key={`${source.source}-${source.detail}-${i}`}
@@ -154,7 +128,7 @@ export const MetricCard: React.FC<{
   max?: number;
 }> = memo(function MetricCard({ metric, max }) {
   const [expanded, setExpanded] = useState(false);
-  const tone = toneText[metric.tone];
+  const tone = statToneTextClass[metric.tone];
   const showBar = shouldShowBar(metric);
   const segments = useMemo(() => buildSegments(metric), [metric]);
   const sourceCount = metric.contributions.filter((c) => c.value !== 0).length;

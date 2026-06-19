@@ -4,6 +4,7 @@ import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/type
 import type { PlayerProfile } from '@/types/player';
 import { computeHunterMaxHp } from '@/lib/combat/damageContract';
 import { computeBossRelativeDps, computeStandardDps } from '@/lib/stats/dpsChain';
+import { STAT_SOURCE_BUCKETS, type StatSourceBucket } from '@/lib/stats/sourceBuckets';
 
 export type MechanicsContribution = {
   bucket: MechanicsContributionBucket;
@@ -12,26 +13,9 @@ export type MechanicsContribution = {
   value: number;
 };
 
-export type MechanicsContributionBucket =
-  | 'base'
-  | 'gear'
-  | 'weapon'
-  | 'skill'
-  | 'activity'
-  | 'consumable'
-  | 'server'
-  | 'runtime';
+export type MechanicsContributionBucket = StatSourceBucket;
 
-export const MECHANICS_CONTRIBUTION_BUCKETS: MechanicsContributionBucket[] = [
-  'base',
-  'gear',
-  'weapon',
-  'skill',
-  'activity',
-  'consumable',
-  'server',
-  'runtime',
-];
+export const MECHANICS_CONTRIBUTION_BUCKETS: MechanicsContributionBucket[] = [...STAT_SOURCE_BUCKETS];
 
 export type MechanicsScalar = {
   value: number;

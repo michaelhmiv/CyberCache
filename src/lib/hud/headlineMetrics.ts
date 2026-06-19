@@ -1,15 +1,18 @@
 import type { ActivityKind } from '@/types/activity';
+import { getActivityModuleStatKeys, getPrimaryActivityModuleStatKeys } from '@/lib/activity/activityStatMetadata';
+
+export const COMBAT_CORE_METRIC_KEYS = ['health', 'effectiveHp', 'dps', 'shieldBreak'] as const;
 
 export const HEADLINE_METRIC_KEYS: Record<'universal' | ActivityKind, readonly string[]> = {
-  universal: ['health', 'effectiveHp', 'dps', 'shieldBreak'],
-  none: ['health', 'effectiveHp', 'dps', 'shieldBreak'],
-  idle_standby: ['health', 'effectiveHp', 'dps', 'shieldBreak'],
+  universal: COMBAT_CORE_METRIC_KEYS,
+  none: COMBAT_CORE_METRIC_KEYS,
+  idle_standby: COMBAT_CORE_METRIC_KEYS,
   roaming_loot: ['rareFind', 'scrap', 'offline', 'dps'],
   boss_fight: ['boss', 'dps', 'shieldBreak', 'armorBreak'],
-  crafting: ['craftingSpeed', 'materialEfficiency', 'critCraftChance', 'burstCraftChance'],
-  salvaging: ['salvageYield', 'rareMaterialChance', 'essenceExtraction', 'explosiveSalvage'],
-  workshop_service: ['workshopSpeed', 'parallelQueueSlots', 'overclockChance', 'failureReduction'],
-  market_listing: ['marketFeeReduction', 'marketSaleBonus', 'listingDurationBonus', 'premiumPricingChance'],
+  crafting: getPrimaryActivityModuleStatKeys('crafting'),
+  salvaging: getPrimaryActivityModuleStatKeys('salvaging'),
+  workshop_service: getPrimaryActivityModuleStatKeys('workshop_service'),
+  market_listing: getPrimaryActivityModuleStatKeys('market_listing'),
 } as const;
 
 export function getHeadlineMetricKeys(kind: ActivityKind | string | undefined): readonly string[] {
@@ -29,40 +32,36 @@ export function getHeadlineMetricKeys(kind: ActivityKind | string | undefined): 
  * included so the player can reference their character power regardless
  * of context.
  */
-const COMBAT_CORE = ['health', 'effectiveHp', 'dps', 'shieldBreak'] as const;
-
 export const BREAKDOWN_METRIC_KEYS: Record<'universal' | ActivityKind, readonly string[]> = {
-  universal: COMBAT_CORE,
-  none: COMBAT_CORE,
+  universal: COMBAT_CORE_METRIC_KEYS,
+  none: COMBAT_CORE_METRIC_KEYS,
   idle_standby: [
-    ...COMBAT_CORE,
-    'offline', 'offlineEarningsMod', 'offlineScrapMod', 'offlineXpMod', 'offlineMaterialMod',
+    ...COMBAT_CORE_METRIC_KEYS,
+    'offline', ...getActivityModuleStatKeys('idle_standby'),
   ],
   roaming_loot: [
-    ...COMBAT_CORE,
-    'rareFind', 'scrap', 'offline',
-    'creditsPerKill', 'rareDropChanceMod', 'scrapYieldMod', 'materialFindChance', 'xpBoostMod', 'cacheFragmentChance',
+    ...COMBAT_CORE_METRIC_KEYS,
+    'rareFind', 'scrap', 'offline', ...getActivityModuleStatKeys('roaming_loot'),
   ],
   boss_fight: [
-    ...COMBAT_CORE,
+    ...COMBAT_CORE_METRIC_KEYS,
     'boss', 'armorBreak', 'rareFind',
   ],
   crafting: [
-    ...COMBAT_CORE,
-    'craftingSpeed', 'materialEfficiency', 'critCraftChance', 'burstCraftChance', 'elementalCraftBonus', 'droneAssistSpeed',
+    ...COMBAT_CORE_METRIC_KEYS,
+    ...getActivityModuleStatKeys('crafting'),
   ],
   salvaging: [
-    ...COMBAT_CORE,
-    'scrap',
-    'salvageYield', 'rareMaterialChance', 'essenceExtraction', 'explosiveSalvage', 'precisionExtraction', 'autoCollectChance',
+    ...COMBAT_CORE_METRIC_KEYS,
+    'scrap', ...getActivityModuleStatKeys('salvaging'),
   ],
   workshop_service: [
-    ...COMBAT_CORE,
-    'workshopSpeed', 'parallelQueueSlots', 'overclockChance', 'droneAssistSpeed', 'failureReduction', 'qualityTierBonus',
+    ...COMBAT_CORE_METRIC_KEYS,
+    ...getActivityModuleStatKeys('workshop_service'),
   ],
   market_listing: [
-    ...COMBAT_CORE,
-    'marketFeeReduction', 'marketSaleBonus', 'listingDurationBonus', 'premiumPricingChance', 'affinityPricing', 'bulkListingSlots',
+    ...COMBAT_CORE_METRIC_KEYS,
+    ...getActivityModuleStatKeys('market_listing'),
   ],
 } as const;
 
