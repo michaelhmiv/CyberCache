@@ -1,6 +1,6 @@
 /**
  * consumableSlotMap — pure helpers that map the loadout's three
- * consumable slots (PreFight / MidFight / Emergency) to the consumable
+ * consumable slots (Slot 1 / Slot 2 / Slot 3) to the consumable
  * type they're holding, and look up the current count for each slot
  * in the player store.
  *

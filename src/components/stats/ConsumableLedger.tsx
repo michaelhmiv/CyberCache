@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
+import { useLoadoutStore } from '@/store';
 import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
 import { getLoadoutConsumableCoverage } from '@/lib/buffs/loadoutCoverage';
 
 const SLOT_LABELS: Record<keyof LoadoutConsumables, string> = {
-  PreFight: 'Pre-Fight',
-  MidFight: 'Mid-Fight',
-  Emergency: 'Emergency',
+  PreFight: 'Slot 1',
+  MidFight: 'Slot 2',
+  Emergency: 'Slot 3',
 };
 
 const SLOT_ORDER: Array<keyof LoadoutConsumables> = ['PreFight', 'MidFight', 'Emergency'];
@@ -37,6 +38,8 @@ export const ConsumableLedger: React.FC<{
   onClose: () => void;
 }> = ({ consumables, inventory, onClose }) => {
   const [now] = React.useState(Date.now);
+  const [pickingSlot, setPickingSlot] = useState<keyof LoadoutConsumables | null>(null);
+  const loadout = useLoadoutStore();
   const buffs = useActiveBuffsStore((state) => state.buffs);
   const activeRows = buffs.filter((buff) => buff.expiresAt > now && buff.displayState !== 'armed');
   const coverageRows = getLoadoutConsumableCoverage(consumables);
@@ -44,6 +47,21 @@ export const ConsumableLedger: React.FC<{
     const remaining = Math.max(0, expiresAt - now);
     if (remaining >= 60_000) return `${Math.ceil(remaining / 60_000)}m`;
     return `${Math.ceil(remaining / 1000)}s`;
+  };
+
+  // Build the picker list: all consumables the player owns, sorted by family then name.
+  const ownedConsumables = useMemo(() => {
+    return Object.values(CONSUMABLES)
+      .filter((def) => (inventory[def.id] ?? 0) > 0)
+      .sort((a, b) => {
+        if (a.family !== b.family) return a.family.localeCompare(b.family);
+        return a.name.localeCompare(b.name);
+      });
+  }, [inventory]);
+
+  const handlePick = (slot: keyof LoadoutConsumables, consumableId: string | null) => {
+    loadout.setConsumableSlot(slot, consumableId);
+    setPickingSlot(null);
   };
   return (
     <AnimatePresence>
@@ -68,7 +86,7 @@ export const ConsumableLedger: React.FC<{
               <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">Combat Pharmacy</div>
               <div className="bl-title text-3xl leading-none text-text-primary">Consumable Ledger</div>
               <div className="mt-1 text-[10px] text-text-muted">
-                What you have loaded. Effects apply on trigger (Pre-Fight on encounter start, Mid-Fight on ammo interval, Emergency on HP/shield threshold).
+                What you have loaded. Each consumable fires automatically when its trigger condition is met.
               </div>
             </div>
             <button
@@ -112,42 +130,87 @@ export const ConsumableLedger: React.FC<{
               const tone = def
                 ? (accentClass[def.visual.accent] ?? 'text-text-primary border-border bg-bg/80')
                 : 'text-text-muted border-border bg-bg/60';
+              const isPicking = pickingSlot === slot;
               return (
-                <div
-                  key={slot}
-                  data-testid="consumable-ledger-row"
-                  data-slot={slot}
-                  className={`relative flex items-center gap-3 border-2 p-2 ${tone}`}
-                  style={panelClip}
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-bg/80 text-lg">
-                    {def ? (
-                      <span aria-hidden="true">{def.visual.glyph}</span>
-                    ) : (
-                      <span className="font-black text-text-muted" style={{ fontSize: '18px' }}>📦</span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">
-                      {SLOT_LABELS[slot]}
+                <div key={slot}>
+                  <button
+                    type="button"
+                    data-testid="consumable-ledger-row"
+                    data-slot={slot}
+                    onClick={() => setPickingSlot(isPicking ? null : slot)}
+                    className={`relative flex w-full items-center gap-3 border-2 p-2 ${tone} ${isPicking ? 'ring-1 ring-amber' : ''} transition-transform active:scale-[0.98]`}
+                    style={panelClip}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-bg/80 text-lg">
+                      {def ? (
+                        <span aria-hidden="true">{def.visual.glyph}</span>
+                      ) : (
+                        <span className="font-black text-text-muted" style={{ fontSize: '18px' }}>+</span>
+                      )}
                     </div>
-                    {def ? (
-                      <>
-                        <div className="truncate text-sm font-black text-text-primary">{def.name}</div>
-                        <div className="truncate text-[9px] text-text-muted">{def.runtime.ledgerText}</div>
-                        <div className="mt-0.5 text-[8px] font-black uppercase text-amber">
-                          {(inventory[id] ?? 0)} in stock
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm font-black text-text-muted">Empty</div>
-                        <div className="truncate text-[9px] text-text-muted">
-                          Tap to load — open Inventory or Cache to slot a consumable here.
-                        </div>
-                      </>
-                    )}
-                  </div>
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">
+                        {SLOT_LABELS[slot]}
+                      </div>
+                      {def ? (
+                        <>
+                          <div className="truncate text-sm font-black text-text-primary">{def.name}</div>
+                          <div className="truncate text-[9px] text-text-muted">{def.tacticalRole} · {def.trigger}</div>
+                          <div className="mt-0.5 text-[8px] font-black uppercase text-amber">
+                            {(inventory[id ?? ''] ?? 0)} in stock
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm font-black text-text-muted">Empty</div>
+                          <div className="truncate text-[9px] text-text-muted">
+                            Tap to assign a consumable
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <ChevronRight size={14} className={`shrink-0 text-text-muted transition-transform ${isPicking ? 'rotate-90' : ''}`} />
+                  </button>
+                  {isPicking && (
+                    <div data-testid={`slot-picker-${slot}`} className="mt-1 space-y-1 border-2 border-border bg-bg/80 p-1.5" style={panelClip}>
+                      <div className="px-1 py-0.5 text-[8px] font-black uppercase tracking-wider text-text-muted">
+                        {def ? 'Swap or clear' : 'Choose a consumable'}
+                      </div>
+                      <div className="max-h-[200px] overflow-y-auto space-y-0.5">
+                        {ownedConsumables.length === 0 && (
+                          <div className="px-2 py-1.5 text-[10px] text-text-muted">No consumables in inventory. Visit the Vendor or craft some.</div>
+                        )}
+                        {ownedConsumables.map((c) => {
+                          const owned = inventory[c.id] ?? 0;
+                          const isEquippedHere = id === c.id;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => handlePick(slot, c.id)}
+                              className={`flex w-full items-center gap-2 px-2 py-1.5 text-left transition-colors hover:bg-amber/10 ${isEquippedHere ? 'bg-amber/10' : ''}`}
+                            >
+                              <span className="shrink-0 text-[14px] font-black" style={{ color: accentClass[c.visual.accent]?.split(' ')[0].replace('text-', '') ?? '#888' }}>{c.visual.glyph}</span>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-[11px] font-black text-text-primary">{c.name}</div>
+                                <div className="truncate text-[8px] text-text-muted">{c.tacticalRole}</div>
+                              </div>
+                              <span className="shrink-0 text-[9px] font-black text-amber">×{owned}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {def && (
+                        <button
+                          type="button"
+                          onClick={() => handlePick(slot, null)}
+                          className="w-full px-2 py-1.5 text-left text-[10px] font-black uppercase text-red hover:bg-red/10"
+                        >
+                          Clear slot
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

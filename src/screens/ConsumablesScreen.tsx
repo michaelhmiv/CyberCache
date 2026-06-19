@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Search, X } from 'lucide-react';
-import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
+import { CONSUMABLES, CONSUMABLE_SLOTS, getConsumableQualityBand } from '@/constants/consumables';
 import type { ConsumableDef, ConsumableFamily } from '@/constants/consumables';
 import { getConsumableFamilyVisual } from '@/constants/consumableFamilyVisuals';
 import { useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
@@ -93,8 +93,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
 
   const handleEquip = (id: string) => {
     const def = CONSUMABLES[id];
-    const slot = def?.allowedSlots[0];
-    if (!def || !slot) {
+    if (!def) {
       setNotice('This consumable cannot be equipped.');
       return;
     }
@@ -102,8 +101,15 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
       setNotice('You do not own any of this consumable.');
       return;
     }
-    loadout.setConsumableSlot(slot, id);
-    setNotice(`${def.name} equipped to ${slot}.`);
+    // Find first empty slot, or first slot already holding this consumable.
+    const slots = CONSUMABLE_SLOTS;
+    let targetSlot = slots.find((s) => !loadout.consumables[s]);
+    if (!targetSlot) {
+      // All slots full — replace the first slot
+      targetSlot = slots[0];
+    }
+    loadout.setConsumableSlot(targetSlot, id);
+    setNotice(`${def.name} equipped to Slot ${slots.indexOf(targetSlot) + 1}.`);
     setInspecting(null);
   };
 
@@ -220,7 +226,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                   <div className="mt-0.5 flex flex-wrap gap-1">
                     <span className="rounded border border-amber/30 bg-amber/10 px-1.5 py-0.5 text-[8px] font-bold text-amber">{def.tacticalRole}</span>
                     <span className="rounded border border-border bg-surface px-1.5 py-0.5 text-[8px] text-text-muted">Q{bestQuality.toFixed(0)}% · {getConsumableQualityBand(bestQuality)}</span>
-                    {def.allowedSlots.some(slot => loadout.consumables[slot] === def.id) && (
+                    {CONSUMABLE_SLOTS.some(slot => loadout.consumables[slot] === def.id) && (
                       <span className="rounded border border-green/30 bg-green/10 px-1.5 py-0.5 text-[8px] font-bold text-green">Equipped</span>
                     )}
                   </div>

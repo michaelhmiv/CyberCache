@@ -26,9 +26,9 @@ interface BossPrepModalProps {
 }
 
 const SLOT_LABELS: Record<ConsumableSlot, string> = {
-  [ConsumableSlot.PreFight]: 'Pre-Fight',
-  [ConsumableSlot.MidFight]: 'Mid-Fight',
-  [ConsumableSlot.Emergency]: 'Emergency',
+  [ConsumableSlot.PreFight]: 'Slot 1',
+  [ConsumableSlot.MidFight]: 'Slot 2',
+  [ConsumableSlot.Emergency]: 'Slot 3',
 };
 
 const STATUS_LABEL = {
