@@ -2,22 +2,11 @@ import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric } from '@/lib/stats/characterStats';
-import { getBreakdownMetricKeys } from '@/lib/hud/headlineMetrics';
+import { COMBAT_CORE_METRIC_KEYS, getBreakdownMetricKeys } from '@/lib/hud/headlineMetrics';
 import { MetricCard } from './MetricCard';
-import type { ActivityKind } from '@/types/activity';
+import { PRODUCTIVE_ACTIVITY_LABELS, type ActivityKind } from '@/types/activity';
 
-const ACTIVITY_LABELS: Record<string, string> = {
-  roaming_loot: 'Roaming Loot',
-  boss_fight: 'Boss Fight',
-  crafting: 'Crafting',
-  salvaging: 'Salvaging',
-  workshop_service: 'Workshop',
-  market_listing: 'Market',
-  idle_standby: 'Idle Standby',
-  none: 'General',
-};
-
-const COMBAT_CORE_KEYS = new Set(['health', 'effectiveHp', 'dps', 'shieldBreak']);
+const COMBAT_CORE_KEYS = new Set(COMBAT_CORE_METRIC_KEYS);
 
 /**
  * Filter the full metric list down to only those relevant to the player's
@@ -66,7 +55,7 @@ export const CharacterStatBreakdownModal: React.FC<{
   );
 
   const activityLabel = activityKind && activityKind !== 'none'
-    ? (ACTIVITY_LABELS[activityKind] ?? activityKind.replace(/_/g, ' '))
+    ? (PRODUCTIVE_ACTIVITY_LABELS[activityKind] ?? activityKind.replace(/_/g, ' '))
     : 'General';
 
   const activeSourceCount = useMemo(

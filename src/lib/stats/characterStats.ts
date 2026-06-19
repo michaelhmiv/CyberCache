@@ -9,27 +9,13 @@ import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
 import { CONSUMABLES } from '@/constants/consumables';
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
 import type { ActivityKind } from '@/types/activity';
+import type { StatSource } from '@/lib/stats/statSources';
+import { sourcesToSegments } from '@/lib/stats/statSources';
+import { formatMultiplierOrWhole, formatPct, formatSignedPct, formatWhole } from '@/lib/stats/formatStat';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
-export type StatContribution = {
-  source: string;
-  detail: string;
-  value: number;
-  display: string;
-  tone?: StatTone;
-  /**
-   * Optional bucket classification. Mirrors the canonical
-   * `MechanicsContributionBucket` union in the mechanics module, but
-   * is redeclared here as a literal union to avoid a circular
-   * dependency (the mechanics module is a value-import of this file's
-   * snapshot pipeline, so re-importing the type union would create a
-   * cycle). The breakdown modal groups contributions by this field;
-   * when omitted, the row is bucketed as 'gear' so existing un-tagged
-   * contributions don't disappear from the grouped view.
-   */
-  bucket?: 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime';
-};
+export type StatContribution = StatSource;
 
 export type StatMetric = {
   key: string;
@@ -87,9 +73,9 @@ type Input = {
   medKitBuffer?: number;
 };
 
-const pct = (value: number) => `${Math.round(value * 100)}%`;
-const signedPct = (value: number) => `${value >= 0 ? '+' : ''}${Math.round(value * 100)}%`;
-const whole = (value: number) => Math.round(value).toLocaleString();
+const pct = formatPct;
+const signedPct = formatSignedPct;
+const whole = formatWhole;
 // DPS computation is delegated to the unified modifier chain. The standard
 // target (no weakness, no resistance, no consumables) is the right baseline
 // for the dashboard stat summary — boss-relative DPS lives in the boss sim.
@@ -131,11 +117,8 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const gear = [...liveWeapons, shield, classMod, relic, ordnance];
   const baseHealth = mechanics.maxHp.contributions.find((entry) => entry.stat === 'baseHp')?.value ?? mechanics.maxHp.value;
   const shieldHp = shield?.hp ?? 0;
-  // Start with mechanics-only values; consumable buffer is added below
-  // after the activeBuffs helper is defined.
-  let totalHealth = mechanics.maxHp.value;
-  let mitigationHp = Math.max(0, mechanics.effectiveHp.value - mechanics.maxHp.value);
-  let effectiveHpWithBuffer = mechanics.effectiveHp.value;
+  // Mechanics-only HP is adjusted with the server-authoritative survival
+  // buffer below, after active consumable contributions are classified.
   const baseDps = mechanics.standardWeaponDps.value;
   const weaponDamageBonus = skillTotal(spentSkills, 'weaponDamage') + skillTotal(spentSkills, 'attackSpeed') + skillTotal(spentSkills, 'critChance') * 0.5 + skillTotal(spentSkills, 'critDamage') * 0.5;
   const affixDamageBonus = gearAffixes(gear, 'weaponDamage').reduce((sum, item) => sum + item.affix.value, 0);
@@ -176,7 +159,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
             ? 'Recently triggered consumable feedback'
             : `${Math.ceil(remainingMs / 1000)}s remaining · ${buff.source}`,
           value: buff.value ?? 0,
-          display: buff.value ? (Math.abs(buff.value) < 10 ? `${buff.value.toFixed(2)}×` : whole(buff.value)) : 'active',
+          display: buff.value ? formatMultiplierOrWhole(buff.value) : 'active',
           tone: 'amber' as StatTone,
           bucket: 'consumable' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime',
         };
@@ -193,15 +176,28 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const survivalContribBuffer = survivalContribBufferFromBuffs > 0
     ? survivalContribBufferFromBuffs
     : survivalStoreBuffer;
-  totalHealth = mechanics.maxHp.value + survivalContribBuffer;
+  const totalHealth = mechanics.maxHp.value + survivalContribBuffer;
   const totalMitigation = shield?.mitigation ?? 0;
-  mitigationHp = Math.max(0, Math.round(totalHealth / Math.max(0.2, 1 - totalMitigation)) - totalHealth);
-  effectiveHpWithBuffer = totalHealth + mitigationHp;
+  const mitigationHp = Math.max(0, Math.round(totalHealth / Math.max(0.2, 1 - totalMitigation)) - totalHealth);
+  const effectiveHpWithBuffer = totalHealth + mitigationHp;
+
+  const survivalStoreMedKitContrib: StatContribution | undefined =
+    survivalConsumableContribs.length === 0 && survivalStoreBuffer > 0
+      ? {
+          source: 'MedKit',
+          detail: 'Server-authoritative survival buffer',
+          value: survivalStoreBuffer,
+          display: whole(survivalStoreBuffer),
+          tone: 'amber',
+          bucket: 'consumable',
+        }
+      : undefined;
 
   const healthContribs: StatContribution[] = [
-    { source: 'Hunter chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
-    shield ? { source: shield.name, detail: 'Shield HP pool', value: shieldHp, display: whole(shieldHp), tone: 'cyan', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
+    { source: 'Hunter chassis', segmentLabel: 'Chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted', bucket: 'base' },
+    shield ? { source: shield.name, segmentLabel: 'Shield', detail: 'Shield HP pool', value: shieldHp, display: whole(shieldHp), tone: 'cyan', bucket: 'gear' } : undefined,
     ...survivalConsumableContribs.filter((entry) => entry.value !== 0),
+    survivalStoreMedKitContrib,
   ].filter(Boolean) as StatContribution[];
 
   const effectiveHpContribs: StatContribution[] = [
@@ -250,32 +246,10 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     ...keys.flatMap((key) => affixContribs(gear, key, scalar, signedPct)),
   ];
 
-  // Build survival consumable stacked segments (MedKit buffer, NanoSwarm regen, etc.)
-  const survivalStacked = survivalConsumableContribs
-    .filter((c) => c.value > 0)
-    .map((c) => ({
-      value: c.value,
-      display: c.display,
-      tone: c.tone,
-      label: c.source,
-    }));
-  // Fallback: when activeBuffs are empty but survival store has buffer,
-  // add a MedKit source row so the stacked bar + breakdown show the buffer.
-  if (survivalStacked.length === 0 && survivalStoreBuffer > 0) {
-    survivalStacked.push({
-      value: survivalStoreBuffer,
-      display: whole(survivalStoreBuffer),
-      tone: 'amber' as StatTone,
-      label: 'MedKit',
-    });
-  }
+  const healthStacked = sourcesToSegments(healthContribs, 'green');
 
   const all = [
-    metric('health', 'Max HP', totalHealth, whole(totalHealth), 'combat HP: chassis + shield + consumables', 'green', healthContribs, [
-      { value: baseHealth, display: whole(baseHealth), tone: 'muted', label: 'Chassis' },
-      ...(shield ? [{ value: shieldHp, display: whole(shieldHp), tone: 'cyan' as StatTone, label: 'Shield' }] : []),
-      ...survivalStacked,
-    ]),
+    metric('health', 'Max HP', totalHealth, whole(totalHealth), 'combat HP: chassis + shield + consumables', 'green', healthContribs, healthStacked),
     metric('effectiveHp', 'Effective HP', effectiveHpWithBuffer, whole(effectiveHpWithBuffer), 'max HP adjusted by mitigation (includes consumable buffers)', 'cyan', effectiveHpContribs),
     metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
     metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
@@ -296,7 +270,9 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const gearForMods = [...liveWeapons, shield, classMod, relic, ordnance].filter(
     (g): g is NonNullable<typeof g> => Boolean(g),
   );
-  const activityModTotals = {
+  const activityModTotals: Record<ActivityKind, Record<string, number>> = {
+    none: {},
+    boss_fight: {},
     crafting: sumActivityModifier(gearForMods, 'crafting'),
     salvaging: sumActivityModifier(gearForMods, 'salvaging'),
     market_listing: sumActivityModifier(gearForMods, 'market_listing'),

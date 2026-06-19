@@ -51,7 +51,6 @@ import { computePlayerDamageVsMonster } from '../lib/combat/damageContract';
 import { computeMonsterDamageVsHunter, type HunterSurvivalStats } from '../lib/combat/damageContract';
 import {
   activateFromInventory,
-  activateLoadout,
   processTick,
   getSurvivalState,
   buildActiveBuffs,
