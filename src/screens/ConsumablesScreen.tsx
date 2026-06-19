@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, X } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { CONSUMABLES, CONSUMABLE_SLOTS } from '@/constants/consumables';
 import type { ConsumableDef, ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
