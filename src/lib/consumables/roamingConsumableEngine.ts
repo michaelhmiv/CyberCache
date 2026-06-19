@@ -323,7 +323,7 @@ export function activateFromInventory(
     if (!family || !DURATION_TICKS[id] === undefined) continue;
 
     const activeSlot: ActiveSlotState = {
-      slot: 'PreFight' as ConsumableSlotName, // placeholder — slots are irrelevant now
+      slot: 'active' as ConsumableSlotName, // loaded, active consumable
       consumableId: id,
       family,
       activatedAtTick: startTick,
