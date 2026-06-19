@@ -300,14 +300,66 @@ const ORDNANCE_BONUS_DPS: Record<string, number> = {
 // ─── Activation ──────────────────────────────────────────────────────
 
 /**
- * Initialize roaming consumable state from loadout + inventory.
- * Called on the first tick of a roaming claim (when no prior state exists).
+ * Activate ALL owned consumables from inventory (no slot gating).
+ * Replaces the old 3-slot loadout model. Any consumable the player owns
+ * contributes its effect: survival buffers stack, durations auto-renew,
+ * ordnance fires on interval.
  *
- * For each loadout slot with a consumable assigned AND in stock:
- * - Survival consumables activate immediately (buffer set, regen started, etc.)
- * - Non-survival consumables activate with their duration timer
- * - Ordnance sets its first fire interval
- * - Adrenaline arms (waits for HP < 20%)
+ * Called on the first tick of a roaming claim when no prior state exists.
+ */
+export function activateFromInventory(
+  inventory: Record<string, number>,
+  startTick: number,
+): RoamingConsumableState {
+  const slots: ActiveSlotState[] = [];
+
+  for (const [consumableId, count] of Object.entries(inventory)) {
+    if (count <= 0) continue;
+    const id = consumableId as ConsumableType;
+    const family = classifyFamily(id);
+    const duration = DURATION_TICKS[id] ?? 0;
+
+    // Skip consumables that aren't classified (unknown types)
+    if (!family || !DURATION_TICKS[id] === undefined) continue;
+
+    const activeSlot: ActiveSlotState = {
+      slot: 'PreFight' as ConsumableSlotName, // placeholder — slots are irrelevant now
+      consumableId: id,
+      family,
+      activatedAtTick: startTick,
+      expiresAtTick: duration > 0 ? startTick + duration : 0,
+      remainingBuffer: 0,
+      remainingRegenTicks: 0,
+      armed: false,
+      remainingBurstTicks: 0,
+      ordnanceNextFireTick: 0,
+    };
+
+    // Family-specific initialization
+    if (id === ConsumableType.MedKit) {
+      activeSlot.remainingBuffer = count * MEDKIT_BUFFER_AMOUNT;
+    } else if (id === 'MedKitRefined') {
+      activeSlot.remainingBuffer = count * MEDKIT_REFINED_BUFFER;
+    } else if (id === ConsumableType.NanoSwarm) {
+      activeSlot.remainingRegenTicks = NANO_SWARM_TICKS;
+    } else if (id === ConsumableType.AdrenalineShot) {
+      activeSlot.armed = true;
+    } else if (id === ConsumableType.ShieldCell) {
+      // Shield Cell grants instant shield restore on activation.
+    } else if (ORDNANCE_TYPES.has(id)) {
+      activeSlot.ordnanceNextFireTick = startTick + BASE_ORDNANCE_INTERVAL;
+    }
+
+    slots.push(activeSlot);
+  }
+
+  return { slots, tickIndex: startTick };
+}
+
+/**
+ * Initialize roaming consumable state from loadout + inventory.
+ * @deprecated Use activateFromInventory instead — slots are removed.
+ * Kept for backward compatibility with existing roaming states.
  */
 export function activateLoadout(
   loadout: LoadoutConsumableSlots,

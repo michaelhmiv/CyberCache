@@ -111,7 +111,6 @@ async function handleClaim(req: Request, res: Response): Promise<void> {
     const claimWithConsumables: ClaimRequest = {
       ...claim,
       consumableInventory,
-      loadoutConsumables: body.loadoutConsumables,
       roamingConsumableState: body.roamingConsumableState,
       masteryLevels: body.masteryLevels,
     };
@@ -381,12 +380,6 @@ async function handleSettleOffline(req: Request, res: Response): Promise<void> {
 
     // Read consumable inventory from profile (server-authoritative)
     const consumableInventory = (profile.consumables ?? {}) as Record<string, number>;
-    // Try to read loadout consumables from activity payload
-    const activityPayload = activeAction.activity_payload as
-      | { loadoutConsumables?: { PreFight: string | null; MidFight: string | null; Emergency: string | null } }
-      | null
-      | undefined;
-
     const claim: ClaimRequest = {
       playerId,
       areaId,
@@ -396,7 +389,6 @@ async function handleSettleOffline(req: Request, res: Response): Promise<void> {
       maxTicks: Infinity, // ← NO 20-TICK CLAMP for offline settlement
       effectiveDps: 0, // offline settlement skips combat simulation
       consumableInventory,
-      loadoutConsumables: activityPayload?.loadoutConsumables,
     };
 
     const result = processRoamingClaim(claim);

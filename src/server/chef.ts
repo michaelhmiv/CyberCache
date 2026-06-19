@@ -50,6 +50,7 @@ import { pickNextTarget } from '../lib/combat/killCycleHelpers';
 import { computePlayerDamageVsMonster } from '../lib/combat/damageContract';
 import { computeMonsterDamageVsHunter, type HunterSurvivalStats } from '../lib/combat/damageContract';
 import {
+  activateFromInventory,
   activateLoadout,
   processTick,
   getSurvivalState,
@@ -110,7 +111,7 @@ export interface ClaimRequest {
     maxHp: number;
     mitigation?: number;
   };
-  /** Loadout consumable slot assignments (which type is in each slot). */
+  /** @deprecated Slots removed — engine activates from inventory directly. */
   loadoutConsumables?: LoadoutConsumableSlots;
   /** Consumable inventory count map (server-authoritative, read from DB by claim route). */
   consumableInventory?: Record<string, number>;
@@ -308,8 +309,9 @@ export function processRoamingClaim(
   const initialMedKitCount = consumableInventory['MedKit'] ?? 0;
   const masteryLevels = request.masteryLevels ?? {};
   let roamingState: RoamingConsumableState | undefined = request.roamingConsumableState;
-  if (!roamingState && request.loadoutConsumables) {
-    roamingState = activateLoadout(request.loadoutConsumables, consumableInventory, tickCount - ticks);
+  if (!roamingState) {
+    // Activate ALL owned consumables from inventory (no slot gating).
+    roamingState = activateFromInventory(consumableInventory, tickCount - ticks);
   }
   const consumedConsumables: Record<string, number> = {};
   // Import emptyMods lazily to avoid circular deps in client imports
