@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight } from 'lucide-react';
-import { CONSUMABLES, CONSUMABLE_SLOTS, type ConsumableVisual } from '@/constants/consumables';
+import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useLoadoutStore } from '@/store';
 import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
