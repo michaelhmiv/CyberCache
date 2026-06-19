@@ -9,7 +9,7 @@ describe('ActiveBuffPills', () => {
     useActiveBuffsStore.setState({ buffs: [] });
   });
 
-  it('renders all 5 survival stock rows always, even when nothing is loaded', () => {
+  it('renders 3 slot rows always, even when empty', () => {
     const { container } = render(
       <ActiveBuffPills
         inventory={{}}
@@ -18,87 +18,86 @@ describe('ActiveBuffPills', () => {
       />,
     );
 
-    const rows = container.querySelectorAll('[data-testid="survival-stock-row"]');
-    expect(rows.length).toBe(5);
+    const rows = container.querySelectorAll('[data-testid="slot-row"]');
+    expect(rows.length).toBe(3);
 
-    // Verify all 5 survival consumables are present by name
-    const text = container.textContent!;
-    expect(text).toContain('Med Kit');
-    expect(text).toContain('Med Kit (Refined)');
-    expect(text).toContain('Shield Cell');
-    expect(text).toContain('Nano Swarm');
-    expect(text).toContain('Adrenaline Shot');
+    // Empty slots show "Empty"
+    expect(container.textContent).toContain('Empty');
+    expect(container.textContent).toContain('Slot 1');
+    expect(container.textContent).toContain('Slot 3');
   });
 
-  it('shows ×N stock count from inventory', () => {
+  it('shows loaded consumable name and stock count in slot row', () => {
     const { container } = render(
       <ActiveBuffPills
-        inventory={{ MedKit: 3, ShieldCell: 1 }}
-        consumables={{ PreFight: null, MidFight: null, Emergency: null }}
+        inventory={{ MedKit: 3, AmmoPack: 1 }}
+        consumables={{ PreFight: ConsumableType.MedKit, MidFight: ConsumableType.AmmoPack, Emergency: null }}
         onClick={() => {}}
       />,
     );
 
-    const medKitRow = container.querySelector('[data-consumable-id="MedKit"]');
-    expect(medKitRow?.textContent).toContain('×3');
+    const slot1Row = container.querySelector('[data-slot="PreFight"]');
+    expect(slot1Row?.textContent).toContain('Med Kit');
+    expect(slot1Row?.textContent).toContain('3 in stock');
 
-    const shieldRow = container.querySelector('[data-consumable-id="ShieldCell"]');
-    expect(shieldRow?.textContent).toContain('×1');
+    const slot2Row = container.querySelector('[data-slot="MidFight"]');
+    expect(slot2Row?.textContent).toContain('Ammo Pack');
+    expect(slot2Row?.textContent).toContain('1 in stock');
+
+    const slot3Row = container.querySelector('[data-slot="Emergency"]');
+    expect(slot3Row?.textContent).toContain('Empty');
   });
 
-  it('dims ×0 stock rows', () => {
+  it('dims empty slots', () => {
     const { container } = render(
       <ActiveBuffPills
-        inventory={{ ShieldCell: 1 }}
-        consumables={{ PreFight: null, MidFight: null, Emergency: null }}
+        inventory={{ MedKit: 1 }}
+        consumables={{ PreFight: ConsumableType.MedKit, MidFight: null, Emergency: null }}
         onClick={() => {}}
       />,
     );
 
-    // MedKit has 0 stock → dimmed
-    const medKitRow = container.querySelector('[data-consumable-id="MedKit"]');
-    expect(medKitRow?.className).toContain('opacity-50');
-    expect(medKitRow?.textContent).toContain('×0');
+    // Slot 1 has a consumable → NOT dimmed
+    const slot1Row = container.querySelector('[data-slot="PreFight"]');
+    expect(slot1Row?.className).not.toContain('opacity-60');
 
-    // ShieldCell has 1 in stock → NOT dimmed
-    const shieldRow = container.querySelector('[data-consumable-id="ShieldCell"]');
-    expect(shieldRow?.className).not.toContain('opacity-50');
-    expect(shieldRow?.textContent).toContain('×1');
+    // Slot 2 is empty → dimmed
+    const slot2Row = container.querySelector('[data-slot="MidFight"]');
+    expect(slot2Row?.className).toContain('opacity-60');
   });
 
-  it('shows LOADED tag when survival item is equipped', () => {
+  it('shows LIVE tag on slot when consumable is actively firing', () => {
+    const now = Date.now();
+    useActiveBuffsStore.setState({
+      buffs: [
+        {
+          id: 'buff-1',
+          consumableId: ConsumableType.AmmoPack,
+          family: 'ammo',
+          source: 'roaming-coverage',
+          sourceId: 'test',
+          startedAt: now - 10000,
+          expiresAt: now + 50000,
+          durationMs: 60000,
+          displayState: 'active',
+        },
+      ],
+    });
+
     const { container } = render(
       <ActiveBuffPills
-        inventory={{ MedKit: 2 }}
-        consumables={{ PreFight: null, MidFight: null, Emergency: ConsumableType.MedKit }}
+        inventory={{ AmmoPack: 2 }}
+        consumables={{ PreFight: null, MidFight: ConsumableType.AmmoPack, Emergency: null }}
         onClick={() => {}}
       />,
     );
 
-    const medKitRow = container.querySelector('[data-consumable-id="MedKit"]');
-    expect(medKitRow?.textContent).toContain('LOADED');
+    const slot2Row = container.querySelector('[data-slot="MidFight"]');
+    expect(slot2Row?.textContent).toContain('LIVE');
 
-    // Other survival rows should NOT have LOADED tag
-    const shieldRow = container.querySelector('[data-consumable-id="ShieldCell"]');
-    expect(shieldRow?.textContent).not.toContain('LOADED');
-  });
-
-  it('shows trigger threshold label on survival rows', () => {
-    const { container } = render(
-      <ActiveBuffPills
-        inventory={{}}
-        consumables={{ PreFight: null, MidFight: null, Emergency: null }}
-        onClick={() => {}}
-      />,
-    );
-
-    // Med Kit triggers at 50% HP
-    const medKitRow = container.querySelector('[data-consumable-id="MedKit"]');
-    expect(medKitRow?.textContent).toContain('@ 50% HP');
-
-    // Shield Cell triggers at 25% Shield
-    const shieldRow = container.querySelector('[data-consumable-id="ShieldCell"]');
-    expect(shieldRow?.textContent).toContain('@ 25% Shield');
+    // Slot 1 is empty → should NOT have LIVE
+    const slot1Row = container.querySelector('[data-slot="PreFight"]');
+    expect(slot1Row?.textContent).not.toContain('LIVE');
   });
 
   it('renders active buff pills with countdown', () => {
@@ -133,23 +132,6 @@ describe('ActiveBuffPills', () => {
     expect(container.querySelector('[data-testid="buff-progress"]')).toBeInTheDocument();
   });
 
-  it('renders armed indicators for loaded-but-not-firing', () => {
-    useActiveBuffsStore.setState({ buffs: [] });
-
-    const { container } = render(
-      <ActiveBuffPills
-        inventory={{}}
-        consumables={{ PreFight: ConsumableType.MedKit, MidFight: ConsumableType.AmmoPack, Emergency: null }}
-        onClick={() => {}}
-      />,
-    );
-
-    expect(container.querySelector('[data-testid="armed-slots-row"]')).toBeInTheDocument();
-    expect(container.textContent).toContain('Med Kit');
-    expect(container.textContent).toContain('Ammo Pack');
-    expect(container.textContent).toContain('LOADED');
-  });
-
   it('onClick fires when tapped', () => {
     const onClick = vi.fn();
     useActiveBuffsStore.setState({ buffs: [] });
@@ -165,37 +147,6 @@ describe('ActiveBuffPills', () => {
     const btn = container.querySelector('[data-testid="active-buff-pills"]')!;
     fireEvent.click(btn);
     expect(onClick).toHaveBeenCalledTimes(1);
-  });
-
-  it('hides armed slots for consumables that are already firing as active buffs', () => {
-    const now = Date.now();
-    useActiveBuffsStore.setState({
-      buffs: [
-        {
-          id: 'buff-active',
-          consumableId: ConsumableType.AmmoPack,
-          family: 'ammo',
-          source: 'roaming-coverage',
-          sourceId: 'test',
-          startedAt: now - 10000,
-          expiresAt: now + 50000,
-          durationMs: 60000,
-          displayState: 'active',
-        },
-      ],
-    });
-
-    const { container } = render(
-      <ActiveBuffPills
-        inventory={{}}
-        consumables={{ PreFight: null, MidFight: ConsumableType.AmmoPack, Emergency: null }}
-        onClick={() => {}}
-      />,
-    );
-
-    // AmmoPack is active, so it should NOT appear in armed-slots-row
-    const armedRow = container.querySelector('[data-testid="armed-slots-row"]');
-    expect(armedRow).toBeNull();
   });
 
   it('countdown updates over time', async () => {
