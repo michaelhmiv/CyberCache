@@ -9,7 +9,6 @@ import {
   useActivityStore,
   useBossStore,
   useIdleStore,
-  useInventoryStore,
   useLoadoutStore,
   usePlayerStore,
   useSkillStore,
@@ -206,7 +205,6 @@ const InfoGauge: React.FC<{ label: string; value: string | number; detail: strin
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
   const player = usePlayerStore();
-  const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
   const skills = useSkillStore();
   const boss = useBossStore();
@@ -222,8 +220,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const equippedCount = Object.values(loadout.slots).filter(Boolean).length;
   const spentSkillPoints = skills.getTotalSpent();
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
-  const bestWeapon = [...inventory.getWeapons()].sort((a, b) => b.combatPower - a.combatPower)[0];
-  const equippedWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy') ?? bestWeapon;
+  const equippedWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy') ?? undefined;
   const shieldHp = loadout.getShield()?.hp ?? 0;
   useSyncSurvivalMaxHp(player.level, shieldHp);
   const hunterCurrentHp = useSurvivalStore((state) => state.currentHp);
@@ -245,16 +242,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const secondaryWeapon = loadout.getWeapon('secondary');
   const heavyWeapon = loadout.getWeapon('heavy');
   const equippedWeapons = [primaryWeapon, secondaryWeapon, heavyWeapon].filter((w): w is Weapon => !!w);
-  const statWeapons = useMemo(() => {
-    const weaponIds = new Set(equippedWeapons.map((w) => w.id));
-    return equippedWeapon && !weaponIds.has(equippedWeapon.id)
-      ? [equippedWeapon, ...equippedWeapons]
-      : equippedWeapons.length > 0
-        ? equippedWeapons
-        : equippedWeapon
-          ? [equippedWeapon]
-          : [];
-  }, [equippedWeapon, equippedWeapons]);
+  const statWeapons = equippedWeapons;
   const activeBuffsNow = useState(Date.now)[0];
   const activeBuffs = useMemo(
     () => activeBuffsStore.buffs.filter((buff) => buff.expiresAt > activeBuffsNow),
@@ -395,25 +383,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           />
         )}
         <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
-        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={`${selectedArea.dangerRating} · ${selectedArea.lootBias[0]}`} icon={<AreaGlyph areaId={selectedArea.id} size={14} />} tone="amber" />{bestWeapon && bestWeapon.id !== equippedWeapon?.id ? (
-          <InfoGauge
-            label="Upgrade Ready"
-            value={bestWeapon.name}
-            detail={`${bestWeapon.combatPower} power · not equipped`}
-            icon={<span style={{ fontSize: 14 }} className="text-red">✦</span>}
-            tone="red"
-            onClick={() => onNavigate('inventory')}
-          />
-        ) : (
-          <InfoGauge
+        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={`${selectedArea.dangerRating} · ${selectedArea.lootBias[0]}`} icon={<AreaGlyph areaId={selectedArea.id} size={14} />} tone="amber" /><InfoGauge
             label="Equipped"
             value={equippedWeapon?.name ?? 'None'}
             detail={equippedWeapon ? `${equippedWeapon.combatPower} combat power` : 'Open loadout bench'}
             icon={<span style={{ fontSize: 14 }} className="text-red">✦</span>}
             tone="red"
             onClick={() => onNavigate('inventory')}
-          />
-        )}</div></Panel>
+          /></div></Panel>
         <Panel label="Choose Turf"><div className="flex gap-1.5 overflow-x-auto pb-0.5">{ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; const areaVis = getAreaVisual(area.id); return <button type="button" key={area.id} disabled={!unlocked} onClick={() => idle.setSelectedRoamingArea(area.id)} className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left transition-transform active:scale-[0.98] ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`} style={panelClip}><AreaBackground areaId={area.id} opacity={unlocked ? 0.18 : 0.08} /><div className="relative flex items-start justify-between gap-1.5"><div className="min-w-0 flex items-center gap-1.5"><span className="shrink-0 font-black inline-flex items-center justify-center" style={{ color: areaVis.color, fontSize: '11px', width: 16, height: 16 }}>{areaVis.sigil}</span><div className="min-w-0"><div className="truncate text-[11px] font-black text-text-primary">{area.name}</div><div className="text-[8px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div></div></div>{!unlocked && <Lock size={11} className="shrink-0 text-text-muted" />}{selected && <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" />}</div><div className="relative mt-0.5 truncate text-[8px] text-amber">{area.lootBias[0]}</div></button>; })}</div></Panel>
       </div>
     </div>

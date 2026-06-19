@@ -18,6 +18,7 @@ import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
 import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { formatRpcError } from '@/lib/supabase/rpcError';
 import type { Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
@@ -195,7 +196,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
       await verifiedOps.equipItem(itemId, pickerSlot);
       setPickerSlot(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update loadout.');
+      setError(formatRpcError(err));
     } finally {
       setBusy(false);
     }
@@ -209,7 +210,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
       await verifiedOps.unequipSlot(pickerSlot);
       setPickerSlot(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to clear slot.');
+      setError(formatRpcError(err));
     } finally {
       setBusy(false);
     }

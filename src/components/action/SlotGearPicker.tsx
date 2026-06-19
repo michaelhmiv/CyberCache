@@ -16,6 +16,7 @@ import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 import type { GearItem, Weapon } from '@/types/items';
 import { GearCompare } from '@/components/gear/GearCompare';
 import { gearCardSummary } from '@/lib/gear/gearCardSummary';
+import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 const chipClip = { clipPath: 'polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)' };
@@ -35,23 +36,6 @@ interface SlotGearPickerProps {
   onUnequip: () => Promise<void>;
   busy?: boolean;
   error?: string | null;
-}
-
-function isSlotCompatible(item: GearItem, slot: LoadoutSlot): boolean {
-  switch (slot) {
-    case 'primary': case 'secondary': case 'heavy':
-      return 'weaponType' in item;
-    case 'shield':
-      return 'hp' in item && !('weaponType' in item) && !('effect' in item);
-    case 'classMod':
-      return 'treeBonus' in item;
-    case 'relic':
-      return 'affixes' in item && !('weaponType' in item) && !('hp' in item) && !('treeBonus' in item) && !('effect' in item);
-    case 'ordnance':
-      return 'damage' in item && 'effect' in item;
-    default:
-      return false;
-  }
 }
 
 const SLOT_LABEL: Record<LoadoutSlot, string> = {
@@ -180,7 +164,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
 
   // ── Filter + sort ──────────────────────────────────────────────
   const results = useMemo(() => {
-    let items = allItems.filter((item) => isSlotCompatible(item, slot));
+    let items = allItems.filter((item) => isItemCompatibleWithSlot(item, slot));
 
     // Search
     if (search.trim()) {
@@ -241,7 +225,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
 
   const allSources = useMemo(() => {
     const srcs = new Set<string>();
-    allItems.filter(i => isSlotCompatible(i, slot)).forEach(i => {
+    allItems.filter(i => isItemCompatibleWithSlot(i, slot)).forEach(i => {
       if ('sourceTag' in i) srcs.add((i as { sourceTag: string }).sourceTag);
     });
     return Array.from(srcs).sort();
@@ -265,7 +249,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
           <div>
             <div className="bl-title text-2xl text-text-primary">{SLOT_LABEL[slot]}</div>
             <div className="text-[10px] text-text-muted">
-              {results.length} of {allItems.filter((i) => isSlotCompatible(i, slot)).length} items
+              {results.length} of {allItems.filter((i) => isItemCompatibleWithSlot(i, slot)).length} items
             </div>
           </div>
           <button type="button" onClick={onClose} className="bl-secondary p-2 text-text-muted">
