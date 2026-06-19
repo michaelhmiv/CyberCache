@@ -6,12 +6,12 @@ import { computeStandardDps } from '@/lib/stats/dpsChain';
 import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
-import { CONSUMABLES } from '@/constants/consumables';
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
 import type { ActivityKind } from '@/types/activity';
 import type { StatSource } from '@/lib/stats/statSources';
 import { sourcesToSegments } from '@/lib/stats/statSources';
-import { formatMultiplierOrWhole, formatPct, formatSignedPct, formatWhole } from '@/lib/stats/formatStat';
+import { buildConsumableStatSources } from '@/lib/stats/consumableStatSources';
+import { formatPct, formatSignedPct, formatWhole } from '@/lib/stats/formatStat';
 
 export type StatTone = 'amber' | 'green' | 'red' | 'cyan' | 'purple' | 'muted';
 
@@ -71,6 +71,8 @@ type Input = {
   consumableMods?: Record<string, number>;
   /** Server-authoritative MedKit HP buffer (from survival store / Chef result). */
   medKitBuffer?: number;
+  /** Player consumable inventory counts used for inventory-backed stat sources. */
+  consumableInventory?: Record<string, number>;
 };
 
 const pct = formatPct;
@@ -111,7 +113,7 @@ function metric(key: string, label: string, value: number, display: string, deta
 }
 
 export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
-  const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss, activeBuffs = [], medKitBuffer: survivalStoreBuffer = 0 } = input;
+  const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss, activeBuffs = [], medKitBuffer: survivalStoreBuffer = 0, consumableInventory } = input;
   const mechanics = buildCharacterMechanicsSnapshot(input);
   const liveWeapons = weapons.filter((weapon): weapon is Weapon => !!weapon);
   const gear = [...liveWeapons, shield, classMod, relic, ordnance];
@@ -140,64 +142,28 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const offline = mechanics.offlineEarningModifier.value;
   const scrap = mechanics.scrapModifier.value;
 
-  // Route active consumable contributions by family so a Med Kit (survival)
-  // doesn't show as a DPS source, and an Ammo Pack (ammo) doesn't show as
-  // an HP source. Each family goes only to the metrics it actually affects.
-  const activeConsumableContribsByFamily = (families: string[]): StatContribution[] =>
-    activeBuffs
-      .filter((buff) => buff.displayState === 'active' || buff.displayState === 'recent')
-      .filter((buff) => {
-        const def = CONSUMABLES[buff.consumableId];
-        return def && families.includes(def.family);
-      })
-      .map((buff) => {
-        const def = CONSUMABLES[buff.consumableId];
-        const remainingMs = Math.max(0, buff.expiresAt - Date.now());
-        return {
-          source: def?.name ?? buff.consumableId,
-          detail: buff.displayState === 'recent'
-            ? 'Recently triggered consumable feedback'
-            : `${Math.ceil(remainingMs / 1000)}s remaining · ${buff.source}`,
-          value: buff.value ?? 0,
-          display: buff.value ? formatMultiplierOrWhole(buff.value) : 'active',
-          tone: 'amber' as StatTone,
-          bucket: 'consumable' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime',
-        };
-      });
+  const consumableSources = buildConsumableStatSources({
+    consumableInventory,
+    activeBuffs,
+    medKitBuffer: survivalStoreBuffer,
+  });
 
-  const dpsConsumableContribs = activeConsumableContribsByFamily(['ammo', 'corrupted', 'tactical']);
-  const survivalConsumableContribs = activeConsumableContribsByFamily(['survival']);
-  const economyConsumableContribs = activeConsumableContribsByFamily(['economy']);
+  const dpsConsumableContribs = consumableSources.dps;
+  const economyConsumableContribs = consumableSources.rareFind;
 
-  // Survival consumable buffer (MedKit, ShieldCell, etc.) from active roaming buffs.
-  // Fall back to the survival store's medKitBuffer if activeBuffs are empty
-  // (e.g., offline, claim RPC fallback, or before the first Chef reply lands).
-  const survivalContribBufferFromBuffs = survivalConsumableContribs.reduce((sum, c) => sum + c.value, 0);
-  const survivalContribBuffer = survivalContribBufferFromBuffs > 0
-    ? survivalContribBufferFromBuffs
-    : survivalStoreBuffer;
+  // Consumable HP buffers (Med Kit, refined Med Kit, future survival buffers)
+  // come from the canonical consumable source builder. It prefers server
+  // state when present, then active buffs, then inventory-backed potential.
+  const survivalContribBuffer = consumableSources.health.reduce((sum, c) => sum + c.value, 0);
   const totalHealth = mechanics.maxHp.value + survivalContribBuffer;
   const totalMitigation = shield?.mitigation ?? 0;
   const mitigationHp = Math.max(0, Math.round(totalHealth / Math.max(0.2, 1 - totalMitigation)) - totalHealth);
   const effectiveHpWithBuffer = totalHealth + mitigationHp;
 
-  const survivalStoreMedKitContrib: StatContribution | undefined =
-    survivalConsumableContribs.length === 0 && survivalStoreBuffer > 0
-      ? {
-          source: 'MedKit',
-          detail: 'Server-authoritative survival buffer',
-          value: survivalStoreBuffer,
-          display: whole(survivalStoreBuffer),
-          tone: 'amber',
-          bucket: 'consumable',
-        }
-      : undefined;
-
   const healthContribs: StatContribution[] = [
     { source: 'Hunter chassis', segmentLabel: 'Chassis', detail: `Base + level ${player.level}`, value: baseHealth, display: whole(baseHealth), tone: 'muted', bucket: 'base' },
     shield ? { source: shield.name, segmentLabel: 'Shield', detail: 'Shield HP pool', value: shieldHp, display: whole(shieldHp), tone: 'cyan', bucket: 'gear' } : undefined,
-    ...survivalConsumableContribs.filter((entry) => entry.value !== 0),
-    survivalStoreMedKitContrib,
+    ...consumableSources.health.filter((entry) => entry.value !== 0),
   ].filter(Boolean) as StatContribution[];
 
   const effectiveHpContribs: StatContribution[] = [
@@ -253,11 +219,11 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     metric('effectiveHp', 'Effective HP', effectiveHpWithBuffer, whole(effectiveHpWithBuffer), 'max HP adjusted by mitigation (includes consumable buffers)', 'cyan', effectiveHpContribs),
     metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
     metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
-    metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', breakContribs('shield')),
-    metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', breakContribs('armor')),
+    metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', [...breakContribs('shield'), ...consumableSources.shieldBreak]),
+    metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', [...breakContribs('armor'), ...consumableSources.armorBreak]),
     metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', [...utilityContribs(['rareDropChanceMod', 'rareDropChance', 'postBossDropChance']), ...economyConsumableContribs.filter((entry) => entry.value !== 0)]),
-    metric('offline', 'Offline', offline, signedPct(offline), 'idle earning modifiers', 'green', utilityContribs(['offlineEarningsMod', 'offlineEarnings'])),
-    metric('scrap', 'Scrap Yield', scrap, signedPct(scrap), 'salvage and scrap modifiers', 'cyan', utilityContribs(['scrapYieldMod', 'scrapYield', 'autoSalvageBonus', 'lowRarityScrapBonus'])),
+    metric('offline', 'Offline', offline, signedPct(offline), 'idle earning modifiers', 'green', [...utilityContribs(['offlineEarningsMod', 'offlineEarnings']), ...consumableSources.offline]),
+    metric('scrap', 'Scrap Yield', scrap, signedPct(scrap), 'salvage and scrap modifiers', 'cyan', [...utilityContribs(['scrapYieldMod', 'scrapYield', 'autoSalvageBonus', 'lowRarityScrapBonus']), ...consumableSources.scrap]),
     metric('ordnance', 'Ordnance', ordnanceDamage, whole(ordnanceDamage), ordnance ? `${ordnance.effect} · ${ordnance.element}` : 'no ordnance slotted', 'red', ordnance ? [{ source: ordnance.name, detail: `${ordnance.effect} payload`, value: ordnanceDamage, display: whole(ordnanceDamage), tone: 'red', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' }] : []),
   ];
 

@@ -28,7 +28,7 @@ import { ActiveBuffPills } from '@/components/stats/ActiveBuffPills';
 import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
-import { buildConsumableMods } from '@/lib/buffs/consumableModsAdapter';
+import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import { buildBossFightActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { computeMedKitBuffer } from '@/lib/combat/damageContract';
@@ -261,8 +261,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     [activeBuffsStore.buffs, activeBuffsNow],
   );
   const consumableMods = useMemo(
-    () => buildConsumableMods(loadout.consumables),
-    [loadout.consumables],
+    () => buildConsumableInventoryMods(player.consumables),
+    [player.consumables],
   );
   const computedStats = useMemo(
     () => buildCharacterStatSummary({
@@ -276,6 +276,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       boss: currentBoss ?? undefined,
       activeBuffs,
       consumableMods,
+      consumableInventory: player.consumables,
       medKitBuffer: survivalMedKitBuffer,
     }),
     [player, statWeapons, loadout, skills.spent, currentBoss, activeBuffs, consumableMods, survivalMedKitBuffer],

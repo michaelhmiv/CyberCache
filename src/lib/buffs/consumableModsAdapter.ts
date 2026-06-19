@@ -15,6 +15,30 @@ import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
  *   - rareMaterialChance  → rareDropChanceMod
  *   - yieldMultiplier     → scrapYieldMod
  */
+function addConsumableEffects(result: Record<string, number>, id: string): void {
+  const def = CONSUMABLES[id];
+  if (!def) return;
+
+  const effects = def.runtime.baseEffects;
+
+  if (effects.bonusLootChance) {
+    result.bonusLootChance = (result.bonusLootChance ?? 0) + effects.bonusLootChance;
+  }
+  if (effects.extraLootRollChance) {
+    result.lootQuantity = (result.lootQuantity ?? 0) + effects.extraLootRollChance;
+  }
+  if (effects.rareMaterialChance) {
+    result.rareDropChanceMod = (result.rareDropChanceMod ?? 0) + effects.rareMaterialChance;
+  }
+  if (effects.rarityBias) {
+    result.rareDropChanceMod = (result.rareDropChanceMod ?? 0) + effects.rarityBias;
+  }
+  if (effects.yieldMultiplier) {
+    result.scrapYieldMod = (result.scrapYieldMod ?? 0) + (effects.yieldMultiplier - 1);
+  }
+  // xpBoostMod – reserved for future consumables
+}
+
 export function buildConsumableMods(
   consumables: LoadoutConsumables,
 ): Record<string, number> {
@@ -24,25 +48,20 @@ export function buildConsumableMods(
   for (const slot of slots) {
     const id = consumables[slot];
     if (!id) continue;
+    addConsumableEffects(result, id);
+  }
 
-    const def = CONSUMABLES[id];
-    if (!def) continue;
+  return result;
+}
 
-    const effects = def.runtime.baseEffects;
+export function buildConsumableInventoryMods(
+  inventory: Record<string, number>,
+): Record<string, number> {
+  const result: Record<string, number> = {};
 
-    if (effects.bonusLootChance) {
-      result.bonusLootChance = (result.bonusLootChance ?? 0) + effects.bonusLootChance;
-    }
-    if (effects.extraLootRollChance) {
-      result.lootQuantity = (result.lootQuantity ?? 0) + effects.extraLootRollChance;
-    }
-    if (effects.rareMaterialChance) {
-      result.rareDropChanceMod = (result.rareDropChanceMod ?? 0) + effects.rareMaterialChance;
-    }
-    if (effects.yieldMultiplier) {
-      result.scrapYieldMod = (result.scrapYieldMod ?? 0) + effects.yieldMultiplier;
-    }
-    // xpBoostMod – reserved for future consumables
+  for (const [id, count] of Object.entries(inventory)) {
+    if (count <= 0) continue;
+    addConsumableEffects(result, id);
   }
 
   return result;
