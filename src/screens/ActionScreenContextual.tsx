@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNow } from '@/hooks/useNow';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -29,7 +29,7 @@ import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
 import { ActivityModifierPanel } from '@/components/action/ActivityModifierPanel';
 import { REGION_1_BOSSES } from '@/constants/bosses';
-import { computeFightPower } from '@/lib/stats/fightPower';
+import { computeEquippedFightPower } from '@/lib/stats/fightPower';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import {
   ROAMING_AREAS,
@@ -57,6 +57,7 @@ import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LegendaryDropFlash } from '@/components/action/LegendaryDropFlash';
+import { selectEquippedWeapons } from '@/lib/loadout/equippedWeaponTruth';
 import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 
 const TICK_SECONDS = 3;
@@ -355,17 +356,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const equippedCount = Object.values(loadoutStore.slots).filter(Boolean).length;
   const currentBoss = bossStore.currentBossId ? REGION_1_BOSSES.find((b) => b.id === bossStore.currentBossId) : null;
   const prepBossTarget = currentBoss ?? REGION_1_BOSSES.find((b) => bossStore.unlockedBossIds.includes(b.id) && !bossStore.defeatedBossIds.includes(b.id)) ?? REGION_1_BOSSES[0];
-  const bestBossWeapon = useMemo(() => inventory.getWeapons().sort((a, b) => b.bossPower - a.bossPower)[0], [inventory]);
-  const activityWeapon: Weapon | undefined = loadoutStore.getWeapon('primary') ?? loadoutStore.getWeapon('secondary') ?? loadoutStore.getWeapon('heavy') ?? bestBossWeapon;
-  const fightPower = useMemo(
-    () =>
-      computeFightPower(
-        [loadoutStore.getWeapon('primary'), loadoutStore.getWeapon('secondary'), loadoutStore.getWeapon('heavy')],
-        bestBossWeapon,
-        currentBoss,
-      ),
-    [loadoutStore, currentBoss, bestBossWeapon],
-  );
+  const equippedWeapons = selectEquippedWeapons(loadoutStore);
+  const activityWeapon: Weapon | undefined = equippedWeapons[0];
+  const fightPower = computeEquippedFightPower(equippedWeapons, currentBoss);
   const isRoaming = currentKind === 'roaming_loot';
   const activeRoamingAreaId = activity.current.targetType === 'roaming_area' ? activity.current.targetId : null;
   const canTick = isRoaming && activeRoamingAreaId === selectedArea.id && !activity.pending;

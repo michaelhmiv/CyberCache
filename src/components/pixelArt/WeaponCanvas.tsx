@@ -29,6 +29,7 @@ export const WeaponCanvas: React.FC<WeaponCanvasProps> = ({
       size={size}
       className={className}
       showBadges={size >= 56}
+      allowFallbackSpec
     />
   );
 };
