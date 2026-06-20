@@ -18,15 +18,17 @@ export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => 
   const bossStore = useBossStore();
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
-  // The player's best shot is their highest-combatPower weapon — the same
-  // fallback the Dashboard's "Best Gun" gauge uses. This keeps the
-  // projection honest: "if you walked into this boss with your best
-  // gun, here's the DPS you'd get."
-  const bestWeapon = [...inventory.getWeapons()].sort((a, b) => b.combatPower - a.combatPower)[0]
-    ?? loadout.getWeapon('primary')
+  // Equipped-first: use the actual equipped weapon for any DPS projection
+  // that feeds activity truth. The best-owned inventory weapon is only
+  // used as a clearly-labeled "Best Owned" preview when nothing is equipped.
+  const equippedWeapon = loadout.getWeapon('primary')
     ?? loadout.getWeapon('secondary')
     ?? loadout.getWeapon('heavy')
     ?? null;
+  const bestOwnedWeapon = equippedWeapon
+    ? null
+    : [...inventory.getWeapons()].sort((a, b) => b.combatPower - a.combatPower)[0] ?? null;
+  const projectionWeapon = equippedWeapon ?? bestOwnedWeapon;
 
   const selectBoss = (boss: BossDef) => {
     bossStore.setCurrentBoss(boss.id);
@@ -38,8 +40,8 @@ export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => 
   // is the same call the diorama uses, so what the player sees here matches
   // what the diorama will show after they select the target.
   const projectDpsVs = (boss: BossDef): number => {
-    if (!bestWeapon) return 0;
-    return computeLoadoutDps([bestWeapon], boss.weaknesses, boss.resistances);
+    if (!projectionWeapon) return 0;
+    return computeLoadoutDps([projectionWeapon], boss.weaknesses, boss.resistances);
   };
 
   return (
@@ -126,9 +128,9 @@ export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => 
                     className="border-2 border-border bg-bg/80 px-1.5 py-0.5"
                     data-testid={`bossselect-dps-${boss.id}`}
                   >
-                    <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Your best vs {boss.name.split(' ').slice(-1)[0]}</div>
-                    <div className={`text-[11px] font-black ${bestWeapon ? 'text-red' : 'text-text-muted'}`}>
-                      {bestWeapon ? `${Math.round(projectDpsVs(boss)).toLocaleString()} DPS` : 'no weapon'}
+                    <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{bestOwnedWeapon ? 'Preview: best owned vs' : 'Your weapon vs'} {boss.name.split(' ').slice(-1)[0]}</div>
+                    <div className={`text-[11px] font-black ${projectionWeapon ? 'text-red' : 'text-text-muted'}`}>
+                      {projectionWeapon ? `${Math.round(projectDpsVs(boss)).toLocaleString()} DPS` : 'no weapon'}
                     </div>
                   </div>
                 </div>

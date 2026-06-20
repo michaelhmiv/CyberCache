@@ -337,6 +337,25 @@ export function startRuntimeStorePersistence(userId: string): void {
     useKillCycleStore.subscribe(listener),
     useLoadoutPresetsStore.subscribe(listener),
   ];
+
+  // Flush pending debounced saves on tab close / page hide so display
+  // state (consumables, boss settings, presets) is not lost.
+  if (typeof window !== 'undefined') {
+    const flushHandler = () => {
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        void saveCurrentRuntimeStores();
+      }
+    };
+    window.addEventListener('beforeunload', flushHandler);
+    window.addEventListener('pagehide', flushHandler);
+    // Store the cleanup so stopRuntimeStorePersistence can remove it.
+    unsubscribers.push(() => {
+      window.removeEventListener('beforeunload', flushHandler);
+      window.removeEventListener('pagehide', flushHandler);
+    });
+  }
 }
 
 export function stopRuntimeStorePersistence(): void {
