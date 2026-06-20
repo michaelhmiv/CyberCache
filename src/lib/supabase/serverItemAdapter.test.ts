@@ -58,12 +58,12 @@ describe('serverItemRowToDisplayGear', () => {
     expect(result?.id).toBe('item-2');
   });
 
-  it('patches incomplete weapon numeric fields with safe defaults', () => {
+  it('rejects incomplete weapon payloads missing required numeric fields', () => {
     const row: ServerItemRow = {
       id: 'item-3',
       payload: {
         id: 'item-3',
-        name: 'Patch Test',
+        name: 'Incomplete Weapon',
         level: 1,
         rarity: 'Common',
         weaponType: 'Pistol',
@@ -72,11 +72,39 @@ describe('serverItemRowToDisplayGear', () => {
         sourceTag: 'Cache-Forged',
         parts: [],
         affixes: [],
+        // Missing: baseDamage, attackSpeed, critChance, critDamage,
+        //          combatPower, bossPower, farmPower
+      },
+    };
+    const result = serverItemRowToDisplayGear(row);
+    expect(result).toBeNull();
+  });
+
+  it('accepts complete weapon payloads with all required numeric fields', () => {
+    const row: ServerItemRow = {
+      id: 'item-4',
+      payload: {
+        id: 'item-4',
+        name: 'Complete Weapon',
+        level: 1,
+        rarity: 'Common',
+        weaponType: 'Pistol',
+        manufacturer: 'Redline',
+        element: 'Kinetic',
+        sourceTag: 'Cache-Forged',
+        parts: [],
+        affixes: [],
+        baseDamage: 10,
+        attackSpeed: 1.0,
+        critChance: 0.05,
+        critDamage: 1.5,
+        combatPower: 5,
+        bossPower: 3,
+        farmPower: 10,
       },
     };
     const result = serverItemRowToDisplayGear(row);
     expect(result).not.toBeNull();
-    expect(result && 'weaponType' in result ? result.attackSpeed : null).toBe(1.0);
     expect(result && 'weaponType' in result ? result.baseDamage : null).toBe(10);
   });
 });

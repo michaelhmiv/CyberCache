@@ -32,6 +32,7 @@ export interface LoadoutPreset {
 export interface LoadoutPresetsState {
   presets: LoadoutPreset[];
   activePresetId: string | null;
+  presetLoadError: string | null;
   /** Save the current loadout as a new preset. Returns the new preset's id, or null if at max. */
   savePreset: (name: string) => string | null;
   /** Delete a preset by id. */
@@ -46,6 +47,8 @@ export interface LoadoutPresetsState {
   getPresets: () => LoadoutPreset[];
   /** Check if the current loadout matches a saved preset. Returns the preset id or null. */
   findMatchingPreset: () => string | null;
+  /** Clear the preset load error. */
+  clearPresetError: () => void;
 }
 
 const MAX_PRESETS = 5;
@@ -62,6 +65,7 @@ function makeSlug(name: string): string {
 export const useLoadoutPresetsStore = create<LoadoutPresetsState>()((set, get) => ({
   presets: [],
   activePresetId: null,
+  presetLoadError: null,
 
   savePreset: (name) => {
     const state = get();
@@ -110,19 +114,29 @@ export const useLoadoutPresetsStore = create<LoadoutPresetsState>()((set, get) =
     // Equip each slot through the server — the server handles deduplication
     // and returns the canonical state via syncVerifiedResult.
     const equipPromises: Promise<void>[] = [];
+    const failedSlots: string[] = [];
     for (const [slot, itemId] of Object.entries(preset.slots) as [LoadoutSlot, string | null][]) {
       const item = itemId ? inventory.getById(itemId) : undefined;
       if (item && isItemCompatibleWithSlot(item, slot)) {
         equipPromises.push(
-          verifiedOps.equipItem(itemId, slot).catch((err) => {
+          verifiedOps.equipItem(itemId!, slot).catch((err) => {
             console.warn(`[loadoutPresets] Failed to equip ${itemId} to ${slot}:`, err instanceof Error ? err.message : err);
+            failedSlots.push(slot);
           }),
         );
       } else if (itemId) {
         console.warn(`[loadoutPresets] Item ${itemId} (slot ${slot}) missing or incompatible — skipping.`);
+        failedSlots.push(slot);
       }
     }
     await Promise.all(equipPromises);
+
+    // Surface partial failures to the UI instead of silently swallowing.
+    if (failedSlots.length > 0) {
+      set({ presetLoadError: `Failed to equip ${failedSlots.length} item(s): ${failedSlots.join(', ')}` });
+    } else {
+      set({ presetLoadError: null });
+    }
 
     // Consumable slots are local-display-only (not server-verified).
     // The store's setConsumableSlot has a dedup guard, but we call them
@@ -172,4 +186,6 @@ export const useLoadoutPresetsStore = create<LoadoutPresetsState>()((set, get) =
     }
     return null;
   },
+
+  clearPresetError: () => set({ presetLoadError: null }),
 }));

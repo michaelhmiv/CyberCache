@@ -139,7 +139,16 @@ async function handleClaim(req: Request, res: Response): Promise<void> {
         _player_id: playerId,
         _items: result.items,
       });
-      if (storeError) console.error('[chef] Failed to store items:', storeError.message);
+      if (storeError) {
+        console.error('[chef] Failed to store items:', storeError.message);
+        res.status(500).json({
+          error: 'Failed to store generated items',
+          detail: storeError.message,
+          profile: rpcResult?.profile ?? rpcResult,
+          rewards: result.rewards,
+        });
+        return;
+      }
     }
 
     // Persist consumable consumption atomically (server-authoritative)
@@ -204,7 +213,16 @@ async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
         _player_id: playerId,
         _items: result.items,
       });
-      if (storeError) console.error('[chef] Failed to store boss loot:', storeError.message);
+      if (storeError) {
+        console.error('[chef] Failed to store boss loot:', storeError.message);
+        res.status(500).json({
+          error: 'Failed to store boss loot items',
+          detail: storeError.message,
+          profile: rpcResult?.profile ?? rpcResult,
+          victory: result.result.victory,
+        });
+        return;
+      }
     }
 
     res.json({
@@ -460,7 +478,15 @@ async function handleSettleOffline(req: Request, res: Response): Promise<void> {
         _player_id: playerId,
         _items: result.items,
       });
-      if (storeError) console.error('[chef] settlement store items failed:', storeError.message);
+      if (storeError) {
+        console.error('[chef] settlement store items failed:', storeError.message);
+        res.status(500).json({
+          error: 'Failed to store settlement items',
+          detail: storeError.message,
+          profile: settlement.profile ?? {},
+        });
+        return;
+      }
     }
 
     // Profile snapshot is already in the RPC result

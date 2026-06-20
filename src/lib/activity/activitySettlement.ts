@@ -69,15 +69,13 @@ export async function settleActiveActivityRewards(
     // Apply server-authoritative profile to client stores.
     syncRuntimeProfile(result.profile as Parameters<typeof syncRuntimeProfile>[0]);
 
-    // Add server-generated items to inventory.
+    // Add server-generated items to inventory (upsert, not replace —
+    // receiveServerItems is a full reconcile now, so use upsertItem
+    // to add only the newly persisted items).
     if (result.items.length > 0) {
       const { useInventoryStore } = await import('@/store/slices/inventorySlice');
       const inv = useInventoryStore.getState();
-      if (inv.receiveServerItems) {
-        inv.receiveServerItems(result.items);
-      } else {
-        result.items.forEach((item) => inv.upsertItem(item));
-      }
+      result.items.forEach((item) => inv.upsertItem(item));
     }
 
     // Save display snapshot AFTER authoritative state is applied.

@@ -12,7 +12,7 @@ import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../
 import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/supabase/verifiedStateSync';
-import { useActivityStore, useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
+import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
 import { BossSigil } from '@/components/common/BossSigil';
@@ -206,7 +206,6 @@ const BossReadinessCard: React.FC<{ boss: BossDef; playerPower: number }> = ({ b
 
 export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) => {
   const player = usePlayerStore();
-  const inventory = useInventoryStore();
   const bossStore = useBossStore();
   const loadout = useLoadoutStore();
   const skillStore = useSkillStore();
@@ -242,9 +241,9 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     node.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
   };
 
-  const primary = loadout.getWeapon('primary') || inventory.getWeapons()[0] || null;
-  const secondary = loadout.getWeapon('secondary') || inventory.getWeapons()[1] || null;
-  const heavy = loadout.getWeapon('heavy') || inventory.getWeapons().find((w) => w.weaponType === 'Launcher') || null;
+  const primary = loadout.getWeapon('primary') ?? null;
+  const secondary = loadout.getWeapon('secondary') ?? null;
+  const heavy = loadout.getWeapon('heavy') ?? null;
   const shield = loadout.getShield() || null;
   const ordnance = loadout.getOrdnance() || null;
   const classMod = loadout.getClassMod() || null;

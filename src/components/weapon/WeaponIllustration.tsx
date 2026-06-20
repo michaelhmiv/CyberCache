@@ -19,6 +19,12 @@ interface WeaponIllustrationProps {
   className?: string;
   showBadges?: boolean;
   animate?: boolean;
+  /**
+   * Explicitly opt in to preview/specimen art when no real weapon exists.
+   * Equipped/loadout truth surfaces must leave this false so an empty server
+   * loadout cannot silently render a fake gun.
+   */
+  allowFallbackSpec?: boolean;
 }
 
 const SIZE_PX: Record<WeaponIllustrationSize, number> = {
@@ -40,7 +46,7 @@ function toSize(size: WeaponIllustrationProps['size']) {
 }
 
 function fallbackSpec(props: WeaponIllustrationProps): WeaponVisualSpec {
-  const rar: Rarity | string = props.rarity ?? Rarity.Common;
+  const rar: Rarity = Object.values(Rarity).includes(props.rarity as Rarity) ? props.rarity as Rarity : Rarity.Common;
   return buildWeaponVisualSpec({
     id: `preview-${props.type || WeaponType.Pistol}-${props.manufacturer || Manufacturer.Redline}-${props.element || Element.Kinetic}`,
     weaponType: props.type || WeaponType.Pistol,
@@ -403,8 +409,10 @@ export const WeaponIllustration: React.FC<WeaponIllustrationProps> = ({
   className = '',
   showBadges = true,
   animate = false,
+  allowFallbackSpec = false,
 }) => {
   const sizing = toSize(size);
+  if (!weapon && !allowFallbackSpec) return null;
   const spec = weapon ? buildWeaponVisualSpec(weapon) : fallbackSpec({ type, manufacturer, element, rarity, visualSeed });
   const silhouette = spec.silhouette;
   const style = spec.manufacturerStyle;

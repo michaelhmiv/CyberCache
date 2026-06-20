@@ -5,6 +5,7 @@ import * as profileService from '../lib/supabase/profileService';
 import { settleActiveActivityRewards } from '../lib/activity/activitySettlement';
 import { syncRuntimeItemsForUser } from '../lib/supabase/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/supabase/verifiedStateSync';
+import { supabase } from '../lib/supabase/client';
 import { initializeNativeAuth } from '../lib/nativeAuth';
 import type { NativeAuthDiagnostic, NativeAuthDiagnosticError } from '../lib/nativeAuth';
 import {
@@ -71,6 +72,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const profile = await profileService.ensureProfile(nextUser);
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
     await syncRuntimeItemsForUser(nextUser.id);
+
+    // Safety net: if the user has zero equippable items, auto-grant a
+    // starter weapon so they're never stuck in an unplayable state.
+    try {
+      const { data: safetyNet } = await supabase.rpc('cc_ensure_starter_weapon', {
+        _player_id: nextUser.id,
+      });
+      if (safetyNet?.granted) {
+        // Re-sync inventory to pick up the newly granted weapon.
+        await syncRuntimeItemsForUser(nextUser.id);
+      }
+    } catch (error) {
+      console.warn('Starter weapon safety net skipped:', error instanceof Error ? error.message : error);
+    }
 
     let restoredSnapshot = false;
     try {

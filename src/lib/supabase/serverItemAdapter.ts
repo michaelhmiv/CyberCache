@@ -35,46 +35,26 @@ export function serverItemRowToDisplayGear(row: ServerItemRow): GearItem | null 
     };
 
     // Defensive: payload-reconstructed weapons must carry all required
-    // numeric fields. Missing values (from old Chef runs, partial
-    // migrations, or DB corruption) will crash rendering code that calls
-    // .toFixed() on them. Patch missing fields with safe defaults and
-    // log a warning so we can trace the source.
+    // numeric fields. A weapon payload missing required fields indicates
+    // corruption or an incomplete migration — reject it rather than
+    // silently patching with defaults, which would create a fake weapon
+    // indistinguishable from a real one downstream.
     if ('weaponType' in gear) {
-      const defaults: Partial<Record<keyof Weapon, number>> = {
-        attackSpeed: 1.0,
-        baseDamage: 10,
-        critChance: 0.05,
-        critDamage: 1.5,
-        statusChance: 0,
-        statusDamage: 0,
-        bossDamageMod: 1,
-        waveDamageMod: 1,
-        shieldDamageMod: 1,
-        armorDamageMod: 1,
-        offlineEarningsMod: 0,
-        rareDropChanceMod: 0,
-        scrapYieldMod: 0,
-        rollQuality: 50,
-        combatPower: 10,
-        bossPower: 10,
-        farmPower: 10,
-        economyScore: 0,
-      };
-      let patched = false;
-      for (const [key, fallback] of Object.entries(defaults)) {
-        if (typeof gear[key as keyof typeof gear] !== 'number') {
-          (gear as Record<string, unknown>)[key] = fallback;
-          patched = true;
+      const requiredWeaponFields: Array<keyof Weapon> = [
+        'baseDamage', 'attackSpeed', 'critChance', 'critDamage',
+        'combatPower', 'bossPower', 'farmPower',
+      ];
+      for (const field of requiredWeaponFields) {
+        if (typeof gear[field] !== 'number') {
+          console.warn('[serverItemAdapter] Weapon payload missing required field', field, 'for row', row.id, '— hiding item until payload is repaired.');
+          return null;
         }
       }
+      // Optional fields with safe fallbacks (non-critical for rendering/stats)
       if (!Array.isArray(gear.parts)) (gear as Record<string, unknown>).parts = [];
       if (!Array.isArray(gear.affixes)) (gear as Record<string, unknown>).affixes = [];
       if (typeof gear.pixelSeed !== 'number') {
         (gear as Record<string, unknown>).pixelSeed = Math.abs(String(gear.id ?? '').split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0));
-        patched = true;
-      }
-      if (patched) {
-        console.warn('[serverItemAdapter] Patched incomplete weapon payload for', gear.id, '— check Chef generator version or DB migration state.');
       }
     }
 

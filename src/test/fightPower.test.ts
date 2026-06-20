@@ -1,5 +1,5 @@
 /**
- * Tests for the pure `computeFightPower` helper. The regression that
+ * Tests for the explicit fight power helpers. The regression that
  * triggered PR #1 was "I have a weapon equipped and it says 0 DPS":
  * the boss prep / fight panel was reading `weapon.bossPower` directly,
  * which can be 0 for some weapon configurations. The fix delegates to
@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import type { Weapon } from '@/types/items';
 import { DropSource, Element, WeaponType, Rarity, Manufacturer } from '@/types/game';
 import type { BossDef } from '@/types/boss';
-import { computeFightPower } from '@/lib/stats/fightPower';
+import { computeEquippedFightPower, computePreviewFightPower } from '@/lib/stats/fightPower';
 
 function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
   return {
@@ -72,29 +72,28 @@ function makeBoss(weaknesses: Element[], resistances: Element[] = []): BossDef {
   };
 }
 
-describe('computeFightPower — boss prep / fight panel', () => {
+describe('explicit fight power helpers — boss prep / fight panel', () => {
   it('returns a positive number when a weapon is equipped (regression: "0 DPS with a weapon")', () => {
     // This is the exact bug the user reported: equipped weapon, panel
     // shows 0. With the chain delegation, the panel must show a
     // positive number whenever any weapon is in the loadout.
     const weapon = makeWeapon({ id: 'w1', element: Element.Kinetic });
-    const result = computeFightPower([weapon], undefined, null);
+    const result = computeEquippedFightPower([weapon], null);
     expect(result).toBeGreaterThan(0);
   });
 
   it('returns 0 only when no weapons are equipped AND no inventory weapon is available', () => {
     // True zero is reserved for the "no weapon anywhere" case.
-    const result = computeFightPower([], undefined, null);
+    const result = computeEquippedFightPower([], null);
     expect(result).toBe(0);
   });
 
-  it('falls back to the best inventory weapon when no loadout slots are filled', () => {
-    // Old behavior: 0. New behavior: standard-target DPS of the
-    // best inventory weapon.
+  it('returns 0 when no weapons are equipped, even if inventory preview weapons exist', () => {
     const weapon = makeWeapon({ id: 'w1' });
-    const expected = Math.round(weapon.baseDamage * weapon.attackSpeed * (1 + weapon.critChance * weapon.critDamage));
-    const result = computeFightPower([], weapon, null);
-    expect(result).toBe(expected);
+    const equippedResult = computeEquippedFightPower([], null);
+    const previewResult = computePreviewFightPower(weapon, null);
+    expect(equippedResult).toBe(0);
+    expect(previewResult).toBeGreaterThan(0);
   });
 
   it('uses boss-relative DPS when a boss is supplied and weapons are equipped', () => {
@@ -104,8 +103,8 @@ describe('computeFightPower — boss prep / fight panel', () => {
     const fireWeapon = makeWeapon({ id: 'w1', element: Element.Fire });
     const kineticWeapon = makeWeapon({ id: 'w2', element: Element.Kinetic });
     const boss = makeBoss([Element.Fire]);
-    const fireResult = computeFightPower([fireWeapon], undefined, boss);
-    const kineticResult = computeFightPower([kineticWeapon], undefined, boss);
+    const fireResult = computeEquippedFightPower([fireWeapon], boss);
+    const kineticResult = computeEquippedFightPower([kineticWeapon], boss);
     expect(fireResult / kineticResult).toBeCloseTo(1.3, 2);
   });
 
@@ -114,8 +113,8 @@ describe('computeFightPower — boss prep / fight panel', () => {
     // the 3-state counter table from dpsChain.ts.
     const fireWeapon = makeWeapon({ id: 'w1', element: Element.Fire });
     const boss = makeBoss([], [Element.Fire]);
-    const resistedResult = computeFightPower([fireWeapon], undefined, boss);
-    const noBossResult = computeFightPower([fireWeapon], undefined, null);
+    const resistedResult = computeEquippedFightPower([fireWeapon], boss);
+    const noBossResult = computeEquippedFightPower([fireWeapon], null);
     expect(resistedResult / noBossResult).toBeCloseTo(0.7, 2);
   });
 
@@ -124,9 +123,8 @@ describe('computeFightPower — boss prep / fight panel', () => {
     // player has a worse equipped weapon and a better inventory
     // weapon, the equipped weapon wins.
     const equipped = makeWeapon({ id: 'w1', baseDamage: 10, attackSpeed: 1 });
-    const inventory = makeWeapon({ id: 'w2', baseDamage: 1000, attackSpeed: 5 });
-    const equippedOnly = computeFightPower([equipped], undefined, null);
-    const withInventoryFallback = computeFightPower([equipped], inventory, null);
+    const equippedOnly = computeEquippedFightPower([equipped], null);
+    const withInventoryFallback = computeEquippedFightPower([equipped], null);
     expect(equippedOnly).toBe(withInventoryFallback);
   });
 
@@ -137,8 +135,8 @@ describe('computeFightPower — boss prep / fight panel', () => {
     const a = makeWeapon({ id: 'a', baseDamage: 100, attackSpeed: 2, critChance: 0, critDamage: 1.5 });
     const b = makeWeapon({ id: 'b', baseDamage: 100, attackSpeed: 2, critChance: 0, critDamage: 1.5 });
     const single = makeWeapon({ id: 'c', baseDamage: 100, attackSpeed: 4, critChance: 0, critDamage: 1.5 });
-    const pair = computeFightPower([a, b], undefined, null);
-    const one = computeFightPower([single], undefined, null);
+    const pair = computeEquippedFightPower([a, b], null);
+    const one = computeEquippedFightPower([single], null);
     expect(pair).toBe(one);
   });
 
@@ -146,8 +144,8 @@ describe('computeFightPower — boss prep / fight panel', () => {
     // Defensive: callers might pass undefined when the boss is not
     // selected. The helper must produce the same output as null.
     const weapon = makeWeapon({ id: 'w1' });
-    const withNull = computeFightPower([weapon], undefined, null);
-    const withUndefined = computeFightPower([weapon], undefined, undefined);
+    const withNull = computeEquippedFightPower([weapon], null);
+    const withUndefined = computeEquippedFightPower([weapon], undefined);
     expect(withNull).toBe(withUndefined);
   });
 });

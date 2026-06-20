@@ -7,7 +7,7 @@ import { useKillCycleStore, useTickFeedStore, useBossStore } from '@/store';
 import { MONSTERS } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ARCHETYPE_SILHOUETTES, type EnemyArchetype } from '@/components/diorama/EnemySilhouettes';
-import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
+import { Element, WeaponType } from '@/types/game';
 import { MATERIAL_VISUALS, ESSENCE_VISUALS, RESOURCE_VISUALS, GEAR_VISUALS } from '@/constants/visualAssets';
 import { pickResourceSilhouette, type ResourceSilhouetteId } from '@/constants/resourceSilhouettes';
 import type { BossDef } from '@/types/boss';
@@ -47,9 +47,6 @@ interface LiveTurfDioramaProps {
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 const safeSvgId = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '');
-const fallbackMaker = (area: RoamingAreaDef) => area.manufacturerInfluence === 'Mixed' ? Manufacturer.Redline : area.manufacturerInfluence;
-const fallbackType = (area: RoamingAreaDef) => area.weaponBias[0] ?? WeaponType.Pistol;
-const fallbackElement = (area: RoamingAreaDef) => area.elementBias?.[0] ?? Element.Kinetic;
 const enemyLabel = (area: RoamingAreaDef, bossName?: string) => bossName ?? area.enemyType.split(',')[0] ?? 'Target contact';
 const isImpact = (event?: LiveTurfFeedEvent): event is LiveTurfFeedEvent => !!event && event.id !== 'idle-loop-ready';
 const isLootLike = (event: LiveTurfFeedEvent | undefined): boolean => {
@@ -163,9 +160,9 @@ const RunnerSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfF
       {/* Legs */}
       <path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" />
       <path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" />
-      {/* Laser guns */}
-      <path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
-      <path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
+      {/* Hands at sides (no weapon when unarmed) */}
+      <path d="M86 153 L82 160" stroke={accent} strokeWidth="6" strokeLinecap="round" />
+      <path d="M131 151 L135 158" stroke={accent} strokeWidth="6" strokeLinecap="round" />
       {/* Damage red overlay */}
       {isDamage && !reduced && (
         <motion.rect x="75" y="45" width="62" height="112" rx="4" fill="#FF0000" opacity="0"
@@ -650,7 +647,7 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ act
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', activityLabel, activityTarget, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', bossPhase, activityLabel, activityTarget, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the SVG fight can react.
@@ -659,12 +656,12 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const scene = getLiveTurfScene(area);
   const mode = modeFromActivity(activityKind);
   const copy = modeInfo[mode];
-  const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'fallback'}-${mode}`);
-  const element = weapon?.element ?? fallbackElement(area);
+  const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'unarmed'}-${mode}`);
+  const element = weapon?.element ?? Element.Kinetic;
   const projectile = ELEMENT_PROJECTILE[element];
   const eventActive = isImpact(latestEvent);
   const title = activityTarget || bossName || area.name;
-  const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : `${area.manufacturerInfluence} patrol kit`;
+  const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : 'No weapon equipped';
   const motionCaption = latestEvent ? `${latestEvent.label} ${latestEvent.detail}` : copy.caption;
   const targetMode = latestEvent ? 'event' : copy.status;
   const primaryLabel = primaryActionLabel ?? (activityKind === 'roaming_loot' ? 'View run' : activityKind === 'idle_standby' || activityKind === 'none' ? 'Start action' : 'Manage action');
@@ -713,7 +710,23 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
       </div>
-      <motion.div className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6" key={`weapon-${weapon?.id ?? 'fallback'}`} animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined} transition={eventActive && !reduced ? { duration: 0.44 } : undefined}><WeaponIllustration weapon={weapon} type={fallbackType(area)} manufacturer={fallbackMaker(area)} element={element} rarity={weapon?.rarity ?? Rarity.Common} visualSeed={weapon?.pixelSeed ?? area.unlockLevel + 17} size={106} showBadges={false} animate={false} /></motion.div>
+      {weapon ? (
+        <motion.div
+          className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6"
+          key={`weapon-${weapon.id}`}
+          animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined}
+          transition={eventActive && !reduced ? { duration: 0.44 } : undefined}
+        >
+          <WeaponIllustration weapon={weapon} size={106} showBadges={false} animate={false} />
+        </motion.div>
+      ) : (
+        <div
+          className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6 border-2 border-border bg-bg/85 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-text-muted shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
+          data-testid="diorama-unarmed-state"
+        >
+          Unarmed
+        </div>
+      )}
       <div className="pointer-events-none absolute bottom-[82px] left-2 right-2 grid grid-cols-[1fr_auto] gap-2"><div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate text-[9px] font-black uppercase tracking-wide text-text-primary">{weaponLabel}</div><div className="truncate text-[8px] text-text-muted">{motionCaption}</div></div><div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>{latestEvent ? <span className="font-black text-amber" style={{ fontSize: '13px' }}>✦</span> : <span className="font-black text-red" style={{ fontSize: '13px' }}>◎</span>}<div><div className="text-[8px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div><div className="max-w-[92px] truncate text-[9px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel(area, bossName)}</div></div></div></div>
       <div className="absolute bottom-0 left-0 right-0 grid grid-cols-2 border-t-2 border-border bg-surface/95 text-[9px]"><button type="button" onClick={onFight} className="flex items-center justify-between gap-2 border-r border-border px-3 py-2 text-left active:bg-red/10"><span><span className="block font-black uppercase tracking-wide text-red">{primaryLabel}</span><span className="block truncate text-text-muted">{primaryDetail}</span></span><span className="shrink-0 font-black text-red" style={{ fontSize: '14px' }}>◎</span></button><button type="button" onClick={onSecondary} className="flex items-center justify-between gap-2 px-3 py-2 text-left active:bg-amber/10"><span><span className="block font-black uppercase tracking-wide text-amber">{secondaryLabel}</span><span className="block truncate text-text-muted">{secondaryDetail}</span></span>{secondaryActionLabel ? <ChevronDown size={14} className="shrink-0 text-amber" /> : <span className="shrink-0 font-black text-amber" style={{ fontSize: '14px' }}>▤</span>}</button></div>
     </section>
