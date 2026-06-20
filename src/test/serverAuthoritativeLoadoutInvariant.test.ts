@@ -27,4 +27,13 @@ describe('server-authoritative loadout invariant', () => {
     expect(source).toContain('allowFallbackSpec');
     expect(source).toMatch(/if \(!weapon && !allowFallbackSpec\) return null/);
   });
+
+  it('BossSelectModal does not use inventory weapon before equipped weapon for projection', () => {
+    const source = read('src/components/fight/BossSelectModal.tsx');
+    // After fix: equipped weapons are checked FIRST, inventory only as
+    // clearly-labeled preview when nothing is equipped.
+    // Guard: no raw inventory.getWeapons() before loadout.getWeapon in the
+    // same expression chain.
+    expect(source).not.toMatch(/inventory\.getWeapons\(\)[\s\S]{0,120}\?\?\s*loadout\.getWeapon/);
+  });
 });
