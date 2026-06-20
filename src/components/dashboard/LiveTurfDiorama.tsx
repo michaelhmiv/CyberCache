@@ -160,9 +160,9 @@ const RunnerSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfF
       {/* Legs */}
       <path d="M97 129 L86 153" stroke="#000" strokeWidth="8" strokeLinecap="round" />
       <path d="M116 128 L131 151" stroke="#000" strokeWidth="8" strokeLinecap="round" />
-      {/* Laser guns */}
-      <path d="M72 151 L91 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
-      <path d="M124 151 L145 151" stroke={accent} strokeWidth="7" strokeLinecap="round" />
+      {/* Hands at sides (no weapon when unarmed) */}
+      <path d="M86 153 L82 160" stroke={accent} strokeWidth="6" strokeLinecap="round" />
+      <path d="M131 151 L135 158" stroke={accent} strokeWidth="6" strokeLinecap="round" />
       {/* Damage red overlay */}
       {isDamage && !reduced && (
         <motion.rect x="75" y="45" width="62" height="112" rx="4" fill="#FF0000" opacity="0"
