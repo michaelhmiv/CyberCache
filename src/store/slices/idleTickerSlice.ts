@@ -849,14 +849,12 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
             feedStore.push(merged);
           }
 
-          // Add Chef-generated items to inventory
+          // Add Chef-generated items to inventory (upsert, not replace —
+          // receiveServerItems is a full reconcile now, so use upsertItem
+          // to add only the newly persisted items)
           if (chefResult.items && chefResult.items.length > 0) {
             const inv = useInventoryStore.getState();
-            if (inv.receiveServerItems) {
-              inv.receiveServerItems(chefResult.items);
-            } else {
-              chefResult.items.forEach((item) => inv.upsertItem(item as GearItem));
-            }
+            chefResult.items.forEach((item) => inv.upsertItem(item as GearItem));
           }
         }
       } catch (error) {

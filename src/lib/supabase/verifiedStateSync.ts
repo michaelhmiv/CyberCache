@@ -225,6 +225,6 @@ export function syncBossAttemptResult(result: {
   result?: BossAttemptResult;
 }): void {
   syncRuntimeProfile(result.profile);
-  if (result.items?.length) useInventoryStore.getState().receiveServerItems(result.items);
+  if (result.items?.length) result.items.forEach((item) => useInventoryStore.getState().upsertItem(item));
   if (result.result) useBossStore.getState().addAttempt(result.result);
 }
