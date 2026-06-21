@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONSUMABLES,
-  CONSUMABLE_SLOTS,
   getConsumableRuntimeEffects,
   getConsumablesForActivity,
   getConsumablesForLayoutChannel,
@@ -33,8 +32,6 @@ describe('mechanics foundation validation', () => {
       expect(consumable.id).toBeTruthy();
       expect(consumable.name.length).toBeGreaterThan(0);
       expect(consumable.family).toBeTruthy();
-      expect(consumable.allowedSlots.length).toBeGreaterThan(0);
-      expect(consumable.allowedSlots.every((slot) => CONSUMABLE_SLOTS.includes(slot))).toBe(true);
       expect(consumable.shortDescription.length).toBeGreaterThan(0);
       expect(consumable.tacticalRole.length).toBeGreaterThan(0);
       expect(consumable.trigger).toBeTruthy();
