@@ -5,8 +5,8 @@
  * consistent across the app. Still uses gearCardSummary for display and
  * GearCompare for deltas vs the currently equipped item.
  */
-import React, { useMemo } from 'react';
-import { Search, ArrowUpDown, X } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, ArrowUpDown, X, LayoutGrid, List } from 'lucide-react';
 import { useInventoryStore } from '@/store';
 import { Element, Rarity, Manufacturer, WeaponType } from '@/types/game';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
@@ -15,6 +15,7 @@ import { GearCompare } from '@/components/gear/GearCompare';
 import { gearCardSummary } from '@/lib/gear/gearCardSummary';
 import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 import { PickerSheet } from '@/components/common/PickerSheet';
+import { ChipRail } from '@/components/common/ChipRail';
 import { signClip, chipClip } from '@/lib/ui/clips';
 import { useFilterSort, type Facet, type SortOption } from '@/lib/hooks/useFilterSort';
 
@@ -238,10 +239,11 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
     [allItems, currentItemId],
   );
 
-  const hasFilters = search.trim().length > 0 || Object.values(activeFacets).some((s) => s.size > 0);
+  const hasActiveFilters = search.trim().length > 0 || Object.values(activeFacets).some((s) => s.size > 0);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const renderChipRow = (facet: Facet<GearItem>) => (
-    <div key={facet.key} className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+    <ChipRail key={facet.key} className="py-0.5">
       <span className="text-[8px] font-black uppercase tracking-wider text-text-muted shrink-0">{facet.label}</span>
       {facet.values(compatibleItems).map((value) => {
         const active = activeFacets[facet.key]?.has(value) ?? false;
@@ -261,7 +263,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
           </button>
         );
       })}
-    </div>
+    </ChipRail>
   );
 
   const header = (
@@ -302,11 +304,21 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
             ))}
           </select>
         </div>
-        {hasFilters && (
-          <button type="button" onClick={clearFacets} className="text-[9px] font-black text-red hover:text-red/80">
-            Clear all
+        <div className="flex items-center gap-2">
+          {hasActiveFilters && (
+            <button type="button" onClick={clearFacets} className="text-[9px] font-black text-red hover:text-red/80">
+              Clear all
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setViewMode((v) => (v === 'list' ? 'grid' : 'list'))}
+            aria-label={viewMode === 'list' ? 'Switch to grid view' : 'Switch to list view'}
+            className="bl-secondary p-1.5 text-text-muted"
+          >
+            {viewMode === 'list' ? <LayoutGrid size={14} /> : <List size={14} />}
           </button>
-        )}
+        </div>
       </div>
     </>
   );
@@ -348,7 +360,42 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
       {/* Item list */}
       {candidateItems.length === 0 ? (
         <div className="border border-border bg-bg/70 p-6 text-center text-xs text-text-muted" style={signClip}>
-          {hasFilters ? 'No items match your search or filters.' : `No compatible ${SLOT_LABEL[slot].toLowerCase()} items in your inventory.`}
+          {hasActiveFilters ? 'No items match your search or filters.' : `No compatible ${SLOT_LABEL[slot].toLowerCase()} items in your inventory.`}
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-2 gap-2">
+          {candidateItems.map((item) => {
+            const accent = RARITY_COLORS[item.rarity] ?? '#A5A7B5';
+            const summary = gearCardSummary(item);
+            const topStat = summary.primaryStats[0];
+            return (
+              <button
+                key={item.id}
+                type="button"
+                disabled={busy}
+                onClick={() => onEquip(item.id)}
+                className="border-2 border-border bg-surface/90 p-2 text-left active:scale-[0.99] transition-transform hover:border-amber/30 disabled:opacity-50 disabled:scale-100"
+                style={{ ...signClip, borderColor: `${accent}40` }}
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-black truncate" style={{ color: accent }}>{item.name}</div>
+                  <div className="text-[9px] text-text-muted">{item.rarity} · Lv.{item.level}</div>
+                  {topStat && (
+                    <div className="mt-1 text-[9px]">
+                      <span className="text-text-muted">{topStat.label}</span>
+                      <span className={`font-bold ml-1 ${topStat.tone ?? 'text-text-primary'}`}>{topStat.value}</span>
+                    </div>
+                  )}
+                  {currentItem && (
+                    <GearCompare current={currentItem} candidate={item} compact />
+                  )}
+                </div>
+                <div className="mt-2 bl-primary px-3 py-1 text-[9px] font-black w-fit">
+                  {busy ? 'Equipping…' : 'Equip'}
+                </div>
+              </button>
+            );
+          })}
         </div>
       ) : (
         <div className="space-y-1.5">
