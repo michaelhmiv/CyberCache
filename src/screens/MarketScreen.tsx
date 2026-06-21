@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, History, List, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
-import { useInventoryStore, useMarketStore, usePlayerStore } from '@/store';
+import { GearCompare } from '@/components/gear/GearCompare';
+import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
@@ -64,7 +65,20 @@ function defaultPrice(item: GearItem): number {
   return isWeapon(item) ? Math.round(item.combatPower * 10 + item.rollQuality * 50) : Math.round((item.level ?? 1) * 200);
 }
 
-function GearMiniCard({ item, right, onInspect }: { item: GearItem; right?: React.ReactNode; onInspect: () => void }) {
+// ── Equipped-item baseline for inline GearCompare on market cards ─────────────
+
+/** Returns the currently equipped item that is the same broad kind as the
+ *  candidate (weapon → currently equipped primary, or fallback to any weapon
+ *  slot; shield → shield; ordnance → ordnance; classMod → classMod; relic → relic). */
+function equippedForComparison(item: GearItem, loadout: ReturnType<typeof useLoadoutStore>): GearItem | undefined {
+  if (isWeapon(item)) return loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
+  if ('hp' in item) return loadout.getShield();
+  if ('treeBonus' in item) return loadout.getClassMod();
+  if ('damage' in item && 'effect' in item) return loadout.getOrdnance();
+  return loadout.getRelic();
+}
+
+function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem; compareItem?: GearItem; right?: React.ReactNode; onInspect: () => void }) {
   const color = rarityColor(item.rarity);
   const summary = gearCardSummary(item);
   return (
@@ -87,6 +101,9 @@ function GearMiniCard({ item, right, onInspect }: { item: GearItem; right?: Reac
           {summary.badges[0] && (
             <div className="text-[9px] text-amber mt-0.5 truncate">{summary.badges[0]}</div>
           )}
+          {compareItem && (
+            <GearCompare current={compareItem} candidate={item} compact />
+          )}
         </div>
       </button>
       {right}
@@ -98,9 +115,14 @@ export const MarketScreen: React.FC = () => {
   const market = useMarketStore();
   const inventory = useInventoryStore();
   const player = usePlayerStore();
+  const loadout = useLoadoutStore();
   const [search, setSearch] = useState('');
+  const [sellSearch, setSellSearch] = useState('');
+  const [myListSearch, setMyListSearch] = useState('');
   const [listingPrice, setListingPrice] = useState<Record<string, number>>({});
   const [filterRarity, setFilterRarity] = useState<string | null>(null);
+  const [sellFilterRarity, setSellFilterRarity] = useState<string | null>(null);
+  const [myListFilterRarity, setMyListFilterRarity] = useState<string | null>(null);
   const [buySort, setBuySort] = useState<'price' | 'rarity' | 'name'>('price');
   const [sellSort, setSellSort] = useState<'power' | 'rarity' | 'name'>('power');
   const [myListSort, setMyListSort] = useState<'price' | 'rarity' | 'name'>('price');
@@ -121,19 +143,22 @@ export const MarketScreen: React.FC = () => {
   const tradeableItems = inventory.items.filter((i) => !i.isLocked);
   const myListings = market.listings.filter((l) => l.sellerId === 'player_1');
   const sortedTradeableItems = useMemo(() => {
-    return [...tradeableItems].sort((a, b) => {
-      if (sellSort === 'power') {
-        const aPow = isWeapon(a) ? a.combatPower : 0;
-        const bPow = isWeapon(b) ? b.combatPower : 0;
-        return bPow - aPow;
-      }
-      if (sellSort === 'rarity') {
-        const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
-        return (rank[b.rarity] ?? 0) - (rank[a.rarity] ?? 0);
-      }
-      return a.name.localeCompare(b.name);
-    });
-  }, [tradeableItems, sellSort]);
+    return [...tradeableItems]
+      .filter((item) => !sellSearch || item.name.toLowerCase().includes(sellSearch.toLowerCase()))
+      .filter((item) => !sellFilterRarity || item.rarity === sellFilterRarity)
+      .sort((a, b) => {
+        if (sellSort === 'power') {
+          const aPow = isWeapon(a) ? a.combatPower : 0;
+          const bPow = isWeapon(b) ? b.combatPower : 0;
+          return bPow - aPow;
+        }
+        if (sellSort === 'rarity') {
+          const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
+          return (rank[b.rarity] ?? 0) - (rank[a.rarity] ?? 0);
+        }
+        return a.name.localeCompare(b.name);
+      });
+  }, [tradeableItems, sellSearch, sellFilterRarity, sellSort]);
   const filteredListings = market.listings
     .filter((l) => l.sellerId !== 'player_1')
     .filter((l) => !search || l.itemSnapshot.name?.toLowerCase().includes(search.toLowerCase()))
@@ -146,6 +171,19 @@ export const MarketScreen: React.FC = () => {
       }
       return (a.itemSnapshot.name || '').localeCompare(b.itemSnapshot.name || '');
     });
+  const sortedMyListings = useMemo(() => {
+    return [...myListings]
+      .filter((l) => !myListSearch || l.itemSnapshot.name?.toLowerCase().includes(myListSearch.toLowerCase()))
+      .filter((l) => !myListFilterRarity || l.itemSnapshot.rarity === myListFilterRarity)
+      .sort((a, b) => {
+        if (myListSort === 'price') return a.price - b.price;
+        if (myListSort === 'rarity') {
+          const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
+          return (rank[b.itemSnapshot.rarity] ?? 0) - (rank[a.itemSnapshot.rarity] ?? 0);
+        }
+        return (a.itemSnapshot.name || '').localeCompare(b.itemSnapshot.name || '');
+      });
+  }, [myListings, myListSearch, myListFilterRarity, myListSort]);
 
   const handleList = (itemId: string) => {
     const item = inventory.getById(itemId);
@@ -185,6 +223,18 @@ export const MarketScreen: React.FC = () => {
     setSearch('');
     setFilterRarity(null);
     setToastMessage('Market filters cleared.');
+  };
+
+  const clearSellFilters = () => {
+    setSellSearch('');
+    setSellFilterRarity(null);
+    setToastMessage('Sell filters cleared.');
+  };
+
+  const clearMyListFilters = () => {
+    setMyListSearch('');
+    setMyListFilterRarity(null);
+    setToastMessage('My Listings filters cleared.');
   };
 
   const historyPartyLabel = (h: MarketHistory): string => {
@@ -245,13 +295,31 @@ export const MarketScreen: React.FC = () => {
           </select>
           <div className="space-y-2">
             {filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell tab.</div>}
-            {filteredListings.map((listing) => <div key={listing.id} className="bl-card space-y-2"><GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{listing.sellerName}</div></div>} /><button onClick={() => handleBuy(listing)} disabled={player.credits < listing.price} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">Buy Now</button></div>)}
+            {filteredListings.map((listing) => <div key={listing.id} className="bl-card space-y-2"><GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{listing.sellerName}</div></div>} /><button onClick={() => handleBuy(listing)} disabled={player.credits < listing.price} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">Buy Now</button></div>)}
           </div>
         </div>
       )}
 
       {market.activeTab === 'sell' && (
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input value={sellSearch} onChange={(e) => setSellSearch(e.target.value)} placeholder="Search items to list…" className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted" />
+            </div>
+            <button
+              type="button"
+              onClick={clearSellFilters}
+              disabled={!sellSearch && !sellFilterRarity}
+              aria-label="Clear sell filters"
+              className="rounded-lg border border-border bg-surface-raised px-3 py-2 text-text-muted transition-colors active:text-amber disabled:opacity-40"
+            >
+              <Filter size={14} />
+            </button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setSellFilterRarity(sellFilterRarity === r ? null : r)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${sellFilterRarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{r}</button>)}
+          </div>
           <select
             value={sellSort}
             onChange={(e) => setSellSort(e.target.value as SellSort)}
@@ -261,7 +329,7 @@ export const MarketScreen: React.FC = () => {
             <option value="rarity">Sort: Rarity ↓</option>
             <option value="name">Sort: Name A-Z</option>
           </select>
-          {sortedTradeableItems.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No tradeable items. Unlock items from your inventory to list them.</div>}
+          {sortedTradeableItems.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No tradeable items match. Unlock items from your inventory to list them.</div>}
           {sortedTradeableItems.map((item) => {
             const price = listingPrice[item.id] || defaultPrice(item);
             const fee = Math.round(price * 0.1);
@@ -271,7 +339,25 @@ export const MarketScreen: React.FC = () => {
       )}
 
       {market.activeTab === 'mylistings' && (
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input value={myListSearch} onChange={(e) => setMyListSearch(e.target.value)} placeholder="Search your listings…" className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted" />
+            </div>
+            <button
+              type="button"
+              onClick={clearMyListFilters}
+              disabled={!myListSearch && !myListFilterRarity}
+              aria-label="Clear my listings filters"
+              className="rounded-lg border border-border bg-surface-raised px-3 py-2 text-text-muted transition-colors active:text-amber disabled:opacity-40"
+            >
+              <Filter size={14} />
+            </button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setMyListFilterRarity(myListFilterRarity === r ? null : r)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${myListFilterRarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{r}</button>)}
+          </div>
           <select
             value={myListSort}
             onChange={(e) => setMyListSort(e.target.value as MyListSort)}
@@ -281,15 +367,8 @@ export const MarketScreen: React.FC = () => {
             <option value="rarity">Sort: Rarity ↓</option>
             <option value="name">Sort: Name A-Z</option>
           </select>
-          {myListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">You have no active listings.</div>}
-          {[...myListings].sort((a, b) => {
-            if (myListSort === 'price') return b.price - a.price;
-            if (myListSort === 'rarity') {
-              const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
-              return (rank[b.itemSnapshot.rarity] ?? 0) - (rank[a.itemSnapshot.rarity] ?? 0);
-            }
-            return (a.itemSnapshot.name || '').localeCompare(b.itemSnapshot.name || '');
-          }).map((listing) => <div key={listing.id} className="bl-card space-y-2"><GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} /><button onClick={() => handleCancelListing(listing)} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500">Cancel Listing</button></div>)}
+          {sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
+          {sortedMyListings.map((listing) => <div key={listing.id} className="bl-card space-y-2"><GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} /><button onClick={() => handleCancelListing(listing)} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500">Cancel Listing</button></div>)}
         </div>
       )}
 
