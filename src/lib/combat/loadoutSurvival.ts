@@ -18,6 +18,98 @@ import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { computeHunterMaxHp, type HunterSurvivalStats } from './damageContract';
 import { computeStandardDps } from '@/lib/stats/dpsChain';
+import type { GearItem, Weapon } from '@/types/items';
+
+/**
+ * Input type for pure DPS computation — no Zustand dependency.
+ * Used by both the client (loadoutEffectiveDps) and the server
+ * (claim route re-derivation) to ensure the server doesn't trust
+ * client-supplied DPS values.
+ */
+export type EffectiveDpsInput = {
+  weapons: Weapon[];
+  ordnance: GearItem | null;
+  relic: GearItem | null;
+  classMod: GearItem | null;
+  skillDpsMult: number;
+};
+
+/**
+ * Pure function that computes effective DPS from gear + skill multiplier.
+ * No Zustand dependency — both client and server use this.
+ *
+ * This mirrors the logic that was previously inside loadoutEffectiveDps(),
+ * extracted so the server can re-derive DPS from the equippedGear array
+ * instead of trusting the client's effectiveDps value.
+ */
+export function computeEffectiveDpsFromGear(input: EffectiveDpsInput): number {
+  const { weapons, ordnance, relic, classMod, skillDpsMult } = input;
+
+  // 1. Weapon DPS (primary/secondary/heavy)
+  let weaponDps = 0;
+  let shieldBreakDps = 0;
+  let armorBreakDps = 0;
+  for (const weapon of weapons) {
+    const std = computeStandardDps(weapon);
+    weaponDps += std * (1 + (weapon.waveDamageMod || 0));
+    shieldBreakDps += std * Math.max(0, weapon.shieldDamageMod || 0);
+    armorBreakDps += std * Math.max(0, weapon.armorDamageMod || 0);
+  }
+
+  // 2. Ordnance DPS (flat damage, scaled for idle cadence)
+  let ordnanceDps = 0;
+  if (ordnance && 'damage' in ordnance) {
+    ordnanceDps = (ordnance as { damage: number }).damage * 0.3;
+    shieldBreakDps += ((ordnance as { shieldDamage?: number }).shieldDamage ?? 0) * 0.3;
+    armorBreakDps += ((ordnance as { armorDamage?: number }).armorDamage ?? 0) * 0.3;
+  }
+
+  // 3. Relic affixes — sum any damage-affecting stats
+  let relicBonus = 0;
+  if (relic && 'affixes' in relic && Array.isArray(relic.affixes)) {
+    for (const affix of relic.affixes as Array<{ stat?: string; category?: string; subStats?: Record<string, number> }>) {
+      if (affix.stat === 'bossDamageMod') {
+        relicBonus += weaponDps * (affix as { value: number }).value;
+      }
+      if (affix.category === 'activity' && affix.subStats?.waveDamageMod) {
+        weaponDps += weaponDps * affix.subStats.waveDamageMod;
+      }
+    }
+  }
+
+  // 4. ClassMod affixes — weaponDamage, critChance
+  let classModBonus = 0;
+  if (classMod && 'affixes' in classMod && Array.isArray(classMod.affixes)) {
+    for (const affix of classMod.affixes as Array<{ stat?: string; value?: number; category?: string; subStats?: Record<string, number> }>) {
+      if (affix.stat === 'weaponDamage') {
+        classModBonus += weaponDps * (affix.value ?? 0);
+      }
+      if (affix.stat === 'critChance') {
+        classModBonus += weaponDps * (affix.value ?? 0) * 0.5;
+      }
+      if (affix.category === 'activity' && affix.subStats?.waveDamageMod) {
+        weaponDps += weaponDps * affix.subStats.waveDamageMod;
+      }
+    }
+  }
+
+  // 5. Activity modules on weapons (roaming waveDamageMod)
+  let activityWaveBonus = 0;
+  const allGear: GearItem[] = [...weapons, relic, classMod].filter((g): g is GearItem => Boolean(g));
+  for (const item of allGear) {
+    if (!('affixes' in item) || !Array.isArray(item.affixes)) continue;
+    for (const affix of item.affixes as Array<{ category?: string; subStats?: Record<string, number> }>) {
+      if (affix.category === 'activity' && affix.subStats?.waveDamageMod) {
+        activityWaveBonus += affix.subStats.waveDamageMod;
+      }
+    }
+  }
+  weaponDps *= (1 + activityWaveBonus);
+
+  // 6. Pool everything
+  const total = weaponDps + ordnanceDps + shieldBreakDps + armorBreakDps + relicBonus + classModBonus;
+  return total * skillDpsMult;
+}
 
 /**
  * Read the equipped shield's full defensive profile.
@@ -84,90 +176,19 @@ export function loadoutEffectiveDps(): number {
   const skillDpsMult = 1 + (skillBonuses.dps || 0);
   const slots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
 
-  // 1. Weapon DPS (primary/secondary/heavy)
-  let weaponDps = 0;
-  let shieldBreakDps = 0;
-  let armorBreakDps = 0;
+  const weapons: Weapon[] = [];
   for (const slot of slots) {
     const weapon = loadout.getWeapon(slot);
-    if (weapon) {
-      const std = computeStandardDps(weapon);
-      weaponDps += std * (1 + (weapon.waveDamageMod || 0));
-      shieldBreakDps += std * Math.max(0, weapon.shieldDamageMod || 0);
-      armorBreakDps += std * Math.max(0, weapon.armorDamageMod || 0);
-    }
+    if (weapon) weapons.push(weapon);
   }
 
-  // 2. Ordnance DPS (flat damage, scaled for idle cadence)
-  let ordnanceDps = 0;
-  const ordnance = loadout.getOrdnance();
-  if (ordnance) {
-    // Ordnance fires periodically; 30% of listed damage per second
-    ordnanceDps = ordnance.damage * 0.3;
-    // Ordnance shield/armor break bonuses (additive on top of weapon break)
-    shieldBreakDps += (ordnance.shieldDamage || 0) * 0.3;
-    armorBreakDps += (ordnance.armorDamage || 0) * 0.3;
-    // Ordnance combat affixes (damage, shieldDamage, armorDamage boosts are
-    // already baked into the ordnance stats by the generator)
-  }
-
-  // 3. Relic affixes — sum any damage-affecting stats
-  let relicBonus = 0;
-  const relic = loadout.getRelic();
-  if (relic) {
-    for (const affix of relic.affixes) {
-      // bossDamageMod on relics adds to general DPS for roaming (the hunter
-      // is always fighting something)
-      if (affix.stat === 'bossDamageMod') {
-        relicBonus += weaponDps * affix.value;
-      }
-      // Activity modules on relics: check subStats for roaming mods
-      if (affix.category === 'activity' && affix.subStats) {
-        if (affix.subStats.waveDamageMod) {
-          weaponDps += weaponDps * affix.subStats.waveDamageMod;
-        }
-      }
-    }
-  }
-
-  // 4. ClassMod affixes — weaponDamage, critChance
-  let classModBonus = 0;
-  const classMod = loadout.getClassMod();
-  if (classMod) {
-    for (const affix of classMod.affixes) {
-      if (affix.stat === 'weaponDamage') {
-        classModBonus += weaponDps * affix.value;
-      }
-      if (affix.stat === 'critChance') {
-        classModBonus += weaponDps * affix.value * 0.5; // crit chance → half DPS
-      }
-      // Activity modules on classMods
-      if (affix.category === 'activity' && affix.subStats) {
-        if (affix.subStats.waveDamageMod) {
-          weaponDps += weaponDps * affix.subStats.waveDamageMod;
-        }
-      }
-    }
-  }
-
-  // 5. Activity modules on shield and weapons (roaming waveDamageMod)
-  const shield = loadout.getShield();
-  const allGear = [...slots.map((s) => loadout.getWeapon(s)), shield, ordnance, relic, classMod].filter(Boolean);
-  let activityWaveBonus = 0;
-  for (const item of allGear) {
-    if (!('affixes' in item) || !Array.isArray(item.affixes)) continue;
-    for (const affix of item.affixes as Array<{ category?: string; stat?: string; subStats?: Record<string, number> }>) {
-      if (affix.category === 'activity' && affix.subStats?.waveDamageMod) {
-        activityWaveBonus += affix.subStats.waveDamageMod;
-      }
-    }
-  }
-  weaponDps *= (1 + activityWaveBonus);
-
-  // 6. Pool everything
-  const total = weaponDps + ordnanceDps + shieldBreakDps + armorBreakDps + relicBonus + classModBonus;
-
-  return total * skillDpsMult;
+  return computeEffectiveDpsFromGear({
+    weapons,
+    ordnance: loadout.getOrdnance(),
+    relic: loadout.getRelic(),
+    classMod: loadout.getClassMod(),
+    skillDpsMult,
+  });
 }
 
 /**

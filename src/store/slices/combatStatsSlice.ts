@@ -94,7 +94,7 @@ export const useCombatStatsStore = create<CombatStatsState>()((set) => ({
   addPlaytime: (seconds, kind) => set((state) => kind === 'idle'
     ? { idlePlaySeconds: state.idlePlaySeconds + seconds }
     : { activePlaySeconds: state.activePlaySeconds + seconds }),
-  setAll: (snapshot) => set((state) => ({ ...state, ...snapshot })),
+  setAll: (snapshot) => set(() => ({ ...emptyState(), ...snapshot })),
 }));
 
 /**
