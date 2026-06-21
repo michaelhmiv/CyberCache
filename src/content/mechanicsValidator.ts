@@ -1,5 +1,5 @@
 import { REGION_1_BOSSES } from '../constants/bosses';
-import { CONSUMABLES, CONSUMABLE_SLOTS } from '../constants/consumables';
+import { CONSUMABLES } from '../constants/consumables';
 import { CRAFTING_RECIPES } from '../constants/craftingRecipes';
 import { LEGENDARY_EFFECTS } from '../constants/legendaryEffects';
 import { ROAMING_AREAS, DEFAULT_ROAMING_AREA_ID } from '../constants/roamingAreas';
@@ -86,8 +86,6 @@ export function validateMechanicsFoundation(): MechanicsValidationReport {
   for (const [index, consumable] of consumables.entries()) {
     const path = `CONSUMABLES[${index}:${consumable.id}]`;
     checkCount += check(Boolean(consumable.name), issues, 'missing_consumable_name', path, 'Consumable requires a name.');
-    checkCount += check(consumable.allowedSlots.length > 0, issues, 'missing_consumable_slots', path, 'Consumable requires at least one allowed slot.');
-    checkCount += check(consumable.allowedSlots.every((slot) => CONSUMABLE_SLOTS.includes(slot)), issues, 'invalid_consumable_slot', path, 'Consumable uses a slot outside CONSUMABLE_SLOTS.');
     checkCount += check(Boolean(consumable.shortDescription), issues, 'missing_short_description', path, 'Consumable requires shortDescription.');
     checkCount += check(Boolean(consumable.tacticalRole), issues, 'missing_tactical_role', path, 'Consumable requires tacticalRole.');
     checkCount += check(Boolean(consumable.trigger), issues, 'missing_trigger', path, 'Consumable requires trigger.');

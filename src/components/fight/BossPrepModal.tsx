@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { BossDef, PhaseAnalysis } from '../../types/boss';
 import { ConsumableSlot, RiskSetting } from '../../types/game';
-import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts, getConsumablesForSlot } from '../../constants/consumables';
+import { CONSUMABLES, CONSUMABLE_SLOTS, consumableLoadoutToCounts } from '../../constants/consumables';
 import { RARITIES } from '../../constants/rarities';
 import { simulateBoss } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
@@ -13,6 +13,7 @@ import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefC
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/supabase/verifiedStateSync';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
+import { ConsumablePicker } from '../consumables/ConsumablePicker';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
 import { BossSigil } from '@/components/common/BossSigil';
@@ -210,6 +211,9 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const loadout = useLoadoutStore();
   const skillStore = useSkillStore();
   const activity = useActivityStore();
+  const [pickerSlot, setPickerSlot] = useState<ConsumableSlot | null>(null);
+  const [pickerBusy, setPickerBusy] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
   const [risk, setRisk] = useState<RiskSetting>(RiskSetting.Balanced);
   const [result, setResult] = useState<ChefVerifyBossResult | null>(null);
   const [simulating, setSimulating] = useState(false);
@@ -317,6 +321,37 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const setConsumableForSlot = (slot: ConsumableSlot, type: string | null) => {
     setError(null);
     loadout.setConsumableSlot(slot, type);
+  };
+
+  // Async picker handlers (mirror ActionLoadout equip/unequip pattern).
+  // No verified RPC for consumable slot assignment; the local store call
+  // is the established pattern here too.
+  const onPickerEquip = async (consumableId: string) => {
+    if (!pickerSlot) return;
+    setPickerBusy(true);
+    setPickerError(null);
+    try {
+      setConsumableForSlot(pickerSlot, consumableId);
+      setPickerSlot(null);
+    } catch (err) {
+      setPickerError(err instanceof Error ? err.message : 'Unable to assign consumable.');
+    } finally {
+      setPickerBusy(false);
+    }
+  };
+
+  const onPickerUnequip = async () => {
+    if (!pickerSlot) return;
+    setPickerBusy(true);
+    setPickerError(null);
+    try {
+      setConsumableForSlot(pickerSlot, null);
+      setPickerSlot(null);
+    } catch (err) {
+      setPickerError(err instanceof Error ? err.message : 'Unable to clear slot.');
+    } finally {
+      setPickerBusy(false);
+    }
   };
 
   const syncBossPrepActivity = async () => {
@@ -673,24 +708,20 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
                       <div className="text-xs font-black text-text-primary">{SLOT_LABELS[slot]}</div>
                       <div className="text-[10px] text-text-muted">{selected?.tacticalRole || 'No consumable selected'}</div>
                     </div>
-                    <select
-                      value={selectedId || ''}
-                      onChange={(e) => setConsumableForSlot(slot, e.target.value || null)}
-                      className="max-w-[58%] bg-surface border-2 border-border rounded-xl px-2 py-2 text-xs text-text-primary"
+                    <button
+                      type="button"
+                      onClick={() => setPickerSlot(slot)}
+                      className="max-w-[58%] min-w-[100px] bg-surface border-2 border-border rounded-xl px-2 py-2 text-left text-xs text-text-primary active:scale-[0.98] transition-transform hover:border-amber/40"
                     >
-                      <option value="">Empty</option>
-                      {getConsumablesForSlot(slot).map((c) => {
-                        const selectedCount = Object.values(equippedConsumables).filter((id) => id === c.id).length;
-                        const owned = player.getConsumableCount(c.id);
-                        const available = owned > 0 || selectedId === c.id;
-                        const remaining = owned - (selectedId === c.id ? selectedCount - 1 : selectedCount);
-                        return (
-                          <option key={c.id} value={c.id} disabled={!available}>
-                            {c.name} ({remaining}/{owned})
-                          </option>
-                        );
-                      })}
-                    </select>
+                      {selected ? (
+                        <span className="inline-flex items-center gap-1 text-amber">
+                          <span>{selected.visual.glyph}</span>
+                          <span className="truncate">{selected.name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-text-muted">Select…</span>
+                      )}
+                    </button>
                   </div>
                   {selected && (
                     <div className="space-y-1">
@@ -831,6 +862,25 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           </button>
         )}
       </div>
+      {/* Full-height consumable picker overlay for boss prep slots */}
+      {pickerSlot && (
+        <ConsumablePicker
+          slot={pickerSlot}
+          currentId={equippedConsumables[pickerSlot]}
+          onClose={() => {
+            setPickerSlot(null);
+            setPickerError(null);
+          }}
+          onEquip={onPickerEquip}
+          onUnequip={onPickerUnequip}
+          busy={pickerBusy}
+          error={pickerError}
+          bossContext={{
+            missingCounters: boss.debuffVulnerabilities?.length > 0 ? boss.debuffVulnerabilities : boss.counterTags ?? [],
+            bossName: boss.name,
+          }}
+        />
+      )}
     </motion.div>
   );
 };

@@ -5,6 +5,7 @@ import type { ConsumableDef, ConsumableFamily, ConsumableRuntimeEffects } from '
 import { getConsumableQualityBand, getConsumableRuntimeEffects } from '@/constants/consumables';
 import { usePlayerStore } from '@/store';
 import { getConsumableMechanicKind, resolveConsumableDuration } from '@/lib/buffs/activeBuffs';
+import { formatRuntimeValue, labelizeRuntimeKey } from '@/lib/consumables/formatRuntime';
 
 const FAMILY_COLORS: Record<ConsumableFamily, string> = {
   survival: 'text-green',
@@ -35,19 +36,6 @@ function StatRow({ label, value, tone = 'text-text-primary' }: { label: string; 
       <span className={`text-xs font-black ${tone}`}>{value}</span>
     </div>
   );
-}
-
-function formatRuntimeValue(key: keyof ConsumableRuntimeEffects, value: number): string {
-  if (key.toLowerCase().includes('multiplier')) return `${value.toFixed(2)}×`;
-  if (key.toLowerCase().includes('chance') || key.toLowerCase().includes('reduction') || key.toLowerCase().includes('bias') || key.toLowerCase().includes('bypass') || key.toLowerCase().includes('pct')) {
-    return `${(value * 100).toFixed(0)}%`;
-  }
-  if (key.toLowerCase().includes('seconds')) return `${Math.round(value)}s`;
-  return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2);
-}
-
-function labelizeRuntimeKey(key: string): string {
-  return key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
 }
 
 interface ConsumableInspectSheetProps {
