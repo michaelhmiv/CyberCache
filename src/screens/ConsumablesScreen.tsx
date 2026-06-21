@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { CONSUMABLES, CONSUMABLE_SLOTS } from '@/constants/consumables';
 import type { ConsumableDef, ConsumableVisual } from '@/constants/consumables';
+import type { ConsumableSlot } from '@/types/game';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
 import { ConsumableInspectSheet } from '@/components/consumables/ConsumableInspectSheet';
+import { ConsumablePicker } from '@/components/consumables/ConsumablePicker';
 
 const SLOT_LABELS: Record<keyof LoadoutConsumables, string> = {
   PreFight: 'Slot 1',
@@ -31,6 +34,9 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
   const loadout = useLoadoutStore();
   const market = useMarketStore();
   const [expandedSlot, setExpandedSlot] = useState<keyof LoadoutConsumables | null>(null);
+  const [pickerSlot, setPickerSlot] = useState<ConsumableSlot | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
   const [inspecting, setInspecting] = useState<ConsumableDef | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -57,6 +63,42 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
       setNotice(`${SLOT_LABELS[slot]} cleared.`);
     }
     setExpandedSlot(null);
+  };
+
+  // Picker handlers — async to match SlotGearPicker's verifiedOps pattern.
+  // Currently no verified RPC for consumable slot assignment; the local
+  // store call is the established pattern (mirrored from the original
+  // handlePick above). When verifiedOps.setConsumableSlot lands, replace
+  // the body of these two handlers.
+  const onPickerEquip = async (consumableId: string) => {
+    if (!pickerSlot) return;
+    setBusy(true);
+    setPickerError(null);
+    try {
+      loadout.setConsumableSlot(pickerSlot, consumableId);
+      const name = CONSUMABLES[consumableId]?.name ?? consumableId;
+      setNotice(`${name} assigned to ${SLOT_LABELS[pickerSlot]}.`);
+      setPickerSlot(null);
+    } catch (err) {
+      setPickerError(err instanceof Error ? err.message : 'Unable to assign consumable.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onPickerUnequip = async () => {
+    if (!pickerSlot) return;
+    setBusy(true);
+    setPickerError(null);
+    try {
+      loadout.setConsumableSlot(pickerSlot, null);
+      setNotice(`${SLOT_LABELS[pickerSlot]} cleared.`);
+      setPickerSlot(null);
+    } catch (err) {
+      setPickerError(err instanceof Error ? err.message : 'Unable to clear slot.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleEquipFromInspect = (id: string) => {
@@ -176,43 +218,14 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                     {def ? 'Swap or clear' : 'Choose a consumable'}
                   </div>
 
-                  <div className="max-h-[280px] space-y-0.5 overflow-y-auto">
-                    {ownedConsumables.length === 0 && (
-                      <div className="px-2 py-2 text-[10px] text-text-muted">
-                        No consumables in inventory. Visit the Vendor or craft some.
-                      </div>
-                    )}
-                    {ownedConsumables.map((c) => {
-                      const owned = player.consumables[c.id] ?? 0;
-                      const isEquippedHere = id === c.id;
-                      const isEquippedElsewhere = CONSUMABLE_SLOTS.some((s) => s !== slot && loadout.consumables[s] === c.id);
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => handlePick(slot, c.id)}
-                          className={`flex w-full items-center gap-2 px-2 py-2 text-left transition-colors hover:bg-amber/10 ${isEquippedHere ? 'bg-amber/10' : ''}`}
-                        >
-                          <span className="shrink-0 text-[14px] font-black" style={{ color: `var(--${c.visual.accent})` }}>
-                            {c.visual.glyph}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-[11px] font-black text-text-primary">{c.name}</div>
-                            <div className="truncate text-[8px] text-text-muted">{c.tacticalRole}</div>
-                          </div>
-                          <div className="shrink-0 flex items-center gap-1.5">
-                            {isEquippedElsewhere && !isEquippedHere && (
-                              <span className="text-[7px] font-bold text-text-muted">in slot</span>
-                            )}
-                            {isEquippedHere && (
-                              <span className="text-[7px] font-black text-green">HERE</span>
-                            )}
-                            <span className="text-[9px] font-black text-amber">×{owned}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {/* Open full-height picker sheet */}
+                  <button
+                    type="button"
+                    onClick={() => setPickerSlot(slot as ConsumableSlot)}
+                    className="w-full px-2 py-2 text-left text-[10px] font-black text-amber hover:bg-amber/10"
+                  >
+                    {def ? 'Open swap picker →' : 'Open consumable picker →'}
+                  </button>
 
                   {def && (
                     <button
@@ -245,6 +258,24 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
         onClose={() => setInspecting(null)}
         onEquip={handleEquipFromInspect}
       />
+
+      {/* Full-height consumable picker sheet */}
+      <AnimatePresence>
+        {pickerSlot && (
+          <ConsumablePicker
+            slot={pickerSlot}
+            currentId={loadout.consumables[pickerSlot]}
+            onClose={() => {
+              setPickerSlot(null);
+              setPickerError(null);
+            }}
+            onEquip={onPickerEquip}
+            onUnequip={onPickerUnequip}
+            busy={busy}
+            error={pickerError}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
