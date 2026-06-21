@@ -1,23 +1,16 @@
 /**
- * idleTickerSlice — boss fight wiring (PR 6).
+ * idleTickerSlice — boss fight wiring (server-authoritative).
  *
- * The contract: when the active activity is `boss_fight` with a boss
- * target, calling `tickNow` calls `applyBossFightTick()`, which:
- *   - Drains boss HP by playerDps * 3s
- *   - Drains player HP by bossDps * 3s (after shield)
- *   - Auto-eats a medkit when below threshold
- *   - Decrements the player's MedKit count
- *   - Updates the boss store's live-fight state
- *   - Ends the fight on victory (boss HP 0) or defeat (player HP 0)
+ * CONTRACT:
+ *   Boss fights are resolved by the cc_battle_result / verify-boss RPC at
+ *   fight start — NOT by the per-tick idle ticker. When the active
+ *   activity is `boss_fight`, `tickNow` is a complete no-op: it does not
+ *   send a roaming claim to the Chef, does not drain boss HP, does not
+ *   touch survival/killCycle/player stores, and pushes no feed events.
  *
- * This test exercises the wiring: real boss store, real player
- * store, real survival store, real loadout store, real ticker.
- *
- * Why no weapon setup: loadoutEffectiveDps() reads from the real
- * loadout which requires a real weapon in inventory. We avoid that
- * complexity by stubbing `loadoutEffectiveDps` for the assertion
- * cases that need non-zero DPS, and by relying on the pure
- * bossTick.test.ts for the math.
+ * The local `applyBossFightTick` simulation was removed. During a boss
+ * fight the ticker simply does nothing; combat animation data comes from
+ * the boss-attempt RPC response, not from the roaming ticker.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useIdleTickerStore } from '@/store/slices/idleTickerSlice';
@@ -26,62 +19,67 @@ import { useActivityStore } from '@/store/slices/activitySlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { useBossStore } from '@/store/slices/bossSlice';
+import { useKillCycleStore } from '@/store/slices/killCycleSlice';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 
-// Same mocks as the survival test — suppress network calls.
-// battleResult is mocked to return a minimal server-confirmed result
-// so the boss fight RPC path can be exercised without a real DB.
-// vi.hoisted ensures the mock fn is available when the factory runs.
-const { mockBattleResult } = vi.hoisted(() => ({ mockBattleResult: vi.fn() }));
+// submitClaim is the Chef roaming-claim entry point. We mock it so we can
+// assert it is NEVER invoked while the activity is boss_fight.
+const { mockSubmitClaim } = vi.hoisted(() => ({ mockSubmitClaim: vi.fn() }));
 
+vi.mock('@/lib/chef/chefClient', () => ({ submitClaim: mockSubmitClaim }));
+
+// Suppress all network / RPC side effects for these isolated wiring tests.
 vi.mock('@/lib/supabase/verifiedOps', () => ({
   verifiedOps: {
     claimRoamingRewards: vi.fn(async () => ({})),
-    battleResult: mockBattleResult,
   },
+}));
+
+vi.mock('@/lib/supabase/verifiedStateSync', () => ({
+  syncVerifiedResult: vi.fn(),
 }));
 
 vi.mock('@/store/runtimeSupabaseSync', () => ({
   saveCurrentRuntimeStores: vi.fn(async () => undefined),
-  syncVerifiedResult: vi.fn(),
+}));
+
+vi.mock('@/store/combatStatsSupabaseSync', () => ({
+  saveCombatStats: vi.fn(async () => undefined),
 }));
 
 function setBossFightActivity(bossId: string) {
   useActivityStore.setState({
     current: {
       kind: 'boss_fight',
+      bossPhase: 'fight',
       targetType: 'boss',
       targetId: bossId,
       targetLabel: 'Test Boss',
-      startedAt: Date.now(),
+      startedAt: null,
+      completesAt: null,
+      sceneKey: null,
+      notes: null,
+      activityPayload: {},
+      publicPayload: {},
+      lastHeartbeatAt: null,
+      publicVisible: false,
+      schemaVersion: 1,
+      updatedAt: null,
     } as never,
   });
 }
 
-function setRoamingArea() {
-  useActivityStore.setState({
-    current: {
-      kind: 'roaming_loot',
-      targetType: 'roaming_area',
-      targetId: 'dustwaste_frontier',
-      targetLabel: 'Dustwaste',
-      startedAt: Date.now(),
-    } as never,
-  });
-}
-
-describe('idleTickerSlice — boss fight wiring (PR 6)', () => {
+describe('idleTickerSlice — boss fight wiring (server-authoritative)', () => {
   beforeEach(() => {
-    mockBattleResult.mockResolvedValue({
-      victory: true,
-      profile: {},
-      items: [],
-      boss_state: { defeatedBossIds: ['dune_tyrant'], pityCounters: {} },
-    });
+    mockSubmitClaim.mockReset();
     useSurvivalStore.setState({
       currentHp: 500,
       maxHp: 500,
       shieldHp: 0,
+      medKitBuffer: 0,
+      nanoSwarmTicksRemaining: 0,
+      adrenalineActive: false,
+      adrenalineExpiresAt: 0,
       isDead: false,
       lastKilledBy: null,
       deathLog: [],
@@ -101,11 +99,7 @@ describe('idleTickerSlice — boss fight wiring (PR 6)', () => {
       },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
-    usePlayerStore.setState({
-      level: 1,
-      credits: 0,
-      consumables: { MedKit: 5, ShieldCell: 0, ReviveToken: 0 },
-    });
+    usePlayerStore.setState({ level: 1, credits: 0, consumables: { MedKit: 5 } });
     useBossStore.setState({
       activeBossId: null,
       activeBossHp: 0,
@@ -115,8 +109,15 @@ describe('idleTickerSlice — boss fight wiring (PR 6)', () => {
       activeDamageDealt: 0,
       activeTickCount: 0,
       activeStartedAt: 0,
-      defeatedBossIds: [],
-      pityCounters: {},
+    });
+    useKillCycleStore.setState({
+      currentTargetId: null,
+      currentTargetHp: 0,
+      currentTargetHpMax: 0,
+      monstersKilledCount: 0,
+      totalKills: 0,
+      lastKilledMonsterId: null,
+      targetSpawnedAt: null,
     });
     useTickFeedStore.setState({ events: [] });
   });
@@ -125,120 +126,45 @@ describe('idleTickerSlice — boss fight wiring (PR 6)', () => {
     vi.clearAllMocks();
   });
 
-  it('bails when activity is roaming_loot (not boss_fight)', async () => {
-    useBossStore.getState().startLiveFight('dune_tyrant', 1000);
-    setRoamingArea();
-    await useIdleTickerStore.getState().tickNow();
-    // Boss state untouched — roaming tick doesn't touch boss store
-    expect(useBossStore.getState().activeBossHp).toBe(1000);
-    expect(useBossStore.getState().activeTickCount).toBe(0);
-  });
-
-  it('bails when activity is idle', async () => {
-    useBossStore.getState().startLiveFight('dune_tyrant', 1000);
-    useActivityStore.setState({
-      current: { kind: 'idle', targetType: 'none', targetId: null, targetLabel: '', startedAt: Date.now() } as never,
-    });
-    await useIdleTickerStore.getState().tickNow();
-    expect(useBossStore.getState().activeBossHp).toBe(1000);
-    expect(useBossStore.getState().activeTickCount).toBe(0);
-  });
-
-  it('does nothing if the boss store has no active fight', async () => {
+  it('is a no-op during boss_fight activity — does not call the Chef at all', async () => {
     setBossFightActivity('dune_tyrant');
     await useIdleTickerStore.getState().tickNow();
-    expect(useBossStore.getState().activeStatus).toBe('idle');
-    expect(useBossStore.getState().activeTickCount).toBe(0);
+    expect(mockSubmitClaim).not.toHaveBeenCalled();
   });
 
-  it('does nothing if the boss ID does not match the active fight', async () => {
+  it('does not mutate the boss store during boss_fight activity', async () => {
+    // Start a live fight directly so the boss store has real values to protect.
     useBossStore.getState().startLiveFight('dune_tyrant', 1000);
+    setBossFightActivity('dune_tyrant');
+    await useIdleTickerStore.getState().tickNow();
+    // The ticker never touches the boss store — boss fights are resolved by
+    // the cc_battle_result RPC, never by per-tick simulation.
+    expect(useBossStore.getState().activeBossHp).toBe(1000);
+    expect(useBossStore.getState().activeBossMaxHp).toBe(1000);
+    expect(useBossStore.getState().activeTickCount).toBe(0);
+    expect(useBossStore.getState().activeStatus).toBe('active');
+    expect(useBossStore.getState().activeMedkitsConsumed).toBe(0);
+    expect(useBossStore.getState().activeDamageDealt).toBe(0);
+  });
+
+  it('does not drain survival HP or auto-eat medkits during boss_fight activity', async () => {
+    useSurvivalStore.setState({ currentHp: 50, maxHp: 500, autoEatThreshold: 0.4 });
+    usePlayerStore.setState({ consumables: { MedKit: 5 } });
     setBossFightActivity('silt_warlord');
     await useIdleTickerStore.getState().tickNow();
-    expect(useBossStore.getState().activeTickCount).toBe(0);
-    expect(useBossStore.getState().activeBossHp).toBe(1000);
+    // No local survival simulation runs during boss fights.
+    expect(useSurvivalStore.getState().currentHp).toBe(50);
+    expect(useSurvivalStore.getState().isDead).toBe(false);
+    expect(usePlayerStore.getState().getConsumableCount('MedKit')).toBe(5);
   });
 
-  it('runs the fight tick when activity is boss_fight with a matching boss', async () => {
-    useBossStore.getState().startLiveFight('dune_tyrant', 1000);
+  it('pushes no feed events during boss_fight activity', async () => {
+    useTickFeedStore.setState({ events: [] });
     setBossFightActivity('dune_tyrant');
     await useIdleTickerStore.getState().tickNow();
-    // Tick ran (activeTickCount incremented), but bossHp may not have
-    // dropped because the empty loadout gives playerDps=0. The point
-    // of this test is that the wiring is correct.
-    expect(useBossStore.getState().activeTickCount).toBe(1);
-  });
-
-  it('consumes a medkit when player HP drops below threshold (with stubbed DPS)', async () => {
-    // Stub loadoutEffectiveDps to return 1000 DPS so we can verify
-    // the medkit-drain path without setting up a real weapon.
-    const loadoutSurvival = await import('@/lib/combat/loadoutSurvival');
-    const dpsSpy = vi.spyOn(loadoutSurvival, 'loadoutEffectiveDps').mockReturnValue(1000);
-
-    try {
-      useSurvivalStore.setState({ currentHp: 50, maxHp: 500, autoEatThreshold: 0.4 });
-      usePlayerStore.setState({ consumables: { MedKit: 5, ShieldCell: 0, ReviveToken: 0 } });
-      useBossStore.getState().startLiveFight('dune_tyrant', 1000);
-      setBossFightActivity('dune_tyrant');
-
-      await useIdleTickerStore.getState().tickNow();
-
-      // Medkit should have been auto-consumed from the player store.
-      // (activeMedkitsConsumed is reset by clearLiveFight() so we don't
-      // assert on it here — the player-store decrement is the real
-      // evidence of medkit attrition.)
-      expect(usePlayerStore.getState().getConsumableCount('MedKit')).toBeLessThan(5);
-    } finally {
-      dpsSpy.mockRestore();
-    }
-  });
-
-  it('marks the hunter dead when player HP hits 0 (server-authoritative pity)', async () => {
-    // With playerDps=0 and a real bossDps, the player will die.
-    // Force currentHp=1 so the first tick kills them.
-    // The local sim shows the death overlay, but boss progression
-    // (pityCounters) is only updated by the server RPC response.
-    mockBattleResult.mockResolvedValueOnce({
-      victory: false,
-      profile: {},
-      items: [],
-      boss_state: { defeatedBossIds: [], pityCounters: { dune_tyrant: 1 } },
-    });
-    useSurvivalStore.setState({ currentHp: 1, maxHp: 500, autoEatThreshold: 0.0 });
-    usePlayerStore.setState({ consumables: { MedKit: 0, ShieldCell: 0, ReviveToken: 0 } });
-    useBossStore.getState().startLiveFight('dune_tyrant', 1000);
-    setBossFightActivity('dune_tyrant');
-
-    await useIdleTickerStore.getState().tickNow();
-
-    // PR 5 death overlay contract: survival.isDead=true, death log has entry
-    expect(useSurvivalStore.getState().isDead).toBe(true);
-    const log = useSurvivalStore.getState().deathLog;
-    expect(log.length).toBeGreaterThan(0);
-    expect(log[0].monsterId).toBe('dune_tyrant');
-    // Pity counter is set by the RPC response, not local mutation.
-    // The RPC mock returns pityCounters.dune_tyrant=1, but
-    // syncVerifiedResult is mocked to a no-op, so we verify the
-    // RPC was called instead of checking the local store.
-    expect(mockBattleResult).toHaveBeenCalledWith('dune_tyrant', expect.any(String));
-  });
-
-  it('ends the fight as victory and calls cc_battle_result RPC on boss defeat', async () => {
-    const loadoutSurvival = await import('@/lib/combat/loadoutSurvival');
-    const dpsSpy = vi.spyOn(loadoutSurvival, 'loadoutEffectiveDps').mockReturnValue(10000);
-
-    try {
-      // Boss has 1 HP; huge DPS one-shots it.
-      useBossStore.getState().startLiveFight('dune_tyrant', 1);
-      setBossFightActivity('dune_tyrant');
-      await useIdleTickerStore.getState().tickNow();
-      // Boss progression is now server-authoritative: the local sim
-      // ends the fight and calls verifiedOps.battleResult(bossId, stance),
-      // which returns the server's boss_state. We verify the RPC was
-      // called instead of checking local store mutation.
-      expect(mockBattleResult).toHaveBeenCalledWith('dune_tyrant', expect.any(String));
-    } finally {
-      dpsSpy.mockRestore();
-    }
+    // The ticker pushes server-authored feed events for roaming claims only.
+    // During a boss fight it produces nothing — animation data comes from
+    // the boss-attempt RPC response.
+    expect(useTickFeedStore.getState().events).toHaveLength(0);
   });
 });

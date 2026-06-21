@@ -1,12 +1,21 @@
 /**
- * End-to-end test for the survival tick wiring in idleTickerSlice.
- * Sets up: player in roaming_loot, area = dustwaste_frontier, low HP.
- * Calls `tickNow` directly. Asserts: HP drops, damage event fires,
- * auto-eat triggers if consumable is loaded, death stops the ticker.
+ * idleTickerSlice — survival wiring (server-authoritative).
  *
- * Note: we test `tickNow` directly rather than waiting for setInterval
- * because the ticker runs in a real interval. The function is exposed
- * on the store and is the unit of work — the interval is just a driver.
+ * CONTRACT:
+ *   The idle ticker performs NO local survival simulation. It sends the
+ *   hunter's current HP/shield to the Chef in the claim request and applies
+ *   whatever survival state the server returns via `applyServerRewards`
+ *   → `useSurvivalStore.syncFromServer`.
+ *
+ *   - When the server response omits `survival`, the store is unchanged.
+ *   - When the server response includes `survival`, HP/shield/isDead are
+ *     replaced with the server's authoritative values.
+ *   - Death is recorded in combat stats ONLY when the Chef confirms
+ *     `isDead: true` — never from local "HP reached 0" detection.
+ *   - Feed events are server-authored (pushed verbatim from the claim
+ *     response), never generated locally by a preview/roll function.
+ *   - The ticker is a no-op when the hunter is already dead.
+ *   - The client never auto-eats medkits; the Chef owns consumption.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useIdleTickerStore, mountIdleTicker, unmountIdleTicker } from '@/store/slices/idleTickerSlice';
@@ -16,16 +25,20 @@ import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { useCombatStatsStore } from '@/store/slices/combatStatsSlice';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
-import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { Weapon } from '@/types/items';
+import type { ChefClaimResult } from '@/lib/chef/chefClient';
 
-// Suppress the network round-trip — we only care about the local
-// survival wiring in this test. The ticker still calls verifiedOps
-// for reward reconciliation; mock it to do nothing.
+const { mockSubmitClaim } = vi.hoisted(() => ({ mockSubmitClaim: vi.fn() }));
+
+vi.mock('@/lib/chef/chefClient', () => ({ submitClaim: mockSubmitClaim }));
+
 vi.mock('@/lib/supabase/verifiedOps', () => ({
   verifiedOps: {
     claimRoamingRewards: vi.fn(async () => ({})),
   },
+}));
+
+vi.mock('@/lib/supabase/verifiedStateSync', () => ({
+  syncVerifiedResult: vi.fn(),
 }));
 
 vi.mock('@/store/runtimeSupabaseSync', () => ({
@@ -37,54 +50,56 @@ vi.mock('@/store/combatStatsSupabaseSync', () => ({
 }));
 
 const enterRoamingArea = (areaId: string) => {
-  useActivityStore.getState().setCurrent({
-    kind: 'roaming_loot',
-    targetId: areaId,
-    startedAt: Date.now(),
-  } as never);
+  useActivityStore.setState({
+    current: {
+      kind: 'roaming_loot',
+      bossPhase: 'prep',
+      targetType: 'roaming_area',
+      targetId: areaId,
+      targetLabel: areaId,
+      startedAt: null,
+      completesAt: null,
+      sceneKey: null,
+      notes: null,
+      activityPayload: {},
+      publicPayload: {},
+      lastHeartbeatAt: null,
+      publicVisible: true,
+      schemaVersion: 1,
+      updatedAt: null,
+    } as never,
+  });
 };
 
-/** Minimal weapon with DPS > 0 so the kill cycle fires events. */
-const testWeapon = (): Weapon => ({
-  id: 'test-survival-gun',
-  name: 'Test Survival Gun',
-  level: 1,
-  rarity: Rarity.Common,
-  weaponType: WeaponType.SMG,
-  manufacturer: Manufacturer.Redline,
-  element: Element.Kinetic,
-  rollQuality: 50,
-  baseDamage: 10,
-  attackSpeed: 5,
-  critChance: 0,
-  critDamage: 0,
-  statusChance: 0,
-  statusDamage: 0,
-  bossDamageMod: 0,
-  waveDamageMod: 0,
-  shieldDamageMod: 0,
-  armorDamageMod: 0,
-  offlineEarningsMod: 0,
-  rareDropChanceMod: 0,
-  scrapYieldMod: 0,
-  parts: [],
-  affixes: [],
-  sourceTag: DropSource.WorldDrop,
-  isLocked: false,
-  pixelSeed: 1,
-  combatPower: 0,
-  bossPower: 0,
-  farmPower: 0,
-  economyScore: 0,
+/** A minimal Chef claim result with no survival or killCycle payload. */
+const emptyClaimResult = (): ChefClaimResult => ({
+  actionType: 'roaming_claim',
+  profile: {},
+  rewards: {
+    ticks: 1,
+    creditsAwarded: 0,
+    scrapAwarded: 0,
+    xpAwarded: 0,
+    cacheFragmentsAwarded: 0,
+    materials: {},
+    essences: {},
+    killsRecorded: 0,
+  },
+  items: [],
+  feedEvents: [],
 });
 
-describe('idleTickerSlice — survival wiring', () => {
+describe('idleTickerSlice — survival wiring (server-authoritative)', () => {
   beforeEach(() => {
-    // Reset all stores to a known state.
+    mockSubmitClaim.mockReset();
     useSurvivalStore.setState({
       currentHp: 700,
       maxHp: 700,
       shieldHp: 0,
+      medKitBuffer: 0,
+      nanoSwarmTicksRemaining: 0,
+      adrenalineActive: false,
+      adrenalineExpiresAt: 0,
       isDead: false,
       lastKilledBy: null,
       deathLog: [],
@@ -93,18 +108,10 @@ describe('idleTickerSlice — survival wiring', () => {
       autoEatThreshold: 0.7,
     });
     useLoadoutStore.setState({
-      slots: {
-        primary: testWeapon(),
-        secondary: null,
-        heavy: null,
-        ordnance: null,
-        shield: null,
-        classMod: null,
-        relic: null,
-      },
+      slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
-    usePlayerStore.setState({ level: 1, consumables: {} });
+    usePlayerStore.setState({ id: 'player_1', level: 1, consumables: {} });
     useCombatStatsStore.setState({
       totalKills: 0,
       totalDeaths: 0,
@@ -129,106 +136,115 @@ describe('idleTickerSlice — survival wiring', () => {
     unmountIdleTicker();
   });
 
-  it('tickNow reduces hunter HP when roaming', async () => {
+  it('does not locally reduce HP — survival unchanged when the server omits survival', async () => {
+    mockSubmitClaim.mockResolvedValue(emptyClaimResult());
     enterRoamingArea('dustwaste_frontier');
     const before = useSurvivalStore.getState().currentHp;
     await useIdleTickerStore.getState().tickNow();
-    const after = useSurvivalStore.getState().currentHp;
-    // T1 monsters do 2-14 damage; 1-3 ticks, 1 tick minimum. HP should
-    // be ≤ before (or equal if every roll missed).
-    expect(after).toBeLessThanOrEqual(before);
+    // No local damage math: HP only moves when the server reports it.
+    expect(useSurvivalStore.getState().currentHp).toBe(before);
+    expect(useSurvivalStore.getState().isDead).toBe(false);
+    expect(mockSubmitClaim).toHaveBeenCalledTimes(1);
   });
 
-  it('emits a damage event in the tick feed', async () => {
+  it('syncs survival HP from the server response when the survival field is present', async () => {
+    mockSubmitClaim.mockResolvedValue({
+      ...emptyClaimResult(),
+      survival: { currentHp: 400, shieldHp: 50, isDead: false },
+    });
+    enterRoamingArea('dustwaste_frontier');
+    await useIdleTickerStore.getState().tickNow();
+    const s = useSurvivalStore.getState();
+    expect(s.currentHp).toBe(400);
+    expect(s.shieldHp).toBe(50);
+    expect(s.isDead).toBe(false);
+  });
+
+  it('records death only when the Chef confirms isDead=true (no local death sim)', async () => {
+    mockSubmitClaim.mockResolvedValue({
+      ...emptyClaimResult(),
+      survival: { currentHp: 0, shieldHp: 0, isDead: true },
+    });
+    enterRoamingArea('redline_circuit');
+    // Hunter is alive before the tick...
+    expect(useSurvivalStore.getState().isDead).toBe(false);
+    await useIdleTickerStore.getState().tickNow();
+    // ...and is marked dead by the server's authoritative response, not by
+    // local HP math.
+    expect(useSurvivalStore.getState().isDead).toBe(true);
+    expect(useSurvivalStore.getState().currentHp).toBe(0);
+    // Death is recorded in combat stats ONLY from the server confirmation.
+    expect(useCombatStatsStore.getState().totalDeaths).toBe(1);
+    expect(useCombatStatsStore.getState().totalKills).toBe(0);
+  });
+
+  it('is a no-op when the hunter is already dead', async () => {
+    mockSubmitClaim.mockResolvedValue(emptyClaimResult());
+    useSurvivalStore.setState({ isDead: true, currentHp: 0 });
+    enterRoamingArea('dustwaste_frontier');
+    const beforeEvents = useTickFeedStore.getState().events.length;
+    await useIdleTickerStore.getState().tickNow();
+    // Ticker bails immediately when dead — no claim sent, no feed events.
+    expect(mockSubmitClaim).not.toHaveBeenCalled();
+    expect(useTickFeedStore.getState().events.length).toBe(beforeEvents);
+  });
+
+  it('pushes server-authored feed events to the tick feed (no local preview events)', async () => {
+    mockSubmitClaim.mockResolvedValue({
+      ...emptyClaimResult(),
+      feedEvents: [
+        { at: 1, tone: 'damage', label: '-30 HP', detail: 'raider patrol', areaId: 'dustwaste_frontier', value: 30 },
+        { at: 2, tone: 'kill', label: 'Killed: raider', detail: 'patrol cleared', areaId: 'dustwaste_frontier' },
+      ],
+    });
     enterRoamingArea('dustwaste_frontier');
     await useIdleTickerStore.getState().tickNow();
     const events = useTickFeedStore.getState().events;
-    // Survival damage emits tone 'damage' (monster → player).
-    // Kill cycle hits emit tone 'loot' (player → monster damage).
-    // Kill cycle kills emit tone 'kill'.
-    // Note: the monster can miss (hit.missed), producing zero survival
-    // events. The kill cycle requires effectiveDps > 0. In CI with no
-    // Chef server, the preview events are the primary source.
-    // All events (preview + survival + kill cycle) are counted below.
-    const survivalHits = events.filter((e) => e.tone === 'damage').length;
-    const killHits = events.filter((e) => e.tone === 'loot').length;
-    const kills = events.filter((e) => e.tone === 'kill').length;
-    // Also count preview events (cash, fragment, material, essence, loot)
-    const previews = events.filter((e) => e.tone === 'cash' || e.tone === 'fragment' || e.tone === 'material' || e.tone === 'essence').length;
-    expect(survivalHits + killHits + kills + previews).toBeGreaterThan(0);
+    // Events come verbatim from the server's simulation, pushed by the ticker.
+    expect(events.filter((e) => e.tone === 'damage')).toHaveLength(1);
+    expect(events.filter((e) => e.tone === 'kill')).toHaveLength(1);
   });
 
-  it('does not apply damage when activity is not roaming_loot', async () => {
-    useActivityStore.getState().setCurrent({
-      kind: 'idle_standby',
-      targetId: null,
-      startedAt: Date.now(),
-    } as never);
+  it('does NOT auto-eat medkits client-side (the Chef owns consumption)', async () => {
+    mockSubmitClaim.mockResolvedValue({
+      ...emptyClaimResult(),
+      survival: { currentHp: 100, shieldHp: 0, isDead: false },
+    });
+    usePlayerStore.setState({ consumables: { MedKit: 10 } });
+    useSurvivalStore.setState({ currentHp: 100, maxHp: 700 }); // well below threshold
+    enterRoamingArea('dustwaste_frontier');
+    const medkitsBefore = usePlayerStore.getState().getConsumableCount('MedKit');
+    await useIdleTickerStore.getState().tickNow();
+    // The client never consumes medkits — consumption is server-authoritative.
+    expect(usePlayerStore.getState().getConsumableCount('MedKit')).toBe(medkitsBefore);
+  });
+
+  it('does not apply survival changes when activity is not roaming_loot', async () => {
+    mockSubmitClaim.mockResolvedValue(emptyClaimResult());
+    useActivityStore.setState({
+      current: {
+        kind: 'idle_standby',
+        bossPhase: 'prep',
+        targetType: 'none',
+        targetId: null,
+        targetLabel: null,
+        startedAt: null,
+        completesAt: null,
+        sceneKey: null,
+        notes: null,
+        activityPayload: {},
+        publicPayload: {},
+        lastHeartbeatAt: null,
+        publicVisible: true,
+        schemaVersion: 1,
+        updatedAt: null,
+      } as never,
+    });
     const before = useSurvivalStore.getState().currentHp;
     await useIdleTickerStore.getState().tickNow();
-    const after = useSurvivalStore.getState().currentHp;
-    expect(after).toBe(before);
-  });
-
-  it('does NOT auto-eat medkits client-side (Chef handles consumption)', async () => {
-    enterRoamingArea('redline_circuit'); // T2 = 11-14 attack, fast
-    // Load 10 medkits and set HP just above threshold.
-    // The client survival tick no longer consumes medkits — that's the
-    // Chef's responsibility. Verify no client-side consumption occurs.
-    usePlayerStore.setState({ consumables: { MedKit: 10 } });
-    useSurvivalStore.setState({ currentHp: 495, maxHp: 700 });
-    let autoEatFired = false;
-    for (let i = 0; i < 10; i += 1) {
-      if (useSurvivalStore.getState().isDead) break;
-      const medkitsBefore = usePlayerStore.getState().consumables.MedKit ?? 0;
-      try {
-        await useIdleTickerStore.getState().tickNow();
-      } catch {
-        // network mocks can throw; ignore
-      }
-      const medkitsAfter = usePlayerStore.getState().consumables.MedKit ?? 0;
-      if (medkitsAfter < medkitsBefore) {
-        autoEatFired = true;
-        break;
-      }
-    }
-    // Client should NOT consume medkits — consumption is server-authoritative
-    expect(autoEatFired).toBe(false);
-  });
-
-  it('sets isDead and stops the ticker when HP reaches 0 (deaths recorded by Chef)', async () => {
-    enterRoamingArea('redline_circuit'); // T2, harder
-    usePlayerStore.setState({ consumables: {} }); // no medkits
-    useSurvivalStore.setState({ currentHp: 5, maxHp: 700 }); // 1 hit kills
-    // Run a few ticks until death.
-    for (let i = 0; i < 20; i += 1) {
-      if (useSurvivalStore.getState().isDead) break;
-      try {
-        await useIdleTickerStore.getState().tickNow();
-      } catch {
-        // Network mocks can throw; ignore.
-      }
-    }
-    const survival = useSurvivalStore.getState();
-    expect(survival.isDead).toBe(true);
-    expect(survival.currentHp).toBe(0);
-    expect(survival.lastKilledBy).not.toBeNull();
-    // Deaths are no longer recorded locally from the survival sim.
-    // Only Chef-confirmed deaths (via applyServerRewards with isDead=true)
-    // or server-confirmed boss fight defeats call recordDeath.
-    // The survival sim mock returns no survival payload, so no death
-    // is recorded in combat_stats from this local-only test.
-    expect(useCombatStatsStore.getState().totalDeaths).toBe(0);
-    // Ticker should be stopped (interval cleared, running=false).
-    expect(useIdleTickerStore.getState().running).toBe(false);
-  });
-
-  it('ticker is a no-op when already dead', async () => {
-    useSurvivalStore.setState({ isDead: true, currentHp: 0 });
-    const beforeEvents = useTickFeedStore.getState().events.length;
-    await useIdleTickerStore.getState().tickNow();
-    const afterEvents = useTickFeedStore.getState().events.length;
-    expect(afterEvents).toBe(beforeEvents);
+    // The ticker only runs for roaming_loot; other activities are no-ops.
+    expect(useSurvivalStore.getState().currentHp).toBe(before);
+    expect(mockSubmitClaim).not.toHaveBeenCalled();
   });
 
   it('mountIdleTicker starts the interval and stops on unmount', () => {
