@@ -10,8 +10,6 @@ import { useFilterSort } from '@/lib/hooks/useFilterSort';
 import type { ConsumableDef } from '@/types/consumables';
 import { chipClip } from '@/lib/ui/clips';
 
-type SortKey = 'price' | 'owned' | 'name';
-
 export const VendorScreen: React.FC = () => {
   const player = usePlayerStore();
   const [notice, setNotice] = React.useState<string | null>(null);
