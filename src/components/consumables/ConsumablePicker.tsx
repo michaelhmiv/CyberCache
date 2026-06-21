@@ -341,9 +341,6 @@ export const ConsumablePicker: React.FC<ConsumablePickerProps> = ({
                 .map((def) => {
                   const familyTone = FAMILY_COLORS[def.family];
                   const owned = player.getConsumableCount(def.id);
-                  const matchesBoss =
-                    bossContext &&
-                    def.counterTags.some((t) => bossContext.missingCounters.includes(t));
                   return (
                     <button
                       key={def.id}

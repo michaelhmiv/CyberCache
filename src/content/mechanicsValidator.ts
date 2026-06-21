@@ -1,5 +1,5 @@
 import { REGION_1_BOSSES } from '../constants/bosses';
-import { CONSUMABLES, CONSUMABLE_SLOTS } from '../constants/consumables';
+import { CONSUMABLES } from '../constants/consumables';
 import { CRAFTING_RECIPES } from '../constants/craftingRecipes';
 import { LEGENDARY_EFFECTS } from '../constants/legendaryEffects';
 import { ROAMING_AREAS, DEFAULT_ROAMING_AREA_ID } from '../constants/roamingAreas';

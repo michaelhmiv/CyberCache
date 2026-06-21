@@ -40,15 +40,6 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
   const [inspecting, setInspecting] = useState<ConsumableDef | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const ownedConsumables = useMemo(() => {
-    return Object.values(CONSUMABLES)
-      .filter((def) => (player.consumables[def.id] ?? 0) > 0)
-      .sort((a, b) => {
-        if (a.family !== b.family) return a.family.localeCompare(b.family);
-        return a.name.localeCompare(b.name);
-      });
-  }, [player.consumables]);
-
   const totalOwned = useMemo(
     () => Object.values(player.consumables).reduce((sum, n) => sum + (n || 0), 0),
     [player.consumables],

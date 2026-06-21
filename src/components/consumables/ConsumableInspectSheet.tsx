@@ -7,9 +7,6 @@ import { usePlayerStore } from '@/store';
 import { getConsumableMechanicKind, resolveConsumableDuration } from '@/lib/buffs/activeBuffs';
 import { formatRuntimeValue, labelizeRuntimeKey } from '@/lib/consumables/formatRuntime';
 
-// Re-export formatRuntime helpers for backward-compatible imports.
-export { formatRuntimeValue, labelizeRuntimeKey };
-
 const FAMILY_COLORS: Record<ConsumableFamily, string> = {
   survival: 'text-green',
   ammo: 'text-red',
