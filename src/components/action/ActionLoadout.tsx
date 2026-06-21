@@ -16,6 +16,7 @@ import { useLoadoutStore, usePlayerStore, useInventoryStore } from '@/store';
 import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
+import { SwapUndoToast } from '@/components/action/SwapUndoToast';
 import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
 import { formatRpcError } from '@/lib/supabase/rpcError';
@@ -179,6 +180,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickerSlot, setPickerSlot] = useState<LoadoutSlot | null>(null);
+  const [undo, setUndo] = useState<{ slot: LoadoutSlot; previousId: string | null; name: string } | null>(null);
 
   const toggle = useCallback(() => {
     setCollapsed((prev) => {
@@ -192,20 +194,27 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
     if (!pickerSlot) return;
     setBusy(true);
     setError(null);
+    setUndo(null);
+    const previousId = loadout.slots[pickerSlot] ?? null;
+    const item = inventory.items.find((i) => i.id === itemId);
     try {
       await verifiedOps.equipItem(itemId, pickerSlot);
       setPickerSlot(null);
+      if (item) {
+        setUndo({ slot: pickerSlot, previousId, name: item.name });
+      }
     } catch (err) {
       setError(formatRpcError(err));
     } finally {
       setBusy(false);
     }
-  }, [pickerSlot, setPickerSlot]);
+  }, [pickerSlot, inventory.items, loadout.slots, setUndo, setPickerSlot, setBusy, setError]);
 
   const onUnequip = useCallback(async () => {
     if (!pickerSlot) return;
     setBusy(true);
     setError(null);
+    setUndo(null);
     try {
       await verifiedOps.unequipSlot(pickerSlot);
       setPickerSlot(null);
@@ -214,7 +223,25 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
     } finally {
       setBusy(false);
     }
-  }, [pickerSlot, setPickerSlot]);
+  }, [pickerSlot, setBusy, setError, setUndo, setPickerSlot]);
+
+  const handleUndo = useCallback(async () => {
+    if (!undo) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (undo.previousId) {
+        await verifiedOps.equipItem(undo.previousId, undo.slot);
+      } else {
+        await verifiedOps.unequipSlot(undo.slot);
+      }
+      setUndo(null);
+    } catch (err) {
+      setError(formatRpcError(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [undo, setBusy, setError, setUndo]);
 
   const currentItemId = pickerSlot ? loadout.slots[pickerSlot] : null;
 
@@ -335,6 +362,15 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
       {error && (
         <div className="mt-2 rounded-xl border border-red/30 bg-red/10 p-2 text-xs text-red-light">{error}</div>
       )}
+
+      {/* Swap undo toast */}
+      <SwapUndoToast
+        visible={!!undo}
+        itemName={undo?.name ?? ''}
+        previousName={undo?.previousId ? inventory.items.find((i) => i.id === undo.previousId)?.name ?? null : null}
+        onUndo={handleUndo}
+        onDismiss={() => setUndo(null)}
+      />
     </section>
   );
 };
