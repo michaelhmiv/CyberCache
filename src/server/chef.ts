@@ -526,11 +526,33 @@ export function processRoamingClaim(
           const dmg = computePlayerDamageVsMonster({ effectiveDps: tickEffectiveDps }, monster);
           kcTargetHp -= dmg;
 
+          // Feed event: hunter damaged the enemy
+          if (dmg > 0) {
+            feedEvents.push({
+              at: now - (ticks - 1 - tickIdx) * TICK_MS,
+              tone: 'hit',
+              label: `-${dmg} HP`,
+              detail: `Hit ${monster.name} for ${dmg} HP.`,
+              areaId,
+              value: dmg,
+            });
+          }
+
           if (kcTargetHp <= 0) {
             // Kill! Advance the cycle
             kcMonstersKilled += 1;
             kcTotalKills += 1;
             kcLastKilledId = kcTargetId;
+
+            // Feed event: hunter killed the enemy
+            feedEvents.push({
+              at: now - (ticks - 1 - tickIdx) * TICK_MS,
+              tone: 'kill',
+              label: `Killed ${monster.name}`,
+              detail: `${monster.name} eliminated in ${area.name}.`,
+              areaId,
+              value: 0,
+            });
 
             const next = pickNextTarget(roster, kcLastKilledId);
             if (next) {
@@ -567,6 +589,20 @@ export function processRoamingClaim(
         };
         const hit = computeMonsterDamageVsHunter(modifiedAttacker, hunter);
         if (!hit.missed) {
+          // Feed event: monster damaged the hunter
+          if (hit.hpDamage > 0 || hit.shieldAbsorbed > 0) {
+            const damageLabel = hit.shieldAbsorbed > 0
+              ? `-${hit.shieldAbsorbed} shield${hit.hpDamage > 0 ? ` · -${hit.hpDamage} HP` : ''}`
+              : `-${hit.hpDamage} HP`;
+            feedEvents.push({
+              at: now - (ticks - 1 - tickIdx) * TICK_MS,
+              tone: 'damage',
+              label: damageLabel,
+              detail: `${modifiedAttacker.name} hit you for ${hit.hpDamage} HP${hit.shieldAbsorbed > 0 ? ` (${hit.shieldAbsorbed} absorbed by shield)` : ''}.`,
+              areaId,
+              value: hit.hpDamage,
+            });
+          }
           survShield = Math.max(0, survShield - hit.shieldAbsorbed);
 
           // Med Kit buffer absorbs damage after shield, before HP
@@ -587,6 +623,15 @@ export function processRoamingClaim(
           survHp = Math.max(0, survHp - remainingHpDamage);
           if (survHp <= 0) {
             survDead = true;
+            // Feed event: hunter died
+            feedEvents.push({
+              at: now - (ticks - 1 - tickIdx) * TICK_MS,
+              tone: 'death',
+              label: 'Hunter Down',
+              detail: `Killed by ${modifiedAttacker.name} in ${area.name}.`,
+              areaId,
+              value: 0,
+            });
           }
         }
       }

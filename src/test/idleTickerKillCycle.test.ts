@@ -1,3 +1,20 @@
+/**
+ * idleTickerSlice — kill cycle wiring (server-authoritative).
+ *
+ * CONTRACT:
+ *   The idle ticker performs NO local kill-cycle simulation. It sends the
+ *   current kill cycle state to the Chef in the claim request and applies
+ *   whatever kill cycle state the server returns via `applyServerRewards`
+ *   → `useKillCycleStore.syncFromServer`.
+ *
+ *   - When the server response omits `killCycle`, the store is unchanged.
+ *   - When the server response includes `killCycle`, the store is replaced
+ *     wholesale with the server's values (no local deltas merged, no local
+ *     spawn/damage math).
+ *   - Kills are attributed from `rewards.killsRecorded` (the server's
+ *     tally), never from local "target reached 0 HP" detection.
+ *   - `applyKillCycleTick` no longer exists.
+ */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useIdleTickerStore, unmountIdleTicker } from '@/store/slices/idleTickerSlice';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
@@ -7,120 +24,190 @@ import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { useCombatStatsStore } from '@/store/slices/combatStatsSlice';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
-import { getMonster } from '@/constants/monsters';
+import type { ChefClaimResult } from '@/lib/chef/chefClient';
+
+const { mockSubmitClaim } = vi.hoisted(() => ({ mockSubmitClaim: vi.fn() }));
+
+vi.mock('@/lib/chef/chefClient', () => ({ submitClaim: mockSubmitClaim }));
 
 vi.mock('@/lib/supabase/verifiedOps', () => ({
-  verifiedOps: { claimRoamingRewards: vi.fn(async () => ({})) },
+  verifiedOps: {
+    claimRoamingRewards: vi.fn(async () => ({})),
+  },
 }));
+
+vi.mock('@/lib/supabase/verifiedStateSync', () => ({
+  syncVerifiedResult: vi.fn(),
+}));
+
 vi.mock('@/store/runtimeSupabaseSync', () => ({
   saveCurrentRuntimeStores: vi.fn(async () => undefined),
 }));
+
 vi.mock('@/store/combatStatsSupabaseSync', () => ({
   saveCombatStats: vi.fn(async () => undefined),
 }));
 
 const enterRoamingArea = (areaId: string) => {
-  useActivityStore.getState().setCurrent({
-    kind: 'roaming_loot',
-    targetId: areaId,
-    startedAt: Date.now(),
-  } as never);
+  useActivityStore.setState({
+    current: {
+      kind: 'roaming_loot',
+      bossPhase: 'prep',
+      targetType: 'roaming_area',
+      targetId: areaId,
+      targetLabel: areaId,
+      startedAt: null,
+      completesAt: null,
+      sceneKey: null,
+      notes: null,
+      activityPayload: {},
+      publicPayload: {},
+      lastHeartbeatAt: null,
+      publicVisible: true,
+      schemaVersion: 1,
+      updatedAt: null,
+    } as never,
+  });
 };
+
+/** A minimal Chef claim result with no killCycle or survival payload. */
+const emptyClaimResult = (): ChefClaimResult => ({
+  actionType: 'roaming_claim',
+  profile: {},
+  rewards: {
+    ticks: 1,
+    creditsAwarded: 0,
+    scrapAwarded: 0,
+    xpAwarded: 0,
+    cacheFragmentsAwarded: 0,
+    materials: {},
+    essences: {},
+    killsRecorded: 0,
+  },
+  items: [],
+  feedEvents: [],
+});
 
 const resetStores = () => {
   useSurvivalStore.setState({
-    currentHp: 700, maxHp: 700, shieldHp: 0, isDead: false, lastKilledBy: null,
-    deathLog: [], resurrectionStartedAt: null, resurrectionReadyAt: null, autoEatThreshold: 0.7,
+    currentHp: 700,
+    maxHp: 700,
+    shieldHp: 0,
+    medKitBuffer: 0,
+    nanoSwarmTicksRemaining: 0,
+    adrenalineActive: false,
+    adrenalineExpiresAt: 0,
+    isDead: false,
+    lastKilledBy: null,
+    deathLog: [],
+    resurrectionStartedAt: null,
+    resurrectionReadyAt: null,
+    autoEatThreshold: 0.7,
   });
   useKillCycleStore.setState({
-    currentTargetId: null, currentTargetHp: 0, currentTargetHpMax: 0,
-    monstersKilledCount: 0, totalKills: 0, lastKilledMonsterId: null, targetSpawnedAt: null,
+    currentTargetId: null,
+    currentTargetHp: 0,
+    currentTargetHpMax: 0,
+    monstersKilledCount: 0,
+    totalKills: 0,
+    lastKilledMonsterId: null,
+    targetSpawnedAt: null,
   });
   useLoadoutStore.setState({
     slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
     consumables: { PreFight: null, MidFight: null, Emergency: null },
   });
-  usePlayerStore.setState({ level: 1, consumables: {}, xp: 0 });
+  usePlayerStore.setState({ id: 'player_1', level: 1, consumables: {}, xp: 0 });
   useCombatStatsStore.setState({
-    totalKills: 0, totalDeaths: 0, longestKillStreak: 0, currentKillStreak: 0,
-    lastKillAt: null, runStartedAt: null, killsByArea: {}, killsByWeaponType: {},
-    killsByBoss: {}, killsByElement: {}, highestBossTier: 0,
-    activePlaySeconds: 0, idlePlaySeconds: 0,
+    totalKills: 0,
+    totalDeaths: 0,
+    longestKillStreak: 0,
+    currentKillStreak: 0,
+    lastKillAt: null,
+    runStartedAt: null,
+    killsByArea: {},
+    killsByWeaponType: {},
+    killsByBoss: {},
+    killsByElement: {},
+    highestBossTier: 0,
+    activePlaySeconds: 0,
+    idlePlaySeconds: 0,
   });
   useTickFeedStore.setState({ events: [] });
-  unmountIdleTicker();
 };
 
-describe('idleTickerSlice — kill cycle wiring', () => {
-  beforeEach(resetStores);
+describe('idleTickerSlice — kill cycle wiring (server-authoritative)', () => {
+  beforeEach(() => {
+    mockSubmitClaim.mockReset();
+    resetStores();
+    unmountIdleTicker();
+  });
+
   afterEach(() => unmountIdleTicker());
 
-  it('spawns a target from the area roster on the first tick', async () => {
+  it('does not locally spawn or damage a target — store stays empty when the server omits killCycle', async () => {
+    mockSubmitClaim.mockResolvedValue(emptyClaimResult());
     enterRoamingArea('dustwaste_frontier');
-    expect(useKillCycleStore.getState().currentTargetId).toBeNull();
+
     await useIdleTickerStore.getState().tickNow();
-    const targetId = useKillCycleStore.getState().currentTargetId;
-    expect(targetId).not.toBeNull();
-    expect(targetId?.startsWith('dustwaste')).toBe(true);
+
+    // No killCycle field in the response → the store is untouched by
+    // applyServerRewards. The ticker never spawned a target locally.
+    const kc = useKillCycleStore.getState();
+    expect(kc.currentTargetId).toBeNull();
+    expect(kc.currentTargetHp).toBe(0);
+    expect(kc.currentTargetHpMax).toBe(0);
+    expect(kc.monstersKilledCount).toBe(0);
+    expect(kc.totalKills).toBe(0);
+    expect(kc.lastKilledMonsterId).toBeNull();
+    expect(mockSubmitClaim).toHaveBeenCalledTimes(1);
   });
 
-  it('spawns no target if effective DPS is 0 (no weapon)', async () => {
+  it('syncs kill cycle state from the server response when the killCycle field is present', async () => {
+    mockSubmitClaim.mockResolvedValue({
+      ...emptyClaimResult(),
+      killCycle: {
+        currentTargetId: 'dustwaste_raider',
+        currentTargetHp: 42,
+        currentTargetHpMax: 100,
+        monstersKilledCount: 3,
+        totalKills: 7,
+        lastKilledMonsterId: 'dustwaste_raider',
+      },
+    });
     enterRoamingArea('dustwaste_frontier');
-    // No weapon equipped → effectiveDps = 0.
+
     await useIdleTickerStore.getState().tickNow();
-    // The target IS spawned (spawn happens before DPS check), but
-    // no damage is applied. Confirm spawn happened.
-    expect(useKillCycleStore.getState().currentTargetId).not.toBeNull();
-    // And no damage was applied (HP == max).
-    expect(useKillCycleStore.getState().currentTargetHp).toBe(
-      useKillCycleStore.getState().currentTargetHpMax
-    );
+
+    // The store is replaced wholesale with the server's authoritative
+    // values via syncFromServer — no local spawn/damage math involved.
+    const kc = useKillCycleStore.getState();
+    expect(kc.currentTargetId).toBe('dustwaste_raider');
+    expect(kc.currentTargetHp).toBe(42);
+    expect(kc.currentTargetHpMax).toBe(100);
+    expect(kc.monstersKilledCount).toBe(3);
+    expect(kc.totalKills).toBe(7);
+    expect(kc.lastKilledMonsterId).toBe('dustwaste_raider');
   });
 
-  it('applies player damage to the target each tick', async () => {
+  it('attributes kills from server rewards.killsRecorded, with no local kill detection', async () => {
+    mockSubmitClaim.mockResolvedValue({
+      ...emptyClaimResult(),
+      rewards: {
+        ...emptyClaimResult().rewards,
+        killsRecorded: 3,
+      },
+    });
     enterRoamingArea('dustwaste_frontier');
-    await useIdleTickerStore.getState().tickNow();
-    const initial = useKillCycleStore.getState().currentTargetHp;
-    const max = useKillCycleStore.getState().currentTargetHpMax;
-    // Without a weapon, no damage. Equip a fake weapon with high DPS.
-    // Note: the loadout's getWeapon returns undefined for our test,
-    // so we can't easily inject a real weapon. Instead, check the
-    // contract: when DPS > 0, damage IS applied.
-    expect(initial).toBe(max);
-  });
-
-  it('resets the kill cycle when the area changes', async () => {
-    enterRoamingArea('dustwaste_frontier');
-    await useIdleTickerStore.getState().tickNow();
-    // Kill one to bump the counter.
-    useKillCycleStore.getState().killCurrentTarget();
-    useKillCycleStore.setState({ monstersKilledCount: 1, totalKills: 1 });
-    expect(useKillCycleStore.getState().monstersKilledCount).toBe(1);
-
-    // Switch area.
-    enterRoamingArea('redline_circuit');
-    await useIdleTickerStore.getState().tickNow();
-    // Per-area counter reset, lifetime preserved.
-    expect(useKillCycleStore.getState().monstersKilledCount).toBe(0);
-    expect(useKillCycleStore.getState().totalKills).toBe(1);
-    // New target from the new area.
-    const newTarget = useKillCycleStore.getState().currentTargetId;
-    expect(newTarget?.startsWith('redline')).toBe(true);
-  });
-
-  it('emits kill events to the feed when a monster dies', async () => {
-    enterRoamingArea('dustwaste_frontier');
-    // Manually spawn a target with very low HP so a single tick kills it.
-    const target = getMonster('dustwaste_raider');
-    if (!target) throw new Error('missing test monster');
-    useKillCycleStore.getState().spawnTarget(target);
-    useKillCycleStore.setState({ currentTargetHp: 1 }); // one hit from death
 
     await useIdleTickerStore.getState().tickNow();
-    // No DPS without a weapon — the 0-dps guard prevents damage.
-    // Confirm the no-dps path works: target is unchanged.
-    const after = useKillCycleStore.getState();
-    expect(after.currentTargetHp).toBe(1);
-    expect(after.currentTargetId).toBe('dustwaste_raider');
+
+    // Kills come exclusively from the server's tally, not from a local
+    // "target HP hit 0" detection.
+    expect(useCombatStatsStore.getState().totalKills).toBe(3);
+    expect(useCombatStatsStore.getState().killsByArea['dustwaste_frontier']).toBe(3);
+    // With no killCycle field in the response, the kill cycle store's own
+    // totalKills is unchanged — proving kills aren't double-attributed.
+    expect(useKillCycleStore.getState().totalKills).toBe(0);
   });
 });

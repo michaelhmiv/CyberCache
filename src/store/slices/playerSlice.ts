@@ -1,21 +1,25 @@
 import { create } from 'zustand';
 import { ConsumableBatch, PlayerProfile } from '../../types/player';
 import { WorkshopQueue } from '../../types/workshop';
-import { XP_CURVE_FORMULA } from '@/content/simulation';
 
 export interface PlayerState extends PlayerProfile {
   setPlayer: (partial: Partial<PlayerProfile>) => void;
-  /** Sync canonical values from the server. Merges pending local deltas on top. */
+  /** Sync canonical values from the server. Pure replace — no local deltas merged. */
   syncFromServer: (server: Partial<PlayerProfile>) => void;
-  addXP: (amount: number) => void;
-  addCredits: (amount: number) => void;
+  /** Remove credits (e.g. market purchase). Server confirms via RPC. */
   removeCredits: (amount: number) => void;
-  addScrap: (amount: number) => void;
+  /** Remove scrap (e.g. crafting). Server confirms via RPC. */
   removeScrap: (amount: number) => void;
-  addCacheKeys: (amount: number) => void;
   removeCacheKeys: (amount: number) => void;
-  addCacheKeyFragments: (amount: number) => void;
-  addConsumable: (type: string, count: number) => void;
+  /** Remove a material (e.g. crafting). Server confirms via RPC. */
+  removeMaterial: (type: string, count: number) => void;
+  /** Add a material (local only — workshop refunds). Server confirms via RPC. */
+  addMaterial: (type: string, count: number) => void;
+  /** Remove an essence (e.g. crafting). Server confirms via RPC. */
+  removeEssence: (type: string, count: number) => void;
+  /** Add an essence (local only — workshop refunds). Server confirms via RPC. */
+  addEssence: (type: string, count: number) => void;
+  /** Remove a consumable (e.g. boss prep). Server confirms via RPC. */
   removeConsumable: (type: string, count: number) => void;
   getConsumableCount: (type: string) => number;
   setConsumableBatches: (batches: ConsumableBatch[]) => void;
@@ -23,14 +27,8 @@ export interface PlayerState extends PlayerProfile {
   consumeBestConsumableBatch: (type: string, count: number) => void;
   getBestConsumableQuality: (type: string) => number;
   getConsumableBatchesByType: (type: string) => ConsumableBatch[];
-  addMaterial: (type: string, count: number) => void;
-  removeMaterial: (type: string, count: number) => void;
-  addEssence: (type: string, count: number) => void;
-  removeEssence: (type: string, count: number) => void;
   setWorkshopQueues: (queues: WorkshopQueue[]) => void;
   setLastWorkshopTick: (timestamp: number) => void;
-  /** Pending local deltas not yet confirmed by the server. */
-  _pending: { xp: number; credits: number; scrap: number; materials: Record<string, number>; essences: Record<string, number> };
 }
 
 const initialPlayerState = (): PlayerProfile => ({
@@ -66,63 +64,38 @@ function normalizeBatch(raw: ConsumableBatch): ConsumableBatch {
 
 export const usePlayerStore = create<PlayerState>()((set, get) => ({
   ...initialPlayerState(),
-  _pending: { xp: 0, credits: 0, scrap: 0, materials: {}, essences: {} },
 
-  /** Apply server-canonical values, then add pending local deltas on top. */
+  /**
+   * Apply server-canonical values. Pure replace — no local deltas,
+   * no optimistic merge. The values shown in the UI are exactly what
+   * the server returned.
+   */
   syncFromServer: (server) => set((state) => {
-    const p = state._pending;
-    let xp = (typeof server.xp === 'number' ? server.xp : state.xp) + p.xp;
-    let level = typeof server.level === 'number' ? server.level : state.level;
-    while (xp >= XP_CURVE_FORMULA(level)) { xp -= XP_CURVE_FORMULA(level); level += 1; }
-    const credits = (typeof server.credits === 'number' ? server.credits : state.credits) + p.credits;
-    const scrap = (typeof server.scrap === 'number' ? server.scrap : state.scrap) + p.scrap;
-    const serverMats = (server.materials && typeof server.materials === 'object' ? server.materials : {}) as Record<string, number>;
-    const serverEss = (server.essences && typeof server.essences === 'object' ? server.essences : {}) as Record<string, number>;
-    const materials: Record<string, number> = { ...serverMats };
-    for (const [k, v] of Object.entries(p.materials)) materials[k] = (materials[k] || 0) + v;
-    const essences: Record<string, number> = { ...serverEss };
-    for (const [k, v] of Object.entries(p.essences)) essences[k] = (essences[k] || 0) + v;
     const consumableBatches = Array.isArray(server.consumableBatches)
       ? server.consumableBatches.map(normalizeBatch).filter((batch) => batch.quantity > 0)
       : state.consumableBatches;
-    return { ...state, ...server, xp, level, credits, scrap, materials, essences, consumableBatches, _pending: { xp: 0, credits: 0, scrap: 0, materials: {}, essences: {} } };
+    return { ...state, ...server, consumableBatches };
   }),
 
   setPlayer: (partial) => set((state) => ({ ...state, ...partial })),
 
-  addXP: (amount) => {
-    set((s) => ({ _pending: { ...s._pending, xp: s._pending.xp + amount }, xp: s.xp + amount }));
-    const state = get();
-    let newXP = state.xp;
-    let newLevel = state.level;
-    while (newXP >= XP_CURVE_FORMULA(newLevel)) {
-      newXP -= XP_CURVE_FORMULA(newLevel);
-      newLevel += 1;
-    }
-    if (newLevel !== state.level) set({ xp: newXP, level: newLevel });
-  },
-  addCredits: (amount) => set((s) => ({ _pending: { ...s._pending, credits: s._pending.credits + amount }, credits: s.credits + amount })),
+  // Credits — only the server adds credits via syncFromServer.
+  // removeCredits is for optimistic UI on market purchases (server confirms).
   removeCredits: (amount) => set((s) => ({ credits: Math.max(0, s.credits - amount) })),
-  addScrap: (amount) => set((s) => ({ _pending: { ...s._pending, scrap: s._pending.scrap + amount }, scrap: s.scrap + amount })),
+
   removeScrap: (amount) => set((s) => ({ scrap: Math.max(0, s.scrap - amount) })),
-  addCacheKeys: (amount) => set((s) => ({ cacheKeys: s.cacheKeys + amount })),
   removeCacheKeys: (amount) => set((s) => ({ cacheKeys: Math.max(0, s.cacheKeys - amount) })),
-  addCacheKeyFragments: (_amount) => {
-    // Cache keys/fragments are enforced by the verified `profiles.cache_tokens` fields.
-    // Frontend-only fragment minting creates phantom keys that `cc_make_item` correctly rejects.
-  },
-  addConsumable: (type, count) =>
-    set((s) => ({
-      consumables: { ...s.consumables, [type]: (s.consumables[type] || 0) + count },
-    })),
+
   removeConsumable: (type, count) =>
     set((s) => ({
       consumables: { ...s.consumables, [type]: Math.max(0, (s.consumables[type] || 0) - count) },
     })),
+
   getConsumableCount: (type) => {
     const s = get();
     return s.consumables[type] || 0;
   },
+
   setConsumableBatches: (batches) => set({ consumableBatches: batches.map(normalizeBatch).filter((batch) => batch.quantity > 0) }),
   addConsumableBatch: (batch) => set((s) => {
     const normalized = normalizeBatch(batch);
@@ -160,24 +133,25 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   getConsumableBatchesByType: (type) => get().consumableBatches
     .filter((batch) => batch.consumable_type === type && batch.quantity > 0)
     .sort((a, b) => b.quality_percent - a.quality_percent || String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))),
-  addMaterial: (type, count) =>
-    set((s) => ({
-      _pending: { ...s._pending, materials: { ...s._pending.materials, [type]: (s._pending.materials[type] || 0) + count } },
-      materials: { ...s.materials, [type]: (s.materials[type] || 0) + count },
-    })),
+
   removeMaterial: (type, count) =>
     set((s) => ({
       materials: { ...s.materials, [type]: Math.max(0, (s.materials[type] || 0) - count) },
     })),
-  addEssence: (type, count) =>
+  addMaterial: (type, count) =>
     set((s) => ({
-      _pending: { ...s._pending, essences: { ...s._pending.essences, [type]: (s._pending.essences[type] || 0) + count } },
-      essences: { ...s.essences, [type]: (s.essences[type] || 0) + count },
+      materials: { ...s.materials, [type]: (s.materials[type] || 0) + count },
     })),
+
   removeEssence: (type, count) =>
     set((s) => ({
       essences: { ...s.essences, [type]: Math.max(0, (s.essences[type] || 0) - count) },
     })),
+  addEssence: (type, count) =>
+    set((s) => ({
+      essences: { ...s.essences, [type]: (s.essences[type] || 0) + count },
+    })),
+
   setWorkshopQueues: (queues) => set({ workshopQueues: queues }),
   setLastWorkshopTick: (timestamp) => set({ lastWorkshopTick: timestamp }),
 }));
