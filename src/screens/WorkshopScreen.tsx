@@ -1,16 +1,25 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, ChevronDown, Search, X } from 'lucide-react';
+import { Clock, ChevronDown, Search, X, ArrowUpDown } from 'lucide-react';
 import { useActivityStore, usePlayerStore, useWorkshopStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { ChipRail } from '@/components/common/ChipRail';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
 import { buildCraftingActivity } from '@/lib/activity/activityBuilders';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
-import type { WorkshopQueue } from '@/types/workshop';
+import { useFilterSort } from '@/lib/hooks/useFilterSort';
+import { chipClip } from '@/lib/ui/clips';
+import type { WorkshopQueue, CraftingRecipe } from '@/types/workshop';
 
 const MAX_BENCHES = 3;
+
+const CATEGORIES: Array<{ key: CraftingRecipe['category']; label: string }> = [
+  { key: 'survival', label: 'Survival' },
+  { key: 'offense', label: 'Offense' },
+  { key: 'utility', label: 'Utility' },
+];
 
 function findAvailableBench(activeQueues: WorkshopQueue[], unlockedCount: number): number | null {
   const usedBenchIds = new Set(activeQueues.map((q) => q.benchId));
@@ -63,39 +72,51 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const workshop = useWorkshopStore();
   const skillBonuses = useSkillStore().getBonuses();
   const activity = useActivityStore();
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'survival' | 'offense' | 'utility'>('all');
   const [expandedMaterials, setExpandedMaterials] = useState(false);
   const [justCrafted, setJustCrafted] = useState<string | null>(null);
   const [expandedQueue, setExpandedQueue] = useState<string | null>(null);
   const [activityError, setActivityError] = useState<string | null>(null);
   const [claimingQueueId, setClaimingQueueId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'time' | 'level' | 'name'>('level');
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const filteredRecipes = useMemo(() => {
-    let result = selectedCategory === 'all' 
-      ? CRAFTING_RECIPES 
-      : CRAFTING_RECIPES.filter((r) => r.category === selectedCategory);
-    
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
-      result = result.filter((r) => r.name.toLowerCase().includes(q));
-    }
-    
-    result = [...result].sort((a, b) => {
-      if (sortBy === 'time') return a.craftTimeMs - b.craftTimeMs;
-      if (sortBy === 'level') return (a.requiresLevel ?? 0) - (b.requiresLevel ?? 0);
-      return a.name.localeCompare(b.name);
-    });
-    
-    return result;
-  }, [selectedCategory, search, sortBy]);
+  const sortOptions = useMemo(
+    () => [
+      { key: 'level', label: 'Level ↑', compare: (a, b) => (a.requiresLevel ?? 0) - (b.requiresLevel ?? 0) },
+      { key: 'time', label: 'Time ↑', compare: (a, b) => a.craftTimeMs - b.craftTimeMs },
+      { key: 'name', label: 'Name A-Z', compare: (a, b) => a.name.localeCompare(b.name) },
+    ],
+    [],
+  );
+
+  const {
+    filtered: filteredRecipes,
+    search,
+    setSearch,
+    activeFacets,
+    toggleFacet,
+    clearFacets,
+    sortKey,
+    setSortKey,
+    hasActiveFilters,
+  } = useFilterSort({
+    items: CRAFTING_RECIPES,
+    searchFields: [(r) => r.name],
+    facets: [
+      {
+        key: 'category',
+        label: 'Category',
+        values: () => CATEGORIES.map((c) => c.key),
+        matches: (item, value) => item.category === value,
+      },
+    ],
+    sorts: sortOptions,
+    defaultSortKey: 'level',
+  });
 
   const hasMaterials =
     Object.values(player.materials).some((count) => count > 0) ||
@@ -210,6 +231,8 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
     : workshop.activeQueues.length > 0
       ? `${workshop.activeQueues.length} passive bench queue${workshop.activeQueues.length === 1 ? '' : 's'} running`
       : 'No active character workshop task';
+
+  const activeCategories = activeFacets.category ?? new Set<string>();
 
   return (
     <div className="bl-page p-4 space-y-4 pb-20">
@@ -334,13 +357,26 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-4 gap-2">
-        {(['all', 'survival', 'offense', 'utility'] as const).map((cat) => (
-          <motion.button key={cat} whileTap={{ scale: 0.95 }} onClick={() => setSelectedCategory(cat)} className={`py-2 rounded-xl text-[10px] font-bold transition-colors ${selectedCategory === cat ? 'bl-primary' : 'bl-secondary text-text-secondary hover:bg-surface hover:text-text-primary'}`}>
-            {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-          </motion.button>
-        ))}
-      </div>
+      <ChipRail>
+        {CATEGORIES.map(({ key, label }) => {
+          const active = activeCategories.has(key);
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => toggleFacet('category', key)}
+              className={`shrink-0 py-2 px-3 text-[10px] font-black border transition-colors ${
+                active
+                  ? 'bl-primary border-transparent'
+                  : 'bl-secondary text-text-secondary border-border bg-surface hover:bg-surface hover:text-text-primary'
+              }`}
+              style={chipClip}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </ChipRail>
 
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -357,21 +393,29 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
             </button>
           )}
         </div>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as 'time' | 'level' | 'name')}
-          className="shrink-0 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
-        >
-          <option value="level">Sort: Level ↑</option>
-          <option value="time">Sort: Time ↑</option>
-          <option value="name">Sort: Name A-Z</option>
-        </select>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <ArrowUpDown size={11} className="text-text-muted" />
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value)}
+            className="shrink-0 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+          >
+            {sortOptions.map((opt) => (
+              <option key={opt.key} value={opt.key}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        {hasActiveFilters && (
+          <button type="button" onClick={clearFacets} className="text-[10px] font-black text-red hover:text-red/80 shrink-0">
+            Clear
+          </button>
+        )}
       </div>
 
       <div className="space-y-2">
         {filteredRecipes.length === 0 ? (
           <div className="text-center py-8 text-text-muted text-xs">
-            {search ? 'No recipes match your search.' : 'No recipes in this category.'}
+            {hasActiveFilters ? 'No recipes match your search or filter.' : 'No recipes in this category.'}
           </div>
         ) : (
           filteredRecipes.map((recipe) => {
@@ -419,7 +463,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                     return <span key={key} className={`${hasEnough ? colorClass : 'text-red-400 line-through'} flex items-center gap-0.5`}>{icon}<span>{available}/{required}</span></span>;
                   })}
                 </div>
-                <motion.button whileTap={canCraftNow ? { scale: 0.95 } : {}} onClick={() => { if (canCraftNow) void handleCraft(recipe.id); }} disabled={!canCraftNow} className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${canCraftNow ? `bg-amber text-bg active:bg-amber/80 cursor-pointer ${justClicked ? 'ring-2 ring-amber/50' : ''}` : 'bg-surface-raised text-text-muted border border-border cursor-not-allowed'}`}>
+                <motion.button whileTap={canCraftNow ? { scale: 0.95 } : {}} onClick={() => { if (canCraftNow) void handleCraft(recipe.id); }} disabled={!canCraftNow} className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${canCraftNow ? `bg-amber text-bg active:bg-amber/80 cursor-pointer ${justClicked ? 'ring-2 ring-amber/80' : ''}` : 'bg-surface-raised text-text-muted border border-border cursor-not-allowed'}`}>
                   {canCraftNow ? justClicked ? '✓ Dispatched!' : 'CRAFT' : disabledReason}
                 </motion.button>
               </MobileCard>

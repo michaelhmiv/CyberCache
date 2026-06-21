@@ -1,35 +1,55 @@
-import React, { useState, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Search, X, ArrowUpDown } from 'lucide-react';
 import { usePlayerStore } from '@/store';
-import { VENDOR_CONSUMABLES, type ConsumableFamily } from '@/constants/consumables';
+import { VENDOR_CONSUMABLES } from '@/constants/consumables';
+import { FAMILY_COLORS, FAMILY_LABELS } from '@/lib/consumables/families';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { ChipRail } from '@/components/common/ChipRail';
 import { verifiedOps } from '@/lib/supabase/verifiedOps';
-
-const FAMILY_COLORS: Record<ConsumableFamily, string> = {
-  survival: 'text-green',
-  ammo: 'text-red',
-  ordnance: 'text-orange',
-  tactical: 'text-cyan',
-  economy: 'text-amber',
-  corrupted: 'text-purple',
-};
-
-const FAMILY_LABELS: Record<ConsumableFamily, string> = {
-  survival: 'Survival',
-  ammo: 'Ammunition',
-  ordnance: 'Ordnance',
-  tactical: 'Tactical',
-  economy: 'Economy',
-  corrupted: 'Corrupted',
-};
+import { useFilterSort } from '@/lib/hooks/useFilterSort';
+import type { ConsumableDef } from '@/types/consumables';
+import { chipClip } from '@/lib/ui/clips';
 
 export const VendorScreen: React.FC = () => {
   const player = usePlayerStore();
-  const [notice, setNotice] = useState<string | null>(null);
-  const [buyingId, setBuyingId] = useState<string | null>(null);
-  const [filterFamily, setFilterFamily] = useState<string>('all');
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'price' | 'owned' | 'name'>('price');
+  const [notice, setNotice] = React.useState<string | null>(null);
+  const [buyingId, setBuyingId] = React.useState<string | null>(null);
+
+  const familyCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    VENDOR_CONSUMABLES.forEach((c) => {
+      counts[c.family] = (counts[c.family] || 0) + 1;
+    });
+    return counts;
+  }, []);
+
+  const sortOptions = useMemo(
+    () => [
+      { key: 'price', label: 'Cheapest First', compare: (a: ConsumableDef, b: ConsumableDef) => a.basePrice - b.basePrice },
+      {
+        key: 'owned',
+        label: 'Most Owned',
+        compare: (a: ConsumableDef, b: ConsumableDef) => player.getConsumableCount(b.id) - player.getConsumableCount(a.id),
+      },
+      { key: 'name', label: 'Name A-Z', compare: (a: ConsumableDef, b: ConsumableDef) => a.name.localeCompare(b.name) },
+    ],
+    [player],
+  );
+
+  const { filtered, search, setSearch, activeFacets, toggleFacet, clearFacets, sortKey, setSortKey, hasActiveFilters } = useFilterSort({
+    items: VENDOR_CONSUMABLES,
+    searchFields: [(c) => c.name, (c) => c.shortDescription, (c) => c.tacticalRole],
+    facets: [
+      {
+        key: 'family',
+        label: 'Family',
+        values: () => Object.keys(FAMILY_LABELS).filter((family) => (familyCounts[family] ?? 0) > 0),
+        matches: (item, value) => item.family === value,
+      },
+    ],
+    sorts: sortOptions,
+    defaultSortKey: 'price',
+  });
 
   const handleBuy = async (type: string, price: number, name: string) => {
     if (player.credits < price) {
@@ -48,42 +68,7 @@ export const VendorScreen: React.FC = () => {
     }
   };
 
-  const familyCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    VENDOR_CONSUMABLES.forEach(c => {
-      counts[c.family] = (counts[c.family] || 0) + 1;
-    });
-    return counts;
-  }, []);
-
-  const displayItems = useMemo(() => {
-    let result = [...VENDOR_CONSUMABLES];
-
-    if (filterFamily !== 'all') {
-      result = result.filter(c => c.family === filterFamily);
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
-      result = result.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        c.shortDescription.toLowerCase().includes(q) ||
-        c.tacticalRole.toLowerCase().includes(q)
-      );
-    }
-
-    result.sort((a, b) => {
-      if (sortBy === 'price') return a.basePrice - b.basePrice;
-      if (sortBy === 'owned') {
-        const aOwned = player.getConsumableCount(a.id);
-        const bOwned = player.getConsumableCount(b.id);
-        return bOwned - aOwned;
-      }
-      return a.name.localeCompare(b.name);
-    });
-
-    return result;
-  }, [filterFamily, search, sortBy, player]);
+  const activeFamilies = activeFacets.family ?? new Set<string>();
 
   return (
     <div className="bl-page p-4 space-y-4 pb-20">
@@ -98,35 +83,27 @@ export const VendorScreen: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-        <button
-          type="button"
-          onClick={() => setFilterFamily('all')}
-          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black transition-colors ${
-            filterFamily === 'all' ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
-          }`}
-        >
-          All ({VENDOR_CONSUMABLES.length})
-        </button>
-        {(Object.keys(FAMILY_LABELS) as ConsumableFamily[]).map((family) => {
-          const count = familyCounts[family] || 0;
-          if (count === 0) return null;
-          const familyColor = FAMILY_COLORS[family];
-          const active = filterFamily === family;
-          return (
-            <button
-              key={family}
-              type="button"
-              onClick={() => setFilterFamily(family)}
-              className={`shrink-0 flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black transition-colors ${
-                active ? 'border-amber bg-amber/15' : 'border-border bg-surface opacity-70'
-              } ${familyColor}`}
-            >
-              <span>{FAMILY_LABELS[family]} ({count})</span>
-            </button>
-          );
-        })}
-      </div>
+      <ChipRail>
+        {(Object.keys(FAMILY_LABELS) as Array<keyof typeof FAMILY_LABELS>)
+          .filter((family) => (familyCounts[family] ?? 0) > 0)
+          .map((family) => {
+            const label = `${FAMILY_LABELS[family]} (${familyCounts[family]})`;
+            const active = activeFamilies.has(family);
+            return (
+              <button
+                key={family}
+                type="button"
+                onClick={() => toggleFacet('family', family)}
+                className={`shrink-0 flex items-center gap-1 px-2.5 py-1 text-[10px] font-black border transition-colors ${
+                  active ? 'border-amber bg-amber/15' : 'border-border bg-surface opacity-70 hover:opacity-100'
+                } ${FAMILY_COLORS[family]}`}
+                style={chipClip}
+              >
+                {label}
+              </button>
+            );
+          })}
+      </ChipRail>
 
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -143,25 +120,33 @@ export const VendorScreen: React.FC = () => {
             </button>
           )}
         </div>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as 'price' | 'owned' | 'name')}
-          className="shrink-0 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
-        >
-          <option value="price">Cheapest First</option>
-          <option value="owned">Most Owned</option>
-          <option value="name">Name A-Z</option>
-        </select>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <ArrowUpDown size={11} className="text-text-muted" />
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value)}
+            className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+          >
+            {sortOptions.map((opt) => (
+              <option key={opt.key} value={opt.key}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        {hasActiveFilters && (
+          <button type="button" onClick={clearFacets} className="text-[10px] font-black text-red hover:text-red/80 shrink-0">
+            Clear
+          </button>
+        )}
       </div>
 
       {notice && <div className="text-xs text-text-secondary">{notice}</div>}
 
       <div className="space-y-2">
-        {displayItems.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="py-8 text-center text-xs text-text-muted">
-            {search || filterFamily !== 'all' ? 'No vendor items match your search or filter.' : 'No vendor items available.'}
+            {hasActiveFilters ? 'No vendor items match your search or filter.' : 'No vendor items available.'}
           </div>
-        ) : displayItems.map((c) => {
+        ) : filtered.map((c) => {
           const owned = player.getConsumableCount(c.id);
           const buying = buyingId === c.id;
           return (

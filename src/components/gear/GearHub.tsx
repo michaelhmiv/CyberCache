@@ -23,6 +23,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
+import { SwapUndoToast } from '@/components/action/SwapUndoToast';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useLoadoutStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
@@ -329,6 +330,9 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   // Inspect
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
 
+  // Swap undo
+  const [undo, setUndo] = useState<{ slot: LoadoutSlot; previousId: string | null; name: string } | null>(null);
+
   const equippedIds = useMemo(
     () => new Set(Object.values(loadout.slots).filter(Boolean) as string[]),
     [loadout.slots],
@@ -467,21 +471,50 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
 
   const equip = async (item: GearItem) => {
     setBusyEquip(true);
+    setUndo(null);
+    let slot: LoadoutSlot | null = null;
     try {
-      if (isShield(item)) { await verifiedOps.equipItem(item.id, 'shield'); setInspectItem(null); return; }
-      if (isClassMod(item)) { await verifiedOps.equipItem(item.id, 'classMod'); setInspectItem(null); return; }
-      if (isOrdnance(item)) { await verifiedOps.equipItem(item.id, 'ordnance'); setInspectItem(null); return; }
-      if (isRelic(item)) { await verifiedOps.equipItem(item.id, 'relic'); setInspectItem(null); return; }
-      const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
-      const firstEmpty = weaponSlots.find((slot) => !loadout.slots[slot]);
-      if (firstEmpty) {
-        await verifiedOps.equipItem(item.id, firstEmpty);
-      } else {
-        onNavigate?.('loadout');
+      if (isShield(item)) { slot = 'shield'; }
+      else if (isClassMod(item)) { slot = 'classMod'; }
+      else if (isOrdnance(item)) { slot = 'ordnance'; }
+      else if (isRelic(item)) { slot = 'relic'; }
+      else if (isWeapon(item)) {
+        const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
+        const firstEmpty = weaponSlots.find((s) => !loadout.slots[s]);
+        if (firstEmpty) {
+          slot = firstEmpty;
+        } else {
+          onNavigate?.('loadout');
+          setInspectItem(null);
+          return;
+        }
+      }
+
+      if (slot) {
+        const previousId = loadout.slots[slot] ?? null;
+        await verifiedOps.equipItem(item.id, slot);
+        setUndo({ slot, previousId, name: item.name });
       }
       setInspectItem(null);
     } catch (err) {
       console.warn('[GearHub] equip failed:', err instanceof Error ? err.message : err);
+    } finally {
+      setBusyEquip(false);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undo) return;
+    setBusyEquip(true);
+    try {
+      if (undo.previousId) {
+        await verifiedOps.equipItem(undo.previousId, undo.slot);
+      } else {
+        await verifiedOps.unequipSlot(undo.slot);
+      }
+      setUndo(null);
+    } catch (err) {
+      console.warn('[GearHub] undo failed:', err instanceof Error ? err.message : err);
     } finally {
       setBusyEquip(false);
     }
@@ -1065,6 +1098,15 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
             </button>
           </div>
         ) : undefined}
+      />
+
+      {/* Swap undo toast */}
+      <SwapUndoToast
+        visible={!!undo}
+        itemName={undo?.name ?? ''}
+        previousName={undo?.previousId ? inventory.getById(undo.previousId)?.name ?? null : null}
+        onUndo={handleUndo}
+        onDismiss={() => setUndo(null)}
       />
     </div>
   );
