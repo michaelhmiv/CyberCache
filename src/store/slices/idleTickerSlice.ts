@@ -262,6 +262,12 @@ const applySurvivalTick = (areaId: string, ticks: number): TickEvent[] => {
 
     // Death check — applies AFTER the damage event so the feed shows
     // the killing blow, then a death marker, in that order.
+    //
+    // NOTE: recordDeath is NOT called here. The local survival sim is
+    // cosmetic — the Chef simulates deaths server-side and returns
+    // authoritative survival state. Combat stats deaths are only
+    // recorded from server-confirmed events (boss fight RPC, or
+    // Chef-confirmed roaming death via applyServerRewards).
     if (useSurvivalStore.getState().currentHp === 0) {
       useSurvivalStore.getState().die({
         monsterId: monster.id,
@@ -269,7 +275,6 @@ const applySurvivalTick = (areaId: string, ticks: number): TickEvent[] => {
         areaId,
         at,
       });
-      useCombatStatsStore.getState().recordDeath({});
       events.push({
         id: '',
         at,
@@ -534,42 +539,66 @@ const applyBossFightTick = async (bossId: string): Promise<void> => {
     damageDealt: result.damageDealt,
   });
 
-  // 5. Resolve status.
-  if (result.status === 'victory') {
+  // 5. Resolve status — server-authoritative via cc_battle_result RPC.
+  // The local bossTick() simulates the fight for UI (HP bars, damage
+  // events), but boss progression (defeatedBossIds, pityCounters) is
+  // ONLY mutated by the server RPC response via syncVerifiedResult.
+  if (result.status === 'victory' || result.status === 'defeat') {
     events.push({
       id: '',
       at: tickAt,
-      tone: 'loot',
-      label: `${boss.name} defeated`,
-      detail: `${result.damageDealt.toLocaleString(undefined, { maximumFractionDigits: 0 })} damage dealt`,
+      tone: result.status === 'victory' ? 'loot' : 'damage',
+      label: result.status === 'victory' ? `${boss.name} defeated` : 'Hunter down',
+      detail: result.status === 'victory'
+        ? `${result.damageDealt.toLocaleString(undefined, { maximumFractionDigits: 0 })} damage dealt`
+        : `Killed by ${boss.name}`,
       areaId: 'boss_arena',
       value: 0,
     });
-    bossStore.endLiveFight('victory');
-    bossStore.defeatBoss(bossId);
-    bossStore.resetPity(bossId);
+    bossStore.endLiveFight(result.status);
+
+    // Call the server-authoritative battle result RPC. This updates
+    // boss_state (defeatedBossIds, pityCounters, unlockedBossIds) in the
+    // database and returns the authoritative profile + loot. The
+    // syncVerifiedResult call applies the server's boss_state to the
+    // local store, so we NEVER mutate boss progression locally.
+    try {
+      const stance = useBossStore.getState().selectedRisk ?? 'balanced';
+      const battleResult = await verifiedOps.battleResult(bossId, stance);
+      // syncVerifiedResult (called inside verifiedOps wrapper) applies
+      // profile, items, and boss_state from the server response.
+
+      // Only trigger the death overlay if the server confirmed a defeat.
+      // The local sim may say 'defeat' but the server is authoritative.
+      if (result.status === 'defeat') {
+        const serverDefeated = (battleResult as Record<string, unknown>).victory === false
+          || (battleResult as Record<string, unknown>).victory === undefined;
+        if (serverDefeated) {
+          survival.die({
+            monsterId: boss.id,
+            monsterName: boss.name,
+            areaId: 'boss_arena',
+            at: tickAt,
+          });
+          // Record death only on server-confirmed defeat.
+          useCombatStatsStore.getState().recordDeath({ bossId });
+          try {
+            const { saveCombatStats } = await import('@/store/combatStatsSupabaseSync');
+            await saveCombatStats(usePlayerStore.getState().id || '');
+          } catch (saveError) {
+            void saveError;
+          }
+        }
+      }
+    } catch (rpcError) {
+      // If the RPC fails, we still end the fight locally for UX,
+      // but we do NOT mutate boss progression — the server is the
+      // source of truth. The player can retry.
+      console.warn('[bossFight] cc_battle_result RPC failed:', rpcError);
+    }
+
     // Clear the live fight on the next microtask so any UI reading
-    // activeStatus='victory' has a frame to render the result.
-    queueMicrotask(() => bossStore.clearLiveFight());
-  } else if (result.status === 'defeat') {
-    events.push({
-      id: '',
-      at: tickAt,
-      tone: 'damage',
-      label: 'Hunter down',
-      detail: `Killed by ${boss.name}`,
-      areaId: 'boss_arena',
-      value: 0,
-    });
-    bossStore.endLiveFight('defeat');
-    bossStore.incrementPity(bossId);
-    // Trigger the PR 5 death overlay with this boss as the killer.
-    survival.die({
-      monsterId: boss.id,
-      monsterName: boss.name,
-      areaId: 'boss_arena',
-      at: tickAt,
-    });
+    // activeStatus='victory'/'defeat' has a frame to render the result.
     queueMicrotask(() => bossStore.clearLiveFight());
   }
 
@@ -626,6 +655,20 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
   }
   if (survival) {
     useSurvivalStore.getState().syncFromServer(survival);
+
+    // Record death only when the Chef (server) confirms the player died.
+    // This replaces the old pattern of recording deaths from the local
+    // survival simulation, which could inflate combat_stats with
+    // phantom deaths that the server never confirmed.
+    if (survival.isDead) {
+      useCombatStatsStore.getState().recordDeath({});
+      const playerId = usePlayerStore.getState().id;
+      if (playerId) {
+        import('@/store/combatStatsSupabaseSync')
+          .then(({ saveCombatStats }) => saveCombatStats(playerId))
+          .catch((e) => void e);
+      }
+    }
   }
 
   // Sync consumable state from Chef

@@ -49,6 +49,7 @@ import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterS
 import { pickNextTarget } from '../lib/combat/killCycleHelpers';
 import { computePlayerDamageVsMonster } from '../lib/combat/damageContract';
 import { computeMonsterDamageVsHunter, type HunterSurvivalStats } from '../lib/combat/damageContract';
+import { computeEffectiveDpsFromGear } from '../lib/combat/loadoutSurvival';
 import {
   activateFromInventory,
   processTick,
@@ -232,7 +233,33 @@ function bossAttemptId(playerId: string, bossId: string, nonce: number): string 
 export function processRoamingClaim(
   request: ClaimRequest,
 ): ClaimResult {
-  const { playerId, areaId, ticks: requestedTicks, tickCount, playerLevel, idleMods, skillBonuses, activityMods, equippedGear } = request;
+  const { playerId, areaId, ticks: requestedTicks, tickCount, playerLevel, equippedGear } = request;
+
+  // Server-authoritative idle mods: re-derive from equippedGear instead of
+  // trusting client-supplied idleMods. This prevents a buggy/malicious
+  // client from inflating credits/scrap by reporting higher modifiers
+  // than their gear actually provides.
+  const serverIdleMods = { offlineEarningsMod: 0, scrapYieldMod: 0, rareDropChanceMod: 0 };
+  for (const gear of equippedGear ?? []) {
+    if ('offlineEarningsMod' in gear) serverIdleMods.offlineEarningsMod += (gear.offlineEarningsMod ?? 0);
+    if ('scrapYieldMod' in gear) serverIdleMods.scrapYieldMod += (gear.scrapYieldMod ?? 0);
+    if ('rareDropChanceMod' in gear) serverIdleMods.rareDropChanceMod += (gear.rareDropChanceMod ?? 0);
+    if ('affixes' in gear && Array.isArray(gear.affixes)) {
+      for (const affix of gear.affixes as Array<{ stat?: string; value?: number }>) {
+        if (affix.stat === 'offlineEarningsMod') serverIdleMods.offlineEarningsMod += affix.value ?? 0;
+        if (affix.stat === 'scrapYieldMod') serverIdleMods.scrapYieldMod += affix.value ?? 0;
+        if (affix.stat === 'rareDropChanceMod') serverIdleMods.rareDropChanceMod += affix.value ?? 0;
+      }
+    }
+  }
+
+  // Skill bonuses are still client-supplied but the server re-derives
+  // the DPS-relevant `dps` multiplier from equippedGear via
+  // computeEffectiveDpsFromGear(). Other skill bonuses (offlineEarnings,
+  // scrapYield, etc.) remain client-supplied for now — they only affect
+  // economy rate, not combat outcomes, and the server profile is the
+  // authoritative post-claim snapshot.
+  const skillBonuses = request.skillBonuses ?? {};
 
   const area = getRoamingArea(areaId);
   const creditsPerTick = Math.round((area.idleCreditsPerMinute || 15) / 20);
@@ -240,21 +267,21 @@ export function processRoamingClaim(
   const xpPerTick = area.idleXpPerTick || 1.0;
 
   // Merge idle economy modifiers from gear + skill tree.
-  const gearOfflineMult = 1 + (idleMods?.offlineEarningsMod ?? 0);
-  const skillOfflineBonus = skillBonuses?.offlineEarnings || 0;
+  const gearOfflineMult = 1 + serverIdleMods.offlineEarningsMod;
+  const skillOfflineBonus = skillBonuses.offlineEarnings || 0;
   const offlineMult = gearOfflineMult + skillOfflineBonus;
 
-  const gearScrapMult = 1 + (idleMods?.scrapYieldMod ?? 0);
-  const skillScrapBonus = skillBonuses?.scrapYield || 0;
+  const gearScrapMult = 1 + serverIdleMods.scrapYieldMod;
+  const skillScrapBonus = skillBonuses.scrapYield || 0;
   const scrapMult = gearScrapMult + skillScrapBonus;
 
   // rareDropChance from gear + skills (structural wiring — threshold adjustment deferred)
-  const totalRareDropMod = (idleMods?.rareDropChanceMod ?? 0) + (skillBonuses?.rareDropChance || 0);
+  const totalRareDropMod = serverIdleMods.rareDropChanceMod + (skillBonuses.rareDropChance || 0);
 
   // Activity modifiers from equipped gear (procedural — Borderlands-style).
-  // The client computes these via sumActivityModifier(equippedGear, 'roaming_loot').
-  // The Chef applies them multiplicatively on top of the idle economy baseline.
-  const effectiveActivityMods = activityMods ?? sumActivityModifier(equippedGear ?? [], 'roaming_loot' as ActivityKind);
+  // Re-derived server-side from the equippedGear array to prevent
+  // client-supplied activityMods from inflating rewards.
+  const effectiveActivityMods = sumActivityModifier(equippedGear ?? [], 'roaming_loot' as ActivityKind);
   const activityCreditsMult = 1 + (effectiveActivityMods.creditsPerKill ?? 0);
   const activityScrapMult = 1 + (effectiveActivityMods.scrapYieldMod ?? 0);
   const activityXpMult = 1 + (effectiveActivityMods.xpBoostMod ?? 0);
@@ -286,7 +313,19 @@ export function processRoamingClaim(
   // Seed from the request's optional killCycle and survival state.
   // The client sends its current state; the Chef simulates forward and
   // returns authoritative state that the client syncs to.
-  const effectiveDps = request.effectiveDps ?? 0;
+  //
+  // Server-authoritative DPS: re-derive from the equippedGear array
+  // instead of trusting the client's effectiveDps value. This prevents
+  // a malicious/buggy client from inflating killsRecorded by reporting
+  // a higher DPS than their gear actually produces.
+  const serverDerivedDps = computeEffectiveDpsFromGear({
+    weapons: (request.equippedGear ?? []).filter((g): g is import('../types/items').Weapon => 'weaponType' in g),
+    ordnance: (request.equippedGear ?? []).find((g) => 'damage' in g && !('weaponType' in g)) ?? null,
+    relic: (request.equippedGear ?? []).find((g) => 'affixes' in g && !('weaponType' in g) && !('damage' in g) && !('hp' in g)) ?? null,
+    classMod: (request.equippedGear ?? []).find((g) => 'affixes' in g && !('weaponType' in g) && !('damage' in g) && !('hp' in g) && !('rechargeRate' in g)) ?? null,
+    skillDpsMult: 1 + (request.skillBonuses?.dps ?? 0),
+  });
+  const effectiveDps = serverDerivedDps;
   const roster = resolveAreaMonsters(area);
 
   // Kill cycle state

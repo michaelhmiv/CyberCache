@@ -197,6 +197,7 @@ describe('runtime display snapshots are not economy authority', () => {
     expect(snapshot.market).not.toHaveProperty('history');
     expect(snapshot.boss).not.toHaveProperty('defeatedBossIds');
     expect(snapshot.boss).not.toHaveProperty('unlockedBossIds');
-    expect(snapshot.boss).not.toHaveProperty('attemptHistory');
+    // attemptHistory is display-only and included in the snapshot for
+    // UI persistence (like deathLog). It is NOT authoritative game state.
   });
 });

@@ -29,9 +29,15 @@ import { useBossStore } from '@/store/slices/bossSlice';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 
 // Same mocks as the survival test — suppress network calls.
+// battleResult is mocked to return a minimal server-confirmed result
+// so the boss fight RPC path can be exercised without a real DB.
+// vi.hoisted ensures the mock fn is available when the factory runs.
+const { mockBattleResult } = vi.hoisted(() => ({ mockBattleResult: vi.fn() }));
+
 vi.mock('@/lib/supabase/verifiedOps', () => ({
   verifiedOps: {
     claimRoamingRewards: vi.fn(async () => ({})),
+    battleResult: mockBattleResult,
   },
 }));
 
@@ -66,6 +72,12 @@ function setRoamingArea() {
 
 describe('idleTickerSlice — boss fight wiring (PR 6)', () => {
   beforeEach(() => {
+    mockBattleResult.mockResolvedValue({
+      victory: true,
+      profile: {},
+      items: [],
+      boss_state: { defeatedBossIds: ['dune_tyrant'], pityCounters: {} },
+    });
     useSurvivalStore.setState({
       currentHp: 500,
       maxHp: 500,
@@ -181,9 +193,17 @@ describe('idleTickerSlice — boss fight wiring (PR 6)', () => {
     }
   });
 
-  it('marks the hunter dead and increments pity when player HP hits 0', async () => {
+  it('marks the hunter dead when player HP hits 0 (server-authoritative pity)', async () => {
     // With playerDps=0 and a real bossDps, the player will die.
     // Force currentHp=1 so the first tick kills them.
+    // The local sim shows the death overlay, but boss progression
+    // (pityCounters) is only updated by the server RPC response.
+    mockBattleResult.mockResolvedValueOnce({
+      victory: false,
+      profile: {},
+      items: [],
+      boss_state: { defeatedBossIds: [], pityCounters: { dune_tyrant: 1 } },
+    });
     useSurvivalStore.setState({ currentHp: 1, maxHp: 500, autoEatThreshold: 0.0 });
     usePlayerStore.setState({ consumables: { MedKit: 0, ShieldCell: 0, ReviveToken: 0 } });
     useBossStore.getState().startLiveFight('dune_tyrant', 1000);
@@ -196,11 +216,14 @@ describe('idleTickerSlice — boss fight wiring (PR 6)', () => {
     const log = useSurvivalStore.getState().deathLog;
     expect(log.length).toBeGreaterThan(0);
     expect(log[0].monsterId).toBe('dune_tyrant');
-    // Pity counter persists across the clearLiveFight() microtask
-    expect(useBossStore.getState().pityCounters.dune_tyrant).toBe(1);
+    // Pity counter is set by the RPC response, not local mutation.
+    // The RPC mock returns pityCounters.dune_tyrant=1, but
+    // syncVerifiedResult is mocked to a no-op, so we verify the
+    // RPC was called instead of checking the local store.
+    expect(mockBattleResult).toHaveBeenCalledWith('dune_tyrant', expect.any(String));
   });
 
-  it('ends the fight as victory and records defeatBoss when boss HP hits 0', async () => {
+  it('ends the fight as victory and calls cc_battle_result RPC on boss defeat', async () => {
     const loadoutSurvival = await import('@/lib/combat/loadoutSurvival');
     const dpsSpy = vi.spyOn(loadoutSurvival, 'loadoutEffectiveDps').mockReturnValue(10000);
 
@@ -209,8 +232,11 @@ describe('idleTickerSlice — boss fight wiring (PR 6)', () => {
       useBossStore.getState().startLiveFight('dune_tyrant', 1);
       setBossFightActivity('dune_tyrant');
       await useIdleTickerStore.getState().tickNow();
-      // defeatedBossIds persists across the clearLiveFight() microtask
-      expect(useBossStore.getState().defeatedBossIds).toContain('dune_tyrant');
+      // Boss progression is now server-authoritative: the local sim
+      // ends the fight and calls verifiedOps.battleResult(bossId, stance),
+      // which returns the server's boss_state. We verify the RPC was
+      // called instead of checking local store mutation.
+      expect(mockBattleResult).toHaveBeenCalledWith('dune_tyrant', expect.any(String));
     } finally {
       dpsSpy.mockRestore();
     }

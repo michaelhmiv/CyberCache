@@ -196,7 +196,7 @@ describe('idleTickerSlice — survival wiring', () => {
     expect(autoEatFired).toBe(false);
   });
 
-  it('sets isDead and stops the ticker when HP reaches 0', async () => {
+  it('sets isDead and stops the ticker when HP reaches 0 (deaths recorded by Chef)', async () => {
     enterRoamingArea('redline_circuit'); // T2, harder
     usePlayerStore.setState({ consumables: {} }); // no medkits
     useSurvivalStore.setState({ currentHp: 5, maxHp: 700 }); // 1 hit kills
@@ -213,7 +213,12 @@ describe('idleTickerSlice — survival wiring', () => {
     expect(survival.isDead).toBe(true);
     expect(survival.currentHp).toBe(0);
     expect(survival.lastKilledBy).not.toBeNull();
-    expect(useCombatStatsStore.getState().totalDeaths).toBe(1);
+    // Deaths are no longer recorded locally from the survival sim.
+    // Only Chef-confirmed deaths (via applyServerRewards with isDead=true)
+    // or server-confirmed boss fight defeats call recordDeath.
+    // The survival sim mock returns no survival payload, so no death
+    // is recorded in combat_stats from this local-only test.
+    expect(useCombatStatsStore.getState().totalDeaths).toBe(0);
     // Ticker should be stopped (interval cleared, running=false).
     expect(useIdleTickerStore.getState().running).toBe(false);
   });

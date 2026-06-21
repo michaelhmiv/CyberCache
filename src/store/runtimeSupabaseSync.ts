@@ -17,6 +17,7 @@ import { useSurvivalStore } from './slices/survivalSlice';
 import { useKillCycleStore } from './slices/killCycleSlice';
 import { useLoadoutPresetsStore } from './slices/loadoutPresetsSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
+import { useActiveBuffsStore } from './slices/activeBuffsSlice';
 
 const SAVE_DEBOUNCE_MS = 500;
 const riskSettings = ['Conservative', 'Balanced', 'Greedy', 'AllIn'];
@@ -32,6 +33,7 @@ type BossSnapshot = {
   currentBossId: string | null;
   preparedConsumables: Record<string, number>;
   selectedRisk: RiskSetting;
+  attemptHistory: Array<{ bossId: string; victory: boolean; at: number }>;
 };
 
 type IdleSnapshot = {
@@ -132,6 +134,7 @@ export function buildRuntimeDisplaySnapshot(): RuntimeDisplaySnapshot {
       currentBossId: typeof boss.currentBossId === 'string' ? boss.currentBossId : null,
       preparedConsumables: numberRecordValue(boss.preparedConsumables) ?? {},
       selectedRisk: boss.selectedRisk,
+      attemptHistory: arrayValue<{ bossId: string; victory: boolean; at: number }>(boss.attemptHistory) ?? [],
     },
     idle: {
       autoSalvageRarity: idle.autoSalvageRarity,
@@ -183,6 +186,7 @@ export function resetRuntimeStoresToInitialState(): void {
     useSurvivalStore.setState(useSurvivalStore.getInitialState(), true);
     useKillCycleStore.setState(useKillCycleStore.getInitialState(), true);
     useLoadoutPresetsStore.setState(useLoadoutPresetsStore.getInitialState(), true);
+    useActiveBuffsStore.setState(useActiveBuffsStore.getInitialState(), true);
   } finally {
     isApplyingSnapshot = false;
   }
@@ -223,6 +227,7 @@ export function applyRuntimeDisplaySnapshot(snapshot: RuntimeStoreSnapshot): voi
         currentBossId: typeof boss.currentBossId === 'string' || boss.currentBossId === null ? boss.currentBossId : currentBoss.currentBossId,
         preparedConsumables: numberRecordValue(boss.preparedConsumables) ?? currentBoss.preparedConsumables,
         selectedRisk: isRiskSetting(boss.selectedRisk) ? boss.selectedRisk : currentBoss.selectedRisk,
+        attemptHistory: Array.isArray(boss.attemptHistory) ? boss.attemptHistory : currentBoss.attemptHistory,
       });
     }
 
