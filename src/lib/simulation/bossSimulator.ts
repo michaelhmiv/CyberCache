@@ -375,7 +375,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   // 1. Survival Check
   const playerHP = 500 + playerLevel * 40;
-  const playerShieldHP = (shield?.hp || 0) + 200 + playerLevel * 20;
+  const playerShieldHP = shield?.hp || 0;
 
   const medkits = consumables['MedKit'] || 0;
   const shieldCells = consumables['ShieldCell'] || 0;
