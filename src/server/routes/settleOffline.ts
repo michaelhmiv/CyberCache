@@ -79,6 +79,7 @@ export async function handleSettleOffline(req: Request, res: Response): Promise<
       playerLevel: profile.player_level || 1,
       maxTicks: Infinity,
       effectiveDps: 0,
+      consumableInventory: (profile.consumables ?? {}) as Record<string, number>,
     };
 
     const result = processRoamingClaim(claim);

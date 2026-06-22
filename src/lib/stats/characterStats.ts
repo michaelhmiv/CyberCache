@@ -129,7 +129,17 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   // the player can read the effective damage they'll deal. Otherwise it stays
   // as the standard-target total. The detail label flips with the context.
   const baseDpsForBoss = boss ? mechanics.bossRelativeDps.value : 0;
-  const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus);
+  // Include boss-specific skill bonuses (bossDamageMod, bossDamageSniperPistol,
+  // launcherBossDps, weaknessMatchDamage) that are omitted from the generic
+  // weaponDamageBonus. Without these, the HUD's Effective DPS for a boss
+  // under-reports real damage.
+  const bossSkillBonus = boss
+    ? skillTotal(spentSkills, 'bossDamageMod') +
+      skillTotal(spentSkills, 'bossDamageSniperPistol') +
+      skillTotal(spentSkills, 'launcherBossDps') +
+      skillTotal(spentSkills, 'weaknessMatchDamage')
+    : 0;
+  const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus + bossSkillBonus);
   const dpsDisplayValue = boss ? totalDpsForBoss : totalDps;
   const dpsDetail = boss
     ? `vs ${boss.name} (${(boss.weaknesses[0] ?? 'no weakness').toLowerCase()})`
