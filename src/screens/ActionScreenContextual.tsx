@@ -47,11 +47,9 @@ import {
 import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
 import { makeRunEvent, type RunVisualEvent } from '@/lib/run/runEvents';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
-import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/supabase/serverItemAdapter';
+
 import { BossSigil } from '@/components/common/BossSigil';
 import { getActivityVisual } from '@/constants/activityVisuals';
-import { getResourceVisual } from '@/constants/visualAssets';
 import type { ActivityKind, StartActivityInput } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
@@ -74,12 +72,6 @@ const smallClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%
 const ActivityGlyph: React.FC<{ kind: ActivityKind; size?: number; className?: string }> = ({ kind, size = 15, className = '' }) => {
   const visual = getActivityVisual(kind);
   return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px` }}>{visual.glyph}</span>;
-};
-
-/** Renders a resource glyph as a styled span (replaces lucide resource icons). */
-const ResourceGlyph: React.FC<{ id: 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'xp' | 'level' | 'masteryPoint' | 'loot'; size?: number; className?: string }> = ({ id, size = 15, className = '' }) => {
-  const visual = getResourceVisual(id);
-  return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px` }}>{visual.mark}</span>;
 };
 
 const copy: Record<ActivityKind, { title: string; detail: string }> = {
@@ -145,7 +137,13 @@ const RouteCard: React.FC<{ area: RoamingAreaDef; selected: boolean; unlocked: b
     <div className={`relative overflow-hidden border-2 p-3 ${selected ? 'border-amber bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-55' : ''}`} style={panelClip}>
       <div className="absolute right-0 top-0 h-full w-1/3 bg-[linear-gradient(135deg,rgba(245,181,68,0.12),transparent)]" />
       <div className="relative flex items-start justify-between gap-3">
-        <button type="button" onClick={onSelect} disabled={!unlocked} className="min-w-0 flex-1 text-left">
+        <button
+          type="button"
+          onClick={selected ? onStart : onSelect}
+          disabled={!unlocked}
+          className="min-w-0 flex-1 text-left"
+          aria-label={selected ? `Run ${area.name}` : `Select ${area.name}`}
+        >
           <div className="text-sm font-black text-text-primary">{area.name}</div>
           <div className="mt-0.5 text-[10px] text-text-muted">Lv.{area.unlockLevel} · {area.manufacturerInfluence} · <span className={dangerClass}>{area.dangerRating}</span></div>
           <div className="mt-2 text-[10px] leading-snug text-text-secondary">{area.gameplayIdentity}</div>
@@ -204,8 +202,6 @@ type CommonPanelProps = {
   openBoss: () => void;
   startCrafting: () => void;
   startSalvage: (item?: GearItem) => void;
-  startWorkshop: () => void;
-  startMarket: () => void;
   onNavigate?: (screen: string) => void;
 };
 
@@ -232,7 +228,7 @@ const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBos
       <Section title="Phase Checklist" eyebrow="prep targets" icon={<span style={{ fontSize: 15 }}>◎</span>} action={<button type="button" onClick={onBossPicker} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Boss</button>}>
         <div className="space-y-2">
           {boss.phases.map((phase, index) => (
-            <div key={phase.id} className="border-2 border-border bg-bg/70 p-2" style={smallClip}>
+            <div key={`${boss.id}-${phase.id}-${index}`} className="border-2 border-border bg-bg/70 p-2" style={smallClip}>
               <div className="flex items-center justify-between gap-2"><div className="text-xs font-black text-text-primary">{index + 1}. {phase.name}</div><span className="text-[9px] font-black uppercase text-amber">{phase.type}</span></div>
               <div className="mt-1 text-[10px] leading-snug text-text-muted">{phase.description}</div>
               <div className="mt-2 flex flex-wrap gap-1">{phase.recommendedCounters.slice(0, 4).map((counter) => <span key={counter} className="border border-border bg-surface px-1.5 py-0.5 text-[9px] text-text-secondary">{counter}</span>)}</div>
@@ -268,7 +264,7 @@ const _BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: 
         <div className="space-y-2">
           {boss.phases.map((phase, index) => {
             const pass = fightPower >= boss.recommendedPower * phase.targetValue;
-            return <div key={phase.id} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2"><span className="text-xs font-black text-text-primary">{index + 1}. {phase.name}</span><span className={pass ? 'text-green text-[9px] font-black' : 'text-red text-[9px] font-black'}>{pass ? 'LIKELY PASS' : 'RISK'}</span></div><div className="mt-1 text-[10px] text-text-muted">{pass ? phase.successReason : phase.failureReason}</div></div>;
+            return <div key={`${boss.id}-${phase.id}-${index}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2"><span className="text-xs font-black text-text-primary">{index + 1}. {phase.name}</span><span className={pass ? 'text-green text-[9px] font-black' : 'text-red text-[9px] font-black'}>{pass ? 'LIKELY PASS' : 'RISK'}</span></div><div className="mt-1 text-[10px] text-text-muted">{pass ? phase.successReason : phase.failureReason}</div></div>;
           })}
         </div>
       </Section>
@@ -301,17 +297,8 @@ const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePi
   );
 };
 
-const WorkshopPanel: React.FC<CommonPanelProps & { queues: { id?: string; recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; benchesFree: number }> = ({ queues, benchesFree, onNavigate }) => {
-  const now = useNow();
-  const ready = queues.filter((q) => Math.floor((now - q.startedAt) / q.durationMs) > q.claimedCount).length;
-  return <div className="space-y-3"><RewardIntelPanel title="Machine queue" eyebrow="workshop intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Running', value: queues.length }, { label: 'Ready', value: ready, tone: ready ? 'amber' : 'muted' }, { label: 'Benches', value: benchesFree + queues.length }, { label: 'Next', value: queues[0] ? formatDuration(Math.max(0, queues[0].durationMs - ((now - queues[0].startedAt) % queues[0].durationMs))) : 'None' }, { label: 'State', value: ready ? 'Claim' : 'Service' }]} /> <Section title="Machine Queue" eyebrow="what needs attention" icon={<Clock size={15} />}><div className="space-y-2">{queues.length === 0 ? <div className="text-xs text-text-muted">No queues are running. Start a recipe from the Workshop.</div> : queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; const completed = Math.min(q.count, Math.floor(elapsed / q.durationMs)); return <div key={q.id ?? `${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between"><span className="text-xs font-black text-text-primary">Bench {q.benchId}</span><span className={completed > q.claimedCount ? 'text-green text-[10px] font-black' : 'text-amber text-[10px]'}>{completed > q.claimedCount ? 'READY' : formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div><div className="mt-1 text-[10px] text-text-muted">{recipe?.name ?? q.recipeId} · {completed}/{q.count} complete</div></div>; })}</div><button type="button" onClick={() => onNavigate?.('workshop')} className="mt-3 bl-primary w-full py-2 text-xs font-black">Open Workshop</button></Section></div>;
-};
 
-const MarketPanel: React.FC<CommonPanelProps & { listings: number; history: number; sellableItems: GearItem[]; credits: number; onMarketPicker: () => void }> = ({ listings, history, sellableItems, credits, startMarket, onMarketPicker, onNavigate }) => (
-  <div className="space-y-3"><RewardIntelPanel title="Trade kiosk" eyebrow="market intel" stats={[{ label: 'Credits', value: credits.toLocaleString(), tone: 'cyan' }, { label: 'Sellable', value: sellableItems.length }, { label: 'Listed', value: listings, tone: 'amber' }, { label: 'History', value: history }, { label: 'Fees', value: '10%' }, { label: 'Mode', value: 'Listing' }]} /> <Section title="Listing Control" eyebrow="item selector" icon={<ActivityGlyph kind="market_listing" />}><button type="button" onClick={onMarketPicker} className="bl-primary w-full py-2 text-xs font-black">Choose Listing Candidate</button><button type="button" onClick={startMarket} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Market As Current Action</button><button type="button" onClick={() => onNavigate?.('market')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Market</button></Section></div>
-);
-
-const _IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate, selectedArea }) => (
+const _IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep, startCrafting, startSalvage, onNavigate, selectedArea }) => (
   <div className="space-y-3">
     <Section title="Recommended Dispatch" eyebrow="no action active" icon={<ActivityGlyph kind="idle_standby" />}>
       <div className="grid grid-cols-2 gap-2">
@@ -319,8 +306,6 @@ const _IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep,
         <button type="button" onClick={() => startPrep?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="boss_fight" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Prep Boss</div><div className="text-[10px] text-text-muted">Check counters first</div></button>
         <button type="button" onClick={() => startCrafting?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="crafting" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Craft</div><div className="text-[10px] text-text-muted">Recipes and benches</div></button>
         <button type="button" onClick={() => startSalvage?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="salvaging" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Salvage</div><div className="text-[10px] text-text-muted">Break down low gear</div></button>
-        <button type="button" onClick={() => startWorkshop?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="workshop_service" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Workshop</div><div className="text-[10px] text-text-muted">Service queues</div></button>
-        <button type="button" onClick={() => startMarket?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="market_listing" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Market</div><div className="text-[10px] text-text-muted">List gear</div></button>
       </div>
       <button type="button" onClick={() => onNavigate?.('chest')} className="mt-3 bl-secondary w-full py-2 text-xs font-black text-amber">Open Caches</button>
     </Section>
@@ -347,12 +332,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showMarketPicker, setShowMarketPicker] = useState(false);
   const [prepBoss, setPrepBoss] = useState<BossDef | null>(null);
   const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
-  const [cacheError, setCacheError] = useState<string | null>(null);
   // Tick feed events from the canonical ticker — the single source of truth
   // for roaming rewards. The Action screen is a consumer, not an engine.
   const tickEvents = useTickFeedStore((s) => s.events);
   const [feed, setFeed] = useState<RunVisualEvent[]>([idleEvent]);
-  const [gearLookup, setGearLookup] = useState<Record<string, GearItem>>({});
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
@@ -393,11 +376,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const bosses = REGION_1_BOSSES.filter((boss) => bossStore.unlockedBossIds.includes(boss.id) || boss.level <= player.level + 5).slice(0, 8);
   const benchesFree = Math.max(0, workshop.unlockedBenchCount - new Set(workshop.activeQueues.map((q) => q.benchId)).size);
   const sellableItems = inventory.items.filter((item) => !item.isLocked);
-  const playerListings = market.listings.filter((listing) => listing.sellerId === 'player_1').length;
   const skillReductionPoints = (skillBonuses.consumableEfficiency || 0) * 10;
   const salvageCandidates = inventory.items.filter((item) => !item.isLocked).slice(0, 12);
   const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, player.materials, player.essences, player.level), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
-  const openCacheDetail = player.cacheKeys > 0 ? `${player.cacheKeys} keys ready` : `Need ${5 - player.cacheKeyFragments} fragments`;
 
   const pushEvents = useCallback((events: RunVisualEvent[]) => {
     setFeed((current) => [...events, ...current.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT));
@@ -453,14 +434,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     startAction(buildSalvagingActivity(target), makeRunEvent('SALVAGE TARGET', `${target.name} staged for breakdown.`, 'patrol', 'salvaging'));
   }, [onNavigate, salvageCandidates, startAction]);
 
-  const startWorkshop = useCallback(() => {
-    startAction({ kind: 'workshop_service', targetType: 'workshop_job', targetId: 'workshop-service', targetLabel: 'Machine Queue', sceneKey: 'workshop:service', notes: 'Servicing workshop queues', publicPayload: { activity_label: 'Servicing Workshop', target_label: 'Machine Queue', scene_key: 'workshop:service' }, publicVisible: true }, makeRunEvent('WORKSHOP SERVICE', 'Hunter is servicing bench queues.', 'patrol', 'workshop_service'));
-  }, [startAction]);
-
-  const startMarket = useCallback(() => {
-    startAction({ kind: 'market_listing', targetType: 'market_listing', targetId: 'market-console', targetLabel: 'Trade Kiosk', sceneKey: 'market:kiosk', notes: 'Managing market listings', publicPayload: { activity_label: 'Managing Market Listings', target_label: 'Trade Kiosk', scene_key: 'market:kiosk' }, publicVisible: true }, makeRunEvent('MARKET LISTING', 'Hunter is working the trade kiosk.', 'patrol', 'market_listing'));
-  }, [startAction]);
-
   // Diorama callbacks — route primary/secondary buttons to context-aware actions
   const onDioramaPrimary = useCallback(() => {
     if (currentKind === 'roaming_loot') {
@@ -494,42 +467,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     }
   }, [activity, idle, pushEvents]);
 
-  const openCache = useCallback(async () => {
-    setCacheError(null);
-    if (player.cacheKeys <= 0) {
-      const msg = player.cacheKeyFragments > 0 ? `No cache key ready. Need ${5 - player.cacheKeyFragments} more fragments.` : 'No cache keys ready. Roam for cache fragments first.';
-      setCacheError(msg);
-      pushEvents([makeRunEvent('CACHE LOCKED', msg, 'cache', 'cache_locked')]);
-      return;
-    }
-    try {
-      pushEvents([makeRunEvent('CACHE OPENING', 'Decrypting server-verified cache roll.', 'cache', 'cache_opening')]);
-      const result = await verifiedOps.makeItem();
-      const item = serverItemRowToDisplayGear(result.item as ServerItemRow);
-      if (!item) {
-        const msg = 'Cache produced an unrecognizable item. The roll has been recorded; support is needed to finalize it.';
-        setCacheError(msg);
-        pushEvents([makeRunEvent('CACHE FAILED', msg, 'cache', 'cache_corrupt')]);
-        return;
-      }
-      const event = makeRunEvent('CACHE GEAR', `${item.name} (${describeGear(item)}) decrypted from a cache.`, 'loot', 'cache_opened');
-      setGearLookup((current) => ({ ...current, [event.id]: item }));
-      setInspectGear(item);
-      pushEvents([event]);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unable to open cache.';
-      setCacheError(msg);
-      pushEvents([makeRunEvent('CACHE FAILED', msg, 'cache', 'cache_failed')]);
-    }
-  }, [player.cacheKeyFragments, player.cacheKeys, pushEvents]);
-
   useEffect(() => {
     // market.seeded / market.seedMarket are not on the current MarketState type;
     // guard until the market store is wired. Pre-existing issue — not introduced here.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (market.seeded === false && typeof (market as any).seedMarket === 'function') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (market as any).seedMarket();
+    const marketStore = market as unknown as { seeded?: boolean; seedMarket?: () => void };
+    if (marketStore.seeded === false && typeof marketStore.seedMarket === 'function') {
+      marketStore.seedMarket();
     }
   }, [market]);
 
@@ -539,20 +482,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return () => window.clearInterval(iv);
   }, [activity, canTick]);
 
-  const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => {
-    // Preserve gear from tick events — gearLookup only has cache-open items.
-    // Don't let gearLookup[undefined] overwrite event.gear from the ticker.
-    const cachedGear = gearLookup[event.id];
-    const eventGear = (event as { gear?: GearItem }).gear;
-    const resolvedGear = cachedGear || eventGear;
-    return {
-      ...event,
-      gear: resolvedGear,
-      onInspect: resolvedGear ? () => setInspectGear(resolvedGear) : undefined,
-    };
-  });
+  const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => ({
+    ...event,
+    gear: (event as { gear?: GearItem }).gear,
+    onInspect: (event as { gear?: GearItem }).gear ? () => setInspectGear((event as { gear?: GearItem }).gear ?? null) : undefined,
+  }));
 
-  const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, startWorkshop, startMarket, onNavigate };
+  const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, onNavigate };
 
   const workspace = (() => {
     // Idle/standby: no panel — the compact action selector handles starting actions.
@@ -660,8 +596,8 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
     if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} onRecipePicker={() => setShowRecipePicker(true)} />;
     if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} onSalvagePicker={() => setShowSalvagePicker(true)} />;
-    if (currentKind === 'workshop_service') return <WorkshopPanel {...commonProps} queues={workshop.activeQueues} benchesFree={benchesFree} />;
-    if (currentKind === 'market_listing') return <MarketPanel {...commonProps} listings={playerListings} history={market.history.length} sellableItems={sellableItems} credits={player.credits} onMarketPicker={() => setShowMarketPicker(true)} />;
+    if (currentKind === 'workshop_service') return <Section title="Workshop relocated" eyebrow="inventory owns benches" icon={<ActivityGlyph kind="workshop_service" />}><div className="space-y-2 text-xs text-text-muted"><div>Workshop now lives on the Inventory tab.</div><button type="button" onClick={() => onNavigate?.('inventory')} className="bl-primary w-full py-2 text-xs font-black">Open Inventory</button></div></Section>;
+    if (currentKind === 'market_listing') return <Section title="Market relocated" eyebrow="market owns listings" icon={<ActivityGlyph kind="market_listing" />}><div className="space-y-2 text-xs text-text-muted"><div>Trading now lives on the Market tab.</div><button type="button" onClick={() => onNavigate?.('market')} className="bl-primary w-full py-2 text-xs font-black">Open Market</button></div></Section>;
     return null; // fallback: no workspace panel needed
   })();
 
@@ -671,9 +607,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <span style={{ fontSize: 16 }} className="text-amber">⚔</span> as React.ReactNode, run: () => startBossFight() },
     { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: <ActivityGlyph kind="crafting" size={16} /> as React.ReactNode, run: () => startCrafting() },
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
-    { label: 'Workshop', detail: `${workshop.activeQueues.length} queues`, icon: <ActivityGlyph kind="workshop_service" size={16} /> as React.ReactNode, run: startWorkshop },
-    { label: 'Market', detail: `${sellableItems.length} sellable`, icon: <ActivityGlyph kind="market_listing" size={16} /> as React.ReactNode, run: startMarket },
-    { label: 'Caches', detail: openCacheDetail, icon: <ResourceGlyph id="cacheKey" size={16} /> as React.ReactNode, run: openCache },
   ].slice(0, MAX_SWITCH_ROWS);
 
   return (
@@ -750,9 +683,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
                 (label === 'Boss Prep' && isBossPrep) ||
                 (label === 'Boss Fight' && isBossFight) ||
                 (label === 'Craft' && currentKind === 'crafting') ||
-                (label === 'Salvage' && currentKind === 'salvaging') ||
-                (label === 'Workshop' && currentKind === 'workshop_service') ||
-                (label === 'Market' && currentKind === 'market_listing')
+                (label === 'Salvage' && currentKind === 'salvaging')
                   ? 'border-amber/60 bg-amber/10'
                   : 'border-border/60 bg-bg/50 hover:border-amber/30'
               }`}
@@ -807,9 +738,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           </span>
         </div>
       </div>
-
-      {/* 5. Cache error banner */}
-      {cacheError && <div className="border-2 border-red/40 bg-red/10 p-2 text-xs font-bold text-red" style={smallClip}>{cacheError}</div>}
 
       {/* 6. Feed — loot log below the decision panels */}
       <ActionFeed entries={feedEntries} />

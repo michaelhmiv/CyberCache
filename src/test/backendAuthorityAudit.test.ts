@@ -25,5 +25,4 @@ describe('backend authority audit', () => {
     expect(claimRoute).toContain('cc_settle_offline_roaming');
     expect(claimRoute).toContain('cc_apply_chef_rewards');
   });
-
 });
