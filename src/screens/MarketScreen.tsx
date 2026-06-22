@@ -198,7 +198,7 @@ export const MarketScreen: React.FC = () => {
       .filter((l) => !myListSearch || l.itemSnapshot.name?.toLowerCase().includes(myListSearch.toLowerCase()))
       .filter((l) => !myListFilterRarity || l.itemSnapshot.rarity === myListFilterRarity)
       .sort((a, b) => {
-        if (myListSort === 'price') return a.price - b.price;
+        if (myListSort === 'price') return b.price - a.price;
         if (myListSort === 'rarity') {
           const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
           return (rank[b.itemSnapshot.rarity] ?? 0) - (rank[a.itemSnapshot.rarity] ?? 0);

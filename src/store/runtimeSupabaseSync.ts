@@ -33,7 +33,6 @@ type BossSnapshot = {
   currentBossId: string | null;
   preparedConsumables: Record<string, number>;
   selectedRisk: RiskSetting;
-  attemptHistory: Array<{ bossId: string; victory: boolean; at: number }>;
 };
 
 type IdleSnapshot = {
@@ -134,7 +133,6 @@ export function buildRuntimeDisplaySnapshot(): RuntimeDisplaySnapshot {
       currentBossId: typeof boss.currentBossId === 'string' ? boss.currentBossId : null,
       preparedConsumables: numberRecordValue(boss.preparedConsumables) ?? {},
       selectedRisk: boss.selectedRisk,
-      attemptHistory: arrayValue<{ bossId: string; victory: boolean; at: number }>(boss.attemptHistory) ?? [],
     },
     idle: {
       autoSalvageRarity: idle.autoSalvageRarity,
@@ -227,7 +225,6 @@ export function applyRuntimeDisplaySnapshot(snapshot: RuntimeStoreSnapshot): voi
         currentBossId: typeof boss.currentBossId === 'string' || boss.currentBossId === null ? boss.currentBossId : currentBoss.currentBossId,
         preparedConsumables: numberRecordValue(boss.preparedConsumables) ?? currentBoss.preparedConsumables,
         selectedRisk: isRiskSetting(boss.selectedRisk) ? boss.selectedRisk : currentBoss.selectedRisk,
-        attemptHistory: Array.isArray(boss.attemptHistory) ? boss.attemptHistory : currentBoss.attemptHistory,
       });
     }
 
