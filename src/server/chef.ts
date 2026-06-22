@@ -284,7 +284,7 @@ export function processRoamingClaim(
   const effectiveActivityMods = sumActivityModifier(equippedGear ?? [], 'roaming_loot' as ActivityKind);
   const activityCreditsMult = 1 + (effectiveActivityMods.creditsPerKill ?? 0);
   const activityScrapMult = 1 + (effectiveActivityMods.scrapYieldMod ?? 0);
-  const activityXpMult = 1 + (effectiveActivityMods.xpBoostMod ?? 0);
+  const activityXpMult = 1 + (effectiveActivityMods.xpBoostMod ?? 0) + (skillBonuses.xpBoostMod ?? 0);
   const activityRareDropBonus = effectiveActivityMods.rareDropChanceMod ?? 0;
   const activityFragmentBonus = effectiveActivityMods.cacheFragmentChance ?? 0;
   const activityMaterialBonus = effectiveActivityMods.materialFindChance ?? 0;
