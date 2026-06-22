@@ -41,6 +41,13 @@ export function resolveChefBase({
   // to the Railway Chef service instead of inventing any client-side fallback.
   if (isNativePlatform) return CYBERCACHE_PRODUCTION_API_BASE;
 
+  // Local Vite dev serves the UI on 5173. Use the Railway Chef service so
+  // browser/dev builds can still exercise the authoritative server paths.
+  const originUrl = windowOrigin ? new URL(windowOrigin) : null;
+  if (originUrl && (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1') && originUrl.port && originUrl.port !== '3000') {
+    return CYBERCACHE_PRODUCTION_API_BASE;
+  }
+
   // In hosted web production, use the same origin — the Express server handles /api/*.
   if (windowOrigin) return normalizeBaseUrl(windowOrigin);
 

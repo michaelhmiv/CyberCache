@@ -27,6 +27,14 @@ describe('Chef API base resolution', () => {
     })).toBe(CYBERCACHE_PRODUCTION_API_BASE);
   });
 
+  it('routes local Vite dev to the Railway Chef service, not a local WebView origin', () => {
+    expect(resolveChefBase({
+      viteChefUrl: '',
+      isNativePlatform: false,
+      windowOrigin: 'http://127.0.0.1:5173',
+    })).toBe(CYBERCACHE_PRODUCTION_API_BASE);
+  });
+
   it('keeps hosted browser builds same-origin so Railway serves /api routes', () => {
     expect(resolveChefBase({
       viteChefUrl: '',
