@@ -1,36 +1,21 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, History, List, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { GearCompare } from '@/components/gear/GearCompare';
+import { useAuth } from '@/auth/AuthProvider';
 import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
+import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { fetchActiveMarketListings } from '@/lib/supabase/marketListings';
 import type { GearItem, Weapon } from '@/types/items';
 import type { Listing, MarketHistory } from '@/types/market';
 import { gearCardSummary } from '@/lib/gear/gearCardSummary';
 
-const generateId = () => crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 const getNow = () => Date.now();
-
-const NPC_NAMES: Record<string, string> = {
-  npc_scrapbaron: 'ScrapBaron',
-  npc_techrunner: 'TechRunner_77',
-  npc_cachevault: 'CacheVault',
-  npc_circuitghost: 'CircuitGhost',
-  npc_ironsage: 'IronSage',
-  npc_rustmerchant: 'RustMerchant',
-  npc_gridwitch: 'GridWitch',
-  npc_datasmith: 'DataSmith',
-};
-
-function resolveOtherPartyName(id: string, playerName: string): string {
-  if (NPC_NAMES[id]) return NPC_NAMES[id];
-  if (id === 'player_1') return playerName;
-  return id;
-}
 
 type BuySort = 'price' | 'rarity' | 'name';
 type SellSort = 'power' | 'rarity' | 'name';
@@ -65,11 +50,13 @@ function defaultPrice(item: GearItem): number {
   return isWeapon(item) ? Math.round(item.combatPower * 10 + item.rollQuality * 50) : Math.round((item.level ?? 1) * 200);
 }
 
-// ── Equipped-item baseline for inline GearCompare on market cards ─────────────
+function formatSellerName(id: string, playerName: string, currentUserId?: string | null): string {
+  if (id === currentUserId) return 'You';
+  if (id === 'player_1') return playerName;
+  return id.slice(0, 8);
+}
 
-/** Returns the currently equipped item that is the same broad kind as the
- *  candidate (weapon → currently equipped primary, or fallback to any weapon
- *  slot; shield → shield; ordnance → ordnance; classMod → classMod; relic → relic). */
+/** Returns the currently equipped item that is the same broad kind as the candidate. */
 function equippedForComparison(item: GearItem, loadout: ReturnType<typeof useLoadoutStore>): GearItem | undefined {
   if (isWeapon(item)) return loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
   if ('hp' in item) return loadout.getShield();
@@ -116,6 +103,8 @@ export const MarketScreen: React.FC = () => {
   const inventory = useInventoryStore();
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? null;
   const [search, setSearch] = useState('');
   const [sellSearch, setSellSearch] = useState('');
   const [myListSearch, setMyListSearch] = useState('');
@@ -123,16 +112,44 @@ export const MarketScreen: React.FC = () => {
   const [filterRarity, setFilterRarity] = useState<string | null>(null);
   const [sellFilterRarity, setSellFilterRarity] = useState<string | null>(null);
   const [myListFilterRarity, setMyListFilterRarity] = useState<string | null>(null);
-  const [buySort, setBuySort] = useState<'price' | 'rarity' | 'name'>('price');
-  const [sellSort, setSellSort] = useState<'power' | 'rarity' | 'name'>('power');
-  const [myListSort, setMyListSort] = useState<'price' | 'rarity' | 'name'>('price');
+  const [buySort, setBuySort] = useState<BuySort>('price');
+  const [sellSort, setSellSort] = useState<SellSort>('power');
+  const [myListSort, setMyListSort] = useState<MyListSort>('price');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
+  const [loadingListings, setLoadingListings] = useState(true);
+  const [pendingBuyId, setPendingBuyId] = useState<string | null>(null);
+  const [pendingListId, setPendingListId] = useState<string | null>(null);
+  const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
 
   useEffect(() => {
-    market.rotateListings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let cancelled = false;
+    fetchActiveMarketListings()
+      .then((listings) => {
+        if (!cancelled) market.setListings(listings);
+      })
+      .catch((err) => {
+        if (!cancelled) setToastMessage(err instanceof Error ? err.message : 'Unable to load market listings.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingListings(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [market]);
+
+  const refreshListings = useCallback(async () => {
+    setLoadingListings(true);
+    try {
+      const listings = await fetchActiveMarketListings();
+      market.setListings(listings);
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to load market listings.');
+    } finally {
+      setLoadingListings(false);
+    }
+  }, [market]);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -141,7 +158,9 @@ export const MarketScreen: React.FC = () => {
   }, [toastMessage]);
 
   const tradeableItems = inventory.items.filter((i) => !i.isLocked);
-  const myListings = market.listings.filter((l) => l.sellerId === 'player_1');
+  const myListings = market.listings.filter((l) => l.sellerId === currentUserId);
+  const otherListings = market.listings.filter((l) => l.sellerId !== currentUserId);
+
   const sortedTradeableItems = useMemo(() => {
     return [...tradeableItems]
       .filter((item) => !sellSearch || item.name.toLowerCase().includes(sellSearch.toLowerCase()))
@@ -159,18 +178,21 @@ export const MarketScreen: React.FC = () => {
         return a.name.localeCompare(b.name);
       });
   }, [tradeableItems, sellSearch, sellFilterRarity, sellSort]);
-  const filteredListings = market.listings
-    .filter((l) => l.sellerId !== 'player_1')
-    .filter((l) => !search || l.itemSnapshot.name?.toLowerCase().includes(search.toLowerCase()))
-    .filter((l) => !filterRarity || l.itemSnapshot.rarity === filterRarity)
-    .sort((a, b) => {
-      if (buySort === 'price') return a.price - b.price;
-      if (buySort === 'rarity') {
-        const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
-        return (rank[b.itemSnapshot.rarity] ?? 0) - (rank[a.itemSnapshot.rarity] ?? 0);
-      }
-      return (a.itemSnapshot.name || '').localeCompare(b.itemSnapshot.name || '');
-    });
+
+  const filteredListings = useMemo(() => {
+    return [...otherListings]
+      .filter((l) => !search || l.itemSnapshot.name?.toLowerCase().includes(search.toLowerCase()))
+      .filter((l) => !filterRarity || l.itemSnapshot.rarity === filterRarity)
+      .sort((a, b) => {
+        if (buySort === 'price') return a.price - b.price;
+        if (buySort === 'rarity') {
+          const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
+          return (rank[b.itemSnapshot.rarity] ?? 0) - (rank[a.itemSnapshot.rarity] ?? 0);
+        }
+        return (a.itemSnapshot.name || '').localeCompare(b.itemSnapshot.name || '');
+      });
+  }, [otherListings, search, filterRarity, buySort]);
+
   const sortedMyListings = useMemo(() => {
     return [...myListings]
       .filter((l) => !myListSearch || l.itemSnapshot.name?.toLowerCase().includes(myListSearch.toLowerCase()))
@@ -185,38 +207,55 @@ export const MarketScreen: React.FC = () => {
       });
   }, [myListings, myListSearch, myListFilterRarity, myListSort]);
 
-  const handleList = (itemId: string) => {
+  const handleList = async (itemId: string) => {
     const item = inventory.getById(itemId);
     if (!item) return;
     const price = listingPrice[itemId] || defaultPrice(item);
-    const fee = Math.round(price * 0.1);
-    if (player.credits < fee) {
-      setToastMessage('Not enough credits to cover the listing fee.');
+    if (price <= 0) {
+      setToastMessage('Price must be positive.');
       return;
     }
-    player.removeCredits(fee);
-    const listing: Listing = { id: generateId(), sellerId: 'player_1', sellerName: player.name, itemId, itemSnapshot: JSON.parse(JSON.stringify(item)), price, listedAt: getNow(), feePaid: fee };
-    market.addListing(listing);
-    inventory.removeItem(itemId);
-    setToastMessage(`Listed "${item.name}" for ${price.toLocaleString()}cr.`);
+    setPendingListId(itemId);
+    try {
+      await verifiedOps.marketCreate(itemId, price);
+      setToastMessage(`Listed "${item.name}" for ${price.toLocaleString()}cr.`);
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to list item.');
+    } finally {
+      setPendingListId(null);
+    }
   };
 
-  const handleBuy = (listing: Listing) => {
+  const handleBuy = async (listing: Listing) => {
     if (player.credits < listing.price) {
       setToastMessage('Not enough credits.');
       return;
     }
-    player.removeCredits(listing.price);
-    inventory.addItem(listing.itemSnapshot);
-    market.removeListing(listing.id);
-    market.addHistory({ id: generateId(), type: 'buy', itemId: listing.itemId, itemName: listing.itemSnapshot.name || 'Unknown', itemRarity: listing.itemSnapshot.rarity || 'Common', price: listing.price, fee: 0, otherPartyId: listing.sellerId, timestamp: getNow() });
-    setToastMessage(`Bought "${listing.itemSnapshot.name}" for ${listing.price.toLocaleString()}cr.`);
+    setPendingBuyId(listing.id);
+    try {
+      await verifiedOps.acceptListing(listing.id);
+      market.addHistory({ id: listing.id, type: 'buy', itemId: listing.itemId, itemName: listing.itemSnapshot.name || 'Unknown', itemRarity: listing.itemSnapshot.rarity || 'Common', price: listing.price, fee: 0, otherPartyId: listing.sellerId, timestamp: getNow() });
+      setToastMessage(`Bought "${listing.itemSnapshot.name}" for ${listing.price.toLocaleString()}cr.`);
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to buy item.');
+    } finally {
+      setPendingBuyId(null);
+    }
   };
 
-  const handleCancelListing = (listing: Listing) => {
-    market.removeListing(listing.id);
-    inventory.addItem(listing.itemSnapshot);
-    setToastMessage('Listing cancelled. Item returned to inventory.');
+  const handleCancelListing = async (listing: Listing) => {
+    setPendingCancelId(listing.id);
+    try {
+      await verifiedOps.marketCancel(listing.id);
+      setToastMessage('Listing cancelled. Item returned to inventory.');
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to cancel listing.');
+    } finally {
+      setPendingCancelId(null);
+    }
   };
 
   const clearBuyFilters = () => {
@@ -238,7 +277,7 @@ export const MarketScreen: React.FC = () => {
   };
 
   const historyPartyLabel = (h: MarketHistory): string => {
-    const name = resolveOtherPartyName(h.otherPartyId, player.name);
+    const name = formatSellerName(h.otherPartyId, player.name, currentUserId);
     return h.type === 'buy' ? `Bought from ${name}` : `Sold to ${name}`;
   };
 
@@ -260,11 +299,12 @@ export const MarketScreen: React.FC = () => {
       {market.activeTab === 'buy' && (
         <div className="space-y-3">
           <button
-            onClick={() => market.rotateListings()}
-            className="flex items-center justify-center gap-1 text-center text-[10px] italic text-text-muted hover:text-amber active:text-amber transition-colors mx-auto"
+            onClick={refreshListings}
+            disabled={loadingListings}
+            className="flex items-center justify-center gap-1 text-center text-[10px] italic text-text-muted hover:text-amber active:text-amber transition-colors mx-auto disabled:opacity-50"
           >
-            <RefreshCw size={12} className={market.rotateCount > 0 ? '' : 'animate-spin'} />
-            NPC Market — tap to refresh listings
+            <RefreshCw size={12} className={loadingListings ? 'animate-spin' : ''} />
+            {loadingListings ? 'Loading market…' : 'Player Market — tap to refresh'}
           </button>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -295,7 +335,17 @@ export const MarketScreen: React.FC = () => {
           </select>
           <div className="space-y-2">
             {filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell tab.</div>}
-            {filteredListings.map((listing) => <div key={listing.id} className="bl-card space-y-2"><GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{listing.sellerName}</div></div>} /><button onClick={() => handleBuy(listing)} disabled={player.credits < listing.price} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">Buy Now</button></div>)}
+            {filteredListings.map((listing) => {
+              const seller = formatSellerName(listing.sellerId, player.name, currentUserId);
+              return (
+                <div key={listing.id} className="bl-card space-y-2">
+                  <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
+                  <button onClick={() => handleBuy(listing)} disabled={player.credits < listing.price || pendingBuyId === listing.id} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">
+                    {pendingBuyId === listing.id ? 'Buying…' : 'Buy Now'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -332,14 +382,31 @@ export const MarketScreen: React.FC = () => {
           {sortedTradeableItems.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No tradeable items match. Unlock items from your inventory to list them.</div>}
           {sortedTradeableItems.map((item) => {
             const price = listingPrice[item.id] || defaultPrice(item);
-            const fee = Math.round(price * 0.1);
-            return <div key={item.id} className="bl-card space-y-2"><GearMiniCard item={item} onInspect={() => setInspectItem(item)} /><div className="flex items-center gap-2"><input type="number" value={price} onChange={(e) => setListingPrice((p) => ({ ...p, [item.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" /><button onClick={() => handleList(item.id)} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg">List</button></div><div className="text-[10px] text-text-muted">Listing fee: {fee.toLocaleString()}cr (10%)</div></div>;
+            return (
+              <div key={item.id} className="bl-card space-y-2">
+                <GearMiniCard item={item} onInspect={() => setInspectItem(item)} />
+                <div className="flex items-center gap-2">
+                  <input type="number" value={price} onChange={(e) => setListingPrice((p) => ({ ...p, [item.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" />
+                  <button onClick={() => handleList(item.id)} disabled={pendingListId === item.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                    {pendingListId === item.id ? 'Listing…' : 'List'}
+                  </button>
+                </div>
+              </div>
+            );
           })}
         </div>
       )}
 
       {market.activeTab === 'mylistings' && (
         <div className="space-y-3">
+          <button
+            onClick={refreshListings}
+            disabled={loadingListings}
+            className="flex items-center justify-center gap-1 text-center text-[10px] italic text-text-muted hover:text-amber active:text-amber transition-colors mx-auto disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={loadingListings ? 'animate-spin' : ''} />
+            {loadingListings ? 'Loading…' : 'Refresh my listings'}
+          </button>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -368,7 +435,14 @@ export const MarketScreen: React.FC = () => {
             <option value="name">Sort: Name A-Z</option>
           </select>
           {sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
-          {sortedMyListings.map((listing) => <div key={listing.id} className="bl-card space-y-2"><GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} /><button onClick={() => handleCancelListing(listing)} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500">Cancel Listing</button></div>)}
+          {sortedMyListings.map((listing) => (
+            <div key={listing.id} className="bl-card space-y-2">
+              <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
+              <button onClick={() => handleCancelListing(listing)} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500 disabled:opacity-50">
+                {pendingCancelId === listing.id ? 'Cancelling…' : 'Cancel Listing'}
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
