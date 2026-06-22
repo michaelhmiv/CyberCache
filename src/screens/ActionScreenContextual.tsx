@@ -336,7 +336,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   // for roaming rewards. The Action screen is a consumer, not an engine.
   const tickEvents = useTickFeedStore((s) => s.events);
   const [feed, setFeed] = useState<RunVisualEvent[]>([idleEvent]);
-  const [gearLookup, setGearLookup] = useState<Record<string, GearItem>>({});
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
@@ -377,7 +376,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const bosses = REGION_1_BOSSES.filter((boss) => bossStore.unlockedBossIds.includes(boss.id) || boss.level <= player.level + 5).slice(0, 8);
   const benchesFree = Math.max(0, workshop.unlockedBenchCount - new Set(workshop.activeQueues.map((q) => q.benchId)).size);
   const sellableItems = inventory.items.filter((item) => !item.isLocked);
-  const playerListings = market.listings.filter((listing) => listing.sellerId === 'player_1').length;
   const skillReductionPoints = (skillBonuses.consumableEfficiency || 0) * 10;
   const salvageCandidates = inventory.items.filter((item) => !item.isLocked).slice(0, 12);
   const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, player.materials, player.essences, player.level), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
@@ -484,18 +482,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return () => window.clearInterval(iv);
   }, [activity, canTick]);
 
-  const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => {
-    // Preserve gear from tick events — gearLookup only has cache-open items.
-    // Don't let gearLookup[undefined] overwrite event.gear from the ticker.
-    const cachedGear = gearLookup[event.id];
-    const eventGear = (event as { gear?: GearItem }).gear;
-    const resolvedGear = cachedGear || eventGear;
-    return {
-      ...event,
-      gear: resolvedGear,
-      onInspect: resolvedGear ? () => setInspectGear(resolvedGear) : undefined,
-    };
-  });
+  const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => ({
+    ...event,
+    gear: (event as { gear?: GearItem }).gear,
+    onInspect: (event as { gear?: GearItem }).gear ? () => setInspectGear((event as { gear?: GearItem }).gear ?? null) : undefined,
+  }));
 
   const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, onNavigate };
 
