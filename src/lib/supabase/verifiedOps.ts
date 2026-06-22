@@ -18,12 +18,6 @@ const rpc = async (fn: string, args: Record<string, unknown>): Promise<VerifiedR
   return result;
 };
 
-const isMissingRpcError = (error: unknown, fn: string): boolean => {
-  const record = error as { code?: string; message?: string; details?: string };
-  const text = `${record.code ?? ''} ${record.message ?? ''} ${record.details ?? ''}`.toLowerCase();
-  return text.includes(fn.toLowerCase()) && (text.includes('404') || text.includes('not found') || text.includes('could not find') || text.includes('pgrst202'));
-};
-
 const claimRoamingRewards = async (input: { ticks: number; areaId: string; tickCount: number }): Promise<VerifiedResult> => {
   try {
     return await rpc('cc_claim_roaming_rewards', {
@@ -32,31 +26,37 @@ const claimRoamingRewards = async (input: { ticks: number; areaId: string; tickC
       tick_count: input.tickCount,
     });
   } catch (error) {
-    if (!isMissingRpcError(error, 'cc_claim_roaming_rewards')) throw error;
+    const reason = (error as { code?: string; message?: string })?.message ?? String(error);
+    console.warn('[verifiedOps] cc_claim_roaming_rewards failed, falling back to cc_idle_claim:', reason);
 
-    // Backward-compatible fallback for environments where the migration that
-    // adds cc_claim_roaming_rewards has not been applied yet. This prevents the
-    // 3s ticker from repeatedly calling a missing RPC and gives the app a
-    // server-verified profile sync path until the DB migration lands.
-    const fallback = await rpc('cc_idle_claim', { nonce: requestId(`idle-roam:${input.areaId}`) });
-    const rewards = fallback.rewards && typeof fallback.rewards === 'object'
-      ? fallback.rewards as Record<string, unknown>
-      : {};
+    // Fall back to cc_idle_claim for ANY error — not just "RPC missing".
+    // cc_claim_roaming_rewards may exist but throw type errors (e.g. bigint
+    // out of range on fresh accounts) that would otherwise block all roaming
+    // claims and leave the player's timer running with zero rewards.
+    try {
+      const fallback = await rpc('cc_idle_claim', { nonce: requestId(`idle-roam:${input.areaId}`) });
+      const rewards = fallback.rewards && typeof fallback.rewards === 'object'
+        ? fallback.rewards as Record<string, unknown>
+        : {};
 
-    return {
-      ...fallback,
-      action_type: 'cc_claim_roaming_rewards:fallback',
-      xp_awarded: Number(rewards.xp ?? 0),
-      credits_awarded: Number(rewards.credits ?? 0),
-      scrap_awarded: Number(rewards.scrap ?? 0),
-      cache_fragments_awarded: Number(rewards.fragments ?? 0),
-      materials: rewards.materials && typeof rewards.materials === 'object' && !Array.isArray(rewards.materials)
-        ? rewards.materials as Record<string, number>
-        : {},
-      essences: rewards.essences && typeof rewards.essences === 'object' && !Array.isArray(rewards.essences)
-        ? rewards.essences as Record<string, number>
-        : {},
-    };
+      return {
+        ...fallback,
+        action_type: 'cc_claim_roaming_rewards:fallback',
+        xp_awarded: Number(rewards.xp ?? 0),
+        credits_awarded: Number(rewards.credits ?? 0),
+        scrap_awarded: Number(rewards.scrap ?? 0),
+        cache_fragments_awarded: Number(rewards.fragments ?? 0),
+        materials: rewards.materials && typeof rewards.materials === 'object' && !Array.isArray(rewards.materials)
+          ? rewards.materials as Record<string, number>
+          : {},
+        essences: rewards.essences && typeof rewards.essences === 'object' && !Array.isArray(rewards.essences)
+          ? rewards.essences as Record<string, number>
+          : {},
+      };
+    } catch (fallbackError) {
+      console.error('[verifiedOps] cc_idle_claim fallback also failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 };
 

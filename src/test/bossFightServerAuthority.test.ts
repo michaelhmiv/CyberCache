@@ -39,6 +39,6 @@ describe('Boss fight server authority regression', () => {
 
   it('still authenticates the player before reading profile', () => {
     const route = readSource('src/server/routes/claim.ts');
-    expect(route).toContain('requireAuthenticatedPlayerId');
+    expect(route).toContain('getAuthenticatedSupabase');
   });
 });
