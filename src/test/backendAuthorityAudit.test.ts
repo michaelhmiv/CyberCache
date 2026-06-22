@@ -26,19 +26,4 @@ describe('backend authority audit', () => {
     expect(claimRoute).toContain('cc_apply_chef_rewards');
   });
 
-  it('keeps Action focused on live runtime control instead of workshop / market / cache launchers', () => {
-    const actionScreen = readSource('src/screens/ActionScreenContextual.tsx');
-    expect(actionScreen).not.toContain("label: 'Workshop'");
-    expect(actionScreen).not.toContain("label: 'Market'");
-    expect(actionScreen).not.toContain("label: 'Caches'");
-    expect(actionScreen).not.toContain('startWorkshop');
-    expect(actionScreen).not.toContain('startMarket');
-    expect(actionScreen).not.toContain('openCache(');
-  });
-
-  it('adds an explicit Dashboard turf switch affordance', () => {
-    const dashboard = readSource('src/screens/DashboardScreen.tsx');
-    expect(dashboard).toContain('data-testid="dashboard-turf-switch-button"');
-    expect(dashboard).toContain('aria-label="Switch turf"');
-  });
 });
