@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
-import { getSupabase, requireAuthenticatedPlayerId, sendRouteError } from './chefRouteAuth';
+import { getAuthenticatedSupabase, sendRouteError } from './chefRouteAuth';
 
 function formatTimeAway(ms: number): string {
   const totalMinutes = Math.floor(ms / 60000);
@@ -19,8 +19,7 @@ export async function handleSettleOffline(req: Request, res: Response): Promise<
       return;
     }
 
-    const supabase = getSupabase();
-    const playerId = await requireAuthenticatedPlayerId(supabase, req, body.jwt, body.playerId);
+    const { playerId, supabase } = await getAuthenticatedSupabase(req, body.jwt, body.playerId);
 
     const { data: activeAction, error: actionError } = await supabase
       .from('active_actions')

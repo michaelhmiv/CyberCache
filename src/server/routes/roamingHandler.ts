@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
-import { getSupabase, requireAuthenticatedPlayerId, sendRouteError } from './chefRouteAuth';
+import { getAuthenticatedSupabase, sendRouteError } from './chefRouteAuth';
 
 export async function handleClaim(req: Request, res: Response): Promise<void> {
   try {
@@ -10,8 +10,7 @@ export async function handleClaim(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const supabase = getSupabase();
-    const playerId = await requireAuthenticatedPlayerId(supabase, req, body.jwt, body.playerId);
+    const { playerId, supabase } = await getAuthenticatedSupabase(req, body.jwt, body.playerId);
     const claim: ClaimRequest = { ...body, playerId };
 
     const { data: profile, error: profileError } = await supabase.from('profiles').select('last_claimed_tick').eq('id', playerId).single();
