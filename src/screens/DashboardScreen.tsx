@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Lock,
 } from 'lucide-react';
+import { PickerSheet } from '@/components/common/PickerSheet';
 import {
   useActivityStore,
   useBossStore,
@@ -198,7 +199,16 @@ const InfoGauge: React.FC<{ label: string; value: string | number; detail: strin
   const isClickable = Boolean(onClick);
   return (
     <div onClick={onClick} className={`relative overflow-hidden border-2 border-border bg-bg/75 p-1.5 ${isClickable ? 'cursor-pointer transition-transform active:scale-[0.97] hover:border-amber' : ''}`} style={panelClip}>
-      <div className="flex items-center gap-1.5"><div className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>{icon}</div><div className="min-w-0"><div className="text-[8px] uppercase tracking-wide text-text-muted">{label}</div><div className="truncate text-xs font-black leading-tight text-text-primary">{value}</div></div></div>
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="flex items-center gap-1.5">
+          <div className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>{icon}</div>
+          <div className="min-w-0">
+            <div className="text-[8px] uppercase tracking-wide text-text-muted">{label}</div>
+            <div className="truncate text-xs font-black leading-tight text-text-primary">{value}</div>
+          </div>
+        </div>
+        {isClickable && <ChevronDown size={10} className="shrink-0 text-text-muted" />}
+      </div>
       <div className="mt-0.5 truncate text-[8px] text-text-muted">{detail}</div>
     </div>
   );
@@ -232,6 +242,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [focusedSlot, setFocusedSlot] = useState<keyof LoadoutConsumables | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [turfPickerOpen, setTurfPickerOpen] = useState(false);
   const cycleOverride = useCallback(() => {
     setOverrideActivity((current) => {
       const idx = current ? HUD_ACTIVITY_CYCLE.indexOf(current) : -1;
@@ -383,8 +394,52 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             activityKind={activity.current.kind}
           />
         )}
+        {turfPickerOpen && (
+          <PickerSheet
+            title="Choose Turf"
+            subtitle={`Current route: ${selectedArea.name}. Tap an area to switch.`}
+            onClose={() => setTurfPickerOpen(false)}
+          >
+            <div className="space-y-2">
+              {ROAMING_AREAS.map((area) => {
+                const unlocked = isRoamingAreaUnlocked(area, player.level);
+                const selected = area.id === selectedArea.id;
+                const areaVis = getAreaVisual(area.id);
+                return (
+                  <button
+                    key={area.id}
+                    type="button"
+                    disabled={!unlocked}
+                    onClick={() => {
+                      if (!unlocked) return;
+                      idle.setSelectedRoamingArea(area.id);
+                      setTurfPickerOpen(false);
+                    }}
+                    className={`relative w-full overflow-hidden border-2 px-3 py-2 text-left transition-transform active:scale-[0.99] ${selected ? 'border-amber bg-amber/10' : 'border-border bg-surface/90'} ${!unlocked ? 'opacity-45' : ''}`}
+                    style={panelClip}
+                  >
+                    <AreaBackground areaId={area.id} opacity={unlocked ? 0.14 : 0.06} />
+                    <div className="relative flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex items-center gap-2">
+                        <span className="shrink-0 font-black inline-flex items-center justify-center" style={{ color: areaVis.color, fontSize: '12px', width: 18, height: 18 }}>
+                          {areaVis.sigil}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-black text-text-primary">{area.name}</div>
+                          <div className="text-[9px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div>
+                        </div>
+                      </div>
+                      {selected ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" /> : <ChevronRight size={12} className="shrink-0 text-text-muted" />}
+                    </div>
+                    <div className="relative mt-1 truncate text-[9px] text-amber">{area.lootBias[0]}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </PickerSheet>
+        )}
         <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
-        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={`${selectedArea.dangerRating} · ${selectedArea.lootBias[0]}`} icon={<AreaGlyph areaId={selectedArea.id} size={14} />} tone="amber" /><InfoGauge
+        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={`${selectedArea.dangerRating} · ${selectedArea.lootBias[0]}`} icon={<AreaGlyph areaId={selectedArea.id} size={14} />} tone="amber" onClick={() => setTurfPickerOpen(true)} /><InfoGauge
             label="Equipped"
             value={equippedWeapon?.name ?? 'None'}
             detail={equippedWeapon ? `${equippedWeapon.combatPower} combat power` : 'Open loadout bench'}
@@ -392,7 +447,43 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             tone="red"
             onClick={() => onNavigate('inventory')}
           /></div></Panel>
-        <Panel label="Choose Turf"><div className="flex gap-1.5 overflow-x-auto pb-0.5">{ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; const areaVis = getAreaVisual(area.id); return <button type="button" key={area.id} disabled={!unlocked} onClick={() => idle.setSelectedRoamingArea(area.id)} className={`relative min-w-[116px] overflow-hidden border-2 px-2 py-1.5 text-left transition-transform active:scale-[0.98] ${selected ? 'border-amber/70 bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-50' : ''}`} style={panelClip}><AreaBackground areaId={area.id} opacity={unlocked ? 0.18 : 0.08} /><div className="relative flex items-start justify-between gap-1.5"><div className="min-w-0 flex items-center gap-1.5"><span className="shrink-0 font-black inline-flex items-center justify-center" style={{ color: areaVis.color, fontSize: '11px', width: 16, height: 16 }}>{areaVis.sigil}</span><div className="min-w-0"><div className="truncate text-[11px] font-black text-text-primary">{area.name}</div><div className="text-[8px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div></div></div>{!unlocked && <Lock size={11} className="shrink-0 text-text-muted" />}{selected && <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" />}</div><div className="relative mt-0.5 truncate text-[8px] text-amber">{area.lootBias[0]}</div></button>; })}</div></Panel>
+        <Panel
+          label="Choose Turf"
+          headerActions={
+            <button
+              type="button"
+              data-testid="dashboard-turf-switch-button"
+              onClick={() => setTurfPickerOpen(true)}
+              className="flex items-center gap-1 border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber transition-colors hover:bg-amber/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber"
+              style={signClip}
+              aria-label="Switch turf"
+            >
+              Switch
+              <ChevronDown size={9} />
+            </button>
+          }
+        >
+          <button
+            type="button"
+            onClick={() => setTurfPickerOpen(true)}
+            className="relative w-full overflow-hidden border-2 border-border bg-bg/75 p-2 text-left transition-transform active:scale-[0.98] hover:border-amber"
+            style={panelClip}
+          >
+            <AreaBackground areaId={selectedArea.id} opacity={0.14} />
+            <div className="relative flex items-start justify-between gap-2">
+              <div className="min-w-0 flex items-center gap-2">
+                <AreaGlyph areaId={selectedArea.id} size={16} className="shrink-0" />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-black text-text-primary">{selectedArea.name}</div>
+                  <div className="text-[9px] uppercase tracking-wide text-text-muted">LV {selectedArea.unlockLevel} / {selectedArea.dangerRating}</div>
+                </div>
+              </div>
+              <ChevronDown size={12} className="shrink-0 text-text-muted" />
+            </div>
+            <div className="relative mt-1 truncate text-[9px] text-amber">{selectedArea.lootBias[0]}</div>
+            <div className="relative mt-1 text-[8px] uppercase tracking-[0.16em] text-text-muted">Tap to switch turf</div>
+          </button>
+        </Panel>
       </div>
     </div>
   );

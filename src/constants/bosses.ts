@@ -147,7 +147,7 @@ export const REGION_1_BOSSES: BossDef[] = [
     tags: ['burn', 'attrition', 'organic'],
     phases: [
       {
-        id: 'burning_ground',
+        id: 'burning_ground_phase',
         name: 'Burning Ground Attrition',
         description: 'Damage-over-time pressure raises the survival requirement across the fight.',
         type: 'survival',
