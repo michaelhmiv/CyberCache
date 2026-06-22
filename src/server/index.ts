@@ -3,17 +3,15 @@
  *
  * Single Railway service that:
  *   1. Serves the built React app (static files)
- *   2. Runs the Chef worker — the authoritative engine for all
- *      gameplay: tick claims, item generation, combat simulation,
- *      boss verification.
- *
- * The Chef imports the SAME generator functions as the client
- * (src/lib/generators/*). One source of truth for game logic.
+ *   2. Runs the Chef worker — the authoritative engine for gameplay logic.
+ * Item generation lives in src/server/lib/generators and is no longer
+ * reachable from the browser bundle.
  */
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
 import { mountChefRoutes } from './routes/chefRoutes';
+import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 
 const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, '../../dist');
@@ -57,6 +55,9 @@ app.use(express.json({ limit: '1mb' }));
 
 // Chef API — authoritative gameplay engine
 mountChefRoutes(app);
+
+// Market seeding — server-side NPC listings
+mountMarketSeedRoutes(app);
 
 // Static files — the React SPA
 app.use(express.static(DIST_DIR));

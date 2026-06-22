@@ -7,9 +7,8 @@
  * `subStats`. Each sub-stat is scaled by level, rarity, manufacturer bias, and
  * quality roll — yielding billions of unique combinations.
  *
- * This is the CLIENT-SIDE generator (runs during item creation in the browser).
- * The Chef verifies outcomes by re-running this same function with the same RNG
- * seed (deterministic re-roll).
+ * This is the SERVER-ONLY generator (Chef / edge routines). The browser bundle
+ * must never call it.
  */
 
 import type { Affix } from '@/types/items';

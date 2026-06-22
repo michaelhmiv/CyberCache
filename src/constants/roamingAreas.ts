@@ -1,5 +1,5 @@
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '../types/game';
-import { GenerateWeaponOptions } from '../lib/generators/weaponGenerator';
+import { GenerateWeaponOptions } from '@/types/generator';
 
 export type ManufacturerInfluence = Manufacturer | 'Mixed';
 export type DangerRating = 'Low' | 'Medium' | 'Medium/High' | 'Variable' | 'High';

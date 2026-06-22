@@ -1,13 +1,13 @@
-import { Rarity, Manufacturer, DropSource, SkillTreeType } from '../../types/game';
-import { ClassMod, Affix } from '../../types/items';
-import { RARITIES } from '../../constants/rarities';
-import { createRNG, seededInt, seededRandom, pickWeighted, hashString } from '../utils/rng';
-import { generateItemId } from '../utils/id';
+import { Rarity, Manufacturer, DropSource, SkillTreeType } from '@/types/game';
+import { ClassMod, Affix } from '@/types/items';
+import { RARITIES } from '@/constants/rarities';
+import { createRNG, seededInt, seededRandom, pickWeighted, hashString } from '@/lib/utils/rng';
+import { generateItemId } from '@/lib/utils/id';
 import {
   generateActivityModule,
   pickActivityKind,
-} from '../generators/activityModuleGenerator';
-import { BASE_ACTIVITY_MODULE_CHANCE } from '../../content/activityModuleDefs';
+} from './activityModuleGenerator';
+import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
 
 const SKILL_NODE_IDS = [
   'gs_dmg_1', 'gs_dmg_2', 'gs_crit_1', 'gs_crit_2', 'gs_critdmg_1', 'gs_critdmg_2',

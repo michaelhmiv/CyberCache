@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateWeapon } from '../lib/generators/weaponGenerator';
+import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
 import { computeStandardDps } from '../lib/stats/dpsChain';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '../types/game';
 import type { Weapon } from '../types/items';

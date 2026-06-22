@@ -21,11 +21,11 @@
  */
 
 import { createTickRng } from '../lib/rng/tickRng';
-import { generateWeapon } from '../lib/generators/weaponGenerator';
-import { generateShield } from '../lib/generators/shieldGenerator';
-import { generateClassMod } from '../lib/generators/classModGenerator';
-import { generateRelic } from '../lib/generators/relicGenerator';
-import { generateOrdnance } from '../lib/generators/ordnanceGenerator';
+import { generateWeapon } from './lib/generators/weaponGenerator';
+import { generateShield } from './lib/generators/shieldGenerator';
+import { generateClassMod } from './lib/generators/classModGenerator';
+import { generateRelic } from './lib/generators/relicGenerator';
+import { generateOrdnance } from './lib/generators/ordnanceGenerator';
 import {
   getRoamingArea,
   rollAreaDropKind,

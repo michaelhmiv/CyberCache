@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateShield } from '../lib/generators/shieldGenerator';
+import { generateShield } from '@/server/lib/generators/shieldGenerator';
 
 describe('shieldGenerator — affixes baked into stats', () => {
   it('generates a shield with hp > 0', () => {
