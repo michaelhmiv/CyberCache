@@ -135,7 +135,8 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
   const ordnanceContribution = input.ordnance?.damage ?? 0;
   const activityRareFind = recordTotal(input.activityMods, ['rareDropChanceMod']);
   const activityScrap = recordTotal(input.activityMods, ['scrapYieldMod']);
-  const activityOffline = recordTotal(input.activityMods, ['offlineEarningsMod', 'creditsPerKill']);
+  const activityOffline = recordTotal(input.activityMods, ['offlineEarningsMod']);
+  const activityCreditsPerKill = recordTotal(input.activityMods, ['creditsPerKill']);
   const consumableRareFind = recordTotal(input.consumableMods, ['rareDropChanceMod', 'lootQuantity', 'bonusLootChance']);
   const consumableScrap = recordTotal(input.consumableMods, ['scrapYieldMod']);
   const consumableXp = recordTotal(input.consumableMods, ['xpBoostMod']);
@@ -205,12 +206,13 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
       ],
     ),
     offlineEarningModifier: scalar(
-      weapons.reduce((sum, weapon) => sum + weapon.offlineEarningsMod, 0) + skillTotal(input.spentSkills, 'offlineEarnings') + affixTotal(gear, 'offlineEarningsMod') + activityOffline,
+      weapons.reduce((sum, weapon) => sum + weapon.offlineEarningsMod, 0) + skillTotal(input.spentSkills, 'offlineEarnings') + affixTotal(gear, 'offlineEarningsMod') + activityOffline + activityCreditsPerKill,
       [
         ...weapons.map((weapon) => contribution('weapon', weapon.name, 'offlineEarningsMod', weapon.offlineEarningsMod)),
         contribution('skill', 'Skill tree', 'offlineEarnings', skillTotal(input.spentSkills, 'offlineEarnings')),
         contribution('gear', 'Gear affixes', 'offlineEarningsMod', affixTotal(gear, 'offlineEarningsMod')),
         contribution('activity', 'Activity / area modifiers', 'offlineEarningsMod', activityOffline),
+        contribution('activity', 'Credits per kill', 'creditsPerKill', activityCreditsPerKill),
       ],
     ),
   };
