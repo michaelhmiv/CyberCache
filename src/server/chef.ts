@@ -704,6 +704,22 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   if (!boss) throw new Error(`Unknown boss: ${request.bossId}`);
 
   const input: BossSimulationInput = { ...request, boss };
+
+  // Re-derive effectiveDps server-side from the gear objects, mirroring
+  // the roaming claim handler's approach. This prevents a malicious or
+  // buggy client from inflating the boss sim's dpsScore / winChance by
+  // forging item stats. The client-supplied skillBonuses.dps is also
+  // re-derived here rather than trusted.
+  const serverGearEffectiveDps = computeEffectiveDpsFromGear({
+    weapons: [request.primary, request.secondary, request.heavy].filter(
+      (w): w is import('../types/items').Weapon => !!w && 'weaponType' in w,
+    ),
+    ordnance: request.ordnance,
+    relic: request.relic,
+    classMod: request.classMod,
+    skillDpsMult: 1 + (request.skillBonuses?.dps ?? 0),
+  });
+
   const sim = simulateBoss(input);
   const rng = createTickRng(request.playerId, boss.id, request.attemptNonce);
   const rm = getBossRiskModifiers(request.risk);
@@ -721,9 +737,16 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   const creditsDelta = applyBadDecisionBonus(rawCreditsDelta, request.primary);
 
   let xpMult = 1;
+  // Relic affixes with xpBoostMod
   request.relic?.affixes.forEach((affix) => {
     if (affix.stat === 'xpBoostMod') xpMult += affix.value;
   });
+  // Class mod affixes with xpBoostMod
+  request.classMod?.affixes.forEach((affix) => {
+    if (affix.stat === 'xpBoostMod') xpMult += affix.value;
+  });
+  // Skill tree xpBoostMod (previously ignored in boss path)
+  xpMult += request.skillBonuses?.xpBoostMod ?? 0;
   const xpAwarded = victory ? Math.round(boss.level * 20 * xpMult) : 0;
 
   const consumedConsumables = getBossConsumableUsage(request.consumables, victory, sim.survivalScore);
@@ -804,7 +827,7 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     telemetry: {
       serverRolled: true,
       adjustedWinChance,
-      effectiveDps: sim.effectiveDPS,
+      effectiveDps: serverGearEffectiveDps,
       timeToKill: sim.timeToKill,
     },
   };
