@@ -348,7 +348,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Account Tools</div>
         <ActionRow glyph="⚙" label="Settings" desc="Preferences, display, and local save controls" onClick={() => onNavigate?.('settings')} tone="#9CA3AF" />
         <ActionRow glyph="?" label="Field Manual" desc="Mechanics, progression, caches, combat, and economy rules" onClick={() => onNavigate?.('help')} tone="#F7D20B" />
-        <ActionRow glyph="☻" label="Identity" desc="Titles, badges, collections, and profile hooks" onClick={() => onNavigate?.('profile')} tone="#5AA7FF" />
+        <ActionRow glyph="☻" label="Identity" desc="Manage your public hunter name and profile identity" onClick={() => (account?.username || profileSummary?.username ? setRenameOpen(true) : setSetupOpen(true))} tone="#5AA7FF" />
         <ActionRow glyph="⏻" label={actionLoading ? 'Signing out…' : 'Sign Out'} desc="End this CyberCache session on this device" onClick={() => signOut()} tone="#FF4B5C" />
       </div>
       {setupOpen && (

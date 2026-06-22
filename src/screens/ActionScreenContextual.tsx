@@ -86,12 +86,16 @@ const copy: Record<ActivityKind, { title: string; detail: string }> = {
   none: { title: 'No Action', detail: 'Choose what the hunter should do next.' },
   idle_standby: { title: 'Standby', detail: 'Hunter is visible but not producing rewards.' },
   roaming_loot: { title: 'Roaming Loot', detail: 'Sweeping turf for XP, credits, scrap, gear, materials, and cache fragments.' },
-  boss_prep: { title: 'Boss Prep', detail: 'Checking weaknesses, counters, and loadout readiness before a discrete encounter.' },
   boss_fight: { title: 'Boss Encounter', detail: 'Resolving a focused boss encounter instead of the roaming loop.' },
   crafting: { title: 'Crafting', detail: 'Working at the bench to build or modify gear.' },
   salvaging: { title: 'Salvaging', detail: 'Breaking items into scrap, materials, or essences.' },
   workshop_service: { title: 'Workshop Service', detail: 'Maintaining machines, queues, and production outputs.' },
   market_listing: { title: 'Market Listing', detail: 'Posting or managing gear at the trade kiosk.' },
+};
+
+const bossPrepCopy = {
+  title: 'Boss Prep',
+  detail: 'Checking weaknesses, counters, and loadout readiness before a discrete encounter.',
 };
 
 const idleEvent: RunVisualEvent = {
@@ -353,6 +357,8 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
   const bossPhase = activity.current.bossPhase;
+  const isBossPrep = currentKind === 'boss_fight' && bossPhase === 'prep';
+  const isBossFight = currentKind === 'boss_fight' && bossPhase === 'fight';
   const equippedCount = Object.values(loadoutStore.slots).filter(Boolean).length;
   const currentBoss = bossStore.currentBossId ? REGION_1_BOSSES.find((b) => b.id === bossStore.currentBossId) : null;
   const prepBossTarget = currentBoss ?? REGION_1_BOSSES.find((b) => bossStore.unlockedBossIds.includes(b.id) && !bossStore.defeatedBossIds.includes(b.id)) ?? REGION_1_BOSSES[0];
@@ -371,7 +377,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const creditsPerTick = Math.round((selectedArea.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0)));
   const scrapPerTick = Math.round((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0)));
   const targetLabel = activity.current.targetLabel ?? (currentKind === 'idle_standby' || currentKind === 'none' ? 'No target selected' : selectedArea.name);
-  const detail = copy[currentKind] ?? copy.idle_standby;
+  const detail = isBossPrep ? bossPrepCopy : copy[currentKind] ?? copy.idle_standby;
   // Merge tick-feed events (from the canonical ticker) with lifecycle events
   // (action start/stop, cache open). The ticker is the single source of truth
   // for roaming rewards; the Action screen is a consumer, not an engine.
@@ -461,7 +467,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       setShowAreaSelect(true);
     } else if (currentKind === 'idle_standby' || currentKind === 'none') {
       startRoam();
-    } else if ((currentKind === 'boss_prep' || currentKind === 'boss_fight') && prepBossTarget) {
+    } else if (currentKind === 'boss_fight' && prepBossTarget) {
       startBossFight(prepBossTarget);
     } else {
       setShowSwitch(true);
@@ -469,7 +475,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   }, [currentKind, startRoam, startBossFight, prepBossTarget]);
 
   const onDioramaSecondary = useCallback(() => {
-    if (currentKind === 'boss_prep' || currentKind === 'boss_fight') {
+    if (currentKind === 'boss_fight') {
       onOpenBossSelect();
     } else if (currentKind === 'roaming_loot') {
       setShowAreaSelect(true);
@@ -597,8 +603,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       );
     }
 
+    if (isBossPrep) return <BossPrepPanel {...commonProps} bosses={bosses} currentBoss={prepBossTarget} fightPower={fightPower} onBossPicker={() => setShowBossPicker(true)} />;
+
     // Boss Fight: compact encounter panel
-    if (currentKind === 'boss_fight') {
+    if (isBossFight) {
       if (!prepBossTarget) return (
         <div className="border-2 border-border bg-surface/95 p-3" style={panelClip}>
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-red">Boss Encounter</div>
@@ -650,7 +658,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       );
     }
 
-    if (currentKind === 'boss_fight' && bossPhase === 'prep') return <BossPrepPanel {...commonProps} bosses={bosses} currentBoss={prepBossTarget} fightPower={fightPower} onBossPicker={() => setShowBossPicker(true)} />;
     if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} onRecipePicker={() => setShowRecipePicker(true)} />;
     if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} onSalvagePicker={() => setShowSalvagePicker(true)} />;
     if (currentKind === 'workshop_service') return <WorkshopPanel {...commonProps} queues={workshop.activeQueues} benchesFree={benchesFree} />;
@@ -701,7 +708,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         weapon={activityWeapon}
         bossName={prepBossTarget?.name}
         bossWeaknessCount={currentBoss?.weaknesses.length ?? 0}
-        boss={currentKind === 'boss_prep' || currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : undefined}
+        boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : undefined}
         playerLevel={player.level}
         equippedCount={equippedCount}
         cacheKeys={player.cacheKeys}
@@ -714,11 +721,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         primaryActionLabel={
           currentKind === 'idle_standby' || currentKind === 'none' ? 'Start Roam'
           : currentKind === 'roaming_loot' ? 'Change Route'
-          : currentKind === 'boss_prep' ? 'Start Fight'
+          : isBossPrep ? 'Start Fight'
           : 'Manage'
         }
         secondaryActionLabel={
-          currentKind === 'boss_prep' || currentKind === 'boss_fight' ? 'Choose Boss'
+          currentKind === 'boss_fight' ? 'Choose Boss'
           : currentKind === 'roaming_loot' ? 'Switch Area'
           : 'Switch Action'
         }
@@ -740,8 +747,8 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
               onClick={run}
               className={`flex flex-col items-center justify-center gap-0.5 border-2 p-2 text-center transition-all active:scale-[0.96] ${
                 (label === 'Roam' && currentKind === 'roaming_loot') ||
-                (label === 'Boss Prep' && currentKind === 'boss_prep') ||
-                (label === 'Boss Fight' && currentKind === 'boss_fight') ||
+                (label === 'Boss Prep' && isBossPrep) ||
+                (label === 'Boss Fight' && isBossFight) ||
                 (label === 'Craft' && currentKind === 'crafting') ||
                 (label === 'Salvage' && currentKind === 'salvaging') ||
                 (label === 'Workshop' && currentKind === 'workshop_service') ||
