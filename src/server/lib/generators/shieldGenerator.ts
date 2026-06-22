@@ -1,14 +1,14 @@
-import { Element, Rarity, Manufacturer, DropSource } from '../../types/game';
-import { Shield, Affix } from '../../types/items';
-import { RARITIES } from '../../constants/rarities';
-import { ELEMENTS } from '../../constants/elements';
-import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
-import { generateItemId } from '../utils/id';
+import { Element, Rarity, Manufacturer, DropSource } from '@/types/game';
+import { Shield, Affix } from '@/types/items';
+import { RARITIES } from '@/constants/rarities';
+import { ELEMENTS } from '@/constants/elements';
+import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '@/lib/utils/rng';
+import { generateItemId } from '@/lib/utils/id';
 import {
   generateActivityModule,
   pickActivityKind,
-} from '../generators/activityModuleGenerator';
-import { BASE_ACTIVITY_MODULE_CHANCE } from '../../content/activityModuleDefs';
+} from './activityModuleGenerator';
+import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
 
 const SHIELD_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.Ironwood,

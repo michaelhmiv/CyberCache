@@ -3,36 +3,25 @@ import {
   Rarity,
   WeaponType,
   Manufacturer,
-  DropSource,
-} from '../../types/game';
-import { Weapon, WeaponPart, Affix } from '../../types/items';
-import { WEAPON_TYPES } from '../../constants/weaponTypes';
-import { RARITIES } from '../../constants/rarities';
-import { MANUFACTURERS } from '../../constants/manufacturers';
-import { getEligibleLegendaryEffects } from '../../constants/legendaryEffects';
-import { rollRarityForDrop } from '../../content/lootResolver';
-import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '../utils/rng';
-import { generateItemId } from '../utils/id';
-import { generateWeaponName } from '../utils/naming';
-import { computeStandardDps } from '../stats/dpsChain';
+} from '@/types/game';
+import type { GenerateWeaponOptions } from '@/types/generator';
+import { Weapon, WeaponPart, Affix } from '@/types/items';
+import { WEAPON_TYPES } from '@/constants/weaponTypes';
+import { RARITIES } from '@/constants/rarities';
+import { MANUFACTURERS } from '@/constants/manufacturers';
+import { getEligibleLegendaryEffects } from '@/constants/legendaryEffects';
+import { rollRarityForDrop } from '@/content/lootResolver';
+import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '@/lib/utils/rng';
+import { generateItemId } from '@/lib/utils/id';
+import { generateWeaponName } from '@/lib/utils/naming';
+import { computeStandardDps } from '@/lib/stats/dpsChain';
 import {
   generateActivityModule,
   pickActivityKind,
-} from '../generators/activityModuleGenerator';
-import { BASE_ACTIVITY_MODULE_CHANCE } from '../../content/activityModuleDefs';
+} from './activityModuleGenerator';
+import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
 
-export interface GenerateWeaponOptions {
-  source: DropSource;
-  level?: number;
-  forcedType?: WeaponType;
-  forcedRarity?: Rarity;
-  forcedElement?: Element;
-  forcedManufacturer?: Manufacturer;
-  luckBonus?: number; // 0-1 flat increase to rarity roll
-  bossTier?: number;
-  zoneWeights?: Record<string, number>; // per-zone rarity weights
-  _luckBonus?: number; // internal — destructured from options
-}
+export type { GenerateWeaponOptions };
 
 export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () => number): Weapon {
   const {

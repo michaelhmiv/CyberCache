@@ -1,13 +1,13 @@
-import { Rarity, Manufacturer, DropSource } from '../../types/game';
-import { Relic, Affix } from '../../types/items';
-import { RARITIES } from '../../constants/rarities';
-import { createRNG, seededInt, seededRandom, pickWeighted, hashString } from '../utils/rng';
-import { generateItemId } from '../utils/id';
+import { Rarity, Manufacturer, DropSource } from '@/types/game';
+import { Relic, Affix } from '@/types/items';
+import { RARITIES } from '@/constants/rarities';
+import { createRNG, seededInt, seededRandom, pickWeighted, hashString } from '@/lib/utils/rng';
+import { generateItemId } from '@/lib/utils/id';
 import {
   generateActivityModule,
   pickActivityKind,
-} from '../generators/activityModuleGenerator';
-import { BASE_ACTIVITY_MODULE_CHANCE } from '../../content/activityModuleDefs';
+} from './activityModuleGenerator';
+import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
 
 const RELIC_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.Prismatek,
