@@ -170,6 +170,8 @@ export interface ClaimResult {
     remainingBurstSeconds?: number;
     ordnanceNextFireSeconds?: number;
   }>;
+  /** Server-authoritative effective DPS (for client display). */
+  effectiveDps?: number;
 }
 
 export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
@@ -696,6 +698,7 @@ export function processRoamingClaim(
     roamingConsumableState: roamingState,
     // Active buff display data for client UI
     activeBuffs: roamingState ? buildActiveBuffs(roamingState, tickCount) : [],
+    effectiveDps: serverDerivedDps,
   };
 }
 
