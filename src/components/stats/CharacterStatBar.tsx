@@ -47,7 +47,7 @@ const StackedBar = memo(function StackedBar({ segments, total }: { segments: Non
   );
 });
 
-const MiniMetric = memo(function MiniMetric({ metric, ...rest }: { metric: StatMetric; currentHp?: number; maxHp?: number } & React.HTMLAttributes<HTMLDivElement>) {
+const MiniMetric = memo(function MiniMetric({ metric, currentHp: _currentHp, maxHp: _maxHp, ...rest }: { metric: StatMetric; currentHp?: number; maxHp?: number } & React.HTMLAttributes<HTMLDivElement>) {
   const tone = toneClass(metric.tone);
   const { key } = metric;
   const display = metric.display;
