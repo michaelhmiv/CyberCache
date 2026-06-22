@@ -12,7 +12,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useLoadoutStore, usePlayerStore, useInventoryStore } from '@/store';
+import { useLoadoutStore, usePlayerStore, useInventoryStore, useSkillStore } from '@/store';
 import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
@@ -158,6 +158,9 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
   // Subscribe to consumable changes so the chips re-render
   usePlayerStore((s) => s.consumables);
   useLoadoutStore((s) => s.consumables);
+  // Subscribe to skill tree DPS changes — loadoutEffectiveDps() calls getState() internally
+  // for skill bonuses, so we must force a re-render when spent points change.
+  useSkillStore((s) => s.spent);
 
   const dps = loadoutEffectiveDps();
   const equippedCount = Object.values(loadout.slots).filter(Boolean).length;

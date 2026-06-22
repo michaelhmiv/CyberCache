@@ -28,6 +28,7 @@ import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
+import { useNow } from '@/hooks/useNow';
 import { buildBossFightActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { computeMedKitBuffer } from '@/lib/combat/damageContract';
@@ -243,7 +244,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const heavyWeapon = loadout.getWeapon('heavy');
   const equippedWeapons = [primaryWeapon, secondaryWeapon, heavyWeapon].filter((w): w is Weapon => !!w);
   const statWeapons = equippedWeapons;
-  const activeBuffsNow = useState(Date.now)[0];
+  const activeBuffsNow = useNow();
   const activeBuffs = useMemo(
     () => activeBuffsStore.buffs.filter((buff) => buff.expiresAt > activeBuffsNow),
     [activeBuffsStore.buffs, activeBuffsNow],
