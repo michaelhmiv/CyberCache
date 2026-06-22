@@ -16,7 +16,7 @@ describe('offline settlement route contract', () => {
 
   it('offline settlement route passes the verified player id into the RPC', () => {
     const route = readSource('src/server/routes/settleOffline.ts');
-    expect(route).toContain('requireAuthenticatedPlayerId');
+    expect(route).toContain('getAuthenticatedSupabase');
     expect(route).toContain("supabase.rpc('cc_settle_offline_roaming'");
     expect(route).toContain('_player_id: playerId');
   });
