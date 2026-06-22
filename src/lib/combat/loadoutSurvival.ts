@@ -190,21 +190,3 @@ export function loadoutEffectiveDps(): number {
     skillDpsMult,
   });
 }
-
-/**
- * Read the equipped shield's recharge rate (HP per second).
- * Returns 0 if no shield equipped.
- */
-export function equippedShieldRechargeRate(): number {
-  const shield = useLoadoutStore.getState().getShield();
-  return shield?.rechargeRate ?? 0;
-}
-
-/**
- * Read the equipped shield's damage mitigation (0-1).
- * Returns 0 if no shield equipped.
- */
-export function equippedShieldMitigation(): number {
-  const shield = useLoadoutStore.getState().getShield();
-  return shield?.mitigation ?? 0;
-}
