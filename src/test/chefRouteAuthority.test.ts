@@ -13,7 +13,8 @@ describe('Chef route authority boundaries', () => {
   it('derives mutation player identity from Supabase Auth instead of trusting the body', () => {
     expect(claimRouteSource).toContain('requireAuthenticatedPlayerId');
     expect(claimRouteSource).toContain('supabase.auth.getUser(jwt)');
-    expect(claimRouteSource).toContain('const claim: ClaimRequest = { ...body, playerId }');
+    const roamSource = readFileSync(resolve(process.cwd(), 'src/server/routes/roamingHandler.ts'), 'utf8');
+    expect(roamSource).toContain('const claim: ClaimRequest = { ...body, playerId }');
     expect(claimRouteSource).toContain('const request: BossAttemptRequest = { ...body, playerId, attemptNonce }');
   });
 

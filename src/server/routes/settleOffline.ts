@@ -22,6 +22,31 @@ export async function handleSettleOffline(req: Request, res: Response): Promise<
     const supabase = getSupabase();
     const playerId = await requireAuthenticatedPlayerId(supabase, req, body.jwt, body.playerId);
 
+    // --- Idempotency check ---
+    const { data: idemProfile, error: idemError } = await supabase
+      .from('profiles')
+      .select('last_settlement_nonce, last_roaming_settled_at')
+      .eq('id', playerId)
+      .single();
+
+    if (idemError && (idemError as { code?: string }).code !== 'PGRST116') {
+      res.status(500).json({ error: 'Failed to read profile', detail: idemError.message });
+      return;
+    }
+
+    if (idemProfile?.last_settlement_nonce === body.settlementNonce) {
+      console.log('[chef] settlement idempotent — nonce already processed', {
+        playerId, nonce: body.settlementNonce,
+      });
+      res.json({
+        settled: false,
+        reason: 'idempotent',
+        detail: 'This settlement nonce was already processed. Refresh if you need updated rewards.',
+      });
+      return;
+    }
+
+    // --- Read active action ---
     const { data: activeAction, error: actionError } = await supabase
       .from('active_actions')
       .select('user_id, active_action, target_id, started_at, last_heartbeat_at, activity_payload')
@@ -33,11 +58,15 @@ export async function handleSettleOffline(req: Request, res: Response): Promise<
       return;
     }
 
-    if (!activeAction || activeAction.active_action !== 'roaming_loot') {
+    const activityKind = activeAction?.active_action;
+
+    if (!activeAction || activityKind !== 'roaming_loot') {
+      console.log('[chef] settlement no-op — not roaming', { playerId, active_action: activityKind });
       res.json({ settled: false, reason: 'not_roaming' });
       return;
     }
 
+    // --- Read full profile for economy state ---
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -49,52 +78,76 @@ export async function handleSettleOffline(req: Request, res: Response): Promise<
       return;
     }
 
-    if (profile.last_settlement_nonce === body.settlementNonce) {
-      res.json({ settled: false, reason: 'idempotent' });
-      return;
-    }
-
+    // --- Compute elapsed time using server-authoritative timestamps ---
     const settleFrom = profile.last_roaming_settled_at || activeAction.started_at;
     if (!settleFrom) {
-      res.json({ settled: false, reason: 'no_elapsed' });
+      res.json({ settled: false, reason: 'no_elapsed', detail: 'No settlement start timestamp' });
       return;
     }
 
+    const settleFromMs = new Date(settleFrom).getTime();
+    const nowMs = Date.now();
     const capHours = Number(profile.offline_cap_hours) || 2;
     const capMs = capHours * 60 * 60 * 1000;
-    const rawElapsedMs = Math.max(0, Date.now() - new Date(settleFrom).getTime());
+    const rawElapsedMs = Math.max(0, nowMs - settleFromMs);
     const elapsedMs = Math.min(rawElapsedMs, capMs);
-    const ticksRequested = Math.floor(elapsedMs / 3000);
+    const capReached = rawElapsedMs > capMs;
+
+    const TICK_MS = 3000;
+    const ticksRequested = Math.floor(elapsedMs / TICK_MS);
 
     if (ticksRequested <= 0) {
+      console.log('[chef] settlement no-op — no elapsed ticks', { playerId, elapsedMs });
       res.json({ settled: false, reason: 'no_elapsed' });
       return;
     }
 
+    // --- Process all eligible ticks (no 20-tick clamp!) ---
     const area = await import('../../constants/roamingAreas').then((m) => m.getRoamingArea(activeAction.target_id));
+    const areaId = area.id;
+    const areaName = area.name;
+
+    // Read consumable inventory from profile (server-authoritative)
+    const consumableInventory = (profile.consumables ?? {}) as Record<string, number>;
     const claim: ClaimRequest = {
       playerId,
-      areaId: area.id,
+      areaId,
       ticks: ticksRequested,
       tickCount: (profile.last_claimed_tick || 0) + ticksRequested,
       playerLevel: profile.player_level || 1,
-      maxTicks: Infinity,
-      effectiveDps: 0,
+      maxTicks: Infinity, // ← NO 20-TICK CLAMP for offline settlement
+      effectiveDps: 0, // offline settlement skips combat simulation
+      consumableInventory,
     };
 
     const result = processRoamingClaim(claim);
 
-    const { data: atomicResult, error: atomicError } = await supabase.rpc('cc_settle_offline_roaming', {
-      _player_id: playerId,
-      _settlement_nonce: body.settlementNonce,
-      _credits: result.rewards.creditsAwarded,
-      _scrap: result.rewards.scrapAwarded,
-      _xp: result.rewards.xpAwarded,
-      _fragments: result.rewards.cacheFragmentsAwarded,
-      _materials: result.rewards.materials,
-      _essences: result.rewards.essences,
-      _kills: result.rewards.killsRecorded,
-    });
+    // Persist consumable consumption for offline settlement
+    const offlineConsumed = result.consumedConsumables;
+    if (offlineConsumed && Object.keys(offlineConsumed).length > 0) {
+      const { error: consumeError } = await supabase.rpc('cc_consume_roaming_consumables', {
+        _player_id: playerId,
+        _consumed: offlineConsumed,
+        _area_id: areaId,
+        _tick_count: (profile.last_claimed_tick || 0) + ticksRequested,
+      });
+      if (consumeError) console.error('[chef] settlement consume consumables failed:', consumeError.message);
+    }
+
+    // --- Persist rewards atomically via cc_settle_offline_roaming ---
+    const { data: atomicResult, error: atomicError } = await supabase.rpc(
+      'cc_settle_offline_roaming',
+      {
+        _settlement_nonce: body.settlementNonce,
+        _credits: result.rewards.creditsAwarded,
+        _scrap: result.rewards.scrapAwarded,
+        _xp: result.rewards.xpAwarded,
+        _fragments: result.rewards.cacheFragmentsAwarded,
+        _materials: result.rewards.materials,
+        _essences: result.rewards.essences,
+        _kills: result.rewards.killsRecorded,
+      },
+    );
 
     if (atomicError) {
       res.status(500).json({ error: 'Atomic settlement failed', detail: atomicError.message });
@@ -102,33 +155,79 @@ export async function handleSettleOffline(req: Request, res: Response): Promise<
     }
 
     const settlement = atomicResult as Record<string, unknown> | null;
+
     if (!settlement || !settlement.settled) {
-      res.json({ settled: false, reason: (settlement?.reason as string) || 'error', detail: settlement?.detail });
+      const reason = (settlement?.reason as string) || 'error';
+      console.log('[chef] settlement no-op from atomic RPC', { playerId, reason });
+      res.json({
+        settled: false,
+        reason,
+        detail: settlement?.detail,
+      });
       return;
     }
 
+    const settledTicks = Number(settlement.ticks_settled ?? result.rewards.ticks);
+    const settledStartTick = Number(settlement.start_tick ?? (profile.last_claimed_tick || 0));
+    const settledEndTick = Number(settlement.end_tick ?? 0);
     const atomicElapsedMs = Number(settlement.elapsed_ms ?? elapsedMs);
-    const atomicCapMs = Number(settlement.capped_ms ?? capMs);
-    const capReached = Boolean(settlement.cap_reached ?? rawElapsedMs > capMs);
+    const atomicCappedMs = Number(settlement.capped_ms ?? capMs);
+    const atomicCapReached = Boolean(settlement.cap_reached ?? capReached);
+    const atomicCapHours = Number(settlement.cap_hours ?? capHours);
+    const atomicSettledAt = String(settlement.settled_at ?? new Date().toISOString());
 
+    // Store items (items generated by Chef, persisted separately)
     if (result.items.length > 0) {
-      const { error: storeError } = await supabase.rpc('cc_store_chef_items', { _player_id: playerId, _items: result.items });
-      if (storeError) console.error('[chef] settlement store items failed:', storeError.message);
+      const { error: storeError } = await supabase.rpc('cc_store_chef_items', {
+        _player_id: playerId,
+        _items: result.items,
+      });
+      if (storeError) {
+        console.error('[chef] settlement store items failed:', storeError.message);
+        res.status(500).json({
+          error: 'Failed to store settlement items',
+          detail: storeError.message,
+          profile: settlement.profile ?? {},
+        });
+        return;
+      }
     }
+
+    const profileSnapshot = settlement.profile ?? {};
+
+    console.log('[chef] settlement complete (atomic)', {
+      userId: playerId,
+      areaId,
+      startedAt: settleFrom,
+      settledAt: atomicSettledAt,
+      elapsedMs: atomicElapsedMs,
+      cappedMs: atomicCappedMs,
+      capReached: atomicCapReached,
+      ticksRequested,
+      ticksSettled: settledTicks,
+      startTick: settledStartTick,
+      endTick: settledEndTick,
+      xp: result.rewards.xpAwarded,
+      credits: result.rewards.creditsAwarded,
+      scrap: result.rewards.scrapAwarded,
+      fragments: result.rewards.cacheFragmentsAwarded,
+      gearCount: result.items.length,
+      materialCount: Object.keys(result.rewards.materials).length,
+    });
 
     res.json({
       settled: true,
-      areaId: area.id,
-      areaName: area.name,
+      areaId,
+      areaName,
       timeAway: formatTimeAway(atomicElapsedMs),
       elapsedMs: atomicElapsedMs,
-      cappedMs: atomicCapMs,
-      capReached,
-      capHours: Number(settlement.cap_hours ?? capHours),
-      ticksSettled: Number(settlement.ticks_settled ?? result.rewards.ticks),
-      startTick: Number(settlement.start_tick ?? profile.last_claimed_tick ?? 0),
-      endTick: Number(settlement.end_tick ?? 0),
-      profile: settlement.profile ?? {},
+      cappedMs: atomicCappedMs,
+      capReached: atomicCapReached,
+      capHours: atomicCapHours,
+      ticksSettled: settledTicks,
+      startTick: settledStartTick,
+      endTick: settledEndTick,
+      profile: profileSnapshot,
       rewards: result.rewards,
       items: result.items,
       feedEvents: result.feedEvents,

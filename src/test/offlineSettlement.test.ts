@@ -35,7 +35,7 @@ describe('Offline settlement — server authority', () => {
 
   // Test 2: Offline settlement uses maxTicks=Infinity (no 20-tick clamp)
   it('offline settlement route does not cap ticks to 20', () => {
-    const route = readSource('src/server/routes/claim.ts');
+    const route = readSource('src/server/routes/settleOffline.ts');
     expect(route).toContain('handleSettleOffline');
     // Settlement route should use maxTicks: Infinity, not the default 20
     expect(route).toContain('maxTicks: Infinity');
@@ -47,10 +47,10 @@ describe('Offline settlement — server authority', () => {
     const chef = readSource('src/server/chef.ts');
     expect(chef).toContain('maxTicks ?? 20');
     // The foreground route does NOT override maxTicks, so it defaults to 20
-    const route = readSource('src/server/routes/claim.ts');
+    const route = readSource('src/server/routes/roamingHandler.ts');
     const claimHandler = route.slice(
-      route.indexOf('async function handleClaim'),
-      route.indexOf('async function handleVerifyBoss'),
+      route.indexOf('export async function handleClaim'),
+      route.indexOf('export async function handleSettleOffline') || route.length,
     );
     expect(claimHandler).not.toContain('maxTicks');
   });
@@ -70,10 +70,9 @@ describe('Offline settlement — server authority', () => {
 
   // Test 5: Offline settlement has idempotency guard
   it('offline settlement checks settlement nonce for idempotency', () => {
-    const route = readSource('src/server/routes/claim.ts');
+    const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('async function handleSettleOffline'),
-      route.indexOf('export function mountChefRoutes'),
+      route.indexOf('export async function handleSettleOffline'),
     );
     expect(settlementHandler).toContain('last_settlement_nonce');
     expect(settlementHandler).toContain('settlementNonce');
@@ -87,10 +86,9 @@ describe('Offline settlement — server authority', () => {
 
   // Test 6: Offline settlement is server-authoritative (uses DB timestamps)
   it('offline settlement computes elapsed time from DB, not client clock', () => {
-    const route = readSource('src/server/routes/claim.ts');
+    const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('async function handleSettleOffline'),
-      route.indexOf('export function mountChefRoutes'),
+      route.indexOf('export async function handleSettleOffline'),
     );
     expect(settlementHandler).toContain('last_roaming_settled_at');
     expect(settlementHandler).toContain('activeAction.started_at');
@@ -102,10 +100,9 @@ describe('Offline settlement — server authority', () => {
 
   // Test 7: No-op when active action is not roaming_loot
   it('settlement returns no-op when not roaming', () => {
-    const route = readSource('src/server/routes/claim.ts');
+    const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('async function handleSettleOffline'),
-      route.indexOf('export function mountChefRoutes'),
+      route.indexOf('export async function handleSettleOffline'),
     );
     expect(settlementHandler).toContain("activityKind !== 'roaming_loot'");
     expect(settlementHandler).toContain("reason: 'not_roaming'");
@@ -219,10 +216,9 @@ describe('Offline settlement — UI recap', () => {
 describe('Offline settlement — schema fix (active_action / user_id)', () => {
   // Test 19: /api/settle-offline queries active_action, not kind
   it('handleSettleOffline selects active_action, not kind', () => {
-    const route = readSource('src/server/routes/claim.ts');
+    const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('async function handleSettleOffline'),
-      route.indexOf('export function mountChefRoutes'),
+      route.indexOf('export async function handleSettleOffline'),
     );
     // Must use active_action (the live column name)
     expect(settlementHandler).toContain(".select('user_id, active_action");
@@ -232,10 +228,9 @@ describe('Offline settlement — schema fix (active_action / user_id)', () => {
 
   // Test 20: No references to kind or player_id remain in active_actions query
   it('handleSettleOffline has no kind/player_id fallback', () => {
-    const route = readSource('src/server/routes/claim.ts');
+    const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('async function handleSettleOffline'),
-      route.indexOf('export function mountChefRoutes'),
+      route.indexOf('export async function handleSettleOffline'),
     );
     // The active_actions select should include active_action, not kind
     // Find the block between "Read active action" comment and "maybeSingle()"
@@ -375,10 +370,9 @@ describe('Offline settlement — atomic RPC', () => {
 
   // Test 35: Route uses atomic RPC instead of cc_apply_chef_rewards + manual update
   it('handleSettleOffline uses cc_settle_offline_roaming', () => {
-    const route = readSource('src/server/routes/claim.ts');
+    const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('async function handleSettleOffline'),
-      route.indexOf('export function mountChefRoutes'),
+      route.indexOf('export async function handleSettleOffline'),
     );
     expect(settlementHandler).toContain('cc_settle_offline_roaming');
     // Should NOT call cc_apply_chef_rewards for offline settlement
