@@ -4,7 +4,7 @@ import { getAuthenticatedSupabase, sendRouteError } from './chefRouteAuth';
 
 export async function handleClaim(req: Request, res: Response): Promise<void> {
   try {
-    const body = req.body as ClaimRequest & { jwt?: string };
+    const body = req.body as ClaimRequest & { jwt?: string; roamingConsumableState?: unknown; masteryLevels?: Record<string, number> };
     if (!body.areaId || !body.ticks || body.tickCount == null) {
       res.status(400).json({ error: 'Missing required fields: areaId, ticks, tickCount' });
       return;
@@ -13,7 +13,12 @@ export async function handleClaim(req: Request, res: Response): Promise<void> {
     const { playerId, supabase } = await getAuthenticatedSupabase(req, body.jwt, body.playerId);
     const claim: ClaimRequest = { ...body, playerId };
 
-    const { data: profile, error: profileError } = await supabase.from('profiles').select('last_claimed_tick').eq('id', playerId).single();
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('last_claimed_tick, consumables')
+      .eq('id', playerId)
+      .single();
+
     if (profileError) {
       res.status(500).json({ error: 'Failed to read profile', detail: profileError.message });
       return;
@@ -24,7 +29,18 @@ export async function handleClaim(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const result = processRoamingClaim(claim);
+    // Read server-authoritative consumable inventory from profiles.consumables
+    const consumableInventory = (profile?.consumables ?? {}) as Record<string, number>;
+
+    // Merge inventory + roaming state into the claim
+    const claimWithConsumables: ClaimRequest = {
+      ...claim,
+      consumableInventory,
+      roamingConsumableState: body.roamingConsumableState,
+      masteryLevels: body.masteryLevels,
+    };
+
+    const result = processRoamingClaim(claimWithConsumables);
     const { data: rpcResult, error: rpcError } = await supabase.rpc('cc_apply_chef_rewards', {
       _player_id: playerId,
       _credits: result.rewards.creditsAwarded,
@@ -44,11 +60,41 @@ export async function handleClaim(req: Request, res: Response): Promise<void> {
     }
 
     if (result.items.length > 0) {
-      const { error: storeError } = await supabase.rpc('cc_store_chef_items', { _player_id: playerId, _items: result.items });
-      if (storeError) console.error('[chef] Failed to store items:', storeError.message);
+      const { error: storeError } = await supabase.rpc('cc_store_chef_items', {
+        _player_id: playerId,
+        _items: result.items,
+      });
+      if (storeError) {
+        console.error('[chef] Failed to store items:', storeError.message);
+        res.status(500).json({
+          error: 'Failed to store generated items',
+          detail: storeError.message,
+          profile: rpcResult?.profile ?? rpcResult,
+          rewards: result.rewards,
+        });
+        return;
+      }
     }
 
-    res.json({ ...result, profile: rpcResult?.profile ?? rpcResult });
+    // Persist consumable consumption atomically (server-authoritative)
+    const consumedConsumables = result.consumedConsumables;
+    if (consumedConsumables && Object.keys(consumedConsumables).length > 0) {
+      const { error: consumeError } = await supabase.rpc('cc_consume_roaming_consumables', {
+        _player_id: playerId,
+        _consumed: consumedConsumables,
+        _area_id: body.areaId,
+        _tick_count: body.tickCount,
+      });
+      if (consumeError) {
+        console.error('[chef] Failed to consume roaming consumables:', consumeError.message);
+      }
+    }
+
+    res.json({
+      ...result,
+      profile: rpcResult?.profile ?? rpcResult,
+      consumedConsumables,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[chef] claim error:', message);
