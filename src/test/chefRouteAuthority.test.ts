@@ -16,7 +16,11 @@ describe('Chef route authority boundaries', () => {
     expect(authSource).toContain('verifier.auth.getUser(jwt)');
     expect(authSource).toContain('Authorization: `Bearer ${jwt}`');
     expect(claimRouteSource).toContain('const claim: ClaimRequest = { ...body, playerId }');
-    expect(claimRouteSource).toContain('const request: BossAttemptRequest = { ...body, playerId, attemptNonce }');
+    expect(claimRouteSource).toContain('const request: BossAttemptRequest = {');
+    expect(claimRouteSource).toContain('playerLevel: serverLevel');
+    expect(claimRouteSource).toContain('playerCredits: serverCredits');
+    expect(claimRouteSource).toContain('consumables: serverConsumables');
+    expect(claimRouteSource).toContain('pityCount: serverPityCount');
   });
 
   it('routes salvage through the verified recycle RPC', () => {
