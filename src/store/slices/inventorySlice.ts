@@ -1,10 +1,5 @@
 import { create } from 'zustand';
-import { GearItem, Weapon } from '../../types/items';
-import { generateWeapon } from '../../lib/generators/weaponGenerator';
-import { generateShield } from '../../lib/generators/shieldGenerator';
-import { generateClassMod } from '../../lib/generators/classModGenerator';
-import { generateRelic } from '../../lib/generators/relicGenerator';
-import { generateOrdnance } from '../../lib/generators/ordnanceGenerator';
+import type { GearItem, Weapon } from '../../types/items';
 import { calculateSalvageYield } from '../../constants/salvageRules';
 
 export interface InventoryState {
@@ -16,11 +11,6 @@ export interface InventoryState {
   scrapItem: (id: string) => { scrapValue: number; materials: Record<string, number>; essences: Record<string, number> };
   lockItem: (id: string) => void;
   unlockItem: (id: string) => void;
-  generateAndAdd: (opts: Parameters<typeof generateWeapon>[0], rng?: () => number) => Weapon;
-  generateAndAddShield: (level?: number, rng?: () => number) => ReturnType<typeof generateShield>;
-  generateAndAddClassMod: (level?: number, rng?: () => number) => ReturnType<typeof generateClassMod>;
-  generateAndAddRelic: (level?: number, rng?: () => number) => ReturnType<typeof generateRelic>;
-  generateAndAddOrdnance: (level?: number, rng?: () => number) => ReturnType<typeof generateOrdnance>;
   /** Reconcile inventory to server-authoritative items. Replaces all local items. */
   receiveServerItems: (items: GearItem[]) => void;
   getWeapons: () => Weapon[];
@@ -67,36 +57,6 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
     set((s) => ({
       items: s.items.map((i) => (i.id === id ? { ...i, isLocked: false } : i)),
     })),
-
-  generateAndAdd: (opts, rng) => {
-    const weapon = generateWeapon(opts, rng);
-    set((s) => ({ items: [weapon, ...s.items] }));
-    return weapon;
-  },
-
-  generateAndAddShield: (level = 1, rng) => {
-    const shield = generateShield(level, rng);
-    set((s) => ({ items: [shield, ...s.items] }));
-    return shield;
-  },
-
-  generateAndAddClassMod: (level = 1, rng) => {
-    const mod = generateClassMod(level, rng);
-    set((s) => ({ items: [mod, ...s.items] }));
-    return mod;
-  },
-
-  generateAndAddRelic: (level = 1, rng) => {
-    const relic = generateRelic(level, rng);
-    set((s) => ({ items: [relic, ...s.items] }));
-    return relic;
-  },
-
-  generateAndAddOrdnance: (level = 1, rng) => {
-    const ordnance = generateOrdnance(level, rng);
-    set((s) => ({ items: [ordnance, ...s.items] }));
-    return ordnance;
-  },
 
   receiveServerItems: (items) => set({ items }),
 
