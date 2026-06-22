@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
   ChevronRight,
-  Lock,
 } from 'lucide-react';
 import { PickerSheet } from '@/components/common/PickerSheet';
 import {

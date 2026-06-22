@@ -50,7 +50,6 @@ import { useTickFeedStore } from '@/store/slices/tickSlice';
 
 import { BossSigil } from '@/components/common/BossSigil';
 import { getActivityVisual } from '@/constants/activityVisuals';
-import { getResourceVisual } from '@/constants/visualAssets';
 import type { ActivityKind, StartActivityInput } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
@@ -73,12 +72,6 @@ const smallClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%
 const ActivityGlyph: React.FC<{ kind: ActivityKind; size?: number; className?: string }> = ({ kind, size = 15, className = '' }) => {
   const visual = getActivityVisual(kind);
   return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px` }}>{visual.glyph}</span>;
-};
-
-/** Renders a resource glyph as a styled span (replaces lucide resource icons). */
-const ResourceGlyph: React.FC<{ id: 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'xp' | 'level' | 'masteryPoint' | 'loot'; size?: number; className?: string }> = ({ id, size = 15, className = '' }) => {
-  const visual = getResourceVisual(id);
-  return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px` }}>{visual.mark}</span>;
 };
 
 const copy: Record<ActivityKind, { title: string; detail: string }> = {
