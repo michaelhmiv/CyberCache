@@ -188,8 +188,59 @@ async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
     const supabase = getSupabase();
     const playerId = await requireAuthenticatedPlayerId(supabase, req, body.jwt, body.playerId);
 
+    // --- Read server-authoritative profile data ---
+    // Boss fight economy (consumables, credits, level, pity) must be
+    // verified against the database — the client cannot be trusted to
+    // supply these values. This mirrors the roaming claim handler which
+    // reads consumableInventory from profiles.consumables.
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('player_level, credits, consumables, pity_counters')
+      .eq('id', playerId)
+      .single();
+
+    if (profileError) {
+      res.status(500).json({ error: 'Failed to read player profile', detail: profileError.message });
+      return;
+    }
+
+    // --- Verify credit affordability for death fee ---
+    // A player with insufficient credits cannot afford the death fee and
+    // should not be allowed to attempt the boss fight. The client may
+    // report any credit value; the server must use the DB value.
+    const serverCredits: number = typeof profile?.credits === 'number' ? profile.credits : 0;
+    const serverLevel: number = typeof profile?.player_level === 'number' ? profile.player_level : 1;
+
+    // Consumable inventory from DB — prevents client from claiming
+    // consumables they don't own.
+    const serverConsumables: Record<string, number> =
+      (profile?.consumables && typeof profile.consumables === 'object'
+        ? (profile.consumables as Record<string, number>)
+        : {});
+
+    // Pity counters from DB — prevents pity manipulation.
+    const serverPityCounters: Record<string, number> =
+      (profile?.pity_counters && typeof profile.pity_counters === 'object'
+        ? (profile.pity_counters as Record<string, number>)
+        : {});
+    const serverPityCount = serverPityCounters[body.bossId] ?? 0;
+
     const attemptNonce = body.attemptNonce || Date.now();
-    const request: BossAttemptRequest = { ...body, playerId, attemptNonce };
+
+    // Build the request with server-authoritative economy fields
+    // overridden. Gear objects (primary, secondary, etc.) are still
+    // passed through from the client — a future pass will re-derive
+    // DPS from DB-verified equipped items like the roaming handler does.
+    const request: BossAttemptRequest = {
+      ...body,
+      playerId,
+      attemptNonce,
+      playerLevel: serverLevel,
+      playerCredits: serverCredits,
+      consumables: serverConsumables,
+      pityCount: serverPityCount,
+    };
+
     const result = processBossAttempt(request);
     const { data: rpcResult, error: rpcError } = await supabase.rpc('cc_apply_chef_boss_attempt', {
       _player_id: playerId,
