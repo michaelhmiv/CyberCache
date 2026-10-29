@@ -12,9 +12,14 @@
 import type { Express, Request, Response } from 'express';
 import { AuthStoreError, type AuthStore, type Session } from './store';
 import { issueAccessToken, verifyAccessToken } from './tokens';
+import { GoogleTokenError, verifyGoogleIdToken, type JwksFetcher } from './google';
 
 export interface AuthConfig {
   jwtSecret: string;
+  /** OAuth client ids accepted as Google ID-token audiences. Empty = Google route off. */
+  googleClientIds?: string[];
+  /** Injectable for tests; defaults to Google's live JWKS endpoint. */
+  googleJwksFetcher?: JwksFetcher;
 }
 
 function sessionBody(secret: string, session: Session) {
@@ -117,6 +122,30 @@ export function mountAuthRoutes(app: Express, store: AuthStore, config: AuthConf
       res.status(204).end();
     } catch (err) { fail(res, err); }
   });
+
+  if (config.googleClientIds && config.googleClientIds.length > 0) {
+    app.post('/api/auth/google', async (req, res) => {
+      try {
+        const { idToken } = req.body ?? {};
+        if (typeof idToken !== 'string') {
+          res.status(400).json({ error: 'validation', message: 'A Google ID token is required' });
+          return;
+        }
+        const identity = await verifyGoogleIdToken(idToken, config.googleClientIds, config.googleJwksFetcher);
+        // Signed-in callers (e.g. a guest session) link the identity to
+        // their existing account; anonymous callers get find-or-create.
+        const linkId = chefPlayerId(config, req) ?? undefined;
+        const session = await store.loginWithIdentity('google', identity, new Date(), linkId);
+        res.json(sessionBody(config.jwtSecret, session));
+      } catch (err) {
+        if (err instanceof GoogleTokenError) {
+          res.status(401).json({ error: 'invalid_google_token', message: 'Google sign-in could not be verified' });
+          return;
+        }
+        fail(res, err);
+      }
+    });
+  }
 
   app.get('/api/auth/me', async (req, res) => {
     const id = chefPlayerId(config, req);

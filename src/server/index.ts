@@ -72,7 +72,9 @@ if (chefJwtSecret && databaseUrl) {
   void import('pg')
     .then(({ Pool }) => {
       const pool = new Pool({ connectionString: databaseUrl });
-      mountAuthRoutes(app, new PgAuthStore(pool), { jwtSecret: chefJwtSecret });
+      const googleClientIds = (process.env.GOOGLE_OAUTH_CLIENT_IDS ?? '')
+        .split(',').map((v) => v.trim()).filter(Boolean);
+      mountAuthRoutes(app, new PgAuthStore(pool), { jwtSecret: chefJwtSecret, googleClientIds });
       console.log('[chef-auth] /api/auth/* mounted (Route B identity)');
     })
     .catch((err) => console.error('[chef-auth] failed to initialize pg pool', err));
