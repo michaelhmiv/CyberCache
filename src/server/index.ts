@@ -14,6 +14,8 @@ import { mountChefRoutes } from './routes/chefRoutes';
 import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 import { mountAuthRoutes } from './auth/routes';
 import { PgAuthStore } from './auth/store';
+import { mountReadRoutes } from './reads/routes';
+import { PgReadStore } from './reads/store';
 
 const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, '../../dist');
@@ -76,6 +78,10 @@ if (chefJwtSecret && databaseUrl) {
         .split(',').map((v) => v.trim()).filter(Boolean);
       mountAuthRoutes(app, new PgAuthStore(pool), { jwtSecret: chefJwtSecret, googleClientIds });
       console.log('[chef-auth] /api/auth/* mounted (Route B identity)');
+      // Route B read APIs (slice B2) — same gate as identity: they are
+      // useless without Chef JWTs to authenticate them.
+      mountReadRoutes(app, new PgReadStore(pool), { jwtSecret: chefJwtSecret });
+      console.log('[chef-reads] read APIs mounted (Route B B2)');
     })
     .catch((err) => console.error('[chef-auth] failed to initialize pg pool', err));
 } else {
