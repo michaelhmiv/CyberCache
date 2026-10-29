@@ -12,6 +12,8 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import path from 'node:path';
 import { mountChefRoutes } from './routes/chefRoutes';
 import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
+import { mountAuthRoutes } from './auth/routes';
+import { PgAuthStore } from './auth/store';
 
 const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, '../../dist');
@@ -58,6 +60,25 @@ mountChefRoutes(app);
 
 // Market seeding — server-side NPC listings
 mountMarketSeedRoutes(app);
+
+// Route B identity (slice B1) — Chef-issued auth on Railway Postgres.
+// Mounted only when both the database and the JWT secret are configured,
+// so existing Supabase-era deployments boot unchanged. Token issuance
+// fails closed: no secret, no auth routes.
+const chefJwtSecret = process.env.CHEF_JWT_SECRET;
+const databaseUrl = process.env.DATABASE_URL;
+if (chefJwtSecret && databaseUrl) {
+  // Lazy import keeps `pg` out of the boot path for Supabase-era deploys.
+  void import('pg')
+    .then(({ Pool }) => {
+      const pool = new Pool({ connectionString: databaseUrl });
+      mountAuthRoutes(app, new PgAuthStore(pool), { jwtSecret: chefJwtSecret });
+      console.log('[chef-auth] /api/auth/* mounted (Route B identity)');
+    })
+    .catch((err) => console.error('[chef-auth] failed to initialize pg pool', err));
+} else {
+  console.log('[chef-auth] disabled (CHEF_JWT_SECRET / DATABASE_URL not both set)');
+}
 
 // Static files — the React SPA
 app.use(express.static(DIST_DIR));
