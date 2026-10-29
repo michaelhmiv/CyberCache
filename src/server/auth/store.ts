@@ -43,6 +43,7 @@ export interface AuthStore {
   register(email: string, password: string, now: Date, upgradeAccountId?: string): Promise<Session>;
   login(email: string, password: string, now: Date): Promise<Session>;
   refresh(refreshToken: string, now: Date): Promise<Session>;
+  loginWithIdentity(provider: string, identity: { subject: string; email: string | null; emailVerified: boolean }, now: Date, linkAccountId?: string): Promise<Session>;
   logout(refreshToken: string): Promise<void>;
   getAccount(id: string): Promise<Account | null>;
 }
@@ -150,6 +151,42 @@ export class InMemoryAuthStore implements AuthStore {
     row.revokedAt = now;
     row.replacedByHash = hashRefreshToken(session.refreshToken);
     return session;
+  }
+
+  private identities = new Map<string, string>();
+
+  async loginWithIdentity(provider: string, identity: { subject: string; email: string | null; emailVerified: boolean }, now: Date, linkAccountId?: string): Promise<Session> {
+    const key = `${provider}:${identity.subject}`;
+    const linkedId = this.identities.get(key);
+    if (linkedId) {
+      const account = this.accounts.get(linkedId);
+      if (account) return this.issueSession(account, now);
+    }
+    if (linkAccountId) {
+      const account = this.accounts.get(linkAccountId);
+      if (!account) throw new AuthStoreError('invalid_refresh', 'Linking account no longer exists');
+      this.identities.set(key, account.id);
+      if (!account.email && identity.email) {
+        account.email = identity.email;
+        this.byEmail.set(identity.email, account.id);
+      }
+      if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
+        account.emailVerifiedAt = now;
+      }
+      return this.issueSession(account, now);
+    }
+    const account: MemAccount = {
+      id: randomUUID(),
+      email: identity.email,
+      isGuest: false,
+      emailVerifiedAt: identity.emailVerified && identity.email ? now : null,
+      createdAt: now,
+      passwordHash: null,
+    };
+    this.accounts.set(account.id, account);
+    if (identity.email) this.byEmail.set(identity.email, account.id);
+    this.identities.set(key, account.id);
+    return this.issueSession(account, now);
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -274,6 +311,50 @@ export class PgAuthStore implements AuthStore {
       [hash, now, hashRefreshToken(session.refreshToken)],
     );
     return session;
+  }
+
+  async loginWithIdentity(provider: string, identity: { subject: string; email: string | null; emailVerified: boolean }, now: Date, linkAccountId?: string): Promise<Session> {
+    const found = await this.db.query(
+      'select account_id from auth_identities where provider = $1 and provider_subject = $2',
+      [provider, identity.subject],
+    );
+    if (found.rows.length > 0) {
+      const account = await this.getAccount(found.rows[0].account_id as string);
+      if (account) return this.issueSession(account, now);
+    }
+    if (linkAccountId) {
+      const account = await this.getAccount(linkAccountId);
+      if (!account) throw new AuthStoreError('invalid_refresh', 'Linking account no longer exists');
+      await this.db.query(
+        'insert into auth_identities (provider, provider_subject, account_id) values ($1, $2, $3) on conflict do nothing',
+        [provider, identity.subject, account.id],
+      );
+      if (!account.email && identity.email) {
+        await this.db.query('update auth_accounts set email = $2, updated_at = now() where id = $1', [account.id, identity.email]);
+        account.email = identity.email;
+      }
+      if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
+        await this.db.query('update auth_accounts set email_verified_at = $2, updated_at = now() where id = $1', [account.id, now]);
+        account.emailVerifiedAt = now;
+      }
+      return this.issueSession(account, now);
+    }
+    const { rows } = await this.db.query(
+      `insert into auth_accounts (email, is_guest, password_hash, email_verified_at) values ($1, false, null, $2)
+       returning id, email, is_guest, email_verified_at, created_at`,
+      [identity.email, identity.emailVerified && identity.email ? now : null],
+    ).catch((err: { code?: string }) => {
+      if (err.code === '23505') {
+        throw new AuthStoreError('email_taken', 'That email already has an account; sign in and link Google from inside the app');
+      }
+      throw err;
+    });
+    const account = rowToAccount(rows[0] as unknown as PgAccountRow);
+    await this.db.query(
+      'insert into auth_identities (provider, provider_subject, account_id) values ($1, $2, $3)',
+      [provider, identity.subject, account.id],
+    );
+    return this.issueSession(account, now);
   }
 
   async logout(refreshToken: string): Promise<void> {
