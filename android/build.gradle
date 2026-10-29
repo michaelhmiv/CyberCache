@@ -22,6 +22,18 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    // Align Kotlin stdlib variants across Capacitor/Cordova modules.
+    // Without this, the androidTest classpath mixes kotlin-stdlib 1.8.22 with
+    // kotlin-stdlib-jdk8 1.6.21 and checkDebugAndroidTestDuplicateClasses fails
+    // (found by Android CI, 2026-10-29 — first instrumented-test CI run).
+    configurations.all {
+        resolutionStrategy {
+            force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22',
+                  'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22',
+                  'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+        }
+    }
 }
 
 task clean(type: Delete) {
