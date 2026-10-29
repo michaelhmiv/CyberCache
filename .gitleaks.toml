@@ -1,0 +1,7 @@
+title = "CyberCache gitleaks config"
+
+[allowlist]
+description = "Google's public AdMob TEST publisher IDs (documented test values, not credentials)"
+regexes = [
+  '''ca-app-pub-3940256099942544'''
+]
