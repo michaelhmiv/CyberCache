@@ -13,11 +13,14 @@ describe('Chef route authority boundaries', () => {
     expect(claimRouteSource).not.toContain(".eq('owner_id'");
   });
 
-  it('derives mutation player identity from request-scoped Supabase Auth instead of trusting the body', () => {
+  it('derives mutation player identity from the verified Chef JWT instead of trusting the body', () => {
+    // Route B (B6): the June handlers verified a Supabase-issued token
+    // per request; the port verifies the Chef JWT (B1) the same way —
+    // identity comes from the token's subject, never the request body.
     const authSource = readFileSync(resolve(process.cwd(), 'src/server/routes/chefRouteAuth.ts'), 'utf8');
-    expect(claimRouteSource).toContain('getAuthenticatedSupabase');
-    expect(authSource).toContain('verifier.auth.getUser(jwt)');
-    expect(authSource).toContain('Authorization: `Bearer ${jwt}`');
+    expect(claimRouteSource).toContain('getAuthenticatedChefPlayer');
+    expect(authSource).toContain('verifyAccessToken(config.jwtSecret, token)');
+    expect(authSource).toContain('verified.claims.sub');
     expect(roamingHandlerSource).toContain('const claim: ClaimRequest = { ...body, playerId }');
     expect(claimRouteSource).toContain('const request: BossAttemptRequest = {');
     expect(claimRouteSource).toContain('playerLevel: serverLevel');
@@ -27,7 +30,11 @@ describe('Chef route authority boundaries', () => {
   });
 
   it('routes salvage through the verified recycle RPC', () => {
-    expect(claimRouteSource).toContain("supabase.rpc('cc_recycle_item'");
+    // Route B (B6): the handler calls the gameplay store, whose Postgres
+    // implementation invokes the B3-ported cc_recycle_item.
+    expect(claimRouteSource).toContain('store.recycleItem');
+    const gameplayStore = readFileSync(resolve(process.cwd(), 'src/server/gameplay/store.ts'), 'utf8');
+    expect(gameplayStore).toContain('cc_recycle_item');
     expect(claimRouteSource).not.toContain('calculateSalvageYield');
   });
 });

@@ -9,11 +9,15 @@ function readSource(relativePath: string): string {
 }
 
 describe('Boss fight server authority regression', () => {
-  it('reads player profile from Supabase before processing boss attempt', () => {
+  it('reads player profile from the database before processing boss attempt', () => {
     const route = readSource('src/server/routes/claim.ts');
-    expect(route).toContain(".from('profiles')");
-    expect(route).toContain(".select('player_level, credits, consumables, pity_counters')");
-    expect(route).toContain(".eq('id', playerId)");
+    // Route B (B6): the profile read goes through the gameplay store;
+    // its Postgres select is keyed by the JWT-derived player id.
+    const store = readSource('src/server/gameplay/store.ts');
+    expect(store).toContain('player_level, credits, consumables, boss_state');
+    expect(store).toContain('from public.profiles where id = $1');
+    expect(route).toContain('store.getBossProfile(playerId)');
+    expect(route.indexOf('store.getBossProfile(playerId)')).toBeLessThan(route.indexOf('processBossAttempt(request)'));
   });
 
   it('overrides client-supplied consumables with DB-verified inventory', () => {
@@ -30,15 +34,21 @@ describe('Boss fight server authority regression', () => {
     expect(route).toContain('serverCredits');
   });
 
-  it('overrides client-supplied pityCount with DB pity_counters', () => {
+  it('overrides client-supplied pityCount with DB boss_state pity counters', () => {
     const route = readSource('src/server/routes/claim.ts');
     expect(route).toContain('pityCount: serverPityCount');
     expect(route).toContain('serverPityCounters');
-    expect(route).toContain('pity_counters');
+    // Route B (B6): pity lives in boss_state.pityCounters — the June
+    // handler selected a `pity_counters` COLUMN that never existed in
+    // the schema, so the read always failed; the port derives the
+    // counters from boss_state, which cc_apply_chef_boss_attempt
+    // itself maintains.
+    expect(route).toContain('boss_state');
+    expect(route).toContain('pityCounters');
   });
 
   it('still authenticates the player before reading profile', () => {
     const route = readSource('src/server/routes/claim.ts');
-    expect(route).toContain('getAuthenticatedSupabase');
+    expect(route).toContain('getAuthenticatedChefPlayer');
   });
 });

@@ -29,7 +29,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
 import { chefPlayerId, type AuthConfig } from '../auth/routes';
-import { NPC_MARKET_USER_ID } from '../lib/supabaseService';
+import { NPC_MARKET_USER_ID } from '../lib/npcMarket';
 import type { JobStore } from './store';
 import { cleanPushText, type FcmSender } from './fcm';
 import { buildNpcSeedItems, clampSeedCount, clampSeedLevel } from './npcItems';

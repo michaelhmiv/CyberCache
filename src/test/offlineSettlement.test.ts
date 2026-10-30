@@ -23,14 +23,23 @@ function readSource(relativePath: string): string {
 }
 
 describe('Offline settlement — server authority', () => {
-  // Test 1: cc_profile_snapshot includes last_claimed_tick
-  it('cc_profile_snapshot includes last_claimed_tick', () => {
-    const migrations = readSource('supabase/migrations/20260612150000_add_last_claimed_tick_to_snapshot.sql');
-    expect(migrations).toContain("'last_claimed_tick'");
-    expect(migrations).toContain('profile_row.last_claimed_tick');
-    const snapshot = readSource('supabase/migrations/20260612160000_add_settlement_tracking.sql');
-    // The newer migration also still includes it
-    expect(snapshot).toContain("'last_claimed_tick'");
+  // Test 1: profile snapshots keep the fields settlement sync consumes
+  it('cc_profile_snapshot keeps its final-definition fields', () => {
+    // Route B (B6): the snapshot lives in db/migrations/0004 (ported in
+    // B3 from the FINAL June definition). History: the June
+    // 20260612150000 migration added 'last_claimed_tick' to the
+    // snapshot, but the final June redefinition (20260612173000)
+    // dropped it again, and the B3 port is verbatim — so the tick
+    // baseline reaches the client through the B2 read profile instead,
+    // which maps the column explicitly (checked below).
+    const migration = readSource('db/migrations/0004_write_apis.sql');
+    const snapshotStart = migration.indexOf('cc_profile_snapshot(profile_row profiles)');
+    const snapshot = migration.slice(snapshotStart, snapshotStart + 2500);
+    expect(snapshot).toContain("'consumables', profile_row.consumables");
+    expect(snapshot).toContain("'boss_state', profile_row.boss_state");
+    expect(snapshot).toContain("'last_idle_claim_at', profile_row.last_idle_claim_at");
+    const readStore = readSource('src/server/reads/store.ts');
+    expect(readStore).toContain('last_claimed_tick: num(row.last_claimed_tick)');
   });
 
   // Test 2: Offline settlement uses maxTicks=Infinity (no 20-tick clamp)
@@ -50,7 +59,7 @@ describe('Offline settlement — server authority', () => {
     // The foreground route does NOT override maxTicks, so it defaults to 20
     const route = readSource('src/server/routes/roamingHandler.ts');
     const claimHandler = route.slice(
-      route.indexOf('export async function handleClaim'),
+      route.indexOf('createClaimHandler'),
     );
     expect(claimHandler).not.toContain('maxTicks');
   });
@@ -72,7 +81,7 @@ describe('Offline settlement — server authority', () => {
   it('offline settlement checks settlement nonce for idempotency', () => {
     const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('export async function handleSettleOffline'),
+      route.indexOf('createSettleOfflineHandler'),
     );
     expect(settlementHandler).toContain('last_settlement_nonce');
     expect(settlementHandler).toContain('settlementNonce');
@@ -88,7 +97,7 @@ describe('Offline settlement — server authority', () => {
   it('offline settlement computes elapsed time from DB, not client clock', () => {
     const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('export async function handleSettleOffline'),
+      route.indexOf('createSettleOfflineHandler'),
     );
     expect(settlementHandler).toContain('last_roaming_settled_at');
     expect(settlementHandler).toContain('activeAction.started_at');
@@ -102,7 +111,7 @@ describe('Offline settlement — server authority', () => {
   it('settlement returns no-op when not roaming', () => {
     const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('export async function handleSettleOffline'),
+      route.indexOf('createSettleOfflineHandler'),
     );
     expect(settlementHandler).toContain("active_action !== 'roaming_loot'");
     expect(settlementHandler).toContain("reason: 'not_roaming'");
@@ -216,36 +225,39 @@ describe('Offline settlement — UI recap', () => {
 describe('Offline settlement — schema fix (active_action / user_id)', () => {
   // Test 19: /api/settle-offline queries active_action, not kind
   it('handleSettleOffline selects active_action, not kind', () => {
+    // Route B (B6): the read goes through the gameplay store — its SQL
+    // selects the same columns, keyed by user_id (the live names).
     const route = readSource('src/server/routes/settleOffline.ts');
-    const settlementHandler = route.slice(
-      route.indexOf('export async function handleSettleOffline'),
-    );
-    // Must use active_action (the live column name)
-    expect(settlementHandler).toContain(".select('user_id, active_action");
-    // Must query user_id, not player_id
-    expect(settlementHandler).toContain(".eq('user_id', playerId)");
+    expect(route).toContain('store.getActiveAction(playerId)');
+    const store = readSource('src/server/gameplay/store.ts');
+    expect(store).toContain('user_id, active_action, target_id, started_at, last_heartbeat_at, activity_payload');
+    expect(store).toContain('from public.active_actions where user_id = $1');
   });
 
   // Test 20: No references to kind or player_id remain in active_actions query
   it('handleSettleOffline has no kind/player_id fallback', () => {
     const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('export async function handleSettleOffline'),
+      route.indexOf('createSettleOfflineHandler'),
     );
     // The active_actions select should include active_action, not kind
-    // Find the block between "Read active action" comment and "maybeSingle()"
-    const aaBlockMatch = settlementHandler.match(
-      /\.from\('active_actions'\)\s*\.select\(['"]([^'"]+)['"]\)/,
+    // Route B (B6): the select lives in the gameplay store's SQL.
+    const store = readSource('src/server/gameplay/store.ts');
+    const aaBlockMatch = store.match(
+      /select ([\w, ]+) from public\.active_actions where user_id/,
     );
     expect(aaBlockMatch).toBeTruthy();
     if (aaBlockMatch) {
       expect(aaBlockMatch[1]).not.toContain('kind');
       expect(aaBlockMatch[1]).toContain('active_action');
     }
-    // The eq should use user_id not player_id
+    // The query key should use user_id not player_id
     // Find the line after the active_actions select
-    const eqMatch = settlementHandler.match(/\.eq\(['"]user_id['"]/);
-    expect(eqMatch).toBeTruthy();
+    // Route B (B6): the store SQL keys the row `where user_id = $1`
+    // (asserted in Test 19); the handler never queries by a
+    // body-supplied id.
+    expect(settlementHandler).not.toContain('player_id');
+    expect(settlementHandler).toContain('store.getActiveAction(playerId)');
   });
 });
 
@@ -312,21 +324,21 @@ describe('Offline settlement — direct store write', () => {
 describe('Offline settlement — canonical timestamp', () => {
   // Test 28: cc_apply_chef_rewards sets last_roaming_settled_at
   it('cc_apply_chef_rewards updates last_roaming_settled_at', () => {
-    const migration = readSource('supabase/migrations/20260612170000_atomic_offline_settlement.sql');
+    const migration = readSource('db/migrations/0007_chef_gameplay_appliers.sql');
     // The updated RPC should include last_roaming_settled_at in the UPDATE
-    expect(migration).toContain('last_roaming_settled_at = coalesce(last_roaming_settled_at, now())');
+    expect(migration).toContain('last_roaming_settled_at = now()');
   });
 
   // Test 29: Atomic RPC sets last_roaming_settled_at to now_ts after cap
   it('cc_settle_offline_roaming sets last_roaming_settled_at to now_ts, not settle_from + cap', () => {
-    const migration = readSource('supabase/migrations/20260612170000_atomic_offline_settlement.sql');
+    const migration = readSource('db/migrations/0007_chef_gameplay_appliers.sql');
     expect(migration).toContain('last_roaming_settled_at = now_ts');
     expect(migration).toContain('NOT settle_from + cap_ms');
   });
 
   // Test 30: foreground claims advance canonical timestamp via cc_apply_chef_rewards
   it('foreground roaming claims advance last_roaming_settled_at via cc_apply_chef_rewards', () => {
-    const migration = readSource('supabase/migrations/20260612170000_atomic_offline_settlement.sql');
+    const migration = readSource('db/migrations/0007_chef_gameplay_appliers.sql');
     // The new cc_apply_chef_rewards definition must include last_roaming_settled_at
     const rpcStart = migration.indexOf('create or replace function public.cc_apply_chef_rewards');
     const rpcEnd = migration.indexOf('create or replace function public.cc_settle_offline_roaming');
@@ -338,7 +350,7 @@ describe('Offline settlement — canonical timestamp', () => {
 describe('Offline settlement — atomic RPC', () => {
   // Test 31: cc_settle_offline_roaming exists with idempotency
   it('cc_settle_offline_roaming has idempotency via verified_action_ledger', () => {
-    const migration = readSource('supabase/migrations/20260612170000_atomic_offline_settlement.sql');
+    const migration = readSource('db/migrations/0007_chef_gameplay_appliers.sql');
     expect(migration).toContain('create or replace function public.cc_settle_offline_roaming');
     expect(migration).toContain(':offline_settle:');
     expect(migration).toContain('if prior is not null then return prior');
@@ -346,13 +358,13 @@ describe('Offline settlement — atomic RPC', () => {
 
   // Test 32: Atomic RPC uses advisory lock for serialization
   it('cc_settle_offline_roaming uses pg_advisory_xact_lock', () => {
-    const migration = readSource('supabase/migrations/20260612170000_atomic_offline_settlement.sql');
+    const migration = readSource('db/migrations/0007_chef_gameplay_appliers.sql');
     expect(migration).toContain('pg_advisory_xact_lock');
   });
 
   // Test 33: Atomic RPC returns settled=false for not_roaming
   it('cc_settle_offline_roaming returns settled=false when not roaming', () => {
-    const migration = readSource('supabase/migrations/20260612170000_atomic_offline_settlement.sql');
+    const migration = readSource('db/migrations/0007_chef_gameplay_appliers.sql');
     const rpcDef = migration.slice(
       migration.indexOf('create or replace function public.cc_settle_offline_roaming'),
     );
@@ -361,7 +373,7 @@ describe('Offline settlement — atomic RPC', () => {
 
   // Test 34: Atomic RPC returns settled=false for no_elapsed
   it('cc_settle_offline_roaming returns settled=false when no elapsed', () => {
-    const migration = readSource('supabase/migrations/20260612170000_atomic_offline_settlement.sql');
+    const migration = readSource('db/migrations/0007_chef_gameplay_appliers.sql');
     const rpcDef = migration.slice(
       migration.indexOf('create or replace function public.cc_settle_offline_roaming'),
     );
@@ -372,9 +384,12 @@ describe('Offline settlement — atomic RPC', () => {
   it('handleSettleOffline uses cc_settle_offline_roaming', () => {
     const route = readSource('src/server/routes/settleOffline.ts');
     const settlementHandler = route.slice(
-      route.indexOf('export async function handleSettleOffline'),
+      route.indexOf('createSettleOfflineHandler'),
     );
-    expect(settlementHandler).toContain('cc_settle_offline_roaming');
+    // Route B (B6): the handler calls the gameplay store, whose
+    // Postgres implementation invokes cc_settle_offline_roaming.
+    expect(settlementHandler).toContain('store.settleOfflineRoaming');
+    expect(readSource('src/server/gameplay/store.ts')).toContain('cc_settle_offline_roaming');
     // Should NOT call cc_apply_chef_rewards for offline settlement
     // (it's still used for foreground claims)
   });

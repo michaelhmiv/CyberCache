@@ -20,7 +20,7 @@ export interface RoamingAreaDef {
    * XP awarded per successful tick in this area. Scales with unlock level
    * and danger rating so that high-tier areas reward more progression.
    * Formula in src/content/simulation.ts:areaXpMultiplier.
-   * Mirrored server-side in supabase/migrations/202606080058_idle_xp_per_tick.sql.
+   * Mirrored server-side in the roaming reward functions in db/migrations/0004_write_apis.sql.
    */
   idleXpPerTick: number;
   dropPoolRarityWeights: Record<Rarity, number>;

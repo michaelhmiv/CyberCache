@@ -36,23 +36,26 @@ describe('rewarded cache key authority', () => {
     expect(action).not.toContain('Watch Ad');
   });
 
-  it('uses auth.uid and server-side caps in the Supabase reward RPC', () => {
-    const migration = readSource('supabase/migrations/20260612204858_rewarded_cache_key_ads.sql');
-    const rpc = migration.slice(migration.indexOf('create or replace function public.cc_claim_rewarded_cache_key'));
-    expect(rpc).toContain('actor uuid := auth.uid()');
+  it('derives the actor from the verified player id and keeps server-side caps in the reward RPC', () => {
+    // Route B (B6): the RPC lives in the Route B migration set (ported
+    // in B3); the actor is the JWT-derived parameter, not auth.uid().
+    const migration = readSource('db/migrations/0004_write_apis.sql');
+    const rpc = migration.slice(migration.indexOf('CREATE OR REPLACE FUNCTION public.cc_claim_rewarded_cache_key'));
+    expect(rpc).toContain('actor uuid := p_player_id');
     expect(rpc).toContain('cache_tokens = cache_tokens + 1');
     expect(rpc).toContain('grant_count >= 3');
     expect(rpc).toContain("interval '5 minutes'");
     expect(rpc).toContain('public.cc_profile_snapshot(p)');
   });
 
-  it('registers push tokens through authenticated Supabase RPCs', () => {
-    const migration = readSource('supabase/migrations/20260612204858_rewarded_cache_key_ads.sql');
+  it('registers push tokens through authenticated Chef RPCs', () => {
+    // Route B (B6): same tables/functions, in the Route B migration set.
+    const migration = readSource('db/migrations/0004_write_apis.sql');
     expect(migration).toContain('create table if not exists public.user_push_devices');
     expect(migration).toContain('create table if not exists public.user_notification_settings');
     expect(migration).toContain('create table if not exists public.notification_events');
-    expect(migration).toContain('create or replace function public.cc_register_push_device');
-    expect(migration).toContain('actor uuid := auth.uid()');
+    expect(migration).toContain('cc_register_push_device');
+    expect(migration).toContain('actor uuid := p_player_id');
 
     const push = readSource('src/lib/notifications/pushNotifications.ts');
     expect(push).toContain('PushNotifications.requestPermissions');
