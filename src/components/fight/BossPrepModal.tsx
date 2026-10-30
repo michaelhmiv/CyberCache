@@ -936,7 +936,7 @@ const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bo
       {/* Pixel staging of the fight (P2 movement system): the timeline's
           phases choreographed at Sample B pacing — shots, hit reactions,
           telegraphed lunges, dodges, and the death/banner finish. */}
-      <BossFightStage timeline={timeline} phases={phases} weapon={weapon} reduced={reducedMotion === true} />
+      <BossFightStage timeline={timeline} phases={phases} bossId={bossId} weapon={weapon} reduced={reducedMotion === true} />
       {/* Player HP bar — ghost trail drains behind the real fill */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">

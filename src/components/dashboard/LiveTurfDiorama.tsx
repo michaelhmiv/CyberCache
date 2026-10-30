@@ -17,13 +17,13 @@ import {
   TelegraphGlow,
   Tracer,
 } from '@/components/pixelArt/PixelFx';
-import { getPixelSprite, pixelBackgroundForArea, requirePixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { gearDropFromEvent } from '@/lib/pixel/lootMoment';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { useKillCycleStore, useTickFeedStore, useBossStore } from '@/store';
-import { MONSTERS } from '@/constants/monsters';
+import { MONSTERS, getMonster } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ARCHETYPE_SILHOUETTES, type EnemyArchetype } from '@/components/diorama/EnemySilhouettes';
 import { Element, Rarity, WeaponType } from '@/types/game';
@@ -607,9 +607,13 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; reduced?: 
 
 /**
  * Pixel replacement for the vector SVG scene, used by areas listed in
- * PIXEL_AREA_BACKGROUNDS (P1: dustwaste_frontier; other zones convert in
- * P4 — this layer is zone-agnostic, driven entirely by the background id
- * and the shared actor sprites). Sprites come from the pixel manifest and
+ * PIXEL_AREA_BACKGROUNDS (P1: Dustwaste Frontier; P4 wave 1: every other
+ * roaming zone — this layer is zone-agnostic, driven entirely by the
+ * background id and the shared actor sprites). The enemy actor resolves
+ * from game data, never per-zone wiring: in boss fights the challenged
+ * boss's bespoke sprite (passed in as bossSpriteId), otherwise the kill
+ * cycle's current target monster's archetype sprite, with the brute as
+ * the standing fallback. Sprites come from the pixel manifest and
  * are placed by their anchors on a PixelStage; the equipped weapon
  * renders through the parts-kit compositor at the hunter's hands.
  *
@@ -625,6 +629,9 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; reduced?: 
  */
 const PixelSceneLayer: React.FC<{
   backgroundId: string;
+  /** Bespoke boss sprite id for boss fights (resolved by the parent from
+   *  the challenged boss's def); roaming targets resolve by archetype. */
+  bossSpriteId?: string;
   weapon?: Weapon;
   mode: DioramaMode;
   modeLabel: string;
@@ -632,12 +639,13 @@ const PixelSceneLayer: React.FC<{
   projectileColor: string;
   event?: LiveTurfFeedEvent;
   reduced: boolean;
-}> = ({ backgroundId, weapon, mode, modeLabel, accent, projectileColor, event, reduced }) => {
+}> = ({ backgroundId, bossSpriteId, weapon, mode, modeLabel, accent, projectileColor, event, reduced }) => {
   const background = getPixelSprite(backgroundId);
   const groundY = background?.anchors.groundLine?.y ?? 0.86;
   const showEnemy = mode === 'roaming' || mode === 'bossFight';
   const bossMode = mode === 'bossFight';
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
+  const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
   const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
   const lootLike = isLootLike(event) && !reduced;
   // A real gear drop on the latest event gets the P3 loot moment (beam +
@@ -648,9 +656,14 @@ const PixelSceneLayer: React.FC<{
   const [enemyLanded, setEnemyLanded] = useState(false);
 
   const hunterSprite = requirePixelSprite('hunter');
-  const enemySprite = requirePixelSprite('brute');
+  // Enemy sprite from data: the boss's bespoke sprite in boss fights,
+  // else the current target monster's archetype sprite, else the brute.
+  const targetArchetype = currentTargetId ? getMonster(currentTargetId)?.archetype : undefined;
+  const enemySpriteId =
+    (bossMode ? bossSpriteId : undefined) ?? pixelEnemySpriteForArchetype(targetArchetype) ?? 'brute';
+  const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
   const hunterPlacement: ActorPlacement = { xPct: 22, heightPct: 57, groundY };
-  const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: 66, groundY };
+  const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: bossMode && bossSpriteId ? 80 : 66, groundY };
   const muzzle = actorAnchorPoint(hunterSprite, 'muzzle', hunterPlacement);
   const grip = actorAnchorPoint(hunterSprite, 'grip', hunterPlacement);
   const hunterMass = actorAnchorPoint(hunterSprite, 'centerMass', hunterPlacement);
@@ -794,7 +807,7 @@ const PixelSceneLayer: React.FC<{
             style={{ transformOrigin: `${enemyPlacement.xPct}% ${groundY * 100}%` }}
           >
             <PixelActor
-              spriteId="brute"
+              spriteId={enemySprite.id}
               {...enemyPlacement}
               reduced={reduced}
               breatheDuration={3.1}
@@ -892,6 +905,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // statSummary prop is provided by the parent; diorama uses it directly.
   const scene = getLiveTurfScene(area);
   const pixelBackgroundId = pixelBackgroundForArea(area.id);
+  // The diorama identifies the challenged boss by name; resolve its
+  // bespoke pixel sprite through the boss def id (P4 wave 1).
+  const stageBossDef = bossName ? REGION_1_BOSSES.find((b) => b.name === bossName) : undefined;
+  const stageBossSpriteId = pixelBossSpriteForBoss(stageBossDef?.id);
   const mode = modeFromActivity(activityKind);
   const copy = modeInfo[mode];
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'unarmed'}-${mode}`);
@@ -916,7 +933,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   return (
     <section className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
       {pixelBackgroundId ? (
-        <PixelSceneLayer backgroundId={pixelBackgroundId} weapon={weapon} mode={mode} modeLabel={copy.label} accent={scene.accent} projectileColor={projectile.color} event={latestEvent} reduced={reduced} />
+        <PixelSceneLayer backgroundId={pixelBackgroundId} bossSpriteId={stageBossSpriteId} weapon={weapon} mode={mode} modeLabel={copy.label} accent={scene.accent} projectileColor={projectile.color} event={latestEvent} reduced={reduced} />
       ) : (
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 420 286" role="img" aria-label={`${copy.label} activity visualization`}>
         <defs><linearGradient id={`sky-${safeId}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={scene.skyTop} /><stop offset="54%" stopColor={scene.skyBottom} /><stop offset="100%" stopColor="#050608" /></linearGradient><linearGradient id={`ground-${safeId}`} x1="0" x2="1"><stop offset="0%" stopColor={scene.groundDark} /><stop offset="48%" stopColor={scene.ground} /><stop offset="100%" stopColor={scene.groundDark} /></linearGradient><filter id={`soft-glow-${safeId}`} x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={scene.accent} floodOpacity="0.55" /></filter></defs>

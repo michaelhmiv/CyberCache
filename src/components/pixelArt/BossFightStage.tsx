@@ -14,7 +14,7 @@ import {
   TelegraphGlow,
   Tracer,
 } from './PixelFx';
-import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite, pixelBossSpriteForBoss, requirePixelSprite } from '@/lib/pixel/manifest';
 import {
   MOVEMENT,
   actorAnchorPoint,
@@ -50,11 +50,14 @@ const ARENA_BG = 'zone-dustwaste-bg';
 interface BossFightStageProps {
   timeline: FightTimeline;
   phases: PhaseAnalysis[];
+  /** Boss def id (src/constants/bosses.ts) — selects the boss's bespoke
+   *  pixel sprite (P4 wave 1). Absent or unshipped ids keep the brute. */
+  bossId?: string;
   weapon?: Weapon;
   reduced?: boolean;
 }
 
-export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases, weapon, reduced = false }) => {
+export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false }) => {
   const background = getPixelSprite(ARENA_BG);
   const groundY = background?.anchors.groundLine?.y ?? HUNTER_PLACEMENT.groundY;
   const hunterPlacement = { ...HUNTER_PLACEMENT, groundY };
@@ -106,7 +109,7 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
   }, [beats, presentingIndex, finished, reduced]);
 
   const hunterSprite = requirePixelSprite('hunter');
-  const bossSprite = requirePixelSprite('brute');
+  const bossSprite = getPixelSprite(pixelBossSpriteForBoss(bossId) ?? 'brute') ?? requirePixelSprite('brute');
   const muzzle = actorAnchorPoint(hunterSprite, 'muzzle', hunterPlacement);
   const grip = actorAnchorPoint(hunterSprite, 'grip', hunterPlacement);
   const hunterMass = actorAnchorPoint(hunterSprite, 'centerMass', hunterPlacement);
@@ -246,7 +249,7 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
             animate={reduced ? undefined : bossHitControls}
           >
             <PixelActor
-              spriteId="brute"
+              spriteId={bossSprite.id}
               {...bossPlacement}
               reduced={reduced}
               breatheDuration={3.1}

@@ -1,4 +1,5 @@
 import manifestData from '@/assets/pixel/manifest.json';
+import type { MonsterArchetype } from '@/constants/monsters';
 
 /**
  * Pixel sprite manifest — the single registry for P1+ pixel art.
@@ -123,14 +124,67 @@ export function bespokeSpriteIdForWeaponName(name: string | undefined): string |
 
 /**
  * Roaming-area id -> pixel background sprite id, for areas whose diorama has
- * been converted to pixel art. P1 converts one zone (Dustwaste Frontier, the
- * default area); P4 converts the rest. Areas absent here keep the vector
- * diorama.
+ * been converted to pixel art. P1 converted one zone (Dustwaste Frontier,
+ * the default area); P4 wave 1 converted every remaining roaming zone.
+ * Areas absent here keep the vector diorama (fallback, never a break).
  */
 export const PIXEL_AREA_BACKGROUNDS: Record<string, string> = {
   dustwaste_frontier: 'zone-dustwaste-bg',
+  redline_circuit: 'zone-redline-bg',
+  ironwood_bastion: 'zone-ironwood-bg',
+  blastforge_yards: 'zone-blastforge-bg',
+  prismatek_reactor: 'zone-prismatek-bg',
+  throwtech_dumpnet: 'zone-throwtech-bg',
+  helixworks_labyrinth: 'zone-helixworks-bg',
 };
 
 export function pixelBackgroundForArea(areaId: string): string | undefined {
-  return PIXEL_AREA_BACKGROUNDS[areaId];
+  const id = PIXEL_AREA_BACKGROUNDS[areaId];
+  return id && sprites.has(id) ? id : undefined;
+}
+
+/**
+ * Monster archetype -> pixel enemy sprite id (P4 wave 1). One pose per
+ * enemy family, keyed off the archetype the game data already fields
+ * (src/constants/monsters.ts); the diorama resolves the current target's
+ * archetype through this map. The 'boss' archetype is reserved in the
+ * monster data — bespoke boss art resolves per boss id below, so the
+ * archetype falls back to the brute until a boss id is known.
+ */
+export const PIXEL_ENEMY_SPRITES: Record<MonsterArchetype, string> = {
+  fodder: 'enemy-fodder',
+  runner: 'enemy-runner',
+  brute: 'brute',
+  sniper: 'enemy-sniper',
+  elite: 'enemy-elite',
+  boss: 'brute',
+};
+
+export function pixelEnemySpriteForArchetype(archetype: MonsterArchetype | undefined): string | undefined {
+  if (!archetype) return undefined;
+  const id = PIXEL_ENEMY_SPRITES[archetype];
+  return id && sprites.has(id) ? id : undefined;
+}
+
+/**
+ * Region 1 boss id (src/constants/bosses.ts) -> bespoke pixel boss sprite
+ * id (P4 wave 1). Bosses are fixed identities, so each gets fixed art at a
+ * larger scale than the enemy families, like the bespoke legendaries.
+ * Unknown/unshipped bosses resolve to undefined and callers keep the
+ * brute fallback.
+ */
+export const PIXEL_BOSS_SPRITES: Record<string, string> = {
+  dune_tyrant: 'boss-dune-tyrant',
+  siltstalker: 'boss-siltstalker',
+  heap_guard: 'boss-heap-guard',
+  ashgut: 'boss-ashgut',
+  mirage_duster: 'boss-mirage-duster',
+  rust_prophet: 'boss-rust-prophet',
+  scrap_bishop: 'boss-scrap-bishop',
+};
+
+export function pixelBossSpriteForBoss(bossId: string | undefined): string | undefined {
+  if (!bossId) return undefined;
+  const id = PIXEL_BOSS_SPRITES[bossId];
+  return id && sprites.has(id) ? id : undefined;
 }
