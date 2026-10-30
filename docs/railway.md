@@ -31,6 +31,7 @@ One Railway project, four things in it:
    db/migrations/0005_profile_bootstrap.sql
    db/migrations/0006_jobs.sql
    db/migrations/0007_chef_gameplay_appliers.sql
+   db/migrations/0008_legendary_honesty.sql
    ```
 
    The migrations are plain

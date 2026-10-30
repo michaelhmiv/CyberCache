@@ -114,6 +114,7 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
           consumables: result.consumedConsumables as Json,
           attempt: result.result as unknown as Json,
           unlockedBossId: result.unlockedBossId ?? null,
+          scrap: result.scrapAwarded,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

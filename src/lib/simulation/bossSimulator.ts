@@ -370,7 +370,12 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const selectedDefs = selectedConsumableDefs(consumables);
   const rules = getRuleTotals(selectedDefs);
 
-  // Legendary effect modifiers (expanded: now returns scrap/credit/extraLoot/refund too)
+  // Legendary effect modifiers (damage/survival/break/credit multipliers).
+  // SIM PROXY note: several effects are approximated here as flat
+  // multipliers — each proxy case is labelled in applyLegendaryEffects
+  // (src/lib/legendaryEffects.ts) and in MECHANICS.md §1. Effects with
+  // real economy hooks (second_opinion, salvage_rights, market_crash,
+  // jackpot) are implemented in the Chef / Postgres appliers, not here.
   const legendary = applyLegendaryEffects(primary, pityCount);
 
   // 1. Survival Check

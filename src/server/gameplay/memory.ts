@@ -395,6 +395,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     p.boss_state = bossState;
 
     p.credits = Math.max(0, p.credits + Math.trunc(attempt.creditsDelta));
+    // 0008: Second Opinion auto-scrap credit (SQL: scrap = scrap + delta).
+    p.scrap += Math.trunc(attempt.scrap);
 
     const result: Json = {
       action_type: 'cc_apply_boss_attempt',
@@ -402,6 +404,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       boss_id: attempt.bossId,
       attempt: attempt.attempt,
       consumed_batches: [],
+      scrap_awarded: Math.trunc(attempt.scrap),
     };
     this.ledger.set(nonceKey, result);
     return result;
@@ -485,7 +488,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (!['available', 'equipped'].includes(item.runtime_state)) {
       throw new GameplayStoreError('Item state invalid');
     }
-    const award = salvageScrap(item.rarity ?? '', item.item_level);
+    // Market Crash (legendary): 4x scrap when recycling this weapon —
+    // mirrors cc_recycle_item as amended by 0008_legendary_honesty.sql.
+    const baseAward = salvageScrap(item.rarity ?? '', item.item_level);
+    const payload = (item.payload ?? {}) as { legendaryEffectId?: string };
+    const award = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
     item.runtime_state = 'consumed';
     item.tradeable = false;
     item.equipped_slot = null;

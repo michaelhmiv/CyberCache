@@ -61,7 +61,7 @@ export const LEGENDARY_EFFECTS: LegendaryEffectDef[] = [
   {
     id: 'second_opinion',
     name: 'Second Opinion',
-    description: 'On boss victory, the loot roll happens twice. You pick one reward; the other is auto-scrapped.',
+    description: 'On boss victory, the loot roll happens twice. You keep the stronger weapon; the other is auto-scrapped.',
     eligibleSources: [DropSource.BossDrop],
     minBossTier: 4,
   },
@@ -117,7 +117,7 @@ export const LEGENDARY_EFFECTS: LegendaryEffectDef[] = [
   {
     id: 'market_crash',
     name: 'Market Crash',
-    description: 'This weapon\'s scrap value is 4x normal. Listing it on the market bypasses 50% of the fee.',
+    description: 'This weapon\'s scrap value is 4x normal when recycled.',
     eligibleSources: [DropSource.BossDrop],
     minBossTier: 4,
   },
