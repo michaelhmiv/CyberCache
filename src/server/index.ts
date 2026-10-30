@@ -18,6 +18,9 @@ import { mountReadRoutes } from './reads/routes';
 import { PgReadStore } from './reads/store';
 import { mountWriteRoutes } from './writes/routes';
 import { PgWriteStore } from './writes/store';
+import { mountJobRoutes } from './jobs/routes';
+import { PgJobStore } from './jobs/store';
+import { fcmSenderFromEnv } from './jobs/fcm';
 
 const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, '../../dist');
@@ -62,8 +65,9 @@ app.use(express.json({ limit: '1mb' }));
 // Chef API — authoritative gameplay engine
 mountChefRoutes(app);
 
-// Market seeding — server-side NPC listings
-mountMarketSeedRoutes(app);
+// Market seeding — server-side NPC listings. Mounted below, with the
+// Postgres JobStore on Route B boots and the legacy Supabase data path
+// on Supabase-era boots (see the mount branches).
 
 // Route B identity (slice B1) — Chef-issued auth on Railway Postgres.
 // Mounted only when both the database and the JWT secret are configured,
@@ -71,6 +75,7 @@ mountMarketSeedRoutes(app);
 // fails closed: no secret, no auth routes.
 const chefJwtSecret = process.env.CHEF_JWT_SECRET;
 const databaseUrl = process.env.DATABASE_URL;
+const chefJobSecret = process.env.CHEF_JOB_SECRET;
 if (chefJwtSecret && databaseUrl) {
   // Lazy import keeps `pg` out of the boot path for Supabase-era deploys.
   void import('pg')
@@ -88,10 +93,28 @@ if (chefJwtSecret && databaseUrl) {
       // its actor from the Chef JWT and lands in the cc_* write functions.
       mountWriteRoutes(app, new PgWriteStore(pool), { jwtSecret: chefJwtSecret });
       console.log('[chef-writes] write APIs mounted (Route B B3)');
+      // Route B background jobs (slice B5) — pg_cron replacements +
+      // Edge Function test-push port. Job routes mount only when
+      // CHEF_JOB_SECRET is set (fail closed); the NPC seed route gets
+      // the Postgres store here.
+      const jobStore = new PgJobStore(pool);
+      mountJobRoutes(app, jobStore, {
+        jwtSecret: chefJwtSecret,
+        jobSecret: chefJobSecret,
+        fcmSender: fcmSenderFromEnv(),
+      });
+      console.log(
+        chefJobSecret
+          ? '[chef-jobs] job routes + push test mounted (Route B B5)'
+          : '[chef-jobs] push test mounted; job routes disabled (CHEF_JOB_SECRET not set)',
+      );
+      mountMarketSeedRoutes(app, jobStore);
     })
     .catch((err) => console.error('[chef-auth] failed to initialize pg pool', err));
 } else {
   console.log('[chef-auth] disabled (CHEF_JWT_SECRET / DATABASE_URL not both set)');
+  // Supabase-era boot: the NPC seed route keeps its legacy data path.
+  mountMarketSeedRoutes(app);
 }
 
 // Static files — the React SPA

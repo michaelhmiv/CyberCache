@@ -1,45 +1,31 @@
+/**
+ * NPC market seeding — legacy route (POST /api/market/seed).
+ *
+ * June origin: a secret-gated Chef route that restocked the NPC seller's
+ * marketplace listings through the Supabase service client. Route B (B5)
+ * keeps the route, its header (`x-npc-market-secret`), and its env
+ * (NPC_MARKET_SEED_SECRET) for ops compatibility, but the data path now
+ * prefers the Postgres JobStore when one is mounted (Railway deploys);
+ * the Supabase service-client path remains only for Supabase-era boots
+ * without DATABASE_URL. Item generation is shared with the job route
+ * (POST /api/jobs/seed-npc-market) via src/server/jobs/npcItems.ts, and
+ * both paths replace the NPC stock (cancel active, insert fresh), so
+ * either entry point is safe to call twice.
+ */
 import type { NextFunction, Request, Response, Router } from 'express';
 import { Router as expressRouter } from 'express';
-import type { GearItem, Weapon } from '@/types/items';
-import { DropSource } from '@/types/game';
-import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
-import { generateShield } from '@/server/lib/generators/shieldGenerator';
-import { generateClassMod } from '@/server/lib/generators/classModGenerator';
-import { generateRelic } from '@/server/lib/generators/relicGenerator';
-import { generateOrdnance } from '@/server/lib/generators/ordnanceGenerator';
 import { getServiceSupabase, NPC_MARKET_USER_ID } from '@/server/lib/supabaseService';
+import type { JobStore } from '@/server/jobs/store';
+import { buildNpcSeedItems, clampSeedCount, clampSeedLevel } from '@/server/jobs/npcItems';
 
 const SEED_SECRET = process.env.NPC_MARKET_SEED_SECRET;
 
-function npcPrice(item: GearItem): number {
-  if ('weaponType' in item) {
-    const w = item as Weapon;
-    return Math.max(100, Math.round(w.combatPower * 10 + (w.rollQuality ?? 100) * 0.5));
-  }
-  return Math.max(100, Math.round((item.level ?? 1) * 250));
-}
-
-function generateNpcItem(level: number): GearItem {
-  const roll = Math.random();
-  if (roll < 0.45) return generateWeapon({ source: DropSource.Marketplace, level });
-  if (roll < 0.70) return generateShield(level);
-  if (roll < 0.85) return generateClassMod(level);
-  if (roll < 0.95) return generateRelic(level);
-  return generateOrdnance(level);
-}
-
-async function seedNpcMarket(count: number, level: number) {
+async function seedNpcMarketLegacy(count: number, level: number) {
   if (!SEED_SECRET) {
     throw new Error('NPC market seeding is not configured on this instance');
   }
   const supabase = getServiceSupabase();
-  const kindPool: string[] = [];
-  const items: GearItem[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const item = generateNpcItem(level);
-    items.push(item);
-    kindPool.push('weaponType' in item ? 'weapon' : 'hp' in item ? 'shield' : 'treeBonus' in item ? 'classMod' : 'damage' in item ? 'ordnance' : 'relic');
-  }
+  const items = buildNpcSeedItems(count, level);
 
   // Clean up prior NPC listings
   await supabase
@@ -48,26 +34,25 @@ async function seedNpcMarket(count: number, level: number) {
     .eq('seller_user_id', NPC_MARKET_USER_ID)
     .eq('status', 'active');
 
-  for (let i = 0; i < items.length; i += 1) {
-    const item = items[i];
+  for (const item of items) {
     const { error: itemErr } = await supabase.from('item_instances').insert({
       id: item.id,
       owner_user_id: NPC_MARKET_USER_ID,
-      kind: `gear:${kindPool[i]}`,
-      item_level: item.level ?? 1,
+      kind: item.kind,
+      item_level: item.item_level,
       rarity: item.rarity,
       is_locked: false,
       runtime_state: 'available',
       supply_mode: 'npc_market',
       equipped_slot: null,
-      payload: item as unknown as Record<string, unknown>,
+      payload: item.payload,
     });
     if (itemErr) throw itemErr;
 
     const { error: listingErr } = await supabase.from('market_listings').insert({
       seller_user_id: NPC_MARKET_USER_ID,
       item_instance_id: item.id,
-      price_credits: npcPrice(item),
+      price_credits: item.price_credits,
       status: 'active',
     });
     if (listingErr) throw listingErr;
@@ -76,7 +61,7 @@ async function seedNpcMarket(count: number, level: number) {
   return { seeded: items.length, level };
 }
 
-export function mountMarketSeedRoutes(router: Router): void {
+export function mountMarketSeedRoutes(router: Router, jobStore?: JobStore): void {
   const r = expressRouter();
 
   const handler = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -86,9 +71,17 @@ export function mountMarketSeedRoutes(router: Router): void {
         res.status(403).json({ ok: false, error: 'Forbidden' });
         return;
       }
-      const count = Math.min(50, Math.max(1, Number(req.body.count ?? 12)));
-      const level = Math.min(100, Math.max(1, Number(req.body.level ?? 10)));
-      const result = await seedNpcMarket(count, level);
+      const count = clampSeedCount(req.body?.count);
+      const level = clampSeedLevel(req.body?.level);
+      if (jobStore) {
+        const { seeded } = await jobStore.seedNpcMarket(
+          NPC_MARKET_USER_ID,
+          buildNpcSeedItems(count, level),
+        );
+        res.json({ ok: true, seeded, level });
+        return;
+      }
+      const result = await seedNpcMarketLegacy(count, level);
       res.json({ ok: true, ...result });
     } catch (err) {
       console.error('[market seed] error:', err);
