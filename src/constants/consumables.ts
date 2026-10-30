@@ -96,6 +96,10 @@ export interface ConsumableRuntimeEffectScaling {
 export interface ConsumableRuntimeEffects {
   healHp?: number;
   shieldRestore?: number;
+  /** Flat damage reduction (0-1) while active — roaming Shield Cell resistance. */
+  damageReductionPct?: number;
+  /** Flat bonus DPS per ordnance fire while roaming (interval burst). */
+  ordnanceBonusDps?: number;
   repairTotalHp?: number;
   repairDurationSeconds?: number;
   dotDamageReduction?: number;
@@ -379,11 +383,14 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'shieldBelowThreshold',
       'ifUsed',
       'inactive_continue',
-      { shieldRestore: 120 },
+      { shieldRestore: 120, damageReductionPct: 0.15 },
       { shieldRestore: FULL_FLAT },
       'Shield Cell consumed: restored shield capacity.',
       {
         threshold: 0.25,
+        activityRules: {
+          roaming: { durationSeconds: 180 },
+        },
         highQualityPerks: [{ minQuality: 125, label: 'Temporary recharge acceleration.', effects: { survivalMultiplier: 1.04, repairDurationSeconds: 15 } }],
       }
     ),
@@ -528,7 +535,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     id: ConsumableType.ArmorPiercingAmmo,
     name: 'Armor-Piercing Ammo',
     family: 'ammo',
-    shortDescription: 'Specialized rounds for armor phases and armored roaming elites.',
+    shortDescription: 'Specialized rounds for armor phases and armored targets.',
     tacticalRole: 'Armor Break',
     trigger: 'armorPhase',
     consumePolicy: 'onTrigger',
@@ -541,7 +548,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('◈', 'orange', 'rounds'),
     quality: quality(400, 75, 135, 'Armor-break bonus scales with quality.'),
     runtime: runtime(
-      ['roaming', 'boss'],
+      ['boss'],
       'ammo',
       'armorPhase',
       'onTrigger',
@@ -574,7 +581,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'activityStart',
       'onTrigger',
       'inactive_continue',
-      { dpsMultiplier: 1.08, ammoWindowUses: 1 },
+      { dpsMultiplier: 1.08, ammoWindowUses: 1, ammoCoveredSeconds: 600 },
       { dpsMultiplier: DELTA(1.16), ammoWindowUses: { mode: 'none' } },
       'Incendiary Ammo consumed: added burn DPS pressure.',
       {
@@ -600,7 +607,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('◇', 'cyan', 'rounds'),
     quality: quality(450, 75, 140, 'Shield-break bonus scales with quality.'),
     runtime: runtime(
-      ['roaming', 'boss'],
+      ['boss'],
       'ammo',
       'shieldPhase',
       'onTrigger',
@@ -631,7 +638,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('◇', 'green', 'rounds'),
     quality: quality(450, 75, 140, 'Armor-break and repair suppression scale with quality.'),
     runtime: runtime(
-      ['roaming', 'boss'],
+      ['boss'],
       'ammo',
       'armorPhase',
       'onTrigger',
@@ -667,7 +674,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'activityStart',
       'onTrigger',
       'inactive_continue',
-      { incomingDpsMultiplier: 0.9, ammoWindowUses: 1 },
+      { incomingDpsMultiplier: 0.9, ammoWindowUses: 1, ammoCoveredSeconds: 600 },
       { incomingDpsMultiplier: INVERSE_DELTA(0.82), ammoWindowUses: { mode: 'none' } },
       'Cryo Ammo consumed: reduced incoming enemy pressure.',
       {
@@ -753,12 +760,12 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('●', 'orange', 'grenade', 'reinforced'),
     quality: quality(400, 75, 145, 'Burst break effects scale with quality.'),
     runtime: runtime(
-      ['boss'],
+      ['boss', 'roaming'],
       'ordnance',
       'shieldPhase',
       'onAttempt',
       'inactive_continue',
-      { shieldBreakMultiplier: 1.15, armorBreakMultiplier: 1.15, mechanicScoreFlat: 0.04, ammoWindowUses: 0 },
+      { shieldBreakMultiplier: 1.15, armorBreakMultiplier: 1.15, mechanicScoreFlat: 0.04, ammoWindowUses: 0, ordnanceBonusDps: 50 },
       { shieldBreakMultiplier: DELTA(1.3), armorBreakMultiplier: DELTA(1.3), mechanicScoreFlat: FULL_CHANCE(0.09) },
       'Ordnance Charge consumed: applied crafted burst break pressure.',
       {
@@ -784,12 +791,12 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('◉', 'cyan', 'grenade', 'signal'),
     quality: quality(650, 75, 145, 'Shield break scales fully; mechanic suppression is capped.'),
     runtime: runtime(
-      ['boss'],
+      ['boss', 'roaming'],
       'ordnance',
       'shieldPhase',
       'onTrigger',
       'inactive_continue',
-      { shieldBreakMultiplier: 1.35, mechanicReduction: 0.1, mechanicScoreFlat: 0.1 },
+      { shieldBreakMultiplier: 1.35, mechanicReduction: 0.1, mechanicScoreFlat: 0.1, ordnanceBonusDps: 60 },
       { shieldBreakMultiplier: DELTA(1.55), mechanicReduction: FULL_CHANCE(0.18), mechanicScoreFlat: FULL_CHANCE(0.18) },
       'EMP Charge consumed: broke shield pressure and suppressed mechanical mechanics.',
       {
@@ -815,12 +822,12 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('◉', 'green', 'grenade', 'volatile'),
     quality: quality(650, 75, 145, 'Armor break scales fully; repair suppression is capped.'),
     runtime: runtime(
-      ['boss'],
+      ['boss', 'roaming'],
       'ordnance',
       'armorPhase',
       'onTrigger',
       'inactive_continue',
-      { armorBreakMultiplier: 1.35, repairSuppression: 0.1, mechanicScoreFlat: 0.1 },
+      { armorBreakMultiplier: 1.35, repairSuppression: 0.1, mechanicScoreFlat: 0.1, ordnanceBonusDps: 70 },
       { armorBreakMultiplier: DELTA(1.55), repairSuppression: FULL_CHANCE(0.18), mechanicScoreFlat: FULL_CHANCE(0.18) },
       'Corrosive Charge consumed: cracked armor and suppressed repair.',
       {
@@ -846,12 +853,12 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('◌', 'purple', 'grenade', 'volatile'),
     quality: quality(1000, 75, 155, 'Armor bypass scales with quality up to a cap.'),
     runtime: runtime(
-      ['boss'],
+      ['boss', 'roaming'],
       'ordnance',
       'armorPhase',
       'onTrigger',
       'inactive_continue',
-      { armorBreakMultiplier: 1.5, armorBypass: 0.4, mechanicScoreFlat: 0.05 },
+      { armorBreakMultiplier: 1.5, armorBypass: 0.4, mechanicScoreFlat: 0.05, ordnanceBonusDps: 80 },
       { armorBreakMultiplier: DELTA(1.75), armorBypass: FULL_CHANCE(0.65), mechanicScoreFlat: FULL_CHANCE(0.1) },
       'Phase Shift Grenade consumed: bypassed part of the armor phase.'
     ),
@@ -874,12 +881,12 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('⌾', 'orange', 'grenade', 'reinforced'),
     quality: quality(650, 75, 150, 'Ordnance boost scales with quality.'),
     runtime: runtime(
-      ['boss'],
+      ['boss', 'roaming'],
       'ordnance',
       'fightStart',
       'onAttempt',
       'inactive_continue',
-      { ordnanceBoostMultiplier: 1.2, boostedOrdnanceUses: 2, freeOrdnanceUses: 2 },
+      { ordnanceBoostMultiplier: 1.2, boostedOrdnanceUses: 2, freeOrdnanceUses: 2, ordnanceBonusDps: 90 },
       { ordnanceBoostMultiplier: DELTA(1.35), boostedOrdnanceUses: { mode: 'none' }, freeOrdnanceUses: { mode: 'none' } },
       'Magnetized Payload consumed: boosted loaded ordnance.',
       {
@@ -1050,27 +1057,27 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     id: ConsumableType.LootBeacon,
     name: 'Loot Beacon',
     family: 'economy',
-    shortDescription: 'Roaming event lure that increases elite/cache event chance while raising enemy pressure.',
+    shortDescription: 'Roaming lure that raises gear drop chance while raising enemy pressure.',
     tacticalRole: 'Roaming Loot Risk',
     trigger: 'activityStart',
     consumePolicy: 'perInterval',
     counterTags: ['loot', 'cache', 'elite'],
     effectRules: { bonusLootChance: 0.1 },
     craftCategory: 'utility',
-    uiHints: ['Roaming only.', 'Quality scales event chance; enemy pressure is an explicit drawback.'],
+    uiHints: ['Roaming only.', 'Quality scales the bonus loot chance; enemy pressure is an explicit drawback.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
     visual: visual('◍', 'amber', 'beacon', 'market'),
-    quality: quality(900, 70, 150, 'Event chance scales with quality and remains capped.'),
+    quality: quality(900, 70, 150, 'Bonus loot chance scales with quality and remains capped.'),
     runtime: runtime(
       ['roaming'],
       'utility',
       'activityStart',
       'perInterval',
       'inactive_continue',
-      { eventChanceBonus: 0.1, ammoCoveredSeconds: 600, enemyPressureMultiplier: 1.05 },
-      { eventChanceBonus: FULL_CHANCE(0.18), ammoCoveredSeconds: FULL_DURATION, enemyPressureMultiplier: { mode: 'none' } },
-      'Loot Beacon consumed: increased roaming event chance and enemy pressure.',
+      { bonusLootChance: 0.1, ammoCoveredSeconds: 600, enemyPressureMultiplier: 1.05 },
+      { bonusLootChance: FULL_CHANCE(0.18), ammoCoveredSeconds: FULL_DURATION, enemyPressureMultiplier: { mode: 'none' } },
+      'Loot Beacon consumed: increased roaming gear drop chance and enemy pressure.',
       {
         activityRules: { roaming: { trigger: 'activityStart', consumePolicy: 'perInterval', durationSeconds: 600, zeroBehavior: 'inactive_continue' } },
         highQualityPerks: [{ minQuality: 140, label: 'Adds a small loot rarity bias to beacon events.', effects: { rarityBias: 0.05 } }],
@@ -1113,7 +1120,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     id: ConsumableType.DataSkimmer,
     name: 'Data Skimmer',
     family: 'economy',
-    shortDescription: 'Victory-only utility that can add an extra boss loot roll.',
+    shortDescription: 'Loot utility that can add an extra loot roll after a successful drop.',
     tacticalRole: 'Extra Loot Roll',
     trigger: 'lootRoll',
     consumePolicy: 'onVictory',
@@ -1126,12 +1133,12 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     visual: visual('▧', 'amber', 'scanner', 'market'),
     quality: quality(900, 75, 150, 'Extra-roll chance scales with quality and caps at 40%.'),
     runtime: runtime(
-      ['boss'],
+      ['boss', 'roaming'],
       'utility',
       'lootRoll',
       'onVictory',
       'inactive_continue',
-      { extraLootRollChance: 0.25 },
+      { extraLootRollChance: 0.25, ammoCoveredSeconds: 600 },
       { extraLootRollChance: FULL_CHANCE(0.4) },
       'Data Skimmer consumed: attempted an extra victory loot roll.',
       {
@@ -1162,7 +1169,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'lootRoll',
       'onVictory',
       'inactive_continue',
-      { bonusLootChance: 0.25 },
+      { bonusLootChance: 0.25, ammoCoveredSeconds: 600 },
       { bonusLootChance: FULL_CHANCE(0.4) },
       'Luck Booster consumed: improved post-success loot chance.'
     ),

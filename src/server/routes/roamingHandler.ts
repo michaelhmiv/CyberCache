@@ -109,7 +109,13 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
         }
       }
 
-      // Persist consumable consumption atomically (server-authoritative)
+      // Persist consumable consumption atomically (server-authoritative).
+      // A persistence failure here must NOT be swallowed: the claim has
+      // already paid rewards computed with those consumables active, so
+      // silently succeeding would make the claim's consumables free.
+      // Surface it exactly like the store-items failure above (500 with
+      // the applied profile + rewards attached); the tick guard makes a
+      // client retry safe (409, no double-apply).
       const consumedConsumables = result.consumedConsumables;
       if (consumedConsumables && Object.keys(consumedConsumables).length > 0) {
         try {
@@ -117,6 +123,13 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error('[chef] Failed to consume roaming consumables:', message);
+          res.status(500).json({
+            error: 'Failed to persist consumable consumption',
+            detail: message,
+            profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+            rewards: result.rewards,
+          });
+          return;
         }
       }
 

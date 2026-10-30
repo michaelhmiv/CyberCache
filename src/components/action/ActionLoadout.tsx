@@ -295,8 +295,14 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
         ))}
       </div>
 
-      {/* Consumables — always visible, not hidden in collapsed/expanded blocks */}
+      {/* Consumables — always visible, not hidden in collapsed/expanded blocks.
+          The chips are a quick count view of the slotted items only:
+          roaming auto-activates ALL owned roaming consumables, slotted
+          or not — the caption says so plainly. */}
       <div className="mt-2">
+        <div className="mb-1 text-[8px] font-bold uppercase tracking-wider text-text-muted">
+          Consumables — all owned auto-activate while roaming
+        </div>
         <ConsumablesChips className="text-[9px]" />
       </div>
 

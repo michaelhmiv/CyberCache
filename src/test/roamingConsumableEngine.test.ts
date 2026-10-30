@@ -1,16 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import {
+  activateFromInventory,
   activateLoadout,
   processTick,
   getSurvivalState,
   buildActiveBuffs,
+  isRoamingConsumable,
 } from '../lib/consumables/roamingConsumableEngine';
+import { CONSUMABLES } from '../constants/consumables';
 import { ConsumableType } from '../types/game';
 
 // Engine constants are module-private; mirror the documented values here so
-// the assertions read clearly. (1 tick = 3s.)
+// the assertions read clearly. (1 tick = 3s.) Since the consumable
+// contract repair, the engine derives its numbers from the shared defs —
+// the mirrors below that come from defs are computed FROM the defs so a
+// def edit that the engine fails to honor fails the suite.
 const MEDKIT_BUFFER_AMOUNT = 150;
-const NANO_SWARM_TICKS = 30;
+// Def: repairTotalHp 300 over repairDurationSeconds 30 → 30s ÷ 3s = 10 ticks.
+const NANO_SWARM_TICKS = Math.round(
+  (CONSUMABLES[ConsumableType.NanoSwarm].runtime.baseEffects.repairDurationSeconds ?? 0) / 3,
+);
+const NANO_SWARM_HEAL_PER_TICK =
+  (CONSUMABLES[ConsumableType.NanoSwarm].runtime.baseEffects.repairTotalHp ?? 0) / NANO_SWARM_TICKS;
 const ADRENALINE_BURST_TICKS = 7; // ~20s burst once triggered
 const BASE_ORDNANCE_INTERVAL = 20; // ticks (60s), reduced by combat.ordnance mastery
 const ORDNANCE_CHARGE_DPS = 50;
@@ -428,5 +439,184 @@ describe('roamingConsumableEngine', () => {
       const buffs = buildActiveBuffs(state, 0);
       expect(buffs[0].remainingTicks).toBe(NANO_SWARM_TICKS);
     });
+  });
+});
+
+// ─── activateFromInventory — the def contract (Phase 0 Slice 2) ──────
+//
+// The function the Chef actually calls had ZERO tests before this
+// slice. These tests pin the contract the audit found broken: the
+// engine derives values, durations, and its activation set from the
+// shared defs — never from a private table.
+
+describe('activateFromInventory — def contract', () => {
+  it('activates exactly the roaming-scoped defs (and no others)', () => {
+    const inventory: Record<string, number> = {};
+    for (const def of Object.values(CONSUMABLES)) inventory[def.id] = 2;
+
+    const state = activateFromInventory(inventory, 0);
+    const activated = state.slots.map((s) => s.consumableId).sort();
+    const expected = Object.values(CONSUMABLES)
+      .filter((def) => def.runtime.activityScopes.includes('roaming'))
+      .map((def) => def.id)
+      .sort();
+
+    expect(activated).toEqual(expected);
+    // The seven defs the old engine silently skipped, by name:
+    expect(activated).toContain(ConsumableType.MedKitRefined); // was skipped, now activates
+    expect(activated).toContain(ConsumableType.HighCapacityAmmoPack); // was skipped, now activates
+    expect(activated).not.toContain(ConsumableType.Grenade); // boss-scoped in its def
+    expect(activated).not.toContain(ConsumableType.InsuranceToken); // boss-scoped
+    expect(activated).not.toContain(ConsumableType.SalvageContract); // scrapping-scoped
+    expect(activated).not.toContain(ConsumableType.WorkshopRushTicket); // crafting/repair-scoped
+    expect(activated).not.toContain(ConsumableType.ElementalCoating); // boss-scoped legacy
+  });
+
+  it('skips unknown ids and zero counts', () => {
+    const state = activateFromInventory({ NotAConsumable: 5, [ConsumableType.MedKit]: 0 }, 0);
+    expect(state.slots).toHaveLength(0);
+  });
+
+  it('Med Kit (Refined) activates with the def buffer (count × healHp 260)', () => {
+    const def = CONSUMABLES[ConsumableType.MedKitRefined];
+    const state = activateFromInventory({ [ConsumableType.MedKitRefined]: 3 }, 0);
+    expect(state.slots).toHaveLength(1);
+    expect(state.slots[0].remainingBuffer).toBe(3 * (def.runtime.baseEffects.healHp ?? 0));
+    expect(state.slots[0].remainingBuffer).toBe(780);
+  });
+
+  it('High-Capacity Ammo Pack window comes from the def (1200s → 400 ticks)', () => {
+    const state = activateFromInventory({ [ConsumableType.HighCapacityAmmoPack]: 1 }, 100);
+    expect(state.slots[0].expiresAtTick).toBe(100 + 400);
+    const result = processTick(state, ctx({ tickIndex: 100, inventory: { [ConsumableType.HighCapacityAmmoPack]: 1 } }));
+    expect(result.mods.dpsMultiplier).toBeCloseTo(
+      CONSUMABLES[ConsumableType.HighCapacityAmmoPack].runtime.baseEffects.dpsMultiplier ?? 1,
+    );
+  });
+
+  it('Shield Cell values come from the def: restore 120 (not the old engine 100), resistance and window too', () => {
+    const def = CONSUMABLES[ConsumableType.ShieldCell];
+    const inventory = { [ConsumableType.ShieldCell]: 2 };
+    const state = activateFromInventory(inventory, 0);
+    // Window: def activityRules.roaming.durationSeconds 180 → 60 ticks.
+    expect(state.slots[0].expiresAtTick).toBe(60);
+
+    const mods = processTick(state, ctx({ tickIndex: 5, inventory })).mods;
+    expect(mods.damageReductionPct).toBeCloseTo(def.runtime.baseEffects.damageReductionPct ?? 0);
+    expect(getSurvivalState(state).shieldCellResistance).toBeCloseTo(
+      def.runtime.baseEffects.damageReductionPct ?? 0,
+    );
+
+    // Expiry + replenish restores the DEF amount of shield.
+    const expiry = processTick(state, ctx({ tickIndex: 60, inventory }));
+    expect(expiry.consumed).toHaveLength(1);
+    expect(expiry.shieldRestore).toBe(def.runtime.baseEffects.shieldRestore);
+    expect(expiry.shieldRestore).toBe(120);
+  });
+
+  it('Nano Swarm heal per tick is the def total over the def duration (300 HP / 10 ticks = 30)', () => {
+    const state = activateFromInventory({ [ConsumableType.NanoSwarm]: 1 }, 0);
+    const surv = getSurvivalState(state);
+    expect(surv.nanoSwarmTicksRemaining).toBe(NANO_SWARM_TICKS);
+    expect(surv.nanoSwarmHealThisTick).toBe(NANO_SWARM_HEAL_PER_TICK);
+    expect(surv.nanoSwarmHealThisTick * surv.nanoSwarmTicksRemaining).toBe(
+      CONSUMABLES[ConsumableType.NanoSwarm].runtime.baseEffects.repairTotalHp,
+    );
+  });
+
+  it('economy mods come from the defs: Data Skimmer extra roll, Luck Booster loot, Loot Beacon loot + pressure', () => {
+    const inventory = {
+      [ConsumableType.DataSkimmer]: 1,
+      [ConsumableType.LuckBooster]: 1,
+      [ConsumableType.LootBeacon]: 1,
+    };
+    const state = activateFromInventory(inventory, 0);
+    const mods = processTick(state, ctx({ tickIndex: 1, inventory })).mods;
+    expect(mods.extraLootRollChance).toBeCloseTo(
+      CONSUMABLES[ConsumableType.DataSkimmer].runtime.baseEffects.extraLootRollChance ?? 0,
+    );
+    // Luck Booster 0.25 + Loot Beacon 0.10, both from their defs.
+    expect(mods.bonusLootChance).toBeCloseTo(
+      (CONSUMABLES[ConsumableType.LuckBooster].runtime.baseEffects.bonusLootChance ?? 0) +
+        (CONSUMABLES[ConsumableType.LootBeacon].runtime.baseEffects.bonusLootChance ?? 0),
+    );
+    expect(mods.enemyPressureMultiplier).toBeCloseTo(
+      CONSUMABLES[ConsumableType.LootBeacon].runtime.baseEffects.enemyPressureMultiplier ?? 1,
+    );
+    // Loot Beacon's old eventChanceBonus had no roaming consumer and was
+    // removed from its def — the mod channel must stay at zero.
+    expect(mods.eventChanceBonus).toBe(0);
+  });
+
+  it('no phantom conversions: Cryo is defense-only, Signal Scrambler is accuracy-only (def values)', () => {
+    const cryoState = activateFromInventory({ [ConsumableType.CryoAmmo]: 1 }, 0);
+    const cryoMods = processTick(cryoState, ctx({ tickIndex: 1, inventory: { [ConsumableType.CryoAmmo]: 1 } })).mods;
+    expect(cryoMods.incomingDpsMultiplier).toBeCloseTo(
+      CONSUMABLES[ConsumableType.CryoAmmo].runtime.baseEffects.incomingDpsMultiplier ?? 1,
+    );
+    // The old engine silently converted Cryo's boss survivalMultiplier
+    // (1.11) into roaming DPS. The def promises no roaming DPS.
+    expect(cryoMods.dpsMultiplier).toBe(1);
+
+    const sigState = activateFromInventory({ [ConsumableType.SignalScrambler]: 1 }, 0);
+    const sigMods = processTick(sigState, ctx({ tickIndex: 1, inventory: { [ConsumableType.SignalScrambler]: 1 } })).mods;
+    expect(sigMods.incomingAccuracyMultiplier).toBeCloseTo(
+      CONSUMABLES[ConsumableType.SignalScrambler].runtime.baseEffects.incomingAccuracyMultiplier ?? 1,
+    );
+    // The old engine added an undocumented incomingDps 0.90 on top.
+    expect(sigMods.incomingDpsMultiplier).toBe(1);
+  });
+
+  it('boss-scoped items no longer activate in roaming (Void Ammo, Jammer, Target Painter, Boss Scanner, break ammo)', () => {
+    for (const id of [
+      ConsumableType.VoidAmmo,
+      ConsumableType.Jammer,
+      ConsumableType.TargetPainter,
+      ConsumableType.OverchargeStim,
+      ConsumableType.BossScanner,
+      ConsumableType.ArmorPiercingAmmo,
+      ConsumableType.ShockAmmo,
+      ConsumableType.CorrosiveAmmo,
+    ]) {
+      expect(isRoamingConsumable(id)).toBe(false);
+      expect(activateFromInventory({ [id]: 3 }, 0).slots).toHaveLength(0);
+    }
+  });
+
+  it('ordnance fires for the def ordnanceBonusDps per type', () => {
+    for (const id of [
+      ConsumableType.OrdnanceCharge,
+      ConsumableType.EMPCharge,
+      ConsumableType.CorrosiveCharge,
+      ConsumableType.PhaseShiftGrenade,
+      ConsumableType.MagnetizedPayload,
+    ]) {
+      const inventory = { [id]: 5 };
+      const state = activateFromInventory(inventory, 0);
+      const result = processTick(state, ctx({ tickIndex: BASE_ORDNANCE_INTERVAL, inventory }));
+      expect(result.mods.ordnanceBonusDps).toBe(CONSUMABLES[id].runtime.baseEffects.ordnanceBonusDps);
+      expect(result.consumed).toEqual([{ id, count: 1, reason: 'Ordnance fired during roaming' }]);
+    }
+  });
+
+  it('processTick drops carried slots whose defs are not roaming-scoped', () => {
+    // A stale/forged carried state (it round-trips through the client):
+    // a Void Ammo slot must not keep paying its boss-only DPS bonus.
+    const forged = activateFromInventory({ [ConsumableType.AmmoPack]: 1 }, 0);
+    forged.slots.push({
+      slot: 'PreFight',
+      consumableId: ConsumableType.VoidAmmo,
+      family: 'ammo',
+      activatedAtTick: 0,
+      expiresAtTick: 0,
+      remainingBuffer: 0,
+      remainingRegenTicks: 0,
+      armed: false,
+      remainingBurstTicks: 0,
+      ordnanceNextFireTick: 0,
+    });
+    const result = processTick(forged, ctx({ tickIndex: 1, inventory: { [ConsumableType.AmmoPack]: 1 } }));
+    expect(result.state.slots.map((s) => s.consumableId)).toEqual([ConsumableType.AmmoPack]);
+    expect(result.mods.dpsMultiplier).toBeCloseTo(AMMO_PACK_DPS_MULT);
   });
 });
