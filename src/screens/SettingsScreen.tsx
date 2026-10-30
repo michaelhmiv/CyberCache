@@ -5,7 +5,7 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 
-const DATA_DELETION_URL = 'https://cybercache-production.up.railway.app/data-deletion.html';
+const DATA_DELETION_URL = 'https://chef-production.up.railway.app/data-deletion.html';
 
 export const SettingsScreen: React.FC = () => {
   const player = usePlayerStore();

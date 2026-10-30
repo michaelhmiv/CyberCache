@@ -15,7 +15,7 @@ import type { GearItem } from '@/types/items';
 import type { BossAttemptResult } from '@/types/boss';
 import type { BossSimulationInput } from '@/lib/simulation/bossSimulator';
 
-export const CYBERCACHE_PRODUCTION_API_BASE = 'https://cybercache-production.up.railway.app';
+export const CYBERCACHE_PRODUCTION_API_BASE = 'https://chef-production.up.railway.app';
 
 interface ChefBaseResolutionInput {
   viteChefUrl?: string;

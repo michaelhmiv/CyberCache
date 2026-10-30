@@ -37,10 +37,9 @@ jobs:
       - name: Validate web build secrets
         env:
           VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CHEF_URL: https://chef-production.up.railway.app
         run: |
-          for name in VITE_GOOGLE_WEB_CLIENT_ID VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+          for name in VITE_GOOGLE_WEB_CLIENT_ID VITE_CHEF_URL; do
             if [ -z "${!name}" ]; then
               echo "::error::Missing required secret ${name}"
               exit 1
@@ -51,8 +50,7 @@ jobs:
         env:
           VITE_ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID: ${{ secrets.ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID }}
           VITE_ADMOB_TEST_ADS: "false"
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CHEF_URL: https://chef-production.up.railway.app
           VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
         run: npm run build
 
