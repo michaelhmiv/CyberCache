@@ -14,6 +14,7 @@ import type { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
 import type { ChefGameplayStore, DeathRecord, Json } from '../gameplay/store';
+import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { getRoamingArea } from '../../constants/roamingAreas';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
@@ -69,6 +70,30 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
       // Read server-authoritative consumable inventory from profiles.consumables
       const consumableInventory = (profile.consumables ?? {}) as Record<string, number>;
 
+      // Trust hardening (Phase 0 Slice 6): the claim's gear and skill
+      // inputs are derived from the server's OWN records — the
+      // equipped item_instances rows and profiles.skill_spends — via
+      // the same derivation offline settlement uses. The body's
+      // equippedGear / skillBonuses copies (spread in via `claim`
+      // above) are overridden here and never reach the engine: the
+      // engine's re-derivation from handed gear was only internal
+      // consistency, and a forged body with god-tier gear fabricated
+      // payouts. A loadout read failure is a 500, not a silent
+      // baseline claim — paying without the player's real gear would
+      // underpay honest play with no signal.
+      let equippedGear: Awaited<ReturnType<ChefGameplayStore['getEquippedGear']>>;
+      try {
+        equippedGear = await store.getEquippedGear(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read loadout', detail: message });
+        return;
+      }
+      const skillBonuses = skillBonusesFromRecords(
+        equippedGear,
+        (profile.skill_spends ?? {}) as Record<string, number>,
+      );
+
       // Merge inventory + roaming state into the claim
       const claimWithConsumables: ClaimRequest = {
         ...claim,
@@ -76,6 +101,9 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
         // verify-boss route): it drives the area gate above and item
         // generation levels, never the client body's playerLevel.
         playerLevel: profile.player_level,
+        // Server-derived loadout + skills (trust hardening, above).
+        equippedGear,
+        skillBonuses,
         // Server-authoritative scrap bank (migration 0009): read from the
         // profile, never from the client body spread above.
         scrapRemainder: profile.scrap_remainder,

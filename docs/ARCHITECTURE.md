@@ -35,13 +35,13 @@ in screens or components is forbidden.
 | **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Chef runtime snapshot |
 | **Boss prep analysis** | `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |
 | **Consumable effect values, durations & roaming scope** | `src/constants/consumables.ts` (`CONSUMABLES` defs) | The roaming engine (`src/lib/consumables/roamingConsumableEngine.ts`) derives every magnitude, duration, threshold, and its activation set from the defs — no engine-local value tables. Roaming auto-activates all owned roaming-scoped consumables; consumption is persisted by the claim route (`cc_consume_roaming_consumables`) and, for offline ticks, atomically inside `cc_settle_offline_roaming` (migration 0012) |
-| **Boss attempts** | `src/server/chef.ts` + `src/server/routes/claim.ts` via `POST /api/verify-boss` | Client sends intent/loadout. Chef rolls outcome, consumables, XP, credits, pity, unlocks, and loot. |
+| **Boss attempts** | `src/server/chef.ts` + `src/server/routes/claim.ts` via `POST /api/verify-boss` | Client sends intent only (boss, nonce, prepared consumables, risk). The route derives loadout/skills/level/credits/pity from server records. Chef rolls outcome, consumables, XP, credits, pity, unlocks, and loot. |
 | **Crafting / salvaging / workshop** | `src/store/slices/workshopSlice.ts` + `src/lib/craftingEngine.ts` | Queue-based |
 | **Public profile activity** | `src/types/activity.ts` → `ActiveActivity.publicPayload` | Display-only; derived from activity store |
 | **Animation / diorama display** | `src/lib/animation/fightTimeline.ts` + `src/lib/activity/ActionStage.tsx` | Pure reads of gameplay state |
 | **DPS computation** | `src/lib/stats/dpsChain.ts` | See `docs/dps-chain-v2.md` |
 | **Skill tree bonuses** | `src/store/slices/skillSlice.ts` (`getBonuses`) | Flows into: roaming DPS (`loadoutSurvival`), Chef idle economy, boss sim, survival HP, stagger dodge |
-| **Skill → Chef economy** | `src/server/chef.ts` + `idleTickerSlice` | Skill tree Scavenger bonuses (offlineEarnings, scrapYield, rareDropChance) merged with weapon idle mods |
+| **Skill → Chef economy** | `src/server/chef.ts` + `src/server/gameplay/serverLoadout.ts` | Chef routes rebuild skill bonuses from `profiles.skill_spends` + equipped class mod (the client sends none). Skill tree Scavenger bonuses (offlineEarnings, scrapYield, rareDropChance) merged with weapon idle mods |
 | **Shield defense** (mitigation, recharge, element) | `src/lib/combat/loadoutSurvival.ts` + `damageContract.ts` | Mitigation reduces all incoming damage (capped 80%). Recharge regens shield per tick. Element match grants +15% resist. |
 | **Relic affixes** | `loadoutSlice.getRelic().affixes` sent to Chef/snapshot consumers | Idle mods go to Chef; bossDamageMod/survivalBoost go to boss sim/Chef; xpBoostMod affects Chef-owned XP. |
 | **Ordnance damage** | `bossSimulator.ts` (ordnanceFlatDamage) | Ordnance raw damage reduces boss effective HP. Ordnance element modifies shield/armor break. |
@@ -133,8 +133,8 @@ ResourceBar cache-key plus button
 ### Boss attempt
 ```
 BossEncounterPanel (Fight workspace prep: boss intel + prepared consumables + risk)
-  -> verifyBossFight(intent/loadout/prepared set)  # client sends intent only
-  -> /api/verify-boss                              # route validates prep vs owned, enforces unlock + entry fee
+  -> verifyBossFight(intent: boss/nonce/prepared set/risk)  # client sends intent only — no gear/skill payloads
+  -> /api/verify-boss                              # route validates prep vs owned, enforces unlock + entry fee, derives loadout/skills from server records
   -> processBossAttempt()                          # Chef rolls outcome/loot/XP/credits/pity/unlocks/dedicated drops
   -> cc_apply_chef_boss_attempt()                  # profile/consumables/boss_state RPC (entry fee via migration 0011)
   -> syncBossAttemptResult()                       # client syncs returned canonical state, animates, LootMoment on victory
@@ -249,6 +249,18 @@ document its owner here.
   mutate economy/progression state, such as `cc_apply_chef_rewards`,
   `cc_apply_chef_boss_attempt`, and internal mastery/stat helpers, must not be
   executable by `anon` or `authenticated`.
+- **Chef routes derive gear/skill inputs from server records (trust
+  hardening, Phase 0 Slice 6).** `/api/claim` and `/api/verify-boss` must
+  never consume `equippedGear`, per-slot gear objects, or `skillBonuses`
+  from the request body — not even "re-derived" from the sent copies,
+  which proves only internal consistency, not ownership. Both routes
+  build those inputs via `src/server/gameplay/serverLoadout.ts` from
+  `item_instances` rows with `runtime_state = 'equipped'` (slot
+  identity from `equipped_slot`) and `profiles.skill_spends` + the
+  equipped class mod, the same derivation `/api/settle-offline` uses.
+  A stored weapon payload missing its required numeric fields (the
+  client adapter's completeness rule) is not a sim input — the slot
+  derives empty, matching what the honest client's loadout shows.
 
 ---
 

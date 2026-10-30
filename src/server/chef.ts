@@ -84,7 +84,12 @@ export interface ClaimRequest {
     scrapYieldMod: number;
     rareDropChanceMod: number;
   };
-  /** Skill tree bonuses (Scavenger tree affects idle economy). */
+  /**
+   * Skill tree bonuses (Scavenger tree affects idle economy). Routes
+   * populate this from server records (skillBonusesFromRecords over
+   * profiles.skill_spends + the equipped class mod); a request body's
+   * copy is overridden by the claim route and never reaches here.
+   */
   skillBonuses?: Record<string, number>;
   /**
    * Maximum ticks to process. Foreground live claims use 20;
@@ -100,8 +105,10 @@ export interface ClaimRequest {
    */
   activityMods?: Record<string, number>;
   /**
-   * Equipped gear IDs — enables future server-side re-derivation of
-   * activity modifiers without a second DB round-trip.
+   * Equipped gear objects. Routes populate this from the server's
+   * equipped item_instances records (ChefGameplayStore.getEquippedGear);
+   * a request body's copy is overridden by the claim route and never
+   * reaches the engine (trust hardening, Phase 0 Slice 6).
    */
   equippedGear?: GearItem[];
   /** Effective DPS from the client's loadout (for kill cycle simulation). */
@@ -357,12 +364,12 @@ export function processRoamingClaim(
   // mitigation was always 0 while the snapshot advertised it).
   const serverMitigation = slotShield?.mitigation ?? 0;
 
-  // Skill bonuses are still client-supplied but the server re-derives
-  // the DPS-relevant `dps` multiplier from equippedGear via
-  // computeEffectiveDpsFromGear(). Other skill bonuses (offlineEarnings,
-  // scrapYield, etc.) remain client-supplied for now — they only affect
-  // economy rate, not combat outcomes, and the server profile is the
-  // authoritative post-claim snapshot.
+  // Skill bonuses arrive already server-derived: the claim and
+  // settlement routes rebuild them from profiles.skill_spends + the
+  // equipped class mod (skillBonusesFromRecords) and override any
+  // body copy, so this record is the player's earned bonuses — the
+  // trust hardening (Phase 0 Slice 6) closed the era where this was
+  // whatever the client claimed, economy rates included.
   const skillBonuses = request.skillBonuses ?? {};
 
   const area = getRoamingArea(areaId);
@@ -930,11 +937,12 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
 
   const input: BossSimulationInput = { ...request, boss };
 
-  // Re-derive effectiveDps server-side from the gear objects, mirroring
-  // the roaming claim handler's approach. This prevents a malicious or
-  // buggy client from inflating the boss sim's dpsScore / winChance by
-  // forging item stats. The client-supplied skillBonuses.dps is also
-  // re-derived here rather than trusted.
+  // Telemetry DPS, re-derived from the gear objects. Since the trust
+  // hardening (Phase 0 Slice 6) those objects are themselves derived
+  // by the verify-boss route from the server's equipped-item records,
+  // and skillBonuses is rebuilt there from profiles.skill_spends —
+  // the request body no longer supplies either. This figure is
+  // telemetry only; the sim below consumes the same derived inputs.
   const serverGearEffectiveDps = computeEffectiveDpsFromGear({
     weapons: [request.primary, request.secondary, request.heavy].filter(
       (w): w is import('../types/items').Weapon => !!w && 'weaponType' in w,

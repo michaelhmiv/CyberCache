@@ -35,6 +35,8 @@ export class GameplayStoreError extends Error {
 export interface RoamingProfileRow {
   /** DB level — the area-gate authority (never the claim body's level). */
   player_level: number;
+  /** Server-side skill spends — the claim route rebuilds skillBonuses from this, never from a client body (trust hardening). */
+  skill_spends: Json;
   last_claimed_tick: number;
   consumables: Json;
   /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
@@ -51,6 +53,8 @@ export interface BossProfileRow {
   credits: number;
   consumables: Json;
   boss_state: Json;
+  /** Server-side skill spends — the boss route rebuilds skillBonuses from this, never from a client body (trust hardening). */
+  skill_spends: Json;
 }
 
 /** profiles subset the offline-settlement handler reads. */
@@ -147,6 +151,19 @@ export interface ResurrectInput {
 /** Loadout slot order the client builds claim gear arrays in. */
 export const LOADOUT_SLOT_ORDER = ['primary', 'secondary', 'heavy', 'shield', 'classMod', 'relic', 'ordnance'] as const;
 
+export type LoadoutSlot = (typeof LOADOUT_SLOT_ORDER)[number];
+
+/**
+ * One equipped item instance with its slot identity intact. The flat
+ * getEquippedGear() payloads lose which weapon slot a weapon sits in;
+ * the boss route needs exact slots (primary vs secondary vs heavy),
+ * so it reads these entries and maps them by slot name.
+ */
+export interface EquippedItemEntry {
+  slot: LoadoutSlot;
+  item: GearItem;
+}
+
 export interface ChefGameplayStore {
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null>;
   getBossProfile(playerId: string): Promise<BossProfileRow | null>;
@@ -160,6 +177,12 @@ export interface ChefGameplayStore {
    * is hydration support only and never economy authority.
    */
   getEquippedGear(playerId: string): Promise<GearItem[]>;
+  /**
+   * The same equipped rows as getEquippedGear, but with each row's
+   * loadout slot attached, in loadout slot order. Used where slot
+   * identity is an engine input (the boss sim's per-slot fields).
+   */
+  getEquippedItems(playerId: string): Promise<EquippedItemEntry[]>;
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json>;
   storeChefItems(playerId: string, items: unknown[]): Promise<Json>;
   consumeRoamingConsumables(playerId: string, consumed: Json, areaId: string, tickCount: number): Promise<Json>;
@@ -250,10 +273,11 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     return this.one(
-      'select player_level, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder from public.profiles where id = $1',
+      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
+        skill_spends: json(row.skill_spends),
         last_claimed_tick: num(row.last_claimed_tick),
         consumables: json(row.consumables),
         scrap_remainder: num(row.scrap_remainder),
@@ -265,13 +289,14 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getBossProfile(playerId: string): Promise<BossProfileRow | null> {
     return this.one(
-      'select player_level, credits, consumables, boss_state from public.profiles where id = $1',
+      'select player_level, credits, consumables, boss_state, skill_spends from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
         credits: num(row.credits),
         consumables: json(row.consumables),
         boss_state: json(row.boss_state),
+        skill_spends: json(row.skill_spends),
       }),
     );
   }
@@ -314,14 +339,22 @@ export class PgChefGameplayStore implements ChefGameplayStore {
   }
 
   async getEquippedGear(playerId: string): Promise<GearItem[]> {
+    const entries = await this.getEquippedItems(playerId);
+    return entries.map((entry) => entry.item);
+  }
+
+  async getEquippedItems(playerId: string): Promise<EquippedItemEntry[]> {
     try {
       const { rows } = await this.pool.query(
-        `select payload from public.item_instances
+        `select equipped_slot, payload from public.item_instances
           where owner_user_id = $1 and runtime_state = 'equipped' and equipped_slot is not null
           order by array_position(array['primary','secondary','heavy','shield','classMod','relic','ordnance'], equipped_slot)`,
         [playerId],
       );
-      return rows.map((row) => (row as Row).payload as GearItem);
+      return rows.map((row) => ({
+        slot: String((row as Row).equipped_slot) as LoadoutSlot,
+        item: (row as Row).payload as GearItem,
+      }));
     } catch (err) {
       return translatePgError(err);
     }

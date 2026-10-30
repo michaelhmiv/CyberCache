@@ -13,7 +13,7 @@
 import { Capacitor } from '@capacitor/core';
 import type { GearItem } from '@/types/items';
 import type { BossAttemptResult } from '@/types/boss';
-import type { BossSimulationInput } from '@/lib/simulation/bossSimulator';
+import type { RiskSetting } from '@/types/game';
 
 export const CYBERCACHE_PRODUCTION_API_BASE = 'https://chef-production.up.railway.app';
 
@@ -68,17 +68,16 @@ export interface ChefClaimRequest {
   playerLevel: number;
   /** Max ticks to process. Omit for default (20); use Infinity for offline settlement. */
   maxTicks?: number;
-  /** Idle economy modifiers from equipped weapons/relics (Phase 2d). */
-  idleMods?: {
-    offlineEarningsMod: number;
-    scrapYieldMod: number;
-    rareDropChanceMod: number;
-  };
-  skillBonuses?: Record<string, number>;
-  activityMods?: Record<string, number>;
-  equippedGear?: GearItem[];
-  /** Effective DPS from the client's loadout (for kill cycle simulation). */
-  effectiveDps?: number;
+  /**
+   * NOTE (trust hardening, Phase 0 Slice 6): this request deliberately
+   * carries NO equippedGear / skillBonuses / idle or activity mods.
+   * The Chef derives the loadout and skill bonuses from its own
+   * records (equipped item_instances + profiles.skill_spends) and
+   * ignores body copies — sending them only invited a forged body to
+   * fabricate payouts. What remains is intent + the client-carried
+   * simulation state (kill cycle, survival, consumable state) the
+   * engine simulates forward from.
+   */
   /** Current kill cycle state from the client. */
   killCycle?: {
     currentTargetId: string | null;
@@ -93,12 +92,6 @@ export interface ChefClaimRequest {
     currentHp: number;
     shieldHp: number;
     maxHp: number;
-  };
-  /** Loadout consumable slot assignments. */
-  loadoutConsumables?: {
-    PreFight: string | null;
-    MidFight: string | null;
-    Emergency: string | null;
   };
   /** Prior roaming consumable state (carried from previous claim). */
   roamingConsumableState?: unknown;
@@ -183,10 +176,23 @@ export interface ChefClaimResult {
   }>;
 }
 
-export interface ChefVerifyBossRequest extends Omit<BossSimulationInput, 'boss'> {
+/**
+ * Boss attempt INTENT (trust hardening, Phase 0 Slice 6). The client
+ * sends only what it legitimately owns: which boss, the idempotency
+ * nonce, the prepared consumable counts it chose (the Chef validates
+ * them against owned inventory), and its risk setting. Gear slots,
+ * skill bonuses, level, credits, and pity are NOT sent — the Chef
+ * derives all of them from its own records, because the old
+ * pass-through let a forged body fabricate victories.
+ */
+export interface ChefVerifyBossRequest {
   playerId: string;
   bossId: string;
   attemptNonce: number;
+  /** Prepared consumable counts chosen in boss prep (type -> count). */
+  consumables: Record<string, number>;
+  /** The player's chosen risk setting for this attempt. */
+  risk: RiskSetting;
   jwt?: string;
 }
 

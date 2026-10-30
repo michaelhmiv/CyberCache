@@ -29,6 +29,7 @@ import { REGION_1_BOSSES } from '../../constants/bosses';
 import { CONSUMABLES } from '../../constants/consumables';
 import type { AuthConfig } from '../auth/routes';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
+import { bossSlotsFromEquipped, skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 /**
@@ -169,10 +170,34 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
 
       const attemptNonce = body.attemptNonce || Date.now();
 
-      // Build the request with server-authoritative economy fields
-      // overridden. Gear objects (primary, secondary, etc.) are still
-      // passed through from the client — a future pass will re-derive
-      // DPS from DB-verified equipped items like the roaming handler does.
+      // --- Gear + skills from server records (trust hardening) ---
+      // Phase 0 Slice 6 closes the last body-trust gap on this route:
+      // the sim's gear slots and skillBonuses are derived from the
+      // server's own records — equipped item_instances rows (slot
+      // identity from equipped_slot, not array position) and
+      // profiles.skill_spends — never from the request body. The audit
+      // proved the old pass-through made victories fabricable: forged
+      // gear objects + a forged {dps: 10} skill record pushed
+      // winChance to ~0.98 and the Chef minted genuine loot for it.
+      let equippedItems: Awaited<ReturnType<ChefGameplayStore['getEquippedItems']>>;
+      try {
+        equippedItems = await store.getEquippedItems(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read loadout', detail: message });
+        return;
+      }
+      const serverGear = equippedItems.map((entry) => entry.item);
+      const serverSlots = bossSlotsFromEquipped(equippedItems);
+      const serverSkillBonuses = skillBonusesFromRecords(
+        serverGear,
+        (profile.skill_spends ?? {}) as Record<string, number>,
+      );
+
+      // Build the request with every economy field server-derived.
+      // The body contributes intent only: bossId, attemptNonce, the
+      // prepared consumable counts (ownership-validated above), and
+      // the risk setting.
       const request: BossAttemptRequest = {
         ...body,
         playerId,
@@ -182,6 +207,8 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
         consumables: resolved.prepared,
         pityCount: serverPityCount,
         entryFee,
+        ...serverSlots,
+        skillBonuses: serverSkillBonuses,
       };
 
       const result = processBossAttempt(request);

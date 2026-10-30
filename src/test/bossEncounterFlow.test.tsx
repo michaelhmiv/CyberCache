@@ -138,7 +138,14 @@ describe('BossEncounterPanel — shipped boss flow', () => {
     expect(request.consumables).toEqual({ MedKit: 2, AmmoPack: 1 });
     expect(request.risk).toBe(RiskSetting.Balanced);
     expect(request.attemptNonce).toEqual(expect.any(Number));
-    expect(request.primary?.id).toBe(primaryWeapon.id);
+    // Trust hardening (Slice 6): the request is intent only — no gear,
+    // skill, level, credit, or pity payloads for the Chef to ignore.
+    // (The panel still reads the loadout locally for display/staging.)
+    expect(request).not.toHaveProperty('primary');
+    expect(request).not.toHaveProperty('skillBonuses');
+    expect(request).not.toHaveProperty('playerLevel');
+    expect(request).not.toHaveProperty('playerCredits');
+    expect(request).not.toHaveProperty('pityCount');
 
     // The Chef's outcome is what renders: result card + victory loot moment.
     expect(await screen.findByTestId('boss-result')).toHaveTextContent('BOSS DEFEATED');
