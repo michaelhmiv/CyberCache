@@ -154,7 +154,14 @@ describe('Boss fight verification', () => {
 
   it('the same loadout fares worse against Scrap Bishop than the tutorial boss', () => {
     const base = {
-      primary: strongWeapon(),
+      // baseDamage is scaled down from strongWeapon()'s 10000: since
+      // the HP-formula unification (Phase 0 Slice 3) the level-50
+      // survival pool is 3700 HP (shared computeHunterMaxHp), and the
+      // full-strength fixture saturates the 0.98 win-chance clamp
+      // against BOTH bosses, so it can no longer discriminate. At
+      // 1000 the gun still crushes the tutorial boss (0.98) while the
+      // Bishop's gates bind (0.24).
+      primary: { ...strongWeapon(), baseDamage: 1000 },
       secondary: null,
       heavy: null,
       ordnance: null,
@@ -170,7 +177,7 @@ describe('Boss fight verification', () => {
     } as const;
     const tutorial = simulateBoss({ ...base, boss: REGION_1_BOSSES[0] });
     const bishop = simulateBoss({ ...base, boss: REGION_1_BOSSES[6] }); // 10000 HP + shield/armor gates
-    // Survival alone caps the Bishop attempt: 2500 HP vs 180 DPS x 30s.
+    // Survival alone caps the Bishop attempt: 3700 HP vs 180 DPS x 30s.
     expect(bishop.survivalScore).toBeLessThan(tutorial.survivalScore);
     expect(bishop.winChance).toBeLessThan(tutorial.winChance);
   });

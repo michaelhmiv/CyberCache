@@ -14,7 +14,7 @@ describe('Roaming claim server authority regression', () => {
     // Route B (B6): the read goes through the gameplay store — its SQL
     // selects the same columns from profiles.
     const store = readSource('src/server/gameplay/store.ts');
-    expect(store).toContain('select last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder from public.profiles');
+    expect(store).toContain('select player_level, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder from public.profiles');
     expect(handler).toContain('store.getRoamingProfile(playerId)');
     expect(handler).toContain('consumableInventory');
     expect(handler).toContain('claimWithConsumables');
