@@ -22,7 +22,12 @@ describe('backend authority audit', () => {
 
     const claimRoute = readSource('src/server/routes/claim.ts');
     expect(claimRoute).toContain('cc_recycle_item');
-    expect(claimRoute).toContain('cc_settle_offline_roaming');
-    expect(claimRoute).toContain('cc_apply_chef_rewards');
+    // The claim/settle handlers were de-duplicated in B3: the canonical
+    // copies live in roamingHandler.ts / settleOffline.ts (claim.ts's were
+    // unreachable duplicates shadowed by chefRoutes mount order).
+    const settleRoute = readSource('src/server/routes/settleOffline.ts');
+    expect(settleRoute).toContain('cc_settle_offline_roaming');
+    const roamingRoute = readSource('src/server/routes/roamingHandler.ts');
+    expect(roamingRoute).toContain('cc_apply_chef_rewards');
   });
 });

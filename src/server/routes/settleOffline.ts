@@ -77,7 +77,7 @@ export async function handleSettleOffline(req: Request, res: Response): Promise<
       ticks: ticksRequested,
       tickCount: (profile.last_claimed_tick || 0) + ticksRequested,
       playerLevel: profile.player_level || 1,
-      maxTicks: Infinity,
+      maxTicks: Infinity, // NO 20-TICK CLAMP for offline settlement
       effectiveDps: 0,
       consumableInventory: (profile.consumables ?? {}) as Record<string, number>,
     };

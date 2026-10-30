@@ -648,7 +648,8 @@ function isoOrNull(value: unknown): string | null {
   return value === null || value === undefined ? null : iso(value);
 }
 
-function mapProfile(row: Row): ProfileRowData {
+/** Exported for the B3 write store (cc_mark_reminder_seen returns a row). */
+export function mapProfile(row: Row): ProfileRowData {
   return {
     ...(row as unknown as ProfileRowData),
     player_xp: num(row.player_xp),
