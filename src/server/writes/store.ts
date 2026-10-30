@@ -111,11 +111,31 @@ export interface ActiveActionData {
 export interface WriteListingData {
   id: string;
   seller_user_id: string;
-  item_instance_id: string;
+  /** Null for consumable/material listings (0019) — they escrow profile stock, not an item row. */
+  item_instance_id: string | null;
   price_credits: number;
   status: string;
   listed_at: string;
   sold_at: string | null;
+  // Market depth (0019) — optional so pre-0019 seed rows stay valid;
+  // stores normalize absent fields to the gear defaults at read time.
+  listing_kind?: 'gear' | 'consumable' | 'material';
+  quantity?: number;
+  quality_percent?: number | null;
+  consumable_type?: string | null;
+  consumable_batch_id?: string | null;
+  batch_origin?: string | null;
+  batch_creator_user_id?: string | null;
+  batch_source_recipe_id?: string | null;
+  material_id?: string | null;
+  identity_key?: string | null;
+  category?: string | null;
+  display_name?: string | null;
+  weapon_type?: string | null;
+  element?: string | null;
+  rarity?: string | null;
+  item_level?: number | null;
+  seller_type?: 'player' | 'npc';
 }
 
 export interface ServiceJobData {
@@ -695,6 +715,8 @@ export interface WriteStore {
   trainSkill(playerId: string, nonce: string, nodeId: string): Promise<Json>;
   battleResult(playerId: string, nonce: string, targetId: string, stance: string): Promise<Json>;
   marketCreate(playerId: string, nonce: string, itemId: string, priceCredits: number): Promise<Json>;
+  marketCreateConsumable(playerId: string, nonce: string, batchId: string, quantity: number, priceCredits: number): Promise<Json>;
+  marketCreateMaterial(playerId: string, nonce: string, materialId: string, quantity: number, priceCredits: number): Promise<Json>;
   marketCancel(playerId: string, nonce: string, listingId: string): Promise<Json>;
   acceptListing(playerId: string, nonce: string, listingId: string): Promise<Json>;
   requestItemService(playerId: string, nonce: string, itemId: string, serviceId: string): Promise<Json>;
@@ -843,6 +865,12 @@ export class PgWriteStore implements WriteStore {
   }
   marketCreate(playerId: string, nonce: string, itemId: string, priceCredits: number): Promise<Json> {
     return this.callJson('select public.cc_market_create($1, $2, $3, $4) as result', [playerId, nonce, itemId, priceCredits]);
+  }
+  marketCreateConsumable(playerId: string, nonce: string, batchId: string, quantity: number, priceCredits: number): Promise<Json> {
+    return this.callJson('select public.cc_market_create_consumable($1, $2, $3, $4, $5) as result', [playerId, nonce, batchId, quantity, priceCredits]);
+  }
+  marketCreateMaterial(playerId: string, nonce: string, materialId: string, quantity: number, priceCredits: number): Promise<Json> {
+    return this.callJson('select public.cc_market_create_material($1, $2, $3, $4, $5) as result', [playerId, nonce, materialId, quantity, priceCredits]);
   }
   marketCancel(playerId: string, nonce: string, listingId: string): Promise<Json> {
     return this.callJson('select public.cc_market_cancel($1, $2, $3) as result', [playerId, nonce, listingId]);

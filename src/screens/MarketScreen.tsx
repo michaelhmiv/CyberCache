@@ -7,19 +7,31 @@ import { GearCompare } from '@/components/gear/GearCompare';
 import { useAuth } from '@/auth/AuthProvider';
 import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useSkillStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
+import { CONSUMABLES } from '@/constants/consumables';
+import { WEAPON_TYPES } from '@/constants/weaponTypes';
+import { ELEMENTS } from '@/constants/elements';
 import { isFoundSource, marketFeeForPrice, marketFeeReduction } from '@/lib/market/marketFee';
+import {
+  MARKET_CATEGORY_LABELS,
+  consumableIdentityKey,
+  gearIdentityKeyForItem,
+  materialIdentityKey,
+  type MarketCategory,
+} from '@/lib/market/identityKey';
+import type { PriceStats } from '@/lib/market/priceStats';
+import type { MarketListingQuery, MarketSort } from '@/lib/market/listingQuery';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
 import { FeatureGate } from '@/auth/FeatureGate';
 import { verifiedOps } from '@/lib/api/verifiedOps';
-import { fetchActiveMarketListings } from '@/lib/api/marketListings';
+import { fetchMarketListings, fetchMyMarketListings } from '@/lib/api/marketListings';
+import { fetchPriceStats } from '@/lib/api/marketPriceStats';
 import type { GearItem, Weapon } from '@/types/items';
 import type { Listing, MarketHistory } from '@/types/market';
 import { gearCardSummary } from '@/lib/gear/gearCardSummary';
 
 const getNow = () => Date.now();
 
-type BuySort = 'price' | 'rarity' | 'name';
 type SellSort = 'power' | 'rarity' | 'name';
 type MyListSort = 'price' | 'rarity' | 'name';
 
@@ -29,6 +41,11 @@ const TABS: { id: string; label: string; glyph?: string; icon?: React.ElementTyp
   { id: 'sell', label: 'Sell', glyph: '🏷' },
   { id: 'mylistings', label: 'My Listings', icon: List },
   { id: 'history', label: 'History', icon: History },
+];
+
+const BUY_CATEGORIES: { id: MarketCategory | null; label: string }[] = [
+  { id: null, label: 'All' },
+  ...Object.entries(MARKET_CATEGORY_LABELS).map(([id, label]) => ({ id: id as MarketCategory, label })),
 ];
 
 function rarityColor(rarity: string | undefined): string {
@@ -113,6 +130,72 @@ function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem;
   );
 }
 
+/** Compact card for consumable/material stack listings (0019). */
+function StackMiniCard({ listing, right }: { listing: Listing; right?: React.ReactNode }) {
+  const glyph = listing.kind === 'consumable'
+    ? (listing.consumableType ? CONSUMABLES[listing.consumableType]?.visual.glyph ?? '🧪' : '🧪')
+    : '🧱';
+  const meta = listing.kind === 'consumable'
+    ? `Consumable · ${listing.quantity} × · ${Math.round(listing.qualityPercent ?? 100)}% quality`
+    : `Material · ${listing.quantity} ×`;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg text-lg">{glyph}</div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-black text-text-primary">{listing.displayName}</div>
+        <div className="text-[10px] text-text-muted">{meta}</div>
+        {listing.unitPrice > 0 && <div className="text-[9px] text-text-muted">{Math.round(listing.unitPrice).toLocaleString()}cr each</div>}
+      </div>
+      {right}
+    </div>
+  );
+}
+
+/** Tiny price-history sparkline from real completed sales (0019). */
+function PriceSparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const w = 48;
+  const h = 16;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const path = points
+    .map((p, i) => `${((i / (points.length - 1)) * w).toFixed(1)},${(h - 2 - ((p - min) / range) * (h - 4)).toFixed(1)}`)
+    .join(' ');
+  return (
+    <svg width={w} height={h} className="shrink-0" aria-hidden="true">
+      <polyline points={path} fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+/** Sparkline + 7d trend for one identity key, from real sales. Renders nothing without sales. */
+function PriceTrend({ stats }: { stats?: PriceStats }) {
+  if (!stats || (stats.salesCount === 0 && stats.lastUnitPrice === null)) return null;
+  const arrow = stats.trend === 'up' ? '▲' : stats.trend === 'down' ? '▼' : stats.trend === 'flat' ? '→' : '';
+  const tone = stats.trend === 'up' ? 'text-green-400' : stats.trend === 'down' ? 'text-red-400' : 'text-text-muted';
+  return (
+    <div className={`flex items-center gap-1.5 text-[9px] ${tone}`}>
+      <PriceSparkline points={stats.recentUnitPrices} />
+      {stats.medianUnitPrice !== null && <span className="text-text-muted">median {Math.round(stats.medianUnitPrice).toLocaleString()}cr</span>}
+      {arrow && stats.trendPct !== null && <span>{arrow} {Math.abs(Math.round(stats.trendPct * 100))}% / 7d</span>}
+    </div>
+  );
+}
+
+/** "Recent sales: median X · last Y · N sold" — the seller guidance line (0019). */
+function SalesGuidance({ stats, perUnit }: { stats?: PriceStats; perUnit?: boolean }) {
+  if (!stats || stats.salesCount === 0) return null;
+  const unit = perUnit ? ' ea' : '';
+  return (
+    <div className="text-[10px] text-text-muted">
+      Recent sales: median {Math.round(stats.medianUnitPrice ?? 0).toLocaleString()}cr{unit}
+      {stats.lastUnitPrice !== null && <> · last {Math.round(stats.lastUnitPrice).toLocaleString()}cr{unit}</>}
+      {' '}· {stats.salesCount} sold
+    </div>
+  );
+}
+
 export const MarketScreen: React.FC = () => {
   const market = useMarketStore();
   const inventory = useInventoryStore();
@@ -125,15 +208,29 @@ export const MarketScreen: React.FC = () => {
   const [sellSearch, setSellSearch] = useState('');
   const [myListSearch, setMyListSearch] = useState('');
   const [listingPrice, setListingPrice] = useState<Record<string, number>>({});
+  const [stackQty, setStackQty] = useState<Record<string, number>>({});
+  const [stackPrice, setStackPrice] = useState<Record<string, number>>({});
   const [filterRarity, setFilterRarity] = useState<string | null>(null);
+  const [buyCategory, setBuyCategory] = useState<MarketCategory | null>(null);
+  const [buyWeaponType, setBuyWeaponType] = useState<string | null>(null);
+  const [buyElement, setBuyElement] = useState<string | null>(null);
+  const [buyLevelMin, setBuyLevelMin] = useState('');
+  const [buyLevelMax, setBuyLevelMax] = useState('');
+  const [buyPriceMin, setBuyPriceMin] = useState('');
+  const [buyPriceMax, setBuyPriceMax] = useState('');
   const [sellFilterRarity, setSellFilterRarity] = useState<string | null>(null);
   const [myListFilterRarity, setMyListFilterRarity] = useState<string | null>(null);
-  const [buySort, setBuySort] = useState<BuySort>('price');
+  const [buySort, setBuySort] = useState<MarketSort>('newest');
   const [sellSort, setSellSort] = useState<SellSort>('power');
   const [myListSort, setMyListSort] = useState<MyListSort>('price');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
   const [loadingListings, setLoadingListings] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [buyListings, setBuyListings] = useState<Listing[]>([]);
+  const [buyTotal, setBuyTotal] = useState(0);
+  const [myListings, setMyListings] = useState<Listing[]>([]);
+  const [priceStats, setPriceStats] = useState<Record<string, PriceStats>>({});
   const [pendingBuyId, setPendingBuyId] = useState<string | null>(null);
   const [pendingListId, setPendingListId] = useState<string | null>(null);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
@@ -151,37 +248,113 @@ export const MarketScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.isAnonymous]);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchActiveMarketListings()
-      .then((listings) => {
-        if (!cancelled) market.setListings(listings);
-      })
-      .catch((err) => {
-        if (!cancelled) setToastMessage(err instanceof Error ? err.message : 'Unable to load market listings.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingListings(false);
-      });
-    return () => {
-      cancelled = true;
+  const buyQuery = useMemo<MarketListingQuery>(() => {
+    const numOrUndef = (v: string) => {
+      const n = Number(v);
+      return v.trim() !== '' && Number.isFinite(n) ? n : undefined;
     };
-  }, [market]);
+    return {
+      search: search || undefined,
+      category: buyCategory ?? undefined,
+      weaponType: buyWeaponType ?? undefined,
+      element: buyElement ?? undefined,
+      rarity: filterRarity ?? undefined,
+      levelMin: numOrUndef(buyLevelMin),
+      levelMax: numOrUndef(buyLevelMax),
+      priceMin: numOrUndef(buyPriceMin),
+      priceMax: numOrUndef(buyPriceMax),
+      sort: buySort,
+      excludeSellerId: currentUserId ?? undefined,
+    };
+  }, [search, buyCategory, buyWeaponType, buyElement, filterRarity, buyLevelMin, buyLevelMax, buyPriceMin, buyPriceMax, buySort, currentUserId]);
 
-  const refreshListings = useCallback(async () => {
-    setLoadingListings(true);
+  // The displayed buy list: since 0019 the filtering happens
+  // server-side, so the loaded page IS the filtered list (the name is
+  // pinned by the visual-papercuts M1 source check).
+  const filteredListings = buyListings;
+
+  // Keep the shared market store stocked for surfaces that read it
+  // (GearInspectSheet's market intel): the loaded buy page + mine.
+  // Synced from the load callbacks (not an effect) via refs.
+  const buyListingsRef = React.useRef<Listing[]>([]);
+  const myListingsRef = React.useRef<Listing[]>([]);
+  const setSharedListings = useMarketStore((s) => s.setListings);
+  const syncSharedListings = useCallback(() => {
+    setSharedListings([...buyListingsRef.current, ...myListingsRef.current]);
+  }, [setSharedListings]);
+
+  const fetchBuyPage = useCallback(async (offset: number, append: boolean) => {
+    if (offset === 0) setLoadingListings(true);
     try {
-      const listings = await fetchActiveMarketListings();
-      market.setListings(listings);
+      const page = await fetchMarketListings({ ...buyQuery, limit: 25, offset });
+      setBuyTotal(page.total);
+      const next = append ? [...buyListingsRef.current, ...page.listings] : page.listings;
+      buyListingsRef.current = next;
+      setBuyListings(next);
+      syncSharedListings();
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : 'Unable to load market listings.');
     } finally {
-      setLoadingListings(false);
+      if (offset === 0) setLoadingListings(false);
     }
-    // setToastMessage is in deps for the React Compiler's memoization
-    // check (inferred once the fee preview made this component
-    // compilable); it is a stable setter, so this changes nothing.
-  }, [market, setToastMessage]);
+  }, [buyQuery, setToastMessage, syncSharedListings]);
+
+  const refreshMine = useCallback(async () => {
+    if (!currentUserId) {
+      myListingsRef.current = [];
+      setMyListings([]);
+      syncSharedListings();
+      return;
+    }
+    try {
+      const rows = await fetchMyMarketListings(currentUserId);
+      myListingsRef.current = rows;
+      setMyListings(rows);
+      syncSharedListings();
+    } catch {
+      // My Listings failing must not take the Buy tab down with it.
+    }
+  }, [currentUserId, syncSharedListings]);
+
+  // Debounced server browse: any filter/sort change restarts page 1.
+  useEffect(() => {
+    const t = setTimeout(() => { void fetchBuyPage(0, false); }, 200);
+    return () => clearTimeout(t);
+  }, [fetchBuyPage]);
+
+  // Deferred a tick so the no-user branch's state reset is not a
+  // synchronous setState inside the effect body.
+  useEffect(() => {
+    const t = setTimeout(() => { void refreshMine(); }, 0);
+    return () => clearTimeout(t);
+  }, [refreshMine]);
+
+  // Price intelligence for everything on screen: buy rows, sell
+  // candidates (gear, consumable batches, materials), my listings.
+  const statsKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const l of buyListings) if (l.identityKey) keys.add(l.identityKey);
+    for (const l of myListings) if (l.identityKey) keys.add(l.identityKey);
+    for (const item of inventory.items) keys.add(gearIdentityKeyForItem(item));
+    for (const batch of player.consumableBatches) keys.add(consumableIdentityKey(batch.consumable_type, batch.quality_percent));
+    for (const key of Object.keys(player.materials)) keys.add(materialIdentityKey(key));
+    return [...keys].sort().join(',');
+  }, [buyListings, myListings, inventory.items, player.consumableBatches, player.materials]);
+
+  useEffect(() => {
+    if (!statsKeys) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      fetchPriceStats(statsKeys.split(','))
+        .then((stats) => { if (!cancelled) setPriceStats((prev) => ({ ...prev, ...stats })); })
+        .catch(() => undefined);
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [statsKeys]);
+
+  const refreshListings = useCallback(async () => {
+    await Promise.all([fetchBuyPage(0, false), refreshMine()]);
+  }, [fetchBuyPage, refreshMine]);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -189,9 +362,16 @@ export const MarketScreen: React.FC = () => {
     return () => clearTimeout(t);
   }, [toastMessage]);
 
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      await fetchBuyPage(buyListings.length, true);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const tradeableItems = inventory.items.filter((i) => !i.isLocked);
-  const myListings = market.listings.filter((l) => l.sellerId === currentUserId);
-  const otherListings = market.listings.filter((l) => l.sellerId !== currentUserId);
 
   const sortedTradeableItems = useMemo(() => {
     return [...tradeableItems]
@@ -211,33 +391,22 @@ export const MarketScreen: React.FC = () => {
       });
   }, [tradeableItems, sellSearch, sellFilterRarity, sellSort]);
 
-  const filteredListings = useMemo(() => {
-    return [...otherListings]
-      .filter((l) => !search || l.itemSnapshot.name?.toLowerCase().includes(search.toLowerCase()))
-      .filter((l) => !filterRarity || l.itemSnapshot.rarity === filterRarity)
-      .sort((a, b) => {
-        if (buySort === 'price') return a.price - b.price;
-        if (buySort === 'rarity') {
-          const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
-          return (rank[b.itemSnapshot.rarity] ?? 0) - (rank[a.itemSnapshot.rarity] ?? 0);
-        }
-        return (a.itemSnapshot.name || '').localeCompare(b.itemSnapshot.name || '');
-      });
-  }, [otherListings, search, filterRarity, buySort]);
-
   const sortedMyListings = useMemo(() => {
     return [...myListings]
-      .filter((l) => !myListSearch || l.itemSnapshot.name?.toLowerCase().includes(myListSearch.toLowerCase()))
-      .filter((l) => !myListFilterRarity || l.itemSnapshot.rarity === myListFilterRarity)
+      .filter((l) => !myListSearch || l.displayName.toLowerCase().includes(myListSearch.toLowerCase()))
+      .filter((l) => !myListFilterRarity || l.rarity === myListFilterRarity)
       .sort((a, b) => {
         if (myListSort === 'price') return b.price - a.price;
         if (myListSort === 'rarity') {
           const rank: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
-          return (rank[b.itemSnapshot.rarity] ?? 0) - (rank[a.itemSnapshot.rarity] ?? 0);
+          return (rank[b.rarity ?? ''] ?? 0) - (rank[a.rarity ?? ''] ?? 0);
         }
-        return (a.itemSnapshot.name || '').localeCompare(b.itemSnapshot.name || '');
+        return a.displayName.localeCompare(b.displayName);
       });
   }, [myListings, myListSearch, myListFilterRarity, myListSort]);
+
+  const sellableBatches = player.consumableBatches.filter((b) => b.quantity > 0);
+  const sellableMaterials = Object.entries(player.materials).filter(([, count]) => count > 0);
 
   const handleList = async (itemId: string) => {
     const item = inventory.getById(itemId);
@@ -259,6 +428,51 @@ export const MarketScreen: React.FC = () => {
     }
   };
 
+  const handleListConsumable = async (batchId: string) => {
+    const batch = player.consumableBatches.find((b) => b.id === batchId);
+    if (!batch) return;
+    const qty = Math.max(1, Math.min(batch.quantity, Math.floor(stackQty[batchId] ?? batch.quantity)));
+    const stats = priceStats[consumableIdentityKey(batch.consumable_type, batch.quality_percent)];
+    const fallback = Math.round((CONSUMABLES[batch.consumable_type]?.market.vendorPrice ?? 100) * qty);
+    const price = stackPrice[batchId] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : fallback);
+    if (price <= 0) {
+      setToastMessage('Price must be positive.');
+      return;
+    }
+    setPendingListId(batchId);
+    try {
+      await verifiedOps.marketCreateConsumable(batchId, qty, price);
+      setToastMessage(`Listed ${qty} × ${batch.consumable_type} for ${price.toLocaleString()}cr.`);
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to list consumables.');
+    } finally {
+      setPendingListId(null);
+    }
+  };
+
+  const handleListMaterial = async (materialId: string) => {
+    const owned = player.materials[materialId] ?? 0;
+    if (owned <= 0) return;
+    const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[materialId] ?? owned)));
+    const stats = priceStats[materialIdentityKey(materialId)];
+    const price = stackPrice[materialId] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 100);
+    if (price <= 0) {
+      setToastMessage('Price must be positive.');
+      return;
+    }
+    setPendingListId(materialId);
+    try {
+      await verifiedOps.marketCreateMaterial(materialId, qty, price);
+      setToastMessage(`Listed ${qty} × ${materialId} for ${price.toLocaleString()}cr.`);
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to list materials.');
+    } finally {
+      setPendingListId(null);
+    }
+  };
+
   const handleBuy = async (listing: Listing) => {
     if (player.credits < listing.price) {
       setToastMessage('Not enough credits.');
@@ -267,8 +481,8 @@ export const MarketScreen: React.FC = () => {
     setPendingBuyId(listing.id);
     try {
       await verifiedOps.acceptListing(listing.id);
-      market.addHistory({ id: listing.id, type: 'buy', itemId: listing.itemId, itemName: listing.itemSnapshot.name || 'Unknown', itemRarity: listing.itemSnapshot.rarity || 'Common', price: listing.price, fee: 0, otherPartyId: listing.sellerId, timestamp: getNow() });
-      setToastMessage(`Bought "${listing.itemSnapshot.name}" for ${listing.price.toLocaleString()}cr.`);
+      market.addHistory({ id: listing.id, type: 'buy', itemId: listing.itemId ?? listing.id, itemName: listing.displayName || 'Unknown', itemRarity: listing.rarity || (listing.kind === 'consumable' ? 'Consumable' : listing.kind === 'material' ? 'Material' : 'Common'), price: listing.price, fee: 0, otherPartyId: listing.sellerId, timestamp: getNow() });
+      setToastMessage(`Bought "${listing.displayName}" for ${listing.price.toLocaleString()}cr.`);
       await refreshListings();
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : 'Unable to buy item.');
@@ -281,7 +495,7 @@ export const MarketScreen: React.FC = () => {
     setPendingCancelId(listing.id);
     try {
       await verifiedOps.marketCancel(listing.id);
-      setToastMessage('Listing cancelled. Item returned to inventory.');
+      setToastMessage(listing.kind === 'gear' ? 'Listing cancelled. Item returned to inventory.' : 'Listing cancelled. Stack returned.');
       await refreshListings();
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : 'Unable to cancel listing.');
@@ -293,8 +507,17 @@ export const MarketScreen: React.FC = () => {
   const clearBuyFilters = () => {
     setSearch('');
     setFilterRarity(null);
+    setBuyCategory(null);
+    setBuyWeaponType(null);
+    setBuyElement(null);
+    setBuyLevelMin('');
+    setBuyLevelMax('');
+    setBuyPriceMin('');
+    setBuyPriceMax('');
     setToastMessage('Market filters cleared.');
   };
+
+  const hasBuyFilters = Boolean(search || filterRarity || buyCategory || buyWeaponType || buyElement || buyLevelMin || buyLevelMax || buyPriceMin || buyPriceMax);
 
   const clearSellFilters = () => {
     setSellSearch('');
@@ -312,6 +535,8 @@ export const MarketScreen: React.FC = () => {
     const name = formatSellerName(h.otherPartyId, player.name, currentUserId);
     return h.type === 'buy' ? `Bought from ${name}` : `Sold to ${name}`;
   };
+
+  const filterInputCls = 'w-full rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-[11px] text-text-primary placeholder:text-text-muted';
 
   return (
     <div className="space-y-3 p-4 pb-20">
@@ -348,7 +573,7 @@ export const MarketScreen: React.FC = () => {
             <button
               type="button"
               onClick={clearBuyFilters}
-              disabled={!search && !filterRarity}
+              disabled={!hasBuyFilters}
               aria-label="Clear market filters"
               className="rounded-lg border border-border bg-surface-raised px-3 py-2 text-text-muted transition-colors active:text-amber disabled:opacity-40"
             >
@@ -356,24 +581,65 @@ export const MarketScreen: React.FC = () => {
             </button>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
+            {BUY_CATEGORIES.map((c) => <button key={c.label} onClick={() => setBuyCategory(c.id)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${buyCategory === c.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{c.label}</button>)}
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setFilterRarity(filterRarity === r ? null : r)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${filterRarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{r}</button>)}
           </div>
-          <select
-            value={buySort}
-            onChange={(e) => setBuySort(e.target.value as BuySort)}
-            className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
-          >
-            <option value="price">Sort: Cheapest</option>
-            <option value="rarity">Sort: Rarity ↓</option>
-            <option value="name">Sort: Name A-Z</option>
-          </select>
+          {(buyCategory === null || buyCategory === 'weapon') && (
+            <div className="flex gap-2">
+              <select
+                value={buyWeaponType ?? ''}
+                onChange={(e) => setBuyWeaponType(e.target.value || null)}
+                className="flex-1 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+              >
+                <option value="">Any weapon type</option>
+                {Object.values(WEAPON_TYPES).map((t) => <option key={t.id} value={t.id}>{t.id}</option>)}
+              </select>
+              <select
+                value={buyElement ?? ''}
+                onChange={(e) => setBuyElement(e.target.value || null)}
+                className="flex-1 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+              >
+                <option value="">Any element</option>
+                {Object.keys(ELEMENTS).map((el) => <option key={el} value={el}>{el}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input value={buyLevelMin} onChange={(e) => setBuyLevelMin(e.target.value)} inputMode="numeric" placeholder="Lv min" className={filterInputCls} />
+            <input value={buyLevelMax} onChange={(e) => setBuyLevelMax(e.target.value)} inputMode="numeric" placeholder="Lv max" className={filterInputCls} />
+            <input value={buyPriceMin} onChange={(e) => setBuyPriceMin(e.target.value)} inputMode="numeric" placeholder="Min cr" className={filterInputCls} />
+            <input value={buyPriceMax} onChange={(e) => setBuyPriceMax(e.target.value)} inputMode="numeric" placeholder="Max cr" className={filterInputCls} />
+          </div>
+          <div className="flex items-center justify-between">
+            <select
+              value={buySort}
+              onChange={(e) => setBuySort(e.target.value as MarketSort)}
+              className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+            >
+              <option value="newest">Sort: Newest</option>
+              <option value="price_asc">Sort: Cheapest</option>
+              <option value="price_desc">Sort: Priciest</option>
+              <option value="rarity">Sort: Rarity ↓</option>
+              <option value="level">Sort: Level ↓</option>
+              <option value="name">Sort: Name A-Z</option>
+            </select>
+            {!loadingListings && <span className="text-[10px] text-text-muted">{buyTotal.toLocaleString()} listing{buyTotal === 1 ? '' : 's'}</span>}
+          </div>
           <div className="space-y-2">
             {!loadingListings && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell tab.</div>}
             {filteredListings.map((listing) => {
               const seller = formatSellerName(listing.sellerId, player.name, currentUserId);
+              const stats = listing.identityKey ? priceStats[listing.identityKey] : undefined;
               return (
                 <div key={listing.id} className="bl-card space-y-2">
-                  <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
+                  {listing.kind === 'gear' && listing.itemSnapshot ? (
+                    <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
+                  ) : (
+                    <StackMiniCard listing={listing} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
+                  )}
+                  <PriceTrend stats={stats} />
                   <button onClick={() => handleBuy(listing)} disabled={player.credits < listing.price || pendingBuyId === listing.id} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">
                     {pendingBuyId === listing.id ? 'Buying…' : 'Buy Now'}
                   </button>
@@ -381,6 +647,11 @@ export const MarketScreen: React.FC = () => {
               );
             })}
           </div>
+          {buyListings.length < buyTotal && (
+            <button onClick={loadMore} disabled={loadingMore} className="w-full rounded-lg border border-border bg-surface-raised py-2 text-xs font-bold text-text-secondary disabled:opacity-50">
+              {loadingMore ? 'Loading…' : `Load more (${(buyTotal - buyListings.length).toLocaleString()} more)`}
+            </button>
+          )}
         </div>
       )}
 
@@ -417,6 +688,7 @@ export const MarketScreen: React.FC = () => {
           {sortedTradeableItems.map((item) => {
             const price = listingPrice[item.id] || defaultPrice(item);
             const preview = feePreview(price, skillBonuses, item.sourceTag);
+            const stats = priceStats[gearIdentityKeyForItem(item)];
             return (
               <div key={item.id} className="bl-card space-y-2">
                 <GearMiniCard item={item} onInspect={() => setInspectItem(item)} />
@@ -426,10 +698,66 @@ export const MarketScreen: React.FC = () => {
                     {pendingListId === item.id ? 'Listing…' : 'List'}
                   </button>
                 </div>
+                <SalesGuidance stats={stats} />
                 <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
               </div>
             );
           })}
+
+          {sellableBatches.length > 0 && (
+            <>
+              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Consumables</div>
+              {sellableBatches.map((batch) => {
+                const key = consumableIdentityKey(batch.consumable_type, batch.quality_percent);
+                const stats = priceStats[key];
+                const qty = Math.max(1, Math.min(batch.quantity, Math.floor(stackQty[batch.id] ?? batch.quantity)));
+                const fallback = Math.round((CONSUMABLES[batch.consumable_type]?.market.vendorPrice ?? 100) * qty);
+                const price = stackPrice[batch.id] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : fallback);
+                const preview = feePreview(Math.max(0, price), skillBonuses);
+                return (
+                  <div key={batch.id} className="bl-card space-y-2">
+                    <StackMiniCard listing={{ id: batch.id, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'consumable', itemId: null, itemSnapshot: null, category: 'consumable', displayName: CONSUMABLES[batch.consumable_type]?.name ?? batch.consumable_type, quantity: batch.quantity, qualityPercent: batch.quality_percent, consumableType: batch.consumable_type, materialId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={qty} min={1} max={batch.quantity} onChange={(e) => setStackQty((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
+                      <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
+                      <button onClick={() => handleListConsumable(batch.id)} disabled={pendingListId === batch.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                        {pendingListId === batch.id ? 'Listing…' : 'List'}
+                      </button>
+                    </div>
+                    <SalesGuidance stats={stats} perUnit />
+                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {sellableMaterials.length > 0 && (
+            <>
+              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Materials</div>
+              {sellableMaterials.map(([materialId, owned]) => {
+                const key = materialIdentityKey(materialId);
+                const stats = priceStats[key];
+                const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[materialId] ?? owned)));
+                const price = stackPrice[materialId] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 100);
+                const preview = feePreview(Math.max(0, price), skillBonuses);
+                return (
+                  <div key={materialId} className="bl-card space-y-2">
+                    <StackMiniCard listing={{ id: materialId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'material', itemId: null, itemSnapshot: null, category: 'material', displayName: materialId, quantity: owned, qualityPercent: null, consumableType: null, materialId, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
+                      <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
+                      <button onClick={() => handleListMaterial(materialId)} disabled={pendingListId === materialId} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                        {pendingListId === materialId ? 'Listing…' : 'List'}
+                      </button>
+                    </div>
+                    <SalesGuidance stats={stats} perUnit />
+                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       )}
 
@@ -472,10 +800,14 @@ export const MarketScreen: React.FC = () => {
           </select>
           {sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
           {sortedMyListings.map((listing) => {
-            const preview = feePreview(listing.price, skillBonuses, listing.itemSnapshot.sourceTag);
+            const preview = feePreview(listing.price, skillBonuses, listing.itemSnapshot?.sourceTag);
             return (
             <div key={listing.id} className="bl-card space-y-2">
-              <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
+              {listing.kind === 'gear' && listing.itemSnapshot ? (
+                <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
+              ) : (
+                <StackMiniCard listing={listing} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
+              )}
               <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
               <button onClick={() => handleCancelListing(listing)} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500 disabled:opacity-50">
                 {pendingCancelId === listing.id ? 'Cancelling…' : 'Cancel Listing'}

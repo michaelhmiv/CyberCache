@@ -300,10 +300,15 @@ describe('daily economy metrics — attribution', () => {
     const store = new InMemoryEconomyStore(seededDay());
     const first = await store.computeMetricsForDay(DAY);
     const second = await store.computeMetricsForDay(DAY);
-    expect(second).toEqual(first);
+    // Every metric value is identical across a recompute; only the
+    // computedAt stamp changes — the SQL upsert does the same
+    // (0018: `computed_at = excluded.computed_at`). Comparing the
+    // stamps made this assertion a wall-clock race (fixed in 0019's
+    // slice, which needed a deterministically green gate).
+    expect({ ...second, computedAt: first.computedAt }).toEqual(first);
     const listed = await store.listMetrics(7);
     expect(listed).toHaveLength(1);
-    expect(listed[0]).toEqual(first);
+    expect(listed[0]).toEqual(second);
   });
 
   it('a quiet day computes zeros with a null median', async () => {

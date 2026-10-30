@@ -18,6 +18,8 @@
  *   POST /api/ops/train-skill               verifiedOps.trainSkill              cc_train_skill(...)
  *   POST /api/ops/battle-result             verifiedOps.recordBattleResult      cc_battle_result(...)
  *   POST /api/ops/market-create             verifiedOps.createMarketListing     cc_market_create(...)
+ *   POST /api/ops/market-create-consumable  verifiedOps.marketCreateConsumable  cc_market_create_consumable(...)
+ *   POST /api/ops/market-create-material    verifiedOps.marketCreateMaterial    cc_market_create_material(...)
  *   POST /api/ops/market-cancel             verifiedOps.cancelMarketListing     cc_market_cancel(...)
  *   POST /api/ops/market-accept             verifiedOps.acceptMarketListing     cc_accept_listing(...)
  *   POST /api/ops/service-request           verifiedOps.requestItemService      cc_item_service_request(...)
@@ -201,6 +203,22 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     const price = numField(req, res, 'price_credits', 'price_credits value');
     if (price === null) return null;
     return store.marketCreate(playerId, str(body(req).nonce), itemId, price);
+  });
+  op('/api/ops/market-create-consumable', async (playerId, req, res) => {
+    const batchId = uuidField(req, res, 'batch_id', 'batch id');
+    if (!batchId) return null;
+    const quantity = numField(req, res, 'quantity', 'quantity value');
+    if (quantity === null) return null;
+    const price = numField(req, res, 'price_credits', 'price_credits value');
+    if (price === null) return null;
+    return store.marketCreateConsumable(playerId, str(body(req).nonce), batchId, quantity, price);
+  });
+  op('/api/ops/market-create-material', async (playerId, req, res) => {
+    const quantity = numField(req, res, 'quantity', 'quantity value');
+    if (quantity === null) return null;
+    const price = numField(req, res, 'price_credits', 'price_credits value');
+    if (price === null) return null;
+    return store.marketCreateMaterial(playerId, str(body(req).nonce), str(body(req).material_id), quantity, price);
   });
   op('/api/ops/market-cancel', async (playerId, req, res) => {
     const listingId = uuidField(req, res, 'listing_id', 'listing id');

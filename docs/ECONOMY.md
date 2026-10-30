@@ -47,6 +47,21 @@ Transfers are not mints or sinks: a market sale's principal moves
 buyer → seller (only the destroyed fee leaves supply), and service
 job payments (`cc_item_job_finish`) move escrow → provider.
 
+### Price intelligence (migration 0019)
+
+The daily `market_median_by_rarity` above covers gear sales only
+(it keys off the sold item's rarity). Per-item pricing truth for
+every listing kind lives in the price-stats fold
+(`src/lib/market/priceStats.ts`, served at
+`GET /api/market/price-stats?keys=…` to signed-in players): sales
+group by the identity key stamped on each listing at creation —
+gear: type/category + rarity + 10-level band; consumables: type +
+quality band; materials: the material id — and compare on UNIT
+price (listing price ÷ quantity), so stack sizes never distort a
+median. The same fee (`marketFeeRate` lever + skill reductions)
+applies to consumable and material sales; their completions land in
+the same ledger rows, so the meters above count them unchanged.
+
 ## Levers
 
 Live values live in `public.economy_config` (key → jsonb value).
