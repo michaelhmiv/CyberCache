@@ -97,6 +97,8 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         consumableInventory: (profile.consumables ?? {}) as Record<string, number>,
         // Server-authoritative scrap bank (migration 0009).
         scrapRemainder: profile.scrap_remainder,
+        creditsRemainder: profile.credits_remainder,
+        xpRemainder: profile.xp_remainder,
       };
 
       const result = processRoamingClaim(claim);
@@ -107,6 +109,8 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
           credits: result.rewards.creditsAwarded,
           scrap: result.rewards.scrapAwarded,
           scrapRemainder: result.rewards.scrapRemainder,
+          creditsRemainder: result.rewards.creditsRemainder,
+          xpRemainder: result.rewards.xpRemainder,
           xp: result.rewards.xpAwarded,
           fragments: result.rewards.cacheFragmentsAwarded,
           materials: result.rewards.materials as Json,

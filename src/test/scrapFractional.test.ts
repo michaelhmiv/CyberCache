@@ -131,11 +131,10 @@ describe('fractional scrap — processRoamingClaim at real area rates', () => {
     expect(result.rewards.scrapRemainder).toBeGreaterThanOrEqual(0);
   });
 
-  it('credits and XP stacks are untouched by the scrap change', () => {
-    // Credits: round(15/20) = 1/tick; XP: 1.0/tick — June behavior, as before.
+  it('base XP (exactly 1.0/tick) is unaffected by fractional accrual', () => {
     const result = processRoamingClaim(claimRequest());
-    expect(result.rewards.creditsAwarded).toBe(20);
     expect(result.rewards.xpAwarded).toBe(20);
+    expect(result.rewards.xpRemainder).toBe(0);
   });
 });
 

@@ -131,11 +131,12 @@ describe('legacy Chef gameplay routes (B6)', () => {
     store.seedProfile({ id: A, credits: 100 });
     const res = await post(base, '/api/claim', CLAIM_BODY, tokenA);
     expect(res.status).toBe(200);
-    // Formula-driven area credits: 1 credit/tick × 5 ticks (phase-3 fixtures).
+    // Fractional credits (migration 0010): Dustwaste 0.75/tick x 5 ticks
+    // = 3.75 -> +3 whole credits (100 -> 103), 0.75 banked on the profile.
     const profile = store.profiles.get(A)!;
     expect(profile.last_claimed_tick).toBe(5);
-    expect(profile.credits).toBe(105);
-    expect((res.json.profile as Record<string, unknown>).credits).toBe(105);
+    expect(profile.credits).toBe(103);
+    expect((res.json.profile as Record<string, unknown>).credits).toBe(103);
     expect(profile.last_roaming_settled_at).not.toBeNull();
   });
 
@@ -147,7 +148,7 @@ describe('legacy Chef gameplay routes (B6)', () => {
     expect(res.status).toBe(409);
     expect(res.json.error).toBe('tick_count already claimed');
     expect(res.json.lastClaimedTick).toBe(5);
-    expect(store.profiles.get(A)!.credits).toBe(105);
+    expect(store.profiles.get(A)!.credits).toBe(103);
   });
 
   it('claim: unknown profile is the June 500 read failure', async () => {

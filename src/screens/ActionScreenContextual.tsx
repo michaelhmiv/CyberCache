@@ -356,7 +356,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   // rest of the screen does not re-render every second — eliminating the
   // vertical reflow that the layout-thrash bug was caused by. The actual
   // reward tick is handled by the singleton ticker in idleTickerSlice.
-  const creditsPerTick = Math.round((selectedArea.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0)));
+  // Fractional like scrap (migration 0010): the server accrues the raw
+  // rate and banks the fraction, so preview the raw rate, not a rounding.
+  const creditsPerTick = parseFloat(((selectedArea.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0))).toFixed(2));
   // Fractional: scrap accrues unrounded on the server and banks across
   // claims (migration 0009), so the honest preview is the raw rate.
   const scrapPerTick = parseFloat(((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0))).toFixed(2));
