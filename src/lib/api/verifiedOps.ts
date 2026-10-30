@@ -66,6 +66,8 @@ export const verifiedOps = {
   trainSkill: (nodeId: string) => op('/ops/train-skill', { nonce: requestId(`train:${nodeId}`), node_id: nodeId }),
   battleResult: (targetId: string, stance = 'balanced') => op('/ops/battle-result', { nonce: requestId('battle'), target_id: targetId, stance }),
   marketCreate: (itemId: string, priceCredits: number) => op('/ops/market-create', { nonce: requestId('list'), item_id: itemId, price_credits: priceCredits }),
+  marketCreateConsumable: (batchId: string, quantity: number, priceCredits: number) => op('/ops/market-create-consumable', { nonce: requestId('list-cons'), batch_id: batchId, quantity, price_credits: priceCredits }),
+  marketCreateMaterial: (materialId: string, quantity: number, priceCredits: number) => op('/ops/market-create-material', { nonce: requestId('list-mat'), material_id: materialId, quantity, price_credits: priceCredits }),
   marketCancel: (listingId: string) => op('/ops/market-cancel', { nonce: requestId('cancel'), listing_id: listingId }),
   acceptListing: (listingId: string) => op('/ops/market-accept', { nonce: requestId('accept'), listing_id: listingId }),
   requestItemService: (itemId: string, serviceId = 'repair') => op('/ops/service-request', { nonce: requestId('service-request'), item_id: itemId, service_id: serviceId }),

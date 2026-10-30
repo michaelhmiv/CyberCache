@@ -20,6 +20,27 @@
  */
 import type { PgQuery } from '../auth/store';
 import { utcDayStartIso } from '../../lib/bossFees';
+import {
+  consumableDisplayName,
+  consumableIdentityKey,
+  gearCategoryFromPayload,
+  gearIdentityFromPayload,
+  materialIdentityKey,
+  type MarketCategory,
+} from '../../lib/market/identityKey';
+import {
+  applyListingQuery,
+  clampLimit,
+  clampOffset,
+  type MarketBrowseRow,
+  type MarketListingQuery,
+} from '../../lib/market/listingQuery';
+import {
+  computePriceStats,
+  PRICE_STATS_SUPPLY_DAYS,
+  type PriceStats,
+  type SaleRecord,
+} from '../../lib/market/priceStats';
 
 // ---------------------------------------------------------------------------
 // Row shapes — mirrors of the client service interfaces (kept server-local
@@ -224,11 +245,149 @@ export interface MarketListingData {
   price_credits: number;
   listed_at: string;
   seller_user_id: string;
+  /** Market depth (0019): browse facts ride on the listing itself. */
+  seller_type: 'player' | 'npc';
+  listing_kind: 'gear' | 'consumable' | 'material';
+  quantity: number;
+  quality_percent: number | null;
+  consumable_type: string | null;
+  material_id: string | null;
+  identity_key: string | null;
+  category: MarketCategory | null;
+  display_name: string | null;
+  weapon_type: string | null;
+  element: string | null;
+  rarity: string | null;
+  item_level: number | null;
+  /** The gear payload row; null for consumable/material listings. */
   item_instances: MarketItemData | null;
 }
 
 export interface RuntimeItemData extends MarketItemData {
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Market depth (0019) — listing normalization shared by both read
+// stores. Migration 0019 stamps browse facts (category, identity_key,
+// …) onto market_listings at creation and backfills old rows, but the
+// fold below still derives any missing fact from the item payload, so
+// a row written by an older path browses identically. The derivation
+// rules are src/lib/market/identityKey.ts — the one scheme.
+// ---------------------------------------------------------------------------
+
+/** Listing fields as either store holds them (0019 columns optional on legacy rows). */
+export interface RawListingFields {
+  id: string;
+  seller_user_id: string;
+  price_credits: number;
+  listed_at: string;
+  sold_at?: string | null;
+  listing_kind?: string | null;
+  quantity?: number | null;
+  quality_percent?: number | null;
+  consumable_type?: string | null;
+  material_id?: string | null;
+  identity_key?: string | null;
+  category?: string | null;
+  display_name?: string | null;
+  weapon_type?: string | null;
+  element?: string | null;
+  rarity?: string | null;
+  item_level?: number | null;
+  seller_type?: string | null;
+}
+
+export interface RawItemFields {
+  kind?: string | null;
+  item_level?: number | null;
+  rarity?: string | null;
+  supply_mode?: string | null;
+  payload?: Record<string, unknown> | null;
+}
+
+export function browseRowFor(listing: RawListingFields, item: RawItemFields | null): MarketBrowseRow {
+  const kind = listing.listing_kind === 'consumable' || listing.listing_kind === 'material'
+    ? listing.listing_kind
+    : 'gear';
+  const payload = item?.payload ?? {};
+  const quantity = Math.max(1, Math.floor(listing.quantity ?? 1));
+  let category: MarketCategory;
+  let displayName: string;
+  let weaponType: string | null = null;
+  let element: string | null = null;
+  let rarity: string | null = null;
+  let itemLevel: number | null = null;
+  let identityKey: string | null;
+  if (kind === 'consumable') {
+    category = 'consumable';
+    displayName = listing.consumable_type ? consumableDisplayName(listing.consumable_type) : (listing.display_name ?? 'Consumable');
+    identityKey = listing.identity_key
+      ?? (listing.consumable_type ? consumableIdentityKey(listing.consumable_type, listing.quality_percent) : null);
+  } else if (kind === 'material') {
+    category = 'material';
+    displayName = listing.display_name ?? listing.material_id ?? 'Material';
+    identityKey = listing.identity_key
+      ?? (listing.material_id ? materialIdentityKey(listing.material_id) : null);
+  } else {
+    category = (listing.category as MarketCategory | null) ?? gearCategoryFromPayload(payload, item?.kind);
+    weaponType = listing.weapon_type ?? (typeof payload.weaponType === 'string' ? payload.weaponType : null);
+    element = listing.element ?? (typeof payload.element === 'string' ? payload.element : null);
+    rarity = listing.rarity ?? item?.rarity ?? (typeof payload.rarity === 'string' ? payload.rarity : null);
+    itemLevel = listing.item_level ?? item?.item_level ?? (typeof payload.level === 'number' ? payload.level : null);
+    displayName = listing.display_name ?? (typeof payload.name === 'string' ? payload.name : 'Unknown Item');
+    identityKey = listing.identity_key
+      ?? gearIdentityFromPayload(payload, { kind: item?.kind, rarity, level: itemLevel });
+  }
+  return {
+    id: listing.id,
+    sellerId: listing.seller_user_id,
+    sellerType: listing.seller_type === 'npc' || item?.supply_mode === 'npc_market' ? 'npc' : 'player',
+    kind,
+    category,
+    displayName,
+    weaponType,
+    element,
+    rarity,
+    itemLevel,
+    price: Number(listing.price_credits),
+    quantity,
+    unitPrice: Number(listing.price_credits) / quantity,
+    qualityPercent: listing.quality_percent ?? null,
+    consumableType: listing.consumable_type ?? null,
+    materialId: listing.material_id ?? null,
+    identityKey,
+    listedAt: Date.parse(listing.listed_at),
+  };
+}
+
+/** The wire row for one listing: normalized browse facts + the gear item embed. */
+export function marketListingData(
+  listing: RawListingFields,
+  item: MarketItemData | null,
+  rawItem: RawItemFields | null,
+): MarketListingData {
+  const browse = browseRowFor(listing, rawItem);
+  return {
+    id: listing.id,
+    price_credits: Number(listing.price_credits),
+    listed_at: listing.listed_at,
+    seller_user_id: listing.seller_user_id,
+    seller_type: browse.sellerType,
+    listing_kind: browse.kind,
+    quantity: browse.quantity,
+    quality_percent: browse.qualityPercent,
+    consumable_type: browse.consumableType,
+    material_id: browse.materialId,
+    identity_key: browse.identityKey,
+    category: browse.category,
+    display_name: browse.displayName,
+    weapon_type: browse.weaponType,
+    element: browse.element,
+    rarity: browse.rarity,
+    item_level: browse.itemLevel,
+    item_instances: item,
+  };
 }
 
 export type ReadErrorCode = 'validation';
@@ -262,8 +421,10 @@ export interface ReadStore {
   isUsernameAvailable(username: string): Promise<boolean>;
   /** Caller's own profile summary (cc_my_profile_summary). */
   getMyProfileSummary(playerId: string): Promise<ProfileSummaryData | null>;
-  /** Active market listings with their items (marketListings read query). */
-  getActiveMarketListings(): Promise<MarketListingData[]>;
+  /** Active market listings, server-filtered/sorted/paginated (0019 browse query). */
+  getActiveMarketListings(query?: MarketListingQuery): Promise<{ listings: MarketListingData[]; total: number }>;
+  /** Completed-sales stats per identity key (0019 price intelligence). */
+  getMarketPriceStats(keys: string[]): Promise<Record<string, PriceStats>>;
   /** Caller's own runtime items (runtimeStateService item read). */
   getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]>;
 }
@@ -405,10 +566,26 @@ export interface MemItem {
 export interface MemListing {
   id: string;
   seller_user_id: string;
-  item_instance_id: string;
+  /** Null for consumable/material listings (0019). */
+  item_instance_id: string | null;
   price_credits: number;
   status: string;
   listed_at: string;
+  sold_at?: string | null;
+  // Market depth (0019) — optional; browseRowFor derives the rest.
+  listing_kind?: 'gear' | 'consumable' | 'material';
+  quantity?: number;
+  quality_percent?: number | null;
+  consumable_type?: string | null;
+  material_id?: string | null;
+  identity_key?: string | null;
+  category?: string | null;
+  display_name?: string | null;
+  weapon_type?: string | null;
+  element?: string | null;
+  rarity?: string | null;
+  item_level?: number | null;
+  seller_type?: 'player' | 'npc';
 }
 
 /** Seedable in-memory dataset for the read surface. */
@@ -596,25 +773,40 @@ export class InMemoryReadStore implements ReadStore {
     };
   }
 
-  async getActiveMarketListings(): Promise<MarketListingData[]> {
+  async getActiveMarketListings(query: MarketListingQuery = {}): Promise<{ listings: MarketListingData[]; total: number }> {
     const items = new Map(this.seed.items.map((i) => [i.id, i]));
-    return this.seed.listings
-      .filter((l) => l.status === 'active')
-      .sort((a, b) => b.listed_at.localeCompare(a.listed_at))
-      .map((l) => {
-        const item = items.get(l.item_instance_id);
-        return {
-          id: l.id,
-          price_credits: l.price_credits,
-          listed_at: l.listed_at,
-          seller_user_id: l.seller_user_id,
-          item_instances: item ? {
-            id: item.id, item_level: item.item_level, rarity: item.rarity,
-            is_locked: item.is_locked, runtime_state: item.runtime_state,
-            equipped_slot: item.equipped_slot, payload: item.payload,
-          } : null,
-        };
-      });
+    const active = this.seed.listings.filter((l) => l.status === 'active');
+    const itemFor = (l: MemListing) => (l.item_instance_id ? items.get(l.item_instance_id) ?? null : null);
+    const browsed = applyListingQuery(active.map((l) => browseRowFor(l, itemFor(l))), query);
+    const byId = new Map(active.map((l) => [l.id, l]));
+    return {
+      total: browsed.total,
+      listings: browsed.rows.map((row) => {
+        const listing = byId.get(row.id) as MemListing;
+        const item = itemFor(listing);
+        return marketListingData(listing, item ? {
+          id: item.id, item_level: item.item_level, rarity: item.rarity,
+          is_locked: item.is_locked, runtime_state: item.runtime_state,
+          equipped_slot: item.equipped_slot, payload: item.payload,
+        } : null, item);
+      }),
+    };
+  }
+
+  async getMarketPriceStats(keys: string[]): Promise<Record<string, PriceStats>> {
+    const items = new Map(this.seed.items.map((i) => [i.id, i]));
+    const now = this.now().getTime();
+    const since = now - PRICE_STATS_SUPPLY_DAYS * 24 * 60 * 60 * 1000;
+    const records: SaleRecord[] = [];
+    for (const l of this.seed.listings) {
+      if (l.status !== 'sold' || !l.sold_at) continue;
+      const soldAt = Date.parse(l.sold_at);
+      if (!Number.isFinite(soldAt) || soldAt < since) continue;
+      const item = l.item_instance_id ? items.get(l.item_instance_id) ?? null : null;
+      const row = browseRowFor(l, item);
+      if (row.identityKey) records.push({ identityKey: row.identityKey, unitPrice: row.unitPrice, soldAt });
+    }
+    return computePriceStats(records, keys, now);
   }
 
   async getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]> {
@@ -889,26 +1081,125 @@ export class PgReadStore implements ReadStore {
     return data ?? null;
   }
 
-  async getActiveMarketListings(): Promise<MarketListingData[]> {
+  async getActiveMarketListings(query: MarketListingQuery = {}): Promise<{ listings: MarketListingData[]; total: number }> {
+    // SQL twin of applyListingQuery (src/lib/market/listingQuery.ts)
+    // over the columns migration 0019 stamps at creation — a browse
+    // never opens an item payload to filter.
+    const where: string[] = [`ml.status = 'active'`];
+    const params: unknown[] = [];
+    const push = (clause: (i: number) => string, value: unknown) => {
+      params.push(value);
+      where.push(clause(params.length));
+    };
+    if (query.search) push((i) => `position(lower($${i}) in lower(coalesce(ml.display_name, ''))) > 0`, query.search);
+    if (query.category) push((i) => `ml.category = $${i}`, query.category);
+    if (query.weaponType) push((i) => `ml.weapon_type = $${i}`, query.weaponType);
+    if (query.element) push((i) => `ml.element = $${i}`, query.element);
+    if (query.rarity) push((i) => `ml.rarity = $${i}`, query.rarity);
+    if (query.levelMin !== undefined) push((i) => `ml.item_level >= $${i}`, query.levelMin);
+    if (query.levelMax !== undefined) push((i) => `ml.item_level <= $${i}`, query.levelMax);
+    if (query.priceMin !== undefined) push((i) => `ml.price_credits >= $${i}`, query.priceMin);
+    if (query.priceMax !== undefined) push((i) => `ml.price_credits <= $${i}`, query.priceMax);
+    if (query.sellerType) push((i) => `ml.seller_type = $${i}`, query.sellerType);
+    if (query.sellerId) push((i) => `ml.seller_user_id = $${i}`, query.sellerId);
+    if (query.excludeSellerId) push((i) => `ml.seller_user_id <> $${i}`, query.excludeSellerId);
+    const whereSql = where.join(' and ');
+    const orderBy = {
+      price_asc: 'ml.price_credits asc, ml.listed_at desc',
+      price_desc: 'ml.price_credits desc, ml.listed_at desc',
+      rarity: `case ml.rarity when 'Legendary' then 5 when 'Epic' then 4 when 'Rare' then 3 when 'Uncommon' then 2 when 'Common' then 1 else 0 end desc, ml.price_credits asc, ml.listed_at desc`,
+      level: 'ml.item_level desc nulls last, ml.price_credits asc, ml.listed_at desc',
+      name: 'ml.display_name asc, ml.listed_at desc',
+      newest: 'ml.listed_at desc',
+    }[query.sort ?? 'newest'];
+    const limit = clampLimit(query.limit);
+    const offset = clampOffset(query.offset);
+    const { rows: countRows } = await this.db.query(
+      `select count(*)::int as total from public.market_listings ml where ${whereSql}`,
+      params,
+    );
     const { rows } = await this.db.query(
-      `select ml.id, ml.price_credits, ml.listed_at, ml.seller_user_id,
-              ii.id as item_id, ii.item_level, ii.rarity, ii.is_locked,
-              ii.runtime_state, ii.equipped_slot, ii.payload
+      `select ml.id, ml.price_credits, ml.listed_at, ml.seller_user_id, ml.listing_kind,
+              ml.quantity, ml.quality_percent, ml.consumable_type, ml.material_id,
+              ml.identity_key, ml.category, ml.display_name, ml.weapon_type, ml.element,
+              ml.rarity, ml.item_level, ml.seller_type,
+              ii.id as item_id, ii.item_level as item_item_level, ii.rarity as item_rarity,
+              ii.is_locked as item_is_locked, ii.runtime_state as item_runtime_state,
+              ii.equipped_slot as item_equipped_slot, ii.payload as item_payload,
+              ii.kind as item_kind, ii.supply_mode as item_supply_mode
        from public.market_listings ml
        left join public.item_instances ii on ii.id = ml.item_instance_id
-       where ml.status = 'active'
-       order by ml.listed_at desc`,
+       where ${whereSql}
+       order by ${orderBy}
+       limit ${limit} offset ${offset}`,
+      params,
     );
-    return rows.map((r) => ({
-      id: r.id as string,
-      price_credits: num(r.price_credits),
-      listed_at: iso(r.listed_at),
-      seller_user_id: r.seller_user_id as string,
-      item_instances: r.item_id ? mapItem({
-        id: r.item_id, item_level: r.item_level, rarity: r.rarity, is_locked: r.is_locked,
-        runtime_state: r.runtime_state, equipped_slot: r.equipped_slot, payload: r.payload,
-      }) : null,
+    return {
+      total: num(countRows[0]?.total),
+      listings: rows.map((r) => {
+        const rawItem: RawItemFields | null = r.item_id ? {
+          kind: (r.item_kind as string | null) ?? null,
+          item_level: numOrNull(r.item_item_level),
+          rarity: (r.item_rarity as string | null) ?? null,
+          supply_mode: (r.item_supply_mode as string | null) ?? null,
+          payload: (r.item_payload as Record<string, unknown>) ?? {},
+        } : null;
+        return marketListingData({
+          id: r.id as string,
+          seller_user_id: r.seller_user_id as string,
+          price_credits: num(r.price_credits),
+          listed_at: iso(r.listed_at),
+          listing_kind: (r.listing_kind as string | null) ?? null,
+          quantity: num(r.quantity),
+          quality_percent: numOrNull(r.quality_percent),
+          consumable_type: (r.consumable_type as string | null) ?? null,
+          material_id: (r.material_id as string | null) ?? null,
+          identity_key: (r.identity_key as string | null) ?? null,
+          category: (r.category as string | null) ?? null,
+          display_name: (r.display_name as string | null) ?? null,
+          weapon_type: (r.weapon_type as string | null) ?? null,
+          element: (r.element as string | null) ?? null,
+          rarity: (r.rarity as string | null) ?? null,
+          item_level: numOrNull(r.item_level),
+          seller_type: (r.seller_type as string | null) ?? null,
+        }, r.item_id ? mapItem({
+          id: r.item_id, item_level: r.item_item_level, rarity: r.item_rarity,
+          is_locked: r.item_is_locked, runtime_state: r.item_runtime_state,
+          equipped_slot: r.item_equipped_slot, payload: r.item_payload,
+        }) : null, rawItem);
+      }),
+    };
+  }
+
+  async getMarketPriceStats(keys: string[]): Promise<Record<string, PriceStats>> {
+    if (!keys.length) return {};
+    // Completed sales for the requested keys; the identity key is the
+    // stamped column, with the 0019 SQL helpers as the fallback for
+    // any row that predates stamping. Stats math is the shared
+    // src/lib/market/priceStats.ts fold over unit prices.
+    const { rows } = await this.db.query(
+      `select identity_key, unit_price, sold_at from (
+         select case
+                  when ml.listing_kind = 'consumable' then coalesce(ml.identity_key, public.cc_market_consumable_identity(ml.consumable_type, ml.quality_percent))
+                  when ml.listing_kind = 'material' then coalesce(ml.identity_key, 'mat:' || ml.material_id)
+                  else coalesce(ml.identity_key, public.cc_market_gear_identity(ii.payload, ii.kind, coalesce(ii.rarity, ii.payload ->> 'rarity'), coalesce(ii.item_level, (ii.payload ->> 'level')::integer, 1)))
+                end as identity_key,
+                (ml.price_credits::numeric / greatest(ml.quantity, 1)) as unit_price,
+                ml.sold_at
+           from public.market_listings ml
+           left join public.item_instances ii on ii.id = ml.item_instance_id
+          where ml.status = 'sold'
+            and ml.sold_at >= now() - ($2::int || ' days')::interval
+       ) s
+       where identity_key = any($1::text[])`,
+      [keys, PRICE_STATS_SUPPLY_DAYS],
+    );
+    const records: SaleRecord[] = rows.map((r) => ({
+      identityKey: r.identity_key as string,
+      unitPrice: num(r.unit_price),
+      soldAt: new Date(iso(r.sold_at)).getTime(),
     }));
+    return computePriceStats(records, keys, Date.now());
   }
 
   async getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]> {

@@ -15,6 +15,14 @@ import {
   marketFeeForSeller,
   type MarketFeeBreakdown,
 } from '../../lib/market/marketFee.js';
+import {
+  consumableDisplayName,
+  consumableIdentityKey,
+  consumableListable,
+  gearCategoryFromPayload,
+  gearIdentityFromPayload,
+  materialIdentityKey,
+} from '../../lib/market/identityKey.js';
 import type { ClassModBoosts } from '../../lib/skills/skillBonuses.js';
 import {
   applyXp,
@@ -1045,6 +1053,7 @@ export class InMemoryWriteStore implements WriteStore {
     if (item.account_bound || !item.tradeable || ['listed', 'equipped', 'salvaged', 'consumed'].includes(item.runtime_state)) {
       throw writeError('Item not listable');
     }
+    const payload = (item.payload ?? {}) as Record<string, unknown>;
     const listing: WriteListingData = {
       id: this.uuid(),
       seller_user_id: playerId,
@@ -1053,6 +1062,17 @@ export class InMemoryWriteStore implements WriteStore {
       status: 'active',
       listed_at: this.nowIso(),
       sold_at: null,
+      // Market depth (0019): browse stamps, mirroring cc_market_create.
+      listing_kind: 'gear',
+      quantity: 1,
+      identity_key: gearIdentityFromPayload(payload, { kind: item.kind, rarity: item.rarity, level: item.item_level }),
+      category: gearCategoryFromPayload(payload, item.kind),
+      display_name: typeof payload.name === 'string' ? payload.name : null,
+      weapon_type: typeof payload.weaponType === 'string' ? payload.weaponType : null,
+      element: typeof payload.element === 'string' ? payload.element : null,
+      rarity: item.rarity ?? (typeof payload.rarity === 'string' ? payload.rarity : null),
+      item_level: item.item_level ?? (typeof payload.level === 'number' ? payload.level : 1),
+      seller_type: item.supply_mode === 'npc_market' ? 'npc' : 'player',
     };
     this.insertListing(listing);
     item.runtime_state = 'listed';
@@ -1067,6 +1087,120 @@ export class InMemoryWriteStore implements WriteStore {
     return this.record(playerId, 'cc_market_create', key, result);
   }
 
+  /**
+   * cc_market_create_consumable (0019): escrow a slice of one owned
+   * batch into a listing. The batch is decremented immediately and
+   * the profile's consumables count map moves with it; the listing
+   * snapshots quality + origin/creator/recipe for exact delivery.
+   */
+  async marketCreateConsumable(playerId: string, nonce: string, batchId: string, quantity: number, priceCredits: number): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const price = Math.floor(priceCredits);
+    if (!Number.isFinite(price) || price <= 0) throw writeError('price_credits must be positive');
+    const qty = Math.floor(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) throw writeError('quantity must be positive');
+    this.requireEconomy(playerId);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profileOrNull(playerId);
+    const batch = this.seed.consumableBatches.find((b) => b.id === batchId && b.owner_user_id === playerId);
+    if (!batch) throw writeError('Consumable batch not found');
+    if (!consumableListable(batch.consumable_type)) throw writeError('Consumable not listable on the player market');
+    if (batch.quantity < qty) throw writeError('Insufficient consumable quantity');
+    batch.quantity -= qty;
+    batch.updated_at = this.nowIso();
+    if (p) {
+      const consumables = asNumberMap(p.consumables);
+      consumables[batch.consumable_type] = Math.max(0, (consumables[batch.consumable_type] ?? 0) - qty);
+      p.consumables = consumables;
+      this.touch(p);
+    }
+    const listing: WriteListingData = {
+      id: this.uuid(),
+      seller_user_id: playerId,
+      item_instance_id: null,
+      price_credits: price,
+      status: 'active',
+      listed_at: this.nowIso(),
+      sold_at: null,
+      listing_kind: 'consumable',
+      quantity: qty,
+      quality_percent: batch.quality_percent,
+      consumable_type: batch.consumable_type,
+      consumable_batch_id: batch.id,
+      batch_origin: batch.origin,
+      batch_creator_user_id: batch.creator_user_id,
+      batch_source_recipe_id: batch.source_recipe_id,
+      identity_key: consumableIdentityKey(batch.consumable_type, batch.quality_percent),
+      category: 'consumable',
+      display_name: consumableDisplayName(batch.consumable_type),
+      seller_type: 'player',
+    };
+    this.insertListing(listing);
+    this.recalcNetWorth(playerId);
+    const result: Json = {
+      action_type: 'cc_market_create',
+      profile: p ? this.profileSnapshot(p) : null,
+      listing: this.listingJson(listing),
+      item: null,
+      delivery: {
+        kind: 'consumable',
+        consumable_type: batch.consumable_type,
+        quantity: qty,
+        quality_percent: batch.quality_percent,
+        batch_id: batch.id,
+      },
+    };
+    return this.record(playerId, 'cc_market_create', key, result);
+  }
+
+  /** cc_market_create_material (0019): escrow units of one profile material. */
+  async marketCreateMaterial(playerId: string, nonce: string, materialId: string, quantity: number, priceCredits: number): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const price = Math.floor(priceCredits);
+    if (!Number.isFinite(price) || price <= 0) throw writeError('price_credits must be positive');
+    const qty = Math.floor(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) throw writeError('quantity must be positive');
+    if (!(MATERIAL_KEYS as readonly string[]).includes(materialId)) throw writeError('Unknown material');
+    this.requireEconomy(playerId);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profileOrNull(playerId);
+    const materials = asNumberMap(p?.materials);
+    if ((materials[materialId] ?? 0) < qty) throw writeError('Insufficient material quantity');
+    materials[materialId] = (materials[materialId] ?? 0) - qty;
+    if (p) {
+      p.materials = materials;
+      this.touch(p);
+    }
+    const listing: WriteListingData = {
+      id: this.uuid(),
+      seller_user_id: playerId,
+      item_instance_id: null,
+      price_credits: price,
+      status: 'active',
+      listed_at: this.nowIso(),
+      sold_at: null,
+      listing_kind: 'material',
+      quantity: qty,
+      material_id: materialId,
+      identity_key: materialIdentityKey(materialId),
+      category: 'material',
+      display_name: materialId,
+      seller_type: 'player',
+    };
+    this.insertListing(listing);
+    this.recalcNetWorth(playerId);
+    const result: Json = {
+      action_type: 'cc_market_create',
+      profile: p ? this.profileSnapshot(p) : null,
+      listing: this.listingJson(listing),
+      item: null,
+      delivery: { kind: 'material', material_id: materialId, quantity: qty },
+    };
+    return this.record(playerId, 'cc_market_create', key, result);
+  }
+
   async marketCancel(playerId: string, nonce: string, listingId: string): Promise<Json> {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
@@ -1076,10 +1210,39 @@ export class InMemoryWriteStore implements WriteStore {
     if (!listing || listing.seller_user_id !== playerId) throw writeError('Listing not found');
     if (listing.status !== 'active') throw writeError('Listing not active');
     listing.status = 'cancelled';
-    const item = this.items.get(listing.item_instance_id);
-    if (item) {
-      item.runtime_state = item.is_locked ? 'locked' : 'available';
-      this.touchItem(item);
+    const kind = listing.listing_kind ?? 'gear';
+    const item = listing.item_instance_id ? this.items.get(listing.item_instance_id) : undefined;
+    if (kind === 'gear') {
+      if (item) {
+        item.runtime_state = item.is_locked ? 'locked' : 'available';
+        this.touchItem(item);
+      }
+    } else if (kind === 'consumable') {
+      // Escrow return (0019): restore the exact stack — same batch
+      // row when it still exists, an identical batch when it doesn't.
+      const qty = listing.quantity ?? 1;
+      const batch = this.seed.consumableBatches.find((b) => b.id === listing.consumable_batch_id);
+      if (batch) {
+        batch.quantity += qty;
+        batch.updated_at = this.nowIso();
+      } else if (listing.consumable_type) {
+        this.addConsumableBatch(
+          playerId, listing.consumable_type, qty, listing.quality_percent ?? 100,
+          listing.batch_origin ?? 'market', listing.batch_creator_user_id ?? null,
+          listing.batch_source_recipe_id ?? null, {},
+        );
+      }
+      if (p && listing.consumable_type) {
+        const consumables = asNumberMap(p.consumables);
+        consumables[listing.consumable_type] = (consumables[listing.consumable_type] ?? 0) + qty;
+        p.consumables = consumables;
+        this.touch(p);
+      }
+    } else if (kind === 'material' && p && listing.material_id) {
+      const materials = asNumberMap(p.materials);
+      materials[listing.material_id] = (materials[listing.material_id] ?? 0) + (listing.quantity ?? 1);
+      p.materials = materials;
+      this.touch(p);
     }
     const result: Json = {
       action_type: 'cc_market_cancel',
@@ -1103,7 +1266,8 @@ export class InMemoryWriteStore implements WriteStore {
     buyer.credits -= listing.price_credits;
     this.touch(buyer);
     const seller = this.profileOrNull(listing.seller_user_id);
-    const soldItem = this.items.get(listing.item_instance_id);
+    const kind = listing.listing_kind ?? 'gear';
+    const soldItem = listing.item_instance_id ? this.items.get(listing.item_instance_id) : undefined;
     // Market sale fee (0017): MARKET_FEE_RATE of the price is
     // destroyed; the seller is credited price − fee. NPC-seeded
     // listings (supply_mode 'npc_market') are exempt — the NPC payout
@@ -1118,13 +1282,26 @@ export class InMemoryWriteStore implements WriteStore {
       sellerProceeds: listing.price_credits,
     };
     let foundBySeller = false;
-    if (seller && soldItem && soldItem.supply_mode !== 'npc_market') {
-      foundBySeller = this.sellerFoundItem(seller.id, soldItem);
+    if (kind === 'gear') {
+      if (seller && soldItem && soldItem.supply_mode !== 'npc_market') {
+        foundBySeller = this.sellerFoundItem(seller.id, soldItem);
+        feeBreakdown = marketFeeForSeller({
+          price: listing.price_credits,
+          skillSpends: seller.skill_spends ?? {},
+          classModBoosts: this.classModBoostsFor(seller.id),
+          foundBySeller,
+          feeRate: await this.feeRateProvider(),
+        });
+      }
+    } else if (seller && listing.seller_type !== 'npc') {
+      // Consumable / material sale (0019): the same fee through the
+      // same completion path, Darknet Broker reduction only — stacks
+      // carry no find provenance, so Market Manipulator never applies.
       feeBreakdown = marketFeeForSeller({
         price: listing.price_credits,
         skillSpends: seller.skill_spends ?? {},
         classModBoosts: this.classModBoostsFor(seller.id),
-        foundBySeller,
+        foundBySeller: false,
         feeRate: await this.feeRateProvider(),
       });
     }
@@ -1145,11 +1322,45 @@ export class InMemoryWriteStore implements WriteStore {
       this.recalcNetWorth(previousOwner);
       this.recalcNetWorth(playerId);
     }
+    // Delivery of the escrowed stack (0019): the buyer receives the
+    // exact batch identity — type, quantity, quality %, and the
+    // original origin/creator/recipe — or the material quantity.
+    let deliveredBatchId: string | null = null;
+    if (kind === 'consumable' && listing.consumable_type) {
+      const qty = listing.quantity ?? 1;
+      deliveredBatchId = this.addConsumableBatch(
+        playerId,
+        listing.consumable_type,
+        qty,
+        listing.quality_percent ?? 100,
+        listing.batch_origin ?? 'market',
+        listing.batch_creator_user_id ?? null,
+        listing.batch_source_recipe_id ?? null,
+        { listing_id: listing.id },
+      );
+      const consumables = asNumberMap(buyer.consumables);
+      consumables[listing.consumable_type] = (consumables[listing.consumable_type] ?? 0) + qty;
+      buyer.consumables = consumables;
+      this.touch(buyer);
+    } else if (kind === 'material' && listing.material_id) {
+      const materials = asNumberMap(buyer.materials);
+      materials[listing.material_id] = (materials[listing.material_id] ?? 0) + (listing.quantity ?? 1);
+      buyer.materials = materials;
+      this.touch(buyer);
+    }
     const result: Json = {
       action_type: 'cc_accept_listing',
       profile: this.profileSnapshot(buyer),
       listing: this.listingJson(listing),
       item: item ? this.itemJson(item) : null,
+      delivery: {
+        kind,
+        quantity: listing.quantity ?? 1,
+        quality_percent: listing.quality_percent ?? null,
+        consumable_type: listing.consumable_type ?? null,
+        material_id: listing.material_id ?? null,
+        batch_id: deliveredBatchId,
+      },
       market_fee: {
         fee_credits: feeBreakdown.fee,
         seller_proceeds: feeBreakdown.sellerProceeds,

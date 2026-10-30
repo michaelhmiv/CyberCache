@@ -25,6 +25,7 @@ const n = (value: number) => Number.isFinite(value) ? value.toLocaleString() : '
 
 function similar(item: GearItem, listing: Listing) {
   const other = listing.itemSnapshot;
+  if (!other) return false;
   if (kindOf(item) !== kindOf(other) || other.rarity !== item.rarity) return false;
   if (Math.abs((other.level ?? 1) - (item.level ?? 1)) > 5) return false;
   if (isWeapon(item) && isWeapon(other)) return other.weaponType === item.weaponType && other.manufacturer === item.manufacturer && other.element === item.element;

@@ -14,6 +14,10 @@
  */
 import type { Pool } from 'pg';
 import type { Json } from '../writes/store';
+import {
+  gearCategoryFromPayload,
+  gearIdentityFromPayload,
+} from '../../lib/market/identityKey';
 
 export type JobErrorCode = 'unauthorized' | 'validation' | 'not_found' | 'internal';
 
@@ -117,10 +121,24 @@ export class PgJobStore implements JobStore {
            ) values ($1, $2, $3, $4, $5, false, 'available', 'npc_market', null, $6::jsonb)`,
           [item.id, npcUserId, item.kind, item.item_level, item.rarity, JSON.stringify(item.payload)],
         );
+        // Market depth (0019): seed listings carry the same browse
+        // stamps player listings get at creation, seller_type 'npc'.
+        const payload = item.payload as unknown as Record<string, unknown>;
         await client.query(
-          `insert into public.market_listings (seller_user_id, item_instance_id, price_credits, status)
-           values ($1, $2, $3, 'active')`,
-          [npcUserId, item.id, item.price_credits],
+          `insert into public.market_listings (
+             seller_user_id, item_instance_id, price_credits, status,
+             listing_kind, quantity, identity_key, category, display_name,
+             weapon_type, element, rarity, item_level, seller_type
+           ) values ($1, $2, $3, 'active', 'gear', 1, $4, $5, $6, $7, $8, $9, $10, 'npc')`,
+          [
+            npcUserId, item.id, item.price_credits,
+            gearIdentityFromPayload(payload, { kind: item.kind, rarity: item.rarity, level: item.item_level }),
+            gearCategoryFromPayload(payload, item.kind),
+            typeof payload.name === 'string' ? payload.name : null,
+            typeof payload.weaponType === 'string' ? payload.weaponType : null,
+            typeof payload.element === 'string' ? payload.element : null,
+            item.rarity, item.item_level,
+          ],
         );
       }
       await client.query('commit');

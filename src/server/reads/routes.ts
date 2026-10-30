@@ -14,7 +14,8 @@
  *   GET /api/stats/me                    statsService.getMyStatsSummary       cc_my_stats_summary()
  *   GET /api/players/:playerId/public-stats    statsService.getPublicStats    cc_public_stats(id)
  *   GET /api/usernames/availability      usernameService.isUsernameAvailable  cc_is_username_available(name)
- *   GET /api/market/listings             marketListings.fetchActiveMarketListings  market_listings + item_instances embed (active)
+ *   GET /api/market/listings             marketListings.fetchMarketListings  market_listings + item_instances embed (active, server browse query 0019)
+ *   GET /api/market/price-stats          marketListings.fetchPriceStats     completed-sales stats per identity key (0019)
  *   GET /api/runtime/items               runtimeStateService.syncRuntimeItemsForUser  item_instances (own, RLS)
  *
  * Identity rules (hard): the caller's player id comes ONLY from the
@@ -30,6 +31,48 @@ import {
   LEADERBOARD_METRICS, LEADERBOARD_PERIODS, ReadStoreError,
   type LeaderboardMetric, type LeaderboardPeriod, type ReadStore,
 } from './store';
+import {
+  MARKET_SORTS,
+  type MarketListingQuery,
+  type MarketSort,
+} from '../../lib/market/listingQuery';
+import type { MarketCategory } from '../../lib/market/identityKey';
+
+const MARKET_CATEGORIES: readonly string[] = [
+  'weapon', 'shield', 'relic', 'classMod', 'ordnance', 'consumable', 'material',
+];
+
+/** Parse the 0019 browse query from query params; unknown values are ignored, never trusted raw. */
+function parseMarketQuery(req: Request): MarketListingQuery {
+  const q = req.query;
+  const str = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
+  const num = (v: unknown): number | undefined => {
+    const n = typeof v === 'string' ? Number(v) : NaN;
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const category = str(q.category);
+  const sort = str(q.sort);
+  const sellerType = str(q.sellerType);
+  const sellerId = str(q.sellerId);
+  const excludeSellerId = str(q.excludeSellerId);
+  return {
+    search: str(q.search),
+    category: category && MARKET_CATEGORIES.includes(category) ? (category as MarketCategory) : undefined,
+    weaponType: str(q.weaponType),
+    element: str(q.element),
+    rarity: str(q.rarity),
+    levelMin: num(q.levelMin),
+    levelMax: num(q.levelMax),
+    priceMin: num(q.priceMin),
+    priceMax: num(q.priceMax),
+    sellerType: sellerType === 'player' || sellerType === 'npc' ? sellerType : undefined,
+    sellerId: sellerId && UUID_RE.test(sellerId) ? sellerId : undefined,
+    excludeSellerId: excludeSellerId && UUID_RE.test(excludeSellerId) ? excludeSellerId : undefined,
+    sort: sort && MARKET_SORTS.includes(sort as MarketSort) ? (sort as MarketSort) : undefined,
+    limit: num(q.limit),
+    offset: num(q.offset),
+  };
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -227,7 +270,17 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
     const id = caller(config, req, res);
     if (!id) return;
     try {
-      res.json(await store.getActiveMarketListings());
+      res.json(await store.getActiveMarketListings(parseMarketQuery(req)));
+    } catch (err) { fail(res, err); }
+  });
+
+  app.get('/api/market/price-stats', async (req, res) => {
+    const id = caller(config, req, res);
+    if (!id) return;
+    const raw = typeof req.query.keys === 'string' ? req.query.keys : '';
+    const keys = [...new Set(raw.split(',').map((k) => k.trim()).filter(Boolean))].slice(0, 100);
+    try {
+      res.json({ stats: await store.getMarketPriceStats(keys) });
     } catch (err) { fail(res, err); }
   });
 

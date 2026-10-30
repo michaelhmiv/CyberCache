@@ -201,6 +201,7 @@ describe('read routes (HTTP)', () => {
     '/api/leaderboard?metric=xp', '/api/leaderboard/me?metric=xp',
     `/api/players/${B}/public-profile`, '/api/stats/me', `/api/players/${B}/public-stats`,
     '/api/usernames/availability?username=x', '/api/market/listings', '/api/runtime/items',
+    '/api/market/price-stats?keys=mat:ScrapAlloy',
   ];
 
   it('every route requires a valid Chef token (none, garbage, and expired all 401)', async () => {
@@ -294,8 +295,11 @@ describe('read routes (HTTP)', () => {
   it('market listings show active listings from all sellers, newest first, sold excluded', async () => {
     const res = await get('/api/market/listings', tokenA);
     expect(res.status).toBe(200);
-    expect(res.json.map((l: { id: string }) => l.id)).toEqual(['listing-2', 'listing-1']);
-    const foreign = res.json.find((l: { id: string }) => l.id === 'listing-1');
+    // 0019: the browse response is a page object ({ listings, total }),
+    // not a bare array — filtering/sorting/pagination are server-side.
+    expect(res.json.total).toBe(2);
+    expect(res.json.listings.map((l: { id: string }) => l.id)).toEqual(['listing-2', 'listing-1']);
+    const foreign = res.json.listings.find((l: { id: string }) => l.id === 'listing-1');
     expect(foreign.seller_user_id).toBe(B);
     expect(foreign.item_instances.id).toBe('item-b1');
     expect(foreign.price_credits).toBe(1500);
