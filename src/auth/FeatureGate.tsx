@@ -3,7 +3,7 @@ import { canUseFeature, isGuestAccount, type GatedFeature } from './accountState
 import { useAuth } from './AuthProvider';
 
 export function FeatureGate({ feature, children }: { feature: GatedFeature; children: React.ReactNode }) {
-  const { account, setAuthMode } = useAuth();
+  const { account, signInWithGoogle, actionLoading } = useAuth();
   const decision = canUseFeature(account, feature);
 
   if (decision.allowed) return <>{children}</>;
@@ -15,8 +15,12 @@ export function FeatureGate({ feature, children }: { feature: GatedFeature; chil
         <div className="text-sm text-text-primary font-bold">Account upgrade needed</div>
         <div className="text-xs text-text-muted leading-relaxed">{decision.reason ?? 'Update your account to continue.'}</div>
         {isGuestAccount(account) && (
-          <button onClick={() => setAuthMode('register')} className="w-full py-2.5 rounded-xl bg-amber text-bg font-black text-xs border-2 border-amber">
-            Create Account
+          <button
+            onClick={() => signInWithGoogle()}
+            disabled={actionLoading}
+            className="w-full py-2.5 rounded-xl bg-amber text-bg font-black text-xs border-2 border-amber disabled:opacity-50"
+          >
+            Sign in with Google — keep your progress
           </button>
         )}
       </div>

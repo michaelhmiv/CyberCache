@@ -9,6 +9,7 @@ import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore } fr
 import { RARITIES } from '@/constants/rarities';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
+import { FeatureGate } from '@/auth/FeatureGate';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { fetchActiveMarketListings } from '@/lib/api/marketListings';
 import type { GearItem, Weapon } from '@/types/items';
@@ -121,6 +122,19 @@ export const MarketScreen: React.FC = () => {
   const [pendingBuyId, setPendingBuyId] = useState<string | null>(null);
   const [pendingListId, setPendingListId] = useState<string | null>(null);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
+
+  // Guests land on the Vendor (open to everyone); the player-market
+  // tabs stay gated below. Runs once per mount so a guest is never
+  // greeted by the Locked panel for a tab they didn't choose.
+  const landedRef = React.useRef(false);
+  useEffect(() => {
+    if (landedRef.current || !user) return;
+    landedRef.current = true;
+    if (user.isAnonymous && market.activeTab !== 'vendor') {
+      market.setActiveTab('vendor');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.isAnonymous]);
 
   useEffect(() => {
     let cancelled = false;
@@ -296,6 +310,8 @@ export const MarketScreen: React.FC = () => {
 
       {market.activeTab === 'vendor' && <VendorScreen />}
 
+      {market.activeTab !== 'vendor' && (
+        <FeatureGate feature="market">
       {market.activeTab === 'buy' && (
         <div className="space-y-3">
           <button
@@ -451,6 +467,9 @@ export const MarketScreen: React.FC = () => {
           {market.history.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No transactions yet.</div>}
           {market.history.map((h) => <div key={h.id} className="bl-card space-y-1.5"><div className="flex items-center justify-between"><div className="text-xs font-bold text-text-primary">{h.itemName}</div><div className={`text-xs font-black ${h.type === 'buy' ? 'text-red-400' : 'text-green-400'}`}>{h.type === 'buy' ? '-' : '+'}{h.price.toLocaleString()}cr</div></div><div className="flex items-center justify-between text-[10px] text-text-muted"><span>{historyPartyLabel(h)}</span><span>{h.itemRarity}</span></div></div>)}
         </div>
+      )}
+
+        </FeatureGate>
       )}
 
       <GearInspectSheet item={inspectItem} open={!!inspectItem} onClose={() => setInspectItem(null)} contextLabel="Market Inspect" />

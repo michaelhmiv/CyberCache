@@ -172,7 +172,9 @@ describe('session lifecycle', () => {
     const user = await authService.signInWithGoogle();
     expect(googleTokenMock).toHaveBeenCalledTimes(1);
     expect(user).toEqual({ id: 'player-1', email: 'm@example.com', isAnonymous: false });
-    expect(fetchCalls[0].url).toMatch(/\/api\/auth\/google$/);
+    // Pin the exact path: a suffix-only match once let a doubled
+    // '/api/api/auth/google' (a live 404 on device) pass green.
+    expect(new URL(fetchCalls[0].url).pathname).toBe('/api/auth/google');
     expect((fetchCalls[0].init.headers as Record<string, string>).Authorization).toBe('Bearer access-1');
     expect(JSON.parse(String(fetchCalls[0].init.body))).toEqual({ idToken: 'google-id-token' });
     expect(getSessionSync()?.accessToken).toBe('access-google');

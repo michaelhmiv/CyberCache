@@ -18,8 +18,56 @@ import { useKillCycleStore } from './slices/killCycleSlice';
 import { useLoadoutPresetsStore } from './slices/loadoutPresetsSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
 import { useActiveBuffsStore } from './slices/activeBuffsSlice';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
+import { Preferences } from '@capacitor/preferences';
 
 const SAVE_DEBOUNCE_MS = 500;
+
+/**
+ * On-device mirror of the runtime display snapshot (device-feedback
+ * fix, 2026-10-30). The Chef snapshot stays the cross-device copy, but
+ * a guest's progress must survive on the device itself: the server
+ * write is debounced and its only flush hooks were browser page-hide
+ * events, which Android routinely never fires when an app is swiped
+ * away. The mirror is written on every save, flushed again on the
+ * native pause lifecycle, and used as the restore fallback when the
+ * server has no snapshot (or is unreachable). It carries the exact
+ * same display-only payload — economy truth never lives here
+ * (ARCHITECTURE: snapshots are hydration support, not authority).
+ */
+const LOCAL_SNAPSHOT_KEY_PREFIX = 'cybercache.runtime.snapshot.v1.';
+
+function localSnapshotKey(userId: string): string {
+  return `${LOCAL_SNAPSHOT_KEY_PREFIX}${userId}`;
+}
+
+async function writeLocalSnapshot(userId: string, snapshot: RuntimeDisplaySnapshot): Promise<void> {
+  try {
+    await Preferences.set({ key: localSnapshotKey(userId), value: JSON.stringify(snapshot) });
+  } catch (error) {
+    console.warn('Runtime local snapshot write skipped:', error instanceof Error ? error.message : error);
+  }
+}
+
+async function readLocalSnapshot(userId: string): Promise<RuntimeDisplaySnapshot | null> {
+  try {
+    const { value } = await Preferences.get({ key: localSnapshotKey(userId) });
+    if (!value) return null;
+    const parsed = JSON.parse(value) as RuntimeDisplaySnapshot;
+    return parsed && parsed.authority === 'display_hydration_only' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function removeLocalSnapshot(userId: string): Promise<void> {
+  try {
+    await Preferences.remove({ key: localSnapshotKey(userId) });
+  } catch {
+    // best-effort cleanup
+  }
+}
 const riskSettings = ['Conservative', 'Balanced', 'Greedy', 'AllIn'];
 
 let activeUserId: string | null = null;
@@ -290,9 +338,23 @@ export function applyRuntimeDisplaySnapshot(snapshot: RuntimeStoreSnapshot): voi
 }
 
 export async function restoreRuntimeStoresFromSupabase(userId: string): Promise<boolean> {
-  const snapshot = await getRuntimeStoreSnapshot(userId);
-  if (!snapshot) return false;
-  applyRuntimeDisplaySnapshot(snapshot);
+  let snapshot: RuntimeStoreSnapshot | null;
+  try {
+    snapshot = await getRuntimeStoreSnapshot(userId);
+  } catch {
+    snapshot = null;
+  }
+  if (snapshot) {
+    applyRuntimeDisplaySnapshot(snapshot);
+    // Keep the on-device mirror in step with the server's copy.
+    await writeLocalSnapshot(userId, snapshot as RuntimeDisplaySnapshot);
+    return true;
+  }
+  // Server has nothing (or is unreachable): fall back to the on-device
+  // mirror so a guest's progress survives on their own device.
+  const local = await readLocalSnapshot(userId);
+  if (!local) return false;
+  applyRuntimeDisplaySnapshot(local);
   return true;
 }
 
@@ -305,7 +367,11 @@ export async function saveCurrentRuntimeStores(userId = activeUserId): Promise<v
 
   isSaving = true;
   try {
-    await saveRuntimeStoreSnapshot(userId, buildRuntimeDisplaySnapshot());
+    const snapshot = buildRuntimeDisplaySnapshot();
+    // Local mirror first: it is fast and durable even if the network
+    // write below never lands (offline, app killed mid-flight).
+    await writeLocalSnapshot(userId, snapshot);
+    await saveRuntimeStoreSnapshot(userId, snapshot);
   } catch (error) {
     console.warn('Runtime Supabase snapshot save skipped:', error instanceof Error ? error.message : error);
   } finally {
@@ -342,20 +408,34 @@ export function startRuntimeStorePersistence(userId: string): void {
 
   // Flush pending debounced saves on tab close / page hide so display
   // state (consumables, boss settings, presets) is not lost.
+  const flushPendingSave = () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      void saveCurrentRuntimeStores();
+    }
+  };
   if (typeof window !== 'undefined') {
-    const flushHandler = () => {
-      if (saveTimer) {
-        clearTimeout(saveTimer);
-        saveTimer = null;
-        void saveCurrentRuntimeStores();
-      }
-    };
-    window.addEventListener('beforeunload', flushHandler);
-    window.addEventListener('pagehide', flushHandler);
+    window.addEventListener('beforeunload', flushPendingSave);
+    window.addEventListener('pagehide', flushPendingSave);
     // Store the cleanup so stopRuntimeStorePersistence can remove it.
     unsubscribers.push(() => {
-      window.removeEventListener('beforeunload', flushHandler);
-      window.removeEventListener('pagehide', flushHandler);
+      window.removeEventListener('beforeunload', flushPendingSave);
+      window.removeEventListener('pagehide', flushPendingSave);
+    });
+  }
+
+  // Android does not reliably fire pagehide/beforeunload when an app
+  // is backgrounded or swiped away — the native pause lifecycle is the
+  // dependable flush hook there.
+  if (Capacitor.isNativePlatform()) {
+    const handles: Array<{ remove: () => Promise<void> }> = [];
+    void App.addListener('pause', flushPendingSave).then((handle) => handles.push(handle)).catch(() => undefined);
+    void App.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) flushPendingSave();
+    }).then((handle) => handles.push(handle)).catch(() => undefined);
+    unsubscribers.push(() => {
+      handles.forEach((handle) => void handle.remove().catch(() => undefined));
     });
   }
 }
@@ -373,5 +453,6 @@ export function stopRuntimeStorePersistence(): void {
 export async function clearSupabaseRuntimeState(userId = activeUserId): Promise<void> {
   if (!userId) return;
   stopRuntimeStorePersistence();
+  await removeLocalSnapshot(userId);
   await clearRuntimeStoreSnapshot(userId);
 }
