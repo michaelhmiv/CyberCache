@@ -104,7 +104,8 @@ describe('LootMoment — full mode (stage surface)', () => {
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Emberfall');
     expect(hero.textContent).toContain('★ LEGENDARY SNIPER');
-    expect(hero.textContent).toContain('+50% Fire damage, but -30% Shield effectiveness.');
+    // P4 wave 2: the hand-written flavor override wins over the effect description.
+    expect(hero.textContent).toContain('Sets the sky on fire. Literally.');
     expect(hero.textContent).toContain('DMG 2,847');
   });
 
@@ -196,7 +197,7 @@ describe('LootMoment — reduced motion', () => {
     expect(screen.getByTestId('fx-loot-beam')).toBeTruthy();
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Emberfall');
-    expect(hero.textContent).toContain('+50% Fire damage');
+    expect(hero.textContent).toContain('Sets the sky on fire. Literally.');
     expect(hero.textContent).toContain('DMG 2,847');
     expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
     expect(screen.queryByTestId('fx-shockwave-ring')).toBeNull();

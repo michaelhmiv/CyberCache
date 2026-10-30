@@ -155,12 +155,13 @@ describe('lootCardData — card derivation from real item data', () => {
     expect(card.flavor).toBeUndefined(); // flavor is a legendary-only line
   });
 
-  it('gives a legendary weapon its gold stamp and effect flavor', () => {
+  it('gives a legendary weapon its gold stamp and flavor override', () => {
     const card = lootCardData(
       makeWeapon({ id: 'leg', name: 'Emberfall', rarity: Rarity.Legendary, weaponType: WeaponType.Sniper, legendaryEffectId: 'glass_sun' }),
     );
     expect(card.stamp).toBe('★ LEGENDARY SNIPER');
-    expect(card.flavor).toBe('+50% Fire damage, but -30% Shield effectiveness.');
+    // P4 wave 2: the name-keyed flavor override (P3 deferred it to this wave).
+    expect(card.flavor).toBe('Sets the sky on fire. Literally.');
     expect(card.color).toBe('#FFEA3A');
   });
 
