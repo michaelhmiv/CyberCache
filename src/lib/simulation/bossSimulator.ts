@@ -295,6 +295,22 @@ function getRuleTotals(defs: ConsumableDef[]): RuleTotals {
   );
 }
 
+/**
+ * Consumption accounting for a boss attempt.
+ *
+ * The input map is the player's PREPARED set — the consumables they
+ * deliberately chose to bring to this attempt (validated server-side
+ * against owned inventory by the verify-boss route) — never the whole
+ * inventory. For each prepared type, the def's consume policy decides
+ * whether the prepared count is spent:
+ *   onAttempt → always; onTrigger → always;
+ *   onVictory → only on a win; onDefeat → only on a loss;
+ *   ifUsed → on a loss, or on a win where the survival pool was
+ *   actually stressed (survivalScore < 1);
+ *   perInterval → never charged by a one-shot attempt.
+ * The returned map is exactly what the Chef charges — a subset of the
+ * prepared set, never more than was prepared.
+ */
 export function getBossConsumableUsage(consumables: Record<string, number>, win: boolean, survivalScore: number): Record<string, number> {
   const used: Record<string, number> = {};
 
@@ -362,7 +378,7 @@ function ammoEfficiencyFromWindows(fullDuration: number, reloadDuration: number,
 }
 
 export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
-  const { primary, secondary, shield, ordnance, heavy, consumables, risk, boss, playerLevel, skillBonuses, relic, pityCount = 0, playerCredits = 0 } = input;
+  const { primary, secondary, shield, ordnance, heavy, consumables, risk, boss, playerLevel, skillBonuses, relic, classMod, pityCount = 0, playerCredits = 0 } = input;
   const reasons: string[] = [];
   const recommendations: string[] = [];
 
@@ -412,6 +428,30 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   if (relicSurvivalBoost > 0) {
     totalSurvival *= (1 + relicSurvivalBoost);
   }
+
+  // Class mod affixes (Phase 0 boss-loop wiring — the class mod used to
+  // be a dead sim input: present in BossSimulationInput, never read).
+  // bossDamageMod / survivalBoost mirror the relic handling above; the
+  // class-mod pool's weaponDamage / critChance convert to a DPS factor
+  // exactly as the gear DPS derivation does (computeEffectiveDpsFromGear
+  // in loadoutSurvival.ts: weaponDamage at full weight, critChance at
+  // half weight). skillPoints affixes are progression, not combat.
+  let classModBossDmgMod = 0;
+  let classModSurvivalBoost = 0;
+  let classModWeaponDamage = 0;
+  let classModCritChance = 0;
+  if (classMod) {
+    for (const affix of classMod.affixes) {
+      if (affix.stat === 'bossDamageMod') classModBossDmgMod += affix.value;
+      if (affix.stat === 'survivalBoost') classModSurvivalBoost += affix.value;
+      if (affix.stat === 'weaponDamage') classModWeaponDamage += affix.value;
+      if (affix.stat === 'critChance') classModCritChance += affix.value;
+    }
+  }
+  if (classModSurvivalBoost > 0) {
+    totalSurvival *= (1 + classModSurvivalBoost);
+  }
+  const classModDpsMult = 1 + classModWeaponDamage + classModCritChance * 0.5;
 
   // Emergency consumables boost survival
   if (adrenaline > 0) {
@@ -596,7 +636,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // Player-level modifiers (not per-weapon) stay in the sim.
   // The chain's per-weapon DPS already includes signature, ammo
   // efficiency, and DPS-relevant consumables.
-  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod);
+  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod) * classModDpsMult;
 
   const netBossHp = Math.max(1, boss.health - ordnanceFlatDamage);
   const timeToKill = netBossHp / (dps || 1);
@@ -772,6 +812,9 @@ export function executeBossAttempt(
     bossHpRemaining,
     consumablesUsed: consumedConsumables,
     consumablesLost: consumedConsumables,
+    // Client-side twin only — entry fees are a Chef/route concern (the
+    // authoritative path charges them in processBossAttempt).
+    entryFee: 0,
     creditsGained: win ? creditsDelta : 0,
     creditsLost: win ? 0 : deathFee,
     loot: [],

@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const bossPrepSource = () => readFileSync(resolve(process.cwd(), 'src/components/fight/BossPrepModal.tsx'), 'utf8');
+const bossPrepSource = () => readFileSync(resolve(process.cwd(), 'src/components/fight/BossEncounterPanel.tsx'), 'utf8');
 
-describe('BossPrepModal authority boundaries', () => {
+describe('BossEncounterPanel authority boundaries', () => {
   it('does not execute boss attempts or mutate progression directly', () => {
     const source = bossPrepSource();
     [

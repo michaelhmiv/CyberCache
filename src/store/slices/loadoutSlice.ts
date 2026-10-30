@@ -152,7 +152,7 @@ export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
       // Dedup guard: if the consumable is already in another slot, clear it
       // from that slot first (swap behavior, not block behavior). This is
       // the single chokepoint — all callers (Ledger, ConsumablesScreen,
-      // BossPrepModal, presets) are protected by this guard.
+      // presets) are protected by this guard.
       const others = (['PreFight', 'MidFight', 'Emergency'] as const).filter(
         (k) => k !== slot,
       );

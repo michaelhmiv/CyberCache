@@ -6,7 +6,7 @@
  * selection lists, fight modals, and the diorama. Colors derive from the
  * boss's primary tag archetype so the visual language is consistent.
  *
- * Used by BossSelectModal, BossPrepModal, and the LiveTurfDiorama.
+ * Used by BossSelectModal, BossEncounterPanel, and the LiveTurfDiorama.
  */
 import type { BossTag } from '@/types/boss';
 import { Element } from '@/types/game';

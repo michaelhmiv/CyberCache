@@ -36,7 +36,8 @@ import type { GearItem } from '../types/items';
 import { REGION_1_BOSSES } from '../constants/bosses';
 import { sumActivityModifier } from '../lib/stats/activityModifiers';
 import type { ActivityKind } from '../types/activity';
-import { DropSource } from '../types/game';
+import { DropSource, Rarity } from '../types/game';
+import { getEligibleLegendaryEffects } from '../constants/legendaryEffects';
 import {
   getBossConsumableUsage,
   getBossRiskModifiers,
@@ -200,6 +201,15 @@ export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
   playerId: string;
   bossId: string;
   attemptNonce: number;
+  /**
+   * Entry fee for this attempt, derived SERVER-SIDE by the verify-boss
+   * route from the boss def (entryCost, or rematchCost when the boss
+   * was already defeated) — never trusted from the request body. The
+   * Chef folds it into the attempt's net credits delta; the applier
+   * records it and guards affordability. 0 when unset (direct engine
+   * calls in tests).
+   */
+  entryFee?: number;
 }
 
 export interface BossAttemptChefResult {
@@ -222,6 +232,10 @@ export interface BossAttemptChefResult {
   consumedConsumables: Record<string, number>;
   extraLoot: boolean;
   bonusLootRolls: number;
+  /** Entry fee charged for this attempt (server-derived; see BossAttemptRequest). */
+  entryFee: number;
+  /** True when the guaranteed victory roll landed on a dedicated drop. */
+  dedicatedDropAwarded: boolean;
   unlockedBossId?: string;
   telemetry: {
     serverRolled: true;
@@ -788,9 +802,19 @@ export function processRoamingClaim(
   };
 }
 
+/**
+ * Chance that a boss victory's guaranteed loot roll lands on one of
+ * the boss's dedicated drops (boss.dedicatedDrops). The boss defs
+ * declare the dedicated pools but no rates, so the rate is a Chef
+ * constant — documented in MECHANICS.md §10 (Boss Combat).
+ */
+export const BOSS_DEDICATED_DROP_CHANCE = 0.25;
+
 export function processBossAttempt(request: BossAttemptRequest): BossAttemptChefResult {
   const boss = REGION_1_BOSSES.find((entry) => entry.id === request.bossId);
   if (!boss) throw new Error(`Unknown boss: ${request.bossId}`);
+
+  const entryFee = Math.max(0, Math.trunc(request.entryFee ?? 0));
 
   const input: BossSimulationInput = { ...request, boss };
 
@@ -823,7 +847,9 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
 
   const deathFee = victory ? 0 : sim.deathFee;
   const rawCreditsDelta = victory ? Math.round(boss.level * 150 * legendary.creditMult) : -deathFee;
-  const creditsDelta = applyBadDecisionBonus(rawCreditsDelta, request.primary);
+  // The entry fee is charged on every resolved attempt, win or lose —
+  // it is part of the net delta the applier persists.
+  const creditsDelta = applyBadDecisionBonus(rawCreditsDelta, request.primary) - entryFee;
 
   let xpMult = 1;
   // Relic affixes with xpBoostMod
@@ -850,14 +876,38 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   let scrapAwarded = 0;
   let secondOpinionScrap: BossAttemptChefResult['secondOpinionScrap'] = null;
   let unlockedBossId: string | undefined;
+  let dedicatedDropAwarded = false;
   if (victory) {
     const currentIndex = REGION_1_BOSSES.findIndex((entry) => entry.id === boss.id);
     unlockedBossId = REGION_1_BOSSES[currentIndex + 1]?.id;
     const guaranteedRolls = 1;
     const baseBonusRolls = rng() < 0.3 ? 1 : 0;
     const totalRolls = guaranteedRolls + baseBonusRolls + bonusLootRolls;
+    // Dedicated drops: the guaranteed roll can land on the boss's own
+    // declared legendary pool (boss.dedicatedDrops ⊆ boss.dropTable,
+    // enforced by the content validator). The pool is filtered to
+    // effects actually eligible for BossDrop at this boss's tier.
+    const eligibleEffects = getEligibleLegendaryEffects(DropSource.BossDrop, boss.tier);
+    const dedicatedPool = boss.dedicatedDrops.filter((id) => eligibleEffects.some((eff) => eff.id === id));
     for (let i = 0; i < totalRolls; i++) {
-      loot.push(generateWeapon({ source: DropSource.BossDrop, level: boss.level, bossTier: boss.tier }, rng));
+      if (i === 0 && dedicatedPool.length > 0 && rng() < BOSS_DEDICATED_DROP_CHANCE) {
+        const pick = dedicatedPool[Math.floor(rng() * dedicatedPool.length)];
+        loot.push(
+          generateWeapon(
+            {
+              source: DropSource.BossDrop,
+              level: boss.level,
+              bossTier: boss.tier,
+              forcedRarity: Rarity.Legendary,
+              forcedLegendaryEffectId: pick,
+            },
+            rng,
+          ),
+        );
+        dedicatedDropAwarded = true;
+      } else {
+        loot.push(generateWeapon({ source: DropSource.BossDrop, level: boss.level, bossTier: boss.tier }, rng));
+      }
     }
 
     // Second Opinion (legendary): the guaranteed loot roll happens
@@ -920,8 +970,9 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     bossHpRemaining,
     consumablesUsed: consumedConsumables,
     consumablesLost: consumedConsumables,
+    entryFee,
     creditsGained: victory ? Math.max(0, creditsDelta) : 0,
-    creditsLost: victory ? 0 : deathFee,
+    creditsLost: victory ? Math.max(0, -creditsDelta) : deathFee + entryFee,
     loot: loot.map((item) => item.id),
     reasons: Array.from(new Set(resultReasons)),
     recommendations: sim.recommendations,
@@ -940,6 +991,8 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     consumedConsumables,
     extraLoot: bonusLootRolls > 0,
     bonusLootRolls,
+    entryFee,
+    dedicatedDropAwarded,
     unlockedBossId,
     telemetry: {
       serverRolled: true,

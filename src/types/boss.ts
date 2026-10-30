@@ -105,6 +105,8 @@ export interface BossAttemptResult {
   bossHpRemaining?: number;
   consumablesUsed: Record<string, number>;
   consumablesLost: Record<string, number>;
+  /** Entry fee charged for the attempt (boss entryCost, or rematchCost on a repeat attempt). */
+  entryFee: number;
   creditsGained: number;
   creditsLost: number;
   loot: string[]; // item IDs

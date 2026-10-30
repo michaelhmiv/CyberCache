@@ -5,6 +5,13 @@ export interface GenerateWeaponOptions {
   level?: number;
   forcedType?: WeaponType;
   forcedRarity?: Rarity;
+  /**
+   * Force this legendary effect id when the roll lands on Legendary
+   * (boss dedicated drops). Honored only when the id is eligible for
+   * the drop source/tier; otherwise the generator falls back to its
+   * normal eligible-pool pick.
+   */
+  forcedLegendaryEffectId?: string;
   forcedElement?: Element;
   forcedManufacturer?: Manufacturer;
   luckBonus?: number; // 0-1 flat increase to rarity roll

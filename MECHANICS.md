@@ -310,6 +310,70 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 
 ## 10. Boss Combat (4-Phase Engine)
 
+### Shipped resolution flow (Phase 0 Slice 1, 2026-10-30)
+
+The boss loop is wired end-to-end and resolves immediately,
+Chef-owned:
+
+1. The Fight workspace's prep panel (`BossEncounterPanel`) shows
+   **boss intel only** — the def's stats, elemental nature,
+   mechanic, phases with declared counters, and dedicated drops —
+   plus the player's loadout summary and the consumables they
+   **choose to prepare**. By design it never shows a win chance,
+   readiness %, or "what you need" readout: preparing is the
+   strategic layer; verdicts are not computed for the player. (The
+   older "Boss Prep V2" analysis below describes the proxy score
+   model the sim uses internally — it is no longer surfaced as a
+   prep verdict.)
+2. Starting sends **one** `POST /api/verify-boss` attempt with the
+   boss id, an idempotency nonce, the prepared consumable counts,
+   the risk setting, and the loadout payload.
+3. The Chef resolves and persists everything in one application
+   (`processBossAttempt` → `cc_apply_chef_boss_attempt`): entry
+   fee, policy-applied consumption of the prepared set only,
+   outcome, loot, pity, unlocks. The client then plays the fight
+   animation from the returned timeline and, on victory, presents
+   the loot through the shared `LootMoment`; on defeat it shows
+   the applied costs (entry fee + death fee) and banked pity.
+
+**Entry fee.** Charged server-side from the boss def: `entryCost`
+for a first attempt, `rematchCost` once the boss is defeated.
+Balance-checked before resolution and folded into the attempt's
+net credit delta (migration 0011's `_entry_fee` parameter).
+Defeat `creditsLost` itemizes `deathFee + entryFee`.
+
+**Boss unlocks.** Server-side, from the existing
+`profiles.boss_state` jsonb (`unlockedBossIds`, default
+`["dune_tyrant"]`): a locked boss is rejected with 403; a victory
+unlocks the next boss in region order (maintained by the
+applier).
+
+**Prepared consumables.** The route validates the requested
+prepared set against DB-owned counts (unknown type, invalid
+count, or preparing more than owned → 400) and hands exactly that
+set to the sim. `getBossConsumableUsage` charges the
+policy-applied subset of the PREPARED set only (see "Consumable
+Consumption" below). The pre-Slice-1 behavior — discarding the
+prep, substituting the whole inventory, burning full stacks — is
+gone.
+
+**Dedicated drops.** Boss defs declare `dedicatedDrops`
+(legendary effect ids; the mechanics validator enforces
+dedicated ⊆ drop table). On a victory, the guaranteed loot roll
+has a 25% chance (Chef constant `BOSS_DEDICATED_DROP_CHANCE` in
+`src/server/chef.ts` — the defs declare no rate of their own) to
+become the dedicated drop: a Legendary weapon forced to an
+effect drawn from the boss's dedicated list intersected with the
+effects eligible for BossDrop at the boss's tier. The result
+reports `dedicatedDropAwarded`; the client announces it.
+
+**Class mod.** The equipped class mod enters the sim (wired in
+Slice 1; it was previously a dead input): its `bossDamageMod`
+affix adds to the boss-damage multiplier, `weaponDamage` /
+`critChance` affixes scale DPS with the relic's weighting, and
+`survivalBoost` scales survival like the relic's. Its tree
+`nodeBoosts` already flowed through `skillBonuses`.
+
 ### Phases
 1. **Survival Check**: Player HP + Shield HP + MedKits/ShieldCells + NanoSwarm vs Boss DPS × 30s
 2. **Break Check**: Shield damage + Armor damage vs Boss Shield/HP gates
@@ -335,8 +399,14 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 - Resets on victory
 
 ### Consumable Consumption
-- **Victory**: Pre-Fight + Mid-Fight consumed (Emergency only if triggered)
-- **Defeat**: ALL loaded consumables consumed
+Charged from the player's **prepared set only**, per each def's
+consume policy (`getBossConsumableUsage`):
+- `onAttempt` (e.g. AmmoPack): always charged
+- `ifUsed` (e.g. MedKit, ShieldCell): charged when the attempt's
+  survival score is below 1 (the sustain was actually needed)
+- `onVictory` (e.g. LuckBooster, DataSkimmer): charged on a win
+- `onDefeat` (e.g. InsuranceToken): charged on a loss
+Nothing outside the prepared set is ever touched.
 
 ### Boss Prep V2 / Event-Ready Analysis
 - Boss fights are intentional prep encounters and remain separate from roaming combat.
@@ -385,7 +455,7 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 
 ### ⚠️ Partially Wired / Needs Hookup
 - **Scavenger economy bonuses**: `rareDropChance`, `lootQuantity`, `scrapYield`, `offlineEarnings`, `cacheQuality`, `marketFeeReduction` — computed by getBonuses() but NOT applied to farming, offline claim, or scrap yield
-- **DataSkimmer / LuckBooster extraLoot**: `executeBossAttempt()` returns `extraLoot` flag but BossPrepModal ignores it
+- **DataSkimmer / LuckBooster extraLoot**: `executeBossAttempt()` returns an `extraLoot` flag; the Chef folds the bonus rolls into the attempt's awarded items and `BossEncounterPanel` presents the full loot set via `LootMoment`
 - **Legendary sim proxies (10)**: the_accountant, thunder_receipt, borrowed_time, vampiric_ledger, overclocked, stable_loop, phase_shifter, chain_lightning, molten_core, cryo_stasis — plus void_bargain's drawback and armor_eater's anti-heal clause. Each is a labelled flat-multiplier approximation in the boss simulator; the described mechanics do not exist yet (see §1 for per-effect detail)
 - **Auto-salvage Scavenger bonuses**: FightScreen scrapItem() doesn't apply scrapYield bonus
 

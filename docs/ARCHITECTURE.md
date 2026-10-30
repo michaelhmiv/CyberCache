@@ -119,12 +119,12 @@ ResourceBar cache-key plus button
 
 ### Boss attempt
 ```
-BossPrepModal
-  -> verifyBossFight(intent/loadout)          # client sends intent only
-  -> /api/verify-boss                         # route calls Chef
-  -> processBossAttempt()                     # Chef rolls outcome/loot/XP/credits/pity/unlocks
-  -> cc_apply_chef_boss_attempt()             # profile/consumables/boss_state RPC
-  -> syncBossAttemptResult()                  # client syncs returned canonical state and animates
+BossEncounterPanel (Fight workspace prep: boss intel + prepared consumables + risk)
+  -> verifyBossFight(intent/loadout/prepared set)  # client sends intent only
+  -> /api/verify-boss                              # route validates prep vs owned, enforces unlock + entry fee
+  -> processBossAttempt()                          # Chef rolls outcome/loot/XP/credits/pity/unlocks/dedicated drops
+  -> cc_apply_chef_boss_attempt()                  # profile/consumables/boss_state RPC (entry fee via migration 0011)
+  -> syncBossAttemptResult()                       # client syncs returned canonical state, animates, LootMoment on victory
 ```
 ### Activity transitions
 ```

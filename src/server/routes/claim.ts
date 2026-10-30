@@ -25,9 +25,44 @@
  */
 import type { Request, Response } from 'express';
 import { processBossAttempt, type BossAttemptRequest } from '../chef';
+import { REGION_1_BOSSES } from '../../constants/bosses';
+import { CONSUMABLES } from '../../constants/consumables';
 import type { AuthConfig } from '../auth/routes';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
+
+/**
+ * Validate the client's PREPARED consumable set against DB-owned
+ * inventory (Phase 0 boss loop). Boss prep is the strategic layer: the
+ * player chooses exactly which consumables to bring, and the Chef
+ * honors that choice — the June handler instead discarded the body's
+ * consumables and substituted the player's ENTIRE inventory, so prep
+ * could never matter and full stacks burned. The prepared set is
+ * still never trusted beyond ownership: unknown types are rejected
+ * and no type may be prepared beyond the owned count.
+ */
+export function resolvePreparedConsumables(
+  requested: unknown,
+  owned: Record<string, number>,
+): { prepared: Record<string, number> } | { error: string } {
+  if (requested === undefined || requested === null) return { prepared: {} };
+  if (typeof requested !== 'object' || Array.isArray(requested)) {
+    return { error: 'consumables must be an object of type -> count' };
+  }
+  const prepared: Record<string, number> = {};
+  for (const [type, rawCount] of Object.entries(requested as Record<string, unknown>)) {
+    if (!CONSUMABLES[type]) return { error: `Unknown consumable type: ${type}` };
+    const count = typeof rawCount === 'number' ? Math.floor(rawCount) : NaN;
+    if (!Number.isFinite(count) || count < 0) return { error: `Invalid prepared count for ${type}` };
+    if (count === 0) continue;
+    const ownedCount = Math.max(0, Math.trunc(owned[type] ?? 0));
+    if (count > ownedCount) {
+      return { error: `Prepared consumables exceed owned inventory for ${type}: prepared ${count}, owned ${ownedCount}` };
+    }
+    prepared[type] = count;
+  }
+  return { prepared };
+}
 
 export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthConfig) {
   return async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
@@ -58,23 +93,22 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
         return;
       }
 
-      // --- Verify credit affordability for death fee ---
-      // A player with insufficient credits cannot afford the death fee and
-      // should not be allowed to attempt the boss fight. The client may
-      // report any credit value; the server must use the DB value.
+      // The client may report any credit value; the server must use
+      // the DB value.
       const serverCredits: number = typeof profile.credits === 'number' ? profile.credits : 0;
       const serverLevel: number = typeof profile.player_level === 'number' ? profile.player_level : 1;
 
-      // Consumable inventory from DB — prevents client from claiming
-      // consumables they don't own.
-      const serverConsumables: Record<string, number> =
+      // Consumable inventory from DB — the ownership bound for the
+      // player's prepared set (see resolvePreparedConsumables).
+      const ownedConsumables: Record<string, number> =
         profile.consumables && typeof profile.consumables === 'object'
           ? (profile.consumables as Record<string, number>)
           : {};
 
-      // Pity counters from DB — prevents pity manipulation. They live in
-      // boss_state.pityCounters (see the file header: the June
-      // `pity_counters` column this used to select never existed).
+      // Boss progression from DB — unlocks, defeated list, and pity
+      // counters all live in boss_state (see the file header: the June
+      // `pity_counters` column this used to select never existed). The
+      // applier maintains all three; the route enforces them.
       const serverBossState: Record<string, unknown> =
         profile.boss_state && typeof profile.boss_state === 'object'
           ? (profile.boss_state as Record<string, unknown>)
@@ -84,6 +118,54 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
           ? (serverBossState.pityCounters as Record<string, number>)
           : {};
       const serverPityCount = serverPityCounters[body.bossId] ?? 0;
+      const unlockedBossIds: string[] = Array.isArray(serverBossState.unlockedBossIds)
+        ? (serverBossState.unlockedBossIds as string[])
+        : ['dune_tyrant'];
+      const defeatedBossIds: string[] = Array.isArray(serverBossState.defeatedBossIds)
+        ? (serverBossState.defeatedBossIds as string[])
+        : [];
+
+      const bossDef = REGION_1_BOSSES.find((entry) => entry.id === body.bossId);
+
+      // --- Unlock gate (Phase 0 boss loop) ---
+      // A boss may only be attempted once a prior victory unlocked it
+      // (boss_state.unlockedBossIds, advanced by the applier). The
+      // June path never checked — any authenticated player could
+      // attempt any bossId directly.
+      if (bossDef && !unlockedBossIds.includes(body.bossId) && !defeatedBossIds.includes(body.bossId)) {
+        res.status(403).json({
+          error: 'Boss locked',
+          detail: `${bossDef.name} has not been unlocked yet. Defeat the previous boss to unlock it.`,
+        });
+        return;
+      }
+
+      // --- Entry fee (Phase 0 boss loop) ---
+      // Charged on every resolved attempt: entryCost for a first
+      // attempt, rematchCost for a boss the player has already
+      // defeated (both fields exist on the boss def; they were
+      // display-only before this slice). Derived here from the def +
+      // server boss_state — never from the request body.
+      const entryFee = bossDef
+        ? defeatedBossIds.includes(body.bossId)
+          ? bossDef.rematchCost
+          : bossDef.entryCost
+        : 0;
+      if (serverCredits < entryFee) {
+        res.status(400).json({
+          error: 'Insufficient credits for boss entry fee',
+          detail: `Entry fee is ${entryFee}cr; the server profile holds ${serverCredits}cr.`,
+        });
+        return;
+      }
+
+      // --- Prepared consumables (Phase 0 boss loop) ---
+      // The player's chosen set, validated against owned inventory.
+      const resolved = resolvePreparedConsumables(body.consumables, ownedConsumables);
+      if ('error' in resolved) {
+        res.status(400).json({ error: 'Invalid prepared consumables', detail: resolved.error });
+        return;
+      }
 
       const attemptNonce = body.attemptNonce || Date.now();
 
@@ -97,8 +179,9 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
         attemptNonce,
         playerLevel: serverLevel,
         playerCredits: serverCredits,
-        consumables: serverConsumables,
+        consumables: resolved.prepared,
         pityCount: serverPityCount,
+        entryFee,
       };
 
       const result = processBossAttempt(request);
@@ -115,10 +198,34 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
           attempt: result.result as unknown as Json,
           unlockedBossId: result.unlockedBossId ?? null,
           scrap: result.scrapAwarded,
+          entryFee: result.entryFee,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         res.status(500).json({ error: 'Failed to apply boss attempt', detail: message });
+        return;
+      }
+
+      // Nonce replay: the applier returned the stored ledger result
+      // and applied nothing twice. The freshly rolled `result` above
+      // must NOT be stored or reported — its items carry new random
+      // ids, so storing them would duplicate the first call's loot.
+      // Report the stored attempt instead; its items are already in
+      // the player's inventory from the first application.
+      const rpcRecord = rpcResult as Record<string, unknown>;
+      if (rpcRecord?.idempotent_replay === true) {
+        const storedAttempt = rpcRecord.attempt as Record<string, unknown> | undefined;
+        res.json({
+          ...result,
+          items: [],
+          loot: [],
+          verified: true,
+          victory: storedAttempt?.victory ?? result.result.victory,
+          result: storedAttempt ?? result.result,
+          pityIncremented: storedAttempt ? storedAttempt.victory !== true : !result.result.victory,
+          profile: rpcRecord?.profile ?? rpcResult,
+          idempotentReplay: true,
+        });
         return;
       }
 

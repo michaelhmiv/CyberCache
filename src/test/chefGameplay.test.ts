@@ -209,7 +209,7 @@ describe('legacy Chef gameplay routes (B6)', () => {
 
   it('verify-boss: server state drives the outcome and persists exactly once per nonce', async () => {
     const { base, store, tokenA } = await makeServer();
-    store.seedProfile({ id: A, player_level: 50, credits: 1000, consumables: {}, boss_state: {} });
+    store.seedProfile({ id: A, player_level: 50, credits: 1000, consumables: { MedKit: 3 }, boss_state: {} });
     const boss = REGION_1_BOSSES[0];
     // The engine's known-good fixture weapon (chefBossVerification).
     const strongWeapon: Weapon = {
@@ -255,7 +255,7 @@ describe('legacy Chef gameplay routes (B6)', () => {
       shield: null,
       classMod: null,
       relic: null,
-      consumables: { stim: 99 }, // client lies — server inventory ({}) wins
+      consumables: { MedKit: 1 }, // the prepared set — validated against server inventory (3 owned)
       risk: RiskSetting.Balanced,
       playerLevel: 99, // client lies — server level (50) wins
       playerCredits: 999999, // client lies — server credits (1000) win
