@@ -5,6 +5,7 @@ import { getElementMatchup } from '../../constants/elements';
 import { CONSUMABLES, ConsumableDef } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 import { computeWeaponDps } from '../stats/dpsChain';
+import { computeHunterMaxHp } from '../combat/damageContract';
 // Note: applySignatureMechanic used to be applied in the sim
 // (one inline call per weapon). After PR E, the chain consumes the
 // signature via the new src/lib/stats/signatureMechanic.ts module
@@ -395,7 +396,12 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const legendary = applyLegendaryEffects(primary, pityCount);
 
   // 1. Survival Check
-  const playerHP = 500 + playerLevel * 40;
+  // ONE hunter HP formula everywhere: computeHunterMaxHp (700 + 60 per
+  // level + shield HP) — the same formula the mechanics snapshot and
+  // the roaming survival store use. The sim used to run its own
+  // 500 + 40/level pool, so boss survival was silently ~27% lower
+  // than the HP the player sees everywhere else.
+  const playerHP = computeHunterMaxHp(playerLevel, 0);
   const playerShieldHP = shield?.hp || 0;
 
   const medkits = consumables['MedKit'] || 0;

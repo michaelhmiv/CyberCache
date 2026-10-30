@@ -20,6 +20,7 @@
  */
 import type { Pool } from 'pg';
 import type { Json } from '../writes/store';
+import type { GearItem } from '../../types/items';
 
 export type { Json };
 
@@ -32,6 +33,8 @@ export class GameplayStoreError extends Error {
 
 /** profiles subset the claim handler reads (June: PostgREST select). */
 export interface RoamingProfileRow {
+  /** DB level — the area-gate authority (never the claim body's level). */
+  player_level: number;
   last_claimed_tick: number;
   consumables: Json;
   /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
@@ -53,6 +56,8 @@ export interface BossProfileRow {
 /** profiles subset the offline-settlement handler reads. */
 export interface SettlementProfileRow {
   player_level: number;
+  /** Server-side skill spends (profiles.skill_spends) — offline settlement rebuilds skillBonuses from this, never from a client body. */
+  skill_spends: Json;
   consumables: Json;
   last_claimed_tick: number;
   last_roaming_settled_at: string | null;
@@ -109,11 +114,22 @@ export interface ChefBossAttemptInput {
   entryFee: number;
 }
 
+/** Loadout slot order the client builds claim gear arrays in. */
+export const LOADOUT_SLOT_ORDER = ['primary', 'secondary', 'heavy', 'shield', 'classMod', 'relic', 'ordnance'] as const;
+
 export interface ChefGameplayStore {
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null>;
   getBossProfile(playerId: string): Promise<BossProfileRow | null>;
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null>;
   getActiveAction(playerId: string): Promise<ActiveActionRow | null>;
+  /**
+   * The player's equipped gear from the server's own records
+   * (item_instances rows with runtime_state 'equipped'), payloads in
+   * loadout slot order. This is the loadout source of truth for
+   * server-side settlement — NOT the runtime display snapshot, which
+   * is hydration support only and never economy authority.
+   */
+  getEquippedGear(playerId: string): Promise<GearItem[]>;
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json>;
   storeChefItems(playerId: string, items: unknown[]): Promise<Json>;
   consumeRoamingConsumables(playerId: string, consumed: Json, areaId: string, tickCount: number): Promise<Json>;
@@ -176,9 +192,10 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     return this.one(
-      'select last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder from public.profiles where id = $1',
+      'select player_level, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder from public.profiles where id = $1',
       [playerId],
       (row) => ({
+        player_level: num(row.player_level),
         last_claimed_tick: num(row.last_claimed_tick),
         consumables: json(row.consumables),
         scrap_remainder: num(row.scrap_remainder),
@@ -203,10 +220,11 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
     return this.one(
-      'select player_level, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder from public.profiles where id = $1',
+      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
+        skill_spends: json(row.skill_spends),
         consumables: json(row.consumables),
         last_claimed_tick: num(row.last_claimed_tick),
         last_roaming_settled_at: isoOrNull(row.last_roaming_settled_at),
@@ -235,6 +253,20 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         activity_payload: json(row.activity_payload),
       }),
     );
+  }
+
+  async getEquippedGear(playerId: string): Promise<GearItem[]> {
+    try {
+      const { rows } = await this.pool.query(
+        `select payload from public.item_instances
+          where owner_user_id = $1 and runtime_state = 'equipped' and equipped_slot is not null
+          order by array_position(array['primary','secondary','heavy','shield','classMod','relic','ordnance'], equipped_slot)`,
+        [playerId],
+      );
+      return rows.map((row) => (row as Row).payload as GearItem);
+    } catch (err) {
+      return translatePgError(err);
+    }
   }
 
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json> {

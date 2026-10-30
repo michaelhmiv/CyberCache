@@ -120,6 +120,12 @@ export interface ClaimRequest {
     currentHp: number;
     shieldHp: number;
     maxHp: number;
+    /**
+     * @deprecated Ignored by the engine: mitigation is re-derived
+     * server-side from the equipped shield in equippedGear (the
+     * ticker never sent this field, which is why roaming mitigation
+     * was silently 0 while the snapshot displayed it).
+     */
     mitigation?: number;
   };
   /** @deprecated Slots removed — engine activates from inventory directly. */
@@ -310,6 +316,36 @@ export function processRoamingClaim(
   const primaryWeapon =
     (equippedGear ?? []).find((g): g is import('../types/items').Weapon => 'weaponType' in g) ?? null;
 
+  // Slot identification from the flat equippedGear array. The item
+  // types are structurally distinct: a ClassMod is the only affix
+  // carrier with `treeBonus`; a Relic is the affix carrier with no
+  // weaponType/damage/hp/treeBonus; a Shield is the only item with
+  // `mitigation`. The previous predicates keyed the "relic" lookup on
+  // "affixes and no damage/hp fields", which matches the CLASS MOD
+  // first in slot order (primary, secondary, heavy, shield, classMod,
+  // relic, ordnance) — so roaming silently read the class mod as the
+  // relic and the real relic's affixes (bossDamageMod, xpBoostMod,
+  // idle mods) never reached this engine. The boss path never had the
+  // bug: it receives explicit slots.
+  const slotClassMod =
+    (equippedGear ?? []).find((g) => 'treeBonus' in g) ?? null;
+  const slotRelic =
+    (equippedGear ?? []).find(
+      (g) =>
+        'affixes' in g &&
+        !('weaponType' in g) &&
+        !('damage' in g) &&
+        !('hp' in g) &&
+        !('treeBonus' in g),
+    ) ?? null;
+  const slotShield =
+    (equippedGear ?? []).find((g): g is import('../types/items').Shield => 'mitigation' in g) ?? null;
+  // Shield mitigation, re-derived server-side from the equipped shield
+  // — the same value the mechanics snapshot displays. The claim body
+  // carries no mitigation (the ticker never sent one, so roaming
+  // mitigation was always 0 while the snapshot advertised it).
+  const serverMitigation = slotShield?.mitigation ?? 0;
+
   // Skill bonuses are still client-supplied but the server re-derives
   // the DPS-relevant `dps` multiplier from equippedGear via
   // computeEffectiveDpsFromGear(). Other skill bonuses (offlineEarnings,
@@ -348,7 +384,19 @@ export function processRoamingClaim(
   const effectiveActivityMods = sumActivityModifier(equippedGear ?? [], 'roaming_loot' as ActivityKind);
   const activityCreditsMult = 1 + (effectiveActivityMods.creditsPerKill ?? 0);
   const activityScrapMult = 1 + (effectiveActivityMods.scrapYieldMod ?? 0);
-  const activityXpMult = 1 + (effectiveActivityMods.xpBoostMod ?? 0) + (skillBonuses.xpBoostMod ?? 0);
+  // Plain xpBoostMod affixes on the relic and class mod (the relic
+  // generator emits them at category 'idle', so sumActivityModifier —
+  // activity-category only — never sees them). The boss path and the
+  // mechanics snapshot both count these; roaming used to ignore them,
+  // so a "+% XP Gain" relic paid out everywhere except while roaming.
+  let gearXpBoostMod = 0;
+  for (const slotItem of [slotRelic, slotClassMod]) {
+    if (!slotItem || !('affixes' in slotItem) || !Array.isArray(slotItem.affixes)) continue;
+    for (const affix of slotItem.affixes as Array<{ stat?: string; value?: number }>) {
+      if (affix.stat === 'xpBoostMod') gearXpBoostMod += affix.value ?? 0;
+    }
+  }
+  const activityXpMult = 1 + (effectiveActivityMods.xpBoostMod ?? 0) + gearXpBoostMod + (skillBonuses.xpBoostMod ?? 0);
   const activityRareDropBonus = effectiveActivityMods.rareDropChanceMod ?? 0;
   const activityFragmentBonus = effectiveActivityMods.cacheFragmentChance ?? 0;
   const activityMaterialBonus = effectiveActivityMods.materialFindChance ?? 0;
@@ -396,8 +444,8 @@ export function processRoamingClaim(
   const serverDerivedDps = computeEffectiveDpsFromGear({
     weapons: (request.equippedGear ?? []).filter((g): g is import('../types/items').Weapon => 'weaponType' in g),
     ordnance: (request.equippedGear ?? []).find((g) => 'damage' in g && !('weaponType' in g)) ?? null,
-    relic: (request.equippedGear ?? []).find((g) => 'affixes' in g && !('weaponType' in g) && !('damage' in g) && !('hp' in g)) ?? null,
-    classMod: (request.equippedGear ?? []).find((g) => 'affixes' in g && !('weaponType' in g) && !('damage' in g) && !('hp' in g) && !('rechargeRate' in g)) ?? null,
+    relic: slotRelic,
+    classMod: slotClassMod,
     skillDpsMult: 1 + (request.skillBonuses?.dps ?? 0),
   });
   const effectiveDps = serverDerivedDps;
@@ -704,11 +752,15 @@ export function processRoamingClaim(
           ),
           accuracy: (attacker.accuracy ?? 0.85) * consumableMods.incomingAccuracyMultiplier,
         };
-        // Apply consumable damage reduction (Shield Cell resistance)
+        // Mitigation comes from the equipped shield, re-derived
+        // server-side above (serverMitigation) — never from the claim
+        // body — plus consumable damage reduction (Shield Cell
+        // resistance). This is the value the snapshot's Effective HP
+        // math advertises; display and engine now agree.
         const hunter: HunterSurvivalStats = {
           maxHp: survMaxHp,
           shieldHp: survShield,
-          mitigation: Math.min(0.8, (request.survival?.mitigation ?? 0) + consumableMods.damageReductionPct),
+          mitigation: Math.min(0.8, serverMitigation + consumableMods.damageReductionPct),
         };
         const hit = computeMonsterDamageVsHunter(modifiedAttacker, hunter);
         if (!hit.missed) {

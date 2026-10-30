@@ -14,6 +14,8 @@ import type { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
+import { computeSkillBonuses, type ClassModBoosts } from '../../lib/skills/skillBonuses';
+import type { ClassMod } from '../../types/items';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 function formatTimeAway(ms: number): string {
@@ -86,6 +88,43 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
       }
 
       const area = await import('../../constants/roamingAreas').then((m) => m.getRoamingArea(activeAction.target_id));
+
+      // Area level gate (same rule as the foreground claim route): a
+      // stale above-gate selection settles nothing.
+      if ((profile.player_level || 1) < area.unlockLevel) {
+        res.json({ settled: false, reason: 'area_locked' });
+        return;
+      }
+
+      // Offline parity: settle with the SAME claim inputs a foreground
+      // claim carries. The loadout comes from the server's own records
+      // (item_instances rows with runtime_state 'equipped') — never
+      // the runtime display snapshot, which is hydration support only.
+      // Skill bonuses are rebuilt from the server's records too
+      // (profiles.skill_spends + the equipped class mod's boosts) via
+      // the one shared computation the client store uses. Before this,
+      // the claim was built with no gear and no skills at all, so gear
+      // offline-earnings mods, the whole Scavenger offline tree,
+      // scrap/rare mods, and Salvage Rights paid zero offline.
+      let equippedGear: Awaited<ReturnType<ChefGameplayStore['getEquippedGear']>>;
+      try {
+        equippedGear = await store.getEquippedGear(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read loadout', detail: message });
+        return;
+      }
+      const equippedClassMod = equippedGear.find(
+        (g): g is ClassMod => 'treeBonus' in g,
+      );
+      const classModBoosts: ClassModBoosts = equippedClassMod
+        ? { treeBonus: equippedClassMod.treeBonus, nodeBoosts: { ...equippedClassMod.nodeBoosts } }
+        : { nodeBoosts: {} };
+      const skillBonuses = computeSkillBonuses(
+        (profile.skill_spends ?? {}) as Record<string, number>,
+        classModBoosts,
+      );
+
       const claim: ClaimRequest = {
         playerId,
         areaId: area.id,
@@ -94,6 +133,8 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         playerLevel: profile.player_level || 1,
         maxTicks: Infinity, // NO 20-TICK CLAMP for offline settlement
         effectiveDps: 0,
+        equippedGear,
+        skillBonuses,
         consumableInventory: (profile.consumables ?? {}) as Record<string, number>,
         // Server-authoritative scrap bank (migration 0009).
         scrapRemainder: profile.scrap_remainder,

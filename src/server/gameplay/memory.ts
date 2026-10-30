@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto';
 import { applyXp, computeItemEstimatedValue, salvageScrap, type Json } from '../writes/store';
 import {
   GameplayStoreError,
+  LOADOUT_SLOT_ORDER,
   type ActiveActionRow,
   type BossProfileRow,
   type ChefBossAttemptInput,
@@ -29,6 +30,7 @@ import {
   type RoamingProfileRow,
   type SettlementProfileRow,
 } from './store';
+import type { GearItem } from '../../types/items';
 
 export interface InMemoryProfile {
   id: string;
@@ -239,7 +241,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder };
+    return { player_level: p.player_level, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -258,6 +260,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (!p) return null;
     return {
       player_level: p.player_level,
+      skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json,
       consumables: { ...p.consumables },
       last_claimed_tick: p.last_claimed_tick,
       last_roaming_settled_at: p.last_roaming_settled_at,
@@ -273,6 +276,20 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const a = this.activeActions.get(playerId);
     if (!a) return null;
     return { ...a, activity_payload: { ...a.activity_payload } };
+  }
+
+  async getEquippedGear(playerId: string): Promise<GearItem[]> {
+    const slotRank = new Map<string, number>(LOADOUT_SLOT_ORDER.map((slot, i) => [slot, i]));
+    return [...this.items.values()]
+      .filter(
+        (item) =>
+          item.owner_user_id === playerId &&
+          item.runtime_state === 'equipped' &&
+          item.equipped_slot !== null &&
+          slotRank.has(item.equipped_slot),
+      )
+      .sort((a, b) => (slotRank.get(a.equipped_slot!) ?? 0) - (slotRank.get(b.equipped_slot!) ?? 0))
+      .map((item) => JSON.parse(JSON.stringify(item.payload)) as GearItem);
   }
 
   async applyChefRewards(

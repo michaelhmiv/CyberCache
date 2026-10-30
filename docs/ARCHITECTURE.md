@@ -24,7 +24,7 @@ in screens or components is forbidden.
 | **Activity lifecycle** (start, stop, heartbeat) | `src/lib/api/activityService.ts` + `src/store/useActivityStore` | Server-backed via Chef activity routes (`active_actions` table) |
 | **Roaming tick processing** | `src/server/chef.ts` (Chef worker) | Authoritative engine. Processes claims, generates items, awards resources. Runs on Railway server process. |
 | **Roaming tick preview** (UI-only) | `src/store/slices/idleTickerSlice.ts` → `rollPreviewEvents` | COSMETIC ONLY. Shows placeholder events until Chef response. No store mutations. |
-| **Server reward claiming** | `src/lib/api/verifiedOps.ts` → Chef write routes (`cc_*` server-side) | Verified ops are the canonical mutation path |
+| **Server reward claiming** | Chef `POST /api/claim` (`src/server/routes/roamingHandler.ts`) → `cc_apply_chef_rewards` | The ONLY roaming claim path. No fallback engine: a failed Chef claim pays nothing and the ticker retries next cycle (the retired `cc_claim_roaming_rewards` fallback paid stale flat rates and was removed) |
 | **Offline settlement** | `src/server/routes/claim.ts` → `POST /api/settle-offline` | Server-authoritative. Computes elapsed time from DB timestamps, processes all eligible ticks (capped by hours, not 20-tick limit). Idempotent via nonce. |
 | **Item generation** | `src/server/chef.ts` + `src/lib/generators/*` | Chef calls the same TS generators as the client imports. ONE source of truth. |
 | **Tick feed events** | `src/store/slices/tickSlice.ts` | `TickEvent` / `TickEventTone`. Capped at 50, FIFO. |

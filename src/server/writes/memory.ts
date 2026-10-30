@@ -15,10 +15,8 @@ import {
   drawOdds,
   emptyWriteSeed,
   generateWeaponPayload,
-  hashString,
   itemAcceptsSlot,
   masteryLevelForXp,
-  Mulberry32,
   newUuid,
   recipeMaterials,
   recipeQualityBounds,
@@ -926,105 +924,6 @@ export class InMemoryWriteStore implements WriteStore {
       rewards: { xp: xpAward, credits: creditAward },
     };
     return this.record(playerId, 'cc_idle_claim', key, result);
-  }
-
-  async claimRoamingRewards(playerId: string, ticks: number, areaId: string, tickCount: number): Promise<Json> {
-    const cleanTicks = Math.floor(ticks);
-    if (!Number.isFinite(cleanTicks) || cleanTicks < 1 || cleanTicks > 2400) {
-      throw writeError('ticks must be between 1 and 2400');
-    }
-    const cleanArea = (areaId ?? '').trim();
-    if (cleanArea.length < 2) throw writeError('area_id is required');
-    const cleanTickCount = Math.floor(tickCount);
-    if (!Number.isFinite(cleanTickCount) || cleanTickCount < 1) {
-      throw writeError('tick_count must be a positive integer');
-    }
-    const ledgerKey = `${playerId}:${cleanTickCount}`;
-    const prior = this.prior(playerId, ledgerKey);
-    if (prior) return prior;
-    const p = this.profile(playerId);
-    const lastClaimed = p.last_claimed_tick ?? 0;
-    if (cleanTickCount <= lastClaimed) {
-      throw writeError(`tick_count ${cleanTickCount} is not after last claimed tick ${lastClaimed}`);
-    }
-    const activity = this.activities.get(playerId);
-    if (!activity || activity.active_action !== 'roaming_loot' || activity.target_id !== cleanArea) {
-      throw writeError(`No active roaming activity for area ${cleanArea}`);
-    }
-    const area = this.seed.roamingAreas.find((a) => a.id === cleanArea);
-    const cfg = (area?.payload ?? {}) as Json;
-    const creditsPerTick = Math.max(0, Number(cfg.credits_per_tick ?? 1) || 0);
-    const scrapPerTick = Math.max(0, Number(cfg.scrap_per_tick ?? 0) || 0);
-    const xpPerTick = Math.max(0, Number(cfg.xp_per_tick ?? 1) || 0);
-    const materialBias = Array.isArray(cfg.material_bias) && cfg.material_bias.length ? (cfg.material_bias as string[]) : ['ScrapAlloy'];
-    const essenceBias = Array.isArray(cfg.essence_bias) ? (cfg.essence_bias as string[]) : [];
-    const capHours = Number(p.offline_cap_hours ?? 2) || 2;
-    const capMs = Math.trunc(Math.max(0.25, capHours)) * 3600 * 1000;
-    const finalTicks = Math.min(cleanTicks, Math.max(1, Math.floor(capMs / 3000)));
-    let creditsAwarded = 0;
-    let scrapAwarded = 0;
-    let xpAwarded = 0;
-    let fragments = 0;
-    let kills = 0;
-    const materials: Record<string, number> = {};
-    const essences: Record<string, number> = {};
-    const gearAnnounced: Json[] = [];
-    for (let i = 1; i <= finalTicks; i += 1) {
-      const rng = new Mulberry32(hashString(`${playerId}:${cleanArea}:${i}`));
-      const roll = rng.next();
-      if (roll < 0.22) {
-        gearAnnounced.push({ tick: i, kind: 'pending' });
-      } else if (roll < 0.25) {
-        fragments += 1;
-      } else if (roll < 0.33) {
-        const choice = materialBias[Math.min(materialBias.length - 1, Math.floor(rng.next() * materialBias.length))];
-        if (essenceBias.includes(choice)) essences[choice] = (essences[choice] ?? 0) + 1;
-        else materials[choice] = (materials[choice] ?? 0) + 1;
-      } else {
-        kills += 1;
-      }
-      creditsAwarded += creditsPerTick;
-      scrapAwarded += scrapPerTick;
-      xpAwarded += Math.round(xpPerTick);
-    }
-    const next = applyXp(p.player_level, p.player_xp, xpAwarded);
-    p.player_level = next.player_level;
-    p.player_xp = next.player_xp;
-    p.credits += creditsAwarded;
-    p.scrap += scrapAwarded;
-    p.cache_token_parts += fragments;
-    const profileMaterials = asNumberMap(p.materials);
-    for (const [k, v] of Object.entries(materials)) profileMaterials[k] = (profileMaterials[k] ?? 0) + v;
-    p.materials = profileMaterials;
-    const profileEssences = asNumberMap(p.essences);
-    for (const [k, v] of Object.entries(essences)) profileEssences[k] = (profileEssences[k] ?? 0) + v;
-    p.essences = profileEssences;
-    p.last_claimed_tick = cleanTickCount;
-    this.touch(p);
-    activity.last_heartbeat_at = this.nowIso();
-    activity.activity_payload = {
-      ...activity.activity_payload,
-      last_claim_ticks: finalTicks,
-      last_claim_at: this.nowFn().getTime(),
-    };
-    activity.updated_at = this.nowIso();
-    const result: Json = {
-      action_type: 'cc_claim_roaming_rewards',
-      profile: this.profileSnapshot(p),
-      rewards: {
-        ticks: finalTicks,
-        credits_awarded: creditsAwarded,
-        scrap_awarded: scrapAwarded,
-        xp_awarded: xpAwarded,
-        cache_fragments_awarded: fragments,
-        materials,
-        essences,
-        kills_recorded: kills,
-        gear_announced: gearAnnounced,
-      },
-      activity: this.activitySnapshot(activity),
-    };
-    return this.record(playerId, 'cc_claim_roaming_rewards', ledgerKey, result);
   }
 
   async retrain(playerId: string, nonce: string): Promise<Json> {

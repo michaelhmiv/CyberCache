@@ -14,6 +14,7 @@ import type { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
+import { getRoamingArea } from '../../constants/roamingAreas';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig) {
@@ -45,6 +46,20 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
         return;
       }
 
+      // Area level gate, enforced server-side against the DB level.
+      // unlockLevel used to be UI-only (disabled picker buttons), so a
+      // stale or forged area selection farmed the top area at level 1.
+      const area = getRoamingArea(body.areaId);
+      if (profile.player_level < area.unlockLevel) {
+        res.status(403).json({
+          error: 'Area locked for your level',
+          areaId: area.id,
+          requiredLevel: area.unlockLevel,
+          playerLevel: profile.player_level,
+        });
+        return;
+      }
+
       if (body.tickCount <= profile.last_claimed_tick) {
         res.status(409).json({ error: 'tick_count already claimed', lastClaimedTick: profile.last_claimed_tick });
         return;
@@ -56,6 +71,10 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
       // Merge inventory + roaming state into the claim
       const claimWithConsumables: ClaimRequest = {
         ...claim,
+        // The DB level is authoritative (same precedent as the
+        // verify-boss route): it drives the area gate above and item
+        // generation levels, never the client body's playerLevel.
+        playerLevel: profile.player_level,
         // Server-authoritative scrap bank (migration 0009): read from the
         // profile, never from the client body spread above.
         scrapRemainder: profile.scrap_remainder,

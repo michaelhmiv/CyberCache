@@ -690,7 +690,6 @@ export interface WriteStore {
   equipItem(playerId: string, nonce: string, itemId: string, slotName: string): Promise<Json>;
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json>;
   idleClaim(playerId: string, nonce: string): Promise<Json>;
-  claimRoamingRewards(playerId: string, ticks: number, areaId: string, tickCount: number): Promise<Json>;
   retrain(playerId: string, nonce: string): Promise<Json>;
   trainSkill(playerId: string, nonce: string, nodeId: string): Promise<Json>;
   battleResult(playerId: string, nonce: string, targetId: string, stance: string): Promise<Json>;
@@ -831,14 +830,6 @@ export class PgWriteStore implements WriteStore {
   }
   idleClaim(playerId: string, nonce: string): Promise<Json> {
     return this.callJson('select public.cc_idle_claim($1, $2) as result', [playerId, nonce]);
-  }
-  claimRoamingRewards(playerId: string, ticks: number, areaId: string, tickCount: number): Promise<Json> {
-    return this.callJson('select public.cc_claim_roaming_rewards($1, $2, $3, $4) as result', [
-      playerId,
-      ticks,
-      areaId,
-      tickCount,
-    ]);
   }
   retrain(playerId: string, nonce: string): Promise<Json> {
     return this.callJson('select public.cc_retrain($1, $2) as result', [playerId, nonce]);
