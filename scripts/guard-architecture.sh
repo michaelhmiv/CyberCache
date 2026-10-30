@@ -74,6 +74,7 @@ ALLOWED_TIMERS=(
   "$SRC/components/stats/ActiveBuffPills.tsx:buff countdown display clock (display-only)"
   "$SRC/components/activity/useLeaveSignals.ts:best-effort leave signal throttle reset"
   "$SRC/components/fight/BossPrepModal.tsx:fight animation delay (display-only)"
+  "$SRC/components/pixelArt/LootMoment.tsx:loot celebration pacing (display-only; advances presentation state, drops already awarded)"
   "$SRC/components/profile/UsernameSetupModal.tsx:username availability debounce (form validation)"
   "$SRC/hooks/useNow.ts:shared reactive clock hook"
   "$SRC/lib/activity/useActionStageOrchestrator.ts:animation beat pacing (display-only)"
@@ -213,6 +214,7 @@ echo -n "Rule 6: No unapproved localStorage usage... "
 ALLOWED_STORAGE=(
   "$SRC/lib/activity/activitySettlement.ts:cross-tab lock (coordination, not progression)"
   "$SRC/components/action/ActionLoadout.tsx:UI collapse preference (not progression)"
+  "$SRC/components/pixelArt/LootMoment.tsx:UI celebration seen-preference for tap-to-skip (not progression)"
   "$SRC/test/:test files"
 )
 

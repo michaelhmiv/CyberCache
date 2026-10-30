@@ -54,7 +54,6 @@ import type { ActivityKind, StartActivityInput } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
 import { ResourceBar } from '@/components/layout/ResourceBar';
-import { LegendaryDropFlash } from '@/components/action/LegendaryDropFlash';
 import { selectEquippedWeapons } from '@/lib/loadout/equippedWeaponTruth';
 import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 
@@ -617,8 +616,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" />
       </div>
 
-      {/* Legendary drop screen flash */}
-      <LegendaryDropFlash />
+      {/* Legendary drops get the full P3 loot moment in the diorama
+          below (dim + gold pillar + risen weapon) — it supersedes the
+          old LegendaryDropFlash overlay, which was retired in P3. */}
 
       {/* Resource bar */}
       <ResourceBar className="px-4 pt-1" />

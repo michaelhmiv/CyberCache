@@ -19,13 +19,15 @@ import {
 } from '@/components/pixelArt/PixelFx';
 import { getPixelSprite, pixelBackgroundForArea, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
+import { LootMoment } from '@/components/pixelArt/LootMoment';
+import { gearDropFromEvent } from '@/lib/pixel/lootMoment';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { useKillCycleStore, useTickFeedStore, useBossStore } from '@/store';
 import { MONSTERS } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ARCHETYPE_SILHOUETTES, type EnemyArchetype } from '@/components/diorama/EnemySilhouettes';
-import { Element, WeaponType } from '@/types/game';
-import { MATERIAL_VISUALS, ESSENCE_VISUALS, RESOURCE_VISUALS, GEAR_VISUALS } from '@/constants/visualAssets';
+import { Element, Rarity, WeaponType } from '@/types/game';
+import { MATERIAL_VISUALS, ESSENCE_VISUALS, RESOURCE_VISUALS } from '@/constants/visualAssets';
 import { pickResourceSilhouette, type ResourceSilhouetteId } from '@/constants/resourceSilhouettes';
 import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
@@ -110,17 +112,6 @@ const dropAssetColor = (typeName: string): string => {
   const res = (RESOURCE_VISUALS as Record<string, { color: string }>)[typeName];
   if (res) return res.color;
   return '#A5A7B5'; // fallback gray
-};
-
-/** Determine gear type category from a GearItem for non-weapon drops */
-const gearTypeCategory = (gear: TickEvent['gear']): 'weapon' | 'shield' | 'classMod' | 'relic' | 'ordnance' | 'gear' => {
-  if (!gear) return 'gear';
-  if ('weaponType' in gear) return 'weapon';
-  if ('hp' in gear && 'rechargeRate' in gear) return 'shield';
-  if ('damage' in gear && 'effect' in gear) return 'ordnance';
-  if ('treeBonus' in gear) return 'classMod';
-  if ('affixes' in gear) return 'relic';
-  return 'gear';
 };
 
 // ── Scene Props (unchanged) ──────────────────────────────────────────────────────
@@ -380,53 +371,6 @@ const LootDropSvg: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean }> = (
     >
       <DropVisualIcon tone={event.tone} label={event.label} x={320} y={105} size={34} />
     </motion.g>
-  );
-};
-
-/** HTML overlay drops (weapons, gear) — renders OUTSIDE SVG because WeaponIllustration uses <div> */
-const LootDropHtml: React.FC<{ event?: LiveTurfFeedEvent; reduced: boolean; pixel?: boolean }> = ({ event, reduced, pixel = false }) => {
-  if (!event || reduced) return null;
-  if (event.tone !== 'loot' || !event.gear) return null;
-
-  const gear = event.gear;
-  const isWeaponDrop = 'weaponType' in gear;
-  const rarityColor = gear.rarity === 'Legendary' ? '#FFEA3A'
-    : gear.rarity === 'Epic' ? '#FF9DF5'
-    : gear.rarity === 'Rare' ? '#5AA7FF'
-    : gear.rarity === 'Uncommon' ? '#7CFC00'
-    : '#A5A7B5';
-  const gearCat = gearTypeCategory(gear);
-  const gearVis = (GEAR_VISUALS as Record<string, { color: string; label: string }>)[gearCat];
-
-  return (
-    <motion.div
-      className="pointer-events-none absolute z-20"
-      style={{ left: '46%', top: '34%' }}
-      initial={{ y: 0, opacity: 0, scale: 0.6 }}
-      animate={{ y: -40, opacity: [0, 1, 1, 0], scale: [0.6, 1, 1, 0.8] }}
-      transition={{ duration: 2.0, ease: 'easeOut', times: [0, 0.15, 0.7, 1] }}
-    >
-      <div className="flex flex-col items-center">
-        {isWeaponDrop ? (
-          pixel ? (
-            <PixelWeapon weapon={gear as Weapon} size={64} />
-          ) : (
-            <WeaponIllustration weapon={gear as Weapon} size={48} showBadges={false} animate={true} />
-          )
-        ) : (
-          <div className="flex flex-col items-center">
-            <svg width="40" height="40" viewBox="0 0 40 40">
-              <polygon points="20,2 34,12 34,28 20,38 6,28 6,12" fill={gearVis?.color ?? '#A5A7B5'} fillOpacity="0.25" stroke={gearVis?.color ?? '#A5A7B5'} strokeWidth="2" />
-              <text x="20" y="23" textAnchor="middle" fill={rarityColor} fontSize="9" fontWeight="900" stroke="#000" strokeWidth="2">{gearCat.toUpperCase().slice(0, 4)}</text>
-            </svg>
-            <span className="mt-1 text-[8px] font-black" style={{ color: rarityColor, textShadow: '0 0 6px #000' }}>{gear.rarity.toUpperCase()}</span>
-          </div>
-        )}
-        {isWeaponDrop && (
-          <span className="mt-1 text-[8px] font-black" style={{ color: rarityColor, textShadow: '0 0 6px #000' }}>{gear.rarity.toUpperCase()}</span>
-        )}
-      </div>
-    </motion.div>
   );
 };
 
@@ -696,6 +640,10 @@ const PixelSceneLayer: React.FC<{
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
   const lootLike = isLootLike(event) && !reduced;
+  // A real gear drop on the latest event gets the P3 loot moment (beam +
+  // card at the enemy's loot point); other loot-like events keep the
+  // crate rise below. Hit ticks share tone 'loot' but carry no gear.
+  const dropItem = gearDropFromEvent(event);
   const crate = getPixelSprite('crate');
   const [enemyLanded, setEnemyLanded] = useState(false);
 
@@ -708,6 +656,7 @@ const PixelSceneLayer: React.FC<{
   const hunterMass = actorAnchorPoint(hunterSprite, 'centerMass', hunterPlacement);
   const enemyMass = actorAnchorPoint(enemySprite, 'centerMass', enemyPlacement);
   const enemyFeet = actorAnchorPoint(enemySprite, 'feet', enemyPlacement);
+  const enemyLoot = actorAnchorPoint(enemySprite, 'lootPoint', enemyPlacement);
 
   const combatBeat = beat && showEnemy ? beat : null;
   const shakeKey =
@@ -756,6 +705,17 @@ const PixelSceneLayer: React.FC<{
           y: [0, 0, 24],
           transition: { duration: 0.5, ease: 'easeIn' },
         });
+        break;
+      case 'loot':
+        // A legendary drop is the celebration beat (P3): the hunter hops
+        // as the LootMoment's gold pillar lands. Lesser drops settle.
+        if (event?.gear?.rarity === Rarity.Legendary) {
+          void hunterControls.start({ y: [0, -11, 0], transition: { duration: MOVEMENT.LOOT_HOP_MS / 1000, ease: 'easeOut' } });
+        } else {
+          void hunterControls.start({ x: 0, y: 0, scaleY: 1, transition: { duration: 0.2 } });
+        }
+        void enemyLungeControls.start({ x: 0, transition: { duration: 0.2 } });
+        void enemyHitControls.start({ opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.2 } });
         break;
       default:
         // Quiet/loot event (or a fresh target): settle back to rest poses.
@@ -887,8 +847,9 @@ const PixelSceneLayer: React.FC<{
         </div>
       )}
 
-      {/* Loot crate rise on loot-like events (drop cards/beams are P3) */}
-      {lootLike && crate && (
+      {/* Loot crate rise on loot-like events that are not gear drops
+          (fragments, materials, cache ticks) */}
+      {lootLike && !dropItem && crate && (
         <motion.img
           key={`loot-${event?.id}`}
           src={crate.url}
@@ -899,6 +860,22 @@ const PixelSceneLayer: React.FC<{
           initial={{ y: 6, opacity: 0, scale: 0.6 }}
           animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
           transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
+        />
+      )}
+
+      {/* P3 loot moment for real gear drops: rarity beam + drop card at
+          the enemy's manifest loot point (light for ordinary drops, the
+          full legendary treatment when a legendary lands). The drop was
+          already awarded by the Chef claim — this only celebrates it. */}
+      {dropItem && event && (
+        <LootMoment
+          key={`loot-moment-${event.id}`}
+          items={[dropItem]}
+          surface="feed"
+          reduced={reduced}
+          anchorXPct={enemyLoot.xPct}
+          groundYPct={enemyFeet.yPct}
+          testId="diorama-loot-moment"
         />
       )}
     </PixelStage>
@@ -921,6 +898,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const element = weapon?.element ?? Element.Kinetic;
   const projectile = ELEMENT_PROJECTILE[element];
   const eventActive = isImpact(latestEvent);
+  const dropItem = gearDropFromEvent(latestEvent);
   const title = activityTarget || bossName || area.name;
   const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : 'No weapon equipped';
   const motionCaption = latestEvent ? `${latestEvent.label} ${latestEvent.detail}` : copy.caption;
@@ -966,8 +944,21 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       </svg>
       )}
       {/* HTML overlays — any component that renders <div> must live OUTSIDE the <svg> */}
-      {/* Loot drop gear (weapons/gear render HTML <div> internally, must be outside SVG) */}
-      <LootDropHtml event={latestEvent} reduced={reduced} pixel={!!pixelBackgroundId} />
+      {/* P3 loot moment for gear drops on not-yet-converted (vector) zones —
+          pixel zones render theirs inside the scene layer at the enemy's
+          manifest loot point. Beam base here is the vector enemy's ground
+          position (320/420 across, ~151/286 down the viewBox). */}
+      {!pixelBackgroundId && dropItem && latestEvent && (
+        <LootMoment
+          key={`loot-moment-${latestEvent.id}`}
+          items={[dropItem]}
+          surface="feed"
+          reduced={reduced}
+          anchorXPct={(320 / 420) * 100}
+          groundYPct={(151 / 286) * 100}
+          testId="diorama-loot-moment"
+        />
+      )}
       {/* Target HP overlay */}
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
       <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} reduced={reduced} />
