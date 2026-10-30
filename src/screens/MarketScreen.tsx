@@ -334,7 +334,7 @@ export const MarketScreen: React.FC = () => {
             <option value="name">Sort: Name A-Z</option>
           </select>
           <div className="space-y-2">
-            {filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell tab.</div>}
+            {!loadingListings && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell tab.</div>}
             {filteredListings.map((listing) => {
               const seller = formatSellerName(listing.sellerId, player.name, currentUserId);
               return (

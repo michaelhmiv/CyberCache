@@ -39,11 +39,13 @@ interface ChipProps {
   sub: string;
   seed?: number;
   action?: React.ReactNode;
+  /** Wider flex share — the key chip's fragment count must never truncate (audit X1). */
+  wide?: boolean;
 }
 
-const Chip: React.FC<ChipProps> = ({ resourceId, value, sub, seed = 0, action }) => (
+const Chip: React.FC<ChipProps> = ({ resourceId, value, sub, seed = 0, action, wide }) => (
   <motion.div
-    className="relative min-w-[70px] flex-1 overflow-hidden border-2 border-border bg-bg px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+    className={`relative min-w-[70px] overflow-hidden border-2 border-border bg-bg px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] ${wide ? 'flex-[1.35]' : 'flex-1'}`}
     style={signClip}
     whileTap={{ scale: 0.97 }}
   >
@@ -114,7 +116,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
         <Chip
           resourceId="scrap"
           value={compact(player.scrap)}
-          sub="bench"
+          sub="scrap"
           seed={2}
         />
         <Chip
@@ -122,6 +124,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
           value={player.cacheKeys}
           sub={`${player.cacheKeyFragments}/5 frags`}
           seed={3}
+          wide
           action={(
             <button
               type="button"
@@ -142,7 +145,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
         <Chip
           resourceId="level"
           value={player.level}
-          sub={`LV ${player.level}`}
+          sub="level"
           seed={5}
         />
       </div>

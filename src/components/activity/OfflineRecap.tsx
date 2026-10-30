@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Clock } from 'lucide-react';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
 import { MaterialBadge } from '@/components/common/MaterialBadge';
+import { getVisualAsset } from '@/constants/visualAssets';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 
 function formatNumber(n: number): string {
@@ -156,7 +157,7 @@ export function OfflineRecap() {
                 <RewardRow
                   key={`mat-${type}`}
                   icon={<MaterialBadge id={type} count={count} />}
-                  label={type}
+                  label={getVisualAsset('material', type).label}
                   value={`+${count}`}
                   accent="text-blue-400"
                 />

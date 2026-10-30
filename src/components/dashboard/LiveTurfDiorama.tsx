@@ -84,7 +84,7 @@ const modeFromActivity = (kind?: ActivityKind, bossPhase?: BossPhase): DioramaMo
 };
 
 const modeInfo: Record<DioramaMode, { label: string; caption: string; status: string }> = {
-  idle: { label: 'Standby', caption: 'runner parked at camp', status: 'READY' },
+  idle: { label: 'Standby', caption: 'at camp, ready to move', status: 'READY' },
   roaming: { label: 'Roaming', caption: 'scanning turf for real drops', status: 'ROUTE' },
   bossPrep: { label: 'Boss prep', caption: 'checking counters and gear tape', status: 'PREP' },
   bossFight: { label: 'Boss fight', caption: 'resolving boss encounter', status: 'FIGHT' },

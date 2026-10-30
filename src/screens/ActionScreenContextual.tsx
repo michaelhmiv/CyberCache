@@ -19,6 +19,7 @@ import {
 } from '@/store';
 import { BossPrepModal } from '@/components/fight/BossPrepModal';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { getVisualAsset } from '@/constants/visualAssets';
 import {
   ActionFeed,
   ContextualPickerSheet,
@@ -767,7 +768,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           {bosses.map((boss) => <button key={boss.id} type="button" onClick={() => startPrep(boss)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="text-sm font-black text-text-primary">{boss.name}</span><span className="text-[9px] text-text-muted">Lv.{boss.level} · Pwr {boss.recommendedPower}</span></div><div className="mt-1 text-[10px] text-text-muted">Weak: {boss.weaknesses.join('/')} · Drops: {boss.dedicatedDrops.slice(0, 2).join(', ')}</div></button>)}
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showRecipePicker} title="Choose Recipe" detail="Recipe selection is contextual, not permanent page chrome." onClose={() => setShowRecipePicker(false)}>
-          {craftable.map(({ recipe, check, duration }) => <button key={recipe.id} type="button" onClick={() => check.can && startCrafting(recipe)} disabled={!check.can} className="w-full border-2 border-border bg-surface p-3 text-left disabled:opacity-50" style={smallClip}><div className="flex justify-between gap-2"><span className="text-sm font-black text-text-primary">{recipe.name}</span><span className="text-[9px] text-amber">{formatDuration(duration)}</span></div><div className="mt-1 text-[10px] text-text-muted">{check.can ? Object.entries(recipe.materials).map(([k, v]) => `${k} ${v}`).join(' · ') : check.missing.join(' · ')}</div></button>)}
+          {craftable.map(({ recipe, check, duration }) => <button key={recipe.id} type="button" onClick={() => check.can && startCrafting(recipe)} disabled={!check.can} className="w-full border-2 border-border bg-surface p-3 text-left disabled:opacity-50" style={smallClip}><div className="flex justify-between gap-2"><span className="text-sm font-black text-text-primary">{recipe.name}</span><span className="text-[9px] text-amber">{formatDuration(duration)}</span></div><div className="mt-1 text-[10px] text-text-muted">{check.can ? Object.entries(recipe.materials).map(([k, v]) => `${getVisualAsset('material', k).label} ${v}`).join(' · ') : check.missing.join(' · ')}</div></button>)}
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down. Higher rarity = dramatically more materials." onClose={() => setShowSalvagePicker(false)}>
           {salvageCandidates.map((item) => { const y = calculateSalvageYield(item); return <button key={item.id} type="button" onClick={() => startSalvage(item)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">+{y.scrapAlloy} alloy · +{y.ballisticParts} parts · +{y.reactiveComponents} reactive · +{y.techFragments} tech</div></button>; })}

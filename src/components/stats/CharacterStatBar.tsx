@@ -97,7 +97,7 @@ const TopContribsStrip = memo(function TopContribsStrip({ summary, n = 3 }: { su
             data-contrib-source={c.source}
           >
             <div className={`h-1 w-1 shrink-0 ${tone.rail}`} />
-            <span className="truncate text-[8px] font-black text-text-primary">{c.source}</span>
+            <span className="line-clamp-2 leading-[1.15] text-[8px] font-black text-text-primary" title={c.source}>{c.source}</span>
             <span className="shrink-0 text-[9px] font-black text-amber">{c.display}</span>
           </div>
         );
