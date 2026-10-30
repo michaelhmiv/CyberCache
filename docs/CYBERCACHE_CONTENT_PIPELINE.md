@@ -2,6 +2,14 @@
 
 CyberCache static gameplay content should be versioned, validated, simulated, and then consumed by runtime systems. The spreadsheet/workbook is a design workspace, not a production dependency.
 
+> **Status note — professions (2026-10-30, Phase 0 Slice 5):** Professions are
+> **design-only / NOT implemented**. The `PROFESSION_TRACKS` corpus in
+> `src/content/gameContent.ts` is a design record: no screen imports it, no
+> gameplay system reads it, and profession XP has no mechanical effect in the
+> shipped game. Mentions of professions below describe the intended design
+> pipeline, not shipped behavior. The corpus is kept as a future candidate;
+> do not treat it as a live system.
+
 ## Intended Flow
 
 1. Design or rebalance content in the workbook or directly in `src/content/`.

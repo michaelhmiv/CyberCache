@@ -322,6 +322,16 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 ### Skill Point System
 - 1 point per level (starting at level 2)
 - Respec costs: 100cr × total points spent
+- Respec is reachable in Profile → Skill Trees: the Respec button runs `cc_retrain` end-to-end (server charges total spent × 100cr, zeroes `skill_spends`, and the returned profile snapshot refunds the points in the UI immediately). Until Phase 0 Slice 5 the button only existed in the screen's standalone header, which the embedded Profile render suppressed — the mechanism worked but no player could reach it.
+
+### Mastery
+- ~29 tracks (`mastery_definitions`): weapons per type, locations per roaming area, combat (boss attempts/defeats, ordnance), economy (vendor, market, net worth), inventory (cache draws, recycling, scrap), consumable efficiency, consumable crafting, skills training, services.
+- XP is granted by the verified-action ledger trigger (`cc_apply_mastery_for_verified_action`) and levels follow `cc_mastery_level` (level L → L+1 costs L² × 100 XP). Levels are display/progression only, except `crafting_consumables`, whose level widens the crafted-quality bounds in `cc_claim_crafted_consumable`.
+- Shipped flows feed it (Phase 0 Slice 5, migration 0014 — before that, roaming and boss play granted nothing):
+  - **Roaming claims + offline settlements**: location mastery for the *actual* area farmed (greatest(1, XP awarded), the legacy idle-claim rule; `dustwaste_frontier` maps to the original `locations.dustwaste` definition), weapon mastery = XP awarded for the equipped primary weapon's type, and consumable efficiency / ordnance from the consumed set.
+  - **Boss attempts**: combat.boss_attempts +20 per attempt, combat.boss_defeats +100 on victory, weapon mastery = XP awarded (XP is victory-gated, so defeats grant none), consumable mastery from the prepared set actually consumed. Boss attempts grant **no** location mastery — bosses have no area in the data model; the legacy flat Dustwaste grant was fiction and was not carried over.
+  - Legacy ops (cache draws, recycling, vendor, market, services, retrain, idle claim, battle result) keep their original grants.
+- Players see their tracks in Profile → Mastery (level, total XP, and progress to the next level), read from `GET /api/mastery/summary`.
 
 ---
 
@@ -478,6 +488,7 @@ Nothing outside the prepared set is ever touched.
 - **Auto-salvage Scavenger bonuses**: FightScreen scrapItem() doesn't apply scrapYield bonus
 
 ### ❌ Not Yet Implemented
+- Professions — **design-only, parked** (Phase 0 Slice 5): the `PROFESSION_TRACKS` corpus in `src/content/gameContent.ts` and the `player_professions` table exist as a design record, but no screen imports the corpus, nothing reads profession state, and profession XP has no mechanical effect. Kept as a future candidate; not a shipped system.
 - Missions / Dispatch Board
 - Weapon parts extraction/socketing
 - Fusion Lab (component-level upgrades)
