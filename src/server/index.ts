@@ -16,6 +16,8 @@ import { mountAuthRoutes } from './auth/routes';
 import { PgAuthStore } from './auth/store';
 import { mountReadRoutes } from './reads/routes';
 import { PgReadStore } from './reads/store';
+import { mountWriteRoutes } from './writes/routes';
+import { PgWriteStore } from './writes/store';
 
 const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, '../../dist');
@@ -82,6 +84,10 @@ if (chefJwtSecret && databaseUrl) {
       // useless without Chef JWTs to authenticate them.
       mountReadRoutes(app, new PgReadStore(pool), { jwtSecret: chefJwtSecret });
       console.log('[chef-reads] read APIs mounted (Route B B2)');
+      // Route B write APIs (slice B3) — same gate: every mutation derives
+      // its actor from the Chef JWT and lands in the cc_* write functions.
+      mountWriteRoutes(app, new PgWriteStore(pool), { jwtSecret: chefJwtSecret });
+      console.log('[chef-writes] write APIs mounted (Route B B3)');
     })
     .catch((err) => console.error('[chef-auth] failed to initialize pg pool', err));
 } else {
