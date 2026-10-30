@@ -16,6 +16,8 @@ import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSki
 import { ConsumablePicker } from '../consumables/ConsumablePicker';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
+import { BossFightStage } from '../pixelArt/BossFightStage';
+import { GhostHpBar } from '../pixelArt/PixelFx';
 import { BossSigil } from '@/components/common/BossSigil';
 import { BossPortrait } from '@/components/common/BossPortrait';
 import { getResourceVisual } from '@/constants/visualAssets';
@@ -418,10 +420,9 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
     // Set up the fight timeline so the fight card can render the animation
     // (or the reduced-motion skip). The animation walks the phase
-    // boundaries; the player/boss HP bar values interpolate linearly. The
-    // initial values are derived from the sim outcome: victory starts the
-    // boss at 100% and walks it down; defeat starts the boss at the
-    // bossHpRemaining percentage and leaves it there.
+    // boundaries at Sample B pacing; both HP bars interpolate from 100%
+    // to the narrative end state (victory: boss 0 / player 30%; defeat:
+    // player 0 / boss at its remaining %), trading damage per phase.
     const shieldHpValue = shield?.hp ?? 0;
     const initialTimeline: FightTimeline = buildInitialTimeline(
       outcome,
@@ -566,7 +567,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
             renders the animated HP bars and phase markers driven by the
             fightTimeline state (see runFightAnimation above). */}
         {!result && fightTimeline && (
-          <FightCard timeline={fightTimeline} phases={sim.phaseAnalyses} bossName={boss.name} bossId={boss.id} reducedMotion={reducedMotion} />
+          <FightCard timeline={fightTimeline} phases={sim.phaseAnalyses} bossName={boss.name} bossId={boss.id} reducedMotion={reducedMotion} weapon={primary ?? undefined} />
         )}
 
         {/* Hide the phase-plan and current-answers sections during the
@@ -892,7 +893,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
 
 // Keep the FightCard component as a small subcomponent to keep the main
 // BossPrepModal JSX clean. It only renders when simulating && !result.
-const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bossName: string; bossId: string; reducedMotion: boolean | null }> = ({ timeline, phases, bossName, bossId, reducedMotion }) => {
+const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bossName: string; bossId: string; reducedMotion: boolean | null; weapon?: Weapon }> = ({ timeline, phases, bossName, bossId, reducedMotion, weapon }) => {
   const playerPct = timeline.playerHpMax > 0 ? (timeline.playerHp / timeline.playerHpMax) * 100 : 0;
   const bossPct = timeline.bossHpMax > 0 ? (timeline.bossHp / timeline.bossHpMax) * 100 : 0;
   const currentPhase = phases[Math.min(timeline.currentPhaseIndex, phases.length - 1)];
@@ -904,35 +905,25 @@ const FightCard: React.FC<{ timeline: FightTimeline; phases: PhaseAnalysis[]; bo
         <span style={{ fontSize: 14 }}>⚔</span>
         Combat Resolution
       </div>
-      {/* Player HP bar */}
+      {/* Pixel staging of the fight (P2 movement system): the timeline's
+          phases choreographed at Sample B pacing — shots, hit reactions,
+          telegraphed lunges, dodges, and the death/banner finish. */}
+      <BossFightStage timeline={timeline} phases={phases} weapon={weapon} reduced={reducedMotion === true} />
+      {/* Player HP bar — ghost trail drains behind the real fill */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
           <span className="flex items-center gap-1"><span style={{ fontSize: 11 }} className="text-green">♥</span> Player</span>
           <span className="font-black text-text-primary">{timeline.playerHp.toLocaleString()} / {timeline.playerHpMax.toLocaleString()}</span>
         </div>
-        <div className="relative h-4 overflow-hidden border-2 border-border bg-bg">
-          <motion.div
-            className="h-full bg-green"
-            initial={{ width: `${(timeline.outcome?.result.victory ? 30 : 100)}%` }}
-            animate={{ width: `${playerPct}%` }}
-            transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 18 }}
-          />
-        </div>
+        <GhostHpBar pct={playerPct} color="#4ADE80" reduced={reducedMotion === true} testId="fight-player-hp" />
       </div>
-      {/* Boss HP bar */}
+      {/* Boss HP bar — ghost trail drains behind the real fill (Sample B) */}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
           <span className="flex items-center gap-1"><BossSigil bossId={bossId} size={14} showFrame={false} /> {bossName}</span>
           <span className="font-black text-text-primary">{timeline.bossHp.toLocaleString()} / {timeline.bossHpMax.toLocaleString()}</span>
         </div>
-        <div className="relative h-4 overflow-hidden border-2 border-border bg-bg">
-          <motion.div
-            className="h-full bg-red"
-            initial={{ width: '100%' }}
-            animate={{ width: `${bossPct}%` }}
-            transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 18 }}
-          />
-        </div>
+        <GhostHpBar pct={bossPct} color="#F87171" reduced={reducedMotion === true} testId="fight-boss-hp" />
       </div>
       {/* Phase marker */}
       {currentPhase && (

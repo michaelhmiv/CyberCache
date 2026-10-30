@@ -49,24 +49,14 @@ describe('computePlayerMaxHp', () => {
 });
 
 describe('buildInitialTimeline', () => {
-  it('starts the player at ~30% HP on victory and 0 on defeat', () => {
+  it('starts both combatants at full HP — the walk to the end state is the animation', () => {
     const victory = buildInitialTimeline(makeOutcome(true), 10000, 10, 100);
-    expect(victory.playerHp).toBeGreaterThan(0);
-    expect(victory.playerHp).toBeLessThanOrEqual(victory.playerHpMax);
-    expect(victory.playerHp / victory.playerHpMax).toBeCloseTo(0.3, 1);
+    expect(victory.playerHp).toBe(victory.playerHpMax);
+    expect(victory.bossHp).toBe(10000);
 
     const defeat = buildInitialTimeline(makeOutcome(false), 10000, 10, 100);
-    expect(defeat.playerHp).toBe(0);
-  });
-
-  it('starts the boss at 100% on victory (we walk it down) and bossHpRemaining% on defeat', () => {
-    const victory = buildInitialTimeline(makeOutcome(true), 10000, 10, 100);
-    expect(victory.bossHp).toBe(10000);
-    expect(victory.bossHp).toBe(victory.bossHpMax);
-
-    const defeat = buildInitialTimeline(makeOutcome(false, 0.2, 30), 10000, 10, 100);
-    // 30% of 10000 = 3000
-    expect(defeat.bossHp).toBe(3000);
+    expect(defeat.playerHp).toBe(defeat.playerHpMax);
+    expect(defeat.bossHp).toBe(10000);
   });
 
   it('uses bossHealth as the bossHpMax', () => {
@@ -75,15 +65,63 @@ describe('buildInitialTimeline', () => {
   });
 });
 
+describe('runFightAnimation — narrative end states (P2 two-way fights)', () => {
+  it('victory ends with the boss at 0 and the player at 30% (survived with scraps)', async () => {
+    const initial = buildInitialTimeline(makeOutcome(true), 1000, 5, 0);
+    const result = await runFightAnimation(initial, makePhases(4), false, { cancelled: false }, vi.fn(), { phaseMs: 0, finalPauseMs: 0 });
+    expect(result.bossHp).toBe(0);
+    expect(result.playerHp).toBe(Math.max(1, Math.round(result.playerHpMax * 0.3)));
+  });
+
+  it('defeat ends with the player at 0 and the boss at its remaining %', async () => {
+    const initial = buildInitialTimeline(makeOutcome(false, 0.2, 42), 1000, 5, 0);
+    const result = await runFightAnimation(initial, makePhases(4), false, { cancelled: false }, vi.fn(), { phaseMs: 0, finalPauseMs: 0 });
+    expect(result.playerHp).toBe(0);
+    expect(result.bossHp).toBe(420);
+  });
+
+  it('both combatants deal damage: the log carries player entries on victory too', async () => {
+    const initial = buildInitialTimeline(makeOutcome(true), 1000, 5, 0);
+    const onPhase = vi.fn();
+    await runFightAnimation(initial, makePhases(4), false, { cancelled: false }, onPhase, { phaseMs: 0, finalPauseMs: 0 });
+    const finalSnap = onPhase.mock.calls[onPhase.mock.calls.length - 1][0] as FightTimeline;
+    expect(finalSnap.damageLog.some((e) => e.target === 'boss')).toBe(true);
+    expect(finalSnap.damageLog.some((e) => e.target === 'player')).toBe(true);
+  });
+
+  it('damage entries are per-phase deltas, not cumulative-from-start', async () => {
+    // 4 even phases over 1000 HP: each phase's hit derives from that
+    // phase's own 250 HP delta, so entries stay roughly equal instead of
+    // growing 125 / 250 / 375 / 500.
+    const initial = buildInitialTimeline(makeOutcome(true), 1000, 5, 0);
+    const onPhase = vi.fn();
+    await runFightAnimation(initial, makePhases(4), false, { cancelled: false }, onPhase, { phaseMs: 0, finalPauseMs: 0 });
+    const bossEntries = (onPhase.mock.calls[3][0] as FightTimeline).damageLog.filter((e) => e.target === 'boss');
+    expect(bossEntries.length).toBeGreaterThanOrEqual(3);
+    for (const entry of bossEntries) {
+      expect(entry.value).toBeLessThanOrEqual(130);
+    }
+  });
+
+  it('skipAnimation jumps straight to the narrative end state', async () => {
+    const initial = buildInitialTimeline(makeOutcome(false, 0.2, 42), 1000, 5, 0);
+    const result = await runFightAnimation(initial, makePhases(4), true, { cancelled: false }, vi.fn());
+    expect(result.playerHp).toBe(0);
+    expect(result.bossHp).toBe(420);
+  });
+});
+
 describe('runFightAnimation — duration', () => {
-  it('total animation time stays under the 800ms budget for any reasonable phase count', () => {
-    // 8 phases is the realistic upper bound for CyberCache bosses.
+  it('paces phases at Sample B (~1.15s) under the movement-system budget', () => {
+    // Sample B pacing replaced the old ≤800ms blur (P2): phases breathe
+    // so each one can stage its exchange. 8 phases is the realistic
+    // upper bound for CyberCache bosses.
+    expect(FIGHT_PHASE_MS).toBe(1150);
     const phases = makePhases(8);
     const expectedTotal = phases.length * FIGHT_PHASE_MS + FIGHT_FINAL_PAUSE_MS;
-    // Hard guard: this is the assertion that would have caught a
-    // regression to the old 1.2s fake delay.
+    // Hard guard against the movement constants drifting apart.
+    expect(expectedTotal).toBe(FIGHT_TOTAL_BUDGET_MS);
     expect(expectedTotal).toBeLessThanOrEqual(FIGHT_TOTAL_BUDGET_MS);
-    expect(expectedTotal).toBeLessThan(1200); // the old fake delay
   });
 
   it('skipAnimation=true returns immediately without onPhase ticks', async () => {
@@ -122,7 +160,7 @@ describe('runFightAnimation — duration', () => {
     // The first iteration of the loop checks cancel.cancelled and returns
     // the initial timeline. This is the "user closed the modal mid-fight"
     // path.
-    const promise = runFightAnimation(initial, makePhases(4), false, cancel, onPhase);
+    const promise = runFightAnimation(initial, makePhases(4), false, cancel, onPhase, { phaseMs: 5, finalPauseMs: 1 });
     cancel.cancelled = true;
     const result = await promise;
     expect(result).toBe(initial);
@@ -137,7 +175,9 @@ describe('runFightAnimation — phase callback behavior', () => {
     const onPhase = vi.fn();
     const phases = makePhases(5);
 
-    await runFightAnimation(initial, phases, false, cancel, onPhase);
+    // Fast timing override: pacing values are asserted separately above;
+    // callback semantics don't need real Sample B wall-clock time.
+    await runFightAnimation(initial, phases, false, cancel, onPhase, { phaseMs: 1, finalPauseMs: 1 });
     expect(onPhase).toHaveBeenCalledTimes(5);
 
     // On victory, bossHp interpolates from bossHealth (1000) at the first
@@ -158,7 +198,7 @@ describe('runFightAnimation — phase callback behavior', () => {
     const onPhase = vi.fn();
     const phases = makePhases(20);
 
-    await runFightAnimation(initial, phases, false, cancel, onPhase);
+    await runFightAnimation(initial, phases, false, cancel, onPhase, { phaseMs: 0, finalPauseMs: 0 });
     // The final snapshot's damageLog is the cumulative cap.
     const finalCall = onPhase.mock.calls[onPhase.mock.calls.length - 1][0] as FightTimeline;
     expect(finalCall.damageLog.length).toBeLessThanOrEqual(6);
@@ -177,7 +217,7 @@ describe('fight animation — store integration', () => {
 
     const cancel = { cancelled: false };
     const onPhase = vi.fn();
-    const result = await runFightAnimation(initial, makePhases(3), false, cancel, onPhase);
+    const result = await runFightAnimation(initial, makePhases(3), false, cancel, onPhase, { phaseMs: 1, finalPauseMs: 1 });
     expect(result.finishedAt).not.toBeNull();
   });
 });
