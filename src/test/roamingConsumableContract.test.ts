@@ -267,6 +267,10 @@ describe('migration 0012 — offline consumption applier', () => {
     expect(migration).toContain('consumables = next_consumables');
     expect(migration).toContain("'consumed_consumables', applied_consumables");
     const store = readFileSync(resolve(process.cwd(), 'src/server/gameplay/store.ts'), 'utf8');
-    expect(store).toContain('cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)');
+    // RE-PINNED by the pacing-baseline tuning pass: migration 0015
+    // appended a fourteenth argument (_cap_hours, the server-derived
+    // earned offline cap) to the same call — the consumed set remains
+    // the thirteenth.
+    expect(store).toContain('cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)');
   });
 });
