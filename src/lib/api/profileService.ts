@@ -1,6 +1,13 @@
-import type { User } from '@supabase/supabase-js';
+/**
+ * Profile service (Route B, slice B4) — transport swap onto the Chef
+ * read/write routes. Signatures and result shapes are unchanged from
+ * the Supabase version; identity comes from the Chef JWT (the routes
+ * scope to the token subject), so the userId arguments are retained
+ * for call-site compatibility and are not sent.
+ */
 import type { AccountState, AccountType } from '../../auth/accountState';
-import { supabase } from './client';
+import { apiRequest, isNotFoundError } from './http';
+import type { ApiUser } from './session';
 
 export interface ProfileRow {
   id: string;
@@ -32,12 +39,7 @@ export interface EnsureProfileOptions {
   username?: string;
 }
 
-function isAnonymousUser(user: User): boolean {
-  const candidate = user as User & { is_anonymous?: boolean };
-  return Boolean(candidate.is_anonymous ?? !user.email);
-}
-
-export function profileRowToAccountState(profile: ProfileRow, user?: User | null): AccountState {
+export function profileRowToAccountState(profile: ProfileRow, user?: ApiUser | null): AccountState {
   return {
     userId: profile.id,
     accountType: profile.account_type,
@@ -47,36 +49,34 @@ export function profileRowToAccountState(profile: ProfileRow, user?: User | null
     emailVerifiedAt: profile.email_verified_at,
     verificationGraceExpiresAt: profile.verification_grace_expires_at,
     verificationReminderLastSeenAt: profile.verification_reminder_last_seen_at,
-    isAnonymous: user ? isAnonymousUser(user) : profile.account_type === 'guest',
+    isAnonymous: user ? user.isAnonymous : profile.account_type === 'guest',
   };
 }
 
-export async function getProfile(userId: string): Promise<ProfileRow | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data as ProfileRow | null;
+export async function getProfile(_userId: string): Promise<ProfileRow | null> {
+  try {
+    return await apiRequest<ProfileRow>('/profile/me');
+  } catch (error) {
+    // The Chef answers 404 for a missing own row; Supabase answered
+    // null. Everything else still throws, as before.
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
 }
 
-export async function ensureProfile(user: User, _options: EnsureProfileOptions = {}): Promise<ProfileRow> {
+export async function ensureProfile(user: ApiUser, _options: EnsureProfileOptions = {}): Promise<ProfileRow> {
   const existing = await getProfile(user.id);
   if (!existing) {
-    throw new Error('Profile row is missing. Sign out and sign back in so Supabase Auth can create the account profile.');
+    throw new Error('Profile row is missing. Sign out and sign back in so the server can create the account profile.');
   }
   return existing;
 }
 
-export async function getAccountState(user: User): Promise<AccountState> {
+export async function getAccountState(user: ApiUser): Promise<AccountState> {
   const profile = await ensureProfile(user);
   return profileRowToAccountState(profile, user);
 }
 
 export async function markVerificationReminderSeen(_userId: string): Promise<ProfileRow> {
-  const { data, error } = await supabase.rpc('cc_mark_reminder_seen');
-  if (error) throw error;
-  return data as ProfileRow;
+  return apiRequest<ProfileRow>('/profile/mark-reminder-seen', { method: 'POST' });
 }

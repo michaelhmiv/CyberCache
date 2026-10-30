@@ -9,8 +9,8 @@ import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore } fr
 import { RARITIES } from '@/constants/rarities';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
-import { fetchActiveMarketListings } from '@/lib/supabase/marketListings';
+import { verifiedOps } from '@/lib/api/verifiedOps';
+import { fetchActiveMarketListings } from '@/lib/api/marketListings';
 import type { GearItem, Weapon } from '@/types/items';
 import type { Listing, MarketHistory } from '@/types/market';
 import { gearCardSummary } from '@/lib/gear/gearCardSummary';

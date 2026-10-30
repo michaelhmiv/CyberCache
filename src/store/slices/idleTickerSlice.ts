@@ -32,8 +32,8 @@ import {
   useLoadoutStore,
 } from '@/store';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
-import { syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
+import { verifiedOps } from '@/lib/api/verifiedOps';
+import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import type { GearItem } from '@/types/items';
 import { useTickFeedStore, type TickEvent } from './tickSlice';
@@ -263,7 +263,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           feedStore.push(merged);
         }
       } catch (error) {
-        // Chef unavailable — fall back to Supabase RPC
+        // Chef gameplay routes unavailable — fall back to the verified ops API
         console.warn('[idleTicker] Chef unavailable, falling back to RPC:', error);
         try {
           const result = await verifiedOps.claimRoamingRewards({ ticks, areaId, tickCount: totalTickCount });

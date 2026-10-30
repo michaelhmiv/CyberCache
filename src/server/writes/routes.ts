@@ -34,6 +34,7 @@
  *   POST /api/profile/set-username          usernameService.setUsername         cc_set_username(name)
  *   POST /api/profile/mark-reminder-seen    verificationReminderService         cc_mark_reminder_seen()
  *   GET/PUT/DELETE /api/runtime/snapshot    runtimeStoreService                 player_runtime_snapshots (own row)
+ *   GET/PUT /api/stats/combat               combatStatsService (B4)             combat_stats (own row; was a direct PostgREST table sync)
  *
  * Identity rules (hard): the caller's player id comes ONLY from the
  * verified Chef JWT (chefPlayerId). Body player ids are never read — the
@@ -317,6 +318,55 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     if (!playerId) return;
     try {
       await store.clearRuntimeSnapshot(playerId);
+      res.json({ ok: true });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Combat stats (B4): the client's combatStats sync read/wrote the
+  // combat_stats table directly through PostgREST. The row is the
+  // caller's own (JWT-derived id; any user_id in the body is ignored)
+  // and the column set is whitelisted here at the trust boundary.
+  app.get('/api/stats/combat', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    try {
+      res.json(await store.getCombatStats(playerId));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+  app.put('/api/stats/combat', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    const b = body(req);
+    const numMap = (value: unknown): Record<string, number> => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+      const out: Record<string, number> = {};
+      for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+        const parsed = typeof raw === 'number' ? raw : Number(raw);
+        if (Number.isFinite(parsed)) out[key] = parsed;
+      }
+      return out;
+    };
+    try {
+      await store.saveCombatStats(playerId, {
+        user_id: playerId,
+        total_kills: num(b.total_kills) ?? 0,
+        total_deaths: num(b.total_deaths) ?? 0,
+        longest_kill_streak: num(b.longest_kill_streak) ?? 0,
+        last_kill_at: optStr(b.last_kill_at),
+        run_started_at: optStr(b.run_started_at),
+        kills_by_area: numMap(b.kills_by_area),
+        kills_by_weapon_type: numMap(b.kills_by_weapon_type),
+        kills_by_boss: numMap(b.kills_by_boss),
+        kills_by_element: numMap(b.kills_by_element),
+        highest_boss_tier: num(b.highest_boss_tier) ?? 0,
+        active_play_seconds: num(b.active_play_seconds) ?? 0,
+        idle_play_seconds: num(b.idle_play_seconds) ?? 0,
+        updated_at: optStr(b.updated_at) ?? new Date().toISOString(),
+      });
       res.json({ ok: true });
     } catch (err) {
       fail(res, err);

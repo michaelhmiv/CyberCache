@@ -3,8 +3,8 @@ import { useAuth } from '@/auth/AuthProvider';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LeaderboardMetricPicker } from '@/components/leaderboard/LeaderboardMetricPicker';
 import { LeaderboardList } from '@/components/leaderboard/LeaderboardList';
-import { getLeaderboard, type LeaderboardEntry, type LeaderboardMetric, type LeaderboardPeriod } from '@/lib/supabase/leaderboardService';
-import { getPublicProfile, type PlayerPublicProfile } from '@/lib/supabase/publicProfileService';
+import { getLeaderboard, type LeaderboardEntry, type LeaderboardMetric, type LeaderboardPeriod } from '@/lib/api/leaderboardService';
+import { getPublicProfile, type PlayerPublicProfile } from '@/lib/api/publicProfileService';
 import { PublicProfilePanel } from '@/components/profile/PublicProfilePanel';
 
 interface LeaderboardsScreenProps {

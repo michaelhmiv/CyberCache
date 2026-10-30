@@ -9,10 +9,13 @@ function readSource(relativePath: string): string {
 }
 
 describe('rewarded cache key authority', () => {
-  it('grants rewarded ad cache keys only through a verified RPC', () => {
-    const verifiedOps = readSource('src/lib/supabase/verifiedOps.ts');
+  it('grants rewarded ad cache keys only through a verified op', () => {
+    // Route B (B4): the client reaches the op through the Chef write
+    // route; the canonical cc_* function runs server-side.
+    const verifiedOps = readSource('src/lib/api/verifiedOps.ts');
     expect(verifiedOps).toContain('claimRewardedCacheKey');
-    expect(verifiedOps).toContain('cc_claim_rewarded_cache_key');
+    expect(verifiedOps).toContain('/ops/claim-rewarded-cache-key');
+    expect(readSource('src/server/writes/store.ts')).toContain('cc_claim_rewarded_cache_key');
 
     const resourceBar = readSource('src/components/layout/ResourceBar.tsx');
     expect(resourceBar).toContain('verifiedOps.claimRewardedCacheKey');

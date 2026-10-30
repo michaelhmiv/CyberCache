@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Clock, AlertTriangle, Info, Settings, ExternalLink } from 'lucide-react';
 import { usePlayerStore, useIdleStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { verifiedOps } from '@/lib/api/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 
 const DATA_DELETION_URL = 'https://cybercache-production.up.railway.app/data-deletion.html';

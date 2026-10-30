@@ -1,5 +1,5 @@
 import React from 'react';
-import type { LeaderboardMetric } from '@/lib/supabase/leaderboardService';
+import type { LeaderboardMetric } from '@/lib/api/leaderboardService';
 
 const METRICS: { value: LeaderboardMetric; label: string; color: string }[] = [
   { value: 'level', label: 'Level', color: '#FF9000' },

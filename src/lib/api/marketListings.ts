@@ -1,4 +1,10 @@
-import { supabase } from './client';
+/**
+ * Market listings (Route B, slice B4) — transport swap onto the Chef
+ * read route, which returns the same listing rows with the embedded
+ * item (object or null; the old PostgREST embed could also arrive as
+ * an array — both are still handled).
+ */
+import { apiRequest } from './http';
 import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
 import type { Listing } from '@/types/market';
 
@@ -11,18 +17,14 @@ type MarketListingRow = {
 };
 
 export async function fetchActiveMarketListings(): Promise<Listing[]> {
-  const { data, error } = await supabase
-    .from('market_listings')
-    .select('id,price_credits,listed_at,seller_user_id,item_instances(id,item_level,rarity,is_locked,runtime_state,equipped_slot,payload)')
-    .eq('status', 'active')
-    .order('listed_at', { ascending: false });
-
-  if (error) {
-    console.warn('[marketListings] fetch failed:', error.message);
+  let rows: MarketListingRow[];
+  try {
+    rows = (await apiRequest<MarketListingRow[]>('/market/listings')) ?? [];
+  } catch (error) {
+    console.warn('[marketListings] fetch failed:', error instanceof Error ? error.message : error);
     return [];
   }
 
-  const rows = (data ?? []) as unknown as MarketListingRow[];
   return rows
     .map((row): Listing | null => {
       const embedded = row.item_instances;

@@ -364,8 +364,8 @@ export async function settleOffline(
 
 /**
  * Check if the Chef is available. Returns false if the server is
- * unreachable, in which case the client falls back to direct
- * Supabase RPC calls.
+ * unreachable, in which case the client falls back to the verified
+ * ops API surface (src/lib/api/verifiedOps).
  */
 let _chefAvailable: boolean | null = null;
 
@@ -387,9 +387,11 @@ export async function isChefAvailable(): Promise<boolean> {
 
 async function getSessionJwt(): Promise<string | undefined> {
   try {
-    const { supabase } = await import('@/lib/supabase/client');
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token;
+    // Route B (B4): the session is the Chef's own token now, owned by
+    // the api session store. Hydrate from durable storage if the
+    // in-memory copy has not been loaded yet this run.
+    const { getAccessTokenSync, loadStoredSession } = await import('@/lib/api/session');
+    return getAccessTokenSync() ?? (await loadStoredSession())?.accessToken ?? undefined;
   } catch {
     return undefined;
   }

@@ -8,7 +8,6 @@ import { loadoutSurvivalStats } from '@/lib/combat/loadoutSurvival';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { processRoamingClaim } from '@/server/chef';
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -113,7 +112,9 @@ describe('loadoutSurvivalStats — skill survival on max HP', () => {
 // ---------------------------------------------------------------------------
 
 describe('processRoamingClaim — skill economy merge', () => {
-  const fakeSupabase = {} as SupabaseClient;
+  // Opaque stand-in for the server handler's data-client parameter
+  // (typed without importing the server stack's client package here).
+  const fakeSupabase = {} as Parameters<typeof processRoamingClaim>[1];
 
   it('applies skill offlineEarnings to credits', () => {
     const result = processRoamingClaim({

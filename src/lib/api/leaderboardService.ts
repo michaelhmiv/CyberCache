@@ -1,4 +1,9 @@
-import { supabase } from './client';
+/**
+ * Leaderboard service (Route B, slice B4) — transport swap onto the
+ * Chef read routes. Same signatures and error semantics as the
+ * Supabase version: failures return [] / null.
+ */
+import { apiRequest } from './http';
 
 export type LeaderboardMetric =
   | 'level'
@@ -36,29 +41,27 @@ export async function getLeaderboard(
   period: LeaderboardPeriod = 'all_time',
   limit: number = 100,
 ): Promise<LeaderboardEntry[]> {
-  const { data, error } = await supabase.rpc('cc_get_leaderboard', {
-    _metric: metric,
-    _period: period,
-    _limit: limit,
-  });
-  if (error) {
+  try {
+    const data = await apiRequest<LeaderboardEntry[] | null>(
+      `/leaderboard?metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&limit=${limit}`,
+    );
+    return data ?? [];
+  } catch (error) {
     console.error('getLeaderboard error:', error);
     return [];
   }
-  return (data as LeaderboardEntry[] | null) ?? [];
 }
 
 export async function getMyLeaderboardRank(
   metric: LeaderboardMetric,
   period: LeaderboardPeriod = 'all_time',
 ): Promise<MyLeaderboardRank | null> {
-  const { data, error } = await supabase.rpc('cc_get_my_leaderboard_rank', {
-    _metric: metric,
-    _period: period,
-  });
-  if (error) {
+  try {
+    return (await apiRequest<MyLeaderboardRank | null>(
+      `/leaderboard/me?metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}`,
+    )) ?? null;
+  } catch (error) {
     console.error('getMyLeaderboardRank error:', error);
     return null;
   }
-  return (data as MyLeaderboardRank[] | null)?.[0] ?? null;
 }

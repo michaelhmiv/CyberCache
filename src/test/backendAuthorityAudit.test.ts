@@ -7,18 +7,31 @@ const readSource = (relPath: string) => readFileSync(resolve(root, relPath), 'ut
 
 describe('backend authority audit', () => {
   it('keeps gameplay mutations on the canonical verified-op / service paths', () => {
-    const verifiedOps = readSource('src/lib/supabase/verifiedOps.ts');
-    expect(verifiedOps).toContain('cc_claim_crafted_consumable');
-    expect(verifiedOps).toContain('cc_recycle_item');
-    expect(verifiedOps).toContain('cc_market_create');
-    expect(verifiedOps).toContain('cc_market_cancel');
-    expect(verifiedOps).toContain('cc_accept_listing');
-    expect(verifiedOps).toContain('cc_make_item');
+    // Route B (B4): the client calls the Chef write routes; the
+    // canonical cc_* functions live server-side in the write store.
+    const verifiedOps = readSource('src/lib/api/verifiedOps.ts');
+    expect(verifiedOps).toContain('/ops/claim-crafted-consumable');
+    expect(verifiedOps).toContain('/ops/recycle-item');
+    expect(verifiedOps).toContain('/ops/market-create');
+    expect(verifiedOps).toContain('/ops/market-cancel');
+    expect(verifiedOps).toContain('/ops/market-accept');
+    expect(verifiedOps).toContain('/ops/make-item');
 
-    const activityService = readSource('src/lib/supabase/activityService.ts');
-    expect(activityService).toContain('cc_set_active_action');
-    expect(activityService).toContain('cc_clear_active_action');
-    expect(activityService).toContain('cc_active_action_heartbeat');
+    const writeStore = readSource('src/server/writes/store.ts');
+    expect(writeStore).toContain('cc_claim_crafted_consumable');
+    expect(writeStore).toContain('cc_recycle_item');
+    expect(writeStore).toContain('cc_market_create');
+    expect(writeStore).toContain('cc_market_cancel');
+    expect(writeStore).toContain('cc_accept_listing');
+    expect(writeStore).toContain('cc_make_item');
+    expect(writeStore).toContain('cc_set_active_action');
+    expect(writeStore).toContain('cc_clear_active_action');
+    expect(writeStore).toContain('cc_active_action_heartbeat');
+
+    const activityService = readSource('src/lib/api/activityService.ts');
+    expect(activityService).toContain('/activity/set');
+    expect(activityService).toContain('/activity/clear');
+    expect(activityService).toContain('/activity/heartbeat');
 
     const claimRoute = readSource('src/server/routes/claim.ts');
     expect(claimRoute).toContain('cc_recycle_item');

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Lock } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { Sparkline } from '@/components/progression/Sparkline';
-import { ProgressionMetric } from '@/lib/supabase/progressionService';
+import { ProgressionMetric } from '@/lib/api/progressionService';
 
 interface StatCardProps {
   label: string;

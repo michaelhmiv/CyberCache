@@ -5,7 +5,7 @@ import { VENDOR_CONSUMABLES } from '@/constants/consumables';
 import { FAMILY_COLORS, FAMILY_LABELS } from '@/lib/consumables/families';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { verifiedOps } from '@/lib/api/verifiedOps';
 import { useFilterSort } from '@/lib/hooks/useFilterSort';
 import type { ConsumableDef } from '@/types/consumables';
 import { chipClip } from '@/lib/ui/clips';

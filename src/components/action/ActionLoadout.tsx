@@ -18,8 +18,8 @@ import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
 import { SwapUndoToast } from '@/components/action/SwapUndoToast';
 import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
-import { formatRpcError } from '@/lib/supabase/rpcError';
+import { verifiedOps } from '@/lib/api/verifiedOps';
+import { formatRpcError } from '@/lib/api/rpcError';
 import type { Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 

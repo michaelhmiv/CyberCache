@@ -2,7 +2,7 @@ import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
-import type { PlayerPublicProfile } from '@/lib/supabase/publicProfileService';
+import type { PlayerPublicProfile } from '@/lib/api/publicProfileService';
 
 const panelClip = { clipPath: 'polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)' };
 

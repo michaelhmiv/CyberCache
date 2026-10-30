@@ -21,18 +21,18 @@ in screens or components is forbidden.
 
 | Domain | Owner | Notes |
 |---|---|---|
-| **Activity lifecycle** (start, stop, heartbeat) | `src/lib/supabase/activityService.ts` + `src/store/useActivityStore` | Server-backed via `active_actions` table |
+| **Activity lifecycle** (start, stop, heartbeat) | `src/lib/api/activityService.ts` + `src/store/useActivityStore` | Server-backed via Chef activity routes (`active_actions` table) |
 | **Roaming tick processing** | `src/server/chef.ts` (Chef worker) | Authoritative engine. Processes claims, generates items, awards resources. Runs on Railway server process. |
 | **Roaming tick preview** (UI-only) | `src/store/slices/idleTickerSlice.ts` → `rollPreviewEvents` | COSMETIC ONLY. Shows placeholder events until Chef response. No store mutations. |
-| **Server reward claiming** | `src/lib/supabase/verifiedOps.ts` → `cc_apply_chef_rewards` RPC | Fallback when Chef is unavailable; Chef is primary path |
+| **Server reward claiming** | `src/lib/api/verifiedOps.ts` → Chef write routes (`cc_*` server-side) | Verified ops are the canonical mutation path |
 | **Offline settlement** | `src/server/routes/claim.ts` → `POST /api/settle-offline` | Server-authoritative. Computes elapsed time from DB timestamps, processes all eligible ticks (capped by hours, not 20-tick limit). Idempotent via nonce. |
 | **Item generation** | `src/server/chef.ts` + `src/lib/generators/*` | Chef calls the same TS generators as the client imports. ONE source of truth. |
 | **Tick feed events** | `src/store/slices/tickSlice.ts` | `TickEvent` / `TickEventTone`. Capped at 50, FIFO. |
 | **Inventory mutation** | `src/store/slices/inventorySlice.ts` | `receiveServerItems` (Chef path) or `addItem`/`removeItem` (user actions) |
 | **Player resources** (credits, XP, scrap, materials, essences, cache keys/fragments) | `src/store/slices/playerSlice.ts` | Mutated ONLY via `syncVerifiedResult` from server response |
 | **Loadout** | `src/store/slices/loadoutSlice.ts` | 7-slot loadout with consumable slots |
-| **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` | Persisted via Supabase runtime snapshot |
-| **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Supabase runtime snapshot |
+| **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` | Persisted via Chef runtime snapshot |
+| **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Chef runtime snapshot |
 | **Boss prep analysis** | `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |
 | **Boss attempts** | `src/server/chef.ts` + `src/server/routes/claim.ts` via `POST /api/verify-boss` | Client sends intent/loadout. Chef rolls outcome, consumables, XP, credits, pity, unlocks, and loot. |
 | **Crafting / salvaging / workshop** | `src/store/slices/workshopSlice.ts` + `src/lib/craftingEngine.ts` | Queue-based |
@@ -44,7 +44,7 @@ in screens or components is forbidden.
 | **Shield defense** (mitigation, recharge, element) | `src/lib/combat/loadoutSurvival.ts` + `damageContract.ts` | Mitigation reduces all incoming damage (capped 80%). Recharge regens shield per tick. Element match grants +15% resist. |
 | **Relic affixes** | `loadoutSlice.getRelic().affixes` sent to Chef/snapshot consumers | Idle mods go to Chef; bossDamageMod/survivalBoost go to boss sim/Chef; xpBoostMod affects Chef-owned XP. |
 | **Ordnance damage** | `bossSimulator.ts` (ordnanceFlatDamage) | Ordnance raw damage reduces boss effective HP. Ordnance element modifies shield/armor break. |
-| **Supabase persistence** | `src/store/runtimeSupabaseSync.ts` + Chef RPCs | 500ms debounced snapshot + Chef direct writes |
+| **Server persistence** | `src/store/runtimeSupabaseSync.ts` + `src/lib/api/*` | 500ms debounced snapshot + Chef route writes |
 | **XP curve** | `src/content/simulation.ts` (`xpToNextLevel`) | Mirrored server-side in migration 057 |
 
 ### Formula / Modifier Owners
@@ -128,7 +128,7 @@ BossPrepModal
 ```
 ### Activity transitions
 ```
-screen → activityStore.start(input)   # writes to Supabase active_actions
+screen → activityStore.start(input)   # writes via Chef routes to active_actions
 screen → activityStore.clear()        # clears active action
 ```
 
@@ -217,8 +217,9 @@ document its owner here.
 
 ## 5. Server Verification Rules
 
-- **All progression-affecting rewards** must go through Supabase RPCs wrapped
-  in `verifiedOps` + `verifiedStateSync`.
+- **All progression-affecting rewards** must go through the Chef write
+  routes wrapped in `verifiedOps` + `verifiedStateSync` (the `cc_*`
+  functions run server-side; identity comes from the Chef JWT).
 - **Client-side randomness** is only for instant animation feedback.
   The server re-rolls and the server response is authoritative.
 - **localStorage may only be used for:** UI preferences. Settlement deduplication

@@ -1,4 +1,9 @@
-import { supabase } from './client';
+/**
+ * Stats service (Route B, slice B4) — transport swap onto the Chef
+ * read routes. Same signatures and error semantics as the Supabase
+ * version: failures log and return null.
+ */
+import { apiRequest } from './http';
 
 export interface PlayerPublicStats {
   user_id: string;
@@ -32,19 +37,19 @@ export interface PlayerPublicStats {
 }
 
 export async function getMyStatsSummary(): Promise<PlayerPublicStats | null> {
-  const { data, error } = await supabase.rpc('cc_my_stats_summary');
-  if (error) {
+  try {
+    return (await apiRequest<PlayerPublicStats | null>('/stats/me')) ?? null;
+  } catch (error) {
     console.error('getMyStatsSummary error:', error);
     return null;
   }
-  return (data as PlayerPublicStats | null) ?? null;
 }
 
 export async function getPublicStats(userId: string): Promise<PlayerPublicStats | null> {
-  const { data, error } = await supabase.rpc('cc_public_stats', { user_id: userId });
-  if (error) {
+  try {
+    return (await apiRequest<PlayerPublicStats | null>(`/players/${userId}/public-stats`)) ?? null;
+  } catch (error) {
     console.error('getPublicStats error:', error);
     return null;
   }
-  return (data as PlayerPublicStats | null) ?? null;
 }

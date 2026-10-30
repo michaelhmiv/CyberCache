@@ -65,11 +65,11 @@ export function parseAuthStatusMessage(search = globalThis.location?.search ?? '
 
 export function toAuthSessionUser(user: unknown): AuthSessionUser | null {
   if (!user || typeof user !== 'object') return null;
-  const candidate = user as { id?: string; email?: string | null; is_anonymous?: boolean; app_metadata?: Record<string, unknown> };
+  const candidate = user as { id?: string; email?: string | null; isAnonymous?: boolean; is_anonymous?: boolean; app_metadata?: Record<string, unknown> };
   if (!candidate.id) return null;
   return {
     id: candidate.id,
     email: candidate.email ?? null,
-    isAnonymous: Boolean(candidate.is_anonymous ?? candidate.app_metadata?.is_anonymous ?? !candidate.email),
+    isAnonymous: Boolean(candidate.isAnonymous ?? candidate.is_anonymous ?? candidate.app_metadata?.is_anonymous ?? !candidate.email),
   };
 }

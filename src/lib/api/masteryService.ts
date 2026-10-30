@@ -1,4 +1,8 @@
-import { supabase } from './client';
+/**
+ * Mastery service (Route B, slice B4) — transport swap onto the Chef
+ * read routes. Same signatures; failures return [] as before.
+ */
+import { apiRequest } from './http';
 
 export interface MasterySummaryRow {
   mastery_id: string;
@@ -23,16 +27,19 @@ function rows<T>(value: unknown): T[] {
 }
 
 export async function getMyMasterySummary(): Promise<MasterySummaryRow[]> {
-  const { data, error } = await supabase.rpc('cc_my_mastery_summary');
-  if (error) return [];
-  return rows<MasterySummaryRow>(data);
+  try {
+    return rows<MasterySummaryRow>(await apiRequest('/mastery/summary'));
+  } catch {
+    return [];
+  }
 }
 
 export async function getMasteryLeaderboard(masteryId: string, limitCount = 25): Promise<MasteryLeaderboardRow[]> {
-  const { data, error } = await supabase.rpc('cc_mastery_leaderboard', {
-    target_mastery_id: masteryId,
-    limit_count: limitCount,
-  });
-  if (error) return [];
-  return rows<MasteryLeaderboardRow>(data);
+  try {
+    return rows<MasteryLeaderboardRow>(
+      await apiRequest(`/mastery/leaderboard?masteryId=${encodeURIComponent(masteryId)}&limit=${limitCount}`),
+    );
+  } catch {
+    return [];
+  }
 }

@@ -5,7 +5,7 @@ import { getSkillTreeNodes } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import { SkillNode } from '@/types/skill';
 import { usePlayerStore, useSkillStore } from '@/store';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { verifiedOps } from '@/lib/api/verifiedOps';
 import { SkillKeystoneArt } from '@/components/common/SkillKeystoneArt';
 
 const TREES = [

@@ -12,7 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Plus, Play, X } from 'lucide-react';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
 import { showRewardedCacheKeyAd, canUseRewardedCacheKeyAds } from '@/lib/ads/rewardedCacheKeyAd';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { verifiedOps } from '@/lib/api/verifiedOps';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };

@@ -8,7 +8,7 @@ import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
 import { buildCraftingActivity } from '@/lib/activity/activityBuilders';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { verifiedOps } from '@/lib/api/verifiedOps';
 import { useFilterSort } from '@/lib/hooks/useFilterSort';
 import { chipClip } from '@/lib/ui/clips';
 import type { WorkshopQueue, CraftingRecipe } from '@/types/workshop';

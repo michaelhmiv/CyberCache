@@ -2,7 +2,7 @@ import React from 'react';
 
 import { LeaderboardRow } from './LeaderboardRow';
 import { MobileCard } from '@/components/layout/MobileCard';
-import type { LeaderboardEntry } from '@/lib/supabase/leaderboardService';
+import type { LeaderboardEntry } from '@/lib/api/leaderboardService';
 
 interface LeaderboardListProps {
   entries: LeaderboardEntry[];

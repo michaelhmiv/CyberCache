@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractMetricSeries, type PlayerProgressionSnapshot } from '../lib/supabase/progressionService';
+import { extractMetricSeries, type PlayerProgressionSnapshot } from '../lib/api/progressionService';
 
 function makeSnapshot(overrides: Partial<PlayerProgressionSnapshot> = {}): PlayerProgressionSnapshot {
   return {

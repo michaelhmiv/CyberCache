@@ -19,7 +19,7 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
-import { heartbeatActiveActivity } from '@/lib/supabase/activityService';
+import { heartbeatActiveActivity } from '@/lib/api/activityService';
 
 export function useLeaveSignals() {
   const { user } = useAuth();

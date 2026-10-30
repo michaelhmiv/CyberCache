@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
-import { isUsernameAvailable, setUsername } from '@/lib/supabase/usernameService';
+import { isUsernameAvailable, setUsername } from '@/lib/api/usernameService';
 import { validateUsername } from '@/lib/validation/username';
 import { MobileCard } from '@/components/layout/MobileCard';
 
