@@ -41,18 +41,18 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     id: 'pick-turf',
-    title: '1. Pick a turf',
+    title: '1. Pick an area',
     body:
-      'Open the Board. The Choose Turf strip lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Start with Dustwaste Frontier at Level 1; the system gates higher areas behind your Hunter level.',
+      'Open the Board. The Choose Area panel lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Start with Dustwaste Frontier at Level 1; the system gates higher areas behind your Hunter level.',
     target: { tab: 'dashboard', label: 'Board', glyph: '◇' },
-    spotlight: 'Choose Turf strip',
+    spotlight: 'Choose Area panel',
     cta: 'Go to Board',
   },
   {
     id: 'start-roam',
     title: '2. Start a roam',
     body:
-      'Tap a turf, then Action. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses and Mini-bosses are triggered by the Boss prep button on the Board, not by Action — Action is the passive roaming loop.',
+      'Tap an area, then Action. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses and Mini-bosses are triggered by the Boss prep button on the Board, not by Action — Action is the passive roaming loop.',
     target: { tab: 'fight', label: 'Action', glyph: '⚔' },
     spotlight: 'Roaming activity card',
     cta: 'Open Action',
@@ -79,7 +79,7 @@ const TOUR_STEPS: TourStep[] = [
     id: 'check-identity',
     title: '5. Read your Build Identity',
     body:
-      'The Hunter tab shows your Build Identity — the weapon type you actually rack kills with, pulled from combat stats. It is not based on what you own. If it shows "No data yet", patrol a turf for a few minutes; the system needs a stable winner in killsByWeaponType.',
+      'The Hunter tab shows your Build Identity — the weapon type you actually rack kills with, pulled from combat stats. It is not based on what you own. If it shows "No data yet", patrol an area for a few minutes; the system needs a stable winner in killsByWeaponType.',
     target: { tab: 'profile', label: 'Hunter', glyph: '☻' },
     spotlight: 'Build Identity card',
     cta: 'Open Hunter',
@@ -115,8 +115,8 @@ const SECTIONS: HelpSection[] = [
     glyph: '⚔',
     color: '#F59E0B',
     items: [
-      { term: 'Pick a turf', body: 'The Dashboard\'s Choose Turf strip shows the seven roaming areas. Each one scales: later areas drop better loot and award more XP per tick.' },
-      { term: 'Tap a turf, then Action', body: 'Selecting an area and hitting Action starts a roaming_loot activity. While it\'s active, the single 3-second tick awards credits, scrap, XP, and the occasional gear drop.' },
+      { term: 'Pick an area', body: 'The Dashboard\'s Choose Area panel shows the seven roaming areas. Each one scales: later areas drop better loot and award more XP per tick.' },
+      { term: 'Tap an area, then Action', body: 'Selecting an area and hitting Action starts a roaming_loot activity. While it\'s active, the single 3-second tick awards credits, scrap, XP, and the occasional gear drop.' },
       { term: 'Equip before you push bosses', body: 'The boss simulator uses your equipped loadout (7 slots), not your full backpack. Open Loadout and slot your best weapon, shield, class mod, and relic before any boss attempt.' },
     ],
   },
@@ -203,7 +203,7 @@ const SECTIONS: HelpSection[] = [
     items: [
       { term: 'Element over rarity', body: 'A Common weapon with the right element is better than a Legendary with the wrong one. Match first, rarify later.' },
       { term: 'DPS label', body: 'The gear inspector\'s "vs standard target" DPS is a baseline. Your effective DPS in any fight depends on the boss\'s weakness / resistance profile.' },
-      { term: 'Build Identity lag', body: 'Build Identity only updates after you rack enough kills for a stable winner in `killsByWeaponType`. If it shows "No data yet", patrol a turf for a few minutes.' },
+      { term: 'Build Identity lag', body: 'Build Identity only updates after you rack enough kills for a stable winner in `killsByWeaponType`. If it shows "No data yet", patrol an area for a few minutes.' },
       { term: 'Offline catchup', body: 'Roaming ticks claim rewards on a 3s cadence. Coming back from a long break shows a single summary card (kills, XP, fragments), not a per-tick animation replay.' },
     ],
   },

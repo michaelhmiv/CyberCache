@@ -136,7 +136,7 @@ function App() {
 
   const renderSubScreen = () => {
     const screens: Record<string, React.ReactNode> = {
-      chest: <ChestScreen />,
+      chest: <ChestScreen onNavigate={handleNavigate} />,
       settings: <SettingsScreen />,
       help: (
         <HelpScreen
@@ -151,7 +151,7 @@ function App() {
     const title = subScreen === 'chest'
       ? 'Crack Cache'
       : subScreen === 'workshop'
-        ? 'Workbench'
+        ? 'Workshop'
         : subScreen === 'help'
           ? 'Field Manual'
           : subScreen === 'settings'

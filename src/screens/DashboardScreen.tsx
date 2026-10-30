@@ -18,7 +18,9 @@ import {
 } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { REGION_1_BOSSES } from '@/constants/bosses';
-import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '@/constants/roamingAreas';
+import { getRoamingArea } from '@/constants/roamingAreas';
+import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
+import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
@@ -61,7 +63,7 @@ const HUD_ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvagi
 // NOTE: `TICK_SECONDS`, `FIELD_FIND_CHANCE`, `CACHE_FRAGMENT_CHANCE` removed —
 // the Level Strip footer used them to render static, never-varying hints
 // ("3.00s tick · 22% loot · 3% frag") that duplicated info already shown
-// elsewhere (XP-per-tick on Choose Turf cards, loot bias in Hunter Totals'
+// elsewhere (XP-per-tick on Choose Area cards, loot bias in Hunter Totals'
 // Rare Find metric). The aggregate tick sources already flow through the
 // tick slice / area defs and surface in the right place.
 
@@ -222,6 +224,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const idle = useIdleStore();
   const activity = useActivityStore();
   const tickEvents = useTickFeedStore((state) => state.events);
+  const lastSettlement = useOfflineRecapStore((s) => s.lastSettlement);
+  const recapDismissed = useOfflineRecapStore((s) => s.dismissed);
+  const reopenRecap = useOfflineRecapStore((s) => s.reopen);
   const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.slice(0, 5), [tickEvents]);
   const [activityError, setActivityError] = useState<string | null>(null);
 
@@ -332,7 +337,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   }, [activity, currentBoss, equippedWeapon, idle, onNavigate]);
 
   const actions = [
-    { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync selected turf as the active route, then enter combat.', icon: <span style={{ fontSize: 16 }} className="text-red">⚔</span>, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
+    { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync the selected area, then enter combat.', icon: <span style={{ fontSize: 16 }} className="text-red">⚔</span>, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
     { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <span style={{ fontSize: 16 }} className="text-amber">◈</span>, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('inventory') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
     { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <span style={{ fontSize: 16 }} className="text-purple">♕</span>, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
@@ -352,7 +357,31 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
         <ResourceBar className="mb-2" />
+        {/* Persistent current-area chip — tap opens the one area picker */}
+        <div>
+          <CurrentAreaChip onClick={() => setTurfPickerOpen(true)} />
+        </div>
         {activityError && <Panel label="Action Error"><div className="text-xs font-bold text-red">{activityError}</div></Panel>}
+        {/* Re-entry for the last offline summary after it was dismissed */}
+        {lastSettlement && recapDismissed && (
+          <Panel label="While You Were Away">
+            <button
+              type="button"
+              data-testid="offline-recap-reopen"
+              onClick={reopenRecap}
+              className="flex w-full items-center justify-between gap-2 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-black text-text-primary">
+                  +{lastSettlement.rewards.creditsAwarded.toLocaleString()} credits · +{lastSettlement.rewards.xpAwarded.toLocaleString()} XP
+                  {lastSettlement.items.length > 0 ? ` · ${lastSettlement.items.length} item${lastSettlement.items.length === 1 ? '' : 's'}` : ''}
+                </span>
+                <span className="block text-[9px] text-text-muted">Last offline summary — tap to view it again</span>
+              </span>
+              <ChevronRight size={14} className="shrink-0 text-amber" />
+            </button>
+          </Panel>
+        )}
         <Panel label="Level Strip"><div className="flex items-center gap-2"><div className="relative flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-4 border-border bg-amber/15 shadow-[5px_5px_0_rgba(0,0,0,0.75)]"><div className="absolute inset-1 border border-amber/40" /><div className="text-center"><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Level</div><div className="text-3xl font-black leading-none text-amber">{player.level}</div></div></div><div className="min-w-0 flex-1"><div className="flex items-end justify-between gap-2"><div><div className="text-sm font-black uppercase tracking-wide text-text-primary">Level Progress</div><div className="text-[9px] text-text-muted">{player.xp.toLocaleString()} / {xpToNextLevelValue.toLocaleString()} XP · {xpRemaining.toLocaleString()} left</div></div></div><div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}><motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} /><div className="absolute inset-0 grid grid-cols-5">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}</div></div></div></div></Panel>
         <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} boss={currentBoss ?? undefined} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} bossPhase={activity.current.bossPhase} activityLabel={activityLabel} activityTarget={activityTarget} statSummary={computedStats} onFight={startSelectedRoaming} onSecondary={openBossPrep} secondaryActionLabel={currentBoss ? 'Prep Boss' : 'Choose Boss'} secondaryActionDetail={currentBoss ? `${currentBoss.weaknesses.length} weakness tags` : 'Open Action target picker'} />
         <Panel
@@ -395,50 +424,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         )}
         {turfPickerOpen && (
           <PickerSheet
-            title="Choose Turf"
-            subtitle={`Current route: ${selectedArea.name}. Tap an area to switch.`}
+            title="Choose Area"
+            subtitle={`Current area: ${selectedArea.name}. Tap an area to switch.`}
             onClose={() => setTurfPickerOpen(false)}
           >
-            <div className="space-y-2">
-              {ROAMING_AREAS.map((area) => {
-                const unlocked = isRoamingAreaUnlocked(area, player.level);
-                const selected = area.id === selectedArea.id;
-                const areaVis = getAreaVisual(area.id);
-                return (
-                  <button
-                    key={area.id}
-                    type="button"
-                    disabled={!unlocked}
-                    onClick={() => {
-                      if (!unlocked) return;
-                      idle.setSelectedRoamingArea(area.id);
-                      setTurfPickerOpen(false);
-                    }}
-                    className={`relative w-full overflow-hidden border-2 px-3 py-2 text-left transition-transform active:scale-[0.99] ${selected ? 'border-amber bg-amber/10' : 'border-border bg-surface/90'} ${!unlocked ? 'opacity-45' : ''}`}
-                    style={panelClip}
-                  >
-                    <AreaBackground areaId={area.id} opacity={unlocked ? 0.14 : 0.06} />
-                    <div className="relative flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex items-center gap-2">
-                        <span className="shrink-0 font-black inline-flex items-center justify-center" style={{ color: areaVis.color, fontSize: '12px', width: 18, height: 18 }}>
-                          {areaVis.sigil}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-black text-text-primary">{area.name}</div>
-                          <div className="text-[9px] uppercase tracking-wide text-text-muted">LV {area.unlockLevel} / {area.dangerRating}</div>
-                        </div>
-                      </div>
-                      {selected ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber animate-pulse" /> : <ChevronRight size={12} className="shrink-0 text-text-muted" />}
-                    </div>
-                    <div className="relative mt-1 truncate text-[9px] text-amber">{area.lootBias[0]}</div>
-                  </button>
-                );
-              })}
+            <div className="space-y-2 p-3">
+              <AreaPickerList
+                onSelect={(area) => {
+                  idle.setSelectedRoamingArea(area.id);
+                  setTurfPickerOpen(false);
+                }}
+              />
             </div>
           </PickerSheet>
         )}
         <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
-        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Turf" value={selectedArea.manufacturerInfluence} detail={`${selectedArea.dangerRating} · ${selectedArea.lootBias[0]}`} icon={<AreaGlyph areaId={selectedArea.id} size={14} />} tone="amber" onClick={() => setTurfPickerOpen(true)} /><InfoGauge
+        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Area" value={selectedArea.manufacturerInfluence} detail={`${selectedArea.dangerRating} · ${selectedArea.lootBias[0]}`} icon={<AreaGlyph areaId={selectedArea.id} size={14} />} tone="amber" onClick={() => setTurfPickerOpen(true)} /><InfoGauge
             label="Equipped"
             value={equippedWeapon?.name ?? 'None'}
             detail={equippedWeapon ? `${equippedWeapon.combatPower} combat power` : 'Open loadout bench'}
@@ -447,7 +448,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             onClick={() => onNavigate('inventory')}
           /></div></Panel>
         <Panel
-          label="Choose Turf"
+          label="Choose Area"
           headerActions={
             <button
               type="button"
@@ -455,7 +456,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               onClick={() => setTurfPickerOpen(true)}
               className="flex items-center gap-1 border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber transition-colors hover:bg-amber/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber"
               style={signClip}
-              aria-label="Switch turf"
+              aria-label="Switch area"
             >
               Switch
               <ChevronDown size={9} />
@@ -480,7 +481,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               <ChevronDown size={12} className="shrink-0 text-text-muted" />
             </div>
             <div className="relative mt-1 truncate text-[9px] text-amber">{selectedArea.lootBias[0]}</div>
-            <div className="relative mt-1 text-[8px] uppercase tracking-[0.16em] text-text-muted">Tap to switch turf</div>
+            <div className="relative mt-1 text-[8px] uppercase tracking-[0.16em] text-text-muted">Tap to switch area</div>
           </button>
         </Panel>
       </div>

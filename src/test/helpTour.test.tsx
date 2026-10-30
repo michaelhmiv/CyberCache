@@ -11,7 +11,7 @@ describe('HelpScreen guided tour', () => {
 
   it('shows the first step by default', () => {
     render(<HelpScreen />);
-    expect(screen.getByText('1. Pick a turf')).toBeTruthy();
+    expect(screen.getByText('1. Pick an area')).toBeTruthy();
     expect(screen.getByText('Go to Board')).toBeTruthy();
   });
 

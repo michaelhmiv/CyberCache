@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Info, Lock, Unlock } from 'lucide-react';
 import { usePlayerStore, useInventoryStore } from '@/store';
-import { useLoadoutStore, LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { RARITIES } from '@/constants/rarities';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/serverItemAdapter';
@@ -43,11 +42,13 @@ function gearTypeLabel(item: GearItem): string {
 
 const GearItemCard: React.FC<{
   item: GearItem;
-  action: 'none' | 'scrapped' | 'locked' | 'unlocked' | 'equipped';
-  onEquip: () => void;
+  action: 'none' | 'scrapped' | 'locked' | 'unlocked';
+  /** Phase 1 (one gear home): no equipping here — this door routes to
+   *  the gear home, where the Slot Picker equips. */
+  onOpenGear: () => void;
   onScrap: () => void;
   onLockToggle: () => void;
-}> = ({ item, action, onEquip, onScrap, onLockToggle }) => {
+}> = ({ item, action, onOpenGear, onScrap, onLockToggle }) => {
   const rarityDef = RARITIES[item.rarity];
   const itemIsWeapon = isWeapon(item);
   const itemIsLocked = item.isLocked;
@@ -123,23 +124,18 @@ const GearItemCard: React.FC<{
       </div>
 
       <div className="flex items-center gap-2">
-        {itemIsWeapon && action !== 'equipped' && (
+        {itemIsWeapon && (
           <button
-            onClick={onEquip}
+            onClick={onOpenGear}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber/20 text-amber text-[11px] font-bold active:scale-95 transition-transform"
           >
             <span style={{ fontSize: '12px' }}>⚔</span>
-            Equip
+            Equip in Gear
           </button>
-        )}
-        {action === 'equipped' && (
-          <span className="px-3 py-1.5 rounded-lg bg-green/20 text-green text-[11px] font-bold">
-            ✓ Equipped
-          </span>
         )}
         <button
           onClick={onLockToggle}
-          disabled={action === 'scrapped' || action === 'equipped'}
+          disabled={action === 'scrapped'}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-raised text-text-secondary text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
           {itemIsLocked ? <Lock size={12} /> : <Unlock size={12} />}
@@ -151,17 +147,16 @@ const GearItemCard: React.FC<{
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
           <span style={{ fontSize: 12 }}>♻</span>
-          Recycle
+          Salvage
         </button>
       </div>
     </motion.div>
   );
 };
 
-export const ChestScreen: React.FC = () => {
+export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = ({ onNavigate }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
-  const loadout = useLoadoutStore();
 
   const [opening, setOpening] = useState(false);
   const [revealed, setRevealed] = useState<GearItem[] | null>(null);
@@ -170,7 +165,7 @@ export const ChestScreen: React.FC = () => {
   // already granted by the server op before `revealed` was set.
   const [momentDone, setMomentDone] = useState(false);
   const reducedMotion = !!useReducedMotion();
-  const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked' | 'equipped'>>({});
+  const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked'>>({});
   const [error, setError] = useState<string | null>(null);
 
   const keys = player.cacheKeys;
@@ -201,21 +196,6 @@ export const ChestScreen: React.FC = () => {
     setRevealed(null);
     setItemActions({});
     setMomentDone(false);
-  };
-
-  const handleEquip = async (item: GearItem, _idx: number) => {
-    if (!isWeapon(item)) return;
-    const slots: LoadoutSlot[] = ['primary', 'secondary', 'heavy'];
-    let targetSlot: LoadoutSlot | null = null;
-    for (const slot of slots) {
-      if (!loadout.slots[slot]) {
-        targetSlot = slot;
-        break;
-      }
-    }
-    if (!targetSlot) targetSlot = 'primary';
-    await verifiedOps.equipItem(item.id, targetSlot);
-    setItemActions((prev) => ({ ...prev, [item.id]: 'equipped' }));
   };
 
   const handleScrap = async (item: GearItem, _idx: number) => {
@@ -378,7 +358,7 @@ export const ChestScreen: React.FC = () => {
                   key={item.id}
                   item={item}
                   action={itemActions[item.id] ?? 'none'}
-                  onEquip={() => handleEquip(item, i)}
+                  onOpenGear={() => onNavigate?.('inventory')}
                   onScrap={() => handleScrap(item, i)}
                   onLockToggle={() => handleLockToggle(item, i)}
                 />

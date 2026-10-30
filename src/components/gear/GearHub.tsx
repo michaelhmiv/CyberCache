@@ -23,7 +23,6 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
-import { SwapUndoToast } from '@/components/action/SwapUndoToast';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useLoadoutStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
@@ -293,9 +292,16 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
 
 interface GearHubProps {
   onNavigate?: (screen: string) => void;
+  /**
+   * Phase 1 (one gear home): GearHub no longer equips directly. Its
+   * Equip action routes here; the gear home switches to the Loadout
+   * tab and opens the Slot Picker — the one equip surface — on the
+   * item's slot.
+   */
+  onEquipRequest?: (item: GearItem, slot: LoadoutSlot) => void;
 }
 
-export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
+export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) => {
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
 
@@ -321,7 +327,6 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingScrapIds, setPendingScrapIds] = useState<Set<string>>(new Set());
-  const [, setBusyEquip] = useState(false);
 
   // Compare
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -329,9 +334,6 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
 
   // Inspect
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
-
-  // Swap undo
-  const [undo, setUndo] = useState<{ slot: LoadoutSlot; previousId: string | null; name: string } | null>(null);
 
   const equippedIds = useMemo(
     () => new Set(Object.values(loadout.slots).filter(Boolean) as string[]),
@@ -469,55 +471,23 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
     });
   };
 
-  const equip = async (item: GearItem) => {
-    setBusyEquip(true);
-    setUndo(null);
+  // Equip intent only: pick the item's slot and hand off to the gear
+  // home, which opens the Slot Picker there. Weapons target the first
+  // empty weapon slot, or Primary when all three are filled (the
+  // picker then offers the swap). GearHub itself never equips.
+  const equip = (item: GearItem) => {
     let slot: LoadoutSlot | null = null;
-    try {
-      if (isShield(item)) { slot = 'shield'; }
-      else if (isClassMod(item)) { slot = 'classMod'; }
-      else if (isOrdnance(item)) { slot = 'ordnance'; }
-      else if (isRelic(item)) { slot = 'relic'; }
-      else if (isWeapon(item)) {
-        const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
-        const firstEmpty = weaponSlots.find((s) => !loadout.slots[s]);
-        if (firstEmpty) {
-          slot = firstEmpty;
-        } else {
-          onNavigate?.('loadout');
-          setInspectItem(null);
-          return;
-        }
-      }
-
-      if (slot) {
-        const previousId = loadout.slots[slot] ?? null;
-        await verifiedOps.equipItem(item.id, slot);
-        setUndo({ slot, previousId, name: item.name });
-      }
-      setInspectItem(null);
-    } catch (err) {
-      console.warn('[GearHub] equip failed:', err instanceof Error ? err.message : err);
-    } finally {
-      setBusyEquip(false);
+    if (isShield(item)) { slot = 'shield'; }
+    else if (isClassMod(item)) { slot = 'classMod'; }
+    else if (isOrdnance(item)) { slot = 'ordnance'; }
+    else if (isRelic(item)) { slot = 'relic'; }
+    else if (isWeapon(item)) {
+      const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
+      slot = weaponSlots.find((s) => !loadout.slots[s]) ?? 'primary';
     }
-  };
 
-  const handleUndo = async () => {
-    if (!undo) return;
-    setBusyEquip(true);
-    try {
-      if (undo.previousId) {
-        await verifiedOps.equipItem(undo.previousId, undo.slot);
-      } else {
-        await verifiedOps.unequipSlot(undo.slot);
-      }
-      setUndo(null);
-    } catch (err) {
-      console.warn('[GearHub] undo failed:', err instanceof Error ? err.message : err);
-    } finally {
-      setBusyEquip(false);
-    }
+    if (slot) onEquipRequest?.(item, slot);
+    setInspectItem(null);
   };
 
   const scrap = async (item: GearItem) => {
@@ -620,7 +590,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
     ...Array.from(filterSource),
     filterLocked !== 'all' ? (filterLocked === 'locked' ? 'Locked' : 'Unlocked') : null,
     filterEquippedOnly ? 'Equipped' : null,
-    filterJunk ? 'Scrap candidates' : null,
+    filterJunk ? 'Salvage candidates' : null,
   ].filter(Boolean) as string[];
 
   return (
@@ -629,7 +599,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="text-base font-black leading-tight text-text-primary">Cache Inventory</div>
-          <div className="truncate text-[10px] text-text-muted">Mobile gear triage: compare, equip, scrap, sell.</div>
+          <div className="truncate text-[10px] text-text-muted">Mobile gear triage: compare, equip, salvage, sell.</div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {hasAnyFilter && (
@@ -955,7 +925,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
                   <FilterChip active={filterEquippedOnly} onClick={() => setFilterEquippedOnly((prev) => !prev)}>Equipped</FilterChip>
                   <FilterChip active={filterLocked === 'locked'} onClick={() => setFilterLocked((prev) => (prev === 'locked' ? 'all' : 'locked'))}>Locked</FilterChip>
                   <FilterChip active={filterLocked === 'unlocked'} onClick={() => setFilterLocked((prev) => (prev === 'unlocked' ? 'all' : 'unlocked'))}>Unlocked</FilterChip>
-                  <FilterChip active={filterJunk} onClick={() => setFilterJunk((prev) => !prev)}>Scrap candidates</FilterChip>
+                  <FilterChip active={filterJunk} onClick={() => setFilterJunk((prev) => !prev)}>Salvage candidates</FilterChip>
                 </FilterSection>
 
                 <FilterSection title="Rarity">
@@ -1094,20 +1064,12 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate }) => {
               {inspectItem.isLocked ? 'Unlock' : 'Lock'}
             </button>
             <button type="button" onClick={() => void scrap(inspectItem)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
-              <Trash2 size={15} />Scrap
+              <Trash2 size={15} />Salvage
             </button>
           </div>
         ) : undefined}
       />
 
-      {/* Swap undo toast */}
-      <SwapUndoToast
-        visible={!!undo}
-        itemName={undo?.name ?? ''}
-        previousName={undo?.previousId ? inventory.getById(undo.previousId)?.name ?? null : null}
-        onUndo={handleUndo}
-        onDismiss={() => setUndo(null)}
-      />
     </div>
   );
 };
