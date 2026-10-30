@@ -114,6 +114,36 @@ export interface ChefBossAttemptInput {
   entryFee: number;
 }
 
+/**
+ * Server death record (migration 0013, profiles.death_state). Written
+ * by recordDeath when the claim sim kills the hunter; the authority
+ * the resurrection op validates against. '{}' / null = alive.
+ */
+export interface DeathRecord {
+  /** Epoch ms of the killing tick (engine feed-event clock). */
+  diedAtMs: number;
+  areaId: string;
+  monsterId: string;
+  monsterName: string;
+}
+
+/** Resurrection op input (migration 0013, cc_resurrect). */
+export interface ResurrectInput {
+  nonce: string;
+  method: 'free' | 'paid';
+  /**
+   * Paid-path price, derived by the route from the shared
+   * resurrectionCostForArea() over the RECORDED death area — never
+   * from the request body. Ignored for the free path.
+   */
+  paidCost: number;
+  /**
+   * Free-timer duration (shared RESURRECTION_FREE_TIMER_MS); the SQL
+   * validates it against the server clock and the recorded death.
+   */
+  freeTimerMs: number;
+}
+
 /** Loadout slot order the client builds claim gear arrays in. */
 export const LOADOUT_SLOT_ORDER = ['primary', 'secondary', 'heavy', 'shield', 'classMod', 'relic', 'ordnance'] as const;
 
@@ -133,6 +163,20 @@ export interface ChefGameplayStore {
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json>;
   storeChefItems(playerId: string, items: unknown[]): Promise<Json>;
   consumeRoamingConsumables(playerId: string, consumed: Json, areaId: string, tickCount: number): Promise<Json>;
+  /** The standing death record, or null when the hunter is alive. */
+  getDeathRecord(playerId: string): Promise<DeathRecord | null>;
+  /**
+   * Persist a claim-sim kill (cc_record_death). First death wins: an
+   * already-standing record is returned unchanged with recorded=false.
+   */
+  recordDeath(playerId: string, death: DeathRecord): Promise<{ recorded: boolean; death: DeathRecord }>;
+  /**
+   * The resurrection op (cc_resurrect). Returns the function's payload:
+   * { resurrected: true, ... } on success (plus idempotent_replay on a
+   * nonce replay) or { resurrected: false, reason, ... } on a
+   * validation failure — the route maps reasons to HTTP statuses.
+   */
+  resurrect(playerId: string, input: ResurrectInput): Promise<Json>;
   applyChefBossAttempt(playerId: string, attempt: ChefBossAttemptInput): Promise<Json>;
   settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
@@ -159,6 +203,20 @@ function isoOrNull(value: unknown): string | null {
 
 function json(value: unknown): Json {
   return (value ?? {}) as Json;
+}
+
+/** Parse a profiles.death_state jsonb value into a DeathRecord (null = alive). */
+export function deathRecordFromJson(value: unknown): DeathRecord | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const diedAtMs = num(record.diedAtMs);
+  if (!diedAtMs) return null;
+  return {
+    diedAtMs,
+    areaId: typeof record.areaId === 'string' ? record.areaId : '',
+    monsterId: typeof record.monsterId === 'string' ? record.monsterId : '',
+    monsterName: typeof record.monsterName === 'string' ? record.monsterName : '',
+  };
 }
 
 /** Translate a pg failure into the raw-message GameplayStoreError. */
@@ -305,6 +363,36 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       consumed,
       areaId,
       tickCount,
+    ]);
+  }
+
+  getDeathRecord(playerId: string): Promise<DeathRecord | null> {
+    return this.one(
+      'select death_state from public.profiles where id = $1',
+      [playerId],
+      (row) => deathRecordFromJson(row.death_state),
+    ).then((record) => record ?? null);
+  }
+
+  async recordDeath(playerId: string, death: DeathRecord): Promise<{ recorded: boolean; death: DeathRecord }> {
+    const result = (await this.callJson('select public.cc_record_death($1, $2, $3, $4, $5) as result', [
+      playerId,
+      death.diedAtMs,
+      death.areaId,
+      death.monsterId,
+      death.monsterName,
+    ])) as Record<string, unknown>;
+    const stored = deathRecordFromJson(result.death);
+    return { recorded: result.recorded === true, death: stored ?? death };
+  }
+
+  resurrect(playerId: string, input: ResurrectInput): Promise<Json> {
+    return this.callJson('select public.cc_resurrect($1, $2, $3, $4, $5) as result', [
+      playerId,
+      input.nonce,
+      input.method,
+      Math.trunc(input.paidCost),
+      Math.trunc(input.freeTimerMs),
     ]);
   }
 

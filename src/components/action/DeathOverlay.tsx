@@ -1,25 +1,36 @@
 /**
  * DeathOverlay — the full-screen modal that appears when the hunter's
- * `useSurvivalStore.isDead` is true. Offers three resurrect paths:
+ * `useSurvivalStore.isDead` is true. Offers two resurrect paths, both
+ * resolved by the Chef (POST /api/resurrect — the only resurrection
+ * authority since Phase 0 Slice 4):
  *
- *   1. **Free recovery** — wait for the 5-minute timer on the
- *      `resurrectionReadyAt` timestamp. The button is disabled and
- *      shows a live countdown until ready.
+ *   1. **Free recovery** — wait for the 5-minute timer anchored to
+ *      the server-recorded death time. The button shows a live
+ *      countdown; the server re-validates the elapsed time against
+ *      its own clock when clicked.
  *   2. **Pay credits** — skip the timer for a credit cost that scales
- *      with the area's `unlockLevel`. Disabled if the player can't
- *      afford it. Cost is computed by `resurrectionCostForArea()`.
- *   3. **Use revive token** — instant, consumes one ReviveToken from
- *      the player's consumable count. Disabled if no tokens.
+ *      with the unlock level of the area the hunter died in. The
+ *      displayed cost comes from the same shared
+ *      `resurrectionCostForArea()` the server route derives the
+ *      charge from (over the death record's area), and the server
+ *      deducts it — this component never touches the credit balance.
+ *
+ * (There used to be a third option, "Use revive token". The
+ * ReviveToken item never existed — no def, no source, no server
+ * record — so the button was permanently disabled fiction. It was
+ * removed in Slice 4; a real revive token would need a consumable
+ * def, an acquisition source, and a server consume path.)
  *
  * The overlay reads from the survival slice for death state, the
- * player slice for credits and tokens, and the activity slice for
- * the area (so the credit cost reflects where the player died).
+ * player slice for the credit balance (affordability display only),
+ * and the activity slice as the area fallback when no death record
+ * is present.
  *
  * The overlay is rendered by `App.tsx` (or the action tab) — it
  * returns null when `!isDead` so it's safe to mount unconditionally.
  *
  * Tests: see `DeathOverlay.test.tsx` for rendering, disabled-state,
- * and click-handler coverage.
+ * and click-handler coverage (the Chef client is mocked there).
  */
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,20 +42,11 @@ import {
   useActivityStore,
 } from '@/store';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
-import { CONSUMABLES } from '@/constants/consumables';
 import { resurrectionCostForArea, formatCreditCost, RESURRECTION_FREE_TIMER_MS } from '@/lib/combat/resurrectionCost';
+import { newResurrectNonce, resurrectViaChef } from '@/lib/chef/chefClient';
+import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
+import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { mountIdleTicker } from '@/store/slices/idleTickerSlice';
-
-/** Hex colors for consumable visual accents — used for the revive-token glyph. */
-const CONSUMABLE_ACCENT_HEX: Record<string, string> = {
-  green: '#7CFC00',
-  red: '#FF4B5C',
-  orange: '#FF9000',
-  cyan: '#00E5FF',
-  amber: '#FFB300',
-  purple: '#B66BFF',
-  blue: '#5AA7FF',
-};
 
 export interface DeathOverlayProps {
   /** Optional className for the outer container. */
@@ -69,13 +71,18 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
   const readyAt = useSurvivalStore((s) => s.resurrectionReadyAt);
 
   const credits = usePlayerStore((s) => s.credits);
-  const reviveTokens = usePlayerStore((s) => s.getConsumableCount('ReviveToken'));
+  const playerId = usePlayerStore((s) => s.id);
 
-  // Read the area where the player died (activity store).
-  const areaId = useActivityStore((s) => s.current.targetId);
+  // The area the hunter died in (death record) prices the paid path;
+  // the activity area is only a fallback for deaths recorded before
+  // the record carried an area.
+  const activityAreaId = useActivityStore((s) => s.current.targetId);
   const areaLabel = useActivityStore((s) => s.current.targetLabel);
+  const deathAreaId = lastKilledBy?.areaId ?? activityAreaId;
 
   const [now, setNow] = useState<number>(() => Date.now());
+  const [busyMethod, setBusyMethod] = useState<'free' | 'paid' | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Live-count the free timer every second while dead.
   useEffect(() => {
@@ -88,44 +95,51 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
   const freeRemainingMs = Math.max(0, freeReadyAt - now);
   const freeTimerEnabled = freeRemainingMs <= 0;
 
-  const creditCost = resurrectionCostForArea(areaId);
+  const creditCost = resurrectionCostForArea(deathAreaId);
   const canPayCredits = credits >= creditCost;
-  const canUseToken = reviveTokens > 0;
-
-  // Resolve the ReviveToken consumable's visual glyph for the token button.
-  // ReviveToken is not guaranteed to exist in the CONSUMABLES registry —
-  // fall back to a styled 'T' badge when it's absent.
-  const reviveDef = CONSUMABLES['ReviveToken'];
-  const reviveGlyph = reviveDef?.visual.glyph ?? 'T';
-  const reviveAccent = reviveDef ? CONSUMABLE_ACCENT_HEX[reviveDef.visual.accent] : '#FFB300';
+  const busy = busyMethod !== null;
 
   if (!isDead) return null;
 
   // ─── Click handlers ─────────────────────────────────────────────
+  // Both paths are intents to the Chef: the server requires its own
+  // death record, validates the free timer on its own clock, charges
+  // the paid path itself, and returns the canonical state, which is
+  // synced here (profile via syncVerifiedResult, death log from the
+  // server copy, survival via the slice's resurrect applier). The
+  // local stores deduct nothing on their own.
+  const runResurrect = async (method: 'free' | 'paid') => {
+    if (busy || !playerId) return;
+    setBusyMethod(method);
+    setError(null);
+    try {
+      const result = await resurrectViaChef({ playerId, method, nonce: newResurrectNonce() });
+      syncVerifiedResult(result as unknown as Record<string, unknown>);
+      if (Array.isArray(result.deathLog)) {
+        useSurvivalStore.getState().syncDeathLogFromServer(result.deathLog);
+      }
+      useSurvivalStore.getState().resurrect();
+      useKillCycleStore.getState().resetForAreaChange();
+      await saveCurrentRuntimeStores();
+      // Ticker is still mounted, but the slice's `isDead` flips and the
+      // next tick will start processing again. mountIdleTicker is
+      // idempotent so calling it is a safe no-op if already mounted.
+      mountIdleTicker();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Resurrection failed. Try again.');
+    } finally {
+      setBusyMethod(null);
+    }
+  };
+
   const handleFree = () => {
     if (!freeTimerEnabled) return;
-    useSurvivalStore.getState().resurrect();
-    useKillCycleStore.getState().resetForAreaChange();
-    // Ticker is still mounted, but the slice's `isDead` flips and the
-    // next tick will start processing again. mountIdleTicker is
-    // idempotent so calling it is a safe no-op if already mounted.
-    mountIdleTicker();
+    void runResurrect('free');
   };
 
   const handlePay = () => {
     if (!canPayCredits) return;
-    usePlayerStore.getState().removeCredits(creditCost);
-    useSurvivalStore.getState().resurrectPaid();
-    useKillCycleStore.getState().resetForAreaChange();
-    mountIdleTicker();
-  };
-
-  const handleToken = () => {
-    if (!canUseToken) return;
-    usePlayerStore.getState().removeConsumable('ReviveToken', 1);
-    useSurvivalStore.getState().resurrectToken();
-    useKillCycleStore.getState().resetForAreaChange();
-    mountIdleTicker();
+    void runResurrect('paid');
   };
 
   return (
@@ -175,9 +189,9 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
           <button
             data-testid="death-option-free"
             data-timer-ms-remaining={freeRemainingMs}
-            data-enabled={freeTimerEnabled}
+            data-enabled={freeTimerEnabled && !busy}
             onClick={handleFree}
-            disabled={!freeTimerEnabled}
+            disabled={!freeTimerEnabled || busy}
             className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-transform active:scale-[0.98] ${
               freeTimerEnabled
                 ? 'border-border bg-bg hover:border-amber'
@@ -188,7 +202,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
             <div className="min-w-0 flex-1">
               <div className="text-sm font-black uppercase tracking-wide text-text-primary">Free Recovery</div>
               <div className="text-[10px] text-text-muted">
-                {freeTimerEnabled ? 'Ready now' : `Wait ${formatRemaining(freeRemainingMs)}`}
+                {busyMethod === 'free' ? 'Recovering…' : freeTimerEnabled ? 'Ready now' : `Wait ${formatRemaining(freeRemainingMs)}`}
               </div>
             </div>
             <div className="text-xs font-black text-amber">0 cr</div>
@@ -198,9 +212,9 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
           <button
             data-testid="death-option-pay"
             data-credit-cost={creditCost}
-            data-enabled={canPayCredits}
+            data-enabled={canPayCredits && !busy}
             onClick={handlePay}
-            disabled={!canPayCredits}
+            disabled={!canPayCredits || busy}
             className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-transform active:scale-[0.98] ${
               canPayCredits
                 ? 'border-border bg-bg hover:border-amber'
@@ -211,42 +225,20 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
             <div className="min-w-0 flex-1">
               <div className="text-sm font-black uppercase tracking-wide text-text-primary">Pay Credits</div>
               <div className="text-[10px] text-text-muted">
-                {canPayCredits ? 'Skip the timer' : `Need ${formatCreditCost(creditCost)}`}
+                {busyMethod === 'paid' ? 'Charging…' : canPayCredits ? 'Skip the timer — charged by the server' : `Need ${formatCreditCost(creditCost)}`}
               </div>
             </div>
             <div className="text-xs font-black text-amber">{formatCreditCost(creditCost)}</div>
           </button>
 
-          {/* Option 3: Revive token */}
-          <button
-            data-testid="death-option-token"
-            data-token-count={reviveTokens}
-            data-enabled={canUseToken}
-            onClick={handleToken}
-            disabled={!canUseToken}
-            className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-transform active:scale-[0.98] ${
-              canUseToken
-                ? 'border-border bg-bg hover:border-amber'
-                : 'border-border bg-bg opacity-60'
-            }`}
-          >
-            <span
-              className={`flex h-5 w-5 items-center justify-center text-lg font-black leading-none ${canUseToken ? '' : 'opacity-40'}`}
-              style={{ color: canUseToken ? reviveAccent : '#888' }}
-            >
-              {reviveGlyph}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-black uppercase tracking-wide text-text-primary">Use Revive Token</div>
-              <div className="text-[10px] text-text-muted">
-                {canUseToken ? `${reviveTokens} available` : 'Craft or buy a Revive Token'}
-              </div>
+          {error && (
+            <div data-testid="death-error" className="text-center text-[11px] font-bold text-red">
+              {error}
             </div>
-            <div className="text-xs font-black text-amber">×{reviveTokens}</div>
-          </button>
+          )}
 
           <div className="text-[10px] text-text-muted text-center">
-            Free timer: {Math.floor(RESURRECTION_FREE_TIMER_MS / 60000)} min · Credit cost scales with area tier.
+            Free timer: {Math.floor(RESURRECTION_FREE_TIMER_MS / 60000)} min · Credit cost scales with the tier of the area you died in.
           </div>
         </motion.div>
       </motion.div>

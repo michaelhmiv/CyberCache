@@ -31,7 +31,7 @@ in screens or components is forbidden.
 | **Inventory mutation** | `src/store/slices/inventorySlice.ts` | `receiveServerItems` (Chef path) or `addItem`/`removeItem` (user actions) |
 | **Player resources** (credits, XP, scrap, materials, essences, cache keys/fragments) | `src/store/slices/playerSlice.ts` | Mutated ONLY via `syncVerifiedResult` from server response |
 | **Loadout** | `src/store/slices/loadoutSlice.ts` | 7-slot loadout with consumable slots |
-| **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` | Persisted via Chef runtime snapshot |
+| **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` (display) + Chef (authority) | Death is Chef-recorded (`profiles.death_state` / `death_log`, migration 0013); resurrection is `POST /api/resurrect` only — the slice's `resurrect()` applies the server's confirmed result and charges nothing. Runtime snapshot persists display state only |
 | **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Chef runtime snapshot |
 | **Boss prep analysis** | `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |
 | **Consumable effect values, durations & roaming scope** | `src/constants/consumables.ts` (`CONSUMABLES` defs) | The roaming engine (`src/lib/consumables/roamingConsumableEngine.ts`) derives every magnitude, duration, threshold, and its activation set from the defs — no engine-local value tables. Roaming auto-activates all owned roaming-scoped consumables; consumption is persisted by the claim route (`cc_consume_roaming_consumables`) and, for offline ticks, atomically inside `cc_settle_offline_roaming` (migration 0012) |
@@ -86,6 +86,18 @@ idleTickerSlice.tickNow()
   → survivalSlice.applyDamage()     # state mutation
   → decideAutoEat()                 # pure function
   → playerSlice.consumeConsumable() # state mutation
+```
+
+### Death / resurrection (roaming)
+```
+Chef claim sim kills the hunter (processRoamingClaim survival block)
+  -> claim route -> store.recordDeath()   # cc_record_death: profiles.death_state + death_log, first death wins
+  -> claim response `death` + survival.killedBy/diedAt
+  -> idleTickerSlice applyServerRewards -> survivalSlice.syncFromServer -> die(server entry)  # log + server-anchored timer
+DeathOverlay (free | pay intent + nonce)
+  -> chefClient.resurrectViaChef()        # POST /api/resurrect
+  -> cc_resurrect                          # requires the record; free = DB-clock timer check; paid = shared price rule over the recorded area, charged atomically with clearing the record
+  -> syncVerifiedResult(profile) + survivalSlice.resurrect()   # local applier only — no local deduction
 ```
 
 ### Offline settlement

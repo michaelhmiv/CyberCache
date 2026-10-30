@@ -212,6 +212,23 @@ Deferred for later PRs:
 
 ---
 
+## 4.2 Death & Resurrection (Roaming)
+
+Shipped truth (Phase 0 Slice 4, 2026-10-30; migration `0013_death_resurrection.sql`):
+
+**Death is server-computed and server-recorded.** The Chef claim sim decides when a monster hit takes the hunter to 0 HP. When that happens during a claim, the claim route persists the death on the profile — `profiles.death_state` = `{ diedAtMs, areaId, monsterId, monsterName }` — and prepends the entry to `profiles.death_log` (newest first, capped at 20). The first death wins: while a record stands, later claims never move `diedAtMs` or rewrite the killer. The claim response carries the record, and the client feeds it to the survival slice's `die()` — so the death overlay's "Killed by" line, the profile death log, and the free-recovery countdown all show the server's killer, area, and time (the countdown is anchored to `diedAtMs`, not the local clock).
+
+**Resurrection is a server op: `POST /api/resurrect` (`cc_resurrect`).** Identity comes from the Chef JWT; the op requires a standing death record and is nonce-idempotent (a replay returns the stored result and never double-charges). Two paths:
+
+- **Free Recovery** — available 5 minutes after the recorded death (`RESURRECTION_FREE_TIMER_MS`). `cc_resurrect` validates the elapsed time against the **database clock** and the recorded `diedAtMs`; the client's countdown is display only.
+- **Pay Credits** — skip the timer. The price is `resurrectionCostForArea()` over the **recorded death area**: `unlockLevel × 100` credits, capped at 50,000 (100 cr in a level-1 area … 2,500 cr in HelixWorks). One shared function prices both the death screen's display and the server's charge, so they cannot drift. The op balance-checks and deducts atomically in the same transaction that clears the death state. The client deducts nothing locally; it syncs the profile the op returns.
+
+Rejected with no charge and the death still standing: no death record (409), free timer not yet elapsed, insufficient credits. Boss defeats are separate — they cost the §10 death fee and never touch this system.
+
+**The Revive Token does not exist.** The death screen used to offer a permanently disabled "Use revive token" option for an item with no consumable def, no acquisition source, and no server record; Slice 4 removed the option and every reference to it. A future revive token would need all three: a def in the consumable registry, a source (drop/vendor/recipe), and a server consume path in the resurrection op.
+
+---
+
 ## 5. Element Matchups
 
 | Element | Strong vs (1.3×) | Weak vs (0.7×) |
@@ -446,6 +463,7 @@ Nothing outside the prepared set is ever touched.
 ## 12. Current Implementation Status
 
 ### ✅ Fully Wired
+- Death & resurrection (see §4.2): server-recorded deaths (claim sim → `profiles.death_state`/`death_log`), server-validated free timer, server-charged paid revive at the displayed price, nonce-idempotent `POST /api/resurrect`
 - Legendary effects (14): glass_sun, ricochet_gospel, warranty_void, debt_collector, armor_eater (armor-break half), kickback, echo_chamber, bad_decision, hot_swapper, insurance_fraud_weapon — plus second_opinion, salvage_rights, market_crash and jackpot, which are implemented in the Chef / Postgres appliers rather than the simulator (see §1)
 - All 19 consumable effects in boss simulator
 - Ammo windows + signature mechanics for all 6 weapon types

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
+import { RESURRECTION_FREE_TIMER_MS } from '@/lib/combat/resurrectionCost';
 
 // Simulate a full snapshot build → restore cycle for survival and killCycle.
 // We test against the actual store shapes (not the snapshot factory) so
@@ -61,7 +62,10 @@ describe('Survival snapshot shape', () => {
     expect(s.currentHp).toBe(0);
     expect(s.deathLog).toHaveLength(1);
     expect(s.deathLog[0].monsterId).toBe('w1');
-    expect(s.resurrectionReadyAt).toBeGreaterThan(Date.now());
+    // Timers anchor to the death's own timestamp (the server record's
+    // diedAt on the Chef path), not the local clock.
+    expect(s.resurrectionStartedAt).toBe(1000);
+    expect(s.resurrectionReadyAt).toBe(1000 + RESURRECTION_FREE_TIMER_MS);
   });
 
   it('resurrect clears death state and restores full HP', () => {

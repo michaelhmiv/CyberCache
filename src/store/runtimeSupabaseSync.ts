@@ -101,6 +101,7 @@ type SurvivalSnapshot = {
   maxHp: number;
   shieldHp: number;
   isDead: boolean;
+  lastKilledBy: { monsterId: string; monsterName: string; areaId: string; at: number } | null;
   deathLog: Array<{ monsterId: string; monsterName: string; areaId: string; at: number }>;
   resurrectionStartedAt: number | null;
   resurrectionReadyAt: number | null;
@@ -198,6 +199,7 @@ export function buildRuntimeDisplaySnapshot(): RuntimeDisplaySnapshot {
       maxHp: survival.maxHp,
       shieldHp: survival.shieldHp,
       isDead: survival.isDead,
+      lastKilledBy: survival.lastKilledBy ?? null,
       deathLog: arrayValue<SurvivalSnapshot['deathLog'][number]>(survival.deathLog) ?? [],
       resurrectionStartedAt: survival.resurrectionStartedAt,
       resurrectionReadyAt: survival.resurrectionReadyAt,
@@ -302,6 +304,9 @@ export function applyRuntimeDisplaySnapshot(snapshot: RuntimeStoreSnapshot): voi
         maxHp: typeof survival.maxHp === 'number' ? survival.maxHp : state.maxHp,
         shieldHp: typeof survival.shieldHp === 'number' ? survival.shieldHp : state.shieldHp,
         isDead: typeof survival.isDead === 'boolean' ? survival.isDead : state.isDead,
+        lastKilledBy: survival.lastKilledBy === null
+          ? null
+          : objectValue<SurvivalSnapshot['deathLog'][number]>(survival.lastKilledBy) ?? state.lastKilledBy,
         deathLog: arrayValue<SurvivalSnapshot['deathLog'][number]>(survival.deathLog) ?? state.deathLog,
         resurrectionStartedAt: typeof survival.resurrectionStartedAt === 'number' || survival.resurrectionStartedAt === null
           ? survival.resurrectionStartedAt : state.resurrectionStartedAt,

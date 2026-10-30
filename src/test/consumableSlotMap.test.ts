@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readConsumableSlots, readReviveTokenCount } from '@/lib/combat/consumableSlotMap';
+import { readConsumableSlots } from '@/lib/combat/consumableSlotMap';
 import { CONSUMABLES } from '@/constants/consumables';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
@@ -54,25 +54,10 @@ describe('readConsumableSlots', () => {
   });
 
   it('returns an icon for known consumable types', () => {
-    useLoadoutStore.setState({ consumables: { PreFight: 'MedKit', MidFight: 'ShieldCell', Emergency: 'ReviveToken' } });
+    useLoadoutStore.setState({ consumables: { PreFight: 'MedKit', MidFight: 'ShieldCell', Emergency: 'AmmoPack' } });
     const views = readConsumableSlots();
     expect(views[0].icon).toBe(CONSUMABLES.MedKit.visual.glyph);
     expect(views[1].icon).toBe(CONSUMABLES.ShieldCell.visual.glyph);
-    expect(views[2].icon).toBe('🎟');
-  });
-});
-
-describe('readReviveTokenCount', () => {
-  beforeEach(() => {
-    usePlayerStore.setState({ consumables: {} });
-  });
-
-  it('returns 0 when no ReviveToken', () => {
-    expect(readReviveTokenCount()).toBe(0);
-  });
-
-  it('returns the current ReviveToken count', () => {
-    usePlayerStore.setState({ consumables: { ReviveToken: 3 } });
-    expect(readReviveTokenCount()).toBe(3);
+    expect(views[2].icon).toBe(CONSUMABLES.AmmoPack.visual.glyph);
   });
 });
