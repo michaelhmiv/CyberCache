@@ -1,10 +1,24 @@
-import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
-import { getPixelSprite, pixelBackgroundForArea } from '@/lib/pixel/manifest';
+import {
+  CritFlash,
+  DamageNumber,
+  DustPuff,
+  DustRing,
+  GhostHpBar,
+  ImpactSparks,
+  MuzzleFlash,
+  PixelSway,
+  ShellCasing,
+  TelegraphGlow,
+  Tracer,
+} from '@/components/pixelArt/PixelFx';
+import { getPixelSprite, pixelBackgroundForArea, requirePixelSprite } from '@/lib/pixel/manifest';
+import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { useKillCycleStore, useTickFeedStore, useBossStore } from '@/store';
 import { MONSTERS } from '@/constants/monsters';
@@ -614,8 +628,9 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ a
   );
 };
 
-/** Boss HP overlay for live boss fights. */
-const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ active, accentColor }) => {
+/** Boss HP overlay for live boss fights. The fill carries a ghost trail
+ *  (P2 movement system): lost HP drains behind the real bar over ~480 ms. */
+const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; reduced?: boolean }> = ({ active, accentColor, reduced = false }) => {
   const bossHp = useBossStore((state) => state.activeBossHp);
   const bossMaxHp = useBossStore((state) => state.activeBossMaxHp);
   const bossId = useBossStore((state) => state.activeBossId);
@@ -633,15 +648,7 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ act
         <span className="truncate">{bossName}</span>
         <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
       </div>
-      <div className="h-2 w-full overflow-hidden border border-border bg-surface">
-        <motion.div
-          className="h-full"
-          style={{ background: accentColor }}
-          initial={false}
-          animate={{ width: `${ratio * 100}%` }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-        />
-      </div>
+      <GhostHpBar pct={ratio * 100} color={accentColor} reduced={reduced} barClassName="h-2" testId="diorama-boss-hp-bar" />
       {status === 'victory' && (
         <div className="mt-1 text-center text-[8px] font-black text-green animate-pulse">VICTORY</div>
       )}
@@ -656,12 +663,21 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ act
 
 /**
  * Pixel replacement for the vector SVG scene, used by areas listed in
- * PIXEL_AREA_BACKGROUNDS (P1: dustwaste_frontier). Sprites come from the
- * pixel manifest and are placed by their anchors on a PixelStage; the
- * equipped weapon renders through the parts-kit compositor at the hunter's
- * hands. All chrome (title, HP overlays, action bar) stays shared with the
- * vector scene. Presentation only — reads the same stores/events, produces
- * no gameplay outcomes. Combat FX beyond hit/kill reactions land in P2.
+ * PIXEL_AREA_BACKGROUNDS (P1: dustwaste_frontier; other zones convert in
+ * P4 — this layer is zone-agnostic, driven entirely by the background id
+ * and the shared actor sprites). Sprites come from the pixel manifest and
+ * are placed by their anchors on a PixelStage; the equipped weapon
+ * renders through the parts-kit compositor at the hunter's hands.
+ *
+ * P2 movement system: the latest tick event is classified into a combat
+ * beat (src/lib/pixel/movement.ts) and staged with the FX kit — walk-in /
+ * drop-in entrances, muzzle flash + tracer + shell casing + impact
+ * sparks, screen shake, crit flash, telegraphed enemy lunge answered by
+ * a hunter dodge, and the kill collapse with a dust ring. All timings
+ * come from MOVEMENT; all positions from manifest anchors. All chrome
+ * (title, HP overlays, action bar) stays shared with the vector scene.
+ * Presentation only — reads the same stores/events, produces no gameplay
+ * outcomes. Reduced motion: static actors, no FX/shake/entrances.
  */
 const PixelSceneLayer: React.FC<{
   backgroundId: string;
@@ -669,21 +685,98 @@ const PixelSceneLayer: React.FC<{
   mode: DioramaMode;
   modeLabel: string;
   accent: string;
+  projectileColor: string;
   event?: LiveTurfFeedEvent;
   reduced: boolean;
-}> = ({ backgroundId, weapon, mode, modeLabel, accent, event, reduced }) => {
+}> = ({ backgroundId, weapon, mode, modeLabel, accent, projectileColor, event, reduced }) => {
   const background = getPixelSprite(backgroundId);
   const groundY = background?.anchors.groundLine?.y ?? 0.86;
   const showEnemy = mode === 'roaming' || mode === 'bossFight';
-  const impact = isImpact(event) && !reduced;
-  const isKill = impact && event?.tone === 'kill';
-  const isHit = impact && event?.tone === 'loot' && event?.label?.startsWith('-') && (event?.value ?? 0) > 0;
-  const isDamage = impact && event?.tone === 'damage';
+  const bossMode = mode === 'bossFight';
+  const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
+  const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
   const lootLike = isLootLike(event) && !reduced;
   const crate = getPixelSprite('crate');
+  const [enemyLanded, setEnemyLanded] = useState(false);
+
+  const hunterSprite = requirePixelSprite('hunter');
+  const enemySprite = requirePixelSprite('brute');
+  const hunterPlacement: ActorPlacement = { xPct: 22, heightPct: 57, groundY };
+  const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: 66, groundY };
+  const muzzle = actorAnchorPoint(hunterSprite, 'muzzle', hunterPlacement);
+  const grip = actorAnchorPoint(hunterSprite, 'grip', hunterPlacement);
+  const hunterMass = actorAnchorPoint(hunterSprite, 'centerMass', hunterPlacement);
+  const enemyMass = actorAnchorPoint(enemySprite, 'centerMass', enemyPlacement);
+  const enemyFeet = actorAnchorPoint(enemySprite, 'feet', enemyPlacement);
+
+  const combatBeat = beat && showEnemy ? beat : null;
+  const shakeKey =
+    combatBeat && (combatBeat.kind === 'shot' || combatBeat.kind === 'crit' || combatBeat.kind === 'kill')
+      ? event?.id
+      : enemyLanded && bossMode && !reduced
+        ? 'enemy-land'
+        : undefined;
+  const shakeIntensity = combatBeat?.kind === 'crit' ? 7 : combatBeat?.kind === 'kill' ? 5 : combatBeat?.kind === 'shot' ? 3 : 5;
+  const shakeDurationMs = combatBeat?.kind === 'crit' ? MOVEMENT.CRIT_SHAKE_MS : MOVEMENT.SHAKE_MS + 140;
+
+  // Actor reactions, driven per tick event through animation controls.
+  const hunterControls = useAnimationControls();
+  const enemyLungeControls = useAnimationControls();
+  const enemyHitControls = useAnimationControls();
+  const beatKind = combatBeat?.kind;
+  const beatEventId = event?.id;
+  useEffect(() => {
+    if (reduced) return;
+    switch (beatKind) {
+      case 'playerHit':
+        void hunterControls.start({
+          x: [0, 0, -26, -20, 0],
+          scaleY: [1, 1, 0.9, 0.97, 1],
+          transition: { duration: (MOVEMENT.TELEGRAPH_MS + MOVEMENT.LUNGE_MS + 120) / 1000, times: [0, 0.45, 0.6, 0.78, 1] },
+        });
+        void enemyLungeControls.start({
+          x: [0, 0, -92, -72, 0],
+          transition: { duration: (MOVEMENT.TELEGRAPH_MS + MOVEMENT.LUNGE_MS + 140) / 1000, times: [0, 0.45, 0.62, 0.8, 1] },
+        });
+        break;
+      case 'shot':
+      case 'crit':
+        void hunterControls.start({ x: [0, -4, 0], transition: { duration: 0.22 } });
+        void enemyHitControls.start({
+          scale: [1, 0.93, 1.03, 1],
+          x: [0, 9, -3, 0],
+          transition: { duration: MOVEMENT.HIT_REACTION_MS / 1000 },
+        });
+        break;
+      case 'kill':
+        void hunterControls.start({ y: [0, -9, 0], transition: { duration: 0.42 } });
+        void enemyHitControls.start({
+          opacity: [1, 1, 0],
+          scale: [1, 1.05, 0.5],
+          y: [0, 0, 24],
+          transition: { duration: 0.5, ease: 'easeIn' },
+        });
+        break;
+      default:
+        // Quiet/loot event (or a fresh target): settle back to rest poses.
+        void hunterControls.start({ x: 0, y: 0, scaleY: 1, transition: { duration: 0.2 } });
+        void enemyLungeControls.start({ x: 0, transition: { duration: 0.2 } });
+        void enemyHitControls.start({ opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.2 } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beatEventId, beatKind, reduced]);
 
   return (
-    <PixelStage backgroundId={backgroundId} groundY={groundY} reduced={reduced} testId="pixel-diorama-stage">
+    <PixelStage
+      backgroundId={backgroundId}
+      groundY={groundY}
+      reduced={reduced}
+      embers
+      shakeKey={shakeKey}
+      shakeIntensity={shakeIntensity}
+      shakeDurationMs={shakeDurationMs}
+      testId="pixel-diorama-stage"
+    >
       {/* Mode chip (mirrors the vector scene's in-scene label) */}
       <div
         className="pointer-events-none absolute left-2 top-[58px] z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[13px] font-black uppercase tracking-wide"
@@ -697,40 +790,101 @@ const PixelSceneLayer: React.FC<{
         <PixelActor spriteId="crate" xPct={63} heightPct={21} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-crate-prop" />
       )}
 
-      {/* Hunter + equipped weapon (compositor) at the sprite's rifle line */}
+      {/* Hunter — walks in for combat; dodges the telegraphed lunge on
+          damage beats, recoils on his own shots, hops on a kill.
+          Persistent wrapper: reactions run through animation controls
+          (a per-event remount would replay the walk-in on every tick). */}
       <motion.div
-        key={`hunter-${isDamage ? event?.id : 'steady'}`}
         className="absolute inset-0"
-        animate={isDamage ? { x: [-7, 2, 0] } : { x: 0 }}
-        transition={isDamage ? { duration: 0.35 } : { duration: 0.1 }}
+        style={{ transformOrigin: `${hunterPlacement.xPct}% ${groundY * 100}%` }}
+        initial={false}
+        animate={reduced ? undefined : hunterControls}
       >
-        <PixelActor spriteId="hunter" xPct={22} heightPct={57} groundY={groundY} reduced={reduced} testId="pixel-hunter">
+        <PixelActor
+          spriteId="hunter"
+          {...hunterPlacement}
+          reduced={reduced}
+          entrance={showEnemy ? 'walk' : 'none'}
+          enterFrom="left"
+          testId="pixel-hunter"
+        >
           {weapon && (
             <div className="pointer-events-none absolute" style={{ left: '24%', top: '26%', width: '78%', transform: 'rotate(-3deg)' }}>
-              <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
+              <PixelSway reduced={reduced}>
+                <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
+              </PixelSway>
             </div>
           )}
         </PixelActor>
       </motion.div>
 
-      {/* Enemy (brute pose) with hit / kill reactions */}
+      {/* Enemy — drops in for boss fights (dust + shake on landing),
+          walks in roaming; lunges on damage beats; hit/kill reactions */}
       {showEnemy && (
         <motion.div
-          key={`enemy-${isKill || isHit ? event?.id : 'steady'}`}
           className="absolute inset-0"
+          style={{ transformOrigin: `${enemyPlacement.xPct}% ${groundY * 100}%` }}
           initial={false}
-          animate={
-            isKill
-              ? { opacity: [1, 1, 0], scale: [1, 1.06, 0.55], y: [0, 0, 26] }
-              : isHit
-                ? { x: [0, 5, -3, 0] }
-                : { x: 0, opacity: 1, scale: 1, y: 0 }
-          }
-          transition={isKill ? { duration: 0.45, ease: 'easeIn' } : isHit ? { duration: 0.22 } : { duration: 0.1 }}
-          style={{ transformOrigin: '74% 86%' }}
+          animate={reduced ? undefined : enemyLungeControls}
         >
-          <PixelActor spriteId="brute" xPct={74} heightPct={66} groundY={groundY} reduced={reduced} breatheDuration={3.1} testId="pixel-enemy" />
+          <motion.div
+            className="absolute inset-0"
+            initial={false}
+            animate={reduced ? undefined : enemyHitControls}
+            style={{ transformOrigin: `${enemyPlacement.xPct}% ${groundY * 100}%` }}
+          >
+            <PixelActor
+              spriteId="brute"
+              {...enemyPlacement}
+              reduced={reduced}
+              breatheDuration={3.1}
+              entrance={bossMode ? 'drop' : 'walk'}
+              enterFrom="right"
+              onLanded={() => setEnemyLanded(true)}
+              testId="pixel-enemy"
+            />
+          </motion.div>
         </motion.div>
+      )}
+
+      {/* Landing dust when the boss drops in */}
+      {enemyLanded && bossMode && !reduced && <DustPuff xPct={enemyFeet.xPct} yPct={enemyFeet.yPct} width={96} />}
+
+      {/* Combat beat FX — positioned from manifest anchors */}
+      {combatBeat && event && (
+        <div key={`beat-${event.id}`} className="absolute inset-0" data-testid="diorama-beat-fx">
+          {(combatBeat.kind === 'shot' || combatBeat.kind === 'crit') && (
+            <>
+              <MuzzleFlash xPct={muzzle.xPct} yPct={muzzle.yPct} />
+              <Tracer from={muzzle} to={enemyMass} color={projectileColor} />
+              <ShellCasing xPct={grip.xPct} yPct={grip.yPct} />
+              <ImpactSparks xPct={enemyMass.xPct} yPct={enemyMass.yPct} seed={event.id} />
+              <motion.div
+                data-testid="fx-hit-flash"
+                className="pointer-events-none absolute z-20 rounded-full bg-white"
+                style={{ left: `${enemyMass.xPct}%`, top: `${enemyMass.yPct}%`, width: 96, height: 96, marginLeft: -48, marginTop: -48 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.45, 0] }}
+                transition={{ duration: MOVEMENT.HIT_REACTION_MS / 1000 }}
+              />
+              <DamageNumber xPct={enemyMass.xPct} yPct={enemyMass.yPct - 6} value={combatBeat.value ?? 0} crit={combatBeat.kind === 'crit'} />
+            </>
+          )}
+          {combatBeat.kind === 'crit' && <CritFlash />}
+          {combatBeat.kind === 'playerHit' && (
+            <>
+              <TelegraphGlow xPct={enemyMass.xPct} yPct={enemyMass.yPct} />
+              <DamageNumber xPct={hunterMass.xPct} yPct={hunterMass.yPct - 6} value={combatBeat.value ?? 0} tone="player" delayMs={MOVEMENT.TELEGRAPH_MS} />
+              <motion.div
+                className="pointer-events-none absolute inset-0 z-30 bg-[#FF0000]/12"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0, 1, 0] }}
+                transition={{ duration: (MOVEMENT.TELEGRAPH_MS + 300) / 1000, times: [0, 0.55, 0.7, 1] }}
+              />
+            </>
+          )}
+          {combatBeat.kind === 'kill' && <DustRing xPct={enemyFeet.xPct} yPct={enemyFeet.yPct} delayMs={120} />}
+        </div>
       )}
 
       {/* Loot crate rise on loot-like events (drop cards/beams are P3) */}
@@ -746,16 +900,6 @@ const PixelSceneLayer: React.FC<{
           animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
           transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
         />
-      )}
-
-      {/* Player damage flash */}
-      {isDamage && (
-        <motion.div key={`dmg-${event?.id}`} className="pointer-events-none absolute inset-0 z-30" initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0] }} transition={{ duration: 0.5 }}>
-          <div className="absolute inset-0 bg-[#FF0000]/15" />
-          <div className="absolute font-black text-[#FF4444]" style={{ left: '16%', top: '22%', fontSize: 20, textShadow: '0 0 6px #000' }}>
-            -{event?.value ?? 0}
-          </div>
-        </motion.div>
       )}
     </PixelStage>
   );
@@ -794,7 +938,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   return (
     <section className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
       {pixelBackgroundId ? (
-        <PixelSceneLayer backgroundId={pixelBackgroundId} weapon={weapon} mode={mode} modeLabel={copy.label} accent={scene.accent} event={latestEvent} reduced={reduced} />
+        <PixelSceneLayer backgroundId={pixelBackgroundId} weapon={weapon} mode={mode} modeLabel={copy.label} accent={scene.accent} projectileColor={projectile.color} event={latestEvent} reduced={reduced} />
       ) : (
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 420 286" role="img" aria-label={`${copy.label} activity visualization`}>
         <defs><linearGradient id={`sky-${safeId}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={scene.skyTop} /><stop offset="54%" stopColor={scene.skyBottom} /><stop offset="100%" stopColor="#050608" /></linearGradient><linearGradient id={`ground-${safeId}`} x1="0" x2="1"><stop offset="0%" stopColor={scene.groundDark} /><stop offset="48%" stopColor={scene.ground} /><stop offset="100%" stopColor={scene.groundDark} /></linearGradient><filter id={`soft-glow-${safeId}`} x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={scene.accent} floodOpacity="0.55" /></filter></defs>
@@ -826,7 +970,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       <LootDropHtml event={latestEvent} reduced={reduced} pixel={!!pixelBackgroundId} />
       {/* Target HP overlay */}
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
-      <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} />
+      <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} reduced={reduced} />
       <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
         {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
