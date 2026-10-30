@@ -60,13 +60,20 @@ describe('rewarded cache key authority', () => {
   });
 
   it('keeps Firebase push sending server-side and authenticated', () => {
-    const fn = readSource('supabase/functions/send-test-push/index.ts');
-    expect(fn).toContain("requiredEnv('FIREBASE_ADMIN_JSON')");
-    expect(fn).toContain('admin.auth.getUser(jwt)');
-    expect(fn).toContain(".from('user_push_devices')");
+    // Route B (B5): the send-test-push Edge Function is ported to the
+    // Chef — FCM sending lives in src/server/jobs/fcm.ts, reached only
+    // through the JWT-authenticated POST /api/push/test route, with the
+    // credential read from the FIREBASE_ADMIN_JSON env var.
+    const fn = readSource('src/server/jobs/fcm.ts');
+    expect(fn).toContain('FIREBASE_ADMIN_JSON');
     expect(fn).toContain("https://www.googleapis.com/auth/firebase.messaging");
-    expect(fn).toContain('https://fcm.googleapis.com/v1/projects/${projectId}/messages:send');
+    expect(fn).toContain('https://fcm.googleapis.com/v1/projects/${config.projectId}/messages:send');
     expect(fn).not.toContain('service_account');
     expect(fn).not.toContain('private_key_id');
+
+    const routes = readSource('src/server/jobs/routes.ts');
+    expect(routes).toContain("'/api/push/test'");
+    expect(routes).toContain('chefPlayerId');
+    expect(readSource('src/server/jobs/store.ts')).toContain('user_push_devices');
   });
 });
