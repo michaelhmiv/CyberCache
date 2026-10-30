@@ -85,7 +85,10 @@ describe('survivalSlice', () => {
     expect(s.currentHp).toBe(0);
     expect(s.lastKilledBy?.monsterId).toBe('dustwaste_brute');
     expect(s.deathLog).toHaveLength(1);
-    expect(s.resurrectionReadyAt).toBeGreaterThan(Date.now());
+    // The free timer anchors to the death's timestamp (12345), the
+    // same diedAt the server validates against — not Date.now().
+    expect(s.resurrectionStartedAt).toBe(12345);
+    expect(s.resurrectionReadyAt).toBe(12345 + 5 * 60 * 1000);
   });
 
   it('deathLog is capped at 20 entries', () => {

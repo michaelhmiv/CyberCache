@@ -35,7 +35,6 @@ function consumableLabel(typeId: string | null): string {
 
 function consumableIcon(typeId: string | null): string {
   if (!typeId) return '—';
-  if (typeId === 'ReviveToken') return '🎟';
   return CONSUMABLES[typeId]?.visual.glyph ?? '📦';
 }
 
@@ -59,12 +58,4 @@ export function readConsumableSlots(): ConsumableSlotView[] {
       icon: consumableIcon(consumableType),
     };
   });
-}
-
-/**
- * Read the player's current revive token count. Used by the death
- * overlay to enable/disable the "Use Revive Token" option.
- */
-export function readReviveTokenCount(): number {
-  return usePlayerStore.getState().getConsumableCount('ReviveToken');
 }

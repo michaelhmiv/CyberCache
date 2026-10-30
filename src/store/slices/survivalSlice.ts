@@ -1,8 +1,17 @@
 /**
  * Survival slice — the hunter's HP, death state, and last-killed-by log.
  *
- * Persisted via the Supabase runtime snapshot (see runtimeSupabaseSync.ts).
+ * Persisted via the runtime snapshot (see runtimeSupabaseSync.ts).
  * A page reload preserves the hunter's HP, death state, and resurrection timer.
+ *
+ * Death and resurrection are server-owned (Phase 0 Slice 4): the Chef
+ * claim sim kills the hunter, the claim route records the death
+ * server-side (profiles.death_state), and `syncFromServer` feeds that
+ * record to `die()` so `lastKilledBy` / `deathLog` show the real
+ * killer, area, and time. Resurrection goes through POST
+ * /api/resurrect — the server validates the free timer against its
+ * own clock and charges the paid path itself; `resurrect()` below is
+ * only the local applier of the server's confirmed result.
  *
  * Sourced by:
  *   - The idle ticker, which calls `applyDamage` and `consumeConsumable`.
@@ -13,6 +22,7 @@
  */
 import { create } from 'zustand';
 import { computeHunterMaxHp } from '@/lib/combat/damageContract';
+import { RESURRECTION_FREE_TIMER_MS } from '@/lib/combat/resurrectionCost';
 
 export interface DeathLogEntry {
   monsterId: string;
@@ -22,10 +32,10 @@ export interface DeathLogEntry {
 }
 
 export interface ResurrectionChoice {
-  id: 'free_timer' | 'pay_credits' | 'consume_revivetoken';
+  id: 'free_timer' | 'pay_credits';
   label: string;
   description: string;
-  /** Credit cost. 0 for free / token. */
+  /** Credit cost. 0 for free. */
   creditCost: number;
   /** Milliseconds before free resurrection completes. */
   timerMs?: number;
@@ -35,21 +45,15 @@ export const RESURRECTION_CHOICES: ResurrectionChoice[] = [
   {
     id: 'free_timer',
     label: 'Free Recovery',
-    description: 'Wait it out. 5 minutes.',
+    description: 'Wait it out. 5 minutes — validated by the server against the recorded death time.',
     creditCost: 0,
-    timerMs: 5 * 60 * 1000,
+    timerMs: RESURRECTION_FREE_TIMER_MS,
   },
   {
     id: 'pay_credits',
     label: 'Pay Credits',
-    description: 'Skip the timer for a fee. Scales with area tier.',
-    creditCost: 0, // computed at render time from current area
-  },
-  {
-    id: 'consume_revivetoken',
-    label: 'Use Revive Token',
-    description: 'Consume a crafted revive token for instant recovery.',
-    creditCost: 0,
+    description: 'Skip the timer for a fee charged by the server. Scales with the tier of the area you died in.',
+    creditCost: 0, // computed at render time from the death record's area
   },
 ];
 
@@ -87,18 +91,27 @@ export interface SurvivalState {
   setAutoEatThreshold: (threshold: number) => void;
   die: (entry: DeathLogEntry) => void;
   startResurrection: (readyAt: number) => void;
+  /**
+   * Apply a server-confirmed resurrection locally (full HP, death
+   * state cleared). The authority is POST /api/resurrect — callers
+   * must only invoke this after the Chef confirms; nothing here
+   * charges or validates anything.
+   */
   resurrect: () => void;
-  /** Pay credits to skip the free timer. Caller must have already
-   *  deducted credits from the player store. */
-  resurrectPaid: () => void;
-  /** Consume a revive token. Caller must have already decremented the
-   *  player's ReviveToken count from the player store. */
-  resurrectToken: () => void;
+  /** Replace the local death log with the server's canonical log
+   *  (returned by the resurrection op). */
+  syncDeathLogFromServer: (entries: DeathLogEntry[]) => void;
   /** Debug/test-only — reset to full HP. */
   resetFull: () => void;
   /** Sync authoritative survival state from the Chef server.
    *  Called when the Chef claim response includes survival data. */
-  syncFromServer: (server: { currentHp: number; shieldHp: number; isDead?: boolean }) => void;
+  syncFromServer: (server: {
+    currentHp: number;
+    shieldHp: number;
+    isDead?: boolean;
+    killedBy?: { monsterId: string; monsterName: string; areaId: string } | null;
+    diedAt?: number | null;
+  }) => void;
 }
 
 const INITIAL_MAX_HP = 700;
@@ -199,8 +212,12 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
       currentHp: 0,
       lastKilledBy: entry,
       deathLog: [entry, ...state.deathLog].slice(0, 20),
-      resurrectionStartedAt: Date.now(),
-      resurrectionReadyAt: Date.now() + 5 * 60 * 1000,
+      // Anchored to the death's own timestamp (the server record's
+      // diedAtMs on the Chef path), NOT the local clock: the free
+      // timer the player watches is the same interval the server
+      // validates in cc_resurrect.
+      resurrectionStartedAt: entry.at,
+      resurrectionReadyAt: entry.at + RESURRECTION_FREE_TIMER_MS,
     })),
 
   startResurrection: (readyAt) =>
@@ -219,37 +236,8 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
       resurrectionReadyAt: null,
     })),
 
-  resurrectPaid: () =>
-    set((state) => {
-      if (!state.isDead) return state;
-      return {
-        isDead: false,
-        currentHp: state.maxHp,
-        shieldHp: 0,
-        medKitBuffer: 0,
-        nanoSwarmTicksRemaining: 0,
-        adrenalineActive: false,
-        adrenalineExpiresAt: 0,
-        resurrectionStartedAt: null,
-        resurrectionReadyAt: null,
-      };
-    }),
-
-  resurrectToken: () =>
-    set((state) => {
-      if (!state.isDead) return state;
-      return {
-        isDead: false,
-        currentHp: state.maxHp,
-        shieldHp: 0,
-        medKitBuffer: 0,
-        nanoSwarmTicksRemaining: 0,
-        adrenalineActive: false,
-        adrenalineExpiresAt: 0,
-        resurrectionStartedAt: null,
-        resurrectionReadyAt: null,
-      };
-    }),
+  syncDeathLogFromServer: (entries) =>
+    set({ deathLog: entries.slice(0, 20) }),
 
   resetFull: () =>
     set((state) => ({
@@ -272,12 +260,30 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
     currentHp: number;
     shieldHp: number;
     isDead?: boolean;
+    killedBy?: { monsterId: string; monsterName: string; areaId: string } | null;
+    diedAt?: number | null;
     medKitBuffer?: number;
     nanoSwarmTicksRemaining?: number;
     adrenalineActive?: boolean;
     shieldCellResistance?: number;
-  }) =>
-    set((state) => {
+  }) => {
+    // Server-authoritative death WITH attribution: feed the server's
+    // death record to die() so lastKilledBy and the death log carry
+    // the real killer, area, and time (they never populated before —
+    // this branch used to skip die() entirely "to avoid
+    // double-logging", and nothing else ever called it). die()
+    // anchors the resurrection timers to the server's diedAt.
+    const before = get();
+    if (!before.isDead && server.isDead === true && server.killedBy && typeof server.diedAt === 'number') {
+      get().die({
+        monsterId: server.killedBy.monsterId,
+        monsterName: server.killedBy.monsterName,
+        areaId: server.killedBy.areaId,
+        at: server.diedAt,
+      });
+    }
+
+    return set((state) => {
       // If server says we're dead but locally we're alive, trigger death flow
       const wasAlive = !state.isDead;
       const serverDead = server.isDead === true;
@@ -285,16 +291,17 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
       const newShield = Math.max(0, server.shieldHp);
 
       if (wasAlive && serverDead) {
-        // Server-authoritative death — trigger local death state
-        // Note: death log entry should already exist on server; we don't
-        // duplicate it here to avoid double-logging.
+        // Death state (log entry + timers) was either just written by
+        // die() above from the server record, or — for payloads
+        // without attribution — falls back to the legacy local
+        // seeding below. Never overwrite timers die() already set.
         return {
           currentHp: 0,
           shieldHp: newShield,
           isDead: true,
           // Don't overwrite resurrection timers if already set
           resurrectionStartedAt: state.resurrectionStartedAt ?? Date.now(),
-          resurrectionReadyAt: state.resurrectionReadyAt ?? Date.now() + 5 * 60 * 1000,
+          resurrectionReadyAt: state.resurrectionReadyAt ?? Date.now() + RESURRECTION_FREE_TIMER_MS,
         };
       }
 
@@ -319,5 +326,6 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
         nanoSwarmTicksRemaining: typeof server.nanoSwarmTicksRemaining === 'number' ? server.nanoSwarmTicksRemaining : state.nanoSwarmTicksRemaining,
         adrenalineActive: typeof server.adrenalineActive === 'boolean' ? server.adrenalineActive : state.adrenalineActive,
       };
-    }),
+    });
+  },
 }));

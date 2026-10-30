@@ -1,7 +1,7 @@
 /**
  * ConsumablesChips — three little chips rendered in the action tab
- * header that show the player's current MedKit / ShieldCell /
- * ReviveToken counts. Reads the loadout slot→type mapping and the
+ * header that show the counts for the consumables in the player's
+ * three loadout slots. Reads the loadout slot→type mapping and the
  * player store's consumable count via the pure helpers in
  * `consumableSlotMap.ts`.
  *
@@ -25,8 +25,6 @@ import { readConsumableSlots, type ConsumableSlotView } from '@/lib/combat/consu
 export interface ConsumablesChipsProps {
   /** Optional className for the outer row. */
   className?: string;
-  /** Show the ReviveToken chip even if count is 0. Default true. */
-  showToken?: boolean;
 }
 
 const chipClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -66,7 +64,7 @@ const ConsumableChip: React.FC<{ view: ConsumableSlotView }> = ({ view }) => {
   );
 };
 
-export const ConsumablesChips: React.FC<ConsumablesChipsProps> = ({ className, showToken = true }) => {
+export const ConsumablesChips: React.FC<ConsumablesChipsProps> = ({ className }) => {
   // Narrow selectors — re-render only when credits/consumables change.
   // These subscriptions guarantee we re-render when the loadout
   // consumable mapping or the player's consumable counts change.
@@ -76,28 +74,11 @@ export const ConsumablesChips: React.FC<ConsumablesChipsProps> = ({ className, s
 
   const views = readConsumableSlots();
 
-  // If the Emergency slot holds a ReviveToken, show it. Otherwise
-  // optionally show a synthetic ReviveToken chip from player inventory.
-  const reviveTokenCount = usePlayerStore.getState().getConsumableCount('ReviveToken');
-  const emergencyIsToken = views[2]?.consumableType === 'ReviveToken';
-
   return (
     <div data-testid="consumables-chips" className={`flex flex-wrap items-center gap-1.5 ${className ?? ''}`}>
       {views.map((v) => (
         <ConsumableChip key={v.slot} view={v} />
       ))}
-      {showToken && !emergencyIsToken && reviveTokenCount > 0 && (
-        <div
-          data-testid="consumables-chip-token"
-          data-count={reviveTokenCount}
-          className={`flex items-center gap-1.5 border-2 px-2 py-1 text-[10px] font-black uppercase tracking-wider ${TONE_CLASSES[toneForCount(reviveTokenCount)]}`}
-          style={chipClip}
-        >
-          <span aria-hidden className="text-sm leading-none">🎟</span>
-          <span>Revive</span>
-          <span className="ml-1 text-text-primary">×{reviveTokenCount}</span>
-        </div>
-      )}
     </div>
   );
 };

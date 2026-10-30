@@ -144,10 +144,27 @@ export interface ChefClaimResult {
     currentHp: number;
     shieldHp: number;
     isDead?: boolean;
+    /** Killer attribution when THIS claim killed the hunter (else null). */
+    killedBy?: { monsterId: string; monsterName: string; areaId: string } | null;
+    /** Epoch ms of the killing tick when killedBy is set (else null). */
+    diedAt?: number | null;
     medKitBuffer?: number;
     nanoSwarmTicksRemaining?: number;
     adrenalineActive?: boolean;
     shieldCellResistance?: number;
+  };
+  /**
+   * The standing server death record (migration 0013), present when
+   * the claim left the hunter dead. Client DeathLogEntry shape plus
+   * the server-anchored free-recovery timestamp.
+   */
+  death?: {
+    monsterId: string;
+    monsterName: string;
+    areaId: string;
+    at: number;
+    diedAtMs: number;
+    freeReadyAtMs: number;
   };
   /** Consumables consumed during this claim batch. */
   consumedConsumables?: Record<string, number>;
@@ -246,6 +263,68 @@ export async function verifyBossFight(request: ChefVerifyBossRequest): Promise<C
     const errorBody = await response.json().catch(() => ({}));
     const detail = (errorBody as { detail?: string }).detail || response.statusText;
     throw new Error(`Chef boss verification failed (${response.status}): ${detail}`);
+  }
+
+  return response.json();
+}
+
+/** Idempotency nonce for one resurrection attempt (verifiedOps requestId pattern). */
+export function newResurrectNonce(): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `resurrect:${random}`;
+}
+
+export interface ChefResurrectRequest {
+  playerId: string;
+  /** 'free' = the 5-minute recovery (server-clock validated); 'paid' = skip it for the area-priced fee (server-charged). */
+  method: 'free' | 'paid';
+  /** Idempotency nonce (min 8 chars); a replay returns the stored result and never double-charges. */
+  nonce: string;
+  jwt?: string;
+}
+
+export interface ChefResurrectResult {
+  resurrected: true;
+  verified: true;
+  method: 'free' | 'paid';
+  /** Credits the server actually charged (0 on the free path). */
+  creditsCharged: number;
+  /** The death record this resurrection cleared (DeathLogEntry shape). */
+  death: { monsterId: string; monsterName: string; areaId: string; at: number } | null;
+  /** Canonical server death log (newest first) after the resurrection. */
+  deathLog: Array<{ monsterId: string; monsterName: string; areaId: string; at: number }>;
+  /** Canonical profile snapshot after the resurrection (paid charge applied). */
+  profile: Record<string, unknown> | null;
+  /** True when the nonce was a replay — nothing was applied twice. */
+  idempotentReplay?: boolean;
+}
+
+/**
+ * Resurrect via the Chef server — the ONLY resurrection path. The
+ * server requires its own recorded death, validates the free timer
+ * against its own clock, and charges the paid path itself; the
+ * client sends intent (method + nonce) and syncs the returned
+ * canonical state. Throws with the server's error message on
+ * rejection (no death recorded, timer not ready, insufficient
+ * credits).
+ */
+export async function resurrectViaChef(request: ChefResurrectRequest): Promise<ChefResurrectResult> {
+  const jwt = request.jwt || (await getSessionJwt());
+
+  const response = await fetch(chefUrl('/resurrect'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+    },
+    body: JSON.stringify({ ...request, jwt }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const body = errorBody as { error?: string; detail?: string };
+    const detail = body.detail || body.error || response.statusText;
+    throw new Error(`Chef resurrection failed (${response.status}): ${detail}`);
   }
 
   return response.json();

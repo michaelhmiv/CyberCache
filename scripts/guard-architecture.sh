@@ -45,7 +45,7 @@ ALLOWED_MUTATIONS=(
   "$SRC/screens/MarketScreen.tsx:market buy/sell (user transaction)"
   "$SRC/screens/GearYardScreen.tsx:salvage (user breaks down gear)"
   "$SRC/screens/LootScreen.tsx:salvage (user breaks down gear)"
-  "$SRC/components/action/DeathOverlay.tsx:revive token consumption (user resurrection)"
+  "$SRC/components/action/DeathOverlay.tsx:user resurrection intent (calls the Chef resurrect op; no local economy mutation since Phase 0 Slice 4)"
 )
 
 # Allowed files for Math.random in gameplay contexts

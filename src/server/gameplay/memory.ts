@@ -20,6 +20,7 @@
 import { randomUUID } from 'node:crypto';
 import { applyXp, computeItemEstimatedValue, salvageScrap, type Json } from '../writes/store';
 import {
+  deathRecordFromJson,
   GameplayStoreError,
   LOADOUT_SLOT_ORDER,
   type ActiveActionRow,
@@ -27,6 +28,8 @@ import {
   type ChefBossAttemptInput,
   type ChefGameplayStore,
   type ChefRewardsInput,
+  type DeathRecord,
+  type ResurrectInput,
   type RoamingProfileRow,
   type SettlementProfileRow,
 } from './store';
@@ -51,6 +54,10 @@ export interface InMemoryProfile {
   consumables: Record<string, number>;
   skill_spends: Json;
   boss_state: Record<string, unknown>;
+  /** Server death record (migration 0013); {} = alive. */
+  death_state: Record<string, unknown>;
+  /** Server death log, newest first, cap 20 (migration 0013). */
+  death_log: Array<{ monsterId: string; monsterName: string; areaId: string; at: number }>;
   last_idle_claim_at: string | null;
   last_claimed_tick: number;
   last_roaming_settled_at: string | null;
@@ -140,6 +147,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       consumables: {},
       skill_spends: {},
       boss_state: {},
+      death_state: {},
+      death_log: [],
       last_idle_claim_at: null,
       last_claimed_tick: 0,
       last_roaming_settled_at: null,
@@ -448,6 +457,86 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       consumed_batches: [],
       scrap_awarded: Math.trunc(attempt.scrap),
       entry_fee: Math.trunc(attempt.entryFee),
+    };
+    this.ledger.set(nonceKey, result);
+    return result;
+  }
+
+  async getDeathRecord(playerId: string): Promise<DeathRecord | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    return deathRecordFromJson(p.death_state);
+  }
+
+  /** cc_record_death (0013): first death wins; log prepends, cap 20. */
+  async recordDeath(playerId: string, death: DeathRecord): Promise<{ recorded: boolean; death: DeathRecord }> {
+    const p = this.requireProfile(playerId);
+    const existing = deathRecordFromJson(p.death_state);
+    if (existing) return { recorded: false, death: existing };
+    const record: DeathRecord = {
+      diedAtMs: Math.trunc(death.diedAtMs),
+      areaId: death.areaId,
+      monsterId: death.monsterId,
+      monsterName: death.monsterName,
+    };
+    p.death_state = { ...record };
+    p.death_log = [
+      { monsterId: record.monsterId, monsterName: record.monsterName, areaId: record.areaId, at: record.diedAtMs },
+      ...p.death_log,
+    ].slice(0, 20);
+    return { recorded: true, death: record };
+  }
+
+  /**
+   * cc_resurrect (0013): nonce-idempotent via the ledger; the free
+   * path validates against this store's clock and the recorded death;
+   * the paid path charges the route-derived cost atomically with
+   * clearing the death state. Validation failures return the SQL
+   * function's { resurrected: false, reason } payloads and write no
+   * ledger row, so the nonce stays reusable.
+   */
+  async resurrect(playerId: string, input: ResurrectInput): Promise<Json> {
+    if (!input.nonce || input.nonce.trim().length < 8) {
+      throw new GameplayStoreError('nonce is required (min 8 chars)');
+    }
+    if (input.method !== 'free' && input.method !== 'paid') {
+      throw new GameplayStoreError("method must be 'free' or 'paid'");
+    }
+    const nonceKey = `${playerId}:resurrect:${input.nonce}`;
+    const prior = this.ledger.get(nonceKey);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true };
+
+    const p = this.requireProfile(playerId);
+    const death = deathRecordFromJson(p.death_state);
+    if (!death) return { resurrected: false, reason: 'no_death_recorded' };
+
+    let cost = 0;
+    if (input.method === 'free') {
+      const freeReadyAtMs = death.diedAtMs + Math.max(0, Math.trunc(input.freeTimerMs));
+      if (this.now().getTime() < freeReadyAtMs) {
+        return {
+          resurrected: false,
+          reason: 'free_not_ready',
+          diedAtMs: death.diedAtMs,
+          freeReadyAtMs,
+        };
+      }
+    } else {
+      cost = Math.max(0, Math.trunc(input.paidCost));
+      if (p.credits < cost) {
+        return { resurrected: false, reason: 'insufficient_credits', cost, credits: p.credits };
+      }
+    }
+
+    p.credits -= cost;
+    p.death_state = {};
+    const result: Json = {
+      resurrected: true,
+      method: input.method,
+      creditsCharged: cost,
+      death: { monsterId: death.monsterId, monsterName: death.monsterName, areaId: death.areaId, at: death.diedAtMs },
+      deathLog: p.death_log.map((entry) => ({ ...entry })),
+      profile: this.snapshot(p),
     };
     this.ledger.set(nonceKey, result);
     return result;

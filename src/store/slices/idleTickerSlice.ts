@@ -87,9 +87,17 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
     useKillCycleStore.getState().syncFromServer(killCycle);
   }
 
-  // Sync authoritative survival state from the Chef
+  // Sync authoritative survival state from the Chef. killedBy/diedAt
+  // carry the server's death record when this claim killed the
+  // hunter — syncFromServer feeds them to the death log.
   const survival = payload.survival as
-    | { currentHp: number; shieldHp: number; isDead?: boolean }
+    | {
+        currentHp: number;
+        shieldHp: number;
+        isDead?: boolean;
+        killedBy?: { monsterId: string; monsterName: string; areaId: string } | null;
+        diedAt?: number | null;
+      }
     | undefined;
 
   if (survival) {

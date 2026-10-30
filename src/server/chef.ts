@@ -183,6 +183,17 @@ export interface ClaimResult {
     currentHp: number;
     shieldHp: number;
     isDead: boolean;
+    /**
+     * The monster whose hit killed the hunter DURING this claim, with
+     * the area it happened in — null when this claim did not kill
+     * (including when the hunter was already dead on entry). The claim
+     * route persists this as the server death record
+     * (profiles.death_state, migration 0013) and the client feeds it
+     * to the survival slice's die()/death log.
+     */
+    killedBy: { monsterId: string; monsterName: string; areaId: string } | null;
+    /** Epoch ms of the killing tick (feed-event clock), null when killedBy is null. */
+    diedAt: number | null;
     medKitBuffer: number;
     nanoSwarmTicksRemaining: number;
     adrenalineActive: boolean;
@@ -464,6 +475,12 @@ export function processRoamingClaim(
   let survShield = request.survival?.shieldHp ?? 0;
   const survMaxHp = request.survival?.maxHp ?? 700;
   let survDead = survHp <= 0;
+  // Death attribution for THIS claim: set only when the sim's own hit
+  // takes the hunter from alive to dead (a hunter who enters the claim
+  // already dead has no new killer — the standing death record, if
+  // any, remains the truth).
+  let survKilledBy: ClaimResult['survival']['killedBy'] = null;
+  let survDiedAt: number | null = null;
 
   // --- Consumable engine initialization ---
   const consumableInventory = request.consumableInventory ?? {};
@@ -798,6 +815,8 @@ export function processRoamingClaim(
           survHp = Math.max(0, survHp - remainingHpDamage);
           if (survHp <= 0) {
             survDead = true;
+            survKilledBy = { monsterId: modifiedAttacker.id, monsterName: modifiedAttacker.name, areaId };
+            survDiedAt = now - (ticks - 1 - tickIdx) * TICK_MS;
             // Feed event: hunter died
             feedEvents.push({
               at: now - (ticks - 1 - tickIdx) * TICK_MS,
@@ -878,6 +897,8 @@ export function processRoamingClaim(
         currentHp: survHp,
         shieldHp: survShield,
         isDead: survDead,
+        killedBy: survKilledBy,
+        diedAt: survDiedAt,
         medKitBuffer: ss?.medKitBuffer ?? 0,
         nanoSwarmTicksRemaining: ss?.nanoSwarmTicksRemaining ?? 0,
         adrenalineActive: ss?.adrenalineActive ?? false,

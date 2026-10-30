@@ -13,8 +13,9 @@
 import type { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
-import type { ChefGameplayStore, Json } from '../gameplay/store';
+import type { ChefGameplayStore, DeathRecord, Json } from '../gameplay/store';
 import { getRoamingArea } from '../../constants/roamingAreas';
+import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig) {
@@ -152,10 +153,59 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
         }
       }
 
+      // Death recording (migration 0013): when the sim killed the
+      // hunter during this claim, persist the server death record —
+      // the authority POST /api/resurrect validates against — and
+      // return it so the client feeds the real killer/area/time to
+      // the death log. First death wins inside cc_record_death, so a
+      // hunter who was already dead keeps the original record. A
+      // persistence failure surfaces like the consume failure above:
+      // silently succeeding would leave a death the server never
+      // recorded, and the resurrection op would then refuse the
+      // player the overlay is showing.
+      let deathPayload: Record<string, unknown> | null = null;
+      if (result.survival.isDead) {
+        try {
+          let record: DeathRecord | null = null;
+          if (result.survival.killedBy && result.survival.diedAt != null) {
+            const recorded = await store.recordDeath(playerId, {
+              diedAtMs: result.survival.diedAt,
+              areaId: result.survival.killedBy.areaId,
+              monsterId: result.survival.killedBy.monsterId,
+              monsterName: result.survival.killedBy.monsterName,
+            });
+            record = recorded.death;
+          } else {
+            record = await store.getDeathRecord(playerId);
+          }
+          if (record) {
+            deathPayload = {
+              monsterId: record.monsterId,
+              monsterName: record.monsterName,
+              areaId: record.areaId,
+              at: record.diedAtMs,
+              diedAtMs: record.diedAtMs,
+              freeReadyAtMs: record.diedAtMs + RESURRECTION_FREE_TIMER_MS,
+            };
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] Failed to record death:', message);
+          res.status(500).json({
+            error: 'Failed to record death',
+            detail: message,
+            profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+            rewards: result.rewards,
+          });
+          return;
+        }
+      }
+
       res.json({
         ...result,
         profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
         consumedConsumables,
+        ...(deathPayload ? { death: deathPayload } : {}),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
