@@ -13,6 +13,7 @@
 import type { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
+import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { earnedOfflineCapHours } from '../../content/offlineCap';
@@ -27,7 +28,10 @@ function formatTimeAway(ms: number): string {
   return `${hours}h ${minutes}m`;
 }
 
-export function createSettleOfflineHandler(store: ChefGameplayStore, config: AuthConfig) {
+export function createSettleOfflineHandler(
+  store: ChefGameplayStore,
+  config: AuthConfig & { economyConfig?: EconomyConfig },
+) {
   return async function handleSettleOffline(req: Request, res: Response): Promise<void> {
     try {
       const body = req.body as { playerId?: string; settlementNonce?: string; jwt?: string };
@@ -143,6 +147,13 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         scrapRemainder: profile.scrap_remainder,
         creditsRemainder: profile.credits_remainder,
         xpRemainder: profile.xp_remainder,
+        // Live economy levers (0018), resolved server-side.
+        economy: config.economyConfig
+          ? await config.economyConfig.snapshot().then((values) => ({
+              fragmentChance: values.fragmentChance,
+              roamingLegendaryScalar: values.roamingLegendaryScalar,
+            }))
+          : undefined,
       };
 
       const result = processRoamingClaim(claim);

@@ -21,6 +21,8 @@ import { mountWriteRoutes } from './writes/routes';
 import { PgWriteStore } from './writes/store';
 import { mountJobRoutes } from './jobs/routes';
 import { PgJobStore } from './jobs/store';
+import { PgEconomyStore } from './economy/store';
+import { EconomyConfig } from './economy/config';
 import { fcmSenderFromEnv } from './jobs/fcm';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -95,11 +97,19 @@ if (chefJwtSecret && databaseUrl) {
       // its actor from the Chef JWT and lands in the cc_* write functions.
       mountWriteRoutes(app, new PgWriteStore(pool), { jwtSecret: chefJwtSecret });
       console.log('[chef-writes] write APIs mounted (Route B B3)');
+      // Economy observability (0018): one store + one lever accessor,
+      // shared by the gameplay routes (lever consumers) and the job
+      // routes (heartbeat meters + job-secret admin surface).
+      const economyStore = new PgEconomyStore(pool);
+      const economyConfig = new EconomyConfig(economyStore);
       // Route B cutover (slice B6) — the legacy Chef gameplay routes
       // (/api/claim, /api/settle-offline, /api/verify-boss, /api/salvage)
       // on Chef JWT auth + the Postgres gameplay store. With this mount
       // the Chef has no Supabase dependency left.
-      mountGameplayRoutes(app, new PgChefGameplayStore(pool), { jwtSecret: chefJwtSecret });
+      mountGameplayRoutes(app, new PgChefGameplayStore(pool), {
+        jwtSecret: chefJwtSecret,
+        economyConfig,
+      });
       // Route B background jobs (slice B5) — pg_cron replacements +
       // Edge Function test-push port. Job routes mount only when
       // CHEF_JOB_SECRET is set (fail closed); the NPC seed route gets
@@ -109,6 +119,8 @@ if (chefJwtSecret && databaseUrl) {
         jwtSecret: chefJwtSecret,
         jobSecret: chefJobSecret,
         fcmSender: fcmSenderFromEnv(),
+        economyStore,
+        economyConfig,
       });
       console.log(
         chefJobSecret

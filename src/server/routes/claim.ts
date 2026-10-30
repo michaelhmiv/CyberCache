@@ -28,6 +28,7 @@ import { processBossAttempt, type BossAttemptRequest } from '../chef';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import { CONSUMABLES } from '../../constants/consumables';
 import type { AuthConfig } from '../auth/routes';
+import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { bossSlotsFromEquipped, skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { escalatedBossFee, utcDayStartIso } from '../../lib/bossFees';
@@ -66,7 +67,10 @@ export function resolvePreparedConsumables(
   return { prepared };
 }
 
-export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthConfig) {
+export function createVerifyBossHandler(
+  store: ChefGameplayStore,
+  config: AuthConfig & { economyConfig?: EconomyConfig },
+) {
   return async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
     try {
       const body = req.body as BossAttemptRequest & { jwt?: string };
@@ -171,7 +175,19 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
           return;
         }
       }
-      const entryFee = escalatedBossFee(baseEntryFee, victoriesToday);
+      // Live economy levers (0018): the escalation cap and dedicated
+      // drop chance resolve server-side from the accessor — the
+      // charged fee and the roll below are the truth; the prep
+      // panel's client-side display uses the shipped defaults and
+      // stays advisory.
+      const economyValues = config.economyConfig
+        ? await config.economyConfig.snapshot()
+        : undefined;
+      const entryFee = escalatedBossFee(
+        baseEntryFee,
+        victoriesToday,
+        economyValues?.rematchEscalationCap,
+      );
       if (serverCredits < entryFee) {
         res.status(400).json({
           error: 'Insufficient credits for boss entry fee',
@@ -227,6 +243,9 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
         consumables: resolved.prepared,
         pityCount: serverPityCount,
         entryFee,
+        economy: economyValues
+          ? { bossDedicatedChance: economyValues.bossDedicatedChance }
+          : undefined,
         ...serverSlots,
         skillBonuses: serverSkillBonuses,
       };

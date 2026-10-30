@@ -153,6 +153,19 @@ export interface ClaimRequest {
   roamingConsumableState?: RoamingConsumableState;
   /** Mastery levels for interval reductions. */
   masteryLevels?: Record<string, number>;
+  /**
+   * Live economy levers (economy observability slice, 0018): resolved
+   * by the claim routes from the EconomyConfig accessor — never from
+   * the client body — and applied over the shipped constants below.
+   * Absent fields fall back to FRAGMENT_CHANCE and a 1.0 scalar, so
+   * direct engine calls (tests, determinism pins) are unchanged.
+   */
+  economy?: {
+    /** Per-tick cache fragment chance before activity mods. */
+    fragmentChance?: number;
+    /** Multiplier on the Legendary weight of area drop tables. */
+    roamingLegendaryScalar?: number;
+  };
 }
 
 export interface ClaimResult {
@@ -236,6 +249,15 @@ export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
    * calls in tests).
    */
   entryFee?: number;
+  /**
+   * Live economy levers (economy observability slice, 0018): resolved
+   * by the verify-boss route from the EconomyConfig accessor — never
+   * from the client body. Absent = BOSS_DEDICATED_DROP_CHANCE.
+   */
+  economy?: {
+    /** Probability the guaranteed victory roll is a dedicated drop. */
+    bossDedicatedChance?: number;
+  };
 }
 
 export interface BossAttemptChefResult {
@@ -519,8 +541,22 @@ export function processRoamingClaim(
   const rollGearDrop = (dropRng: () => number): GearItem | undefined => {
     const kind = rollAreaDropKind(area, dropRng);
     switch (kind) {
-      case 'weapon':
-        return generateWeapon(buildAreaWeaponDropOptions(area, playerLevel, dropRng), dropRng);
+      case 'weapon': {
+        const options = buildAreaWeaponDropOptions(area, playerLevel, dropRng);
+        // Live lever (0018): scale the Legendary entry of the area's
+        // drop-pool weights at claim time. The area tables themselves
+        // are constants and are never mutated — the scalar lands on a
+        // copy, and 1.0 (the default) leaves the weights bit-identical.
+        const scalar = request.economy?.roamingLegendaryScalar ?? 1;
+        if (scalar !== 1 && options.zoneWeights) {
+          options.zoneWeights = {
+            ...options.zoneWeights,
+            [Rarity.Legendary]:
+              (options.zoneWeights[Rarity.Legendary] ?? 0) * scalar,
+          };
+        }
+        return generateWeapon(options, dropRng);
+      }
       case 'shield':
         return generateShield(playerLevel, dropRng);
       case 'classMod':
@@ -604,7 +640,10 @@ export function processRoamingClaim(
       GEAR_THRESHOLD * (1 + totalRareDropMod + activityRareDropBonus + consumableMods.rareDropChanceMod)
       + consumableMods.bonusLootChance
     );
-    const fragmentChance = Math.max(0, FRAGMENT_CHANCE * (1 + activityFragmentBonus));
+    const fragmentChance = Math.max(
+      0,
+      (request.economy?.fragmentChance ?? FRAGMENT_CHANCE) * (1 + activityFragmentBonus),
+    );
     const materialChance = Math.max(0, MATERIAL_CHANCE * (1 + activityMaterialBonus));
     const gearThreshold = gearChance;
     const fragmentThreshold = Math.min(0.99, gearThreshold + fragmentChance);
@@ -1023,7 +1062,11 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     const eligibleEffects = getEligibleLegendaryEffects(DropSource.BossDrop, boss.tier);
     const dedicatedPool = boss.dedicatedDrops.filter((id) => eligibleEffects.some((eff) => eff.id === id));
     for (let i = 0; i < totalRolls; i++) {
-      if (i === 0 && dedicatedPool.length > 0 && rng() < BOSS_DEDICATED_DROP_CHANCE) {
+      if (
+        i === 0 &&
+        dedicatedPool.length > 0 &&
+        rng() < (request.economy?.bossDedicatedChance ?? BOSS_DEDICATED_DROP_CHANCE)
+      ) {
         const pick = dedicatedPool[Math.floor(rng() * dedicatedPool.length)];
         loot.push(
           generateWeapon(

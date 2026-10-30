@@ -13,13 +13,17 @@
 import type { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
+import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, DeathRecord, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { getRoamingArea } from '../../constants/roamingAreas';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
-export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig) {
+export function createClaimHandler(
+  store: ChefGameplayStore,
+  config: AuthConfig & { economyConfig?: EconomyConfig },
+) {
   return async function handleClaim(req: Request, res: Response): Promise<void> {
     try {
       const body = req.body as ClaimRequest & {
@@ -94,6 +98,14 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
         (profile.skill_spends ?? {}) as Record<string, number>,
       );
 
+      // Live economy levers (0018): resolved server-side from the
+      // EconomyConfig accessor and stamped over anything the body
+      // claimed — the body can never set them (same trust rule as
+      // the loadout above).
+      const economyValues = config.economyConfig
+        ? await config.economyConfig.snapshot()
+        : undefined;
+
       // Merge inventory + roaming state into the claim
       const claimWithConsumables: ClaimRequest = {
         ...claim,
@@ -112,6 +124,12 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
         consumableInventory,
         roamingConsumableState: body.roamingConsumableState,
         masteryLevels: body.masteryLevels,
+        economy: economyValues
+          ? {
+              fragmentChance: economyValues.fragmentChance,
+              roamingLegendaryScalar: economyValues.roamingLegendaryScalar,
+            }
+          : undefined,
       };
 
       const result = processRoamingClaim(claimWithConsumables);
