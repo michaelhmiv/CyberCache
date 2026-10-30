@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
-import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
+import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import type { GearItem, Weapon } from '@/types/items';
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
@@ -131,12 +131,9 @@ export const ActionFeed: React.FC<{
               {/* When gear is present, show weapon thumbnail instead of dot */}
               {entry.gear && isWeapon(entry.gear) ? (
                 <div className="shrink-0 mt-0.5">
-                  <WeaponIllustration
-                    weapon={entry.gear}
-                    size="thumb"
-                    showBadges={false}
-                    animate={false}
-                  />
+                  {/* Pixel path (P5): same render as inventory/market for this
+                      weapon. ('thumb' in the shared size table is 46px wide.) */}
+                  <PixelWeapon weapon={entry.gear} size={46} />
                 </div>
               ) : (
                 <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${feedDot(entry.tone)}`} />
