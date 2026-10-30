@@ -1,83 +1,59 @@
-import { Request, Response } from 'express';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Request, Response } from 'express';
+import { verifyAccessToken } from '../auth/tokens';
+import type { AuthConfig } from '../auth/routes';
 
 export class ChefRouteError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-    public readonly detail?: string,
-  ) {
+  status: number;
+  detail?: string;
+
+  constructor(status: number, message: string, detail?: string) {
     super(message);
+    this.status = status;
+    this.detail = detail;
   }
 }
 
-function supabaseConfig(): { url: string; key: string } {
-  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-  const key = process.env.VITE_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) {
-    throw new Error('[chef] SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
-  }
-  return { url, key };
-}
-
-function createSupabaseClient(jwt?: string): SupabaseClient {
-  const { url, key } = supabaseConfig();
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: jwt
-      ? {
-          headers: {
-            Authorization: `Bearer ${jwt}`,
-          },
-        }
-      : undefined,
-  });
-}
-
-export function getSupabase(): SupabaseClient {
-  return createSupabaseClient();
-}
-
-function requestJwt(req: Request, bodyJwt?: string): string | undefined {
-  const authHeader = req.headers.authorization;
-  if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
-    return authHeader.slice('bearer '.length).trim();
-  }
-  return bodyJwt;
-}
-
-export async function getAuthenticatedSupabase(
+/**
+ * Player identity for the legacy Chef gameplay routes.
+ *
+ * June shape, Route B credentials: the June handlers resolved the
+ * caller from a Supabase-issued bearer token; since B1 the Chef issues
+ * its own access tokens, and these routes verify those instead. The
+ * contract is unchanged — token from the Authorization header or the
+ * request body's `jwt` field, a body `playerId` that disagrees with
+ * the token is a 403, and identity only ever comes from the verified
+ * token, never from the request body. Verification is stateless: no
+ * client object is constructed per request and nothing is cached
+ * between requests.
+ */
+export function getAuthenticatedChefPlayer(
+  config: AuthConfig,
   req: Request,
   bodyJwt?: string,
   claimedPlayerId?: string,
-): Promise<{ playerId: string; supabase: SupabaseClient }> {
-  const jwt = requestJwt(req, bodyJwt);
-  if (!jwt) {
+): string {
+  const header = req.header('authorization') ?? req.header('Authorization');
+  const bearer = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : '';
+  const token = bearer || (typeof bodyJwt === 'string' ? bodyJwt.trim() : '');
+
+  if (!token) {
     throw new ChefRouteError(401, 'Authentication required', 'Missing bearer token');
   }
 
-  const verifier = createSupabaseClient();
-  const { data, error } = await verifier.auth.getUser(jwt);
-  const authedPlayerId = data.user?.id;
-  if (error || !authedPlayerId) {
-    throw new ChefRouteError(401, 'Authentication required', error?.message ?? 'Invalid bearer token');
+  const verified = verifyAccessToken(config.jwtSecret, token);
+  if (!verified.ok) {
+    throw new ChefRouteError(401, 'Authentication required', verified.error);
   }
 
-  if (claimedPlayerId && claimedPlayerId !== authedPlayerId) {
-    throw new ChefRouteError(403, 'Player mismatch', 'Request playerId does not match the authenticated user');
+  const playerId = verified.claims.sub;
+  if (claimedPlayerId && claimedPlayerId !== playerId) {
+    throw new ChefRouteError(
+      403,
+      'Player mismatch',
+      'Request playerId does not match the authenticated user',
+    );
   }
 
-  return { playerId: authedPlayerId, supabase: createSupabaseClient(jwt) };
-}
-
-export async function requireAuthenticatedPlayerId(
-  supabase: SupabaseClient,
-  req: Request,
-  bodyJwt?: string,
-  claimedPlayerId?: string,
-): Promise<string> {
-  const { playerId } = await getAuthenticatedSupabase(req, bodyJwt, claimedPlayerId);
-  void supabase;
   return playerId;
 }
 

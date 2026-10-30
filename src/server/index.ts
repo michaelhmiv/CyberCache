@@ -10,7 +10,8 @@
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
-import { mountChefRoutes } from './routes/chefRoutes';
+import { mountChefHealthRoute, mountGameplayRoutes } from './gameplay/routes';
+import { PgChefGameplayStore } from './gameplay/store';
 import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 import { mountAuthRoutes } from './auth/routes';
 import { PgAuthStore } from './auth/store';
@@ -62,22 +63,23 @@ const app = express();
 app.use('/api', apiCors);
 app.use(express.json({ limit: '1mb' }));
 
-// Chef API — authoritative gameplay engine
-mountChefRoutes(app);
+// Chef API — authoritative gameplay engine. The health route answers on
+// every boot; the gameplay routes mount below with the rest of Route B.
+mountChefHealthRoute(app);
 
-// Market seeding — server-side NPC listings. Mounted below, with the
-// Postgres JobStore on Route B boots and the legacy Supabase data path
-// on Supabase-era boots (see the mount branches).
+// Market seeding — server-side NPC listings. Mounted below with the
+// Postgres JobStore (Route B boots only, since B6 removed the legacy
+// Supabase data path).
 
 // Route B identity (slice B1) — Chef-issued auth on Railway Postgres.
-// Mounted only when both the database and the JWT secret are configured,
-// so existing Supabase-era deployments boot unchanged. Token issuance
-// fails closed: no secret, no auth routes.
+// All Route B surfaces mount only when both the database and the JWT
+// secret are configured. Token issuance fails closed: no secret, no
+// auth routes; no database, no gameplay routes.
 const chefJwtSecret = process.env.CHEF_JWT_SECRET;
 const databaseUrl = process.env.DATABASE_URL;
 const chefJobSecret = process.env.CHEF_JOB_SECRET;
 if (chefJwtSecret && databaseUrl) {
-  // Lazy import keeps `pg` out of the boot path for Supabase-era deploys.
+  // Lazy import keeps `pg` out of the boot path until Route B is configured.
   void import('pg')
     .then(({ Pool }) => {
       const pool = new Pool({ connectionString: databaseUrl });
@@ -93,6 +95,11 @@ if (chefJwtSecret && databaseUrl) {
       // its actor from the Chef JWT and lands in the cc_* write functions.
       mountWriteRoutes(app, new PgWriteStore(pool), { jwtSecret: chefJwtSecret });
       console.log('[chef-writes] write APIs mounted (Route B B3)');
+      // Route B cutover (slice B6) — the legacy Chef gameplay routes
+      // (/api/claim, /api/settle-offline, /api/verify-boss, /api/salvage)
+      // on Chef JWT auth + the Postgres gameplay store. With this mount
+      // the Chef has no Supabase dependency left.
+      mountGameplayRoutes(app, new PgChefGameplayStore(pool), { jwtSecret: chefJwtSecret });
       // Route B background jobs (slice B5) — pg_cron replacements +
       // Edge Function test-push port. Job routes mount only when
       // CHEF_JOB_SECRET is set (fail closed); the NPC seed route gets
@@ -113,8 +120,7 @@ if (chefJwtSecret && databaseUrl) {
     .catch((err) => console.error('[chef-auth] failed to initialize pg pool', err));
 } else {
   console.log('[chef-auth] disabled (CHEF_JWT_SECRET / DATABASE_URL not both set)');
-  // Supabase-era boot: the NPC seed route keeps its legacy data path.
-  mountMarketSeedRoutes(app);
+  console.log('[chef] gameplay + market seed routes disabled (Route B not configured)');
 }
 
 // Static files — the React SPA

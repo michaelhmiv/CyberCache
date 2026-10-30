@@ -83,7 +83,7 @@ export function calculateDailyXp(assumptions: SimulationAssumptions = DEFAULT_SI
   return { roamingTickXp, enemyDefeatXp, damageCreditXp, bossAttemptXp, bossVictoryXp, scrapXp, craftXp, totalXp };
 }
 
-// Shared XP curve formula — MUST match server (supabase/migrations/202606080057_xp_curve_and_wipe_slate.sql)
+// Shared XP curve formula — MUST match server (cc_apply_xp in db/migrations/0004_write_apis.sql)
 export const XP_CURVE_FORMULA = (level: number): number => {
   if (level < 1) throw new Error('Level must be at least 1.');
   return Math.floor(50 * level + 20 * Math.pow(level, 1.4));

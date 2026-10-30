@@ -42,5 +42,13 @@ describe('backend authority audit', () => {
     expect(settleRoute).toContain('cc_settle_offline_roaming');
     const roamingRoute = readSource('src/server/routes/roamingHandler.ts');
     expect(roamingRoute).toContain('cc_apply_chef_rewards');
+    // Route B (B6): the handlers invoke the functions through the
+    // gameplay store; the canonical function names live in its
+    // Postgres implementation.
+    const gameplayStore = readSource('src/server/gameplay/store.ts');
+    expect(gameplayStore).toContain('cc_recycle_item');
+    expect(gameplayStore).toContain('cc_settle_offline_roaming');
+    expect(gameplayStore).toContain('cc_apply_chef_rewards');
+    expect(gameplayStore).toContain('cc_apply_chef_boss_attempt');
   });
 });

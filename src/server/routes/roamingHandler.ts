@@ -1,103 +1,126 @@
-import { Request, Response } from 'express';
+/**
+ * POST /api/claim — foreground roaming claim (legacy Chef route).
+ *
+ * June flow, Route B plumbing (slice B6): the handler verifies the
+ * Chef JWT (was: Supabase token), reads the profile through the
+ * gameplay store (was: PostgREST), runs the shared engine
+ * (processRoamingClaim — unchanged), and persists through the ported
+ * cc_apply_chef_rewards / cc_store_chef_items /
+ * cc_consume_roaming_consumables functions
+ * (db/migrations/0007_chef_gameplay_appliers.sql). Request and
+ * response contracts are the June ones.
+ */
+import type { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
-import { getAuthenticatedSupabase, sendRouteError } from './chefRouteAuth';
+import type { AuthConfig } from '../auth/routes';
+import type { ChefGameplayStore, Json } from '../gameplay/store';
+import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
-export async function handleClaim(req: Request, res: Response): Promise<void> {
-  try {
-    const body = req.body as ClaimRequest & { jwt?: string; roamingConsumableState?: unknown; masteryLevels?: Record<string, number> };
-    if (!body.areaId || !body.ticks || body.tickCount == null) {
-      res.status(400).json({ error: 'Missing required fields: areaId, ticks, tickCount' });
-      return;
-    }
-
-    const { playerId, supabase } = await getAuthenticatedSupabase(req, body.jwt, body.playerId);
-    const claim: ClaimRequest = { ...body, playerId };
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('last_claimed_tick, consumables')
-      .eq('id', playerId)
-      .single();
-
-    if (profileError) {
-      res.status(500).json({ error: 'Failed to read profile', detail: profileError.message });
-      return;
-    }
-
-    if (profile && body.tickCount <= profile.last_claimed_tick) {
-      res.status(409).json({ error: 'tick_count already claimed', lastClaimedTick: profile.last_claimed_tick });
-      return;
-    }
-
-    // Read server-authoritative consumable inventory from profiles.consumables
-    const consumableInventory = (profile?.consumables ?? {}) as Record<string, number>;
-
-    // Merge inventory + roaming state into the claim
-    const claimWithConsumables: ClaimRequest = {
-      ...claim,
-      consumableInventory,
-      roamingConsumableState: body.roamingConsumableState,
-      masteryLevels: body.masteryLevels,
-    };
-
-    const result = processRoamingClaim(claimWithConsumables);
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('cc_apply_chef_rewards', {
-      _player_id: playerId,
-      _credits: result.rewards.creditsAwarded,
-      _scrap: result.rewards.scrapAwarded,
-      _xp: result.rewards.xpAwarded,
-      _fragments: result.rewards.cacheFragmentsAwarded,
-      _materials: result.rewards.materials,
-      _essences: result.rewards.essences,
-      _kills: result.rewards.killsRecorded,
-      _tick_count: body.tickCount,
-      _area_id: body.areaId,
-    });
-
-    if (rpcError) {
-      res.status(500).json({ error: 'Failed to apply rewards', detail: rpcError.message });
-      return;
-    }
-
-    if (result.items.length > 0) {
-      const { error: storeError } = await supabase.rpc('cc_store_chef_items', {
-        _player_id: playerId,
-        _items: result.items,
-      });
-      if (storeError) {
-        console.error('[chef] Failed to store items:', storeError.message);
-        res.status(500).json({
-          error: 'Failed to store generated items',
-          detail: storeError.message,
-          profile: rpcResult?.profile ?? rpcResult,
-          rewards: result.rewards,
-        });
+export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig) {
+  return async function handleClaim(req: Request, res: Response): Promise<void> {
+    try {
+      const body = req.body as ClaimRequest & {
+        jwt?: string;
+        roamingConsumableState?: unknown;
+        masteryLevels?: Record<string, number>;
+      };
+      if (!body.areaId || !body.ticks || body.tickCount == null) {
+        res.status(400).json({ error: 'Missing required fields: areaId, ticks, tickCount' });
         return;
       }
-    }
 
-    // Persist consumable consumption atomically (server-authoritative)
-    const consumedConsumables = result.consumedConsumables;
-    if (consumedConsumables && Object.keys(consumedConsumables).length > 0) {
-      const { error: consumeError } = await supabase.rpc('cc_consume_roaming_consumables', {
-        _player_id: playerId,
-        _consumed: consumedConsumables,
-        _area_id: body.areaId,
-        _tick_count: body.tickCount,
-      });
-      if (consumeError) {
-        console.error('[chef] Failed to consume roaming consumables:', consumeError.message);
+      const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+      const claim: ClaimRequest = { ...body, playerId };
+
+      let profile: Awaited<ReturnType<ChefGameplayStore['getRoamingProfile']>>;
+      try {
+        profile = await store.getRoamingProfile(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read profile', detail: message });
+        return;
       }
-    }
+      if (!profile) {
+        res.status(500).json({ error: 'Failed to read profile', detail: 'Profile not found' });
+        return;
+      }
 
-    res.json({
-      ...result,
-      profile: rpcResult?.profile ?? rpcResult,
-      consumedConsumables,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[chef] claim error:', message);
-    sendRouteError(res, 'Chef processing failed', err);
-  }
+      if (body.tickCount <= profile.last_claimed_tick) {
+        res.status(409).json({ error: 'tick_count already claimed', lastClaimedTick: profile.last_claimed_tick });
+        return;
+      }
+
+      // Read server-authoritative consumable inventory from profiles.consumables
+      const consumableInventory = (profile.consumables ?? {}) as Record<string, number>;
+
+      // Merge inventory + roaming state into the claim
+      const claimWithConsumables: ClaimRequest = {
+        ...claim,
+        consumableInventory,
+        roamingConsumableState: body.roamingConsumableState,
+        masteryLevels: body.masteryLevels,
+      };
+
+      const result = processRoamingClaim(claimWithConsumables);
+
+      let rpcResult: Json;
+      try {
+        rpcResult = await store.applyChefRewards(
+          playerId,
+          {
+            credits: result.rewards.creditsAwarded,
+            scrap: result.rewards.scrapAwarded,
+            xp: result.rewards.xpAwarded,
+            fragments: result.rewards.cacheFragmentsAwarded,
+            materials: result.rewards.materials as Json,
+            essences: result.rewards.essences as Json,
+            kills: result.rewards.killsRecorded,
+          },
+          body.tickCount,
+          body.areaId,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to apply rewards', detail: message });
+        return;
+      }
+
+      if (result.items.length > 0) {
+        try {
+          await store.storeChefItems(playerId, result.items);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] Failed to store items:', message);
+          res.status(500).json({
+            error: 'Failed to store generated items',
+            detail: message,
+            profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+            rewards: result.rewards,
+          });
+          return;
+        }
+      }
+
+      // Persist consumable consumption atomically (server-authoritative)
+      const consumedConsumables = result.consumedConsumables;
+      if (consumedConsumables && Object.keys(consumedConsumables).length > 0) {
+        try {
+          await store.consumeRoamingConsumables(playerId, consumedConsumables as Json, body.areaId, body.tickCount);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] Failed to consume roaming consumables:', message);
+        }
+      }
+
+      res.json({
+        ...result,
+        profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+        consumedConsumables,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[chef] claim error:', message);
+      sendRouteError(res, 'Chef processing failed', err);
+    }
+  };
 }

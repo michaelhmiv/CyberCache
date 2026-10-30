@@ -8,7 +8,9 @@ function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO, relativePath), 'utf8');
 }
 
-const repairMigrationPath = 'supabase/migrations/20260612173001_fix_settlement_idempotency_keys.sql';
+// Route B (B6): the repair migration's final function definitions
+// were ported into the Route B migration set.
+const repairMigrationPath = 'db/migrations/0007_chef_gameplay_appliers.sql';
 
 describe('Offline settlement idempotency repair migration', () => {
   it('does not declare a local idempotency_key variable', () => {

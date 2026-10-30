@@ -6,7 +6,7 @@
  * for Railway Postgres.
  *
  * Shape contract: every method returns exactly what the Supabase surface
- * returns today for the matching client service in src/lib/supabase/
+ * returns today for the matching client service in src/lib/api/
  * (profileService, progressionService, masteryService, leaderboardService,
  * publicProfileService, statsService, usernameService reads, marketListings
  * reads, runtimeStateService item reads), so the B4 client cutover can swap

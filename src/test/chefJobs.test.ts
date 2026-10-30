@@ -24,7 +24,7 @@ import {
   parseFirebaseAdminConfig,
   type FetchFn,
 } from '../server/jobs/fcm';
-import { NPC_MARKET_USER_ID } from '../server/lib/supabaseService';
+import { NPC_MARKET_USER_ID } from '../server/lib/npcMarket';
 import { issueAccessToken } from '../server/auth/tokens';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';

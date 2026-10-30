@@ -33,7 +33,7 @@ ALLOWED_MUTATIONS=(
   "$SRC/store/slices/survivalSlice.ts:domain owner for survival HP"
   "$SRC/store/slices/killCycleSlice.ts:domain owner for kill cycle"
   "$SRC/lib/activity/activitySettlement.ts:offline settlement bridge"
-  "$SRC/lib/supabase/verifiedOps.ts:RPC client wrapper"
+  "$SRC/lib/api/verifiedOps.ts:RPC client wrapper"
   "$SRC/lib/generators/:gear generation utilities"
   "$SRC/lib/combat/:pure combat math (no side effects in screens)"
   "$SRC/lib/simulation/bossSimulator.ts:pure boss simulation"
