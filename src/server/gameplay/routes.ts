@@ -11,6 +11,7 @@
  */
 import type { Express } from 'express';
 import type { AuthConfig } from '../auth/routes';
+import type { EconomyConfig } from '../economy/config';
 import { createClaimHandler } from '../routes/roamingHandler';
 import { createSettleOfflineHandler } from '../routes/settleOffline';
 import { createSalvageHandler, createVerifyBossHandler } from '../routes/claim';
@@ -23,7 +24,12 @@ export function mountChefHealthRoute(app: Express): void {
   });
 }
 
-export function mountGameplayRoutes(app: Express, store: ChefGameplayStore, config: AuthConfig): void {
+/** Gameplay routes plus the optional live economy-lever accessor (0018). */
+export interface GameplayRoutesConfig extends AuthConfig {
+  economyConfig?: EconomyConfig;
+}
+
+export function mountGameplayRoutes(app: Express, store: ChefGameplayStore, config: GameplayRoutesConfig): void {
   app.post('/api/claim', createClaimHandler(store, config));
   app.post('/api/settle-offline', createSettleOfflineHandler(store, config));
   app.post('/api/verify-boss', createVerifyBossHandler(store, config));

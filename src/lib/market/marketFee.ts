@@ -79,17 +79,28 @@ export function marketFeeReduction(
   return Math.min(1, Math.max(0, darknet + manipulator));
 }
 
-/** Fee breakdown for a price and an already-computed reduction. */
-export function marketFeeForPrice(price: number, feeReduction: number): MarketFeeBreakdown {
+/**
+ * Fee breakdown for a price and an already-computed reduction.
+ * `feeRate` is the live lever (economy_config 'marketFeeRate', 0018)
+ * when a server caller resolved one; it defaults to MARKET_FEE_RATE
+ * so display surfaces and existing callers are unchanged. The SQL
+ * completion path reads the same table row inside cc_accept_listing.
+ */
+export function marketFeeForPrice(
+  price: number,
+  feeReduction: number,
+  feeRate: number = MARKET_FEE_RATE,
+): MarketFeeBreakdown {
+  const rate = Math.min(1, Math.max(0, feeRate));
   const reduction = Math.min(1, Math.max(0, feeReduction));
-  const effectiveRate = MARKET_FEE_RATE * (1 - reduction);
+  const effectiveRate = rate * (1 - reduction);
   // The 1e-9 epsilon guards float dust on exact-integer results
   // (e.g. 10000 × 0.0375) so the TS mirror floors exactly where the
   // SQL numeric computation in cc_accept_listing does.
   const fee = Math.floor(price * effectiveRate + 1e-9);
   return {
     price,
-    feeRate: MARKET_FEE_RATE,
+    feeRate: rate,
     feeReduction: reduction,
     effectiveRate,
     fee,
@@ -107,6 +118,8 @@ export function marketFeeForSeller(input: {
   skillSpends: Record<string, number>;
   classModBoosts?: ClassModBoosts;
   foundBySeller: boolean;
+  /** Live fee-rate lever (0018); defaults to MARKET_FEE_RATE. */
+  feeRate?: number;
 }): MarketFeeBreakdown {
   const bonuses = computeSkillBonuses(
     input.skillSpends,
@@ -115,5 +128,6 @@ export function marketFeeForSeller(input: {
   return marketFeeForPrice(
     input.price,
     marketFeeReduction(bonuses, input.foundBySeller),
+    input.feeRate,
   );
 }

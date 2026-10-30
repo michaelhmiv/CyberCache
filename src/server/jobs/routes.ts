@@ -10,6 +10,9 @@
  *                                     (was: Supabase-backed /api/market/seed only)
  *   POST /api/push/test               Supabase Edge Function 'send-test-push'
  *                                     → FCM via src/server/jobs/fcm.ts
+ *   GET  /api/admin/economy           economy metrics report + levers (0018)
+ *   POST /api/admin/economy/config    move one economy lever (0018)
+ *                                     Both behind the same job secret.
  *
  * Auth model (hard rules):
  *  - /api/jobs/* are machine callers (Railway cron at B6). They require
@@ -33,6 +36,14 @@ import { NPC_MARKET_USER_ID } from '../lib/npcMarket';
 import type { JobStore } from './store';
 import { cleanPushText, type FcmSender } from './fcm';
 import { buildNpcSeedItems, clampSeedCount, clampSeedLevel } from './npcItems';
+import {
+  ECONOMY_CONFIG_DEFAULTS,
+  isEconomyConfigKey,
+  resolveEconomyConfigValues,
+  validateEconomyConfigValue,
+  type EconomyConfig,
+} from '../economy/config';
+import type { EconomyStore } from '../economy/store';
 
 export interface JobRoutesConfig extends AuthConfig {
   /** CHEF_JOB_SECRET; when empty the /api/jobs/* routes are not mounted. */
@@ -41,6 +52,18 @@ export interface JobRoutesConfig extends AuthConfig {
   npcUserId?: string;
   /** FCM sender; null = push not configured on this instance. */
   fcmSender?: FcmSender | null;
+  /** Economy observability store (0018); absent = admin routes unmounted. */
+  economyStore?: EconomyStore;
+  /** Live lever accessor shared with the gameplay routes (0018). */
+  economyConfig?: EconomyConfig;
+}
+
+/** UTC day (YYYY-MM-DD) `offsetDays` before today. */
+function utcDay(offsetDays: number): string {
+  const now = new Date();
+  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  day.setUTCDate(day.getUTCDate() - offsetDays);
+  return day.toISOString().slice(0, 10);
 }
 
 function unauthorized(res: Response): void {
@@ -88,8 +111,90 @@ export function mountJobRoutes(app: Express, store: JobStore, config: JobRoutesC
 
     job('/api/jobs/daily-heartbeat', async () => {
       const { recorded } = await store.recordDailyHeartbeats();
-      return { job: 'daily-heartbeat', recorded };
+      // Economy meters (0018): recompute yesterday (UTC) plus the six
+      // days before it — a full recompute per day, so re-running the
+      // heartbeat is idempotent and any missed day self-heals within
+      // the week. A metrics failure must not fail the heartbeat's
+      // snapshots: it is reported in the response instead.
+      let economyMetrics: Record<string, unknown> | null = null;
+      if (config.economyStore) {
+        try {
+          const days: string[] = [];
+          for (let offset = 7; offset >= 1; offset -= 1) {
+            days.push((await config.economyStore.computeMetricsForDay(utcDay(offset))).day);
+          }
+          economyMetrics = { computedDays: days };
+        } catch (err) {
+          console.error('[chef-jobs] economy metrics compute failed', err);
+          economyMetrics = { error: 'metrics_compute_failed' };
+        }
+      }
+      return { job: 'daily-heartbeat', recorded, economyMetrics };
     });
+
+    // --- Economy admin (0018) -------------------------------------
+    // Operator surface only: same job-secret gate as /api/jobs/*,
+    // never player-visible, no client UI. GET pulls the metrics
+    // report + effective levers; POST moves one lever (validated,
+    // history-logged in the store, cache invalidated so the writer
+    // sees it take effect).
+    if (config.economyStore) {
+      const economyStore = config.economyStore;
+      app.get('/api/admin/economy', async (req, res) => {
+        const provided = req.headers['x-chef-job-secret'];
+        if (!secretMatches(typeof provided === 'string' ? provided : undefined, jobSecret)) {
+          unauthorized(res);
+          return;
+        }
+        try {
+          const rawDays = Number(req.query.days);
+          const days = Number.isFinite(rawDays)
+            ? Math.max(1, Math.min(90, Math.trunc(rawDays)))
+            : 14;
+          const [metrics, stored] = await Promise.all([
+            economyStore.listMetrics(days),
+            economyStore.loadConfigValues(),
+          ]);
+          res.json({
+            ok: true,
+            metrics,
+            config: resolveEconomyConfigValues(stored),
+            defaults: ECONOMY_CONFIG_DEFAULTS,
+          });
+        } catch (err) {
+          fail(res, err);
+        }
+      });
+
+      app.post('/api/admin/economy/config', async (req, res) => {
+        const provided = req.headers['x-chef-job-secret'];
+        if (!secretMatches(typeof provided === 'string' ? provided : undefined, jobSecret)) {
+          unauthorized(res);
+          return;
+        }
+        const { key, value } = body(req);
+        if (typeof key !== 'string' || !isEconomyConfigKey(key)) {
+          res.status(400).json({ error: 'unknown_key', message: `Unknown economy config key: ${String(key)}` });
+          return;
+        }
+        const validated = validateEconomyConfigValue(key, value);
+        if (validated === null) {
+          res.status(400).json({
+            error: 'invalid_value',
+            message: `Value for ${key} is out of range or the wrong type`,
+          });
+          return;
+        }
+        try {
+          await economyStore.setConfigValue(key, validated, 'admin-api');
+          config.economyConfig?.invalidate();
+          const stored = await economyStore.loadConfigValues();
+          res.json({ ok: true, key, value: validated, config: resolveEconomyConfigValues(stored) });
+        } catch (err) {
+          fail(res, err);
+        }
+      });
+    }
 
     job('/api/jobs/prune-snapshots', async () => {
       const { pruned } = await store.pruneProgressionSnapshots();

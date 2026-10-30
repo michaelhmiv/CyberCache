@@ -68,6 +68,14 @@ export interface InMemoryWriteOptions {
   now?: () => Date;
   rng?: () => number;
   uuid?: () => string;
+  /**
+   * Live market fee-rate lever (economy_config 'marketFeeRate',
+   * 0018), resolved per purchase — the mirror of cc_accept_listing
+   * reading the table inside its transaction. Defaults to
+   * MARKET_FEE_RATE. Production purchases run the SQL path; this
+   * provider exists so tests exercise the lever through the mirror.
+   */
+  feeRateProvider?: () => number | Promise<number>;
 }
 
 function clone<T>(value: T): T {
@@ -83,6 +91,7 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly nowFn: () => Date;
   private readonly rng: () => number;
   private readonly uuid: () => string;
+  private readonly feeRateProvider: () => number | Promise<number>;
 
   private profiles = new Map<string, ProfileRowData>();
   private items = new Map<string, WriteItemData>();
@@ -99,6 +108,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.nowFn = opts.now ?? (() => new Date());
     this.rng = opts.rng ?? Math.random;
     this.uuid = opts.uuid ?? newUuid;
+    this.feeRateProvider = opts.feeRateProvider ?? (() => MARKET_FEE_RATE);
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) this.profiles.set(p.id, p);
     for (const i of this.seed.items) this.items.set(i.id, i);
@@ -1115,6 +1125,7 @@ export class InMemoryWriteStore implements WriteStore {
         skillSpends: seller.skill_spends ?? {},
         classModBoosts: this.classModBoostsFor(seller.id),
         foundBySeller,
+        feeRate: await this.feeRateProvider(),
       });
     }
     if (seller) {
