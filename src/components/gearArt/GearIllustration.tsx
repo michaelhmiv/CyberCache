@@ -1,12 +1,23 @@
 import React from 'react';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield as ShieldItem, Weapon } from '@/types/items';
-import { WeaponIllustration, type WeaponIllustrationSize } from '@/components/weapon/WeaponIllustration';
+import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import { ShieldIllustration, type IllustrationSize } from './ShieldIllustration';
 import { OrdnanceIllustration } from './OrdnanceIllustration';
 import { RelicIllustration } from './RelicIllustration';
 import { ClassModIllustration } from './ClassModIllustration';
 
-export type GearIllustrationSize = WeaponIllustrationSize | IllustrationSize;
+export type GearIllustrationSize = IllustrationSize;
+
+/**
+ * Pixel weapon widths for the named sizes — the same horizontal footprint
+ * the vector illustrations used (their shared SIZE_PX table); the pixel
+ * height follows the parts-kit aspect (120x44) or the bespoke sprite's own.
+ */
+const PIXEL_WEAPON_SIZE_PX: Record<IllustrationSize, number> = {
+  thumb: 46,
+  card: 70,
+  showcase: 190,
+};
 
 /** Type guards */
 const isWeapon = (item: GearItem): item is Weapon => 'weaponType' in item;
@@ -25,7 +36,15 @@ interface GearIllustrationProps {
 
 /**
  * Unified gear illustration — dispatches to the correct type-specific
- * illustration component. Every item type in the game gets a procedural SVG.
+ * illustration component. Weapons render through the pixel path
+ * (PixelWeapon: bespoke legendary sprite, else the deterministic parts-kit
+ * compositor) so every surface shows the same image for the same weapon;
+ * the other gear types keep their procedural SVG illustrations.
+ *
+ * For weapons, `showBadges`/`animate` no longer apply: the badges were
+ * drawn inside the vector weapon SVG itself, and pixel weapons are static
+ * renders (surfaces animate the wrapper if they want motion — e.g. the
+ * inspect sheet's float).
  */
 export const GearIllustration: React.FC<GearIllustrationProps> = ({
   item,
@@ -35,7 +54,8 @@ export const GearIllustration: React.FC<GearIllustrationProps> = ({
   animate = false,
 }) => {
   if (isWeapon(item)) {
-    return <WeaponIllustration weapon={item} size={size as WeaponIllustrationSize | number} className={className} showBadges={showBadges} animate={animate} />;
+    const pixelSize = typeof size === 'number' ? size : PIXEL_WEAPON_SIZE_PX[size];
+    return <PixelWeapon weapon={item} size={pixelSize} className={className} />;
   }
   if (isShield(item)) {
     return <ShieldIllustration shield={item} size={size as IllustrationSize | number} className={className} showBadges={showBadges} animate={animate} />;

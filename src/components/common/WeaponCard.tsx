@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Weapon } from '../../types/items';
 import { RollQualityBadge } from './RollQualityBadge';
 import { VisualBadge } from './VisualBadge';
-import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
+import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import { RARITIES } from '../../constants/rarities';
 
 interface WeaponCardProps {
@@ -29,7 +29,10 @@ export const WeaponCard: React.FC<WeaponCardProps> = ({ weapon, onClick, showDet
       }}
     >
       <div className="shrink-0">
-        <WeaponIllustration weapon={weapon} size="card" showBadges />
+        {/* Pixel path (P5): bespoke legendary sprite or parts-kit composite —
+            the same render every other surface shows for this weapon.
+            ('card' in the shared size table is 70px wide.) */}
+        <PixelWeapon weapon={weapon} size={70} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-0.5 flex items-center gap-1.5">
