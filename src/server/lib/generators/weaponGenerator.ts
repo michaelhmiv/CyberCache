@@ -29,6 +29,7 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
     level = 1,
     forcedType,
     forcedRarity,
+    forcedLegendaryEffectId,
     forcedElement,
     forcedManufacturer,
     _luckBonus = 0,
@@ -239,7 +240,14 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
   if (rarity === Rarity.Legendary) {
     const eligible = getEligibleLegendaryEffects(source, bossTier);
     if (eligible.length > 0) {
-      const eff = eligible[seededInt(0, eligible.length - 1, rng)];
+      // Dedicated drops (boss loot): a forced effect wins when it is
+      // actually eligible for this source/tier — an ineligible force
+      // falls back to the normal pool pick rather than minting an
+      // effect this source could never drop.
+      const forced = forcedLegendaryEffectId
+        ? eligible.find((eff) => eff.id === forcedLegendaryEffectId)
+        : undefined;
+      const eff = forced ?? eligible[seededInt(0, eligible.length - 1, rng)];
       legendaryEffectId = eff.id;
     }
   }

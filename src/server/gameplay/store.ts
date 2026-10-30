@@ -105,6 +105,8 @@ export interface ChefBossAttemptInput {
   unlockedBossId: string | null;
   /** Second Opinion auto-scrap credit (0008 applier arg; 0 when it didn't fire). */
   scrap: number;
+  /** Entry fee charged for the attempt (0011 applier arg; already folded into creditsDelta). */
+  entryFee: number;
 }
 
 export interface ChefGameplayStore {
@@ -276,7 +278,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   applyChefBossAttempt(playerId: string, attempt: ChefBossAttemptInput): Promise<Json> {
     return this.callJson(
-      'select public.cc_apply_chef_boss_attempt($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) as result',
+      'select public.cc_apply_chef_boss_attempt($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) as result',
       [
         playerId,
         attempt.bossId,
@@ -288,6 +290,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         attempt.attempt,
         attempt.unlockedBossId,
         attempt.scrap,
+        attempt.entryFee,
       ],
     );
   }

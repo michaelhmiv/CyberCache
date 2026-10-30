@@ -17,7 +17,7 @@ import {
   useSurvivalStore,
   useWorkshopStore,
 } from '@/store';
-import { BossPrepModal } from '@/components/fight/BossPrepModal';
+import { BossEncounterPanel } from '@/components/fight/BossEncounterPanel';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { getVisualAsset } from '@/constants/visualAssets';
 import {
@@ -30,7 +30,6 @@ import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
 import { ActivityModifierPanel } from '@/components/action/ActivityModifierPanel';
 import { REGION_1_BOSSES } from '@/constants/bosses';
-import { computeEquippedFightPower } from '@/lib/stats/fightPower';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import {
   ROAMING_AREAS,
@@ -49,7 +48,6 @@ import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
 import { makeRunEvent, type RunVisualEvent } from '@/lib/run/runEvents';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 
-import { BossSigil } from '@/components/common/BossSigil';
 import { getActivityVisual } from '@/constants/activityVisuals';
 import type { ActivityKind, StartActivityInput } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
@@ -205,73 +203,6 @@ type CommonPanelProps = {
   onNavigate?: (screen: string) => void;
 };
 
-const BossPrepPanel: React.FC<CommonPanelProps & { bosses: BossDef[]; currentBoss?: BossDef; fightPower: number; onBossPicker: () => void }> = ({ currentBoss, fightPower, startBossFight, onBossPicker }) => {
-  const boss = currentBoss;
-  if (!boss) return null;
-  const readiness = Math.min(140, Math.round((fightPower / Math.max(1, boss.recommendedPower)) * 100));
-  return (
-    <div className="space-y-3">
-      <RewardIntelPanel
-        title={`${boss.name} readiness`}
-        eyebrow="boss prep intel"
-        stats={[
-          { label: 'Boss Lv', value: boss.level },
-          { label: 'Need', value: boss.recommendedPower },
-          { label: 'You', value: fightPower, tone: readiness >= 100 ? 'green' : 'red' },
-          { label: 'Ready', value: `${readiness}%`, tone: readiness >= 100 ? 'green' : 'red' },
-          { label: 'Cost', value: boss.entryCost, tone: 'cyan' },
-          { label: 'Drops', value: boss.dedicatedDrops.length, tone: 'amber' },
-        ]}
-      >
-        Weak: {boss.weaknesses.join(' / ') || 'None'}. Resist: {boss.resistances.join(' / ') || 'None'}. Dedicated drops: {boss.dedicatedDrops.join(' / ') || 'Unknown'}.
-      </RewardIntelPanel>
-      <Section title="Phase Checklist" eyebrow="prep targets" icon={<span style={{ fontSize: 15 }}>◎</span>} action={<button type="button" onClick={onBossPicker} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">Change Boss</button>}>
-        <div className="space-y-2">
-          {boss.phases.map((phase, index) => (
-            <div key={`${boss.id}-${phase.id}-${index}`} className="border-2 border-border bg-bg/70 p-2" style={smallClip}>
-              <div className="flex items-center justify-between gap-2"><div className="text-xs font-black text-text-primary">{index + 1}. {phase.name}</div><span className="text-[9px] font-black uppercase text-amber">{phase.type}</span></div>
-              <div className="mt-1 text-[10px] leading-snug text-text-muted">{phase.description}</div>
-              <div className="mt-2 flex flex-wrap gap-1">{phase.recommendedCounters.slice(0, 4).map((counter) => <span key={counter} className="border border-border bg-surface px-1.5 py-0.5 text-[9px] text-text-secondary">{counter}</span>)}</div>
-            </div>
-          ))}
-        </div>
-        <button type="button" onClick={() => startBossFight(boss)} className="mt-3 bl-primary w-full py-2 text-xs font-black">Start Boss Encounter</button>
-      </Section>
-    </div>
-  );
-};
-
-const _BossFightPanel: React.FC<{ boss?: BossDef; fightPower: number; openBoss: () => void }> = ({ boss, fightPower, openBoss }) => {
-  if (!boss) return <Section title="No Boss Selected" icon={<BossSigil bossId="unknown" size={15} showFrame={false} />}><button type="button" onClick={openBoss} className="bl-primary w-full py-2 text-xs font-black">Choose Boss</button></Section>;
-  const readiness = Math.round((fightPower / Math.max(1, boss.recommendedPower)) * 100);
-  return (
-    <div className="space-y-3">
-      <RewardIntelPanel
-        title={`${boss.name} loot stakes`}
-        eyebrow="encounter intel"
-        stats={[
-          { label: 'Power', value: fightPower, tone: readiness >= 100 ? 'green' : 'red' },
-          { label: 'Need', value: boss.recommendedPower },
-          { label: 'Phase', value: boss.phases.length },
-          { label: 'Dedicated', value: boss.dedicatedDrops.length, tone: 'amber' },
-          { label: 'Table', value: boss.dropTable.length },
-          { label: 'Risk', value: readiness >= 100 ? 'Stable' : 'High', tone: readiness >= 100 ? 'green' : 'red' },
-        ]}
-      >
-        Dedicated drops: {boss.dedicatedDrops.join(' / ')}. Current fight view is event-driven and ready for richer HP/phase resolution.
-      </RewardIntelPanel>
-      <Section title="Phase Breakdown" eyebrow="encounter replay" icon={<span style={{ fontSize: 15 }}>⚔</span>}>
-        <div className="space-y-2">
-          {boss.phases.map((phase, index) => {
-            const pass = fightPower >= boss.recommendedPower * phase.targetValue;
-            return <div key={`${boss.id}-${phase.id}-${index}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2"><span className="text-xs font-black text-text-primary">{index + 1}. {phase.name}</span><span className={pass ? 'text-green text-[9px] font-black' : 'text-red text-[9px] font-black'}>{pass ? 'LIKELY PASS' : 'RISK'}</span></div><div className="mt-1 text-[10px] text-text-muted">{pass ? phase.successReason : phase.failureReason}</div></div>;
-          })}
-        </div>
-      </Section>
-    </div>
-  );
-};
-
 const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number; onRecipePicker: () => void }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onRecipePicker }) => {
   const now = useNow();
   const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, playerMaterials, playerEssences, playerLevel), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
@@ -330,7 +261,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showRecipePicker, setShowRecipePicker] = useState(false);
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
   const [showMarketPicker, setShowMarketPicker] = useState(false);
-  const [prepBoss, setPrepBoss] = useState<BossDef | null>(null);
   const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
   // Tick feed events from the canonical ticker — the single source of truth
   // for roaming rewards. The Action screen is a consumer, not an engine.
@@ -347,7 +277,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const prepBossTarget = currentBoss ?? REGION_1_BOSSES.find((b) => bossStore.unlockedBossIds.includes(b.id) && !bossStore.defeatedBossIds.includes(b.id)) ?? REGION_1_BOSSES[0];
   const equippedWeapons = selectEquippedWeapons(loadoutStore);
   const activityWeapon: Weapon | undefined = equippedWeapons[0];
-  const fightPower = computeEquippedFightPower(equippedWeapons, currentBoss);
   const isRoaming = currentKind === 'roaming_loot';
   const activeRoamingAreaId = activity.current.targetType === 'roaming_area' ? activity.current.targetId : null;
   const canTick = isRoaming && activeRoamingAreaId === selectedArea.id && !activity.pending;
@@ -543,10 +472,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       );
     }
 
-    if (isBossPrep) return <BossPrepPanel {...commonProps} bosses={bosses} currentBoss={prepBossTarget} fightPower={fightPower} onBossPicker={() => setShowBossPicker(true)} />;
-
-    // Boss Fight: compact encounter panel
-    if (isBossFight) {
+    // Boss encounter (prep or fight phase): ONE panel owns the whole
+    // loop — boss intel + prep, the single Chef attempt, the outcome
+    // animation, and the result. Same component for both phases so a
+    // phase flip never remounts it mid-attempt.
+    if (isBossPrep || isBossFight) {
       if (!prepBossTarget) return (
         <div className="border-2 border-border bg-surface/95 p-3" style={panelClip}>
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-red">Boss Encounter</div>
@@ -554,48 +484,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           <button type="button" onClick={onOpenBossSelect} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Choose Boss</button>
         </div>
       );
-      const readiness = Math.min(140, Math.round((fightPower / Math.max(1, prepBossTarget.recommendedPower)) * 100));
-      return (
-        <div className="relative overflow-hidden border-2 border-red/40 bg-red/[0.06] p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
-          <div className="absolute -right-6 -top-6 h-20 w-20 rotate-12 border-[10px] border-red/5" />
-          <div className="relative flex items-start justify-between gap-3">
-            <div>
-              <div className="text-[9px] font-black uppercase tracking-[0.22em] text-red">Boss Encounter</div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span style={{ fontSize: 15 }} className="text-red shrink-0">☠</span>
-                <div>
-                  <div className="text-sm font-black text-text-primary">{prepBossTarget.name}</div>
-                  <div className="text-[10px] text-text-muted">Lv.{prepBossTarget.level} · {prepBossTarget.phases.length} phases · {prepBossTarget.dedicatedDrops.length} dedicated drops</div>
-                </div>
-              </div>
-            </div>
-            <button type="button" onClick={onOpenBossSelect} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
-              Change Boss
-            </button>
-          </div>
-          <div className="relative mt-2 grid grid-cols-4 gap-1.5 text-[9px]">
-            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Your Power</div>
-              <div className={`font-black ${readiness >= 100 ? 'text-green' : 'text-red'}`}>{fightPower}</div>
-            </div>
-            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Rec. Power</div>
-              <div className="font-black text-amber">{prepBossTarget.recommendedPower}</div>
-            </div>
-            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Readiness</div>
-              <div className={`font-black ${readiness >= 100 ? 'text-green' : 'text-red'}`}>{readiness}%</div>
-            </div>
-            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Cost</div>
-              <div className="font-black text-cyan">{prepBossTarget.entryCost}</div>
-            </div>
-          </div>
-          <div className="relative mt-2 pt-2 border-t border-border/40 text-[9px] text-text-muted">
-            Weak: {prepBossTarget.weaknesses.slice(0,4).join(', ') || 'None'} · Resist: {prepBossTarget.resistances.slice(0,4).join(', ') || 'None'}
-          </div>
-        </div>
-      );
+      return <BossEncounterPanel key={prepBossTarget.id} boss={prepBossTarget} onChangeBoss={() => setShowBossPicker(true)} onLeave={stopAction} />;
     }
 
     if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} onRecipePicker={() => setShowRecipePicker(true)} />;
@@ -780,8 +669,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         </ContextualPickerSheet>
         {inspectGear && <GearInspectModal item={inspectGear} onClose={() => setInspectGear(null)} />}
       </AnimatePresence>
-
-      <AnimatePresence>{prepBoss && <BossPrepModal boss={prepBoss} onClose={() => setPrepBoss(null)} />}</AnimatePresence>
     </div>
   );
 };

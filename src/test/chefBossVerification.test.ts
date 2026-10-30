@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { processBossAttempt } from '@/server/chef';
+import { simulateBoss } from '@/lib/simulation/bossSimulator';
 import { DropSource, Element, Manufacturer, Rarity, RiskSetting, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
 
@@ -76,47 +77,102 @@ describe('Boss fight verification', () => {
     expect(result.result.loot).toEqual(result.items.map((item) => item.id));
   });
 
-  it('rejects victory when damage dealt < boss health', () => {
+  // The four tests below previously asserted local arithmetic
+  // (`victory && damage >= boss.health` on literals) without touching
+  // the system under test. They now exercise the real sim/Chef.
+
+  it('gives an empty loadout almost no chance against the tutorial boss', () => {
     const boss = REGION_1_BOSSES[0]; // Dune Tyrant, 800 HP
-    const damageDealt = 400; // less than 800
-    const victory = true;
-
-    const plausible = victory && damageDealt >= boss.health;
-    expect(plausible).toBe(false);
+    const sim = simulateBoss({
+      primary: null,
+      secondary: null,
+      heavy: null,
+      ordnance: null,
+      shield: null,
+      classMod: null,
+      relic: null,
+      consumables: {},
+      risk: RiskSetting.Balanced,
+      boss,
+      playerLevel: 5,
+      skillBonuses: {},
+      pityCount: 0,
+      playerCredits: 0,
+    });
+    // No weapon → dpsScore ≈ 30 / (800 / 1) → winChance at the floor.
+    expect(sim.effectiveDPS).toBe(0);
+    expect(sim.winChance).toBeLessThanOrEqual(0.05);
   });
 
-  it('accepts victory when damage dealt >= boss health', () => {
-    const boss = REGION_1_BOSSES[0]; // Dune Tyrant, 800 HP
-    const damageDealt = 850;
-    const victory = true;
-
-    const plausible = victory && damageDealt >= boss.health;
-    expect(plausible).toBe(true);
+  it('gives the fixture loadout a decisive chance against the tutorial boss', () => {
+    const boss = REGION_1_BOSSES[0];
+    const sim = simulateBoss({
+      primary: strongWeapon(),
+      secondary: null,
+      heavy: null,
+      ordnance: null,
+      shield: null,
+      classMod: null,
+      relic: null,
+      consumables: {},
+      risk: RiskSetting.Balanced,
+      boss,
+      playerLevel: 50,
+      skillBonuses: {},
+      pityCount: 0,
+      playerCredits: 10000,
+    });
+    expect(sim.winChance).toBeGreaterThanOrEqual(0.9);
+    expect(sim.timeToKill).toBeLessThan(30);
   });
 
-  it('rejects damage exceeding max possible from loadout DPS', () => {
-    const loadoutDps = 50; // 50 DPS
-    const durationMs = 10000; // 10 seconds
-    const seconds = durationMs / 1000;
-    const maxPossible = loadoutDps * seconds * 1.2; // 600 with 20% tolerance
-    const claimedDamage = 1000; // exceeds max
-
-    expect(claimedDamage).toBeGreaterThan(maxPossible);
+  it('time-to-kill tracks real loadout damage output', () => {
+    const boss = REGION_1_BOSSES[0];
+    const weak: Weapon = { ...strongWeapon(), id: 'weak-gun', baseDamage: 5, attackSpeed: 1, critChance: 0, bossDamageMod: 0 };
+    const base = {
+      secondary: null,
+      heavy: null,
+      ordnance: null,
+      shield: null,
+      classMod: null,
+      relic: null,
+      consumables: {},
+      risk: RiskSetting.Balanced,
+      boss,
+      playerLevel: 50,
+      skillBonuses: {},
+      pityCount: 0,
+      playerCredits: 10000,
+    } as const;
+    const strongSim = simulateBoss({ ...base, primary: strongWeapon() });
+    const weakSim = simulateBoss({ ...base, primary: weak });
+    expect(strongSim.effectiveDPS).toBeGreaterThan(weakSim.effectiveDPS);
+    expect(strongSim.timeToKill).toBeLessThan(weakSim.timeToKill);
+    // The weak gun cannot kill 800 HP inside the 30s window.
+    expect(weakSim.dpsScore).toBeLessThan(1);
   });
 
-  it('accepts damage within plausible bounds', () => {
-    const loadoutDps = 100;
-    const durationMs = 30000; // 30 seconds
-    const seconds = durationMs / 1000;
-    const maxPossible = loadoutDps * seconds * 1.2;
-    const claimedDamage = 2500; // plausible
-
-    expect(claimedDamage).toBeLessThanOrEqual(maxPossible);
-  });
-
-  it('scrap bishop requires 10000 damage to kill', () => {
-    const scrapBishop = REGION_1_BOSSES[6]; // Scrap Bishop
-    expect(scrapBishop.health).toBe(10000);
+  it('the same loadout fares worse against Scrap Bishop than the tutorial boss', () => {
+    const base = {
+      primary: strongWeapon(),
+      secondary: null,
+      heavy: null,
+      ordnance: null,
+      shield: null,
+      classMod: null,
+      relic: null,
+      consumables: {},
+      risk: RiskSetting.Balanced,
+      playerLevel: 50,
+      skillBonuses: {},
+      pityCount: 0,
+      playerCredits: 10000,
+    } as const;
+    const tutorial = simulateBoss({ ...base, boss: REGION_1_BOSSES[0] });
+    const bishop = simulateBoss({ ...base, boss: REGION_1_BOSSES[6] }); // 10000 HP + shield/armor gates
+    // Survival alone caps the Bishop attempt: 2500 HP vs 180 DPS x 30s.
+    expect(bishop.survivalScore).toBeLessThan(tutorial.survivalScore);
+    expect(bishop.winChance).toBeLessThan(tutorial.winChance);
   });
 
   it('tutorial boss has 0 entry cost', () => {

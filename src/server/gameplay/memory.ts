@@ -372,7 +372,17 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const p = this.requireProfile(playerId);
     const nonceKey = `${playerId}:chef-boss:${attempt.bossId}:${attempt.attemptNonce}`;
     const prior = this.ledger.get(nonceKey);
-    if (prior) return prior;
+    // 0011: a replay returns the stored payload plus the replay
+    // marker (merged at return time only — the ledger copy is the
+    // pristine first-application payload, like the SQL applier).
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true };
+
+    // 0011: entry-fee affordability guard (mirrors the SQL applier).
+    // The fee is already folded into creditsDelta by the Chef; this
+    // guard is the applier-level backstop behind the route's check.
+    if (Math.trunc(attempt.entryFee) > 0 && p.credits < Math.trunc(attempt.entryFee)) {
+      throw new GameplayStoreError('Insufficient credits for boss entry fee');
+    }
 
     const leveled = applyXp(p.player_level, p.player_xp, Math.max(0, Math.trunc(attempt.xp)));
     p.player_level = leveled.player_level;
@@ -420,6 +430,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       attempt: attempt.attempt,
       consumed_batches: [],
       scrap_awarded: Math.trunc(attempt.scrap),
+      entry_fee: Math.trunc(attempt.entryFee),
     };
     this.ledger.set(nonceKey, result);
     return result;

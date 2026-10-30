@@ -8,8 +8,8 @@
  *
  * The model is intentionally simple — it does NOT model phases,
  * mechanics, scoring, or pity. The one-shot sim already does all of
- * that for the *prep* view (the Win Chance % the player sees in the
- * BossPrepModal). What it does model is the *attrition loop* the
+ * that for the Chef-resolved attempt (see BossEncounterPanel). What
+ * it does model is the *attrition loop* the
  * user actually feels: medkits drain as auto-eat fires, the boss HP
  * bar ticks down, the player HP bar ticks down, and the fight ends
  * in either victory (boss HP ≤ 0) or death (player HP ≤ 0).

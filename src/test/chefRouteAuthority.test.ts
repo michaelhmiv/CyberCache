@@ -25,7 +25,10 @@ describe('Chef route authority boundaries', () => {
     expect(claimRouteSource).toContain('const request: BossAttemptRequest = {');
     expect(claimRouteSource).toContain('playerLevel: serverLevel');
     expect(claimRouteSource).toContain('playerCredits: serverCredits');
-    expect(claimRouteSource).toContain('consumables: serverConsumables');
+    // Phase 0 boss loop: the prepared consumable set is validated
+    // against DB inventory (resolvePreparedConsumables) instead of
+    // the June whole-inventory substitution.
+    expect(claimRouteSource).toContain('consumables: resolved.prepared');
     expect(claimRouteSource).toContain('pityCount: serverPityCount');
   });
 

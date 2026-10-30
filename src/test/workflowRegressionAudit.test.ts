@@ -11,7 +11,10 @@ describe('workflow regression audit', () => {
     const source = read('screens/ActionScreenContextual.tsx');
 
     expect(source).toContain("const isBossPrep = currentKind === 'boss_fight' && bossPhase === 'prep'");
-    expect(source).toContain('if (isBossPrep) return <BossPrepPanel');
+    // Phase 0 Slice 1: one BossEncounterPanel serves both phases (prep
+    // stages the attempt; fight animates the Chef's returned outcome).
+    expect(source).toContain('if (isBossPrep || isBossFight)');
+    expect(source).toContain('return <BossEncounterPanel');
     expect(source).toContain("(label === 'Boss Prep' && isBossPrep)");
     expect(source).not.toMatch(/currentKind === ['"]boss_prep['"]/);
   });

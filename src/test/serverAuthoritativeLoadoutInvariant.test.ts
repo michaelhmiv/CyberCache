@@ -11,8 +11,8 @@ describe('server-authoritative loadout invariant', () => {
     expect(source).not.toMatch(/buildBossFightActivity\([^\n]*best[A-Za-z]*Weapon/);
   });
 
-  it('BossPrepModal does not fill equipped slots from inventory fallback', () => {
-    const source = read('src/components/fight/BossPrepModal.tsx');
+  it('BossEncounterPanel does not fill equipped slots from inventory fallback', () => {
+    const source = read('src/components/fight/BossEncounterPanel.tsx');
     expect(source).not.toMatch(/loadout\.getWeapon\('[^']+'\)\s*\|\|\s*inventory\.getWeapons/);
   });
 

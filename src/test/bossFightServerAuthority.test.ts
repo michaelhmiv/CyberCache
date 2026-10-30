@@ -20,11 +20,27 @@ describe('Boss fight server authority regression', () => {
     expect(route.indexOf('store.getBossProfile(playerId)')).toBeLessThan(route.indexOf('processBossAttempt(request)'));
   });
 
-  it('overrides client-supplied consumables with DB-verified inventory', () => {
+  it('honors the prepared consumable set, validated against DB inventory', () => {
     const route = readSource('src/server/routes/claim.ts');
-    expect(route).toContain('consumables: serverConsumables');
-    expect(route).toContain('serverConsumables');
+    // Phase 0 boss loop: the June handler discarded the body's
+    // consumables and substituted the ENTIRE DB inventory
+    // (`consumables: serverConsumables`), so player prep could never
+    // matter. The shipped contract now validates the player's chosen
+    // prepared set against the DB-owned counts and passes exactly
+    // that set to the Chef.
+    expect(route).toContain('resolvePreparedConsumables(body.consumables, ownedConsumables)');
+    expect(route).toContain('consumables: resolved.prepared');
     expect(route).toContain('profile.consumables');
+    expect(route).not.toContain('serverConsumables');
+  });
+
+  it('enforces boss unlocks and derives the entry fee from server state', () => {
+    const route = readSource('src/server/routes/claim.ts');
+    expect(route).toContain('unlockedBossIds');
+    expect(route).toContain("error: 'Boss locked'");
+    expect(route).toContain('bossDef.entryCost');
+    expect(route).toContain('bossDef.rematchCost');
+    expect(route).toContain('entryFee');
   });
 
   it('overrides client-supplied playerCredits and playerLevel with DB values', () => {

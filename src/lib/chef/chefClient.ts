@@ -185,6 +185,13 @@ export interface ChefVerifyBossResult {
   consumedConsumables: Record<string, number>;
   extraLoot: boolean;
   bonusLootRolls: number;
+  /** Entry fee charged for this attempt (boss entryCost / rematchCost). */
+  entryFee: number;
+  /** True when the guaranteed victory roll landed on a dedicated drop. */
+  dedicatedDropAwarded: boolean;
+  unlockedBossId?: string;
+  /** True when the attempt nonce was a replay — nothing was applied twice. */
+  idempotentReplay?: boolean;
   profile?: Record<string, unknown>;
   pityIncremented: boolean;
   telemetry: {

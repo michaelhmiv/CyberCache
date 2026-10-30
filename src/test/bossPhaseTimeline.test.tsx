@@ -1,14 +1,14 @@
 /**
  * Tests for PR #3: the boss phase timeline segmented bar.
  *
- * The component is private to BossPrepModal. The tests here cover the
+ * The component was private to BossPrepModal (removed with the modal in the Phase 0 boss-loop slice; the mirror below is retained as the rendering-contract record). The tests here cover the
  * pure, extractable parts of the design:
  *  - One segment per phase, in order
  *  - Segment color encodes the phase status
  *  - Tapping a segment fires the onSelect callback with the phase id
  *
  * The scrollIntoView behavior is covered by exercising the public
- * onSelect contract — the parent (BossPrepModal) owns the refs and
+ * onSelect contract — the parent owned the refs and
  * scroll logic, and that's already covered by the integration with
  * the phase card data-phase-id attributes (manual smoke).
  */
@@ -25,7 +25,7 @@ const PHASE_STATUS_BG: Record<PhaseAnalysis['status'], string> = {
 };
 
 /**
- * Mirror of the BossPhaseTimeline component in BossPrepModal.tsx.
+ * Mirror of the BossPhaseTimeline component that lived in BossPrepModal.tsx.
  * Kept in sync via comment; if this drifts, the visual test will
  * fail. The point of having a separate copy is to test the rendering
  * contract without bootstrapping the whole modal (which depends on
