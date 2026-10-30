@@ -7,6 +7,7 @@ import { ResourceBar } from '@/components/layout/ResourceBar';
 import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
+import { MasterySection } from '@/components/profile/MasterySection';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { useAuth } from '@/auth/AuthProvider';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
@@ -201,6 +202,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         <SkillTreeScreen embedded />
       </MobileCard>
 
+      <MasterySection />
+
       <MobileCard className="space-y-2" rarityColor="#7CFC00">
         <div className="flex items-center gap-2">
           <span className="font-black text-green" style={{ fontSize: '16px' }}>◈</span>
@@ -330,17 +333,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
               </ul>
             )}
           </div>
-        </div>
-      </MobileCard>
-
-      <MobileCard className="space-y-2" rarityColor="#7CFC00">
-        <div className="flex items-center gap-2">
-          <span className="font-black text-green" style={{ fontSize: '16px' }}>★</span>
-          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Mastery</div>
-        </div>
-        <div className="space-y-1 text-xs text-text-secondary">
-          <div className="flex justify-between"><span>Total Mastery XP</span><span className="font-bold text-text-primary">{(stats?.total_mastery_xp ?? 0).toLocaleString()}</span></div>
-          <div className="flex justify-between"><span>Highest Mastery Level</span><span className="font-bold text-text-primary">{stats?.highest_mastery_level ?? 0}</span></div>
         </div>
       </MobileCard>
 

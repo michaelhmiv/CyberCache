@@ -87,23 +87,34 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     }
   };
 
+  // The Respec affordance + points summary used to live ONLY in the
+  // non-embedded header/stats, but this screen is only ever rendered
+  // embedded (Profile) — which suppressed both and made the working
+  // cc_retrain flow unreachable. They now render in both modes, with
+  // the exact cost semantics of the original header: cc_retrain
+  // charges total spent × 100cr server-side; the button is the whole
+  // confirmation (same as it ever was standalone).
+  const respecButton = (
+    <button
+      onClick={respec}
+      disabled={pendingNodeId !== null}
+      className="bl-secondary flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs font-black text-amber disabled:opacity-50"
+    >
+      <RotateCcw size={12} /> Respec
+    </button>
+  );
+
   const header = embedded ? null : (
     <div className="flex items-start justify-between gap-3">
       <div>
         <div className="bl-title text-3xl leading-none text-text-primary">Skill Trees</div>
         <div className="text-xs text-text-muted mt-1">Spend points on crooked branches. Small nodes feed majors; majors unlock keystones.</div>
       </div>
-      <button
-        onClick={respec}
-        disabled={pendingNodeId !== null}
-        className="bl-secondary flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs font-black text-amber disabled:opacity-50"
-      >
-        <RotateCcw size={12} /> Respec
-      </button>
+      {respecButton}
     </div>
   );
 
-  const stats = embedded ? null : (
+  const stats = (
     <div className="grid grid-cols-3 gap-2">
       <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Available</div><div className="text-xl font-black text-amber">{pointsAvailable}</div></div>
       <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Spent</div><div className="text-xl font-black text-text-primary">{pointsSpent}</div></div>
@@ -112,9 +123,15 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   );
 
   return (
-    <div className={embedded ? '' : 'bl-page space-y-4 p-4 pb-20'}>
+    <div className={embedded ? 'space-y-4' : 'bl-page space-y-4 p-4 pb-20'}>
       {header}
       {stats}
+      {embedded && (
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[10px] text-text-muted">Respec refunds every spent point for {pointsSpent * 100}cr.</div>
+          {respecButton}
+        </div>
+      )}
 
       <div className={embedded ? '' : 'space-y-4'}>
         {TREES.map((tree) => (

@@ -16,9 +16,18 @@
  * State (profiles, items, ledger) is plain data so tests can seed and
  * inspect it directly. The clock is injectable so offline settlement
  * can be exercised at exact elapsed times.
+ *
+ * Mastery (0014): in Postgres the ledger trigger
+ * (cc_apply_mastery_for_verified_action) grants mastery XP as a side
+ * effect of the appliers' ledger inserts. This double mirrors the
+ * trigger's SHIPPED branches (cc_apply_chef_rewards,
+ * cc_apply_boss_attempt, cc_settle_offline_roaming) onto its own
+ * `masteries` rows so HTTP tests can assert the same end state.
+ * Stat counters are not mirrored here — they live in the writes
+ * store's port of the same trigger.
  */
 import { randomUUID } from 'node:crypto';
-import { applyXp, computeItemEstimatedValue, salvageScrap, type Json } from '../writes/store';
+import { applyXp, computeItemEstimatedValue, masteryLevelForXp, salvageScrap, type Json } from '../writes/store';
 import {
   deathRecordFromJson,
   GameplayStoreError,
@@ -100,6 +109,34 @@ export interface ConsumableEvent {
   reason: string;
 }
 
+/** player_masteries row mirror (0014 mastery side effects). */
+export interface InMemoryMastery {
+  user_id: string;
+  mastery_id: string;
+  mastery_xp: number;
+  mastery_level: number;
+}
+
+/**
+ * cc_location_mastery_id (0014): roaming area id -> locations
+ * mastery id. Dustwaste Frontier is special-cased: its mastery
+ * definition ('locations.dustwaste') predates the area-id scheme.
+ */
+export function locationMasteryIdForArea(areaId: string | null | undefined): string | null {
+  if (!areaId) return null;
+  if (areaId === 'dustwaste_frontier') return 'locations.dustwaste';
+  return `locations.${areaId}`;
+}
+
+/** weapons.<type> mastery id for a gear payload's weaponType. */
+export function weaponMasteryIdForWeaponType(weaponType: unknown): string | null {
+  if (typeof weaponType !== 'string' || weaponType.length === 0) return null;
+  return `weapons.${weaponType.toLowerCase()}`;
+}
+
+/** Consumable types the trigger's ordnance family also feeds combat.ordnance. */
+const ORDNANCE_FAMILY_PREFIXES = ['Ordnance', 'EMP', 'Corrosive', 'Magnetized', 'PhaseShift', 'Void'];
+
 const TICK_MS = 3000;
 
 function asRecord(value: unknown): Record<string, number> {
@@ -127,6 +164,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly activeActions = new Map<string, InMemoryActiveAction>();
   readonly ledger = new Map<string, Json>();
   readonly consumableEvents: ConsumableEvent[] = [];
+  /** player_masteries mirror — written by the 0014 mastery grants below. */
+  readonly masteries: InMemoryMastery[] = [];
 
   constructor(private readonly now: () => Date = () => new Date()) {}
 
@@ -247,6 +286,56 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     };
   }
 
+  // -- Mastery side effects (0014 — the ledger trigger's shipped branches) --
+
+  private addMasteryXp(userId: string, masteryId: string, amount: number): void {
+    const grant = Math.trunc(amount);
+    if (!Number.isFinite(grant) || grant === 0) return;
+    const existing = this.masteries.find((m) => m.user_id === userId && m.mastery_id === masteryId);
+    if (existing) {
+      existing.mastery_xp = Math.max(0, existing.mastery_xp + grant);
+      existing.mastery_level = masteryLevelForXp(existing.mastery_xp);
+    } else {
+      const xp = Math.max(0, grant);
+      this.masteries.push({ user_id: userId, mastery_id: masteryId, mastery_xp: xp, mastery_level: masteryLevelForXp(xp) });
+    }
+  }
+
+  /** cc_equipped_weapon_mastery_id: the equipped primary weapon's mastery. */
+  private equippedWeaponMasteryId(playerId: string): string | null {
+    const primary = [...this.items.values()].find(
+      (item) => item.owner_user_id === playerId && item.runtime_state === 'equipped' && item.equipped_slot === 'primary',
+    );
+    return primary ? weaponMasteryIdForWeaponType(primary.payload?.weaponType) : null;
+  }
+
+  /**
+   * Location + weapon grants shared by foreground claims and offline
+   * settlements (the trigger's cc_apply_chef_rewards /
+   * cc_settle_offline_roaming branches): location follows the legacy
+   * cc_idle_claim rule — greatest(1, xp) — fed the REAL area; weapon
+   * mastery is 1 XP per player XP earned with that type equipped
+   * (the weapons.* definitions' xp_per_unit = 1, unit 'XP').
+   */
+  private grantRoamingMastery(playerId: string, areaId: string | null | undefined, xpAwarded: number): void {
+    const amount = Math.max(0, Math.trunc(xpAwarded) || 0);
+    const locationId = locationMasteryIdForArea(areaId);
+    if (locationId) this.addMasteryXp(playerId, locationId, Math.max(1, amount));
+    const weaponId = this.equippedWeaponMasteryId(playerId);
+    if (weaponId) this.addMasteryXp(playerId, weaponId, amount);
+  }
+
+  /** The trigger's consumable block: efficiency per use, ordnance family bonus. */
+  private grantConsumedMastery(playerId: string, consumed: Record<string, number>): void {
+    for (const [type, count] of Object.entries(consumed)) {
+      if (count <= 0) continue;
+      this.addMasteryXp(playerId, 'consumable.efficiency', count * 10);
+      if (ORDNANCE_FAMILY_PREFIXES.some((prefix) => type.startsWith(prefix))) {
+        this.addMasteryXp(playerId, 'combat.ordnance', count * 10);
+      }
+    }
+  }
+
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
@@ -305,7 +394,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     playerId: string,
     rewards: ChefRewardsInput,
     tickCount: number,
-    _areaId: string,
+    areaId: string,
   ): Promise<Json> {
     const p = this.requireProfile(playerId);
     const nonceKey = `${playerId}:chef:${tickCount}`;
@@ -333,9 +422,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const result: Json = {
       action_type: 'cc_apply_chef_rewards',
       profile: this.snapshot(p),
+      // 0014: the SQL applier records the farmed area in the payload.
+      area_id: areaId,
       rewards: echo,
     };
     this.ledger.set(nonceKey, result);
+    // 0014: the ledger insert fires the mastery trigger in Postgres;
+    // mirror its cc_apply_chef_rewards branch.
+    this.grantRoamingMastery(playerId, areaId, rewards.xp);
     return result;
   }
 
@@ -457,8 +551,20 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       consumed_batches: [],
       scrap_awarded: Math.trunc(attempt.scrap),
       entry_fee: Math.trunc(attempt.entryFee),
+      // 0014: the SQL applier records the awarded XP in the payload.
+      xp_awarded: Math.max(0, Math.trunc(attempt.xp)),
     };
     this.ledger.set(nonceKey, result);
+    // 0014: mirror the trigger's cc_apply_boss_attempt branch —
+    // attempts always count, defeats pay on victory, weapon mastery
+    // follows the (victory-gated) awarded XP, and the prepared set
+    // the applier consumed feeds consumable mastery. No location
+    // grant: bosses have no area in the data model.
+    this.addMasteryXp(playerId, 'combat.boss_attempts', 20);
+    if (attempt.victory) this.addMasteryXp(playerId, 'combat.boss_defeats', 100);
+    const weaponId = this.equippedWeaponMasteryId(playerId);
+    if (weaponId) this.addMasteryXp(playerId, weaponId, Math.max(0, Math.trunc(attempt.xp)));
+    this.grantConsumedMastery(playerId, asRecord(attempt.consumables));
     return result;
   }
 
@@ -628,6 +734,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       consumed_consumables: appliedConsumables,
     };
     this.ledger.set(nonceKey, result);
+    // 0014: mirror the trigger's cc_settle_offline_roaming branch —
+    // same roaming grants for the settled area, and the settlement's
+    // applied (clamped) consumed set feeds consumable mastery.
+    this.grantRoamingMastery(playerId, action.target_id, rewards.xp);
+    this.grantConsumedMastery(playerId, appliedConsumables);
     return result;
   }
 

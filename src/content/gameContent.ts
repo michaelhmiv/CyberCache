@@ -110,6 +110,14 @@ export interface MechanicDecision {
   reason: string;
 }
 
+/**
+ * PROFESSIONS — DESIGN ONLY, NOT IMPLEMENTED (parked 2026-10-30,
+ * Phase 0 Slice 5). This corpus is a design record kept as a future
+ * candidate: no screen or component imports it, no gameplay system
+ * reads it, and the player_professions table / profession XP have no
+ * mechanical effect in the shipped game. Do not wire UI or effects
+ * against these tracks without a dedicated implementation slice.
+ */
 export const PROFESSION_TRACKS: ProfessionTrack[] = [
   { id: 'medtech', name: 'Medtech', role: 'Creates healing and emergency survival consumables.', levelCap: 100, produces: ['medkits', 'shield cells', 'nano swarms', 'adrenaline shots'], firstEraPolicy: 'Player-made supply should outperform limited NPC starter goods.' },
   { id: 'ammo_fabrication', name: 'Ammo Fabrication', role: 'Creates elemental and tactical ammo consumables.', levelCap: 100, produces: ['shock ammo', 'corrosive ammo', 'cryo ammo', 'void ammo', 'armor-piercing ammo'], firstEraPolicy: 'Consumable output only; does not create permanent weapon power.' },
