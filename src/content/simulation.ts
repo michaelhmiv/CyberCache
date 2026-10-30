@@ -83,10 +83,24 @@ export function calculateDailyXp(assumptions: SimulationAssumptions = DEFAULT_SI
   return { roamingTickXp, enemyDefeatXp, damageCreditXp, bossAttemptXp, bossVictoryXp, scrapXp, craftXp, totalXp };
 }
 
-// Shared XP curve formula — MUST match server (cc_apply_xp in db/migrations/0004_write_apis.sql)
+// Shared XP curve formula — MUST match server (cc_apply_xp, restated in
+// db/migrations/0016_xp_curve_stretch.sql).
+//
+// Pacing-baseline tuning (owner directive, 2026-10-30): the launch curve
+// (50L + 20·L^1.4, 767k XP to 100) capped a regular player in ~45 days.
+// The stretched curve is Torn-shaped: fast early levels, a gentle climb
+// through the boss ladder, then a compounding prestige tail.
+//   L < 25:  floor(100 · L^1.72)                       — area ladder
+//   L ≥ 25:  floor(25377 · (L/25)^0.5 · 1.048^max(0, L−45))
+// 25377 is segment 1 evaluated at 25, so the curve is continuous at the
+// joint; past 45 each level costs 4.8% more than the last. Solved
+// against the lifecycle evaluation's faucet model (best-area XP/hr by
+// level band): regulars (6 roaming-h/day) reach L25 in ~17 days, L45 in
+// ~51 days, L100 in ~24 months; levels in the 90s take 3–5 weeks each.
 export const XP_CURVE_FORMULA = (level: number): number => {
   if (level < 1) throw new Error('Level must be at least 1.');
-  return Math.floor(50 * level + 20 * Math.pow(level, 1.4));
+  if (level < 25) return Math.floor(100 * Math.pow(level, 1.72));
+  return Math.floor(25377 * Math.pow(level / 25, 0.5) * Math.pow(1.048, Math.max(0, level - 45)));
 };
 
 export function xpToNextLevel(level: number): number {

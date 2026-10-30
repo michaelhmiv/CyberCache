@@ -202,6 +202,7 @@ Current implementation:
 - The selected roaming area persists in idle state and changes Fight screen presentation.
 - Area choice influences displayed rates, enemy flavor, rarity weights, weapon manufacturer/type/element bias, gear-kind mix, and a small material/essence trickle.
 - Existing stage zone data remains available, but player-facing roaming identity now comes from areas.
+- **Area Legendary weights (pacing-baseline tuning, 2026-10-30)**: each area's `dropPoolRarityWeights` Legendary value is 0.1 (Dustwaste Frontier, Redline Circuit), 0.15 (Ironwood Bastion), or 0.2 (BlastForge Yards, Prismatek Reactor, ThrowTech Dumpnet, HelixWorks Labyrinth) — one tenth of the launch values, so a roaming Legendary is a rare event next to boss drops. Rare/Epic weights are unchanged, and so is the global §6 table (it feeds boss generic rolls and cache-forged generation, not area pools).
 
 Deferred for later PRs:
 - Full manufacturer reputation.
@@ -320,6 +321,7 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 - **Keystone**: King of Scrap — low-rarity +100% scrap, 25% bonus material chance, +4h offline cap
 
 ### Skill Point System
+- **XP curve (stretched, pacing-baseline tuning 2026-10-30; migration 0016)**: XP to next level is `floor(100 · L^1.72)` below level 25, then `floor(25377 · (L/25)^0.5 · 1.048^max(0, L−45))` — 12,480,235 XP total to reach 100 (launch curve: 766,955). Early levels stay quick, the boss ladder takes a regular player ~7 weeks, and the post-45 tail compounds 4.8% per level: level 100 is a ~24-month horizon for a regular (6 roaming-h/day), 4+ years for a casual. One shared formula (`xpToNextLevel` in `src/content/simulation.ts`) drives the client, the Chef's `cc_apply_xp`, and the in-memory mirror; level derives from stored level + XP state, so the stretch needed no data migration. Skill-point income stretches with the curve — intended: the 99-point lifetime budget against 226 points of trees is the longevity design, unchanged.
 - 1 point per level (starting at level 2)
 - Respec costs: 100cr × total points spent
 - Respec is reachable in Profile → Skill Trees: the Respec button runs `cc_retrain` end-to-end (server charges total spent × 100cr, zeroes `skill_spends`, and the returned profile snapshot refunds the points in the UI immediately). Until Phase 0 Slice 5 the button only existed in the screen's standalone header, which the embedded Profile render suppressed — the mechanism worked but no player could reach it.
@@ -369,6 +371,17 @@ Balance-checked before resolution and folded into the attempt's
 net credit delta (migration 0011's `_entry_fee` parameter).
 Defeat `creditsLost` itemizes `deathFee + entryFee`.
 
+**Rematch escalation (pacing-baseline tuning, 2026-10-30).** The
+base fee doubles for every victory the player has already banked
+against that boss on the current UTC day — fee = base ×
+min(8, 2^(victories today)), resetting at 00:00 UTC. The Chef
+counts today's victories from the verified action ledger (nonce
+replays never double-count) and charges the escalated fee; the
+attempt response reports the charged fee and the post-attempt
+count, and the prep panel displays the escalated fee before the
+player commits (its counts arrive via the profile read and the
+attempt responses).
+
 **Boss unlocks.** Server-side, from the existing
 `profiles.boss_state` jsonb (`unlockedBossIds`, default
 `["dune_tyrant"]`): a locked boss is rejected with 403; a victory
@@ -387,12 +400,23 @@ gone.
 **Dedicated drops.** Boss defs declare `dedicatedDrops`
 (legendary effect ids; the mechanics validator enforces
 dedicated ⊆ drop table). On a victory, the guaranteed loot roll
-has a 25% chance (Chef constant `BOSS_DEDICATED_DROP_CHANCE` in
-`src/server/chef.ts` — the defs declare no rate of their own) to
+has a 10% chance (Chef constant `BOSS_DEDICATED_DROP_CHANCE` in
+`src/server/chef.ts` — the defs declare no rate of their own;
+25% at launch, cut to the Borderlands-standard 10% by the
+2026-10-30 pacing-baseline tuning) to
 become the dedicated drop: a Legendary weapon forced to an
 effect drawn from the boss's dedicated list intersected with the
-effects eligible for BossDrop at the boss's tier. The result
-reports `dedicatedDropAwarded`; the client announces it.
+effects eligible for BossDrop at the boss's tier. The dedicated
+weapon generates at `max(boss.level, playerLevel)` — boss levels
+stop at 45 while roaming legendaries scale to 100, so a
+boss-level dedicated drop lost the power race for high-level
+farmers; generic boss rolls still generate at `boss.level`. The
+result reports `dedicatedDropAwarded`; the client announces it.
+
+**Boss XP.** A victory awards `boss.level × 50` XP (raised from
+× 20 by the pacing-baseline tuning, before the XP multipliers
+from relic/class-mod affixes and skill bonuses); defeats award
+none.
 
 **Class mod.** The equipped class mod enters the sim (wired in
 Slice 1; it was previously a dead input): its `bossDamageMod`
@@ -458,7 +482,7 @@ Nothing outside the prepared set is ever touched.
 
 ### Cache Keys
 - Start with 3
-- 3% drop chance per farming tick (fragments)
+- 0.8% drop chance per farming tick (fragments; `FRAGMENT_CHANCE` in the Chef — 3% at launch, cut by the 2026-10-30 pacing-baseline tuning, which minted ~7 keys/hour)
 - 5 fragments → 1 key
 - Cache odds: Rare 60%, Epic 32%, Legendary 8%
 
@@ -466,7 +490,7 @@ Nothing outside the prepared set is ever touched.
 - Credits: zone.idleCreditsPerMinute × offline minutes × (1 + offlineEarnings bonus)
 - Scrap: zone.idleScrapPerMinute × offline minutes
 - Workshop: queues complete in real time
-- Cap: 2-12 hours (extendable via Scavenger keystone)
+- Cap: EARNED by player level (pacing-baseline tuning, 2026-10-30; migration 0015) — L<20 → 2h, L20 → 4h, L40 → 6h, L60 → 8h, L80 → 12h, plus the Scavenger keystone's +4h (`offlineCapBonus`, wired by the same pass — its first consumer). The Chef derives the effective cap from the player's level and server-rebuilt skill bonuses at settlement and ignores any larger stored preference; the old free Settings choice (2–12h from day 1) is gone — Settings now displays the earned cap and the next tier's unlock level. Tier table source of truth: `src/content/offlineCap.ts`.
 
 ---
 

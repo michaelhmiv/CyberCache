@@ -17,6 +17,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { mapProfile, type ProfileRowData } from '../reads/store.js';
+import { xpToNextLevel } from '../../content/simulation.js';
 
 export type Json = Record<string, unknown>;
 
@@ -314,12 +315,12 @@ export function salvageScrap(rarity: string, itemLevel: number): number {
   return Math.max(1, Math.round((10 + Math.max(1, itemLevel || 1) * 5) * mult));
 }
 
-/** cc_apply_xp: xp needed for a level is floor(50*level + 20*level^1.4). */
+/** cc_apply_xp: per-level thresholds come from the one shared curve. */
 export function applyXp(level: number, xp: number, award: number): { player_level: number; player_xp: number } {
   let nextLevel = Math.max(1, Math.floor(level));
   let nextXp = Math.max(0, Math.floor(xp)) + Math.max(0, Math.floor(award));
   for (;;) {
-    const needed = Math.floor(50 * nextLevel + 20 * Math.pow(nextLevel, 1.4));
+    const needed = xpToNextLevel(nextLevel);
     if (nextXp < needed) break;
     nextXp -= needed;
     nextLevel += 1;

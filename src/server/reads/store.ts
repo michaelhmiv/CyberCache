@@ -19,6 +19,7 @@
  * cc_get_public_profile / leaderboard projections) — never the profile row.
  */
 import type { PgQuery } from '../auth/store';
+import { utcDayStartIso } from '../../lib/bossFees';
 
 // ---------------------------------------------------------------------------
 // Row shapes — mirrors of the client service interfaces (kept server-local
@@ -54,6 +55,13 @@ export interface ProfileRowData {
   last_roaming_settled_at: string | null;
   last_settlement_nonce: string | null;
   offline_cap_hours: number;
+  /**
+   * Computed by PgReadStore.getProfile (not a column): victories per
+   * boss on the current UTC day from the verified action ledger — the
+   * prep panel's rematch-escalation display state. Absent on seeded
+   * in-memory rows unless a test provides it.
+   */
+  boss_victories_today?: Record<string, number>;
   username_updated_at: string | null;
   username_change_count: number;
 }
@@ -767,7 +775,26 @@ export class PgReadStore implements ReadStore {
 
   async getProfile(playerId: string): Promise<ProfileRowData | null> {
     const { rows } = await this.db.query('select * from public.profiles where id = $1', [playerId]);
-    return rows.length ? mapProfile(rows[0]) : null;
+    if (!rows.length) return null;
+    const profile = mapProfile(rows[0]);
+    // Rematch-escalation display state (pacing-baseline tuning): today's
+    // victories per boss, counted from the verified action ledger so the
+    // prep panel shows the escalated fee before an attempt. Display
+    // only — the verify-boss route re-derives the charge itself.
+    const { rows: victoryRows } = await this.db.query(
+      `select result_payload->>'boss_id' as boss_id, count(*)::int as victories
+         from public.verified_action_ledger
+        where user_id = $1 and action_type = 'cc_apply_boss_attempt'
+          and coalesce((result_payload->'attempt'->>'victory')::boolean, false)
+          and created_at >= $2::timestamptz
+        group by 1`,
+      [playerId, utcDayStartIso()],
+    );
+    const bossVictoriesToday: Record<string, number> = {};
+    for (const row of victoryRows as Row[]) {
+      if (typeof row.boss_id === 'string') bossVictoriesToday[row.boss_id] = num(row.victories);
+    }
+    return { ...profile, boss_victories_today: bossVictoriesToday };
   }
 
   async getMyProgressionSnapshots(playerId: string, query: SnapshotQuery): Promise<ProgressionSnapshotData[]> {

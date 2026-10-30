@@ -44,12 +44,17 @@ export interface RoamingAreaDef {
   monsterWeights?: Record<string, number>;
 }
 
+// Pacing-baseline tuning (lifecycle evaluation): the Legendary weight in
+// every area's drop pool is 1/10 of its launch value (1 / 1.5 / 2 →
+// 0.1 / 0.15 / 0.2) so roaming legendaries stay scarce next to boss
+// drops. Rare/Epic weights are deliberately untouched, and so is the
+// global RARITIES dropWeight table (boss generic rolls, cache forging).
 const BASE_RARITY_WEIGHTS: Record<Rarity, number> = {
   [Rarity.Common]: 60,
   [Rarity.Uncommon]: 25,
   [Rarity.Rare]: 10,
   [Rarity.Epic]: 4,
-  [Rarity.Legendary]: 1,
+  [Rarity.Legendary]: 0.1,
 };
 
 const BALANCED_GEAR_WEIGHTS: Record<GearDropKind, number> = {
@@ -103,7 +108,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
       [Rarity.Uncommon]: 27,
       [Rarity.Rare]: 12,
       [Rarity.Epic]: 4,
-      [Rarity.Legendary]: 1,
+      [Rarity.Legendary]: 0.1,
     },
     materialBias: ['ScrapAlloy', 'BallisticParts'],
     essenceBias: [],
@@ -132,7 +137,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
       [Rarity.Uncommon]: 29,
       [Rarity.Rare]: 14,
       [Rarity.Epic]: 5.5,
-      [Rarity.Legendary]: 1.5,
+      [Rarity.Legendary]: 0.15,
     },
     materialBias: ['BallisticParts', 'TechFragments'],
     essenceBias: [],
@@ -161,7 +166,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
       [Rarity.Uncommon]: 28,
       [Rarity.Rare]: 13,
       [Rarity.Epic]: 5,
-      [Rarity.Legendary]: 2,
+      [Rarity.Legendary]: 0.2,
     },
     materialBias: ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents'],
     essenceBias: ['IgnitionFluid'],
@@ -191,7 +196,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
       [Rarity.Uncommon]: 27,
       [Rarity.Rare]: 14,
       [Rarity.Epic]: 6,
-      [Rarity.Legendary]: 2,
+      [Rarity.Legendary]: 0.2,
     },
     materialBias: ['TechFragments'],
     essenceBias: ['IgnitionFluid', 'ConduitWire', 'AcidCompound', 'CryoGel', 'VoidEssence'],
@@ -221,7 +226,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
       [Rarity.Uncommon]: 27,
       [Rarity.Rare]: 13,
       [Rarity.Epic]: 5,
-      [Rarity.Legendary]: 2,
+      [Rarity.Legendary]: 0.2,
     },
     materialBias: ['TechFragments', 'ReactiveComponents'],
     essenceBias: ['ConduitWire'],
@@ -251,7 +256,7 @@ export const ROAMING_AREAS: RoamingAreaDef[] = [
       [Rarity.Uncommon]: 29,
       [Rarity.Rare]: 15,
       [Rarity.Epic]: 6,
-      [Rarity.Legendary]: 2,
+      [Rarity.Legendary]: 0.2,
     },
     materialBias: ['TechFragments', 'VoidDust', 'ScrapAlloy', 'ReactiveComponents'],
     essenceBias: ['VoidEssence'],

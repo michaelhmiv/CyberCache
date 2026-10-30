@@ -27,6 +27,13 @@ export interface BossState extends BossFightState {
   currentBossId: string | null;
   unlockedBossIds: string[];
   defeatedBossIds: string[];
+  /**
+   * Victories per boss on the current UTC day, server-reported (profile
+   * read + verify-boss responses). Drives the prep panel's escalated
+   * rematch-fee display only — the Chef re-derives and charges the fee
+   * from the ledger on every attempt.
+   */
+  bossVictoriesToday: Record<string, number>;
   pityCounters: Record<string, number>;
   attemptHistory: BossAttemptResult[];
   preparedConsumables: Record<string, number>;
@@ -63,6 +70,7 @@ export const useBossStore = create<BossState>()((set) => ({
   currentBossId: null,
   unlockedBossIds: ['dune_tyrant'],
   defeatedBossIds: [],
+  bossVictoriesToday: {},
   pityCounters: {},
   attemptHistory: [],
   preparedConsumables: {},

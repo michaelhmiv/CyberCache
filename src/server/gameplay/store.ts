@@ -201,7 +201,22 @@ export interface ChefGameplayStore {
    */
   resurrect(playerId: string, input: ResurrectInput): Promise<Json>;
   applyChefBossAttempt(playerId: string, attempt: ChefBossAttemptInput): Promise<Json>;
-  settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json): Promise<Json>;
+  /**
+   * Victories against one boss since `dayStartIso` (UTC day start),
+   * counted from the verified action ledger — the source for the
+   * rematch-fee escalation (src/lib/bossFees.ts). Replayed nonces never
+   * double-count: the ledger holds one row per applied attempt.
+   */
+  countBossVictoriesToday(playerId: string, bossId: string, dayStartIso: string): Promise<number>;
+  /**
+   * `capHours` (pacing-baseline tuning): the server-derived offline cap
+   * — earnedOfflineCapHours(player level) + the Scavenger keystone's
+   * offlineCapBonus — computed by the settlement route from server
+   * records. When provided it overrides the stored profile preference
+   * inside the settlement; when omitted the stored value applies
+   * (legacy callers).
+   */
+  settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
 }
 
@@ -448,8 +463,21 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     );
   }
 
-  settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json): Promise<Json> {
-    return this.callJson('select public.cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) as result', [
+  async countBossVictoriesToday(playerId: string, bossId: string, dayStartIso: string): Promise<number> {
+    const count = await this.one(
+      `select count(*)::int as victories from public.verified_action_ledger
+        where user_id = $1 and action_type = 'cc_apply_boss_attempt'
+          and result_payload->>'boss_id' = $2
+          and coalesce((result_payload->'attempt'->>'victory')::boolean, false)
+          and created_at >= $3::timestamptz`,
+      [playerId, bossId, dayStartIso],
+      (row) => num(row.victories),
+    );
+    return count ?? 0;
+  }
+
+  settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json> {
+    return this.callJson('select public.cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) as result', [
       playerId,
       settlementNonce,
       rewards.credits,
@@ -466,6 +494,9 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       // settlement (offline claims used to grant consumable benefits
       // without ever decrementing inventory).
       consumedConsumables ?? null,
+      // 0015: the route's server-derived earned cap; null keeps the
+      // function's stored-preference fallback for legacy callers.
+      capHours ?? null,
     ]);
   }
 

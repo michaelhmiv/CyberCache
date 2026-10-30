@@ -1,15 +1,25 @@
 import React, { useState } from 'react';
 import { Clock, AlertTriangle, Info, Settings, ExternalLink } from 'lucide-react';
-import { usePlayerStore, useIdleStore } from '@/store';
+import { usePlayerStore, useIdleStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
+import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_TIERS, earnedOfflineCapHours, nextOfflineCapTier } from '@/content/offlineCap';
 
 const DATA_DELETION_URL = 'https://chef-production.up.railway.app/data-deletion.html';
 
 export const SettingsScreen: React.FC = () => {
   const player = usePlayerStore();
   const idle = useIdleStore();
+  const skills = useSkillStore();
+
+  // Offline cap is EARNED by level (server-enforced at settlement);
+  // this card is display only. The Scavenger keystone adds its bonus
+  // on top when specced.
+  const offlineCapBonus = Math.max(0, Math.floor(skills.getBonuses().offlineCapBonus ?? 0));
+  const earnedCapHours = earnedOfflineCapHours(player.level);
+  const effectiveCapHours = earnedCapHours + offlineCapBonus;
+  const nextCapTier = nextOfflineCapTier(player.level);
   const [showReset, setShowReset] = useState(false);
   const [resetConfirmed, setResetConfirmed] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -54,18 +64,33 @@ export const SettingsScreen: React.FC = () => {
           <Clock size={16} className="text-blue" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Offline Earnings Cap</div>
         </div>
-        <div className="grid grid-cols-5 gap-1.5">
-          {[2, 4, 6, 8, 12].map((h) => (
-            <button
-              key={h}
-              onClick={() => player.setPlayer({ offlineCapHours: h })}
-              className={`py-1.5 text-xs font-black ${player.offlineCapHours === h ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
-            >
-              {h}h
-            </button>
-          ))}
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-black text-text-primary">{effectiveCapHours}h</span>
+          <span className="text-[10px] text-text-muted">
+            earned at level {player.level}
+            {offlineCapBonus > 0 && <> · includes +{offlineCapBonus}h from the King of Scrap keystone</>}
+          </span>
         </div>
-        <div className="text-[10px] text-text-muted">Maximum hours of offline rewards that can pile up while away.</div>
+        <div className="grid grid-cols-5 gap-1.5">
+          {[{ minLevel: 1, hours: BASE_OFFLINE_CAP_HOURS }, ...OFFLINE_CAP_TIERS].map((tier) => {
+            const earned = player.level >= tier.minLevel;
+            const current = earnedCapHours === tier.hours;
+            return (
+              <div
+                key={tier.hours}
+                className={`py-1.5 text-center text-xs font-black ${current ? 'bl-primary' : earned ? 'bl-secondary text-text-secondary' : 'bl-secondary text-text-muted opacity-50'}`}
+              >
+                {tier.hours}h
+                <div className="text-[8px] font-bold uppercase tracking-wide">{earned ? `Lv ${tier.minLevel}` : `Lv ${tier.minLevel} 🔒`}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="text-[10px] text-text-muted">
+          {nextCapTier
+            ? `Maximum hours of offline rewards that can pile up while away. Reach level ${nextCapTier.minLevel} to raise the cap to ${nextCapTier.hours}h.`
+            : 'Maximum hours of offline rewards that can pile up while away. Top tier earned.'}
+        </div>
       </MobileCard>
 
       <MobileCard className="space-y-3" rarityColor="#FF9000">
