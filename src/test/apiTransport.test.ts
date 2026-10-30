@@ -48,10 +48,14 @@ interface FetchCall {
 let fetchCalls: FetchCall[] = [];
 let fetchQueue: Array<() => Promise<unknown>> = [];
 
+// Faithful-enough model of the Fetch Response surface the transport
+// actually uses: http.ts reads status/ok + text() (then JSON-parses
+// itself), session.ts's refresh reads ok + json().
 const jsonResponse = (status: number, body: unknown) => ({
   ok: status >= 200 && status < 300,
   status,
   json: async () => body,
+  text: async () => (body === null || body === undefined ? '' : JSON.stringify(body)),
 });
 
 const queueJson = (status: number, body: unknown) => {

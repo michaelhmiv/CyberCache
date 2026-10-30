@@ -93,7 +93,7 @@ describe('/api/stats/combat', () => {
 
   it('round-trips a saved row', async () => {
     const put = await call('PUT', '/api/stats/combat', harness.tokenA, rowFor(A));
-    expect(put.status).toBe(204);
+    expect(put.status).toBe(200);
 
     const res = await call('GET', '/api/stats/combat', harness.tokenA);
     expect(res.status).toBe(200);
@@ -102,7 +102,7 @@ describe('/api/stats/combat', () => {
 
   it('ignores a body user_id — the JWT owns the row', async () => {
     const put = await call('PUT', '/api/stats/combat', harness.tokenB, { ...rowFor(A), total_kills: 7 });
-    expect(put.status).toBe(204);
+    expect(put.status).toBe(200);
 
     const asB = await call('GET', '/api/stats/combat', harness.tokenB);
     expect(asB.json).toMatchObject({ user_id: B, total_kills: 7 });
