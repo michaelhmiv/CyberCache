@@ -47,7 +47,7 @@ same labels at each case:
 | `vampiric_ledger` | Vampiric Ledger | 5% of damage dealt → bonus credits on win | **SIM PROXY** — wired as a flat +5% victory-credit multiplier (consumed by the sim and the Chef boss path); it is not computed from damage dealt |
 | `echo_chamber` | Echo Chamber | 30% chance status re-applies (1.3x damage mult) | Implemented in applyLegendaryEffects() as the exact expected-value multiplier |
 | `insurance_fraud_weapon` | Insurance Fraud | On defeat: 50% of consumed consumables refunded | Implemented — getInsuranceFraudRefundChance() drives real per-type refund rolls in the Chef boss path and executeBossAttempt() |
-| `market_crash` | Market Crash | This weapon's scrap value is 4x normal when recycled | Implemented in Chef/SQL — cc_recycle_item (0008) and its TS mirrors award 4x scrap. (The former "50% market fee bypass" clause was removed: no market fee exists anywhere in the market path — see §11) |
+| `market_crash` | Market Crash | This weapon's scrap value is 4x normal when recycled | Implemented in Chef/SQL — cc_recycle_item (0008) and its TS mirrors award 4x scrap. (The former "50% market fee bypass" clause was removed when no market fee existed; a 5% sale fee now exists (0017, see §11) but the effect remains scrap-only — no fee-bypass clause has been re-added) |
 | `stable_loop` | Stable Loop | Action Skill charges 25% faster when primary | **SIM PROXY** — there is no Action Skill charge system to accelerate. Sim grants a flat 1.1x damage multiplier ("more frequent abilities") instead |
 | `phase_shifter` | Phase Shifter | First hit per phase ignores 40% of shield/armor | **SIM PROXY** — no per-phase first-hit ignore exists. Sim grants a flat +15% shield/armor break instead |
 | `hot_swapper` | Hot Swapper | Secondary weapon contributes 60% (not 30%) | Implemented — getHotSwapperSecondaryMult() is applied in bossSimulator() |
@@ -478,7 +478,7 @@ Nothing outside the prepared set is ever touched.
 - Boss victory: level × 150 credits
 - Boss defeat: death fee (as above)
 - Vendor: buy consumables for credits
-- Market: no listing fee and no sale cut — listing is free in cc_market_create and the seller receives the full price in cc_accept_listing
+- Market: listing is free in cc_market_create. A completed sale in cc_accept_listing charges a **5% market fee** (migration 0017; `MARKET_FEE_RATE` in src/lib/market/marketFee.ts), destroyed — the buyer pays the listed price and the seller receives 95%. The seller's Scavenger fee-reduction nodes reduce the fee as their defs describe: Darknet Broker −5% of the fee per point (to −25%), and Market Manipulator a further −15% for items the seller personally found (find drop source, not acquired from another player). NPC-seeded listings (supply_mode `npc_market`) are exempt — the NPC payout is unchanged
 
 ### Cache Keys
 - Start with 3
@@ -506,7 +506,7 @@ Nothing outside the prepared set is ever touched.
 - Salvage yields with all material/essence types
 
 ### ⚠️ Partially Wired / Needs Hookup
-- **Scavenger economy bonuses**: `rareDropChance`, `lootQuantity`, `scrapYield`, `offlineEarnings`, `cacheQuality`, `marketFeeReduction` — computed by getBonuses() but NOT applied to farming, offline claim, or scrap yield
+- **Scavenger economy bonuses**: `rareDropChance`, `lootQuantity`, `scrapYield`, `offlineEarnings`, `cacheQuality` — computed by getBonuses() but NOT applied to farming, offline claim, or scrap yield. (`marketFeeReduction` / `foundItemFeeReduction` left this list in 0017: they now reduce the market sale fee in cc_accept_listing — see §11)
 - **DataSkimmer / LuckBooster extraLoot**: `executeBossAttempt()` returns an `extraLoot` flag; the Chef folds the bonus rolls into the attempt's awarded items and `BossEncounterPanel` presents the full loot set via `LootMoment`
 - **Legendary sim proxies (10)**: the_accountant, thunder_receipt, borrowed_time, vampiric_ledger, overclocked, stable_loop, phase_shifter, chain_lightning, molten_core, cryo_stasis — plus void_bargain's drawback and armor_eater's anti-heal clause. Each is a labelled flat-multiplier approximation in the boss simulator; the described mechanics do not exist yet (see §1 for per-effect detail)
 - **Auto-salvage Scavenger bonuses**: FightScreen scrapItem() doesn't apply scrapYield bonus

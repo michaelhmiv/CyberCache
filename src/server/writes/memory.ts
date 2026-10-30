@@ -10,6 +10,13 @@
  */
 import type { ProfileRowData } from '../reads/store.js';
 import {
+  MARKET_FEE_RATE,
+  isFoundSource,
+  marketFeeForSeller,
+  type MarketFeeBreakdown,
+} from '../../lib/market/marketFee.js';
+import type { ClassModBoosts } from '../../lib/skills/skillBonuses.js';
+import {
   applyXp,
   computeItemEstimatedValue,
   drawOdds,
@@ -1086,13 +1093,37 @@ export class InMemoryWriteStore implements WriteStore {
     buyer.credits -= listing.price_credits;
     this.touch(buyer);
     const seller = this.profileOrNull(listing.seller_user_id);
+    const soldItem = this.items.get(listing.item_instance_id);
+    // Market sale fee (0017): MARKET_FEE_RATE of the price is
+    // destroyed; the seller is credited price − fee. NPC-seeded
+    // listings (supply_mode 'npc_market') are exempt — the NPC payout
+    // is unchanged. The seller's fee reduction is derived from their
+    // own records (skill_spends + equipped class mod), never the body.
+    let feeBreakdown: MarketFeeBreakdown = {
+      price: listing.price_credits,
+      feeRate: MARKET_FEE_RATE,
+      feeReduction: 0,
+      effectiveRate: 0,
+      fee: 0,
+      sellerProceeds: listing.price_credits,
+    };
+    let foundBySeller = false;
+    if (seller && soldItem && soldItem.supply_mode !== 'npc_market') {
+      foundBySeller = this.sellerFoundItem(seller.id, soldItem);
+      feeBreakdown = marketFeeForSeller({
+        price: listing.price_credits,
+        skillSpends: seller.skill_spends ?? {},
+        classModBoosts: this.classModBoostsFor(seller.id),
+        foundBySeller,
+      });
+    }
     if (seller) {
-      seller.credits += listing.price_credits;
+      seller.credits += feeBreakdown.sellerProceeds;
       this.touch(seller);
     }
     listing.status = 'sold';
     listing.sold_at = this.nowIso();
-    const item = this.items.get(listing.item_instance_id);
+    const item = soldItem;
     if (item) {
       const previousOwner = item.owner_user_id;
       item.owner_user_id = playerId;
@@ -1108,8 +1139,53 @@ export class InMemoryWriteStore implements WriteStore {
       profile: this.profileSnapshot(buyer),
       listing: this.listingJson(listing),
       item: item ? this.itemJson(item) : null,
+      market_fee: {
+        fee_credits: feeBreakdown.fee,
+        seller_proceeds: feeBreakdown.sellerProceeds,
+        fee_rate: feeBreakdown.feeRate,
+        fee_reduction: feeBreakdown.feeReduction,
+        found_item: foundBySeller,
+      },
     };
     return this.record(playerId, 'cc_accept_listing', key, result);
+  }
+
+  /**
+   * Whether the seller personally found this item (Market Manipulator
+   * gate): the item's payload carries a find drop source AND the
+   * seller has no ledger record of acquiring this item from another
+   * player via cc_accept_listing. Mirrors the SQL check in 0017.
+   */
+  private sellerFoundItem(sellerId: string, item: WriteItemData): boolean {
+    const payload = (item.payload ?? {}) as Record<string, unknown>;
+    if (!isFoundSource(payload.sourceTag)) return false;
+    for (const entry of this.ledger.values()) {
+      if (entry.user_id !== sellerId || entry.action_type !== 'cc_accept_listing') continue;
+      const bought = (entry.result_payload as Record<string, unknown> | null)?.item as
+        | Record<string, unknown>
+        | undefined;
+      if (bought && bought.id === item.id) return false;
+    }
+    return true;
+  }
+
+  /**
+   * The seller's equipped class mod boosts, from their own item
+   * records — mirrors classModBoostsFromGear's predicate (the equipped
+   * gear whose payload carries treeBonus) over raw payloads.
+   */
+  private classModBoostsFor(sellerId: string): ClassModBoosts {
+    for (const item of this.items.values()) {
+      if (item.owner_user_id !== sellerId || item.runtime_state !== 'equipped') continue;
+      const payload = (item.payload ?? {}) as Record<string, unknown>;
+      if (!('treeBonus' in payload)) continue;
+      const nodeBoosts = (payload.nodeBoosts ?? {}) as Record<string, number>;
+      return {
+        treeBonus: typeof payload.treeBonus === 'string' ? payload.treeBonus : undefined,
+        nodeBoosts: { ...nodeBoosts },
+      };
+    }
+    return { nodeBoosts: {} };
   }
 
   async requestItemService(playerId: string, nonce: string, itemId: string, serviceId: string): Promise<Json> {

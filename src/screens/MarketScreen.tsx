@@ -5,8 +5,9 @@ import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { GearCompare } from '@/components/gear/GearCompare';
 import { useAuth } from '@/auth/AuthProvider';
-import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
+import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useSkillStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
+import { isFoundSource, marketFeeForPrice, marketFeeReduction } from '@/lib/market/marketFee';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
 import { FeatureGate } from '@/auth/FeatureGate';
@@ -49,6 +50,19 @@ function itemKind(item: GearItem): string {
 
 function defaultPrice(item: GearItem): number {
   return isWeapon(item) ? Math.round(item.combatPower * 10 + item.rollQuality * 50) : Math.round((item.level ?? 1) * 200);
+}
+
+/**
+ * Display-only proceeds preview for the signed-in seller: the market
+ * fee (lib/market/marketFee) net of their own Scavenger fee-reduction
+ * bonuses. The server (cc_accept_listing) is the authority at sale
+ * time; this only labels the price the seller is setting.
+ */
+function feePreview(price: number, bonuses: Record<string, number>, sourceTag?: string) {
+  const breakdown = marketFeeForPrice(price, marketFeeReduction(bonuses, isFoundSource(sourceTag)));
+  const pct = breakdown.effectiveRate * 100;
+  const pctLabel = Number.isInteger(pct) ? String(pct) : pct.toFixed(2).replace(/0$/, '');
+  return { ...breakdown, pctLabel };
 }
 
 function formatSellerName(id: string, playerName: string, currentUserId?: string | null): string {
@@ -104,6 +118,7 @@ export const MarketScreen: React.FC = () => {
   const inventory = useInventoryStore();
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
+  const skillBonuses = useSkillStore().getBonuses();
   const { user } = useAuth();
   const currentUserId = user?.id ?? null;
   const [search, setSearch] = useState('');
@@ -163,7 +178,10 @@ export const MarketScreen: React.FC = () => {
     } finally {
       setLoadingListings(false);
     }
-  }, [market]);
+    // setToastMessage is in deps for the React Compiler's memoization
+    // check (inferred once the fee preview made this component
+    // compilable); it is a stable setter, so this changes nothing.
+  }, [market, setToastMessage]);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -398,6 +416,7 @@ export const MarketScreen: React.FC = () => {
           {sortedTradeableItems.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No tradeable items match. Unlock items from your inventory to list them.</div>}
           {sortedTradeableItems.map((item) => {
             const price = listingPrice[item.id] || defaultPrice(item);
+            const preview = feePreview(price, skillBonuses, item.sourceTag);
             return (
               <div key={item.id} className="bl-card space-y-2">
                 <GearMiniCard item={item} onInspect={() => setInspectItem(item)} />
@@ -407,6 +426,7 @@ export const MarketScreen: React.FC = () => {
                     {pendingListId === item.id ? 'Listing…' : 'List'}
                   </button>
                 </div>
+                <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
               </div>
             );
           })}
@@ -451,14 +471,18 @@ export const MarketScreen: React.FC = () => {
             <option value="name">Sort: Name A-Z</option>
           </select>
           {sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
-          {sortedMyListings.map((listing) => (
+          {sortedMyListings.map((listing) => {
+            const preview = feePreview(listing.price, skillBonuses, listing.itemSnapshot.sourceTag);
+            return (
             <div key={listing.id} className="bl-card space-y-2">
               <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
+              <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
               <button onClick={() => handleCancelListing(listing)} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500 disabled:opacity-50">
                 {pendingCancelId === listing.id ? 'Cancelling…' : 'Cancel Listing'}
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
