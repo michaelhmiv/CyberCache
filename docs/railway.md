@@ -33,6 +33,7 @@ One Railway project, four things in it:
    db/migrations/0007_chef_gameplay_appliers.sql
    db/migrations/0008_legendary_honesty.sql
    db/migrations/0009_scrap_remainder.sql
+   db/migrations/0010_economy_remainders.sql
    ```
 
    The migrations are plain

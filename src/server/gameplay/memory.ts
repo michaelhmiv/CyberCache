@@ -38,6 +38,10 @@ export interface InMemoryProfile {
   scrap: number;
   /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
   scrap_remainder: number;
+  /** Banked fractional credits (migration 0010), 0 <= x < 1. */
+  credits_remainder: number;
+  /** Banked fractional XP (migration 0010), 0 <= x < 1. */
+  xp_remainder: number;
   cache_tokens: number;
   cache_token_parts: number;
   materials: Record<string, number>;
@@ -125,6 +129,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       credits: 0,
       scrap: 0,
       scrap_remainder: 0,
+      credits_remainder: 0,
+      xp_remainder: 0,
       cache_tokens: 0,
       cache_token_parts: 0,
       materials: {},
@@ -207,6 +213,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     p.credits += Math.trunc(rewards.credits);
     p.scrap += Math.trunc(rewards.scrap);
     if (rewards.scrapRemainder != null) p.scrap_remainder = rewards.scrapRemainder;
+    if (rewards.creditsRemainder != null) p.credits_remainder = rewards.creditsRemainder;
+    if (rewards.xpRemainder != null) p.xp_remainder = rewards.xpRemainder;
     for (const [k, v] of Object.entries(asRecord(rewards.materials))) p.materials[k] = (p.materials[k] ?? 0) + v;
     for (const [k, v] of Object.entries(asRecord(rewards.essences))) p.essences[k] = (p.essences[k] ?? 0) + v;
     let parts = p.cache_token_parts + Math.trunc(rewards.fragments);
@@ -231,7 +239,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder };
+    return { last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -256,6 +264,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       last_settlement_nonce: p.last_settlement_nonce,
       offline_cap_hours: p.offline_cap_hours,
       scrap_remainder: p.scrap_remainder,
+      credits_remainder: p.credits_remainder,
+      xp_remainder: p.xp_remainder,
     };
   }
 

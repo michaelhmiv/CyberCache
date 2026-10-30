@@ -126,9 +126,10 @@ describe('processRoamingClaim — skill economy merge', () => {
       idleMods: { offlineEarningsMod: 0, scrapYieldMod: 0, rareDropChanceMod: 0 },
       skillBonuses: { offlineEarnings: 0.5 },
     }, fakeSupabase);
-    // Credits per tick = round(15/20) = 1. Mult = 1 + 0 + 0.5 = 1.5 → effective = round(1*1.5)=2
-    // 5 ticks → 10 credits
-    expect(result.rewards.creditsAwarded).toBe(10);
+    // Fractional (migration 0010): 15/20 = 0.75/tick x 1.5 mult = 1.125;
+    // 5 ticks = 5.625 -> pay 5, bank 0.625. (Pre-0010 rounding paid 10.)
+    expect(result.rewards.creditsAwarded).toBe(5);
+    expect(result.rewards.creditsRemainder).toBeCloseTo(0.625, 6);
   });
 
   it('merges weapon idleMods with skillBonuses', () => {
@@ -141,9 +142,12 @@ describe('processRoamingClaim — skill economy merge', () => {
       idleMods: { offlineEarningsMod: 0.5, scrapYieldMod: 0, rareDropChanceMod: 0 },
       skillBonuses: { offlineEarnings: 0.5 },
     }, fakeSupabase);
-    // Mult = 1 + 0.5(weapon) + 0.5(skill) = 2.0 → effective = round(1*2)=2
-    // 5 ticks → 10 credits
-    expect(result.rewards.creditsAwarded).toBe(10);
+    // Client-supplied idleMods are NOT trusted server-side (the Chef
+    // re-derives gear mods from equippedGear, absent here), so only the
+    // skill 0.5 applies: same 1.125/tick as the previous test -> pay 5,
+    // bank 0.625. Pre-0010 rounding masked this by paying 10 either way.
+    expect(result.rewards.creditsAwarded).toBe(5);
+    expect(result.rewards.creditsRemainder).toBeCloseTo(0.625, 6);
   });
 
   it('rareDropChance merges gear + skills structurally', () => {
