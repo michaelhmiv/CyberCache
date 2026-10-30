@@ -22,11 +22,11 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-// The roaming areas' idleScrapPerMinute (3–5) makes the Chef's
-// scrapPerTick = round(rate / 20) come out 0, which would make the
-// Salvage Rights multiplier unobservable end-to-end. Raise the scrap
-// rate for this file only (every other area field is the real one) so
-// the multiplier stack can be asserted with exact numbers.
+// Raise the scrap rate for this file only (every other area field is
+// the real one) so the multiplier stack can be asserted with exact
+// numbers. (At the real rates of 3-5/min the per-tick fraction is
+// 0.15-0.25; fractional accumulation itself is covered end-to-end by
+// scrapFractional.test.ts.)
 vi.mock('../constants/roamingAreas', async (importOriginal) => {
   const orig = await importOriginal<typeof import('../constants/roamingAreas')>();
   return {
@@ -185,15 +185,19 @@ describe('applyLegendaryEffects — honest return shape', () => {
 
 describe('Salvage Rights — processRoamingClaim', () => {
   it('multiplies claim scrap by exactly 1.5 while the weapon is primary', () => {
-    // Mocked area rate: scrapPerTick = round(60 / 20) = 3, no other
-    // scrap modifiers in play. Baseline: round(3 * 1) = 3/tick.
-    // With Salvage Rights: round(3 * 1.5) = 5/tick (Math.round(4.5) = 5).
+    // Mocked area rate: 60/min = 3 scrap/tick, no other scrap
+    // modifiers in play. Baseline: 3 x 5 ticks = 15, nothing banked.
+    // With Salvage Rights: 4.5/tick x 5 = 22.5 — 22 paid, 0.5 banked
+    // (fractional accumulation, migration 0009; the old per-tick
+    // Math.round(4.5) = 5 would have paid 25 and invented the rest).
     const baseline = processRoamingClaim(claimRequest({ equippedGear: [makeWeapon()] }));
     const withEffect = processRoamingClaim(
       claimRequest({ equippedGear: [makeWeapon({ legendaryEffectId: 'salvage_rights' })] }),
     );
     expect(baseline.rewards.scrapAwarded).toBe(15);
-    expect(withEffect.rewards.scrapAwarded).toBe(25);
+    expect(baseline.rewards.scrapRemainder).toBe(0);
+    expect(withEffect.rewards.scrapAwarded).toBe(22);
+    expect(withEffect.rewards.scrapRemainder).toBe(0.5);
     // Only scrap moved — credits/XP come from untouched stacks.
     expect(withEffect.rewards.creditsAwarded).toBe(baseline.rewards.creditsAwarded);
     expect(withEffect.rewards.xpAwarded).toBe(baseline.rewards.xpAwarded);

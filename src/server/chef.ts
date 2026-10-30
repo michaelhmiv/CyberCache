@@ -121,6 +121,12 @@ export interface ClaimRequest {
   };
   /** @deprecated Slots removed — engine activates from inventory directly. */
   loadoutConsumables?: LoadoutConsumableSlots;
+  /**
+   * Banked fractional scrap from the profile (0 <= x < 1). Set by the
+   * claim routes from the DB (profiles.scrap_remainder, migration 0009);
+   * never trusted from the client body — the routes overwrite it.
+   */
+  scrapRemainder?: number;
   /** Consumable inventory count map (server-authoritative, read from DB by claim route). */
   consumableInventory?: Record<string, number>;
   /** Prior roaming consumable state (carried from previous claim). */
@@ -136,6 +142,8 @@ export interface ClaimResult {
     ticks: number;
     creditsAwarded: number;
     scrapAwarded: number;
+    /** Fractional scrap left banked on the profile after this claim (0 <= x < 1). */
+    scrapRemainder: number;
     xpAwarded: number;
     cacheFragmentsAwarded: number;
     materials: Record<string, number>;
@@ -288,7 +296,11 @@ export function processRoamingClaim(
 
   const area = getRoamingArea(areaId);
   const creditsPerTick = Math.round((area.idleCreditsPerMinute || 15) / 20);
-  const scrapPerTick = Math.round((area.idleScrapPerMinute || 3) / 20);
+  // Scrap accrues UNROUNDED (fractional accumulation): at the real area
+  // rates (3-5/min) the old Math.round(rate / 20) was 0, so roaming paid
+  // no scrap and every scrap multiplier multiplied zero. Whole scrap is
+  // paid out at claim end; the fraction banks on the profile (0009).
+  const scrapPerTick = (area.idleScrapPerMinute || 3) / 20;
   const xpPerTick = area.idleXpPerTick || 1.0;
 
   // Merge idle economy modifiers from gear + skill tree.
@@ -321,7 +333,7 @@ export function processRoamingClaim(
   const legendaryScrapMult = getSalvageRightsScrapMult(primaryWeapon);
 
   const effectiveCreditsPerTick = Math.round(creditsPerTick * offlineMult * activityCreditsMult);
-  const effectiveScrapPerTick = Math.round(scrapPerTick * scrapMult * activityScrapMult * legendaryScrapMult);
+  const effectiveScrapPerTick = scrapPerTick * scrapMult * activityScrapMult * legendaryScrapMult;
   const effectiveXpPerTick = Math.round(xpPerTick * activityXpMult);
 
   // Clamp ticks to maxTicks (foreground: 20; offline settlement: Infinity)
@@ -329,7 +341,9 @@ export function processRoamingClaim(
   const ticks = Math.max(1, Math.min(requestedTicks, maxTicks));
 
   let creditsAwarded = 0;
-  let scrapAwarded = 0;
+  // Fractional scrap accumulator, seeded from the profile's banked
+  // remainder so fractions carry across claims (clamped to [0, 1)).
+  let scrapFraction = Math.min(Math.max(request.scrapRemainder ?? 0, 0), 0.999999);
   let xpAwarded = 0;
   let fragmentsAwarded = 0;
   let killsRecorded = 0;
@@ -525,7 +539,7 @@ export function processRoamingClaim(
       feedEvents.push({
         at: now - (ticks - 1 - tickIdx) * TICK_MS,
         tone: 'kill',
-        label: `+${effectiveCreditsPerTick}cr · +${effectiveScrapPerTick} scrap · +${effectiveXpPerTick} XP`,
+        label: `+${effectiveCreditsPerTick}cr · +${parseFloat(effectiveScrapPerTick.toFixed(2))} scrap · +${effectiveXpPerTick} XP`,
         detail: `${area.enemyType} routed in ${area.name}.`,
         areaId,
         value: effectiveCreditsPerTick,
@@ -534,7 +548,7 @@ export function processRoamingClaim(
 
     // Every tick awards base resources (with idle mods + skill bonuses + activity mods + consumable mods)
     creditsAwarded += effectiveCreditsPerTick;
-    scrapAwarded += Math.round(effectiveScrapPerTick * consumableMods.scrapYieldMultiplier);
+    scrapFraction += effectiveScrapPerTick * consumableMods.scrapYieldMultiplier;
     xpAwarded += Math.round(effectiveXpPerTick * consumableMods.xpMultiplier);
 
     // --- Kill cycle simulation (player → monster damage) ---
@@ -702,13 +716,19 @@ export function processRoamingClaim(
     }
   }
 
+  // Settle the fractional scrap bank: pay the whole scrap, bank the rest.
+  // (Math.max also normalizes a float-dust -0 bank to 0.)
+  const scrapPaid = Math.floor(scrapFraction + 1e-9);
+  const scrapBanked = Math.max(0, Math.round((scrapFraction - scrapPaid) * 1e6) / 1e6);
+
   return {
     actionType: 'cc_claim_roaming_rewards',
     profile: {}, // populated by Supabase RPC
     rewards: {
       ticks,
       creditsAwarded,
-      scrapAwarded,
+      scrapAwarded: scrapPaid,
+      scrapRemainder: scrapBanked,
       xpAwarded,
       cacheFragmentsAwarded: fragmentsAwarded,
       materials,

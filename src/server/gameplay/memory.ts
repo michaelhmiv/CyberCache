@@ -36,6 +36,8 @@ export interface InMemoryProfile {
   player_xp: number;
   credits: number;
   scrap: number;
+  /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
+  scrap_remainder: number;
   cache_tokens: number;
   cache_token_parts: number;
   materials: Record<string, number>;
@@ -122,6 +124,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       player_xp: 0,
       credits: 0,
       scrap: 0,
+      scrap_remainder: 0,
       cache_tokens: 0,
       cache_token_parts: 0,
       materials: {},
@@ -203,6 +206,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     p.player_xp = leveled.player_xp;
     p.credits += Math.trunc(rewards.credits);
     p.scrap += Math.trunc(rewards.scrap);
+    if (rewards.scrapRemainder != null) p.scrap_remainder = rewards.scrapRemainder;
     for (const [k, v] of Object.entries(asRecord(rewards.materials))) p.materials[k] = (p.materials[k] ?? 0) + v;
     for (const [k, v] of Object.entries(asRecord(rewards.essences))) p.essences[k] = (p.essences[k] ?? 0) + v;
     let parts = p.cache_token_parts + Math.trunc(rewards.fragments);
@@ -227,7 +231,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables } };
+    return { last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -251,6 +255,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       last_roaming_settled_at: p.last_roaming_settled_at,
       last_settlement_nonce: p.last_settlement_nonce,
       offline_cap_hours: p.offline_cap_hours,
+      scrap_remainder: p.scrap_remainder,
     };
   }
 
