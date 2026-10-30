@@ -51,8 +51,17 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
     expect(screen.getAllByRole('button').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('keeps the vector scene for zones not yet converted', () => {
+  it('renders the pixel stage for redline too (P4 wave 1 converted every zone)', () => {
     const area = getRoamingArea('redline_circuit');
+    const { container } = render(
+      <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} activityKind="roaming_loot" reducedMotion />,
+    );
+    expect(screen.getByTestId('pixel-diorama-stage')).toBeTruthy();
+    expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
+  });
+
+  it('keeps the vector scene as fallback for areas with no pixel background', () => {
+    const area = { ...getRoamingArea('redline_circuit'), id: 'unconverted_test_zone' };
     const { container } = render(
       <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} activityKind="roaming_loot" reducedMotion />,
     );
