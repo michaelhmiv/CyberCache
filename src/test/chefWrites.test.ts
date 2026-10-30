@@ -520,7 +520,11 @@ describe('market + services', () => {
     expect(bought.status).toBe(200);
     const buyerProfile = bought.json.profile as Record<string, unknown>;
     expect(buyerProfile.credits).toBe(200);
-    expect(h.store.seed.profiles.find((p) => p.id === A)?.credits).toBe(1300);
+    // 0017 market fee: the buyer pays the full 300cr list price; the
+    // seller is credited 300 − 5% fee (15cr destroyed) = 285 → 1285.
+    // (Was 1300 before the fee existed.) Fee math is pinned end-to-end
+    // in marketFee.test.ts.
+    expect(h.store.seed.profiles.find((p) => p.id === A)?.credits).toBe(1285);
     const moved = h.store.seed.items.find((i) => i.id === ITEM_A1);
     expect(moved?.owner_user_id).toBe(B);
     expect(moved?.runtime_state).toBe('available');
