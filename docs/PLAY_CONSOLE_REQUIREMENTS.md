@@ -6,16 +6,16 @@ This document tracks the app-store compliance details for CyberCache.
 
 Use these URLs after the latest `master` deploy reaches Railway:
 
-- Privacy policy: `https://cybercache-production.up.railway.app/privacy-policy.html`
-- Data deletion: `https://cybercache-production.up.railway.app/data-deletion.html`
-- Support: `https://cybercache-production.up.railway.app/support.html`
+- Privacy policy: `https://chef-production.up.railway.app/privacy-policy.html`
+- Data deletion: `https://chef-production.up.railway.app/data-deletion.html`
+- Support: `https://chef-production.up.railway.app/support.html`
 
 ## App category and contact
 
 - App type: Game
 - Category recommendation: Role Playing
 - Support email: `michaelhmiv@gmail.com`
-- Website/support URL: `https://cybercache-production.up.railway.app/support.html`
+- Website/support URL: `https://chef-production.up.railway.app/support.html`
 
 ## App access
 
@@ -69,7 +69,7 @@ Security and deletion disclosures:
 
 - Data is encrypted in transit where supported.
 - Users can request deletion through
-  `https://cybercache-production.up.railway.app/data-deletion.html`.
+  `https://chef-production.up.railway.app/data-deletion.html`.
 - Users can also open the deletion request page from Settings -> Danger Zone ->
   Delete Account / Data.
 - CyberCache does not sell personal information.

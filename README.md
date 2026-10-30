@@ -1,81 +1,58 @@
 # CyberCache
 
-**Mobile-first idle roguelite looter RPG.** Farm weapons, build your loadout, fight bosses with deep simulation mechanics, and trade on the marketplace.
+**Mobile-first idle roguelite looter RPG.** Roam seven zones, farm procedurally generated weapons, build a seven-slot loadout, take down bosses in a four-phase simulation, craft in the Workshop, and trade on a server-authoritative marketplace — all wrapped in pixel art with a loot moment that treats a legendary drop like it matters.
 
-## 🎮 Gameplay
+Currently in **closed testing on Google Play** (Android). The server runs on Railway.
 
-- **Idle Farming** — Passive loot and XP generation. Earn offline rewards.
-- **Deep Weapon System** — 6 weapon types × 6 manufacturers × 6 elements × 5 rarities. Modular parts, procedural affixes, 25 legendary effects.
-- **7 Gear Slots** — Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic.
-- **Boss Combat** — 4-phase simulation (Survival → Break → DPS → Mechanics). Risk settings, elemental matchups, consumable planning, win chance estimation.
-- **Skill Trees** — Gunslinger (weapon tree), Demolition (explosives), Scavenger (idle/economy). 50 points to spend across 3 trees.
-- **Economy** — Credits, Scrap, Cache Keys, Cache Key Fragments. Vendor, Marketplace (simulated NPCs), Fusion Lab, Data Caches.
-- **Persistent Progress** — Everything saves to localStorage.
+## Gameplay
 
-## 🛠 Tech Stack
+- **Idle roaming** — your hunter farms zones in real time and keeps earning while you're away (offline settlement with a configurable cap). Roaming income accrues fractionally and banks to the fraction of a credit — see `MECHANICS.md`.
+- **Deep weapon system** — 6 weapon types × 6 manufacturers × 6 elements × 5 rarities. The generator rolls exactly 6 part slots per weapon, plus procedural affixes. **25 legendaries**, each with a bespoke pixel sprite and a real, implemented effect (the full honesty table lives in `MECHANICS.md` §11).
+- **7 gear slots** — Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic.
+- **Boss combat** — 4-phase simulation (Survival → Break → DPS → Mechanics) against 7 bosses, with risk settings, elemental matchups, consumable planning, and a win-chance estimate before you commit.
+- **Skill trees** — Gunslinger, Demolition, Scavenger; bonuses feed the same economy and simulation the server runs.
+- **Economy** — Credits, Scrap, Cache Keys and fragments, 10 crafting materials, a vendor, a Workshop with a crafting queue, and a marketplace where listings are real (player-posted, NPC-seeded) and every transaction settles on the server.
+- **Accounts** — start playing instantly as a guest; link **Sign in with Google** later and keep the same account. Progress lives server-side per account.
 
-- **React 19** + **TypeScript 6**
-- **Vite 8** (dev/build)
-- **Tailwind CSS 4** (dark cyberpunk theme)
-- **Zustand 5** (state management with persistence)
-- **Framer Motion 12** (animations)
-- **idb** (IndexedDB ready)
-- **Lucide React** (icons)
+## Architecture
 
-## 🚀 Quick Start
+CyberCache is **server-authoritative**. The game server — the **Chef** (Express + Postgres) — owns all economy truth: drops, claims, crafting, market settlement, and boss verification are computed or verified there, never trusted from the client.
+
+- `docs/ARCHITECTURE.md` — the shape of the system
+- `MECHANICS.md` — the game-design source of truth (rates, rarities, legendary effects)
+- `docs/railway.md` — deployment and operations runbook
+- `AGENTS.md` — **read this before contributing code**; it defines the boundaries and the mandatory completion gate
+
+Art direction is **pixel art**: sprites are generated, chroma-keyed, and anchored through an in-repo pipeline (`src/assets/pixel/manifest.json`), weapons are assembled by a deterministic parts compositor, and boss pacing follows a fixed motion language. Loot drops are rarity-scaled — a legendary dims the world and rises on a beam with its full item card.
+
+## Tech stack
+
+- **Client** — React 19 + TypeScript, Vite, Tailwind CSS 4, Zustand, Framer Motion; Capacitor for Android
+- **Server** — Node + Express, Postgres (the Chef), HS256 JWT sessions with rotating refresh tokens
+- **Hosting** — Railway (Chef + Postgres + scheduled job services)
+- **CI** — GitHub Actions: full test/build/lint gate, Android build + emulator smoke tests, gitleaks
+
+## Quick start
 
 ```bash
 npm install
-npm run dev
+npm run dev        # client on http://localhost:5173
 ```
 
-Open `http://localhost:5173` on desktop or mobile.
+Designed for a 480×800 mobile viewport. The Chef mounts its game routes only when `CHEF_JWT_SECRET` and `DATABASE_URL` are set — see `docs/railway.md` for the full environment list and the migration sequence (`db/migrations/`).
 
-## 📱 Mobile-First
+## Completion gate
 
-Designed for 480px mobile viewport with bottom tab navigation:
-- **Fight** — Farm, boss prep, recent drops
-- **Loadout** — Equip 7 gear slots
-- **Loot** — Inventory with filters, scrap, lock
-- **Market** — Buy/sell weapons
-- **More** — Data Cache, Skill Trees, Fusion Lab, Vendor, Profile, Settings, Guide
-
-## 🏗 Build
+Every change must pass, per `AGENTS.md`:
 
 ```bash
-npm run build    # production build → dist/
-npm run preview  # preview production build
+npm test
+npm run build
+npm run lint
+bash scripts/guard-architecture.sh
+npx tsc --noEmit
 ```
 
-## 📂 Project Structure
+## License
 
-```
-src/
-├── components/       # Reusable UI (WeaponCard, BossPrepModal, BottomNav, etc.)
-│   ├── common/       # RollQualityBadge, RarityGlow
-│   ├── fight/        # BossPrepModal
-│   ├── layout/       # ScreenWrapper, MobileCard, BottomNav
-│   └── pixelArt/     # WeaponCanvas renderer
-├── constants/        # Game data (bosses, rarities, weapons, skills, etc.)
-├── hooks/            # useIdleTicker, useOfflineClaim
-├── lib/
-│   ├── generators/   # Procedural item generators (weapons, shields, etc.)
-│   ├── pixelArt/     # Canvas sprite renderer with animations
-│   ├── simulation/   # Boss combat simulation engine
-│   └── utils/        # Seeded RNG, naming, IDs
-├── screens/          # Full-screen views (Fight, Loadout, Loot, Market, More + sub-screens)
-├── store/slices/     # Zustand stores (player, inventory, loadout, boss, skills, market, idle)
-└── types/            # TypeScript interfaces and enums
-```
-
-## 🎯 Features
-
-- **Procedural weapon generation** with 6 weapon types, 6 manufacturers, 6 elements, 5 rarities, 6 modular parts, affixes from 3 pools, and 25 legendary effects
-- **7 bosses** (Region 1) with unique mechanics (enrage, shield regen, burning ground, phase-out, armor repair, three-phase siege)
-- **Cache opening** with guaranteed Rare+ drops and rarity odds display
-- **Fusion Lab** — improve weapon roll quality by consuming 2+ similar weapons
-- **Offline earnings** with configurable cap (2-12 hours)
-- **Auto-salvage** — auto-scrap low-quality drops
-- **Level-up notifications**
-- **Zone progression** across 10 Dustwaste Frontier stages
-- **Skill tree bonuses** feed directly into boss simulations
+AGPL-3.0 — see `LICENSE`.
