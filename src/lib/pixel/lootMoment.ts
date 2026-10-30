@@ -2,7 +2,7 @@ import { Rarity } from '@/types/game';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { LEGENDARY_EFFECTS } from '@/constants/legendaryEffects';
-import { bespokeSpriteIdForWeaponName } from './manifest';
+import { bespokeSpriteIdForWeapon, normalizeLegendaryName } from './manifest';
 import { MOVEMENT, isTickHit } from './movement';
 import type { TickEvent } from '@/store/slices/tickSlice';
 
@@ -91,7 +91,8 @@ export interface LootCardData {
   kindLabel: string;
   /** The card's stamp line: 'RARE SNIPER', '★ LEGENDARY BEAM', … */
   stamp: string;
-  /** Legendary flavor line — the item's legendary-effect text, when it has one. */
+  /** Legendary flavor line — the hand-written override for the named
+   *  legendary (LEGENDARY_FLAVOR_OVERRIDES), else its effect's text. */
   flavor?: string;
   /** One-line real stat summary derived from the item's own fields. */
   statLine: string;
@@ -139,10 +140,61 @@ export function lootStatLine(item: GearItem): string {
   return relic.affixes?.[0]?.displayText ?? 'No affixes';
 }
 
-/** Flavor text for the gold card: the legendary effect's own description. */
+/**
+ * Hand-written flavor lines for the named legendaries, keyed by normalized
+ * legendary name — the same key space as the bespoke-sprite map
+ * (BESPOKE_LEGENDARY_SPRITES). P3 shipped the effect description as the
+ * card's flavor and flagged these overrides as P4 asset-production work;
+ * the voice is the approved proof's ("Sets the sky on fire. Literally."):
+ * one short, dry, characterful line per legendary. Covers all 25 effects
+ * in LEGENDARY_EFFECTS plus Emberfall, the proof's named rifle.
+ */
+export const LEGENDARY_FLAVOR_OVERRIDES: Record<string, string> = {
+  emberfall: 'Sets the sky on fire. Literally.',
+  'debt collector': 'It always collects. Eventually is not in its vocabulary.',
+  'warranty void': 'The manufacturer has been notified. They are devastated.',
+  'ricochet gospel': 'It gets there in the end. Faith, but with angles.',
+  'bad decision': 'You knew. You fired it anyway.',
+  'glass sun': 'Do not look directly at the results.',
+  'the accountant': 'Every shot reconciled. Nothing gets written off.',
+  'armor eater': "It doesn't break armor. It has lunch.",
+  'thunder receipt': 'Itemized. Dated. Delivered at muzzle velocity.',
+  'second opinion': 'Ask again. The answer has two barrels.',
+  'salvage rights': 'Everything it kills is legally yours. Twice over.',
+  overclocked: 'The warranty is gone. So is the speed limit.',
+  'borrowed time': 'Due back at the end of the fight. Late fees are severe.',
+  kickback: 'Every seventh hit sends a thank-you note.',
+  'vampiric ledger': 'It bills in blood. It pays out in credits.',
+  'echo chamber': 'It agrees with everything you fire. Loudly. Twice.',
+  'insurance fraud': 'Act of god? No. Act of gun.',
+  'market crash': "Sell. SELL. It's already sold.",
+  'stable loop': 'It hums at a frequency that makes physics behave.',
+  'phase shifter': 'Walls are a suggestion it politely declines.',
+  'hot swapper': 'Reloading is a rumor it never believed.',
+  'chain lightning': 'It introduces your enemies to each other.',
+  'molten core': "The planet's worst idea, chambered.",
+  'cryo stasis': 'It gives them time to think. Forever.',
+  'void bargain': 'Sign here. The fine print signs back.',
+  jackpot: "Every 150th pull pays out. It keeps count so you don't have to.",
+};
+
+export function legendaryFlavorOverride(name: string | undefined): string | undefined {
+  if (!name) return undefined;
+  return LEGENDARY_FLAVOR_OVERRIDES[normalizeLegendaryName(name)];
+}
+
+/**
+ * Flavor text for the gold card. A hand-written override wins — by the
+ * weapon's own name first (Emberfall), then by its legendary effect's
+ * name (every real drop) — and the effect's own description is the
+ * fallback for any legendary without an override line.
+ */
 export function lootFlavor(item: GearItem): string | undefined {
-  if (item.rarity !== Rarity.Legendary || !isWeapon(item) || !item.legendaryEffectId) return undefined;
-  return LEGENDARY_EFFECTS.find((effect) => effect.id === item.legendaryEffectId)?.description;
+  if (item.rarity !== Rarity.Legendary || !isWeapon(item)) return undefined;
+  const effect = item.legendaryEffectId
+    ? LEGENDARY_EFFECTS.find((entry) => entry.id === item.legendaryEffectId)
+    : undefined;
+  return legendaryFlavorOverride(item.name) ?? legendaryFlavorOverride(effect?.name) ?? effect?.description;
 }
 
 export function lootCardData(item: GearItem): LootCardData {
@@ -157,7 +209,7 @@ export function lootCardData(item: GearItem): LootCardData {
     flavor: lootFlavor(item),
     statLine: lootStatLine(item),
     isWeapon: isWeapon(item),
-    bespokeSpriteId: bespokeSpriteIdForWeaponName(item.name),
+    bespokeSpriteId: bespokeSpriteIdForWeapon(item),
   };
 }
 

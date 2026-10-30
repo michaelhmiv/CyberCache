@@ -5,7 +5,7 @@ import {
   paintPixelWeapon,
   type PixelWeaponInput,
 } from '@/lib/pixel/weaponCompositor';
-import { bespokeSpriteIdForWeaponName, getPixelSprite } from '@/lib/pixel/manifest';
+import { bespokeSpriteIdForWeapon, getPixelSprite } from '@/lib/pixel/manifest';
 
 /**
  * PixelWeapon — renders a weapon as pixel art through the parts-kit
@@ -46,10 +46,11 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = ({ weapon, input, size = 
       element: weapon.element,
       parts: weapon.parts,
       name: weapon.name,
+      legendaryEffectId: weapon.legendaryEffectId,
     };
   }, [input, weapon]);
 
-  const bespoke = resolved ? bespokeSpriteIdForWeaponName(resolved.name) : undefined;
+  const bespoke = resolved ? bespokeSpriteIdForWeapon(resolved) : undefined;
   const bespokeSprite = bespoke ? getPixelSprite(bespoke) : undefined;
 
   const render = useMemo(

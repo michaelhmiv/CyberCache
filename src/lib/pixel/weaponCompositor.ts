@@ -32,6 +32,11 @@ export interface PixelWeaponInput {
    *  deterministic default variant, so previews without parts still render. */
   parts?: WeaponPart[];
   name?: string;
+  /** Presentation only: the weapon's legendary effect id, when it carries
+   *  one. The compositor ignores it — PixelWeapon uses it to resolve
+   *  bespoke legendary art (a dropped legendary's rolled name is
+   *  procedural; its effect is its named identity). */
+  legendaryEffectId?: string;
 }
 
 /** Shade keys used in the render grid. '.' is transparent. */
