@@ -414,46 +414,28 @@ describe('inventory mutations', () => {
   });
 });
 
-describe('roaming claims', () => {
+describe('roaming claims (removed fallback)', () => {
   let h: Harness;
   beforeAll(async () => {
     h = await makeServer();
   });
   afterAll(async () => h.close());
 
-  it('pays per-tick rewards and the same tick_count replays without double-paying', async () => {
-    const res = await post(h, '/api/ops/claim-roaming', h.tokenA, { ticks: 10, area_id: 'dustwaste', tick_count: 10 });
-    expect(res.status).toBe(200);
-    expect(res.json.action_type).toBe('cc_claim_roaming_rewards');
-    const rewards = res.json.rewards as Record<string, unknown>;
-    expect(rewards.ticks).toBe(10);
-    expect(rewards.credits_awarded).toBe(20);
-    expect(rewards.scrap_awarded).toBe(10);
-    expect(rewards.xp_awarded).toBe(30);
-    const creditsAfter = h.store.seed.profiles.find((p) => p.id === A)?.credits;
-    expect(creditsAfter).toBe(1020);
-
-    const replay = await post(h, '/api/ops/claim-roaming', h.tokenA, { ticks: 10, area_id: 'dustwaste', tick_count: 10 });
-    expect(replay.status).toBe(200);
-    expect(replay.json).toEqual(res.json);
-    expect(h.store.seed.profiles.find((p) => p.id === A)?.credits).toBe(1020);
-  });
-
-  it('falls back to an idle claim when roaming is not active (client parity)', async () => {
-    // B has no roaming activity: verifiedOps falls back to cc_idle_claim.
-    const res = await post(h, '/api/ops/claim-roaming', h.tokenB, { ticks: 5, area_id: 'dustwaste', tick_count: 5 });
-    expect(res.status).toBe(200);
-    expect(res.json.action_type).toBe('cc_idle_claim');
-  });
-
-  it('rejects out-of-range ticks', async () => {
-    const res = await post(h, '/api/ops/claim-roaming', h.tokenA, { ticks: 0, area_id: 'dustwaste', tick_count: 99 });
-    // ticks=0 fails SQL validation inside the claim; the fallback idle claim
-    // still succeeds, mirroring the client's any-error fallback.
-    expect(res.status).toBe(200);
-    expect(res.json.action_type).toBe('cc_idle_claim');
-    const direct = await h.store.claimRoamingRewards(A, 0, 'dustwaste', 99).catch((e: unknown) => e);
-    expect(direct).toMatchObject({ message: 'ticks must be between 1 and 2400' });
+  it('the /api/ops/claim-roaming route no longer exists', async () => {
+    // The cc_claim_roaming_rewards route existed only as the idle
+    // ticker's silent error fallback, paying stale flat rates (seed:
+    // 1 credit/tick, 0 scrap, no mods). It was removed with the
+    // fallback; roaming claims go through the Chef (/api/claim) only.
+    // (Raw fetch: the unrouted path returns Express's HTML 404, which
+    // the JSON `call` helper cannot parse.)
+    const res = await fetch(`${h.base}/api/ops/claim-roaming`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${h.tokenA}` },
+      body: JSON.stringify({ ticks: 10, area_id: 'dustwaste', tick_count: 10 }),
+    });
+    expect(res.status).toBe(404);
+    // Nothing was paid: the seeded profile balance is untouched.
+    expect(h.store.seed.profiles.find((p) => p.id === A)?.credits).toBe(1000);
   });
 });
 

@@ -5,13 +5,11 @@
  * only the wire changed: Supabase RPC → POST /api/ops/* with the same
  * field names, identity from the Chef JWT (never a body player id).
  *
- * claimRoamingRewards is deliberately simpler than the Supabase
- * version: the client used to catch any roaming-claim error and fall
- * back to cc_idle_claim itself, reshaping the result. The B3 route
- * composes that fallback server-side (its own judgment call) and the
- * synthesized *_awarded fields the client fallback produced had no
- * consumer — applyServerRewards reads profile/items/loadout via
- * syncVerifiedResult — so the op is a single call now.
+ * There is deliberately NO roaming-claim op here: roaming claims go
+ * through the Chef (/api/claim) only. The old claimRoamingRewards op
+ * existed solely as the ticker's error fallback, and its engine
+ * (cc_claim_roaming_rewards) paid stale flat rates — it was removed
+ * with the fallback rather than left as a wrong-rate back door.
  */
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { apiRequest } from './http';
@@ -29,14 +27,6 @@ const op = async (path: string, body: Record<string, unknown>): Promise<Verified
   syncVerifiedResult(result);
   await saveCurrentRuntimeStores();
   return result;
-};
-
-const claimRoamingRewards = async (input: { ticks: number; areaId: string; tickCount: number }): Promise<VerifiedResult> => {
-  return op('/ops/claim-roaming', {
-    ticks: input.ticks,
-    area_id: input.areaId,
-    tick_count: input.tickCount,
-  });
 };
 
 export const verifiedOps = {
@@ -82,5 +72,4 @@ export const verifiedOps = {
   acceptItemService: (jobId: string, priceCredits: number, durationMinutes = 60) => op('/ops/service-accept', { nonce: requestId('service-accept'), job_id: jobId, price_credits: priceCredits, duration_minutes: durationMinutes }),
   finishItemService: (jobId: string) => op('/ops/service-finish', { nonce: requestId('service-finish'), job_id: jobId }),
   resetProgress: () => op('/ops/reset-progress', { nonce: requestId('reset') }),
-  claimRoamingRewards,
 };

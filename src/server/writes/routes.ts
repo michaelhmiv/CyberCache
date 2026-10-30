@@ -14,7 +14,6 @@
  *   POST /api/ops/equip-item                verifiedOps.equipItem               cc_equip_item(...)
  *   POST /api/ops/unequip-slot              verifiedOps.unequipSlot             cc_unequip_slot(...)
  *   POST /api/ops/idle-claim                verifiedOps.claimIdleRewards        cc_idle_claim(nonce)
- *   POST /api/ops/claim-roaming             verifiedOps.claimRoamingRewards     cc_claim_roaming_rewards(...) w/ cc_idle_claim fallback
  *   POST /api/ops/retrain                   verifiedOps.retrainSkills           cc_retrain(nonce)
  *   POST /api/ops/train-skill               verifiedOps.trainSkill              cc_train_skill(...)
  *   POST /api/ops/battle-result             verifiedOps.recordBattleResult      cc_battle_result(...)
@@ -184,22 +183,11 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   op('/api/ops/unequip-slot', async (playerId, req) =>
     store.unequipSlot(playerId, str(body(req).nonce), str(body(req).slot_name)));
   op('/api/ops/idle-claim', async (playerId, req) => store.idleClaim(playerId, str(body(req).nonce)));
-  op('/api/ops/claim-roaming', async (playerId, req, res) => {
-    const ticks = numField(req, res, 'ticks', 'ticks value');
-    if (ticks === null) return null;
-    const tickCount = numField(req, res, 'tick_count', 'tick_count value');
-    if (tickCount === null) return null;
-    try {
-      return await store.claimRoamingRewards(playerId, ticks, str(body(req).area_id), tickCount);
-    } catch {
-      // verifiedOps.claimRoamingRewards falls back to an idle claim when the
-      // roaming claim errors (e.g. no active roaming activity). The fallback
-      // nonce defaults to a deterministic per-claim key so a retried request
-      // replays instead of double-paying.
-      const fallbackNonce = optStr(body(req).nonce) ?? `idle-fallback:${tickCount}`;
-      return store.idleClaim(playerId, fallbackNonce);
-    }
-  });
+  // NOTE: /api/ops/claim-roaming (cc_claim_roaming_rewards) was removed
+  // with the ticker's silent fallback — it paid stale flat rates and
+  // existed only as that fallback's engine. Roaming claims go through
+  // the Chef (/api/claim) only. The SQL function remains in the
+  // database (migration 0004) as a deprecated, unrouted remnant.
   op('/api/ops/retrain', async (playerId, req) => store.retrain(playerId, str(body(req).nonce)));
   op('/api/ops/train-skill', async (playerId, req) =>
     store.trainSkill(playerId, str(body(req).nonce), str(body(req).node_id)),

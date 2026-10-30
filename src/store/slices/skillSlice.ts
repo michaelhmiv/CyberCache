@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { SKILL_NODES } from '../../constants/skillTrees';
+import { computeSkillBonuses } from '@/lib/skills/skillBonuses';
 import type { ClassMod } from '../../types/items';
 import { SkillTreeType } from '../../types/game';
 
@@ -56,44 +57,9 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
 
   getBonuses: () => {
     const { spent, classModBoosts } = get();
-    const bonuses: Record<string, number> = {};
-
-    // Merge spent points with class mod boosts to get effective points per node.
-    const effective: Record<string, number> = { ...spent };
-
-    // nodeBoosts: add directly (Borderlands-style: can exceed maxPoints).
-    for (const [nodeId, boost] of Object.entries(classModBoosts.nodeBoosts)) {
-      effective[nodeId] = (effective[nodeId] || 0) + boost;
-    }
-
-    // treeBonus: +1 to every node in the tree, capped at maxPoints.
-    if (classModBoosts.treeBonus) {
-      const treeType = TREE_NAME_MAP[classModBoosts.treeBonus];
-      if (treeType) {
-        const treeNodes = SKILL_NODES.filter((n) => n.tree === treeType);
-        for (const node of treeNodes) {
-          const current = effective[node.id] || 0;
-          effective[node.id] = Math.min(node.maxPoints, current + 1);
-        }
-      }
-    }
-
-    for (const [nodeId, points] of Object.entries(effective)) {
-      const node = SKILL_NODES.find((n) => n.id === nodeId);
-      if (!node || points <= 0) continue;
-      for (const [effectKey, effectValue] of Object.entries(node.effects)) {
-        bonuses[effectKey] = (bonuses[effectKey] || 0) + effectValue * points;
-      }
-    }
-    // Phase 3: composite keys for consumers.
-    bonuses.dps = (bonuses.weaponDamage || 0) + (bonuses.critChance || 0) * 0.5 + (bonuses.critDamage || 0) * 0.5 + (bonuses.attackSpeed || 0) * 0.3;
-    bonuses.survival = (bonuses.shieldCapacity || 0) * 0.3 + (bonuses.staggerChance || 0) * 0.2;
-    bonuses.shieldBreak = (bonuses.shieldDamageMod || 0) + (bonuses.ordnanceShieldBreak || 0);
-    bonuses.armorBreak = (bonuses.armorDamageMod || 0) + (bonuses.explosiveArmorBreak || 0);
-    bonuses.staggerChance = bonuses.staggerChance || 0;
-    // Wire ordnance + explosive damage into heavy attack bonus.
-    bonuses.heavyDamageBonus = (bonuses.ordnanceDamage || 0) * 0.4 + (bonuses.explosiveDamage || 0) * 0.6;
-    return bonuses;
+    // The computation itself lives in lib/skills/skillBonuses so the
+    // server derives identical bonuses from server-side records.
+    return computeSkillBonuses(spent, classModBoosts);
   },
 
   getTotalSpent: () => {

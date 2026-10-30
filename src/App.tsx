@@ -75,9 +75,8 @@ function App() {
   useLeaveSignals();
 
   // Mount the singleton idle ticker once per authenticated session. The ticker
-  // is the single source of truth for roaming rewards: it reads the active
-  // activity, rolls probabilities client-side for instant animation feedback,
-  // and asks the server to validate the roll via cc_claim_roaming_rewards.
+  // submits roaming claims to the Chef (/api/claim), which simulates and
+  // settles every tick server-side; the client only applies the response.
   useEffect(() => {
     if (!user || loading) return undefined;
     mountIdleTicker();

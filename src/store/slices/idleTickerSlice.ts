@@ -32,7 +32,6 @@ import {
   useLoadoutStore,
 } from '@/store';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
-import { verifiedOps } from '@/lib/api/verifiedOps';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import type { GearItem } from '@/types/items';
@@ -263,14 +262,15 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           feedStore.push(merged);
         }
       } catch (error) {
-        // Chef gameplay routes unavailable — fall back to the verified ops API
-        console.warn('[idleTicker] Chef unavailable, falling back to RPC:', error);
-        try {
-          const result = await verifiedOps.claimRoamingRewards({ ticks, areaId, tickCount: totalTickCount });
-          applyServerRewards(result as Record<string, unknown>);
-        } catch (rpcError) {
-          console.warn('[idleTicker] roaming rewards RPC also failed:', rpcError);
-        }
+        // A failed Chef claim pays NOTHING. There is deliberately no
+        // fallback engine: the retired cc_claim_roaming_rewards path
+        // paid stale flat rates (1 credit/tick, 0 scrap in every area,
+        // no gear mods, skills, or consumables) whenever the Chef
+        // hiccuped, silently settling the player off-design. The
+        // failed batch is skipped and the next cycle retries against
+        // the Chef — the server's tick guard (tickCount must exceed
+        // last_claimed_tick) keeps the numbering safe.
+        console.warn('[idleTicker] Chef claim failed; no rewards applied this cycle:', error);
       }
 
       // Persist runtime stores to Supabase (debounced sync)
