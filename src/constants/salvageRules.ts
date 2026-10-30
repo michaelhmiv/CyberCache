@@ -84,6 +84,14 @@ export function calculateSalvageYield(item: GearItem): SalvageYield {
     essences[essenceKey] = total;
   }
 
+  // Market Crash (legendary): this weapon's scrap value is 4x normal.
+  // The authoritative award is cc_recycle_item's (0008 applies the same
+  // 4x to its scrap award); this preview mirrors the multiplier on the
+  // scrap figure only — materials/essences are unaffected, as in the RPC.
+  if ((item as Weapon).legendaryEffectId === 'market_crash') {
+    scrapAlloy *= 4;
+  }
+
   return {
     scrapValue: scrapAlloy,
     scrapAlloy,

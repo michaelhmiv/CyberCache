@@ -786,7 +786,11 @@ export class InMemoryWriteStore implements WriteStore {
     const item = this.ownItem(playerId, itemId);
     if (item.is_locked) throw writeError('Locked item');
     if (!['available', 'equipped'].includes(item.runtime_state)) throw writeError('Item state invalid');
-    const award = salvageScrap(item.rarity, item.item_level);
+    // Market Crash (legendary): 4x scrap when recycling this weapon —
+    // mirrors cc_recycle_item as amended by 0008_legendary_honesty.sql.
+    const baseAward = salvageScrap(item.rarity, item.item_level);
+    const payload = (item.payload ?? {}) as { legendaryEffectId?: string };
+    const award = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
     item.runtime_state = 'consumed';
     item.tradeable = false;
     item.equipped_slot = null;

@@ -43,7 +43,15 @@ import {
   simulateBoss,
   type BossSimulationInput,
 } from '../lib/simulation/bossSimulator';
-import { applyBadDecisionBonus, applyLegendaryEffects, getInsuranceFraudRefundChance } from '../lib/legendaryEffects';
+import {
+  applyBadDecisionBonus,
+  applyLegendaryEffects,
+  getInsuranceFraudRefundChance,
+  getSalvageRightsScrapMult,
+  hasJackpot,
+  hasSecondOpinion,
+} from '../lib/legendaryEffects';
+import { salvageScrap } from './writes/store';
 import type { BossAttemptResult } from '../types/boss';
 import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterSelector';
 import { pickNextTarget } from '../lib/combat/killCycleHelpers';
@@ -184,6 +192,15 @@ export interface BossAttemptChefResult {
   result: BossAttemptResult;
   creditsDelta: number;
   xpAwarded: number;
+  /** Scrap credited by Second Opinion's auto-scrapped twin roll (0 otherwise). */
+  scrapAwarded: number;
+  /** Second Opinion detail when it fired: the discarded twin and its scrap value. */
+  secondOpinionScrap: {
+    name: string;
+    rarity: string;
+    combatPower: number;
+    scrapAwarded: number;
+  } | null;
   loot: GearItem[];
   items: GearItem[];
   consumedConsumables: Record<string, number>;
@@ -253,6 +270,14 @@ export function processRoamingClaim(
     }
   }
 
+  // The primary weapon for legendary-effect purposes. The client builds
+  // equippedGear in loadout slot order (primary, secondary, heavy, then
+  // the other slots — see idleTickerSlice's claim submission), so the
+  // first weapon in the array is the primary-slot weapon. Salvage Rights
+  // and Jackpot key off it ("kills with this weapon").
+  const primaryWeapon =
+    (equippedGear ?? []).find((g): g is import('../types/items').Weapon => 'weaponType' in g) ?? null;
+
   // Skill bonuses are still client-supplied but the server re-derives
   // the DPS-relevant `dps` multiplier from equippedGear via
   // computeEffectiveDpsFromGear(). Other skill bonuses (offlineEarnings,
@@ -289,8 +314,14 @@ export function processRoamingClaim(
   const activityFragmentBonus = effectiveActivityMods.cacheFragmentChance ?? 0;
   const activityMaterialBonus = effectiveActivityMods.materialFindChance ?? 0;
 
+  // Salvage Rights (legendary): +50% scrap while the primary weapon
+  // carries the effect — a real factor in the same multiplier stack as
+  // gear/skill/activity scrap modifiers. (This field used to be set on
+  // applyLegendaryEffects' return value, which no caller ever read.)
+  const legendaryScrapMult = getSalvageRightsScrapMult(primaryWeapon);
+
   const effectiveCreditsPerTick = Math.round(creditsPerTick * offlineMult * activityCreditsMult);
-  const effectiveScrapPerTick = Math.round(scrapPerTick * scrapMult * activityScrapMult);
+  const effectiveScrapPerTick = Math.round(scrapPerTick * scrapMult * activityScrapMult * legendaryScrapMult);
   const effectiveXpPerTick = Math.round(xpPerTick * activityXpMult);
 
   // Clamp ticks to maxTicks (foreground: 20; offline settlement: Infinity)
@@ -554,6 +585,24 @@ export function processRoamingClaim(
               value: 0,
             });
 
+            // Jackpot (legendary): every 150th kill with this weapon as
+            // primary drops a Cache Key fragment. kcTotalKills is the
+            // server-advanced kill-cycle counter returned to the client
+            // each claim, so the every-150th cadence survives across
+            // claims. The fragment flows through the normal rewards
+            // bundle into cc_apply_chef_rewards.
+            if (hasJackpot(primaryWeapon) && kcTotalKills % 150 === 0) {
+              fragmentsAwarded++;
+              feedEvents.push({
+                at: now - (ticks - 1 - tickIdx) * TICK_MS,
+                tone: 'fragment',
+                label: '+1 cache fragment',
+                detail: `Jackpot! Kill #${kcTotalKills} with ${primaryWeapon?.name ?? 'your weapon'} dropped a cache key fragment.`,
+                areaId,
+                value: 1,
+              });
+            }
+
             const next = pickNextTarget(roster, kcLastKilledId);
             if (next) {
               kcTargetId = next.id;
@@ -758,6 +807,8 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   }
 
   const loot: GearItem[] = [];
+  let scrapAwarded = 0;
+  let secondOpinionScrap: BossAttemptChefResult['secondOpinionScrap'] = null;
   let unlockedBossId: string | undefined;
   if (victory) {
     const currentIndex = REGION_1_BOSSES.findIndex((entry) => entry.id === boss.id);
@@ -767,6 +818,30 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     const totalRolls = guaranteedRolls + baseBonusRolls + bonusLootRolls;
     for (let i = 0; i < totalRolls; i++) {
       loot.push(generateWeapon({ source: DropSource.BossDrop, level: boss.level, bossTier: boss.tier }, rng));
+    }
+
+    // Second Opinion (legendary): the guaranteed loot roll happens
+    // twice. The boss attempt is atomic — there is no interactive
+    // mid-attempt choice anywhere in the game — so the Chef keeps the
+    // higher-combatPower weapon (the pick the description promises,
+    // automated) and auto-scraps the other at the standard salvage
+    // rate (salvageScrap, the TS mirror of cc_salvage_scrap). The
+    // scrapped twin is never stored as an item; its scrap is credited
+    // through cc_apply_chef_boss_attempt's scrap delta. Bonus rolls
+    // (base/consumable) are not part of the pair.
+    if (hasSecondOpinion(request.primary) && loot.length > 0) {
+      const twin = generateWeapon({ source: DropSource.BossDrop, level: boss.level, bossTier: boss.tier }, rng);
+      const first = loot[0] as import('../types/items').Weapon;
+      const kept = twin.combatPower > first.combatPower ? twin : first;
+      const scrapped = kept === twin ? first : twin;
+      scrapAwarded = salvageScrap(scrapped.rarity, scrapped.level);
+      secondOpinionScrap = {
+        name: scrapped.name,
+        rarity: scrapped.rarity,
+        combatPower: scrapped.combatPower,
+        scrapAwarded,
+      };
+      loot[0] = kept;
     }
   }
 
@@ -818,6 +893,8 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     result,
     creditsDelta,
     xpAwarded,
+    scrapAwarded,
+    secondOpinionScrap,
     loot,
     items: loot,
     consumedConsumables,

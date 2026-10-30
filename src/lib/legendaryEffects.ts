@@ -2,8 +2,33 @@ import { Weapon } from '../types/items';
 import { LEGENDARY_EFFECTS } from '../constants/legendaryEffects';
 
 /**
- * Apply legendary effect modifiers to boss simulation.
- * All 25 effects are now wired — see MECHANICS.md for full reference.
+ * Legendary effect wiring — the honest map (see MECHANICS.md §1).
+ *
+ * Three tiers of implementation exist, and the comments below say which
+ * tier each effect is in:
+ *
+ *   WIRED    — the multiplier returned here is consumed by the boss
+ *              simulator / Chef boss path and changes real outcomes.
+ *   SIM PROXY — the case here returns a flat multiplier that approximates
+ *              the described mechanic inside the boss simulator ONLY.
+ *              The described mechanic itself (charge refunds, DoT stacks,
+ *              chains, staggers…) does not exist anywhere. Each proxy case
+ *              is labelled "SIM PROXY" so nobody mistakes it for the real
+ *              mechanic.
+ *   ELSEWHERE — the effect is fully implemented, but not through this
+ *              function's return value: it lives in the Chef claim/boss
+ *              engine or in a Postgres applier, and the case here is a
+ *              deliberate no-op with a pointer (debt_collector and
+ *              hot_swapper set this pattern in June; the Legendary
+ *              Honesty slice extended it to second_opinion,
+ *              salvage_rights, market_crash and jackpot).
+ *
+ * This function used to also return `scrapMult`, `extraLootChance` and
+ * `consumableRefundChance`. No caller ever read them — the fields were
+ * decorative, and two of the four "dead" effects hid behind them. They
+ * were removed in the Legendary Honesty slice; effects that need an
+ * economy hook now expose a named helper below instead (the pattern
+ * getInsuranceFraudRefundChance / getHotSwapperSecondaryMult set).
  */
 export function applyLegendaryEffects(
   weapon: Weapon | null,
@@ -15,20 +40,14 @@ export function applyLegendaryEffects(
   survivalMult: number;
   shieldBreakMult: number;
   armorBreakMult: number;
-  scrapMult: number;
   creditMult: number;
-  extraLootChance: number;
-  consumableRefundChance: number;
 } {
   const defaults = {
     damageMult: 1,
     survivalMult: 1,
     shieldBreakMult: 1,
     armorBreakMult: 1,
-    scrapMult: 1,
     creditMult: 1,
-    extraLootChance: 0,
-    consumableRefundChance: 0,
   };
 
   if (!weapon?.legendaryEffectId) return defaults;
@@ -40,10 +59,7 @@ export function applyLegendaryEffects(
   let survivalMult = 1;
   let shieldBreakMult = 1;
   let armorBreakMult = 1;
-  let scrapMult = 1;
   let creditMult = 1;
-  let extraLootChance = 0;
-  let consumableRefundChance = 0;
 
   switch (effect.id) {
     // ── TIER 1 (Boss Tier 1+) ──
@@ -62,10 +78,14 @@ export function applyLegendaryEffects(
       break;
 
     case 'debt_collector':
-      // Pity win chance bonus handled in pity system
+      // ELSEWHERE: no-op here by design — the pity system itself applies
+      // +3% win chance per loss (cap +30%) in bossSimulator / bossSlice.
       break;
 
     case 'armor_eater':
+      // WIRED for the armor-break half (+20% for Corrosive). The
+      // description's "-50% boss healing" half has no counterpart: the
+      // boss engine has no healing mechanic to reduce.
       if (weapon.element === 'Corrosive') armorBreakMult = 1.2;
       break;
 
@@ -74,6 +94,8 @@ export function applyLegendaryEffects(
       break;
 
     case 'overclocked':
+      // SIM PROXY (labelled as such since June): the attack-speed ramp /
+      // crit decay is modelled as a flat 1.15x damage multiplier.
       damageMult = 1.15;
       break;
 
@@ -82,13 +104,16 @@ export function applyLegendaryEffects(
       break;
 
     case 'bad_decision':
-      // Win chance hidden + credit bonus handled separately
+      // Win chance hiding + credit bonus handled via hasBadDecision() /
+      // applyBadDecisionBonus(); the creditMult here is the wired half.
       creditMult = 1.25;
       break;
 
     case 'the_accountant':
-      // Every 100 kills bumps next drop rarity tier
-      // For simulation: small DPS bonus from better drops over time
+      // SIM PROXY: the described mechanic (+1 rarity tier on the next
+      // drop per 100 kills) does not exist in any drop path. The sim
+      // approximates the long-term benefit as a small DPS bonus scaled
+      // by kill count, capped at +15%.
       if (enemyKillCount > 0) {
         const tiers = Math.floor(enemyKillCount / 100);
         damageMult = 1 + Math.min(0.15, tiers * 0.03); // cap +15%
@@ -96,70 +121,91 @@ export function applyLegendaryEffects(
       break;
 
     case 'thunder_receipt':
-      // Shock shield break refunds ordnance — in sim: +25% shield break
+      // SIM PROXY: no Ordnance / Action Skill charge refund exists.
+      // Approximated as +25% shield break for Shock weapons in the sim.
       if (weapon.element === 'Shock') shieldBreakMult = 1.25;
       break;
 
     // ── TIER 2 (Boss Tier 4+) ──
 
     case 'second_opinion':
-      // Double loot roll on victory: +50% effective loot
-      extraLootChance = 0.5;
+      // ELSEWHERE: implemented in the Chef boss path
+      // (processBossAttempt in src/server/chef.ts) — on victory the
+      // guaranteed loot roll happens twice, the higher-combatPower
+      // weapon is kept and the other is auto-scrapped for real scrap.
+      // Detected there via hasSecondOpinion(); no sim output here.
       break;
 
     case 'salvage_rights':
-      scrapMult = 1.5;
+      // ELSEWHERE: implemented in the Chef roaming claim
+      // (processRoamingClaim in src/server/chef.ts) via
+      // getSalvageRightsScrapMult() — claim scrap is multiplied by 1.5
+      // while this weapon is the primary. No boss-sim output: boss
+      // attempts award no scrap.
       break;
 
     case 'borrowed_time':
-      // Auto-consume 1 MedKit to pass survival check once
+      // SIM PROXY: no MedKit is consumed and no survival-fail rescue
+      // happens. Approximated as a flat 1.25x survival multiplier.
       survivalMult = 1.25; // effective survival boost
       break;
 
     case 'vampiric_ledger':
-      // 5% of damage as bonus credits
+      // SIM PROXY: the described mechanic converts 5% of damage dealt
+      // into credits. What is wired (here and in the Chef boss path,
+      // which consumes this creditMult) is a flat +5% victory-credit
+      // multiplier, independent of damage dealt.
       creditMult = 1 + 0.05; // small bonus
       break;
 
     case 'insurance_fraud_weapon':
-      // 50% consumable refund on defeat
-      consumableRefundChance = 0.5;
+      // ELSEWHERE (wired): the 50% consumable refund on defeat is
+      // applied via getInsuranceFraudRefundChance() in the Chef boss
+      // path and executeBossAttempt(). No sim multiplier here.
       break;
 
     case 'market_crash':
-      // 4x scrap value
-      scrapMult = 4.0;
+      // ELSEWHERE: implemented in cc_recycle_item
+      // (db/migrations/0008_legendary_honesty.sql) and its TS mirrors —
+      // recycling this weapon awards 4x the standard scrap. There is no
+      // market fee anywhere in the market path (listing is free and the
+      // seller receives the full price), so the effect is the scrap
+      // multiplier only. No sim output here.
       break;
 
     case 'stable_loop':
-      // 25% faster action skill charge → more ordnance use
-      // Sim approximation: +10% DPS from more frequent abilities
+      // SIM PROXY: there is no Action Skill charge system to accelerate.
+      // Approximated as +10% DPS ("more frequent abilities") in the sim.
       damageMult = 1.1;
       break;
 
     case 'phase_shifter':
-      // First hit per phase ignores 40% of shield/armor
+      // SIM PROXY: no per-phase first-hit layer-ignore exists.
+      // Approximated as a flat +15% shield/armor break in the sim.
       shieldBreakMult = 1.15;
       armorBreakMult = 1.15;
       break;
 
     case 'hot_swapper':
-      // Secondary weapon contributes 60% instead of 30%
-      // Handled in bossSimulator by checking this weapon
-      // For sim: boost applied where secondary is checked
+      // ELSEWHERE (wired): secondary contributes 60% instead of 30%,
+      // applied in bossSimulator via getHotSwapperSecondaryMult().
       damageMult = 1.0; // actual multiplier applied in bossSimulator
       break;
 
     // ── TIER 3 (Boss Tier 7+) ──
 
     case 'chain_lightning':
-      // Shock procs chain: +20% effective shock damage
+      // SIM PROXY: boss fights are single-target; no proc chains to
+      // additional targets exist. Approximated as +20% Shock damage and
+      // +15% shield break in the sim.
       if (weapon.element === 'Shock') damageMult = 1.2;
       shieldBreakMult = 1.15;
       break;
 
     case 'molten_core':
-      // Fire DoT stacks 5x, each -10% boss healing
+      // SIM PROXY: no Fire DoT stacking exists, and the boss engine has
+      // no healing for stacks to reduce. Approximated as +25% Fire
+      // damage and +15% armor break in the sim.
       if (weapon.element === 'Fire') {
         damageMult = 1.25; // 5 stacks of burn
         armorBreakMult = 1.15; // anti-heal reduces effective armor
@@ -167,22 +213,30 @@ export function applyLegendaryEffects(
       break;
 
     case 'cryo_stasis':
-      // 20% chance mini-stagger → +5% DPS window
+      // SIM PROXY: no mini-stagger rolls exist. Approximated as +10%
+      // Cryo damage in the sim.
       if (weapon.element === 'Cryo') {
         damageMult = 1.1;
       }
       break;
 
     case 'void_bargain':
+      // PART WIRED / PART PROXY: the +40% Void damage is exact. The
+      // drawback (5% chance per hit to damage your own shield) is
+      // approximated as a flat 0.85x survival multiplier — no per-hit
+      // self-shield damage is simulated.
       if (weapon.element === 'Void') {
         damageMult = 1.4;
-        survivalMult = 0.85; // 5% self-shield damage per hit
+        survivalMult = 0.85; // proxy for 5% self-shield damage per hit
       }
       break;
 
     case 'jackpot':
-      // 1 Cache Key fragment per 150 kills — economy bonus
-      // No combat effect, but signals loot economy advantage
+      // ELSEWHERE: implemented in the Chef roaming claim
+      // (processRoamingClaim in src/server/chef.ts) — every 150th
+      // kill-cycle kill while this weapon is the primary awards a real
+      // Cache Key fragment. Detected there via hasJackpot(). No combat
+      // effect, correctly: no sim output here.
       break;
 
     default:
@@ -194,10 +248,7 @@ export function applyLegendaryEffects(
     survivalMult,
     shieldBreakMult,
     armorBreakMult,
-    scrapMult,
     creditMult,
-    extraLootChance,
-    consumableRefundChance,
   };
 }
 
@@ -230,4 +281,32 @@ export function getHotSwapperSecondaryMult(weapon: Weapon | null): number {
  */
 export function getInsuranceFraudRefundChance(weapon: Weapon | null): number {
   return weapon?.legendaryEffectId === 'insurance_fraud_weapon' ? 0.5 : 0;
+}
+
+/**
+ * Salvage Rights — scrap multiplier for Chef roaming claims while this
+ * weapon is the primary (kills with it yield +50% scrap). Consumed by
+ * processRoamingClaim in src/server/chef.ts, in the same multiplier
+ * stack as gear/skill/activity scrap modifiers.
+ */
+export function getSalvageRightsScrapMult(weapon: Weapon | null): number {
+  return weapon?.legendaryEffectId === 'salvage_rights' ? 1.5 : 1;
+}
+
+/**
+ * Second Opinion — on boss victory the guaranteed loot roll happens
+ * twice; the stronger weapon is kept, the other auto-scrapped.
+ * Consumed by processBossAttempt in src/server/chef.ts.
+ */
+export function hasSecondOpinion(weapon: Weapon | null): boolean {
+  return weapon?.legendaryEffectId === 'second_opinion';
+}
+
+/**
+ * Jackpot — every 150th enemy killed while this weapon is the primary
+ * drops a Cache Key fragment. Consumed by processRoamingClaim in
+ * src/server/chef.ts (kill-cycle kills).
+ */
+export function hasJackpot(weapon: Weapon | null): boolean {
+  return weapon?.legendaryEffectId === 'jackpot';
 }

@@ -7,45 +7,60 @@
 
 ## 1. Legendary Effects (25 Total)
 
+Every effect below is in exactly one of three implementation tiers — the
+Notes column says which, and `src/lib/legendaryEffects.ts` carries the
+same labels at each case:
+
+- **Implemented** — the described behavior runs in the authoritative
+  path (boss simulator / Chef / Postgres applier) and changes outcomes.
+- **SIM PROXY** — the boss simulator approximates the mechanic with a
+  flat multiplier. The described mechanic itself (charge refunds, DoT
+  stacks, proc chains, staggers…) does **not** exist; the proxy number
+  is what the sim actually uses. Proxies are labelled, never implied
+  to be the real mechanic.
+- **Implemented in Chef/SQL** — fully implemented, but outside
+  `applyLegendaryEffects()`: in the Chef claim/boss engine or a
+  Postgres applier, where the economy outcomes actually resolve.
+
 ### Tier 1 (Boss Tier 1+) — SIMPLE STAT MODIFIERS
 
 | ID | Name | Mechanical Effect | Notes |
 |---|---|---|---|
-| `debt_collector` | Debt Collector | Pity system: +3% win chance per loss, cap +30% | Pity tracker in bossSlice, applied in simulateBoss() |
+| `debt_collector` | Debt Collector | Pity system: +3% win chance per loss, cap +30% | Implemented — pity tracker in bossSlice, applied in simulateBoss(); the applyLegendaryEffects() case is a deliberate no-op |
 | `warranty_void` | Warranty Void | Each failed boss attempt: +2% base damage, cap +20% | Implemented in applyLegendaryEffects() |
-| `ricochet_gospel` | Ricochet Gospel | Crits bounce: adds `critChance * 0.4` to damage mult | Implemented in applyLegendaryEffects() |
+| `ricochet_gospel` | Ricochet Gospel | Crits bounce: adds `critChance * 0.4` to damage mult | Implemented in applyLegendaryEffects() (the single-target bounce return is the damage mult) |
 | `bad_decision` | Bad Decision | Hides win chance from player; +25% credit reward on win | Implemented via hasBadDecision() + applyBadDecisionBonus() |
 | `glass_sun` | Glass Sun | Fire weapons: +50% damage. All: -30% survival | Implemented in applyLegendaryEffects() |
-| `the_accountant` | The Accountant | Every 100 enemies killed: +1 rarity tier on next drop | **NOT YET IMPLEMENTED** |
-| `armor_eater` | Armor Eater | Corrosive weapons: +20% armor break, -50% boss healing | Implemented in applyLegendaryEffects() |
-| `thunder_receipt` | Thunder Receipt | Shield break via Shock: refunds 1 Ordnance charge | **NOT YET IMPLEMENTED** |
+| `the_accountant` | The Accountant | Every 100 enemies killed: +1 rarity tier on next drop | **SIM PROXY** — no drop-tier logic exists in any drop path. Sim instead grants a DPS bonus scaled by kill count (+3% per 100 kills, cap +15%) |
+| `armor_eater` | Armor Eater | Corrosive weapons: +20% armor break, -50% boss healing | Armor break implemented in applyLegendaryEffects(). The -50% healing half is **not implemented**: the boss engine has no healing mechanic to reduce |
+| `thunder_receipt` | Thunder Receipt | Shield break via Shock: refunds 1 Ordnance charge | **SIM PROXY** — no Ordnance/Action Skill charge refund exists. Sim grants +25% shield break for Shock weapons instead |
 
 ### Tier 2 (Boss Tier 4+)
 
 | ID | Name | Mechanical Effect | Notes |
 |---|---|---|---|
-| `second_opinion` | Second Opinion | Victory: loot roll happens twice, pick one | **NOT YET IMPLEMENTED** |
-| `salvage_rights` | Salvage Rights | Kills with this weapon: +50% scrap | **NOT YET IMPLEMENTED** |
-| `overclocked` | Overclocked | Attack speed ramps +5%/5s, crit drops -2%/ramp | Implemented (flat 1.15x approximation) |
-| `borrowed_time` | Borrowed Time | If survival fails: auto-consume 1 MedKit to pass | **NOT YET IMPLEMENTED** |
-| `kickback` | Kickback | Every 7th hit: 300% burst (avg +28.6% DPS) | Implemented |
-| `vampiric_ledger` | Vampiric Ledger | 5% of damage dealt → bonus credits on win | **NOT YET IMPLEMENTED** |
-| `echo_chamber` | Echo Chamber | 30% chance status re-applies (1.3x damage mult) | Implemented |
-| `insurance_fraud_weapon` | Insurance Fraud | On defeat: 50% of consumed consumables refunded | **NOT YET IMPLEMENTED** |
-| `market_crash` | Market Crash | 4x scrap value; 50% market fee bypass | **NOT YET IMPLEMENTED** |
-| `stable_loop` | Stable Loop | Action Skill charges 25% faster when primary | **NOT YET IMPLEMENTED** |
-| `phase_shifter` | Phase Shifter | First hit per phase ignores 40% of shield/armor | **NOT YET IMPLEMENTED** |
-| `hot_swapper` | Hot Swapper | Secondary weapon contributes 60% (not 30%) | **NOT YET IMPLEMENTED** |
+| `second_opinion` | Second Opinion | Victory: the guaranteed loot roll happens twice; keep the stronger weapon, the other is auto-scrapped | Implemented in Chef/SQL — processBossAttempt() rolls the pair, keeps the higher-combatPower weapon, and credits the twin's standard salvage value via cc_apply_chef_boss_attempt (0008) |
+| `salvage_rights` | Salvage Rights | Kills with this weapon: +50% scrap | Implemented in Chef — processRoamingClaim() multiplies claim scrap by 1.5 while this weapon is the primary (same multiplier stack as gear/skill scrap mods) |
+| `overclocked` | Overclocked | Attack speed ramps +5%/5s, crit drops -2%/ramp | **SIM PROXY** — implemented as a flat 1.15x damage approximation; no ramp/decay is simulated |
+| `borrowed_time` | Borrowed Time | If survival fails: auto-consume 1 MedKit to pass | **SIM PROXY** — no MedKit is consumed and no survival-fail rescue occurs. Sim grants a flat 1.25x survival multiplier instead |
+| `kickback` | Kickback | Every 7th hit: 300% burst (avg +28.6% DPS) | Implemented in applyLegendaryEffects() as the exact average-DPS equivalent |
+| `vampiric_ledger` | Vampiric Ledger | 5% of damage dealt → bonus credits on win | **SIM PROXY** — wired as a flat +5% victory-credit multiplier (consumed by the sim and the Chef boss path); it is not computed from damage dealt |
+| `echo_chamber` | Echo Chamber | 30% chance status re-applies (1.3x damage mult) | Implemented in applyLegendaryEffects() as the exact expected-value multiplier |
+| `insurance_fraud_weapon` | Insurance Fraud | On defeat: 50% of consumed consumables refunded | Implemented — getInsuranceFraudRefundChance() drives real per-type refund rolls in the Chef boss path and executeBossAttempt() |
+| `market_crash` | Market Crash | This weapon's scrap value is 4x normal when recycled | Implemented in Chef/SQL — cc_recycle_item (0008) and its TS mirrors award 4x scrap. (The former "50% market fee bypass" clause was removed: no market fee exists anywhere in the market path — see §11) |
+| `stable_loop` | Stable Loop | Action Skill charges 25% faster when primary | **SIM PROXY** — there is no Action Skill charge system to accelerate. Sim grants a flat 1.1x damage multiplier ("more frequent abilities") instead |
+| `phase_shifter` | Phase Shifter | First hit per phase ignores 40% of shield/armor | **SIM PROXY** — no per-phase first-hit ignore exists. Sim grants a flat +15% shield/armor break instead |
+| `hot_swapper` | Hot Swapper | Secondary weapon contributes 60% (not 30%) | Implemented — getHotSwapperSecondaryMult() is applied in bossSimulator() |
 
 ### Tier 3 (Boss Tier 7+)
 
 | ID | Name | Mechanical Effect | Notes |
 |---|---|---|---|
-| `chain_lightning` | Chain Lightning | Shock procs chain to 2 extra targets | **NOT YET IMPLEMENTED** |
-| `molten_core` | Molten Core | Fire DoT stacks 5x; each stack -10% boss healing | **NOT YET IMPLEMENTED** |
-| `cryo_stasis` | Cryo Stasis | Cryo procs: 20% mini-stagger (+5% DPS window) | **NOT YET IMPLEMENTED** |
-| `void_bargain` | Void Bargain | +40% Void damage, 5% self-shield damage per hit | **NOT YET IMPLEMENTED** |
-| `jackpot` | Jackpot | Every 150 kills: 1 Cache Key fragment | **NOT YET IMPLEMENTED** |
+| `chain_lightning` | Chain Lightning | Shock procs chain to 2 extra targets | **SIM PROXY** — boss fights are single-target; no proc chains exist. Sim grants +20% Shock damage and +15% shield break instead |
+| `molten_core` | Molten Core | Fire DoT stacks 5x; each stack -10% boss healing | **SIM PROXY** — no DoT stacking exists and the boss engine has no healing to reduce. Sim grants +25% Fire damage and +15% armor break instead |
+| `cryo_stasis` | Cryo Stasis | Cryo procs: 20% mini-stagger (+5% DPS window) | **SIM PROXY** — no mini-stagger rolls exist. Sim grants +10% Cryo damage instead |
+| `void_bargain` | Void Bargain | +40% Void damage, 5% self-shield damage per hit | Part implemented, part proxy — the +40% Void damage is exact; the drawback is approximated as a flat 0.85x survival multiplier, not per-hit self-shield damage |
+| `jackpot` | Jackpot | Every 150th enemy killed by this weapon: 1 Cache Key fragment | Implemented in Chef — processRoamingClaim() awards the fragment when the server kill-cycle counter crosses a multiple of 150 while this weapon is the primary |
 
 ---
 
@@ -342,7 +357,7 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 - Boss victory: level × 150 credits
 - Boss defeat: death fee (as above)
 - Vendor: buy consumables for credits
-- Market: 10% listing fee
+- Market: no listing fee and no sale cut — listing is free in cc_market_create and the seller receives the full price in cc_accept_listing
 
 ### Cache Keys
 - Start with 3
@@ -361,7 +376,7 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 ## 12. Current Implementation Status
 
 ### ✅ Fully Wired
-- Legendary effects: glass_sun, ricochet_gospel, warranty_void, debt_collector, armor_eater, kickback, overclocked, echo_chamber, bad_decision
+- Legendary effects (14): glass_sun, ricochet_gospel, warranty_void, debt_collector, armor_eater (armor-break half), kickback, echo_chamber, bad_decision, hot_swapper, insurance_fraud_weapon — plus second_opinion, salvage_rights, market_crash and jackpot, which are implemented in the Chef / Postgres appliers rather than the simulator (see §1)
 - All 19 consumable effects in boss simulator
 - Ammo windows + signature mechanics for all 6 weapon types
 - Workshop crafting with 3 benches + offline completion
@@ -371,7 +386,7 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 ### ⚠️ Partially Wired / Needs Hookup
 - **Scavenger economy bonuses**: `rareDropChance`, `lootQuantity`, `scrapYield`, `offlineEarnings`, `cacheQuality`, `marketFeeReduction` — computed by getBonuses() but NOT applied to farming, offline claim, or scrap yield
 - **DataSkimmer / LuckBooster extraLoot**: `executeBossAttempt()` returns `extraLoot` flag but BossPrepModal ignores it
-- **Tier 2-4 legendary effects**: Defined in constants but switch statement in applyLegendaryEffects() has default→neutral
+- **Legendary sim proxies (10)**: the_accountant, thunder_receipt, borrowed_time, vampiric_ledger, overclocked, stable_loop, phase_shifter, chain_lightning, molten_core, cryo_stasis — plus void_bargain's drawback and armor_eater's anti-heal clause. Each is a labelled flat-multiplier approximation in the boss simulator; the described mechanics do not exist yet (see §1 for per-effect detail)
 - **Auto-salvage Scavenger bonuses**: FightScreen scrapItem() doesn't apply scrapYield bonus
 
 ### ❌ Not Yet Implemented
