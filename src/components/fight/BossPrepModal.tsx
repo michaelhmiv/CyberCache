@@ -17,6 +17,7 @@ import { ConsumablePicker } from '../consumables/ConsumablePicker';
 import { MobileCard } from '../layout/MobileCard';
 import { WeaponCanvas } from '../pixelArt/WeaponCanvas';
 import { BossFightStage } from '../pixelArt/BossFightStage';
+import { LootMoment } from '../pixelArt/LootMoment';
 import { GhostHpBar } from '../pixelArt/PixelFx';
 import { BossSigil } from '@/components/common/BossSigil';
 import { BossPortrait } from '@/components/common/BossPortrait';
@@ -218,6 +219,10 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
   const [pickerError, setPickerError] = useState<string | null>(null);
   const [risk, setRisk] = useState<RiskSetting>(RiskSetting.Balanced);
   const [result, setResult] = useState<ChefVerifyBossResult | null>(null);
+  // P3 loot moment: plays once over the victory result, then hands the
+  // modal back. The loot was synced to the inventory before this state
+  // was set — the moment is celebration, not delivery.
+  const [lootMomentDone, setLootMomentDone] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The fight card morphs through three states: 'pre' (win chance %),
@@ -381,6 +386,7 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     setSimulating(true);
     setError(null);
     setResult(null);
+    setLootMomentDone(false);
 
     // Flip the existing prep activity into the fight phase. This avoids
     // racing the chef with a fresh `start()` call — the boss_id and
@@ -471,7 +477,12 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
     setResult(null);
     setError(null);
     setFightTimeline(null);
+    setLootMomentDone(false);
   };
+
+  // The drops the Chef awarded for a victory (already synced to the
+  // inventory by syncBossAttemptResult before the result renders).
+  const bossLootItems = result?.result.victory ? (result.items?.length ? result.items : result.loot) : undefined;
 
   const getRarityColor = (rarity?: string) => RARITIES[rarity as keyof typeof RARITIES]?.color || RARITIES.Common.color;
 
@@ -863,6 +874,23 @@ export const BossPrepModal: React.FC<BossPrepModalProps> = ({ boss, onClose }) =
           </button>
         )}
       </div>
+      {/* P3 loot moment over the victory result: the rarity ladder for
+          the boss's actual drops, legendary treatment included. Plays
+          once per result; skipping or finishing only dismisses the
+          celebration — the items are already in the inventory. */}
+      {result && bossLootItems && bossLootItems.length > 0 && !lootMomentDone && (
+        <div className="fixed inset-0 z-[110] bg-black/55" data-testid="boss-loot-moment-backdrop">
+          <LootMoment
+            items={bossLootItems}
+            surface="stage"
+            reduced={reducedMotion === true}
+            anchorXPct={50}
+            groundYPct={72}
+            onDone={() => setLootMomentDone(true)}
+            testId="boss-loot-moment"
+          />
+        </div>
+      )}
       {/* Full-height consumable picker overlay for boss prep slots */}
       {pickerSlot && (
         <ConsumablePicker

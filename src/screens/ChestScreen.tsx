@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Info, Lock, Unlock } from 'lucide-react';
 import { usePlayerStore, useInventoryStore } from '@/store';
 import { useLoadoutStore, LoadoutSlot } from '@/store/slices/loadoutSlice';
@@ -9,6 +9,8 @@ import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/server
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { ChestIllustration } from '@/components/common/ChestIllustration';
+import { LootMoment } from '@/components/pixelArt/LootMoment';
+import { getPixelSprite } from '@/lib/pixel/manifest';
 
 // ─── helpers ──────────────────────────────────────────────────────────
 
@@ -163,6 +165,11 @@ export const ChestScreen: React.FC = () => {
 
   const [opening, setOpening] = useState(false);
   const [revealed, setRevealed] = useState<GearItem[] | null>(null);
+  // P3 loot moment: the cache's drop celebrates first (rarity ladder +
+  // legendary treatment), then the item cards take over. The item was
+  // already granted by the server op before `revealed` was set.
+  const [momentDone, setMomentDone] = useState(false);
+  const reducedMotion = !!useReducedMotion();
   const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked' | 'equipped'>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -174,6 +181,7 @@ export const ChestScreen: React.FC = () => {
     setOpening(true);
     setError(null);
     setItemActions({});
+    setMomentDone(false);
     try {
       const result = await verifiedOps.makeItem();
       const item = serverItemRowToDisplayGear(result.item as ServerItemRow);
@@ -192,6 +200,7 @@ export const ChestScreen: React.FC = () => {
   const close = () => {
     setRevealed(null);
     setItemActions({});
+    setMomentDone(false);
   };
 
   const handleEquip = async (item: GearItem, _idx: number) => {
@@ -237,6 +246,7 @@ export const ChestScreen: React.FC = () => {
   };
 
   const visibleDrops = revealed?.filter((d) => itemActions[d.id] !== 'scrapped') ?? [];
+  const zoneBg = getPixelSprite('zone-dustwaste-bg');
   const canOpenAnother = keys > 0 && !opening;
 
   return (
@@ -331,6 +341,28 @@ export const ChestScreen: React.FC = () => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
           >
+            {!momentDone ? (
+              <>
+                {/* P3 loot moment over the pixel zone backdrop — the
+                    cache's actual drop, celebrated before the cards. */}
+                {zoneBg && (
+                  <img src={zoneBg.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover opacity-55" style={{ imageRendering: 'pixelated' }} />
+                )}
+                <div className="absolute left-0 right-0 top-8 z-50 text-center">
+                  <div className="text-xl font-black text-amber">CACHE DECRYPTED</div>
+                </div>
+                <LootMoment
+                  items={revealed}
+                  surface="stage"
+                  reduced={reducedMotion}
+                  anchorXPct={50}
+                  groundYPct={74}
+                  onDone={() => setMomentDone(true)}
+                  testId="cache-loot-moment"
+                />
+              </>
+            ) : (
+              <>
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -377,6 +409,8 @@ export const ChestScreen: React.FC = () => {
                 Collect
               </button>
             </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

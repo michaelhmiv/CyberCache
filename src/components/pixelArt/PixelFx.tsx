@@ -264,3 +264,153 @@ export const GhostHpBar: React.FC<{
     </div>
   );
 };
+
+// ── Loot moment FX (P3, spec §5) ───────────────────────────────────────
+// The celebration kit for drops: a rarity beam at the loot point, the
+// legendary treatment's god rays + shockwave, and twinkles for the risen
+// weapon. All positioned from manifest anchors by the caller (stage-%
+// coordinates), all timed from MOVEMENT. Reduced motion: the beam still
+// renders (static), the rays/shockwave/twinkles do not.
+
+interface LootPoint {
+  /** Beam base X, % of the offset parent. */
+  xPct: number;
+  /** Beam base Y (the ground point), % of the offset parent. */
+  groundYPct: number;
+}
+
+/**
+ * A vertical rarity beam rising from a ground loot point: bright white
+ * core, rarity-colored body, and a ground flare where it lands. Width
+ * and flare scale with the celebration tier (lootCelebrationForRarity).
+ */
+export const LootBeam: React.FC<LootPoint & { color: string; widthPx: number; flareScale?: number; reduced?: boolean }> = ({
+  xPct,
+  groundYPct,
+  color,
+  widthPx,
+  flareScale = 2.6,
+  reduced = false,
+}) => {
+  const flareWidth = Math.round(widthPx * flareScale * 2.4);
+  return (
+    <div data-testid="fx-loot-beam" className="pointer-events-none absolute inset-0 z-20">
+      {/* Beam column — grows up out of the ground point */}
+      <motion.div
+        className="absolute"
+        style={{
+          left: `${xPct}%`,
+          bottom: `${100 - groundYPct}%`,
+          width: widthPx,
+          height: `${Math.min(97, groundYPct + 8)}%`,
+          marginLeft: -widthPx / 2,
+          transformOrigin: '50% 100%',
+          background: `linear-gradient(90deg, transparent 0%, ${color}59 22%, ${color} 42%, #FFFFFF 50%, ${color} 58%, ${color}59 78%, transparent 100%)`,
+          boxShadow: `0 0 ${Math.round(widthPx * 0.55)}px ${color}59`,
+        }}
+        initial={reduced ? { opacity: 0.9, scaleY: 1 } : { opacity: 0, scaleY: 0.06 }}
+        animate={{ opacity: [0, 1, 0.92], scaleY: 1 }}
+        transition={reduced ? { duration: 0 } : { duration: MOVEMENT.LOOT_BEAM_IN_MS / 1000, ease: 'easeOut', times: [0, 0.35, 1] }}
+      />
+      {/* Ground flare where the beam lands */}
+      <motion.div
+        className="absolute rounded-[50%]"
+        style={{
+          left: `${xPct}%`,
+          top: `${groundYPct}%`,
+          width: flareWidth,
+          height: Math.max(10, flareWidth * 0.22),
+          marginLeft: -flareWidth / 2,
+          marginTop: -Math.max(5, flareWidth * 0.11),
+          background: `radial-gradient(ellipse, #FFFFFF 0%, ${color}B3 42%, ${color}00 72%)`,
+        }}
+        initial={reduced ? { opacity: 0.85, scale: 1 } : { opacity: 0, scale: 0.3 }}
+        animate={{ opacity: [0, 0.95, 0.8], scale: 1 }}
+        transition={reduced ? { duration: 0 } : { duration: MOVEMENT.LOOT_BEAM_IN_MS / 1000, ease: 'easeOut', times: [0, 0.4, 1] }}
+      />
+    </div>
+  );
+};
+
+/**
+ * Rotating god-ray disc behind the risen legendary weapon. A conic fan
+ * of gold wedges with a radial fade, turning one slow revolution per
+ * LOOT_RAYS_SPIN_MS. Static (but present) under reduced motion.
+ */
+export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> = ({ xPct, yPct, size = 360, reduced = false }) => (
+  <motion.div
+    data-testid="fx-god-rays"
+    className="pointer-events-none absolute z-10 rounded-full"
+    style={{
+      left: `${xPct}%`,
+      top: `${yPct}%`,
+      width: size,
+      height: size,
+      marginLeft: -size / 2,
+      marginTop: -size / 2,
+      background:
+        'repeating-conic-gradient(from 0deg, rgba(255,234,58,0.12) 0deg 9deg, rgba(255,234,58,0) 9deg 24deg)',
+      maskImage: 'radial-gradient(circle, black 0%, transparent 68%)',
+      WebkitMaskImage: 'radial-gradient(circle, black 0%, transparent 68%)',
+    }}
+    initial={{ rotate: 0, opacity: 0 }}
+    animate={reduced ? { opacity: 0.9 } : { rotate: 360, opacity: [0, 1, 0.95] }}
+    transition={
+      reduced
+        ? { duration: 0 }
+        : {
+            rotate: { duration: MOVEMENT.LOOT_RAYS_SPIN_MS / 1000, repeat: Infinity, ease: 'linear' },
+            opacity: { duration: 0.5, ease: 'easeOut', times: [0, 0.3, 1] },
+          }
+    }
+  />
+);
+
+/** A gold shockwave ring rolling across the ground from the loot point. */
+export const ShockwaveRing: React.FC<LootPoint & { color?: string }> = ({ xPct, groundYPct, color = '#FFEA3A' }) => (
+  <motion.div
+    data-testid="fx-shockwave-ring"
+    className="pointer-events-none absolute z-20 rounded-[50%]"
+    style={{
+      left: `${xPct}%`,
+      top: `${groundYPct}%`,
+      width: 380,
+      height: 56,
+      marginLeft: -190,
+      marginTop: -28,
+      border: `3px solid ${color}`,
+      boxShadow: `0 0 18px ${color}88, inset 0 0 18px ${color}55`,
+    }}
+    initial={{ opacity: 0, scale: 0.12 }}
+    animate={{ opacity: [0, 0.95, 0], scale: [0.12, 0.7, 1.12] }}
+    transition={{ duration: MOVEMENT.LOOT_SHOCKWAVE_MS / 1000, ease: 'easeOut', times: [0, 0.25, 1] }}
+  />
+);
+
+/** Twinkle sparkles hovering around the risen legendary weapon. */
+export const Twinkles: React.FC<FxPoint & { seed: string; width?: number }> = ({ xPct, yPct, seed, width = 210 }) => {
+  const field = useMemo(() => particleField(`twinkles-${seed}`, 7), [seed]);
+  return (
+    <div data-testid="fx-twinkles" className="pointer-events-none absolute z-30" style={{ left: `${xPct}%`, top: `${yPct}%` }}>
+      {field.map((p, i) => {
+        const left = ((p.xPct - 50) / 50) * (width / 2);
+        const top = ((i % 3) - 1) * 17 + (p.swayPx % 7);
+        return (
+          <motion.span
+            key={i}
+            className="absolute bg-[#FFF3A0]"
+            style={{ left, top, width: p.size + 3, height: p.size + 3, ...STAR_CLIP, boxShadow: '0 0 6px #FFEA3A' }}
+            initial={{ opacity: 0, scale: 0.3, rotate: 0 }}
+            animate={{ opacity: [0, 1, 0], scale: [0.3, 1, 0.4], rotate: [0, 70, 130] }}
+            transition={{
+              duration: MOVEMENT.LOOT_TWINKLE_MS / 1000,
+              delay: (p.delayMs % 900) / 1000,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+};

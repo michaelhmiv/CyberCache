@@ -56,6 +56,34 @@ export const MOVEMENT = {
   DEATH_COLLAPSE_MS: 750,
   BANNER_IN_MS: 450,
 
+  // ── Loot moment (P3, spec §5 — loot is THE reward beat) ─────────────
+  /** Per-rarity beat length of one drop's celebration step (spec §5). */
+  LOOT_COMMON_MS: 900,
+  LOOT_UNCOMMON_MS: 1000,
+  LOOT_RARE_MS: 1100,
+  LOOT_EPIC_MS: 1400,
+  LOOT_LEGENDARY_MS: 2600,
+  /** Beam grow-in at the start of a step. */
+  LOOT_BEAM_IN_MS: 420,
+  /** Drop card spring-in. */
+  LOOT_CARD_IN_MS: 380,
+  /** Legendary weapon rise out of the beam. */
+  LOOT_RISE_MS: 950,
+  /** Legendary float bob period once the weapon has risen. */
+  LOOT_FLOAT_MS: 2600,
+  /** God-ray disc full rotation (slow, stately). */
+  LOOT_RAYS_SPIN_MS: 16000,
+  /** Shockwave ring expansion across the ground. */
+  LOOT_SHOCKWAVE_MS: 900,
+  /** Twinkle sparkle pulse around the floating weapon. */
+  LOOT_TWINKLE_MS: 1200,
+  /** Hunter celebration hop when the legendary finale lands. */
+  LOOT_HOP_MS: 460,
+  /** World dim under the legendary treatment (spec: ~40%). */
+  LOOT_DIM_OPACITY: 0.4,
+  /** After a skip, the completed stack lingers this long before done. */
+  LOOT_SKIP_LINGER_MS: 650,
+
   // ── Idle life ────────────────────────────────────────────────────────
   /** Breathing loops live in 2.3–3.2 s, offset per actor (spec §4). */
   BREATHE_MIN_MS: 2300,
