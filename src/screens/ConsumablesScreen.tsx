@@ -129,6 +129,12 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
         <div className="text-xs font-black text-amber">{totalOwned}</div>
       </div>
 
+      <div className="rounded-lg border border-border bg-surface px-3 py-2 text-[10px] text-text-muted">
+        While roaming, every roaming consumable you own activates automatically — slots don't turn
+        effects on or off. Slots are a quick view of what you're carrying; boss fights use the set
+        you prepare on the boss screen.
+      </div>
+
       {notice && <div className="rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[10px] text-amber">{notice}</div>}
 
       {/* 3 slots */}

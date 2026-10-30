@@ -64,6 +64,8 @@ import {
   processTick,
   getSurvivalState,
   buildActiveBuffs,
+  isBufferConsumable,
+  bufferHealPerUnit,
   type RoamingConsumableState,
   type LoadoutConsumableSlots,
 } from '../lib/consumables/roamingConsumableEngine';
@@ -417,7 +419,13 @@ export function processRoamingClaim(
 
   // --- Consumable engine initialization ---
   const consumableInventory = request.consumableInventory ?? {};
-  const initialMedKitCount = consumableInventory['MedKit'] ?? 0;
+  // Initial owned counts for every buffer-type consumable (the Med Kit
+  // line), keyed by type — claim-end consumption is derived per type
+  // from how much of each type's buffer pool was absorbed.
+  const initialBufferCounts: Record<string, number> = {};
+  for (const [id, count] of Object.entries(consumableInventory)) {
+    if (count > 0 && isBufferConsumable(id)) initialBufferCounts[id] = count;
+  }
   const masteryLevels = request.masteryLevels ?? {};
   let roamingState: RoamingConsumableState | undefined = request.roamingConsumableState;
   if (!roamingState) {
@@ -425,6 +433,36 @@ export function processRoamingClaim(
     roamingState = activateFromInventory(consumableInventory, tickCount - ticks);
   }
   const consumedConsumables: Record<string, number> = {};
+
+  // Generate one area gear drop (drop-kind roll + shared generators).
+  // Used by the primary loot roll and by Data Skimmer's extra roll.
+  const rollGearDrop = (dropRng: () => number): GearItem | undefined => {
+    const kind = rollAreaDropKind(area, dropRng);
+    switch (kind) {
+      case 'weapon':
+        return generateWeapon(buildAreaWeaponDropOptions(area, playerLevel, dropRng), dropRng);
+      case 'shield':
+        return generateShield(playerLevel, dropRng);
+      case 'classMod':
+        return generateClassMod(playerLevel, dropRng);
+      case 'relic':
+        return generateRelic(playerLevel, dropRng);
+      case 'ordnance':
+        return generateOrdnance(playerLevel, dropRng);
+      default:
+        return undefined;
+    }
+  };
+
+  // Rich detail line for a gear drop: rarity, type, power, element, manufacturer.
+  const gearFeedDetail = (gear: GearItem): string => {
+    const typeLabel = 'weaponType' in gear ? gear.weaponType : 'gear';
+    const powerLabel = 'combatPower' in gear ? ` · ${gear.combatPower} Power` : '';
+    const elemLabel = 'element' in gear ? ` · ${gear.element}` : '';
+    const mfgLabel = 'manufacturer' in gear ? ` · ${gear.manufacturer}` : '';
+    return `${gear.rarity} ${typeLabel}${powerLabel}${elemLabel}${mfgLabel}`;
+  };
+
   // Import emptyMods lazily to avoid circular deps in client imports
   let consumableMods = {
     dpsMultiplier: 1, damageReductionPct: 0, bonusLootChance: 0,
@@ -495,44 +533,38 @@ export function processRoamingClaim(
 
     if (roll < gearThreshold) {
       // Gear drop — generate the actual item server-side
-      const kind = rollAreaDropKind(area, rng);
-      let gear: GearItem | undefined;
-
-      switch (kind) {
-        case 'weapon': {
-          const opts = buildAreaWeaponDropOptions(area, playerLevel, rng);
-          gear = generateWeapon(opts, rng);
-          break;
-        }
-        case 'shield':
-          gear = generateShield(playerLevel, rng);
-          break;
-        case 'classMod':
-          gear = generateClassMod(playerLevel, rng);
-          break;
-        case 'relic':
-          gear = generateRelic(playerLevel, rng);
-          break;
-        case 'ordnance':
-          gear = generateOrdnance(playerLevel, rng);
-          break;
-      }
+      const gear = rollGearDrop(rng);
 
       if (gear) {
         generatedItems.push(gear);
-        // Build a rich detail line: rarity, type, power, element, manufacturer
-        const typeLabel = 'weaponType' in gear ? gear.weaponType : 'gear';
-        const powerLabel = 'combatPower' in gear ? ` · ${gear.combatPower} Power` : '';
-        const elemLabel = 'element' in gear ? ` · ${gear.element}` : '';
-        const mfgLabel = 'manufacturer' in gear ? ` · ${gear.manufacturer}` : '';
         feedEvents.push({
           at: now - (ticks - 1 - tickIdx) * TICK_MS,
           tone: 'loot',
           label: gear.name,
-          detail: `${gear.rarity} ${typeLabel}${powerLabel}${elemLabel}${mfgLabel}`,
+          detail: gearFeedDetail(gear),
           gear,
           areaId,
         });
+
+        // Data Skimmer (extraLootRollChance): one bonus loot roll per
+        // gear drop, rolled on the same tick RNG stream. This is the
+        // roaming consumer for the def's extra-roll effect — before the
+        // consumable contract repair the mod was produced every tick
+        // and never read.
+        if (consumableMods.extraLootRollChance > 0 && rng() < consumableMods.extraLootRollChance) {
+          const bonusGear = rollGearDrop(rng);
+          if (bonusGear) {
+            generatedItems.push(bonusGear);
+            feedEvents.push({
+              at: now - (ticks - 1 - tickIdx) * TICK_MS,
+              tone: 'loot',
+              label: bonusGear.name,
+              detail: `${gearFeedDetail(bonusGear)} · Data Skimmer extra roll`,
+              gear: bonusGear,
+              areaId,
+            });
+          }
+        }
       }
     } else if (roll < fragmentThreshold) {
       fragmentsAwarded++;
@@ -696,18 +728,18 @@ export function processRoamingClaim(
           }
           survShield = Math.max(0, survShield - hit.shieldAbsorbed);
 
-          // Med Kit buffer absorbs damage after shield, before HP
+          // Med Kit buffer absorbs damage after shield, before HP.
+          // Buffer pools stack across the Med Kit line (base + refined);
+          // drain each pool in slot order so per-type consumption can be
+          // derived from each pool's remainder at claim end.
           let remainingHpDamage = hit.hpDamage;
-          if (roamingState) {
-            const survState = getSurvivalState(roamingState);
-            if (survState.medKitBuffer > 0 && remainingHpDamage > 0) {
-              const absorbed = Math.min(survState.medKitBuffer, remainingHpDamage);
+          if (roamingState && remainingHpDamage > 0) {
+            for (const slot of roamingState.slots) {
+              if (remainingHpDamage <= 0) break;
+              if (!isBufferConsumable(slot.consumableId) || slot.remainingBuffer <= 0) continue;
+              const absorbed = Math.min(slot.remainingBuffer, remainingHpDamage);
+              slot.remainingBuffer -= absorbed;
               remainingHpDamage -= absorbed;
-              // Update buffer in roaming state
-              const medKitSlot = roamingState.slots.find(
-                (s) => s.consumableId === 'MedKit' || s.consumableId === 'MedKitRefined'
-              );
-              if (medKitSlot) medKitSlot.remainingBuffer -= absorbed;
             }
           }
 
@@ -729,17 +761,24 @@ export function processRoamingClaim(
     }
   }
 
-  // Compute MedKit consumption from buffer absorption (flat stacking model).
-  // Each 150 HP of buffer absorbed = 1 medkit consumed.
-  if (roamingState && initialMedKitCount > 0) {
-    const medKitSlot = roamingState.slots.find(
-      (s) => s.consumableId === 'MedKit' || s.consumableId === 'MedKitRefined'
-    );
-    if (medKitSlot) {
-      const remainingFull = Math.floor(Math.max(0, medKitSlot.remainingBuffer) / 150);
-      const consumed = initialMedKitCount - remainingFull;
+  // Compute buffer consumption from absorption (flat stacking model),
+  // per type: each full def-healHp of a type's pool absorbed = 1 unit of
+  // that type consumed. (The pre-repair code lumped both Med Kit types
+  // into the base type's count at a hard-coded 150/unit, so Refined
+  // absorption was charged as base Med Kits — or not at all, since
+  // Refined never activated.)
+  if (roamingState) {
+    for (const slot of roamingState.slots) {
+      if (!isBufferConsumable(slot.consumableId)) continue;
+      const initialCount = initialBufferCounts[slot.consumableId] ?? 0;
+      if (initialCount <= 0) continue;
+      const perUnit = bufferHealPerUnit(slot.consumableId);
+      if (perUnit <= 0) continue;
+      const remainingFull = Math.floor(Math.max(0, slot.remainingBuffer) / perUnit);
+      const consumed = initialCount - remainingFull;
       if (consumed > 0) {
-        consumedConsumables['MedKit'] = (consumedConsumables['MedKit'] ?? 0) + consumed;
+        consumedConsumables[slot.consumableId] =
+          (consumedConsumables[slot.consumableId] ?? 0) + consumed;
       }
     }
   }

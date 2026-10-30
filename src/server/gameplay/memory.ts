@@ -436,7 +436,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return result;
   }
 
-  async settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput): Promise<Json> {
+  async settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json): Promise<Json> {
     if (!settlementNonce || settlementNonce.trim().length < 8) {
       throw new GameplayStoreError('settlement_nonce is required (min 8 chars)');
     }
@@ -465,6 +465,31 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
 
     const newTickCount = p.last_claimed_tick + ticksRequested;
     const echo = this.applyRewardBundle(p, rewards);
+
+    // 0012: apply the engine's consumed set in the same settlement —
+    // clamped to owned counts, with consumable_events rows, mirroring
+    // cc_consume_roaming_consumables (the foreground write path).
+    const appliedConsumables: Record<string, number> = {};
+    if (consumedConsumables) {
+      const nextConsumables = { ...p.consumables };
+      for (const [itemKey, rawQty] of Object.entries(asRecord(consumedConsumables))) {
+        if (rawQty <= 0) continue;
+        const applied = Math.min(rawQty, Math.max(0, Math.trunc(nextConsumables[itemKey] ?? 0)));
+        if (applied <= 0) continue;
+        nextConsumables[itemKey] = Math.trunc(nextConsumables[itemKey] ?? 0) - applied;
+        appliedConsumables[itemKey] = applied;
+        this.consumableEvents.push({
+          user_id: playerId,
+          consumable_type: itemKey,
+          quantity_delta: -applied,
+          event_type: 'used',
+          activity_type: 'roaming_loot',
+          reason: `Consumed during offline settlement in ${action.target_id ?? ''}`,
+        });
+      }
+      p.consumables = nextConsumables;
+    }
+
     p.last_claimed_tick = newTickCount;
     p.last_roaming_settled_at = nowTs.toISOString();
     p.last_settlement_nonce = settlementNonce;
@@ -494,6 +519,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       end_tick: newTickCount,
       profile: this.snapshot(p),
       rewards: { ...echo, ticks: ticksRequested },
+      consumed_consumables: appliedConsumables,
     };
     this.ledger.set(nonceKey, result);
     return result;

@@ -118,7 +118,7 @@ export interface ChefGameplayStore {
   storeChefItems(playerId: string, items: unknown[]): Promise<Json>;
   consumeRoamingConsumables(playerId: string, consumed: Json, areaId: string, tickCount: number): Promise<Json>;
   applyChefBossAttempt(playerId: string, attempt: ChefBossAttemptInput): Promise<Json>;
-  settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput): Promise<Json>;
+  settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
 }
 
@@ -295,8 +295,8 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     );
   }
 
-  settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput): Promise<Json> {
-    return this.callJson('select public.cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) as result', [
+  settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json): Promise<Json> {
+    return this.callJson('select public.cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) as result', [
       playerId,
       settlementNonce,
       rewards.credits,
@@ -309,6 +309,10 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       rewards.scrapRemainder ?? null,
       rewards.creditsRemainder ?? null,
       rewards.xpRemainder ?? null,
+      // 0012: the engine's consumed set, applied atomically inside the
+      // settlement (offline claims used to grant consumable benefits
+      // without ever decrementing inventory).
+      consumedConsumables ?? null,
     ]);
   }
 

@@ -116,7 +116,12 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
           materials: result.rewards.materials as Json,
           essences: result.rewards.essences as Json,
           kills: result.rewards.killsRecorded,
-        })) as Record<string, unknown> | null;
+        },
+        // 0012: offline ticks run the same consumable engine as
+        // foreground claims; the consumed set is applied atomically
+        // inside the settlement instead of being discarded (offline
+        // benefits used to be free forever).
+        result.consumedConsumables as Json)) as Record<string, unknown> | null;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         res.status(500).json({ error: 'Atomic settlement failed', detail: message });
@@ -157,6 +162,7 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         rewards: result.rewards,
         items: result.items,
         feedEvents: result.feedEvents,
+        consumedConsumables: result.consumedConsumables,
         idempotent: false,
       });
     } catch (err) {

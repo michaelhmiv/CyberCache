@@ -34,6 +34,7 @@ in screens or components is forbidden.
 | **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` | Persisted via Chef runtime snapshot |
 | **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Chef runtime snapshot |
 | **Boss prep analysis** | `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |
+| **Consumable effect values, durations & roaming scope** | `src/constants/consumables.ts` (`CONSUMABLES` defs) | The roaming engine (`src/lib/consumables/roamingConsumableEngine.ts`) derives every magnitude, duration, threshold, and its activation set from the defs — no engine-local value tables. Roaming auto-activates all owned roaming-scoped consumables; consumption is persisted by the claim route (`cc_consume_roaming_consumables`) and, for offline ticks, atomically inside `cc_settle_offline_roaming` (migration 0012) |
 | **Boss attempts** | `src/server/chef.ts` + `src/server/routes/claim.ts` via `POST /api/verify-boss` | Client sends intent/loadout. Chef rolls outcome, consumables, XP, credits, pity, unlocks, and loot. |
 | **Crafting / salvaging / workshop** | `src/store/slices/workshopSlice.ts` + `src/lib/craftingEngine.ts` | Queue-based |
 | **Public profile activity** | `src/types/activity.ts` → `ActiveActivity.publicPayload` | Display-only; derived from activity store |
@@ -396,4 +397,4 @@ Both use the same Mulberry32 RNG. Same seed = same item.
 
 ---
 
-*Last updated: 2026-06-12 — Offline settlement repair: server-authoritative /api/settle-offline, correct tick semantics, idempotent nonce, durable recap UI, 18 regression tests.*
+*Last updated: 2026-10-30 — Phase 0 Slice 2 (consumable contract repair): roaming consumable values/durations/scopes derive solely from `src/constants/consumables.ts`; Data Skimmer's extra loot roll is wired into the claim's loot roll; offline settlement applies the engine's consumed set atomically (migration 0012); a foreground consumption-persistence failure now fails the claim instead of silently paying out.*
