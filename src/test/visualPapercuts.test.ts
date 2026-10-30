@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { toMessage } from '../auth/AuthProvider';
+import { toMessage } from '../auth/errorText';
 import { canStartCraft } from '../lib/craftingEngine';
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), 'utf8');
