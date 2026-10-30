@@ -95,6 +95,8 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         maxTicks: Infinity, // NO 20-TICK CLAMP for offline settlement
         effectiveDps: 0,
         consumableInventory: (profile.consumables ?? {}) as Record<string, number>,
+        // Server-authoritative scrap bank (migration 0009).
+        scrapRemainder: profile.scrap_remainder,
       };
 
       const result = processRoamingClaim(claim);
@@ -104,6 +106,7 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         settlement = (await store.settleOfflineRoaming(playerId, body.settlementNonce, {
           credits: result.rewards.creditsAwarded,
           scrap: result.rewards.scrapAwarded,
+          scrapRemainder: result.rewards.scrapRemainder,
           xp: result.rewards.xpAwarded,
           fragments: result.rewards.cacheFragmentsAwarded,
           materials: result.rewards.materials as Json,

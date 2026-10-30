@@ -34,6 +34,8 @@ export class GameplayStoreError extends Error {
 export interface RoamingProfileRow {
   last_claimed_tick: number;
   consumables: Json;
+  /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
+  scrap_remainder: number;
 }
 
 /** profiles subset the boss handler reads. */
@@ -52,6 +54,8 @@ export interface SettlementProfileRow {
   last_roaming_settled_at: string | null;
   last_settlement_nonce: string | null;
   offline_cap_hours: number | null;
+  /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
+  scrap_remainder: number;
 }
 
 /** active_actions row the offline-settlement handler reads. */
@@ -68,6 +72,8 @@ export interface ActiveActionRow {
 export interface ChefRewardsInput {
   credits: number;
   scrap: number;
+  /** New banked fractional scrap to persist (migration 0009); omit/null leaves the bank untouched. */
+  scrapRemainder?: number | null;
   xp: number;
   fragments: number;
   materials: Json;
@@ -156,11 +162,12 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     return this.one(
-      'select last_claimed_tick, consumables from public.profiles where id = $1',
+      'select last_claimed_tick, consumables, scrap_remainder from public.profiles where id = $1',
       [playerId],
       (row) => ({
         last_claimed_tick: num(row.last_claimed_tick),
         consumables: json(row.consumables),
+        scrap_remainder: num(row.scrap_remainder),
       }),
     );
   }
@@ -180,7 +187,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
     return this.one(
-      'select player_level, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours from public.profiles where id = $1',
+      'select player_level, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -192,6 +199,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
             ? null
             : String(row.last_settlement_nonce),
         offline_cap_hours: numOrNull(row.offline_cap_hours),
+        scrap_remainder: num(row.scrap_remainder),
       }),
     );
   }
@@ -213,7 +221,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json> {
     return this.callJson(
-      'select public.cc_apply_chef_rewards($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) as result',
+      'select public.cc_apply_chef_rewards($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) as result',
       [
         playerId,
         rewards.credits,
@@ -225,6 +233,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         rewards.kills,
         tickCount,
         areaId,
+        rewards.scrapRemainder ?? null,
       ],
     );
   }
@@ -266,7 +275,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
   }
 
   settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput): Promise<Json> {
-    return this.callJson('select public.cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9) as result', [
+    return this.callJson('select public.cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) as result', [
       playerId,
       settlementNonce,
       rewards.credits,
@@ -276,6 +285,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       rewards.materials,
       rewards.essences,
       rewards.kills,
+      rewards.scrapRemainder ?? null,
     ]);
   }
 

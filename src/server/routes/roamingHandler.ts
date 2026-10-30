@@ -56,6 +56,9 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
       // Merge inventory + roaming state into the claim
       const claimWithConsumables: ClaimRequest = {
         ...claim,
+        // Server-authoritative scrap bank (migration 0009): read from the
+        // profile, never from the client body spread above.
+        scrapRemainder: profile.scrap_remainder,
         consumableInventory,
         roamingConsumableState: body.roamingConsumableState,
         masteryLevels: body.masteryLevels,
@@ -70,6 +73,7 @@ export function createClaimHandler(store: ChefGameplayStore, config: AuthConfig)
           {
             credits: result.rewards.creditsAwarded,
             scrap: result.rewards.scrapAwarded,
+            scrapRemainder: result.rewards.scrapRemainder,
             xp: result.rewards.xpAwarded,
             fragments: result.rewards.cacheFragmentsAwarded,
             materials: result.rewards.materials as Json,

@@ -357,7 +357,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   // vertical reflow that the layout-thrash bug was caused by. The actual
   // reward tick is handled by the singleton ticker in idleTickerSlice.
   const creditsPerTick = Math.round((selectedArea.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0)));
-  const scrapPerTick = Math.round((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0)));
+  // Fractional: scrap accrues unrounded on the server and banks across
+  // claims (migration 0009), so the honest preview is the raw rate.
+  const scrapPerTick = parseFloat(((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0))).toFixed(2));
   const targetLabel = activity.current.targetLabel ?? (currentKind === 'idle_standby' || currentKind === 'none' ? 'No target selected' : selectedArea.name);
   const detail = isBossPrep ? bossPrepCopy : copy[currentKind] ?? copy.idle_standby;
   // Merge tick-feed events (from the canonical ticker) with lifecycle events
