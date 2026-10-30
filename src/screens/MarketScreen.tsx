@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, History, List, RefreshCw, Search, X } from 'lucide-react';
+import { Filter, History, List, Lock, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { GearCompare } from '@/components/gear/GearCompare';
@@ -23,6 +23,8 @@ import type { MarketListingQuery, MarketSort } from '@/lib/market/listingQuery';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
 import { FeatureGate } from '@/auth/FeatureGate';
+import { canUseFeature } from '@/auth/accountState';
+import { MaterialUsageSheet } from '@/components/common/MaterialUsageSheet';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { fetchMarketListings, fetchMyMarketListings } from '@/lib/api/marketListings';
 import { fetchPriceStats } from '@/lib/api/marketPriceStats';
@@ -131,7 +133,7 @@ function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem;
 }
 
 /** Compact card for consumable/material stack listings (0019). */
-function StackMiniCard({ listing, right }: { listing: Listing; right?: React.ReactNode }) {
+function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; right?: React.ReactNode; onShowUsage?: (materialId: string) => void }) {
   const glyph = listing.kind === 'consumable'
     ? (listing.consumableType ? CONSUMABLES[listing.consumableType]?.visual.glyph ?? '🧪' : '🧪')
     : '🧱';
@@ -145,6 +147,15 @@ function StackMiniCard({ listing, right }: { listing: Listing; right?: React.Rea
         <div className="truncate text-xs font-black text-text-primary">{listing.displayName}</div>
         <div className="text-[10px] text-text-muted">{meta}</div>
         {listing.unitPrice > 0 && <div className="text-[9px] text-text-muted">{Math.round(listing.unitPrice).toLocaleString()}cr each</div>}
+        {listing.kind === 'material' && listing.materialId && onShowUsage && (
+          <button
+            type="button"
+            onClick={() => onShowUsage(listing.materialId!)}
+            className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-amber"
+          >
+            Used in ▸
+          </button>
+        )}
       </div>
       {right}
     </div>
@@ -202,7 +213,11 @@ export const MarketScreen: React.FC = () => {
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const skillBonuses = useSkillStore().getBonuses();
-  const { user } = useAuth();
+  const { user, account } = useAuth();
+  // Guest locks BEFORE the tap: player-market tabs carry a lock badge
+  // up front when the account can't use the market feature, instead of
+  // looking open and refusing after the tap.
+  const marketLocked = !canUseFeature(account, 'market').allowed;
   const currentUserId = user?.id ?? null;
   const [search, setSearch] = useState('');
   const [sellSearch, setSellSearch] = useState('');
@@ -231,6 +246,7 @@ export const MarketScreen: React.FC = () => {
   const [buyTotal, setBuyTotal] = useState(0);
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [priceStats, setPriceStats] = useState<Record<string, PriceStats>>({});
+  const [usageMaterialId, setUsageMaterialId] = useState<string | null>(null);
   const [pendingBuyId, setPendingBuyId] = useState<string | null>(null);
   const [pendingListId, setPendingListId] = useState<string | null>(null);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
@@ -543,12 +559,24 @@ export const MarketScreen: React.FC = () => {
       <ResourceBar />
 
       <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => market.setActiveTab(t.id)} className={`flex flex-1 flex-col items-center gap-1 rounded-xl border py-2 min-w-[60px] text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>
-            {t.icon ? <t.icon size={16} /> : <span className="font-black" style={{ fontSize: '16px' }}>{t.glyph}</span>}
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const tabLocked = marketLocked && t.id !== 'vendor';
+          return (
+            <button
+              key={t.id}
+              onClick={() => market.setActiveTab(t.id)}
+              aria-label={tabLocked ? `${t.label} (locked — sign in to use the player market)` : t.label}
+              className={`relative flex flex-1 flex-col items-center gap-1 rounded-xl border py-2 min-w-[60px] text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
+            >
+              {t.icon ? <t.icon size={16} /> : <span className="font-black" style={{ fontSize: '16px' }}>{t.glyph}</span>}
+              <span className="flex items-center gap-1">
+                {t.label}
+                {tabLocked && <Lock size={9} aria-hidden />}
+              </span>
+              {tabLocked && <span className="text-[7px] font-black uppercase tracking-wider opacity-80">Locked</span>}
+            </button>
+          );
+        })}
       </div>
 
       {market.activeTab === 'vendor' && <VendorScreen />}
@@ -637,7 +665,7 @@ export const MarketScreen: React.FC = () => {
                   {listing.kind === 'gear' && listing.itemSnapshot ? (
                     <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
                   ) : (
-                    <StackMiniCard listing={listing} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
+                    <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
                   )}
                   <PriceTrend stats={stats} />
                   <button onClick={() => handleBuy(listing)} disabled={player.credits < listing.price || pendingBuyId === listing.id} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">
@@ -716,7 +744,7 @@ export const MarketScreen: React.FC = () => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div key={batch.id} className="bl-card space-y-2">
-                    <StackMiniCard listing={{ id: batch.id, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'consumable', itemId: null, itemSnapshot: null, category: 'consumable', displayName: CONSUMABLES[batch.consumable_type]?.name ?? batch.consumable_type, quantity: batch.quantity, qualityPercent: batch.quality_percent, consumableType: batch.consumable_type, materialId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: batch.id, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'consumable', itemId: null, itemSnapshot: null, category: 'consumable', displayName: CONSUMABLES[batch.consumable_type]?.name ?? batch.consumable_type, quantity: batch.quantity, qualityPercent: batch.quality_percent, consumableType: batch.consumable_type, materialId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={batch.quantity} onChange={(e) => setStackQty((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
@@ -743,7 +771,7 @@ export const MarketScreen: React.FC = () => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div key={materialId} className="bl-card space-y-2">
-                    <StackMiniCard listing={{ id: materialId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'material', itemId: null, itemSnapshot: null, category: 'material', displayName: materialId, quantity: owned, qualityPercent: null, consumableType: null, materialId, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: materialId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'material', itemId: null, itemSnapshot: null, category: 'material', displayName: materialId, quantity: owned, qualityPercent: null, consumableType: null, materialId, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
@@ -806,7 +834,7 @@ export const MarketScreen: React.FC = () => {
               {listing.kind === 'gear' && listing.itemSnapshot ? (
                 <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
               ) : (
-                <StackMiniCard listing={listing} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
+                <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
               )}
               <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
               <button onClick={() => handleCancelListing(listing)} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500 disabled:opacity-50">
@@ -829,6 +857,8 @@ export const MarketScreen: React.FC = () => {
       )}
 
       <GearInspectSheet item={inspectItem} open={!!inspectItem} onClose={() => setInspectItem(null)} contextLabel="Market Inspect" />
+
+      <MaterialUsageSheet materialId={usageMaterialId} onClose={() => setUsageMaterialId(null)} />
 
       <AnimatePresence>
         {toastMessage && (

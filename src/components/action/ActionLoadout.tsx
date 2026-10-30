@@ -1,7 +1,11 @@
 /**
- * ActionLoadout — star-pattern loadout display for the Action tab.
+ * ActionLoadout — star-pattern loadout display.
  *
- * Collapsible. Click any slot chip to open a filtered gear picker.
+ * Two modes (Phase 1: one gear home):
+ *  - Manage mode (Inventory → Loadout, the gear home): click any slot
+ *    chip to open the Slot Picker — the one equip surface.
+ *  - Read-only mode (Fight tab): display only; slot taps and the
+ *    Manage button route to the gear home via `onManageLoadout`.
  * DPS readout and consumable chips visible in both expanded and collapsed states.
  *
  * Layout (3-column grid, expanded):
@@ -151,7 +155,31 @@ const SlotChip: React.FC<{
 
 // ── Main component ─────────────────────────────────────────────────
 
-export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) => {
+export interface ActionLoadoutProps {
+  className?: string;
+  /**
+   * Read-only display mode (Phase 1: one gear home). Slot taps and the
+   * Manage button route through `onManageLoadout` — the ONE door into
+   * the gear home (Inventory → Loadout). No picker, no presets, no
+   * equip/unequip controls render in this mode.
+   */
+  readOnly?: boolean;
+  onManageLoadout?: () => void;
+  /**
+   * Gear-home deep link: when set at mount (e.g. GearHub's Equip action
+   * picked a slot and the home switched to this tab), the picker for
+   * that slot starts open. Mount-only — the home mounts this component
+   * fresh when the Loadout tab is entered.
+   */
+  requestedPickerSlot?: LoadoutSlot | null;
+}
+
+export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
+  className,
+  readOnly = false,
+  onManageLoadout,
+  requestedPickerSlot = null,
+}) => {
   const loadout = useLoadoutStore();
   const player = usePlayerStore();
   const inventory = useInventoryStore();
@@ -167,7 +195,9 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
   const emptyLoadout = equippedCount === 0;
 
   // Auto-expand when loadout is empty — the player needs to see what to fill.
+  // A mount-time picker request (gear-home deep link) also forces expand.
   const [collapsed, setCollapsed] = useState(() => {
+    if (requestedPickerSlot) return false;
     if (emptyLoadout) return false; // always expand for empty loadout
     return readCollapsed();
   });
@@ -182,7 +212,19 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pickerSlot, setPickerSlot] = useState<LoadoutSlot | null>(null);
+  // Gear-home deep link: a mount-time request starts with that slot's
+  // picker already open (read-only displays never open the picker).
+  const [pickerSlot, setPickerSlot] = useState<LoadoutSlot | null>(() =>
+    readOnly ? null : requestedPickerSlot,
+  );
+
+  const handleSlotTap = (slot: LoadoutSlot) => {
+    if (readOnly) {
+      onManageLoadout?.();
+      return;
+    }
+    setPickerSlot(slot);
+  };
   const [undo, setUndo] = useState<{ slot: LoadoutSlot; previousId: string | null; name: string } | null>(null);
 
   const toggle = useCallback(() => {
@@ -268,6 +310,15 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
           </div>
         </button>
         <div className="flex items-center gap-2">
+          {readOnly && (
+            <button
+              type="button"
+              onClick={onManageLoadout}
+              className="bl-primary px-2.5 py-1.5 text-[10px] font-black"
+            >
+              Manage
+            </button>
+          )}
           <div className="text-right">
             <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">DPS</div>
             <div className={`text-lg font-black ${dps > 0 ? 'text-amber' : 'text-text-muted'}`}>
@@ -306,10 +357,16 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
         <ConsumablesChips className="text-[9px]" />
       </div>
 
-      {/* Collapsed summary strip */}
-      {collapsed && (
+      {/* Collapsed summary strip — presets are management, so they live
+          only in the gear home (hidden in read-only display mode). */}
+      {collapsed && !readOnly && (
         <div className="mt-2">
           <PresetSwitcher />
+        </div>
+      )}
+      {collapsed && readOnly && (
+        <div className="mt-2 text-[9px] text-text-muted">
+          Gear is managed in one place — tap Manage to open your Loadout.
         </div>
       )}
 
@@ -323,9 +380,11 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-2">
-              <PresetSwitcher />
-            </div>
+            {!readOnly && (
+              <div className="mt-2">
+                <PresetSwitcher />
+              </div>
+            )}
             <div className="mt-3 relative" style={{ paddingTop: '75%' }}>
               <StarConnectors />
               <div
@@ -341,7 +400,7 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
                         glyph={glyph}
                         item={item}
                         isCenter={isCenter}
-                        onClick={() => setPickerSlot(slot)}
+                        onClick={() => handleSlotTap(slot)}
                       />
                     </div>
                   );
@@ -352,9 +411,10 @@ export const ActionLoadout: React.FC<{ className?: string }> = ({ className }) =
         )}
       </AnimatePresence>
 
-      {/* Slot gear picker sheet */}
+      {/* Slot gear picker sheet — THE equip surface. It renders only in
+          the gear home's manage mode, never on read-only displays. */}
       <AnimatePresence>
-        {pickerSlot && (
+        {!readOnly && pickerSlot && (
           <SlotGearPicker
             slot={pickerSlot}
             currentItemId={currentItemId}

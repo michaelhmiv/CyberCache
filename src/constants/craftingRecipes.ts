@@ -46,3 +46,8 @@ export function getRecipeById(id: string): CraftingRecipe | undefined {
 export function getRecipesByCategory(category: string): CraftingRecipe[] {
   return CRAFTING_RECIPES.filter((r) => r.category === category);
 }
+
+/** Every recipe that consumes the given material or essence id. */
+export function getRecipesUsingMaterial(materialId: string): CraftingRecipe[] {
+  return CRAFTING_RECIPES.filter((r) => (r.materials[materialId] ?? 0) > 0);
+}

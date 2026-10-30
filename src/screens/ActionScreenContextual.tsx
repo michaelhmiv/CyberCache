@@ -18,8 +18,9 @@ import {
   useWorkshopStore,
 } from '@/store';
 import { BossEncounterPanel } from '@/components/fight/BossEncounterPanel';
+import { BossPickerList } from '@/components/fight/BossPickerList';
+import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
 import { MobileCard } from '@/components/layout/MobileCard';
-import { getVisualAsset } from '@/constants/visualAssets';
 import {
   ActionFeed,
   ContextualPickerSheet,
@@ -32,9 +33,7 @@ import { ActivityModifierPanel } from '@/components/action/ActivityModifierPanel
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import {
-  ROAMING_AREAS,
   getRoamingArea,
-  isRoamingAreaUnlocked,
   type RoamingAreaDef,
 } from '@/constants/roamingAreas';
 import { calculateSalvageYield } from '@/constants/salvageRules';
@@ -75,7 +74,7 @@ const ActivityGlyph: React.FC<{ kind: ActivityKind; size?: number; className?: s
 const copy: Record<ActivityKind, { title: string; detail: string }> = {
   none: { title: 'No Action', detail: 'Choose what the hunter should do next.' },
   idle_standby: { title: 'Standby', detail: 'Hunter is visible but not producing rewards.' },
-  roaming_loot: { title: 'Roaming Loot', detail: 'Sweeping turf for XP, credits, scrap, gear, materials, and cache fragments.' },
+  roaming_loot: { title: 'Roaming Loot', detail: 'Sweeping the area for XP, credits, scrap, gear, materials, and cache fragments.' },
   boss_fight: { title: 'Boss Encounter', detail: 'Resolving a focused boss encounter instead of the roaming loop.' },
   crafting: { title: 'Crafting', detail: 'Working at the bench to build or modify gear.' },
   salvaging: { title: 'Salvaging', detail: 'Breaking items into scrap, materials, or essences.' },
@@ -128,38 +127,6 @@ const Section: React.FC<{ title: string; eyebrow?: string; children: React.React
   </MobileCard>
 );
 
-const RouteCard: React.FC<{ area: RoamingAreaDef; selected: boolean; unlocked: boolean; onSelect: () => void; onStart: () => void }> = ({ area, selected, unlocked, onSelect, onStart }) => {
-  const bestRarity = Object.entries(area.dropPoolRarityWeights).sort(([, a], [, b]) => b - a)[0];
-  const dangerClass = area.dangerRating === 'Low' ? 'text-green' : area.dangerRating === 'Medium' ? 'text-amber' : 'text-red';
-  return (
-    <div className={`relative overflow-hidden border-2 p-3 ${selected ? 'border-amber bg-amber/10' : 'border-border bg-bg/70'} ${!unlocked ? 'opacity-55' : ''}`} style={panelClip}>
-      <div className="absolute right-0 top-0 h-full w-1/3 bg-[linear-gradient(135deg,rgba(245,181,68,0.12),transparent)]" />
-      <div className="relative flex items-start justify-between gap-3">
-        <button
-          type="button"
-          onClick={selected ? onStart : onSelect}
-          disabled={!unlocked}
-          className="min-w-0 flex-1 text-left"
-          aria-label={selected ? `Run ${area.name}` : `Select ${area.name}`}
-        >
-          <div className="text-sm font-black text-text-primary">{area.name}</div>
-          <div className="mt-0.5 text-[10px] text-text-muted">Lv.{area.unlockLevel} · {area.manufacturerInfluence} · <span className={dangerClass}>{area.dangerRating}</span></div>
-          <div className="mt-2 text-[10px] leading-snug text-text-secondary">{area.gameplayIdentity}</div>
-        </button>
-        <button type="button" onClick={onStart} disabled={!unlocked} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber disabled:opacity-40">
-          {selected ? 'Run' : 'Switch'}
-        </button>
-      </div>
-      <div className="relative mt-3 grid grid-cols-3 gap-1.5 text-[9px]">
-        <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Rates</span><div className="font-black text-text-primary">{area.idleCreditsPerMinute}cr/min</div></div>
-        <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Loot</span><div className="truncate font-black text-amber">{area.lootBias[0]}</div></div>
-        <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Rarity</span><div className="font-black text-text-primary">{bestRarity?.[0]}</div></div>
-      </div>
-      <div className="relative mt-2 text-[9px] text-text-muted">{unlocked ? area.selectionHint : `Locked until level ${area.unlockLevel}.`}</div>
-    </div>
-  );
-};
-
 const GearInspectModal: React.FC<{ item: GearItem | null; onClose: () => void }> = ({ item, onClose }) => {
   if (!item) return null;
   return (
@@ -203,15 +170,15 @@ type CommonPanelProps = {
   onNavigate?: (screen: string) => void;
 };
 
-const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number; onRecipePicker: () => void }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onRecipePicker }) => {
+const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onNavigate }) => {
   const now = useNow();
   const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, playerMaterials, playerEssences, playerLevel), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
   const canNow = craftable.filter(({ check }) => check.can);
   return (
     <div className="space-y-3">
-      <RewardIntelPanel title="Bench output forecast" eyebrow="crafting intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Queued', value: queues.length }, { label: 'Craftable', value: canNow.length, tone: 'amber' }, { label: 'Recipes', value: CRAFTING_RECIPES.length }, { label: 'Reduction', value: `${skillReductionPoints}%`, tone: 'cyan' }, { label: 'Blocked', value: Math.max(0, CRAFTING_RECIPES.length - canNow.length), tone: 'red' }]}>Choose a recipe from the sheet; the action page stays focused on active output and queue status.</RewardIntelPanel>
+      <RewardIntelPanel title="Bench output forecast" eyebrow="crafting intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Queued', value: queues.length }, { label: 'Craftable', value: canNow.length, tone: 'amber' }, { label: 'Recipes', value: CRAFTING_RECIPES.length }, { label: 'Reduction', value: `${skillReductionPoints}%`, tone: 'cyan' }, { label: 'Blocked', value: Math.max(0, CRAFTING_RECIPES.length - canNow.length), tone: 'red' }]}>Recipes are chosen in the Workshop — crafting has one home. This page stays focused on active output and queue status.</RewardIntelPanel>
       {queues.length > 0 && <Section title="Active Bench Queues" eyebrow="machine deck" icon={<Clock size={15} />}><div className="space-y-2">{queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; return <div key={`${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {q.benchId}: {recipe?.name ?? q.recipeId}</span><span className="text-amber">{formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div></div>; })}</div></Section>}
-      <Section title="Recipe Control" eyebrow="selector moved" icon={<ActivityGlyph kind="crafting" />}><button type="button" onClick={onRecipePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Recipe</button><button type="button" onClick={startCrafting} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Crafting As Current Action</button></Section>
+      <Section title="Recipe Control" eyebrow="workshop owns recipes" icon={<ActivityGlyph kind="crafting" />}><button type="button" onClick={() => onNavigate?.('workshop')} className="bl-primary w-full py-2 text-xs font-black">Open Workshop</button><button type="button" onClick={startCrafting} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Crafting As Current Action</button></Section>
     </div>
   );
 };
@@ -223,7 +190,7 @@ const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePi
   return (
     <div className="space-y-3">
       <RewardIntelPanel title="Breakdown forecast" eyebrow="salvage intel" stats={[{ label: 'Candidates', value: candidates.length }, { label: 'Alloy', value: y?.scrapAlloy ?? 0, tone: 'green' }, { label: 'Parts', value: y?.ballisticParts ?? 0, tone: 'amber' }, { label: 'Reactive', value: y?.reactiveComponents ?? 0, tone: 'cyan' }, { label: 'Tech', value: y?.techFragments ?? 0 }, { label: 'Void', value: y?.voidDust ?? 0, tone: 'red' }]}>Top candidate: {top?.name ?? 'None'}. Higher rarity = dramatically more materials.</RewardIntelPanel>
-      <Section title="Salvage Control" eyebrow="item selector" icon={<ActivityGlyph kind="salvaging" />}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => startSalvage(top)} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Set Top Candidate As Action</button><button type="button" onClick={() => onNavigate?.('loot')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear Yard</button></Section>
+      <Section title="Salvage Control" eyebrow="item selector" icon={<ActivityGlyph kind="salvaging" />}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => startSalvage(top)} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Set Top Candidate As Action</button><button type="button" onClick={() => onNavigate?.('inventory')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear</button></Section>
     </div>
   );
 };
@@ -233,7 +200,7 @@ const _IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep,
   <div className="space-y-3">
     <Section title="Recommended Dispatch" eyebrow="no action active" icon={<ActivityGlyph kind="idle_standby" />}>
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => startRoam?.()} className="border-2 border-amber/40 bg-amber/10 p-3 text-left" style={panelClip}><ActivityGlyph kind="roaming_loot" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Start Roam</div><div className="text-[10px] text-text-muted">{selectedArea?.name ?? 'Default route'}</div></button>
+        <button type="button" onClick={() => startRoam?.()} className="border-2 border-amber/40 bg-amber/10 p-3 text-left" style={panelClip}><ActivityGlyph kind="roaming_loot" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Start Roam</div><div className="text-[10px] text-text-muted">{selectedArea?.name ?? 'Default area'}</div></button>
         <button type="button" onClick={() => startPrep?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="boss_fight" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Prep Boss</div><div className="text-[10px] text-text-muted">Check counters first</div></button>
         <button type="button" onClick={() => startCrafting?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="crafting" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Craft</div><div className="text-[10px] text-text-muted">Recipes and benches</div></button>
         <button type="button" onClick={() => startSalvage?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="salvaging" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Salvage</div><div className="text-[10px] text-text-muted">Break down low gear</div></button>
@@ -258,7 +225,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showSwitch, setShowSwitch] = useState(false);
   const [showAreaSelect, setShowAreaSelect] = useState(false);
   const [showBossPicker, setShowBossPicker] = useState(false);
-  const [showRecipePicker, setShowRecipePicker] = useState(false);
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
   const [showMarketPicker, setShowMarketPicker] = useState(false);
   const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
@@ -306,7 +272,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const visualFeed = (currentKind === 'idle_standby' || currentKind === 'none')
     ? feed
     : [...tickDisplayEvents, ...feed.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT);
-  const bosses = REGION_1_BOSSES.filter((boss) => bossStore.unlockedBossIds.includes(boss.id) || boss.level <= player.level + 5).slice(0, 8);
   const benchesFree = Math.max(0, workshop.unlockedBenchCount - new Set(workshop.activeQueues.map((q) => q.benchId)).size);
   const sellableItems = inventory.items.filter((item) => !item.isLocked);
   const skillReductionPoints = (skillBonuses.consumableEfficiency || 0) * 10;
@@ -324,7 +289,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       setShowSwitch(false);
       setShowAreaSelect(false);
       setShowBossPicker(false);
-      setShowRecipePicker(false);
       setShowSalvagePicker(false);
       setShowMarketPicker(false);
       pushEvents([event]);
@@ -336,7 +300,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const startRoam = useCallback((area?: RoamingAreaDef) => {
     const target = area ?? selectedArea;
     idle.setSelectedRoamingArea(target.id);
-    startAction(buildRoamingLootActivity(target, activityWeapon), makeRunEvent('ROAMING ROUTE', `Hunter is roaming ${target.name}.`, 'patrol', 'run_started'));
+    startAction(buildRoamingLootActivity(target, activityWeapon), makeRunEvent('ROAMING AREA', `Hunter is roaming ${target.name}.`, 'patrol', 'run_started'));
   }, [activityWeapon, idle, selectedArea, startAction]);
 
   const startPrep = useCallback((boss?: BossDef) => {
@@ -361,7 +325,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const startSalvage = useCallback((item?: GearItem) => {
     const target = item ?? salvageCandidates[0];
     if (!target) {
-      onNavigate?.('loot');
+      onNavigate?.('inventory');
       return;
     }
     startAction(buildSalvagingActivity(target), makeRunEvent('SALVAGE TARGET', `${target.name} staged for breakdown.`, 'patrol', 'salvaging'));
@@ -434,7 +398,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           <div className="absolute -right-6 -top-6 h-20 w-20 rotate-12 border-[10px] border-amber/5" />
           <div className="relative flex items-start justify-between gap-3">
             <div>
-              <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Active Route</div>
+              <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Active Area</div>
               <div className="flex items-center gap-2 mt-0.5">
                 <span style={{ fontSize: 15 }} className="text-amber shrink-0">📡</span>
                 <div>
@@ -444,7 +408,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
               </div>
             </div>
             <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
-              Change Route
+              Change Area
             </button>
           </div>
           <div className="relative mt-2 grid grid-cols-4 gap-1.5 text-[9px]">
@@ -487,7 +451,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       return <BossEncounterPanel key={prepBossTarget.id} boss={prepBossTarget} onChangeBoss={() => setShowBossPicker(true)} onLeave={stopAction} />;
     }
 
-    if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} onRecipePicker={() => setShowRecipePicker(true)} />;
+    if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} />;
     if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} onSalvagePicker={() => setShowSalvagePicker(true)} />;
     if (currentKind === 'workshop_service') return <Section title="Workshop relocated" eyebrow="inventory owns benches" icon={<ActivityGlyph kind="workshop_service" />}><div className="space-y-2 text-xs text-text-muted"><div>Workshop now lives on the Inventory tab.</div><button type="button" onClick={() => onNavigate?.('inventory')} className="bl-primary w-full py-2 text-xs font-black">Open Inventory</button></div></Section>;
     if (currentKind === 'market_listing') return <Section title="Market relocated" eyebrow="market owns listings" icon={<ActivityGlyph kind="market_listing" />}><div className="space-y-2 text-xs text-text-muted"><div>Trading now lives on the Market tab.</div><button type="button" onClick={() => onNavigate?.('market')} className="bl-primary w-full py-2 text-xs font-black">Open Market</button></div></Section>;
@@ -529,6 +493,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         </div>
       </div>
 
+      {/* Persistent current-area chip — tap opens the one area picker */}
+      <div className="relative">
+        <CurrentAreaChip onClick={() => setShowAreaSelect(true)} />
+      </div>
+
       {/* 1. Diorama — dashboard animation at top */}
       <LiveTurfDiorama
         area={selectedArea}
@@ -547,7 +516,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         onTitleClick={() => setShowAreaSelect(true)}
         primaryActionLabel={
           currentKind === 'idle_standby' || currentKind === 'none' ? 'Start Roam'
-          : currentKind === 'roaming_loot' ? 'Change Route'
+          : currentKind === 'roaming_loot' ? 'Change Area'
           : isBossPrep ? 'Start Fight'
           : 'Manage'
         }
@@ -598,8 +567,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* 2. Action-specific panel — above the loadout where it's visible during active play */}
       {workspace}
 
-      {/* 3. Loadout — star-pattern gear constellation */}
-      <ActionLoadout />
+      {/* 3. Loadout — star-pattern gear constellation. Read-only here:
+          the Fight tab displays the loadout; the gear home (Inventory)
+          is the one place it is managed. */}
+      <ActionLoadout readOnly onManageLoadout={() => onNavigate?.('inventory')} />
 
       {/* 2b. Activity modifiers — procedural gear bonuses for current action */}
       <ActivityModifierPanel activityKind={currentKind} />
@@ -641,7 +612,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer instead of crowding the Action tab." onClose={() => setShowSwitch(false)}>
           {switchActions.map(({ label, detail: rowDetail, icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber">{icon}</div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showAreaSelect} title="Choose Roaming Route" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Tap the scene title to switch routes.'} onClose={() => setShowAreaSelect(false)}>
+        <ContextualPickerSheet open={showAreaSelect} title="Choose Area" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Tap the scene title to switch areas.'} onClose={() => setShowAreaSelect(false)}>
           {/* Compact area stats strip — replaces the removed Roaming Intel card */}
           {isRoaming && (
             <div className="mb-3 grid grid-cols-3 gap-1.5 text-[9px]">
@@ -653,13 +624,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Enemy</span><div className="font-black text-text-primary">{selectedArea.enemyType.split(' ')[0]}</div></div>
             </div>
           )}
-          {ROAMING_AREAS.map((area) => { const unlocked = isRoamingAreaUnlocked(area, player.level); const selected = area.id === selectedArea.id; return <RouteCard key={area.id} area={area} selected={selected} unlocked={unlocked} onSelect={() => idle.setSelectedRoamingArea(area.id)} onStart={() => startRoam(area)} />; })}
+          <AreaPickerList onSelect={(area) => idle.setSelectedRoamingArea(area.id)} onStart={(area) => startRoam(area)} />
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showBossPicker} title="Choose Boss Target" detail="Boss selection no longer consumes the default action screen." onClose={() => setShowBossPicker(false)}>
-          {bosses.map((boss) => <button key={boss.id} type="button" onClick={() => startPrep(boss)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="text-sm font-black text-text-primary">{boss.name}</span><span className="text-[9px] text-text-muted">Lv.{boss.level} · Pwr {boss.recommendedPower}</span></div><div className="mt-1 text-[10px] text-text-muted">Weak: {boss.weaknesses.join('/')} · Drops: {boss.dedicatedDrops.slice(0, 2).join(', ')}</div></button>)}
-        </ContextualPickerSheet>
-        <ContextualPickerSheet open={showRecipePicker} title="Choose Recipe" detail="Recipe selection is contextual, not permanent page chrome." onClose={() => setShowRecipePicker(false)}>
-          {craftable.map(({ recipe, check, duration }) => <button key={recipe.id} type="button" onClick={() => check.can && startCrafting(recipe)} disabled={!check.can} className="w-full border-2 border-border bg-surface p-3 text-left disabled:opacity-50" style={smallClip}><div className="flex justify-between gap-2"><span className="text-sm font-black text-text-primary">{recipe.name}</span><span className="text-[9px] text-amber">{formatDuration(duration)}</span></div><div className="mt-1 text-[10px] text-text-muted">{check.can ? Object.entries(recipe.materials).map(([k, v]) => `${getVisualAsset('material', k).label} ${v}`).join(' · ') : check.missing.join(' · ')}</div></button>)}
+          <BossPickerList onSelect={(boss) => startPrep(boss)} />
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down. Higher rarity = dramatically more materials." onClose={() => setShowSalvagePicker(false)}>
           {salvageCandidates.map((item) => { const y = calculateSalvageYield(item); return <button key={item.id} type="button" onClick={() => startSalvage(item)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">+{y.scrapAlloy} alloy · +{y.ballisticParts} parts · +{y.reactiveComponents} reactive · +{y.techFragments} tech</div></button>; })}

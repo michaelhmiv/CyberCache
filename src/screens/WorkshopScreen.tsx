@@ -4,6 +4,7 @@ import { Clock, ChevronDown, Search, X, ArrowUpDown } from 'lucide-react';
 import { useActivityStore, usePlayerStore, useWorkshopStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
+import { MaterialUsageSheet } from '@/components/common/MaterialUsageSheet';
 import { getVisualAsset } from '@/constants/visualAssets';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
@@ -74,6 +75,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const skillBonuses = useSkillStore().getBonuses();
   const activity = useActivityStore();
   const [expandedMaterials, setExpandedMaterials] = useState(false);
+  const [usageMaterialId, setUsageMaterialId] = useState<string | null>(null);
   const [justCrafted, setJustCrafted] = useState<string | null>(null);
   const [expandedQueue, setExpandedQueue] = useState<string | null>(null);
   const [activityError, setActivityError] = useState<string | null>(null);
@@ -262,10 +264,10 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
       {!hasMaterials && (
         <MobileCard className="space-y-2 border-amber/30 bg-amber/5">
           <div className="text-[10px] text-text-secondary">
-            <span className="font-bold text-amber">No materials yet!</span> Salvage weapons from the Loot tab to get crafting materials and essences.
+            <span className="font-bold text-amber">No materials yet!</span> Salvage gear from the Gear tab to get crafting materials and essences.
           </div>
-          <motion.button whileTap={{ scale: 0.96 }} onClick={() => onNavigate?.('loot')} className="w-full py-2 rounded-lg bg-amber/10 border border-amber/30 text-amber text-xs font-bold active:bg-amber/20 transition-colors">
-            Go to Loot
+          <motion.button whileTap={{ scale: 0.96 }} onClick={() => onNavigate?.('inventory')} className="w-full py-2 rounded-lg bg-amber/10 border border-amber/30 text-amber text-xs font-bold active:bg-amber/20 transition-colors">
+            Go to Gear
           </motion.button>
         </MobileCard>
       )}
@@ -283,10 +285,16 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
               const colorClass = MATERIAL_COLORS[type] || 'text-text-secondary';
               const icon = MATERIAL_ICONS[type] || '';
               return (
-                <div key={type} className="flex items-center justify-between">
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setUsageMaterialId(type)}
+                  className="flex w-full items-center justify-between text-left"
+                  aria-label={`${type}: show recipes that use it`}
+                >
                   <span className={`truncate ${colorClass}`}>{icon} {type}</span>
                   <span className="font-bold ml-1 text-text-primary">{count}</span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -477,11 +485,13 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
 
       {hasMaterials && (
         <div className="text-center">
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => onNavigate?.('loot')} className="text-[10px] text-text-muted underline hover:text-amber active:text-amber transition-colors">
-            Salvage more items from Loot
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => onNavigate?.('inventory')} className="text-[10px] text-text-muted underline hover:text-amber active:text-amber transition-colors">
+            Salvage more items from Gear
           </motion.button>
         </div>
       )}
+
+      <MaterialUsageSheet materialId={usageMaterialId} onClose={() => setUsageMaterialId(null)} />
     </div>
   );
 };

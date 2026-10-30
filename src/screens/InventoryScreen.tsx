@@ -7,6 +7,7 @@ import { ConsumablesScreen } from './ConsumablesScreen';
 import { WorkshopScreen } from './WorkshopScreen';
 import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
+import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
 type InventoryTab = 'gear' | 'loadout' | 'consumables' | 'workshop';
 
@@ -31,6 +32,9 @@ const SummaryTile: React.FC<{ label: string; value: string | number; sub?: strin
 
 export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<InventoryTab>('gear');
+  // Gear-home equip door: GearHub's Equip action lands here; the Loadout
+  // tab opens the Slot Picker (the one equip surface) on the slot.
+  const [pendingPickerSlot, setPendingPickerSlot] = useState<LoadoutSlot | null>(null);
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
   const player = usePlayerStore();
@@ -50,7 +54,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
           <SummaryTile label="Items" value={inventory.items.length} sub={`${lockedCount} locked`} />
           <SummaryTile label="Loadout" value={`${equippedCount}/7`} sub="resolved slots" />
           <SummaryTile label="Cash" value={player.credits.toLocaleString()} sub={`${player.scrap.toLocaleString()} scrap`} />
-          <SummaryTile label="Jobs" value={queueCount} sub="bench" />
+          <SummaryTile label="Jobs" value={queueCount} sub="workshop" />
         </div>
 
         <button
@@ -76,11 +80,16 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
             return (
               <button
                 key={tabId}
-                onClick={() => setActiveTab(tabId)}
+                onClick={() => {
+                  // Manual tab switches clear any pending equip deep link
+                  // so it can't reopen the picker on a later visit.
+                  setPendingPickerSlot(null);
+                  setActiveTab(tabId);
+                }}
                 className={`flex flex-col items-center gap-1 py-2 text-[10px] font-black transition-colors ${active ? 'bl-primary' : 'bl-secondary text-text-muted'}`}
               >
                 <span className="font-black leading-none" style={{ fontSize: '15px', color: active ? undefined : sigil.color }}>{sigil.glyph}</span>
-                {tabId === 'gear' ? 'Gear' : tabId === 'loadout' ? 'Loadout' : tabId === 'consumables' ? 'Items' : 'Bench'}
+                {tabId === 'gear' ? 'Gear' : tabId === 'loadout' ? 'Loadout' : tabId === 'consumables' ? 'Items' : 'Workshop'}
               </button>
             );
           })}
@@ -88,8 +97,18 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
       </div>
 
       <div>
-        {activeTab === 'gear' && <GearHub onNavigate={onNavigate} />}
-        {activeTab === 'loadout' && <SyncedLoadoutScreen />}
+        {activeTab === 'gear' && (
+          <GearHub
+            onNavigate={onNavigate}
+            onEquipRequest={(_item, slot) => {
+              setActiveTab('loadout');
+              setPendingPickerSlot(slot);
+            }}
+          />
+        )}
+        {activeTab === 'loadout' && (
+          <SyncedLoadoutScreen requestedPickerSlot={pendingPickerSlot} />
+        )}
         {activeTab === 'consumables' && <ConsumablesScreen onNavigate={onNavigate} />}
         {activeTab === 'workshop' && <WorkshopScreen onNavigate={onNavigate} />}
       </div>

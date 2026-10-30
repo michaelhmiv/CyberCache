@@ -16,9 +16,10 @@ describe('ui surface audit', () => {
     expect(actionScreen).not.toContain('openCache(');
   });
 
-  it('adds an explicit Dashboard turf switch affordance', () => {
+  it('adds an explicit Dashboard area switch affordance', () => {
     const dashboard = readSource('src/screens/DashboardScreen.tsx');
     expect(dashboard).toContain('data-testid="dashboard-turf-switch-button"');
-    expect(dashboard).toContain('aria-label="Switch turf"');
+    // Phase 1 vocabulary freeze: areas are "Areas", not "Turf".
+    expect(dashboard).toContain('aria-label="Switch area"');
   });
 });
