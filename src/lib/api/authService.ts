@@ -122,7 +122,7 @@ export async function signInWithGoogle(): Promise<ApiUser> {
   // With a live session the bearer rides along and the Chef links the
   // Google identity to the current account (guest keeps its id and
   // progress); without one it is a find-or-create sign-in.
-  const body = await apiRequest<AuthSessionBody>('/api/auth/google', {
+  const body = await apiRequest<AuthSessionBody>('/auth/google', {
     method: 'POST',
     body: { idToken },
   });

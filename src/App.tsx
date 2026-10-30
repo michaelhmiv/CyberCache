@@ -18,7 +18,7 @@ import { AuthScreen } from './screens/AuthScreen';
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
 import { isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
-import { FeatureGate } from './auth/FeatureGate';
+
 import { useAuth } from './auth/AuthProvider';
 import { useEffect } from 'react';
 import { mountIdleTicker, unmountIdleTicker } from './store';
@@ -211,9 +211,9 @@ function App() {
           {activeTab === 'inventory' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
           {activeTab === 'market' && (
             <TabErrorBoundary surface="Market">
-              <FeatureGate feature="market">
-                <MarketScreen />
-              </FeatureGate>
+              {/* No whole-tab gate: the NPC vendor is open to guests.
+                  MarketScreen gates its player-market tabs internally. */}
+              <MarketScreen />
             </TabErrorBoundary>
           )}
           {activeTab === 'leaderboards' && <TabErrorBoundary surface="Leaderboards"><LeaderboardsScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
