@@ -1,7 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 import type { GoogleLoginResponseOnline } from '@capgo/capacitor-social-login';
-import { supabase } from './supabase/client';
 
 export const GOOGLE_WEB_CLIENT_ID_ENV = 'VITE_GOOGLE_WEB_CLIENT_ID';
 export const ANDROID_GOOGLE_SIGN_IN_BLOCKED_MESSAGE =
@@ -102,7 +101,7 @@ function createNativeAuthDiagnostic(stage: string, error: unknown): NativeAuthDi
 export function getGoogleWebClientId(env: ImportMetaEnv = import.meta.env): string {
   const webClientId = env.VITE_GOOGLE_WEB_CLIENT_ID?.trim();
   if (!webClientId) {
-    throw new Error('Missing VITE_GOOGLE_WEB_CLIENT_ID. Use the Google Web OAuth client ID configured in Supabase.');
+    throw new Error('Missing VITE_GOOGLE_WEB_CLIENT_ID. Use the Google Web OAuth client ID configured for the Chef.');
   }
   return webClientId;
 }
@@ -168,17 +167,24 @@ export async function initializeNativeAuth(): Promise<void> {
   }
 }
 
-export async function signInWithGoogleNative(): Promise<void> {
-  debugNativeAuth('signInWithGoogleNative called', { isNative: Capacitor.isNativePlatform() });
+/**
+ * Obtain a Google ID token from the native sign-in flow (Route B,
+ * slice B4). The token is verified server-side by the Chef
+ * (POST /api/auth/google, B1.5) — the client no longer exchanges it
+ * with Supabase. The hashed-nonce binding stays: Google binds the
+ * token to this sign-in attempt via the nonce claim, and the Chef's
+ * JWKS verification checks issuer/audience/expiry.
+ *
+ * Web has no equivalent flow: CyberCache is app-only (guest + Google
+ * on Android, Apple later), and the old Supabase web-OAuth redirect
+ * has no Chef counterpart, so non-native calls fail with a clear
+ * message instead of a dead redirect.
+ */
+export async function getGoogleIdTokenNative(): Promise<string> {
+  debugNativeAuth('getGoogleIdTokenNative called', { isNative: Capacitor.isNativePlatform() });
 
   if (!Capacitor.isNativePlatform()) {
-    debugNativeAuth('falling back to web OAuth');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${globalThis.location.origin}/?auth=confirmed` },
-    });
-    if (error) throw error;
-    return;
+    throw new Error('Google sign-in is only available in the CyberCache app.');
   }
 
   await initializeNativeAuth();
@@ -216,17 +222,5 @@ export async function signInWithGoogleNative(): Promise<void> {
     throw new Error('Google native sign-in did not return an ID token.');
   }
 
-  debugNativeAuth('calling supabase.auth.signInWithIdToken');
-  const { error } = await supabase.auth.signInWithIdToken({
-    provider: 'google',
-    token: idToken,
-    nonce: rawNonce,
-  });
-
-  if (error) {
-    debugNativeAuth('supabase signInWithIdToken failed', error);
-    throw error;
-  }
-
-  debugNativeAuth('supabase signInWithIdToken succeeded');
+  return idToken;
 }

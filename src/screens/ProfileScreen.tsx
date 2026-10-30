@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
-import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/supabase/statsService';
+import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/api/statsService';
 import { formatDuration, topBreakdown } from '@/lib/stats/statsHelpers';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { xpToNextLevel } from '@/content/simulation';
@@ -9,14 +9,14 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { useAuth } from '@/auth/AuthProvider';
-import { getMyProfileSummary, type ProfileSummary } from '@/lib/supabase/usernameService';
+import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { StatCard } from '@/components/profile/StatCard';
 import { StatDetailPanel } from '@/components/profile/StatDetailPanel';
 import { ProgressionHistoryCard } from '@/components/progression/ProgressionHistoryCard';
-import { getMyProgressionSnapshots, type ProgressionMetric } from '@/lib/supabase/progressionService';
-import type { LeaderboardMetric } from '@/lib/supabase/leaderboardService';
+import { getMyProgressionSnapshots, type ProgressionMetric } from '@/lib/api/progressionService';
+import type { LeaderboardMetric } from '@/lib/api/leaderboardService';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: string) => void;

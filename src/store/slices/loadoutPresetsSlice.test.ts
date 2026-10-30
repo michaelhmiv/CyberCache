@@ -2,9 +2,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useLoadoutPresetsStore } from './loadoutPresetsSlice';
 import { useInventoryStore } from './inventorySlice';
 import { useLoadoutStore } from './loadoutSlice';
-import * as verifiedOps from '@/lib/supabase/verifiedOps';
+import * as verifiedOps from '@/lib/api/verifiedOps';
 
-vi.mock('@/lib/supabase/verifiedOps', () => ({
+vi.mock('@/lib/api/verifiedOps', () => ({
   verifiedOps: { equipItem: vi.fn(() => Promise.resolve({})) },
 }));
 

@@ -17,7 +17,7 @@ import { create } from 'zustand';
 import type { LoadoutSlot, LoadoutConsumables } from './loadoutSlice';
 import { useLoadoutStore } from './loadoutSlice';
 import { useInventoryStore } from './inventorySlice';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { verifiedOps } from '@/lib/api/verifiedOps';
 import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 
 export interface LoadoutPreset {

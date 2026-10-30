@@ -7,7 +7,7 @@ import {
   getMyActiveActivity,
   heartbeatActiveActivity,
   startActiveActivity,
-} from '@/lib/supabase/activityService';
+} from '@/lib/api/activityService';
 
 export interface ActivityState {
   current: ActiveActivity;

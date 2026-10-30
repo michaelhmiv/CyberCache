@@ -20,7 +20,7 @@ import { useIdleStore } from '@/store/slices/idleSlice';
 import type { TickEvent } from '@/store/slices/tickSlice';
 
 // Mock the server-side RPC — we test client-side event generation only
-vi.mock('@/lib/supabase/verifiedOps', () => ({
+vi.mock('@/lib/api/verifiedOps', () => ({
   verifiedOps: { claimRoamingRewards: vi.fn(async () => ({})) },
 }));
 vi.mock('@/store/runtimeSupabaseSync', () => ({

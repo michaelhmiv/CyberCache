@@ -11,7 +11,7 @@ import { computeLoadoutDps } from '../../lib/stats/dpsChain';
 import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
 import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
-import { syncBossAttemptResult } from '../../lib/supabase/verifiedStateSync';
+import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
 import { ConsumablePicker } from '../consumables/ConsumablePicker';
 import { MobileCard } from '../layout/MobileCard';

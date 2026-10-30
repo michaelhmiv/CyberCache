@@ -13,25 +13,37 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/supabase/client', () => ({
-  supabase: { rpc: vi.fn() },
+// Route B (B4): the transport is the Chef api layer now. Mock the
+// http helper verifiedOps is built on, with the same fixtures the
+// Supabase rpc stub used to return.
+const apiRequestMock = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/api/http', () => ({
+  apiRequest: (...args: unknown[]) => apiRequestMock(...args),
+  ApiError: class ApiError extends Error {
+    status: number;
+    code: string;
+    constructor(status: number, code: string, message: string) {
+      super(message);
+      this.status = status;
+      this.code = code;
+    }
+  },
+  isApiError: () => false,
+  isNotFoundError: () => false,
 }));
 vi.mock('@/store/runtimeSupabaseSync', () => ({
   saveCurrentRuntimeStores: vi.fn(async () => undefined),
 }));
 
-import { syncRuntimeProfile, syncVerifiedResult } from '@/lib/supabase/verifiedStateSync';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { syncRuntimeProfile, syncVerifiedResult } from '@/lib/api/verifiedStateSync';
+import { verifiedOps } from '@/lib/api/verifiedOps';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
-import { supabase } from '@/lib/supabase/client';
-
-const rpcMock = supabase.rpc as unknown as ReturnType<typeof vi.fn>;
 
 const resetStores = () => {
   useSkillStore.setState(useSkillStore.getInitialState(), true);
   usePlayerStore.setState(usePlayerStore.getInitialState(), true);
-  rpcMock.mockReset();
+  apiRequestMock.mockReset();
 };
 
 describe('skill tree persistence — server snapshot wins', () => {
@@ -103,29 +115,29 @@ describe('skill spendPoint rollback on RPC failure', () => {
 describe('verifiedOps.trainSkill round-trip', () => {
   beforeEach(resetStores);
 
-  it('posts node_id to cc_train_skill and applies the server profile', async () => {
-    rpcMock.mockResolvedValueOnce({
-      data: {
-        action_type: 'cc_train_skill',
-        profile: { id: 'test-profile', player_level: 3, skill_spends: { gs_dmg_1: 1 } },
-        node_id: 'gs_dmg_1',
-        node_points: 1,
-        total_spent: 1,
-      },
-      error: null,
+  it('posts node_id to the Chef train-skill op and applies the server profile', async () => {
+    apiRequestMock.mockResolvedValueOnce({
+      action_type: 'cc_train_skill',
+      profile: { id: 'test-profile', player_level: 3, skill_spends: { gs_dmg_1: 1 } },
+      node_id: 'gs_dmg_1',
+      node_points: 1,
+      total_spent: 1,
     });
 
     await verifiedOps.trainSkill('gs_dmg_1');
 
-    expect(rpcMock).toHaveBeenCalledWith('cc_train_skill', {
-      nonce: expect.stringMatching(/^train:gs_dmg_1:/),
-      node_id: 'gs_dmg_1',
+    expect(apiRequestMock).toHaveBeenCalledWith('/ops/train-skill', {
+      method: 'POST',
+      body: {
+        nonce: expect.stringMatching(/^train:gs_dmg_1:/),
+        node_id: 'gs_dmg_1',
+      },
     });
     expect(useSkillStore.getState().spent).toEqual({ gs_dmg_1: 1 });
   });
 
-  it('rethrows on RPC error so the screen can roll back the optimistic spend', async () => {
-    rpcMock.mockResolvedValueOnce({ data: null, error: { message: 'Insufficient skill points' } });
+  it('rethrows on op error so the screen can roll back the optimistic spend', async () => {
+    apiRequestMock.mockRejectedValueOnce(new Error('Insufficient skill points'));
 
     await expect(verifiedOps.trainSkill('demo_keystone')).rejects.toBeDefined();
   });

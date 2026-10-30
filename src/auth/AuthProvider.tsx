@@ -1,11 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
-import * as authService from '../lib/supabase/authService';
-import * as profileService from '../lib/supabase/profileService';
+import * as authService from '../lib/api/authService';
+import * as profileService from '../lib/api/profileService';
+import type { ApiUser } from '../lib/api/session';
 import { settleActiveActivityRewards } from '../lib/activity/activitySettlement';
-import { syncRuntimeItemsForUser } from '../lib/supabase/runtimeStateService';
-import { syncRuntimeProfile } from '../lib/supabase/verifiedStateSync';
-import { supabase } from '../lib/supabase/client';
+import { syncRuntimeItemsForUser } from '../lib/api/runtimeStateService';
+import { syncRuntimeProfile } from '../lib/api/verifiedStateSync';
 import { initializeNativeAuth } from '../lib/nativeAuth';
 import type { NativeAuthDiagnostic, NativeAuthDiagnosticError } from '../lib/nativeAuth';
 import {
@@ -42,7 +41,7 @@ function toNativeAuthDiagnostic(error: unknown): NativeAuthDiagnostic | null {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [rawUser, setRawUser] = useState<User | null>(null);
+  const [rawUser, setRawUser] = useState<ApiUser | null>(null);
   const [user, setUser] = useState<AuthSessionUser | null>(null);
   const [account, setAccount] = useState<AccountState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthMessage(null);
   }, []);
 
-  const loadUser = useCallback(async (nextUser: User | null) => {
+  const loadUser = useCallback(async (nextUser: ApiUser | null) => {
     stopRuntimeStorePersistence();
     resetRuntimeStoresToInitialState();
     useActivityStore.getState().reset();
@@ -73,19 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
     await syncRuntimeItemsForUser(nextUser.id);
 
-    // Safety net: if the user has zero equippable items, auto-grant a
-    // starter weapon so they're never stuck in an unplayable state.
-    try {
-      const { data: safetyNet } = await supabase.rpc('cc_ensure_starter_weapon', {
-        _player_id: nextUser.id,
-      });
-      if (safetyNet?.granted) {
-        // Re-sync inventory to pick up the newly granted weapon.
-        await syncRuntimeItemsForUser(nextUser.id);
-      }
-    } catch (error) {
-      console.warn('Starter weapon safety net skipped:', error instanceof Error ? error.message : error);
-    }
+    // Starter weapon: no client safety net is needed anymore. The
+    // Chef seeds it server-side when the profile row is created
+    // (db/migrations/0005 profile bootstrap + 0004's
+    // trg_seed_starter_weapon), and the item sync above picks it up —
+    // the same coverage the old cc_ensure_starter_weapon RPC provided.
 
     let restoredSnapshot = false;
     try {
@@ -182,9 +173,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }), [loadUser, run]);
 
   const signInWithGoogle = useCallback(() => run(async () => {
-    await authService.signInWithGoogle();
+    const nextUser = await authService.signInWithGoogle();
+    await loadUser(nextUser);
     return { ok: true };
-  }), [run]);
+  }), [loadUser, run]);
 
   const registerWithEmail = useCallback((email: string, secret: string, username: string) => run(async () => {
     const nextUser = await authService.registerWithEmail(email, secret, username);

@@ -21,7 +21,7 @@
  */
 
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
-import { syncRuntimeProfile } from '@/lib/supabase/verifiedStateSync';
+import { syncRuntimeProfile } from '@/lib/api/verifiedStateSync';
 import type { OfflineSettlementResult } from '@/lib/chef/chefClient';
 
 /**

@@ -31,13 +31,13 @@ const { mockSubmitClaim } = vi.hoisted(() => ({ mockSubmitClaim: vi.fn() }));
 
 vi.mock('@/lib/chef/chefClient', () => ({ submitClaim: mockSubmitClaim }));
 
-vi.mock('@/lib/supabase/verifiedOps', () => ({
+vi.mock('@/lib/api/verifiedOps', () => ({
   verifiedOps: {
     claimRoamingRewards: vi.fn(async () => ({})),
   },
 }));
 
-vi.mock('@/lib/supabase/verifiedStateSync', () => ({
+vi.mock('@/lib/api/verifiedStateSync', () => ({
   syncVerifiedResult: vi.fn(),
 }));
 

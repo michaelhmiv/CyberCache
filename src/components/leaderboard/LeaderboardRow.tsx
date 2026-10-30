@@ -1,6 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import type { LeaderboardEntry } from '@/lib/supabase/leaderboardService';
+import type { LeaderboardEntry } from '@/lib/api/leaderboardService';
 
 interface LeaderboardRowProps {
   entry: LeaderboardEntry;

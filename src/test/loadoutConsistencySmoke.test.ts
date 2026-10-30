@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { serverItemRowToDisplayGear } from '@/lib/supabase/serverItemAdapter';
+import { serverItemRowToDisplayGear } from '@/lib/api/serverItemAdapter';
 import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';

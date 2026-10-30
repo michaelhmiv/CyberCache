@@ -27,7 +27,7 @@ import { SwapUndoToast } from '@/components/action/SwapUndoToast';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useLoadoutStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
-import { verifiedOps } from '@/lib/supabase/verifiedOps';
+import { verifiedOps } from '@/lib/api/verifiedOps';
 import type { GearItem } from '@/types/items';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';

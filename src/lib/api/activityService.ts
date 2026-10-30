@@ -1,6 +1,15 @@
+/**
+ * Activity service (Route B, slice B4) — transport swap onto the Chef
+ * activity routes. Same signatures, same row→state mapping, same
+ * `{ activity }` envelope unwrapping (the ported cc_* functions return
+ * the identical jsonb). Identity comes from the Chef JWT.
+ *
+ * One wire difference vs. the RPC args: the Chef route reads the kind
+ * as `activity_kind` (the RPC called it `action_kind`).
+ */
 import type { ActiveActivity, ActivityKind, StartActivityInput } from '@/types/activity';
 import { IDLE_ACTIVITY } from '@/types/activity';
-import { supabase } from './client';
+import { apiRequest } from './http';
 
 const requestId = (prefix: string): string => {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -56,46 +65,39 @@ export function activityRowToState(row?: ActiveActionRow | null): ActiveActivity
 }
 
 export async function getMyActiveActivity(): Promise<ActiveActivity> {
-  const { data, error } = await supabase
-    .from('active_actions')
-    .select('user_id, active_action, started_at, completes_at, target_type, target_id, target_label, scene_key, notes, activity_payload, public_payload, last_heartbeat_at, public_visible, schema_version, updated_at')
-    .maybeSingle();
-
-  if (error) throw error;
-  return activityRowToState(data as ActiveActionRow | null);
+  const data = await apiRequest<ActiveActionRow | null>('/activity/me');
+  return activityRowToState(data ?? null);
 }
 
 export async function startActiveActivity(input: StartActivityInput): Promise<ActiveActivity> {
-  const { data, error } = await supabase.rpc('cc_set_active_action', {
-    nonce: requestId('activity'),
-    action_kind: input.kind,
-    target_type: input.targetType ?? null,
-    target_id: input.targetId ?? null,
-    target_label: input.targetLabel ?? null,
-    scene_key: input.sceneKey ?? null,
-    expected_finish_at: input.expectedFinishAt ?? null,
-    notes: input.notes ?? null,
-    activity_payload: input.activityPayload ?? {},
-    public_payload: input.publicPayload ?? {},
-    public_visible: input.publicVisible ?? true,
+  const data = await apiRequest<ActivityRpcResult>('/activity/set', {
+    method: 'POST',
+    body: {
+      nonce: requestId('activity'),
+      activity_kind: input.kind,
+      target_type: input.targetType ?? null,
+      target_id: input.targetId ?? null,
+      target_label: input.targetLabel ?? null,
+      scene_key: input.sceneKey ?? null,
+      expected_finish_at: input.expectedFinishAt ?? null,
+      notes: input.notes ?? null,
+      activity_payload: input.activityPayload ?? {},
+      public_payload: input.publicPayload ?? {},
+      public_visible: input.publicVisible ?? true,
+    },
   });
-
-  if (error) throw error;
-  return activityRowToState((data as ActivityRpcResult | null)?.activity ?? null);
+  return activityRowToState(data?.activity ?? null);
 }
 
 export async function clearActiveActivity(): Promise<ActiveActivity> {
-  const { data, error } = await supabase.rpc('cc_clear_active_action', {
-    nonce: requestId('activity-clear'),
+  const data = await apiRequest<ActivityRpcResult>('/activity/clear', {
+    method: 'POST',
+    body: { nonce: requestId('activity-clear') },
   });
-
-  if (error) throw error;
-  return activityRowToState((data as ActivityRpcResult | null)?.activity ?? null);
+  return activityRowToState(data?.activity ?? null);
 }
 
 export async function heartbeatActiveActivity(): Promise<ActiveActivity> {
-  const { data, error } = await supabase.rpc('cc_active_action_heartbeat');
-
-  if (error) throw error;
-  return activityRowToState((data as ActivityRpcResult | null)?.activity ?? null);
+  const data = await apiRequest<ActivityRpcResult>('/activity/heartbeat', { method: 'POST' });
+  return activityRowToState(data?.activity ?? null);
 }

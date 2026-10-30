@@ -5,7 +5,7 @@ import {
   getRuntimeStoreSnapshot,
   saveRuntimeStoreSnapshot,
   type RuntimeStoreSnapshot,
-} from '@/lib/supabase/runtimeStoreService';
+} from '@/lib/api/runtimeStoreService';
 import { useBossStore } from './slices/bossSlice';
 import { useIdleStore } from './slices/idleSlice';
 import { useInventoryStore } from './slices/inventorySlice';

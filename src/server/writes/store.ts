@@ -229,6 +229,30 @@ export interface RuntimeSnapshotData {
   updated_at: string;
 }
 
+/**
+ * The combat_stats row in client (PostgREST) shape: bigint columns as
+ * numbers, timestamptz as ISO strings. B4 addition — the client's
+ * combatStats sync used to read/write this table directly through
+ * PostgREST; the Chef route pair (GET/PUT /api/stats/combat) is its
+ * transport swap, same pattern as the runtime snapshot routes.
+ */
+export interface CombatStatsData {
+  user_id: string;
+  total_kills: number;
+  total_deaths: number;
+  longest_kill_streak: number;
+  last_kill_at: string | null;
+  run_started_at: string | null;
+  kills_by_area: Record<string, number>;
+  kills_by_weapon_type: Record<string, number>;
+  kills_by_boss: Record<string, number>;
+  kills_by_element: Record<string, number>;
+  highest_boss_tier: number;
+  active_play_seconds: number;
+  idle_play_seconds: number;
+  updated_at: string;
+}
+
 export interface WriteSeed {
   profiles: ProfileRowData[];
   items: WriteItemData[];
@@ -246,6 +270,7 @@ export interface WriteSeed {
   adGrants: { user_id: string; reward_type: string; status: string; granted_at: string }[];
   ledger: LedgerEntryData[];
   runtimeSnapshots: RuntimeSnapshotData[];
+  combatStats: CombatStatsData[];
   /** user_ids that already have a user_notification_settings row. */
   notificationSettingsUsers: string[];
   usernameReservations: string[];
@@ -269,6 +294,7 @@ export function emptyWriteSeed(): WriteSeed {
     adGrants: [],
     ledger: [],
     runtimeSnapshots: [],
+    combatStats: [],
     notificationSettingsUsers: [],
     usernameReservations: [],
   };
@@ -684,6 +710,8 @@ export interface WriteStore {
   getRuntimeSnapshot(playerId: string): Promise<Json | null>;
   saveRuntimeSnapshot(playerId: string, snapshot: Json): Promise<void>;
   clearRuntimeSnapshot(playerId: string): Promise<void>;
+  getCombatStats(playerId: string): Promise<CombatStatsData | null>;
+  saveCombatStats(playerId: string, row: CombatStatsData): Promise<void>;
 }
 
 type Row = Record<string, unknown>;
@@ -936,4 +964,77 @@ export class PgWriteStore implements WriteStore {
       translatePgError(err);
     }
   }
+
+  async getCombatStats(playerId: string): Promise<CombatStatsData | null> {
+    try {
+      const { rows } = await this.pool.query('select * from public.combat_stats where user_id = $1', [playerId]);
+      return rows.length ? mapCombatStats(rows[0] as Row) : null;
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+
+  async saveCombatStats(playerId: string, row: CombatStatsData): Promise<void> {
+    try {
+      await this.pool.query(
+        `insert into public.combat_stats (
+           user_id, total_kills, total_deaths, longest_kill_streak,
+           last_kill_at, run_started_at, kills_by_area, kills_by_weapon_type,
+           kills_by_boss, kills_by_element, highest_boss_tier,
+           active_play_seconds, idle_play_seconds, updated_at
+         ) values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13, $14)
+         on conflict (user_id) do update set
+           total_kills = excluded.total_kills,
+           total_deaths = excluded.total_deaths,
+           longest_kill_streak = excluded.longest_kill_streak,
+           last_kill_at = excluded.last_kill_at,
+           run_started_at = excluded.run_started_at,
+           kills_by_area = excluded.kills_by_area,
+           kills_by_weapon_type = excluded.kills_by_weapon_type,
+           kills_by_boss = excluded.kills_by_boss,
+           kills_by_element = excluded.kills_by_element,
+           highest_boss_tier = excluded.highest_boss_tier,
+           active_play_seconds = excluded.active_play_seconds,
+           idle_play_seconds = excluded.idle_play_seconds,
+           updated_at = excluded.updated_at`,
+        [
+          playerId,
+          row.total_kills,
+          row.total_deaths,
+          row.longest_kill_streak,
+          row.last_kill_at,
+          row.run_started_at,
+          JSON.stringify(row.kills_by_area ?? {}),
+          JSON.stringify(row.kills_by_weapon_type ?? {}),
+          JSON.stringify(row.kills_by_boss ?? {}),
+          JSON.stringify(row.kills_by_element ?? {}),
+          row.highest_boss_tier,
+          row.active_play_seconds,
+          row.idle_play_seconds,
+          row.updated_at,
+        ],
+      );
+    } catch (err) {
+      translatePgError(err);
+    }
+  }
+}
+
+function mapCombatStats(row: Row): CombatStatsData {
+  return {
+    user_id: String(row.user_id),
+    total_kills: Number(row.total_kills ?? 0),
+    total_deaths: Number(row.total_deaths ?? 0),
+    longest_kill_streak: Number(row.longest_kill_streak ?? 0),
+    last_kill_at: isoOrNull(row.last_kill_at),
+    run_started_at: isoOrNull(row.run_started_at),
+    kills_by_area: (row.kills_by_area as Record<string, number>) ?? {},
+    kills_by_weapon_type: (row.kills_by_weapon_type as Record<string, number>) ?? {},
+    kills_by_boss: (row.kills_by_boss as Record<string, number>) ?? {},
+    kills_by_element: (row.kills_by_element as Record<string, number>) ?? {},
+    highest_boss_tier: Number(row.highest_boss_tier ?? 0),
+    active_play_seconds: Number(row.active_play_seconds ?? 0),
+    idle_play_seconds: Number(row.idle_play_seconds ?? 0),
+    updated_at: iso(row.updated_at),
+  };
 }

@@ -15,7 +15,7 @@
  *         a real tick loop.
  *
  * Hard rules for this file:
- *   - No imports from `@/store`, `@/components`, or `@/lib/supabase`.
+ *   - No imports from `@/store`, `@/components`, or `@/lib/api`.
  *   - No `Math.random` for damage values. The caller passes a seeded
  *     `rng` so the test suite can pin outcomes.
  *   - No persistence. The caller persists the result.

@@ -1,4 +1,11 @@
-import { supabase } from './client';
+/**
+ * Progression service (Route B, slice B4) — transport swap onto the
+ * Chef read route. Same signature and error semantics as the Supabase
+ * version: failures return []. (`metric` stays a client-side concern —
+ * extractMetricSeries — exactly as before; the route ignores it just
+ * like the old query did.)
+ */
+import { apiRequest } from './http';
 
 export interface PlayerProgressionSnapshot {
   id: number;
@@ -51,30 +58,30 @@ export interface SnapshotQueryOptions {
 export async function getMyProgressionSnapshots(
   options: SnapshotQueryOptions = {}
 ): Promise<PlayerProgressionSnapshot[]> {
-  let query = supabase
-    .from('player_progression_snapshots')
-    .select('*')
-    .order('snapshot_at', { ascending: true });
-
+  const params = new URLSearchParams();
   if (options.sources && options.sources.length > 0) {
-    query = query.in('source', options.sources);
+    params.set('source', options.sources.join(','));
   }
   if (options.since) {
-    query = query.gte('snapshot_at', options.since);
+    params.set('since', options.since);
   }
   if (options.until) {
-    query = query.lte('snapshot_at', options.until);
+    params.set('until', options.until);
   }
   if (options.limit) {
-    query = query.limit(options.limit);
+    params.set('limit', String(options.limit));
   }
 
-  const { data, error } = await query;
-  if (error) {
+  const query = params.toString();
+  try {
+    const data = await apiRequest<PlayerProgressionSnapshot[] | null>(
+      `/progression/snapshots${query ? `?${query}` : ''}`,
+    );
+    return data ?? [];
+  } catch (error) {
     console.error('getMyProgressionSnapshots error:', error);
     return [];
   }
-  return (data as PlayerProgressionSnapshot[] | null) ?? [];
 }
 
 export function extractMetricSeries(

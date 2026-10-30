@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { Sparkline } from '@/components/progression/Sparkline';
-import { extractMetricSeries, getMyProgressionSnapshots, type PlayerProgressionSnapshot, type ProgressionMetric } from '@/lib/supabase/progressionService';
+import { extractMetricSeries, getMyProgressionSnapshots, type PlayerProgressionSnapshot, type ProgressionMetric } from '@/lib/api/progressionService';
 
 interface ProgressionHistoryCardProps {
   metric?: ProgressionMetric;

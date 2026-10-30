@@ -28,6 +28,7 @@ import {
   vendorPrice,
   writeError,
   type ActiveActionData,
+  type CombatStatsData,
   type ConsumableBatchData,
   type Json,
   type LedgerEntryData,
@@ -84,6 +85,7 @@ export class InMemoryWriteStore implements WriteStore {
   private jobs = new Map<string, ServiceJobData>();
   private activities = new Map<string, ActiveActionData>();
   private snapshots = new Map<string, RuntimeSnapshotData>();
+  private combatStats = new Map<string, CombatStatsData>();
   private devices = new Map<string, PushDeviceData>();
   private ledger = new Map<string, LedgerEntryData>();
 
@@ -99,6 +101,7 @@ export class InMemoryWriteStore implements WriteStore {
     for (const j of this.seed.serviceJobs) this.jobs.set(j.id, j);
     for (const a of this.seed.activeActions) this.activities.set(a.user_id, a);
     for (const s of this.seed.runtimeSnapshots) this.snapshots.set(s.user_id, s);
+    for (const s of this.seed.combatStats) this.combatStats.set(s.user_id, s);
     for (const d of this.seed.pushDevices) this.devices.set(d.token, d);
     for (const e of this.seed.ledger) this.ledger.set(`${e.user_id}:${e.idempotency_key}`, e);
   }
@@ -1523,5 +1526,20 @@ export class InMemoryWriteStore implements WriteStore {
   async clearRuntimeSnapshot(playerId: string): Promise<void> {
     this.snapshots.delete(playerId);
     this.seed.runtimeSnapshots = this.seed.runtimeSnapshots.filter((s) => s.user_id !== playerId);
+  }
+
+  // -- combat stats -------------------------------------------------------------
+
+  async getCombatStats(playerId: string): Promise<CombatStatsData | null> {
+    const row = this.combatStats.get(playerId);
+    return row ? clone(row) : null;
+  }
+
+  async saveCombatStats(playerId: string, row: CombatStatsData): Promise<void> {
+    const stored: CombatStatsData = { ...clone(row), user_id: playerId };
+    this.combatStats.set(playerId, stored);
+    const idx = this.seed.combatStats.findIndex((s) => s.user_id === playerId);
+    if (idx >= 0) this.seed.combatStats[idx] = stored;
+    else this.seed.combatStats.push(stored);
   }
 }

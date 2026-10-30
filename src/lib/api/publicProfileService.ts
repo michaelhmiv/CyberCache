@@ -1,4 +1,11 @@
-import { supabase } from './client';
+/**
+ * Public profile service (Route B, slice B4) — transport swap onto the
+ * Chef read route. The RPC returned a row set and the client took the
+ * first row; the Chef route returns the projection object directly
+ * (404 when the player does not exist), which maps to the same
+ * `| null` contract.
+ */
+import { apiRequest } from './http';
 
 export interface PlayerPublicProfile {
   player_id: string;
@@ -22,10 +29,10 @@ export interface PlayerPublicProfile {
 }
 
 export async function getPublicProfile(playerId: string): Promise<PlayerPublicProfile | null> {
-  const { data, error } = await supabase.rpc('cc_get_public_profile', { _player_id: playerId });
-  if (error) {
+  try {
+    return (await apiRequest<PlayerPublicProfile | null>(`/players/${playerId}/public-profile`)) ?? null;
+  } catch (error) {
     console.error('getPublicProfile error:', error);
     return null;
   }
-  return (data as PlayerPublicProfile[] | null)?.[0] ?? null;
 }

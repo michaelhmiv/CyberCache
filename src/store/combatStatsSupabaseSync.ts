@@ -1,7 +1,5 @@
-import { supabase } from '@/lib/supabase/client';
+import { getCombatStatsRow, saveCombatStatsRow } from '@/lib/api/combatStatsService';
 import { useCombatStatsStore } from '@/store/slices/combatStatsSlice';
-
-const TABLE = 'combat_stats';
 
 type CombatStatsRow = {
   user_id: string;
@@ -53,7 +51,7 @@ const stateFromRow = (row: CombatStatsRow): Partial<ReturnType<typeof useCombatS
 });
 
 /**
- * Persist the current combat-stats slice to Supabase. Called from the
+ * Persist the current combat-stats slice to the Chef. Called from the
  * idle ticker and on auth transitions. Best-effort: failures are logged
  * and discarded (the in-memory state is still authoritative until the
  * next successful save).
@@ -61,30 +59,27 @@ const stateFromRow = (row: CombatStatsRow): Partial<ReturnType<typeof useCombatS
 export async function saveCombatStats(userId: string): Promise<void> {
   if (!userId) return;
   const row = rowFromState(userId, useCombatStatsStore.getState());
-  const { error } = await supabase
-    .from(TABLE)
-    .upsert(row, { onConflict: 'user_id' });
-  if (error) {
-    console.warn('[combatStats] save failed:', error.message);
+  try {
+    await saveCombatStatsRow(row);
+  } catch (error) {
+    console.warn('[combatStats] save failed:', error instanceof Error ? error.message : error);
   }
 }
 
 /**
- * Hydrate the combat-stats slice from Supabase. Called once on auth.
+ * Hydrate the combat-stats slice from the Chef. Called once on auth.
  * Returns true on success, false if the row doesn't exist yet (fresh user).
  */
 export async function loadCombatStats(userId: string): Promise<boolean> {
   if (!userId) return false;
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) {
-    console.warn('[combatStats] load failed:', error.message);
+  let data: CombatStatsRow | null;
+  try {
+    data = await getCombatStatsRow();
+  } catch (error) {
+    console.warn('[combatStats] load failed:', error instanceof Error ? error.message : error);
     return false;
   }
   if (!data) return false;
-  useCombatStatsStore.getState().setAll(stateFromRow(data as CombatStatsRow));
+  useCombatStatsStore.getState().setAll(stateFromRow(data));
   return true;
 }
