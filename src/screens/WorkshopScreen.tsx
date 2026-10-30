@@ -4,6 +4,7 @@ import { Clock, ChevronDown, Search, X, ArrowUpDown } from 'lucide-react';
 import { useActivityStore, usePlayerStore, useWorkshopStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
+import { getVisualAsset } from '@/constants/visualAssets';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
@@ -252,7 +253,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           <span style={{ fontSize: '13px' }}>⚙</span> Workshop Activity
         </div>
         <div className="text-[10px] text-text-secondary leading-relaxed">
-          Craft dispatch briefly claims the character activity. Claiming a completed queue now creates a verified quality batch.
+          Crafting keeps your runner busy while the queue works. Claim a finished batch to collect what it made.
         </div>
         <div className="text-[10px] text-text-muted">{activity.pending ? 'Syncing activity...' : activityDetail}</div>
         {activityError && <div className="text-[10px] text-red">{activityError}</div>}
@@ -345,7 +346,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                     </div>
                     {isExpanded && recipe && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="pt-1.5 border-t border-border/50 space-y-1">
-                        <div className="text-[10px] text-text-muted">Materials used: {Object.entries(recipe.materials).map(([k, v]) => `${MATERIAL_ICONS[k] || ''}${k}×${v}`).join(' · ')}</div>
+                        <div className="text-[10px] text-text-muted">Materials used: {Object.entries(recipe.materials).map(([k, v]) => `${MATERIAL_ICONS[k] || ''}${getVisualAsset('material', k).label}×${v}`).join(' · ')}</div>
                         <div className="text-[10px] text-text-muted">Output: {recipe.outputCount}× {recipe.name} per craft</div>
                       </motion.div>
                     )}
@@ -460,7 +461,9 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                   {materialEntries.map(({ key, required, available, hasEnough }) => {
                     const colorClass = MATERIAL_COLORS[key] || 'text-text-muted';
                     const icon = MATERIAL_ICONS[key] || '';
-                    return <span key={key} className={`${hasEnough ? colorClass : 'text-red-400 line-through'} flex items-center gap-0.5`}>{icon}<span>{available}/{required}</span></span>;
+                    // Audit W2: per-material tints live on the icon only. The
+                    // count reads neutral when affordable; red means short.
+                    return <span key={key} className={`flex items-center gap-0.5 ${hasEnough ? '' : 'text-red-400 line-through'}`}><span className={colorClass}>{icon}</span><span className={hasEnough ? 'text-text-primary' : undefined}>{getVisualAsset('material', key).label} {available}/{required}</span></span>;
                   })}
                 </div>
                 <motion.button whileTap={canCraftNow ? { scale: 0.95 } : {}} onClick={() => { if (canCraftNow) void handleCraft(recipe.id); }} disabled={!canCraftNow} className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${canCraftNow ? `bg-amber text-bg active:bg-amber/80 cursor-pointer ${justClicked ? 'ring-2 ring-amber/80' : ''}` : 'bg-surface-raised text-text-muted border border-border cursor-not-allowed'}`}>

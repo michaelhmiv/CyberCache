@@ -17,6 +17,7 @@ import {
 import { useActivityStore } from '../store';
 import { loadCombatStats, saveCombatStats } from '../store/combatStatsSupabaseSync';
 import type { AccountState } from './accountState';
+import { toMessage } from './errorText';
 import {
   parseAuthStatusMessage,
   parseInitialAuthMode,
@@ -28,12 +29,6 @@ import {
 } from './authTypes';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function toMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  return 'Something went wrong.';
-}
 
 function toNativeAuthDiagnostic(error: unknown): NativeAuthDiagnostic | null {
   if (!error || typeof error !== 'object') return null;

@@ -1,5 +1,6 @@
 import { WorkshopQueue } from '../types/workshop';
 import { CRAFTING_RECIPES } from '../constants/craftingRecipes';
+import { getVisualAsset } from '../constants/visualAssets';
 
 export interface OfflineCraftingResult {
   completedItems: Record<string, number>;
@@ -57,7 +58,8 @@ export function canStartCraft(
   Object.entries(recipe.materials).forEach(([key, required]) => {
     const available = materials[key] || 0;
     if (available < required) {
-      missing.push(`${key}: ${available}/${required}`);
+      // Player-facing: display label from the visual registry, never the raw id (audit W1).
+      missing.push(`${getVisualAsset('material', key).label}: ${available}/${required}`);
     }
   });
 

@@ -117,7 +117,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
               {account?.hasUsername ? (
                 <>
                   <span className="text-amber">@{account.username ?? profileSummary?.username}</span>
-                  {!account.isAnonymous && (
+                  {account && !account.isAnonymous && (
                     <button
                       onClick={() => setRenameOpen(true)}
                       className="text-[10px] underline hover:text-amber"
@@ -129,7 +129,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
               ) : (
                 <>
                   <span>No handle set</span>
-                  {!account.isAnonymous && (
+                  {account && !account.isAnonymous && (
                     <button
                       onClick={() => setSetupOpen(true)}
                       className="text-amber underline"
