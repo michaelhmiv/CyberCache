@@ -168,6 +168,31 @@ function makeShield(mitigation: number): Shield {
 
 const ALIVE = { currentHp: 100000, shieldHp: 0, maxHp: 100000 };
 
+/**
+ * Slice 6 conversion note: these tests originally carried the gear in
+ * the claim BODY — the forged-style setup the trust hardening removed.
+ * Gear now lives only in item_instances (seedItem, runtime_state
+ * 'equipped') and the route derives it; the bodies below send no gear
+ * and no skillBonuses at all. Skill bonuses derive from skill_spends
+ * (empty here) + the class mod's treeBonus via computeSkillBonuses —
+ * the same record the honest client's getBonuses() would report.
+ */
+function seedEquipped(
+  store: InMemoryChefGameplayStore,
+  owner: string,
+  slot: string,
+  payload: unknown,
+) {
+  store.seedItem({
+    id: `${owner}-${slot}`,
+    owner_user_id: owner,
+    kind: 'gear',
+    runtime_state: 'equipped',
+    equipped_slot: slot,
+    payload: payload as Record<string, unknown>,
+  });
+}
+
 describe('stats truth — roaming claim (HTTP)', () => {
   it('(a) relic affixes reach roaming: DPS (bossDamageMod) and XP (+% XP Gain) vs the same claim without the relic', async () => {
     const { base, store, tokenA, tokenB } = await makeServer();
@@ -177,14 +202,19 @@ describe('stats truth — roaming claim (HTTP)', () => {
     const weapon = makeWeapon();
     const classMod = makeClassMod();
     // Player A: weapon + class mod + relic. Player B: weapon + class mod
-    // only. Slot order matches the client's claim construction.
+    // only. All in server records (item_instances), none in the body.
+    seedEquipped(store, A, 'primary', weapon);
+    seedEquipped(store, A, 'classMod', classMod);
+    seedEquipped(store, A, 'relic', makeRelic());
+    seedEquipped(store, B, 'primary', weapon);
+    seedEquipped(store, B, 'classMod', classMod);
     const claimA = await post(base, '/api/claim', {
       playerId: A, areaId: 'dustwaste_frontier', ticks: 20, tickCount: 20, playerLevel: 10,
-      equippedGear: [weapon, classMod, makeRelic()], survival: ALIVE, skillBonuses: {},
+      survival: ALIVE,
     }, tokenA);
     const claimB = await post(base, '/api/claim', {
       playerId: B, areaId: 'dustwaste_frontier', ticks: 20, tickCount: 20, playerLevel: 10,
-      equippedGear: [weapon, classMod], survival: ALIVE, skillBonuses: {},
+      survival: ALIVE,
     }, tokenB);
     expect(claimA.status).toBe(200);
     expect(claimB.status).toBe(200);
@@ -212,13 +242,15 @@ describe('stats truth — roaming claim (HTTP)', () => {
     store.seedProfile({ id: B, player_level: 10 });
 
     const survival = { currentHp: 10000, shieldHp: 0, maxHp: 10000 };
+    seedEquipped(store, A, 'shield', makeShield(0.8));
+    seedEquipped(store, B, 'shield', makeShield(0));
     const claimMit = await post(base, '/api/claim', {
       playerId: A, areaId: 'dustwaste_frontier', ticks: 20, tickCount: 20, playerLevel: 10,
-      equippedGear: [makeShield(0.8)], survival, skillBonuses: {},
+      survival,
     }, tokenA);
     const claimRaw = await post(base, '/api/claim', {
       playerId: B, areaId: 'dustwaste_frontier', ticks: 20, tickCount: 20, playerLevel: 10,
-      equippedGear: [makeShield(0)], survival, skillBonuses: {},
+      survival,
     }, tokenB);
     expect(claimMit.status).toBe(200);
     expect(claimRaw.status).toBe(200);
@@ -242,7 +274,7 @@ describe('stats truth — roaming claim (HTTP)', () => {
     // level (25) — the DB level (1) is what the gate reads.
     const res = await post(base, '/api/claim', {
       playerId: A, areaId: 'helixworks_labyrinth', ticks: 5, tickCount: 5, playerLevel: 25,
-      equippedGear: [], survival: ALIVE, skillBonuses: {},
+      survival: ALIVE,
     }, tokenA);
     expect(res.status).toBe(403);
     expect(res.json.error).toBe('Area locked for your level');
@@ -254,7 +286,7 @@ describe('stats truth — roaming claim (HTTP)', () => {
     // Control: the same player claims the level-1 area fine.
     const ok = await post(base, '/api/claim', {
       playerId: A, areaId: 'dustwaste_frontier', ticks: 5, tickCount: 5, playerLevel: 1,
-      equippedGear: [], survival: ALIVE, skillBonuses: {},
+      survival: ALIVE,
     }, tokenA);
     expect(ok.status).toBe(200);
   });

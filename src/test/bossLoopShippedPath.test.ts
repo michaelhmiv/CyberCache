@@ -13,6 +13,15 @@
  * (processBossAttempt with the exact request the route constructs
  * from server state), so nonce selection is deterministic, never a
  * coin flip against the seeded RNG.
+ *
+ * Slice 6 conversion note: the bodies below originally carried the
+ * loadout (primary: strongWeapon(), ...) — the route took its sim
+ * inputs from the body. Since the trust hardening, the route derives
+ * gear from item_instances and skill bonuses from skill_spends, so
+ * the strong weapon is SEEDED as an equipped server record and the
+ * bodies carry intent only (boss, nonce, prepared consumables, risk,
+ * plus the level/credits/pity lies whose server overrides predate
+ * this slice).
  */
 import express from 'express';
 import type { AddressInfo } from 'node:net';
@@ -127,6 +136,20 @@ function findNonce(base: Omit<BossAttemptRequest, 'attemptNonce'>, predicate: (r
 
 const bossById = (id: string) => REGION_1_BOSSES.find((b) => b.id === id)!;
 
+/** Seed the strong weapon as the player's equipped primary in server records. */
+function seedStrongWeapon(store: InMemoryChefGameplayStore) {
+  const weapon = strongWeapon();
+  store.seedItem({
+    id: weapon.id,
+    owner_user_id: A,
+    kind: 'weapon',
+    runtime_state: 'equipped',
+    equipped_slot: 'primary',
+    payload: weapon as unknown as Record<string, unknown>,
+  });
+  return weapon;
+}
+
 describe('shipped boss loop (POST /api/verify-boss)', () => {
   it('victory: charges exactly the prepared set + entry fee, grants loot incl. the dedicated-drop path, advances unlocks', async () => {
     const { base, store, tokenA } = await makeServer();
@@ -139,6 +162,8 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
       boss_state: { unlockedBossIds: ['dune_tyrant', 'siltstalker', 'heap_guard', 'ashgut'], defeatedBossIds: [], pityCounters: {} },
     });
     const prepared = { MedKit: 2, ShieldCell: 1, AmmoPack: 1 };
+    // The weapon lives in server records; the route derives it.
+    seedStrongWeapon(store);
     // The exact request the route builds from server state.
     const { nonce, expected } = findNonce(
       {
@@ -169,19 +194,11 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
       playerId: A,
       bossId: boss.id,
       attemptNonce: nonce,
-      primary: strongWeapon(),
-      secondary: null,
-      heavy: null,
-      ordnance: null,
-      shield: null,
-      classMod: null,
-      relic: null,
       consumables: prepared,
       risk: RiskSetting.Balanced,
       playerLevel: 99, // client lies — server level wins
       playerCredits: 999999, // client lies — server credits win
       pityCount: 99, // client lies — server pity wins
-      skillBonuses: {},
     };
     const res = await post(base, '/api/verify-boss', body, tokenA);
 
@@ -212,7 +229,8 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     expect(dedicated).toBeDefined();
     expect(dedicated!.rarity).toBe(Rarity.Legendary);
     expect(dedicated!.sourceTag).toBe(DropSource.BossDrop);
-    expect(store.items.size).toBe(items.length);
+    // Stored items = the loot + the one seeded equipped weapon row.
+    expect(store.items.size).toBe(items.length + 1);
 
     // Replay of the same nonce applies nothing twice — no second fee,
     // no second consumption, and no duplicated loot storage (the June
@@ -224,7 +242,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     const after = store.profiles.get(A)!;
     expect(after.credits).toBe(10000 + expected.creditsDelta);
     expect(after.consumables).toEqual({ MedKit: 3, ShieldCell: 2, AmmoPack: 1, LuckBooster: 1, BossScanner: 2 });
-    expect(store.items.size).toBe(items.length);
+    expect(store.items.size).toBe(items.length + 1);
   });
 
   it('defeat: applies entry fee + (insurance-halved) death fee and pity, charges the prepared set', async () => {
@@ -265,16 +283,8 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
       playerId: A,
       bossId: boss.id,
       attemptNonce: nonce,
-      primary: null,
-      secondary: null,
-      heavy: null,
-      ordnance: null,
-      shield: null,
-      classMod: null,
-      relic: null,
       consumables: prepared,
       risk: RiskSetting.Balanced,
-      skillBonuses: {},
     };
     const res = await post(base, '/api/verify-boss', body, tokenA);
     expect(res.status).toBe(200);
@@ -297,7 +307,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     const res = await post(
       base,
       '/api/verify-boss',
-      { playerId: A, bossId: 'scrap_bishop', attemptNonce: 7, primary: strongWeapon(), consumables: {}, risk: RiskSetting.Balanced, skillBonuses: {} },
+      { playerId: A, bossId: 'scrap_bishop', attemptNonce: 7, consumables: {}, risk: RiskSetting.Balanced },
       tokenA,
     );
     expect(res.status).toBe(403);
@@ -311,7 +321,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     const over = await post(
       base,
       '/api/verify-boss',
-      { playerId: A, bossId: 'dune_tyrant', attemptNonce: 8, primary: strongWeapon(), consumables: { MedKit: 99 }, risk: RiskSetting.Balanced, skillBonuses: {} },
+      { playerId: A, bossId: 'dune_tyrant', attemptNonce: 8, consumables: { MedKit: 99 }, risk: RiskSetting.Balanced },
       tokenA,
     );
     expect(over.status).toBe(400);
@@ -319,7 +329,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     const unknown = await post(
       base,
       '/api/verify-boss',
-      { playerId: A, bossId: 'dune_tyrant', attemptNonce: 9, primary: strongWeapon(), consumables: { stim: 1 }, risk: RiskSetting.Balanced, skillBonuses: {} },
+      { playerId: A, bossId: 'dune_tyrant', attemptNonce: 9, consumables: { stim: 1 }, risk: RiskSetting.Balanced },
       tokenA,
     );
     expect(unknown.status).toBe(400);
@@ -338,7 +348,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     const res = await post(
       base,
       '/api/verify-boss',
-      { playerId: A, bossId: 'siltstalker', attemptNonce: 10, primary: strongWeapon(), consumables: {}, risk: RiskSetting.Balanced, skillBonuses: {} },
+      { playerId: A, bossId: 'siltstalker', attemptNonce: 10, consumables: {}, risk: RiskSetting.Balanced },
       tokenA,
     );
     expect(res.status).toBe(400);
@@ -356,10 +366,11 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
       consumables: {},
       boss_state: { unlockedBossIds: ['dune_tyrant', 'siltstalker'], defeatedBossIds: ['dune_tyrant'], pityCounters: {} },
     });
+    seedStrongWeapon(store);
     const res = await post(
       base,
       '/api/verify-boss',
-      { playerId: A, bossId: boss.id, attemptNonce: 11, primary: strongWeapon(), consumables: {}, risk: RiskSetting.Balanced, skillBonuses: {} },
+      { playerId: A, bossId: boss.id, attemptNonce: 11, consumables: {}, risk: RiskSetting.Balanced },
       tokenA,
     );
     expect(res.status).toBe(200);

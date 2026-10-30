@@ -28,8 +28,6 @@ import {
   usePlayerStore,
   useCombatStatsStore,
   useSurvivalStore,
-  useSkillStore,
-  useLoadoutStore,
 } from '@/store';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
@@ -196,21 +194,12 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
 
       // ── Send claim to the Chef ──
       // The server simulates everything: combat, survival, item generation,
-      // rewards. The client sends equippedGear so the server can re-derive
-      // DPS and modifiers (server-authoritative, not client-trusted).
+      // rewards. The claim carries intent + simulation state only — the
+      // Chef derives the loadout and skill bonuses from its own records
+      // (trust hardening, Phase 0 Slice 6), so no gear or skill payload
+      // is sent for it to ignore.
       try {
         const { submitClaim } = await import('@/lib/chef/chefClient');
-        const loadout = useLoadoutStore.getState();
-        const skillBonuses = useSkillStore.getState().getBonuses();
-        const equippedGear: GearItem[] = [
-          loadout.getWeapon('primary'),
-          loadout.getWeapon('secondary'),
-          loadout.getWeapon('heavy'),
-          loadout.getShield(),
-          loadout.getClassMod(),
-          loadout.getRelic(),
-          loadout.getOrdnance(),
-        ].filter((item): item is GearItem => Boolean(item));
 
         const chefResult = await submitClaim({
           playerId,
@@ -218,7 +207,6 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           ticks,
           tickCount: totalTickCount,
           playerLevel: usePlayerStore.getState().level,
-          equippedGear,
           killCycle: {
             currentTargetId: useKillCycleStore.getState().currentTargetId,
             currentTargetHp: useKillCycleStore.getState().currentTargetHp,
@@ -233,7 +221,6 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
             maxHp: useSurvivalStore.getState().maxHp,
           },
           roamingConsumableState,
-          skillBonuses,
         });
 
         // ── Apply server-authoritative results ──

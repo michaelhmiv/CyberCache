@@ -38,6 +38,8 @@ import {
   type ChefGameplayStore,
   type ChefRewardsInput,
   type DeathRecord,
+  type EquippedItemEntry,
+  type LoadoutSlot,
   type ResurrectInput,
   type RoamingProfileRow,
   type SettlementProfileRow,
@@ -339,7 +341,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { player_level: p.player_level, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder };
+    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -350,6 +352,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       credits: p.credits,
       consumables: { ...p.consumables },
       boss_state: JSON.parse(JSON.stringify(p.boss_state)) as Json,
+      skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json,
     };
   }
 
@@ -377,6 +380,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   }
 
   async getEquippedGear(playerId: string): Promise<GearItem[]> {
+    const entries = await this.getEquippedItems(playerId);
+    return entries.map((entry) => entry.item);
+  }
+
+  async getEquippedItems(playerId: string): Promise<EquippedItemEntry[]> {
     const slotRank = new Map<string, number>(LOADOUT_SLOT_ORDER.map((slot, i) => [slot, i]));
     return [...this.items.values()]
       .filter(
@@ -387,7 +395,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
           slotRank.has(item.equipped_slot),
       )
       .sort((a, b) => (slotRank.get(a.equipped_slot!) ?? 0) - (slotRank.get(b.equipped_slot!) ?? 0))
-      .map((item) => JSON.parse(JSON.stringify(item.payload)) as GearItem);
+      .map((item) => ({
+        slot: item.equipped_slot as LoadoutSlot,
+        item: JSON.parse(JSON.stringify(item.payload)) as GearItem,
+      }));
   }
 
   async applyChefRewards(

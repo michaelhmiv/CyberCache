@@ -115,6 +115,14 @@ function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
     sourceTag: DropSource.WorldDrop,
     isLocked: false,
     pixelSeed: 1,
+    // Complete-payload fields the generators always write (and the
+    // client adapter requires). This fixture originally omitted them;
+    // since Slice 6 the boss route only sims weapon payloads that are
+    // complete in server records, so the fixture must be one.
+    combatPower: 0,
+    bossPower: 0,
+    farmPower: 0,
+    economyScore: 0,
     ...overrides,
   };
 }

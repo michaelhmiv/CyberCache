@@ -12,7 +12,7 @@ import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../
 import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
-import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSkillStore } from '../../store';
+import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { BossFightStage } from '../pixelArt/BossFightStage';
 import { LootMoment } from '../pixelArt/LootMoment';
@@ -156,7 +156,6 @@ export const BossEncounterPanel: React.FC<{
   const player = usePlayerStore();
   const bossStore = useBossStore();
   const loadout = useLoadoutStore();
-  const skillStore = useSkillStore();
   const activity = useActivityStore();
   const reducedMotion = useReducedMotion();
 
@@ -256,23 +255,16 @@ export const BossEncounterPanel: React.FC<{
 
     let outcome: ChefVerifyBossResult;
     try {
+      // Intent only (trust hardening, Phase 0 Slice 6): the Chef
+      // derives the loadout, skill bonuses, level, credits, and pity
+      // from its own records — the panel's loadout reads above are
+      // for display and staging, never sent as sim inputs.
       outcome = await verifyBossFight({
         playerId: player.id,
         bossId: boss.id,
         attemptNonce: nextAttemptNonce(),
-        primary,
-        secondary,
-        heavy,
-        ordnance,
-        shield,
-        classMod,
-        relic,
         consumables: prepared,
         risk,
-        playerLevel: player.level,
-        skillBonuses: skillStore.getBonuses(),
-        pityCount: bossStore.pityCounters[boss.id] || 0,
-        playerCredits: player.credits,
       });
       syncBossAttemptResult(outcome);
       applyBossConsumableDisplayEvents({
