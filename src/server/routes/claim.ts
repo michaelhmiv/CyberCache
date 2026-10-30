@@ -30,6 +30,7 @@ import { CONSUMABLES } from '../../constants/consumables';
 import type { AuthConfig } from '../auth/routes';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { bossSlotsFromEquipped, skillBonusesFromRecords } from '../gameplay/serverLoadout';
+import { escalatedBossFee, utcDayStartIso } from '../../lib/bossFees';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 /**
@@ -147,11 +148,30 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
       // defeated (both fields exist on the boss def; they were
       // display-only before this slice). Derived here from the def +
       // server boss_state — never from the request body.
-      const entryFee = bossDef
+      const baseEntryFee = bossDef
         ? defeatedBossIds.includes(body.bossId)
           ? bossDef.rematchCost
           : bossDef.entryCost
         : 0;
+
+      // --- Rematch escalation (pacing-baseline tuning) ---
+      // The base fee doubles per victory already banked against this
+      // boss today (UTC day), capped at ×8 — see src/lib/bossFees.ts.
+      // Today's victories are counted from the verified action ledger
+      // through the store seam, never from the request body. The
+      // response reports the post-attempt count so the prep panel's
+      // displayed fee tracks the charged fee exactly.
+      let victoriesToday = 0;
+      if (bossDef) {
+        try {
+          victoriesToday = await store.countBossVictoriesToday(playerId, body.bossId, utcDayStartIso());
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.status(500).json({ error: 'Failed to count boss victories', detail: message });
+          return;
+        }
+      }
+      const entryFee = escalatedBossFee(baseEntryFee, victoriesToday);
       if (serverCredits < entryFee) {
         res.status(400).json({
           error: 'Insufficient credits for boss entry fee',
@@ -252,6 +272,9 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
           pityIncremented: storedAttempt ? storedAttempt.victory !== true : !result.result.victory,
           profile: rpcRecord?.profile ?? rpcResult,
           idempotentReplay: true,
+          // The pre-attempt count on a replay already includes the
+          // original application's victory — it IS the current count.
+          bossVictoriesToday: victoriesToday,
         });
         return;
       }
@@ -278,6 +301,8 @@ export function createVerifyBossHandler(store: ChefGameplayStore, config: AuthCo
         victory: result.result.victory,
         pityIncremented: !result.result.victory,
         profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+        // Post-attempt victory count for the panel's fee display.
+        bossVictoriesToday: victoriesToday + (result.result.victory ? 1 : 0),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

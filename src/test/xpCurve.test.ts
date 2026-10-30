@@ -2,10 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { xpToNextLevel } from '@/content/simulation';
 import { levelStateFromTotalXp, totalXpRequiredToReachLevel } from '@/content/xpResolver';
 
-describe('XP curve (50n + 20n^1.4)', () => {
-  it('xpToNextLevel(1) ≈ 70', () => {
-    // 50*1 + 20*1 = 70
-    expect(xpToNextLevel(1)).toBe(70);
+// RE-PINNED for the pacing-baseline tuning pass (owner directive,
+// 2026-10-30): the launch curve (50n + 20n^1.4, 766,955 XP to 100)
+// capped a regular player in ~45 days. The stretched curve is
+// Torn-shaped — floor(100·L^1.72) below 25, then
+// floor(25377·(L/25)^0.5 · 1.048^max(0, L−45)) — solved against the
+// lifecycle evaluation's faucet model so regulars reach L25 in ~17
+// days, L45 in ~51 days, and L100 in ~24 months. Every numeric pin
+// below is the new curve's exact output; the SQL mirror lives in
+// migration 0016.
+describe('XP curve (stretched: 100n^1.72, then sqrt + 1.048 tail)', () => {
+  it('xpToNextLevel(1) = 100', () => {
+    // floor(100 * 1^1.72) = 100 — the first level still lands in minutes.
+    expect(xpToNextLevel(1)).toBe(100);
   });
 
   it('xpToNextLevel grows monotonically', () => {
@@ -17,13 +26,27 @@ describe('XP curve (50n + 20n^1.4)', () => {
     }
   });
 
-  it('xpToNextLevel(50) is in the band that keeps mid-game progression tractable', () => {
-    // The new curve must NOT match the old `level * 100` shape: at L50 the
-    // new curve should be 50*50 + 20*50^1.4 ≈ 4,820 (vs the old 5,000).
-    // Just a regression check that we're not running the old formula.
-    const threshold = xpToNextLevel(50);
-    expect(threshold).toBeGreaterThan(2_000);
-    expect(threshold).toBeLessThan(7_500);
+  it('is continuous at the L25 segment joint', () => {
+    // Segment 2's constant is segment 1 evaluated at 25.
+    expect(xpToNextLevel(25)).toBe(Math.floor(100 * Math.pow(25, 1.72)));
+    expect(xpToNextLevel(25)).toBe(25377);
+    expect(xpToNextLevel(24)).toBe(23657);
+  });
+
+  it('pins the milestone thresholds of the stretched curve', () => {
+    expect(xpToNextLevel(45)).toBe(34046);
+    expect(xpToNextLevel(50)).toBe(45369);
+    expect(xpToNextLevel(99)).toBe(635034);
+  });
+
+  it('total XP to reach the milestones matches the pacing model', () => {
+    // Lifecycle faucet model (best-area XP/hr by band): at these totals
+    // a regular (6 roaming-h/day) reaches L25 in ~17 days, L45 in ~51
+    // days, and the cap in ~726 days (~24 months); a casual (2.5 h/day)
+    // needs ~4.8 years for the cap.
+    expect(totalXpRequiredToReachLevel(25)).toBe(220_699);
+    expect(totalXpRequiredToReachLevel(45)).toBe(814_797);
+    expect(totalXpRequiredToReachLevel(100)).toBe(12_480_235);
   });
 
   it('totalXpRequiredToReachLevel(10) sums the per-level thresholds', () => {

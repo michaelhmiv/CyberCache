@@ -10,6 +10,7 @@ import { getBossRiskModifiers } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
 import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
 import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
+import { bossFeeMultiplier, escalatedBossFee } from '../../lib/bossFees';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore } from '../../store';
@@ -182,7 +183,13 @@ export const BossEncounterPanel: React.FC<{
 
   const defeated = bossStore.defeatedBossIds.includes(boss.id);
   const unlocked = defeated || bossStore.unlockedBossIds.includes(boss.id);
-  const entryFee = defeated ? boss.rematchCost : boss.entryCost;
+  // The fee the Chef will charge: def base fee under today's rematch
+  // escalation (×2 per victory vs this boss today, capped ×8 — the
+  // counts are server-reported; the attempt response's charged fee is
+  // the final truth).
+  const victoriesToday = bossStore.bossVictoriesToday[boss.id] ?? 0;
+  const feeMultiplier = bossFeeMultiplier(victoriesToday);
+  const entryFee = escalatedBossFee(defeated ? boss.rematchCost : boss.entryCost, victoriesToday);
   const canAfford = player.credits >= entryFee;
 
   // The prepared set is the player's strategy: exactly these counts go
@@ -497,7 +504,10 @@ export const BossEncounterPanel: React.FC<{
             <div className="text-center text-[10px] text-red">You hold {player.credits.toLocaleString()}cr — the {entryFee.toLocaleString()}cr fee is out of reach.</div>
           )}
           {unlocked && defeated && (
-            <div className="text-center text-[10px] text-text-muted">Already defeated — rematches cost {boss.rematchCost.toLocaleString()}cr and can drop its dedicated legendaries again.</div>
+            <div className="text-center text-[10px] text-text-muted">Already defeated — rematches cost {entryFee.toLocaleString()}cr and can drop its dedicated legendaries again.</div>
+          )}
+          {unlocked && feeMultiplier > 1 && (
+            <div className="text-center text-[10px] text-amber">Rematch fee escalated ×{feeMultiplier} — {victoriesToday} {victoriesToday === 1 ? 'victory' : 'victories'} today. Resets at 00:00 UTC.</div>
           )}
         </>
       )}

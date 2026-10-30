@@ -208,8 +208,10 @@ export interface ChefVerifyBossResult {
   consumedConsumables: Record<string, number>;
   extraLoot: boolean;
   bonusLootRolls: number;
-  /** Entry fee charged for this attempt (boss entryCost / rematchCost). */
+  /** Entry fee charged for this attempt (def base fee × today's rematch escalation). */
   entryFee: number;
+  /** Victories against this boss on the current UTC day, after this attempt. */
+  bossVictoriesToday?: number;
   /** True when the guaranteed victory roll landed on a dedicated drop. */
   dedicatedDropAwarded: boolean;
   unlockedBossId?: string;

@@ -23,6 +23,8 @@ export type RuntimeProfilePayload = {
   consumable_batches?: ConsumableBatch[];
   skill_spends?: Record<string, number>;
   boss_state?: Record<string, unknown>;
+  /** Server-computed rematch-escalation state (UTC-day victory counts). */
+  boss_victories_today?: Record<string, number>;
   last_idle_claim_at?: string;
   last_claimed_tick?: number | string;
   last_roaming_settled_at?: string;
@@ -156,6 +158,9 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
   const skillSpends = recordValue(profile.skill_spends);
   if (skillSpends) useSkillStore.setState({ spent: skillSpends });
 
+  const victoriesToday = recordValue(profile.boss_victories_today);
+  if (victoriesToday) useBossStore.setState({ bossVictoriesToday: victoriesToday });
+
   const bossState = profile.boss_state;
   if (bossState && typeof bossState === 'object' && !Array.isArray(bossState)) {
     const raw = bossState as Record<string, unknown>;
@@ -223,8 +228,17 @@ export function syncBossAttemptResult(result: {
   profile?: RuntimeProfilePayload;
   items?: GearItem[];
   result?: BossAttemptResult;
+  /** Post-attempt UTC-day victory count for the attempted boss. */
+  bossVictoriesToday?: number;
 }): void {
   syncRuntimeProfile(result.profile);
   if (result.items?.length) result.items.forEach((item) => useInventoryStore.getState().upsertItem(item));
   if (result.result) useBossStore.getState().addAttempt(result.result);
+  const bossId = result.result?.bossId;
+  const victories = result.bossVictoriesToday;
+  if (bossId && typeof victories === 'number' && Number.isFinite(victories)) {
+    useBossStore.setState((state) => ({
+      bossVictoriesToday: { ...state.bossVictoriesToday, [bossId]: Math.max(0, Math.trunc(victories)) },
+    }));
+  }
 }

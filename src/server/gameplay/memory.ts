@@ -165,6 +165,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly items = new Map<string, InMemoryItem>();
   readonly activeActions = new Map<string, InMemoryActiveAction>();
   readonly ledger = new Map<string, Json>();
+  /**
+   * Boss victory timestamps (the store clock), one entry per freshly
+   * applied victory — the in-memory mirror of the verified action
+   * ledger rows countBossVictoriesToday reads on the Pg store. The
+   * ledger map itself carries no timestamps, so the escalation count
+   * needs this side log; nonce replays return before it is appended.
+   */
+  readonly bossVictoryLog: Array<{ playerId: string; bossId: string; atMs: number }> = [];
   readonly consumableEvents: ConsumableEvent[] = [];
   /** player_masteries mirror — written by the 0014 mastery grants below. */
   readonly masteries: InMemoryMastery[] = [];
@@ -566,6 +574,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       xp_awarded: Math.max(0, Math.trunc(attempt.xp)),
     };
     this.ledger.set(nonceKey, result);
+    if (attempt.victory) {
+      this.bossVictoryLog.push({ playerId, bossId: attempt.bossId, atMs: this.now().getTime() });
+    }
     // 0014: mirror the trigger's cc_apply_boss_attempt branch —
     // attempts always count, defeats pay on victory, weapon mastery
     // follows the (victory-gated) awarded XP, and the prepared set
@@ -659,7 +670,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return result;
   }
 
-  async settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json): Promise<Json> {
+  async countBossVictoriesToday(playerId: string, bossId: string, dayStartIso: string): Promise<number> {
+    const dayStartMs = Date.parse(dayStartIso);
+    return this.bossVictoryLog.filter(
+      (entry) => entry.playerId === playerId && entry.bossId === bossId && entry.atMs >= dayStartMs,
+    ).length;
+  }
+
+  async settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json> {
     if (!settlementNonce || settlementNonce.trim().length < 8) {
       throw new GameplayStoreError('settlement_nonce is required (min 8 chars)');
     }
@@ -678,7 +696,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     }
     const nowTs = this.now();
     const rawElapsedMs = Math.max(0, nowTs.getTime() - new Date(settleFrom).getTime());
-    const capMs = Math.floor(Math.max(0.25, p.offline_cap_hours ?? 2) * 3_600_000);
+    // 0015 mirror: the route's server-derived cap wins over the stored
+    // preference; the stored value is only the legacy fallback.
+    const effectiveCapHours = capHours ?? p.offline_cap_hours ?? 2;
+    const capMs = Math.floor(Math.max(0.25, effectiveCapHours) * 3_600_000);
     const capReached = rawElapsedMs > capMs;
     const elapsedMs = Math.min(rawElapsedMs, capMs);
     const ticksRequested = Math.floor(elapsedMs / TICK_MS);
@@ -734,7 +755,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       elapsed_ms: elapsedMs,
       capped_ms: capMs,
       cap_reached: capReached,
-      cap_hours: p.offline_cap_hours ?? 2,
+      cap_hours: effectiveCapHours,
       ticks_requested: ticksRequested,
       ticks_settled: ticksRequested,
       new_tick_count: newTickCount,

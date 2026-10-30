@@ -8,6 +8,7 @@ import { REGION_1_BOSSES } from '../../constants/bosses';
 import { BossDef } from '../../types/boss';
 import { MobileCard } from '../layout/MobileCard';
 import { computeLoadoutDps } from '../../lib/stats/dpsChain';
+import { escalatedBossFee } from '../../lib/bossFees';
 import { BossSigil } from '@/components/common/BossSigil';
 
 interface BossSelectModalProps {
@@ -156,7 +157,7 @@ export const BossSelectModal: React.FC<BossSelectModalProps> = ({ onClose }) => 
                 <div className="flex items-center justify-between text-[10px]">
                   <span className="text-text-muted">
                     {boss.entryCost > 0 ? `Entry: ${boss.entryCost}cr` : 'Free entry'}
-                    {boss.rematchCost > 0 && ` · Rematch: ${boss.rematchCost}cr`}
+                    {boss.rematchCost > 0 && ` · Rematch: ${escalatedBossFee(boss.rematchCost, bossStore.bossVictoriesToday[boss.id] ?? 0)}cr`}
                   </span>
                   {pity > 0 && (
                     <span className="text-amber font-bold">Pity: {pity}</span>

@@ -275,7 +275,15 @@ export interface BossAttemptChefResult {
 
 const TICK_MS = 3000;
 const GEAR_THRESHOLD = 0.22;
-const FRAGMENT_CHANCE = 0.03;
+/**
+ * Cache-key fragment faucet: chance per roaming tick (before activity
+ * bonuses). Pacing-baseline tuning (lifecycle evaluation): 0.03 → 0.008 —
+ * the launch rate minted ~7 keys/hour of roaming; fragments now trickle
+ * at ~2 keys/hour while the jackpot legendary's guaranteed fragment and
+ * the 5-fragments-per-key conversion are unchanged. Chest odds (the
+ * 60/32/8 displayed to players) are a separate table and do not move.
+ */
+export const FRAGMENT_CHANCE = 0.008;
 const MATERIAL_CHANCE = 0.08;
 
 function clampChance(value: number): number {
@@ -926,8 +934,11 @@ export function processRoamingClaim(
  * the boss's dedicated drops (boss.dedicatedDrops). The boss defs
  * declare the dedicated pools but no rates, so the rate is a Chef
  * constant — documented in MECHANICS.md §10 (Boss Combat).
+ * Pacing-baseline tuning (lifecycle evaluation): 0.25 → 0.10, the
+ * Borderlands-standard dedicated rate, so named legendaries stay
+ * chase items instead of arriving every fourth kill.
  */
-export const BOSS_DEDICATED_DROP_CHANCE = 0.25;
+export const BOSS_DEDICATED_DROP_CHANCE = 0.1;
 
 export function processBossAttempt(request: BossAttemptRequest): BossAttemptChefResult {
   const boss = REGION_1_BOSSES.find((entry) => entry.id === request.bossId);
@@ -982,7 +993,9 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   });
   // Skill tree xpBoostMod (previously ignored in boss path)
   xpMult += request.skillBonuses?.xpBoostMod ?? 0;
-  const xpAwarded = victory ? Math.round(boss.level * 20 * xpMult) : 0;
+  // Pacing-baseline tuning: boss XP is boss.level × 50 (was × 20) so the
+  // boss ladder stays a meaningful XP source under the stretched curve.
+  const xpAwarded = victory ? Math.round(boss.level * 50 * xpMult) : 0;
 
   const consumedConsumables = getBossConsumableUsage(request.consumables, victory, sim.survivalScore);
   const refundChance = getInsuranceFraudRefundChance(request.primary);
@@ -1016,7 +1029,13 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
           generateWeapon(
             {
               source: DropSource.BossDrop,
-              level: boss.level,
+              // Dedicated drops generate at the PLAYER's level once the
+              // player outlevels the boss (pacing-baseline tuning):
+              // boss levels stop at 45 while roaming legendaries scale
+              // to 100, so a boss-level dedicated drop lost the power
+              // race for any high-level farmer. Generic rolls below
+              // keep boss.level.
+              level: Math.max(boss.level, Math.max(1, Math.trunc(request.playerLevel) || boss.level)),
               bossTier: boss.tier,
               forcedRarity: Rarity.Legendary,
               forcedLegendaryEffectId: pick,

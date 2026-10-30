@@ -15,6 +15,7 @@ import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
+import { earnedOfflineCapHours } from '../../content/offlineCap';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 function formatTimeAway(ms: number): string {
@@ -75,17 +76,6 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         return;
       }
 
-      const capHours = Number(profile.offline_cap_hours) || 2;
-      const capMs = capHours * 60 * 60 * 1000;
-      const rawElapsedMs = Math.max(0, Date.now() - new Date(settleFrom).getTime());
-      const elapsedMs = Math.min(rawElapsedMs, capMs);
-      const ticksRequested = Math.floor(elapsedMs / 3000);
-
-      if (ticksRequested <= 0) {
-        res.json({ settled: false, reason: 'no_elapsed' });
-        return;
-      }
-
       const area = await import('../../constants/roamingAreas').then((m) => m.getRoamingArea(activeAction.target_id));
 
       // Area level gate (same rule as the foreground claim route): a
@@ -118,6 +108,25 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         equippedGear,
         (profile.skill_spends ?? {}) as Record<string, number>,
       );
+
+      // Offline cap — EARNED, server-derived (pacing-baseline tuning):
+      // earnedOfflineCapHours(player level) + the Scavenger keystone's
+      // offlineCapBonus from the server-rebuilt skill bonuses above
+      // (that effect key's first consumer). The stored
+      // profiles.offline_cap_hours preference no longer sizes the
+      // settlement — a larger client/profile value is ignored here and
+      // inside cc_settle_offline_roaming (0015's _cap_hours).
+      const offlineCapBonus = Math.max(0, Math.floor(skillBonuses.offlineCapBonus ?? 0));
+      const capHours = earnedOfflineCapHours(profile.player_level || 1) + offlineCapBonus;
+      const capMs = capHours * 60 * 60 * 1000;
+      const rawElapsedMs = Math.max(0, Date.now() - new Date(settleFrom).getTime());
+      const elapsedMs = Math.min(rawElapsedMs, capMs);
+      const ticksRequested = Math.floor(elapsedMs / 3000);
+
+      if (ticksRequested <= 0) {
+        res.json({ settled: false, reason: 'no_elapsed' });
+        return;
+      }
 
       const claim: ClaimRequest = {
         playerId,
@@ -156,7 +165,11 @@ export function createSettleOfflineHandler(store: ChefGameplayStore, config: Aut
         // foreground claims; the consumed set is applied atomically
         // inside the settlement instead of being discarded (offline
         // benefits used to be free forever).
-        result.consumedConsumables as Json)) as Record<string, unknown> | null;
+        result.consumedConsumables as Json,
+        // 0015: the earned cap derived above — the atomic function
+        // caps its own elapsed window at the same value, so the
+        // simulated rewards and the persisted settlement agree.
+        capHours)) as Record<string, unknown> | null;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         res.status(500).json({ error: 'Atomic settlement failed', detail: message });
