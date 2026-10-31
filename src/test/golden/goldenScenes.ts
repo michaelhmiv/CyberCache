@@ -214,6 +214,28 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.35, GRAMMAR.progress.heightPx, [127, 176, 105], 255);
   }),
+  // Repair services (0025): the bay at rest — vehicle on the lift,
+  // no work pose, empty progress track — and at delivery: full bar,
+  // success flash implied by the complete track + work pose released.
+  scene('bay-idle', (img) => {
+    drawBackground(img, AREA_BG.throwtech_dumpnet);
+    const lift = loadGoldenSprite('set-bay-lift');
+    if (lift) blit(img, lift, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    const vehicle = loadGoldenSprite('vehicle-dune-buggy');
+    if (vehicle) blit(img, vehicle, SCENE_W * 0.44, GROUND * SCENE_H - 44, 108, 54);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+  }),
+  scene('bay-complete', (img) => {
+    drawBackground(img, AREA_BG.throwtech_dumpnet);
+    const lift = loadGoldenSprite('set-bay-lift');
+    if (lift) blit(img, lift, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    const vehicle = loadGoldenSprite('vehicle-dune-buggy');
+    if (vehicle) blit(img, vehicle, SCENE_W * 0.44, GROUND * SCENE_H - 44, 108, 54);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.celebrate, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [127, 176, 105], 255);
+  }),
   // Crafting-as-occupation (0024, brief §2.9): the bench stage per
   // bench tier + the paused state (hunter away roaming — bench stands
   // idle-dark under its pennant, progress frozen mid-bar).

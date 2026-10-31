@@ -113,7 +113,7 @@ export function benchDef(bench: number): CraftBenchDef {
 
 // ─── The unified craft catalog (§2.5) ────────────────────────────────
 
-export type CraftJobKind = 'consumable' | 'refine' | 'gear' | 'tool';
+export type CraftJobKind = 'consumable' | 'refine' | 'gear' | 'tool' | 'repair';
 export type CraftStation = 'bench' | 'crusher' | 'furnace';
 
 export interface CraftRecipe {

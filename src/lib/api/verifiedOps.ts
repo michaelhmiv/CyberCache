@@ -84,7 +84,14 @@ export const verifiedOps = {
   equipItem: (itemId: string, slotName: string) => op('/ops/equip-item', { nonce: requestId('equip'), item_id: itemId, slot_name: slotName }),
   unequipSlot: (slotName: string) => op('/ops/unequip-slot', { nonce: requestId('unequip'), slot_name: slotName }),
   refuelVehicle: (cells: number, itemKey?: string) => op('/ops/refuel-vehicle', { nonce: requestId('refuel'), cells, item_key: itemKey ?? null }),
-  usePatchKit: (itemId: string, itemKey?: string) => op('/ops/use-patch-kit', { nonce: requestId('patch'), item_id: itemId, item_key: itemKey ?? null }),
+  // Mechanics & repair services (0025): self-repair is a timed job;
+  // the board is post → escrow → accept → work → terminal settle.
+  enqueueRepairJob: (itemId: string, kitType: string, units: number) => op('/ops/repair-enqueue', { nonce: requestId('repair-enqueue'), item_id: itemId, item_key: kitType, units }),
+  postRepairJob: (itemId: string, priceCredits: number, targetPoints?: number | null) => op('/ops/repair-post', { nonce: requestId('repair-post'), item_id: itemId, price_credits: priceCredits, target_points: targetPoints ?? null }),
+  acceptRepairJob: (jobId: string, kitType: string) => op('/ops/repair-accept', { nonce: requestId('repair-accept'), job_id: jobId, item_key: kitType }),
+  finishRepairJob: (jobId: string) => op('/ops/repair-finish', { nonce: requestId('repair-finish'), job_id: jobId }),
+  cancelRepairJob: (jobId: string) => op('/ops/repair-cancel', { nonce: requestId('repair-cancel'), job_id: jobId }),
+  reclaimRepairJob: (jobId: string) => op('/ops/repair-reclaim', { nonce: requestId('repair-reclaim'), job_id: jobId }),
   idleClaim: () => op('/ops/idle-claim', { nonce: requestId('idle') }),
   retrain: () => op('/ops/retrain', { nonce: requestId('retrain') }),
   trainSkill: (nodeId: string) => op('/ops/train-skill', { nonce: requestId(`train:${nodeId}`), node_id: nodeId }),
@@ -94,9 +101,6 @@ export const verifiedOps = {
   marketCreateMaterial: (materialId: string, quantity: number, priceCredits: number) => op('/ops/market-create-material', { nonce: requestId('list-mat'), material_id: materialId, quantity, price_credits: priceCredits }),
   marketCancel: (listingId: string) => op('/ops/market-cancel', { nonce: requestId('cancel'), listing_id: listingId }),
   acceptListing: (listingId: string) => op('/ops/market-accept', { nonce: requestId('accept'), listing_id: listingId }),
-  requestItemService: (itemId: string, serviceId = 'repair') => op('/ops/service-request', { nonce: requestId('service-request'), item_id: itemId, service_id: serviceId }),
-  acceptItemService: (jobId: string, priceCredits: number, durationMinutes = 60) => op('/ops/service-accept', { nonce: requestId('service-accept'), job_id: jobId, price_credits: priceCredits, duration_minutes: durationMinutes }),
-  finishItemService: (jobId: string) => op('/ops/service-finish', { nonce: requestId('service-finish'), job_id: jobId }),
   resetProgress: () => op('/ops/reset-progress', { nonce: requestId('reset') }),
 };
 
@@ -109,3 +113,13 @@ export const verifiedOps = {
  */
 export const fetchWorkshopState = async (): Promise<VerifiedResult> =>
   apiRequest<VerifiedResult>('/workshop/me', { method: 'GET' });
+
+/**
+ * The repair board read (GET /api/repair/board): the server settles
+ * the caller's repair jobs (expiring stale listings), then returns
+ * open postings, my postings, my workbench, and board/mechanic stats
+ * in the one view shape (buildRepairBoardView). A read, not a
+ * verified op.
+ */
+export const fetchRepairBoard = async (): Promise<VerifiedResult> =>
+  apiRequest<VerifiedResult>('/repair/board', { method: 'GET' });

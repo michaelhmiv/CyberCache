@@ -45,6 +45,19 @@ import {
   type CraftRecipe,
 } from '../../content/crafting.js';
 import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
+import {
+  MAX_ACTIVE_REPAIR_JOBS,
+  PATCH_KIT_BASES,
+  REPAIR_BENCH,
+  REPAIR_KIT_TYPES,
+  REPAIR_MASTERY_TRACK,
+  REPAIR_RECIPE_BY_KIT,
+  repairEfficiencyMultiplier,
+  repairKitRestorePoints,
+  repairKitUnitDurationMs,
+  repairMasteryXp,
+  repairWorkRatePointsPerHour,
+} from '../../content/repair.js';
 import { getConsumableRuntimeEffects } from '../../constants/consumables.js';
 import { Rarity } from '../../types/game.js';
 import { applyXp } from './store.js';
@@ -78,6 +91,23 @@ export interface CraftJobSnapshot {
   craftTimeScalar: number;
   catalystMaterialId: string | null;
   gearRarity: string | null;
+  /** Repair jobs only (kind 'repair', mechanics slice 0025): the
+   *  vehicle being restored, the patch kits escrowed at enqueue (one
+   *  quality/origin record per unit, in burn order), and the rate /
+   *  efficiency snapshot priced from the owner's repair mastery at
+   *  enqueue time. */
+  repair?: CraftRepairSnapshot;
+}
+
+export interface CraftRepairSnapshot {
+  itemId: string;
+  kitType: string;
+  kitBase: number;
+  kitQualities: number[];
+  kitOrigins: string[];
+  efficiency: number;
+  workRatePointsPerHour: number;
+  masteryLevel: number;
 }
 
 export interface CraftJobOutput {
@@ -97,6 +127,15 @@ export interface CraftJobOutput {
   rarity?: string;
   tempered?: boolean;
   toolId?: string;
+  /** Repair units: condition points this unit actually restored. */
+  pointsRestored?: number;
+  /** Repair units: vehicle condition after this unit landed. */
+  conditionCurrent?: number;
+  /** Settler-internal signal: the vehicle was already at full
+   *  condition when this unit would have started, so the job ends
+   *  early and every unstarted kit is refunded. Never persisted as
+   *  a completion output. */
+  vehicleFull?: boolean;
 }
 
 export interface CraftJobRecord {
@@ -149,6 +188,10 @@ export interface CraftLeverValues {
   craftQualityShift: number;
   gearTemperBaseChance: number;
   refineBaseYield: number;
+  /** Repair levers (0025); defaults in src/content/repair.ts. */
+  repairWorkRateBase: number;
+  repairMasterySpeedPerLevel: number;
+  repairMasteryEfficiencyPerLevel: number;
 }
 
 export interface CraftAdapter {
@@ -176,6 +219,18 @@ export interface CraftAdapter {
   burnOneBatchUnit(playerId: string, type: string): { quality: number; origin: string } | null;
   /** Insert a generated gear item; returns the new item id. */
   insertGearItem(playerId: string, candidate: CraftedGearCandidate): string;
+  /** Repair jobs: read one owned item's repair-relevant state. */
+  vehicleInfo(
+    playerId: string,
+    itemId: string,
+  ): { kind: string; runtimeState: string; conditionCurrent: number; conditionMax: number } | null;
+  /** Repair jobs: restore condition points (clamped at max) and
+   *  return the resulting condition state. */
+  restoreVehicle(
+    playerId: string,
+    itemId: string,
+    points: number,
+  ): { conditionCurrent: number; conditionMax: number } | null;
   levers(): CraftLeverValues;
 }
 
@@ -226,6 +281,8 @@ export function settleCraftJobs(
 
   // Rebase every active job first: whatever happens below, paused or
   // capped time is consumed by THIS settle and can never accrue later.
+  // Each job advances only in its own lane (0025): craft kinds under
+  // the `crafting` action, repair jobs under `workshop_service`.
   const heartbeatMs = action?.lastHeartbeatMs ?? null;
   const perJobAdvance = new Map<string, number>();
   let maxAdvance = 0;
@@ -233,7 +290,8 @@ export function settleCraftJobs(
     const startMs = job.last_settled_ms;
     const rawDelta = Math.max(0, now - startMs);
     job.last_settled_ms = now;
-    if (!action || action.kind !== 'crafting' || rawDelta <= 0) {
+    const lane = job.kind === 'repair' ? 'workshop_service' : 'crafting';
+    if (!action || action.kind !== lane || rawDelta <= 0) {
       perJobAdvance.set(job.id, 0);
       continue;
     }
@@ -266,7 +324,7 @@ export function settleCraftJobs(
     jobsCompleted: 0,
     completions: [],
   };
-  if (!action || action.kind !== 'crafting') return result;
+  if (!action || (action.kind !== 'crafting' && action.kind !== 'workshop_service')) return result;
 
   const levers = adapter.levers();
   const benches = new Map<number, CraftJobRecord[]>();
@@ -297,6 +355,16 @@ export function settleCraftJobs(
           budget -= need;
           job.accrued_ms = 0;
           const output = completeCraftUnit(adapter, profile, job, levers);
+          if (output.vehicleFull) {
+            // Repair job whose vehicle reached full condition before
+            // this unit started: end the job and refund every kit
+            // that never got applied, at its escrowed quality.
+            refundRemainingRepairKits(adapter, job);
+            job.status = 'complete';
+            job.completed_at_ms = now;
+            result.jobsCompleted += 1;
+            break;
+          }
           result.xpAwarded += output.xp;
           result.completions.push({ ...output, jobId: job.id, recipeId: job.recipe_id });
         }
@@ -323,12 +391,86 @@ function consumeToolCharge(profile: CraftProfileView, toolId: string): void {
   }
 }
 
+/** Refund every kit a repair job escrowed but never applied (early
+ *  completion at full condition, or cancellation), each as a batch at
+ *  its recorded quality and origin. */
+function refundRemainingRepairKits(adapter: CraftAdapter, job: CraftJobRecord): number {
+  const snap = job.snapshot.repair;
+  if (!snap) return 0;
+  let refunded = 0;
+  for (let i = job.units_completed; i < job.units_total; i += 1) {
+    adapter.addBatch(
+      job.owner_user_id,
+      snap.kitType,
+      1,
+      snap.kitQualities[i] ?? 100,
+      snap.kitOrigins[i] ?? 'crafted',
+      job.owner_user_id,
+      null,
+    );
+    refunded += 1;
+  }
+  return refunded;
+}
+
+/**
+ * One self-repair unit (0025): apply the next escrowed patch kit to
+ * the vehicle. Restoration = kit base × kit quality% × the owner's
+ * repair-mastery efficiency snapshot, clamped at the vehicle's max;
+ * the partially-wasted kit at full condition is spent (a kit is a
+ * consumable, §2.4's board rule is the same). Self-repair pays NO
+ * player XP — it is consumption (brief §2.7) — but it trains the
+ * repair mastery by the points actually restored, because mastery is
+ * what makes self-repair faster and it must be trainable solo.
+ */
+function completeRepairUnit(
+  adapter: CraftAdapter,
+  job: CraftJobRecord,
+): CraftJobOutput {
+  const snap = job.snapshot.repair;
+  if (!snap) fail('Repair job snapshot missing');
+  const playerId = job.owner_user_id;
+  const unit = job.units_completed + 1;
+  const output: CraftJobOutput = { unit, kind: 'repair', xp: 0, completedAtMs: adapter.nowMs() };
+
+  const info = adapter.vehicleInfo(playerId, snap.itemId);
+  if (
+    !info ||
+    info.kind !== 'vehicle' ||
+    info.conditionCurrent >= info.conditionMax ||
+    ['listed', 'consumed', 'salvaged', 'in_service'].includes(info.runtimeState)
+  ) {
+    // Vehicle gone, no longer a vehicle, already whole, or not in the
+    // owner's hands (listed / in board service): the unit never
+    // starts; the settler refunds this and all later kits.
+    output.vehicleFull = true;
+    return output;
+  }
+  const quality = snap.kitQualities[job.units_completed] ?? 100;
+  const restore = repairKitRestorePoints(snap.kitBase, quality, snap.efficiency);
+  const after = adapter.restoreVehicle(playerId, snap.itemId, restore);
+  const restored = after
+    ? Math.round((after.conditionCurrent - info.conditionCurrent) * 100) / 100
+    : 0;
+  if (restored > 0) {
+    adapter.addMasteryXp(playerId, REPAIR_MASTERY_TRACK, repairMasteryXp(restored));
+  }
+  output.itemId = snap.itemId;
+  output.quality = quality;
+  output.pointsRestored = restored;
+  output.conditionCurrent = after?.conditionCurrent;
+  job.units_completed += 1;
+  job.outputs.push(output);
+  return output;
+}
+
 function completeCraftUnit(
   adapter: CraftAdapter,
   profile: CraftProfileView,
   job: CraftJobRecord,
   levers: CraftLeverValues,
 ): CraftJobOutput {
+  if (job.kind === 'repair') return completeRepairUnit(adapter, job);
   const recipe = getCraftRecipe(job.recipe_id) as CraftRecipe;
   const unit = job.units_completed + 1;
   const playerId = job.owner_user_id;
@@ -573,6 +715,134 @@ export function enqueueCraftJob(
   return { job };
 }
 
+// ─── Self-repair enqueue (0025; crafting brief §2.1's repair kind) ──
+
+export interface EnqueueRepairJobInput {
+  itemId: string;
+  kitType: string;
+  units: number;
+}
+
+/**
+ * Self-repair as a TIMED job (F2 resolution): the owner's own patch
+ * kits are escrowed at enqueue — burned FIFO (worst quality first,
+ * the shipped burn order) with each unit's quality/origin recorded —
+ * and applied one at a time while `workshop_service` is the active
+ * action. The unit duration is snapshotted from the owner's repair
+ * mastery: untrained, a 30-point kit occupies the slot for 1.5 hours
+ * at the base rate; mastery raises the rate (points/hour) and the
+ * per-kit restoration. Anyone may self-repair — the edge is time and
+ * efficiency, never permission — so there is deliberately no account
+ * gate here (consumption, like refuel).
+ */
+export function enqueueRepairJob(
+  adapter: CraftAdapter,
+  playerId: string,
+  input: EnqueueRepairJobInput,
+): { job: CraftJobRecord } {
+  settleCraftJobs(adapter, playerId);
+  const profile = adapter.profile(playerId);
+  if (!profile) fail('Profile not found');
+  const p = profile as CraftProfileView;
+
+  const kitType = input.kitType;
+  if (!REPAIR_KIT_TYPES.includes(kitType)) fail('Unknown patch kit type');
+  const kitBase = PATCH_KIT_BASES[kitType];
+  if (!kitBase) fail('Unknown patch kit type');
+
+  const units = Math.floor(input.units);
+  if (!Number.isFinite(units) || units < 1) fail('units must be a positive integer');
+  if (units > MAX_UNITS_PER_JOB) fail(`units exceeds the per-job maximum of ${MAX_UNITS_PER_JOB}`);
+
+  const info = adapter.vehicleInfo(playerId, input.itemId);
+  if (!info) fail('Vehicle not found');
+  if (info.kind !== 'vehicle') fail('Only vehicles can be repaired');
+  if (['listed', 'consumed', 'salvaged', 'in_service'].includes(info.runtimeState)) {
+    fail('Vehicle is not available for repair');
+  }
+  if (info.conditionCurrent >= info.conditionMax) fail('Vehicle is already at full condition');
+
+  const repairJobs = adapter
+    .jobs(playerId)
+    .filter((j) => j.status === 'active' && j.kind === 'repair');
+  if (repairJobs.some((j) => j.snapshot.repair?.itemId === input.itemId)) {
+    fail('A repair job is already running for this vehicle');
+  }
+  if (repairJobs.length >= MAX_ACTIVE_REPAIR_JOBS) fail('Too many repair jobs already running');
+
+  if ((p.consumables[kitType] ?? 0) < units) fail(`Not enough ${kitType} in inventory`);
+
+  // Escrow the kits: burn FIFO, recording each unit's quality/origin
+  // so completion prices restoration from the ACTUAL kit and cancel /
+  // early-finish refunds return the exact batches.
+  const kitQualities: number[] = [];
+  const kitOrigins: string[] = [];
+  for (let i = 0; i < units; i += 1) {
+    const burned = adapter.burnOneBatchUnit(playerId, kitType);
+    if (!burned) fail(`Not enough ${kitType} in inventory`);
+    kitQualities.push(burned.quality);
+    kitOrigins.push(burned.origin);
+  }
+
+  const levers = adapter.levers();
+  const masteryLevel = adapter.masteryLevel(playerId, REPAIR_MASTERY_TRACK);
+  const workRate = repairWorkRatePointsPerHour(
+    masteryLevel,
+    levers.repairWorkRateBase,
+    levers.repairMasterySpeedPerLevel,
+  );
+  const efficiency = repairEfficiencyMultiplier(masteryLevel, levers.repairMasteryEfficiencyPerLevel);
+  const unitDurationMs = repairKitUnitDurationMs(kitBase, workRate);
+
+  const now = adapter.nowMs();
+  const job: CraftJobRecord = {
+    id: adapter.uuid(),
+    owner_user_id: playerId,
+    bench: REPAIR_BENCH,
+    kind: 'repair',
+    recipe_id: REPAIR_RECIPE_BY_KIT[kitType],
+    units_total: units,
+    units_completed: 0,
+    unit_duration_ms: unitDurationMs,
+    accrued_ms: 0,
+    status: 'active',
+    escrow_inputs: {},
+    escrow_catalyst: {},
+    rush_ticket_quality: null,
+    rush_ticket_origin: null,
+    snapshot: {
+      toolId: null,
+      toolQualityMultiplier: 1,
+      toolDurationMultiplier: 1,
+      toolRefineYieldBonus: 0,
+      toolBonusUnitChance: 0,
+      skillDurationMultiplier: 1,
+      rushReduction: 0,
+      craftTimeScalar: 1,
+      catalystMaterialId: null,
+      gearRarity: null,
+      repair: {
+        itemId: input.itemId,
+        kitType,
+        kitBase,
+        kitQualities,
+        kitOrigins,
+        efficiency,
+        workRatePointsPerHour: workRate,
+        masteryLevel,
+      },
+    },
+    xp_awarded: 0,
+    outputs: [],
+    tool_charged: false,
+    created_at_ms: now,
+    last_settled_ms: now,
+    completed_at_ms: null,
+  };
+  adapter.addJob(job);
+  return { job };
+}
+
 // ─── Cancel (§2.1 refund table) ──────────────────────────────────────
 
 export interface CancelCraftJobResult {
@@ -594,6 +864,20 @@ export function cancelCraftJob(
   if (!job) fail('Job not found');
   const j = job as CraftJobRecord;
   if (j.status !== 'active') fail('Job is not active');
+
+  // Repair jobs (0025): kits are discrete items, not divisible
+  // inputs — every kit not yet applied refunds whole, including the
+  // in-progress unit's kit (it has not been applied yet).
+  if (j.kind === 'repair') {
+    const snap = j.snapshot.repair;
+    const refundedCount = snap ? refundRemainingRepairKits(adapter, j) : 0;
+    j.status = 'cancelled';
+    return {
+      jobId: j.id,
+      refundedInputs: snap && refundedCount > 0 ? { [snap.kitType]: refundedCount } : {},
+      rushTicketRefunded: false,
+    };
+  }
 
   const started = j.units_completed > 0 || j.accrued_ms > 0;
   const inProgress = j.accrued_ms > 0 ? 1 : 0;
@@ -709,7 +993,8 @@ export function deriveJobDisplayState(
     .sort((a, b) => a.created_at_ms - b.created_at_ms || a.id.localeCompare(b.id));
   const isHead = ahead[0]?.id === job.id;
   if (!isHead) return 'queued';
-  return activeActionKind === 'crafting' ? 'running' : 'paused';
+  const lane = job.kind === 'repair' ? 'workshop_service' : 'crafting';
+  return activeActionKind === lane ? 'running' : 'paused';
 }
 
 /** The client-facing view of one job (Workshop queue UI, §2.9). All
@@ -734,6 +1019,10 @@ export interface CraftJobView {
   outputs: CraftJobOutput[];
   createdAtMs: number;
   completedAtMs: number | null;
+  /** Repair jobs only: the vehicle + kit and total points restored. */
+  repairItemId: string | null;
+  repairKitType: string | null;
+  repairPointsRestored: number;
 }
 
 export function craftJobView(
@@ -742,12 +1031,13 @@ export function craftJobView(
   activeActionKind: string | null,
 ): CraftJobView {
   const recipe = getCraftRecipe(job.recipe_id);
+  const repair = job.kind === 'repair' ? job.snapshot.repair : undefined;
   return {
     id: job.id,
     bench: job.bench,
     kind: job.kind,
     recipeId: job.recipe_id,
-    name: recipe?.name ?? job.recipe_id,
+    name: recipe?.name ?? (repair ? `Vehicle repair — ${repair.kitType}` : job.recipe_id),
     state: deriveJobDisplayState(job, allJobs, activeActionKind),
     unitsTotal: job.units_total,
     unitsCompleted: job.units_completed,
@@ -763,6 +1053,9 @@ export function craftJobView(
     outputs: job.outputs,
     createdAtMs: job.created_at_ms,
     completedAtMs: job.completed_at_ms,
+    repairItemId: repair?.itemId ?? null,
+    repairKitType: repair?.kitType ?? null,
+    repairPointsRestored: job.outputs.reduce((sum, o) => sum + (o.pointsRestored ?? 0), 0),
   };
 }
 
@@ -784,7 +1077,9 @@ export function buildWorkshopStateView(parts: {
         ...output,
         jobId: job.id,
         recipeId: job.recipe_id,
-        name: getCraftRecipe(job.recipe_id)?.name ?? job.recipe_id,
+        name:
+          getCraftRecipe(job.recipe_id)?.name ??
+          (job.snapshot.repair ? `Vehicle repair — ${job.snapshot.repair.kitType}` : job.recipe_id),
       })),
     )
     .slice(-12);

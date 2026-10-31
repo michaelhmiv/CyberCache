@@ -15,7 +15,13 @@
  *   POST /api/ops/equip-item                verifiedOps.equipItem               cc_equip_item(...)
  *   POST /api/ops/unequip-slot              verifiedOps.unequipSlot             cc_unequip_slot(...)
  *   POST /api/ops/refuel-vehicle            verifiedOps.refuelVehicle           cc_refuel_vehicle(...)
- *   POST /api/ops/use-patch-kit             verifiedOps.usePatchKit             cc_use_patch_kit(...)
+ *   POST /api/ops/repair-enqueue            verifiedOps.enqueueRepairJob        cc_enqueue_repair_job(...)
+ *   POST /api/ops/repair-post               verifiedOps.postRepairJob           cc_post_repair_job(...)
+ *   POST /api/ops/repair-accept             verifiedOps.acceptRepairJob         cc_accept_repair_job(...)
+ *   POST /api/ops/repair-finish             verifiedOps.finishRepairJob         cc_repair_job_finish(...)
+ *   POST /api/ops/repair-cancel             verifiedOps.cancelRepairJob         cc_repair_job_cancel(...)
+ *   POST /api/ops/repair-reclaim            verifiedOps.reclaimRepairJob        cc_repair_job_reclaim(...)
+ *   GET  /api/repair/board                  verifiedOps.fetchRepairBoard        cc_settle_repair_jobs_for + board view
  *   POST /api/ops/idle-claim                verifiedOps.claimIdleRewards        cc_idle_claim(nonce)
  *   POST /api/ops/retrain                   verifiedOps.retrainSkills           cc_retrain(nonce)
  *   POST /api/ops/train-skill               verifiedOps.trainSkill              cc_train_skill(...)
@@ -25,9 +31,6 @@
  *   POST /api/ops/market-create-material    verifiedOps.marketCreateMaterial    cc_market_create_material(...)
  *   POST /api/ops/market-cancel             verifiedOps.cancelMarketListing     cc_market_cancel(...)
  *   POST /api/ops/market-accept             verifiedOps.acceptMarketListing     cc_accept_listing(...)
- *   POST /api/ops/service-request           verifiedOps.requestItemService      cc_item_service_request(...)
- *   POST /api/ops/service-accept            verifiedOps.acceptItemService       cc_item_service_accept(...)
- *   POST /api/ops/service-finish            verifiedOps.finishItemService       cc_item_job_finish(...)
  *   POST /api/ops/reset-progress            verifiedOps.resetProgress           cc_reset_progress(nonce)
  *   POST /api/push/register                 pushService                         cc_register_push_device(...)
  *   POST /api/push/disable                  pushService                         cc_disable_push_device(...)
@@ -234,6 +237,68 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       fail(res, err);
     }
   });
+  // Mechanics & repair services (0025): self-repair is a timed job on
+  // the craft machinery (the instant use-patch-kit op is retired);
+  // the board is an open market — post at a set price with the full
+  // price escrowed up front, any verified mechanic accepts and
+  // supplies the kits. Bodies carry intent only; prices per point,
+  // rates, restoration, fees and XP are all derived server-side.
+  op('/api/ops/repair-enqueue', async (playerId, req, res) => {
+    const itemId = uuidField(req, res, 'item_id', 'item id');
+    if (!itemId) return null;
+    const units = numField(req, res, 'units', 'units value');
+    if (units === null) return null;
+    return store.enqueueRepairJob(playerId, str(body(req).nonce), {
+      itemId,
+      kitType: str(body(req).item_key),
+      units,
+    });
+  });
+  op('/api/ops/repair-post', async (playerId, req, res) => {
+    const itemId = uuidField(req, res, 'item_id', 'item id');
+    if (!itemId) return null;
+    const price = numField(req, res, 'price_credits', 'price_credits value');
+    if (price === null) return null;
+    const target = body(req).target_points;
+    return store.postRepairJob(
+      playerId,
+      str(body(req).nonce),
+      itemId,
+      typeof target === 'number' && Number.isFinite(target) ? target : null,
+      price,
+    );
+  });
+  op('/api/ops/repair-accept', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.acceptRepairJob(playerId, str(body(req).nonce), jobId, str(body(req).item_key));
+  });
+  op('/api/ops/repair-finish', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.finishRepairJob(playerId, str(body(req).nonce), jobId);
+  });
+  op('/api/ops/repair-cancel', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.cancelRepairJob(playerId, str(body(req).nonce), jobId);
+  });
+  op('/api/ops/repair-reclaim', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.reclaimRepairJob(playerId, str(body(req).nonce), jobId);
+  });
+  // The repair board read: settles the caller's jobs (expiring stale
+  // listings), then returns the shared board view.
+  app.get('/api/repair/board', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    try {
+      res.json(await store.getRepairBoard(playerId));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
   op('/api/ops/consume-consumable', async (playerId, req) =>
     store.consumeConsumable(
       playerId,
@@ -268,16 +333,6 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       playerId,
       str(body(req).nonce),
       cells,
-      optStr(body(req).item_key) ?? undefined,
-    );
-  });
-  op('/api/ops/use-patch-kit', async (playerId, req, res) => {
-    const itemId = uuidField(req, res, 'item_id', 'item id');
-    if (!itemId) return null;
-    return store.usePatchKit(
-      playerId,
-      str(body(req).nonce),
-      itemId,
       optStr(body(req).item_key) ?? undefined,
     );
   });
@@ -326,23 +381,6 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     const listingId = uuidField(req, res, 'listing_id', 'listing id');
     if (!listingId) return null;
     return store.acceptListing(playerId, str(body(req).nonce), listingId);
-  });
-  op('/api/ops/service-request', async (playerId, req, res) => {
-    const itemId = uuidField(req, res, 'item_id', 'item id');
-    if (!itemId) return null;
-    return store.requestItemService(playerId, str(body(req).nonce), itemId, optStr(body(req).service_id) ?? 'repair');
-  });
-  op('/api/ops/service-accept', async (playerId, req, res) => {
-    const jobId = uuidField(req, res, 'job_id', 'job id');
-    if (!jobId) return null;
-    const price = numField(req, res, 'price_credits', 'price_credits value');
-    if (price === null) return null;
-    return store.acceptItemService(playerId, str(body(req).nonce), jobId, price, num(body(req).duration_minutes) ?? 60);
-  });
-  op('/api/ops/service-finish', async (playerId, req, res) => {
-    const jobId = uuidField(req, res, 'job_id', 'job id');
-    if (!jobId) return null;
-    return store.finishItemService(playerId, str(body(req).nonce), jobId);
   });
   op('/api/ops/reset-progress', async (playerId, req) => store.resetProgress(playerId, str(body(req).nonce)));
 

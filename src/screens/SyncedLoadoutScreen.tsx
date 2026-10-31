@@ -2,7 +2,10 @@ import React from 'react';
 import { ActionLoadout, type ActionLoadoutProps } from '@/components/action/ActionLoadout';
 import { GaragePanel } from '@/components/gear/GaragePanel';
 
-type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'>;
+type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'> & {
+  /** Jump to the Market's Repair Services board (0025). */
+  onRequestService?: () => void;
+};
 
 /**
  * The Loadout tab of the gear home (Inventory). This is the manage-mode
@@ -19,7 +22,7 @@ export const SyncedLoadoutScreen: React.FC<SyncedLoadoutScreenProps> = (props) =
         <div className="text-xs text-text-muted">Your seven gear slots. Tap a slot to equip from your inventory — every change is verified server-side.</div>
       </div>
       <ActionLoadout {...props} />
-      <GaragePanel />
+      <GaragePanel onRequestService={props.onRequestService} />
     </div>
   );
 };

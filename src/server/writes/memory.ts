@@ -29,7 +29,6 @@ import {
   FUEL_CELL_TYPES,
   FUEL_UNITS_PER_CELL,
   PATCH_KIT_BASES,
-  PATCH_KIT_TYPE,
   VEHICLE_CONDITION_MAX,
   getVehicleClass,
 } from '../../lib/vehicles/vehicles.js';
@@ -37,7 +36,9 @@ import {
   buildWorkshopStateView,
   cancelCraftJob as cancelCraftJobCore,
   craftJobView,
+  CRAFT_HEARTBEAT_GRACE_MS,
   enqueueCraftJob as enqueueCraftJobCore,
+  enqueueRepairJob as enqueueRepairJobCore,
   fitCraftTool as fitCraftToolCore,
   settleCraftJobs as settleCraftJobsCore,
   unlockCraftBench as unlockCraftBenchCore,
@@ -53,6 +54,31 @@ import {
   GEAR_TEMPER_BASE_CHANCE_DEFAULT,
   REFINE_BASE_YIELD_DEFAULT,
 } from '../../content/crafting.js';
+import {
+  REPAIR_KIT_TYPES,
+  REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
+  REPAIR_MASTERY_PER_LEVEL_MAX,
+  REPAIR_MASTERY_PER_LEVEL_MIN,
+  REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
+  REPAIR_MASTERY_TRACK,
+  REPAIR_WORK_RATE_BASE_DEFAULT,
+  REPAIR_WORK_RATE_BASE_MAX,
+  REPAIR_WORK_RATE_BASE_MIN,
+  repairEfficiencyMultiplier,
+  repairKitRestorePoints,
+  repairMasteryXp,
+  repairProRataPayout,
+  repairServiceFee,
+  repairServiceXp,
+  repairWorkRatePointsPerHour,
+} from '../../content/repair.js';
+import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
+import {
+  buildRepairBoardView,
+  resolveRepairLevers,
+  type RepairLeverValues,
+  type RepairVehicleInfo,
+} from './repairBoard.js';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
 import type { GearItem } from '../../types/items.js';
 import { buildStarterVehicle } from '../lib/generators/vehicleGenerator.js';
@@ -90,7 +116,6 @@ import {
   type EnqueueCraftJobInput,
   type Json,
   type LedgerEntryData,
-  type ProfessionData,
   type PushDeviceData,
   type RuntimeSnapshotData,
   type ServiceJobData,
@@ -148,6 +173,12 @@ export interface InMemoryWriteOptions {
    * provider exists so tests exercise the levers through the mirror.
    */
   craftLeverProvider?: () => Partial<CraftLeverValues>;
+  /**
+   * Live repair lever values (economy_config, 0025) beyond the craft
+   * lever set — XP per point, abandonment window, listing expiry —
+   * resolved per repair op, clamped by resolveRepairLevers.
+   */
+  repairLeverProvider?: () => Partial<RepairLeverValues>;
 }
 
 function clone<T>(value: T): T {
@@ -166,6 +197,7 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly feeRateProvider: () => number | Promise<number>;
   private readonly buybackRateProvider: () => number | Promise<number>;
   private readonly craftLeverProvider: () => Partial<CraftLeverValues>;
+  private readonly repairLeverProvider: () => Partial<RepairLeverValues>;
   private craftViews = new Map<string, CraftProfileView>();
 
   private profiles = new Map<string, ProfileRowData>();
@@ -186,6 +218,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.feeRateProvider = opts.feeRateProvider ?? (() => MARKET_FEE_RATE);
     this.buybackRateProvider = opts.buybackRateProvider ?? (() => VENDOR_BUYBACK_RATE_DEFAULT);
     this.craftLeverProvider = opts.craftLeverProvider ?? (() => ({}));
+    this.repairLeverProvider = opts.repairLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) this.profiles.set(p.id, p);
     for (const i of this.seed.items) this.items.set(i.id, i);
@@ -1260,42 +1293,6 @@ export class InMemoryWriteStore implements WriteStore {
     return this.record(playerId, 'cc_refuel_vehicle', key, result);
   }
 
-  /**
-   * cc_use_patch_kit (0021; restated 0024): consume one patch kit of
-   * the given type (FIFO — the lowest-quality batch burns first, as
-   * everywhere) and restore the type's base (PATCH_KIT_BASES) ×
-   * quality% condition, capped at max. Works on any owned vehicle,
-   * equipped or not.
-   */
-  async usePatchKit(playerId: string, nonce: string, itemId: string, itemKey: string = PATCH_KIT_TYPE): Promise<Json> {
-    const key = this.cleanNonce(nonce);
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const p = this.profile(playerId);
-    const item = this.ownItem(playerId, itemId);
-    if (item.kind !== 'vehicle') throw writeError('Item is not a vehicle');
-    if (['listed', 'consumed', 'salvaged'].includes(item.runtime_state)) throw writeError('Item state invalid');
-    const base = PATCH_KIT_BASES[itemKey];
-    if (base === undefined) throw writeError('Unknown patch kit type');
-    const consumed = this.consumeOwnedConsumable(p, playerId, itemKey, 1);
-    const batch = (consumed.consumed as Array<Record<string, unknown>>)[0];
-    const quality = typeof batch?.quality_percent === 'number' ? batch.quality_percent : 100;
-    const restored = Math.max(1, Math.round((base * quality) / 100));
-    const max = item.condition_max ?? VEHICLE_CONDITION_MAX;
-    const before = item.condition_current ?? max;
-    item.condition_current = Math.min(max, before + restored);
-    this.touchItem(item);
-    const result: Json = {
-      action_type: 'cc_use_patch_kit',
-      profile: this.profileSnapshot(p),
-      item: this.itemJson(item),
-      restored,
-      condition_current: item.condition_current,
-      condition_max: max,
-    };
-    return this.record(playerId, 'cc_use_patch_kit', key, result);
-  }
-
   // ── Crafting-as-occupation (migration 0024) ──────────────────────
   //
   // The job model runs on the shared craft engine (craftEngine.ts) —
@@ -1316,6 +1313,24 @@ export class InMemoryWriteStore implements WriteStore {
       craftQualityShift: clamp(provided.craftQualityShift, CRAFT_QUALITY_SHIFT_DEFAULT, -10, 10),
       gearTemperBaseChance: clamp(provided.gearTemperBaseChance, GEAR_TEMPER_BASE_CHANCE_DEFAULT, 0, 0.3),
       refineBaseYield: clamp(provided.refineBaseYield, REFINE_BASE_YIELD_DEFAULT, 0.5, 1),
+      repairWorkRateBase: clamp(
+        provided.repairWorkRateBase,
+        REPAIR_WORK_RATE_BASE_DEFAULT,
+        REPAIR_WORK_RATE_BASE_MIN,
+        REPAIR_WORK_RATE_BASE_MAX,
+      ),
+      repairMasterySpeedPerLevel: clamp(
+        provided.repairMasterySpeedPerLevel,
+        REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
+        REPAIR_MASTERY_PER_LEVEL_MIN,
+        REPAIR_MASTERY_PER_LEVEL_MAX,
+      ),
+      repairMasteryEfficiencyPerLevel: clamp(
+        provided.repairMasteryEfficiencyPerLevel,
+        REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
+        REPAIR_MASTERY_PER_LEVEL_MIN,
+        REPAIR_MASTERY_PER_LEVEL_MAX,
+      ),
     };
   }
 
@@ -1471,6 +1486,24 @@ export class InMemoryWriteStore implements WriteStore {
         this.insertItem(item);
         return id;
       },
+      vehicleInfo: (playerId, itemId) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== playerId) return null;
+        return {
+          kind: item.kind,
+          runtimeState: item.runtime_state,
+          conditionCurrent: item.condition_current ?? VEHICLE_CONDITION_MAX,
+          conditionMax: item.condition_max ?? VEHICLE_CONDITION_MAX,
+        };
+      },
+      restoreVehicle: (playerId, itemId, points) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== playerId || item.kind !== 'vehicle') return null;
+        const max = item.condition_max ?? VEHICLE_CONDITION_MAX;
+        item.condition_current = Math.min(max, (item.condition_current ?? max) + points);
+        item.updated_at = this.nowIso();
+        return { conditionCurrent: item.condition_current, conditionMax: max };
+      },
       levers: () => this.craftLevers(),
     };
   }
@@ -1609,6 +1642,7 @@ export class InMemoryWriteStore implements WriteStore {
       crafting_consumables: { level: 1, xp: 0 },
       'crafting.refining': { level: 1, xp: 0 },
       'crafting.gear': { level: 1, xp: 0 },
+      'services.repair': { level: 1, xp: 0 },
     };
     for (const m of this.seed.masteries) {
       if (m.user_id === playerId && m.mastery_id in masteries) {
@@ -1622,6 +1656,472 @@ export class InMemoryWriteStore implements WriteStore {
       masteries,
       activeActionKind: this.activities.get(playerId)?.active_action ?? null,
     }) as Json;
+  }
+
+  // ── Mechanics & repair services (migration 0025) ────────────────
+  //
+  // The honest escrow flow that replaces the dormant 0004 service
+  // ops (removed in this slice): the owner posts at a set price and
+  // escrows the FULL price up front; any verified mechanic accepts
+  // and supplies the patch kits; work accrues only while the job is
+  // the mechanic's active action (workshop_service targeting the
+  // job), settled from timestamps with the same attended/away split
+  // as crafting; every terminal state pays pro-rata for the points
+  // actually restored, minus the shared market fee (Darknet Broker
+  // reduction applies), and refunds the rest. The SQL twins are the
+  // cc_repair_* / cc_post_repair_job functions in migration 0025.
+
+  private repairLevers(): RepairLeverValues {
+    return resolveRepairLevers(this.repairLeverProvider());
+  }
+
+  private repairMasteryLevel(playerId: string): number {
+    const row = this.seed.masteries.find(
+      (m) => m.user_id === playerId && m.mastery_id === REPAIR_MASTERY_TRACK,
+    );
+    return row ? Math.max(1, row.mastery_level) : 1;
+  }
+
+  /** Terminal settlement for one board job (see the design note at
+   *  src/content/repair.ts): pro-rata pay, shared fee destroyed,
+   *  remainder refunded, vehicle released, XP + mastery by points
+   *  actually restored. Idempotent: terminal jobs never re-settle. */
+  private async finalizeRepairJob(job: ServiceJobData, outcome: string): Promise<void> {
+    if (job.status === 'completed' || job.status === 'cancelled') return;
+    const price = job.quoted_price_credits ?? 0;
+    const target = job.target_points ?? 0;
+    const restored = job.points_restored ?? 0;
+    const payout = outcome === 'completed' ? price : repairProRataPayout(price, restored, target);
+    let fee = 0;
+    let xpAward = 0;
+    const provider = job.provider_user_id ? this.profileOrNull(job.provider_user_id) : null;
+    if (provider && payout > 0) {
+      const gear = [...this.items.values()]
+        .filter((i) => i.owner_user_id === provider.id && i.runtime_state === 'equipped')
+        .map((i) => i.payload as unknown as GearItem);
+      const bonuses = skillBonusesFromRecords(gear, (provider.skill_spends ?? {}) as Record<string, number>);
+      fee = repairServiceFee(payout, await this.feeRateProvider(), bonuses).feeCredits;
+      provider.credits += payout - fee;
+      this.touch(provider);
+    }
+    if (provider && restored > 0) {
+      xpAward = repairServiceXp(restored, this.repairLevers().serviceXpPerPoint);
+      if (xpAward > 0) {
+        const next = applyXp(provider.player_level, provider.player_xp, xpAward);
+        provider.player_level = next.player_level;
+        provider.player_xp = next.player_xp;
+        this.touch(provider);
+      }
+      this.addMasteryXp(provider.id, REPAIR_MASTERY_TRACK, repairMasteryXp(restored));
+      if (outcome === 'completed') this.addStat(provider.id, 'services.completed', 1);
+    }
+    // Abandonment is a conduct record, not work: it lands even when
+    // zero points were restored (the usual case).
+    if (provider && outcome === 'abandoned') {
+      this.addStat(provider.id, 'services.abandoned', 1);
+    }
+    const owner = this.profileOrNull(job.owner_user_id);
+    if (owner && price - payout > 0) {
+      owner.credits += price - payout;
+      this.touch(owner);
+    }
+    const item = this.items.get(job.target_item_instance_id);
+    if (item) {
+      item.runtime_state = 'available';
+      item.is_locked = false;
+      this.touchItem(item);
+      this.recalcNetWorth(item.owner_user_id);
+    }
+    job.status = outcome === 'completed' || outcome === 'delivered_partial' ? 'completed' : 'cancelled';
+    job.outcome = outcome;
+    job.paid_credits = payout;
+    job.fee_credits = fee;
+    job.xp_awarded = xpAward;
+    job.completed_at = this.nowIso();
+  }
+
+  /** Advance one active board job from server timestamps. Progress
+   *  accrues ONLY while the provider's active action is
+   *  workshop_service targeting this job; every settle rebases
+   *  last_settled_at so idle time can never accrue later. Kits burn
+   *  FIFO from the mechanic's batches as work needs capacity, each
+   *  priced at base × quality% × the acceptance-time efficiency. */
+  private async settleRepairJob(job: ServiceJobData): Promise<void> {
+    if (job.status !== 'active' || !job.provider_user_id || !job.repair_snapshot) return;
+    const providerId = job.provider_user_id;
+    const nowMs = this.nowFn().getTime();
+    const lastSettled = job.last_settled_at ? Date.parse(job.last_settled_at) : nowMs;
+    job.last_settled_at = this.nowIso();
+    const raw = Math.max(0, nowMs - lastSettled);
+    if (raw <= 0) return;
+    const action = this.activities.get(providerId);
+    if (!action || action.active_action !== 'workshop_service' || action.target_id !== job.id) return;
+    const provider = this.profileOrNull(providerId);
+    if (!provider) return;
+    const heartbeatMs = action.last_heartbeat_at ? new Date(action.last_heartbeat_at).getTime() : null;
+    const attendedMs = Math.min(
+      raw,
+      Math.max(0, (heartbeatMs ?? lastSettled) + CRAFT_HEARTBEAT_GRACE_MS - lastSettled),
+    );
+    const awayCapMs =
+      effectiveOfflineCapHours({
+        level: provider.player_level,
+        bonusHours: 0,
+        userCapHours: provider.offline_cap_hours ?? null,
+        ceilingHours: 24,
+      }) * 3600 * 1000;
+    const advance = attendedMs + Math.min(raw - attendedMs, awayCapMs);
+    if (advance <= 0) return;
+    job.accrued_work_ms = (job.accrued_work_ms ?? 0) + advance;
+
+    const snap = job.repair_snapshot;
+    const target = job.target_points ?? 0;
+    const item = this.items.get(job.target_item_instance_id);
+    const max = item ? (item.condition_max ?? VEHICLE_CONDITION_MAX) : VEHICLE_CONDITION_MAX;
+    let restored = job.points_restored ?? 0;
+    let workPoints = (job.work_points_banked ?? 0) + (advance / 3600000) * snap.workRatePointsPerHour;
+    const kitBase = PATCH_KIT_BASES[job.kit_type ?? ''] ?? 0;
+    while (workPoints > 0.000001 && restored < target - 0.0001) {
+      if ((job.open_kit_capacity ?? 0) <= 0.000001) {
+        const burned = this.craftAdapter().burnOneBatchUnit(providerId, job.kit_type ?? '');
+        if (!burned) break;
+        const capacity = repairKitRestorePoints(kitBase, burned.quality, snap.efficiency);
+        job.open_kit_capacity = capacity;
+        job.open_kit_total = capacity;
+        job.open_kit_quality = burned.quality;
+        job.kits_consumed = [
+          ...(job.kits_consumed ?? []),
+          { kitType: job.kit_type ?? '', quality: burned.quality, pointsApplied: 0 },
+        ];
+      }
+      const headroom = item ? max - (item.condition_current ?? max) : target - restored;
+      const applied = Math.min(workPoints, job.open_kit_capacity ?? 0, target - restored, Math.max(0, headroom));
+      if (applied <= 0.000001) break;
+      workPoints -= applied;
+      job.open_kit_capacity = (job.open_kit_capacity ?? 0) - applied;
+      restored = Math.round((restored + applied) * 10000) / 10000;
+      if (item && item.kind === 'vehicle') {
+        item.condition_current = Math.min(max, (item.condition_current ?? max) + applied);
+        this.touchItem(item);
+      }
+      const consumed = job.kits_consumed ?? [];
+      if (consumed.length > 0) {
+        consumed[consumed.length - 1] = {
+          ...consumed[consumed.length - 1],
+          pointsApplied: consumed[consumed.length - 1].pointsApplied + applied,
+        };
+      }
+      job.last_progress_at = this.nowIso();
+    }
+    job.work_points_banked = workPoints;
+    job.points_restored = restored;
+    const conditionFull = item ? (item.condition_current ?? 0) >= max - 0.0001 : false;
+    if (restored >= target - 0.0001 || conditionFull) {
+      await this.finalizeRepairJob(job, 'completed');
+    }
+  }
+
+  /** Settle (and expire) every repair job the caller owns or
+   *  provides — the board read and every repair op run it first. */
+  private async settleRepairJobsFor(playerId: string): Promise<void> {
+    const nowMs = this.nowFn().getTime();
+    for (const job of [...this.seed.serviceJobs]) {
+      if (job.profession_id !== 'repair') continue;
+      if (job.owner_user_id !== playerId && job.provider_user_id !== playerId) continue;
+      if (job.status === 'listed') {
+        const expires = job.expires_at ? Date.parse(job.expires_at) : null;
+        if (expires !== null && nowMs >= expires) await this.finalizeRepairJob(job, 'expired');
+      } else if (job.status === 'active') {
+        await this.settleRepairJob(job);
+      }
+    }
+  }
+
+  /** Settle board jobs before an activity transition, mirroring the
+   *  0025 restatement of cc_set_active_action / cc_clear_active_action. */
+  private async settleRepairBeforeTransition(playerId: string): Promise<void> {
+    if (!this.profileOrNull(playerId)) return;
+    await this.settleRepairJobsFor(playerId);
+  }
+
+  async enqueueRepairJob(playerId: string, nonce: string, input: EnqueueRepairJobInput): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    // No verified-account gate: self-repair is consumption (your own
+    // kits on your own vehicle), the same treatment as refuelling.
+    // The board below is the player-economy surface and IS gated.
+    const p = this.profile(playerId);
+    const { job } = this.craftCall(() =>
+      enqueueRepairJobCore(this.craftAdapter(), playerId, {
+        itemId: input.itemId,
+        kitType: input.kitType,
+        units: input.units,
+      }),
+    );
+    this.flushCraftView(playerId);
+    const jobs = this.seed.craftJobs.filter((j) => j.owner_user_id === playerId);
+    const result: Json = {
+      action_type: 'cc_enqueue_repair_job',
+      profile: this.profileSnapshot(p),
+      job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+    };
+    return this.record(playerId, 'cc_enqueue_repair_job', key, result);
+  }
+
+  async postRepairJob(
+    playerId: string,
+    nonce: string,
+    itemId: string,
+    targetPoints: number | null,
+    priceCredits: number,
+  ): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    this.requireEconomy(playerId);
+    await this.settleRepairJobsFor(playerId);
+    const p = this.profile(playerId);
+    const item = this.ownItem(playerId, itemId);
+    if (item.kind !== 'vehicle') throw writeError('Item is not a vehicle');
+    if (['listed', 'consumed', 'salvaged', 'in_service'].includes(item.runtime_state)) {
+      throw writeError('Item state invalid');
+    }
+    const max = item.condition_max ?? VEHICLE_CONDITION_MAX;
+    const current = item.condition_current ?? max;
+    if (current >= max) throw writeError('Vehicle is already at full condition');
+    const deficit = Math.ceil(max - current);
+    let target = deficit;
+    if (targetPoints !== null && targetPoints !== undefined) {
+      const requested = Math.floor(targetPoints);
+      if (!Number.isFinite(requested) || requested < 1) throw writeError('Target points must be positive');
+      target = Math.min(requested, deficit);
+    }
+    const price = Math.floor(priceCredits);
+    if (!Number.isFinite(price) || price < 1) throw writeError('Invalid price');
+    if (p.credits < price) throw writeError('Insufficient credits');
+    // Escrow: the full price leaves the owner's balance NOW and is
+    // held against the job until a terminal state releases it.
+    p.credits -= price;
+    this.touch(p);
+    if (item.runtime_state === 'equipped') {
+      item.runtime_state = 'available';
+      item.equipped_slot = null;
+    }
+    item.runtime_state = 'in_service';
+    item.is_locked = true;
+    this.touchItem(item);
+    this.recalcNetWorth(playerId);
+    const levers = this.repairLevers();
+    const job: ServiceJobData = {
+      id: this.uuid(),
+      owner_user_id: playerId,
+      provider_user_id: null,
+      profession_id: 'repair',
+      status: 'listed',
+      target_item_instance_id: item.id,
+      requested_service_id: 'repair',
+      quoted_price_credits: price,
+      quoted_duration_minutes: null,
+      owner_supplied_material_ids: [],
+      provider_supplied_material_ids: [],
+      escrow_id: this.uuid(),
+      created_at: this.nowIso(),
+      accepted_at: null,
+      completed_at: null,
+      target_points: target,
+      points_restored: 0,
+      work_points_banked: 0,
+      open_kit_capacity: 0,
+      open_kit_total: 0,
+      open_kit_quality: null,
+      accrued_work_ms: 0,
+      last_settled_at: null,
+      last_progress_at: null,
+      expires_at: new Date(this.nowFn().getTime() + levers.repairListingExpiryDays * 86400000).toISOString(),
+      outcome: null,
+      paid_credits: null,
+      fee_credits: null,
+      xp_awarded: null,
+      kit_type: null,
+      kits_consumed: [],
+      repair_snapshot: null,
+    };
+    this.insertJob(job);
+    const result: Json = {
+      action_type: 'cc_post_repair_job',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+      item: this.itemJson(item),
+    };
+    return this.record(playerId, 'cc_post_repair_job', key, result);
+  }
+
+  async acceptRepairJob(playerId: string, nonce: string, jobId: string, kitType: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    this.requireEconomy(playerId);
+    const job = this.jobs.get(jobId);
+    if (!job || job.profession_id !== 'repair') throw writeError('Repair job not found');
+    if (job.status === 'listed' && job.expires_at && this.nowFn().getTime() >= Date.parse(job.expires_at)) {
+      await this.finalizeRepairJob(job, 'expired');
+      throw writeError('Listing has expired');
+    }
+    if (job.status !== 'listed') throw writeError('Service job not available');
+    if (job.owner_user_id === playerId) throw writeError('Cannot accept own job');
+    if (!REPAIR_KIT_TYPES.includes(kitType)) throw writeError('Unknown patch kit type');
+    const p = this.profile(playerId);
+    if ((asNumberMap(p.consumables)[kitType] ?? 0) < 1) throw writeError(`No ${kitType} available`);
+    const levers = this.craftLevers();
+    const masteryLevel = this.repairMasteryLevel(playerId);
+    job.provider_user_id = playerId;
+    job.status = 'active';
+    job.kit_type = kitType;
+    job.repair_snapshot = {
+      masteryLevel,
+      workRatePointsPerHour: repairWorkRatePointsPerHour(
+        masteryLevel,
+        levers.repairWorkRateBase,
+        levers.repairMasterySpeedPerLevel,
+      ),
+      efficiency: repairEfficiencyMultiplier(masteryLevel, levers.repairMasteryEfficiencyPerLevel),
+    };
+    job.accepted_at = this.nowIso();
+    job.last_settled_at = this.nowIso();
+    job.last_progress_at = this.nowIso();
+    const result: Json = {
+      action_type: 'cc_accept_repair_job',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+    };
+    return this.record(playerId, 'cc_accept_repair_job', key, result);
+  }
+
+  async finishRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const job = this.jobs.get(jobId);
+    if (!job || job.profession_id !== 'repair' || job.provider_user_id !== playerId) {
+      throw writeError('Job not found');
+    }
+    if (job.status !== 'active') throw writeError('Job is not active');
+    await this.settleRepairJob(job);
+    if (job.status === 'active') {
+      await this.finalizeRepairJob(job, (job.points_restored ?? 0) > 0 ? 'delivered_partial' : 'cancelled_by_provider');
+    }
+    const p = this.profile(playerId);
+    const result: Json = {
+      action_type: 'cc_repair_job_finish',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+    };
+    return this.record(playerId, 'cc_repair_job_finish', key, result);
+  }
+
+  async cancelRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const job = this.jobs.get(jobId);
+    if (
+      !job ||
+      job.profession_id !== 'repair' ||
+      (job.owner_user_id !== playerId && job.provider_user_id !== playerId)
+    ) {
+      throw writeError('Job not found');
+    }
+    const isOwner = job.owner_user_id === playerId;
+    if (job.status === 'listed') {
+      if (!isOwner) throw writeError('Job not found');
+      await this.finalizeRepairJob(job, 'cancelled_by_owner');
+    } else if (job.status === 'active') {
+      await this.settleRepairJob(job);
+      if (job.status === 'active') {
+        await this.finalizeRepairJob(job, isOwner ? 'cancelled_by_owner' : 'cancelled_by_provider');
+      }
+    } else {
+      throw writeError('Job is not active');
+    }
+    const p = this.profile(playerId);
+    const result: Json = {
+      action_type: 'cc_repair_job_cancel',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+    };
+    return this.record(playerId, 'cc_repair_job_cancel', key, result);
+  }
+
+  async reclaimRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const job = this.jobs.get(jobId);
+    if (!job || job.profession_id !== 'repair' || job.owner_user_id !== playerId) {
+      throw writeError('Job not found');
+    }
+    if (job.status !== 'active') throw writeError('Job is not active');
+    await this.settleRepairJob(job);
+    if (job.status !== 'active') throw writeError('Job already completed');
+    const lastProgress = job.last_progress_at ? Date.parse(job.last_progress_at) : 0;
+    const windowMs = this.repairLevers().repairAbandonWindowHours * 3600000;
+    if (this.nowFn().getTime() - lastProgress < windowMs) {
+      throw writeError('Mechanic is still within the abandonment window');
+    }
+    await this.finalizeRepairJob(job, 'abandoned');
+    const p = this.profile(playerId);
+    const result: Json = {
+      action_type: 'cc_repair_job_reclaim',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+    };
+    return this.record(playerId, 'cc_repair_job_reclaim', key, result);
+  }
+
+  async getRepairBoard(playerId: string): Promise<Json> {
+    if (!this.profileOrNull(playerId)) throw writeError('Profile not found');
+    await this.settleRepairJobsFor(playerId);
+    const vehicles = new Map<string, RepairVehicleInfo | null>();
+    const names = new Map<string, string | null>();
+    for (const job of this.seed.serviceJobs) {
+      if (job.profession_id !== 'repair') continue;
+      const item = this.items.get(job.target_item_instance_id);
+      vehicles.set(
+        job.target_item_instance_id,
+        item
+          ? {
+              kind: item.kind,
+              payload: (item.payload ?? {}) as Record<string, unknown>,
+              rarity: item.rarity ?? null,
+              conditionCurrent: item.condition_current ?? VEHICLE_CONDITION_MAX,
+              conditionMax: item.condition_max ?? VEHICLE_CONDITION_MAX,
+            }
+          : null,
+      );
+      for (const userId of [job.owner_user_id, job.provider_user_id]) {
+        if (userId && !names.has(userId)) {
+          names.set(userId, this.profileOrNull(userId)?.username ?? null);
+        }
+      }
+    }
+    const masteryRow = this.seed.masteries.find(
+      (m) => m.user_id === playerId && m.mastery_id === REPAIR_MASTERY_TRACK,
+    );
+    const levers = this.repairLevers();
+    return buildRepairBoardView({
+      callerId: playerId,
+      jobs: this.seed.serviceJobs,
+      vehicles,
+      names,
+      nowMs: this.nowFn().getTime(),
+      abandonWindowHours: levers.repairAbandonWindowHours,
+      myMastery: {
+        level: masteryRow ? Math.max(1, masteryRow.mastery_level) : 1,
+        xp: masteryRow?.mastery_xp ?? 0,
+      },
+      levers: { ...levers, marketFeeRate: await this.feeRateProvider() },
+    }) as unknown as Json;
   }
 
   async idleClaim(playerId: string, nonce: string): Promise<Json> {
@@ -2112,120 +2612,6 @@ export class InMemoryWriteStore implements WriteStore {
     return { nodeBoosts: {} };
   }
 
-  async requestItemService(playerId: string, nonce: string, itemId: string, serviceId: string): Promise<Json> {
-    const key = this.cleanNonce(nonce);
-    this.requireEconomy(playerId);
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const p = this.profileOrNull(playerId);
-    const item = this.ownItem(playerId, itemId);
-    if (['listed', 'consumed', 'salvaged'].includes(item.runtime_state)) throw writeError('Item state invalid');
-    const job: ServiceJobData = {
-      id: this.uuid(),
-      owner_user_id: playerId,
-      provider_user_id: null,
-      profession_id: 'repair',
-      status: 'listed',
-      target_item_instance_id: item.id,
-      requested_service_id: serviceId,
-      quoted_price_credits: null,
-      quoted_duration_minutes: null,
-      owner_supplied_material_ids: [],
-      provider_supplied_material_ids: [],
-      escrow_id: null,
-      created_at: this.nowIso(),
-      accepted_at: null,
-      completed_at: null,
-    };
-    this.insertJob(job);
-    item.runtime_state = 'locked';
-    item.is_locked = true;
-    this.touchItem(item);
-    this.recalcNetWorth(playerId);
-    const result: Json = {
-      action_type: 'cc_item_service_request',
-      profile: p ? this.profileSnapshot(p) : null,
-      job: this.jobJson(job),
-      item: this.itemJson(item),
-    };
-    return this.record(playerId, 'cc_item_service_request', key, result);
-  }
-
-  async acceptItemService(playerId: string, nonce: string, jobId: string, priceCredits: number, durationMinutes: number): Promise<Json> {
-    const key = this.cleanNonce(nonce);
-    this.requireEconomy(playerId);
-    const price = Math.floor(priceCredits);
-    if (!Number.isFinite(price) || price < 0) throw writeError('Invalid price');
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const job = this.jobs.get(jobId);
-    if (!job || job.status !== 'listed') throw writeError('Service job not available');
-    if (job.owner_user_id === playerId) throw writeError('Cannot accept own job');
-    job.provider_user_id = playerId;
-    job.status = 'accepted';
-    job.quoted_price_credits = price;
-    job.quoted_duration_minutes = Math.floor(durationMinutes) || 60;
-    job.accepted_at = this.nowIso();
-    const result: Json = { action_type: 'cc_item_service_accept', job: this.jobJson(job) };
-    return this.record(playerId, 'cc_item_service_accept', key, result);
-  }
-
-  async finishItemService(playerId: string, nonce: string, jobId: string): Promise<Json> {
-    const key = this.cleanNonce(nonce);
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const job = this.jobs.get(jobId);
-    if (!job || job.provider_user_id !== playerId) throw writeError('Job not found');
-    if (job.status !== 'accepted') throw writeError('Job state invalid');
-    const price = job.quoted_price_credits ?? 0;
-    const owner = this.profileOrNull(job.owner_user_id);
-    if (!owner || owner.credits < price) throw writeError('Insufficient credits');
-    owner.credits -= price;
-    this.touch(owner);
-    const provider = this.profile(playerId);
-    provider.credits += price;
-    this.touch(provider);
-    const item = this.items.get(job.target_item_instance_id);
-    if (item) {
-      item.runtime_state = 'available';
-      item.is_locked = false;
-      item.condition_current = item.condition_max;
-      this.touchItem(item);
-      this.recalcNetWorth(item.owner_user_id);
-    }
-    job.status = 'completed';
-    job.completed_at = this.nowIso();
-    const profession = this.seed.professions.find(
-      (pr: ProfessionData) => pr.user_id === playerId && pr.profession_id === job.profession_id,
-    );
-    if (profession) {
-      profession.xp += 50;
-      profession.total_services_completed += 1;
-      profession.reputation_score += 1;
-      profession.updated_at = this.nowIso();
-    } else {
-      this.seed.professions.push({
-        user_id: playerId,
-        profession_id: job.profession_id,
-        level: 1,
-        xp: 50,
-        total_crafts: 0,
-        total_services_completed: 1,
-        reputation_score: 1,
-        updated_at: this.nowIso(),
-      });
-    }
-    const result: Json = {
-      action_type: 'cc_item_job_finish',
-      profile: this.profileSnapshot(provider),
-      owner_profile: this.profileSnapshot(owner),
-      job: this.jobJson(job),
-      item: item ? this.itemJson(item) : null,
-      price_credits: price,
-    };
-    return this.record(playerId, 'cc_item_job_finish', key, result);
-  }
-
   async resetProgress(playerId: string, nonce: string): Promise<Json> {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
@@ -2292,6 +2678,8 @@ export class InMemoryWriteStore implements WriteStore {
     // Crafting settler hook (0024): the outgoing action settles its
     // craft jobs before the switch, at its exact accrued values.
     this.settleCraftBeforeTransition(playerId);
+    // Repair settler hook (0025): board jobs settle on transitions too.
+    await this.settleRepairBeforeTransition(playerId);
     const now = this.nowIso();
     const emptyToNull = (v: string | null | undefined) => (v === '' || v === undefined ? null : v);
     const row: ActiveActionData = {
@@ -2322,6 +2710,8 @@ export class InMemoryWriteStore implements WriteStore {
     if (prior) return prior;
     // Crafting settler hook (0024), same as setActiveAction.
     this.settleCraftBeforeTransition(playerId);
+    // Repair settler hook (0025), same as setActiveAction.
+    await this.settleRepairBeforeTransition(playerId);
     const now = this.nowIso();
     const row: ActiveActionData = {
       user_id: playerId,

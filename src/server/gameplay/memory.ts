@@ -68,6 +68,11 @@ import {
   GEAR_TEMPER_BASE_CHANCE_DEFAULT,
   REFINE_BASE_YIELD_DEFAULT,
 } from '../../content/crafting';
+import {
+  REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
+  REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
+  REPAIR_WORK_RATE_BASE_DEFAULT,
+} from '../../content/repair';
 
 /** A consumable batch row in this double (owner-attributed). */
 export interface InMemoryConsumableBatch extends ConsumableBatchRow {
@@ -574,12 +579,32 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         });
         return itemId;
       },
+      vehicleInfo: (id, itemId) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== id) return null;
+        return {
+          kind: item.kind,
+          runtimeState: item.runtime_state,
+          conditionCurrent: item.condition_current ?? VEHICLE_CONDITION_MAX,
+          conditionMax: item.condition_max ?? VEHICLE_CONDITION_MAX,
+        };
+      },
+      restoreVehicle: (id, itemId, points) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== id || item.kind !== 'vehicle') return null;
+        const max = item.condition_max ?? VEHICLE_CONDITION_MAX;
+        item.condition_current = Math.min(max, (item.condition_current ?? max) + points);
+        return { conditionCurrent: item.condition_current, conditionMax: max };
+      },
       levers: () => ({
         craftXpRate: CRAFT_XP_RATE_DEFAULT,
         craftTimeScalar: CRAFT_TIME_SCALAR_DEFAULT,
         craftQualityShift: CRAFT_QUALITY_SHIFT_DEFAULT,
         gearTemperBaseChance: GEAR_TEMPER_BASE_CHANCE_DEFAULT,
         refineBaseYield: REFINE_BASE_YIELD_DEFAULT,
+        repairWorkRateBase: REPAIR_WORK_RATE_BASE_DEFAULT,
+        repairMasterySpeedPerLevel: REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
+        repairMasteryEfficiencyPerLevel: REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
       }),
     };
     const settled = settleCraftJobsCore(adapter, playerId, { maxAdvanceMs: Math.max(0, capMs) });
