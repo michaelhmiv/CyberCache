@@ -118,4 +118,69 @@ export const SKILL_EFFECT_CONSUMERS: Record<string, SkillEffectConsumer[]> = {
     { engine: 'craft job duration snapshot (TS settler/enqueue)', file: 'src/server/writes/craftEngine.ts', needle: 'consumableEfficiencyDurationMultiplier' },
     { engine: 'craft job duration snapshot (SQL twin, trusted server parameter)', file: 'db/migrations/0024_crafting_occupation.sql', needle: 'p_efficiency_bonus' },
   ],
+
+  // ---- Fixer majors / keystone (migration 0029) ----
+  // Every Fixer term derives server-side from the actor's own
+  // records (profiles.skill_spends + equipped class mod) through
+  // computeSkillBonuses in TS and the cc_skill_effective_points
+  // helper in SQL — never from a request body.
+  craftTemperBonus: [
+    { engine: 'crafted gear temper roll at completion (Master Artificer)', file: 'src/server/writes/craftEngine.ts', needle: 'craftTemperBonus' },
+    { engine: 'crafted gear temper roll in cc_complete_craft_unit', file: 'db/migrations/0029_fixer_tree.sql', needle: 'craft_temper_bonus' },
+  ],
+  vehicleDecayReduction: [
+    { engine: 'vehicle condition decay per fueled tick (Fleet Engineer)', file: 'src/lib/vehicles/vehicles.ts', needle: 'vehicleDecayReduction' },
+    { engine: 'Chef roaming claim vehicle tick (online + offline parity)', file: CHEF, needle: 'vehicleDecayReduction' },
+  ],
+  craftedItemFeeReduction: [
+    { engine: 'market sale fee, crafted gate (House Brand)', file: 'src/lib/market/marketFee.ts', needle: 'craftedItemFeeReduction' },
+    { engine: 'market sale fee in cc_accept_listing (House Brand)', file: 'db/migrations/0029_fixer_tree.sql', needle: 'fix_major_3' },
+  ],
+  bonusRepairJobs: [
+    { engine: 'self-repair concurrency cap at enqueue (Second Shift)', file: 'src/server/writes/craftEngine.ts', needle: 'bonusRepairJobs' },
+    { engine: 'self-repair concurrency cap in cc_enqueue_repair_job', file: 'db/migrations/0029_fixer_tree.sql', needle: 'fix_major_4' },
+  ],
+  coreCatalystDrawBonus: [
+    { engine: 'core-catalyst gear generation draws (The Fixer, snapshotted at enqueue)', file: 'src/server/writes/craftEngine.ts', needle: 'coreCatalystDrawBonus' },
+    { engine: 'core-catalyst draws in cc_complete_craft_unit', file: 'db/migrations/0029_fixer_tree.sql', needle: 'coreCatalystDrawBonus' },
+  ],
+  workshopQueueBonus: [
+    { engine: 'bench queue depth at enqueue (The Fixer)', file: 'src/server/writes/craftEngine.ts', needle: 'workshopQueueBonus' },
+    { engine: 'bench queue depth in cc_enqueue_craft_job', file: 'db/migrations/0029_fixer_tree.sql', needle: 'workshop_queue_bonus' },
+  ],
+  rushReductionCapBonus: [
+    { engine: 'rush ticket reduction cap at enqueue (The Fixer)', file: 'src/server/writes/craftEngine.ts', needle: 'rushReductionCapBonus' },
+    { engine: 'rush ticket reduction cap in cc_enqueue_craft_job', file: 'db/migrations/0029_fixer_tree.sql', needle: 'rush_cap_bonus' },
+  ],
+
+  // ---- Fixer small nodes (registered voluntarily, same law) ----
+  craftSpeedBonus: [
+    { engine: 'craft job duration snapshot, second multiplier (Assembly Rhythm / Parallel Hands)', file: 'src/server/writes/craftEngine.ts', needle: 'craftSpeedBonus' },
+    { engine: 'craft job duration snapshot in cc_enqueue_craft_job', file: 'db/migrations/0029_fixer_tree.sql', needle: 'craft_speed_bonus' },
+  ],
+  craftQualityBonus: [
+    { engine: 'crafted quality shift at completion (Calibrated Eye / Tolerance Stacking)', file: 'src/server/writes/craftEngine.ts', needle: 'craftQualityBonus' },
+    { engine: 'crafted quality shift in cc_complete_craft_unit', file: 'db/migrations/0029_fixer_tree.sql', needle: 'craft_quality_bonus' },
+  ],
+  repairSpeedBonus: [
+    { engine: 'self-repair unit duration snapshot (Torque Discipline / Bay Choreography)', file: 'src/server/writes/craftEngine.ts', needle: 'repairSpeedBonus' },
+    { engine: 'board accept work-rate snapshot (mechanic)', file: 'src/server/writes/memory.ts', needle: 'repairSpeedBonus' },
+    { engine: 'repair speed in cc_enqueue_repair_job / cc_accept_repair_job', file: 'db/migrations/0029_fixer_tree.sql', needle: 'repair_speed_bonus' },
+  ],
+  repairEfficiencyBonus: [
+    { engine: 'per-kit restoration composition (Kit Stretching / Salvage Solder)', file: 'src/content/repair.ts', needle: 'repairEfficiencyWithSkill' },
+    { engine: 'repair efficiency in cc_enqueue_repair_job / cc_accept_repair_job', file: 'db/migrations/0029_fixer_tree.sql', needle: 'repair_efficiency_bonus' },
+  ],
+  vehicleYieldBonus: [
+    { engine: 'vehicle yield bracket (Rig Tuning / Aero Fairings)', file: 'src/lib/vehicles/vehicles.ts', needle: 'vehicleYieldBonus' },
+    { engine: 'Chef roaming claim vehicle tick', file: CHEF, needle: 'vehicleYieldBonus' },
+  ],
+  vehicleFuelBonus: [
+    { engine: 'vehicle fuel burn per tick (Lean Burn)', file: 'src/lib/vehicles/vehicles.ts', needle: 'vehicleFuelBonus' },
+    { engine: 'Chef roaming claim vehicle tick', file: CHEF, needle: 'vehicleFuelBonus' },
+  ],
+  vendorBuybackBonus: [
+    { engine: 'vendor buyback rate (Appraiser\'s Eye)', file: 'src/server/writes/memory.ts', needle: 'vendorBuybackBonus' },
+    { engine: 'vendor buyback rate in cc_vendor_sell', file: 'db/migrations/0029_fixer_tree.sql', needle: 'vendor_buyback_bonus' },
+  ],
 };

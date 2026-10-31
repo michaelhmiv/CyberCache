@@ -537,6 +537,15 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         const row = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
         return row ? Math.max(1, row.mastery_level) : 1;
       },
+      skillBonus: (id, key) => {
+        const prof = this.profiles.get(id);
+        if (!prof) return 0;
+        const spends: Record<string, number> = {};
+        for (const [k, v] of Object.entries((prof.skill_spends ?? {}) as Record<string, unknown>)) {
+          if (typeof v === 'number' && Number.isFinite(v)) spends[k] = v;
+        }
+        return computeSkillBonuses(spends, this.classModBoostsFor(id))[key] ?? 0;
+      },
       addMasteryXp: (id, track, xp) => {
         const existing = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
         if (existing) {

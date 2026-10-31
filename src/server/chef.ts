@@ -1362,18 +1362,28 @@ export function processRoamingClaim(
     // Fuel dust (float residue after the last full burn, ~1e-16)
     // does not start a fueled tick — a fueled tick needs real fuel.
     if (vehicleInput && vehicleFuel > 1e-9) {
-      const burn = vehicleBurnPerTick(vehicleInput.vehicle);
+      // Fixer vehicle terms (migration 0029) ride the same derived
+      // skillBonuses record as every other Chef consumer — the routes
+      // rebuilt it from the claim owner's records, so the online
+      // claim and the offline settlement (both through this function)
+      // price vehicles identically.
+      const burn = vehicleBurnPerTick(vehicleInput.vehicle, skillBonuses.vehicleFuelBonus ?? 0);
       tickVehicleFactor = effectiveVehicleYield(
         vehicleInput.vehicle,
         conditionFraction(vehicleCondition, vehicleInput.conditionMax),
         request.economy?.vehicleYieldScalar ?? 1,
+        skillBonuses.vehicleYieldBonus ?? 0,
       );
       tickVehicleScanner = vehicleAffixTotals(vehicleInput.vehicle).scannerPct;
       tickVehicleMaterialBonus = vehicleMaterialBonusChance(vehicleInput.vehicle);
       vehicleFuel = Math.max(0, vehicleFuel - Math.min(burn, vehicleFuel));
       vehicleCondition = Math.max(
         0,
-        vehicleCondition - vehicleDecayPerTick(vehicleInput.vehicle, area.dangerRating),
+        vehicleCondition - vehicleDecayPerTick(
+          vehicleInput.vehicle,
+          area.dangerRating,
+          skillBonuses.vehicleDecayReduction ?? 0,
+        ),
       );
       vehicleActiveTicks++;
     }

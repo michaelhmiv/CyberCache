@@ -12,6 +12,7 @@ const TREES = [
   { id: SkillTreeType.Gunslinger, label: 'Gunslinger', color: '#FF4B5C', desc: 'Weapon damage, crits, speed' },
   { id: SkillTreeType.Demolition, label: 'Demolition', color: '#FF9000', desc: 'Explosives, armor break' },
   { id: SkillTreeType.Scavenger, label: 'Scavenger', color: '#7CFC00', desc: 'Idle, loot, economy' },
+  { id: SkillTreeType.Fixer, label: 'Fixer', color: '#2EC4B6', desc: 'Crafting, repair, vehicles, trade' },
 ];
 
 const nodeTone = (node: SkillNode, isAvailable: boolean, isMaxed: boolean) => {

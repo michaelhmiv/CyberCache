@@ -9,20 +9,26 @@ import {
 } from './activityModuleGenerator';
 import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
 import { CLASSMOD_AFFIX_POOL } from '@/lib/gear/affixPools';
+import { SKILL_NODES } from '@/constants/skillTrees';
 
-const SKILL_NODE_IDS = [
-  'gs_dmg_1', 'gs_dmg_2', 'gs_crit_1', 'gs_crit_2', 'gs_critdmg_1', 'gs_critdmg_2',
-  'gs_speed_1', 'gs_speed_2', 'gs_boss_1', 'gs_boss_2', 'gs_status_1', 'gs_shield_1',
-  'demo_ord_1', 'demo_ord_2', 'demo_exp_1', 'demo_exp_2', 'demo_armor_1', 'demo_armor_2',
-  'demo_stag_1', 'demo_stag_2', 'demo_heavy_1', 'demo_heavy_2', 'demo_shield_1',
-  'scav_idle_1', 'scav_idle_2', 'scav_drop_1', 'scav_drop_2', 'scav_qty_1', 'scav_qty_2',
-  'scav_scrap_1', 'scav_scrap_2', 'scav_cons_1', 'scav_cons_2', 'scav_cache_1', 'scav_fee_1',
-];
+/**
+ * The class-mod node-boost pool: every SMALL node id, DERIVED from
+ * the one SKILL_NODES registry (migration 0029 removed the hand-
+ * copied literal, which had silently frozen the pool at the original
+ * 35 nodes). SKILL_NODES order is append-only, so the derived list
+ * keeps the legacy 35 ids in their exact legacy positions and appends
+ * new trees' smalls after them — pinned by the parity test in
+ * src/test/fixerSkillTree.test.ts.
+ */
+export const SKILL_NODE_IDS: string[] = SKILL_NODES
+  .filter((n) => n.type === 'small')
+  .map((n) => n.id);
 
 const TREE_NAMES: Record<SkillTreeType, string> = {
   [SkillTreeType.Gunslinger]: 'Gunslinger',
   [SkillTreeType.Demolition]: 'Demolition',
   [SkillTreeType.Scavenger]: 'Scavenger',
+  [SkillTreeType.Fixer]: 'Fixer',
 };
 
 const CLASSMOD_MANUFACTURERS: Manufacturer[] = [

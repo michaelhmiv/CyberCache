@@ -123,14 +123,61 @@ export function repairEfficiencyMultiplier(masteryLevel: number, perLevel: numbe
   return Math.min(REPAIR_EFFICIENCY_CAP, 1 + perLevel * (level - 1));
 }
 
+/** With the Fixer efficiency nodes composed in, one kit can restore
+ *  up to 1.8× its base (the mastery term alone stays capped at 1.5). */
+export const REPAIR_EFFICIENCY_SKILL_CAP = 1.8;
+
+/**
+ * The composed per-kit restoration multiplier (migration 0029):
+ * efficiency = min(1.80, masteryEfficiency × (1 + repairEfficiency
+ * Bonus)). Kit Stretching / Salvage Solder carry +0.025 per point;
+ * the composition is multiplicative AFTER the mastery cap, so the
+ * Fixer term is the only way past 1.5×. Snapshotted at self-repair
+ * enqueue and at board accept in both store implementations (SQL
+ * twins in migration 0029).
+ */
+export function repairEfficiencyWithSkill(
+  masteryLevel: number,
+  perLevel: number,
+  skillBonus: number,
+): number {
+  const mastery = repairEfficiencyMultiplier(masteryLevel, perLevel);
+  return Math.min(REPAIR_EFFICIENCY_SKILL_CAP, mastery * (1 + Math.max(0, skillBonus || 0)));
+}
+
+/**
+ * The Fixer repair-speed term (migration 0029): Torque Discipline /
+ * Bay Choreography carry +0.03 repairSpeedBonus per point; snapshotted
+ * repair durations multiply by 1 − min(0.30, bonus).
+ */
+export function repairSpeedDurationMultiplier(skillBonus: number): number {
+  return 1 - Math.min(0.3, Math.max(0, skillBonus || 0));
+}
+
+/**
+ * The same speed term expressed on a work RATE (board jobs accrue
+ * points over time rather than occupying a fixed unit duration):
+ * rate / (1 − min(0.30, bonus)) — mathematically the duration
+ * multiplier above, applied to the accept snapshot's rate.
+ */
+export function repairSpeedRateMultiplier(skillBonus: number): number {
+  return 1 / repairSpeedDurationMultiplier(skillBonus);
+}
+
 /**
  * Wall-clock milliseconds one kit occupies the work slot: the kit's
  * base restore divided by the current work rate. A 30-point kit at
  * the untrained 20 pts/hour takes 1.5 hours — deliberately slow (F2).
+ * The optional Fixer speed term (migration 0029) multiplies the
+ * snapshotted duration by repairSpeedDurationMultiplier.
  */
-export function repairKitUnitDurationMs(kitBase: number, ratePointsPerHour: number): number {
+export function repairKitUnitDurationMs(
+  kitBase: number,
+  ratePointsPerHour: number,
+  speedBonus = 0,
+): number {
   const rate = ratePointsPerHour > 0 ? ratePointsPerHour : REPAIR_WORK_RATE_BASE_DEFAULT;
-  return Math.max(1, Math.ceil((kitBase / rate) * 3_600_000));
+  return Math.max(1, Math.ceil(((kitBase * repairSpeedDurationMultiplier(speedBonus)) / rate) * 3_600_000));
 }
 
 /** Points one kit restores: base × quality% × mechanic efficiency. */

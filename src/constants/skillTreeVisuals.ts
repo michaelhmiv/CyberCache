@@ -39,6 +39,14 @@ export const SKILL_TREE_VISUALS: Record<SkillTreeType, SkillTreeVisual> = {
     label: 'Scavenger',
     description: 'Idle, loot, and economy boosts.',
   },
+  [SkillTreeType.Fixer]: {
+    id: SkillTreeType.Fixer,
+    sigil: '⚒',
+    color: '#2EC4B6',
+    accentColor: '#FFD166',
+    label: 'Fixer',
+    description: 'Crafting, repair, vehicles, and trade.',
+  },
 };
 
 export function getSkillTreeVisual(tree: SkillTreeType): SkillTreeVisual {

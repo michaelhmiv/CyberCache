@@ -22,6 +22,7 @@ const TREE_NAME_MAP: Record<string, SkillTreeType> = {
   Gunslinger: SkillTreeType.Gunslinger,
   Demolition: SkillTreeType.Demolition,
   Scavenger: SkillTreeType.Scavenger,
+  Fixer: SkillTreeType.Fixer,
 };
 
 /**

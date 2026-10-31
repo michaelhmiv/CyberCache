@@ -27,12 +27,14 @@ import {
   CATALYST_REQUIRES_BENCH,
   CORE_CATALYST_CORES_PER_UNIT,
   CORE_CATALYST_DRAWS_BONUS,
+  composedCraftQualityShift,
   consumableEfficiencyDurationMultiplier,
   craftMasteryForKind,
   craftQualityBounds,
   craftUnitXp,
   CRAFTABLE_GEAR_RARITIES,
   EPIC_FRAME_GEAR_MASTERY,
+  fixerCraftSpeedDurationMultiplier,
   gearRarityRequiresBench,
   gearTemperChance,
   getCraftRecipe,
@@ -42,6 +44,7 @@ import {
   QUEUED_JOBS_PER_BENCH,
   refineOutputCount,
   rollCraftQuality,
+  rushTicketTimeReduction,
   toolDef,
   type CraftJobKind,
   type CraftRecipe,
@@ -54,13 +57,12 @@ import {
   REPAIR_KIT_TYPES,
   REPAIR_MASTERY_TRACK,
   REPAIR_RECIPE_BY_KIT,
-  repairEfficiencyMultiplier,
+  repairEfficiencyWithSkill,
   repairKitRestorePoints,
   repairKitUnitDurationMs,
   repairMasteryXp,
   repairWorkRatePointsPerHour,
 } from '../../content/repair.js';
-import { getConsumableRuntimeEffects } from '../../constants/consumables.js';
 import { Rarity } from '../../types/game.js';
 import { applyXp } from './store.js';
 import {
@@ -94,6 +96,10 @@ export interface CraftJobSnapshot {
   catalystMaterialId: string | null;
   /** Legendary Core Catalyst (0026): gear jobs only; +2 draws/unit. */
   coreCatalyst?: boolean;
+  /** The Fixer keystone's core-catalyst draw bonus (0029), snapshotted
+   *  at enqueue beside coreCatalyst: core-catalyst gear units draw
+   *  CORE_CATALYST_DRAWS_BONUS + this many generation candidates. */
+  coreCatalystDrawBonus?: number;
   gearRarity: string | null;
   /** Repair jobs only (kind 'repair', mechanics slice 0025): the
    *  vehicle being restored, the patch kits escrowed at enqueue (one
@@ -211,6 +217,12 @@ export interface CraftAdapter {
   jobs(playerId: string): CraftJobRecord[];
   addJob(job: CraftJobRecord): void;
   masteryLevel(playerId: string, track: string): number;
+  /** One aggregated skill-bonus total (computeSkillBonuses key) for
+   *  the player, derived by the store from the player's OWN records
+   *  (skill_spends + equipped class mod). Optional: adapters that
+   *  predate the Fixer tree (0029) read as 0 — every Fixer term is
+   *  additive over the pre-Fixer behavior at 0. */
+  skillBonus?(playerId: string, key: string): number;
   addMasteryXp(playerId: string, track: string, xp: number): void;
   addStat(playerId: string, key: string, amount: number): void;
   /** Add a consumable batch and bump the profile count with it. */
@@ -495,7 +507,13 @@ function completeCraftUnit(
       masteryLevel,
       bench: job.bench,
       catalyst: !!job.snapshot.catalystMaterialId,
-      qualityShift: levers.craftQualityShift,
+      // The composed shift (0029): lever + the Fixer craftQualityBonus
+      // total, read from the crafter's records at completion, under
+      // the one [−10, +20] clamp (composedCraftQualityShift).
+      qualityShift: composedCraftQualityShift(
+        levers.craftQualityShift,
+        adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+      ),
     });
     const quality = rollCraftQuality(bounds, job.bench, adapter.rng, job.snapshot.toolQualityMultiplier);
     let quantity = 1;
@@ -519,14 +537,22 @@ function completeCraftUnit(
   } else if (job.kind === 'gear' && recipe.gearSlot) {
     const gearLevel = adapter.masteryLevel(playerId, 'crafting.gear');
     const rarity = (job.snapshot.gearRarity ?? Rarity.Common) as Rarity;
-    const tempered = adapter.rng() < gearTemperChance(gearLevel, levers.gearTemperBaseChance);
+    const tempered = adapter.rng() < gearTemperChance(
+      gearLevel,
+      levers.gearTemperBaseChance,
+      adapter.skillBonus?.(playerId, 'craftTemperBonus') ?? 0,
+    );
     const candidate = generateCraftedGearItem({
       slot: recipe.gearSlot as CraftGearSlot,
       rarity,
       itemLevel: profile.player_level,
       creatorId: playerId,
-      // Core catalyst (0026): +2 draws on top of the temper lever.
-      draws: (tempered ? 3 : 1) + (job.snapshot.coreCatalyst ? CORE_CATALYST_DRAWS_BONUS : 0),
+      // Core catalyst (0026): +2 draws on top of the temper lever;
+      // the Fixer keystone (0029) adds its snapshotted draw bonus.
+      draws: (tempered ? 3 : 1)
+        + (job.snapshot.coreCatalyst
+          ? CORE_CATALYST_DRAWS_BONUS + (job.snapshot.coreCatalystDrawBonus ?? 0)
+          : 0),
       rng: adapter.rng,
     });
     output.itemId = adapter.insertGearItem(playerId, candidate);
@@ -552,6 +578,16 @@ function completeCraftUnit(
 
 // ─── Enqueue (§2.1 escrow, §2.2/§2.5 gates, §2.7 skill consumer) ────
 
+/** The Fixer enqueue-time bonus totals (migration 0029), derived by
+ *  the store from server records exactly like consumableEfficiency
+ *  Bonus — the request body never carries them. */
+export interface FixerEnqueueBonuses {
+  craftSpeedBonus: number;
+  workshopQueueBonus: number;
+  rushReductionCapBonus: number;
+  coreCatalystDrawBonus: number;
+}
+
 export interface EnqueueCraftJobInput {
   bench: number;
   recipeId: string;
@@ -562,6 +598,8 @@ export interface EnqueueCraftJobInput {
   useRushTicket?: boolean;
   /** computeSkillBonuses total for consumableEfficiency (server-derived). */
   consumableEfficiencyBonus: number;
+  /** Fixer totals (server-derived); absent reads as all-zero. */
+  fixerBonuses?: FixerEnqueueBonuses;
 }
 
 export function enqueueCraftJob(
@@ -615,11 +653,15 @@ export function enqueueCraftJob(
     if (queued) fail('A job for this tool is already queued');
   }
 
-  // Queue capacity: one running + QUEUED_JOBS_PER_BENCH waiting.
+  // Queue capacity: one running + QUEUED_JOBS_PER_BENCH waiting, plus
+  // the Fixer keystone's workshopQueueBonus (0029) — derived from the
+  // player's records by the store, snapshotted implicitly by the gate.
+  const fixer = input.fixerBonuses;
+  const queueBonus = Math.max(0, Math.floor(fixer?.workshopQueueBonus ?? 0));
   const benchActive = adapter
     .jobs(playerId)
     .filter((j) => j.status === 'active' && j.bench === bench).length;
-  if (benchActive >= 1 + QUEUED_JOBS_PER_BENCH) fail('Bench queue is full');
+  if (benchActive >= 1 + QUEUED_JOBS_PER_BENCH + queueBonus) fail('Bench queue is full');
 
   // Catalyst (optional, Forge-gated).
   let catalystMaterialId: string | null = null;
@@ -679,7 +721,9 @@ export function enqueueCraftJob(
     if (!burned) fail('No Workshop Rush Ticket available');
     rushTicketQuality = burned.quality;
     rushTicketOrigin = burned.origin;
-    rushReduction = getConsumableRuntimeEffects('WorkshopRushTicket', burned.quality).timeReduction ?? 0;
+    // The reduction formula is the SQL twin's clamp (0029): the
+    // Fixer keystone's rushReductionCapBonus raises the 0.45 cap.
+    rushReduction = rushTicketTimeReduction(burned.quality, fixer?.rushReductionCapBonus ?? 0);
   }
 
   // Take the escrow.
@@ -699,7 +743,14 @@ export function enqueueCraftJob(
   const baseDuration = r.kind === 'gear' && gearRarity
     ? (r.durationByRarityMs?.[gearRarity] ?? 0)
     : r.unitDurationMs;
-  const skillMultiplier = consumableEfficiencyDurationMultiplier(input.consumableEfficiencyBonus);
+  // Skill duration terms compose MULTIPLICATIVELY (0029): the
+  // Scavenger consumableEfficiency term × the Fixer craftSpeedBonus
+  // term, under a combined 0.60× floor (0.80 × 0.75 at both caps).
+  const skillMultiplier = Math.max(
+    0.6,
+    consumableEfficiencyDurationMultiplier(input.consumableEfficiencyBonus)
+      * fixerCraftSpeedDurationMultiplier(fixer?.craftSpeedBonus ?? 0),
+  );
   const toolDurationMultiplier = fittedDef?.durationMultiplier ?? 1;
   const unitDurationMs = Math.max(
     1,
@@ -734,6 +785,7 @@ export function enqueueCraftJob(
       craftTimeScalar: levers.craftTimeScalar,
       catalystMaterialId,
       coreCatalyst,
+      coreCatalystDrawBonus: Math.max(0, Math.floor(fixer?.coreCatalystDrawBonus ?? 0)),
       gearRarity: gearRarity ? String(gearRarity) : null,
     },
     xp_awarded: 0,
@@ -800,7 +852,14 @@ export function enqueueRepairJob(
   if (repairJobs.some((j) => j.snapshot.repair?.itemId === input.itemId)) {
     fail('A repair job is already running for this vehicle');
   }
-  if (repairJobs.length >= MAX_ACTIVE_REPAIR_JOBS) fail('Too many repair jobs already running');
+  // Second Shift (Fixer major, 0029): +1 concurrent self-repair job,
+  // read from the owner's records at enqueue. (This self-repair cap
+  // is the one repair-concurrency cap the shipped game enforces —
+  // board work is uncapped-but-sequential; see migration 0029.)
+  const bonusRepairJobs = Math.max(0, Math.floor(adapter.skillBonus?.(playerId, 'bonusRepairJobs') ?? 0));
+  if (repairJobs.length >= MAX_ACTIVE_REPAIR_JOBS + bonusRepairJobs) {
+    fail('Too many repair jobs already running');
+  }
 
   if ((p.consumables[kitType] ?? 0) < units) fail(`Not enough ${kitType} in inventory`);
 
@@ -823,8 +882,19 @@ export function enqueueRepairJob(
     levers.repairWorkRateBase,
     levers.repairMasterySpeedPerLevel,
   );
-  const efficiency = repairEfficiencyMultiplier(masteryLevel, levers.repairMasteryEfficiencyPerLevel);
-  const unitDurationMs = repairKitUnitDurationMs(kitBase, workRate);
+  // Fixer terms (0029), from the owner's records: efficiency composes
+  // multiplicatively past the mastery cap (repairEfficiencyWithSkill,
+  // ceiling 1.80); the speed term multiplies the snapshotted duration.
+  const efficiency = repairEfficiencyWithSkill(
+    masteryLevel,
+    levers.repairMasteryEfficiencyPerLevel,
+    adapter.skillBonus?.(playerId, 'repairEfficiencyBonus') ?? 0,
+  );
+  const unitDurationMs = repairKitUnitDurationMs(
+    kitBase,
+    workRate,
+    adapter.skillBonus?.(playerId, 'repairSpeedBonus') ?? 0,
+  );
 
   const now = adapter.nowMs();
   const job: CraftJobRecord = {

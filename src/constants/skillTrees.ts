@@ -63,10 +63,41 @@ export const SKILL_NODES: SkillNode[] = [
   { id: 'scav_major_4', tree: SkillTreeType.Scavenger, tier: 8, index: 2, name: 'Lucky Find', description: '+15% Rare Drop Chance.', type: 'major', maxPoints: 1, cost: 3, effects: { rareDropChance: 0.15 }, requires: ['scav_drop_1', 'scav_drop_2'] },
   // Keystone
   { id: 'scav_keystone', tree: SkillTreeType.Scavenger, tier: 9, index: 1, name: 'King of Scrap', description: 'Low-rarity weapons gain +100% scrap value. Commons have 25% chance for bonus crafting material. Offline cap +4 hours.', type: 'keystone', maxPoints: 1, cost: 5, effects: { lowRarityScrapBonus: 1.0, commonMaterialChance: 0.25, offlineCapBonus: 4 }, requires: ['scav_major_1', 'scav_major_2', 'scav_major_4'] },
+
+  // ========== FIXER TREE (migration 0029) ==========
+  // The support/economy tree: every effect is consumed server-side by
+  // the Workshop, the repair board, the vehicle tick, the vendor, or
+  // the market fee — registered in src/lib/skills/skillConsumers.ts
+  // and pinned by src/test/keystoneSkillLayer.test.ts (zero dead
+  // keys). Bonuses derive from profiles.skill_spends + the equipped
+  // class mod through computeSkillBonuses, never from a request body.
+  { id: 'fix_craft_time_1', tree: SkillTreeType.Fixer, tier: 1, index: 1, name: 'Assembly Rhythm', description: 'Workshop craft jobs run faster: −2.5% unit time per point (server-side, snapshotted at enqueue).', type: 'small', maxPoints: 5, cost: 1, effects: { craftSpeedBonus: 0.025 } },
+  { id: 'fix_craft_time_2', tree: SkillTreeType.Fixer, tier: 1, index: 2, name: 'Parallel Hands', description: 'Workshop craft jobs run faster: −2.5% unit time per point (−25% across both nodes).', type: 'small', maxPoints: 5, cost: 1, effects: { craftSpeedBonus: 0.025 } },
+  { id: 'fix_quality_1', tree: SkillTreeType.Fixer, tier: 2, index: 1, name: 'Calibrated Eye', description: '+1 crafted quality shift per point (server-side, applied when a unit completes).', type: 'small', maxPoints: 5, cost: 1, effects: { craftQualityBonus: 1.0 } },
+  { id: 'fix_quality_2', tree: SkillTreeType.Fixer, tier: 2, index: 2, name: 'Tolerance Stacking', description: '+1 crafted quality shift per point (+10 across both nodes).', type: 'small', maxPoints: 5, cost: 1, effects: { craftQualityBonus: 1.0 } },
+  { id: 'fix_repair_speed_1', tree: SkillTreeType.Fixer, tier: 3, index: 1, name: 'Torque Discipline', description: 'Repair work runs faster: −3% unit time per point (snapshotted at enqueue/accept).', type: 'small', maxPoints: 5, cost: 1, effects: { repairSpeedBonus: 0.03 } },
+  { id: 'fix_repair_speed_2', tree: SkillTreeType.Fixer, tier: 3, index: 2, name: 'Bay Choreography', description: 'Repair work runs faster: −3% unit time per point (−30% across both nodes).', type: 'small', maxPoints: 5, cost: 1, effects: { repairSpeedBonus: 0.03 } },
+  { id: 'fix_repair_eff_1', tree: SkillTreeType.Fixer, tier: 4, index: 1, name: 'Kit Stretching', description: 'Patch kits restore +2.5% more condition per point (multiplies repair efficiency).', type: 'small', maxPoints: 5, cost: 1, effects: { repairEfficiencyBonus: 0.025 } },
+  { id: 'fix_repair_eff_2', tree: SkillTreeType.Fixer, tier: 4, index: 2, name: 'Salvage Solder', description: 'Patch kits restore +2.5% more condition per point (+25% across both nodes).', type: 'small', maxPoints: 5, cost: 1, effects: { repairEfficiencyBonus: 0.025 } },
+  { id: 'fix_vehicle_yield_1', tree: SkillTreeType.Fixer, tier: 5, index: 1, name: 'Rig Tuning', description: '+2% vehicle yield bonus per point (adds into the yield affix bracket).', type: 'small', maxPoints: 5, cost: 1, effects: { vehicleYieldBonus: 0.02 } },
+  { id: 'fix_vehicle_yield_2', tree: SkillTreeType.Fixer, tier: 5, index: 2, name: 'Aero Fairings', description: '+2% vehicle yield bonus per point (+20% across both nodes).', type: 'small', maxPoints: 5, cost: 1, effects: { vehicleYieldBonus: 0.02 } },
+  { id: 'fix_vehicle_fuel_1', tree: SkillTreeType.Fixer, tier: 6, index: 1, name: 'Lean Burn', description: 'Vehicles burn −3% fuel per point (applied after fuel-efficiency affixes).', type: 'small', maxPoints: 5, cost: 1, effects: { vehicleFuelBonus: 0.03 } },
+  { id: 'fix_vendor_1', tree: SkillTreeType.Fixer, tier: 6, index: 2, name: "Appraiser's Eye", description: '+1% vendor buyback rate per point (added to the buyback lever; the rate caps at 90%).', type: 'small', maxPoints: 5, cost: 1, effects: { vendorBuybackBonus: 0.01 } },
+  // Major
+  { id: 'fix_major_1', tree: SkillTreeType.Fixer, tier: 7, index: 1, name: 'Master Artificer', description: 'Crafted gear temper chance +5%.', type: 'major', maxPoints: 1, cost: 3, effects: { craftTemperBonus: 0.05 }, requires: ['fix_quality_1', 'fix_quality_2'] },
+  { id: 'fix_major_2', tree: SkillTreeType.Fixer, tier: 7, index: 2, name: 'Fleet Engineer', description: 'Vehicles lose 25% less condition per fueled tick.', type: 'major', maxPoints: 1, cost: 3, effects: { vehicleDecayReduction: 0.25 }, requires: ['fix_vehicle_yield_1', 'fix_vehicle_yield_2'] },
+  { id: 'fix_major_3', tree: SkillTreeType.Fixer, tier: 8, index: 1, name: 'House Brand', description: 'Marketplace listing fees reduced an additional 15% for Workshop-crafted items you sell.', type: 'major', maxPoints: 1, cost: 3, effects: { craftedItemFeeReduction: 0.15 }, requires: ['fix_vendor_1'] },
+  { id: 'fix_major_4', tree: SkillTreeType.Fixer, tier: 8, index: 2, name: 'Second Shift', description: '+1 concurrent self-repair job.', type: 'major', maxPoints: 1, cost: 3, effects: { bonusRepairJobs: 1 }, requires: ['fix_repair_speed_1', 'fix_repair_speed_2'] },
+  // Keystone
+  { id: 'fix_keystone', tree: SkillTreeType.Fixer, tier: 9, index: 1, name: 'The Fixer', description: 'Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%.', type: 'keystone', maxPoints: 1, cost: 5, effects: { coreCatalystDrawBonus: 1, workshopQueueBonus: 1, rushReductionCapBonus: 0.10 }, requires: ['fix_major_1', 'fix_major_2', 'fix_major_4'] },
 ];
 
-export const MAX_SKILL_POINTS = 50; // total points available to spend
-export const POINTS_PER_LEVEL = 1; // gain 1 per level, starting at level 2 maybe
+// The point budget is NOT a constant: a player holds (level − 1)
+// points, enforced server-side by cc_train_skill (migration 0004)
+// against profiles.player_level, and mirrored by the client store.
+// (The old MAX_SKILL_POINTS = 50 constant was dead and wrong — the
+// lifetime budget at level 100 is 99 against 303 points of trees.)
+export const POINTS_PER_LEVEL = 1; // gain 1 per level, starting at level 2
 export function getSkillTreeNodes(tree: SkillTreeType): SkillNode[] {
   return SKILL_NODES.filter((n) => n.tree === tree);
 }

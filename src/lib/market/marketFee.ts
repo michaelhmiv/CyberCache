@@ -12,6 +12,11 @@
  *   - Market Manipulator (`scav_major_3`): `foundItemFeeReduction`
  *     effect, an additional 15% fee reduction for items the seller
  *     personally found (def: src/constants/skillTrees.ts).
+ *   - House Brand (`fix_major_3`, Fixer tree, migration 0029):
+ *     `craftedItemFeeReduction` effect, an additional 15% fee
+ *     reduction for Workshop-crafted items (def: same file). Found
+ *     and crafted are disjoint by the drop-source taxonomy, so the
+ *     two gated terms never stack on one sale.
  * Reductions are relative (they shrink the fee, not the price) and
  * stack additively, exactly as computeSkillBonuses aggregates the
  * effect keys. Effective points include class mod boosts, via the one
@@ -69,14 +74,26 @@ export interface MarketFeeBreakdown {
  * produced by computeSkillBonuses). `foundBySeller` gates the Market
  * Manipulator term: the seller must have personally found the item
  * (a find-source item they did not acquire from another player).
+ * `craftedBySeller` gates the Fixer House Brand term (migration
+ * 0029): the item being sold is Workshop-crafted, identified exactly
+ * the way the economy metrics identify crafted sales — the listing's
+ * batch_origin is 'crafted' (consumables) or the item payload's
+ * origin is 'crafted' (gear/vehicles). Found and crafted are
+ * DISJOINT by the drop-source taxonomy (a crafted item's source is
+ * Crafted, never a find source), so the two gated terms can never
+ * both fire on one sale; all terms still compose additively under
+ * the one ≤ 1 clamp. Service fees (repair board) pass both flags
+ * false — House Brand never applies to labor.
  */
 export function marketFeeReduction(
   bonuses: Record<string, number>,
   foundBySeller: boolean,
+  craftedBySeller = false,
 ): number {
   const darknet = bonuses.marketFeeReduction ?? 0;
   const manipulator = foundBySeller ? (bonuses.foundItemFeeReduction ?? 0) : 0;
-  return Math.min(1, Math.max(0, darknet + manipulator));
+  const houseBrand = craftedBySeller ? (bonuses.craftedItemFeeReduction ?? 0) : 0;
+  return Math.min(1, Math.max(0, darknet + manipulator + houseBrand));
 }
 
 /**
@@ -118,6 +135,8 @@ export function marketFeeForSeller(input: {
   skillSpends: Record<string, number>;
   classModBoosts?: ClassModBoosts;
   foundBySeller: boolean;
+  /** House Brand gate (0029): the sold item is Workshop-crafted. */
+  craftedBySeller?: boolean;
   /** Live fee-rate lever (0018); defaults to MARKET_FEE_RATE. */
   feeRate?: number;
 }): MarketFeeBreakdown {
@@ -127,7 +146,7 @@ export function marketFeeForSeller(input: {
   );
   return marketFeeForPrice(
     input.price,
-    marketFeeReduction(bonuses, input.foundBySeller),
+    marketFeeReduction(bonuses, input.foundBySeller, input.craftedBySeller ?? false),
     input.feeRate,
   );
 }
