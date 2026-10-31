@@ -48,6 +48,11 @@ import {
 } from './store';
 import type { GearItem, Vehicle } from '../../types/items';
 import { VEHICLE_CONDITION_MAX } from '../../lib/vehicles/vehicles';
+import {
+  computeSkillBonuses,
+  type ClassModBoosts,
+} from '../../lib/skills/skillBonuses';
+import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses';
 
 export interface InMemoryProfile {
   id: string;
@@ -846,7 +851,27 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     // mirrors cc_recycle_item as amended by 0008_legendary_honesty.sql.
     const baseAward = salvageScrap(item.rarity ?? '', item.item_level);
     const payload = (item.payload ?? {}) as { legendaryEffectId?: string };
-    const award = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
+    const crashedAward = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
+    // Salvage skill bonuses (Phase 2d; migration 0022 mirrors this in
+    // cc_recycle_item): Hoarder's Instinct bonus scrap, King of Scrap
+    // low-rarity multiplier + bonus material from Commons. Derived
+    // from the player's own records through computeSkillBonuses.
+    const spends: Record<string, number> = {};
+    for (const [k, v] of Object.entries((p.skill_spends ?? {}) as Record<string, unknown>)) {
+      if (typeof v === 'number' && Number.isFinite(v)) spends[k] = v;
+    }
+    const bonuses = computeSkillBonuses(spends, this.classModBoostsFor(playerId));
+    const needsMaterialRoll = item.rarity === 'Common' && (bonuses.commonMaterialChance || 0) > 0;
+    const { award, bonusMaterial } = applySalvageSkillBonuses({
+      baseAward: crashedAward,
+      rarity: item.rarity ?? '',
+      kind: item.kind,
+      bonuses,
+      materialRoll: needsMaterialRoll ? Math.random() : 1,
+    });
+    if (bonusMaterial) {
+      p.materials[bonusMaterial] = (p.materials[bonusMaterial] ?? 0) + 1;
+    }
     item.runtime_state = 'consumed';
     item.tradeable = false;
     item.equipped_slot = null;
@@ -865,9 +890,29 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         payload: item.payload,
       },
       scrap_award: award,
+      bonus_material: bonusMaterial,
       loadout: null,
     };
     this.ledger.set(nonce, result);
     return result;
+  }
+
+  /**
+   * The player's equipped class mod boosts, from their own item
+   * records — mirrors classModBoostsFromGear's predicate (the
+   * equipped gear whose payload carries treeBonus) over raw payloads.
+   */
+  private classModBoostsFor(playerId: string): ClassModBoosts {
+    for (const item of this.items.values()) {
+      if (item.owner_user_id !== playerId || item.runtime_state !== 'equipped') continue;
+      const payload = (item.payload ?? {}) as Record<string, unknown>;
+      if (!('treeBonus' in payload)) continue;
+      const nodeBoosts = (payload.nodeBoosts ?? {}) as Record<string, number>;
+      return {
+        treeBonus: typeof payload.treeBonus === 'string' ? payload.treeBonus : undefined,
+        nodeBoosts: { ...nodeBoosts },
+      };
+    }
+    return { nodeBoosts: {} };
   }
 }

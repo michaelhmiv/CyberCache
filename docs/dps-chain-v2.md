@@ -71,6 +71,8 @@ type DpsContext = {
   consumables?: Record<string, number>;        // default {} — full consumables table
   legendaryDamageMult?: number;                // default 1
   ammoEfficiency?: number;                     // default 1.0
+  bossDamageMod?: number;                      // default: weapon.bossDamageMod
+  bonusStatusChance?: number;                  // default 0 — flat status chance added in step 1.5 (Phase 2d)
 };
 ```
 
@@ -82,6 +84,7 @@ type DpsContext = {
 | `consumables`      | When the player has selected DPS-affecting consumables. Pass the full `Record<string, number>`; the chain filters. |
 | `legendaryDamageMult` | When the primary weapon has a legendary bonus. Sim reads from `applyLegendaryEffects(...).damageMult`. |
 | `ammoEfficiency`   | When the fight has an ammo window. Sim pre-computes via `ammoEfficiencyFromWindows` and passes it in. |
+| `bonusStatusChance` | When the build carries skill status chance (Procedural Loads small nodes). The boss sim and the roaming effective-DPS path pass the `computeSkillBonuses` `statusChance` total; step 1.5 prices `(weapon.statusChance + bonusStatusChance) × statusDamage × 0.3`. Added in Phase 2d — the key was previously read by no engine. Default 0 keeps every earlier caller bit-identical. |
 
 **Removed (do not use):**
 - ~~`bossResistance: number`~~ — replaced by `bossResistances: Element[]` in PR D.

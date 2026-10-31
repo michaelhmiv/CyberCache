@@ -33,7 +33,11 @@ import {
   getVehicleClass,
 } from '../../lib/vehicles/vehicles.js';
 import { buildStarterVehicle } from '../lib/generators/vehicleGenerator.js';
-import type { ClassModBoosts } from '../../lib/skills/skillBonuses.js';
+import {
+  computeSkillBonuses,
+  type ClassModBoosts,
+} from '../../lib/skills/skillBonuses.js';
+import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses.js';
 import {
   VENDOR_BUYBACK_RATE_DEFAULT,
   VENDOR_MATERIALS,
@@ -1011,7 +1015,27 @@ export class InMemoryWriteStore implements WriteStore {
     // mirrors cc_recycle_item as amended by 0008_legendary_honesty.sql.
     const baseAward = salvageScrap(item.rarity, item.item_level);
     const payload = (item.payload ?? {}) as { legendaryEffectId?: string };
-    const award = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
+    const crashedAward = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
+    // Salvage skill bonuses (Phase 2d; migration 0022 mirrors this in
+    // cc_recycle_item): Hoarder's Instinct pays bonus scrap on every
+    // salvage; King of Scrap multiplies low-rarity salvage and can
+    // yield a bonus crafting material from Commons. Bonuses derive
+    // from the player's own records (skill_spends + equipped class
+    // mod) through the one computeSkillBonuses derivation.
+    const bonuses = computeSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId));
+    const needsMaterialRoll = item.rarity === 'Common' && (bonuses.commonMaterialChance || 0) > 0;
+    const { award, bonusMaterial } = applySalvageSkillBonuses({
+      baseAward: crashedAward,
+      rarity: item.rarity,
+      kind: item.kind,
+      bonuses,
+      materialRoll: needsMaterialRoll ? this.rng() : 1,
+    });
+    if (bonusMaterial) {
+      const materials = asNumberMap(p.materials);
+      materials[bonusMaterial] = (materials[bonusMaterial] ?? 0) + 1;
+      p.materials = materials;
+    }
     item.runtime_state = 'consumed';
     item.tradeable = false;
     item.equipped_slot = null;
@@ -1024,6 +1048,7 @@ export class InMemoryWriteStore implements WriteStore {
       profile: this.profileSnapshot(p),
       item: this.itemJson(item),
       scrap_award: award,
+      bonus_material: bonusMaterial,
       loadout: this.loadoutSnapshot(playerId),
     };
     return this.record(playerId, 'cc_recycle_item', key, result);

@@ -17,7 +17,7 @@ import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { computeHunterMaxHp, type HunterSurvivalStats } from './damageContract';
-import { computeStandardDps } from '@/lib/stats/dpsChain';
+import { computeWeaponDps } from '@/lib/stats/dpsChain';
 import type { GearItem, Weapon } from '@/types/items';
 
 /**
@@ -32,6 +32,11 @@ export type EffectiveDpsInput = {
   relic: GearItem | null;
   classMod: GearItem | null;
   skillDpsMult: number;
+  /**
+   * Skill-tree status chance (Procedural Loads), forwarded to the
+   * DPS chain per weapon. Optional: 0/omitted = pre-wiring behavior.
+   */
+  skillStatusChance?: number;
 };
 
 /**
@@ -50,7 +55,10 @@ export function computeEffectiveDpsFromGear(input: EffectiveDpsInput): number {
   let shieldBreakDps = 0;
   let armorBreakDps = 0;
   for (const weapon of weapons) {
-    const std = computeStandardDps(weapon);
+    // Standard DPS through the chain; the skill status chance rides
+    // the chain's own status step (identical to computeStandardDps
+    // when skillStatusChance is 0).
+    const std = computeWeaponDps({ weapon, bonusStatusChance: input.skillStatusChance ?? 0 });
     weaponDps += std * (1 + (weapon.waveDamageMod || 0));
     shieldBreakDps += std * Math.max(0, weapon.shieldDamageMod || 0);
     armorBreakDps += std * Math.max(0, weapon.armorDamageMod || 0);
@@ -188,5 +196,6 @@ export function loadoutEffectiveDps(): number {
     relic: loadout.getRelic(),
     classMod: loadout.getClassMod(),
     skillDpsMult,
+    skillStatusChance: skillBonuses.statusChance || 0,
   });
 }

@@ -569,6 +569,7 @@ export function processRoamingClaim(
     relic: slotRelic,
     classMod: slotClassMod,
     skillDpsMult: 1 + (request.skillBonuses?.dps ?? 0),
+    skillStatusChance: request.skillBonuses?.statusChance ?? 0,
   });
   const effectiveDps = serverDerivedDps;
   const roster = resolveAreaMonsters(area);
@@ -849,6 +850,15 @@ export function processRoamingClaim(
           const bonusChance = (tickVehicleFactor - 1) + tickVehicleMaterialBonus;
           if (rng() < bonusChance) quantity += 1;
           if (rng() < bonusChance - 1) quantity += 1;
+        }
+        // Loot Quantity (Scavenger small nodes, Phase 2d): a bonus
+        // unit of the find with probability equal to the skill total.
+        // The roll is gated on the bonus being positive so claims by
+        // players without the nodes consume the exact same RNG stream
+        // as before this wiring.
+        const skillLootQuantity = skillBonuses.lootQuantity || 0;
+        if (skillLootQuantity > 0 && rng() < skillLootQuantity) {
+          quantity += 1;
         }
         if (find.kind === 'material') {
           materials[find.type] = (materials[find.type] || 0) + quantity;
@@ -1260,6 +1270,7 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     relic: request.relic,
     classMod: request.classMod,
     skillDpsMult: 1 + (request.skillBonuses?.dps ?? 0),
+    skillStatusChance: request.skillBonuses?.statusChance ?? 0,
   });
 
   const sim = simulateBoss(input);
@@ -1300,6 +1311,17 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   if (refundChance > 0) {
     Object.keys(consumedConsumables).forEach((type) => {
       if (rng() < refundChance) delete consumedConsumables[type];
+    });
+  }
+  // Insurance Fraud (Scavenger major skill, Phase 2d): on victory,
+  // each used consumable type has the recovery chance to be refunded
+  // instead of charged — the skill twin of the legendary refund
+  // above. skillBonuses is the server-rebuilt record (verify-boss
+  // route), never the request body's copy.
+  const recoveryChance = victory ? (request.skillBonuses?.consumableRecovery ?? 0) : 0;
+  if (recoveryChance > 0) {
+    Object.keys(consumedConsumables).forEach((type) => {
+      if (rng() < recoveryChance) delete consumedConsumables[type];
     });
   }
 

@@ -1,4 +1,5 @@
 import { SKILL_NODES } from '@/constants/skillTrees';
+import { WeaponType } from '@/types/game';
 import type { BossDef } from '@/types/boss';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { PlayerProfile } from '@/types/player';
@@ -111,11 +112,25 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
     skillTotal(input.spentSkills, 'critChance') * 0.5 +
     skillTotal(input.spentSkills, 'critDamage') * 0.5;
   const gearDamageBonus = affixTotal(gear, 'weaponDamage');
+  // Conditional major bonuses (Phase 2d): the boss sim applies these
+  // only when their condition holds, and the display must not promise
+  // them otherwise. Weapons arrive slot-ordered (primary first): the
+  // primary drives Focus Fire; Scorched Earth's DPS half is checked
+  // against any Launcher in the set (the sim itself is slot-exact —
+  // this scalar stays the documented display approximation);
+  // Elemental Overclock needs a weakness match against the boss.
+  const primaryWeapon = weapons[0];
   const skillBossBonus =
     skillTotal(input.spentSkills, 'bossDamageMod') +
-    skillTotal(input.spentSkills, 'bossDamageSniperPistol') +
-    skillTotal(input.spentSkills, 'launcherBossDps') +
-    skillTotal(input.spentSkills, 'weaknessMatchDamage');
+    (primaryWeapon && (primaryWeapon.weaponType === WeaponType.Sniper || primaryWeapon.weaponType === WeaponType.Pistol)
+      ? skillTotal(input.spentSkills, 'bossDamageSniperPistol')
+      : 0) +
+    (weapons.some((weapon) => weapon.weaponType === WeaponType.Launcher)
+      ? skillTotal(input.spentSkills, 'launcherBossDps')
+      : 0) +
+    (input.boss && weapons.some((weapon) => input.boss!.weaknesses.includes(weapon.element))
+      ? skillTotal(input.spentSkills, 'weaknessMatchDamage')
+      : 0);
   const gearBossBonus = affixTotal([input.classMod, input.relic], 'bossDamageMod');
   // NOTE: skill and gear damage bonuses are flat lump-sum multipliers
   // applied post-hoc on top of bossRelativeDps. This is a display-layer
@@ -178,20 +193,20 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
     ]),
     ordnanceContribution: scalar(ordnanceContribution, [contribution('gear', input.ordnance?.name ?? 'No ordnance', 'ordnanceDamage', ordnanceContribution)]),
     lootRareFind: scalar(
-      weapons.reduce((sum, weapon) => sum + weapon.rareDropChanceMod, 0) + skillTotal(input.spentSkills, 'rareDropChance') + skillTotal(input.spentSkills, 'postBossDropChance') + affixTotal(gear, 'rareDropChanceMod') + activityRareFind + consumableRareFind,
+      weapons.reduce((sum, weapon) => sum + weapon.rareDropChanceMod, 0) + skillTotal(input.spentSkills, 'rareDropChance') + affixTotal(gear, 'rareDropChanceMod') + activityRareFind + consumableRareFind,
       [
         ...weapons.map((weapon) => contribution('weapon', weapon.name, 'rareDropChanceMod', weapon.rareDropChanceMod)),
-        contribution('skill', 'Skill tree', 'rareDropChance', skillTotal(input.spentSkills, 'rareDropChance') + skillTotal(input.spentSkills, 'postBossDropChance')),
+        contribution('skill', 'Skill tree', 'rareDropChance', skillTotal(input.spentSkills, 'rareDropChance')),
         contribution('gear', 'Gear affixes', 'rareDropChanceMod', affixTotal(gear, 'rareDropChanceMod')),
         contribution('activity', 'Activity / area modifiers', 'rareDropChanceMod', activityRareFind),
         contribution('consumable', 'Consumable / temporary modifiers', 'rareDropChanceMod', consumableRareFind),
       ],
     ),
     scrapModifier: scalar(
-      weapons.reduce((sum, weapon) => sum + weapon.scrapYieldMod, 0) + skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'autoSalvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus') + affixTotal(gear, 'scrapYieldMod') + activityScrap + consumableScrap,
+      weapons.reduce((sum, weapon) => sum + weapon.scrapYieldMod, 0) + skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'salvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus') + affixTotal(gear, 'scrapYieldMod') + activityScrap + consumableScrap,
       [
         ...weapons.map((weapon) => contribution('weapon', weapon.name, 'scrapYieldMod', weapon.scrapYieldMod)),
-        contribution('skill', 'Skill tree', 'scrapYield', skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'autoSalvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus')),
+        contribution('skill', 'Skill tree', 'scrapYield', skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'salvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus')),
         contribution('gear', 'Gear affixes', 'scrapYieldMod', affixTotal(gear, 'scrapYieldMod')),
         contribution('activity', 'Activity / area modifiers', 'scrapYieldMod', activityScrap),
         contribution('consumable', 'Consumable / temporary modifiers', 'scrapYieldMod', consumableScrap),
