@@ -128,3 +128,26 @@ export function bossArena(bossId: string | undefined): { backgroundId: string; p
   if (bossId && PIXEL_BOSS_ARENAS[bossId]) return PIXEL_BOSS_ARENAS[bossId];
   return PIXEL_BOSS_ARENAS.dune_tyrant;
 }
+
+/**
+ * Endless depth-band tints (0028): the Chaos Chamber's escalation
+ * read. Every 5 depths the arena wash deepens — band 0 is the bare
+ * arena, and each further band pushes the wash hotter (violet →
+ * magenta → red) with rising alpha, capped at the last entry. One
+ * table for the live stage overlay and the golden scenes, so the
+ * regression suite pins exactly what the player sees.
+ */
+export const ENDLESS_BAND_TINTS: Array<{ color: string; alpha: number }> = [
+  { color: '#7C3AED', alpha: 0 },
+  { color: '#7C3AED', alpha: 0.1 },
+  { color: '#A21CAF', alpha: 0.16 },
+  { color: '#C026D3', alpha: 0.22 },
+  { color: '#E11D48', alpha: 0.28 },
+  { color: '#FF2222', alpha: 0.34 },
+];
+
+/** The wash for a 0-based depth band (endlessDepthBand). */
+export function endlessBandTint(band: number): { color: string; alpha: number } {
+  const idx = Math.max(0, Math.min(ENDLESS_BAND_TINTS.length - 1, Math.trunc(band) || 0));
+  return ENDLESS_BAND_TINTS[idx];
+}

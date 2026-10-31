@@ -511,6 +511,174 @@ export async function settleOffline(
 }
 
 /**
+ * Endless mode (0028) — the Chaos Chamber. The client sends INTENT
+ * only: a nonce and, at entry, the prepared belt choice. Depth,
+ * rewards, and payouts are server facts in every response; the run
+ * object below is the server's own row snapshot.
+ */
+export interface ChefEndlessRun {
+  id: string;
+  status: 'active' | 'banked' | 'died' | 'abandoned';
+  started_at: string;
+  ended_at: string | null;
+  start_level: number;
+  risk: string;
+  prepared_consumables: Record<string, number>;
+  depth_reached: number;
+  escrow_credits: number;
+  escrow_xp: number;
+  escrow_scrap: number;
+  entry_fee: number;
+  milestone_drops: Array<{ depth: number; rarity: string; kind: string; name: string }>;
+  paid_credits: number;
+  paid_xp: number;
+  paid_scrap: number;
+  payout_fraction: number | null;
+}
+
+export interface ChefEndlessPayout {
+  credits: number;
+  xp: number;
+  scrap: number;
+  fraction: number;
+}
+
+export interface ChefStartEndlessResult {
+  verified: true;
+  run: ChefEndlessRun;
+  entryFee: number;
+  runsStartedToday: number;
+  abandonedSettlement: {
+    run_id: string;
+    depth_reached: number;
+    payout: ChefEndlessPayout;
+  } | null;
+  profile?: Record<string, unknown>;
+  idempotentReplay?: boolean;
+}
+
+export interface ChefEndlessEncounterResult {
+  verified: true;
+  encounter?: {
+    depth: number;
+    kind: 'pack' | 'boss';
+    id: string;
+    name: string;
+    areaId: string;
+    level: number;
+    health: number;
+    shield: number;
+    armor: number;
+    dps: number;
+    weaknesses: string[];
+    resistances: string[];
+    mechanicName: string;
+  };
+  result?: {
+    id: string;
+    depth: number;
+    bossId: string;
+    victory: boolean;
+    winChance: number;
+    phaseFailed?: string;
+    bossHpRemaining?: number;
+    reasons: string[];
+    recommendations: string[];
+  };
+  victory: boolean;
+  rewards: { xp: number; credits: number; scrap: number };
+  milestone?: boolean;
+  capReached?: boolean;
+  items: GearItem[];
+  escrow: { credits: number; xp: number; scrap: number };
+  runStatus: ChefEndlessRun['status'];
+  payout: ChefEndlessPayout | null;
+  profile?: Record<string, unknown>;
+  run: ChefEndlessRun;
+  idempotentReplay?: boolean;
+  telemetry?: { serverRolled: true; adjustedWinChance: number; effectiveDps: number; timeToKill: number };
+}
+
+export interface ChefBankEndlessResult {
+  verified: true;
+  ended: true;
+  runId: string;
+  depthReached: number;
+  payout: ChefEndlessPayout;
+  profile?: Record<string, unknown>;
+  run: ChefEndlessRun;
+  idempotentReplay?: boolean;
+}
+
+export interface ChefEndlessMeResult {
+  verified: true;
+  intel: import('@/content/endless').EndlessIntel;
+  bestDepth: number;
+  runsStartedToday: number;
+  recentRuns: ChefEndlessRun[];
+  activeRun: ChefEndlessRun | null;
+}
+
+/** Idempotency nonce for one endless call — unique per tap, stable per send. */
+export function newEndlessNonce(kind: 'start' | 'encounter' | 'bank'): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `endless-${kind}:${random}`;
+}
+
+async function endlessFetch<T>(path: string, init: RequestInit, failureLabel: string): Promise<T> {
+  const jwt = await getSessionJwt();
+  const response = await fetch(chefUrl(path), {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+      ...(init.headers ?? {}),
+    },
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const detail =
+      (errorBody as { detail?: string }).detail ||
+      (errorBody as { error?: string }).error ||
+      response.statusText;
+    throw new Error(`${failureLabel} (${response.status}): ${detail}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export async function startEndlessRun(request: {
+  nonce: string;
+  consumables: Record<string, number>;
+  risk: RiskSetting;
+}): Promise<ChefStartEndlessResult> {
+  return endlessFetch<ChefStartEndlessResult>(
+    '/endless/start',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef endless start failed',
+  );
+}
+
+export async function advanceEndlessEncounter(request: { nonce: string }): Promise<ChefEndlessEncounterResult> {
+  return endlessFetch<ChefEndlessEncounterResult>(
+    '/endless/encounter',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef endless encounter failed',
+  );
+}
+
+export async function bankEndlessRun(request: { nonce: string }): Promise<ChefBankEndlessResult> {
+  return endlessFetch<ChefBankEndlessResult>(
+    '/endless/bank',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef endless bank failed',
+  );
+}
+
+export async function getEndlessMe(): Promise<ChefEndlessMeResult> {
+  return endlessFetch<ChefEndlessMeResult>('/endless/me', { method: 'GET' }, 'Chef endless facts failed');
+}
+
+/**
  * Check if the Chef is available. Returns false if the server is
  * unreachable, in which case the client falls back to the verified
  * ops API surface (src/lib/api/verifiedOps).

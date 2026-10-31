@@ -83,6 +83,31 @@ export interface EconomyConfigValues {
   reforgeScrapScalar: number;
   /** Flat legendary-core cost of reforging a Legendary (0027). */
   reforgeLegendaryCoreCost: number;
+  // Endless mode (0028) — content owner: src/content/endless.ts.
+  /** Enemy health/shield/armor multiplier per depth (compounding). */
+  endlessHpGrowth: number;
+  /** Enemy DPS multiplier per depth (compounding). */
+  endlessDpsGrowth: number;
+  /** Escrow XP per encounter, per encounter level. */
+  endlessXpPerLevel: number;
+  /** Escrow credits per encounter, per encounter level. */
+  endlessCreditsPerLevel: number;
+  /** Escrow scrap per encounter, per encounter level. */
+  endlessScrapPerLevel: number;
+  /** Per-depth additive growth on per-encounter escrow rewards. */
+  endlessRewardDepthGrowth: number;
+  /** Fraction of escrow paid when an endless run ends in death/abandonment. */
+  endlessDeathPayoutFraction: number;
+  /** Endless entry fee base, per player level. */
+  endlessEntryFeePerLevel: number;
+  /** Cap on the endless entry-fee escalation multiplier. */
+  endlessFeeEscalationCap: number;
+  /** Milestone Legendary rarity-weight growth per depth. */
+  endlessMilestoneLegendaryPerDepth: number;
+  /** Milestone Epic rarity-weight growth per depth. */
+  endlessMilestoneEpicPerDepth: number;
+  /** Hard cap on endless depth (anti-pathology valve). */
+  endlessMaxDepth: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -115,6 +140,18 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   repairListingExpiryDays: 7,
   reforgeScrapScalar: 1,
   reforgeLegendaryCoreCost: 2,
+  endlessHpGrowth: 1.12,
+  endlessDpsGrowth: 1.1,
+  endlessXpPerLevel: 6,
+  endlessCreditsPerLevel: 22,
+  endlessScrapPerLevel: 0.5,
+  endlessRewardDepthGrowth: 0.04,
+  endlessDeathPayoutFraction: 0.5,
+  endlessEntryFeePerLevel: 10,
+  endlessFeeEscalationCap: 8,
+  endlessMilestoneLegendaryPerDepth: 0.1,
+  endlessMilestoneEpicPerDepth: 0.05,
+  endlessMaxDepth: 250,
 };
 
 export interface EconomyConfigKeySpec {
@@ -231,6 +268,54 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   reforgeLegendaryCoreCost: {
     key: 'reforgeLegendaryCoreCost', min: 0, max: 8, integer: true,
     defaultOwner: 'src/content/reforge.ts REFORGE_LEGENDARY_CORE_COST_DEFAULT',
+  },
+  endlessHpGrowth: {
+    key: 'endlessHpGrowth', min: 1, max: 1.5, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_HP_GROWTH_DEFAULT',
+  },
+  endlessDpsGrowth: {
+    key: 'endlessDpsGrowth', min: 1, max: 1.5, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_DPS_GROWTH_DEFAULT',
+  },
+  endlessXpPerLevel: {
+    key: 'endlessXpPerLevel', min: 0, max: 50, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_XP_PER_LEVEL_DEFAULT',
+  },
+  endlessCreditsPerLevel: {
+    key: 'endlessCreditsPerLevel', min: 0, max: 200, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_CREDITS_PER_LEVEL_DEFAULT',
+  },
+  endlessScrapPerLevel: {
+    key: 'endlessScrapPerLevel', min: 0, max: 10, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_SCRAP_PER_LEVEL_DEFAULT',
+  },
+  endlessRewardDepthGrowth: {
+    key: 'endlessRewardDepthGrowth', min: 0, max: 0.25, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_REWARD_DEPTH_GROWTH_DEFAULT',
+  },
+  endlessDeathPayoutFraction: {
+    key: 'endlessDeathPayoutFraction', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_DEATH_PAYOUT_FRACTION_DEFAULT',
+  },
+  endlessEntryFeePerLevel: {
+    key: 'endlessEntryFeePerLevel', min: 0, max: 100, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_ENTRY_FEE_PER_LEVEL_DEFAULT',
+  },
+  endlessFeeEscalationCap: {
+    key: 'endlessFeeEscalationCap', min: 1, max: 64, integer: true,
+    defaultOwner: 'src/content/endless.ts ENDLESS_FEE_ESCALATION_CAP_DEFAULT',
+  },
+  endlessMilestoneLegendaryPerDepth: {
+    key: 'endlessMilestoneLegendaryPerDepth', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_MILESTONE_LEGENDARY_PER_DEPTH_DEFAULT',
+  },
+  endlessMilestoneEpicPerDepth: {
+    key: 'endlessMilestoneEpicPerDepth', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/endless.ts ENDLESS_MILESTONE_EPIC_PER_DEPTH_DEFAULT',
+  },
+  endlessMaxDepth: {
+    key: 'endlessMaxDepth', min: 10, max: 1000, integer: true,
+    defaultOwner: 'src/content/endless.ts ENDLESS_MAX_DEPTH_DEFAULT',
   },
 };
 

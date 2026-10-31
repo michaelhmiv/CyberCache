@@ -63,6 +63,14 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `reforges_completed` | Count of the day's `cc_reforge_item` rows (migration 0027) |
 | `scrap_destroyed_reforge` | Σ `scrap_charged` over the day's `cc_reforge_item` rows — scrap destroyed by reforge (a scrap meter, never a credits meter: it does not enter `credits_destroyed_total`) |
 | `legendary_cores_destroyed_reforge` | Σ `cores_charged` over the day's `cc_reforge_item` rows — the destroyed share of `legendary_cores_spent`, broken out so the reforge sink reads separately from catalyst escrow |
+| `endless_runs_started` | Count of the day's `cc_start_endless_run` rows (migration 0028) |
+| `endless_runs_ended` | Runs ended that day: `cc_end_endless_run` rows with `ended` true + `cc_apply_endless_encounter` rows whose `run_status` closed the run (`died` / `banked` at the depth cap). Abandoned runs end inside a start row and are counted in `endless_deepest_depth` / payouts but have no separate ending row |
+| `endless_encounters_cleared` | Count of the day's victorious `cc_apply_endless_encounter` rows |
+| `endless_deepest_depth` | Deepest `depth_reached` among runs ENDED that day (bank rows, closing encounter rows, and `abandoned_settlement` payloads inside start rows) |
+| `endless_credits_paid` | Σ run-end payouts (`payout.credits` on end/encounter rows + `abandoned_settlement.payout.credits` on start rows). A real faucet: folds into `credits_minted_total` |
+| `endless_xp_paid` | Same shape for XP — metered here only (XP is not a credits meter) |
+| `endless_fees_destroyed` | Σ `entry_fee` over the day's `cc_start_endless_run` rows — destroyed at entry; folds into `credits_destroyed_total` |
+| `endless_milestone_drops` / `endless_milestone_drops_by_rarity` | Count of milestone drops recorded on the day's encounter rows, total and as a rarity → count map |
 
 Transfers are not mints or sinks: a market sale's principal moves
 buyer → seller (only the destroyed fee leaves supply), and repair
@@ -124,6 +132,18 @@ take the game down.
 | `repairListingExpiryDays` | 7 | 1 – 30 (integer) | Unaccepted board listings expire and refund in full after this many days |
 | `reforgeScrapScalar` | 1.0 | 0 – 5 | Multiplier on the reforge scrap cost (salvage value × 3 × scalar; migration 0027). `cc_reforge_item` reads the table itself (`cc_economy_config_number('reforgeScrapScalar', 1)`); the TS pricing mirror is `src/content/reforge.ts` `reforgeCostFor`, fed live values through a provider where wired |
 | `reforgeLegendaryCoreCost` | 2 | 0 – 8 (integer) | Flat legendary cores charged when reforging a Legendary-rarity item (0027); other rarities never pay cores |
+| `endlessHpGrowth` | 1.12 | 1 – 1.5 | Endless enemy health/shield/armor multiplier per depth, compounding (0028); rules owner `src/content/endless.ts` |
+| `endlessDpsGrowth` | 1.10 | 1 – 1.5 | Endless enemy DPS multiplier per depth, compounding (0028) |
+| `endlessXpPerLevel` | 6 | 0 – 50 | Escrow XP per endless encounter, per encounter level (before the +4%/depth reward growth) — vs a boss victory's 50/level for a discrete fee-charged attempt |
+| `endlessCreditsPerLevel` | 22 | 0 – 200 | Escrow credits per endless encounter, per encounter level — vs a boss victory's 150/level gross |
+| `endlessScrapPerLevel` | 0.5 | 0 – 10 | Escrow scrap per endless encounter, per encounter level |
+| `endlessRewardDepthGrowth` | 0.04 | 0 – 0.25 | Additive per-depth growth on per-encounter escrow rewards |
+| `endlessDeathPayoutFraction` | 0.5 | 0 – 1 | Fraction of escrow paid when an endless run ends in death (or abandonment at re-entry); banking pays 1.0. `cc_apply_endless_encounter` / `cc_start_endless_run` read the table themselves |
+| `endlessEntryFeePerLevel` | 10 | 0 – 100 | Endless entry fee base, per player level; doubled per run started today (UTC) up to `endlessFeeEscalationCap`. `cc_start_endless_run` recomputes and charges its own figure |
+| `endlessFeeEscalationCap` | 8 | 1 – 64 (integer) | Cap on the endless entry-fee escalation multiplier |
+| `endlessMilestoneLegendaryPerDepth` | 0.10 | 0 – 1 | Milestone-drop Legendary rarity-weight growth per depth (weight multiplier 1 + rate × depth, capped ×10) |
+| `endlessMilestoneEpicPerDepth` | 0.05 | 0 – 1 | Milestone-drop Epic rarity-weight growth per depth (multiplier capped ×5) |
+| `endlessMaxDepth` | 250 | 10 – 1000 (integer) | Hard endless depth cap — reaching it banks the run in full (anti-pathology valve) |
 
 Skill-based fee reductions (Darknet Broker, Market Manipulator)
 apply multiplicatively **after** the levered rate, in both the SQL

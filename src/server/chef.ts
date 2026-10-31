@@ -38,6 +38,7 @@ import {
 } from '../lib/vehicles/vehicles';
 import type { Vehicle } from '../types/items';
 import {
+  ROAMING_AREAS,
   getRoamingArea,
   rollAreaDropKind,
   rollAreaMaterialFind,
@@ -64,6 +65,14 @@ import {
   type RoamingEventDef,
 } from '../content/roamingEvents';
 import { HOT_AREA_DANGER_MULTIPLIER, HOT_AREA_MATERIAL_BONUS, HOT_AREA_YIELD_BONUS } from '../content/hotArea';
+import {
+  endlessEncounterForDepth,
+  endlessMilestoneRarityWeights,
+  endlessRewardsForDepth,
+  isEndlessMilestoneDepth,
+  type EndlessEncounterDef,
+  type EndlessLeverValues,
+} from '../content/endless';
 import { getEligibleLegendaryEffects } from '../constants/legendaryEffects';
 import {
   getBossConsumableUsage,
@@ -2181,6 +2190,225 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     entryFee,
     dedicatedDropAwarded,
     unlockedBossId,
+    telemetry: {
+      serverRolled: true,
+      adjustedWinChance,
+      effectiveDps: serverGearEffectiveDps,
+      timeToKill: sim.timeToKill,
+    },
+  };
+}
+
+// --- Endless mode (the Chaos Chamber, 0028) ---
+
+export interface EndlessEncounterRequest extends Omit<BossSimulationInput, 'boss'> {
+  playerId: string;
+  /** The server-owned run row id (from cc_start_endless_run). */
+  runId: string;
+  /** The run's anchor level (profile level at run start). */
+  startLevel: number;
+  /**
+   * The depth being resolved. The ROUTE derives this from the run
+   * row (depthReached + 1) — it is never read from the request body.
+   */
+  depth: number;
+  /**
+   * Live economy levers resolved by the route from the EconomyConfig
+   * accessor — never from the client body. Absent = content defaults
+   * (direct engine calls in tests).
+   */
+  economy?: Partial<EndlessLeverValues>;
+}
+
+export interface EndlessEncounterChefResult {
+  actionType: 'cc_apply_endless_encounter';
+  /** Public facts about the resolved encounter (no player-readiness data). */
+  encounter: Omit<EndlessEncounterDef, 'def'> & {
+    weaknesses: string[];
+    resistances: string[];
+    mechanicName: string;
+  };
+  result: {
+    id: string;
+    depth: number;
+    bossId: string;
+    victory: boolean;
+    winChance: number;
+    phaseFailed?: string;
+    bossHpRemaining?: number;
+    reasons: string[];
+    recommendations: string[];
+  };
+  /** Escrow deltas for THIS encounter (paid at run end, not now). */
+  rewards: { xp: number; credits: number; scrap: number };
+  milestone: boolean;
+  /** Milestone gear drop (stored immediately by the route, boss-loot pattern). */
+  items: GearItem[];
+  /** True when this victory reached the depth cap — the run banks in full. */
+  capReached: boolean;
+  telemetry: {
+    serverRolled: true;
+    adjustedWinChance: number;
+    effectiveDps: number;
+    timeToKill: number;
+  };
+}
+
+/**
+ * Resolve ONE endless encounter. The run itself (depth, escrow, state)
+ * is owned by the SQL appliers; this engine only resolves the fight
+ * and the escrow deltas, exactly like processBossAttempt resolves an
+ * attempt while cc_apply_chef_boss_attempt persists it.
+ *
+ * Differences from a boss attempt (all deliberate, see
+ * src/content/endless.ts):
+ *  - the prepared belt was burned at run start, so no consumables
+ *    are consumed here — the belt still PRICES into the sim;
+ *  - currency rewards go to escrow (the applier pays at run end);
+ *  - milestone depths drop ONE gear item through the shipped
+ *    generators with depth-shaped rarity weights;
+ *  - no pity, no unlocks, no boss death fee — losing ends the run
+ *    and the applier settles escrow at the death fraction.
+ */
+export function processEndlessEncounter(request: EndlessEncounterRequest): EndlessEncounterChefResult {
+  const levers = request.economy;
+  const encounter = endlessEncounterForDepth(request.depth, request.startLevel, levers);
+  const boss = encounter.def;
+
+  const input: BossSimulationInput = { ...request, boss };
+
+  const serverGearEffectiveDps = computeEffectiveDpsFromGear({
+    weapons: [request.primary, request.secondary, request.heavy].filter(
+      (w): w is import('../types/items').Weapon => !!w && 'weaponType' in w,
+    ),
+    ordnance: request.ordnance,
+    relic: request.relic,
+    classMod: request.classMod,
+    skillDpsMult: 1 + (request.skillBonuses?.dps ?? 0),
+    skillStatusChance: request.skillBonuses?.statusChance ?? 0,
+  });
+
+  const sim = simulateBoss(input);
+  // One RNG stream per (player, run, depth) — replays re-derive the
+  // same fight, and the applier's ledger makes them free.
+  const rng = createTickRng(request.playerId, `endless:${request.runId}`, request.depth);
+  const rm = getBossRiskModifiers(request.risk);
+  const chaosRoll = (rng() - 0.5) * 0.1 + rm.chaos;
+  const adjustedWinChance = Math.max(0.02, Math.min(0.98, sim.winChance + chaosRoll));
+  const victory = rng() < adjustedWinChance;
+  const legendary = applyLegendaryEffects(request.primary, 0);
+
+  const baseRewards = victory ? endlessRewardsForDepth(request.depth, encounter.level, levers) : { xp: 0, credits: 0, scrap: 0 };
+  let xpMult = 1;
+  request.relic?.affixes.forEach((affix) => {
+    if (affix.stat === 'xpBoostMod') xpMult += affix.value;
+  });
+  request.classMod?.affixes.forEach((affix) => {
+    if (affix.stat === 'xpBoostMod') xpMult += affix.value;
+  });
+  xpMult += request.skillBonuses?.xpBoostMod ?? 0;
+  const rewards = {
+    xp: Math.round(baseRewards.xp * xpMult),
+    credits: Math.round(baseRewards.credits * legendary.creditMult),
+    scrap: baseRewards.scrap,
+  };
+
+  const milestone = victory && isEndlessMilestoneDepth(request.depth);
+  const items: GearItem[] = [];
+  if (milestone) {
+    const area = ROAMING_AREAS.find((entry) => entry.id === encounter.areaId) ?? ROAMING_AREAS[0];
+    const weights = endlessMilestoneRarityWeights(request.depth, levers);
+    const kind = rollAreaDropKind(area, rng);
+    let drop: GearItem | null = null;
+    switch (kind) {
+      case 'weapon':
+        drop = generateWeapon(
+          { source: DropSource.BossDrop, level: encounter.level, bossTier: boss.tier, zoneWeights: weights },
+          rng,
+        );
+        break;
+      case 'shield':
+        drop = generateShield(encounter.level, rng, weights);
+        break;
+      case 'classMod':
+        drop = generateClassMod(encounter.level, rng, weights);
+        break;
+      case 'relic':
+        drop = generateRelic(encounter.level, rng, weights);
+        break;
+      case 'ordnance':
+        drop = generateOrdnance(encounter.level, rng, weights);
+        break;
+      default:
+        break;
+    }
+    // Provenance: the non-weapon generators stamp WorldDrop (their
+    // roaming home); a milestone drop's source is the Chamber's
+    // boss-tier encounter, so the tag is restamped here — the
+    // legendaries-by-source meters count milestone legendaries as
+    // boss-sourced, which is what they are.
+    if (drop) items.push({ ...drop, sourceTag: DropSource.BossDrop });
+  }
+
+  const projectedPhase = sim.projectedFailurePhase;
+  let phaseFailed: string | undefined;
+  let bossHpRemaining: number | undefined;
+  if (!victory) {
+    if (projectedPhase) phaseFailed = projectedPhase.phaseName;
+    else if (sim.survivalScore < sim.breakScore && sim.survivalScore < sim.dpsScore) phaseFailed = 'survival';
+    else if (sim.breakScore < sim.dpsScore) phaseFailed = 'break';
+    else phaseFailed = 'dps';
+    bossHpRemaining = Math.round((1 - rng() * 0.6) * 100);
+  }
+
+  const resultReasons = victory
+    ? [
+        projectedPhase?.currentAnswers[0]
+          ? `Depth ${request.depth} cleared: ${projectedPhase.phaseName} cleared with ${projectedPhase.currentAnswers[0]}.`
+          : `Depth ${request.depth} cleared: ${encounter.name} defeated.`,
+        ...sim.reasons,
+      ]
+    : [
+        projectedPhase
+          ? `The run ends at depth ${request.depth}: Failed ${projectedPhase.phaseName}. ${projectedPhase.explanation}`
+          : `The run ends at depth ${request.depth}: ${encounter.name} outlasted the hunter.`,
+        ...sim.reasons,
+      ];
+
+  const maxDepth = levers?.endlessMaxDepth ?? 250;
+
+  return {
+    actionType: 'cc_apply_endless_encounter',
+    encounter: {
+      depth: encounter.depth,
+      kind: encounter.kind,
+      id: encounter.id,
+      name: encounter.name,
+      areaId: encounter.areaId,
+      level: encounter.level,
+      health: encounter.health,
+      shield: encounter.shield,
+      armor: encounter.armor,
+      dps: encounter.dps,
+      weaknesses: [...boss.weaknesses],
+      resistances: [...boss.resistances],
+      mechanicName: boss.mechanic.name,
+    },
+    result: {
+      id: `endless_${request.playerId}_${request.runId}_${request.depth}`,
+      depth: request.depth,
+      bossId: encounter.id,
+      victory,
+      winChance: sim.winChance,
+      phaseFailed,
+      bossHpRemaining,
+      reasons: Array.from(new Set(resultReasons)),
+      recommendations: sim.recommendations,
+    },
+    rewards,
+    milestone,
+    items,
+    capReached: victory && request.depth >= maxDepth,
     telemetry: {
       serverRolled: true,
       adjustedWinChance,

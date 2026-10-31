@@ -11,7 +11,8 @@
  * `npm run golden:update`.
  */
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
-import { AREA_VISUALS, PIXEL_BOSS_ARENAS } from '@/content/areaPalettes';
+import { AREA_VISUALS, PIXEL_BOSS_ARENAS, endlessBandTint } from '@/content/areaPalettes';
+import { endlessDepthBand, endlessEncounterForDepth } from '@/content/endless';
 import { ELEMENT_DIALECTS, shotCadence } from '@/lib/pixel/elementFx';
 import { GRAMMAR } from '@/lib/pixel/grammar';
 import { decodePng, type RgbaImage } from '@/lib/pixel/pngCodec';
@@ -362,5 +363,47 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     // Shelf progress strip (amber, the bench scenes' progress read).
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.31, GRAMMAR.progress.heightPx, [255, 152, 0], 255);
+  }),
+  // Endless (0028): the Chaos Chamber's depth treatment — the band
+  // wash over the arena (ENDLESS_BAND_TINTS, the same table the live
+  // stage overlays) plus the depth track across the top: 25 pips,
+  // five per band, filled to the current depth in their band colors.
+  // Depths/areas/bosses derive from the real rotation rules
+  // (endlessEncounterForDepth), so a rotation change repaints here.
+  ...([1, 12, 25] as const).map((depth) => {
+    const encounter = endlessEncounterForDepth(depth, 30);
+    const band = endlessDepthBand(depth);
+    const tint = endlessBandTint(band);
+    return scene(`endless-depth-${depth}`, (img) => {
+      if (encounter.kind === 'boss') {
+        const arena = PIXEL_BOSS_ARENAS[encounter.id];
+        drawBackground(img, arena.backgroundId);
+        if (tint.alpha > 0) fillRect(img, 0, 0, SCENE_W, SCENE_H, hexToRgb(tint.color), Math.round(tint.alpha * 255));
+        drawHunter(img, 'aim');
+        const prop = loadGoldenSprite(arena.propId);
+        if (prop) blit(img, prop, SCENE_W * 0.5 - 24, GROUND * SCENE_H - 52, 48, 52);
+        const bossSprite = loadGoldenSprite(`boss-${encounter.id.replace(/_/g, '-')}`);
+        if (bossSprite) {
+          const h = SCENE_H * 0.8;
+          const w = h * (bossSprite.width / bossSprite.height);
+          blit(img, bossSprite, SCENE_W * 0.76 - w * 0.63, GROUND * SCENE_H - h, w, h);
+        }
+      } else {
+        drawBackground(img, AREA_BG[encounter.areaId]);
+        if (tint.alpha > 0) fillRect(img, 0, 0, SCENE_W, SCENE_H, hexToRgb(tint.color), Math.round(tint.alpha * 255));
+        drawHunter(img, 'aim');
+        drawEnemy(img, encounter.areaId, ARCHETYPE_BY_AREA[encounter.areaId], 'idle');
+      }
+      // Depth track: backplate + 25 pips (5 bands × 5).
+      const trackW = SCENE_W - 24;
+      fillRect(img, 10, 6, trackW + 4, GRAMMAR.progress.heightPx + 4, [5, 6, 8], 220);
+      const cellW = trackW / 25;
+      for (let i = 0; i < 25; i++) {
+        const pipBand = Math.floor(i / 5);
+        const filled = i < depth;
+        const color = filled ? hexToRgb(endlessBandTint(pipBand).color) : ([38, 40, 48] as const);
+        fillRect(img, 12 + i * cellW + 1, 8, cellW - 2, GRAMMAR.progress.heightPx, [color[0], color[1], color[2]], 255);
+      }
+    });
   }),
 ];

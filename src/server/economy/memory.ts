@@ -218,14 +218,60 @@ export class InMemoryEconomyStore implements EconomyStore {
       - sumBy(['cc_cancel_craft_job'], (p) => num(dig(p, 'cores_refunded')))
       + legendaryCoresDestroyedReforge;
 
+    // Endless meters (0028): ledger facts from the three endless
+    // appliers — starts, endings (bank rows + encounter rows that
+    // closed a run + abandonments carried in start payloads), cleared
+    // encounters, fees, payouts, deepest ended depth, milestone
+    // drops by rarity. Payouts fold into credits_minted_total (a
+    // real faucet); fees fold into credits_destroyed_total.
+    const endlessStartRows = rows.filter((r) => r.action_type === 'cc_start_endless_run');
+    const endlessEndRows = rows.filter(
+      (r) => r.action_type === 'cc_end_endless_run' && dig(r.result_payload, 'ended') === true,
+    );
+    const endlessEncounterRows = rows.filter((r) => r.action_type === 'cc_apply_endless_encounter');
+    const endlessClosingEncounters = endlessEncounterRows.filter((r) => {
+      const status = dig(r.result_payload, 'run_status');
+      return status === 'died' || status === 'banked';
+    });
+    const endlessRunsStarted = endlessStartRows.length;
+    const endlessRunsEnded = endlessEndRows.length + endlessClosingEncounters.length;
+    const endlessEncountersCleared = endlessEncounterRows.filter(
+      (r) => dig(r.result_payload, 'victory') === true,
+    ).length;
+    const endlessFeesDestroyed = sumBy(['cc_start_endless_run'], (p) => num(dig(p, 'entry_fee')));
+    const endlessCreditsPaid =
+      sumBy(['cc_end_endless_run', 'cc_apply_endless_encounter'], (p) => num(dig(p, 'payout', 'credits')))
+      + sumBy(['cc_start_endless_run'], (p) => num(dig(p, 'abandoned_settlement', 'payout', 'credits')));
+    const endlessXpPaid =
+      sumBy(['cc_end_endless_run', 'cc_apply_endless_encounter'], (p) => num(dig(p, 'payout', 'xp')))
+      + sumBy(['cc_start_endless_run'], (p) => num(dig(p, 'abandoned_settlement', 'payout', 'xp')));
+    const endlessDepths: number[] = [
+      ...endlessEndRows.map((r) => num(dig(r.result_payload, 'depth_reached'))),
+      ...endlessClosingEncounters.map((r) => num(dig(r.result_payload, 'depth'))),
+      ...endlessStartRows
+        .map((r) => dig(r.result_payload, 'abandoned_settlement', 'depth_reached'))
+        .filter((d) => d !== undefined)
+        .map((d) => num(d)),
+    ];
+    const endlessDeepestDepth = endlessDepths.length ? Math.max(...endlessDepths) : 0;
+    const endlessMilestoneDropsByRarity: Record<string, number> = {};
+    for (const r of endlessEncounterRows) {
+      const rarity = dig(r.result_payload, 'milestone_drop', 'rarity');
+      if (typeof rarity === 'string' && rarity.length > 0) {
+        endlessMilestoneDropsByRarity[rarity] = (endlessMilestoneDropsByRarity[rarity] ?? 0) + 1;
+      }
+    }
+    const endlessMilestoneDrops = Object.values(endlessMilestoneDropsByRarity).reduce((a, b) => a + b, 0);
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
       creditsMintedRoaming + creditsMintedBoss + creditsMintedOffline + creditsMintedOther
-      + creditsMintedVendorBuyback;
+      + creditsMintedVendorBuyback + endlessCreditsPaid;
     const creditsDestroyedTotal =
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
-      + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees;
+      + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees
+      + endlessFeesDestroyed;
 
     const row: EconomyMetricsRow = {
       day,
@@ -277,6 +323,15 @@ export class InMemoryEconomyStore implements EconomyStore {
       reforgesCompleted,
       scrapDestroyedReforge,
       legendaryCoresDestroyedReforge,
+      endlessRunsStarted,
+      endlessRunsEnded,
+      endlessEncountersCleared,
+      endlessDeepestDepth,
+      endlessCreditsPaid,
+      endlessXpPaid,
+      endlessFeesDestroyed,
+      endlessMilestoneDrops,
+      endlessMilestoneDropsByRarity,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

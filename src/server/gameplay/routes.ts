@@ -16,6 +16,12 @@ import { createClaimHandler } from '../routes/roamingHandler';
 import { createSettleOfflineHandler } from '../routes/settleOffline';
 import { createSalvageHandler, createVerifyBossHandler } from '../routes/claim';
 import { createResurrectHandler } from '../routes/resurrect';
+import {
+  createAdvanceEndlessHandler,
+  createBankEndlessHandler,
+  createGetEndlessHandler,
+  createStartEndlessRunHandler,
+} from '../routes/endless';
 import type { ChefGameplayStore } from './store';
 
 export function mountChefHealthRoute(app: Express): void {
@@ -38,7 +44,11 @@ export function mountGameplayRoutes(app: Express, store: ChefGameplayStore, conf
   app.post('/api/verify-boss', createVerifyBossHandler(store, config));
   app.post('/api/salvage', createSalvageHandler(store, config));
   app.post('/api/resurrect', createResurrectHandler(store, config));
+  app.post('/api/endless/start', createStartEndlessRunHandler(store, config));
+  app.post('/api/endless/encounter', createAdvanceEndlessHandler(store, config));
+  app.post('/api/endless/bank', createBankEndlessHandler(store, config));
+  app.get('/api/endless/me', createGetEndlessHandler(store, config));
   console.log(
-    '[chef] gameplay routes mounted: POST /api/claim, /api/settle-offline, /api/verify-boss, /api/salvage, /api/resurrect (Route B B6)',
+    '[chef] gameplay routes mounted: POST /api/claim, /api/settle-offline, /api/verify-boss, /api/salvage, /api/resurrect, /api/endless/* (Route B B6)',
   );
 }

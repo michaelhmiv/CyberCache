@@ -89,6 +89,15 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
     shortLabel: 'MKT',
     description: 'Item listed on the player market.',
   },
+  endless_run: {
+    kind: 'endless_run',
+    glyph: '∞',
+    color: '#C026D3',
+    accentColor: '#FF4B5C',
+    label: 'Endless Run',
+    shortLabel: 'ENDLESS',
+    description: 'Inside the Chaos Chamber — depth is the score, escrow pays at the end.',
+  },
 };
 
 export function getActivityVisual(kind: ActivityKind): ActivityVisual {

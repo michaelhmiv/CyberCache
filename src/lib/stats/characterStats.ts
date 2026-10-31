@@ -277,6 +277,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     workshop_service: sumActivityModifier(gearForMods, 'workshop_service'),
     roaming_loot: sumActivityModifier(gearForMods, 'roaming_loot'),
     idle_standby: sumActivityModifier(gearForMods, 'idle_standby'),
+    endless_run: {},
   };
 
   const activityModuleMetrics: StatMetric[] = Object.values(ACTIVITY_MODULE_DEFS).flatMap((def) =>

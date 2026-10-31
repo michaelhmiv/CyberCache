@@ -15,7 +15,7 @@ import {
   Tracer,
 } from './PixelFx';
 import { getPixelSprite, pixelBossSpriteForBoss, requirePixelSprite } from '@/lib/pixel/manifest';
-import { bossArena } from '@/content/areaPalettes';
+import { bossArena, endlessBandTint } from '@/content/areaPalettes';
 import {
   MOVEMENT,
   actorAnchorPoint,
@@ -55,13 +55,23 @@ interface BossFightStageProps {
   bossId?: string;
   weapon?: Weapon;
   reduced?: boolean;
+  /** Endless (0028): override the arena backdrop — pack depths fight
+   *  on their rotation area's ground, not a boss arena. The boss
+   *  sprite still falls back to the brute for pack ids. */
+  backgroundId?: string;
+  /** Endless (0028): the depth treatment — a DEPTH chip plus the
+   *  band wash (src/content/areaPalettes.ts ENDLESS_BAND_TINTS) laid
+   *  over the arena so escalation is visible at a glance. */
+  depthBadge?: { depth: number; band: number };
 }
 
-export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false }) => {
+export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false, backgroundId, depthBadge }) => {
   // Unique arena per boss (Q3 ruling): the boss's own arena art + its
   // signature prop; the home area informs palette only.
   const arena = bossArena(bossId);
-  const background = getPixelSprite(arena.backgroundId);
+  const effectiveBackgroundId = backgroundId ?? arena.backgroundId;
+  const background = getPixelSprite(effectiveBackgroundId);
+  const bandTint = depthBadge ? endlessBandTint(depthBadge.band) : null;
   const groundY = background?.anchors.groundLine?.y ?? HUNTER_PLACEMENT.groundY;
   const hunterPlacement = { ...HUNTER_PLACEMENT, groundY };
   const bossPlacement = { ...BOSS_PLACEMENT, groundY };
@@ -196,7 +206,7 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
       data-finished={finished}
     >
       <PixelStage
-        backgroundId={arena.backgroundId}
+        backgroundId={effectiveBackgroundId}
         groundY={groundY}
         reduced={reduced}
         embers
@@ -205,6 +215,23 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
         shakeDurationMs={beatShake?.durationMs}
         testId="boss-fight-pixel-stage"
       >
+        {/* Endless depth treatment (0028): the band wash over the
+            arena + the depth chip — escalation you can see. */}
+        {depthBadge && bandTint && (
+          <>
+            <div
+              className="pointer-events-none absolute inset-0 z-10"
+              style={{ backgroundColor: bandTint.color, opacity: bandTint.alpha }}
+              data-testid="endless-band-tint"
+            />
+            <div
+              className="pointer-events-none absolute right-2 top-2 z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-fuchsia-300"
+              data-testid="endless-depth-chip"
+            >
+              Depth {depthBadge.depth} · Band {depthBadge.band + 1}
+            </div>
+          </>
+        )}
         {/* The arena's signature prop stands at the back of the pit. */}
         {getPixelSprite(arena.propId) && (
           <PixelActor spriteId={arena.propId} xPct={50} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} testId="boss-arena-prop" />

@@ -155,6 +155,85 @@ export interface ResurrectInput {
   freeTimerMs: number;
 }
 
+/**
+ * One endless run row (migration 0028, endless_runs). The run is
+ * server-owned state: depth, escrow, and history live here, never on
+ * the client. Best depth is DERIVED from ended rows (no profile
+ * column), so the later leaderboards slice reads the same facts.
+ */
+export interface EndlessRunRow {
+  id: string;
+  status: 'active' | 'banked' | 'died' | 'abandoned';
+  started_at: string;
+  ended_at: string | null;
+  start_level: number;
+  risk: string;
+  prepared_consumables: Record<string, number>;
+  depth_reached: number;
+  escrow_credits: number;
+  escrow_xp: number;
+  escrow_scrap: number;
+  entry_fee: number;
+  milestone_drops: Array<{ depth: number; rarity: string; kind: string; name: string }>;
+  paid_credits: number;
+  paid_xp: number;
+  paid_scrap: number;
+  payout_fraction: number | null;
+}
+
+/** Facts-only endless read model (prep screen + later Profile slice). */
+export interface EndlessFacts {
+  /** Deepest depth over ENDED runs (0 when no run has ended). */
+  bestDepth: number;
+  /** Runs started since the UTC day start (drives the fee escalation). */
+  runsStartedToday: number;
+  /** Most recent ended runs, newest first (max 10). */
+  recentRuns: EndlessRunRow[];
+}
+
+/** cc_start_endless_run input (migration 0028). */
+export interface StartEndlessRunInput {
+  nonce: string;
+  risk: string;
+  /** The prepared belt (boss-prep semantics), validated ≤ owned by route + applier. */
+  preparedConsumables: Record<string, number>;
+  /**
+   * The route's fee expectation (content formula over route-resolved
+   * levers). The SQL applier recomputes the fee from economy_config
+   * and charges ITS figure — this value only feeds the in-memory
+   * mirror, never the charging path.
+   */
+  entryFee: number;
+  /** Route-resolved death fraction (memory mirror; SQL reads its own config). */
+  deathPayoutFraction: number;
+}
+
+/** cc_apply_endless_encounter input (migration 0028). */
+export interface ApplyEndlessEncounterInput {
+  nonce: string;
+  runId: string;
+  /** Server-derived depth (run.depth_reached + 1 at the route). */
+  depth: number;
+  victory: boolean;
+  /** Escrow deltas from the engine (0s on defeat). */
+  rewards: { xp: number; credits: number; scrap: number };
+  /** Public encounter facts + resolution, stored on the run history + ledger. */
+  encounter: Json;
+  /** Milestone drop facts when the engine rolled one (display facts of a server-generated item). */
+  milestoneDrop: { rarity: string; kind: string; name: string } | null;
+  /** Victory reached the depth cap — the applier banks the run in full. */
+  capReached: boolean;
+  /** Route-resolved death fraction (memory mirror; SQL reads its own config). */
+  deathPayoutFraction: number;
+}
+
+/** cc_end_endless_run input (migration 0028) — voluntary bank. */
+export interface EndEndlessRunInput {
+  nonce: string;
+  /** Route-resolved death fraction (unused on the bank path; kept for shape parity). */
+  deathPayoutFraction: number;
+}
+
 /** Loadout slot order the client builds claim gear arrays in. */
 export const LOADOUT_SLOT_ORDER = ['primary', 'secondary', 'heavy', 'shield', 'classMod', 'relic', 'ordnance'] as const;
 
@@ -285,6 +364,30 @@ export interface ChefGameplayStore {
    */
   countBossVictoriesToday(playerId: string, bossId: string, dayStartIso: string): Promise<number>;
   /**
+   * Start an endless run (cc_start_endless_run, 0028): charges the
+   * escalating entry fee (destroyed), burns the prepared belt, takes
+   * the personal action slot, and settles any still-active run as
+   * abandoned at the death fraction — atomically, nonce-idempotent.
+   */
+  startEndlessRun(playerId: string, input: StartEndlessRunInput): Promise<Json>;
+  /**
+   * Persist one resolved endless encounter (cc_apply_endless_encounter,
+   * 0028): escrows the engine's deltas on victory; on defeat (or the
+   * depth cap) ends the run and pays escrow — the death fraction on
+   * death, in full on the cap. Nonce-idempotent via the ledger.
+   */
+  applyEndlessEncounter(playerId: string, input: ApplyEndlessEncounterInput): Promise<Json>;
+  /**
+   * Voluntary bank (cc_end_endless_run, 0028): ends the player's
+   * active run — the run id is derived from server state, never the
+   * body — paying escrow in full and releasing the action slot.
+   */
+  endEndlessRun(playerId: string, input: EndEndlessRunInput): Promise<Json>;
+  /** The player's currently active endless run, or null. */
+  getActiveEndlessRun(playerId: string): Promise<EndlessRunRow | null>;
+  /** Best depth, today's start count, and recent ended runs (facts only). */
+  getEndlessFacts(playerId: string, dayStartIso: string): Promise<EndlessFacts>;
+  /**
    * `capHours` (pacing-baseline tuning): the server-derived offline cap
    * — earnedOfflineCapHours(player level) + the Scavenger keystone's
    * offlineCapBonus — computed by the settlement route from server
@@ -338,6 +441,42 @@ export function deathRecordFromJson(value: unknown): DeathRecord | null {
     areaId: typeof record.areaId === 'string' ? record.areaId : '',
     monsterId: typeof record.monsterId === 'string' ? record.monsterId : '',
     monsterName: typeof record.monsterName === 'string' ? record.monsterName : '',
+  };
+}
+
+const ENDLESS_RUN_COLUMNS = `id, status, started_at, ended_at, start_level, risk,
+  prepared_consumables, depth_reached, escrow_credits, escrow_xp, escrow_scrap,
+  entry_fee, milestone_drops, paid_credits, paid_xp, paid_scrap, payout_fraction`;
+
+/** Map an endless_runs row (0028) to the shared read model. */
+export function endlessRunFromRow(row: Row): EndlessRunRow {
+  const drops = Array.isArray(row.milestone_drops) ? row.milestone_drops : [];
+  return {
+    id: String(row.id ?? ''),
+    status: (typeof row.status === 'string' ? row.status : 'active') as EndlessRunRow['status'],
+    started_at: isoOrNull(row.started_at) ?? '',
+    ended_at: isoOrNull(row.ended_at),
+    start_level: num(row.start_level),
+    risk: typeof row.risk === 'string' ? row.risk : 'Balanced',
+    prepared_consumables: (json(row.prepared_consumables) ?? {}) as Record<string, number>,
+    depth_reached: num(row.depth_reached),
+    escrow_credits: num(row.escrow_credits),
+    escrow_xp: num(row.escrow_xp),
+    escrow_scrap: num(row.escrow_scrap),
+    entry_fee: num(row.entry_fee),
+    milestone_drops: drops.map((d) => {
+      const drop = (d ?? {}) as Record<string, unknown>;
+      return {
+        depth: num(drop.depth),
+        rarity: typeof drop.rarity === 'string' ? drop.rarity : '',
+        kind: typeof drop.kind === 'string' ? drop.kind : '',
+        name: typeof drop.name === 'string' ? drop.name : '',
+      };
+    }),
+    paid_credits: num(row.paid_credits),
+    paid_xp: num(row.paid_xp),
+    paid_scrap: num(row.paid_scrap),
+    payout_fraction: numOrNull(row.payout_fraction),
   };
 }
 
@@ -626,6 +765,76 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         attempt.entryFee,
       ],
     );
+  }
+
+  startEndlessRun(playerId: string, input: StartEndlessRunInput): Promise<Json> {
+    return this.callJson('select public.cc_start_endless_run($1, $2, $3, $4, $5) as result', [
+      playerId,
+      input.nonce,
+      input.risk,
+      input.preparedConsumables as unknown as Json,
+      Math.trunc(input.entryFee),
+    ]);
+  }
+
+  applyEndlessEncounter(playerId: string, input: ApplyEndlessEncounterInput): Promise<Json> {
+    return this.callJson(
+      'select public.cc_apply_endless_encounter($1, $2, $3, $4, $5, $6, $7, $8, $9) as result',
+      [
+        playerId,
+        input.nonce,
+        input.runId,
+        Math.trunc(input.depth),
+        input.victory,
+        input.rewards as unknown as Json,
+        input.encounter,
+        (input.milestoneDrop ?? null) as unknown as Json,
+        input.capReached,
+      ],
+    );
+  }
+
+  endEndlessRun(playerId: string, input: EndEndlessRunInput): Promise<Json> {
+    return this.callJson('select public.cc_end_endless_run($1, $2) as result', [playerId, input.nonce]);
+  }
+
+  getActiveEndlessRun(playerId: string): Promise<EndlessRunRow | null> {
+    return this.one(
+      `select ${ENDLESS_RUN_COLUMNS} from public.endless_runs
+        where user_id = $1 and status = 'active'
+        order by started_at desc limit 1`,
+      [playerId],
+      (row) => endlessRunFromRow(row),
+    ).then((run) => run ?? null);
+  }
+
+  async getEndlessFacts(playerId: string, dayStartIso: string): Promise<EndlessFacts> {
+    const best = await this.one(
+      `select coalesce(max(depth_reached), 0)::int as best_depth from public.endless_runs
+        where user_id = $1 and status <> 'active'`,
+      [playerId],
+      (row) => num(row.best_depth),
+    );
+    const started = await this.one(
+      `select count(*)::int as started from public.verified_action_ledger
+        where user_id = $1 and action_type = 'cc_start_endless_run'
+          and created_at >= $2::timestamptz`,
+      [playerId, dayStartIso],
+      (row) => num(row.started),
+    );
+    let recentRuns: EndlessRunRow[] = [];
+    try {
+      const { rows } = await this.pool.query(
+        `select ${ENDLESS_RUN_COLUMNS} from public.endless_runs
+          where user_id = $1 and status <> 'active'
+          order by ended_at desc nulls last, started_at desc limit 10`,
+        [playerId],
+      );
+      recentRuns = (rows as Row[]).map((row) => endlessRunFromRow(row));
+    } catch (err) {
+      translatePgError(err);
+    }
+    return { bestDepth: best ?? 0, runsStartedToday: started ?? 0, recentRuns };
   }
 
   async countBossVictoriesToday(playerId: string, bossId: string, dayStartIso: string): Promise<number> {
