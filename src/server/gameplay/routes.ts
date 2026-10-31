@@ -27,6 +27,9 @@ export function mountChefHealthRoute(app: Express): void {
 /** Gameplay routes plus the optional live economy-lever accessor (0018). */
 export interface GameplayRoutesConfig extends AuthConfig {
   economyConfig?: EconomyConfig;
+  /** Clock override (tests pin the hot-area rotation to a fixed date;
+   *  production omits it and the routes read the wall clock). */
+  now?: () => Date;
 }
 
 export function mountGameplayRoutes(app: Express, store: ChefGameplayStore, config: GameplayRoutesConfig): void {

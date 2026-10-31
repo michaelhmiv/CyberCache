@@ -40,6 +40,18 @@ export interface EconomyConfigValues {
   vendorBuybackRate: number;
   /** Multiplier on the equipped vehicle's yield bonus (1.0 = class table as shipped). */
   vehicleYieldScalar: number;
+  /** Base per-tick roaming event chance before consumable/vehicle modifiers. */
+  eventChanceBase: number;
+  /** Chance an elite rotating into the kill cycle escalates into the area's named elite. */
+  eliteEscalationChance: number;
+  /** Anti-leak budget for the event system: max added EV as a fraction of a plain tick. */
+  eventValueBudgetPct: number;
+  /** Material-find chance bonus in the daily hot area. */
+  hotAreaMaterialBonus: number;
+  /** Credits/XP yield bonus in the daily hot area. */
+  hotAreaYieldBonus: number;
+  /** Absolute ceiling on offline settlement hours. Range-capped at [1, 24] by design. */
+  absoluteOfflineCapHours: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -53,6 +65,12 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   roamingLegendaryScalar: 1.0,
   vendorBuybackRate: 0.4,
   vehicleYieldScalar: 1.0,
+  eventChanceBase: 0.05,
+  eliteEscalationChance: 0.12,
+  eventValueBudgetPct: 0.08,
+  hotAreaMaterialBonus: 0.2,
+  hotAreaYieldBonus: 0.1,
+  absoluteOfflineCapHours: 24,
 };
 
 export interface EconomyConfigKeySpec {
@@ -93,6 +111,30 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   vehicleYieldScalar: {
     key: 'vehicleYieldScalar', min: 0, max: 3, integer: false,
     defaultOwner: 'src/lib/vehicles/vehicles.ts class table (1.0 = as shipped)',
+  },
+  eventChanceBase: {
+    key: 'eventChanceBase', min: 0, max: 0.15, integer: false,
+    defaultOwner: 'src/content/roamingEvents.ts EVENT_CHANCE_BASE',
+  },
+  eliteEscalationChance: {
+    key: 'eliteEscalationChance', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/roamingEvents.ts ELITE_ESCALATION_CHANCE',
+  },
+  eventValueBudgetPct: {
+    key: 'eventValueBudgetPct', min: 0, max: 0.5, integer: false,
+    defaultOwner: 'src/content/roamingEvents.ts EVENT_VALUE_BUDGET_PCT',
+  },
+  hotAreaMaterialBonus: {
+    key: 'hotAreaMaterialBonus', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/hotArea.ts HOT_AREA_MATERIAL_BONUS',
+  },
+  hotAreaYieldBonus: {
+    key: 'hotAreaYieldBonus', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/hotArea.ts HOT_AREA_YIELD_BONUS',
+  },
+  absoluteOfflineCapHours: {
+    key: 'absoluteOfflineCapHours', min: 1, max: 24, integer: true,
+    defaultOwner: 'src/content/offlineCap.ts ABSOLUTE_OFFLINE_CAP_HOURS (24 is the hard ceiling — the lever range itself is capped there)',
   },
 };
 

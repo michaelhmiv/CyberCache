@@ -97,6 +97,21 @@ export const MOVEMENT = {
   WALK_IN_MS: 850,
   DROP_IN_MS: 420,
 
+  // ── Segmented rigs (visual overhaul §4) ─────────────────────────────
+  // Pose transitions for rig segments. The arm raise must complete
+  // inside the Sample B telegraph window (TELEGRAPH_MS) so a rig shot
+  // reads exactly like a whole-sprite shot.
+  SEGMENT: {
+    ARM_RAISE_MS: 120,
+    RECOIL_RECOVER_MS: 180,
+    STEP_BOB_MS: 320,
+    WORK_CYCLE_MS: 900,
+    DEATH_POSE_MS: 450,
+    HEAD_TRACK_MS: 240,
+    /** Hard budget: animated nodes per stage scene (perf gate §4.9). */
+    MAX_ANIMATED_NODES: 40,
+  },
+
   // ── Fight card ───────────────────────────────────────────────────────
   /** Settle pause after the last phase before the result card. */
   FIGHT_SETTLE_MS: 600,

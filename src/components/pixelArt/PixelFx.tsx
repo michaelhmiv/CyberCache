@@ -43,8 +43,9 @@ export const MuzzleFlash: React.FC<FxPoint & { color?: string; size?: number }> 
   />
 );
 
-/** A single tracer streak between two stage points (anchor → anchor). */
-export const Tracer: React.FC<{ from: FxPoint; to: FxPoint; color?: string; stageAspect?: number }> = ({ from, to, color = '#FFD76A', stageAspect }) => {
+/** A single tracer streak between two stage points (anchor → anchor).
+ *  `heightPx` carries the element dialect's tracer weight (§4.6). */
+export const Tracer: React.FC<{ from: FxPoint; to: FxPoint; color?: string; stageAspect?: number; heightPx?: number }> = ({ from, to, color = '#FFD76A', stageAspect, heightPx = 3 }) => {
   const geo = tracerGeometry({ xPct: from.xPct, yPct: from.yPct }, { xPct: to.xPct, yPct: to.yPct }, stageAspect);
   return (
     <motion.div
@@ -54,8 +55,8 @@ export const Tracer: React.FC<{ from: FxPoint; to: FxPoint; color?: string; stag
         left: `${geo.leftPct}%`,
         top: `${geo.topPct}%`,
         width: `${geo.widthPct}%`,
-        height: 3,
-        marginTop: -1.5,
+        height: heightPx,
+        marginTop: -heightPx / 2,
         transformOrigin: '0 50%',
         rotate: geo.angleDeg,
         background: `linear-gradient(90deg, ${color}00, ${color}, #FFFFFF)`,

@@ -112,14 +112,19 @@ describe('LiveTurfDiorama — enemy sprite resolves from game data (P4 wave 1)',
 
   it('shows the current target’s archetype sprite while roaming', () => {
     // ironwood_ranger is the Bastion's sniper-archetype monster.
+    // Overhaul: roaming enemies render as segmented rigs (brief §4.3),
+    // so the contract is the rig id + its segment sprites, not a
+    // single data-sprite actor.
     useKillCycleStore.setState({ currentTargetId: 'ironwood_ranger', currentTargetHp: 90, currentTargetHpMax: 180 });
     render(<LiveTurfDiorama area={getRoamingArea('ironwood_bastion')} activityKind="roaming_loot" />);
-    expect(screen.getByTestId('pixel-enemy').getAttribute('data-sprite')).toBe('enemy-sniper');
+    const enemy = screen.getByTestId('pixel-enemy');
+    expect(enemy.getAttribute('data-rig')).toBe('enemy-sniper');
+    expect(enemy.querySelectorAll('img').length).toBeGreaterThanOrEqual(4);
   });
 
   it('shows the brute when no target is active (standing fallback)', () => {
     render(<LiveTurfDiorama area={getRoamingArea('throwtech_dumpnet')} activityKind="roaming_loot" />);
-    expect(screen.getByTestId('pixel-enemy').getAttribute('data-sprite')).toBe('brute');
+    expect(screen.getByTestId('pixel-enemy').getAttribute('data-rig')).toBe('enemy-brute');
   });
 
   it('renders the pixel stage for a boss-fight diorama (boss scene plumbing in place)', () => {

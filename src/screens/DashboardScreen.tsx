@@ -98,6 +98,8 @@ const gainToneClass: Record<DisplayGainTone, { text: string; bg: string; border:
   heal: { text: 'text-green', bg: 'bg-green/10', border: 'border-green/70', fill: 'bg-green' },
   death: { text: 'text-red', bg: 'bg-red/15', border: 'border-red/80', fill: 'bg-red' },
   consumable: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
+  event: { text: 'text-cyan', bg: 'bg-cyan/10', border: 'border-cyan/70', fill: 'bg-cyan' },
+  event_major: { text: 'text-purple', bg: 'bg-purple/15', border: 'border-purple/80', fill: 'bg-purple' },
   unknown: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
 };
 

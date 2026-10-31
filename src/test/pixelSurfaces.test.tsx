@@ -60,6 +60,14 @@ const compositorSignature = (weapon: Weapon) =>
     element: weapon.element,
     parts: weapon.parts,
     name: weapon.name,
+    // Overhaul §4.2 real-item invariant: PixelWeapon resolves the FULL
+    // instance identity (id/seed/affixes/roll quality drive decals and
+    // condition), so the shared-signature reference must compose the
+    // same input — the surfaces still agree with each other exactly.
+    id: weapon.id,
+    pixelSeed: weapon.pixelSeed,
+    affixes: weapon.affixes,
+    rollQuality: weapon.rollQuality,
     legendaryEffectId: weapon.legendaryEffectId,
   } satisfies PixelWeaponInput).signature;
 

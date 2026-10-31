@@ -125,3 +125,25 @@ comparable work, or whose completion cadence is machine-regular.
 The meters in this doc provide the economy-wide baselines those
 deviations are measured against. No new tables are needed when the
 repair slice lands.
+
+## Roaming-variance levers (migration 0023, visual overhaul slice)
+
+The roaming event system (§2 of the overhaul brief) is economy
+surface and rides the same lever registry:
+
+| Lever | Default | Range | Meaning |
+|---|---|---|---|
+| `eventChanceBase` | 0.05 | 0..0.15 | Per-tick roaming event roll. 0 silences events. Hard ceiling = the brief's 15% clamp. |
+| `eventValueBudgetPct` | 0.08 | 0..0.5 | The anti-leak budget the event tables were authored against: expected event value per tick ≤ this fraction of a plain tick's value (`eventValuePerTick` vs `plainTickValue` in `src/content/roamingEvents.ts`, asserted in tests). |
+| `hotAreaMaterialBonus` | 0.2 | 0..1 | Extra material-find chance in the day's hot area. |
+| `eliteEscalationChance` | 0.12 | 0..1 | Chance an elite rotating into the kill cycle escalates into the area's named elite (HP ×3, Epic-floor drop). |
+| `hotAreaYieldBonus` | 0.1 | 0..1 | Yield bonus in the hot area (danger also ×1.15 — a code constant, `HOT_AREA_DANGER_MULTIPLIER`). |
+| `absoluteOfflineCapHours` | 24 | 1..24 (int) | The AFK ceiling: effective cap = min(earned tier + keystone, user limiter, this). |
+
+Deliberately NOT levers: `lootBeaconEventBonus` / `scannerEventBonus`
+(their sources of truth are the consumable defs and vehicle affix
+rolls the Chef already reads) and `eliteRarityFloor` (an enum —
+Epic — not a number; it lives in `roamingEvents.ts` as a constant).
+Fragments gained a second faucet from events (cache finds, storm
+doubling, elite bonus); the combined rate is band-tested in
+`src/test/overhaulMechanics.test.ts`.

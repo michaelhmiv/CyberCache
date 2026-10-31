@@ -22,6 +22,7 @@ import {
   type RoamingAreaDef,
 } from '@/constants/roamingAreas';
 import { getAreaVisual } from '@/constants/areaVisuals';
+import { hotAreaIdForDate } from '@/content/hotArea';
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -30,9 +31,10 @@ const AreaCard: React.FC<{
   area: RoamingAreaDef;
   selected: boolean;
   unlocked: boolean;
+  hot?: boolean;
   onSelect: () => void;
   onStart?: () => void;
-}> = ({ area, selected, unlocked, onSelect, onStart }) => {
+}> = ({ area, selected, unlocked, hot = false, onSelect, onStart }) => {
   const bestRarity = Object.entries(area.dropPoolRarityWeights).sort(([, a], [, b]) => b - a)[0];
   const dangerClass = area.dangerRating === 'Low' ? 'text-green' : area.dangerRating === 'Medium' ? 'text-amber' : 'text-red';
   return (
@@ -46,7 +48,14 @@ const AreaCard: React.FC<{
           className="min-w-0 flex-1 text-left"
           aria-label={selected && onStart ? `Run ${area.name}` : `Select ${area.name}`}
         >
-          <div className="text-sm font-black text-text-primary">{area.name}</div>
+          <div className="text-sm font-black text-text-primary">
+            {area.name}
+            {hot && (
+              <span className="ml-2 bg-[#E2483D] px-1.5 py-0.5 align-middle text-[9px] font-black uppercase tracking-wide text-white" data-testid="hot-area-badge">
+                Hot today · +materials
+              </span>
+            )}
+          </div>
           <div className="mt-0.5 text-[10px] text-text-muted">Lv.{area.unlockLevel} · {area.manufacturerInfluence} · <span className={dangerClass}>{area.dangerRating}</span></div>
           <div className="mt-2 text-[10px] leading-snug text-text-secondary">{area.gameplayIdentity}</div>
         </button>
@@ -73,9 +82,19 @@ export const AreaPickerList: React.FC<{
 }> = ({ onSelect, onStart }) => {
   const playerLevel = usePlayerStore((s) => s.level);
   const selectedAreaId = useIdleStore((s) => s.selectedRoamingAreaId);
+  // Date-seeded hot area (§3.5) — computed at render from the UTC day,
+  // the same seed the Chef claims with. Never a cron, never stored.
+  const hotAreaId = hotAreaIdForDate(new Date());
+  const hotArea = ROAMING_AREAS.find((a) => a.id === hotAreaId);
 
   return (
     <>
+      {hotArea && (
+        <div className="mb-2 border-2 border-[#E2483D] bg-[#E2483D]/10 p-2 text-[11px] font-bold text-text-primary" data-testid="hot-area-banner">
+          🔥 Hot area today: <span className="text-[#E2483D]">{hotArea.name}</span> — bonus materials and
+          yield, higher danger. Rotates daily.
+        </div>
+      )}
       {ROAMING_AREAS.map((area) => {
         const unlocked = isRoamingAreaUnlocked(area, playerLevel);
         const selected = area.id === selectedAreaId;
@@ -85,6 +104,7 @@ export const AreaPickerList: React.FC<{
             area={area}
             selected={selected}
             unlocked={unlocked}
+            hot={area.id === hotAreaId}
             onSelect={() => onSelect(area)}
             onStart={onStart ? () => onStart(area) : undefined}
           />

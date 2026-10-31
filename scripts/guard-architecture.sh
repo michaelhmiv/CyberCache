@@ -216,6 +216,8 @@ ALLOWED_STORAGE=(
   "$SRC/components/action/ActionLoadout.tsx:UI collapse preference (not progression)"
   "$SRC/components/pixelArt/LootMoment.tsx:UI celebration seen-preference for tap-to-skip (not progression)"
   "$SRC/store/slices/offlineRecapSlice.ts:display-only copy of already-settled offline rewards so the summary can be re-opened after dismissal (not progression; server settlement stays the only economy truth)"
+  "$SRC/components/dashboard/LiveTurfDiorama.tsx:reads the device-local hunter head-variant cosmetic preference (not progression)"
+  "$SRC/screens/SettingsScreen.tsx:writes the device-local hunter head-variant cosmetic preference (not progression)"
   "$SRC/test/:test files"
 )
 

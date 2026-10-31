@@ -129,6 +129,14 @@ export interface ConsumableRuntimeEffects {
   rareMaterialChance?: number;
   rarityBias?: number;
   eventChanceBonus?: number;
+  /** Roaming event table re-weighting toward find/material events (Data Skimmer). */
+  eventFindWeightBonus?: number;
+  /** Signal hint: the next roaming event's family is foreshadowed one tick early (Data Skimmer). */
+  eventForeshadow?: number;
+  /** Material-find roaming events pay this fraction more (Salvage Contract). */
+  materialEventYieldBonus?: number;
+  /** Buried-cache / convoy-style roaming events gain this weight bonus (Magnetized Payload). */
+  cacheEventWeightBonus?: number;
   enemyPressureMultiplier?: number;
   yieldMultiplier?: number;
   timeReduction?: number;
@@ -890,7 +898,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'fightStart',
       'onAttempt',
       'inactive_continue',
-      { ordnanceBoostMultiplier: 1.2, boostedOrdnanceUses: 2, freeOrdnanceUses: 2, ordnanceBonusDps: 90 },
+      { ordnanceBoostMultiplier: 1.2, boostedOrdnanceUses: 2, freeOrdnanceUses: 2, ordnanceBonusDps: 90, cacheEventWeightBonus: 1 },
       { ordnanceBoostMultiplier: DELTA(1.35), boostedOrdnanceUses: { mode: 'none' }, freeOrdnanceUses: { mode: 'none' } },
       'Magnetized Payload consumed: boosted loaded ordnance.',
       {
@@ -1068,7 +1076,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     counterTags: ['loot', 'cache', 'elite'],
     effectRules: { bonusLootChance: 0.1 },
     craftCategory: 'utility',
-    uiHints: ['Roaming only.', 'Quality scales the bonus loot chance; enemy pressure is an explicit drawback.'],
+    uiHints: ['Roaming only.', 'While active: +3% roaming event chance (its designed home since the event system landed).', 'Quality scales the bonus loot chance; enemy pressure is an explicit drawback.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
     visual: visual('◍', 'amber', 'beacon', 'market'),
@@ -1079,9 +1087,9 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'activityStart',
       'perInterval',
       'inactive_continue',
-      { bonusLootChance: 0.1, ammoCoveredSeconds: 600, enemyPressureMultiplier: 1.05 },
+      { bonusLootChance: 0.1, eventChanceBonus: 0.03, ammoCoveredSeconds: 600, enemyPressureMultiplier: 1.05 },
       { bonusLootChance: FULL_CHANCE(0.18), ammoCoveredSeconds: FULL_DURATION, enemyPressureMultiplier: { mode: 'none' } },
-      'Loot Beacon consumed: increased roaming gear drop chance and enemy pressure.',
+      'Loot Beacon consumed: increased roaming gear drop chance, event chance, and enemy pressure.',
       {
         activityRules: { roaming: { trigger: 'activityStart', consumePolicy: 'perInterval', durationSeconds: 600, zeroBehavior: 'inactive_continue' } },
         highQualityPerks: [{ minQuality: 140, label: 'Adds a small loot rarity bias to beacon events.', effects: { rarityBias: 0.05 } }],
@@ -1142,9 +1150,9 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'lootRoll',
       'onVictory',
       'inactive_continue',
-      { extraLootRollChance: 0.25, ammoCoveredSeconds: 600 },
+      { extraLootRollChance: 0.25, eventFindWeightBonus: 0.5, eventForeshadow: 1, ammoCoveredSeconds: 600 },
       { extraLootRollChance: FULL_CHANCE(0.4) },
-      'Data Skimmer consumed: attempted an extra victory loot roll.',
+      'Data Skimmer consumed: attempted an extra victory loot roll; roaming events skew toward finds and the next event is foreshadowed.',
       {
         highQualityPerks: [{ minQuality: 150, label: 'Extra roll gains a small rarity bias.', effects: { rarityBias: 0.05 } }],
       }
@@ -1190,21 +1198,22 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     counterTags: ['salvage'],
     effectRules: {},
     craftCategory: 'utility',
-    uiHints: ['Scrapping only.', 'Quality scales yield multiplier and can add rare material chance.'],
+    uiHints: ['Scrapping, and roaming salvage: material-find roaming events pay +50% while a contract is active.', 'Quality scales yield multiplier and can add rare material chance.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
     visual: visual('▱', 'amber', 'contract', 'market'),
     quality: quality(700, 75, 150, 'Yield multiplier scales with quality.'),
     runtime: runtime(
-      ['scrapping'],
+      ['scrapping', 'roaming'],
       'utility',
       'scrapStart',
       'onAttempt',
       'inactive_continue',
-      { yieldMultiplier: 1.15 },
+      { yieldMultiplier: 1.15, materialEventYieldBonus: 0.5 },
       { yieldMultiplier: DELTA(1.3) },
       'Salvage Contract consumed: increased scrap/material yield.',
       {
+        activityRules: { roaming: { trigger: 'activityStart', consumePolicy: 'perInterval', durationSeconds: 600, zeroBehavior: 'inactive_continue' } },
         highQualityPerks: [{ minQuality: 130, label: 'Adds rare material return chance.', effects: { rareMaterialChance: 0.05 } }],
       }
     ),

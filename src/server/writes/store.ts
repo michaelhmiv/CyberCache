@@ -717,6 +717,13 @@ export interface WriteStore {
   clearActiveAction(playerId: string, nonce: string): Promise<Json>;
   heartbeatActiveAction(playerId: string): Promise<Json>;
   setUsername(playerId: string, username: string): Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Set (or clear, with null) the player's AFK limiter —
+   * profiles.offline_cap_hours (migration 0023, cc_set_offline_cap_limiter).
+   * The limiter only ever shortens settlements: the settlement route
+   * takes min(earned, limiter, 24h).
+   */
+  setOfflineCapLimiter(playerId: string, capHours: number | null): Promise<{ ok: boolean; error?: string; offlineCapHours?: number | null }>;
   markReminderSeen(playerId: string): Promise<ProfileRowData>;
   getRuntimeSnapshot(playerId: string): Promise<Json | null>;
   saveRuntimeSnapshot(playerId: string, snapshot: Json): Promise<void>;
@@ -946,6 +953,17 @@ export class PgWriteStore implements WriteStore {
     const result = await this.callJson('select public.cc_set_username($1, $2) as result', [playerId, username]);
     const out: { ok: boolean; error?: string } = { ok: result.ok === true };
     if (typeof result.error === 'string') out.error = result.error;
+    return out;
+  }
+
+  async setOfflineCapLimiter(playerId: string, capHours: number | null): Promise<{ ok: boolean; error?: string; offlineCapHours?: number | null }> {
+    const result = await this.callJson('select public.cc_set_offline_cap_limiter($1, $2) as result', [
+      playerId,
+      capHours === null ? null : Math.trunc(capHours),
+    ]);
+    const out: { ok: boolean; error?: string; offlineCapHours?: number | null } = { ok: result.ok === true };
+    if (typeof result.error === 'string') out.error = result.error;
+    if (out.ok) out.offlineCapHours = typeof result.offline_cap_hours === 'number' ? result.offline_cap_hours : null;
     return out;
   }
 

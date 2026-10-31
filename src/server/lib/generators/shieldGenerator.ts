@@ -22,13 +22,13 @@ const SHIELD_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.Redline,
 ];
 
-export function generateShield(level: number = 1, externalRng?: () => number): Shield {
+export function generateShield(level: number = 1, externalRng?: () => number, rarityWeights?: Partial<Record<Rarity, number>>): Shield {
   const seedBase = `shield_${level}_${Date.now()}_${Math.random()}`;
   const pixelSeed = hashString(seedBase);
   const rng = externalRng ?? createRNG(pixelSeed);
 
   const rarityKeys = Object.values(Rarity);
-  const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);
+  const weights = rarityKeys.map((r) => rarityWeights?.[r] ?? RARITIES[r].dropWeight);
   const rarity = pickWeighted(rarityKeys, weights, rng);
   const rarityDef = RARITIES[rarity];
 

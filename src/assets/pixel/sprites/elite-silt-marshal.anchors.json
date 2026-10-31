@@ -1,0 +1,29 @@
+{
+  "sprite": "elite-silt-marshal",
+  "src": "docs/pixel-samples/source/media-generation-silt-marshal-source-0-b2ddbae0-d6ac-4e4f-b156-a1a2e091fe45.png",
+  "out": "src/assets/pixel/sprites/elite-silt-marshal.png",
+  "width": 261,
+  "height": 384,
+  "anchors": {
+    "feet": {
+      "x": 0.4827,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5294,
+      "y": 0.5053
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.3532
+    },
+    "lootPoint": {
+      "x": 0.5189,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2941,
+      "y": 0.6912
+    }
+  }
+}

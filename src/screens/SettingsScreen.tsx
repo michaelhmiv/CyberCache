@@ -4,7 +4,9 @@ import { usePlayerStore, useIdleStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
-import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_TIERS, earnedOfflineCapHours, nextOfflineCapTier } from '@/content/offlineCap';
+import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_LIMITER_OPTIONS, OFFLINE_CAP_TIERS, earnedOfflineCapHours, effectiveOfflineCapHours, nextOfflineCapTier } from '@/content/offlineCap';
+import { setOfflineCapLimiter } from '@/lib/api/offlineCapService';
+import { HUNTER_HEAD_VARIANTS, type HunterHeadVariantId } from '@/lib/pixel/rig';
 
 const DATA_DELETION_URL = 'https://chef-production.up.railway.app/data-deletion.html';
 
@@ -13,13 +15,50 @@ export const SettingsScreen: React.FC = () => {
   const idle = useIdleStore();
   const skills = useSkillStore();
 
-  // Offline cap is EARNED by level (server-enforced at settlement);
-  // this card is display only. The Scavenger keystone adds its bonus
-  // on top when specced.
+  // Offline cap law (src/content/offlineCap.ts): the cap is EARNED by
+  // level (+ the Scavenger keystone's bonus), the player may set a
+  // LIMITER below it, and a 24h ceiling binds everything. Settlement
+  // enforces min(earned, limiter, 24h) server-side; this card shows
+  // the same math and writes the limiter. The stored profile value
+  // reaches the client as a number where 0 (or the pre-hydration
+  // default) means "no limiter set" — a real limiter is 1..24.
   const offlineCapBonus = Math.max(0, Math.floor(skills.getBonuses().offlineCapBonus ?? 0));
   const earnedCapHours = earnedOfflineCapHours(player.level);
-  const effectiveCapHours = earnedCapHours + offlineCapBonus;
+  const storedLimiter = player.offlineCapHours >= 1 && player.offlineCapHours <= 24 ? Math.floor(player.offlineCapHours) : null;
+  const [headVariant, setHeadVariant] = useState<HunterHeadVariantId>(() => {
+    try {
+      const value = window.localStorage.getItem('cc-head-variant');
+      return value === 'optic' || value === 'hood' || value === 'fin' ? value : 'visor';
+    } catch {
+      return 'visor';
+    }
+  });
+  // Draft-override pattern: undefined follows the stored profile value
+  // (hydration-safe, no effect sync); a pick replaces it locally.
+  const [limiterDraft, setLimiterDraft] = useState<number | null | undefined>(undefined);
+  const limiter = limiterDraft !== undefined ? limiterDraft : storedLimiter;
+  const [limiterSaving, setLimiterSaving] = useState(false);
+  const [limiterError, setLimiterError] = useState<string | null>(null);
+  const effectiveCapHours = effectiveOfflineCapHours({
+    level: player.level,
+    bonusHours: offlineCapBonus,
+    userCapHours: limiter,
+  });
   const nextCapTier = nextOfflineCapTier(player.level);
+
+  const handleLimiter = async (value: number | null) => {
+    if (limiterSaving || value === limiter) return;
+    setLimiterSaving(true);
+    setLimiterError(null);
+    const result = await setOfflineCapLimiter(value);
+    setLimiterSaving(false);
+    if (!result.ok) {
+      setLimiterError(result.error ?? 'Could not save the limiter.');
+      return;
+    }
+    setLimiterDraft(value);
+    player.setPlayer({ offlineCapHours: value ?? 0 });
+  };
   const [showReset, setShowReset] = useState(false);
   const [resetConfirmed, setResetConfirmed] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -67,8 +106,9 @@ export const SettingsScreen: React.FC = () => {
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-black text-text-primary">{effectiveCapHours}h</span>
           <span className="text-[10px] text-text-muted">
-            earned at level {player.level}
-            {offlineCapBonus > 0 && <> · includes +{offlineCapBonus}h from the King of Scrap keystone</>}
+            effective cap · earned {earnedCapHours + offlineCapBonus}h at level {player.level}
+            {offlineCapBonus > 0 && <> (incl. +{offlineCapBonus}h King of Scrap)</>}
+            {limiter !== null && <> · limited by you to {limiter}h</>}
           </span>
         </div>
         <div className="grid grid-cols-5 gap-1.5">
@@ -86,10 +126,65 @@ export const SettingsScreen: React.FC = () => {
             );
           })}
         </div>
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Your limiter — settle at most</div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => void handleLimiter(null)}
+              disabled={limiterSaving}
+              className={`py-1.5 px-2.5 text-[10px] font-black ${limiter === null ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+            >
+              No limit
+            </button>
+            {OFFLINE_CAP_LIMITER_OPTIONS.map((hours) => (
+              <button
+                key={hours}
+                onClick={() => void handleLimiter(hours)}
+                disabled={limiterSaving}
+                className={`py-1.5 px-2.5 text-[10px] font-black ${limiter === hours ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+              >
+                {hours}h
+              </button>
+            ))}
+          </div>
+          {limiterError && <div className="text-[10px] font-bold text-red-400">{limiterError}</div>}
+          <div className="text-[10px] text-text-muted">
+            The limiter can only shorten a settlement — it never raises the cap past what you have earned. Nothing can exceed the 24h ceiling.
+          </div>
+        </div>
         <div className="text-[10px] text-text-muted">
           {nextCapTier
-            ? `Maximum hours of offline rewards that can pile up while away. Reach level ${nextCapTier.minLevel} to raise the cap to ${nextCapTier.hours}h.`
+            ? `Maximum hours of offline rewards that can pile up while away. Reach level ${nextCapTier.minLevel} to raise the earned cap to ${nextCapTier.hours}h.`
             : 'Maximum hours of offline rewards that can pile up while away. Top tier earned.'}
+        </div>
+      </MobileCard>
+
+      <MobileCard className="space-y-3" rarityColor="#39D0D8">
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 16 }} className="text-amber">⛑</span>
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Hunter Appearance</div>
+        </div>
+        <div className="text-[10px] text-text-muted">
+          Head variant worn by your hunter on the roaming stage. Stored on this device.
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {HUNTER_HEAD_VARIANTS.map((variant) => (
+            <button
+              key={variant.id}
+              onClick={() => {
+                try {
+                  window.localStorage.setItem('cc-head-variant', variant.id);
+                } catch {
+                  // storage unavailable — the default visor stays
+                }
+                setHeadVariant(variant.id);
+              }}
+              className={`py-1.5 text-[10px] font-black ${headVariant === variant.id ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+              data-testid={`head-variant-${variant.id}`}
+            >
+              {variant.label}
+            </button>
+          ))}
         </div>
       </MobileCard>
 

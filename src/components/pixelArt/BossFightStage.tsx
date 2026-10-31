@@ -15,6 +15,7 @@ import {
   Tracer,
 } from './PixelFx';
 import { getPixelSprite, pixelBossSpriteForBoss, requirePixelSprite } from '@/lib/pixel/manifest';
+import { bossArena } from '@/content/areaPalettes';
 import {
   MOVEMENT,
   actorAnchorPoint,
@@ -45,7 +46,6 @@ import type { Weapon } from '@/types/items';
 
 const HUNTER_PLACEMENT: ActorPlacement = { xPct: 20, heightPct: 62, groundY: 0.86 };
 const BOSS_PLACEMENT: ActorPlacement = { xPct: 76, heightPct: 80, groundY: 0.86 };
-const ARENA_BG = 'zone-dustwaste-bg';
 
 interface BossFightStageProps {
   timeline: FightTimeline;
@@ -58,7 +58,10 @@ interface BossFightStageProps {
 }
 
 export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false }) => {
-  const background = getPixelSprite(ARENA_BG);
+  // Unique arena per boss (Q3 ruling): the boss's own arena art + its
+  // signature prop; the home area informs palette only.
+  const arena = bossArena(bossId);
+  const background = getPixelSprite(arena.backgroundId);
   const groundY = background?.anchors.groundLine?.y ?? HUNTER_PLACEMENT.groundY;
   const hunterPlacement = { ...HUNTER_PLACEMENT, groundY };
   const bossPlacement = { ...BOSS_PLACEMENT, groundY };
@@ -193,7 +196,7 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
       data-finished={finished}
     >
       <PixelStage
-        backgroundId={ARENA_BG}
+        backgroundId={arena.backgroundId}
         groundY={groundY}
         reduced={reduced}
         embers
@@ -202,6 +205,11 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
         shakeDurationMs={beatShake?.durationMs}
         testId="boss-fight-pixel-stage"
       >
+        {/* The arena's signature prop stands at the back of the pit. */}
+        {getPixelSprite(arena.propId) && (
+          <PixelActor spriteId={arena.propId} xPct={50} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} testId="boss-arena-prop" />
+        )}
+
         {/* Phase chip */}
         {currentPhase && (
           <div className="pointer-events-none absolute left-2 top-2 z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">

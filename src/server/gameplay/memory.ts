@@ -187,6 +187,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
    * needs this side log; nonce replays return before it is appended.
    */
   readonly bossVictoryLog: Array<{ playerId: string; bossId: string; atMs: number }> = [];
+  /** Roaming-event telemetry rows (0023 mirror) for test introspection. */
+  readonly roamingEventLog: Array<{
+    playerId: string;
+    events: Array<{ eventId: string; family: string }>;
+    eliteKills: number;
+    areaId: string;
+    tickCount: number;
+  }> = [];
   readonly consumableEvents: ConsumableEvent[] = [];
   /** player_masteries mirror — written by the 0014 mastery grants below. */
   readonly masteries: InMemoryMastery[] = [];
@@ -674,6 +682,38 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   }
 
   /**
+   * cc_record_roaming_events (0023): telemetry rows for a claim's
+   * fired events + elite kills. Mirrors the SQL trigger's elite
+   * branch: combat.elite_kills mastery at 100 XP per kill.
+   */
+  async recordRoamingEvents(
+    playerId: string,
+    input: {
+      events: Array<{ eventId: string; family: string }>;
+      eliteKills: number;
+      areaId: string;
+      tickCount: number;
+    },
+  ): Promise<Json> {
+    this.requireProfile(playerId);
+    const eliteKills = Math.max(0, Math.trunc(input.eliteKills));
+    this.roamingEventLog.push({
+      playerId,
+      events: input.events.map((e) => ({ ...e })),
+      eliteKills,
+      areaId: input.areaId,
+      tickCount: Math.trunc(input.tickCount),
+    });
+    if (eliteKills > 0) this.addMasteryXp(playerId, 'combat.elite_kills', eliteKills * 100);
+    return {
+      recorded_event_rows: input.events.length > 0 ? 1 : 0,
+      recorded_elite_rows: eliteKills > 0 ? 1 : 0,
+      event_count: input.events.length,
+      elite_kills: eliteKills,
+    } as Json;
+  }
+
+  /**
    * cc_resurrect (0013): nonce-idempotent via the ledger; the free
    * path validates against this store's clock and the recorded death;
    * the paid path charges the route-derived cost atomically with
@@ -754,8 +794,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     }
     const nowTs = this.now();
     const rawElapsedMs = Math.max(0, nowTs.getTime() - new Date(settleFrom).getTime());
-    // 0015 mirror: the route's server-derived cap wins over the stored
-    // preference; the stored value is only the legacy fallback.
+    // 0015 mirror, limiter semantics (0023 era): the route's cap —
+    // min(earned, the player's stored limiter, 24h ceiling) computed
+    // by effectiveOfflineCapHours — always wins; the stored
+    // offline_cap_hours read here is only the legacy fallback for
+    // callers that pass no cap.
     const effectiveCapHours = capHours ?? p.offline_cap_hours ?? 2;
     const capMs = Math.floor(Math.max(0.25, effectiveCapHours) * 3_600_000);
     const capReached = rawElapsedMs > capMs;

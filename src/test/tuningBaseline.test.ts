@@ -269,6 +269,14 @@ describe('tuning item 4 — fragment faucet 0.03 → 0.008 per tick', () => {
     // seeded by its absolute tick window. Expected fragments at the new
     // rate: 20,000 × 0.008 = 160 (σ ≈ 12.6). The band is ±~5σ and its
     // ceiling sits far under the old rate's expectation (~600).
+    //
+    // The event base chance is levered to 0 for this measurement: the
+    // roaming-variance overhaul added a SECOND, brief-mandated fragment
+    // faucet (Buried Cache bonus fragments, storm doubling, elite +1)
+    // whose rate is budgeted and measured separately in
+    // roamingVariance.test.ts. This test's subject is the base faucet
+    // constant alone, and the shipped lever is the honest way to scope
+    // the measurement to it.
     let fragments = 0;
     for (let i = 0; i < 200; i++) {
       const result = processRoamingClaim({
@@ -279,6 +287,7 @@ describe('tuning item 4 — fragment faucet 0.03 → 0.008 per tick', () => {
         playerLevel: 10,
         maxTicks: Infinity,
         survival: { currentHp: 100000, maxHp: 100000, shieldHp: 0, mitigation: 0 },
+        economy: { eventChanceBase: 0 },
       });
       fragments += result.rewards.cacheFragmentsAwarded;
     }
