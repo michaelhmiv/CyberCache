@@ -18,6 +18,9 @@ import {
   type ChefEndlessRun,
 } from '../../lib/chef/chefClient';
 import { syncEndlessResult } from '../../lib/api/verifiedStateSync';
+import type { ActionSkillStateView } from '@/content/actionSkills';
+import type { SkillTreeType } from '@/types/game';
+import { ActionSkillCard } from './ActionSkillCard';
 import { endlessDepthBand, endlessEncounterForDepth } from '../../content/endless';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
@@ -106,6 +109,15 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
   const [busy, setBusy] = useState(false);
   const [fightTimeline, setFightTimeline] = useState<FightTimeline | null>(null);
   const animationCancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+
+  // Action skill (0030): the state view rides the /me payload; the
+  // charge carries across encounters inside a run and resets at run
+  // end. `fireArmed` is intent for the NEXT encounter only.
+  const [fireArmed, setFireArmed] = useState(false);
+  const [fightActionSkill, setFightActionSkill] = useState<{
+    tree: SkillTreeType; fired: boolean; chargeAfter: number;
+  } | null>(null);
+  const actionSkillView: ActionSkillStateView | null = me?.actionSkill ?? null;
 
   useEffect(() => () => {
     animationCancelRef.current.cancelled = true;
@@ -238,7 +250,31 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
     setStage('fighting');
     let outcome: ChefEndlessEncounterResult;
     try {
-      outcome = await advanceEndlessEncounter({ nonce: newEndlessNonce('encounter') });
+      outcome = await advanceEndlessEncounter({ nonce: newEndlessNonce('encounter'), fireActionSkill: fireArmed });
+      setFireArmed(false);
+      setFightActionSkill(outcome.result?.actionSkill
+        ? {
+            tree: outcome.result.actionSkill.tree as SkillTreeType,
+            fired: outcome.result.actionSkill.fired,
+            chargeAfter: outcome.actionSkill?.charge ?? actionSkillView?.charge ?? 0,
+          }
+        : null);
+      if (outcome.actionSkill) {
+        const echo = outcome.actionSkill;
+        setMe((prev) => {
+          if (!prev?.actionSkill) return prev;
+          const selected = (echo.selection as SkillTreeType | null) ?? prev.actionSkill.selected;
+          return {
+            ...prev,
+            actionSkill: {
+              ...prev.actionSkill,
+              selected,
+              charge: echo.charge,
+              charged: echo.charge >= 100 && selected !== null,
+            },
+          };
+        });
+      }
       syncEndlessResult({ profile: outcome.profile, items: outcome.items });
       setRun(outcome.run);
     } catch (err) {
@@ -519,6 +555,14 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
             </div>
           </MobileCard>
 
+          {/* Action skill — the player's own signature state (0030). */}
+          <ActionSkillCard
+            state={actionSkillView}
+            armed={fireArmed}
+            onToggleArmed={setFireArmed}
+            chargeSourceNote="Charge carries across encounters inside a run and resets when the run ends."
+          />
+
           <button
             type="button"
             data-testid="endless-start"
@@ -584,6 +628,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
                 depthBadge={{ depth: nextDepth, band }}
                 weapon={primary ?? undefined}
                 reduced={reducedMotion === true}
+                signatureFire={fightActionSkill?.fired ? fightActionSkill.tree : null}
               />
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[10px] text-text-muted">
@@ -638,6 +683,13 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
                   </div>
                 )}
               </MobileCard>
+              {/* Action skill — arm the signature for the next depth (0030). */}
+              <ActionSkillCard
+                state={actionSkillView}
+                armed={fireArmed}
+                onToggleArmed={setFireArmed}
+                chargeSourceNote="Charge carries across encounters inside this run and resets when the run ends."
+              />
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"

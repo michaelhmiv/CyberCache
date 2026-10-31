@@ -19,7 +19,25 @@ import { verifyBossFight, type ChefVerifyBossResult } from '@/lib/chef/chefClien
 import { useActivityStore, useBossStore, useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { BossEncounterPanel } from '@/components/fight/BossEncounterPanel';
 
-vi.mock('@/lib/chef/chefClient', () => ({ verifyBossFight: vi.fn() }));
+vi.mock('@/lib/chef/chefClient', () => ({
+  verifyBossFight: vi.fn(),
+  // Action Skill slice (0030): the panel also reads the player's own
+  // signature state on mount. Resolve the benign no-keystone view so
+  // the card renders its empty state and the boss flow is unaffected.
+  getActionSkillState: vi.fn(async () => ({
+    verified: true,
+    actionSkill: {
+      charge: 0,
+      chargeMax: 100,
+      charged: false,
+      selection: null,
+      selected: null,
+      qualified: [],
+      signatures: [],
+      noKeystoneNote: 'No action skill yet — own any skill tree’s keystone to unlock its signature ability.',
+    },
+  })),
+}));
 vi.mock('framer-motion', async (importOriginal) => {
   const actual = await importOriginal<typeof import('framer-motion')>();
   return { ...actual, useReducedMotion: () => true };

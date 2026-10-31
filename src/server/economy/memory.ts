@@ -263,6 +263,21 @@ export class InMemoryEconomyStore implements EconomyStore {
     }
     const endlessMilestoneDrops = Object.values(endlessMilestoneDropsByRarity).reduce((a, b) => a + b, 0);
 
+    // Action skill fires (0030): the same ledger folds as SQL —
+    // fired action_skill blocks on boss/endless results, workshop
+    // fire rows as Fixer fires.
+    const countFires = (tree: string) =>
+      rows.filter((r) =>
+        (r.action_type === 'cc_apply_boss_attempt' || r.action_type === 'cc_apply_endless_encounter')
+        && dig(r.result_payload, 'action_skill', 'fired') === true
+        && dig(r.result_payload, 'action_skill', 'tree') === tree,
+      ).length;
+    const actionSkillFiresGunslinger = countFires('Gunslinger');
+    const actionSkillFiresDemolition = countFires('Demolition');
+    const actionSkillFiresScavenger = countFires('Scavenger');
+    const actionSkillFiresFixer = countFires('Fixer')
+      + rows.filter((r) => r.action_type === 'cc_fire_overclock_workshop').length;
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
@@ -332,6 +347,10 @@ export class InMemoryEconomyStore implements EconomyStore {
       endlessFeesDestroyed,
       endlessMilestoneDrops,
       endlessMilestoneDropsByRarity,
+      actionSkillFiresGunslinger,
+      actionSkillFiresDemolition,
+      actionSkillFiresScavenger,
+      actionSkillFiresFixer,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

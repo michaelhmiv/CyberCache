@@ -30,7 +30,13 @@ import { CONSUMABLES } from '../../constants/consumables';
 import type { AuthConfig } from '../auth/routes';
 import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
-import { bossSlotsFromEquipped, skillBonusesFromRecords } from '../gameplay/serverLoadout';
+import { bossSlotsFromEquipped, classModBoostsFromGear, skillBonusesFromRecords } from '../gameplay/serverLoadout';
+import {
+  scaleConsumableQuality,
+  type ActionSkillFirePlan,
+} from '../../content/actionSkills';
+import { SkillTreeType } from '../../types/game';
+import { actionSkillEcho, actionSkillLevers, deferredActionSkillFirePlan, planActionSkillFire } from './actionSkill';
 import { escalatedBossFee, utcDayStartIso } from '../../lib/bossFees';
 import {
   buildConsumableQualityProfile,
@@ -259,10 +265,69 @@ export function createVerifyBossHandler(
         (profile.skill_spends ?? {}) as Record<string, number>,
       );
 
+      // --- Action skill fire (0030) ---
+      // The body carries only the boolean intent. The plan — which
+      // signature, what effect — is resolved HERE from server records
+      // (recorded selection + keystone qualification from spends and
+      // the equipped class mod + the profile's charge) and the live
+      // levers. A forged tree or charge claim in the body is never
+      // read. The applier re-validates everything under the row lock.
+      const fireIntent = (body as { fireActionSkill?: unknown }).fireActionSkill === true;
+      const actionSkillLeverValues = await actionSkillLevers(config);
+      let actionSkillPlan: ActionSkillFirePlan | null = null;
+      let actionSkillTree: SkillTreeType | null = null;
+      let effectiveConsumableQuality = consumableQuality;
+      if (fireIntent) {
+        if (!bossDef) {
+          res.status(400).json({ error: 'Unknown boss', detail: String(body.bossId) });
+          return;
+        }
+        const planInput = {
+          spent: (profile.skill_spends ?? {}) as Record<string, number>,
+          classModBoosts: classModBoostsFromGear(serverGear),
+          selection: profile.action_skill_selection,
+          charge: profile.action_skill_charge,
+          target: bossDef,
+          levers: actionSkillLeverValues,
+        };
+        const planned = planActionSkillFire(planInput);
+        if ('error' in planned) {
+          // A charge-only refusal defers to the applier: this may be
+          // a replay of an already-applied fired attempt (the first
+          // application spent the pool) and replays are owed the
+          // stored result. The applier checks its ledger before
+          // re-validating the pool under the row lock, and refuses a
+          // fresh under-charged fire itself (mapped to this same 400
+          // below). Selection failures refuse here — no fired
+          // attempt can exist for an unselected signature.
+          const deferred =
+            planned.code === 'not_charged' ? deferredActionSkillFirePlan(planInput) : null;
+          if (!deferred) {
+            res.status(400).json({ error: 'Action skill cannot fire', detail: planned.error });
+            return;
+          }
+          actionSkillPlan = deferred.plan;
+          actionSkillTree = deferred.tree;
+        } else {
+          actionSkillPlan = planned.plan;
+          actionSkillTree = planned.tree;
+        }
+        // Overclock combat fire (Fixer brief §3.7): the attempt's
+        // prepared consumables read at quality × the levered
+        // multiplier for this attempt only.
+        if (actionSkillTree === SkillTreeType.Fixer && actionSkillPlan.qualityMultiplier) {
+          effectiveConsumableQuality = scaleConsumableQuality(
+            consumableQuality,
+            Object.keys(resolved.prepared),
+            actionSkillPlan.qualityMultiplier,
+          );
+        }
+      }
+
       // Build the request with every economy field server-derived.
       // The body contributes intent only: bossId, attemptNonce, the
-      // prepared consumable counts (ownership-validated above), and
-      // the risk setting.
+      // prepared consumable counts (ownership-validated above), the
+      // risk setting, and the action skill fire intent.
       const request: BossAttemptRequest = {
         ...body,
         playerId,
@@ -270,12 +335,13 @@ export function createVerifyBossHandler(
         playerLevel: serverLevel,
         playerCredits: serverCredits,
         consumables: resolved.prepared,
-        consumableQuality,
+        consumableQuality: effectiveConsumableQuality,
         pityCount: serverPityCount,
         entryFee,
         economy: economyValues
           ? { bossDedicatedChance: economyValues.bossDedicatedChance }
           : undefined,
+        actionSkillFire: actionSkillPlan,
         ...serverSlots,
         skillBonuses: serverSkillBonuses,
       };
@@ -295,9 +361,22 @@ export function createVerifyBossHandler(
           unlockedBossId: result.unlockedBossId ?? null,
           scrap: result.scrapAwarded,
           entryFee: result.entryFee,
+          actionSkillTree,
+          actionSkillChargeRate: actionSkillLeverValues.actionSkillChargePerBossAttempt,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
+        // 0030: an applier-side fire refusal (charge spent by a
+        // concurrent resolution, selection changed mid-flight) is a
+        // client-visible 400, not a server fault.
+        if (
+          message.includes('Action skill is not charged') ||
+          message.includes('Action skill selection mismatch') ||
+          message.includes('Action skill not qualified')
+        ) {
+          res.status(400).json({ error: 'Action skill cannot fire', detail: message });
+          return;
+        }
         res.status(500).json({ error: 'Failed to apply boss attempt', detail: message });
         return;
       }
@@ -321,6 +400,7 @@ export function createVerifyBossHandler(
           pityIncremented: storedAttempt ? storedAttempt.victory !== true : !result.result.victory,
           profile: rpcRecord?.profile ?? rpcResult,
           idempotentReplay: true,
+          actionSkill: actionSkillEcho(rpcRecord?.profile),
           // The pre-attempt count on a replay already includes the
           // original application's victory — it IS the current count.
           bossVictoriesToday: victoriesToday,
@@ -366,6 +446,9 @@ export function createVerifyBossHandler(
         victory: result.result.victory,
         pityIncremented: !result.result.victory,
         profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+        // 0030: the player's own signature state after this attempt
+        // (charge spent or accrued) — from the applier snapshot.
+        actionSkill: actionSkillEcho((rpcResult as Record<string, unknown>)?.profile),
         // Post-attempt victory count for the panel's fee display.
         bossVictoriesToday: victoriesToday + (result.result.victory ? 1 : 0),
       });

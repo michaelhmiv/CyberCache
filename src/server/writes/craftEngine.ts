@@ -399,6 +399,67 @@ export function settleCraftJobs(
   return result;
 }
 
+export interface OverclockFireResult {
+  completions: Array<CraftJobOutput & { jobId: string; recipeId: string }>;
+  jobsCompleted: number;
+  xpAwarded: number;
+}
+
+/**
+ * Overclock workshop fire (Action Skill slice, 0030; Fixer brief
+ * §3.7): instantly complete the IN-PROGRESS unit on every active
+ * bench — the head job of each bench — through the very same
+ * completeCraftUnit the settler uses (same outputs, same quality
+ * roll, same pegged XP, same tool-charge spend on a job's first
+ * unit). It buys time, never output: exactly one unit per bench,
+ * regardless of how much time that unit still had left. The SQL twin
+ * is cc_fire_overclock_workshop looping cc_complete_craft_unit.
+ * Action-lane and offline-cap rules do NOT apply — the fire is an
+ * instant discharge, not a settlement window.
+ */
+export function overclockCompleteInProgressUnits(
+  adapter: CraftAdapter,
+  playerId: string,
+): OverclockFireResult {
+  const result: OverclockFireResult = { completions: [], jobsCompleted: 0, xpAwarded: 0 };
+  const profile = adapter.profile(playerId);
+  if (!profile) return result;
+  const now = adapter.nowMs();
+  const levers = adapter.levers();
+  const jobs = adapter
+    .jobs(playerId)
+    .filter((j) => j.status === 'active' && j.units_completed < j.units_total)
+    .sort((a, b) => a.created_at_ms - b.created_at_ms || a.id.localeCompare(b.id));
+  const benchesSeen = new Set<number>();
+  for (const job of jobs) {
+    if (benchesSeen.has(job.bench)) continue;
+    benchesSeen.add(job.bench);
+    // A fitted tool's charge is spent when the job actually starts —
+    // the settler's rule, mirrored for a fire that starts the unit.
+    if (!job.tool_charged && job.snapshot.toolId) {
+      job.tool_charged = true;
+      consumeToolCharge(profile, job.snapshot.toolId);
+    }
+    job.accrued_ms = 0;
+    const output = completeCraftUnit(adapter, profile, job, levers);
+    if (output.vehicleFull) {
+      refundRemainingRepairKits(adapter, job);
+      job.status = 'complete';
+      job.completed_at_ms = now;
+      result.jobsCompleted += 1;
+      continue;
+    }
+    result.xpAwarded += output.xp;
+    result.completions.push({ ...output, jobId: job.id, recipeId: job.recipe_id });
+    if (job.units_completed >= job.units_total) {
+      job.status = 'complete';
+      job.completed_at_ms = now;
+      result.jobsCompleted += 1;
+    }
+  }
+  return result;
+}
+
 function consumeToolCharge(profile: CraftProfileView, toolId: string): void {
   const tools = profile.workshop_tools;
   const charges = (tools.charges[toolId] ?? 0) - 1;

@@ -85,6 +85,10 @@ export interface ProfileRowData {
   workshop_tools?: Record<string, unknown>;
   /** Legendary core balance (migration 0026). Optional: pre-0026 seed rows omit it. */
   legendary_cores?: number;
+  /** Action skill charge pool 0..100 (migration 0030). Optional: pre-0030 seed rows omit it (= 0). */
+  action_skill_charge?: number;
+  /** Recorded action skill selection (migration 0030). Optional: pre-0030 rows omit it (= null). */
+  action_skill_selection?: string | null;
   /**
    * Computed by PgReadStore.getProfile (not a column): victories per
    * boss on the current UTC day from the verified action ledger — the

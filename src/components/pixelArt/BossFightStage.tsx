@@ -26,6 +26,9 @@ import {
 import type { FightTimeline } from '@/lib/animation/fightTimeline';
 import type { PhaseAnalysis } from '@/types/boss';
 import type { Weapon } from '@/types/items';
+import { ACTION_SKILL_DEFS } from '@/content/actionSkills';
+import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
+import type { SkillTreeType } from '@/types/game';
 
 /**
  * BossFightStage (P2) — the pixel staging of a boss fight inside the
@@ -63,9 +66,14 @@ interface BossFightStageProps {
    *  band wash (src/content/areaPalettes.ts ENDLESS_BAND_TINTS) laid
    *  over the arena so escalation is visible at a glance. */
   depthBadge?: { depth: number; band: number };
+  /** Action skill (0030): the tree whose signature fired inside this
+   *  fight — renders the per-tree firing treatment (a beam in the
+   *  tree's color under the phase chip + the sigil chip). The outcome
+   *  was decided by the Chef; this is presentation only. */
+  signatureFire?: SkillTreeType | null;
 }
 
-export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false, backgroundId, depthBadge }) => {
+export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false, backgroundId, depthBadge, signatureFire }) => {
   // Unique arena per boss (Q3 ruling): the boss's own arena art + its
   // signature prop; the home area informs palette only.
   const arena = bossArena(bossId);
@@ -242,6 +250,31 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
           <div className="pointer-events-none absolute left-2 top-2 z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">
             {finished ? (victory ? 'Victory' : 'Defeat') : `Phase ${presentingIndex + 1} — ${currentPhase.phaseName}`}
           </div>
+        )}
+
+        {/* Action skill firing treatment (0030): a G-1 beam in the
+            tree's color across the top of the stage + the signature
+            chip with its sigil — the moment the charged ability
+            lands inside the fight. */}
+        {signatureFire && (
+          <>
+            <motion.div
+              className="pointer-events-none absolute inset-x-0 top-9 z-20 h-[3px]"
+              style={{ backgroundColor: getSkillTreeVisual(signatureFire).color, boxShadow: `0 0 12px ${getSkillTreeVisual(signatureFire).color}` }}
+              initial={reduced ? false : { scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: [1, 1, 0.35] }}
+              transition={reduced ? { duration: 0 } : { duration: 1.6, times: [0, 0.7, 1], ease: 'easeOut' }}
+              data-testid="boss-signature-beam"
+            />
+            <div
+              className="pointer-events-none absolute left-2 top-11 z-20 flex items-center gap-1.5 border-2 bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide"
+              style={{ borderColor: getSkillTreeVisual(signatureFire).color, color: getSkillTreeVisual(signatureFire).color }}
+              data-testid="boss-signature-fire"
+            >
+              <span>{getSkillTreeVisual(signatureFire).sigil}</span>
+              {ACTION_SKILL_DEFS[signatureFire].name} fired
+            </div>
+          </>
         )}
 
         {/* Hunter — recoil on his shot, dodge (or fatal hit) on the counter.

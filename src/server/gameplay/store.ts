@@ -60,6 +60,23 @@ export interface BossProfileRow {
   boss_state: Json;
   /** Server-side skill spends — the boss route rebuilds skillBonuses from this, never from a client body (trust hardening). */
   skill_spends: Json;
+  /** Action skill charge pool, 0..100 (migration 0030). */
+  action_skill_charge: number;
+  /** Recorded action skill selection (a SkillTreeType name), or null (0030). */
+  action_skill_selection: string | null;
+}
+
+/**
+ * The action-skill facts (migration 0030): everything the action
+ * skill routes derive qualification/selection/charge from — the
+ * player's OWN server records, never the request body.
+ */
+export interface ActionSkillFacts {
+  skill_spends: Json;
+  /** Equipped class mod payload ({} when none equipped). */
+  class_mod_payload: Json;
+  action_skill_charge: number;
+  action_skill_selection: string | null;
 }
 
 /** profiles subset the offline-settlement handler reads. */
@@ -123,6 +140,16 @@ export interface ChefBossAttemptInput {
   scrap: number;
   /** Entry fee charged for the attempt (0011 applier arg; already folded into creditsDelta). */
   entryFee: number;
+  /**
+   * Action skill tree fired in this attempt (0030 applier arg), or
+   * null. Route-resolved from server records; the applier re-validates
+   * selection + keystone qualification + full charge under the row
+   * lock and zeroes the pool — or accrues at actionSkillChargeRate
+   * when null.
+   */
+  actionSkillTree?: string | null;
+  /** Route-resolved charge accrual rate (memory mirror; SQL reads its own config). */
+  actionSkillChargeRate?: number;
 }
 
 /**
@@ -225,6 +252,15 @@ export interface ApplyEndlessEncounterInput {
   capReached: boolean;
   /** Route-resolved death fraction (memory mirror; SQL reads its own config). */
   deathPayoutFraction: number;
+  /**
+   * Action skill tree fired in this encounter (0030), or null. The
+   * applier validates + spends (or accrues at actionSkillChargeRate)
+   * exactly like the boss applier; a run-ending encounter resets the
+   * pool after the spend/accrue.
+   */
+  actionSkillTree?: string | null;
+  /** Route-resolved charge accrual rate (memory mirror; SQL reads its own config). */
+  actionSkillChargeRate?: number;
 }
 
 /** cc_end_endless_run input (migration 0028) — voluntary bank. */
@@ -356,6 +392,19 @@ export interface ChefGameplayStore {
    */
   resurrect(playerId: string, input: ResurrectInput): Promise<Json>;
   applyChefBossAttempt(playerId: string, attempt: ChefBossAttemptInput): Promise<Json>;
+  /**
+   * The action-skill facts for the /api/action-skill routes (0030):
+   * skill spends, the equipped class mod payload, the charge pool,
+   * and the recorded selection — all server records.
+   */
+  getActionSkillFacts(playerId: string): Promise<ActionSkillFacts | null>;
+  /**
+   * Record (or clear, tree = null) the player's active action skill
+   * selection (cc_set_action_skill_selection, 0030). The applier
+   * validates the choice against keystone qualification derived from
+   * the player's own records; nonce-idempotent via the ledger.
+   */
+  setActionSkillSelection(playerId: string, nonce: string, tree: string | null): Promise<Json>;
   /**
    * Victories against one boss since `dayStartIso` (UTC day start),
    * counted from the verified action ledger — the source for the
@@ -528,7 +577,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getBossProfile(playerId: string): Promise<BossProfileRow | null> {
     return this.one(
-      'select player_level, credits, consumables, boss_state, skill_spends from public.profiles where id = $1',
+      'select player_level, credits, consumables, boss_state, skill_spends, action_skill_charge, action_skill_selection from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -536,8 +585,45 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         consumables: json(row.consumables),
         boss_state: json(row.boss_state),
         skill_spends: json(row.skill_spends),
+        action_skill_charge: num(row.action_skill_charge),
+        action_skill_selection:
+          row.action_skill_selection === null || row.action_skill_selection === undefined
+            ? null
+            : String(row.action_skill_selection),
       }),
     );
+  }
+
+  async getActionSkillFacts(playerId: string): Promise<ActionSkillFacts | null> {
+    const profile = await this.one(
+      'select skill_spends, action_skill_charge, action_skill_selection from public.profiles where id = $1',
+      [playerId],
+      (row) => ({
+        skill_spends: json(row.skill_spends),
+        action_skill_charge: num(row.action_skill_charge),
+        action_skill_selection:
+          row.action_skill_selection === null || row.action_skill_selection === undefined
+            ? null
+            : String(row.action_skill_selection),
+      }),
+    );
+    if (!profile) return null;
+    const mod = await this.one(
+      `select payload from public.item_instances
+        where owner_user_id = $1 and runtime_state = 'equipped' and payload ? 'treeBonus'
+        limit 1`,
+      [playerId],
+      (row) => json(row.payload),
+    );
+    return { ...profile, class_mod_payload: (mod ?? {}) as Json };
+  }
+
+  setActionSkillSelection(playerId: string, nonce: string, tree: string | null): Promise<Json> {
+    return this.callJson('select public.cc_set_action_skill_selection($1, $2, $3) as result', [
+      playerId,
+      nonce,
+      tree,
+    ]);
   }
 
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
@@ -750,7 +836,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   applyChefBossAttempt(playerId: string, attempt: ChefBossAttemptInput): Promise<Json> {
     return this.callJson(
-      'select public.cc_apply_chef_boss_attempt($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) as result',
+      'select public.cc_apply_chef_boss_attempt($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) as result',
       [
         playerId,
         attempt.bossId,
@@ -763,6 +849,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         attempt.unlockedBossId,
         attempt.scrap,
         attempt.entryFee,
+        attempt.actionSkillTree ?? null,
       ],
     );
   }
@@ -779,7 +866,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   applyEndlessEncounter(playerId: string, input: ApplyEndlessEncounterInput): Promise<Json> {
     return this.callJson(
-      'select public.cc_apply_endless_encounter($1, $2, $3, $4, $5, $6, $7, $8, $9) as result',
+      'select public.cc_apply_endless_encounter($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) as result',
       [
         playerId,
         input.nonce,
@@ -790,6 +877,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         input.encounter,
         (input.milestoneDrop ?? null) as unknown as Json,
         input.capReached,
+        input.actionSkillTree ?? null,
       ],
     );
   }

@@ -631,3 +631,68 @@ tables, elite law, essence homes, signature materials),
   vehicle with its affixes and condition). Golden-image regression
   (`src/test/goldenImages.test.ts`) pins the key scenes; baselines
   regenerate with `npm run golden:update`.
+
+## 14. Action Skills (migration 0030)
+
+One signature charged ability per skill tree, fired inside boss
+attempts and endless encounters (never in roaming claims). Content
+owner: `src/content/actionSkills.ts`; all magnitudes and charge
+rates are live levers (economy config) with the defaults below.
+
+**Unlock + selection.** A tree's signature unlocks when the player
+owns that tree's keystone at effective points ≥ 1 — derived
+server-side from skill spends + the equipped class mod (node boosts
+and tree bonus), never from a client claim. A player qualified in
+several trees records ONE active signature
+(`profiles.action_skill_selection`, changeable where respec happens,
+`POST /api/action-skill/select`); a selection whose keystone is
+respecced away stops resolving and cannot fire. No keystone = no
+action skill.
+
+**Charge.** One pool, 0–100 (`profiles.action_skill_charge`).
+Accrues from verified server settlements only: +34 per boss attempt
+and +20 per endless encounter (levers
+`actionSkillChargePerBossAttempt` / `...PerEndlessEncounter`); a
+Fixer-selected player also gains +3 per craft unit completed and
++0.2 per repair condition point restored (levers, Fixer brief §3.7).
+Endless charge carries across encounters within a run and resets to
+0 at any run end (bank, death, depth cap, abandon-settle). Firing
+requires a full pool, is validated inside the same server-owned
+resolution (the client sends only a boolean intent), zeroes the
+pool, and grants no accrual for that resolution; nonce replays
+return the stored result and never double-fire.
+
+**The four signatures** (defaults; clamps in the lever registry):
+- **Gunslinger — Deadeye Salvo.** Flat damage = 12% of the target's
+  max health (`gunslingerBurstBossHpShare` 0.12, clamp [0, 0.35]),
+  resolved inside the sim: it joins netBossHp (kill clock) and, via
+  the burst-exposure fold, cuts the boss's total damage by the same
+  share. Measured: TTK −12.5…−15.1% at every tier; win-chance
+  +0.00…+0.06 median (max +0.11).
+- **Demolition — Saturation Strike.** Flat damage = 7% of max
+  health, plus break bonuses = 35% of the target's shield/armor
+  pools added to the sim's break totals, plus a stagger window
+  (50% uptime × 30% mitigation) folded into the existing stagger
+  term — no parallel combat math. Measured: win-chance +0.10 median
+  on strong builds, +0.24…+0.52 on under-geared builds, max +0.57,
+  concentrated on break-gated fights.
+- **Scavenger — Cache Surge.** No sim effect: on a victorious fired
+  resolution, +2 extra weapon rolls (`scavengerSurgeBonusRolls`,
+  clamp [0, 5]) through the shipped drop pipeline with surge rarity
+  weights (Epic ×1.5, Legendary ×2 — `scavengerSurgeLegendaryWeightMult`
+  hard-clamped [1, 3]). Never the dedicated boss roll; surge drops
+  ride the normal loot arrays and drop meters.
+- **Fixer — Overclock** (brief §3.7, one pool, two fires). Combat
+  fire: the attempt's prepared consumables read at quality ×1.25
+  (`overclockQualityMultiplier`, clamp [1.0, 1.5]). Workshop fire
+  (its own server op): instantly completes the in-progress unit on
+  every active bench through the normal craft settler — identical
+  outputs, quality, and XP; it buys time, never output — and
+  refuses (without spending) when no unit is in progress.
+
+**Balance band** (generator par builds, bosses within ±6 levels):
+a fire must never make a fight worse, a single fire's win-chance
+delta stays ≤ +0.65, and a hopeless fight (no weapons) stays at the
+0.02 floor — flat damage cannot fabricate a win. Firing mints and
+destroys no currency; fires are metered per tree per day
+(`action_skill_fires_*`).

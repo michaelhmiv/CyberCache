@@ -10,7 +10,7 @@
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
-import { mountChefHealthRoute, mountGameplayRoutes } from './gameplay/routes';
+import { mountActionSkillRoutes, mountChefHealthRoute, mountGameplayRoutes } from './gameplay/routes';
 import { PgChefGameplayStore } from './gameplay/store';
 import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 import { mountAuthRoutes } from './auth/routes';
@@ -95,7 +95,8 @@ if (chefJwtSecret && databaseUrl) {
       console.log('[chef-reads] read APIs mounted (Route B B2)');
       // Route B write APIs (slice B3) — same gate: every mutation derives
       // its actor from the Chef JWT and lands in the cc_* write functions.
-      mountWriteRoutes(app, new PgWriteStore(pool), { jwtSecret: chefJwtSecret });
+      const writeStore = new PgWriteStore(pool);
+      mountWriteRoutes(app, writeStore, { jwtSecret: chefJwtSecret });
       console.log('[chef-writes] write APIs mounted (Route B B3)');
       // Economy observability (0018): one store + one lever accessor,
       // shared by the gameplay routes (lever consumers) and the job
@@ -106,7 +107,14 @@ if (chefJwtSecret && databaseUrl) {
       // (/api/claim, /api/settle-offline, /api/verify-boss, /api/salvage)
       // on Chef JWT auth + the Postgres gameplay store. With this mount
       // the Chef has no Supabase dependency left.
-      mountGameplayRoutes(app, new PgChefGameplayStore(pool), {
+      const gameplayStore = new PgChefGameplayStore(pool);
+      mountGameplayRoutes(app, gameplayStore, {
+        jwtSecret: chefJwtSecret,
+        economyConfig,
+      });
+      // Action skill routes (0030): state/selection on the gameplay
+      // store, the Overclock workshop fire on the write store.
+      mountActionSkillRoutes(app, gameplayStore, writeStore, {
         jwtSecret: chefJwtSecret,
         economyConfig,
       });
