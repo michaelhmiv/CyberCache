@@ -57,6 +57,9 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `repair_fees_destroyed` | Σ service fees destroyed at settlement — these also fold into `credits_destroyed_total` |
 | `repair_kits_consumed` | Patch kits burned that day across BOTH lanes (board jobs + timed self-repair units) |
 | `repair_xp_awarded` | Σ player XP paid by board settlements (2/point restored at the default lever) |
+| `legendaries_salvaged` | Legendary items destroyed by salvage that day (`cc_recycle_item` rows whose result item is Legendary). A DESTRUCTION meter — deliberately separate from the `legendaries_*` creation meters above; a legendary is counted once at creation (by source) and once here when it dies, never twice in the same meter |
+| `legendary_cores_minted` | Σ `cores_award` over the day's `cc_recycle_item` rows — cores enter supply only when a Legendary is salvaged (migration 0026) |
+| `legendary_cores_spent` | Σ `escrow_cores` over the day's `cc_enqueue_craft_job` rows − Σ `cores_refunded` over the day's `cc_cancel_craft_job` rows — cores held in craft escrow for the Legendary Core Catalyst. (Escrowed cores are out of the player's balance but not destroyed; if reforge later destroys cores outright, it gets its own sink meter rather than reusing this one) |
 
 Transfers are not mints or sinks: a market sale's principal moves
 buyer → seller (only the destroyed fee leaves supply), and repair
@@ -181,3 +184,38 @@ Epic — not a number; it lives in `roamingEvents.ts` as a constant).
 Fragments gained a second faucet from events (cache finds, storm
 doubling, elite bonus); the combined rate is band-tested in
 `src/test/overhaulMechanics.test.ts`.
+
+## Legendary cores (migration 0026, collections slice)
+
+Cores are the sink-loop currency for duplicate/unwanted legendaries:
+they are minted ONLY by salvaging Legendary gear and are priced to
+stay scarce.
+
+**Yield** (`legendaryCoreYieldFor` in `src/content/collections.ts`;
+the SQL inside `cc_recycle_item` mirrors it and parity tests pin the
+two): 1 base for any Legendary, +1 at item level 25, +1 at item
+level 50, +1 for a weapon carrying a legendary effect — range 1–4.
+Nothing multiplies cores: Market Crash's 4× and the Scavenger
+salvage skills are SCRAP economy (their defs say "scrap value"), and
+they compose with the core yield by leaving it untouched.
+
+**Scarcity math:** roaming legendary weights were cut to ×0.1 in the
+tuning slice, so legendaries arrive slowly; a low-level non-weapon
+legendary — the common salvage — yields exactly 1 core, and even the
+single most valuable salvage in the game (a level-50+ effect weapon)
+yields 4. Core-priced spends are denominated in whole cores per unit
+(the crafting catalyst below; reforge next), so every spend costs at
+least one whole legendary.
+
+**Spends in this slice:** the Legendary Core Catalyst — gear-frame
+craft jobs escrow 1 core per unit at enqueue (Forge/bench 2+,
+mutually exclusive with the material catalyst) and each completed
+unit generates with +2 draws (best-of-N rollQuality, the gear
+system's quality currency — the same lever tempering uses). Cancels
+refund escrowed cores on the material catalyst's schedule (full for
+unstarted units, half floored for the in-progress unit).
+
+**Watch:** `legendary_cores_minted` vs `legendary_cores_spent` per
+day, and the minted/salvaged ratio (average yield per destroyed
+legendary should sit between 1 and 4 — outside that band, something
+is mis-attributing).

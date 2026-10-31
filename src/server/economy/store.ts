@@ -53,6 +53,10 @@ export interface EconomyMetricsRow {
   gearItemsCrafted: number;
   craftedMarketSales: number;
   craftedMarketVolume: number;
+  /** Legendary salvage + core meters (migration 0026). */
+  legendariesSalvaged: number;
+  legendaryCoresMinted: number;
+  legendaryCoresSpent: number;
   computedAt: string;
 }
 
@@ -101,6 +105,9 @@ interface PgMetricsRow {
   gear_items_crafted?: number;
   crafted_market_sales?: number;
   crafted_market_volume?: string;
+  legendaries_salvaged?: number;
+  legendary_cores_minted?: string;
+  legendary_cores_spent?: string;
   computed_at: string;
 }
 
@@ -142,6 +149,9 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     gearItemsCrafted: Number(r.gear_items_crafted ?? 0),
     craftedMarketSales: Number(r.crafted_market_sales ?? 0),
     craftedMarketVolume: Number(r.crafted_market_volume ?? 0),
+    legendariesSalvaged: Number(r.legendaries_salvaged ?? 0),
+    legendaryCoresMinted: Number(r.legendary_cores_minted ?? 0),
+    legendaryCoresSpent: Number(r.legendary_cores_spent ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -158,6 +168,7 @@ const METRICS_COLUMNS = `
   market_listings_created, market_sales, market_volume,
   market_median_price, market_median_by_rarity,
   cache_keys_from_ads, cache_opens, cache_fragments_awarded,
+  legendaries_salvaged, legendary_cores_minted, legendary_cores_spent,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

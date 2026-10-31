@@ -23,6 +23,7 @@ import type { Json } from '../writes/store';
 import type { GearItem, Vehicle } from '../../types/items';
 import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
 import { finalizePendingCraftedGear } from '../writes/craftFinalize';
+import type { DiscoveryRecord } from '../../content/collections';
 
 export type { Json };
 
@@ -293,6 +294,14 @@ export interface ChefGameplayStore {
    */
   settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
+  /**
+   * Record collection discoveries proven by a settled server-side
+   * fact (cc_record_discoveries, 0026). Entries are derived by the
+   * routes from Chef/store results — never from the request body.
+   * Insert-on-conflict-do-nothing; records, never pays. Routes call
+   * it log-and-continue (the 0023 telemetry precedent).
+   */
+  recordDiscoveries(playerId: string, entries: DiscoveryRecord[]): Promise<Json>;
 }
 
 type Row = Record<string, unknown>;
@@ -533,6 +542,13 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     return this.callJson('select public.cc_store_chef_items($1, $2) as result', [
       playerId,
       JSON.stringify(items),
+    ]);
+  }
+
+  recordDiscoveries(playerId: string, entries: DiscoveryRecord[]): Promise<Json> {
+    return this.callJson('select public.cc_record_discoveries($1, $2::jsonb) as result', [
+      playerId,
+      JSON.stringify(entries),
     ]);
   }
 

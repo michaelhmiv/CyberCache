@@ -73,6 +73,7 @@ import {
   repairWorkRatePointsPerHour,
 } from '../../content/repair.js';
 import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
+import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections.js';
 import {
   buildRepairBoardView,
   resolveRepairLevers,
@@ -207,6 +208,7 @@ export class InMemoryWriteStore implements WriteStore {
   private activities = new Map<string, ActiveActionData>();
   private snapshots = new Map<string, RuntimeSnapshotData>();
   private combatStats = new Map<string, CombatStatsData>();
+  private discoveries = new Map<string, DiscoveryRecord & { discovered_at: string }>();
   private devices = new Map<string, PushDeviceData>();
   private ledger = new Map<string, LedgerEntryData>();
 
@@ -429,6 +431,7 @@ export class InMemoryWriteStore implements WriteStore {
       scrap: p.scrap,
       cache_tokens: p.cache_tokens,
       cache_token_parts: p.cache_token_parts,
+      legendary_cores: p.legendary_cores ?? 0,
       materials: clone(p.materials),
       essences: clone(p.essences),
       consumables: clone(p.consumables),
@@ -1105,22 +1108,63 @@ export class InMemoryWriteStore implements WriteStore {
       materials[bonusMaterial] = (materials[bonusMaterial] ?? 0) + 1;
       p.materials = materials;
     }
+    // Legendary cores (0026): the SQL twin mints them inside
+    // cc_recycle_item. The yield comes from the one formula in
+    // src/content/collections.ts and is deliberately NOT scaled by
+    // the scrap bonuses above (Market Crash 4x included).
+    const cores = legendaryCoreYieldFor({
+      rarity: item.rarity,
+      item_level: item.item_level,
+      kind: item.kind,
+      payload: (item.payload ?? {}) as Record<string, unknown>,
+    });
     item.runtime_state = 'consumed';
     item.tradeable = false;
     item.equipped_slot = null;
     this.touchItem(item);
     this.recalcNetWorth(playerId);
     p.scrap += award;
+    p.legendary_cores = (p.legendary_cores ?? 0) + cores;
     this.touch(p);
     const result: Json = {
       action_type: 'cc_recycle_item',
       profile: this.profileSnapshot(p),
       item: this.itemJson(item),
       scrap_award: award,
+      cores_award: cores,
       bonus_material: bonusMaterial,
       loadout: this.loadoutSnapshot(playerId),
     };
     return this.record(playerId, 'cc_recycle_item', key, result);
+  }
+
+  /**
+   * Collection discoveries (0026): the in-memory twin of
+   * cc_record_discoveries — insert-on-conflict-do-nothing against the
+   * (player, family, entry) key. Test-visible via discoveriesFor().
+   */
+  async recordDiscoveries(playerId: string, entries: DiscoveryRecord[]): Promise<Json> {
+    let recorded = 0;
+    for (const entry of entries ?? []) {
+      if (!entry?.family || !entry?.entry_key) continue;
+      const key = `${playerId}:${entry.family}:${entry.entry_key}`;
+      if (this.discoveries.has(key)) continue;
+      this.discoveries.set(key, {
+        family: entry.family,
+        entry_key: entry.entry_key,
+        source: entry.source || 'unknown',
+        discovered_at: this.nowIso(),
+      });
+      recorded += 1;
+    }
+    return { recorded };
+  }
+
+  /** Test/read accessor: this player's recorded discovery rows. */
+  discoveriesFor(playerId: string): (DiscoveryRecord & { discovered_at: string })[] {
+    return [...this.discoveries.entries()]
+      .filter(([key]) => key.startsWith(`${playerId}:`))
+      .map(([, value]) => ({ ...value }));
   }
 
   async itemLock(playerId: string, nonce: string, itemId: string, locked: boolean): Promise<Json> {
@@ -1354,6 +1398,7 @@ export class InMemoryWriteStore implements WriteStore {
         essences: asNumberMap(p.essences),
         consumables: asNumberMap(p.consumables),
         workshop_benches: p.workshop_benches ?? 1,
+        legendary_cores: p.legendary_cores ?? 0,
         workshop_tools: {
           owned: { ...(rawTools.owned ?? {}) },
           fitted: { ...(rawTools.fitted ?? {}) },
@@ -1370,6 +1415,7 @@ export class InMemoryWriteStore implements WriteStore {
       view.player_xp = p.player_xp;
       view.credits = p.credits;
       view.workshop_benches = p.workshop_benches ?? view.workshop_benches;
+      view.legendary_cores = p.legendary_cores ?? view.legendary_cores;
       view.offline_cap_hours = p.offline_cap_hours ?? null;
     }
     return view;
@@ -1383,6 +1429,7 @@ export class InMemoryWriteStore implements WriteStore {
     p.player_level = view.player_level;
     p.player_xp = view.player_xp;
     p.credits = view.credits;
+    p.legendary_cores = view.legendary_cores;
     p.workshop_benches = view.workshop_benches;
     p.workshop_tools = clone(view.workshop_tools) as unknown as Record<string, unknown>;
     this.touch(p);
@@ -1557,6 +1604,7 @@ export class InMemoryWriteStore implements WriteStore {
         units: input.units,
         rarity: input.rarity ?? null,
         useCatalyst: input.useCatalyst ?? false,
+        useCoreCatalyst: input.useCoreCatalyst ?? false,
         useRushTicket: input.useRushTicket ?? false,
         consumableEfficiencyBonus: this.craftEfficiencyBonus(playerId),
       }),
@@ -1567,6 +1615,7 @@ export class InMemoryWriteStore implements WriteStore {
       action_type: 'cc_enqueue_craft_job',
       profile: this.profileSnapshot(p),
       job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+      escrow_cores: job.escrow_cores ?? 0,
     };
     return this.record(playerId, 'cc_enqueue_craft_job', key, result);
   }
@@ -1584,6 +1633,7 @@ export class InMemoryWriteStore implements WriteStore {
       job_id: cancelled.jobId,
       refunded_inputs: cancelled.refundedInputs,
       rush_ticket_refunded: cancelled.rushTicketRefunded,
+      cores_refunded: cancelled.coresRefunded,
     };
     return this.record(playerId, 'cc_cancel_craft_job', key, result);
   }

@@ -32,6 +32,7 @@ import {
   type RepairVehicleInfo,
 } from './repairBoard.js';
 import { resolveEconomyConfigValues } from '../economy/config.js';
+import type { DiscoveryRecord } from '../../content/collections.js';
 
 export type Json = Record<string, unknown>;
 
@@ -731,6 +732,8 @@ export interface EnqueueCraftJobInput {
   units: number;
   rarity?: string | null;
   useCatalyst?: boolean;
+  /** Legendary Core Catalyst (0026): gear frames only, 1 core/unit. */
+  useCoreCatalyst?: boolean;
   useRushTicket?: boolean;
 }
 
@@ -764,6 +767,13 @@ export interface WriteStore {
     reason: string | null,
   ): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
+  /**
+   * Record collection discoveries proven by a settled server-side
+   * fact (cc_record_discoveries, 0026). Entries are derived by the
+   * route from the operation's own result — never from the request
+   * body. Insert-on-conflict-do-nothing; records, never pays.
+   */
+  recordDiscoveries(playerId: string, entries: DiscoveryRecord[]): Promise<Json>;
   itemLock(playerId: string, nonce: string, itemId: string, locked: boolean): Promise<Json>;
   equipItem(playerId: string, nonce: string, itemId: string, slotName: string): Promise<Json>;
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json>;
@@ -905,6 +915,7 @@ function mapCraftJobRow(row: Row): CraftJobRecord {
     status: String(row.status) as CraftJobRecord['status'],
     escrow_inputs: (row.escrow_inputs ?? {}) as Record<string, number>,
     escrow_catalyst: (row.escrow_catalyst ?? {}) as Record<string, number>,
+    escrow_cores: Number(row.escrow_cores ?? 0),
     rush_ticket_quality:
       row.rush_ticket_quality === null || row.rush_ticket_quality === undefined
         ? null
@@ -1054,6 +1065,12 @@ export class PgWriteStore implements WriteStore {
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json> {
     return this.callJson('select public.cc_recycle_item($1, $2, $3) as result', [playerId, nonce, itemId]);
   }
+  recordDiscoveries(playerId: string, entries: DiscoveryRecord[]): Promise<Json> {
+    return this.callJson('select public.cc_record_discoveries($1, $2::jsonb) as result', [
+      playerId,
+      JSON.stringify(entries),
+    ]);
+  }
   itemLock(playerId: string, nonce: string, itemId: string, locked: boolean): Promise<Json> {
     return this.callJson('select public.cc_item_lock($1, $2, $3, $4) as result', [playerId, nonce, itemId, locked]);
   }
@@ -1094,10 +1111,11 @@ export class PgWriteStore implements WriteStore {
   async enqueueCraftJob(playerId: string, nonce: string, input: EnqueueCraftJobInput): Promise<Json> {
     const bonus = await this.consumableEfficiencyBonus(playerId);
     const result = await this.callJson(
-      'select public.cc_enqueue_craft_job($1, $2, $3, $4, $5, $6, $7, $8, $9) as result',
+      'select public.cc_enqueue_craft_job($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) as result',
       [
         playerId, nonce, input.bench, input.recipeId, input.units,
         input.rarity ?? null, input.useCatalyst ?? false, input.useRushTicket ?? false, bonus,
+        input.useCoreCatalyst ?? false,
       ],
     );
     // The enqueue settles first inside SQL; a settled gear unit waits

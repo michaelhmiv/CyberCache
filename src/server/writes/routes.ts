@@ -53,6 +53,30 @@
 import type { Express, Request, Response } from 'express';
 import { chefPlayerId, type AuthConfig } from '../auth/routes';
 import { WriteStoreError, type Json, type WriteStore } from './store';
+import { discoveryEntriesForItem, type DiscoveryItemLike } from '../../content/collections';
+
+/**
+ * Collection discovery (0026): after a write op settles, record what
+ * the RESULT's item proves (cache forge, market purchase). Entries
+ * derive from the operation's own server-side result — never from
+ * the request body. Log-and-continue: the op already settled.
+ */
+async function recordResultItemDiscoveries(
+  store: WriteStore,
+  playerId: string,
+  result: Json,
+  source: string,
+): Promise<void> {
+  try {
+    const item = (result as Record<string, unknown> | null)?.item as DiscoveryItemLike | undefined;
+    if (!item) return;
+    const entries = discoveryEntriesForItem(item, source);
+    if (entries.length > 0) await store.recordDiscoveries(playerId, entries);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[writes] Failed to record collection discoveries:', message);
+  }
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -143,7 +167,11 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   };
 
   op('/api/ops/initial-bundle', async (playerId, req) => store.initialBundle(playerId, str(body(req).nonce)));
-  op('/api/ops/make-item', async (playerId, req) => store.makeItem(playerId, str(body(req).nonce)));
+  op('/api/ops/make-item', async (playerId, req) => {
+    const result = await store.makeItem(playerId, str(body(req).nonce));
+    await recordResultItemDiscoveries(store, playerId, result, 'cache_forge');
+    return result;
+  });
   op('/api/ops/claim-rewarded-cache-key', async (playerId, req) =>
     store.claimRewardedCacheKey(
       playerId,
@@ -205,6 +233,7 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       units,
       rarity: optStr(body(req).rarity),
       useCatalyst: body(req).use_catalyst === true,
+      useCoreCatalyst: body(req).use_core_catalyst === true,
       useRushTicket: body(req).use_rush_ticket === true,
     });
   });
@@ -312,7 +341,12 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   op('/api/ops/recycle-item', async (playerId, req, res) => {
     const itemId = uuidField(req, res, 'item_id', 'item id');
     if (!itemId) return null;
-    return store.recycleItem(playerId, str(body(req).nonce), itemId);
+    const result = await store.recycleItem(playerId, str(body(req).nonce), itemId);
+    // Salvaging proves the item was held: the collection log records
+    // the salvaged item too (idempotent — most were already logged
+    // when they dropped).
+    await recordResultItemDiscoveries(store, playerId, result, 'salvage');
+    return result;
   });
   op('/api/ops/item-lock', async (playerId, req, res) => {
     const itemId = uuidField(req, res, 'item_id', 'item id');
@@ -380,7 +414,9 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   op('/api/ops/market-accept', async (playerId, req, res) => {
     const listingId = uuidField(req, res, 'listing_id', 'listing id');
     if (!listingId) return null;
-    return store.acceptListing(playerId, str(body(req).nonce), listingId);
+    const result = await store.acceptListing(playerId, str(body(req).nonce), listingId);
+    await recordResultItemDiscoveries(store, playerId, result, 'market_purchase');
+    return result;
   });
   op('/api/ops/reset-progress', async (playerId, req) => store.resetProgress(playerId, str(body(req).nonce)));
 

@@ -21,6 +21,36 @@ import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfil
 import { isHotArea } from '../../content/hotArea';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
+import {
+  discoveryEntriesForItem,
+  eliteDiscovery,
+  type DiscoveryItemLike,
+  type DiscoveryRecord,
+} from '../../content/collections';
+
+/**
+ * Collection discovery (0026): the items are stored and the claim is
+ * paid — record what the settled drop proves, derived from the Chef's
+ * own output. Log-and-continue (the 0023 telemetry precedent): a
+ * recording failure must never fail a paid claim.
+ */
+export async function recordItemDiscoveries(
+  store: ChefGameplayStore,
+  playerId: string,
+  items: readonly unknown[],
+  source: string,
+): Promise<void> {
+  try {
+    const entries: DiscoveryRecord[] = [];
+    for (const item of items) {
+      entries.push(...discoveryEntriesForItem(item as DiscoveryItemLike, source));
+    }
+    if (entries.length > 0) await store.recordDiscoveries(playerId, entries);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[chef] Failed to record collection discoveries:', message);
+  }
+}
 
 export function createClaimHandler(
   store: ChefGameplayStore,
@@ -255,6 +285,7 @@ export function createClaimHandler(
           });
           return;
         }
+        await recordItemDiscoveries(store, playerId, result.items, 'roaming_drop');
       }
 
       // Persist consumable consumption atomically (server-authoritative).
@@ -344,6 +375,19 @@ export function createClaimHandler(
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error('[chef] Failed to record roaming events:', message);
+        }
+        // The area's named elite fell in this claim (0026): the
+        // escalated elite kill IS the collection fact.
+        if (result.eliteKills > 0) {
+          const elite = eliteDiscovery(body.areaId);
+          if (elite) {
+            try {
+              await store.recordDiscoveries(playerId, [elite]);
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              console.error('[chef] Failed to record elite discovery:', message);
+            }
+          }
         }
       }
 

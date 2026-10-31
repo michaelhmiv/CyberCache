@@ -11,6 +11,7 @@ const player: PlayerProfile = {
   scrap: 0,
   cacheKeys: 0,
   cacheKeyFragments: 0,
+  legendaryCores: 0,
   currentZoneId: 'zone-1',
   highestZoneId: 'zone-1',
   offlineCapHours: 8,

@@ -197,6 +197,18 @@ export class InMemoryEconomyStore implements EconomyStore {
       (i) => i.payload.origin === 'crafted' && inDay(i.created_at),
     ).length;
 
+    // Legendary salvage + cores (0026): recycle rows carry the
+    // consumed item + cores_award; core spend nets enqueue escrows
+    // against cancel refunds — the SQL function's attribution rules.
+    const recycleRows = rows.filter((r) => r.action_type === 'cc_recycle_item');
+    const legendariesSalvaged = recycleRows.filter(
+      (r) => dig(r.result_payload, 'item', 'rarity') === 'Legendary',
+    ).length;
+    const legendaryCoresMinted = sumBy(['cc_recycle_item'], (p) => num(dig(p, 'cores_award')));
+    const legendaryCoresSpent =
+      sumBy(['cc_enqueue_craft_job'], (p) => num(dig(p, 'job', 'escrow_cores')))
+      - sumBy(['cc_cancel_craft_job'], (p) => num(dig(p, 'cores_refunded')));
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
@@ -250,6 +262,9 @@ export class InMemoryEconomyStore implements EconomyStore {
         (acc, r) => acc + num(dig(r.result_payload, 'listing', 'price_credits')),
         0,
       ),
+      legendariesSalvaged,
+      legendaryCoresMinted,
+      legendaryCoresSpent,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

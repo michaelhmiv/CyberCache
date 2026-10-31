@@ -210,7 +210,24 @@ export type ResourceSilhouetteId =
   | 'level'
   | 'xp'
   | 'masteryPoint'
-  | 'loot';
+  | 'loot'
+  | 'legendaryCore';
+
+// A faceted power core: hexagonal housing, inner cell, glint.
+const LEGENDARY_CORE_SILHOUETTES: ResourceSilhouette[] = [
+  {
+    id: 'core-hex',
+    body: 'M12 2L20 6.5V17.5L12 22L4 17.5V6.5L12 2Z',
+    core: 'M12 6.5L16.5 9.25V14.75L12 17.5L7.5 14.75V9.25L12 6.5Z',
+    highlight: 'M12 9.5L14.25 10.75V13.25L12 14.5L9.75 13.25V10.75L12 9.5Z',
+  },
+  {
+    id: 'core-gem',
+    body: 'M7 3H17L21 9L12 21L3 9L7 3Z',
+    core: 'M9 6H15L17.5 9.5L12 17L6.5 9.5L9 6Z',
+    highlight: 'M10.5 8.5H13.5L15 10.5L12 14L9 10.5L10.5 8.5Z',
+  },
+];
 
 export const RESOURCE_SILHOUETTES: Record<ResourceSilhouetteId, ResourceSilhouette[]> = {
   credits: CREDITS_SILHOUETTES,
@@ -221,6 +238,7 @@ export const RESOURCE_SILHOUETTES: Record<ResourceSilhouetteId, ResourceSilhouet
   xp: XP_SILHOUETTES,
   masteryPoint: MASTERY_SILHOUETTES,
   loot: LOOT_SILHOUETTES,
+  legendaryCore: LEGENDARY_CORE_SILHOUETTES,
 };
 
 /** Deterministic silhouette picker — same seed always gets the same variant. */

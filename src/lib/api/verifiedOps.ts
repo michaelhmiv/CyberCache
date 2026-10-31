@@ -123,3 +123,22 @@ export const fetchWorkshopState = async (): Promise<VerifiedResult> =>
  */
 export const fetchRepairBoard = async (): Promise<VerifiedResult> =>
   apiRequest<VerifiedResult>('/repair/board', { method: 'GET' });
+
+/** One collection_discoveries row as served by GET /api/collections/me (0026). */
+export interface CollectionDiscoveryPayload {
+  family: string;
+  entry_key: string;
+  source: string;
+  discovered_at: string;
+}
+
+/** The collection log read (GET /api/collections/me): proven
+ *  discoveries + the legendary core balance. A read, not a verified
+ *  op — it carries no profile snapshot to sync. */
+export interface CollectionsPayload {
+  legendary_cores: number;
+  discoveries: CollectionDiscoveryPayload[];
+}
+
+export const fetchCollections = async (): Promise<CollectionsPayload> =>
+  apiRequest<CollectionsPayload>('/collections/me', { method: 'GET' });

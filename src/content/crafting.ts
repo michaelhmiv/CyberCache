@@ -318,6 +318,18 @@ export const CATALYST_MIN_BONUS = 10;
 export const CATALYST_MAX_BONUS = 15;
 export const CATALYST_REQUIRES_BENCH = 2;
 
+/**
+ * Legendary Core Catalyst (0026, collections slice): gear-frame jobs
+ * may escrow ONE legendary core per unit instead of a material
+ * catalyst. Gear quality is priced in generation DRAWS (best-of-N
+ * rollQuality — the same lever tempering uses), so the core buys
+ * +2 draws per completed unit. Mutually exclusive with the material
+ * catalyst; Forge-gated (CATALYST_REQUIRES_BENCH) like it. SQL twin:
+ * cc_enqueue_craft_job / cc_settle_craft_jobs in migration 0026.
+ */
+export const CORE_CATALYST_DRAWS_BONUS = 2;
+export const CORE_CATALYST_CORES_PER_UNIT = 1;
+
 // ─── The catalog ─────────────────────────────────────────────────────
 
 export const ALL_CRAFT_RECIPES: readonly CraftRecipe[] = [
