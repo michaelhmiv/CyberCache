@@ -14,6 +14,8 @@
  *   POST /api/ops/item-lock                 verifiedOps.setItemLock             cc_item_lock(...)
  *   POST /api/ops/equip-item                verifiedOps.equipItem               cc_equip_item(...)
  *   POST /api/ops/unequip-slot              verifiedOps.unequipSlot             cc_unequip_slot(...)
+ *   POST /api/ops/refuel-vehicle            verifiedOps.refuelVehicle           cc_refuel_vehicle(...)
+ *   POST /api/ops/use-patch-kit             verifiedOps.usePatchKit             cc_use_patch_kit(...)
  *   POST /api/ops/idle-claim                verifiedOps.claimIdleRewards        cc_idle_claim(nonce)
  *   POST /api/ops/retrain                   verifiedOps.retrainSkills           cc_retrain(nonce)
  *   POST /api/ops/train-skill               verifiedOps.trainSkill              cc_train_skill(...)
@@ -211,6 +213,16 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   });
   op('/api/ops/unequip-slot', async (playerId, req) =>
     store.unequipSlot(playerId, str(body(req).nonce), str(body(req).slot_name)));
+  op('/api/ops/refuel-vehicle', async (playerId, req, res) => {
+    const cells = numField(req, res, 'cells', 'cells value');
+    if (cells === null) return null;
+    return store.refuelVehicle(playerId, str(body(req).nonce), cells);
+  });
+  op('/api/ops/use-patch-kit', async (playerId, req, res) => {
+    const itemId = uuidField(req, res, 'item_id', 'item id');
+    if (!itemId) return null;
+    return store.usePatchKit(playerId, str(body(req).nonce), itemId);
+  });
   op('/api/ops/idle-claim', async (playerId, req) => store.idleClaim(playerId, str(body(req).nonce)));
   // NOTE: /api/ops/claim-roaming (cc_claim_roaming_rewards) was removed
   // with the ticker's silent fallback — it paid stale flat rates and

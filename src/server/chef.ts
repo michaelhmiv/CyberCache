@@ -26,6 +26,17 @@ import { generateShield } from './lib/generators/shieldGenerator';
 import { generateClassMod } from './lib/generators/classModGenerator';
 import { generateRelic } from './lib/generators/relicGenerator';
 import { generateOrdnance } from './lib/generators/ordnanceGenerator';
+import { generateVehicle } from './lib/generators/vehicleGenerator';
+import {
+  VEHICLE_DROP_SHARE,
+  conditionFraction,
+  effectiveVehicleYield,
+  vehicleAffixTotals,
+  vehicleBurnPerTick,
+  vehicleDecayPerTick,
+  vehicleMaterialBonusChance,
+} from '../lib/vehicles/vehicles';
+import type { Vehicle } from '../types/items';
 import {
   getRoamingArea,
   rollAreaDropKind,
@@ -165,7 +176,23 @@ export interface ClaimRequest {
     fragmentChance?: number;
     /** Multiplier on the Legendary weight of area drop tables. */
     roamingLegendaryScalar?: number;
+    /** Multiplier on the equipped vehicle's yield bonus (vehicleYieldScalar lever). */
+    vehicleYieldScalar?: number;
   };
+  /**
+   * The equipped vehicle, derived by the claim routes from the
+   * server's own records (the equipped item_instances row's payload
+   * + condition columns, and profiles.vehicle_fuel) — never from the
+   * request body. Absent/null = roaming on foot at ×1.0. Boss
+   * attempts never carry this: vehicles do not affect boss sims.
+   */
+  vehicle?: {
+    vehicle: Vehicle;
+    conditionCurrent: number;
+    conditionMax: number;
+    /** Fuel units in the tank at claim start (profiles.vehicle_fuel). */
+    fuelUnits: number;
+  } | null;
 }
 
 export interface ClaimResult {
@@ -187,7 +214,8 @@ export interface ClaimResult {
     essences: Record<string, number>;
     killsRecorded: number;
   };
-  items: GearItem[];
+  /** Generated drops: gear, plus vehicle instances (kind 'vehicle' when stored). */
+  items: Array<GearItem | Vehicle>;
   feedEvents: unknown[];
   /** Server-authoritative kill cycle state for client synchronization. */
   killCycle: {
@@ -218,6 +246,27 @@ export interface ClaimResult {
     nanoSwarmTicksRemaining: number;
     adrenalineActive: boolean;
     shieldCellResistance: number;
+  };
+  /**
+   * Vehicle outcome for this claim (Phase 2b). The routes persist
+   * fuelUnitsRemaining + conditionCurrent through cc_apply_vehicle_
+   * usage; the client renders status from it. equipped=false means
+   * the whole claim ran on foot.
+   */
+  vehicle: {
+    equipped: boolean;
+    vehicleClassId: string | null;
+    /** Ticks the yield bonus was active (fueled) during this claim. */
+    activeTicks: number;
+    ticks: number;
+    fuelUnitsStart: number;
+    fuelUnitsRemaining: number;
+    fuelConsumed: number;
+    conditionStart: number;
+    conditionCurrent: number;
+    conditionMax: number;
+    /** Why the bonus was off for the whole claim, when it was. */
+    inactiveReason: 'no_vehicle' | 'out_of_fuel' | null;
   };
   /** Consumables consumed during this claim batch (for inventory decrement). */
   consumedConsumables: Record<string, number>;
@@ -384,7 +433,11 @@ export function processRoamingClaim(
         !('weaponType' in g) &&
         !('damage' in g) &&
         !('hp' in g) &&
-        !('treeBonus' in g),
+        !('treeBonus' in g) &&
+        // A vehicle payload carries affixes too — it is never a relic.
+        // (Routes keep vehicles out of equippedGear entirely; this is
+        // the engine-level guard for direct callers.)
+        !('vehicleClassId' in g),
     ) ?? null;
   const slotShield =
     (equippedGear ?? []).find((g): g is import('../types/items').Shield => 'mitigation' in g) ?? null;
@@ -475,7 +528,7 @@ export function processRoamingClaim(
   let killsRecorded = 0;
   const materials: Record<string, number> = {};
   const essences: Record<string, number> = {};
-  const generatedItems: GearItem[] = [];
+  const generatedItems: Array<GearItem | Vehicle> = [];
   const feedEvents: unknown[] = [];
 
   const now = Date.now();
@@ -536,9 +589,33 @@ export function processRoamingClaim(
   }
   const consumedConsumables: Record<string, number> = {};
 
+  // Vehicle state for this claim (Phase 2b): fuel and condition are
+  // claim-start snapshots from the server's records; the per-tick
+  // loop below advances them and the result block reports the end
+  // state for the routes to persist. No vehicle (or an empty tank)
+  // leaves every yield at the on-foot baseline.
+  const vehicleInput = request.vehicle ?? null;
+  const vehicleStartFuel = vehicleInput ? Math.max(0, vehicleInput.fuelUnits) : 0;
+  const vehicleStartCondition = vehicleInput ? vehicleInput.conditionCurrent : 0;
+  let vehicleFuel = vehicleStartFuel;
+  let vehicleCondition = vehicleStartCondition;
+  let vehicleActiveTicks = 0;
+
   // Generate one area gear drop (drop-kind roll + shared generators).
   // Used by the primary loot roll and by Data Skimmer's extra roll.
-  const rollGearDrop = (dropRng: () => number): GearItem | undefined => {
+  const rollGearDrop = (dropRng: () => number, tickNumber: number): GearItem | Vehicle | undefined => {
+    // Vehicle drops (Phase 2b): a share of gear drops are vehicles
+    // instead. The decision rolls on a SEPARATE deterministic stream
+    // (seeded ':vehicle') so the main tick stream — and every
+    // determinism pin built on it — is bit-identical to pre-vehicle
+    // claims when the roll misses.
+    const vehicleRng = createTickRng(playerId, `${areaId}:vehicle`, tickNumber);
+    if (vehicleRng() < VEHICLE_DROP_SHARE) {
+      return generateVehicle(
+        { level: playerLevel, areaUnlockLevel: area.unlockLevel, rarityWeights: area.dropPoolRarityWeights },
+        vehicleRng,
+      );
+    }
     const kind = rollAreaDropKind(area, dropRng);
     switch (kind) {
       case 'weapon': {
@@ -571,7 +648,10 @@ export function processRoamingClaim(
   };
 
   // Rich detail line for a gear drop: rarity, type, power, element, manufacturer.
-  const gearFeedDetail = (gear: GearItem): string => {
+  const gearFeedDetail = (gear: GearItem | Vehicle): string => {
+    if ('vehicleClassId' in gear) {
+      return `${gear.rarity} vehicle · ${gear.name}`;
+    }
     const typeLabel = 'weaponType' in gear ? gear.weaponType : 'gear';
     const powerLabel = 'combatPower' in gear ? ` · ${gear.combatPower} Power` : '';
     const elemLabel = 'element' in gear ? ` · ${gear.element}` : '';
@@ -632,19 +712,53 @@ export function processRoamingClaim(
       }
     }
 
+    // --- Vehicle yield for this tick (Phase 2b) ---
+    // A fueled tick multiplies the tick's yields by the vehicle's
+    // effective factor (condition read at tick start, then wear and
+    // burn apply). An unfueled or unequipped tick is exactly the
+    // on-foot baseline — roaming never blocks on the vehicle.
+    let tickVehicleFactor = 1;
+    let tickVehicleScanner = 0;
+    let tickVehicleMaterialBonus = 0;
+    // Fuel dust (float residue after the last full burn, ~1e-16)
+    // does not start a fueled tick — a fueled tick needs real fuel.
+    if (vehicleInput && vehicleFuel > 1e-9) {
+      const burn = vehicleBurnPerTick(vehicleInput.vehicle);
+      tickVehicleFactor = effectiveVehicleYield(
+        vehicleInput.vehicle,
+        conditionFraction(vehicleCondition, vehicleInput.conditionMax),
+        request.economy?.vehicleYieldScalar ?? 1,
+      );
+      tickVehicleScanner = vehicleAffixTotals(vehicleInput.vehicle).scannerPct;
+      tickVehicleMaterialBonus = vehicleMaterialBonusChance(vehicleInput.vehicle);
+      vehicleFuel = Math.max(0, vehicleFuel - Math.min(burn, vehicleFuel));
+      vehicleCondition = Math.max(
+        0,
+        vehicleCondition - vehicleDecayPerTick(vehicleInput.vehicle, area.dangerRating),
+      );
+      vehicleActiveTicks++;
+    }
+    const tickCredits = effectiveCreditsPerTick * tickVehicleFactor;
+    const tickScrap = effectiveScrapPerTick * tickVehicleFactor;
+    const tickXp = effectiveXpPerTick * tickVehicleFactor;
+
     // Single cumulative roll (Phase 1a: no if/else-if probability distortion).
     // rareDropChance mod increases the gear threshold linearly.
     // Activity modifiers add on top: rareDropChanceMod + materialFindChance.
     // Consumable mods add: bonusLootChance (Luck Booster) + rareDropChanceMod.
+    // Vehicle: the loot-roll chances scale by the yield factor (more
+    // ground covered per tick = more finds), plus the scanner affix.
     const gearChance = clampChance(
       GEAR_THRESHOLD * (1 + totalRareDropMod + activityRareDropBonus + consumableMods.rareDropChanceMod)
+        * tickVehicleFactor * (1 + tickVehicleScanner)
       + consumableMods.bonusLootChance
     );
     const fragmentChance = Math.max(
       0,
-      (request.economy?.fragmentChance ?? FRAGMENT_CHANCE) * (1 + activityFragmentBonus),
+      (request.economy?.fragmentChance ?? FRAGMENT_CHANCE) * (1 + activityFragmentBonus)
+        * tickVehicleFactor * (1 + tickVehicleScanner),
     );
-    const materialChance = Math.max(0, MATERIAL_CHANCE * (1 + activityMaterialBonus));
+    const materialChance = Math.max(0, MATERIAL_CHANCE * (1 + activityMaterialBonus) * tickVehicleFactor);
     const gearThreshold = gearChance;
     const fragmentThreshold = Math.min(0.99, gearThreshold + fragmentChance);
     const materialThreshold = Math.min(0.99, fragmentThreshold + materialChance);
@@ -652,7 +766,7 @@ export function processRoamingClaim(
 
     if (roll < gearThreshold) {
       // Gear drop — generate the actual item server-side
-      const gear = rollGearDrop(rng);
+      const gear = rollGearDrop(rng, tickCount - ticks + tickIdx + 1);
 
       if (gear) {
         generatedItems.push(gear);
@@ -671,7 +785,7 @@ export function processRoamingClaim(
         // consumable contract repair the mod was produced every tick
         // and never read.
         if (consumableMods.extraLootRollChance > 0 && rng() < consumableMods.extraLootRollChance) {
-          const bonusGear = rollGearDrop(rng);
+          const bonusGear = rollGearDrop(rng, tickCount - ticks + tickIdx + 1);
           if (bonusGear) {
             generatedItems.push(bonusGear);
             feedEvents.push({
@@ -698,18 +812,26 @@ export function processRoamingClaim(
     } else if (roll < materialThreshold) {
       const find = rollAreaMaterialFind(area, rng);
       if (find) {
+        // Vehicle yield on finds: the factor's fractional part and
+        // the cargo bonus each give a chance at a bonus unit.
+        let quantity = 1;
+        if (tickVehicleFactor > 1 || tickVehicleMaterialBonus > 0) {
+          const bonusChance = (tickVehicleFactor - 1) + tickVehicleMaterialBonus;
+          if (rng() < bonusChance) quantity += 1;
+          if (rng() < bonusChance - 1) quantity += 1;
+        }
         if (find.kind === 'material') {
-          materials[find.type] = (materials[find.type] || 0) + 1;
+          materials[find.type] = (materials[find.type] || 0) + quantity;
         } else {
-          essences[find.type] = (essences[find.type] || 0) + 1;
+          essences[find.type] = (essences[find.type] || 0) + quantity;
         }
         feedEvents.push({
           at: now - (ticks - 1 - tickIdx) * TICK_MS,
           tone: find.kind === 'material' ? 'material' : 'essence',
-          label: `+1 ${find.type}`,
+          label: `+${quantity} ${find.type}`,
           detail: `Field sweep recovered ${find.type}.`,
           areaId,
-          value: 1,
+          value: quantity,
         });
       }
     } else {
@@ -718,17 +840,17 @@ export function processRoamingClaim(
       feedEvents.push({
         at: now - (ticks - 1 - tickIdx) * TICK_MS,
         tone: 'kill',
-        label: `+${parseFloat(effectiveCreditsPerTick.toFixed(2))}cr · +${parseFloat(effectiveScrapPerTick.toFixed(2))} scrap · +${parseFloat(effectiveXpPerTick.toFixed(2))} XP`,
+        label: `+${parseFloat(tickCredits.toFixed(2))}cr · +${parseFloat(tickScrap.toFixed(2))} scrap · +${parseFloat(tickXp.toFixed(2))} XP`,
         detail: `${area.enemyType} routed in ${area.name}.`,
         areaId,
-        value: effectiveCreditsPerTick,
+        value: tickCredits,
       });
     }
 
-    // Every tick awards base resources (with idle mods + skill bonuses + activity mods + consumable mods)
-    creditsFraction += effectiveCreditsPerTick;
-    scrapFraction += effectiveScrapPerTick * consumableMods.scrapYieldMultiplier;
-    xpFraction += effectiveXpPerTick * consumableMods.xpMultiplier;
+    // Every tick awards base resources (with idle mods + skill bonuses + activity mods + consumable mods + vehicle yield)
+    creditsFraction += tickCredits;
+    scrapFraction += tickScrap * consumableMods.scrapYieldMultiplier;
+    xpFraction += tickXp * consumableMods.xpMultiplier;
 
     // --- Kill cycle simulation (player → monster damage) ---
     const tickEffectiveDps = effectiveDps * consumableMods.dpsMultiplier + consumableMods.ordnanceBonusDps;
@@ -959,6 +1081,25 @@ export function processRoamingClaim(
         shieldCellResistance: ss?.shieldCellResistance ?? 0,
       };
     })(),
+    // Vehicle outcome (Phase 2b): end-of-claim fuel/condition for
+    // the routes to persist; inactiveReason explains an off bonus.
+    vehicle: {
+      equipped: vehicleInput !== null,
+      vehicleClassId: vehicleInput?.vehicle.vehicleClassId ?? null,
+      activeTicks: vehicleActiveTicks,
+      ticks,
+      fuelUnitsStart: vehicleStartFuel,
+      fuelUnitsRemaining: Math.round(vehicleFuel * 10000) / 10000,
+      fuelConsumed: Math.round((vehicleStartFuel - vehicleFuel) * 10000) / 10000,
+      conditionStart: vehicleStartCondition,
+      conditionCurrent: Math.round(vehicleCondition * 10000) / 10000,
+      conditionMax: vehicleInput?.conditionMax ?? 0,
+      inactiveReason: !vehicleInput
+        ? 'no_vehicle'
+        : vehicleActiveTicks === 0
+          ? 'out_of_fuel'
+          : null,
+    },
     // Consumables consumed during this claim batch
     consumedConsumables,
     // Updated roaming consumable state for next claim

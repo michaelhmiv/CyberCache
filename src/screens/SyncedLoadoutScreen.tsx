@@ -1,12 +1,15 @@
 import React from 'react';
 import { ActionLoadout, type ActionLoadoutProps } from '@/components/action/ActionLoadout';
+import { GaragePanel } from '@/components/gear/GaragePanel';
 
 type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'>;
 
 /**
  * The Loadout tab of the gear home (Inventory). This is the manage-mode
  * mount of ActionLoadout: the Slot Picker it hosts is the one place
- * gear gets equipped or unequipped.
+ * gear gets equipped or unequipped. The Garage below manages the
+ * vehicle slot (0021) — vehicles are not GearItem, so they equip from
+ * their own list, through the same verified ops.
  */
 export const SyncedLoadoutScreen: React.FC<SyncedLoadoutScreenProps> = (props) => {
   return (
@@ -16,6 +19,7 @@ export const SyncedLoadoutScreen: React.FC<SyncedLoadoutScreenProps> = (props) =
         <div className="text-xs text-text-muted">Your seven gear slots. Tap a slot to equip from your inventory — every change is verified server-side.</div>
       </div>
       <ActionLoadout {...props} />
+      <GaragePanel />
     </div>
   );
 };

@@ -39,12 +39,15 @@ import {
   type ChefRewardsInput,
   type DeathRecord,
   type EquippedItemEntry,
+  type EquippedVehicleRow,
   type LoadoutSlot,
+  type VehicleUsageInput,
   type ResurrectInput,
   type RoamingProfileRow,
   type SettlementProfileRow,
 } from './store';
-import type { GearItem } from '../../types/items';
+import type { GearItem, Vehicle } from '../../types/items';
+import { VEHICLE_CONDITION_MAX } from '../../lib/vehicles/vehicles';
 
 export interface InMemoryProfile {
   id: string;
@@ -60,6 +63,8 @@ export interface InMemoryProfile {
   xp_remainder: number;
   cache_tokens: number;
   cache_token_parts: number;
+  /** Vehicle tank fuel units (migration 0021). */
+  vehicle_fuel: number;
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
@@ -89,6 +94,9 @@ export interface InMemoryItem {
   supply_mode: string;
   tradeable: boolean;
   equipped_slot: string | null;
+  /** Vehicle condition (item_instances columns, migration 0021); null for non-vehicles. */
+  condition_current?: number | null;
+  condition_max?: number | null;
   payload: Record<string, unknown>;
   [key: string]: unknown;
 }
@@ -152,6 +160,7 @@ function asRecord(value: unknown): Record<string, number> {
 
 /** Item kind derivation — cc_store_chef_items' payload-key cascade. */
 function itemKind(payload: Record<string, unknown>): string {
+  if ('vehicleClassId' in payload) return 'vehicle';
   if ('weaponType' in payload) return 'weapon';
   if ('mitigation' in payload) return 'shield';
   if ('treeBonus' in payload) return 'classMod';
@@ -191,6 +200,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       xp_remainder: 0,
       cache_tokens: 0,
       cache_token_parts: 0,
+      vehicle_fuel: 0,
       materials: {},
       essences: {},
       consumables: {},
@@ -248,6 +258,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       essences: { ...p.essences },
       consumables: { ...p.consumables },
       consumable_batches: [],
+      vehicle_fuel: p.vehicle_fuel,
       skill_spends: p.skill_spends,
       boss_state: JSON.parse(JSON.stringify(p.boss_state)) as Json,
       last_idle_claim_at: p.last_idle_claim_at,
@@ -349,7 +360,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder };
+    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, vehicle_fuel: p.vehicle_fuel };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -378,6 +389,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       scrap_remainder: p.scrap_remainder,
       credits_remainder: p.credits_remainder,
       xp_remainder: p.xp_remainder,
+      vehicle_fuel: p.vehicle_fuel,
     };
   }
 
@@ -407,6 +419,44 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         slot: item.equipped_slot as LoadoutSlot,
         item: JSON.parse(JSON.stringify(item.payload)) as GearItem,
       }));
+  }
+
+  async getEquippedVehicle(playerId: string): Promise<EquippedVehicleRow | null> {
+    const item = [...this.items.values()].find(
+      (entry) =>
+        entry.owner_user_id === playerId &&
+        entry.runtime_state === 'equipped' &&
+        entry.equipped_slot === 'vehicle',
+    );
+    if (!item) return null;
+    return {
+      instanceId: item.id,
+      vehicle: JSON.parse(JSON.stringify(item.payload)) as Vehicle,
+      conditionCurrent: item.condition_current ?? VEHICLE_CONDITION_MAX,
+      conditionMax: item.condition_max ?? VEHICLE_CONDITION_MAX,
+    };
+  }
+
+  /** cc_apply_vehicle_usage (0021): guarded on the instance still being the equipped vehicle. */
+  async applyVehicleUsage(playerId: string, usage: VehicleUsageInput): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const item = this.items.get(usage.instanceId);
+    if (
+      !item ||
+      item.owner_user_id !== playerId ||
+      item.runtime_state !== 'equipped' ||
+      item.equipped_slot !== 'vehicle'
+    ) {
+      return { applied: false, reason: 'vehicle_not_equipped' };
+    }
+    p.vehicle_fuel = Math.max(0, usage.fuelUnits);
+    item.condition_current = Math.max(0, Math.min(item.condition_max ?? VEHICLE_CONDITION_MAX, usage.conditionCurrent));
+    return {
+      applied: true,
+      vehicle_fuel: p.vehicle_fuel,
+      condition_current: item.condition_current,
+      condition_max: item.condition_max ?? VEHICLE_CONDITION_MAX,
+    };
   }
 
   async applyChefRewards(
@@ -473,6 +523,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         supply_mode: 'verified_action',
         tradeable: true,
         equipped_slot: null,
+        // Vehicles are stored at full condition (0021 cc_store_chef_items).
+        condition_current: kind === 'vehicle' ? VEHICLE_CONDITION_MAX : null,
+        condition_max: kind === 'vehicle' ? VEHICLE_CONDITION_MAX : null,
         payload,
       });
       inserted += 1;

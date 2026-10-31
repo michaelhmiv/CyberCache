@@ -38,6 +38,8 @@ export interface EconomyConfigValues {
   roamingLegendaryScalar: number;
   /** Fraction of an item's vendor value the NPC vendor pays on buyback. */
   vendorBuybackRate: number;
+  /** Multiplier on the equipped vehicle's yield bonus (1.0 = class table as shipped). */
+  vehicleYieldScalar: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -50,6 +52,7 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   rematchEscalationCap: 8,
   roamingLegendaryScalar: 1.0,
   vendorBuybackRate: 0.4,
+  vehicleYieldScalar: 1.0,
 };
 
 export interface EconomyConfigKeySpec {
@@ -86,6 +89,10 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   vendorBuybackRate: {
     key: 'vendorBuybackRate', min: 0, max: 0.9, integer: false,
     defaultOwner: 'src/lib/vendor/catalog.ts VENDOR_BUYBACK_RATE_DEFAULT',
+  },
+  vehicleYieldScalar: {
+    key: 'vehicleYieldScalar', min: 0, max: 3, integer: false,
+    defaultOwner: 'src/lib/vehicles/vehicles.ts class table (1.0 = as shipped)',
   },
 };
 

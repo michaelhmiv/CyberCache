@@ -140,6 +140,10 @@ export interface ConsumableRuntimeEffects {
   shieldRegenInterruptChance?: number;
   staggerChance?: number;
   dodgeChanceBonus?: number;
+  /** Fuel units one cell loads into the vehicle tank (cc_refuel_vehicle). */
+  fuelUnits?: number;
+  /** Vehicle condition points one kit restores at 100% quality (cc_use_patch_kit). */
+  conditionRestore?: number;
 }
 
 export interface ConsumableHighQualityPerk {
@@ -1268,6 +1272,70 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'Elemental Coating consumed: applied legacy elemental break bonus.'
     ),
     market: market(false, 500, false, false),
+  }),
+  // Vehicle consumables (Phase 2b): neither activates in the roaming
+  // consumable engine or boss prep — fuel cells load the tank through
+  // cc_refuel_vehicle and patch kits restore condition through
+  // cc_use_patch_kit, so their only runtime scope is 'repair' (the
+  // vehicle-maintenance activity). Both are vendor staples (Michael's
+  // baseline-goods principle: the NPC sells the baseline version);
+  // richer crafted cells arrive with the crafting slice, so craftable
+  // stays false in this slice.
+  [ConsumableType.GenericFuelCell]: defineConsumable({
+    id: ConsumableType.GenericFuelCell,
+    name: 'Generic Fuel Cell',
+    family: 'economy',
+    shortDescription: 'Baseline fuel cell. Load it into your vehicle tank to keep the yield bonus running.',
+    tacticalRole: 'Vehicle Fuel',
+    trigger: 'manual',
+    consumePolicy: 'onAttempt',
+    counterTags: ['mechanical'],
+    effectRules: {},
+    craftCategory: 'utility',
+    uiHints: ['Loads 100 fuel units per cell from the Garage.', 'Out of fuel never stops roaming — the vehicle bonus just turns off.'],
+    implementationStatus: 'implemented',
+    isBossPrepVisible: false,
+    visual: visual('▣', 'amber', 'cell'),
+    quality: quality(40, 100, 100, 'Baseline cells are flat 100% quality.', 100),
+    runtime: runtime(
+      ['repair'],
+      'utility',
+      'manual',
+      'onAttempt',
+      'inactive_continue',
+      { fuelUnits: 100 },
+      {},
+      'Fuel cell loaded into the vehicle tank.',
+    ),
+    market: market(true, 40, false, true),
+  }),
+  [ConsumableType.PatchKit]: defineConsumable({
+    id: ConsumableType.PatchKit,
+    name: 'Patch Kit',
+    family: 'economy',
+    shortDescription: 'Baseline repair kit. Restores vehicle condition at the untrained rate.',
+    tacticalRole: 'Vehicle Repair',
+    trigger: 'manual',
+    consumePolicy: 'onAttempt',
+    counterTags: ['mechanical', 'repair'],
+    effectRules: {},
+    craftCategory: 'utility',
+    uiHints: ['Restores 30 condition at 100% quality.', 'Trained mechanics restore more per kit — repair services come later.'],
+    implementationStatus: 'implemented',
+    isBossPrepVisible: false,
+    visual: visual('✚', 'orange', 'vial', 'reinforced'),
+    quality: quality(150, 75, 150, 'Condition restored scales directly with quality.'),
+    runtime: runtime(
+      ['repair'],
+      'utility',
+      'manual',
+      'onAttempt',
+      'inactive_continue',
+      { conditionRestore: 30 },
+      {},
+      'Patch Kit consumed: restored vehicle condition.',
+    ),
+    market: market(true, 150, false, true),
   }),
 };
 

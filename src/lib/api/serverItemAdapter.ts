@@ -1,4 +1,5 @@
-import type { GearItem, Weapon } from '@/types/items';
+import type { GearItem, Vehicle, Weapon } from '@/types/items';
+import type { VehicleDisplay } from '@/store/slices/vehicleSlice';
 
 export type ServerItemRow = {
   id: string;
@@ -8,9 +9,41 @@ export type ServerItemRow = {
   runtime_state?: string | null;
   equipped_slot?: string | null;
   payload?: Record<string, unknown> | null;
+  /** Item kind (0021) — 'vehicle' rows route to the garage, never gear. */
+  kind?: string | null;
+  condition_current?: number | string | null;
+  condition_max?: number | string | null;
 };
 
+/** True when the row is a vehicle instance (kind column or payload marker). */
+export function isVehicleRow(row: ServerItemRow): boolean {
+  return row.kind === 'vehicle' || !!(row.payload && 'vehicleClassId' in row.payload);
+}
+
+/**
+ * Reconstruct a vehicle display object from an item row (0021).
+ * Condition rides on the row columns, not the payload.
+ */
+export function serverItemRowToVehicle(row: ServerItemRow): VehicleDisplay | null {
+  const raw = row.payload;
+  if (!raw || typeof raw !== 'object' || !('vehicleClassId' in raw) || !('id' in raw)) return null;
+  const payload = raw as unknown as Vehicle;
+  const max = Number(row.condition_max);
+  const current = Number(row.condition_current);
+  return {
+    ...payload,
+    id: row.id || String(raw.id),
+    isLocked: Boolean(row.is_locked),
+    conditionMax: Number.isFinite(max) && max > 0 ? max : 100,
+    conditionCurrent: Number.isFinite(current) ? current : (Number.isFinite(max) && max > 0 ? max : 100),
+  };
+}
+
 export function serverItemRowToDisplayGear(row: ServerItemRow): GearItem | null {
+  // Vehicles are not gear (0021): their payloads carry affixes and
+  // would otherwise reconstruct as relics. They route to the garage
+  // through serverItemRowToVehicle instead.
+  if (isVehicleRow(row)) return null;
   // Payload-based reconstruction: when the server stores the full item JSON
   // in the payload column, return it directly. Validate that the payload
   // has at least one gear-type discriminator field (weaponType, hp, damage,

@@ -284,6 +284,9 @@ export function computeItemEstimatedValue(
     bonus = affixCount * 40 * mult;
   } else if (kind === 'ordnance') {
     bonus = (payloadNumber(payload.damage) + payloadNumber(payload.shieldDamage) + payloadNumber(payload.armorDamage)) * 1.5;
+  } else if (kind === 'vehicle') {
+    const affixCount = Array.isArray(payload.affixes) ? payload.affixes.length : 0;
+    bonus = affixCount * 40 * mult;
   }
   return Math.floor(base + bonus);
 }

@@ -7,11 +7,12 @@
  */
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { emptySlots, useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
+import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
 import type { GearItem } from '@/types/items';
 import { apiRequest } from './http';
-import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
+import { isVehicleRow, serverItemRowToDisplayGear, serverItemRowToVehicle, type ServerItemRow } from './serverItemAdapter';
 
-const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic']);
+const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic', 'vehicle']);
 
 function toLoadoutSlot(value: string | null | undefined): LoadoutSlot | null {
   if (!value) return null;
@@ -28,6 +29,11 @@ export async function syncRuntimeItemsForUser(_userId: string): Promise<void> {
   }
 
   const serverItems = rows.map(serverItemRowToDisplayGear).filter((item): item is GearItem => item !== null);
+  // Vehicles (0021) hydrate into the vehicle store, never gear inventory.
+  const serverVehicles = rows
+    .filter(isVehicleRow)
+    .map(serverItemRowToVehicle)
+    .filter((vehicle): vehicle is VehicleDisplay => vehicle !== null);
   const serverSlots: Partial<Record<LoadoutSlot, string | null>> = {};
 
   rows.forEach((row) => {
@@ -39,6 +45,7 @@ export async function syncRuntimeItemsForUser(_userId: string): Promise<void> {
   // across authenticated hydration; generated items must arrive through Chef/RPC
   // persistence before becoming inventory truth.
   useInventoryStore.getState().setItems(serverItems);
+  useVehicleStore.getState().setVehicles(serverVehicles);
 
   // The server is the authoritative loadout source. Clear any local slot that the
   // server did not return; otherwise stale local slots can make Action/Loadout

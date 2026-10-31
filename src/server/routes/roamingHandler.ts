@@ -98,6 +98,20 @@ export function createClaimHandler(
         (profile.skill_spends ?? {}) as Record<string, number>,
       );
 
+      // Vehicle (Phase 2b): the equipped vehicle instance + tank
+      // fuel, from the server's own records — the body never carries
+      // them. A read failure is a 500 like the loadout read: paying
+      // a claim without the player's real vehicle state would
+      // silently drop (or fabricate) the yield bonus.
+      let equippedVehicle: Awaited<ReturnType<ChefGameplayStore['getEquippedVehicle']>>;
+      try {
+        equippedVehicle = await store.getEquippedVehicle(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read vehicle', detail: message });
+        return;
+      }
+
       // Live economy levers (0018): resolved server-side from the
       // EconomyConfig accessor and stamped over anything the body
       // claimed — the body can never set them (same trust rule as
@@ -124,10 +138,19 @@ export function createClaimHandler(
         consumableInventory,
         roamingConsumableState: body.roamingConsumableState,
         masteryLevels: body.masteryLevels,
+        vehicle: equippedVehicle
+          ? {
+              vehicle: equippedVehicle.vehicle,
+              conditionCurrent: equippedVehicle.conditionCurrent,
+              conditionMax: equippedVehicle.conditionMax,
+              fuelUnits: profile.vehicle_fuel,
+            }
+          : null,
         economy: economyValues
           ? {
               fragmentChance: economyValues.fragmentChance,
               roamingLegendaryScalar: economyValues.roamingLegendaryScalar,
+              vehicleYieldScalar: economyValues.vehicleYieldScalar,
             }
           : undefined,
       };
@@ -157,6 +180,34 @@ export function createClaimHandler(
         const message = err instanceof Error ? err.message : String(err);
         res.status(500).json({ error: 'Failed to apply rewards', detail: message });
         return;
+      }
+
+      // Persist the vehicle outcome (Phase 2b): tank fuel + the
+      // equipped instance's condition after this claim. Like the
+      // consumable consumption below, a failure here must surface —
+      // silently succeeding would make fuel/condition free — and the
+      // tick guard makes a client retry safe (409, no double-apply).
+      if (
+        equippedVehicle &&
+        (result.vehicle.fuelConsumed > 0 || result.vehicle.conditionCurrent !== result.vehicle.conditionStart)
+      ) {
+        try {
+          await store.applyVehicleUsage(playerId, {
+            instanceId: equippedVehicle.instanceId,
+            fuelUnits: result.vehicle.fuelUnitsRemaining,
+            conditionCurrent: result.vehicle.conditionCurrent,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] Failed to persist vehicle usage:', message);
+          res.status(500).json({
+            error: 'Failed to persist vehicle usage',
+            detail: message,
+            profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+            rewards: result.rewards,
+          });
+          return;
+        }
       }
 
       if (result.items.length > 0) {

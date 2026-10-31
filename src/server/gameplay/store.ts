@@ -20,7 +20,7 @@
  */
 import type { Pool } from 'pg';
 import type { Json } from '../writes/store';
-import type { GearItem } from '../../types/items';
+import type { GearItem, Vehicle } from '../../types/items';
 
 export type { Json };
 
@@ -45,6 +45,8 @@ export interface RoamingProfileRow {
   credits_remainder: number;
   /** Banked fractional XP (migration 0010), 0 <= x < 1. */
   xp_remainder: number;
+  /** Vehicle tank fuel units (migration 0021), profiles.vehicle_fuel. */
+  vehicle_fuel: number;
 }
 
 /** profiles subset the boss handler reads. */
@@ -73,6 +75,8 @@ export interface SettlementProfileRow {
   credits_remainder: number;
   /** Banked fractional XP (migration 0010), 0 <= x < 1. */
   xp_remainder: number;
+  /** Vehicle tank fuel units (migration 0021), profiles.vehicle_fuel. */
+  vehicle_fuel: number;
 }
 
 /** active_actions row the offline-settlement handler reads. */
@@ -164,6 +168,27 @@ export interface EquippedItemEntry {
   item: GearItem;
 }
 
+/**
+ * The equipped vehicle instance (migration 0021): the payload plus
+ * the row's condition columns — condition lives on the row, not in
+ * the payload, so the claim routes must read both together.
+ */
+export interface EquippedVehicleRow {
+  instanceId: string;
+  vehicle: Vehicle;
+  conditionCurrent: number;
+  conditionMax: number;
+}
+
+/** End-of-claim vehicle state the routes persist (cc_apply_vehicle_usage). */
+export interface VehicleUsageInput {
+  instanceId: string;
+  /** Tank fuel units after the claim (profiles.vehicle_fuel). */
+  fuelUnits: number;
+  /** Vehicle condition after the claim (item_instances.condition_current). */
+  conditionCurrent: number;
+}
+
 export interface ChefGameplayStore {
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null>;
   getBossProfile(playerId: string): Promise<BossProfileRow | null>;
@@ -183,6 +208,18 @@ export interface ChefGameplayStore {
    * identity is an engine input (the boss sim's per-slot fields).
    */
   getEquippedItems(playerId: string): Promise<EquippedItemEntry[]>;
+  /**
+   * The player's equipped vehicle instance (equipped_slot 'vehicle'),
+   * or null when roaming on foot. Kept OUT of getEquippedGear: the
+   * combat engines must never price a vehicle payload as gear.
+   */
+  getEquippedVehicle(playerId: string): Promise<EquippedVehicleRow | null>;
+  /**
+   * Persist a claim's vehicle outcome (cc_apply_vehicle_usage):
+   * tank fuel + the equipped instance's condition, applied only
+   * while that instance is still the player's equipped vehicle.
+   */
+  applyVehicleUsage(playerId: string, usage: VehicleUsageInput): Promise<Json>;
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json>;
   storeChefItems(playerId: string, items: unknown[]): Promise<Json>;
   consumeRoamingConsumables(playerId: string, consumed: Json, areaId: string, tickCount: number): Promise<Json>;
@@ -288,7 +325,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder from public.profiles where id = $1',
+      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -298,6 +335,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         scrap_remainder: num(row.scrap_remainder),
         credits_remainder: num(row.credits_remainder),
         xp_remainder: num(row.xp_remainder),
+        vehicle_fuel: num(row.vehicle_fuel),
       }),
     );
   }
@@ -318,7 +356,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder from public.profiles where id = $1',
+      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -334,6 +372,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         scrap_remainder: num(row.scrap_remainder),
         credits_remainder: num(row.credits_remainder),
         xp_remainder: num(row.xp_remainder),
+        vehicle_fuel: num(row.vehicle_fuel),
       }),
     );
   }
@@ -362,7 +401,8 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     try {
       const { rows } = await this.pool.query(
         `select equipped_slot, payload from public.item_instances
-          where owner_user_id = $1 and runtime_state = 'equipped' and equipped_slot is not null
+          where owner_user_id = $1 and runtime_state = 'equipped'
+            and equipped_slot in ('primary','secondary','heavy','shield','classMod','relic','ordnance')
           order by array_position(array['primary','secondary','heavy','shield','classMod','relic','ordnance'], equipped_slot)`,
         [playerId],
       );
@@ -373,6 +413,30 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     } catch (err) {
       return translatePgError(err);
     }
+  }
+
+  getEquippedVehicle(playerId: string): Promise<EquippedVehicleRow | null> {
+    return this.one(
+      `select id, payload, condition_current, condition_max from public.item_instances
+        where owner_user_id = $1 and runtime_state = 'equipped' and equipped_slot = 'vehicle'
+        limit 1`,
+      [playerId],
+      (row) => ({
+        instanceId: String(row.id),
+        vehicle: row.payload as Vehicle,
+        conditionCurrent: num(row.condition_current),
+        conditionMax: num(row.condition_max),
+      }),
+    );
+  }
+
+  applyVehicleUsage(playerId: string, usage: VehicleUsageInput): Promise<Json> {
+    return this.callJson('select public.cc_apply_vehicle_usage($1, $2, $3, $4) as result', [
+      playerId,
+      usage.instanceId,
+      usage.fuelUnits,
+      usage.conditionCurrent,
+    ]);
   }
 
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json> {

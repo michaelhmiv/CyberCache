@@ -68,6 +68,7 @@ describe('Phase 1 structure — one gear home', () => {
   it('client equip calls live only in the gear-home paths', () => {
     const allowed = new Set([
       'src/components/action/ActionLoadout.tsx', // Slot Picker host (gear home)
+      'src/components/gear/GaragePanel.tsx', // Phase 2b garage (rendered by the gear home)
       'src/store/slices/loadoutPresetsSlice.ts', // preset apply (rendered by the home)
       'src/lib/api/verifiedOps.ts', // the transport itself
     ]);

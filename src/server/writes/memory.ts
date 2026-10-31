@@ -22,7 +22,17 @@ import {
   gearCategoryFromPayload,
   gearIdentityFromPayload,
   materialIdentityKey,
+  vehicleIdentityKey,
 } from '../../lib/market/identityKey.js';
+import {
+  FUEL_CELL_TYPE,
+  FUEL_UNITS_PER_CELL,
+  PATCH_KIT_RESTORE_POINTS,
+  PATCH_KIT_TYPE,
+  VEHICLE_CONDITION_MAX,
+  getVehicleClass,
+} from '../../lib/vehicles/vehicles.js';
+import { buildStarterVehicle } from '../lib/generators/vehicleGenerator.js';
 import type { ClassModBoosts } from '../../lib/skills/skillBonuses.js';
 import {
   VENDOR_BUYBACK_RATE_DEFAULT,
@@ -66,7 +76,7 @@ import {
 } from './store.js';
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
-const LOADOUT_SLOTS = ['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic'] as const;
+const LOADOUT_SLOTS = ['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic', 'vehicle'] as const;
 const ACTIVE_KINDS = [
   'none',
   'idle_standby',
@@ -350,6 +360,7 @@ export class InMemoryWriteStore implements WriteStore {
       essences: clone(p.essences),
       consumables: clone(p.consumables),
       consumable_batches: batches,
+      vehicle_fuel: p.vehicle_fuel ?? 0,
       skill_spends: clone(p.skill_spends),
       boss_state: clone(p.boss_state),
       last_idle_claim_at: p.last_idle_claim_at,
@@ -365,6 +376,7 @@ export class InMemoryWriteStore implements WriteStore {
       shield: null,
       classMod: null,
       relic: null,
+      vehicle: null,
     };
     for (const item of this.items.values()) {
       if (
@@ -522,7 +534,57 @@ export class InMemoryWriteStore implements WriteStore {
     p.cache_tokens += 3;
     p.boss_state = { ...p.boss_state, initial_bundle_claimed: true };
     this.touch(p);
-    const result: Json = { action_type: 'cc_initial_bundle', profile: this.profileSnapshot(p) };
+    // Starter vehicle (0021): every player gets the Scrap Bike with
+    // the bundle, granted once (the bundle itself is once-only) and
+    // auto-equipped when no vehicle is equipped. The SQL grant keys
+    // idempotency on the same bundle claim.
+    let vehicleItem: WriteItemData | null = null;
+    const hasStarter = [...this.items.values()].some(
+      (item) =>
+        item.owner_user_id === playerId &&
+        item.kind === 'vehicle' &&
+        ((item.payload as Record<string, unknown>)?.grantSource === 'initial_bundle'),
+    );
+    if (!hasStarter) {
+      const now = this.nowIso();
+      const id = this.uuid();
+      const payload = { ...buildStarterVehicle(id), grantSource: 'initial_bundle' } as unknown as Json;
+      const hasEquippedVehicle = [...this.items.values()].some(
+        (item) => item.owner_user_id === playerId && item.runtime_state === 'equipped' && item.equipped_slot === 'vehicle',
+      );
+      vehicleItem = {
+        id,
+        owner_user_id: playerId,
+        kind: 'vehicle',
+        static_item_id: null,
+        item_level: 1,
+        rarity: 'Common',
+        quality: null,
+        material_tier: null,
+        condition_state: null,
+        condition_current: VEHICLE_CONDITION_MAX,
+        condition_max: VEHICLE_CONDITION_MAX,
+        supply_mode: 'verified_action',
+        source_id: null,
+        creator_user_id: null,
+        tradeable: true,
+        account_bound: false,
+        locked_until: null,
+        payload,
+        runtime_state: hasEquippedVehicle ? 'available' : 'equipped',
+        is_locked: false,
+        equipped_slot: hasEquippedVehicle ? null : 'vehicle',
+        estimated_value: computeItemEstimatedValue(payload, 'vehicle', 'Common', 1),
+        created_at: now,
+        updated_at: now,
+      };
+      this.insertItem(vehicleItem);
+    }
+    const result: Json = {
+      action_type: 'cc_initial_bundle',
+      profile: this.profileSnapshot(p),
+      ...(vehicleItem ? { item: this.itemJson(vehicleItem), loadout: this.loadoutSnapshot(playerId) } : {}),
+    };
     return this.record(playerId, 'cc_initial_bundle', key, result);
   }
 
@@ -996,6 +1058,16 @@ export class InMemoryWriteStore implements WriteStore {
     const item = this.ownItem(playerId, itemId);
     if (!['available', 'locked', 'equipped'].includes(item.runtime_state)) throw writeError('Item state invalid');
     if (!itemAcceptsSlot(item.payload, slotName)) throw writeError('Item type does not match loadout slot');
+    // Vehicle equip gate (0021): class unlock level vs the profile's
+    // level, enforced here (server-side), never in the client.
+    if (slotName === 'vehicle') {
+      const classId = (item.payload as Record<string, unknown>)?.vehicleClassId;
+      const def = getVehicleClass(typeof classId === 'string' ? classId : null);
+      if (!def) throw writeError('Unknown vehicle class');
+      if (p.player_level < def.unlockLevel) {
+        throw writeError(`Vehicle requires hunter level ${def.unlockLevel}`);
+      }
+    }
     const changed: WriteItemData[] = [];
     for (const other of this.items.values()) {
       if (other.owner_user_id === playerId && other.id !== item.id && other.equipped_slot === slotName) {
@@ -1060,6 +1132,87 @@ export class InMemoryWriteStore implements WriteStore {
       loadout: this.loadoutSnapshot(playerId),
     };
     return this.record(playerId, 'cc_unequip_slot', key, result);
+  }
+
+  /**
+   * Shared batch consumption for the vehicle ops (0021): decrements
+   * the count map and the FIFO batches together (the dual
+   * maintenance cc_consume_consumable performs), synthesizing a
+   * vendor batch when the count exists without one. Returns the
+   * consumed batch rows (quality matters to the patch kit).
+   */
+  private consumeOwnedConsumable(p: ProfileRowData, playerId: string, itemKey: string, qty: number): Json {
+    const consumables = asNumberMap(p.consumables);
+    const current = consumables[itemKey] ?? 0;
+    if (current < qty) throw writeError(`Insufficient consumable quantity for ${itemKey}`);
+    const hasBatch = this.seed.consumableBatches.some(
+      (b) => b.owner_user_id === playerId && b.consumable_type === itemKey && b.quantity > 0,
+    );
+    if (!hasBatch && current > 0) {
+      this.addConsumableBatch(playerId, itemKey, current, 100, 'vendor', null, null, {});
+    }
+    const consumed = this.consumeBatchesFifo(playerId, itemKey, qty);
+    if (Number(consumed.remaining_shortfall) > 0) {
+      throw writeError(`Insufficient consumable quantity for ${itemKey}`);
+    }
+    consumables[itemKey] = Math.max(current - qty, 0);
+    p.consumables = consumables;
+    this.touch(p);
+    return consumed;
+  }
+
+  /** cc_refuel_vehicle (0021): cells → tank units at FUEL_UNITS_PER_CELL each. */
+  async refuelVehicle(playerId: string, nonce: string, cells: number): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const qty = Math.floor(cells);
+    if (!Number.isFinite(qty) || qty < 1) throw writeError('cells must be a positive integer');
+    this.consumeOwnedConsumable(p, playerId, FUEL_CELL_TYPE, qty);
+    p.vehicle_fuel = (p.vehicle_fuel ?? 0) + qty * FUEL_UNITS_PER_CELL;
+    this.touch(p);
+    const result: Json = {
+      action_type: 'cc_refuel_vehicle',
+      profile: this.profileSnapshot(p),
+      cells_loaded: qty,
+      fuel_units_added: qty * FUEL_UNITS_PER_CELL,
+      vehicle_fuel: p.vehicle_fuel,
+    };
+    return this.record(playerId, 'cc_refuel_vehicle', key, result);
+  }
+
+  /**
+   * cc_use_patch_kit (0021): consume one Patch Kit (FIFO — the
+   * lowest-quality batch burns first, as everywhere) and restore
+   * PATCH_KIT_RESTORE_POINTS × quality% condition, capped at max.
+   * Works on any owned vehicle, equipped or not.
+   */
+  async usePatchKit(playerId: string, nonce: string, itemId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const item = this.ownItem(playerId, itemId);
+    if (item.kind !== 'vehicle') throw writeError('Item is not a vehicle');
+    if (['listed', 'consumed', 'salvaged'].includes(item.runtime_state)) throw writeError('Item state invalid');
+    const consumed = this.consumeOwnedConsumable(p, playerId, PATCH_KIT_TYPE, 1);
+    const batch = (consumed.consumed as Array<Record<string, unknown>>)[0];
+    const quality = typeof batch?.quality_percent === 'number' ? batch.quality_percent : 100;
+    const restored = Math.max(1, Math.round((PATCH_KIT_RESTORE_POINTS * quality) / 100));
+    const max = item.condition_max ?? VEHICLE_CONDITION_MAX;
+    const before = item.condition_current ?? max;
+    item.condition_current = Math.min(max, before + restored);
+    this.touchItem(item);
+    const result: Json = {
+      action_type: 'cc_use_patch_kit',
+      profile: this.profileSnapshot(p),
+      item: this.itemJson(item),
+      restored,
+      condition_current: item.condition_current,
+      condition_max: max,
+    };
+    return this.record(playerId, 'cc_use_patch_kit', key, result);
   }
 
   async idleClaim(playerId: string, nonce: string): Promise<Json> {
@@ -1190,6 +1343,7 @@ export class InMemoryWriteStore implements WriteStore {
       throw writeError('Item not listable');
     }
     const payload = (item.payload ?? {}) as Record<string, unknown>;
+    const isVehicle = item.kind === 'vehicle';
     const listing: WriteListingData = {
       id: this.uuid(),
       seller_user_id: playerId,
@@ -1199,10 +1353,13 @@ export class InMemoryWriteStore implements WriteStore {
       listed_at: this.nowIso(),
       sold_at: null,
       // Market depth (0019): browse stamps, mirroring cc_market_create.
-      listing_kind: 'gear',
+      // Vehicles (0021) stamp their own kind/category/identity.
+      listing_kind: isVehicle ? 'vehicle' : 'gear',
       quantity: 1,
-      identity_key: gearIdentityFromPayload(payload, { kind: item.kind, rarity: item.rarity, level: item.item_level }),
-      category: gearCategoryFromPayload(payload, item.kind),
+      identity_key: isVehicle
+        ? vehicleIdentityKey(typeof payload.vehicleClassId === 'string' ? payload.vehicleClassId : '', item.rarity)
+        : gearIdentityFromPayload(payload, { kind: item.kind, rarity: item.rarity, level: item.item_level }),
+      category: isVehicle ? 'vehicle' : gearCategoryFromPayload(payload, item.kind),
       display_name: typeof payload.name === 'string' ? payload.name : null,
       weapon_type: typeof payload.weaponType === 'string' ? payload.weaponType : null,
       element: typeof payload.element === 'string' ? payload.element : null,
@@ -1348,7 +1505,7 @@ export class InMemoryWriteStore implements WriteStore {
     listing.status = 'cancelled';
     const kind = listing.listing_kind ?? 'gear';
     const item = listing.item_instance_id ? this.items.get(listing.item_instance_id) : undefined;
-    if (kind === 'gear') {
+    if (kind === 'gear' || kind === 'vehicle') {
       if (item) {
         item.runtime_state = item.is_locked ? 'locked' : 'available';
         this.touchItem(item);
@@ -1418,7 +1575,7 @@ export class InMemoryWriteStore implements WriteStore {
       sellerProceeds: listing.price_credits,
     };
     let foundBySeller = false;
-    if (kind === 'gear') {
+    if (kind === 'gear' || kind === 'vehicle') {
       if (seller && soldItem && soldItem.supply_mode !== 'npc_market') {
         foundBySeller = this.sellerFoundItem(seller.id, soldItem);
         feeBreakdown = marketFeeForSeller({

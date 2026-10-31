@@ -39,6 +39,7 @@ interface SlotGearPickerProps {
 const SLOT_LABEL: Record<LoadoutSlot, string> = {
   primary: 'Primary Weapon', secondary: 'Secondary Weapon', heavy: 'Heavy Weapon',
   shield: 'Shield', classMod: 'Class Mod', relic: 'Relic', ordnance: 'Ordnance',
+  vehicle: 'Vehicle',
 };
 
 type SortKey =

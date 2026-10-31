@@ -113,6 +113,20 @@ export function createSettleOfflineHandler(
         (profile.skill_spends ?? {}) as Record<string, number>,
       );
 
+      // Vehicle parity (Phase 2b): offline settlement runs the SAME
+      // engine with the SAME vehicle input a foreground claim would
+      // carry — equipped instance + condition from item_instances,
+      // tank fuel from the profile — so the yield/fuel/condition
+      // math cannot drift between the two paths.
+      let equippedVehicle: Awaited<ReturnType<ChefGameplayStore['getEquippedVehicle']>>;
+      try {
+        equippedVehicle = await store.getEquippedVehicle(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read vehicle', detail: message });
+        return;
+      }
+
       // Offline cap — EARNED, server-derived (pacing-baseline tuning):
       // earnedOfflineCapHours(player level) + the Scavenger keystone's
       // offlineCapBonus from the server-rebuilt skill bonuses above
@@ -147,11 +161,20 @@ export function createSettleOfflineHandler(
         scrapRemainder: profile.scrap_remainder,
         creditsRemainder: profile.credits_remainder,
         xpRemainder: profile.xp_remainder,
+        vehicle: equippedVehicle
+          ? {
+              vehicle: equippedVehicle.vehicle,
+              conditionCurrent: equippedVehicle.conditionCurrent,
+              conditionMax: equippedVehicle.conditionMax,
+              fuelUnits: profile.vehicle_fuel,
+            }
+          : null,
         // Live economy levers (0018), resolved server-side.
         economy: config.economyConfig
           ? await config.economyConfig.snapshot().then((values) => ({
               fragmentChance: values.fragmentChance,
               roamingLegendaryScalar: values.roamingLegendaryScalar,
+              vehicleYieldScalar: values.vehicleYieldScalar,
             }))
           : undefined,
       };
@@ -196,6 +219,26 @@ export function createSettleOfflineHandler(
       const atomicCapMs = Number(settlement.capped_ms ?? capMs);
       const capReached = Boolean(settlement.cap_reached ?? rawElapsedMs > capMs);
 
+      // Persist the vehicle outcome (Phase 2b): same treatment as
+      // the store-items step below — the settlement itself is
+      // already applied atomically, so a failure is logged, never
+      // silently retried (the nonce forbids a second settlement).
+      if (
+        equippedVehicle &&
+        (result.vehicle.fuelConsumed > 0 || result.vehicle.conditionCurrent !== result.vehicle.conditionStart)
+      ) {
+        try {
+          await store.applyVehicleUsage(playerId, {
+            instanceId: equippedVehicle.instanceId,
+            fuelUnits: result.vehicle.fuelUnitsRemaining,
+            conditionCurrent: result.vehicle.conditionCurrent,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] settlement vehicle usage failed:', message);
+        }
+      }
+
       if (result.items.length > 0) {
         try {
           await store.storeChefItems(playerId, result.items);
@@ -219,6 +262,7 @@ export function createSettleOfflineHandler(
         endTick: Number(settlement.end_tick ?? 0),
         profile: settlement.profile ?? {},
         rewards: result.rewards,
+        vehicle: result.vehicle,
         items: result.items,
         feedEvents: result.feedEvents,
         consumedConsumables: result.consumedConsumables,

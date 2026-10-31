@@ -119,7 +119,7 @@ export interface WriteListingData {
   sold_at: string | null;
   // Market depth (0019) — optional so pre-0019 seed rows stay valid;
   // stores normalize absent fields to the gear defaults at read time.
-  listing_kind?: 'gear' | 'consumable' | 'material';
+  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle';
   quantity?: number;
   quality_percent?: number | null;
   consumable_type?: string | null;
@@ -614,7 +614,9 @@ export function itemAcceptsSlot(payload: Json, slot: string): boolean {
     case 'ordnance':
       return has('damage') && has('effect') && !has('weaponType');
     case 'relic':
-      return has('affixes') && !has('weaponType') && !has('hp') && !has('treeBonus') && !has('damage');
+      return has('affixes') && !has('weaponType') && !has('hp') && !has('treeBonus') && !has('damage') && !has('vehicleClassId');
+    case 'vehicle':
+      return has('vehicleClassId');
     default:
       return false;
   }
@@ -693,6 +695,10 @@ export interface WriteStore {
   itemLock(playerId: string, nonce: string, itemId: string, locked: boolean): Promise<Json>;
   equipItem(playerId: string, nonce: string, itemId: string, slotName: string): Promise<Json>;
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json>;
+  /** Load Generic Fuel Cells into the vehicle tank (cc_refuel_vehicle, 0021). */
+  refuelVehicle(playerId: string, nonce: string, cells: number): Promise<Json>;
+  /** Restore one vehicle instance's condition with a Patch Kit (cc_use_patch_kit, 0021). */
+  usePatchKit(playerId: string, nonce: string, itemId: string): Promise<Json>;
   idleClaim(playerId: string, nonce: string): Promise<Json>;
   retrain(playerId: string, nonce: string): Promise<Json>;
   trainSkill(playerId: string, nonce: string, nodeId: string): Promise<Json>;
@@ -844,6 +850,12 @@ export class PgWriteStore implements WriteStore {
   }
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json> {
     return this.callJson('select public.cc_unequip_slot($1, $2, $3) as result', [playerId, nonce, slotName]);
+  }
+  refuelVehicle(playerId: string, nonce: string, cells: number): Promise<Json> {
+    return this.callJson('select public.cc_refuel_vehicle($1, $2, $3) as result', [playerId, nonce, cells]);
+  }
+  usePatchKit(playerId: string, nonce: string, itemId: string): Promise<Json> {
+    return this.callJson('select public.cc_use_patch_kit($1, $2, $3) as result', [playerId, nonce, itemId]);
   }
   idleClaim(playerId: string, nonce: string): Promise<Json> {
     return this.callJson('select public.cc_idle_claim($1, $2) as result', [playerId, nonce]);

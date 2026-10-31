@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '../../types/items';
 import { useInventoryStore } from './inventorySlice';
 import { useSkillStore } from './skillSlice';
+import { useVehicleStore, type VehicleDisplay } from './vehicleSlice';
 
 export type LoadoutSlot =
   | 'primary'
@@ -10,7 +11,8 @@ export type LoadoutSlot =
   | 'ordnance'
   | 'shield'
   | 'classMod'
-  | 'relic';
+  | 'relic'
+  | 'vehicle';
 
 export interface LoadoutConsumables {
   PreFight: string | null;
@@ -26,6 +28,7 @@ export const emptySlots: Record<LoadoutSlot, string | null> = {
   shield: null,
   classMod: null,
   relic: null,
+  vehicle: null,
 };
 
 export interface LoadoutState {
@@ -39,6 +42,8 @@ export interface LoadoutState {
   getClassMod: () => ClassMod | undefined;
   getRelic: () => Relic | undefined;
   getOrdnance: () => Ordnance | undefined;
+  /** The equipped vehicle (0021) — resolved from the vehicle store, never inventory. */
+  getVehicle: () => VehicleDisplay | undefined;
   getEquippedConsumables: () => LoadoutConsumables;
   setConsumableSlot: (slot: keyof LoadoutConsumables, type: string | null) => void;
 }
@@ -144,6 +149,7 @@ export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
     const item = getInventoryItem(id);
     return isOrdnance(item) ? item : undefined;
   },
+  getVehicle: () => useVehicleStore.getState().getById(get().slots.vehicle),
 
   getEquippedConsumables: () => get().consumables,
 

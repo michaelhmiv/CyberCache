@@ -36,6 +36,11 @@ import type { GearItem } from '@/types/items';
 import { useTickFeedStore, type TickEvent } from './tickSlice';
 import { useActiveBuffsStore } from './activeBuffsSlice';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
+import { useLoadoutStore } from './loadoutSlice';
+import { useVehicleStore } from './vehicleSlice';
+import { VEHICLE_CONDITION_MAX } from '@/lib/vehicles/vehicles';
+import type { Vehicle } from '@/types/items';
+import type { ChefVehicleStatus } from '@/lib/chef/chefClient';
 
 const TICK_MS = 3000;
 const DEFAULT_AREA_ID = ROAMING_AREAS[0]?.id ?? 'dustwaste_frontier';
@@ -132,6 +137,35 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
     | undefined;
   if (serverActiveBuffs) {
     useActiveBuffsStore.getState().syncRoamingFromServer(serverActiveBuffs);
+  }
+
+  // Vehicle outcome (0021): status for the roaming surface, and any
+  // vehicle drops join the garage at full condition (cc_store_chef_
+  // items stores fresh vehicles unworn; the next runtime sync
+  // reconciles exact rows).
+  const vehicleStatus = payload.vehicle as ChefVehicleStatus | undefined;
+  if (vehicleStatus) {
+    useVehicleStore.getState().setLastClaimStatus(vehicleStatus);
+    const equipped = useVehicleStore.getState().getById(useLoadoutStore.getState().slots.vehicle);
+    if (equipped) {
+      useVehicleStore.getState().upsertVehicle({
+        ...equipped,
+        conditionCurrent: vehicleStatus.conditionCurrent,
+        conditionMax: vehicleStatus.conditionMax,
+      });
+    }
+  }
+  if (Array.isArray(payload.items)) {
+    for (const item of payload.items as Array<Record<string, unknown>>) {
+      if (item && typeof item === 'object' && 'vehicleClassId' in item) {
+        const vehicle = item as unknown as Vehicle;
+        useVehicleStore.getState().upsertVehicle({
+          ...vehicle,
+          conditionCurrent: VEHICLE_CONDITION_MAX,
+          conditionMax: VEHICLE_CONDITION_MAX,
+        });
+      }
+    }
   }
 };
 
