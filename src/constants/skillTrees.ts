@@ -52,8 +52,8 @@ export const SKILL_NODES: SkillNode[] = [
   { id: 'scav_qty_2', tree: SkillTreeType.Scavenger, tier: 3, index: 2, name: 'Parallel Download', description: '+10% Loot Quantity', type: 'small', maxPoints: 5, cost: 1, effects: { lootQuantity: 0.10 } },
   { id: 'scav_scrap_1', tree: SkillTreeType.Scavenger, tier: 4, index: 1, name: 'Decompiler', description: '+20% Scrap Yield', type: 'small', maxPoints: 5, cost: 1, effects: { scrapYield: 0.20 } },
   { id: 'scav_scrap_2', tree: SkillTreeType.Scavenger, tier: 4, index: 2, name: 'Compression', description: '+20% Scrap Yield', type: 'small', maxPoints: 5, cost: 1, effects: { scrapYield: 0.20 } },
-  { id: 'scav_cons_1', tree: SkillTreeType.Scavenger, tier: 5, index: 1, name: 'Efficient Routines', description: '+10% Consumable Efficiency', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.10 } },
-  { id: 'scav_cons_2', tree: SkillTreeType.Scavenger, tier: 5, index: 2, name: 'Conservation', description: '+10% Consumable Efficiency', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.10 } },
+  { id: 'scav_cons_1', tree: SkillTreeType.Scavenger, tier: 5, index: 1, name: 'Efficient Routines', description: 'Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue).', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.10 } },
+  { id: 'scav_cons_2', tree: SkillTreeType.Scavenger, tier: 5, index: 2, name: 'Conservation', description: 'Workshop craft jobs run faster: −2% unit time per point (−20% across both nodes).', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.10 } },
   { id: 'scav_cache_1', tree: SkillTreeType.Scavenger, tier: 6, index: 1, name: 'Encrypted Payloads', description: '+5% Cache Quality Modifier', type: 'small', maxPoints: 5, cost: 1, effects: { cacheQuality: 0.05 } },
   { id: 'scav_fee_1', tree: SkillTreeType.Scavenger, tier: 6, index: 2, name: 'Darknet Broker', description: '+5% Marketplace Listing Fee Reduction', type: 'small', maxPoints: 5, cost: 1, effects: { marketFeeReduction: 0.05 } },
   // Major

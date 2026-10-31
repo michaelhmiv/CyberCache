@@ -21,6 +21,8 @@
 import type { Pool } from 'pg';
 import type { Json } from '../writes/store';
 import type { GearItem, Vehicle } from '../../types/items';
+import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
+import { finalizePendingCraftedGear } from '../writes/craftFinalize';
 
 export type { Json };
 
@@ -194,6 +196,24 @@ export interface ChefGameplayStore {
   getBossProfile(playerId: string): Promise<BossProfileRow | null>;
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null>;
   getActiveAction(playerId: string): Promise<ActiveActionRow | null>;
+  /**
+   * The player's consumable batch rows (quality > 0), in burn order
+   * per type (quality asc, then oldest first) — the input the claim /
+   * settlement / verify-boss routes turn into unit quality profiles
+   * for the quality-wired engines (crafting §2.4). Counts stay
+   * authoritative in profiles.consumables; batches only price the
+   * units' quality.
+   */
+  getConsumableBatches(playerId: string): Promise<ConsumableBatchRow[]>;
+  /**
+   * Offline craft settlement (crafting §2.1 + F5): run the craft
+   * settler with the caller's effective offline cap as the total
+   * advance cap, then finalize any pending crafted gear. Returns the
+   * settler result (completions feed the offline recap's crafting
+   * section). Only meaningful when the recorded action is crafting —
+   * the settlement route checks that first.
+   */
+  settleOfflineCraftJobs(playerId: string, capMs: number): Promise<Json>;
   /**
    * The player's equipped gear from the server's own records
    * (item_instances rows with runtime_state 'equipped'), payloads in
@@ -408,6 +428,35 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         activity_payload: json(row.activity_payload),
       }),
     );
+  }
+
+  async getConsumableBatches(playerId: string): Promise<ConsumableBatchRow[]> {
+    try {
+      const { rows } = await this.pool.query(
+        `select consumable_type, quality_percent, quantity, created_at
+           from public.consumable_batches
+          where owner_user_id = $1 and quantity > 0
+          order by consumable_type asc, quality_percent asc, created_at asc`,
+        [playerId],
+      );
+      return (rows as Row[]).map((row) => ({
+        consumable_type: String(row.consumable_type),
+        quality_percent: num(row.quality_percent),
+        quantity: num(row.quantity),
+        created_at: isoOrNull(row.created_at) ?? undefined,
+      }));
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+
+  async settleOfflineCraftJobs(playerId: string, capMs: number): Promise<Json> {
+    const result = await this.callJson('select public.cc_settle_craft_jobs($1, $2) as result', [
+      playerId,
+      Math.max(0, Math.floor(capMs)),
+    ]);
+    await finalizePendingCraftedGear(this.pool, playerId);
+    return result;
   }
 
   async getEquippedGear(playerId: string): Promise<GearItem[]> {

@@ -82,6 +82,14 @@ export enum ConsumableType {
   WorkshopRushTicket = 'WorkshopRushTicket',
   GenericFuelCell = 'GenericFuelCell',
   PatchKit = 'PatchKit',
+  // Crafted vehicle consumables (crafting-as-occupation slice): the
+  // tier-2/tier-3 patch kits and the crafted fuel cell. None are
+  // vendor-stocked — they exist only from crafters and the player
+  // market (occupations law: >100% quality and non-vendor types come
+  // only from crafters/market). Defs live in src/constants/consumables.ts.
+  FieldPatchKit = 'FieldPatchKit',
+  MasterPatchKit = 'MasterPatchKit',
+  FuelCell = 'FuelCell',
 }
 
 export enum MaterialType {
@@ -102,6 +110,22 @@ export enum MaterialType {
   PrismShards = 'PrismShards',
   MagnetiteCores = 'MagnetiteCores',
   MycoSteelFiber = 'MycoSteelFiber',
+  // Refined materials (crafting-as-occupation slice): outputs of the
+  // Workshop refining recipes — Tier-2 refined forms of the five base
+  // materials plus three Lab composites. They live in the same
+  // profiles.materials map, are inputs to gear frames / tools /
+  // composites, and are player-market tradable (migration 0024
+  // extends the cc_market_create_material whitelist to all 20 ids —
+  // MARKET_MATERIAL_IDS derives from this enum, so the TS twin is
+  // automatic; the parity test pins the SQL list to this enum).
+  RefinedAlloy = 'RefinedAlloy',
+  TemperedParts = 'TemperedParts',
+  StabilizedCells = 'StabilizedCells',
+  WovenCircuits = 'WovenCircuits',
+  CondensedVoid = 'CondensedVoid',
+  CompositePlating = 'CompositePlating',
+  CircuitLattice = 'CircuitLattice',
+  Voidweave = 'Voidweave',
 }
 
 export enum EssenceType {

@@ -1,5 +1,6 @@
 import type { Weapon } from '@/types/items';
 import { Element } from '@/types/game';
+import { getConsumableRuntimeEffects } from '@/constants/consumables';
 import { applySignatureMechanic, DPS_CONSUMABLE_EFFECTS } from './signatureMechanic';
 
 export type DpsContext = {
@@ -19,6 +20,16 @@ export type DpsContext = {
    * activity settlement layer.
    */
   consumables?: Record<string, number>;
+  /**
+   * Per-type quality of the consumables being burned (crafting §2.4):
+   * the quantity-weighted average quality of the prepared units, built
+   * by the verify-boss route from server batch rows. When a type has
+   * an entry here, its DPS effect is read through
+   * getConsumableRuntimeEffects at that quality instead of the flat
+   * DPS_CONSUMABLE_EFFECTS (quality 100) map. Absent = flat, exactly
+   * the pre-slice chain.
+   */
+  consumableQuality?: Record<string, number>;
   /**
    * Manufacturer-specific legendary damage multiplier (default 1.0).
    */
@@ -68,12 +79,26 @@ const counterElementMultiplier = (
  * exposed by `src/constants/consumables.ts` contribute here; the caller can
  * pass the full consumables table without creating a second DPS item list.
  */
-function consumableMultiplier(consumables: Record<string, number> | undefined): number {
+function consumableMultiplier(
+  consumables: Record<string, number> | undefined,
+  consumableQuality?: Record<string, number>,
+): number {
   if (!consumables) return 1;
   let mult = 1;
   for (const [key, count] of Object.entries(consumables)) {
-    const effect = DPS_CONSUMABLE_EFFECTS[key];
-    if (effect !== undefined && count > 0) {
+    if (count <= 0) continue;
+    // Quality wiring (§2.4): a type with a quality entry reads its
+    // dpsMultiplier through the def's declared scaling at that
+    // quality; every other type uses the flat-100 map as shipped.
+    const quality = consumableQuality?.[key];
+    let effect: number | undefined;
+    if (quality !== undefined) {
+      const dpsMultiplier = getConsumableRuntimeEffects(key, quality).dpsMultiplier;
+      effect = dpsMultiplier && dpsMultiplier !== 1 ? dpsMultiplier - 1 : undefined;
+    } else {
+      effect = DPS_CONSUMABLE_EFFECTS[key];
+    }
+    if (effect !== undefined) {
       mult *= 1 + effect * count;
     }
   }
@@ -105,6 +130,7 @@ export function computeWeaponDps(ctx: DpsContext): number {
     bossWeaknesses = [],
     bossResistances = [],
     consumables = {},
+    consumableQuality,
     legendaryDamageMult = 1,
     ammoEfficiency = 1,
     bossDamageMod = 0,
@@ -134,7 +160,7 @@ export function computeWeaponDps(ctx: DpsContext): number {
   // `calculateAmmoWindows`; the chain just multiplies it in.
   const ammoDps = elementalDps * ammoEfficiency;
   // Step 6: DPS consumables derived from the consumable runtime table.
-  const consumableDps = ammoDps * consumableMultiplier(consumables);
+  const consumableDps = ammoDps * consumableMultiplier(consumables, consumableQuality);
   // Step 7: Per-weapon boss damage modifier (from weapon affixes).
   return consumableDps * (1 + bossDamageMod);
 }

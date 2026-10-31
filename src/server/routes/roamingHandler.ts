@@ -17,6 +17,7 @@ import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, DeathRecord, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { getRoamingArea } from '../../constants/roamingAreas';
+import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { isHotArea } from '../../content/hotArea';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
@@ -74,6 +75,25 @@ export function createClaimHandler(
 
       // Read server-authoritative consumable inventory from profiles.consumables
       const consumableInventory = (profile.consumables ?? {}) as Record<string, number>;
+
+      // Quality wiring (crafting §2.4): price this claim's consumable
+      // effects from the player's own batch rows, derived against the
+      // authoritative owned counts above — never from the body. A
+      // batch read failure is a 500 like the loadout read: pricing
+      // effects at flat 100% silently would underpay crafted quality
+      // with no signal.
+      let consumableBatches: Awaited<ReturnType<ChefGameplayStore['getConsumableBatches']>>;
+      try {
+        consumableBatches = await store.getConsumableBatches(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read consumable batches', detail: message });
+        return;
+      }
+      const consumableQualityProfile = buildConsumableQualityProfile(
+        consumableBatches,
+        consumableInventory,
+      );
 
       // Trust hardening (Phase 0 Slice 6): the claim's gear and skill
       // inputs are derived from the server's OWN records — the
@@ -137,6 +157,7 @@ export function createClaimHandler(
         creditsRemainder: profile.credits_remainder,
         xpRemainder: profile.xp_remainder,
         consumableInventory,
+        consumableQualityProfile,
         roamingConsumableState: body.roamingConsumableState,
         masteryLevels: body.masteryLevels,
         vehicle: equippedVehicle

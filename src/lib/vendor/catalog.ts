@@ -101,7 +101,7 @@ export const VENDOR_STAPLE_DEFS: ConsumableDef[] = Object.values(CONSUMABLES).fi
  * excluded — the vendor never stocks them.
  */
 export const VENDOR_ROTATION_DEFS: ConsumableDef[] = Object.values(CONSUMABLES).filter(
-  (c) => !c.market.vendorStocked && c.market.playerMarketAllowed,
+  (c) => !c.market.vendorStocked && c.market.playerMarketAllowed && !c.market.vendorExcluded,
 );
 
 const STAPLE_IDS = new Set(VENDOR_STAPLE_DEFS.map((c) => c.id));

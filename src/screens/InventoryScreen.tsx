@@ -43,7 +43,9 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
   const loadoutRows = useMemo(() => buildLoadoutRows(loadout.slots, inventory.items), [loadout.slots, inventory.items]);
   const equippedCount = countEquippedLoadoutSlots(loadoutRows);
   const lockedCount = inventory.items.filter((item) => item.isLocked).length;
-  const queueCount = workshop.activeQueues.length;
+  const queueCount = (workshop.server?.jobs ?? []).filter(
+    (j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused',
+  ).length;
 
   return (
     <div className="bl-page space-y-4 pb-20">

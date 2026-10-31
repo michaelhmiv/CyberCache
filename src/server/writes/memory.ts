@@ -26,12 +26,35 @@ import {
 } from '../../lib/market/identityKey.js';
 import {
   FUEL_CELL_TYPE,
+  FUEL_CELL_TYPES,
   FUEL_UNITS_PER_CELL,
-  PATCH_KIT_RESTORE_POINTS,
+  PATCH_KIT_BASES,
   PATCH_KIT_TYPE,
   VEHICLE_CONDITION_MAX,
   getVehicleClass,
 } from '../../lib/vehicles/vehicles.js';
+import {
+  buildWorkshopStateView,
+  cancelCraftJob as cancelCraftJobCore,
+  craftJobView,
+  enqueueCraftJob as enqueueCraftJobCore,
+  fitCraftTool as fitCraftToolCore,
+  settleCraftJobs as settleCraftJobsCore,
+  unlockCraftBench as unlockCraftBenchCore,
+  CraftEngineError,
+  type CraftAdapter,
+  type CraftLeverValues,
+  type CraftProfileView,
+} from './craftEngine.js';
+import {
+  CRAFT_XP_RATE_DEFAULT,
+  CRAFT_TIME_SCALAR_DEFAULT,
+  CRAFT_QUALITY_SHIFT_DEFAULT,
+  GEAR_TEMPER_BASE_CHANCE_DEFAULT,
+  REFINE_BASE_YIELD_DEFAULT,
+} from '../../content/crafting.js';
+import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
+import type { GearItem } from '../../types/items.js';
 import { buildStarterVehicle } from '../lib/generators/vehicleGenerator.js';
 import {
   computeSkillBonuses,
@@ -64,6 +87,7 @@ import {
   type ActiveActionData,
   type CombatStatsData,
   type ConsumableBatchData,
+  type EnqueueCraftJobInput,
   type Json,
   type LedgerEntryData,
   type ProfessionData,
@@ -92,7 +116,7 @@ const ACTIVE_KINDS = [
   'workshop_service',
   'market_listing',
 ] as const;
-const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber'] as const;
+const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave'] as const;
 
 export interface InMemoryWriteOptions {
   now?: () => Date;
@@ -115,6 +139,15 @@ export interface InMemoryWriteOptions {
    * through the mirror.
    */
   buybackRateProvider?: () => number | Promise<number>;
+  /**
+   * Live crafting lever values (economy_config, 0024), resolved per
+   * craft op — the mirror of the SQL settler reading economy_config
+   * through cc_economy_config_number. Partial values merge over the
+   * code defaults and clamp to the registry ranges, exactly like the
+   * admin write path. Production crafting runs the SQL path; this
+   * provider exists so tests exercise the levers through the mirror.
+   */
+  craftLeverProvider?: () => Partial<CraftLeverValues>;
 }
 
 function clone<T>(value: T): T {
@@ -132,6 +165,8 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly uuid: () => string;
   private readonly feeRateProvider: () => number | Promise<number>;
   private readonly buybackRateProvider: () => number | Promise<number>;
+  private readonly craftLeverProvider: () => Partial<CraftLeverValues>;
+  private craftViews = new Map<string, CraftProfileView>();
 
   private profiles = new Map<string, ProfileRowData>();
   private items = new Map<string, WriteItemData>();
@@ -150,6 +185,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.uuid = opts.uuid ?? newUuid;
     this.feeRateProvider = opts.feeRateProvider ?? (() => MARKET_FEE_RATE);
     this.buybackRateProvider = opts.buybackRateProvider ?? (() => VENDOR_BUYBACK_RATE_DEFAULT);
+    this.craftLeverProvider = opts.craftLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) this.profiles.set(p.id, p);
     for (const i of this.seed.items) this.items.set(i.id, i);
@@ -1186,34 +1222,52 @@ export class InMemoryWriteStore implements WriteStore {
     return consumed;
   }
 
-  /** cc_refuel_vehicle (0021): cells → tank units at FUEL_UNITS_PER_CELL each. */
-  async refuelVehicle(playerId: string, nonce: string, cells: number): Promise<Json> {
+  /**
+   * cc_refuel_vehicle (0021; restated 0024): cells → tank units.
+   * The vendor's Generic cell is flat: FUEL_UNITS_PER_CELL each. The
+   * crafted FuelCell loads 100 × the consumed batches' weighted
+   * quality (§2.5d) — one formula covers both, since fuel per cell =
+   * Σ take × quality × (FUEL_UNITS_PER_CELL / 100).
+   */
+  async refuelVehicle(playerId: string, nonce: string, cells: number, itemKey: string = FUEL_CELL_TYPE): Promise<Json> {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
     const qty = Math.floor(cells);
     if (!Number.isFinite(qty) || qty < 1) throw writeError('cells must be a positive integer');
-    this.consumeOwnedConsumable(p, playerId, FUEL_CELL_TYPE, qty);
-    p.vehicle_fuel = (p.vehicle_fuel ?? 0) + qty * FUEL_UNITS_PER_CELL;
+    if (!(FUEL_CELL_TYPES as readonly string[]).includes(itemKey)) throw writeError('Unknown fuel cell type');
+    const consumed = this.consumeOwnedConsumable(p, playerId, itemKey, qty);
+    const fuelAdded = Math.round(
+      (consumed.consumed as Array<Record<string, unknown>>).reduce(
+        (sum, entry) =>
+          sum +
+          Number(entry.quantity ?? 0) *
+            Number(entry.quality_percent ?? 100) *
+            (FUEL_UNITS_PER_CELL / 100),
+        0,
+      ),
+    );
+    p.vehicle_fuel = (p.vehicle_fuel ?? 0) + fuelAdded;
     this.touch(p);
     const result: Json = {
       action_type: 'cc_refuel_vehicle',
       profile: this.profileSnapshot(p),
       cells_loaded: qty,
-      fuel_units_added: qty * FUEL_UNITS_PER_CELL,
+      fuel_units_added: fuelAdded,
       vehicle_fuel: p.vehicle_fuel,
     };
     return this.record(playerId, 'cc_refuel_vehicle', key, result);
   }
 
   /**
-   * cc_use_patch_kit (0021): consume one Patch Kit (FIFO — the
-   * lowest-quality batch burns first, as everywhere) and restore
-   * PATCH_KIT_RESTORE_POINTS × quality% condition, capped at max.
-   * Works on any owned vehicle, equipped or not.
+   * cc_use_patch_kit (0021; restated 0024): consume one patch kit of
+   * the given type (FIFO — the lowest-quality batch burns first, as
+   * everywhere) and restore the type's base (PATCH_KIT_BASES) ×
+   * quality% condition, capped at max. Works on any owned vehicle,
+   * equipped or not.
    */
-  async usePatchKit(playerId: string, nonce: string, itemId: string): Promise<Json> {
+  async usePatchKit(playerId: string, nonce: string, itemId: string, itemKey: string = PATCH_KIT_TYPE): Promise<Json> {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
     if (prior) return prior;
@@ -1221,10 +1275,12 @@ export class InMemoryWriteStore implements WriteStore {
     const item = this.ownItem(playerId, itemId);
     if (item.kind !== 'vehicle') throw writeError('Item is not a vehicle');
     if (['listed', 'consumed', 'salvaged'].includes(item.runtime_state)) throw writeError('Item state invalid');
-    const consumed = this.consumeOwnedConsumable(p, playerId, PATCH_KIT_TYPE, 1);
+    const base = PATCH_KIT_BASES[itemKey];
+    if (base === undefined) throw writeError('Unknown patch kit type');
+    const consumed = this.consumeOwnedConsumable(p, playerId, itemKey, 1);
     const batch = (consumed.consumed as Array<Record<string, unknown>>)[0];
     const quality = typeof batch?.quality_percent === 'number' ? batch.quality_percent : 100;
-    const restored = Math.max(1, Math.round((PATCH_KIT_RESTORE_POINTS * quality) / 100));
+    const restored = Math.max(1, Math.round((base * quality) / 100));
     const max = item.condition_max ?? VEHICLE_CONDITION_MAX;
     const before = item.condition_current ?? max;
     item.condition_current = Math.min(max, before + restored);
@@ -1238,6 +1294,334 @@ export class InMemoryWriteStore implements WriteStore {
       condition_max: max,
     };
     return this.record(playerId, 'cc_use_patch_kit', key, result);
+  }
+
+  // ── Crafting-as-occupation (migration 0024) ──────────────────────
+  //
+  // The job model runs on the shared craft engine (craftEngine.ts) —
+  // the same settler/enqueue/cancel logic the SQL functions in 0024
+  // implement. The adapter below binds the engine to this store's
+  // seed state; lever values resolve per op through the injectable
+  // provider, clamped to the economy registry ranges.
+
+  private craftLevers(): CraftLeverValues {
+    const provided = this.craftLeverProvider();
+    const clamp = (value: number | undefined, def: number, min: number, max: number): number => {
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : def;
+      return Math.min(max, Math.max(min, v));
+    };
+    return {
+      craftXpRate: clamp(provided.craftXpRate, CRAFT_XP_RATE_DEFAULT, 0.7, 0.85),
+      craftTimeScalar: clamp(provided.craftTimeScalar, CRAFT_TIME_SCALAR_DEFAULT, 0.5, 2),
+      craftQualityShift: clamp(provided.craftQualityShift, CRAFT_QUALITY_SHIFT_DEFAULT, -10, 10),
+      gearTemperBaseChance: clamp(provided.gearTemperBaseChance, GEAR_TEMPER_BASE_CHANCE_DEFAULT, 0, 0.3),
+      refineBaseYield: clamp(provided.refineBaseYield, REFINE_BASE_YIELD_DEFAULT, 0.5, 1),
+    };
+  }
+
+  /** Sync a profile row into its cached craft view (scalars in;
+   *  materials/essences/consumables are shared references). */
+  private craftView(playerId: string): CraftProfileView | null {
+    const p = this.profileOrNull(playerId);
+    if (!p) return null;
+    let view = this.craftViews.get(playerId);
+    if (!view) {
+      const rawTools = (p.workshop_tools ?? {}) as {
+        owned?: Record<string, boolean>;
+        fitted?: Record<string, string | null>;
+        charges?: Record<string, number>;
+      };
+      view = {
+        player_level: p.player_level,
+        player_xp: p.player_xp,
+        credits: p.credits,
+        materials: asNumberMap(p.materials),
+        essences: asNumberMap(p.essences),
+        consumables: asNumberMap(p.consumables),
+        workshop_benches: p.workshop_benches ?? 1,
+        workshop_tools: {
+          owned: { ...(rawTools.owned ?? {}) },
+          fitted: { ...(rawTools.fitted ?? {}) },
+          charges: { ...(rawTools.charges ?? {}) },
+        },
+        offline_cap_hours: p.offline_cap_hours ?? null,
+      };
+      p.materials = view.materials;
+      p.essences = view.essences;
+      p.consumables = view.consumables;
+      this.craftViews.set(playerId, view);
+    } else {
+      view.player_level = p.player_level;
+      view.player_xp = p.player_xp;
+      view.credits = p.credits;
+      view.workshop_benches = p.workshop_benches ?? view.workshop_benches;
+      view.offline_cap_hours = p.offline_cap_hours ?? null;
+    }
+    return view;
+  }
+
+  /** Write a craft view's scalars back onto its profile row. */
+  private flushCraftView(playerId: string): void {
+    const view = this.craftViews.get(playerId);
+    const p = this.profileOrNull(playerId);
+    if (!view || !p) return;
+    p.player_level = view.player_level;
+    p.player_xp = view.player_xp;
+    p.credits = view.credits;
+    p.workshop_benches = view.workshop_benches;
+    p.workshop_tools = clone(view.workshop_tools) as unknown as Record<string, unknown>;
+    this.touch(p);
+  }
+
+  private craftAdapter(): CraftAdapter {
+    return {
+      nowMs: () => this.nowFn().getTime(),
+      rng: () => this.rng(),
+      uuid: () => this.uuid(),
+      profile: (playerId) => this.craftView(playerId),
+      activeAction: (playerId) => {
+        const row = this.activities.get(playerId);
+        if (!row) return null;
+        return {
+          kind: row.active_action,
+          lastHeartbeatMs: row.last_heartbeat_at ? new Date(row.last_heartbeat_at).getTime() : null,
+        };
+      },
+      jobs: (playerId) => this.seed.craftJobs.filter((j) => j.owner_user_id === playerId),
+      addJob: (job) => {
+        this.seed.craftJobs.push(job);
+      },
+      masteryLevel: (playerId, track) => {
+        const row = this.seed.masteries.find((m) => m.user_id === playerId && m.mastery_id === track);
+        return row ? Math.max(1, row.mastery_level) : 1;
+      },
+      addMasteryXp: (playerId, track, xp) => {
+        this.addMasteryXp(playerId, track, xp);
+      },
+      addStat: (playerId, key, amount) => {
+        this.addStat(playerId, key, amount);
+      },
+      addBatch: (playerId, type, qty, quality, origin, creatorId, recipeId) => {
+        this.addConsumableBatch(playerId, type, qty, quality, origin, creatorId, recipeId, {});
+        const p = this.profile(playerId);
+        const consumables = asNumberMap(p.consumables);
+        consumables[type] = (consumables[type] ?? 0) + qty;
+        p.consumables = consumables;
+      },
+      burnOneBatchUnit: (playerId, type) => {
+        const p = this.profile(playerId);
+        const consumables = asNumberMap(p.consumables);
+        const current = consumables[type] ?? 0;
+        if (current < 1) return null;
+        const hasBatch = this.seed.consumableBatches.some(
+          (b) => b.owner_user_id === playerId && b.consumable_type === type && b.quantity > 0,
+        );
+        if (!hasBatch) {
+          // Shipped backfill: legacy counts without batch rows burn
+          // as a flat-100% batch (cc_consume_consumable's pattern).
+          this.addConsumableBatch(playerId, type, current, 100, 'vendor', null, null, {});
+        }
+        const head = this.seed.consumableBatches
+          .filter((b) => b.owner_user_id === playerId && b.consumable_type === type && b.quantity > 0)
+          .sort((a, b) => a.quality_percent - b.quality_percent || a.created_at.localeCompare(b.created_at))[0];
+        const origin = head?.origin ?? 'vendor';
+        const consumed = this.consumeBatchesFifo(playerId, type, 1);
+        if (Number(consumed.remaining_shortfall) > 0) return null;
+        consumables[type] = Math.max(current - 1, 0);
+        p.consumables = consumables;
+        const first = (consumed.consumed as Array<Record<string, unknown>>)[0];
+        return { quality: Number(first?.quality_percent ?? 100), origin };
+      },
+      insertGearItem: (playerId, candidate) => {
+        const now = this.nowIso();
+        const payload = candidate.payload as Json;
+        const id = typeof payload.id === 'string' && payload.id ? payload.id : this.uuid();
+        (payload as Record<string, unknown>).id = id;
+        const item: WriteItemData = {
+          id,
+          owner_user_id: playerId,
+          kind: candidate.kind,
+          static_item_id: null,
+          item_level: candidate.itemLevel,
+          rarity: candidate.rarity,
+          quality: null,
+          material_tier: null,
+          condition_state: null,
+          condition_current: null,
+          condition_max: null,
+          supply_mode: 'verified_action',
+          source_id: null,
+          creator_user_id: playerId,
+          tradeable: true,
+          account_bound: false,
+          locked_until: null,
+          payload,
+          runtime_state: 'available',
+          is_locked: false,
+          equipped_slot: null,
+          estimated_value: computeItemEstimatedValue(
+            payload as Record<string, unknown>,
+            candidate.kind,
+            candidate.rarity,
+            candidate.itemLevel,
+          ),
+          created_at: now,
+          updated_at: now,
+        };
+        this.insertItem(item);
+        return id;
+      },
+      levers: () => this.craftLevers(),
+    };
+  }
+
+  /** Engine errors carry the SQL functions' messages; surface them
+   *  through the same WriteStoreError mapping. */
+  private craftCall<T>(fn: () => T): T {
+    try {
+      return fn();
+    } catch (err) {
+      if (err instanceof CraftEngineError) throw writeError(err.message);
+      throw err;
+    }
+  }
+
+  /** The §2.7 skill consumer's input, from server records (mirrors
+   *  PgWriteStore.consumableEfficiencyBonus). */
+  private craftEfficiencyBonus(playerId: string): number {
+    const p = this.profileOrNull(playerId);
+    if (!p) return 0;
+    const gear = [...this.items.values()]
+      .filter((i) => i.owner_user_id === playerId && i.runtime_state === 'equipped')
+      .map((i) => i.payload as unknown as GearItem);
+    return skillBonusesFromRecords(gear, (p.skill_spends ?? {}) as Record<string, number>)
+      .consumableEfficiency ?? 0;
+  }
+
+  /** Settle the player's craft jobs against the outgoing action —
+   *  called by the activity transitions (0024 restates the SQL
+   *  set/clear functions with the same hook). */
+  private settleCraftBeforeTransition(playerId: string): void {
+    if (!this.profileOrNull(playerId)) return;
+    this.craftCall(() => settleCraftJobsCore(this.craftAdapter(), playerId));
+    this.flushCraftView(playerId);
+  }
+
+  async enqueueCraftJob(playerId: string, nonce: string, input: EnqueueCraftJobInput): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    // Guest gate (brief §2.1): the Workshop explains itself to
+    // guests but enqueueing is a verified-account action — the same
+    // player-market lock treatment; vendor staples stay the guest
+    // path. The SQL twin checks can_use_player_economy.
+    this.requireEconomy(playerId);
+    const p = this.profile(playerId);
+    const { job } = this.craftCall(() =>
+      enqueueCraftJobCore(this.craftAdapter(), playerId, {
+        bench: input.bench,
+        recipeId: input.recipeId,
+        units: input.units,
+        rarity: input.rarity ?? null,
+        useCatalyst: input.useCatalyst ?? false,
+        useRushTicket: input.useRushTicket ?? false,
+        consumableEfficiencyBonus: this.craftEfficiencyBonus(playerId),
+      }),
+    );
+    this.flushCraftView(playerId);
+    const jobs = this.seed.craftJobs.filter((j) => j.owner_user_id === playerId);
+    const result: Json = {
+      action_type: 'cc_enqueue_craft_job',
+      profile: this.profileSnapshot(p),
+      job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+    };
+    return this.record(playerId, 'cc_enqueue_craft_job', key, result);
+  }
+
+  async cancelCraftJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const cancelled = this.craftCall(() => cancelCraftJobCore(this.craftAdapter(), playerId, jobId));
+    this.flushCraftView(playerId);
+    const result: Json = {
+      action_type: 'cc_cancel_craft_job',
+      profile: this.profileSnapshot(p),
+      job_id: cancelled.jobId,
+      refunded_inputs: cancelled.refundedInputs,
+      rush_ticket_refunded: cancelled.rushTicketRefunded,
+    };
+    return this.record(playerId, 'cc_cancel_craft_job', key, result);
+  }
+
+  async unlockCraftBench(playerId: string, nonce: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const unlocked = this.craftCall(() => unlockCraftBenchCore(this.craftAdapter(), playerId));
+    this.flushCraftView(playerId);
+    const result: Json = {
+      action_type: 'cc_unlock_bench',
+      profile: this.profileSnapshot(p),
+      benches: unlocked.benches,
+    };
+    return this.record(playerId, 'cc_unlock_bench', key, result);
+  }
+
+  async fitWorkshopTool(playerId: string, nonce: string, bench: number, toolId: string | null): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const fitted = this.craftCall(() => fitCraftToolCore(this.craftAdapter(), playerId, bench, toolId));
+    this.flushCraftView(playerId);
+    const result: Json = {
+      action_type: 'cc_fit_workshop_tool',
+      profile: this.profileSnapshot(p),
+      fitted: fitted.fitted as unknown as Json,
+    };
+    return this.record(playerId, 'cc_fit_workshop_tool', key, result);
+  }
+
+  async settleCraftJobs(playerId: string, maxAdvanceMs?: number): Promise<Json> {
+    if (!this.profileOrNull(playerId)) throw writeError('Profile not found');
+    const settled = this.craftCall(() =>
+      settleCraftJobsCore(this.craftAdapter(), playerId, { maxAdvanceMs }),
+    );
+    this.flushCraftView(playerId);
+    return {
+      settled: settled.settled,
+      advanced_ms: settled.advancedMs,
+      xp_awarded: settled.xpAwarded,
+      jobs_completed: settled.jobsCompleted,
+      completions: settled.completions as unknown as Json,
+    };
+  }
+
+  async getWorkshopState(playerId: string): Promise<Json> {
+    if (!this.profileOrNull(playerId)) throw writeError('Profile not found');
+    this.craftCall(() => settleCraftJobsCore(this.craftAdapter(), playerId));
+    this.flushCraftView(playerId);
+    const view = this.craftViews.get(playerId) as CraftProfileView;
+    const masteries: Record<string, { level: number; xp: number }> = {
+      crafting_consumables: { level: 1, xp: 0 },
+      'crafting.refining': { level: 1, xp: 0 },
+      'crafting.gear': { level: 1, xp: 0 },
+    };
+    for (const m of this.seed.masteries) {
+      if (m.user_id === playerId && m.mastery_id in masteries) {
+        masteries[m.mastery_id] = { level: Math.max(1, m.mastery_level), xp: m.mastery_xp };
+      }
+    }
+    return buildWorkshopStateView({
+      benches: view.workshop_benches,
+      tools: view.workshop_tools,
+      jobs: this.seed.craftJobs.filter((j) => j.owner_user_id === playerId),
+      masteries,
+      activeActionKind: this.activities.get(playerId)?.active_action ?? null,
+    }) as Json;
   }
 
   async idleClaim(playerId: string, nonce: string): Promise<Json> {
@@ -1905,6 +2289,9 @@ export class InMemoryWriteStore implements WriteStore {
     }
     const prior = this.prior(playerId, key);
     if (prior) return prior;
+    // Crafting settler hook (0024): the outgoing action settles its
+    // craft jobs before the switch, at its exact accrued values.
+    this.settleCraftBeforeTransition(playerId);
     const now = this.nowIso();
     const emptyToNull = (v: string | null | undefined) => (v === '' || v === undefined ? null : v);
     const row: ActiveActionData = {
@@ -1933,6 +2320,8 @@ export class InMemoryWriteStore implements WriteStore {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
     if (prior) return prior;
+    // Crafting settler hook (0024), same as setActiveAction.
+    this.settleCraftBeforeTransition(playerId);
     const now = this.nowIso();
     const row: ActiveActionData = {
       user_id: playerId,

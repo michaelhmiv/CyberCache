@@ -1,9 +1,8 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useActivityStore, useBossStore, useInventoryStore, usePlayerStore, useWorkshopStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
-import { useNow } from '@/hooks/useNow';
 import { xpToNextLevel } from '@/content/simulation';
 
 type PulseEntry = {
@@ -22,7 +21,6 @@ export const WorldPulseFeed: React.FC = () => {
   const inventory = useInventoryStore();
   const bossStore = useBossStore();
   const workshop = useWorkshopStore();
-  const now = useNow();
 
   const publicPayload = activity.current.publicPayload;
   const activityLabel = safeText(publicPayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
@@ -32,10 +30,14 @@ export const WorldPulseFeed: React.FC = () => {
     .filter(Boolean)
     .at(-1);
   const strongestWeapon = inventory.getWeapons().sort((a, b) => b.combatPower - a.combatPower)[0];
-  const readyQueues = useMemo(
-    () => workshop.activeQueues.filter((queue) => Math.floor((now - queue.startedAt) / queue.durationMs) > queue.claimedCount).length,
-    [workshop.activeQueues, now],
+  // Workshop jobs are server state now (0024): "ready" output means
+  // units the server has already settled into completions — read from
+  // the mirrored server view, never from a local clock.
+  const workshopJobs = workshop.server?.jobs ?? [];
+  const activeWorkshopJobs = workshopJobs.filter(
+    (j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused',
   );
+  const jobsWithOutput = activeWorkshopJobs.filter((j) => j.unitsCompleted > 0).length;
 
   const entries: PulseEntry[] = [
     {
@@ -68,8 +70,8 @@ export const WorldPulseFeed: React.FC = () => {
     },
     {
       id: 'workshop-state',
-      label: `${workshop.activeQueues.length} passive bench queue${workshop.activeQueues.length === 1 ? '' : 's'}`,
-      detail: readyQueues > 0 ? `${readyQueues} queue${readyQueues === 1 ? '' : 's'} ready to claim.` : 'No completed workshop output waiting.',
+      label: `${activeWorkshopJobs.length} bench job${activeWorkshopJobs.length === 1 ? '' : 's'}`,
+      detail: jobsWithOutput > 0 ? `${jobsWithOutput} job${jobsWithOutput === 1 ? '' : 's'} already produced units.` : 'No completed workshop output waiting.',
       glyph: '⚙',
       tone: '#A855F7',
     },

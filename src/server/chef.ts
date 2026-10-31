@@ -188,6 +188,15 @@ export interface ClaimRequest {
   xpRemainder?: number;
   /** Consumable inventory count map (server-authoritative, read from DB by claim route). */
   consumableInventory?: Record<string, number>;
+  /**
+   * Unit quality profile per consumable type (crafting §2.4): built
+   * by the claim routes from the player's batch rows via
+   * buildConsumableQualityProfile — never from the client body. The
+   * roaming engine prices every consumable effect at the quality of
+   * the units actually drawn; absent (direct engine calls) every unit
+   * reads 100, the pre-slice behavior.
+   */
+  consumableQualityProfile?: Record<string, number[]>;
   /** Prior roaming consumable state (carried from previous claim). */
   roamingConsumableState?: RoamingConsumableState;
   /** Mastery levels for interval reductions. */
@@ -670,7 +679,7 @@ export function processRoamingClaim(
   let roamingState: RoamingConsumableState | undefined = request.roamingConsumableState;
   if (!roamingState) {
     // Activate ALL owned consumables from inventory (no slot gating).
-    roamingState = activateFromInventory(consumableInventory, tickCount - ticks);
+    roamingState = activateFromInventory(consumableInventory, tickCount - ticks, request.consumableQualityProfile);
   }
   const consumedConsumables: Record<string, number> = {};
 
@@ -1300,6 +1309,7 @@ export function processRoamingClaim(
         maxHp: survMaxHp,
         inventory: consumableInventory,
         masteryLevels,
+        consumableQualityProfile: request.consumableQualityProfile,
       });
       roamingState = tickResult.state;
       consumableMods = tickResult.mods;
@@ -1855,7 +1865,7 @@ export function processRoamingClaim(
       if (!isBufferConsumable(slot.consumableId)) continue;
       const initialCount = initialBufferCounts[slot.consumableId] ?? 0;
       if (initialCount <= 0) continue;
-      const perUnit = bufferHealPerUnit(slot.consumableId);
+      const perUnit = bufferHealPerUnit(slot.consumableId, slot.qualityPercent ?? 100);
       if (perUnit <= 0) continue;
       const remainingFull = Math.floor(Math.max(0, slot.remainingBuffer) / perUnit);
       const consumed = initialCount - remainingFull;

@@ -53,6 +53,27 @@ import {
   type ClassModBoosts,
 } from '../../lib/skills/skillBonuses';
 import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses';
+import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
+import {
+  settleCraftJobs as settleCraftJobsCore,
+  type CraftAdapter,
+  type CraftJobRecord,
+  type CraftProfileView,
+  type WorkshopToolsState,
+} from '../writes/craftEngine';
+import {
+  CRAFT_XP_RATE_DEFAULT,
+  CRAFT_TIME_SCALAR_DEFAULT,
+  CRAFT_QUALITY_SHIFT_DEFAULT,
+  GEAR_TEMPER_BASE_CHANCE_DEFAULT,
+  REFINE_BASE_YIELD_DEFAULT,
+} from '../../content/crafting';
+
+/** A consumable batch row in this double (owner-attributed). */
+export interface InMemoryConsumableBatch extends ConsumableBatchRow {
+  owner_user_id: string;
+  created_at: string;
+}
 
 export interface InMemoryProfile {
   id: string;
@@ -198,6 +219,21 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly consumableEvents: ConsumableEvent[] = [];
   /** player_masteries mirror — written by the 0014 mastery grants below. */
   readonly masteries: InMemoryMastery[] = [];
+  /**
+   * Consumable batch rows (crafting §2.4): this double DOES model
+   * batches — the quality-wired routes read them through
+   * getConsumableBatches to price consumable effects. Boss/roaming
+   * consumption still tracks profile totals only (the standing
+   * simplification above); batches here are the quality record.
+   */
+  readonly consumableBatches: InMemoryConsumableBatch[] = [];
+  /** Craft jobs (migration 0024) for the offline craft settler. */
+  readonly craftJobs: CraftJobRecord[] = [];
+  /** Stat counter mirror for craft settler side effects. */
+  readonly craftStatCounters: Array<{ user_id: string; stat_key: string; stat_value: number }> = [];
+  /** Workshop bench/tool state for the craft settler (defaults: bench 1, no tools). */
+  readonly workshopBenches = new Map<string, number>();
+  readonly workshopTools = new Map<string, WorkshopToolsState>();
 
   constructor(private readonly now: () => Date = () => new Date()) {}
 
@@ -410,6 +446,154 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const a = this.activeActions.get(playerId);
     if (!a) return null;
     return { ...a, activity_payload: { ...a.activity_payload } };
+  }
+
+  /** Test helper: seed a consumable batch row (quality record). */
+  seedConsumableBatch(batch: InMemoryConsumableBatch): InMemoryConsumableBatch {
+    this.consumableBatches.push(batch);
+    return batch;
+  }
+
+  /** Test helper: seed a craft job for the offline settler. */
+  seedCraftJob(job: CraftJobRecord): CraftJobRecord {
+    this.craftJobs.push(job);
+    return job;
+  }
+
+  async getConsumableBatches(playerId: string): Promise<ConsumableBatchRow[]> {
+    return this.consumableBatches
+      .filter((b) => b.owner_user_id === playerId && b.quantity > 0)
+      .map((b) => ({ ...b }))
+      .sort(
+        (a, b) =>
+          a.consumable_type.localeCompare(b.consumable_type) ||
+          a.quality_percent - b.quality_percent ||
+          a.created_at.localeCompare(b.created_at),
+      );
+  }
+
+  /**
+   * Offline craft settlement through the shared craft engine
+   * (craftEngine.ts) — the same settler the in-memory WriteStore
+   * runs, bound to this store's state. Levers resolve to the code
+   * defaults here (the mirror's lever surface lives on the writes
+   * store); the cap arrives from the settlement route.
+   */
+  async settleOfflineCraftJobs(playerId: string, capMs: number): Promise<Json> {
+    const profile = this.profiles.get(playerId);
+    if (!profile) return { settled: false, reason: 'no_profile' } as Json;
+    const tools: WorkshopToolsState =
+      this.workshopTools.get(playerId) ?? { owned: {}, fitted: {}, charges: {} };
+    this.workshopTools.set(playerId, tools);
+    const view: CraftProfileView = {
+      player_level: profile.player_level,
+      player_xp: profile.player_xp,
+      credits: profile.credits,
+      materials: profile.materials,
+      essences: profile.essences,
+      consumables: profile.consumables,
+      workshop_benches: this.workshopBenches.get(playerId) ?? 1,
+      workshop_tools: tools,
+      offline_cap_hours: profile.offline_cap_hours,
+    };
+    const adapter: CraftAdapter = {
+      nowMs: () => this.now().getTime(),
+      rng: () => Math.random(),
+      uuid: () => randomUUID(),
+      profile: (id) => (id === playerId ? view : null),
+      activeAction: (id) => {
+        const a = this.activeActions.get(id);
+        if (!a) return null;
+        return {
+          kind: a.active_action,
+          lastHeartbeatMs: a.last_heartbeat_at ? new Date(a.last_heartbeat_at).getTime() : null,
+        };
+      },
+      jobs: (id) => this.craftJobs.filter((j) => j.owner_user_id === id),
+      addJob: (job) => {
+        this.craftJobs.push(job);
+      },
+      masteryLevel: (id, track) => {
+        const row = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
+        return row ? Math.max(1, row.mastery_level) : 1;
+      },
+      addMasteryXp: (id, track, xp) => {
+        const existing = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
+        if (existing) {
+          existing.mastery_xp += xp;
+          existing.mastery_level = masteryLevelForXp(existing.mastery_xp);
+        } else {
+          this.masteries.push({
+            user_id: id,
+            mastery_id: track,
+            mastery_xp: xp,
+            mastery_level: masteryLevelForXp(xp),
+          });
+        }
+      },
+      addStat: (id, key, amount) => {
+        const existing = this.craftStatCounters.find((s) => s.user_id === id && s.stat_key === key);
+        if (existing) existing.stat_value += amount;
+        else this.craftStatCounters.push({ user_id: id, stat_key: key, stat_value: amount });
+      },
+      addBatch: (id, type, qty, quality, _origin, _creatorId, _recipeId) => {
+        this.consumableBatches.push({
+          owner_user_id: id,
+          consumable_type: type,
+          quality_percent: quality,
+          quantity: qty,
+          created_at: this.now().toISOString(),
+        });
+        profile.consumables[type] = (profile.consumables[type] ?? 0) + qty;
+      },
+      // Enqueue-time escrow is a writes-store concern; the offline
+      // settler never burns units.
+      burnOneBatchUnit: () => null,
+      insertGearItem: (id, candidate) => {
+        const payload = { ...(candidate.payload as Record<string, unknown>) };
+        const itemId = typeof payload.id === 'string' && payload.id ? payload.id : randomUUID();
+        payload.id = itemId;
+        this.items.set(itemId, {
+          id: itemId,
+          owner_user_id: id,
+          kind: candidate.kind,
+          runtime_state: 'available',
+          is_locked: false,
+          rarity: candidate.rarity,
+          item_level: candidate.itemLevel,
+          estimated_value: computeItemEstimatedValue(
+            payload,
+            candidate.kind,
+            candidate.rarity,
+            candidate.itemLevel,
+          ),
+          supply_mode: 'verified_action',
+          tradeable: true,
+          equipped_slot: null,
+          payload,
+        });
+        return itemId;
+      },
+      levers: () => ({
+        craftXpRate: CRAFT_XP_RATE_DEFAULT,
+        craftTimeScalar: CRAFT_TIME_SCALAR_DEFAULT,
+        craftQualityShift: CRAFT_QUALITY_SHIFT_DEFAULT,
+        gearTemperBaseChance: GEAR_TEMPER_BASE_CHANCE_DEFAULT,
+        refineBaseYield: REFINE_BASE_YIELD_DEFAULT,
+      }),
+    };
+    const settled = settleCraftJobsCore(adapter, playerId, { maxAdvanceMs: Math.max(0, capMs) });
+    profile.player_level = view.player_level;
+    profile.player_xp = view.player_xp;
+    profile.credits = view.credits;
+    this.workshopBenches.set(playerId, view.workshop_benches);
+    return {
+      settled: settled.settled,
+      advanced_ms: settled.advancedMs,
+      xp_awarded: settled.xpAwarded,
+      jobs_completed: settled.jobsCompleted,
+      completions: settled.completions as unknown as Json,
+    } as Json;
   }
 
   async getEquippedGear(playerId: string): Promise<GearItem[]> {

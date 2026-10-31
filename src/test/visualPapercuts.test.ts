@@ -65,8 +65,11 @@ describe('render fixes (source shape)', () => {
 
   it('W1/W2 — workshop costs use labels and honest colors', () => {
     const workshop = read('../screens/WorkshopScreen.tsx');
-    expect(workshop).toContain("getVisualAsset('material', k).label");
-    expect(workshop).toContain("getVisualAsset('material', key).label");
+    // Both cost surfaces (job-card "eats" line + recipe escrow rows)
+    // render material LABELS, never raw ids (0024 screen rewrite:
+    // the loop variable is `key` in both places now).
+    const labelUses = workshop.match(/getVisualAsset\('material', \w+\)\.label/g) ?? [];
+    expect(labelUses.length).toBeGreaterThanOrEqual(2);
     expect(workshop).not.toContain("${hasEnough ? colorClass : 'text-red-400 line-through'}");
   });
 });

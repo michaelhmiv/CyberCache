@@ -1,16 +1,17 @@
 /**
  * MaterialUsageSheet — "Used in:" lookup for a material or essence.
  *
- * Lists every crafting recipe that consumes the material, read from
- * the single recipe source of truth (CRAFTING_RECIPES via
- * getRecipesUsingMaterial). Shared by the Workshop materials list and
- * the Market material cards so a material tap answers the same way
- * everywhere materials are shown.
+ * Lists every craft recipe that consumes the material, read from the
+ * unified craft catalog (src/content/crafting.ts — the legacy
+ * consumable recipes plus refining, gear frames and tools, the same
+ * catalog the server's job model runs). Shared by the Workshop
+ * materials list and the Market material cards so a material tap
+ * answers the same way everywhere materials are shown.
  */
 import React from 'react';
 import { Clock } from 'lucide-react';
 import { PickerSheet } from '@/components/common/PickerSheet';
-import { getRecipesUsingMaterial } from '@/constants/craftingRecipes';
+import { getAllCraftRecipesUsingMaterial } from '@/content/crafting';
 import { getVisualAsset } from '@/constants/visualAssets';
 
 function formatCraftTime(ms: number): string {
@@ -24,7 +25,7 @@ export const MaterialUsageSheet: React.FC<{
 }> = ({ materialId, onClose }) => {
   if (!materialId) return null;
   const label = getVisualAsset('material', materialId).label;
-  const recipes = getRecipesUsingMaterial(materialId);
+  const recipes = getAllCraftRecipesUsingMaterial(materialId);
 
   return (
     <PickerSheet title={label} subtitle={`Used in ${recipes.length} recipe${recipes.length === 1 ? '' : 's'}`} onClose={onClose}>
@@ -39,13 +40,21 @@ export const MaterialUsageSheet: React.FC<{
               <div className="min-w-0">
                 <div className="truncate text-xs font-black text-text-primary">{recipe.name}</div>
                 <div className="text-[9px] uppercase tracking-wide text-text-muted">
-                  {recipe.category} · needs {recipe.materials[materialId]} × {label} · makes {recipe.outputCount}
-                  {recipe.requiresLevel ? ` · Lv.${recipe.requiresLevel}` : ''}
+                  {recipe.category} · needs {recipe.inputs[materialId]} × {label} ·{' '}
+                  {recipe.kind === 'refine'
+                    ? `refines to ${recipe.outputMaterial}`
+                    : recipe.kind === 'gear'
+                      ? 'gear frame'
+                      : recipe.kind === 'tool'
+                        ? 'workshop tool'
+                        : `makes ${recipe.consumableType}`}
+                  {recipe.requiresLevel > 1 ? ` · Lv.${recipe.requiresLevel}` : ''}
+                  {recipe.requiresBench > 1 ? ` · Bench ${recipe.requiresBench}+` : ''}
                 </div>
               </div>
               <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-text-muted">
                 <Clock size={10} />
-                {formatCraftTime(recipe.craftTimeMs)}
+                {recipe.kind === 'gear' ? 'per rarity' : formatCraftTime(recipe.unitDurationMs)}
               </span>
             </div>
           ))}

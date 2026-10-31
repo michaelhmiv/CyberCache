@@ -189,6 +189,13 @@ export interface ConsumableMarketConfig {
   craftable: boolean;
   playerMarketAllowed: boolean;
   rotatingVendorOnly?: boolean;
+  /**
+   * Never sold by the NPC vendor in ANY channel (staples or rotation):
+   * the type exists only from crafters and the player market
+   * (crafting-as-occupation §2.5d — Field/Master patch kits and the
+   * crafted Fuel Cell). The vendorPrice still anchors buyback value.
+   */
+  vendorExcluded?: boolean;
 }
 
 export interface ConsumableDef {
@@ -269,7 +276,7 @@ function quality(_vendorPrice: number, craftMin: number, craftMax: number, scali
   };
 }
 
-function market(vendorStocked: boolean, vendorPrice: number, craftable = true, playerMarketAllowed = true, rotatingVendorOnly = false): ConsumableMarketConfig {
+function market(vendorStocked: boolean, vendorPrice: number, craftable = true, playerMarketAllowed = true, rotatingVendorOnly = false, vendorExcluded = false): ConsumableMarketConfig {
   return {
     vendorStocked,
     vendorPrice,
@@ -277,6 +284,7 @@ function market(vendorStocked: boolean, vendorPrice: number, craftable = true, p
     craftable,
     playerMarketAllowed,
     rotatingVendorOnly,
+    vendorExcluded,
   };
 }
 
@@ -1344,7 +1352,98 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       {},
       'Patch Kit consumed: restored vehicle condition.',
     ),
-    market: market(true, 150, false, true),
+    // Craftable since the crafting-as-occupation slice (recipe_patch_kit,
+    // rolled 75–130 — see CRAFT_QUALITY_BOUND_OVERRIDES); the vendor
+    // staple above stays the flat-100% baseline.
+    market: market(true, 150, true, true),
+  }),
+  // Crafted vehicle consumables (crafting-as-occupation §2.5d): NOT
+  // vendor-stocked — the >100% / non-vendor exclusivity law means these
+  // exist only from crafters and the player market. Patch-kit restore
+  // is read by cc_use_patch_kit as base × consumed-batch quality.
+  [ConsumableType.FieldPatchKit]: defineConsumable({
+    id: ConsumableType.FieldPatchKit,
+    name: 'Field Patch Kit',
+    family: 'economy',
+    shortDescription: 'Crafter-made repair kit. Restores more condition per kit than the vendor baseline.',
+    tacticalRole: 'Vehicle Repair',
+    trigger: 'manual',
+    consumePolicy: 'onAttempt',
+    counterTags: ['mechanical', 'repair'],
+    effectRules: {},
+    craftCategory: 'utility',
+    uiHints: ['Restores 45 condition at 100% quality.', 'Crafted in the Workshop — never sold by the vendor.'],
+    implementationStatus: 'implemented',
+    isBossPrepVisible: false,
+    visual: visual('✚', 'orange', 'vial', 'reinforced'),
+    quality: quality(400, 75, 140, 'Condition restored scales directly with quality.'),
+    runtime: runtime(
+      ['repair'],
+      'utility',
+      'manual',
+      'onAttempt',
+      'inactive_continue',
+      { conditionRestore: 45 },
+      {},
+      'Field Patch Kit consumed: restored vehicle condition.',
+    ),
+    market: market(false, 400, true, true, false, true),
+  }),
+  [ConsumableType.MasterPatchKit]: defineConsumable({
+    id: ConsumableType.MasterPatchKit,
+    name: 'Master Patch Kit',
+    family: 'economy',
+    shortDescription: 'Master-crafted repair kit. The deepest condition restore a single kit can carry.',
+    tacticalRole: 'Vehicle Repair',
+    trigger: 'manual',
+    consumePolicy: 'onAttempt',
+    counterTags: ['mechanical', 'repair'],
+    effectRules: {},
+    craftCategory: 'utility',
+    uiHints: ['Restores 80 condition at 100% quality.', 'Requires Consumable Crafting mastery 15 to produce.'],
+    implementationStatus: 'implemented',
+    isBossPrepVisible: false,
+    visual: visual('✚', 'amber', 'vial', 'reinforced'),
+    quality: quality(1200, 80, 160, 'Condition restored scales directly with quality.'),
+    runtime: runtime(
+      ['repair'],
+      'utility',
+      'manual',
+      'onAttempt',
+      'inactive_continue',
+      { conditionRestore: 80 },
+      {},
+      'Master Patch Kit consumed: restored vehicle condition.',
+    ),
+    market: market(false, 1200, true, true, false, true),
+  }),
+  [ConsumableType.FuelCell]: defineConsumable({
+    id: ConsumableType.FuelCell,
+    name: 'Fuel Cell',
+    family: 'economy',
+    shortDescription: 'Crafter-made fuel cell. Loads fuel scaled by its quality — a 130% cell carries 130 units.',
+    tacticalRole: 'Vehicle Fuel',
+    trigger: 'manual',
+    consumePolicy: 'onAttempt',
+    counterTags: ['mechanical'],
+    effectRules: {},
+    craftCategory: 'utility',
+    uiHints: ['Loads 100 × quality fuel units through the Garage refuel path.', 'Crafted in the Workshop — the vendor sells only the flat Generic cell.'],
+    implementationStatus: 'implemented',
+    isBossPrepVisible: false,
+    visual: visual('▣', 'amber', 'cell', 'reinforced'),
+    quality: quality(120, 75, 150, 'Fuel loaded scales directly with quality.'),
+    runtime: runtime(
+      ['repair'],
+      'utility',
+      'manual',
+      'onAttempt',
+      'inactive_continue',
+      { fuelUnits: 100 },
+      { fuelUnits: FULL_FLAT },
+      'Fuel cell loaded into the vehicle tank.',
+    ),
+    market: market(false, 120, true, true, false, true),
   }),
 };
 
