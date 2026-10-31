@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { GearItem } from '@/types/items';
 import type { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 
-export type TickEventTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level' | 'kill' | 'material' | 'essence' | 'fragment' | 'damage' | 'heal' | 'death' | 'consumable';
+export type TickEventTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level' | 'kill' | 'material' | 'essence' | 'fragment' | 'damage' | 'heal' | 'death' | 'consumable' | 'event' | 'event_major';
 
 export type TickEvent = {
   id: string;
@@ -20,6 +20,14 @@ export type TickEvent = {
   value?: number;
   /** Area id the tick ran in. */
   areaId?: string;
+  /** Roaming-event id (tone 'event'/'event_major'), from src/content/roamingEvents.ts. */
+  eventId?: string;
+  /** Roaming-event family: find | fight | hazard | objective. */
+  family?: string;
+  /** Pixel prop sprite id the stage shows while this event beat is live. */
+  propId?: string;
+  /** True for Data Skimmer foreshadow hints (a signal, not a fired event). */
+  hint?: boolean;
 };
 
 const MAX_EVENTS = 50;

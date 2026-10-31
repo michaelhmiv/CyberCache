@@ -18,11 +18,11 @@ const RELIC_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.BlastForge,
 ];
 
-export function generateRelic(level: number = 1, externalRng?: () => number): Relic {
+export function generateRelic(level: number = 1, externalRng?: () => number, rarityWeights?: Partial<Record<Rarity, number>>): Relic {
   const rng = externalRng ?? createRNG(hashString(`relic_${level}_${Date.now()}_${Math.random()}`));
 
   const rarityKeys = Object.values(Rarity);
-  const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);
+  const weights = rarityKeys.map((r) => rarityWeights?.[r] ?? RARITIES[r].dropWeight);
   const rarity = pickWeighted(rarityKeys, weights, rng);
   const rarityDef = RARITIES[rarity];
 

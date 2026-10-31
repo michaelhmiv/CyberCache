@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Info, Lock, Unlock } from 'lucide-react';
-import { usePlayerStore, useInventoryStore } from '@/store';
+import { usePlayerStore, useInventoryStore, useIdleStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/serverItemAdapter';
@@ -10,7 +10,7 @@ import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { ChestIllustration } from '@/components/common/ChestIllustration';
 import { LootMoment } from '@/components/pixelArt/LootMoment';
-import { getPixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite, pixelBackgroundForArea } from '@/lib/pixel/manifest';
 
 // ─── helpers ──────────────────────────────────────────────────────────
 
@@ -230,7 +230,10 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   };
 
   const visibleDrops = revealed?.filter((d) => itemActions[d.id] !== 'scrapped') ?? [];
-  const zoneBg = getPixelSprite('zone-dustwaste-bg');
+  // The cache stage dresses in the player's CURRENT area (§5.9) — the
+  // old hard-coded Dustwaste backdrop is gone.
+  const currentAreaId = useIdleStore((state) => state.selectedRoamingAreaId);
+  const zoneBg = getPixelSprite(pixelBackgroundForArea(currentAreaId) ?? 'zone-dustwaste-bg');
   const canOpenAnother = keys > 0 && !opening;
 
   return (

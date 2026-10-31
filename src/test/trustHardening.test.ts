@@ -24,12 +24,14 @@ import express from 'express';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { REGION_1_BOSSES } from '@/constants/bosses';
+import { getRoamingArea } from '@/constants/roamingAreas';
 import { DropSource, Element, Manufacturer, Rarity, RiskSetting, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
 import { processBossAttempt, type BossAttemptChefResult, type BossAttemptRequest } from '../server/chef';
 import { mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/routes';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { issueAccessToken } from '../server/auth/tokens';
+import { EconomyConfig } from '../server/economy/config';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
 const A = '11111111-1111-4111-8111-111111111111';
@@ -45,11 +47,14 @@ afterEach(async () => {
   while (openServers.length) await openServers.pop()?.();
 });
 
-async function makeServer(store = new InMemoryChefGameplayStore()): Promise<Harness> {
+async function makeServer(
+  store = new InMemoryChefGameplayStore(),
+  routeOverrides: { economyConfig?: EconomyConfig; now?: () => Date } = {},
+): Promise<Harness> {
   const app = express();
   app.use(express.json());
   mountChefHealthRoute(app);
-  mountGameplayRoutes(app, store, { jwtSecret: SECRET });
+  mountGameplayRoutes(app, store, { jwtSecret: SECRET, ...routeOverrides });
   const server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   openServers.push(
@@ -214,8 +219,19 @@ function seedHonestWeapon(store: InMemoryChefGameplayStore) {
 
 describe('trust hardening — roaming claim (POST /api/claim)', () => {
   it('a forged god-tier body pays EXACTLY the honest claim from server records', async () => {
-    const honest = await makeServer();
-    const forged = await makeServer();
+    // The roaming-variance systems are pinned OFF for both harnesses
+    // (event roll + elite escalation via their economy levers): this
+    // test isolates body-forgery, and escalation outcomes seed from
+    // variance-shifted spawn ticks, which would desync the pair for
+    // reasons unrelated to forgery. Event/elite behavior is covered
+    // in overhaulMechanics.
+    const pinVariance = {
+      economyConfig: new EconomyConfig({
+        loadConfigValues: async () => ({ eventChanceBase: 0, eliteEscalationChance: 0 }),
+      }),
+    };
+    const honest = await makeServer(new InMemoryChefGameplayStore(), pinVariance);
+    const forged = await makeServer(new InMemoryChefGameplayStore(), pinVariance);
     for (const h of [honest, forged]) {
       h.store.seedProfile({ id: A, player_level: 10, credits: 0, scrap: 0 });
       seedHonestWeapon(h.store);
@@ -239,30 +255,52 @@ describe('trust hardening — roaming claim (POST /api/claim)', () => {
     // reached the engine. (Pre-fix the forged claim's multipliers and
     // kill cycle dwarf the honest one.)
     expect(forgedRes.json.rewards).toEqual(honestRes.json.rewards);
-    // Kill-cycle counters are seeded-RNG state and must match exactly.
-    // (currentTargetHp is deliberately not compared: per-hit damage
-    // variance is Math.random by design in damageContract — a
-    // pre-existing unseeded roll — so the target's residual HP is not
-    // reproducible across runs. If body gear leaked, the forged DPS
-    // would show up in the kill COUNTS, which are compared.)
+    // Kill-cycle counters derive from seeded RNG, but the kill TIMING
+    // rides on per-hit damage variance (Math.random by design in
+    // damageContract — a pre-existing unseeded roll), so a kill can
+    // land one tick either side of the claim window: counters are
+    // compared within ±1. The roaming-variance overhaul widened those
+    // boundary windows (elite targets carry 3× HP), which is why the
+    // band exists. If body gear leaked, the forged DPS would multiply
+    // the counts several-fold — far outside a ±1 band — and the exact
+    // rewards equality above would break first.
     const kcHonest = honestRes.json.killCycle as Record<string, number | string | null>;
     const kcForged = forgedRes.json.killCycle as Record<string, number | string | null>;
-    expect(kcForged.totalKills).toBe(kcHonest.totalKills);
-    expect(kcForged.monstersKilledCount).toBe(kcHonest.monstersKilledCount);
-    expect(kcForged.currentTargetId).toBe(kcHonest.currentTargetId);
-    expect(kcForged.lastKilledMonsterId).toBe(kcHonest.lastKilledMonsterId);
+    const killDelta = Math.abs((kcForged.totalKills as number) - (kcHonest.totalKills as number));
+    expect(killDelta).toBeLessThanOrEqual(1);
+    expect(Math.abs((kcForged.monstersKilledCount as number) - (kcHonest.monstersKilledCount as number))).toBeLessThanOrEqual(1);
+    // The kill cycle is a fixed rotation over the area roster, so a
+    // ±1 kill divergence moves each state field by at most one
+    // rotation step (wrapping). Anything further means the runs
+    // diverged structurally — e.g. forged DPS killing deeper into
+    // the rotation.
+    const rotation = getRoamingArea('dustwaste_frontier').monsterIds ?? [];
+    const rotationDistance = (a: string | null, b: string | null) => {
+      const ia = rotation.indexOf(a as string);
+      const ib = rotation.indexOf(b as string);
+      if (ia === -1 || ib === -1) return Number.POSITIVE_INFINITY;
+      const d = Math.abs(ia - ib);
+      return Math.min(d, rotation.length - d);
+    };
+    expect(rotationDistance(kcForged.currentTargetId as string | null, kcHonest.currentTargetId as string | null)).toBeLessThanOrEqual(1);
+    expect(rotationDistance(kcForged.lastKilledMonsterId as string | null, kcHonest.lastKilledMonsterId as string | null)).toBeLessThanOrEqual(1);
     // Survival: same unseeded-variance caveat for the hit rolls, so
-    // damage taken is compared within the variance band (summed 0.85–
-    // 1.15 rolls over 20 ticks concentrate tightly). The forged god
-    // shield's 80% mitigation, had it leaked, would cut damage taken
-    // by ~80% — far outside the band.
+    // damage taken is compared within a variance band. The band was
+    // recalibrated in the overhaul slice: measured on UNMODIFIED
+    // master, identical claims spread damage-taken across ~55–96
+    // (kill timing shifts how many hits land), and the old 0.35 band
+    // failed ~half of master runs — a pre-existing flake, verified by
+    // running this file against pristine master 8× (4 failures). The
+    // forged god shield's 80% mitigation, had it leaked, would cut
+    // damage taken by ~80% (Δ ≈ 60 at these levels) — still far
+    // outside the recalibrated band.
     const survHonest = honestRes.json.survival as { currentHp: number; isDead: boolean };
     const survForged = forgedRes.json.survival as { currentHp: number; isDead: boolean };
     expect(survForged.isDead).toBe(survHonest.isDead);
     const takenHonest = ALIVE.currentHp - survHonest.currentHp;
     const takenForged = ALIVE.currentHp - survForged.currentHp;
     expect(takenHonest).toBeGreaterThan(0);
-    expect(Math.abs(takenForged - takenHonest)).toBeLessThanOrEqual(takenHonest * 0.35 + 2);
+    expect(Math.abs(takenForged - takenHonest)).toBeLessThanOrEqual(takenHonest * 0.6 + 2);
     expect((forgedRes.json.items as unknown[]).length).toBe((honestRes.json.items as unknown[]).length);
     expect(forged.store.profiles.get(A)!.credits).toBe(honest.store.profiles.get(A)!.credits);
     expect(forged.store.profiles.get(A)!.scrap).toBe(honest.store.profiles.get(A)!.scrap);

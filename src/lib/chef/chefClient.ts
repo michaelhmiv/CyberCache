@@ -143,7 +143,16 @@ export interface ChefClaimResult {
     areaId: string;
     value?: number;
     gear?: GearItem;
+    /** Roaming-event fields (overhaul): present on event/event_major beats. */
+    eventId?: string;
+    family?: string;
+    propId?: string;
+    hint?: boolean;
   }>;
+  /** Roaming events fired during the claim (overhaul), for telemetry/debug surfaces. */
+  eventsFired?: Array<{ eventId: string; name: string; family: string; tick: number }>;
+  /** Escalated named-elite kills during the claim (overhaul). */
+  eliteKills?: number;
   /** Server-authoritative kill cycle state for client synchronization. */
   killCycle?: {
     currentTargetId: string | null;

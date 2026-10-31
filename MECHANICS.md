@@ -545,3 +545,46 @@ Nothing outside the prepared set is ever touched.
 - New boss mechanics (ammo drain, reflect, adaptive resist, etc.)
 - Manufacturer synergy detection in simulator
 - Consumable rarity tiers (Standard/Refined/Hyperion)
+
+## 13. Roaming Variance + Visual Language (overhaul slice, migration 0023)
+
+Authoritative content lives in `src/content/roamingEvents.ts` (event
+tables, elite law, essence homes, signature materials),
+`src/content/hotArea.ts` (date-seeded hot area), and
+`src/content/offlineCap.ts` (AFK cap law); the Chef
+(`src/server/chef.ts`) is the only engine that resolves them.
+
+- **Events**: per-tick roll (5% base, economy lever `eventChanceBase`,
+  clamp 15%), 4 named events per area × 7 areas. Event payouts fold
+  into the claim's existing channels; events never mint outside them.
+  Expected event value per tick is budget-capped at 8% of a plain
+  tick (`eventValuePerTick`/`plainTickValue`, test-asserted).
+- **Elites**: the kill cycle's elite target escalates at 12% per spawn
+  (its own `:elite` RNG stream) into the area's named elite — HP ×3,
+  guaranteed drop floored at Epic, +1 cache fragment. An Elite Patrol
+  event forces the next elite spawn.
+- **Hot area**: one area per UTC day, seeded from the date at claim
+  time (never stored, never cron). +20% material finds, +10% yield,
+  ×1.15 danger.
+- **Materials**: two tiers — the 5 base materials everywhere, 5
+  essences weighted to home areas, and 7 Tier-2 signature materials
+  (Siltglass, Nitrocell Gel, Heartwood Resin, Forgeheart Ingots, Prism
+  Shards, Magnetite Cores, Myco-Steel Fiber) that substitute into
+  material finds ONLY in their home area (10% of finds) and trade on
+  the market like any material (migration 0023 extends
+  `cc_market_create_material`).
+- **Consumables**: Loot Beacon (+3% event chance), Data Skimmer (find
+  re-weighting + next-event foreshadow), Salvage Contract (roaming
+  scope + material-event yield) and Magnetized Payload (cache/convoy
+  weight) have real engine functions via the roaming consumable mods.
+- **AFK cap**: effective = min(earned tier + keystone bonus, user
+  limiter, 24h). The limiter is set in Settings and enforced at
+  settlement (`cc_set_offline_cap_limiter`, migration 0023).
+- **Visual language**: every action renders in the shared grammar
+  (`src/lib/pixel/grammar.ts`, G-1..G-6). Actors are segmented rigs
+  (`src/lib/pixel/rig.ts`) animated by transform; renders derive from
+  the actual item instance (compositor weapon at the hunter's grip
+  anchor, belt consumables, shield/relic/class-mod reads, the equipped
+  vehicle with its affixes and condition). Golden-image regression
+  (`src/test/goldenImages.test.ts`) pins the key scenes; baselines
+  regenerate with `npm run golden:update`.

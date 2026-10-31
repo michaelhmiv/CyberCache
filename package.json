@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "golden:update": "tsx --tsconfig tsconfig.app.json scripts/render-overhaul-samples.ts --baselines",
     "test:watch": "vitest",
     "mechanics:validate": "vitest run src/test/mechanicsValidation.test.ts",
     "mechanics:report": "vitest run src/test/balanceReport.test.ts --reporter=verbose",

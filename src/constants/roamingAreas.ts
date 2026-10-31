@@ -1,5 +1,6 @@
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '../types/game';
 import { GenerateWeaponOptions } from '@/types/generator';
+import { ESSENCE_GUEST_WEIGHT, ESSENCE_HOME_WEIGHT, ESSENCE_HOMES, MATERIAL_FIND_WEIGHT } from '../content/roamingEvents';
 
 export type ManufacturerInfluence = Manufacturer | 'Mixed';
 export type DangerRating = 'Low' | 'Medium' | 'Medium/High' | 'Variable' | 'High';
@@ -328,10 +329,28 @@ export function buildAreaWeaponDropOptions(
 }
 
 export function rollAreaMaterialFind(area: RoamingAreaDef, rng?: () => number): { type: string; kind: 'material' | 'essence' } | null {
-  const pool = [
-    ...area.materialBias.map((type) => ({ type, kind: 'material' as const })),
-    ...area.essenceBias.map((type) => ({ type, kind: 'essence' as const })),
+  // Two-tier material identity (roaming-variance brief §2.5): base
+  // materials roll at MATERIAL_FIND_WEIGHT; an essence rolls at full
+  // ESSENCE_HOME_WEIGHT in its home area and at ESSENCE_GUEST_WEIGHT
+  // (≤25% of home) everywhere else, so a farmer can say "I run the
+  // Yards for reactive stock" and mean it. Homes live in
+  // src/content/roamingEvents.ts (ESSENCE_HOMES).
+  const pool: { type: string; kind: 'material' | 'essence'; weight: number }[] = [
+    ...area.materialBias.map((type) => ({ type, kind: 'material' as const, weight: MATERIAL_FIND_WEIGHT })),
+    ...area.essenceBias.map((type) => ({
+      type,
+      kind: 'essence' as const,
+      weight: ESSENCE_HOMES[type] === area.id ? ESSENCE_HOME_WEIGHT : ESSENCE_GUEST_WEIGHT,
+    })),
   ];
+  if (pool.length === 0) return null;
 
-  return pickArrayValue(pool, rng) || null;
+  const total = pool.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = (rng ? rng() : Math.random()) * total;
+  for (const entry of pool) {
+    roll -= entry.weight;
+    if (roll <= 0) return { type: entry.type, kind: entry.kind };
+  }
+  const last = pool[pool.length - 1];
+  return last ? { type: last.type, kind: last.kind } : null;
 }

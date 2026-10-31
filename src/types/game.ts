@@ -90,6 +90,18 @@ export enum MaterialType {
   ReactiveComponents = 'ReactiveComponents',
   TechFragments = 'TechFragments',
   VoidDust = 'VoidDust',
+  // Tier-2 area-signature materials (roaming-variance overhaul, Q2
+  // ruling): one per area, home-area sourced, tradable. Their defs
+  // (home area, unlock, use) live in src/content/roamingEvents.ts
+  // (SIGNATURE_MATERIALS) — this enum is only the key space, and
+  // MARKET_MATERIAL_IDS derives the tradable list from it.
+  Siltglass = 'Siltglass',
+  NitrocellGel = 'NitrocellGel',
+  HeartwoodResin = 'HeartwoodResin',
+  ForgeheartIngots = 'ForgeheartIngots',
+  PrismShards = 'PrismShards',
+  MagnetiteCores = 'MagnetiteCores',
+  MycoSteelFiber = 'MycoSteelFiber',
 }
 
 export enum EssenceType {

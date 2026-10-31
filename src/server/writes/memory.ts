@@ -92,7 +92,7 @@ const ACTIVE_KINDS = [
   'workshop_service',
   'market_listing',
 ] as const;
-const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust'] as const;
+const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber'] as const;
 
 export interface InMemoryWriteOptions {
   now?: () => Date;
@@ -2012,6 +2012,20 @@ export class InMemoryWriteStore implements WriteStore {
     p.username_change_count += 1;
     this.touch(p);
     return { ok: true };
+  }
+
+  /** cc_set_offline_cap_limiter (0023): validation as data, like the RPC. */
+  async setOfflineCapLimiter(playerId: string, capHours: number | null): Promise<{ ok: boolean; error?: string; offlineCapHours?: number | null }> {
+    if (capHours !== null && (!Number.isFinite(capHours) || Math.trunc(capHours) < 1 || Math.trunc(capHours) > 24)) {
+      return { ok: false, error: 'Limiter must be between 1 and 24 hours, or unset.' };
+    }
+    const p = this.profileOrNull(playerId);
+    if (!p) return { ok: false, error: 'Profile not found.' };
+    // The row shape stores the column as a number; 0 encodes "unset"
+    // in this store (the gameplay store keeps the real null).
+    p.offline_cap_hours = capHours === null ? 0 : Math.trunc(capHours);
+    this.touch(p);
+    return { ok: true, offlineCapHours: capHours === null ? null : Math.trunc(capHours) };
   }
 
   async markReminderSeen(playerId: string): Promise<ProfileRowData> {

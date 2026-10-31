@@ -46,6 +46,10 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = ({ weapon, input, size = 
       element: weapon.element,
       parts: weapon.parts,
       name: weapon.name,
+      id: weapon.id,
+      pixelSeed: weapon.pixelSeed,
+      affixes: weapon.affixes,
+      rollQuality: weapon.rollQuality,
       legendaryEffectId: weapon.legendaryEffectId,
     };
   }, [input, weapon]);

@@ -33,11 +33,11 @@ const CLASSMOD_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.BlastForge,
 ];
 
-export function generateClassMod(level: number = 1, externalRng?: () => number): ClassMod {
+export function generateClassMod(level: number = 1, externalRng?: () => number, rarityWeights?: Partial<Record<Rarity, number>>): ClassMod {
   const rng = externalRng ?? createRNG(hashString(`classmod_${level}_${Date.now()}_${Math.random()}`));
 
   const rarityKeys = Object.values(Rarity);
-  const weights = rarityKeys.map((r) => RARITIES[r].dropWeight);
+  const weights = rarityKeys.map((r) => rarityWeights?.[r] ?? RARITIES[r].dropWeight);
   const rarity = pickWeighted(rarityKeys, weights, rng);
   const rarityDef = RARITIES[rarity];
 

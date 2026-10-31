@@ -47,7 +47,23 @@ import type { GearItem } from '../types/items';
 import { REGION_1_BOSSES } from '../constants/bosses';
 import { sumActivityModifier } from '../lib/stats/activityModifiers';
 import type { ActivityKind } from '../types/activity';
-import { DropSource, Rarity } from '../types/game';
+import { ConsumableType, DropSource, Element, MaterialType, Rarity } from '../types/game';
+import { RARITIES } from '../constants/rarities';
+import { CONSUMABLES } from '../constants/consumables';
+import {
+  ELITE_ESCALATION_CHANCE,
+  ELITE_FRAGMENT_BONUS,
+  ELITE_HP_MULTIPLIER,
+  ELITE_RARITY_FLOOR,
+  EVENT_CHANCE_BASE,
+  EVENT_CHANCE_MAX,
+  SIGNATURE_MATERIAL_FIND_CHANCE,
+  pickRoamingEvent,
+  peekRoamingEvent,
+  signatureMaterialForArea,
+  type RoamingEventDef,
+} from '../content/roamingEvents';
+import { HOT_AREA_DANGER_MULTIPLIER, HOT_AREA_MATERIAL_BONUS, HOT_AREA_YIELD_BONUS } from '../content/hotArea';
 import { getEligibleLegendaryEffects } from '../constants/legendaryEffects';
 import {
   getBossConsumableUsage,
@@ -190,7 +206,23 @@ export interface ClaimRequest {
     roamingLegendaryScalar?: number;
     /** Multiplier on the equipped vehicle's yield bonus (vehicleYieldScalar lever). */
     vehicleYieldScalar?: number;
+    /** Base per-tick roaming event chance (eventChanceBase lever). */
+    eventChanceBase?: number;
+    /** Named-elite escalation chance (eliteEscalationChance lever). */
+    eliteEscalationChance?: number;
+    /** Material-find chance bonus when the claim's area is the daily hot area. */
+    hotAreaMaterialBonus?: number;
+    /** Credits/XP yield bonus when the claim's area is the daily hot area. */
+    hotAreaYieldBonus?: number;
   };
+  /**
+   * True when the claim's area is today's daily hot area — derived by
+   * the routes from the SERVER's UTC date (src/content/hotArea.ts),
+   * never from the request body. The engine applies the yield/material
+   * bonuses and the danger multiplier; the client derives the same
+   * value from the date for display only.
+   */
+  hotArea?: boolean;
   /**
    * The equipped vehicle, derived by the claim routes from the
    * server's own records (the equipped item_instances row's payload
@@ -282,6 +314,16 @@ export interface ClaimResult {
     /** Why the bonus was off for the whole claim, when it was. */
     inactiveReason: 'no_vehicle' | 'out_of_fuel' | null;
   };
+  /**
+   * Roaming events that fired during this claim (overhaul): the routes
+   * persist these to the verified action ledger as `roaming.event`
+   * rows so realized event EV is measurable, and `eliteKills` as
+   * `roaming.elite_kill` rows for mastery credit. Payouts themselves
+   * already flow through the ordinary rewards/items channels.
+   */
+  eventsFired: Array<{ eventId: string; name: string; family: string; tick: number }>;
+  /** Escalated named-elite kills during this claim. */
+  eliteKills: number;
   /** Consumables consumed during this claim batch (for inventory decrement). */
   consumedConsumables: Record<string, number>;
   /** Updated roaming consumable state (for next claim's input). */
@@ -529,10 +571,19 @@ export function processRoamingClaim(
   // applyLegendaryEffects' return value, which no caller ever read.)
   const legendaryScrapMult = getSalvageRightsScrapMult(primaryWeapon);
 
-  const effectiveCreditsPerTick = creditsPerTick * offlineMult * activityCreditsMult;
+  // Hot area (src/content/hotArea.ts): the routes derived
+  // request.hotArea from the server's UTC date. The yield bonus folds
+  // into the per-tick credit/XP rates here; the material-find bonus
+  // and the danger multiplier apply inside the loop. The event table
+  // itself is unchanged — a hot area changes yield, not luck.
+  const isHotAreaClaim = request.hotArea === true;
+  const hotYieldMult = isHotAreaClaim ? 1 + (request.economy?.hotAreaYieldBonus ?? HOT_AREA_YIELD_BONUS) : 1;
+  const hotMaterialMult = isHotAreaClaim ? 1 + (request.economy?.hotAreaMaterialBonus ?? HOT_AREA_MATERIAL_BONUS) : 1;
+
+  const effectiveCreditsPerTick = creditsPerTick * offlineMult * activityCreditsMult * hotYieldMult;
   const effectiveScrapPerTick = scrapPerTick * scrapMult * activityScrapMult * legendaryScrapMult;
   // XP likewise (0010): rates like 1.2/tick used to round down to 1.
-  const effectiveXpPerTick = xpPerTick * activityXpMult;
+  const effectiveXpPerTick = xpPerTick * activityXpMult * hotYieldMult;
 
   // Clamp ticks to maxTicks (foreground: 20; offline settlement: Infinity)
   const maxTicks = request.maxTicks ?? 20;
@@ -604,7 +655,10 @@ export function processRoamingClaim(
       survShield >= SHIELD_BEHAVIOR_TUNING.novaRearmThreshold * shieldCapacity);
 
   // --- Consumable engine initialization ---
-  const consumableInventory = request.consumableInventory ?? {};
+  // Local copy: the Wounded Scavenger event can spend a carried
+  // survival consumable mid-claim, and the request object is not ours
+  // to mutate.
+  const consumableInventory: Record<string, number> = { ...(request.consumableInventory ?? {}) };
   // Initial owned counts for every buffer-type consumable (the Med Kit
   // line), keyed by type — claim-end consumption is derived per type
   // from how much of each type's buffer pool was absorbed.
@@ -632,22 +686,109 @@ export function processRoamingClaim(
   let vehicleCondition = vehicleStartCondition;
   let vehicleActiveTicks = 0;
 
+  // ── Roaming event state (overhaul, src/content/roamingEvents.ts) ──
+  // Event windows and objectives are CLAIM-LOCAL: they live for the
+  // rest of this claim's tick loop and are never persisted, so a
+  // claim boundary always starts clean. The event roll itself runs
+  // on a separate ':event' RNG stream (the vehicle-stream precedent)
+  // so claims without events stay bit-identical to pre-overhaul ones.
+  const eventsFired: ClaimResult['eventsFired'] = [];
+  let eliteKills = 0;
+  let evStormTicks = 0;
+  let evOverheatTicks = 0;
+  let evBreakTicks = 0;
+  let evSurgeTicks = 0;
+  let evSurgeElement: Element | null = null;
+  let evSurgeMatched = false;
+  const evStreakBox: { value: { ticksLeft: number; kills: number } | null } = { value: null };
+  const evWeakpointBox: { value: { targetId: string; ticksLeft: number } | null } = { value: null };
+  let evPendingWeakpoint = false;
+  let evNextDropQualityBoost = false;
+  let evPendingEliteSpawn = false;
+  let evEliteEncounter: { targetId: string; name: string } | null = null;
+  let evPendingBounty: { archetype: string; hpMult: number; payout: 'gear' | 'gearQuality' | 'materials' | 'xp'; name: string } | null = null;
+  let evBounty: { targetId: string; payout: 'gear' | 'gearQuality' | 'materials' | 'xp'; name: string } | null = null;
+  let evWallsShifted = false;
+
+  const RARITY_SEQUENCE: Rarity[] = [Rarity.Common, Rarity.Uncommon, Rarity.Rare, Rarity.Epic, Rarity.Legendary];
+  // Rarity weights for the non-weapon generators, with an optional
+  // floor (elite drops: nothing below the floor can roll — the honest
+  // implementation of "Epic rarity floor") and an optional quality
+  // boost (weakpoint/surge/bounty shifts toward Rare/Epic/Legendary).
+  const shapedRarityWeights = (opts?: { floor?: Rarity; boost?: boolean }): Partial<Record<Rarity, number>> => {
+    const floorIdx = opts?.floor ? RARITY_SEQUENCE.indexOf(opts.floor) : 0;
+    const out: Partial<Record<Rarity, number>> = {};
+    for (let i = 0; i < RARITY_SEQUENCE.length; i++) {
+      const r = RARITY_SEQUENCE[i];
+      let w = i < floorIdx ? 0 : RARITIES[r].dropWeight;
+      if (opts?.boost) {
+        if (r === Rarity.Rare) w *= 1.5;
+        if (r === Rarity.Epic || r === Rarity.Legendary) w *= 2;
+      }
+      out[r] = w;
+    }
+    return out;
+  };
+  const shapedZoneWeights = (
+    base: Partial<Record<Rarity, number>>,
+    opts?: { floor?: Rarity; boost?: boolean },
+  ): Partial<Record<Rarity, number>> => {
+    const floorIdx = opts?.floor ? RARITY_SEQUENCE.indexOf(opts.floor) : 0;
+    const out: Partial<Record<Rarity, number>> = { ...base };
+    for (let i = 0; i < RARITY_SEQUENCE.length; i++) {
+      const r = RARITY_SEQUENCE[i];
+      if (out[r] === undefined) continue;
+      if (i < floorIdx) out[r] = 0;
+      else if (opts?.boost) {
+        if (r === Rarity.Rare) out[r] = (out[r] ?? 0) * 1.5;
+        if (r === Rarity.Epic || r === Rarity.Legendary) out[r] = (out[r] ?? 0) * 2;
+      }
+    }
+    return out;
+  };
+
   // Generate one area gear drop (drop-kind roll + shared generators).
   // Used by the primary loot roll and by Data Skimmer's extra roll.
-  const rollGearDrop = (dropRng: () => number, tickNumber: number): GearItem | Vehicle | undefined => {
-    // Vehicle drops (Phase 2b): a share of gear drops are vehicles
-    // instead. The decision rolls on a SEPARATE deterministic stream
-    // (seeded ':vehicle') so the main tick stream — and every
-    // determinism pin built on it — is bit-identical to pre-vehicle
-    // claims when the roll misses.
-    const vehicleRng = createTickRng(playerId, `${areaId}:vehicle`, tickNumber);
-    if (vehicleRng() < VEHICLE_DROP_SHARE) {
-      return generateVehicle(
-        { level: playerLevel, areaUnlockLevel: area.unlockLevel, rarityWeights: area.dropPoolRarityWeights },
-        vehicleRng,
-      );
+  // Overhaul options: rarityFloor (elite kills — the whole drop,
+  // vehicles included, is replaced by a floored gear roll) and
+  // qualityBoost (weakpoint contract / matched surge / quality bounty:
+  // the next drop rolls hot). With no options the streams consumed are
+  // exactly the pre-overhaul ones.
+  const rollGearDrop = (
+    dropRng: () => number,
+    tickNumber: number,
+    opts?: { rarityFloor?: Rarity; qualityBoost?: boolean },
+  ): GearItem | Vehicle | undefined => {
+    const boost = (opts?.qualityBoost ?? false) || evNextDropQualityBoost || (evSurgeTicks > 0 && evSurgeMatched);
+    if (evNextDropQualityBoost) evNextDropQualityBoost = false;
+    if (!opts?.rarityFloor) {
+      // Vehicle drops (Phase 2b): a share of gear drops are vehicles
+      // instead. The decision rolls on a SEPARATE deterministic stream
+      // (seeded ':vehicle') so the main tick stream — and every
+      // determinism pin built on it — is bit-identical to pre-vehicle
+      // claims when the roll misses.
+      const vehicleRng = createTickRng(playerId, `${areaId}:vehicle`, tickNumber);
+      if (vehicleRng() < VEHICLE_DROP_SHARE) {
+        return generateVehicle(
+          { level: playerLevel, areaUnlockLevel: area.unlockLevel, rarityWeights: area.dropPoolRarityWeights },
+          vehicleRng,
+        );
+      }
     }
-    const kind = rollAreaDropKind(area, dropRng);
+    // Shifting Walls (HelixWorks): weapon and ordnance drop-kind
+    // weights swap for the rest of the claim.
+    const kindArea = evWallsShifted
+      ? {
+          ...area,
+          gearDropWeights: {
+            ...area.gearDropWeights,
+            weapon: area.gearDropWeights.ordnance,
+            ordnance: area.gearDropWeights.weapon,
+          },
+        }
+      : area;
+    const kind = rollAreaDropKind(kindArea, dropRng);
+    const shape = opts?.rarityFloor || boost ? { floor: opts?.rarityFloor, boost } : undefined;
     switch (kind) {
       case 'weapon': {
         const options = buildAreaWeaponDropOptions(area, playerLevel, dropRng);
@@ -663,16 +804,19 @@ export function processRoamingClaim(
               (options.zoneWeights[Rarity.Legendary] ?? 0) * scalar,
           };
         }
+        if (shape && options.zoneWeights) {
+          options.zoneWeights = shapedZoneWeights(options.zoneWeights, shape);
+        }
         return generateWeapon(options, dropRng);
       }
       case 'shield':
-        return generateShield(playerLevel, dropRng);
+        return generateShield(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
       case 'classMod':
-        return generateClassMod(playerLevel, dropRng);
+        return generateClassMod(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
       case 'relic':
-        return generateRelic(playerLevel, dropRng);
+        return generateRelic(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
       case 'ordnance':
-        return generateOrdnance(playerLevel, dropRng);
+        return generateOrdnance(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
       default:
         return undefined;
     }
@@ -690,17 +834,462 @@ export function processRoamingClaim(
     return `${gear.rarity} ${typeLabel}${powerLabel}${elemLabel}${mfgLabel}`;
   };
 
+  // ── Event-aware target spawning ──────────────────────────────────
+  // Every kill-cycle spawn routes through here so bounty targets,
+  // Elite Patrol spawns, elite escalation, and weakpoint marking apply
+  // uniformly — weapon kills, nova kills, and detonation kills all
+  // advance through the same door.
+  const spawnNextTarget = (tickIdx: number, tickNumber: number): void => {
+    const at = now - (ticks - 1 - tickIdx) * TICK_MS;
+    let next: (typeof roster)[number] | null = null;
+    let hpMult = 1;
+    let forceElite = false;
+    if (evPendingBounty) {
+      const pending = evPendingBounty;
+      evPendingBounty = null;
+      next =
+        roster.find((m) => m.archetype === pending.archetype) ??
+        roster.find((m) => m.archetype !== 'elite') ??
+        null;
+      if (next) {
+        evBounty = { targetId: next.id, payout: pending.payout, name: pending.name };
+        hpMult = pending.hpMult;
+      }
+    }
+    if (!next && evPendingEliteSpawn) {
+      evPendingEliteSpawn = false;
+      next = roster.find((m) => m.archetype === 'elite') ?? null;
+      forceElite = next !== null;
+    }
+    if (!next) next = pickNextTarget(roster, kcLastKilledId);
+    if (!next) {
+      kcTargetId = null;
+      kcTargetHp = 0;
+      kcTargetHpMax = 0;
+      return;
+    }
+    // Named-elite escalation: an elite rotating into the cycle has a
+    // seeded chance to escalate into the area's named elite (HP ×3,
+    // Epic-floor drop on kill); an Elite Patrol event forces it. The
+    // escalation roll uses its own stream so ordinary spawns consume
+    // exactly the pre-overhaul streams.
+    if (next.archetype === 'elite' && evEliteEncounter?.targetId !== next.id) {
+      const escRng = createTickRng(playerId, `${areaId}:elite`, tickNumber * 100003 + kcTotalKills);
+      if (forceElite || escRng() < (request.economy?.eliteEscalationChance ?? ELITE_ESCALATION_CHANCE)) {
+        hpMult *= ELITE_HP_MULTIPLIER;
+        evEliteEncounter = { targetId: next.id, name: next.name };
+        feedEvents.push({
+          at,
+          tone: 'event_major',
+          label: `${next.name} — named elite`,
+          detail: `A named elite stalks ${area.name}: ${next.name} at triple strength. Its drop cannot roll below ${ELITE_RARITY_FLOOR}.`,
+          areaId,
+          eventId: 'elite_spawn',
+          family: 'fight',
+        });
+      }
+    }
+    kcTargetId = next.id;
+    kcTargetHp = Math.max(1, Math.round(next.hp * hpMult));
+    kcTargetHpMax = kcTargetHp;
+    if (evPendingWeakpoint) {
+      evWeakpointBox.value = { targetId: next.id, ticksLeft: 15 };
+      evPendingWeakpoint = false;
+    }
+  };
+
+  // Kill payouts keyed to the event state: escalated elites pay the
+  // floored drop + fragment bonus; bounty targets pay their contract;
+  // a weakpoint kill arms the next-drop quality boost.
+  const onTargetKilled = (
+    killed: (typeof roster)[number],
+    dropRng: () => number,
+    tickIdx: number,
+    tickNumber: number,
+  ): void => {
+    const at = now - (ticks - 1 - tickIdx) * TICK_MS;
+    if (evEliteEncounter && killed.id === evEliteEncounter.targetId) {
+      evEliteEncounter = null;
+      eliteKills += 1;
+      fragmentsAwarded += ELITE_FRAGMENT_BONUS;
+      const drop = rollGearDrop(dropRng, tickNumber, { rarityFloor: ELITE_RARITY_FLOOR });
+      if (drop) {
+        generatedItems.push(drop);
+        feedEvents.push({
+          at,
+          tone: 'loot',
+          label: drop.name,
+          detail: `${gearFeedDetail(drop)} · named-elite drop (${ELITE_RARITY_FLOOR} floor)`,
+          gear: drop,
+          areaId,
+        });
+      }
+      feedEvents.push({
+        at,
+        tone: 'event_major',
+        label: `Elite down — ${killed.name}`,
+        detail: `${killed.name} eliminated. +${ELITE_FRAGMENT_BONUS} cache fragment and a guaranteed ${ELITE_RARITY_FLOOR}-or-better drop.`,
+        areaId,
+        eventId: 'elite_kill',
+        family: 'fight',
+      });
+    }
+    if (evBounty && killed.id === evBounty.targetId) {
+      const bounty = evBounty;
+      evBounty = null;
+      if (bounty.payout === 'gear' || bounty.payout === 'gearQuality') {
+        const drop = rollGearDrop(dropRng, tickNumber, {
+          qualityBoost: bounty.payout === 'gearQuality',
+        });
+        if (drop) {
+          generatedItems.push(drop);
+          feedEvents.push({
+            at,
+            tone: 'loot',
+            label: drop.name,
+            detail: `${gearFeedDetail(drop)} · bounty payout`,
+            gear: drop,
+            areaId,
+          });
+        }
+      } else if (bounty.payout === 'materials') {
+        materials[MaterialType.ScrapAlloy] = (materials[MaterialType.ScrapAlloy] || 0) + 6;
+        materials[MaterialType.BallisticParts] = (materials[MaterialType.BallisticParts] || 0) + 4;
+        feedEvents.push({
+          at,
+          tone: 'material',
+          label: '+6 ScrapAlloy · +4 BallisticParts',
+          detail: 'Turret nest stripped for parts.',
+          areaId,
+          value: 10,
+        });
+      } else {
+        xpFraction += 30;
+      }
+      feedEvents.push({
+        at,
+        tone: 'event',
+        label: `Bounty complete — ${bounty.name}`,
+        detail: 'The marked target is down; the contract pays out.',
+        areaId,
+        eventId: 'bounty_complete',
+        family: 'fight',
+      });
+    }
+    if (evWeakpointBox.value && killed.id === evWeakpointBox.value.targetId) {
+      evWeakpointBox.value = null;
+      evNextDropQualityBoost = true;
+      feedEvents.push({
+        at,
+        tone: 'event',
+        label: 'Weakpoint contract complete',
+        detail: 'Marked target dropped inside the window — the next gear drop rolls hot.',
+        areaId,
+        eventId: 'weakpoint_complete',
+        family: 'objective',
+      });
+    }
+  };
+
+  // Environmental event damage (detonation splash, minefield,
+  // overheat attrition): shield absorbs first, Med Kit buffers second,
+  // HP last — the same routing as a monster hit, minus mitigation and
+  // shield behaviors (the environment does not proc your shield tech).
+  const applyEventDamage = (amount: number, sourceName: string, sourceId: string, tickIdx: number): void => {
+    if (survDead || amount <= 0) return;
+    const at = now - (ticks - 1 - tickIdx) * TICK_MS;
+    let remaining = amount;
+    const absorbed = Math.min(survShield, remaining);
+    survShield -= absorbed;
+    remaining -= absorbed;
+    if (remaining > 0 && roamingState) {
+      for (const slot of roamingState.slots) {
+        if (remaining <= 0) break;
+        if (!isBufferConsumable(slot.consumableId) || slot.remainingBuffer <= 0) continue;
+        const soaked = Math.min(slot.remainingBuffer, remaining);
+        slot.remainingBuffer -= soaked;
+        remaining -= soaked;
+      }
+    }
+    feedEvents.push({
+      at,
+      tone: 'damage',
+      label: absorbed > 0 ? `-${absorbed} shield${remaining > 0 ? ` · -${remaining} HP` : ''}` : `-${remaining} HP`,
+      detail: `${sourceName} hit you for ${amount} damage.`,
+      areaId,
+      value: remaining,
+    });
+    if (remaining > 0) {
+      survHp = Math.max(0, survHp - remaining);
+      if (survHp <= 0) {
+        survDead = true;
+        survKilledBy = { monsterId: sourceId, monsterName: sourceName, areaId };
+        survDiedAt = at;
+        feedEvents.push({
+          at,
+          tone: 'death',
+          label: 'Hunter Down',
+          detail: `Killed by ${sourceName} in ${area.name}.`,
+          areaId,
+          value: 0,
+        });
+      }
+    }
+  };
+
+  // Resolve one fired roaming event. Payouts fold into the claim's
+  // ordinary channels (materials/essences maps, fraction banks,
+  // generatedItems) — there is no event side-channel for the routes
+  // to reconcile. Returns false only for the Wounded Scavenger skip
+  // (no survival consumable carried: nothing fires, nothing is paid).
+  const resolveRoamingEvent = (
+    def: RoamingEventDef,
+    eventRng: () => number,
+    tickIdx: number,
+    tickNumber: number,
+    tickEffectiveDps: number,
+  ): boolean => {
+    const at = now - (ticks - 1 - tickIdx) * TICK_MS;
+    const res = def.resolution;
+    const pushEventFeed = (detail: string, major = def.major === true): void => {
+      feedEvents.push({
+        at,
+        tone: major ? 'event_major' : 'event',
+        label: def.name,
+        detail,
+        areaId,
+        eventId: def.id,
+        family: def.family,
+        propId: def.propId,
+      });
+    };
+    const pushGearFeed = (gear: GearItem | Vehicle, source: string): void => {
+      feedEvents.push({
+        at,
+        tone: 'loot',
+        label: gear.name,
+        detail: `${gearFeedDetail(gear)} · ${source}`,
+        gear,
+        areaId,
+      });
+    };
+    switch (res.kind) {
+      case 'cacheFind': {
+        pushEventFeed(def.blurb);
+        const gear = rollGearDrop(eventRng, tickNumber);
+        if (gear) {
+          generatedItems.push(gear);
+          pushGearFeed(gear, def.name);
+        }
+        if (eventRng() < 0.5) fragmentsAwarded += 1;
+        break;
+      }
+      case 'salvageFind': {
+        pushEventFeed(def.blurb);
+        for (const entry of res.entries) {
+          let qty = entry.min + Math.floor(eventRng() * (entry.max - entry.min + 1));
+          if (entry.kind === 'material' && consumableMods.materialEventYieldBonus > 0) {
+            qty = Math.max(1, Math.round(qty * (1 + consumableMods.materialEventYieldBonus)));
+          }
+          if (entry.kind === 'material') materials[entry.type] = (materials[entry.type] || 0) + qty;
+          else essences[entry.type] = (essences[entry.type] || 0) + qty;
+          feedEvents.push({
+            at,
+            tone: entry.kind === 'material' ? 'material' : 'essence',
+            label: `+${qty} ${entry.type}`,
+            detail: `${def.name} salvage.`,
+            areaId,
+            value: qty,
+          });
+        }
+        if (res.credits) creditsFraction += res.credits[0] + eventRng() * (res.credits[1] - res.credits[0]);
+        if (res.restoreShield && shieldCapacity > 0 && survShield < shieldCapacity) {
+          survShield = Math.min(shieldCapacity, survShield + res.restoreShield);
+          feedEvents.push({
+            at,
+            tone: 'heal',
+            label: `+${res.restoreShield} shield`,
+            detail: `${def.name}: coolant charge restored shield.`,
+            areaId,
+            value: res.restoreShield,
+          });
+        }
+        break;
+      }
+      case 'gearFind': {
+        pushEventFeed(def.blurb);
+        const gear = rollGearDrop(eventRng, tickNumber, { qualityBoost: true });
+        if (gear) {
+          generatedItems.push(gear);
+          pushGearFeed(gear, def.name);
+        }
+        break;
+      }
+      case 'stormWindow':
+        evStormTicks = 10;
+        pushEventFeed(`${def.blurb} Enemy pressure +50% and fragment finds double for 10 ticks.`);
+        break;
+      case 'aidObjective': {
+        const aidId = Object.keys(consumableInventory).find(
+          (id) => (consumableInventory[id] ?? 0) > 0 && CONSUMABLES[id as ConsumableType]?.family === 'survival',
+        );
+        if (!aidId) return false;
+        consumableInventory[aidId] = (consumableInventory[aidId] ?? 0) - 1;
+        consumedConsumables[aidId] = (consumedConsumables[aidId] ?? 0) + 1;
+        pushEventFeed(def.blurb);
+        if (eventRng() < 0.35) {
+          const gear = rollGearDrop(eventRng, tickNumber);
+          if (gear) {
+            generatedItems.push(gear);
+            pushGearFeed(gear, 'grateful scavenger');
+          }
+        } else {
+          creditsFraction += 12 + eventRng() * 8;
+        }
+        break;
+      }
+      case 'overheatWindow':
+        evOverheatTicks = 10;
+        pushEventFeed(`${def.blurb} Credits +50% for 10 ticks — but the heat bites for 3 HP a tick.`);
+        break;
+      case 'streakObjective':
+        evStreakBox.value = { ticksLeft: 20, kills: 0 };
+        pushEventFeed(def.blurb);
+        break;
+      case 'weakpointContract':
+        if (kcTargetId) evWeakpointBox.value = { targetId: kcTargetId, ticksLeft: 15 };
+        else evPendingWeakpoint = true;
+        pushEventFeed(def.blurb);
+        break;
+      case 'elitePatrol':
+        evPendingEliteSpawn = true;
+        pushEventFeed(def.blurb, true);
+        break;
+      case 'bountyTarget': {
+        const bountySpec: Record<string, { archetype: string; hpMult: number }> = {
+          redline_pursuit_pack: { archetype: 'runner', hpMult: 1 },
+          ironwood_sentry_nest: { archetype: 'sniper', hpMult: 2 },
+          throwtech_turret_nest: { archetype: 'sniper', hpMult: 2 },
+          helixworks_prototype_escape: { archetype: 'brute', hpMult: 1.5 },
+          helixworks_specimen_release: { archetype: 'runner', hpMult: 1.5 },
+        };
+        const spec = bountySpec[def.id] ?? { archetype: 'runner', hpMult: 1.5 };
+        evPendingBounty = { archetype: spec.archetype, hpMult: spec.hpMult, payout: res.payout, name: def.name };
+        pushEventFeed(def.blurb);
+        break;
+      }
+      case 'detonate': {
+        pushEventFeed(def.blurb);
+        if (kcTargetId) {
+          const target = roster.find((m) => m.id === kcTargetId);
+          if (target) {
+            const dmg = Math.round(tickEffectiveDps * 3);
+            kcTargetHp -= dmg;
+            feedEvents.push({
+              at,
+              tone: 'hit',
+              label: `-${dmg} HP`,
+              detail: `${def.name}: the munitions cook off into ${target.name} for ${dmg} damage.`,
+              areaId,
+              value: dmg,
+            });
+            if (kcTargetHp <= 0) {
+              kcMonstersKilled += 1;
+              kcTotalKills += 1;
+              kcLastKilledId = kcTargetId;
+              feedEvents.push({
+                at,
+                tone: 'kill',
+                label: `Killed ${target.name}`,
+                detail: `${target.name} caught in the blast in ${area.name}.`,
+                areaId,
+                value: 0,
+              });
+              onTargetKilled(target, eventRng, tickIdx, tickNumber);
+              spawnNextTarget(tickIdx, tickNumber);
+            }
+          }
+        }
+        applyEventDamage(4, def.name, def.id, tickIdx);
+        break;
+      }
+      case 'breakWindow':
+        evBreakTicks = 10;
+        pushEventFeed(`${def.blurb} Brute targets take double damage for 10 ticks.`);
+        break;
+      case 'elementSurge': {
+        const elements = Object.values(Element);
+        evSurgeElement = elements[Math.floor(eventRng() * elements.length)] ?? Element.Kinetic;
+        evSurgeTicks = 10;
+        evSurgeMatched = !!primaryWeapon && primaryWeapon.element === evSurgeElement;
+        pushEventFeed(
+          evSurgeMatched
+            ? `${def.blurb} Your ${evSurgeElement} weapon resonates — drops roll hot for 10 ticks.`
+            : `${def.blurb} ${evSurgeElement} surge: enemy pressure +30% for 10 ticks (your weapon does not match).`,
+        );
+        break;
+      }
+      case 'signalTrap': {
+        pushEventFeed(def.blurb);
+        if (consumableMods.eventFindWeightBonus > 0 || consumableMods.eventChanceBonus > 0) {
+          const gear = rollGearDrop(eventRng, tickNumber);
+          if (gear) {
+            generatedItems.push(gear);
+            pushGearFeed(gear, 'signal trap spoils');
+          }
+        } else {
+          fragmentsAwarded += 1;
+        }
+        break;
+      }
+      case 'wallsShift':
+        evWallsShifted = true;
+        pushEventFeed(`${def.blurb} Weapon and ordnance drop odds swap for the rest of this roam.`);
+        break;
+      case 'resonanceTrial': {
+        pushEventFeed(def.blurb);
+        if (primaryWeapon && (area.elementBias ?? []).includes(primaryWeapon.element)) {
+          const gear = rollGearDrop(eventRng, tickNumber);
+          if (gear) {
+            generatedItems.push(gear);
+            pushGearFeed(gear, 'resonance attuned');
+          }
+        } else {
+          xpFraction += 20;
+        }
+        break;
+      }
+      case 'minefield':
+        pushEventFeed(def.blurb);
+        applyEventDamage(8, def.name, def.id, tickIdx);
+        if (!survDead) fragmentsAwarded += 2;
+        break;
+      default:
+        break;
+    }
+    eventsFired.push({ eventId: def.id, name: def.name, family: def.family, tick: tickNumber });
+    return true;
+  };
+
   // Import emptyMods lazily to avoid circular deps in client imports
   let consumableMods = {
     dpsMultiplier: 1, damageReductionPct: 0, bonusLootChance: 0,
     extraLootRollChance: 0, scrapYieldMultiplier: 1, rareDropChanceMod: 0,
-    eventChanceBonus: 0, enemyPressureMultiplier: 1, xpMultiplier: 1,
+    eventChanceBonus: 0, eventFindWeightBonus: 0, eventForeshadow: false,
+    materialEventYieldBonus: 0, cacheEventWeightBonus: 0,
+    enemyPressureMultiplier: 1, xpMultiplier: 1,
     incomingDpsMultiplier: 1, incomingAccuracyMultiplier: 1, ordnanceBonusDps: 0,
   };
 
   for (let tickIdx = 0; tickIdx < ticks; tickIdx++) {
     // Deterministic RNG — same tuple, same stream as the client preview
     const rng = createTickRng(playerId, areaId, tickCount - ticks + tickIdx + 1);
+    const tickNumber = tickCount - ticks + tickIdx + 1;
+    // Tick-start snapshots for the event objectives: the Streak Run
+    // reads "kills without taking a hit" off these at end of tick.
+    const tickStartKills = kcMonstersKilled;
+    const tickStartHp = survHp;
+    const tickStartShield = survShield;
 
     // --- Consumable engine tick ---
     if (roamingState) {
@@ -769,7 +1358,8 @@ export function processRoamingClaim(
       );
       vehicleActiveTicks++;
     }
-    const tickCredits = effectiveCreditsPerTick * tickVehicleFactor;
+    // Overheat Vent window (event): credits run +50% while it lasts.
+    const tickCredits = effectiveCreditsPerTick * tickVehicleFactor * (evOverheatTicks > 0 ? 1.5 : 1);
     const tickScrap = effectiveScrapPerTick * tickVehicleFactor;
     const tickXp = effectiveXpPerTick * tickVehicleFactor;
 
@@ -789,7 +1379,7 @@ export function processRoamingClaim(
       (request.economy?.fragmentChance ?? FRAGMENT_CHANCE) * (1 + activityFragmentBonus)
         * tickVehicleFactor * (1 + tickVehicleScanner),
     );
-    const materialChance = Math.max(0, MATERIAL_CHANCE * (1 + activityMaterialBonus) * tickVehicleFactor);
+    const materialChance = Math.max(0, MATERIAL_CHANCE * (1 + activityMaterialBonus) * tickVehicleFactor * hotMaterialMult);
     const gearThreshold = gearChance;
     const fragmentThreshold = Math.min(0.99, gearThreshold + fragmentChance);
     const materialThreshold = Math.min(0.99, fragmentThreshold + materialChance);
@@ -831,17 +1421,34 @@ export function processRoamingClaim(
         }
       }
     } else if (roll < fragmentThreshold) {
-      fragmentsAwarded++;
+      // Silt Storm window (event): fragment finds double while it lasts.
+      const fragGain = evStormTicks > 0 ? 2 : 1;
+      fragmentsAwarded += fragGain;
       feedEvents.push({
         at: now - (ticks - 1 - tickIdx) * TICK_MS,
         tone: 'fragment',
-        label: '+1 cache fragment',
-        detail: `${area.enemyType} patrol yielded a cache key fragment.`,
+        label: `+${fragGain} cache fragment${fragGain > 1 ? 's' : ''}`,
+        detail: evStormTicks > 0
+          ? 'The storm shakes loose a doubled fragment find.'
+          : `${area.enemyType} patrol yielded a cache key fragment.`,
         areaId,
-        value: 1,
+        value: fragGain,
       });
     } else if (roll < materialThreshold) {
-      const find = rollAreaMaterialFind(area, rng);
+      let find = rollAreaMaterialFind(area, rng);
+      if (find && find.kind === 'material') {
+        // Tier-2 signature substitution (brief §2.5): a slice of
+        // base-material finds in an area come up as the area's
+        // signature material instead. Rolled on its own stream so
+        // the main tick stream is untouched.
+        const signature = signatureMaterialForArea(area.id);
+        if (signature) {
+          const sigRng = createTickRng(playerId, `${areaId}:signature`, tickNumber);
+          if (sigRng() < SIGNATURE_MATERIAL_FIND_CHANCE) {
+            find = { type: signature.materialId, kind: 'material' };
+          }
+        }
+      }
       if (find) {
         // Vehicle yield on finds: the factor's fractional part and
         // the cargo bonus each give a chance at a bonus unit.
@@ -900,21 +1507,19 @@ export function processRoamingClaim(
     const tickEffectiveDps =
       (effectiveDps * consumableMods.dpsMultiplier + consumableMods.ordnanceBonusDps) * tickAmpMult;
     if (!survDead && tickEffectiveDps > 0 && roster.length > 0) {
-      // Spawn a target if none exists
+      // Spawn a target if none exists (event-aware: bounties, elite
+      // patrols, escalation, and weakpoint marking all apply here)
       if (!kcTargetId) {
-        const next = pickNextTarget(roster, kcLastKilledId);
-        if (next) {
-          kcTargetId = next.id;
-          kcTargetHp = next.hp;
-          kcTargetHpMax = next.hp;
-        }
+        spawnNextTarget(tickIdx, tickNumber);
       }
 
       // Apply damage to current target
       if (kcTargetId) {
         const monster = roster.find((m) => m.id === kcTargetId);
         if (monster) {
-          const dmg = computePlayerDamageVsMonster({ effectiveDps: tickEffectiveDps }, monster);
+          let dmg = computePlayerDamageVsMonster({ effectiveDps: tickEffectiveDps }, monster);
+          // Armor-Break Window (event): brutes take double damage.
+          if (evBreakTicks > 0 && monster.archetype === 'brute') dmg *= 2;
           kcTargetHp -= dmg;
 
           // Feed event: hunter damaged the enemy
@@ -963,16 +1568,8 @@ export function processRoamingClaim(
               });
             }
 
-            const next = pickNextTarget(roster, kcLastKilledId);
-            if (next) {
-              kcTargetId = next.id;
-              kcTargetHp = next.hp;
-              kcTargetHpMax = next.hp;
-            } else {
-              kcTargetId = null;
-              kcTargetHp = 0;
-              kcTargetHpMax = 0;
-            }
+            onTargetKilled(monster, rng, tickIdx, tickNumber);
+            spawnNextTarget(tickIdx, tickNumber);
           }
         }
       }
@@ -987,6 +1584,12 @@ export function processRoamingClaim(
           ...attacker,
           attackPower: Math.round(
             attacker.attackPower * consumableMods.incomingDpsMultiplier * consumableMods.enemyPressureMultiplier
+            // Event pressure windows + the hot-area danger band: the
+            // storm and an unmatched surge press the hunter harder;
+            // the hot area's danger is up one band by design.
+            * (evStormTicks > 0 ? 1.5 : 1)
+            * (evSurgeTicks > 0 && !evSurgeMatched ? 1.3 : 1)
+            * (isHotAreaClaim ? HOT_AREA_DANGER_MULTIPLIER : 1)
           ),
           accuracy: (attacker.accuracy ?? 0.85) * consumableMods.incomingAccuracyMultiplier,
         };
@@ -1116,20 +1719,126 @@ export function processRoamingClaim(
                     areaId,
                     value: 0,
                   });
-                  const next = pickNextTarget(roster, kcLastKilledId);
-                  if (next) {
-                    kcTargetId = next.id;
-                    kcTargetHp = next.hp;
-                    kcTargetHpMax = next.hp;
-                  } else {
-                    kcTargetId = null;
-                    kcTargetHp = 0;
-                    kcTargetHpMax = 0;
-                  }
+                  onTargetKilled(novaTarget, rng, tickIdx, tickNumber);
+                  spawnNextTarget(tickIdx, tickNumber);
                 }
               }
             }
           }
+        }
+      }
+    }
+
+    // --- Roaming events: objective bookkeeping, windows, the roll ---
+    // Streak Run objective: this tick's kills count only if the hunter
+    // took no hit (HP or shield) during it.
+    const streakNow = evStreakBox.value;
+    if (streakNow) {
+      const tookHit = survHp < tickStartHp || survShield < tickStartShield;
+      if (tookHit) {
+        feedEvents.push({
+          at: now - (ticks - 1 - tickIdx) * TICK_MS,
+          tone: 'event',
+          label: 'Streak broken',
+          detail: 'A hit landed — the Streak Run contract lapses unpaid.',
+          areaId,
+          eventId: 'streak_broken',
+          family: 'objective',
+        });
+        evStreakBox.value = null;
+      } else {
+        streakNow.kills += kcMonstersKilled - tickStartKills;
+        if (streakNow.kills >= 5) {
+          xpFraction += 25;
+          fragmentsAwarded += 2;
+          feedEvents.push({
+            at: now - (ticks - 1 - tickIdx) * TICK_MS,
+            tone: 'event',
+            label: 'Streak complete',
+            detail: 'Five kills without a scratch — the Streak Run pays +25 XP and +2 cache fragments.',
+            areaId,
+            eventId: 'streak_complete',
+            family: 'objective',
+          });
+          evStreakBox.value = null;
+        } else {
+          streakNow.ticksLeft -= 1;
+          if (streakNow.ticksLeft <= 0) evStreakBox.value = null;
+        }
+      }
+    }
+    const weakpointNow = evWeakpointBox.value;
+    if (weakpointNow) {
+      weakpointNow.ticksLeft -= 1;
+      if (weakpointNow.ticksLeft <= 0) evWeakpointBox.value = null;
+    }
+    // Overheat attrition bites for windows carried INTO this tick; a
+    // window lit by this tick's own resolution starts biting next tick.
+    if (evOverheatTicks > 0 && !survDead) {
+      applyEventDamage(3, 'Overheat Vent', 'redline_overheat_vent', tickIdx);
+    }
+    // Window decay: windows set on earlier ticks count down here; a
+    // window set by this tick's resolution (below) starts at full.
+    if (evStormTicks > 0) evStormTicks -= 1;
+    if (evOverheatTicks > 0) evOverheatTicks -= 1;
+    if (evBreakTicks > 0) evBreakTicks -= 1;
+    if (evSurgeTicks > 0) evSurgeTicks -= 1;
+
+    // The event roll: one roll per tick on the ':event' stream, after
+    // the kill cycle and survival have resolved (brief §2.1 placement).
+    // Chance = economy base + Loot Beacon (consumable) + the vehicle's
+    // scanner affix total, clamped to the [0, EVENT_CHANCE_MAX]
+    // envelope. The roll is NOT gated on survival: the shipped ticker
+    // never stopped paying for death (death gates the kill cycle, not
+    // the reward roll), and offline settlement carries no survival
+    // input at all — gating here would silently diverge claim and
+    // settlement payouts on identical state. Event DAMAGE still
+    // no-ops on a downed hunter (applyEventDamage), and kill-cycle
+    // event state (bounties, elites, streaks) simply never resolves
+    // without kills.
+    {
+      const eventChance = Math.min(
+        EVENT_CHANCE_MAX,
+        Math.max(
+          0,
+          (request.economy?.eventChanceBase ?? EVENT_CHANCE_BASE)
+            + consumableMods.eventChanceBonus
+            + tickVehicleScanner,
+        ),
+      );
+      const pickMods = {
+        findWeightMult: 1 + consumableMods.eventFindWeightBonus,
+        cacheWeightMult: 1 + consumableMods.cacheEventWeightBonus,
+      };
+      const eventRng = createTickRng(playerId, `${areaId}:event`, tickNumber);
+      if (eventRng() < eventChance) {
+        const def = pickRoamingEvent(areaId, eventRng, pickMods);
+        if (def) resolveRoamingEvent(def, eventRng, tickIdx, tickNumber, tickEffectiveDps);
+      } else if (consumableMods.eventForeshadow && tickIdx < ticks - 1) {
+        // Data Skimmer foreshadow: peek at next tick's stream and hint
+        // the family of whatever is coming — information only, the
+        // future tick still rolls its own stream when it arrives.
+        const peekRng = createTickRng(playerId, `${areaId}:event`, tickNumber + 1);
+        const peeked = peekRoamingEvent(areaId, peekRng, eventChance, pickMods);
+        if (peeked) {
+          const flavor =
+            peeked.family === 'find'
+              ? 'something buried'
+              : peeked.family === 'hazard'
+                ? 'something dangerous'
+                : peeked.family === 'fight'
+                  ? 'something hostile'
+                  : 'something unusual';
+          feedEvents.push({
+            at: now - (ticks - 1 - tickIdx) * TICK_MS,
+            tone: 'event',
+            label: 'Signal spike',
+            detail: `The skimmer pings ${flavor} ahead…`,
+            areaId,
+            eventId: 'foreshadow',
+            family: peeked.family,
+            hint: true,
+          });
         }
       }
     }
@@ -1228,6 +1937,11 @@ export function processRoamingClaim(
           ? 'out_of_fuel'
           : null,
     },
+    // Roaming events fired this claim + escalated elite kills
+    // (overhaul): the routes persist these to the verified action
+    // ledger for EV measurement and mastery credit.
+    eventsFired,
+    eliteKills,
     // Consumables consumed during this claim batch
     consumedConsumables,
     // Updated roaming consumable state for next claim

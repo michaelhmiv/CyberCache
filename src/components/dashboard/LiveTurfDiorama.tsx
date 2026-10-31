@@ -19,10 +19,56 @@ import {
 } from '@/components/pixelArt/PixelFx';
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
+import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
+import { ENEMY_POSES, HUNTER_POSES, enemyRig, hunterRigWithHead, type HunterHeadVariantId } from '@/lib/pixel/rig';
+import { areaVisuals } from '@/content/areaPalettes';
+import { isHotArea } from '@/content/hotArea';
+import { elementDialect, shotCadence } from '@/lib/pixel/elementFx';
+import { weaponGripFraction } from '@/lib/pixel/weaponCompositor';
+import { useLoadoutStore } from '@/store';
+import { useVehicleStore } from '@/store/slices/vehicleSlice';
+import { CONSUMABLES } from '@/constants/consumables';
+
+/** Belt sprite per consumable (overhaul §4.7): specific ids first, then
+ *  the family read. The loadout's three consumable slots ride the
+ *  hunter's belt on stage. */
+const BELT_SPRITES_BY_ID: Record<string, string> = {
+  med_kit: 'belt-vial',
+  shield_cell: 'belt-cell',
+  swarm_grenade: 'belt-swarm',
+  combat_stims: 'belt-syringe',
+  ammo_box: 'belt-rounds',
+  loot_beacon: 'belt-beacon',
+  salvage_contract: 'belt-contract',
+  data_skimmer: 'belt-scanner',
+  magnetized_payload: 'belt-magazine',
+};
+const BELT_SPRITES_BY_FAMILY: Record<string, string> = {
+  survival: 'belt-vial',
+  ammo: 'belt-magazine',
+  ordnance: 'belt-grenade',
+  tactical: 'belt-scanner',
+  economy: 'belt-ticket',
+  corrupted: 'belt-syringe',
+};
+
+function beltSpriteFor(consumableId: string | null): string | undefined {
+  if (!consumableId) return undefined;
+  return BELT_SPRITES_BY_ID[consumableId] ?? BELT_SPRITES_BY_FAMILY[CONSUMABLES[consumableId as keyof typeof CONSUMABLES]?.family ?? ''];
+}
+
+function headVariantPreference(): HunterHeadVariantId {
+  try {
+    const value = window.localStorage.getItem('cc-head-variant');
+    return value === 'optic' || value === 'hood' || value === 'fin' ? value : 'visor';
+  } catch {
+    return 'visor';
+  }
+}
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { gearDropFromEvent } from '@/lib/pixel/lootMoment';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
-import { useKillCycleStore, useTickFeedStore, useBossStore } from '@/store';
+import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore } from '@/store';
 import { MONSTERS, getMonster } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ARCHETYPE_SILHOUETTES, type EnemyArchetype } from '@/components/diorama/EnemySilhouettes';
@@ -636,10 +682,13 @@ const PixelSceneLayer: React.FC<{
   mode: DioramaMode;
   modeLabel: string;
   accent: string;
-  projectileColor: string;
   event?: LiveTurfFeedEvent;
   reduced: boolean;
-}> = ({ backgroundId, bossSpriteId, weapon, mode, modeLabel, accent, projectileColor, event, reduced }) => {
+  /** Overhaul: the roaming area this stage shows (parallax, palette,
+   *  weather, hot-area treatment read from it). */
+  areaId: string;
+  hot?: boolean;
+}> = ({ backgroundId, bossSpriteId, weapon, mode, modeLabel, accent, event, reduced, areaId, hot = false }) => {
   const background = getPixelSprite(backgroundId);
   const groundY = background?.anchors.groundLine?.y ?? 0.86;
   const showEnemy = mode === 'roaming' || mode === 'bossFight';
@@ -656,6 +705,56 @@ const PixelSceneLayer: React.FC<{
   const [enemyLanded, setEnemyLanded] = useState(false);
 
   const hunterSprite = requirePixelSprite('hunter');
+  // ── Overhaul stage state ──────────────────────────────────────────
+  const visuals = areaVisuals(areaId);
+  const dialect = elementDialect(weapon?.element);
+  const cadence = shotCadence(weapon?.weaponType, weapon?.attackSpeed);
+  const loadoutConsumables = useLoadoutStore((state) => state.consumables);
+  const equippedShield = useLoadoutStore((state) => state.slots.shield);
+  const equippedRelic = useLoadoutStore((state) => state.slots.relic);
+  const equippedClassModId = useLoadoutStore((state) => state.slots.classMod);
+  const classModItem = useInventoryStore((state) =>
+    equippedClassModId ? state.items.find((i) => i.id === equippedClassModId) : undefined,
+  );
+  const vehicle = useLoadoutStore((state) => state.getVehicle());
+  const vehicleStatus = useVehicleStore((state) => state.lastClaimStatus);
+  const beltSprites = [loadoutConsumables.PreFight, loadoutConsumables.MidFight, loadoutConsumables.Emergency]
+    .map(beltSpriteFor)
+    .filter((s): s is string => !!s);
+  const pauldronTree = (() => {
+    const tree = (classModItem && 'treeBonus' in classModItem ? String(classModItem.treeBonus) : '').toLowerCase();
+    return tree.includes('demolition') ? 'demolition' : tree.includes('scavenger') ? 'scavenger' : 'gunslinger';
+  })();
+  const isEliteEvent = !!event && (event.tone === 'event' || event.tone === 'event_major') && event.family === 'elite';
+  const eventProp = event && (event.tone === 'event' || event.tone === 'event_major') && event.propId
+    ? getPixelSprite(event.propId)
+    : undefined;
+  const hunterPose = !showEnemy
+    ? HUNTER_POSES.idle
+    : beat?.kind === 'shot' || beat?.kind === 'crit'
+      ? HUNTER_POSES.recoil
+      : beat?.kind === 'playerHit'
+        ? HUNTER_POSES.hit
+        : beat?.kind === 'kill'
+          ? HUNTER_POSES.celebrate
+          : HUNTER_POSES.aim;
+  const enemyPose = isEliteEvent
+    ? ENEMY_POSES.idle
+    : beat?.kind === 'playerHit'
+      ? ENEMY_POSES.lunge
+      : beat?.kind === 'shot' || beat?.kind === 'crit'
+        ? ENEMY_POSES.hit
+        : beat?.kind === 'kill'
+          ? ENEMY_POSES.death
+          : ENEMY_POSES.idle;
+  // Held-weapon placement from anchors (§4.2): the weapon render's own
+  // grip fraction lands on the hunter's manifest grip anchor.
+  const weaponGrip = weapon ? weaponGripFraction(weapon.weaponType) : { x: 0.4, y: 0.65 };
+  const weaponBoxWidthPct = 78;
+  const weaponBoxHeightPct = weaponBoxWidthPct * (260 / 320) * (44 / 120);
+  const weaponLeftPct = (hunterSprite.anchors.grip?.x ?? 0.55) * 100 - weaponGrip.x * weaponBoxWidthPct;
+  const weaponTopPct = (hunterSprite.anchors.grip?.y ?? 0.37) * 100 - weaponGrip.y * weaponBoxHeightPct;
+
   // Enemy sprite from data: the boss's bespoke sprite in boss fights,
   // else the current target monster's archetype sprite, else the brute.
   const targetArchetype = currentTargetId ? getMonster(currentTargetId)?.archetype : undefined;
@@ -749,6 +848,8 @@ const PixelSceneLayer: React.FC<{
       shakeIntensity={shakeIntensity}
       shakeDurationMs={shakeDurationMs}
       testId="pixel-diorama-stage"
+      areaId={areaId}
+      hot={hot}
     >
       {/* Mode chip (mirrors the vector scene's in-scene label) */}
       <div
@@ -758,9 +859,80 @@ const PixelSceneLayer: React.FC<{
         {modeLabel}
       </div>
 
-      {/* Camp crate prop in non-combat modes */}
-      {!showEnemy && (
+      {/* Set dressing in non-combat modes (grammar G-5): the system's
+          set pieces behind the actor; the camp crate is the fallback. */}
+      {!showEnemy && mode === 'crafting' && (
+        <PixelActor spriteId="set-bench-forge" xPct={60} heightPct={34} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-bench-set" />
+      )}
+      {!showEnemy && mode === 'workshopService' && (
+        <PixelActor spriteId="set-bay-lift" xPct={60} heightPct={36} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-bay-set" />
+      )}
+      {!showEnemy && mode === 'salvaging' && (
+        <PixelActor spriteId="set-refinery-crusher" xPct={60} heightPct={34} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-refinery-set" />
+      )}
+      {!showEnemy && mode === 'marketListing' && (
+        <PixelActor spriteId="set-vendor-stall" xPct={60} heightPct={34} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-vendor-set" />
+      )}
+      {!showEnemy && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && (
         <PixelActor spriteId="crate" xPct={63} heightPct={21} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-crate-prop" />
+      )}
+
+      {/* Event prop on the loot stage (§3.4): the fired event's named
+          prop stands mid-stage for its feed beat. */}
+      {eventProp && event && (
+        <PixelActor
+          key={`event-prop-${event.id}`}
+          spriteId={eventProp.id}
+          xPct={52}
+          heightPct={23}
+          groundY={groundY}
+          reduced={reduced}
+          breathe={false}
+          testId="pixel-event-prop"
+        />
+      )}
+      {isEliteEvent && (
+        <PixelActor spriteId="prop-elite-banner" xPct={88} heightPct={26} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-elite-banner" />
+      )}
+
+      {/* The equipped vehicle, parked at the scene edge during fights
+          (Q4 travel legs + encounter clusters): the actual instance —
+          class profile, rolled affix overlays, condition wear — with
+          its fuel/condition read from the last claim's status. */}
+      {mode === 'roaming' && vehicle && (
+        <div className="absolute" style={{ left: '1%', bottom: `${(1 - groundY) * 100 + 1}%`, width: '21%', zIndex: 5 }} data-testid="pixel-vehicle">
+          <div className="relative">
+            <img
+              src={getPixelSprite(`vehicle-${vehicle.vehicleClassId.replace(/_/g, '-')}`)?.url}
+              alt=""
+              draggable={false}
+              className="w-full"
+              style={{ imageRendering: 'pixelated' }}
+            />
+            {vehicle.affixes.some((a) => a.stat === 'vehicleCargoPct') && (
+              <img src={getPixelSprite('vehicle-affix-cargo-rack')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+            )}
+            {vehicle.affixes.some((a) => a.stat === 'vehicleScannerPct') && (
+              <img src={getPixelSprite('vehicle-affix-scanner-array')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+            )}
+            {vehicle.affixes.some((a) => a.stat === 'vehicleFramePct') && (
+              <img src={getPixelSprite('vehicle-affix-reinforced-frame')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+            )}
+            {vehicle.conditionCurrent / Math.max(1, vehicle.conditionMax) < 0.35 && (
+              <img src={getPixelSprite('vehicle-condition-scuff')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+            )}
+          </div>
+          {vehicleStatus && (
+            <div className="mt-0.5 flex gap-1" data-testid="pixel-vehicle-status">
+              <div className="h-1 flex-1 bg-black/60">
+                <div className="h-full bg-amber-400" style={{ width: `${Math.min(100, (vehicleStatus.fuelUnitsRemaining / Math.max(1, vehicleStatus.fuelUnitsStart || vehicleStatus.fuelUnitsRemaining)) * 100)}%` }} />
+              </div>
+              <div className="h-1 flex-1 bg-black/60">
+                <div className="h-full bg-emerald-400" style={{ width: `${(vehicleStatus.conditionCurrent / Math.max(1, vehicleStatus.conditionMax)) * 100}%` }} />
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Hunter — walks in for combat; dodges the telegraphed lunge on
@@ -773,22 +945,94 @@ const PixelSceneLayer: React.FC<{
         initial={false}
         animate={reduced ? undefined : hunterControls}
       >
-        <PixelActor
-          spriteId="hunter"
-          {...hunterPlacement}
-          reduced={reduced}
-          entrance={showEnemy ? 'walk' : 'none'}
-          enterFrom="left"
-          testId="pixel-hunter"
-        >
-          {weapon && (
-            <div className="pointer-events-none absolute" style={{ left: '24%', top: '26%', width: '78%', transform: 'rotate(-3deg)' }}>
-              <PixelSway reduced={reduced}>
-                <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
-              </PixelSway>
-            </div>
-          )}
-        </PixelActor>
+        {showEnemy ? (
+          <PixelRigActor
+            rig={hunterRigWithHead(headVariantPreference())}
+            {...hunterPlacement}
+            feetX={hunterSprite.anchors.feet?.x ?? 0.27}
+            reduced={reduced}
+            pose={hunterPose}
+            testId="pixel-hunter"
+          >
+            {weapon && (
+              <div
+                className="pointer-events-none absolute"
+                style={{ left: `${weaponLeftPct}%`, top: `${weaponTopPct}%`, width: `${weaponBoxWidthPct}%`, transform: 'rotate(-3deg)', zIndex: 7 }}
+              >
+                <PixelSway reduced={reduced}>
+                  <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
+                </PixelSway>
+              </div>
+            )}
+            {/* Equipped gear reads (§4.7): shield emitter, relic sigil,
+                class-mod pauldron, and the loadout's belt consumables —
+                all from the actual equipped instances. */}
+            {equippedShield && getPixelSprite('gear-shield-emitter') && (
+              <img
+                src={getPixelSprite('gear-shield-emitter')!.url}
+                alt=""
+                draggable={false}
+                data-testid="pixel-gear-shield"
+                className="pointer-events-none absolute"
+                style={{ left: '6%', top: '30%', width: '34%', imageRendering: 'pixelated', zIndex: 8 }}
+              />
+            )}
+            {equippedRelic && getPixelSprite('gear-relic-sigil') && (
+              <img
+                src={getPixelSprite('gear-relic-sigil')!.url}
+                alt=""
+                draggable={false}
+                data-testid="pixel-gear-relic"
+                className="pointer-events-none absolute"
+                style={{ left: '24%', top: '34%', width: '20%', imageRendering: 'pixelated', zIndex: 8 }}
+              />
+            )}
+            {equippedClassModId && getPixelSprite(`gear-pauldron-${pauldronTree}`) && (
+              <img
+                src={getPixelSprite(`gear-pauldron-${pauldronTree}`)!.url}
+                alt=""
+                draggable={false}
+                data-testid="pixel-gear-pauldron"
+                className="pointer-events-none absolute"
+                style={{ left: '12%', top: '24%', width: '26%', imageRendering: 'pixelated', zIndex: 8 }}
+              />
+            )}
+            {beltSprites.map((spriteId, i) => {
+              const sprite = getPixelSprite(spriteId);
+              if (!sprite) return null;
+              return (
+                <img
+                  key={`${spriteId}-${i}`}
+                  src={sprite.url}
+                  alt=""
+                  draggable={false}
+                  data-testid="pixel-belt-prop"
+                  className="pointer-events-none absolute"
+                  style={{ left: `${30 + i * 9}%`, top: '56%', width: '11%', imageRendering: 'pixelated', zIndex: 8 }}
+                />
+              );
+            })}
+          </PixelRigActor>
+        ) : (
+          <PixelActor
+            spriteId="hunter"
+            {...hunterPlacement}
+            reduced={reduced}
+            entrance="none"
+            testId="pixel-hunter"
+          >
+            {weapon && (
+              <div
+                className="pointer-events-none absolute"
+                style={{ left: `${weaponLeftPct}%`, top: `${weaponTopPct}%`, width: `${weaponBoxWidthPct}%`, transform: 'rotate(-3deg)' }}
+              >
+                <PixelSway reduced={reduced}>
+                  <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
+                </PixelSway>
+              </div>
+            )}
+          </PixelActor>
+        )}
       </motion.div>
 
       {/* Enemy — drops in for boss fights (dust + shake on landing),
@@ -806,16 +1050,50 @@ const PixelSceneLayer: React.FC<{
             animate={reduced ? undefined : enemyHitControls}
             style={{ transformOrigin: `${enemyPlacement.xPct}% ${groundY * 100}%` }}
           >
-            <PixelActor
-              spriteId={enemySprite.id}
-              {...enemyPlacement}
-              reduced={reduced}
-              breatheDuration={3.1}
-              entrance={bossMode ? 'drop' : 'walk'}
-              enterFrom="right"
-              onLanded={() => setEnemyLanded(true)}
-              testId="pixel-enemy"
-            />
+            {bossMode || (isEliteEvent && visuals.eliteSpriteId) ? (
+              <PixelActor
+                spriteId={isEliteEvent && visuals.eliteSpriteId ? visuals.eliteSpriteId : enemySprite.id}
+                {...enemyPlacement}
+                heightPct={isEliteEvent ? 74 : enemyPlacement.heightPct}
+                reduced={reduced}
+                breatheDuration={3.1}
+                entrance={bossMode ? 'drop' : 'walk'}
+                enterFrom="right"
+                onLanded={() => setEnemyLanded(true)}
+                testId="pixel-enemy"
+              />
+            ) : (
+              <motion.div
+                key={`rig-target-${currentTargetId ?? 'none'}-${isEliteEvent ? 'elite' : 'std'}`}
+                className="absolute inset-0"
+                initial={reduced ? false : { x: '6%', opacity: 0 }}
+                animate={{ x: '0%', opacity: 1 }}
+                transition={{ duration: MOVEMENT.WALK_IN_MS / 1000, ease: 'easeOut' }}
+              >
+                <PixelRigActor
+                  rig={enemyRig(isEliteEvent ? 'elite' : (targetArchetype ?? 'brute'))}
+                  {...enemyPlacement}
+                  heightPct={isEliteEvent ? 72 : enemyPlacement.heightPct}
+                  feetX={enemySprite.anchors.feet?.x ?? 0.5}
+                  reduced={reduced}
+                  pose={enemyPose}
+                  palette={{ paletteId: areaId, spec: visuals.enemyPalette }}
+                  testId="pixel-enemy"
+                >
+                  {/* The area's signature part rides the enemy (§4.4). */}
+                  {getPixelSprite(visuals.signaturePartId) && (
+                    <img
+                      src={getPixelSprite(visuals.signaturePartId)!.url}
+                      alt=""
+                      draggable={false}
+                      data-testid="pixel-enemy-signature"
+                      className="pointer-events-none absolute"
+                      style={{ left: '38%', top: '26%', width: '18%', imageRendering: 'pixelated', zIndex: 5 }}
+                    />
+                  )}
+                </PixelRigActor>
+              </motion.div>
+            )}
           </motion.div>
         </motion.div>
       )}
@@ -828,10 +1106,41 @@ const PixelSceneLayer: React.FC<{
         <div key={`beat-${event.id}`} className="absolute inset-0" data-testid="diorama-beat-fx">
           {(combatBeat.kind === 'shot' || combatBeat.kind === 'crit') && (
             <>
-              <MuzzleFlash xPct={muzzle.xPct} yPct={muzzle.yPct} />
-              <Tracer from={muzzle} to={enemyMass} color={projectileColor} />
+              <MuzzleFlash xPct={muzzle.xPct} yPct={muzzle.yPct} color={dialect.muzzleColor} size={34 * dialect.muzzleScale} />
+              {/* Element dialect (§4.6): tracer color/dash from the
+                  element, count/spread from the instance's cadence. */}
+              {Array.from({ length: cadence.tracerCount }, (_, i) => {
+                const offset = (i - (cadence.tracerCount - 1) / 2) * cadence.spreadPct;
+                return (
+                  <Tracer
+                    key={`tracer-${i}`}
+                    from={muzzle}
+                    to={{ xPct: enemyMass.xPct, yPct: enemyMass.yPct + offset }}
+                    color={dialect.tracerColor}
+                    heightPx={dialect.tracerWidth}
+                  />
+                );
+              })}
               <ShellCasing xPct={grip.xPct} yPct={grip.yPct} />
-              <ImpactSparks xPct={enemyMass.xPct} yPct={enemyMass.yPct} seed={event.id} />
+              <ImpactSparks xPct={enemyMass.xPct} yPct={enemyMass.yPct} seed={event.id} color={dialect.impactColor} />
+              {getPixelSprite(dialect.statusSpriteId) && (
+                <img
+                  src={getPixelSprite(dialect.statusSpriteId)!.url}
+                  alt=""
+                  draggable={false}
+                  data-testid="fx-status-overlay"
+                  className="pointer-events-none absolute z-20"
+                  style={{
+                    left: `${enemyMass.xPct}%`,
+                    top: `${enemyMass.yPct}%`,
+                    width: 44,
+                    marginLeft: -22,
+                    marginTop: -22,
+                    imageRendering: 'pixelated',
+                    opacity: 0.9,
+                  }}
+                />
+              )}
               <motion.div
                 data-testid="fx-hit-flash"
                 className="pointer-events-none absolute z-20 rounded-full bg-white"
@@ -933,7 +1242,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   return (
     <section className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
       {pixelBackgroundId ? (
-        <PixelSceneLayer backgroundId={pixelBackgroundId} bossSpriteId={stageBossSpriteId} weapon={weapon} mode={mode} modeLabel={copy.label} accent={scene.accent} projectileColor={projectile.color} event={latestEvent} reduced={reduced} />
+        <PixelSceneLayer backgroundId={pixelBackgroundId} bossSpriteId={stageBossSpriteId} weapon={weapon} mode={mode} modeLabel={copy.label} accent={scene.accent} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
       ) : (
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 420 286" role="img" aria-label={`${copy.label} activity visualization`}>
         <defs><linearGradient id={`sky-${safeId}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={scene.skyTop} /><stop offset="54%" stopColor={scene.skyBottom} /><stop offset="100%" stopColor="#050608" /></linearGradient><linearGradient id={`ground-${safeId}`} x1="0" x2="1"><stop offset="0%" stopColor={scene.groundDark} /><stop offset="48%" stopColor={scene.ground} /><stop offset="100%" stopColor={scene.groundDark} /></linearGradient><filter id={`soft-glow-${safeId}`} x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={scene.accent} floodOpacity="0.55" /></filter></defs>

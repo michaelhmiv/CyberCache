@@ -427,3 +427,37 @@ Both use the same Mulberry32 RNG. Same seed = same item.
 ---
 
 *Last updated: 2026-10-30 — Phase 0 Slice 2 (consumable contract repair): roaming consumable values/durations/scopes derive solely from `src/constants/consumables.ts`; Data Skimmer's extra loot roll is wired into the claim's loot roll; offline settlement applies the engine's consumed set atomically (migration 0012); a foreground consumption-persistence failure now fails the claim instead of silently paying out.*
+
+---
+
+## 11. Roaming Variance + Visual Overhaul (migration 0023)
+
+New sources of truth added by the overhaul slice — one owner each, no
+duplicates:
+
+| Domain | Owner |
+|---|---|
+| Roaming event tables, elite law, essence homes, signature materials, event EV model | `src/content/roamingEvents.ts` |
+| Hot area (date-seeded rotation) | `src/content/hotArea.ts` |
+| Offline cap law (earned tiers, limiter, 24h ceiling) | `src/content/offlineCap.ts` |
+| Per-area visual identity (palettes, weather, animated props, boss arenas) | `src/content/areaPalettes.ts` |
+| Segmented rigs + poses | `src/lib/pixel/rig.ts` (+ `PixelRigActor`) |
+| Palette remap core | `src/lib/pixel/paletteSwap.ts` |
+| Element FX dialects + shot cadence | `src/lib/pixel/elementFx.ts` |
+| Shared visual grammar (G-1..G-6) + action set dressing | `src/lib/pixel/grammar.ts` |
+| Weapon decals / condition / visual seed | `src/lib/weaponArt/decalSpec.ts` |
+| Golden-image scenes + reference renderer | `src/test/golden/goldenScenes.ts`, `src/lib/pixel/sceneRenderer.ts` |
+
+Rules that bind future work:
+
+- Event/elite resolution happens ONLY in the Chef's claim engine on
+  dedicated RNG streams (`:event`, `:elite`, `:signature`), so
+  eventless claims stay bit-identical to pre-overhaul claims. Screens
+  render `ClaimResult.eventsFired` / feed events; they never roll.
+- Sprite production runs through `scripts/pixel-key.py` (new art) and
+  `scripts/pixel-segments.py` (derived art: rig segments, layers,
+  glyph props, vehicles, sets, golden PNG twins). The manifest
+  (`src/assets/pixel/manifest.json`) stays the single sprite registry;
+  anchors come from the production scripts, never per-screen tweaks.
+- Golden baselines are generated from the built scenes and reviewed by
+  Muse on regeneration (`npm run golden:update`); a diff fails CI.

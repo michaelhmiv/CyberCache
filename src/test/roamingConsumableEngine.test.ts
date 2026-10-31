@@ -467,7 +467,10 @@ describe('activateFromInventory — def contract', () => {
     expect(activated).toContain(ConsumableType.HighCapacityAmmoPack); // was skipped, now activates
     expect(activated).not.toContain(ConsumableType.Grenade); // boss-scoped in its def
     expect(activated).not.toContain(ConsumableType.InsuranceToken); // boss-scoped
-    expect(activated).not.toContain(ConsumableType.SalvageContract); // scrapping-scoped
+    // Salvage Contract gained a roaming scope in the roaming-variance
+    // overhaul (brief §2.6: its material-event yield is its real
+    // roaming function), so it activates now — pinned deliberately.
+    expect(activated).toContain(ConsumableType.SalvageContract); // roaming since the overhaul
     expect(activated).not.toContain(ConsumableType.WorkshopRushTicket); // crafting/repair-scoped
     expect(activated).not.toContain(ConsumableType.ElementalCoating); // boss-scoped legacy
   });
@@ -543,9 +546,20 @@ describe('activateFromInventory — def contract', () => {
     expect(mods.enemyPressureMultiplier).toBeCloseTo(
       CONSUMABLES[ConsumableType.LootBeacon].runtime.baseEffects.enemyPressureMultiplier ?? 1,
     );
-    // Loot Beacon's old eventChanceBonus had no roaming consumer and was
-    // removed from its def — the mod channel must stay at zero.
-    expect(mods.eventChanceBonus).toBe(0);
+    // The roaming-variance overhaul gave Loot Beacon's eventChanceBonus
+    // its designed consumer (brief §2.6): the def carries +0.03 and the
+    // engine accumulates it into the event-chance stack. (The pre-event
+    // system pin — channel at zero — is superseded by the brief.)
+    expect(mods.eventChanceBonus).toBeCloseTo(
+      CONSUMABLES[ConsumableType.LootBeacon].runtime.baseEffects.eventChanceBonus ?? 0,
+    );
+    expect(mods.eventChanceBonus).toBeCloseTo(0.03);
+    // Data Skimmer's event functions arrive in the same mods pass:
+    // find-weight re-weighting + the foreshadow flag.
+    expect(mods.eventFindWeightBonus).toBeCloseTo(
+      CONSUMABLES[ConsumableType.DataSkimmer].runtime.baseEffects.eventFindWeightBonus ?? 0,
+    );
+    expect(mods.eventForeshadow).toBe(true);
   });
 
   it('no phantom conversions: Cryo is defense-only, Signal Scrambler is accuracy-only (def values)', () => {

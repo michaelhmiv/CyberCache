@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { motion, useAnimationControls } from 'framer-motion';
-import { anchorPoint, requirePixelSprite } from '@/lib/pixel/manifest';
+import { anchorPoint, getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, shakeKeyframes } from '@/lib/pixel/movement';
+import { areaVisuals } from '@/content/areaPalettes';
 import { PixelEmbers } from './PixelFx';
 
 /**
@@ -38,6 +39,12 @@ interface PixelStageProps {
   shakeDurationMs?: number;
   children?: React.ReactNode;
   testId?: string;
+  /** Overhaul §4.5: when set (and the zone's layer re-cuts exist), the
+   *  stage renders far/mid/near parallax layers over the base plate,
+   *  plus the area's animated props and weather tint. */
+  areaId?: string;
+  /** Hot-area treatment (§3.5): sky shift + pennant + ember color. */
+  hot?: boolean;
 }
 
 export const PixelStage: React.FC<PixelStageProps> = ({
@@ -50,9 +57,21 @@ export const PixelStage: React.FC<PixelStageProps> = ({
   shakeDurationMs,
   children,
   testId,
+  areaId,
+  hot = false,
 }) => {
   const background = requirePixelSprite(backgroundId);
   const ground = groundY ?? background.anchors.groundLine?.y ?? 0.86;
+  // Parallax layers exist for zone backgrounds (zone-<slug>-bg); the
+  // re-cuts are zone-<slug>-far/-mid/-near in the manifest.
+  const zoneSlug = backgroundId.startsWith('zone-') && backgroundId.endsWith('-bg')
+    ? backgroundId.slice('zone-'.length, -'-bg'.length)
+    : undefined;
+  const farLayer = zoneSlug && areaId ? getPixelSprite(`zone-${zoneSlug}-far`) : undefined;
+  const midLayer = zoneSlug && areaId ? getPixelSprite(`zone-${zoneSlug}-mid`) : undefined;
+  const nearLayer = zoneSlug && areaId ? getPixelSprite(`zone-${zoneSlug}-near`) : undefined;
+  const visuals = areaId ? areaVisuals(areaId) : undefined;
+  const pennant = hot ? getPixelSprite('prop-hot-pennant') : undefined;
   const shakeControls = useAnimationControls();
   // A fresh shakeKey plays one deterministic shake over the whole scene.
   // Controls (not a remount) so actors/entrances are never restarted.
@@ -77,6 +96,99 @@ export const PixelStage: React.FC<PixelStageProps> = ({
           animate={reduced ? undefined : { scale: [1.04, 1.1, 1.04] }}
           transition={reduced ? undefined : { duration: (MOVEMENT.BG_DRIFT_HALF_MS * 2) / 1000, repeat: Infinity, ease: 'easeInOut' }}
         />
+        {/* Parallax re-cuts (overhaul §4.5): far drifts least, near
+            most; all motion is transform-only. The base plate stays
+            underneath so bands can never gap. */}
+        {farLayer && (
+          <motion.img
+            src={farLayer.url}
+            alt=""
+            draggable={false}
+            data-testid="pixel-layer-far"
+            className="pointer-events-none absolute left-0 top-0 w-full object-cover"
+            style={{ height: '62%', imageRendering: 'pixelated' }}
+            animate={reduced ? undefined : { x: [0, -6, 0], scale: [1.02, 1.05, 1.02] }}
+            transition={reduced ? undefined : { duration: 26, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
+        {midLayer && (
+          <motion.img
+            src={midLayer.url}
+            alt=""
+            draggable={false}
+            data-testid="pixel-layer-mid"
+            className="pointer-events-none absolute left-0 w-full object-cover"
+            style={{ top: '36%', height: '52%', imageRendering: 'pixelated' }}
+            animate={reduced ? undefined : { x: [0, -14, 0] }}
+            transition={reduced ? undefined : { duration: 19, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
+        {nearLayer && (
+          <motion.img
+            src={nearLayer.url}
+            alt=""
+            draggable={false}
+            data-testid="pixel-layer-near"
+            className="pointer-events-none absolute left-0 w-full object-cover"
+            style={{
+              top: '70%',
+              height: '32%',
+              imageRendering: 'pixelated',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 30%)',
+              maskImage: 'linear-gradient(to bottom, transparent, black 30%)',
+            }}
+            animate={reduced ? undefined : { x: [0, -22, 0] }}
+            transition={reduced ? undefined : { duration: 13, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
+        {/* Weather tint + hot-area sky shift (color/opacity only). */}
+        {visuals && (
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0"
+            data-testid="pixel-weather"
+            data-weather={visuals.weather}
+            style={{
+              height: '46%',
+              background: `linear-gradient(to bottom, ${visuals.skyTint}${hot ? '55' : '2e'}, transparent)`,
+            }}
+          />
+        )}
+        {/* The area's animated props drift across the mid band. */}
+        {visuals &&
+          !reduced &&
+          visuals.animatedProps.map((propId, i) => {
+            const prop = getPixelSprite(propId);
+            if (!prop) return null;
+            return (
+              <motion.img
+                key={propId}
+                src={prop.url}
+                alt=""
+                draggable={false}
+                data-testid={`pixel-aprop-${propId}`}
+                className="pointer-events-none absolute"
+                style={{
+                  top: `${18 + i * 16}%`,
+                  width: 44,
+                  imageRendering: 'pixelated',
+                  opacity: 0.85,
+                }}
+                initial={{ left: '-8%' }}
+                animate={{ left: '104%' }}
+                transition={{ duration: 34 + i * 17, repeat: Infinity, ease: 'linear', delay: i * 9 }}
+              />
+            );
+          })}
+        {hot && pennant && (
+          <img
+            src={pennant.url}
+            alt=""
+            draggable={false}
+            data-testid="pixel-hot-pennant"
+            className="pointer-events-none absolute right-2 top-2"
+            style={{ width: 40, imageRendering: 'pixelated' }}
+          />
+        )}
         {children}
         {embers && <PixelEmbers seed={backgroundId} reduced={reduced} />}
       </motion.div>

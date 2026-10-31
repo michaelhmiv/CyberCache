@@ -231,6 +231,24 @@ export interface ChefGameplayStore {
    */
   recordDeath(playerId: string, death: DeathRecord): Promise<{ recorded: boolean; death: DeathRecord }>;
   /**
+   * Persist a claim's roaming-event telemetry (migration 0023,
+   * cc_record_roaming_events): one 'roaming.event' ledger row (the
+   * fired events + count, the realized-EV input for economy
+   * observability) and one 'roaming.elite_kill' row when named elites
+   * died (feeds the combat.elite_kills mastery via the ledger
+   * trigger). Telemetry only — pays nothing; the routes call it
+   * log-and-continue after the claim has been paid.
+   */
+  recordRoamingEvents(
+    playerId: string,
+    input: {
+      events: Array<{ eventId: string; family: string }>;
+      eliteKills: number;
+      areaId: string;
+      tickCount: number;
+    },
+  ): Promise<Json>;
+  /**
    * The resurrection op (cc_resurrect). Returns the function's payload:
    * { resurrected: true, ... } on success (plus idempotent_replay on a
    * nonce replay) or { resurrected: false, reason, ... } on a
@@ -496,6 +514,24 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     ])) as Record<string, unknown>;
     const stored = deathRecordFromJson(result.death);
     return { recorded: result.recorded === true, death: stored ?? death };
+  }
+
+  recordRoamingEvents(
+    playerId: string,
+    input: {
+      events: Array<{ eventId: string; family: string }>;
+      eliteKills: number;
+      areaId: string;
+      tickCount: number;
+    },
+  ): Promise<Json> {
+    return this.callJson('select public.cc_record_roaming_events($1, $2, $3, $4, $5) as result', [
+      playerId,
+      input.events.map((e) => ({ event_id: e.eventId, family: e.family })) as unknown as Json,
+      Math.trunc(input.eliteKills),
+      input.areaId,
+      Math.trunc(input.tickCount),
+    ]);
   }
 
   resurrect(playerId: string, input: ResurrectInput): Promise<Json> {

@@ -16,7 +16,8 @@ import type { AuthConfig } from '../auth/routes';
 import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
-import { earnedOfflineCapHours } from '../../content/offlineCap';
+import { ABSOLUTE_OFFLINE_CAP_HOURS, effectiveOfflineCapHours } from '../../content/offlineCap';
+import { isHotArea } from '../../content/hotArea';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 function formatTimeAway(ms: number): string {
@@ -30,7 +31,7 @@ function formatTimeAway(ms: number): string {
 
 export function createSettleOfflineHandler(
   store: ChefGameplayStore,
-  config: AuthConfig & { economyConfig?: EconomyConfig },
+  config: AuthConfig & { economyConfig?: EconomyConfig; now?: () => Date },
 ) {
   return async function handleSettleOffline(req: Request, res: Response): Promise<void> {
     try {
@@ -127,15 +128,30 @@ export function createSettleOfflineHandler(
         return;
       }
 
-      // Offline cap — EARNED, server-derived (pacing-baseline tuning):
-      // earnedOfflineCapHours(player level) + the Scavenger keystone's
-      // offlineCapBonus from the server-rebuilt skill bonuses above
-      // (that effect key's first consumer). The stored
-      // profiles.offline_cap_hours preference no longer sizes the
-      // settlement — a larger client/profile value is ignored here and
-      // inside cc_settle_offline_roaming (0015's _cap_hours).
+      // Offline cap — the AFK limiter law (Michael's 2026-10-30
+      // ruling, roaming-variance brief §2.6):
+      //   effective = min(earned tier + keystone bonus,
+      //                   the player's own limiter (if set),
+      //                   the absolute ceiling — 24h, economy-levered)
+      // Earned stays server-derived: earnedOfflineCapHours(player
+      // level) + the Scavenger keystone's offlineCapBonus from the
+      // server-rebuilt skill bonuses above. The stored
+      // profiles.offline_cap_hours is the player's LIMITER (set in
+      // Settings): it can only shorten a settlement, never extend it
+      // past what was earned — effectiveOfflineCapHours enforces the
+      // min() and the [1, 24] clamp. The same value is passed into
+      // cc_settle_offline_roaming (0015's _cap_hours) so the atomic
+      // settlement caps its own window identically.
+      const economyValues = config.economyConfig
+        ? await config.economyConfig.snapshot()
+        : undefined;
       const offlineCapBonus = Math.max(0, Math.floor(skillBonuses.offlineCapBonus ?? 0));
-      const capHours = earnedOfflineCapHours(profile.player_level || 1) + offlineCapBonus;
+      const capHours = effectiveOfflineCapHours({
+        level: profile.player_level || 1,
+        bonusHours: offlineCapBonus,
+        userCapHours: profile.offline_cap_hours,
+        ceilingHours: economyValues?.absoluteOfflineCapHours ?? ABSOLUTE_OFFLINE_CAP_HOURS,
+      });
       const capMs = capHours * 60 * 60 * 1000;
       const rawElapsedMs = Math.max(0, Date.now() - new Date(settleFrom).getTime());
       const elapsedMs = Math.min(rawElapsedMs, capMs);
@@ -169,14 +185,23 @@ export function createSettleOfflineHandler(
               fuelUnits: profile.vehicle_fuel,
             }
           : null,
-        // Live economy levers (0018), resolved server-side.
-        economy: config.economyConfig
-          ? await config.economyConfig.snapshot().then((values) => ({
-              fragmentChance: values.fragmentChance,
-              roamingLegendaryScalar: values.roamingLegendaryScalar,
-              vehicleYieldScalar: values.vehicleYieldScalar,
-            }))
+        // Live economy levers (0018), resolved server-side. The
+        // event base chance and the hot-area stamp apply offline too
+        // (engine parity doctrine: settlement simulates the same
+        // ticks a foreground claim would, so it must carry the same
+        // inputs — the vehicles parity test pins this identity).
+        economy: economyValues
+          ? {
+              fragmentChance: economyValues.fragmentChance,
+              roamingLegendaryScalar: economyValues.roamingLegendaryScalar,
+              vehicleYieldScalar: economyValues.vehicleYieldScalar,
+              eventChanceBase: economyValues.eventChanceBase,
+              eliteEscalationChance: economyValues.eliteEscalationChance,
+              hotAreaMaterialBonus: economyValues.hotAreaMaterialBonus,
+              hotAreaYieldBonus: economyValues.hotAreaYieldBonus,
+            }
           : undefined,
+        hotArea: isHotArea(area.id, config.now?.() ?? new Date()),
       };
 
       const result = processRoamingClaim(claim);
@@ -245,6 +270,24 @@ export function createSettleOfflineHandler(
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error('[chef] settlement store items failed:', message);
+        }
+      }
+
+      // Roaming-event telemetry (0023): same treatment as the vehicle
+      // outcome above — the settlement is already applied atomically,
+      // so a failure is logged, never retried (the nonce forbids a
+      // second settlement) and never fails the response.
+      if (result.eventsFired.length > 0 || result.eliteKills > 0) {
+        try {
+          await store.recordRoamingEvents(playerId, {
+            events: result.eventsFired.map((e) => ({ eventId: e.eventId, family: e.family })),
+            eliteKills: result.eliteKills,
+            areaId: area.id,
+            tickCount: (profile.last_claimed_tick || 0) + ticksRequested,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] settlement roaming-event record failed:', message);
         }
       }
 

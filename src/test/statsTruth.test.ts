@@ -29,6 +29,7 @@ import type { ClassMod, Relic, Shield, Weapon } from '@/types/items';
 import { mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/routes';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { issueAccessToken } from '../server/auth/tokens';
+import { EconomyConfig } from '../server/economy/config';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
 const A = '11111111-1111-4111-8111-111111111111';
@@ -46,11 +47,14 @@ afterEach(async () => {
   while (openServers.length) await openServers.pop()?.();
 });
 
-async function makeServer(store = new InMemoryChefGameplayStore()): Promise<Harness> {
+async function makeServer(
+  store = new InMemoryChefGameplayStore(),
+  routeOverrides: { economyConfig?: EconomyConfig; now?: () => Date } = {},
+): Promise<Harness> {
   const app = express();
   app.use(express.json());
   mountChefHealthRoute(app);
-  mountGameplayRoutes(app, store, { jwtSecret: SECRET });
+  mountGameplayRoutes(app, store, { jwtSecret: SECRET, ...routeOverrides });
   const server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   openServers.push(
@@ -329,7 +333,17 @@ describe('stats truth — offline settlement parity (HTTP)', () => {
   }
 
   it('(c) offline settlement loads gear + skills from server records: Scavenger offline tree and gear offline mod pay', async () => {
-    const { base, store, tokenA, tokenB } = await makeServer();
+    // This test pins EXACT baseline payouts, so the roaming-variance
+    // systems are held out of the settlement: the event roll is
+    // silenced via the economy lever, and the clock is fixed to a date
+    // whose hot area is not Dustwaste (2026-10-31 → ironwood_bastion).
+    // Event/hot settlement payouts are covered in overhaulMechanics.
+    const { base, store, tokenA, tokenB } = await makeServer(new InMemoryChefGameplayStore(), {
+      economyConfig: new EconomyConfig({
+        loadConfigValues: async () => ({ eventChanceBase: 0 }),
+      }),
+      now: () => new Date('2026-10-31T12:00:00Z'),
+    });
     seedOfflinePlayer(store, A, true);
     seedOfflinePlayer(store, B, false);
 

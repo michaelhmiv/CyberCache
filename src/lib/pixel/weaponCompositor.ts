@@ -1,7 +1,15 @@
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { WeaponPart } from '@/types/items';
+import type { Affix, WeaponPart } from '@/types/items';
 import { MANUFACTURER_WEAPON_STYLES, RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { getElementVisual } from '@/constants/visualAssets';
+import {
+  buildDecals,
+  conditionFromRoll,
+  seededRandom,
+  weaponVisualSeed,
+  type WeaponCondition,
+  type WeaponVisualDecal,
+} from '@/lib/weaponArt/decalSpec';
 
 /**
  * Pixel parts-kit weapon compositor (P1).
@@ -32,6 +40,14 @@ export interface PixelWeaponInput {
    *  deterministic default variant, so previews without parts still render. */
   parts?: WeaponPart[];
   name?: string;
+  /** Instance id — feeds the shared visual seed (decal placement). */
+  id?: string;
+  /** The generator's presentation seed, when the instance carries one. */
+  pixelSeed?: number;
+  /** Rolled affixes — rendered as decals on the receiver (overhaul §4.2c). */
+  affixes?: Affix[];
+  /** Roll quality 0..100 — rendered as the condition grade (overhaul §4.2d). */
+  rollQuality?: number;
   /** Presentation only: the weapon's legendary effect id, when it carries
    *  one. The compositor ignores it — PixelWeapon uses it to resolve
    *  bespoke legendary art (a dropped legendary's rolled name is
@@ -51,6 +67,10 @@ export interface PixelWeaponRender {
   colors: Record<Exclude<PixelShade, '.'>, string>;
   /** Deterministic fingerprint of the full render — the cache/test key. */
   signature: string;
+  /** Affix decals stamped on this render (shared derivation, decalSpec). */
+  decals: WeaponVisualDecal[];
+  /** Condition grade from roll quality (shared derivation, decalSpec). */
+  condition: WeaponCondition;
   /** Anchors in texel coordinates (origin top-left). */
   anchors: {
     muzzle: { x: number; y: number };
@@ -101,9 +121,14 @@ export function partVariant(input: PixelWeaponInput, slot: PixelPartSlot, varian
   if (!part) {
     return hashString(`${input.weaponType}|${slot}|default`) % variants;
   }
-  const entries = Object.entries(part.modifier ?? {}) as [string, number][];
-  const [stat, value] = entries[0] ?? ['none', 0];
-  return hashString(`${input.weaponType}|${slot}|${stat}|${Math.round((value ?? 0) * 1000)}`) % variants;
+  // Overhaul §4.2 fix (a): the variant derives from the part's FULL
+  // modifier map (every rolled stat, sorted for order stability) —
+  // the pre-overhaul code hashed only the first entry, so two parts
+  // differing in any other stat rendered identically.
+  const entries = (Object.entries(part.modifier ?? {}) as [string, number][])
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const key = entries.map(([stat, value]) => `${stat}:${Math.round((value ?? 0) * 1000)}`).join(',');
+  return hashString(`${input.weaponType}|${slot}|${key || 'none'}`) % variants;
 }
 
 interface TypeLayout {
@@ -115,6 +140,20 @@ interface TypeLayout {
   magLen: number;
   gripH: number;
   stockLen: number;
+}
+
+/**
+ * Where the wielder's hand grips this weapon type, as fractions of the
+ * 120×44 render view (overhaul §4.2: held weapons align grip-to-grip
+ * with the hunter's manifest grip anchor instead of hard-coded stage
+ * percentages). Derived from the type layout's body position.
+ */
+export function weaponGripFraction(weaponType: WeaponType): { x: number; y: number } {
+  const layout = TYPE_LAYOUTS[normalizeType(weaponType)];
+  return {
+    x: (layout.bodyX + layout.bodyLen * 0.3) / PIXEL_WEAPON_WIDTH,
+    y: (24 + layout.gripH * 0.35) / PIXEL_WEAPON_HEIGHT,
+  };
 }
 
 const TYPE_LAYOUTS: Record<WeaponType, TypeLayout> = {
@@ -306,6 +345,89 @@ export function composePixelWeapon(input: PixelWeaponInput): PixelWeaponRender {
 
   outline(grid);
 
+  // ── Affix decals (overhaul §4.2c) ─────────────────────────────────────────
+  // The instance's affixes stamp onto the receiver, derived by the same
+  // buildDecals the card path uses (decalSpec) — an affix is visible in
+  // the hand, not just on the card. Decal view space (~200×80) scales
+  // onto the 120×44 grid; shapes shrink to their texel silhouettes.
+  const visualSeed = weaponVisualSeed({
+    id: input.id,
+    name: input.name,
+    weaponType: type,
+    manufacturer,
+    element: input.element,
+    rarity,
+    pixelSeed: input.pixelSeed,
+  });
+  const decals = buildDecals(input.affixes, visualSeed, input.legendaryEffectId);
+  const stampCell = (x: number, y: number, shade: PixelShade) => {
+    if (x >= 0 && x < PIXEL_WEAPON_WIDTH && y >= 0 && y < PIXEL_WEAPON_HEIGHT && grid[y][x] !== '.') {
+      grid[y][x] = shade;
+    }
+  };
+  for (const decal of decals) {
+    const gx = Math.round((decal.x / 200) * PIXEL_WEAPON_WIDTH);
+    const gy = Math.round((decal.y / 80) * PIXEL_WEAPON_HEIGHT);
+    const shade: PixelShade = decal.label === '★' ? 'G' : 'T';
+    stampCell(gx, gy, shade);
+    if (decal.shape === 'slash') {
+      stampCell(gx + 1, gy - 1, shade);
+      stampCell(gx - 1, gy + 1, shade);
+    } else if (decal.shape === 'diamond') {
+      stampCell(gx, gy - 1, shade);
+      stampCell(gx, gy + 1, shade);
+      stampCell(gx - 1, gy, shade);
+      stampCell(gx + 1, gy, shade);
+    } else if (decal.shape === 'triangle') {
+      stampCell(gx - 1, gy + 1, shade);
+      stampCell(gx + 1, gy + 1, shade);
+    } else if (decal.shape === 'tag') {
+      stampCell(gx + 1, gy, shade);
+      stampCell(gx, gy + 1, shade);
+      stampCell(gx + 1, gy + 1, shade);
+    }
+  }
+
+  // ── Condition grade (overhaul §4.2d) ──────────────────────────────────────
+  // Roll quality renders as wear/sheen on the pixel path, from the same
+  // conditionFromRoll the card path uses. Wear erases a seeded speckle
+  // of body cells; sheen lifts the top edge toward the light shade.
+  const condition = conditionFromRoll(typeof input.rollQuality === 'number' ? input.rollQuality : 50);
+  if (condition === 'beat-up' || condition === 'field-used') {
+    const wearRate = condition === 'beat-up' ? 0.06 : 0.025;
+    const wearRng = seededRandom(visualSeed ^ 0x51ab3);
+    for (let y = 0; y < PIXEL_WEAPON_HEIGHT; y += 1) {
+      for (let x = 0; x < PIXEL_WEAPON_WIDTH; x += 1) {
+        const cell = grid[y][x];
+        if ((cell === 'P' || cell === 'D') && wearRng() < wearRate) {
+          grid[y][x] = '.';
+        }
+      }
+    }
+  } else if (condition === 'mint' || condition === 'godroll') {
+    for (let x = 0; x < PIXEL_WEAPON_WIDTH; x += 1) {
+      for (let y = 0; y < PIXEL_WEAPON_HEIGHT; y += 1) {
+        if (grid[y][x] === 'P') {
+          grid[y][x] = 'L';
+          break;
+        }
+        if (grid[y][x] !== '.') break;
+      }
+    }
+    if (condition === 'godroll') {
+      const sparkleRng = seededRandom(visualSeed ^ 0x90d15);
+      let placed = 0;
+      for (let y = 0; y < PIXEL_WEAPON_HEIGHT && placed < 5; y += 1) {
+        for (let x = 0; x < PIXEL_WEAPON_WIDTH && placed < 5; x += 1) {
+          if (grid[y][x] === 'P' && sparkleRng() < 0.05) {
+            grid[y][x] = 'G';
+            placed += 1;
+          }
+        }
+      }
+    }
+  }
+
   // ── Serialize + anchors ───────────────────────────────────────────────────
   const rows = grid.map((row) => row.join(''));
   let mass = 0;
@@ -346,6 +468,8 @@ export function composePixelWeapon(input: PixelWeaponInput): PixelWeaponRender {
       E: elementVisual.color,
     },
     signature,
+    decals,
+    condition,
     anchors: {
       muzzle: { x: muzzleX, y: SPINE_Y },
       grip: { x: gripX + Math.floor(gripW / 2), y: bodyBottom + layout.gripH },

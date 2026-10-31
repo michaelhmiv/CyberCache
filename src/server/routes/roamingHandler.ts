@@ -17,12 +17,13 @@ import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, DeathRecord, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { getRoamingArea } from '../../constants/roamingAreas';
+import { isHotArea } from '../../content/hotArea';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 export function createClaimHandler(
   store: ChefGameplayStore,
-  config: AuthConfig & { economyConfig?: EconomyConfig },
+  config: AuthConfig & { economyConfig?: EconomyConfig; now?: () => Date },
 ) {
   return async function handleClaim(req: Request, res: Response): Promise<void> {
     try {
@@ -151,8 +152,17 @@ export function createClaimHandler(
               fragmentChance: economyValues.fragmentChance,
               roamingLegendaryScalar: economyValues.roamingLegendaryScalar,
               vehicleYieldScalar: economyValues.vehicleYieldScalar,
+              eventChanceBase: economyValues.eventChanceBase,
+              eliteEscalationChance: economyValues.eliteEscalationChance,
+              hotAreaMaterialBonus: economyValues.hotAreaMaterialBonus,
+              hotAreaYieldBonus: economyValues.hotAreaYieldBonus,
             }
           : undefined,
+        // Daily hot area (overhaul): derived from the SERVER's UTC
+        // date at claim time — never cron, never the body. The
+        // engine applies the yield/material bonuses and the danger
+        // multiplier when this is set.
+        hotArea: isHotArea(body.areaId, config.now?.() ?? new Date()),
       };
 
       const result = processRoamingClaim(claimWithConsumables);
@@ -295,6 +305,24 @@ export function createClaimHandler(
             rewards: result.rewards,
           });
           return;
+        }
+      }
+
+      // Roaming-event telemetry (0023): the claim is fully paid at
+      // this point; the ledger rows feed economy observability
+      // (realized event EV) and elite-kill mastery. Log-and-continue —
+      // telemetry must never fail a paid claim.
+      if (result.eventsFired.length > 0 || result.eliteKills > 0) {
+        try {
+          await store.recordRoamingEvents(playerId, {
+            events: result.eventsFired.map((e) => ({ eventId: e.eventId, family: e.family })),
+            eliteKills: result.eliteKills,
+            areaId: body.areaId,
+            tickCount: body.tickCount,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] Failed to record roaming events:', message);
         }
       }
 

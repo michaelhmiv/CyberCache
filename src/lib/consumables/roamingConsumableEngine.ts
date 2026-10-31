@@ -102,6 +102,14 @@ export interface RoamingConsumableMods {
   rareDropChanceMod: number;
   /** Event chance bonus 0-1 (Loot Beacon). */
   eventChanceBonus: number;
+  /** Event table re-weighting toward find/material events (Data Skimmer). */
+  eventFindWeightBonus: number;
+  /** Signal hint active: the next event's family is foreshadowed (Data Skimmer). */
+  eventForeshadow: boolean;
+  /** Material-find events pay this fraction more (Salvage Contract). */
+  materialEventYieldBonus: number;
+  /** Buried-cache / convoy event weight bonus (Magnetized Payload). */
+  cacheEventWeightBonus: number;
   /** Enemy pressure multiplier (Loot Beacon drawback). */
   enemyPressureMultiplier: number;
   /** Multiplicative XP modifier. */
@@ -124,6 +132,10 @@ export function emptyMods(): RoamingConsumableMods {
     scrapYieldMultiplier: 1,
     rareDropChanceMod: 0,
     eventChanceBonus: 0,
+    eventFindWeightBonus: 0,
+    eventForeshadow: false,
+    materialEventYieldBonus: 0,
+    cacheEventWeightBonus: 0,
     enemyPressureMultiplier: 1,
     xpMultiplier: 1,
     incomingDpsMultiplier: 1,
@@ -585,6 +597,15 @@ export function processTick(
     if (effects.damageReductionPct) mods.damageReductionPct = Math.max(mods.damageReductionPct, effects.damageReductionPct);
     if (effects.bonusLootChance) mods.bonusLootChance += effects.bonusLootChance;
     if (effects.extraLootRollChance) mods.extraLootRollChance += effects.extraLootRollChance;
+    // Roaming event system (overhaul): the Loot Beacon's eventChanceBonus
+    // was declared in the mods map from the start but never accumulated —
+    // its def had no event system to feed. It accumulates now, with the
+    // Data Skimmer / Salvage Contract / Magnetized Payload event effects.
+    if (effects.eventChanceBonus) mods.eventChanceBonus += effects.eventChanceBonus;
+    if (effects.eventFindWeightBonus) mods.eventFindWeightBonus += effects.eventFindWeightBonus;
+    if (effects.eventForeshadow) mods.eventForeshadow = true;
+    if (effects.materialEventYieldBonus) mods.materialEventYieldBonus += effects.materialEventYieldBonus;
+    if (effects.cacheEventWeightBonus) mods.cacheEventWeightBonus += effects.cacheEventWeightBonus;
     if (effects.yieldMultiplier) mods.scrapYieldMultiplier *= effects.yieldMultiplier;
     if (effects.enemyPressureMultiplier) mods.enemyPressureMultiplier *= effects.enemyPressureMultiplier;
     if (effects.incomingDpsMultiplier) mods.incomingDpsMultiplier *= effects.incomingDpsMultiplier;

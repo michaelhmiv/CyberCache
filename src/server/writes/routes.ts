@@ -36,6 +36,7 @@
  *   POST /api/activity/clear                activityService.clearActiveAction   cc_clear_active_action(nonce)
  *   POST /api/activity/heartbeat            activityService.heartbeat           cc_active_action_heartbeat()
  *   POST /api/profile/set-username          usernameService.setUsername         cc_set_username(name)
+ *   POST /api/profile/offline-cap           offlineCapService.setLimiter        cc_set_offline_cap_limiter(cap)
  *   POST /api/profile/mark-reminder-seen    verificationReminderService         cc_mark_reminder_seen()
  *   GET/PUT/DELETE /api/runtime/snapshot    runtimeStoreService                 player_runtime_snapshots (own row)
  *   GET/PUT /api/stats/combat               combatStatsService (B4)             combat_stats (own row; was a direct PostgREST table sync)
@@ -333,6 +334,21 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   op('/api/profile/mark-reminder-seen', async (playerId) =>
     (await store.markReminderSeen(playerId)) as unknown as Json,
   );
+
+  // cc_set_offline_cap_limiter (0023) also reports validation as data:
+  // HTTP 200 with {ok:false, error} for an out-of-range limiter.
+  // cap_hours may be null (clear the limiter) or an integer 1..24.
+  app.post('/api/profile/offline-cap', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    try {
+      const raw = body(req).cap_hours;
+      const capHours = raw === null || raw === undefined ? null : num(raw);
+      res.json(await store.setOfflineCapLimiter(playerId, capHours));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
 
   app.get('/api/runtime/snapshot', async (req, res) => {
     const playerId = caller(config, req, res);
