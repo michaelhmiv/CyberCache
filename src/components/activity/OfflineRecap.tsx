@@ -12,6 +12,7 @@ import { X, Clock } from 'lucide-react';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
 import { MaterialBadge } from '@/components/common/MaterialBadge';
 import { getVisualAsset } from '@/constants/visualAssets';
+import { getCraftRecipe } from '@/content/crafting';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 
 function formatNumber(n: number): string {
@@ -44,6 +45,100 @@ export function OfflineRecap() {
   const { lastSettlement, dismissed, dismiss } = useOfflineRecapStore();
 
   if (!lastSettlement || dismissed) return null;
+
+  // Craft settlement (0024): the away time went to the benches, not
+  // the wilds — render the crafting section (completions the server
+  // settled under the offline cap, flag F5).
+  if ('crafting' in lastSettlement) {
+    const c = lastSettlement.crafting;
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) dismiss();
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: 'spring', damping: 24, stiffness: 200 }}
+            className="bl-card w-full max-w-sm overflow-hidden"
+          >
+            <div className="px-5 pt-5 pb-3 border-b border-amber/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black text-amber tracking-tight">
+                    While You Were Away
+                  </h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">The benches kept working</p>
+                </div>
+                <button onClick={dismiss} className="bl-secondary p-1.5 rounded" aria-label="Dismiss">
+                  <X className="w-4 h-4" size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="px-5 py-3 space-y-1 border-b border-amber/10">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber" size={16} />
+                <span className="text-sm text-zinc-300">
+                  Bench time settled under your {c.capHours}h offline cap
+                </span>
+              </div>
+              <div className="text-xs text-zinc-500">
+                {c.jobsCompleted} job{c.jobsCompleted === 1 ? '' : 's'} finished · {c.completions.length} unit
+                {c.completions.length === 1 ? '' : 's'} completed
+              </div>
+            </div>
+            <div className="px-5 py-3 space-y-1">
+              {c.xpAwarded > 0 && (
+                <RewardRow
+                  icon={<ResourceIcon id="xp" size={16} />}
+                  label="Crafting XP"
+                  value={`+${formatNumber(c.xpAwarded)}`}
+                  accent="text-purple-400"
+                />
+              )}
+              {c.completions.slice(0, 8).map((completion, i) => {
+                const name =
+                  getCraftRecipe(String(completion.recipeId ?? ''))?.name ?? 'Crafted unit';
+                const detail =
+                  typeof completion.quality === 'number'
+                    ? `${completion.quality}% quality`
+                    : typeof completion.outputMaterial === 'string'
+                      ? `${completion.outputMaterial} ×${String(completion.outputQuantity ?? 0)}`
+                      : typeof completion.rarity === 'string'
+                        ? `${completion.rarity} frame`
+                        : 'completed';
+                return (
+                  <RewardRow
+                    key={`craft-${i}`}
+                    icon={<ResourceIcon id="loot" size={16} />}
+                    label={name}
+                    value={detail}
+                    accent="text-green-400"
+                  />
+                );
+              })}
+              {c.completions.length === 0 && (
+                <p className="text-xs text-zinc-500 text-center">
+                  No units finished this time — the jobs are still on the benches.
+                </p>
+              )}
+            </div>
+            <div className="px-5 pb-5 pt-2">
+              <button onClick={dismiss} className="w-full bl-primary text-sm font-black py-2">
+                Got it
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   const s = lastSettlement;
   const hasRewards =

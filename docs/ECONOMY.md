@@ -43,6 +43,13 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `cache_keys_from_ads` | Rewarded-ad key claims (`cc_claim_rewarded_cache_key`) |
 | `cache_opens` | Cache opens (`cc_make_item` + `cc_draw_item`) |
 | `cache_fragments_awarded` | Σ `rewards.cache_fragments_awarded` over claim/settle/legacy-roaming rows. **Gap:** keys issued by fragment conversion are not separately attributable in ledger payloads — watch fragments awarded vs. opens instead |
+| `craft_jobs_completed` | Craft jobs whose last unit completed that day (`craft_jobs.completed_at`, migration 0024) |
+| `craft_units_completed` | Individual units settled that day (job outputs stamped with their completion instant) |
+| `craft_xp_awarded` | Σ player XP paid by craft completions that day (the occupation faucet; compare against roaming XP to audit the 70–85% band) |
+| `materials_destroyed_crafting` | jsonb by material id: escrow consumed at enqueue minus cancel refunds, netted per day from the craft ledger rows. This is the crafting sink — refining inputs and recipe inputs leave supply here |
+| `refined_units_produced` | Refined/composite material units created by refine jobs that day (the sink's other side: 10 in → 8–10 out) |
+| `gear_items_crafted` | `item_instances` created that day with `payload.origin = 'crafted'` (gear frames; never Legendary by construction) |
+| `crafted_market_sales` / `crafted_market_volume` | Completed market sales whose listing was a crafted batch or a crafted-origin item, and Σ their prices — the crafter-economy pulse (specialization proof tracking) |
 
 Transfers are not mints or sinks: a market sale's principal moves
 buyer → seller (only the destroyed fee leaves supply), and service
@@ -85,6 +92,11 @@ take the game down.
 | `roamingLegendaryScalar` | 1.0 | 0 – 5 | Claim + settle-offline routes stamp it onto `ClaimRequest.economy`; the Chef multiplies the Legendary entry of the area's `dropPoolRarityWeights` on a copy at roll time. The area tables are constants and are never edited |
 | `vehicleYieldScalar` | 1.0 | 0 – 3 | Claim + settle-offline routes stamp it onto `ClaimRequest.economy`; the Chef multiplies the equipped vehicle's yield bonus by it (`1 + (baseYield − 1) × (1 + yieldAffixPct) × conditionFraction × vehicleYieldScalar`). 0 parks every vehicle at ×1.0 without touching the class table in `src/lib/vehicles/vehicles.ts` |
 | `vendorBuybackRate` | 0.4 | 0 – 0.9 | `cc_vendor_sell` reads the table itself (`cc_economy_config_number('vendorBuybackRate', 0.4)`, clamped 0..0.9); the TS mirror (`src/server/writes/memory.ts`) takes the rate from a provider where wired. The catalog it pays against is `src/lib/vendor/catalog.ts` (SQL twin `cc_vendor_catalog`, migration 0020) |
+| `craftXpRate` | 0.775 | 0.70 – 0.85 (**hard band**: validation clamps into it; the occupation law's crafting-vs-roaming XP ratio can never leave 70–85% via config) | Craft settlers (`cc_settle_craft_jobs` via `cc_craft_unit_xp`; TS twin `src/content/crafting.ts` `craftUnitXp`) — read live at each unit's completion |
+| `craftTimeScalar` | 1.0 | 0.5 – 2.0 | Craft enqueue (SQL + TS twin) — snapshotted into each job's unit duration at enqueue |
+| `craftQualityShift` | 0 | −10 – +10 | Quality bounds at completion (`cc_craft_quality_bounds`; TS twin `craftQualityBounds`) — shifts both bounds |
+| `gearTemperBaseChance` | 0.05 | 0 – 0.30 | Gear-frame completion (temper draw count) — +0.01 per gear-mastery level from the same formula, read live at completion |
+| `refineBaseYield` | 0.80 | 0.50 – 1.00 | Refine completion — yield rate = base + 0.004 × refining mastery level (cap 1.00), read live at completion |
 
 Skill-based fee reductions (Darknet Broker, Market Manipulator)
 apply multiplicatively **after** the levered rate, in both the SQL

@@ -18,6 +18,14 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { mapProfile, type ProfileRowData } from '../reads/store.js';
 import { xpToNextLevel } from '../../content/simulation.js';
+import type { GearItem } from '../../types/items.js';
+import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
+import { finalizePendingCraftedGear } from './craftFinalize.js';
+import {
+  buildWorkshopStateView,
+  type CraftJobRecord,
+  type CraftJobSnapshot,
+} from './craftEngine.js';
 
 export type Json = Record<string, unknown>;
 
@@ -295,6 +303,8 @@ export interface WriteSeed {
   /** user_ids that already have a user_notification_settings row. */
   notificationSettingsUsers: string[];
   usernameReservations: string[];
+  /** Craft jobs (migration 0024), the in-memory settler's state. */
+  craftJobs: CraftJobRecord[];
 }
 
 export function emptyWriteSeed(): WriteSeed {
@@ -318,6 +328,7 @@ export function emptyWriteSeed(): WriteSeed {
     combatStats: [],
     notificationSettingsUsers: [],
     usernameReservations: [],
+    craftJobs: [],
   };
 }
 
@@ -674,6 +685,22 @@ export interface SetActiveActionInput {
   public_visible?: boolean;
 }
 
+/**
+ * cc_enqueue_craft_job input, as accepted from the route. Everything
+ * economy-bearing beyond this shape (the consumableEfficiency skill
+ * bonus, bench/tool state, mastery levels, lever values) is derived
+ * by the store from server records — the request body never carries
+ * durations, qualities, XP, or bench counts (forgery suite, §2.12).
+ */
+export interface EnqueueCraftJobInput {
+  bench: number;
+  recipeId: string;
+  units: number;
+  rarity?: string | null;
+  useCatalyst?: boolean;
+  useRushTicket?: boolean;
+}
+
 export interface WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json>;
   makeItem(playerId: string, nonce: string): Promise<Json>;
@@ -695,10 +722,41 @@ export interface WriteStore {
   itemLock(playerId: string, nonce: string, itemId: string, locked: boolean): Promise<Json>;
   equipItem(playerId: string, nonce: string, itemId: string, slotName: string): Promise<Json>;
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json>;
-  /** Load Generic Fuel Cells into the vehicle tank (cc_refuel_vehicle, 0021). */
-  refuelVehicle(playerId: string, nonce: string, cells: number): Promise<Json>;
-  /** Restore one vehicle instance's condition with a Patch Kit (cc_use_patch_kit, 0021). */
-  usePatchKit(playerId: string, nonce: string, itemId: string): Promise<Json>;
+  /**
+   * Load fuel cells into the vehicle tank (cc_refuel_vehicle, 0021;
+   * restated in 0024 to accept the crafted FuelCell type — fuel loads
+   * at 100 × the consumed batches' weighted quality). itemKey defaults
+   * to the vendor's GenericFuelCell.
+   */
+  refuelVehicle(playerId: string, nonce: string, cells: number, itemKey?: string): Promise<Json>;
+  /**
+   * Restore one vehicle instance's condition with a patch kit
+   * (cc_use_patch_kit, 0021; restated in 0024 for the crafted kit
+   * tiers — base restore by type × consumed batch quality). itemKey
+   * defaults to the baseline PatchKit.
+   */
+  usePatchKit(playerId: string, nonce: string, itemId: string, itemKey?: string): Promise<Json>;
+  // ── Crafting-as-occupation (migration 0024) ──────────────────────
+  /** Enqueue a server craft job with full escrow (cc_enqueue_craft_job). */
+  enqueueCraftJob(playerId: string, nonce: string, input: EnqueueCraftJobInput): Promise<Json>;
+  /** Cancel an active craft job with the §2.1 refund table (cc_cancel_craft_job). */
+  cancelCraftJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
+  /** Unlock the next bench atomically (cc_unlock_bench). */
+  unlockCraftBench(playerId: string, nonce: string): Promise<Json>;
+  /** Fit (or clear, with null) a workshop tool on a bench. */
+  fitWorkshopTool(playerId: string, nonce: string, bench: number, toolId: string | null): Promise<Json>;
+  /**
+   * Run the craft settler for a player (cc_settle_craft_jobs).
+   * Idempotent by server timestamps — not a nonce op. maxAdvanceMs,
+   * when given, caps the total advance (offline settlement, F5).
+   */
+  settleCraftJobs(playerId: string, maxAdvanceMs?: number): Promise<Json>;
+  /**
+   * The Workshop state read: settles lazily, finalizes any pending
+   * crafted gear through the shared generators, and returns benches,
+   * tools, jobs (with derived display state), and mastery levels.
+   */
+  getWorkshopState(playerId: string): Promise<Json>;
   idleClaim(playerId: string, nonce: string): Promise<Json>;
   retrain(playerId: string, nonce: string): Promise<Json>;
   trainSkill(playerId: string, nonce: string, nodeId: string): Promise<Json>;
@@ -759,6 +817,43 @@ function mapActiveAction(row: Row): ActiveActionData {
     public_visible: Boolean(row.public_visible),
     schema_version: Number(row.schema_version ?? 1),
     updated_at: iso(row.updated_at),
+  };
+}
+
+/** Map a craft_jobs row (migration 0024) to the shared job record. */
+function mapCraftJobRow(row: Row): CraftJobRecord {
+  const ms = (value: unknown): number =>
+    value === null || value === undefined ? 0 : new Date(iso(value)).getTime();
+  const snapshot = (row.snapshot ?? {}) as unknown as CraftJobSnapshot;
+  return {
+    id: String(row.id),
+    owner_user_id: String(row.owner_user_id),
+    bench: Number(row.bench ?? 1),
+    kind: String(row.kind) as CraftJobRecord['kind'],
+    recipe_id: String(row.recipe_id),
+    units_total: Number(row.units_total ?? 0),
+    units_completed: Number(row.units_completed ?? 0),
+    unit_duration_ms: Number(row.unit_duration_ms ?? 0),
+    accrued_ms: Number(row.accrued_ms ?? 0),
+    status: String(row.status) as CraftJobRecord['status'],
+    escrow_inputs: (row.escrow_inputs ?? {}) as Record<string, number>,
+    escrow_catalyst: (row.escrow_catalyst ?? {}) as Record<string, number>,
+    rush_ticket_quality:
+      row.rush_ticket_quality === null || row.rush_ticket_quality === undefined
+        ? null
+        : Number(row.rush_ticket_quality),
+    rush_ticket_origin:
+      row.rush_ticket_origin === null || row.rush_ticket_origin === undefined
+        ? null
+        : String(row.rush_ticket_origin),
+    snapshot,
+    xp_awarded: Number(row.xp_awarded ?? 0),
+    outputs: (row.outputs ?? []) as CraftJobRecord['outputs'],
+    tool_charged: Boolean(row.tool_charged),
+    created_at_ms: ms(row.created_at),
+    last_settled_ms: ms(row.last_settled_at),
+    completed_at_ms:
+      row.completed_at === null || row.completed_at === undefined ? null : ms(row.completed_at),
   };
 }
 
@@ -858,11 +953,126 @@ export class PgWriteStore implements WriteStore {
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json> {
     return this.callJson('select public.cc_unequip_slot($1, $2, $3) as result', [playerId, nonce, slotName]);
   }
-  refuelVehicle(playerId: string, nonce: string, cells: number): Promise<Json> {
-    return this.callJson('select public.cc_refuel_vehicle($1, $2, $3) as result', [playerId, nonce, cells]);
+  refuelVehicle(playerId: string, nonce: string, cells: number, itemKey = 'GenericFuelCell'): Promise<Json> {
+    return this.callJson('select public.cc_refuel_vehicle($1, $2, $3, $4) as result', [playerId, nonce, cells, itemKey]);
   }
-  usePatchKit(playerId: string, nonce: string, itemId: string): Promise<Json> {
-    return this.callJson('select public.cc_use_patch_kit($1, $2, $3) as result', [playerId, nonce, itemId]);
+  usePatchKit(playerId: string, nonce: string, itemId: string, itemKey = 'PatchKit'): Promise<Json> {
+    return this.callJson('select public.cc_use_patch_kit($1, $2, $3, $4) as result', [playerId, nonce, itemId, itemKey]);
+  }
+  // ── Crafting-as-occupation (migration 0024) ──────────────────────
+  /**
+   * The §2.7 skill consumer's input, derived from server records:
+   * profiles.skill_spends + the equipped class mod's boosts through
+   * skillBonusesFromRecords — the same derivation the Chef routes
+   * use. Passed into cc_enqueue_craft_job as a trusted server
+   * parameter; the request body never carries it.
+   */
+  private async consumableEfficiencyBonus(playerId: string): Promise<number> {
+    try {
+      const { rows } = await this.pool.query(
+        'select skill_spends from public.profiles where id = $1',
+        [playerId],
+      );
+      const spends = (rows[0]?.skill_spends ?? {}) as Record<string, number>;
+      const { rows: itemRows } = await this.pool.query(
+        "select payload from public.item_instances where owner_user_id = $1 and runtime_state = 'equipped'",
+        [playerId],
+      );
+      const gear = itemRows.map((r) => r.payload as unknown as GearItem);
+      return skillBonusesFromRecords(gear, spends).consumableEfficiency ?? 0;
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+  async enqueueCraftJob(playerId: string, nonce: string, input: EnqueueCraftJobInput): Promise<Json> {
+    const bonus = await this.consumableEfficiencyBonus(playerId);
+    const result = await this.callJson(
+      'select public.cc_enqueue_craft_job($1, $2, $3, $4, $5, $6, $7, $8, $9) as result',
+      [
+        playerId, nonce, input.bench, input.recipeId, input.units,
+        input.rarity ?? null, input.useCatalyst ?? false, input.useRushTicket ?? false, bonus,
+      ],
+    );
+    // The enqueue settles first inside SQL; a settled gear unit waits
+    // as a pending output until generated through the shared
+    // generators — finalize before returning so no surface can
+    // observe a completed unit without its item.
+    await finalizePendingCraftedGear(this.pool, playerId);
+    return result;
+  }
+  async cancelCraftJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const result = await this.callJson('select public.cc_cancel_craft_job($1, $2, $3) as result', [
+      playerId, nonce, jobId,
+    ]);
+    await finalizePendingCraftedGear(this.pool, playerId);
+    return result;
+  }
+  unlockCraftBench(playerId: string, nonce: string): Promise<Json> {
+    return this.callJson('select public.cc_unlock_bench($1, $2) as result', [playerId, nonce]);
+  }
+  fitWorkshopTool(playerId: string, nonce: string, bench: number, toolId: string | null): Promise<Json> {
+    return this.callJson('select public.cc_fit_workshop_tool($1, $2, $3, $4) as result', [
+      playerId, nonce, bench, toolId,
+    ]);
+  }
+  async settleCraftJobs(playerId: string, maxAdvanceMs?: number): Promise<Json> {
+    const result = await this.callJson('select public.cc_settle_craft_jobs($1, $2) as result', [
+      playerId, maxAdvanceMs ?? null,
+    ]);
+    await finalizePendingCraftedGear(this.pool, playerId);
+    return result;
+  }
+  async getWorkshopState(playerId: string): Promise<Json> {
+    await this.callJson('select public.cc_settle_craft_jobs($1, $2) as result', [playerId, null]);
+    await finalizePendingCraftedGear(this.pool, playerId);
+    try {
+      const { rows: profileRows } = await this.pool.query(
+        'select workshop_benches, workshop_tools from public.profiles where id = $1',
+        [playerId],
+      );
+      if (!profileRows[0]) throw writeError('Profile not found');
+      const { rows: jobRows } = await this.pool.query(
+        'select * from public.craft_jobs where owner_user_id = $1 order by created_at asc, id asc',
+        [playerId],
+      );
+      const { rows: masteryRows } = await this.pool.query(
+        "select mastery_id, mastery_level, mastery_xp from public.player_masteries where user_id = $1 and mastery_id in ('crafting_consumables', 'crafting.refining', 'crafting.gear')",
+        [playerId],
+      );
+      const { rows: actionRows } = await this.pool.query(
+        'select active_action from public.active_actions where user_id = $1',
+        [playerId],
+      );
+      const masteries: Record<string, { level: number; xp: number }> = {
+        crafting_consumables: { level: 1, xp: 0 },
+        'crafting.refining': { level: 1, xp: 0 },
+        'crafting.gear': { level: 1, xp: 0 },
+      };
+      for (const row of masteryRows) {
+        masteries[String(row.mastery_id)] = {
+          level: Number(row.mastery_level ?? 1),
+          xp: Number(row.mastery_xp ?? 0),
+        };
+      }
+      const toolsRaw = (profileRows[0].workshop_tools ?? {}) as {
+        owned?: Record<string, boolean>;
+        fitted?: Record<string, string | null>;
+        charges?: Record<string, number>;
+      };
+      return buildWorkshopStateView({
+        benches: Number(profileRows[0].workshop_benches ?? 1),
+        tools: {
+          owned: toolsRaw.owned ?? {},
+          fitted: toolsRaw.fitted ?? {},
+          charges: toolsRaw.charges ?? {},
+        },
+        jobs: jobRows.map(mapCraftJobRow),
+        masteries,
+        activeActionKind: actionRows[0] ? String(actionRows[0].active_action) : null,
+      }) as Json;
+    } catch (err) {
+      return translatePgError(err);
+    }
   }
   idleClaim(playerId: string, nonce: string): Promise<Json> {
     return this.callJson('select public.cc_idle_claim($1, $2) as result', [playerId, nonce]);

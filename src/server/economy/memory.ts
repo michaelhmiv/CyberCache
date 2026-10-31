@@ -164,6 +164,39 @@ export class InMemoryEconomyStore implements EconomyStore {
     const legendariesBoss = legendaryItems.filter((i) => i.payload.sourceTag === 'Boss Drop').length;
     const legendariesCache = legendaryItems.filter((i) => i.payload.sourceTag === 'Cache-Forged').length;
 
+    // Craft meters (0024): materials destroyed net of cancel refunds
+    // and crafted market sales read from the ledger payloads, crafted
+    // gear from item payloads — the SQL function's attribution rules.
+    // Job/unit/XP/refined meters read craft_jobs, which this double's
+    // seed does not model; they stay 0 here (the SQL side is verified
+    // against embedded Postgres in the slice harness).
+    const materialsDestroyedCrafting: Record<string, number> = {};
+    const addEscrow = (map: unknown, sign: number) => {
+      if (!map || typeof map !== 'object') return;
+      for (const [key, value] of Object.entries(map as Record<string, unknown>)) {
+        materialsDestroyedCrafting[key] =
+          (materialsDestroyedCrafting[key] ?? 0) + sign * (Number(value) || 0);
+      }
+    };
+    for (const row of rows) {
+      if (row.action_type === 'cc_enqueue_craft_job') {
+        addEscrow(dig(row.result_payload, 'job', 'escrow_inputs'), 1);
+        addEscrow(dig(row.result_payload, 'job', 'escrow_catalyst'), 1);
+      } else if (row.action_type === 'cc_cancel_craft_job') {
+        addEscrow(dig(row.result_payload, 'refunded_inputs'), -1);
+      }
+    }
+    for (const key of Object.keys(materialsDestroyedCrafting)) {
+      if (materialsDestroyedCrafting[key] <= 0) delete materialsDestroyedCrafting[key];
+    }
+    const isCraftedSale = (p: Record<string, unknown>): boolean =>
+      dig(p, 'listing', 'batch_origin') === 'crafted'
+      || dig(p, 'item', 'payload', 'origin') === 'crafted';
+    const craftedSales = sales.filter((r) => isCraftedSale(r.result_payload));
+    const gearItemsCrafted = this.items.filter(
+      (i) => i.payload.origin === 'crafted' && inDay(i.created_at),
+    ).length;
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
@@ -205,6 +238,17 @@ export class InMemoryEconomyStore implements EconomyStore {
       cacheFragmentsAwarded: sumBy(
         ['cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards'],
         (p) => num(dig(p, 'rewards', 'cache_fragments_awarded')),
+      ),
+      craftJobsCompleted: 0,
+      craftUnitsCompleted: 0,
+      craftXpAwarded: 0,
+      materialsDestroyedCrafting,
+      refinedUnitsProduced: 0,
+      gearItemsCrafted,
+      craftedMarketSales: craftedSales.length,
+      craftedMarketVolume: craftedSales.reduce(
+        (acc, r) => acc + num(dig(r.result_payload, 'listing', 'price_credits')),
+        0,
       ),
       computedAt: new Date().toISOString(),
     };

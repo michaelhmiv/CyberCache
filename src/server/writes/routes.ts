@@ -187,6 +187,53 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       num(body(req).quantity) ?? 1,
     ),
   );
+  // Crafting-as-occupation (0024): the server job model. The body
+  // carries intent only (bench, recipe, units, rarity, catalyst/rush
+  // toggles) — durations, quality bounds, XP and escrow are all
+  // derived server-side from the catalog + profile + skill records.
+  op('/api/ops/craft-enqueue', async (playerId, req, res) => {
+    const bench = numField(req, res, 'bench', 'bench value');
+    if (bench === null) return null;
+    const units = numField(req, res, 'units', 'units value');
+    if (units === null) return null;
+    return store.enqueueCraftJob(playerId, str(body(req).nonce), {
+      bench,
+      recipeId: str(body(req).recipe_id),
+      units,
+      rarity: optStr(body(req).rarity),
+      useCatalyst: body(req).use_catalyst === true,
+      useRushTicket: body(req).use_rush_ticket === true,
+    });
+  });
+  op('/api/ops/craft-cancel', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.cancelCraftJob(playerId, str(body(req).nonce), jobId);
+  });
+  op('/api/ops/craft-unlock-bench', async (playerId, req) =>
+    store.unlockCraftBench(playerId, str(body(req).nonce)),
+  );
+  op('/api/ops/craft-fit-tool', async (playerId, req, res) => {
+    const bench = numField(req, res, 'bench', 'bench value');
+    if (bench === null) return null;
+    return store.fitWorkshopTool(
+      playerId,
+      str(body(req).nonce),
+      bench,
+      optStr(body(req).tool_id),
+    );
+  });
+  // The Workshop state read: settles the player's jobs server-side,
+  // then returns benches/tools/jobs/masteries in the one view shape.
+  app.get('/api/workshop/me', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    try {
+      res.json(await store.getWorkshopState(playerId));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
   op('/api/ops/consume-consumable', async (playerId, req) =>
     store.consumeConsumable(
       playerId,
@@ -217,12 +264,22 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   op('/api/ops/refuel-vehicle', async (playerId, req, res) => {
     const cells = numField(req, res, 'cells', 'cells value');
     if (cells === null) return null;
-    return store.refuelVehicle(playerId, str(body(req).nonce), cells);
+    return store.refuelVehicle(
+      playerId,
+      str(body(req).nonce),
+      cells,
+      optStr(body(req).item_key) ?? undefined,
+    );
   });
   op('/api/ops/use-patch-kit', async (playerId, req, res) => {
     const itemId = uuidField(req, res, 'item_id', 'item id');
     if (!itemId) return null;
-    return store.usePatchKit(playerId, str(body(req).nonce), itemId);
+    return store.usePatchKit(
+      playerId,
+      str(body(req).nonce),
+      itemId,
+      optStr(body(req).item_key) ?? undefined,
+    );
   });
   op('/api/ops/idle-claim', async (playerId, req) => store.idleClaim(playerId, str(body(req).nonce)));
   // NOTE: /api/ops/claim-roaming (cc_claim_roaming_rewards) was removed

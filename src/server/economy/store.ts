@@ -44,6 +44,15 @@ export interface EconomyMetricsRow {
   cacheKeysFromAds: number;
   cacheOpens: number;
   cacheFragmentsAwarded: number;
+  /** Craft meters (migration 0024, brief §2.10). */
+  craftJobsCompleted: number;
+  craftUnitsCompleted: number;
+  craftXpAwarded: number;
+  materialsDestroyedCrafting: Record<string, number>;
+  refinedUnitsProduced: number;
+  gearItemsCrafted: number;
+  craftedMarketSales: number;
+  craftedMarketVolume: number;
   computedAt: string;
 }
 
@@ -84,6 +93,14 @@ interface PgMetricsRow {
   cache_keys_from_ads: number;
   cache_opens: number;
   cache_fragments_awarded: string;
+  craft_jobs_completed?: number;
+  craft_units_completed?: number;
+  craft_xp_awarded?: string;
+  materials_destroyed_crafting?: Record<string, number>;
+  refined_units_produced?: number;
+  gear_items_crafted?: number;
+  crafted_market_sales?: number;
+  crafted_market_volume?: string;
   computed_at: string;
 }
 
@@ -117,6 +134,14 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     cacheKeysFromAds: Number(r.cache_keys_from_ads),
     cacheOpens: Number(r.cache_opens),
     cacheFragmentsAwarded: Number(r.cache_fragments_awarded),
+    craftJobsCompleted: Number(r.craft_jobs_completed ?? 0),
+    craftUnitsCompleted: Number(r.craft_units_completed ?? 0),
+    craftXpAwarded: Number(r.craft_xp_awarded ?? 0),
+    materialsDestroyedCrafting: r.materials_destroyed_crafting ?? {},
+    refinedUnitsProduced: Number(r.refined_units_produced ?? 0),
+    gearItemsCrafted: Number(r.gear_items_crafted ?? 0),
+    craftedMarketSales: Number(r.crafted_market_sales ?? 0),
+    craftedMarketVolume: Number(r.crafted_market_volume ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }

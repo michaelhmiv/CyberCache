@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNow } from '@/hooks/useNow';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Clock,
@@ -44,7 +43,8 @@ import {
   buildRoamingLootActivity,
   buildSalvagingActivity,
 } from '@/lib/activity/activityBuilders';
-import { canStartCraft, getCraftTimeWithReduction } from '@/lib/craftingEngine';
+import { canStartCraft } from '@/lib/craftingEngine';
+import type { WorkshopJobView } from '@/store/slices/workshopSlice';
 import { makeRunEvent, type RunVisualEvent } from '@/lib/run/runEvents';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 
@@ -171,14 +171,14 @@ type CommonPanelProps = {
   onNavigate?: (screen: string) => void;
 };
 
-const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; queues: { recipeId: string; benchId: number; startedAt: number; durationMs: number; claimedCount: number; count: number }[]; skillReductionPoints: number }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, queues, skillReductionPoints, startCrafting, onNavigate }) => {
-  const now = useNow();
-  const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, playerMaterials, playerEssences, playerLevel), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
+const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; jobs: WorkshopJobView[] }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, jobs, startCrafting, onNavigate }) => {
+  const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, playerMaterials, playerEssences, playerLevel) }));
   const canNow = craftable.filter(({ check }) => check.can);
+  const activeJobs = jobs.filter((j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused');
   return (
     <div className="space-y-3">
-      <RewardIntelPanel title="Bench output forecast" eyebrow="crafting intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Queued', value: queues.length }, { label: 'Craftable', value: canNow.length, tone: 'amber' }, { label: 'Recipes', value: CRAFTING_RECIPES.length }, { label: 'Reduction', value: `${skillReductionPoints}%`, tone: 'cyan' }, { label: 'Blocked', value: Math.max(0, CRAFTING_RECIPES.length - canNow.length), tone: 'red' }]}>Recipes are chosen in the Workshop — crafting has one home. This page stays focused on active output and queue status.</RewardIntelPanel>
-      {queues.length > 0 && <Section title="Active Bench Queues" eyebrow="machine deck" icon={<Clock size={15} />}><div className="space-y-2">{queues.map((q) => { const recipe = CRAFTING_RECIPES.find((r) => r.id === q.recipeId); const elapsed = now - q.startedAt; return <div key={`${q.benchId}-${q.recipeId}`} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {q.benchId}: {recipe?.name ?? q.recipeId}</span><span className="text-amber">{formatDuration(Math.max(0, q.durationMs - (elapsed % q.durationMs)))}</span></div></div>; })}</div></Section>}
+      <RewardIntelPanel title="Bench output forecast" eyebrow="crafting intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Jobs', value: activeJobs.length }, { label: 'Craftable', value: canNow.length, tone: 'amber' }, { label: 'Recipes', value: CRAFTING_RECIPES.length }, { label: 'Blocked', value: Math.max(0, CRAFTING_RECIPES.length - canNow.length), tone: 'red' }]}>Recipes are chosen in the Workshop — crafting has one home. Jobs are server state: they progress only while Crafting holds the action slot, and this page reads their settled status.</RewardIntelPanel>
+      {activeJobs.length > 0 && <Section title="Bench Jobs" eyebrow="machine deck" icon={<Clock size={15} />}><div className="space-y-2">{activeJobs.map((job) => <div key={job.id} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {job.bench}: {job.name}</span><span className="text-amber">{job.state === 'paused' ? 'Paused' : `${formatDuration(job.remainingMs)} left`}</span></div><div className="text-[10px] text-text-muted">{job.unitsCompleted}/{job.unitsTotal} units · {job.xpAwarded} XP banked{job.state === 'paused' ? ' · switch back to Crafting to resume' : ''}</div></div>)}</div></Section>}
       <Section title="Recipe Control" eyebrow="workshop owns recipes" icon={<ActivityGlyph kind="crafting" />}><button type="button" onClick={() => onNavigate?.('workshop')} className="bl-primary w-full py-2 text-xs font-black">Open Workshop</button><button type="button" onClick={startCrafting} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Crafting As Current Action</button></Section>
     </div>
   );
@@ -236,6 +236,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
+  // Craft jobs are server state (0024): refresh the workshop mirror
+  // when this screen mounts and whenever the action slot changes, so
+  // the Crafting panel shows settled progress / paused reasons.
+  const refreshWorkshop = workshop.refresh;
+  useEffect(() => {
+    void refreshWorkshop();
+  }, [refreshWorkshop, currentKind]);
   const bossPhase = activity.current.bossPhase;
   const isBossPrep = currentKind === 'boss_fight' && bossPhase === 'prep';
   const isBossFight = currentKind === 'boss_fight' && bossPhase === 'fight';
@@ -273,11 +280,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const visualFeed = (currentKind === 'idle_standby' || currentKind === 'none')
     ? feed
     : [...tickDisplayEvents, ...feed.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT);
-  const benchesFree = Math.max(0, workshop.unlockedBenchCount - new Set(workshop.activeQueues.map((q) => q.benchId)).size);
+  const workshopJobs = workshop.server?.jobs ?? [];
+  const benchesFree = Math.max(0, (workshop.server?.benches ?? 1) - new Set(workshopJobs.filter((j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused').map((j) => j.bench)).size);
   const sellableItems = inventory.items.filter((item) => !item.isLocked);
-  const skillReductionPoints = (skillBonuses.consumableEfficiency || 0) * 10;
   const salvageCandidates = inventory.items.filter((item) => !item.isLocked).slice(0, 12);
-  const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, player.materials, player.essences, player.level), duration: getCraftTimeWithReduction(recipe.craftTimeMs, skillReductionPoints) }));
+  const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, player.materials, player.essences, player.level) }));
 
   const pushEvents = useCallback((events: RunVisualEvent[]) => {
     setFeed((current) => [...events, ...current.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT));
@@ -452,7 +459,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       return <BossEncounterPanel key={prepBossTarget.id} boss={prepBossTarget} onChangeBoss={() => setShowBossPicker(true)} onLeave={stopAction} />;
     }
 
-    if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} queues={workshop.activeQueues} skillReductionPoints={skillReductionPoints} />;
+    if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} jobs={workshopJobs} />;
     if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} onSalvagePicker={() => setShowSalvagePicker(true)} />;
     if (currentKind === 'workshop_service') return <Section title="Workshop relocated" eyebrow="inventory owns benches" icon={<ActivityGlyph kind="workshop_service" />}><div className="space-y-2 text-xs text-text-muted"><div>Workshop now lives on the Inventory tab.</div><button type="button" onClick={() => onNavigate?.('inventory')} className="bl-primary w-full py-2 text-xs font-black">Open Inventory</button></div></Section>;
     if (currentKind === 'market_listing') return <Section title="Market relocated" eyebrow="market owns listings" icon={<ActivityGlyph kind="market_listing" />}><div className="space-y-2 text-xs text-text-muted"><div>Trading now lives on the Market tab.</div><button type="button" onClick={() => onNavigate?.('market')} className="bl-primary w-full py-2 text-xs font-black">Open Market</button></div></Section>;

@@ -355,6 +355,27 @@ export const CONSUMABLE_ACTIVATORS: Record<ConsumableType, ConsumableActivator> 
     defaultValue: 0,
     source: 'activity-result',
   },
+  // Crafted vehicle consumables (0024): same treatment — the Field /
+  // Master kits repair through cc_use_patch_kit and the crafted Fuel
+  // Cell loads through cc_refuel_vehicle; never buffs.
+  [ConsumableType.FieldPatchKit]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 0,
+    source: 'activity-result',
+  },
+  [ConsumableType.MasterPatchKit]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 0,
+    source: 'activity-result',
+  },
+  [ConsumableType.FuelCell]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 0,
+    source: 'activity-result',
+  },
 
   // LEGACY — kept for save compatibility; not vendor-stocked.
   [ConsumableType.Grenade]: {

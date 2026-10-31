@@ -44,10 +44,44 @@
  * Ordnance interval: base 20 ticks (60s), reduced by `combat.ordnance`
  * mastery level: `max(10, 20 - floor(level / 2))`. The interval is an
  * engine cadence rule, not a per-item value.
+ *
+ * ## Quality wiring (crafting-as-occupation §2.4)
+ *
+ * Every effect magnitude above is derived through
+ * `getConsumableRuntimeEffects(id, quality)` — the same scaling the
+ * inspect/compare sheets always quoted — with the slot's quality as
+ * the input. A slot's quality is the quantity-weighted average of the
+ * batch units it has burned in its current window, drawn from the
+ * route-supplied unit quality profile (src/lib/consumables/
+ * batchProfile.ts) in burn order:
+ *
+ *   - buffer slots (Med Kit line): the pool IS the window — quality is
+ *     the weighted average over the whole stock the pool was formed
+ *     from, and per-unit heal is read at that quality so claim-end
+ *     consumption math (pool ÷ per-unit) stays in the same units;
+ *   - all other behaviors: the slot burns one unit per activation /
+ *     replenishment; its quality is the running weighted average of
+ *     the units drawn so far.
+ *
+ * At quality 100 every scaling mode is the identity, so a flat-100%
+ * batch (or no profile at all — the pre-slice call shape) is
+ * bit-identical to the unwired engine. Cross-claim note: the draw
+ * cursor lives in the slot, but the profile is rebuilt per claim from
+ * batch rows (which roaming consumption does not decrement), so the
+ * first unit drawn in a fresh claim re-reads the profile head — the
+ * counts the Chef persists are always exact; only the quality
+ * attribution across a claim boundary is approximate. Foreground and
+ * offline settlement run this same engine on the same profile input,
+ * so their parity is structural.
  */
 
 import { ConsumableType } from '@/types/game';
-import { CONSUMABLES, type ConsumableDef, type ConsumableFamily } from '@/constants/consumables';
+import {
+  CONSUMABLES,
+  getConsumableRuntimeEffects,
+  type ConsumableDef,
+  type ConsumableFamily,
+} from '@/constants/consumables';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -77,6 +111,15 @@ export interface ActiveSlotState {
   remainingBurstTicks: number;
   /** Ordnance: next tick this should fire. */
   ordnanceNextFireTick: number;
+  /**
+   * Quality wiring (§2.4): the quantity-weighted average quality of
+   * the units this slot has burned in its current window. Absent on
+   * pre-slice carried state — every derivation then reads quality 100
+   * (the identity), exactly as the unwired engine did.
+   */
+  qualityPercent?: number;
+  /** Units drawn from the quality profile for this slot's window. */
+  qualityUnitsBurned?: number;
 }
 
 /** Serializable state carried between claim batches. */
@@ -198,9 +241,60 @@ export function isBufferConsumable(id: string): boolean {
   );
 }
 
-/** Per-unit HP buffer from the def (0 for non-buffer consumables). */
-export function bufferHealPerUnit(id: string): number {
-  return isBufferConsumable(id) ? (CONSUMABLES[id]?.runtime.baseEffects.healHp ?? 0) : 0;
+/** Per-unit HP buffer from the def (0 for non-buffer consumables),
+ *  read at the given quality through the def's declared scaling —
+ *  at 100 (the default) this is exactly the shipped base value. */
+export function bufferHealPerUnit(id: string, qualityPercent = 100): number {
+  return isBufferConsumable(id) ? (getConsumableRuntimeEffects(id, qualityPercent).healHp ?? 0) : 0;
+}
+
+/** The weighted-average quality of profile units [0, count). */
+function profileAverage(units: readonly number[] | undefined, count: number): number {
+  if (!units || units.length === 0 || count <= 0) return 100;
+  const drawn = units.slice(0, Math.min(count, units.length));
+  if (drawn.length === 0) return 100;
+  let sum = 0;
+  for (const q of drawn) sum += q;
+  return sum / drawn.length;
+}
+
+/**
+ * Stamp a slot's quality at activation: buffer slots average the
+ * whole pool; every other behavior draws its first unit.
+ */
+function initializeSlotQuality(
+  slot: ActiveSlotState,
+  ownedCount: number,
+  profile: Record<string, number[]> | undefined,
+): void {
+  const units = profile?.[slot.consumableId];
+  if (!units || units.length === 0) {
+    slot.qualityPercent = undefined;
+    slot.qualityUnitsBurned = undefined;
+    return;
+  }
+  if (isBufferConsumable(slot.consumableId)) {
+    slot.qualityUnitsBurned = Math.min(ownedCount, units.length);
+    slot.qualityPercent = profileAverage(units, slot.qualityUnitsBurned);
+  } else {
+    slot.qualityUnitsBurned = 1;
+    slot.qualityPercent = profileAverage(units, 1);
+  }
+}
+
+/**
+ * Advance a slot's quality on replenishment: one more unit drawn, the
+ * running weighted average recomputed over the units burned so far.
+ * No profile (pre-slice call shape) leaves quality untouched.
+ */
+function advanceSlotQuality(
+  slot: ActiveSlotState,
+  profile: Record<string, number[]> | undefined,
+): void {
+  const units = profile?.[slot.consumableId];
+  if (!units || units.length === 0 || slot.qualityUnitsBurned === undefined) return;
+  slot.qualityUnitsBurned = Math.min(slot.qualityUnitsBurned + 1, units.length);
+  slot.qualityPercent = profileAverage(units, slot.qualityUnitsBurned);
 }
 
 /** Regen behavior (Nano Swarm): repairTotalHp spread over repairDurationSeconds. */
@@ -219,10 +313,10 @@ function regenTicks(id: string): number {
   return Math.max(1, Math.round(seconds / TICK_SECONDS));
 }
 
-function regenHealPerTick(id: string): number {
+function regenHealPerTick(id: string, qualityPercent = 100): number {
   const def = CONSUMABLES[id];
   if (!def || !isRegenConsumable(id)) return 0;
-  return (def.runtime.baseEffects.repairTotalHp ?? 0) / regenTicks(id);
+  return (getConsumableRuntimeEffects(id, qualityPercent).repairTotalHp ?? 0) / regenTicks(id);
 }
 
 /** Reactive behavior (Adrenaline Shot): DPS burst below the def HP threshold. */
@@ -250,8 +344,8 @@ export function isShieldRestoreConsumable(id: string): boolean {
   return typeof CONSUMABLES[id]?.runtime.baseEffects.shieldRestore === 'number';
 }
 
-function shieldRestoreFor(id: string): number {
-  return CONSUMABLES[id]?.runtime.baseEffects.shieldRestore ?? 0;
+function shieldRestoreFor(id: string, qualityPercent = 100): number {
+  return getConsumableRuntimeEffects(id, qualityPercent).shieldRestore ?? 0;
 }
 
 /** Ordnance behavior: interval burst damage from the def. */
@@ -259,8 +353,8 @@ export function isOrdnanceConsumable(id: string): boolean {
   return CONSUMABLES[id]?.family === 'ordnance';
 }
 
-function ordnanceBonusDps(id: string): number {
-  return CONSUMABLES[id]?.runtime.baseEffects.ordnanceBonusDps ?? 0;
+function ordnanceBonusDps(id: string, qualityPercent = 100): number {
+  return getConsumableRuntimeEffects(id, qualityPercent).ordnanceBonusDps ?? 0;
 }
 
 /**
@@ -280,13 +374,16 @@ function durationTicksFor(id: string): number {
   return seconds ? Math.max(1, Math.round(seconds / TICK_SECONDS)) : 0;
 }
 
-/** Initialize the behavior fields of an active slot from the def. */
+/** Initialize the behavior fields of an active slot from the def.
+ *  The buffer pool is priced at the slot's quality (§2.4): the pool
+ *  and the claim-end per-unit divisor use the same quality, so
+ *  consumption counts stay exact at any quality. */
 function initializeSlotFields(slot: ActiveSlotState, startTick: number, ownedCount: number): void {
   const id = slot.consumableId;
   const duration = durationTicksFor(id);
   slot.activatedAtTick = startTick;
   slot.expiresAtTick = duration > 0 ? startTick + duration : 0;
-  slot.remainingBuffer = isBufferConsumable(id) ? ownedCount * bufferHealPerUnit(id) : 0;
+  slot.remainingBuffer = isBufferConsumable(id) ? ownedCount * bufferHealPerUnit(id, slot.qualityPercent ?? 100) : 0;
   slot.remainingRegenTicks = isRegenConsumable(id) ? regenTicks(id) : 0;
   slot.armed = isReactiveConsumable(id);
   slot.remainingBurstTicks = 0;
@@ -308,6 +405,7 @@ function initializeSlotFields(slot: ActiveSlotState, startTick: number, ownedCou
 export function activateFromInventory(
   inventory: Record<string, number>,
   startTick: number,
+  qualityProfile?: Record<string, number[]>,
 ): RoamingConsumableState {
   const slots: ActiveSlotState[] = [];
 
@@ -330,6 +428,7 @@ export function activateFromInventory(
       remainingBurstTicks: 0,
       ordnanceNextFireTick: 0,
     };
+    initializeSlotQuality(activeSlot, count, qualityProfile);
     initializeSlotFields(activeSlot, startTick, count);
 
     slots.push(activeSlot);
@@ -390,6 +489,13 @@ export interface TickContext {
   inventory: Record<string, number>;
   /** Mastery levels for interval reduction. */
   masteryLevels: Record<string, number>;
+  /**
+   * Unit quality profile per consumable type (batchProfile.ts), built
+   * by the route from server batch rows. Replenishment draws advance
+   * each slot's quality through this profile (§2.4). Absent = every
+   * unit reads quality 100 (the pre-slice behavior, bit-identical).
+   */
+  consumableQualityProfile?: Record<string, number[]>;
 }
 
 /**
@@ -449,12 +555,14 @@ export function processTick(
       // Auto-replenish: check if we have more in inventory (minus the one just consumed)
       const remainingAfterConsume = Math.max(0, (ctx.inventory[slot.consumableId] ?? 0) - 1);
       if (remainingAfterConsume > 0) {
-        // Reactivate with a fresh def-derived window
+        // Reactivate with a fresh def-derived window; the replacement
+        // unit's quality drives the new window's effects (§2.4).
+        advanceSlotQuality(slot, ctx.consumableQualityProfile);
         initializeSlotFields(slot, ctx.tickIndex, 1);
 
         if (isShieldRestoreConsumable(slot.consumableId)) {
           shieldCellJustActivated = true;
-          shieldRestoreAmount = shieldRestoreFor(slot.consumableId);
+          shieldRestoreAmount = shieldRestoreFor(slot.consumableId, slot.qualityPercent ?? 100);
         }
         feedEvents.push({
           tone: 'consumable',
@@ -482,12 +590,13 @@ export function processTick(
 
         const remainingAfterConsume = Math.max(0, (ctx.inventory[slot.consumableId] ?? 0) - 1);
         if (remainingAfterConsume > 0) {
+          advanceSlotQuality(slot, ctx.consumableQualityProfile);
           slot.remainingRegenTicks = regenTicks(slot.consumableId);
           slot.activatedAtTick = ctx.tickIndex;
           feedEvents.push({
             tone: 'consumable',
             label: 'Nano Swarm replenished',
-            detail: `+${regenHealPerTick(slot.consumableId)} HP/tick for ${regenTicks(slot.consumableId)} ticks.`,
+            detail: `+${regenHealPerTick(slot.consumableId, slot.qualityPercent ?? 100)} HP/tick for ${regenTicks(slot.consumableId)} ticks.`,
           });
         } else {
           state.slots.splice(i, 1);
@@ -525,6 +634,7 @@ export function processTick(
 
           const remainingAfterConsume = Math.max(0, (ctx.inventory[slot.consumableId] ?? 0) - 1);
           if (remainingAfterConsume > 0) {
+            advanceSlotQuality(slot, ctx.consumableQualityProfile);
             slot.armed = true;
             slot.activatedAtTick = ctx.tickIndex;
             feedEvents.push({
@@ -551,8 +661,8 @@ export function processTick(
         // Check if we have stock
         const currentStock = ctx.inventory[slot.consumableId] ?? 0;
         if (currentStock > 0) {
-          // Fire!
-          const bonusDps = ordnanceBonusDps(slot.consumableId);
+          // Fire! The burst is priced at the fired unit's quality.
+          const bonusDps = ordnanceBonusDps(slot.consumableId, slot.qualityPercent ?? 100);
           mods.ordnanceBonusDps += bonusDps;
           slot.ordnanceNextFireTick = ctx.tickIndex + effectiveInterval;
           feedEvents.push({
@@ -571,6 +681,8 @@ export function processTick(
             i--;
             continue;
           }
+          // The next fire burns the next unit in the profile.
+          advanceSlotQuality(slot, ctx.consumableQualityProfile);
         } else {
           // No stock — remove slot
           state.slots.splice(i, 1);
@@ -580,8 +692,11 @@ export function processTick(
       }
     }
 
-    // ── Accumulate modifiers from this slot (def baseEffects) ──
-    const effects = CONSUMABLES[slot.consumableId]?.runtime.baseEffects ?? {};
+    // ── Accumulate modifiers from this slot — the def's runtime
+    // effects read at the slot's quality (§2.4). At quality 100 this
+    // map is exactly the def's baseEffects (the identity), so unwired
+    // play is bit-identical.
+    const effects = getConsumableRuntimeEffects(slot.consumableId, slot.qualityPercent ?? 100);
 
     // DPS multiplier (reactive consumables only while their burst runs)
     if (effects.dpsMultiplier) {
@@ -644,12 +759,12 @@ export function getSurvivalState(state: RoamingConsumableState) {
       medKitBuffer += slot.remainingBuffer;
     } else if (isRegenConsumable(slot.consumableId)) {
       nanoSwarmTicksRemaining = slot.remainingRegenTicks;
-      nanoSwarmHealThisTick = slot.remainingRegenTicks > 0 ? regenHealPerTick(slot.consumableId) : 0;
+      nanoSwarmHealThisTick = slot.remainingRegenTicks > 0 ? regenHealPerTick(slot.consumableId, slot.qualityPercent ?? 100) : 0;
     } else if (isReactiveConsumable(slot.consumableId)) {
       adrenalineActive = slot.remainingBurstTicks > 0;
     } else if (isShieldRestoreConsumable(slot.consumableId)) {
       shieldCellResistance =
-        CONSUMABLES[slot.consumableId]?.runtime.baseEffects.damageReductionPct ?? 0;
+        getConsumableRuntimeEffects(slot.consumableId, slot.qualityPercent ?? 100).damageReductionPct ?? 0;
     }
   }
 

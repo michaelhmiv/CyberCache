@@ -243,8 +243,12 @@ describe('signature materials (§2.5)', () => {
     }
   });
 
-  it('the 0023 migration material list matches the TS MaterialType enum exactly', () => {
-    const sql = readFileSync(join(process.cwd(), 'db/migrations/0023_roaming_variance.sql'), 'utf8');
+  it('the current migration material list matches the TS MaterialType enum exactly', () => {
+    // 0023's whitelist was the 12-id era; migration 0024 (crafting
+    // occupation) restated cc_market_create_material with the 20-id
+    // list (refined + composite materials became tradeable). The pin
+    // follows the LATEST restatement.
+    const sql = readFileSync(join(process.cwd(), 'db/migrations/0024_crafting_occupation.sql'), 'utf8');
     const match = sql.match(/material_id not in \(([^)]+)\)/);
     expect(match).not.toBeNull();
     const sqlMaterials = (match![1].match(/'([^']+)'/g) ?? []).map((s) => s.replace(/'/g, '')).sort();

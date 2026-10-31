@@ -17,6 +17,7 @@ import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { ABSOLUTE_OFFLINE_CAP_HOURS, effectiveOfflineCapHours } from '../../content/offlineCap';
+import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { isHotArea } from '../../content/hotArea';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
@@ -49,6 +50,76 @@ export function createSettleOfflineHandler(
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         res.status(500).json({ error: 'Failed to read active action', detail: message });
+        return;
+      }
+
+      // Crafting offline settlement (crafting §2.1 + flag F5): the
+      // recorded action was crafting, so the away window advances the
+      // player's craft jobs through the settler instead of the
+      // roaming engine. The AFK cap governs craft progress exactly as
+      // it governs roaming (effective = min(earned tier + keystone
+      // bonus, the player's limiter, the levered ceiling)), and the
+      // whole computed cap bounds the settler's advance. The settler
+      // is itself idempotent — it rebases its settle watermark on
+      // every run, so a repeated call settles ~nothing — and job
+      // completions land in the response's crafting section for the
+      // offline recap.
+      if (activeAction && activeAction.active_action === 'crafting') {
+        let craftProfile: Awaited<ReturnType<ChefGameplayStore['getSettlementProfile']>>;
+        try {
+          craftProfile = await store.getSettlementProfile(playerId);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.status(500).json({ error: 'Failed to read profile', detail: message });
+          return;
+        }
+        if (!craftProfile) {
+          res.json({ settled: false, reason: 'no_profile' });
+          return;
+        }
+        let craftGear: Awaited<ReturnType<ChefGameplayStore['getEquippedGear']>>;
+        try {
+          craftGear = await store.getEquippedGear(playerId);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.status(500).json({ error: 'Failed to read loadout', detail: message });
+          return;
+        }
+        const craftSkillBonuses = skillBonusesFromRecords(
+          craftGear,
+          (craftProfile.skill_spends ?? {}) as Record<string, number>,
+        );
+        const craftEconomy = config.economyConfig
+          ? await config.economyConfig.snapshot()
+          : undefined;
+        const craftCapHours = effectiveOfflineCapHours({
+          level: craftProfile.player_level || 1,
+          bonusHours: Math.max(0, Math.floor(craftSkillBonuses.offlineCapBonus ?? 0)),
+          userCapHours: craftProfile.offline_cap_hours,
+          ceilingHours: craftEconomy?.absoluteOfflineCapHours ?? ABSOLUTE_OFFLINE_CAP_HOURS,
+        });
+        let craftSettled: Json;
+        try {
+          craftSettled = await store.settleOfflineCraftJobs(
+            playerId,
+            craftCapHours * 60 * 60 * 1000,
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.status(500).json({ error: 'Craft settlement failed', detail: message });
+          return;
+        }
+        const craftResult = (craftSettled ?? {}) as Record<string, unknown>;
+        res.json({
+          settled: true,
+          crafting: {
+            advancedMs: Number(craftResult.advanced_ms ?? 0),
+            xpAwarded: Number(craftResult.xp_awarded ?? 0),
+            jobsCompleted: Number(craftResult.jobs_completed ?? 0),
+            completions: (craftResult.completions as unknown[]) ?? [],
+            capHours: craftCapHours,
+          },
+        });
         return;
       }
 
@@ -162,6 +233,18 @@ export function createSettleOfflineHandler(
         return;
       }
 
+      // Quality wiring (crafting §2.4): the offline claim carries the
+      // SAME batch quality profile a foreground claim would — the
+      // parity twin of the roaming route's read.
+      let settlementBatches: Awaited<ReturnType<ChefGameplayStore['getConsumableBatches']>>;
+      try {
+        settlementBatches = await store.getConsumableBatches(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read consumable batches', detail: message });
+        return;
+      }
+
       const claim: ClaimRequest = {
         playerId,
         areaId: area.id,
@@ -173,6 +256,10 @@ export function createSettleOfflineHandler(
         equippedGear,
         skillBonuses,
         consumableInventory: (profile.consumables ?? {}) as Record<string, number>,
+        consumableQualityProfile: buildConsumableQualityProfile(
+          settlementBatches,
+          (profile.consumables ?? {}) as Record<string, number>,
+        ),
         // Server-authoritative scrap bank (migration 0009).
         scrapRemainder: profile.scrap_remainder,
         creditsRemainder: profile.credits_remainder,

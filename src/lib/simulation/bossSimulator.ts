@@ -2,7 +2,7 @@ import { BossDef, BossAttemptResult, BossPhase, BossPrepAnalysis, PhaseAnalysis 
 import { Weapon, Shield, Ordnance, ClassMod, Relic } from '../../types/items';
 import { Element, Manufacturer, RiskSetting, WeaponType } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
-import { CONSUMABLES, ConsumableDef } from '../../constants/consumables';
+import { CONSUMABLES, ConsumableDef, getConsumableRuntimeEffects } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 import { computeWeaponDps } from '../stats/dpsChain';
 import { computeHunterMaxHp } from '../combat/damageContract';
@@ -25,6 +25,15 @@ export interface BossSimulationInput {
   classMod: ClassMod | null;
   relic: Relic | null;
   consumables: Record<string, number>;
+  /**
+   * Per-type quality of the prepared consumables (crafting §2.4): the
+   * quantity-weighted average quality of the units the applier will
+   * burn, supplied by the verify-boss route from server batch rows.
+   * Survival pools and the DPS chain read effects at this quality;
+   * absent (client prep display, pre-slice callers) = flat 100, the
+   * shipped sim exactly.
+   */
+  consumableQuality?: Record<string, number>;
   risk: RiskSetting;
   boss: BossDef;
   playerLevel: number;
@@ -471,9 +480,25 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const nanoSwarms = consumables['NanoSwarm'] || 0;
   const adrenaline = consumables['AdrenalineShot'] || 0;
 
-  const medkitHealing = medkits * 150;
-  const shieldCellBoost = shieldCells * 100;
-  const nanoSwarmRepair = nanoSwarms * 250;
+  // Quality wiring (crafting §2.4): the pooled survival values below
+  // are the sim's own baselines (150 / 100 / 250 per unit — the Shield
+  // Cell's 100 is the sim's long-standing pool value, NOT the def's
+  // 120 roaming restore; both are preserved). Each pool scales by the
+  // ratio of the def's runtime effect at the prepared units' quality
+  // to the def's base effect, so quality 100 leaves every pool
+  // bit-identical and a 150% batch pays exactly 1.5× its pool share.
+  const qualityScale = (type: string, field: 'healHp' | 'shieldRestore' | 'repairTotalHp'): number => {
+    const quality = input.consumableQuality?.[type];
+    if (quality === undefined) return 1;
+    const base = CONSUMABLES[type]?.runtime.baseEffects[field];
+    if (!base) return 1;
+    const scaled = getConsumableRuntimeEffects(type, quality)[field];
+    return scaled !== undefined ? scaled / base : 1;
+  };
+
+  const medkitHealing = medkits * 150 * qualityScale('MedKit', 'healHp');
+  const shieldCellBoost = shieldCells * 100 * qualityScale('ShieldCell', 'shieldRestore');
+  const nanoSwarmRepair = nanoSwarms * 250 * qualityScale('NanoSwarm', 'repairTotalHp');
 
   let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
 
@@ -767,6 +792,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       bossWeaknesses: effectiveWeaknesses,
       bossResistances: effectiveResistances,
       consumables,
+      consumableQuality: input.consumableQuality,
       legendaryDamageMult: legendary.damageMult,
       ammoEfficiency: ammoEff,
       bossDamageMod: primary.bossDamageMod,
@@ -786,6 +812,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       bossWeaknesses: effectiveWeaknesses,
       bossResistances: effectiveResistances,
       consumables,
+      consumableQuality: input.consumableQuality,
       legendaryDamageMult: 1, // secondary doesn't get the primary's legendary bonus
       bossDamageMod: secondary.bossDamageMod,
       bonusStatusChance: skillStatusChance,
@@ -804,6 +831,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       bossWeaknesses: effectiveWeaknesses,
       bossResistances: effectiveResistances,
       consumables,
+      consumableQuality: input.consumableQuality,
       legendaryDamageMult: 1,
       bossDamageMod: heavy.bossDamageMod,
       bonusStatusChance: skillStatusChance,

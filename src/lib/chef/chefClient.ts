@@ -461,6 +461,24 @@ export type OfflineSettlementNoOp = {
 };
 
 /**
+ * Offline CRAFT settlement (crafting-as-occupation, 0024): when the
+ * recorded action was crafting, settle-offline advances the player's
+ * craft jobs through the settler under the same effective offline cap
+ * (flag F5) and returns the completions for the recap's crafting
+ * section instead of a roaming result.
+ */
+export interface OfflineCraftSettlementResult {
+  settled: true;
+  crafting: {
+    advancedMs: number;
+    xpAwarded: number;
+    jobsCompleted: number;
+    completions: Array<Record<string, unknown>>;
+    capHours: number;
+  };
+}
+
+/**
  * Request server-authoritative offline settlement.
  *
  * The server computes elapsed time using DB timestamps (not client
@@ -471,7 +489,7 @@ export type OfflineSettlementNoOp = {
  */
 export async function settleOffline(
   request: OfflineSettlementRequest,
-): Promise<OfflineSettlementResult | OfflineSettlementNoOp> {
+): Promise<OfflineSettlementResult | OfflineCraftSettlementResult | OfflineSettlementNoOp> {
   const jwt = request.jwt || (await getSessionJwt());
 
   const response = await fetch(chefUrl('/settle-offline'), {

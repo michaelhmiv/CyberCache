@@ -214,6 +214,37 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.35, GRAMMAR.progress.heightPx, [127, 176, 105], 255);
   }),
+  // Crafting-as-occupation (0024, brief §2.9): the bench stage per
+  // bench tier + the paused state (hunter away roaming — bench stands
+  // idle-dark under its pennant, progress frozen mid-bar).
+  scene('bench-basic', (img) => {
+    drawBackground(img, AREA_BG.blastforge_yards);
+    const bench = loadGoldenSprite('set-bench-basic');
+    if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.25, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
+  }),
+  scene('bench-lab', (img) => {
+    drawBackground(img, AREA_BG.blastforge_yards);
+    const bench = loadGoldenSprite('set-bench-lab');
+    if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
+    const furnace = loadGoldenSprite('set-refinery-furnace');
+    if (furnace) blit(img, furnace, SCENE_W * 0.86 - 34, GROUND * SCENE_H - 54, 68, 54);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.8, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
+  }),
+  scene('bench-paused', (img) => {
+    drawBackground(img, AREA_BG.blastforge_yards);
+    const bench = loadGoldenSprite('set-bench-forge');
+    if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H, [0, 0, 0], 110); // idle-dark while the hunter roams
+    const pennant = loadGoldenSprite('prop-hot-pennant');
+    if (pennant) blit(img, pennant, SCENE_W - 44, 6, 36, 36);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.62, GRAMMAR.progress.heightPx, [154, 149, 138], 255);
+  }),
   // Vehicle at the scene edge (Q4 parked presentation).
   scene('vehicle-roam', (img) => {
     drawBackground(img, AREA_BG.dustwaste_frontier);

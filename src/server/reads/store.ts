@@ -79,6 +79,10 @@ export interface ProfileRowData {
   offline_cap_hours: number;
   /** Vehicle tank fuel units (migration 0021). Optional: pre-0021 seed rows omit it. */
   vehicle_fuel?: number;
+  /** Owned workshop benches (migration 0024). Optional: pre-0024 seed rows omit it (= 1). */
+  workshop_benches?: number;
+  /** Workshop tool assets (migration 0024): { owned, fitted, charges }. Optional: pre-0024 rows omit it. */
+  workshop_tools?: Record<string, unknown>;
   /**
    * Computed by PgReadStore.getProfile (not a column): victories per
    * boss on the current UTC day from the verified action ledger — the

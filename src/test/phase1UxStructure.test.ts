@@ -191,10 +191,13 @@ describe('Phase 1 structure — presets + offline summary + used-in', () => {
   });
 
   it('material "Used in" reads the single recipe source in workshop + market', () => {
-    const recipes = readSource('src/constants/craftingRecipes.ts');
-    expect(recipes).toContain('getRecipesUsingMaterial');
+    // The single source is now the unified craft catalog
+    // (src/content/crafting.ts, migration 0024) — the legacy recipe
+    // module remains its consumable subset.
+    const recipes = readSource('src/content/crafting.ts');
+    expect(recipes).toContain('getAllCraftRecipesUsingMaterial');
     const sheet = readSource('src/components/common/MaterialUsageSheet.tsx');
-    expect(sheet).toContain('getRecipesUsingMaterial');
+    expect(sheet).toContain('getAllCraftRecipesUsingMaterial');
     expect(readSource('src/screens/WorkshopScreen.tsx')).toContain('MaterialUsageSheet');
     expect(readSource('src/screens/MarketScreen.tsx')).toContain('MaterialUsageSheet');
     expect(readSource('src/screens/MarketScreen.tsx')).toContain('Used in');

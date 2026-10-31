@@ -53,6 +53,25 @@ export const verifiedOps = {
     item_key: input.itemKey,
     quantity: input.quantity,
   }),
+  // Crafting-as-occupation (0024): the server job model. Intent only —
+  // the server derives durations, bounds, XP and escrow from the
+  // catalog + profile + skill records.
+  enqueueCraftJob: (input: { bench: number; recipeId: string; units: number; rarity?: string | null; useCatalyst?: boolean; useRushTicket?: boolean }) => op('/ops/craft-enqueue', {
+    nonce: requestId('craft-enqueue'),
+    bench: input.bench,
+    recipe_id: input.recipeId,
+    units: input.units,
+    rarity: input.rarity ?? null,
+    use_catalyst: input.useCatalyst ?? false,
+    use_rush_ticket: input.useRushTicket ?? false,
+  }),
+  cancelCraftJob: (jobId: string) => op('/ops/craft-cancel', { nonce: requestId('craft-cancel'), job_id: jobId }),
+  unlockCraftBench: () => op('/ops/craft-unlock-bench', { nonce: requestId('craft-bench') }),
+  fitWorkshopTool: (bench: number, toolId: string | null) => op('/ops/craft-fit-tool', {
+    nonce: requestId('craft-fit'),
+    bench,
+    tool_id: toolId,
+  }),
   consumeConsumable: (input: { itemKey: string; quantity: number; activityType?: string; reason?: string }) => op('/ops/consume-consumable', {
     nonce: requestId('consume-consumable'),
     item_key: input.itemKey,
@@ -64,8 +83,8 @@ export const verifiedOps = {
   itemLock: (itemId: string, locked: boolean) => op('/ops/item-lock', { nonce: requestId('lock'), item_id: itemId, locked }),
   equipItem: (itemId: string, slotName: string) => op('/ops/equip-item', { nonce: requestId('equip'), item_id: itemId, slot_name: slotName }),
   unequipSlot: (slotName: string) => op('/ops/unequip-slot', { nonce: requestId('unequip'), slot_name: slotName }),
-  refuelVehicle: (cells: number) => op('/ops/refuel-vehicle', { nonce: requestId('refuel'), cells }),
-  usePatchKit: (itemId: string) => op('/ops/use-patch-kit', { nonce: requestId('patch'), item_id: itemId }),
+  refuelVehicle: (cells: number, itemKey?: string) => op('/ops/refuel-vehicle', { nonce: requestId('refuel'), cells, item_key: itemKey ?? null }),
+  usePatchKit: (itemId: string, itemKey?: string) => op('/ops/use-patch-kit', { nonce: requestId('patch'), item_id: itemId, item_key: itemKey ?? null }),
   idleClaim: () => op('/ops/idle-claim', { nonce: requestId('idle') }),
   retrain: () => op('/ops/retrain', { nonce: requestId('retrain') }),
   trainSkill: (nodeId: string) => op('/ops/train-skill', { nonce: requestId(`train:${nodeId}`), node_id: nodeId }),
@@ -80,3 +99,13 @@ export const verifiedOps = {
   finishItemService: (jobId: string) => op('/ops/service-finish', { nonce: requestId('service-finish'), job_id: jobId }),
   resetProgress: () => op('/ops/reset-progress', { nonce: requestId('reset') }),
 };
+
+/**
+ * The Workshop state read (GET /api/workshop/me): the server settles
+ * the caller's craft jobs, then returns benches, fitted tools, job
+ * views, mastery tracks and recent completions in the one view shape
+ * (buildWorkshopStateView). A read, not a verified op — it carries no
+ * profile snapshot to sync.
+ */
+export const fetchWorkshopState = async (): Promise<VerifiedResult> =>
+  apiRequest<VerifiedResult>('/workshop/me', { method: 'GET' });

@@ -52,6 +52,21 @@ export interface EconomyConfigValues {
   hotAreaYieldBonus: number;
   /** Absolute ceiling on offline settlement hours. Range-capped at [1, 24] by design. */
   absoluteOfflineCapHours: number;
+  /**
+   * Crafting XP as a fraction of roaming's XP/hour (crafting-as-
+   * occupation §2.3). The [0.70, 0.85] range is LAW — the occupations
+   * band — so validation hard-clamps to it: an operator can tune
+   * inside the band, never outside it.
+   */
+  craftXpRate: number;
+  /** Multiplier on snapshotted craft unit durations (future jobs). */
+  craftTimeScalar: number;
+  /** Flat shift applied to both craft quality bounds at roll time. */
+  craftQualityShift: number;
+  /** Base temper chance for crafted gear frames (before mastery). */
+  gearTemperBaseChance: number;
+  /** Base refining yield rate before the mastery term. */
+  refineBaseYield: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -71,6 +86,11 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   hotAreaMaterialBonus: 0.2,
   hotAreaYieldBonus: 0.1,
   absoluteOfflineCapHours: 24,
+  craftXpRate: 0.775,
+  craftTimeScalar: 1.0,
+  craftQualityShift: 0,
+  gearTemperBaseChance: 0.05,
+  refineBaseYield: 0.8,
 };
 
 export interface EconomyConfigKeySpec {
@@ -135,6 +155,26 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   absoluteOfflineCapHours: {
     key: 'absoluteOfflineCapHours', min: 1, max: 24, integer: true,
     defaultOwner: 'src/content/offlineCap.ts ABSOLUTE_OFFLINE_CAP_HOURS (24 is the hard ceiling — the lever range itself is capped there)',
+  },
+  craftXpRate: {
+    key: 'craftXpRate', min: 0.7, max: 0.85, integer: false,
+    defaultOwner: 'src/content/crafting.ts CRAFT_XP_RATE_DEFAULT (the [0.70, 0.85] band is the occupations law — validation clamps to it)',
+  },
+  craftTimeScalar: {
+    key: 'craftTimeScalar', min: 0.5, max: 2, integer: false,
+    defaultOwner: 'src/content/crafting.ts CRAFT_TIME_SCALAR_DEFAULT',
+  },
+  craftQualityShift: {
+    key: 'craftQualityShift', min: -10, max: 10, integer: false,
+    defaultOwner: 'src/content/crafting.ts CRAFT_QUALITY_SHIFT_DEFAULT',
+  },
+  gearTemperBaseChance: {
+    key: 'gearTemperBaseChance', min: 0, max: 0.3, integer: false,
+    defaultOwner: 'src/content/crafting.ts GEAR_TEMPER_BASE_CHANCE_DEFAULT',
+  },
+  refineBaseYield: {
+    key: 'refineBaseYield', min: 0.5, max: 1, integer: false,
+    defaultOwner: 'src/content/crafting.ts REFINE_BASE_YIELD_DEFAULT',
   },
 };
 

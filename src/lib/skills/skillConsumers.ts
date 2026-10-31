@@ -107,4 +107,15 @@ export const SKILL_EFFECT_CONSUMERS: Record<string, SkillEffectConsumer[]> = {
   offlineCapBonus: [
     { engine: 'offline settlement cap (King of Scrap)', file: 'src/server/routes/settleOffline.ts', needle: 'offlineCapBonus' },
   ],
+
+  // ---- Small-node consumer wired by the crafting slice (§2.7, F7) ----
+  // Registered although the node is small: this key spent years with
+  // two client-side display hacks pretending to consume it while the
+  // number changed nothing. The real consumer is the server craft
+  // engine — unit duration x(1 - min(0.20, 0.02 x points)),
+  // snapshotted at enqueue in BOTH store implementations.
+  consumableEfficiency: [
+    { engine: 'craft job duration snapshot (TS settler/enqueue)', file: 'src/server/writes/craftEngine.ts', needle: 'consumableEfficiencyDurationMultiplier' },
+    { engine: 'craft job duration snapshot (SQL twin, trusted server parameter)', file: 'db/migrations/0024_crafting_occupation.sql', needle: 'p_efficiency_bonus' },
+  ],
 };

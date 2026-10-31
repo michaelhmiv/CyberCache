@@ -87,6 +87,23 @@ export const PATCH_KIT_TYPE = 'PatchKit';
  */
 export const PATCH_KIT_RESTORE_POINTS = 30;
 
+/**
+ * Base condition restore per patch-kit type at 100% quality
+ * (crafting-as-occupation §2.5d; F1: the shipped tier-1 base of 30
+ * stands, the crafted tiers are 45 / 80). cc_use_patch_kit (restated
+ * in migration 0024) carries the same table; the consumable defs'
+ * runtime.baseEffects.conditionRestore mirrors it too.
+ */
+export const PATCH_KIT_BASES: Readonly<Record<string, number>> = {
+  PatchKit: 30,
+  FieldPatchKit: 45,
+  MasterPatchKit: 80,
+};
+
+/** Consumable types the refuel path can load (crafting §2.5d): the
+ *  vendor's flat Generic cell and the crafted quality-scaled cell. */
+export const FUEL_CELL_TYPES: readonly string[] = ['GenericFuelCell', 'FuelCell'];
+
 /** Every vehicle instance carries condition on a 0..100 scale. */
 export const VEHICLE_CONDITION_MAX = 100;
 

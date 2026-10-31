@@ -270,6 +270,22 @@ else
 fi
 echo ""
 
+# Rule 9: Crafting is server-timed (migration 0024). The client must
+# hold NO craft timer math and no caller of the deprecated client-queue
+# claim op — jobs settle only through the server settler.
+echo -n "Rule 9: No client-side craft timer math or deprecated craft claims... "
+FOUND_CRAFT_TIMERS=$(grep -rn "processOfflineCrafting\|getCraftTimeWithReduction" "$SRC" || true)
+FOUND_CRAFT_CLAIMS=$(grep -rn "claimCraftedConsumable" "$SRC/screens" "$SRC/components" "$SRC/store" 2>/dev/null || true)
+if [ -n "$FOUND_CRAFT_TIMERS" ] || [ -n "$FOUND_CRAFT_CLAIMS" ]; then
+  echo -e "${RED}VIOLATIONS${NC}"
+  echo "$FOUND_CRAFT_TIMERS"
+  echo "$FOUND_CRAFT_CLAIMS"
+  VIOLATIONS=$((VIOLATIONS + 1))
+else
+  echo -e "${GREEN}OK${NC}"
+fi
+echo ""
+
 # Summary
 echo "---"
 if [ "$VIOLATIONS" -eq 0 ]; then

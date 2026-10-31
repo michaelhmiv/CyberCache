@@ -32,6 +32,10 @@ import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { bossSlotsFromEquipped, skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { escalatedBossFee, utcDayStartIso } from '../../lib/bossFees';
+import {
+  buildConsumableQualityProfile,
+  weightedQualityForUnits,
+} from '../../lib/consumables/batchProfile';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
 /**
@@ -204,6 +208,29 @@ export function createVerifyBossHandler(
         return;
       }
 
+      // Quality wiring (crafting §2.4): the sim's consumable effects
+      // price at the quantity-weighted average quality of the batches
+      // this attempt will actually burn — the FIFO head of each
+      // prepared type — read from the server's own batch rows against
+      // the authoritative owned counts. Types with no batch record
+      // stay absent from the map, so the sim falls back to the flat
+      // 100-quality table for them (shipped behavior).
+      let bossBatches: Awaited<ReturnType<ChefGameplayStore['getConsumableBatches']>>;
+      try {
+        bossBatches = await store.getConsumableBatches(playerId);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read consumable batches', detail: message });
+        return;
+      }
+      const bossQualityProfile = buildConsumableQualityProfile(bossBatches, ownedConsumables);
+      const consumableQuality: Record<string, number> = {};
+      for (const [type, count] of Object.entries(resolved.prepared)) {
+        if (count > 0 && bossQualityProfile[type]) {
+          consumableQuality[type] = weightedQualityForUnits(bossQualityProfile[type], count);
+        }
+      }
+
       const attemptNonce = body.attemptNonce || Date.now();
 
       // --- Gear + skills from server records (trust hardening) ---
@@ -241,6 +268,7 @@ export function createVerifyBossHandler(
         playerLevel: serverLevel,
         playerCredits: serverCredits,
         consumables: resolved.prepared,
+        consumableQuality,
         pityCount: serverPityCount,
         entryFee,
         economy: economyValues

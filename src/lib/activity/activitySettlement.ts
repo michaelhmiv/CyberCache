@@ -22,13 +22,13 @@
 
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { syncRuntimeProfile } from '@/lib/api/verifiedStateSync';
-import type { OfflineSettlementResult } from '@/lib/chef/chefClient';
+import type { OfflineCraftSettlementResult, OfflineSettlementResult } from '@/lib/chef/chefClient';
 
 /**
  * Result shape for downstream consumers (OfflineRecap component).
  * Derived from the server response — the client never computes these values.
  */
-export type SettlementRecap = OfflineSettlementResult;
+export type SettlementRecap = OfflineSettlementResult | OfflineCraftSettlementResult;
 
 /**
  * Request server-authoritative offline settlement.
@@ -64,6 +64,29 @@ export async function settleActiveActivityRewards(
         console.log('[activitySettlement] settlement already processed (idempotent)');
       }
       return null;
+    }
+
+    // Craft settlement (0024): the recorded action was crafting, so
+    // the server advanced craft jobs instead of roaming ticks. There
+    // is no roaming profile/items payload to apply — the workshop
+    // mirror refreshes from the server's workshop view, and the recap
+    // renders the crafting section. (Profile-level changes — XP,
+    // materials, batches — land with the session's normal profile
+    // hydration.)
+    if ('crafting' in result) {
+      const { useWorkshopStore } = await import('@/store/slices/workshopSlice');
+      await useWorkshopStore.getState().refresh();
+      if (options.saveSnapshot !== false) {
+        await saveCurrentRuntimeStores(userId);
+      }
+      const { useOfflineRecapStore } = await import('@/store/slices/offlineRecapSlice');
+      useOfflineRecapStore.getState().setSettlement(result);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('cybercache:activity-settled', { detail: result }),
+        );
+      }
+      return result;
     }
 
     // Apply server-authoritative profile to client stores.
