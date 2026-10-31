@@ -305,6 +305,9 @@ Fire→IgnitionFluid, Shock→ConduitWire, Corrosive→AcidCompound, Cryo→Cryo
 PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 ```
 
+### What the RPC actually awards (Phase 2d)
+`cc_recycle_item` awards scrap only: `cc_salvage_scrap(rarity, level)` (Market Crash legendaries ×4), then the Scavenger salvage skills multiply it — Hoarder's Instinct +25% (`salvageBonus`), King of Scrap ×2 on Common/Uncommon (`lowRarityScrapBonus`) — rounded once. King of Scrap also grants +1 bonus crafting material on salvaged Commons at 25% (`commonMaterialChance`), kind-mapped as in the Type-Specific table above (fallback ScrapAlloy). The TS owner of the skill math is `src/lib/skills/salvageBonuses.ts`; migration 0022 mirrors it in SQL and the in-memory stores call the TS owner. The rich material/essence breakdown above remains preview-only.
+
 ---
 
 ## 8. Crafting System (Workshop)
@@ -316,8 +319,8 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 - Max 3 active queues (one per bench)
 
 ### Time Reduction (Scavenger Tree)
-- Small nodes: 2% per point × 10 points = max 20%
-- Keystone (King of Scrap): +15% → max 35%
+- Small nodes (Efficiency ×2): Consumable Efficiency converts to craft-time reduction at 2% per point, capped at 20% (`getCraftTimeWithReduction` in `src/lib/craftingEngine.ts`)
+- No keystone craft-time bonus exists: King of Scrap's effects are salvage/offline (see §9). An earlier draft of this section claimed a keystone +15% — it was never in the defs or the engine; corrected in Phase 2d.
 
 ### Cancel Refund
 - Cancel active queue → 50% material refund
@@ -328,18 +331,19 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 
 ### Gunslinger (Weapon scaling)
 - **Small nodes**: weaponDamage, critChance, critDamage, attackSpeed, bossDamageMod, statusChance, shieldDamageMod
-- **Majors**: Focus Fire (Sniper/Pistol +15%), Speedloader (+20% opening AS), Weakspot Analysis (+25% crit sub-50%), Elemental Overclock (+10% on matching weakness)
+- **Majors**: Focus Fire (Sniper/Pistol +15% boss damage), Speedloader (+20% attack speed for the first 10s), Weakspot Analysis (+30% crit damage while the boss is below 50% HP), Elemental Overclock (+10% on matching weakness)
 - **Keystone**: Death by a Thousand Cuts — crits → +25% DPS check; >50% crit → +10% boss damage
 
 ### Demolition (Ordnance/Armor break)
 - **Small nodes**: ordnanceDamage, explosiveDamage, armorDamageMod, staggerChance, heavyWeaponBurst, ordnanceShieldBreak
-- **Majors**: Breaching Charge (+20% shield strip), Concussive Payload (+30% stagger duration), Scorched Earth (Launcher: +20% armor, +10% DPS), Cluster Bombs (25% double ordnance)
-- **Keystone**: Unstable Power — explosive → armor break; broken armor → +50% heavy burst
+- **Majors**: Breaching Charge (+30% ordnance shield strip), Concussive Payload (+50% stagger duration, boss deals 30% less damage while staggered), Scorched Earth (Launcher heavy: +50% armor break, +25% boss DPS), Cluster Bombs (25% chance ordnance re-triggers at full damage)
+- **Keystone**: Unstable Power — explosive → armor break; broken armor → +25% heavy burst
 
 ### Scavenger (Economy/Offline)
 - **Small nodes**: offlineEarnings, rareDropChance, lootQuantity, scrapYield, consumableEfficiency, cacheQuality, marketFeeReduction
-- **Majors**: Hoarder's Instinct (+25% auto-salvage, 10% bonus consumable), Insurance Fraud (50% consumable recovery), Market Manipulator (+15% found-item fee reduction), Lucky Find (+15% drop chance post-boss)
+- **Majors**: Hoarder's Instinct (+25% salvage scrap), Insurance Fraud (50% consumable recovery on victorious boss fights), Market Manipulator (+15% found-item fee reduction), Lucky Find (+15% rare drop chance)
 - **Keystone**: King of Scrap — low-rarity +100% scrap, 25% bonus material chance, +4h offline cap
+- **Phase 2d (keystone skill layer)**: every major/keystone effect key now has a registered consumer (`src/lib/skills/skillConsumers.ts`, enforced by `src/test/keystoneSkillLayer.test.ts` — a dead key fails the suite). Hoarder's Instinct and Lucky Find were REPLACED: their old effects (auto-salvage yield / post-boss drop window) had no engine to consume them — no auto-salvage system exists, and no persistent post-boss session state exists — so the nodes now grant the salvage/rare-drop effects above at the same power. Node ids, names, positions, and costs are unchanged, so existing spends carry over with no migration. One SMALL node remains unwired, flagged openly: `cacheQuality` (Cache Optimizer) — cache generation does not read it yet; follow-up inventory.
 
 ### Skill Point System
 - **XP curve (stretched, pacing-baseline tuning 2026-10-30; migration 0016)**: XP to next level is `floor(100 · L^1.72)` below level 25, then `floor(25377 · (L/25)^0.5 · 1.048^max(0, L−45))` — 12,480,235 XP total to reach 100 (launch curve: 766,955). Early levels stay quick, the boss ladder takes a regular player ~7 weeks, and the post-45 tail compounds 4.8% per level: level 100 is a ~24-month horizon for a regular (6 roaming-h/day), 4+ years for a casual. One shared formula (`xpToNextLevel` in `src/content/simulation.ts`) drives the client, the Chef's `cc_apply_xp`, and the in-memory mirror; level derives from stored level + XP state, so the stretch needed no data migration. Skill-point income stretches with the curve — intended: the 99-point lifetime budget against 226 points of trees is the longevity design, unchanged.
@@ -528,10 +532,10 @@ Nothing outside the prepared set is ever touched.
 - Salvage yields with all material/essence types
 
 ### ⚠️ Partially Wired / Needs Hookup
-- **Scavenger economy bonuses**: `rareDropChance`, `lootQuantity`, `scrapYield`, `offlineEarnings`, `cacheQuality` — computed by getBonuses() but NOT applied to farming, offline claim, or scrap yield. (`marketFeeReduction` / `foundItemFeeReduction` left this list in 0017: they now reduce the market sale fee in cc_accept_listing — see §11)
+- **Scavenger economy bonuses**: `rareDropChance`, `lootQuantity`, `scrapYield`, `offlineEarnings` are applied by the Chef roaming claim (Phase 2d wired `lootQuantity`); the salvage bonuses (`salvageBonus`, `lowRarityScrapBonus`, `commonMaterialChance`) apply in `cc_recycle_item` (migration 0022) and its in-memory twins; `marketFeeReduction` / `foundItemFeeReduction` reduce the market sale fee in cc_accept_listing (0017, see §11). The one remaining unwired skill key is the SMALL node `cacheQuality` (Cache Optimizer) — cache generation does not read it; tracked as follow-up inventory in the Phase 2d PR.
 - **DataSkimmer / LuckBooster extraLoot**: `executeBossAttempt()` returns an `extraLoot` flag; the Chef folds the bonus rolls into the attempt's awarded items and `BossEncounterPanel` presents the full loot set via `LootMoment`
 - **Legendary sim proxies (10)**: the_accountant, thunder_receipt, borrowed_time, vampiric_ledger, overclocked, stable_loop, phase_shifter, chain_lightning, molten_core, cryo_stasis — plus void_bargain's drawback and armor_eater's anti-heal clause. Each is a labelled flat-multiplier approximation in the boss simulator; the described mechanics do not exist yet (see §1 for per-effect detail)
-- **Auto-salvage Scavenger bonuses**: FightScreen scrapItem() doesn't apply scrapYield bonus
+- **Auto-salvage**: no auto-salvage engine exists — the `autoSalvage*` settings in idleSlice are inert display state, and salvage happens only through the verified recycle path (which applies the skill bonuses above). Hoarder's Instinct was replaced with a direct salvage bonus in Phase 2d rather than wiring a system that isn't there.
 
 ### ❌ Not Yet Implemented
 - Professions — **design-only, parked** (Phase 0 Slice 5): the `PROFESSION_TRACKS` corpus in `src/content/gameContent.ts` and the `player_professions` table exist as a design record, but no screen imports the corpus, nothing reads profession state, and profession XP has no mechanical effect. Kept as a future candidate; not a shipped system.

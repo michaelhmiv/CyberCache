@@ -1,6 +1,6 @@
 import { BossDef, BossAttemptResult, BossPhase, BossPrepAnalysis, PhaseAnalysis } from '../../types/boss';
 import { Weapon, Shield, Ordnance, ClassMod, Relic } from '../../types/items';
-import { Element, Manufacturer, RiskSetting } from '../../types/game';
+import { Element, Manufacturer, RiskSetting, WeaponType } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
 import { CONSUMABLES, ConsumableDef } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
@@ -383,6 +383,22 @@ function ammoEfficiencyFromWindows(fullDuration: number, reloadDuration: number,
   return effectiveTime / fightDuration;
 }
 
+/**
+ * Fraction of a weapon's chain DPS attributable to critical hits.
+ * The chain's raw step is baseDamage × attackSpeed × (1 + cc × cd);
+ * every later step multiplies uniformly, so the crit-attributable
+ * share of the final figure is (cc × cd) / (1 + cc × cd). Used by
+ * the Gunslinger major/keystone wiring (Weakspot Analysis, Death by
+ * a Thousand Cuts) to price crit effects inside the pooled sim model
+ * — the same expected-value style as the Amp shield model.
+ */
+function critShareOf(weapon: Weapon | null): number {
+  if (!weapon) return 0;
+  const critFactor = weapon.critChance * weapon.critDamage;
+  if (critFactor <= 0) return 0;
+  return critFactor / (1 + critFactor);
+}
+
 export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const { primary, secondary, shield, ordnance, heavy, consumables, risk, boss, playerLevel, skillBonuses, relic, classMod, pityCount = 0, playerCredits = 0 } = input;
   const reasons: string[] = [];
@@ -519,7 +535,28 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     }
   }
 
-  const bossTotalDamage = boss.dps * 30;
+  // Concussive Payload (Demolition major, Phase 2d): a staggered boss
+  // deals reduced damage. Stagger uptime is modeled from the build's
+  // stagger chance, stretched by staggerDuration; staggerMitigation
+  // is the damage cut while staggered. Pooled expected value, the
+  // same style as the Amp shield model — without the node, the
+  // multiplier is exactly 1 and survival sims as before.
+  const staggerMitigation = skillBonuses.staggerMitigation || 0;
+  let staggerDamageMult = 1;
+  if (staggerMitigation > 0) {
+    const staggerUptime = Math.min(
+      1,
+      (skillBonuses.staggerChance || 0) * (1 + (skillBonuses.staggerDuration || 0)),
+    );
+    staggerDamageMult = 1 - staggerMitigation * staggerUptime;
+    if (staggerUptime > 0) {
+      reasons.push(
+        `Concussive Payload: the boss is staggered ~${Math.round(staggerUptime * 100)}% of the fight, cutting its damage by ${Math.round(staggerMitigation * staggerUptime * 100)}%.`,
+      );
+    }
+  }
+
+  const bossTotalDamage = boss.dps * 30 * staggerDamageMult;
   const survivalScore = totalSurvival / bossTotalDamage;
 
   if (survivalScore < 0.8) {
@@ -550,11 +587,22 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     armorBreak += secondary.baseDamage * secondary.armorDamageMod * 0.3 * getElementMatchup(secondary.element, 'armor');
   }
   if (heavy) {
-    armorBreak += heavy.baseDamage * heavy.armorDamageMod * 1.5;
+    // Scorched Earth (Demolition major, Phase 2d): a Launcher in the
+    // heavy slot cracks armor harder.
+    let heavyArmorBreak = heavy.baseDamage * heavy.armorDamageMod * 1.5;
+    if (heavy.weaponType === WeaponType.Launcher) {
+      heavyArmorBreak *= 1 + (skillBonuses.launcherArmorBreak || 0);
+    }
+    armorBreak += heavyArmorBreak;
   }
+  // Ordnance contributions are accumulated separately so the
+  // Demolition majors can scale the ordnance portion specifically
+  // (Breaching Charge strips shield; Cluster Bombs re-trigger).
+  let ordnanceShieldBreak = 0;
+  let ordnanceArmorBreak = 0;
   if (ordnance) {
-    shieldBreak += ordnance.shieldDamage * grenades;
-    armorBreak += ordnance.armorDamage * grenades;
+    ordnanceShieldBreak += ordnance.shieldDamage * grenades;
+    ordnanceArmorBreak += ordnance.armorDamage * grenades;
   }
 
   // Ordnance flat damage: reduces boss effective HP (Phase 5a).
@@ -567,10 +615,29 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   if (ordnance && ordnance.element) {
     const ordElemMatch = getElementMatchup(ordnance.element, 'shield');
     if (ordElemMatch !== 1) {
-      shieldBreak += ordnance.shieldDamage * grenades * (ordElemMatch - 1);
-      armorBreak += ordnance.armorDamage * grenades * (ordElemMatch - 1);
+      ordnanceShieldBreak += ordnance.shieldDamage * grenades * (ordElemMatch - 1);
+      ordnanceArmorBreak += ordnance.armorDamage * grenades * (ordElemMatch - 1);
     }
   }
+
+  // Breaching Charge (Demolition major, Phase 2d): ordnance strips an
+  // additional share of shield before the DPS phase.
+  const shieldStripBonus = skillBonuses.shieldStripBonus || 0;
+  if (shieldStripBonus > 0) {
+    ordnanceShieldBreak *= 1 + shieldStripBonus;
+  }
+  // Cluster Bombs (Demolition major, Phase 2d): each ordnance trigger
+  // can re-trigger at reduced damage — priced at expected value
+  // (1 + chance × second-trigger damage) across every ordnance
+  // contribution, the pooled model's standard treatment of chance.
+  const clusterEvMult = 1 + (skillBonuses.clusterChance || 0) * (skillBonuses.clusterDamage || 0);
+  if (clusterEvMult !== 1) {
+    ordnanceShieldBreak *= clusterEvMult;
+    ordnanceArmorBreak *= clusterEvMult;
+    ordnanceFlatDamage *= clusterEvMult;
+  }
+  shieldBreak += ordnanceShieldBreak;
+  armorBreak += ordnanceArmorBreak;
 
   // Elemental ammo modifiers
   if (consumables['ShockAmmo'] > 0) {
@@ -629,6 +696,20 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // (Previously we called calculateAmmoWindows here to feed the
   // signature mechanic — now that's the chain's job.)
 
+  // Skill status chance (Procedural Loads) rides the chain's status
+  // step for every slot — the chain owns status→DPS conversion.
+  const skillStatusChance = skillBonuses.statusChance || 0;
+
+  // Weakspot Analysis (Gunslinger major, Phase 2d): crit damage is
+  // higher while the boss is below 50% HP. Under steady DPS the boss
+  // spends half the fight in that phase, so the per-slot multiplier
+  // is the phase average: 1 + ½ × bonus × (crit share of the slot).
+  const sub50CritMult = (weapon: Weapon | null): number => {
+    const bonus = skillBonuses.critDamageSub50 || 0;
+    if (!weapon || bonus <= 0) return 1;
+    return 1 + 0.5 * bonus * critShareOf(weapon);
+  };
+
   let primaryDPS = 0;
   if (primary) {
     const ammoEff = ammoEfficiencyFromWindows(primaryAmmo.fullDuration, primaryAmmo.reloadDuration, 30);
@@ -644,8 +725,9 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       legendaryDamageMult: legendary.damageMult,
       ammoEfficiency: ammoEff,
       bossDamageMod: primary.bossDamageMod,
+      bonusStatusChance: skillStatusChance,
     });
-    primaryDPS = chainDps;
+    primaryDPS = chainDps * sub50CritMult(primary);
   }
 
   let secondaryDPS = 0;
@@ -661,8 +743,9 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       consumables,
       legendaryDamageMult: 1, // secondary doesn't get the primary's legendary bonus
       bossDamageMod: secondary.bossDamageMod,
+      bonusStatusChance: skillStatusChance,
     });
-    secondaryDPS = chainDps * secContrib;
+    secondaryDPS = chainDps * secContrib * sub50CritMult(secondary);
   }
 
   let heavyDPS = 0;
@@ -678,8 +761,24 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       consumables,
       legendaryDamageMult: 1,
       bossDamageMod: heavy.bossDamageMod,
+      bonusStatusChance: skillStatusChance,
     });
     heavyDPS = chainDps * 0.5 * (1 + (skillBonuses.heavyDamageBonus || 0));
+    // Heavy Weapon Burst small nodes (Phase 2d): the heavy slot's own
+    // burst bonus, previously read by no engine.
+    heavyDPS *= 1 + (skillBonuses.heavyWeaponBurst || 0);
+    // Scorched Earth (Demolition major, Phase 2d): a Launcher in the
+    // heavy slot also gains boss DPS.
+    if (heavy.weaponType === WeaponType.Launcher) {
+      heavyDPS *= 1 + (skillBonuses.launcherBossDps || 0);
+    }
+    // Unstable Power (Demolition keystone, Phase 2d): once the boss's
+    // armor is broken (armor break check passed), the heavy burst
+    // hits harder for the rest of the fight.
+    if (armorBreakScore >= 1) {
+      heavyDPS *= 1 + (skillBonuses.brokenArmorHeavyBonus || 0);
+    }
+    heavyDPS *= sub50CritMult(heavy);
   }
 
   let dps = primaryDPS + secondaryDPS + heavyDPS;
@@ -687,7 +786,25 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // Player-level modifiers (not per-weapon) stay in the sim.
   // The chain's per-weapon DPS already includes signature, ammo
   // efficiency, and DPS-relevant consumables.
-  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod) * classModDpsMult;
+  //
+  // Conditional Gunslinger major/keystone bonuses (Phase 2d) join the
+  // boss-damage bracket only when their condition holds — the same
+  // conditions the mechanics snapshot now displays:
+  // - Focus Fire: the primary weapon is a Sniper or Pistol.
+  // - Elemental Overclock: any equipped weapon matches a boss weakness.
+  // - Death by a Thousand Cuts (second clause): the build's crit
+  //   chance (primary weapon + skill crit) exceeds 50%.
+  const focusFireBonus =
+    primary && (primary.weaponType === WeaponType.Sniper || primary.weaponType === WeaponType.Pistol)
+      ? (skillBonuses.bossDamageSniperPistol || 0)
+      : 0;
+  const weaknessMatchBonus =
+    [primary, secondary, heavy].some((weapon) => weapon && boss.weaknesses.includes(weapon.element))
+      ? (skillBonuses.weaknessMatchDamage || 0)
+      : 0;
+  const effectiveCritChance = (primary?.critChance || 0) + (skillBonuses.critChance || 0);
+  const highCritBonus = effectiveCritChance > 0.5 ? (skillBonuses.highCritBossDamage || 0) : 0;
+  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod + focusFireBonus + weaknessMatchBonus + highCritBonus) * classModDpsMult;
 
   // Amp behavior: fight-averaged DPS multiplier from the shield model.
   if (bossShieldModel) {
@@ -696,8 +813,46 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   // Nova behavior: bursts are flat damage to the boss, like ordnance.
   const netBossHp = Math.max(1, boss.health - ordnanceFlatDamage - (bossShieldModel?.novaDamage ?? 0));
-  const timeToKill = netBossHp / (dps || 1);
-  const dpsScore = 30 / timeToKill;
+
+  // Speedloader (Gunslinger major, Phase 2d): attack speed is boosted
+  // for the first 10 seconds of the fight. The boost's fight-average
+  // weight is the share of the kill time inside that window, priced
+  // off the un-boosted time to kill.
+  const openingAttackSpeed = skillBonuses.openingAttackSpeed || 0;
+  let timeToKill = netBossHp / (dps || 1);
+  if (openingAttackSpeed > 0 && dps > 0) {
+    const openingShare = Math.min(10, timeToKill) / timeToKill;
+    dps *= 1 + openingAttackSpeed * openingShare;
+    timeToKill = netBossHp / (dps || 1);
+    reasons.push(
+      `Speedloader: +${Math.round(openingAttackSpeed * 100)}% attack speed for the first 10 seconds (about ${Math.round(openingShare * 100)}% of this fight).`,
+    );
+  }
+
+  let dpsScore = 30 / timeToKill;
+
+  // Death by a Thousand Cuts (Gunslinger keystone, Phase 2d): crits
+  // count extra toward the DPS CHECK SCORE — the crit-attributable
+  // share of DPS scores an additional critDpsBonus. This moves the
+  // score (and so the win chance) only; effectiveDPS and timeToKill
+  // above stay the physical values.
+  const critDpsBonus = skillBonuses.critDpsBonus || 0;
+  if (critDpsBonus > 0) {
+    const totalSlotDps = primaryDPS + secondaryDPS + heavyDPS;
+    if (totalSlotDps > 0) {
+      const critShare =
+        (primaryDPS * critShareOf(primary) +
+          secondaryDPS * critShareOf(secondary) +
+          heavyDPS * critShareOf(heavy)) /
+        totalSlotDps;
+      if (critShare > 0) {
+        dpsScore *= 1 + critDpsBonus * critShare;
+        reasons.push(
+          `Death by a Thousand Cuts: critical hits (${Math.round(critShare * 100)}% of your DPS) count +${Math.round(critDpsBonus * 100)}% toward the DPS check.`,
+        );
+      }
+    }
+  }
 
   if (dpsScore < 0.8) {
     reasons.push('Your DPS is too low. You will not defeat the boss before timeout.');
@@ -840,6 +995,18 @@ export function executeBossAttempt(
   if (insuranceRefundChance > 0) {
     Object.keys(consumedConsumables).forEach((type) => {
       if (Math.random() < insuranceRefundChance) {
+        delete consumedConsumables[type];
+      }
+    });
+  }
+  // Insurance Fraud (Scavenger major skill, Phase 2d): on victory,
+  // each used consumable type has the recovery chance to be refunded
+  // instead of charged — the skill twin of the legendary refund
+  // above, wired identically in the Chef's processBossAttempt.
+  const recoveryChance = win ? (input.skillBonuses.consumableRecovery || 0) : 0;
+  if (recoveryChance > 0) {
+    Object.keys(consumedConsumables).forEach((type) => {
+      if (Math.random() < recoveryChance) {
         delete consumedConsumables[type];
       }
     });

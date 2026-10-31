@@ -1,4 +1,5 @@
 import { SKILL_NODES } from '@/constants/skillTrees';
+import { WeaponType } from '@/types/game';
 import type { PlayerProfile } from '@/types/player';
 import type { Affix, ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
@@ -132,12 +133,29 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   // Include boss-specific skill bonuses (bossDamageMod, bossDamageSniperPistol,
   // launcherBossDps, weaknessMatchDamage) that are omitted from the generic
   // weaponDamageBonus. Without these, the HUD's Effective DPS for a boss
-  // under-reports real damage.
+  // under-reports real damage. The conditional majors (Phase 2d) count
+  // only when their condition holds — the same conditions the boss
+  // sim enforces: Focus Fire needs a Sniper/Pistol primary (weapons
+  // are slot-ordered, primary first), Scorched Earth a Launcher in
+  // the set, Elemental Overclock a weakness-matching element.
+  const primaryWeapon = liveWeapons[0];
+  const focusFireBonus =
+    boss && primaryWeapon && (primaryWeapon.weaponType === WeaponType.Sniper || primaryWeapon.weaponType === WeaponType.Pistol)
+      ? skillTotal(spentSkills, 'bossDamageSniperPistol')
+      : 0;
+  const launcherBonus =
+    boss && liveWeapons.some((weapon) => weapon.weaponType === WeaponType.Launcher)
+      ? skillTotal(spentSkills, 'launcherBossDps')
+      : 0;
+  const weaknessMatchBonus =
+    boss && liveWeapons.some((weapon) => boss.weaknesses.includes(weapon.element))
+      ? skillTotal(spentSkills, 'weaknessMatchDamage')
+      : 0;
   const bossSkillBonus = boss
     ? skillTotal(spentSkills, 'bossDamageMod') +
-      skillTotal(spentSkills, 'bossDamageSniperPistol') +
-      skillTotal(spentSkills, 'launcherBossDps') +
-      skillTotal(spentSkills, 'weaknessMatchDamage')
+      focusFireBonus +
+      launcherBonus +
+      weaknessMatchBonus
     : 0;
   const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus + bossSkillBonus);
   const dpsDisplayValue = boss ? totalDpsForBoss : totalDps;
@@ -235,9 +253,9 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
     metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', [...breakContribs('shield'), ...consumableSources.shieldBreak]),
     metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', [...breakContribs('armor'), ...consumableSources.armorBreak]),
-    metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', [...utilityContribs(['rareDropChanceMod', 'rareDropChance', 'postBossDropChance']), ...economyConsumableContribs.filter((entry) => entry.value !== 0)]),
+    metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', [...utilityContribs(['rareDropChanceMod', 'rareDropChance']), ...economyConsumableContribs.filter((entry) => entry.value !== 0)]),
     metric('offline', 'Offline', offline, signedPct(offline), 'idle earning modifiers', 'green', [...utilityContribs(['offlineEarningsMod', 'offlineEarnings']), ...consumableSources.offline]),
-    metric('scrap', 'Scrap Yield', scrap, signedPct(scrap), 'salvage and scrap modifiers', 'cyan', [...utilityContribs(['scrapYieldMod', 'scrapYield', 'autoSalvageBonus', 'lowRarityScrapBonus']), ...consumableSources.scrap]),
+    metric('scrap', 'Scrap Yield', scrap, signedPct(scrap), 'salvage and scrap modifiers', 'cyan', [...utilityContribs(['scrapYieldMod', 'scrapYield', 'salvageBonus', 'lowRarityScrapBonus']), ...consumableSources.scrap]),
     metric('ordnance', 'Ordnance', ordnanceDamage, whole(ordnanceDamage), ordnance ? `${ordnance.effect} · ${ordnance.element}` : 'no ordnance slotted', 'red', ordnance ? [{ source: ordnance.name, detail: `${ordnance.effect} payload`, value: ordnanceDamage, display: whole(ordnanceDamage), tone: 'red', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' }] : []),
   ];
 

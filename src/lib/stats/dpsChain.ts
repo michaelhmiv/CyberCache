@@ -35,6 +35,14 @@ export type DpsContext = {
    * Added as step 7 in the chain.
    */
   bossDamageMod?: number;
+  /**
+   * Bonus status chance (additive, from the Gunslinger skill tree's
+   * Procedural Loads nodes). Added to the weapon's own statusChance
+   * in step 1.5. Player-level concern supplied by the caller (boss
+   * sim / loadout pooler), like the skill DPS multiplier — the chain
+   * stays the one place status is converted into DPS. Default 0.
+   */
+  bonusStatusChance?: number;
 };
 
 /**
@@ -100,13 +108,16 @@ export function computeWeaponDps(ctx: DpsContext): number {
     legendaryDamageMult = 1,
     ammoEfficiency = 1,
     bossDamageMod = 0,
+    bonusStatusChance = 0,
   } = ctx;
   // Step 1: Raw DPS from base stats.
   const rawDps = weapon.baseDamage * weapon.attackSpeed * (1 + weapon.critChance * weapon.critDamage);
   // Step 1.5: Status effect contribution — flat DPS multiplier.
   // A full per-tick DoT system is a follow-up feature. For now, status
   // chance and damage contribute as (1 + chance * damage * 0.3).
-  const statusMult = 1 + weapon.statusChance * weapon.statusDamage * 0.3;
+  // Skill-tree status chance (bonusStatusChance) adds to the weapon's
+  // own chance before this conversion.
+  const statusMult = 1 + (weapon.statusChance + bonusStatusChance) * weapon.statusDamage * 0.3;
   // Step 2: Signature mechanic. The chain now consumes the signature
   // directly via signatureMechanic.ts. The `fullDuration` and
   // `reloadDuration` are 0 in the no-ammo-window default (the chain
