@@ -36,7 +36,7 @@ import {
   type ActionSkillFirePlan,
 } from '../../content/actionSkills';
 import { SkillTreeType } from '../../types/game';
-import { actionSkillEcho, actionSkillLevers, planActionSkillFire } from './actionSkill';
+import { actionSkillEcho, actionSkillLevers, deferredActionSkillFirePlan, planActionSkillFire } from './actionSkill';
 import { escalatedBossFee, utcDayStartIso } from '../../lib/bossFees';
 import {
   buildConsumableQualityProfile,
@@ -282,20 +282,36 @@ export function createVerifyBossHandler(
           res.status(400).json({ error: 'Unknown boss', detail: String(body.bossId) });
           return;
         }
-        const planned = planActionSkillFire({
+        const planInput = {
           spent: (profile.skill_spends ?? {}) as Record<string, number>,
           classModBoosts: classModBoostsFromGear(serverGear),
           selection: profile.action_skill_selection,
           charge: profile.action_skill_charge,
           target: bossDef,
           levers: actionSkillLeverValues,
-        });
+        };
+        const planned = planActionSkillFire(planInput);
         if ('error' in planned) {
-          res.status(400).json({ error: 'Action skill cannot fire', detail: planned.error });
-          return;
+          // A charge-only refusal defers to the applier: this may be
+          // a replay of an already-applied fired attempt (the first
+          // application spent the pool) and replays are owed the
+          // stored result. The applier checks its ledger before
+          // re-validating the pool under the row lock, and refuses a
+          // fresh under-charged fire itself (mapped to this same 400
+          // below). Selection failures refuse here — no fired
+          // attempt can exist for an unselected signature.
+          const deferred =
+            planned.code === 'not_charged' ? deferredActionSkillFirePlan(planInput) : null;
+          if (!deferred) {
+            res.status(400).json({ error: 'Action skill cannot fire', detail: planned.error });
+            return;
+          }
+          actionSkillPlan = deferred.plan;
+          actionSkillTree = deferred.tree;
+        } else {
+          actionSkillPlan = planned.plan;
+          actionSkillTree = planned.tree;
         }
-        actionSkillPlan = planned.plan;
-        actionSkillTree = planned.tree;
         // Overclock combat fire (Fixer brief §3.7): the attempt's
         // prepared consumables read at quality × the levered
         // multiplier for this attempt only.

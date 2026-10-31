@@ -101,23 +101,48 @@ export function planActionSkillFire(input: {
   charge: number;
   target: { health: number; shield: number; armor: number };
   levers: ActionSkillLeverValues;
-}): { plan: ActionSkillFirePlan; tree: SkillTreeType } | { error: string } {
+}): { plan: ActionSkillFirePlan; tree: SkillTreeType } | { error: string; code: 'no_active_signature' | 'not_charged' } {
   const { selected } = resolveActionSkill(input.spent, input.classModBoosts, input.selection);
   if (!selected) {
     return {
       error:
         'No active action skill: qualify for a signature by owning a skill tree keystone, then select it.',
+      code: 'no_active_signature',
     };
   }
   if (input.charge < ACTION_SKILL_CHARGE_MAX) {
     return {
       error: `Action skill is not charged (${Math.floor(input.charge)}/${ACTION_SKILL_CHARGE_MAX}).`,
+      code: 'not_charged',
     };
   }
   return {
     plan: buildActionSkillFirePlan(selected, input.target, input.levers),
     tree: selected,
   };
+}
+
+/**
+ * The fire plan for a charge-deferred request. A 'not_charged' plan
+ * refusal must not be the route's final word: the request may be a
+ * REPLAY of an already-applied fired attempt (the first application
+ * spent the pool), and replays are owed the stored result. Routes
+ * rebuild the plan here and let the applier decide — it checks its
+ * ledger before re-validating selection, qualification, and charge
+ * under the row lock, and refuses a fresh under-charged fire itself.
+ * Null when no signature resolves (a 'no_active_signature' refusal
+ * stands at the route: no fired attempt can exist for it).
+ */
+export function deferredActionSkillFirePlan(input: {
+  spent: Record<string, number>;
+  classModBoosts: ClassModBoosts;
+  selection: string | null | undefined;
+  target: { health: number; shield: number; armor: number };
+  levers: ActionSkillLeverValues;
+}): { plan: ActionSkillFirePlan; tree: SkillTreeType } | null {
+  const { selected } = resolveActionSkill(input.spent, input.classModBoosts, input.selection);
+  if (!selected) return null;
+  return { plan: buildActionSkillFirePlan(selected, input.target, input.levers), tree: selected };
 }
 
 /** Applier error → HTTP status for the selection + workshop ops. */

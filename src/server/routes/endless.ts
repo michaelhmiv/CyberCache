@@ -49,6 +49,7 @@ import {
   actionSkillEcho,
   actionSkillLevers,
   actionSkillStateFor,
+  deferredActionSkillFirePlan,
   planActionSkillFire,
 } from './actionSkill';
 
@@ -291,20 +292,33 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
       let effectiveConsumableQuality = consumableQuality;
       if (fireIntent) {
         const encounterDef = endlessEncounterForDepth(depth, run.start_level, levers).def;
-        const planned = planActionSkillFire({
+        const planInput = {
           spent: (profile.skill_spends ?? {}) as Record<string, number>,
           classModBoosts: classModBoostsFromGear(serverGear),
           selection: profile.action_skill_selection,
           charge: profile.action_skill_charge,
           target: encounterDef,
           levers: actionSkillLeverValues,
-        });
+        };
+        const planned = planActionSkillFire(planInput);
         if ('error' in planned) {
-          res.status(400).json({ error: 'Action skill cannot fire', detail: planned.error });
-          return;
+          // Charge-only refusals defer to the applier, exactly as in
+          // verify-boss: a replayed fired encounter is owed its
+          // stored result (the first application spent the pool),
+          // and the applier re-validates the pool itself on a fresh
+          // fire. Selection failures refuse here.
+          const deferred =
+            planned.code === 'not_charged' ? deferredActionSkillFirePlan(planInput) : null;
+          if (!deferred) {
+            res.status(400).json({ error: 'Action skill cannot fire', detail: planned.error });
+            return;
+          }
+          actionSkillPlan = deferred.plan;
+          actionSkillTree = deferred.tree;
+        } else {
+          actionSkillPlan = planned.plan;
+          actionSkillTree = planned.tree;
         }
-        actionSkillPlan = planned.plan;
-        actionSkillTree = planned.tree;
         if (actionSkillTree === SkillTreeType.Fixer && actionSkillPlan.qualityMultiplier) {
           effectiveConsumableQuality = scaleConsumableQuality(
             consumableQuality,
