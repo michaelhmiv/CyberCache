@@ -1,0 +1,29 @@
+{
+  "sprite": "boss-static-choir",
+  "src": "art-source/media-generation-boss-static-choir-source-0-80667514-7dcb-40d3-93c1-5d78c8851397.webp",
+  "out": "src/assets/pixel/sprites/boss-static-choir.png",
+  "width": 350,
+  "height": 512,
+  "anchors": {
+    "feet": {
+      "x": 0.5989,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5788,
+      "y": 0.5053
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4056
+    },
+    "lootPoint": {
+      "x": 0.7278,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3177,
+      "y": 0.678
+    }
+  }
+}

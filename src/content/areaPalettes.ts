@@ -116,6 +116,12 @@ export const PIXEL_BOSS_ARENAS: Record<string, { backgroundId: string; propId: s
   mirage_duster: { backgroundId: 'arena-mirage-duster', propId: 'arena-prop-toll-gantry' },
   rust_prophet: { backgroundId: 'arena-rust-prophet', propId: 'arena-prop-heartwood-gate' },
   scrap_bishop: { backgroundId: 'arena-scrap-bishop', propId: 'arena-prop-holo-dais' },
+  spinneret_widow: { backgroundId: 'arena-spinneret-widow', propId: 'arena-prop-web-anchor' },
+  mnemosyne_mirror: { backgroundId: 'arena-mnemosyne-mirror', propId: 'arena-prop-prism-spire' },
+  static_choir: { backgroundId: 'arena-static-choir', propId: 'arena-prop-dish-array' },
+  verdant_maw: { backgroundId: 'arena-verdant-maw', propId: 'arena-prop-ember-heart' },
+  sister_null: { backgroundId: 'arena-sister-null', propId: 'arena-prop-rift-shard' },
+  vaultkeeper_omega: { backgroundId: 'arena-vaultkeeper-omega', propId: 'arena-prop-vault-wheel' },
 };
 
 export function bossArena(bossId: string | undefined): { backgroundId: string; propId: string } {

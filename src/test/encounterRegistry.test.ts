@@ -4,7 +4,7 @@ import { auditEncounterContentRefs, getEncounterContentRefs, requireEncounterByI
 describe('encounter registry bridge', () => {
   it('maps the existing region encounters into content references', () => {
     const refs = getEncounterContentRefs();
-    expect(refs).toHaveLength(7);
+    expect(refs).toHaveLength(13);
     expect(refs[0]).toMatchObject({ id: 'dune_tyrant', tier: 1, migrationStatus: 'legacy_bridge' });
     expect(refs.every((ref) => ref.lootTableId.startsWith('encounter_'))).toBe(true);
   });

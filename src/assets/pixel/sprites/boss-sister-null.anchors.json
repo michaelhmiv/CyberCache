@@ -1,0 +1,29 @@
+{
+  "sprite": "boss-sister-null",
+  "src": "art-source/media-generation-boss-sister-null-source-0-a6b292e1-ea31-4930-a222-57f93f872b6e.webp",
+  "out": "src/assets/pixel/sprites/boss-sister-null.png",
+  "width": 242,
+  "height": 512,
+  "anchors": {
+    "feet": {
+      "x": 0.6205,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5456,
+      "y": 0.5465
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.7681
+    },
+    "lootPoint": {
+      "x": 0.2378,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3838,
+      "y": 0.6837
+    }
+  }
+}

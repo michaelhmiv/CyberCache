@@ -433,7 +433,7 @@ become the dedicated drop: a Legendary weapon forced to an
 effect drawn from the boss's dedicated list intersected with the
 effects eligible for BossDrop at the boss's tier. The dedicated
 weapon generates at `max(boss.level, playerLevel)` — boss levels
-stop at 45 while roaming legendaries scale to 100, so a
+stop at 75 while roaming legendaries scale to 100, so a
 boss-level dedicated drop lost the power race for high-level
 farmers; generic boss rolls still generate at `boss.level`. The
 result reports `dedicatedDropAwarded`; the client announces it.
@@ -442,6 +442,43 @@ result reports `dedicatedDropAwarded`; the client announces it.
 × 20 by the pacing-baseline tuning, before the XP multipliers
 from relic/class-mod affixes and skill bonuses); defeats award
 none.
+
+**Roster expansion (tiers 8–13, boss levels 50–75).** Six bosses
+continue the ladder past Scrap Bishop in region order, each with
+a bespoke sprite, a unique arena, and a signature mechanic that
+asks a different build question: Widow-9, the Spinneret (L50,
+ThrowTech web-yard), The Mnemosyne Mirror (L55, Prismatek
+refraction hall), The Static Choir (L60, Redline broadcast
+straight), The Verdant Maw (L65, Ironwood heartwood grove),
+Sister Null, the Void Anchor (L70, HelixWorks void lab), and
+Vaultkeeper Omega (L75, the First Cache vault in the Dustwaste).
+All standing formulas apply unchanged (fees + escalation, XP =
+level × 50, dedicated chance, dedicated level =
+max(boss, player)). Two mechanics are new sim behavior, both
+implemented in `bossSimulator.ts` in the pooled expected-value
+style of the shield-behavior models:
+
+- **Overclock Ramp** (`overclock_ramp` — Spinneret, Vaultkeeper
+  Omega): boss damage scales with fight length. Past a 20s grace
+  window the survival score is divided by
+  `min(2, 1 + 0.02 × (timeToKill − 20))` (×1.20 at a 30s kill,
+  ×1.50 at 45s, capped ×2.00). Kill speed is the counter; DPS and
+  time-to-kill themselves stay physical.
+- **Adaptive Plating** (`adaptive_plating` — Mnemosyne Mirror):
+  the boss attunes to the PRIMARY weapon's element — it is struck
+  from her weaknesses and read as resisted for every DPS-chain
+  call (and for the Elemental Overclock keystone condition).
+  Secondary/heavy slots are untouched; the def's listed profile
+  remains the prep intel, the attunement applies on top.
+
+Two more ride existing hooks: the Static Choir's Harmonic Shroud
+and Sister Null's Rift Anchor are `requiredLoadoutTrait` mechanic
+gates (staggerChance ≥ 0.20 / statusChance ≥ 0.15, the Mirage
+Duster pattern — an unmet gate halves the mechanic score, and a
+Jammer does NOT cancel them), and the Verdant Maw's Living Armor
+is a declared armor-break check (threshold 1.5) over a 9,000
+armor pool. Molten Core, Cryo Stasis, Phase Shifter, and Hot
+Swapper gain their first dedicated-drop homes on the new bosses.
 
 **Class mod.** The equipped class mod enters the sim (wired in
 Slice 1; it was previously a dead input): its `bossDamageMod`

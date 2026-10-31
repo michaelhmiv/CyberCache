@@ -1,0 +1,29 @@
+{
+  "sprite": "boss-vaultkeeper-omega",
+  "src": "art-source/media-generation-boss-vaultkeeper-source-0-3d022c8b-b8c4-4e33-a06b-f47a06dc3abf.webp",
+  "out": "src/assets/pixel/sprites/boss-vaultkeeper-omega.png",
+  "width": 260,
+  "height": 512,
+  "anchors": {
+    "feet": {
+      "x": 0.6036,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5606,
+      "y": 0.4871
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5538
+    },
+    "lootPoint": {
+      "x": 0.5278,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3013,
+      "y": 0.6505
+    }
+  }
+}

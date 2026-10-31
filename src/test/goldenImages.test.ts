@@ -29,7 +29,7 @@ describe('golden-image regression', () => {
     expect(ids).toContain('vehicle-roam');
     expect(ids.filter((id) => id.startsWith('loot-'))).toHaveLength(5);
     expect(ids.filter((id) => id.startsWith('fx-'))).toHaveLength(6);
-    expect(ids.filter((id) => id.startsWith('arena-'))).toHaveLength(7);
+    expect(ids.filter((id) => id.startsWith('arena-'))).toHaveLength(13);
   });
 
   for (const goldenScene of GOLDEN_SCENES) {

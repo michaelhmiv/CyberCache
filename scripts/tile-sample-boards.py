@@ -66,6 +66,14 @@ BOARDS = {
         ("arena-rust-prophet", "Rust Prophet"),
         ("arena-scrap-bishop", "Scrap Bishop"),
     ],
+    "board-arenas-expansion": [
+        ("arena-spinneret-widow", "Widow-9, the Spinneret"),
+        ("arena-mnemosyne-mirror", "The Mnemosyne Mirror"),
+        ("arena-static-choir", "The Static Choir"),
+        ("arena-verdant-maw", "The Verdant Maw"),
+        ("arena-sister-null", "Sister Null, the Void Anchor"),
+        ("arena-vaultkeeper-omega", "Vaultkeeper Omega"),
+    ],
 }
 
 TILE_W = 384

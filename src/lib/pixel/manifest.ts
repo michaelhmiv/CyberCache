@@ -242,6 +242,12 @@ export const PIXEL_BOSS_SPRITES: Record<string, string> = {
   mirage_duster: 'boss-mirage-duster',
   rust_prophet: 'boss-rust-prophet',
   scrap_bishop: 'boss-scrap-bishop',
+  spinneret_widow: 'boss-spinneret-widow',
+  mnemosyne_mirror: 'boss-mnemosyne-mirror',
+  static_choir: 'boss-static-choir',
+  verdant_maw: 'boss-verdant-maw',
+  sister_null: 'boss-sister-null',
+  vaultkeeper_omega: 'boss-vaultkeeper-omega',
 };
 
 export function pixelBossSpriteForBoss(bossId: string | undefined): string | undefined {

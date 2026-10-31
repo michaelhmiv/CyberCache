@@ -1,0 +1,29 @@
+{
+  "sprite": "boss-mnemosyne-mirror",
+  "src": "art-source/media-generation-boss-mnemosyne-source-0-d6794cf1-91b0-4ba4-9d05-243275f881cc.webp",
+  "out": "src/assets/pixel/sprites/boss-mnemosyne-mirror.png",
+  "width": 239,
+  "height": 512,
+  "anchors": {
+    "feet": {
+      "x": 0.7255,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4753,
+      "y": 0.4614
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4567
+    },
+    "lootPoint": {
+      "x": 0.6199,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.268,
+      "y": 0.5917
+    }
+  }
+}
