@@ -2094,7 +2094,7 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   let secondOpinionScrap: BossAttemptChefResult['secondOpinionScrap'] = null;
   let unlockedBossId: string | undefined;
   let dedicatedDropAwarded = false;
-  let surgeLootIds: string[] = [];
+  const surgeLootIds: string[] = [];
   if (victory) {
     const currentIndex = REGION_1_BOSSES.findIndex((entry) => entry.id === boss.id);
     unlockedBossId = REGION_1_BOSSES[currentIndex + 1]?.id;
