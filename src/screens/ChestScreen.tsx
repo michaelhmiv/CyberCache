@@ -6,6 +6,7 @@ import { RARITIES } from '@/constants/rarities';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/serverItemAdapter';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
+import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { ChestIllustration } from '@/components/common/ChestIllustration';
 import { LootMoment } from '@/components/pixelArt/LootMoment';
@@ -104,6 +105,9 @@ const GearItemCard: React.FC<{
             <span>HP {(item as Shield).hp}</span>
             <span>Recharge {(item as Shield).rechargeRate}/s</span>
             <span>Mitigation {((item as Shield).mitigation * 100).toFixed(0)}%</span>
+            {shieldBehaviorOf(item as Shield) !== 'standard' && (
+              <span>Behavior {SHIELD_BEHAVIORS[shieldBehaviorOf(item as Shield)].name}</span>
+            )}
           </>
         )}
         {isClassMod(item) && (

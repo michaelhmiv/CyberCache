@@ -92,6 +92,8 @@ export interface ChefClaimRequest {
     currentHp: number;
     shieldHp: number;
     maxHp: number;
+    /** Nova arm state round-trip (Phase 2c). */
+    shieldNovaArmed?: boolean;
   };
   /** Prior roaming consumable state (carried from previous claim). */
   roamingConsumableState?: unknown;
@@ -164,6 +166,8 @@ export interface ChefClaimResult {
     nanoSwarmTicksRemaining?: number;
     adrenalineActive?: boolean;
     shieldCellResistance?: number;
+    /** Nova arm state at claim end (Phase 2c). */
+    shieldNovaArmed?: boolean;
   };
   /**
    * The standing server death record (migration 0013), present when

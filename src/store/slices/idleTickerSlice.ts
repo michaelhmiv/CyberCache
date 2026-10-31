@@ -253,6 +253,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
             currentHp: useSurvivalStore.getState().currentHp,
             shieldHp: useSurvivalStore.getState().shieldHp,
             maxHp: useSurvivalStore.getState().maxHp,
+            shieldNovaArmed: useSurvivalStore.getState().shieldNovaArmed,
           },
           roamingConsumableState,
         });

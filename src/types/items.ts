@@ -1,4 +1,5 @@
 import { Element, Rarity, WeaponType, Manufacturer, DropSource } from './game';
+import type { ShieldBehaviorId } from '../lib/combat/shieldBehaviors';
 
 export interface WeaponPart {
   slot: 'Barrel' | 'Grip' | 'Core' | 'Magazine' | 'Sight' | 'Chamber';
@@ -88,6 +89,13 @@ export interface Shield {
   sourceTag: DropSource;
   isLocked: boolean;
   pixelSeed: number;
+  /**
+   * Behavior archetype (Phase 2c) — Nova / Absorb / Amp / Turtle,
+   * defined in src/lib/combat/shieldBehaviors.ts. Optional because
+   * legacy shields generated before behaviors existed carry no field;
+   * they read as Standard via shieldBehaviorOf and are never rewritten.
+   */
+  behavior?: ShieldBehaviorId;
 }
 
 export interface ClassMod {

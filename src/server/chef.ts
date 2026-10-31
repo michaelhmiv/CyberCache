@@ -69,6 +69,11 @@ import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterS
 import { pickNextTarget } from '../lib/combat/killCycleHelpers';
 import { computePlayerDamageVsMonster } from '../lib/combat/damageContract';
 import { computeMonsterDamageVsHunter, type HunterSurvivalStats } from '../lib/combat/damageContract';
+import {
+  SHIELD_BEHAVIOR_TUNING,
+  ampDamageMultiplier,
+  shieldBehaviorOf,
+} from '../lib/combat/shieldBehaviors';
 import { computeEffectiveDpsFromGear } from '../lib/combat/loadoutSurvival';
 import {
   activateFromInventory,
@@ -138,6 +143,13 @@ export interface ClaimRequest {
     currentHp: number;
     shieldHp: number;
     maxHp: number;
+    /**
+     * Nova arm state (Phase 2c): false after a burst fired, until the
+     * shield is restored above the re-arm threshold. Round-tripped
+     * through the claim result; when absent, the engine derives it
+     * from the shield's charge vs the threshold.
+     */
+    shieldNovaArmed?: boolean;
     /**
      * @deprecated Ignored by the engine: mitigation is re-derived
      * server-side from the equipped shield in equippedGear (the
@@ -242,6 +254,8 @@ export interface ClaimResult {
     killedBy: { monsterId: string; monsterName: string; areaId: string } | null;
     /** Epoch ms of the killing tick (feed-event clock), null when killedBy is null. */
     diedAt: number | null;
+    /** Nova arm state at claim end (Phase 2c) — the client round-trips it. */
+    shieldNovaArmed: boolean;
     medKitBuffer: number;
     nanoSwarmTicksRemaining: number;
     adrenalineActive: boolean;
@@ -446,6 +460,13 @@ export function processRoamingClaim(
   // carries no mitigation (the ticker never sent one, so roaming
   // mitigation was always 0 while the snapshot advertised it).
   const serverMitigation = slotShield?.mitigation ?? 0;
+  // Shield behavior (Phase 2c), re-derived server-side from the same
+  // equipped shield — never from the claim body. Legacy shields (no
+  // behavior field) resolve to Standard and the claim runs exactly as
+  // before. Definitions live in shieldBehaviors.ts, shared with the
+  // boss sim.
+  const shieldBehavior = shieldBehaviorOf(slotShield);
+  const shieldCapacity = slotShield?.hp ?? 0;
 
   // Skill bonuses arrive already server-derived: the claim and
   // settlement routes rebuild them from profiles.skill_spends + the
@@ -571,6 +592,15 @@ export function processRoamingClaim(
   // any, remains the truth).
   let survKilledBy: ClaimResult['survival']['killedBy'] = null;
   let survDiedAt: number | null = null;
+  // Nova arm state for this claim (Phase 2c): the client's round-trip
+  // wins; when absent, a shield charged at or above the re-arm
+  // threshold is presumed armed (it either never fired or has since
+  // recharged past the threshold — the two are indistinguishable
+  // without the flag, and the threshold rule is the standing law).
+  let shieldNovaArmed =
+    request.survival?.shieldNovaArmed ??
+    (shieldCapacity > 0 &&
+      survShield >= SHIELD_BEHAVIOR_TUNING.novaRearmThreshold * shieldCapacity);
 
   // --- Consumable engine initialization ---
   const consumableInventory = request.consumableInventory ?? {};
@@ -853,7 +883,12 @@ export function processRoamingClaim(
     xpFraction += tickXp * consumableMods.xpMultiplier;
 
     // --- Kill cycle simulation (player → monster damage) ---
-    const tickEffectiveDps = effectiveDps * consumableMods.dpsMultiplier + consumableMods.ordnanceBonusDps;
+    // Amp behavior (Phase 2c): outgoing damage is multiplied while
+    // the shield sits at full capacity, evaluated at the moment the
+    // hunter deals damage (before this tick's incoming hit lands).
+    const tickAmpMult = ampDamageMultiplier(shieldBehavior, survShield, shieldCapacity);
+    const tickEffectiveDps =
+      (effectiveDps * consumableMods.dpsMultiplier + consumableMods.ordnanceBonusDps) * tickAmpMult;
     if (!survDead && tickEffectiveDps > 0 && roster.length > 0) {
       // Spawn a target if none exists
       if (!kcTargetId) {
@@ -945,6 +980,17 @@ export function processRoamingClaim(
           ),
           accuracy: (attacker.accuracy ?? 0.85) * consumableMods.incomingAccuracyMultiplier,
         };
+        // Nova re-arm (Phase 2c): a spent nova re-arms once the
+        // shield has been restored above the threshold — checked
+        // here, after this tick's consumable restore has landed.
+        if (
+          shieldBehavior === 'nova' &&
+          !shieldNovaArmed &&
+          shieldCapacity > 0 &&
+          survShield >= SHIELD_BEHAVIOR_TUNING.novaRearmThreshold * shieldCapacity
+        ) {
+          shieldNovaArmed = true;
+        }
         // Mitigation comes from the equipped shield, re-derived
         // server-side above (serverMitigation) — never from the claim
         // body — plus consumable damage reduction (Shield Cell
@@ -954,6 +1000,9 @@ export function processRoamingClaim(
           maxHp: survMaxHp,
           shieldHp: survShield,
           mitigation: Math.min(0.8, serverMitigation + consumableMods.damageReductionPct),
+          shieldBehavior,
+          shieldCapacity,
+          shieldNovaArmed,
         };
         const hit = computeMonsterDamageVsHunter(modifiedAttacker, hunter);
         if (!hit.missed) {
@@ -972,6 +1021,28 @@ export function processRoamingClaim(
             });
           }
           survShield = Math.max(0, survShield - hit.shieldAbsorbed);
+
+          // Shield behaviors (Phase 2c): the contract resolved the
+          // behavior for this hit; apply its outcomes. Absorb negated
+          // the hit outright (shieldAbsorbed/hpDamage are both 0) and
+          // restores shield; Nova's arm state carries forward.
+          if (typeof hit.novaArmed === 'boolean') {
+            shieldNovaArmed = hit.novaArmed;
+          }
+          if (hit.behaviorAbsorbed) {
+            const restored = hit.behaviorShieldRestore ?? 0;
+            if (restored > 0) {
+              survShield = Math.min(shieldCapacity, survShield + restored);
+            }
+            feedEvents.push({
+              at: now - (ticks - 1 - tickIdx) * TICK_MS,
+              tone: 'heal',
+              label: 'Absorbed the hit',
+              detail: `${slotShield?.name ?? 'Your shield'} absorbed ${modifiedAttacker.name}'s hit${restored > 0 ? ` and restored ${restored} shield` : ''}.`,
+              areaId,
+              value: restored,
+            });
+          }
 
           // Med Kit buffer absorbs damage after shield, before HP.
           // Buffer pools stack across the Med Kit line (base + refined);
@@ -1002,6 +1073,52 @@ export function processRoamingClaim(
               areaId,
               value: 0,
             });
+          }
+
+          // Nova burst (Phase 2c): the breaking hit erupts back at
+          // the kill cycle's current target — even if the hit also
+          // downed the hunter, the burst is simultaneous with the
+          // break. A nova kill advances the cycle exactly like a
+          // weapon kill (counters, rotation, feed), except the
+          // weapon-bound Jackpot fragment never keys off it.
+          if (hit.novaDamage && hit.novaDamage > 0) {
+            feedEvents.push({
+              at: now - (ticks - 1 - tickIdx) * TICK_MS,
+              tone: 'hit',
+              label: `Nova burst — ${hit.novaDamage} damage`,
+              detail: `${slotShield?.name ?? 'Your shield'} erupted as it broke, blasting ${kcTargetId ? (roster.find((m) => m.id === kcTargetId)?.name ?? modifiedAttacker.name) : modifiedAttacker.name} for ${hit.novaDamage} damage.`,
+              areaId,
+              value: hit.novaDamage,
+            });
+            if (kcTargetId) {
+              const novaTarget = roster.find((m) => m.id === kcTargetId);
+              if (novaTarget) {
+                kcTargetHp -= hit.novaDamage;
+                if (kcTargetHp <= 0) {
+                  kcMonstersKilled += 1;
+                  kcTotalKills += 1;
+                  kcLastKilledId = kcTargetId;
+                  feedEvents.push({
+                    at: now - (ticks - 1 - tickIdx) * TICK_MS,
+                    tone: 'kill',
+                    label: `Killed ${novaTarget.name}`,
+                    detail: `${novaTarget.name} eliminated by a nova burst in ${area.name}.`,
+                    areaId,
+                    value: 0,
+                  });
+                  const next = pickNextTarget(roster, kcLastKilledId);
+                  if (next) {
+                    kcTargetId = next.id;
+                    kcTargetHp = next.hp;
+                    kcTargetHpMax = next.hp;
+                  } else {
+                    kcTargetId = null;
+                    kcTargetHp = 0;
+                    kcTargetHpMax = 0;
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1075,6 +1192,7 @@ export function processRoamingClaim(
         isDead: survDead,
         killedBy: survKilledBy,
         diedAt: survDiedAt,
+        shieldNovaArmed,
         medKitBuffer: ss?.medKitBuffer ?? 0,
         nanoSwarmTicksRemaining: ss?.nanoSwarmTicksRemaining ?? 0,
         adrenalineActive: ss?.adrenalineActive ?? false,

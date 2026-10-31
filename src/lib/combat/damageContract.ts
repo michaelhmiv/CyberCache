@@ -23,6 +23,12 @@
 import type { Element } from '../../types/game';
 import { ConsumableType } from '../../types/game';
 import type { MonsterDef } from '../../constants/monsters';
+import {
+  SHIELD_BEHAVIOR_TUNING,
+  absorbRestoreFor,
+  novaDamageForCapacity,
+  type ShieldBehaviorId,
+} from './shieldBehaviors';
 
 /** Minimal weapon shape the contract needs to compute damage. */
 export interface WeaponDamageSource {
@@ -45,6 +51,22 @@ export interface HunterSurvivalStats {
   mitigation?: number;
   /** Shield element — provides extra resistance when matching monster element. */
   shieldElement?: Element;
+  /**
+   * Equipped shield's behavior archetype (Phase 2c, shieldBehaviors.ts).
+   * Absent or 'standard' = the legacy resolution below, bit-identical
+   * (including RNG draw count) to the pre-behavior contract.
+   */
+  shieldBehavior?: ShieldBehaviorId;
+  /** Equipped shield's capacity (its generated `hp`). Nova/Absorb scale off it. */
+  shieldCapacity?: number;
+  /**
+   * Nova arm state carried by the caller across hits: false after a
+   * burst until the shield is restored above the re-arm threshold.
+   * When omitted for a Nova shield, arm state is derived from the
+   * current shield HP vs the threshold (a shield charged past the
+   * threshold is presumed armed).
+   */
+  shieldNovaArmed?: boolean;
 }
 
 /**
@@ -84,6 +106,14 @@ export interface MonsterHitResult {
   missed: boolean;
   /** True if the hit was fully absorbed by shield (hpDamage === 0). */
   fullyBlocked: boolean;
+  /** Absorb behavior procced: the hit was fully negated by the behavior. */
+  behaviorAbsorbed?: boolean;
+  /** Shield HP the Absorb proc restores (caller adds it, capped at capacity). */
+  behaviorShieldRestore?: number;
+  /** Nova burst damage owed to the attacker (caller applies it). */
+  novaDamage?: number;
+  /** Nova arm state AFTER this hit (false once a burst has fired). */
+  novaArmed?: boolean;
 }
 
 export function computeMonsterDamageVsHunter(
@@ -110,14 +140,58 @@ export function computeMonsterDamageVsHunter(
   const mitigationMult = 1 - mitigation;
 
   const raw = Math.floor(monster.attackPower * variance * elementMult * mitigationMult);
+
+  // Shield behaviors (Phase 2c) — resolved here, at the one damage
+  // seam, so every caller (Chef roaming claim, client preview) reads
+  // the same state machine. 'standard'/absent skips this entirely:
+  // no extra RNG draws, identical split.
+  const behavior = hunter.shieldBehavior ?? 'standard';
+  if (behavior === 'absorb' && hunter.shieldHp > 0 && raw > 0) {
+    // Absorb: a chance to negate the whole hit and restore shield.
+    // Only while the shield is up — a broken shield absorbs nothing.
+    if (rng() < SHIELD_BEHAVIOR_TUNING.absorbChance) {
+      const capacity = hunter.shieldCapacity ?? hunter.shieldHp;
+      return {
+        shieldAbsorbed: 0,
+        hpDamage: 0,
+        missed: false,
+        fullyBlocked: true,
+        behaviorAbsorbed: true,
+        behaviorShieldRestore: absorbRestoreFor(capacity, hunter.shieldHp),
+        novaArmed: hunter.shieldNovaArmed,
+      };
+    }
+  }
+
   const shieldAbsorbed = Math.min(hunter.shieldHp, raw);
   const hpDamage = Math.max(0, raw - shieldAbsorbed);
-  return {
+  const result: MonsterHitResult = {
     shieldAbsorbed,
     hpDamage,
     missed: false,
     fullyBlocked: shieldAbsorbed > 0 && hpDamage === 0,
   };
+
+  if (behavior === 'nova') {
+    // Nova: fires exactly when this hit breaks the shield (crosses
+    // from above 0 to 0) while armed. The burst damage is returned
+    // for the caller to apply to the attacker — the contract itself
+    // stays free of kill-cycle/boss state.
+    const capacity = hunter.shieldCapacity ?? 0;
+    const armed =
+      hunter.shieldNovaArmed ??
+      (capacity > 0 &&
+        hunter.shieldHp >= SHIELD_BEHAVIOR_TUNING.novaRearmThreshold * capacity);
+    const breaksShield = hunter.shieldHp > 0 && raw >= hunter.shieldHp;
+    if (armed && breaksShield && capacity > 0) {
+      result.novaDamage = novaDamageForCapacity(capacity);
+      result.novaArmed = false;
+    } else {
+      result.novaArmed = armed;
+    }
+  }
+
+  return result;
 }
 
 /**

@@ -9,6 +9,10 @@ import {
   pickActivityKind,
 } from './activityModuleGenerator';
 import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
+import {
+  applyShieldBehaviorGenerationStats,
+  pickShieldBehavior,
+} from '@/lib/combat/shieldBehaviors';
 
 const SHIELD_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.Ironwood,
@@ -100,6 +104,26 @@ export function generateShield(level: number = 1, externalRng?: () => number): S
   const elementName = ELEMENTS[element].name;
   const name = `${elementName} ${shieldMfg} Shield Mk.${seededInt(1, 5, rng)}`;
 
+  // Behavior archetype (Phase 2c) — derived from a hash of the item's
+  // own seed-rolled fields, deliberately NOT from the rng stream: a
+  // claim's tick stream is shared with the loot rolls that follow a
+  // shield drop, and its determinism pins are load-bearing (the
+  // vehicle slice set the precedent — new rolls never touch the main
+  // stream). Every hash input is a function of the stream, so the
+  // same seed still yields the same shield, behavior included. The
+  // pick + the Turtle stat transform live in shieldBehaviors.ts, the
+  // one owner shared with the engines and the UI.
+  const behaviorRoll =
+    hashString(
+      `behavior|${rarity}|${element}|${name}|${hp}|${rechargeRate}|${mitigation}|${affixes
+        .map((a) => `${a.stat}:${a.value}`)
+        .join(',')}`,
+    ) / 4294967296;
+  const behavior = pickShieldBehavior(rarity, behaviorRoll);
+  const behaviorStats = applyShieldBehaviorGenerationStats(behavior, { hp, rechargeRate });
+  hp = behaviorStats.hp;
+  rechargeRate = behaviorStats.rechargeRate;
+
   return {
     id: generateItemId(),
     name,
@@ -113,5 +137,6 @@ export function generateShield(level: number = 1, externalRng?: () => number): S
     sourceTag: DropSource.WorldDrop,
     isLocked: false,
     pixelSeed,
+    behavior,
   };
 }

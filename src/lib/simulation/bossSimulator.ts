@@ -6,6 +6,11 @@ import { CONSUMABLES, ConsumableDef } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 import { computeWeaponDps } from '../stats/dpsChain';
 import { computeHunterMaxHp } from '../combat/damageContract';
+import {
+  SHIELD_BEHAVIOR_TUNING,
+  modelShieldBehaviorForBoss,
+  shieldBehaviorOf,
+} from '../combat/shieldBehaviors';
 // Note: applySignatureMechanic used to be applied in the sim
 // (one inline call per weapon). After PR E, the chain consumes the
 // signature via the new src/lib/stats/signatureMechanic.ts module
@@ -474,6 +479,46 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     totalSurvival *= 0.95;
   }
 
+  // Shield behavior (Phase 2c) — folded into the pooled model through
+  // shieldBehaviors.ts, the same module the roaming seam resolves
+  // per-hit. Standard / legacy shields (no behavior field) skip this
+  // entirely and sim exactly as before. Absorb's negated damage is
+  // computed in post-mitigation units, so it is converted into the
+  // pool's raw-equivalent units by the same 1/(1-mitigation) factor
+  // the pool itself received; Nova and Amp apply below (boss HP and
+  // DPS respectively).
+  const shieldBehavior = shieldBehaviorOf(shield);
+  const bossShieldModel =
+    shield && shieldBehavior !== 'standard'
+      ? modelShieldBehaviorForBoss({
+          behavior: shieldBehavior,
+          capacity: playerShieldHP,
+          refillPool: shieldCellBoost + nanoSwarmRepair,
+          totalIncomingDamage: boss.dps * 30,
+          mitigation: shieldMitigation,
+        })
+      : null;
+  if (bossShieldModel) {
+    if (bossShieldModel.absorbNegated > 0) {
+      totalSurvival += bossShieldModel.absorbNegated / (1 - shieldMitigation);
+    }
+    if (shieldBehavior === 'nova' && bossShieldModel.novaDamage > 0) {
+      reasons.push(
+        `Nova shield: erupts for ${bossShieldModel.novaDamage} damage when it breaks${bossShieldModel.novaFirings > 1 ? ` (up to ${bossShieldModel.novaFirings} times with refills)` : ''}.`,
+      );
+    } else if (shieldBehavior === 'absorb') {
+      reasons.push(
+        `Absorb shield: negates about ${Math.round(SHIELD_BEHAVIOR_TUNING.absorbChance * 100)}% of the damage that lands on it.`,
+      );
+    } else if (shieldBehavior === 'amp') {
+      reasons.push(
+        `Amp shield: +${Math.round(SHIELD_BEHAVIOR_TUNING.ampPct * 100)}% damage while the shield holds (about ${Math.round(bossShieldModel.shieldUptimeFraction * 100)}% of this fight).`,
+      );
+    } else if (shieldBehavior === 'turtle') {
+      reasons.push('Turtle shield: oversized capacity, slow recharge.');
+    }
+  }
+
   const bossTotalDamage = boss.dps * 30;
   const survivalScore = totalSurvival / bossTotalDamage;
 
@@ -644,7 +689,13 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // efficiency, and DPS-relevant consumables.
   dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod) * classModDpsMult;
 
-  const netBossHp = Math.max(1, boss.health - ordnanceFlatDamage);
+  // Amp behavior: fight-averaged DPS multiplier from the shield model.
+  if (bossShieldModel) {
+    dps *= bossShieldModel.ampDpsMultiplier;
+  }
+
+  // Nova behavior: bursts are flat damage to the boss, like ordnance.
+  const netBossHp = Math.max(1, boss.health - ordnanceFlatDamage - (bossShieldModel?.novaDamage ?? 0));
   const timeToKill = netBossHp / (dps || 1);
   const dpsScore = 30 / timeToKill;
 

@@ -1,6 +1,7 @@
 import { Rarity } from '@/types/game';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
+import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
 import { LEGENDARY_EFFECTS } from '@/constants/legendaryEffects';
 import { bespokeSpriteIdForWeapon, normalizeLegendaryName } from './manifest';
 import { MOVEMENT, isTickHit } from './movement';
@@ -127,7 +128,11 @@ export function lootStatLine(item: GearItem): string {
     return `DMG ${fmtInt(item.baseDamage)} · FR ${fmtRate(item.attackSpeed)} · CRIT ${fmtRate(item.critChance)}%`;
   }
   if (isShield(item)) {
-    return `HP ${fmtInt(item.hp)} · RECHARGE ${fmtRate(item.rechargeRate)}/s · MIT ${fmtRate(item.mitigation)}%`;
+    // Behavior (Phase 2c): named on the loot card when non-Standard.
+    const behavior = shieldBehaviorOf(item);
+    const behaviorLabel =
+      behavior !== 'standard' ? ` · ${SHIELD_BEHAVIORS[behavior].name.toUpperCase()}` : '';
+    return `HP ${fmtInt(item.hp)} · RECHARGE ${fmtRate(item.rechargeRate)}/s · MIT ${fmtRate(item.mitigation)}%${behaviorLabel}`;
   }
   if (isClassMod(item)) {
     const boosts = Object.keys(item.nodeBoosts ?? {}).length;
