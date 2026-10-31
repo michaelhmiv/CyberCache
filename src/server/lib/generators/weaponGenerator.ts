@@ -14,7 +14,14 @@ import { rollRarityForDrop } from '@/content/lootResolver';
 import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '@/lib/utils/rng';
 import { generateItemId } from '@/lib/utils/id';
 import { generateWeaponName } from '@/lib/utils/naming';
-import { computeStandardDps } from '@/lib/stats/dpsChain';
+import {
+  WEAPON_BOSS_POOL,
+  WEAPON_COMBAT_POOL,
+  WEAPON_IDLE_POOL,
+  affixCategoryFor,
+  bakeWeaponAffixes,
+  computeWeaponPowerScores,
+} from '@/lib/gear/affixPools';
 import {
   generateActivityModule,
   pickActivityKind,
@@ -131,34 +138,18 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
     }
   });
 
-  // 10. Roll affixes
+  // 10. Roll affixes. The pools live in src/lib/gear/affixPools.ts —
+  // the one source the generators and reforge both draw from.
   const affixCount = seededInt(rarityDef.affixCount.min, rarityDef.affixCount.max, rng);
   const affixes: Affix[] = [];
-  const combatAffixPool = [
-    { stat: 'baseDamage', text: '+{v}% Damage', min: 3, max: 12 },
-    { stat: 'critChance', text: '+{v}% Crit Chance', min: 2, max: 8 },
-    { stat: 'critDamage', text: '+{v}% Crit Damage', min: 5, max: 20 },
-    { stat: 'attackSpeed', text: '+{v}% Attack Speed', min: 3, max: 10 },
-    { stat: 'bossDamageMod', text: '+{v}% Boss Damage', min: 5, max: 15 },
-    { stat: 'waveDamageMod', text: '+{v}% Wave Damage', min: 5, max: 15 },
-  ];
-  const bossAffixPool = [
-    { stat: 'shieldDamageMod', text: '+{v}% Shield Break', min: 8, max: 20 },
-    { stat: 'armorDamageMod', text: '+{v}% Armor Break', min: 8, max: 20 },
-  ];
-  const idleAffixPool = [
-    { stat: 'offlineEarningsMod', text: '+{v}% Offline Earnings', min: 5, max: 15 },
-    { stat: 'rareDropChanceMod', text: '+{v}% Rare Drop Chance', min: 3, max: 10 },
-    { stat: 'scrapYieldMod', text: '+{v}% Scrap Yield', min: 5, max: 20 },
-  ];
 
   for (let i = 0; i < affixCount; i++) {
-    const pool = seededRandom(0, 1, rng) > 0.7 ? (seededRandom(0, 1, rng) > 0.5 ? bossAffixPool : idleAffixPool) : combatAffixPool;
+    const pool = seededRandom(0, 1, rng) > 0.7 ? (seededRandom(0, 1, rng) > 0.5 ? WEAPON_BOSS_POOL : WEAPON_IDLE_POOL) : WEAPON_COMBAT_POOL;
     const def = pool[seededInt(0, pool.length - 1, rng)];
     const rollVal = seededInt(def.min, def.max, rng);
     affixes.push({
       id: `${def.stat}_${i}`,
-      category: pool === combatAffixPool ? 'combat' : pool === bossAffixPool ? 'boss' : 'idle',
+      category: affixCategoryFor('weapon', def),
       stat: def.stat,
       value: rollVal / 100,
       displayText: def.text.replace('{v}', String(rollVal)),
@@ -167,48 +158,9 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
 
   // 10b. Bake affixes into stats so they are NOT purely cosmetic.
   // Multiplicative stats (baseDamage, attackSpeed) multiply the base.
-  // Additive stats (crit, modifiers) add to the existing value.
-  for (const affix of affixes) {
-    const v = affix.value;
-    switch (affix.stat) {
-      case 'baseDamage':
-        stats.baseDamage = Math.round(stats.baseDamage * (1 + v));
-        break;
-      case 'attackSpeed':
-        stats.attackSpeed = parseFloat((stats.attackSpeed * (1 + v)).toFixed(2));
-        break;
-      case 'critChance':
-        stats.critChance = parseFloat((stats.critChance + v).toFixed(3));
-        break;
-      case 'critDamage':
-        stats.critDamage = parseFloat((stats.critDamage + v).toFixed(2));
-        break;
-      case 'bossDamageMod':
-        stats.bossDamageMod = parseFloat((stats.bossDamageMod + v).toFixed(3));
-        break;
-      case 'waveDamageMod':
-        stats.waveDamageMod = parseFloat((stats.waveDamageMod + v).toFixed(3));
-        break;
-      case 'shieldDamageMod':
-        stats.shieldDamageMod = parseFloat((stats.shieldDamageMod + v).toFixed(3));
-        break;
-      case 'armorDamageMod':
-        stats.armorDamageMod = parseFloat((stats.armorDamageMod + v).toFixed(3));
-        break;
-      case 'offlineEarningsMod':
-        stats.offlineEarningsMod = parseFloat((stats.offlineEarningsMod + v).toFixed(3));
-        break;
-      case 'rareDropChanceMod':
-        stats.rareDropChanceMod = parseFloat((stats.rareDropChanceMod + v).toFixed(3));
-        break;
-      case 'scrapYieldMod':
-        stats.scrapYieldMod = parseFloat((stats.scrapYieldMod + v).toFixed(3));
-        break;
-      // Unknown stat from future affixes — silently skip.
-      default:
-        break;
-    }
-  }
+  // Additive stats (crit, modifiers) add to the existing value. The
+  // switch itself is shared with reforge (bakeWeaponAffixes).
+  bakeWeaponAffixes(stats, affixes);
 
   // 10c. Roll activity module (procedural, Borderlands-style)
   // Chance increases with rarity: Common 15%, Uncommon 20%, Rare 30%, Epic 40%, Legendary 55%
@@ -303,10 +255,7 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
     farmPower: 0,
     economyScore: 0,
   };
-  const combatPower = Math.round(computeStandardDps(stub));
-  const bossPower = Math.round(combatPower * (1 + stats.bossDamageMod) * (1 + stats.shieldDamageMod * 0.3) * (1 + stats.armorDamageMod * 0.3));
-  const farmPower = Math.round(combatPower * (1 + stats.waveDamageMod) * (1 + stats.attackSpeed * 0.2));
-  const economyScore = Math.round((stats.rareDropChanceMod + stats.scrapYieldMod + stats.offlineEarningsMod) * 100);
+  const { combatPower, bossPower, farmPower, economyScore } = computeWeaponPowerScores(stub);
 
   // 15. Name
   const name = generateWeaponName(weaponType, manufacturer, element, rng);

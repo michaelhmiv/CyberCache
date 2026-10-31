@@ -74,6 +74,13 @@ import {
 } from '../../content/repair.js';
 import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
 import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections.js';
+import { reforgeCostFor, type ReforgeLeverValues } from '../../content/reforge.js';
+import {
+  applyReforgeToItem,
+  isReforgeableAffix,
+  reforgeKindOf,
+} from '../../lib/gear/affixPools.js';
+import { createRNG, hashString } from '../../lib/utils/rng.js';
 import {
   buildRepairBoardView,
   resolveRepairLevers,
@@ -180,6 +187,13 @@ export interface InMemoryWriteOptions {
    * resolved per repair op, clamped by resolveRepairLevers.
    */
   repairLeverProvider?: () => Partial<RepairLeverValues>;
+  /**
+   * Live reforge lever values (economy_config, 0027) — the scrap
+   * scalar and the flat legendary core cost — resolved per reforge,
+   * merged over the content defaults. The mirror of cc_reforge_item
+   * reading the table through cc_economy_config_number.
+   */
+  reforgeLeverProvider?: () => Partial<ReforgeLeverValues>;
 }
 
 function clone<T>(value: T): T {
@@ -199,6 +213,7 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly buybackRateProvider: () => number | Promise<number>;
   private readonly craftLeverProvider: () => Partial<CraftLeverValues>;
   private readonly repairLeverProvider: () => Partial<RepairLeverValues>;
+  private readonly reforgeLeverProvider: () => Partial<ReforgeLeverValues>;
   private craftViews = new Map<string, CraftProfileView>();
 
   private profiles = new Map<string, ProfileRowData>();
@@ -221,6 +236,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.buybackRateProvider = opts.buybackRateProvider ?? (() => VENDOR_BUYBACK_RATE_DEFAULT);
     this.craftLeverProvider = opts.craftLeverProvider ?? (() => ({}));
     this.repairLeverProvider = opts.repairLeverProvider ?? (() => ({}));
+    this.reforgeLeverProvider = opts.reforgeLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) this.profiles.set(p.id, p);
     for (const i of this.seed.items) this.items.set(i.id, i);
@@ -1136,6 +1152,62 @@ export class InMemoryWriteStore implements WriteStore {
       loadout: this.loadoutSnapshot(playerId),
     };
     return this.record(playerId, 'cc_recycle_item', key, result);
+  }
+
+  /**
+   * Reforge (0027): the in-memory twin of cc_reforge_item. Validation
+   * order and error strings mirror the SQL applier; the roll runs
+   * through the shared affix pools on the same dedicated nonce-seeded
+   * stream the Pg store uses, so both paths produce the identical
+   * replacement for the same op. Both currencies are destroyed here
+   * (deducted, never escrowed) and land in the ledger result the
+   * economy metrics read (scrap_charged / cores_charged).
+   */
+  async reforgeItem(playerId: string, nonce: string, itemId: string, affixId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const item = this.ownItem(playerId, itemId);
+    if (item.is_locked) throw writeError('Locked item');
+    if (item.runtime_state !== 'available') throw writeError('Item state invalid');
+    const payload = (item.payload ?? {}) as unknown as GearItem;
+    const kind = reforgeKindOf(item.kind, payload);
+    if (!kind) throw writeError('Item cannot be reforged');
+    const affixes = payload.affixes ?? [];
+    const affixIndex = affixes.findIndex((a) => a.id === affixId);
+    if (affixIndex < 0) throw writeError('Affix not found');
+    if (!isReforgeableAffix(affixes[affixIndex])) throw writeError('Affix cannot be reforged');
+    const cost = reforgeCostFor(
+      { rarity: item.rarity, level: item.item_level },
+      this.reforgeLeverProvider(),
+    );
+    if (p.scrap < cost.scrap) throw writeError('Insufficient scrap');
+    if ((p.legendary_cores ?? 0) < cost.cores) throw writeError('Insufficient legendary cores');
+    const rng = createRNG(hashString(`reforge:${playerId}:${itemId}:${key}`));
+    const { item: nextPayload, oldAffix, newAffix } = applyReforgeToItem(kind, payload, affixIndex, rng);
+    item.payload = nextPayload as unknown as Json;
+    item.estimated_value = computeItemEstimatedValue(
+      nextPayload as unknown as Record<string, unknown>,
+      item.kind,
+      item.rarity,
+      item.item_level,
+    );
+    this.touchItem(item);
+    this.recalcNetWorth(playerId);
+    p.scrap -= cost.scrap;
+    p.legendary_cores = (p.legendary_cores ?? 0) - cost.cores;
+    this.touch(p);
+    const result: Json = {
+      action_type: 'cc_reforge_item',
+      profile: this.profileSnapshot(p),
+      item: this.itemJson(item),
+      old_affix: oldAffix as unknown as Json,
+      new_affix: newAffix as unknown as Json,
+      scrap_charged: cost.scrap,
+      cores_charged: cost.cores,
+    };
+    return this.record(playerId, 'cc_reforge_item', key, result);
   }
 
   /**

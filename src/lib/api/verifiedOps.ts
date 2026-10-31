@@ -80,6 +80,10 @@ export const verifiedOps = {
     reason: input.reason ?? null,
   }),
   recycleItem: (itemId: string) => op('/ops/recycle-item', { nonce: requestId('recycle'), item_id: itemId }),
+  // Reforge (0027): reroll ONE affix. Intent only (item + affix id) —
+  // the server prices from the economy levers, rolls from the shared
+  // affix pools, and returns old_affix / new_affix for the reveal.
+  reforgeItem: (itemId: string, affixId: string) => op('/ops/reforge-item', { nonce: requestId('reforge'), item_id: itemId, affix_id: affixId }),
   itemLock: (itemId: string, locked: boolean) => op('/ops/item-lock', { nonce: requestId('lock'), item_id: itemId, locked }),
   equipItem: (itemId: string, slotName: string) => op('/ops/equip-item', { nonce: requestId('equip'), item_id: itemId, slot_name: slotName }),
   unequipSlot: (slotName: string) => op('/ops/unequip-slot', { nonce: requestId('unequip'), slot_name: slotName }),

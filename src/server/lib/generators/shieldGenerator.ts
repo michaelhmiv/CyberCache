@@ -13,6 +13,7 @@ import {
   applyShieldBehaviorGenerationStats,
   pickShieldBehavior,
 } from '@/lib/combat/shieldBehaviors';
+import { SHIELD_AFFIX_POOL, bakeShieldAffixes } from '@/lib/gear/affixPools';
 
 const SHIELD_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.Ironwood,
@@ -46,13 +47,9 @@ export function generateShield(level: number = 1, externalRng?: () => number, ra
 
   const affixCount = seededInt(rarityDef.affixCount.min, rarityDef.affixCount.max, rng);
   const affixes: Affix[] = [];
-  const shieldAffixPool = [
-    { stat: 'hp', text: '+{v}% Shield HP', min: 5, max: 15 },
-    { stat: 'rechargeRate', text: '+{v}% Recharge Rate', min: 5, max: 15 },
-    { stat: 'mitigation', text: '+{v}% Mitigation', min: 3, max: 10 },
-  ];
+  // The pool is shared with reforge (src/lib/gear/affixPools.ts).
   for (let i = 0; i < affixCount; i++) {
-    const def = shieldAffixPool[seededInt(0, shieldAffixPool.length - 1, rng)];
+    const def = SHIELD_AFFIX_POOL[seededInt(0, SHIELD_AFFIX_POOL.length - 1, rng)];
     const rollVal = seededInt(def.min, def.max, rng);
     affixes.push({
       id: `${def.stat}_${i}`,
@@ -63,23 +60,12 @@ export function generateShield(level: number = 1, externalRng?: () => number, ra
     });
   }
 
-  // Bake affixes into stats
-  for (const affix of affixes) {
-    const v = affix.value;
-    switch (affix.stat) {
-      case 'hp':
-        hp = Math.round(hp * (1 + v));
-        break;
-      case 'rechargeRate':
-        rechargeRate = parseFloat((rechargeRate * (1 + v)).toFixed(1));
-        break;
-      case 'mitigation':
-        mitigation = parseFloat((mitigation + v).toFixed(3));
-        break;
-      default:
-        break;
-    }
-  }
+  // Bake affixes into stats (the switch is shared with reforge).
+  const baked = { hp, rechargeRate, mitigation };
+  bakeShieldAffixes(baked, affixes);
+  hp = baked.hp;
+  rechargeRate = baked.rechargeRate;
+  mitigation = baked.mitigation;
 
   // Roll activity module (procedural)
   const activityChance = BASE_ACTIVITY_MODULE_CHANCE

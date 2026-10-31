@@ -9,6 +9,7 @@ import {
   pickActivityKind,
 } from './activityModuleGenerator';
 import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
+import { ORDNANCE_COMBAT_POOL, bakeOrdnanceAffixes } from '@/lib/gear/affixPools';
 
 const ORDNANCE_EFFECTS = [
   'Fragmentation: +15% area damage',
@@ -32,11 +33,7 @@ const ORDNANCE_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.HelixWorks,
 ];
 
-const ORDNANCE_COMBAT_POOL = [
-  { stat: 'damage', text: '+{v}% Ordnance Damage', min: 5, max: 15 },
-  { stat: 'shieldDamage', text: '+{v}% Shield Break', min: 8, max: 20 },
-  { stat: 'armorDamage', text: '+{v}% Armor Break', min: 8, max: 20 },
-];
+
 
 export function generateOrdnance(level: number = 1, externalRng?: () => number, rarityWeights?: Partial<Record<Rarity, number>>): Ordnance {
   const seedBase = `ordnance_${level}_${Date.now()}_${Math.random()}`;
@@ -75,23 +72,12 @@ export function generateOrdnance(level: number = 1, externalRng?: () => number, 
     });
   }
 
-  // Bake combat affixes into stats
-  for (const affix of affixes) {
-    const v = affix.value;
-    switch (affix.stat) {
-      case 'damage':
-        baseDamage = Math.round(baseDamage * (1 + v));
-        break;
-      case 'shieldDamage':
-        shieldDamage = Math.round(shieldDamage * (1 + v));
-        break;
-      case 'armorDamage':
-        armorDamage = Math.round(armorDamage * (1 + v));
-        break;
-      default:
-        break;
-    }
-  }
+  // Bake combat affixes into stats (the switch is shared with reforge).
+  const baked = { damage: baseDamage, shieldDamage, armorDamage };
+  bakeOrdnanceAffixes(baked, affixes);
+  baseDamage = baked.damage;
+  shieldDamage = baked.shieldDamage;
+  armorDamage = baked.armorDamage;
 
   // Roll activity module (ordnance favors salvaging/workshop)
   const activityChance = BASE_ACTIVITY_MODULE_CHANCE

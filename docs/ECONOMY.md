@@ -59,7 +59,10 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `repair_xp_awarded` | Σ player XP paid by board settlements (2/point restored at the default lever) |
 | `legendaries_salvaged` | Legendary items destroyed by salvage that day (`cc_recycle_item` rows whose result item is Legendary). A DESTRUCTION meter — deliberately separate from the `legendaries_*` creation meters above; a legendary is counted once at creation (by source) and once here when it dies, never twice in the same meter |
 | `legendary_cores_minted` | Σ `cores_award` over the day's `cc_recycle_item` rows — cores enter supply only when a Legendary is salvaged (migration 0026) |
-| `legendary_cores_spent` | Σ `escrow_cores` over the day's `cc_enqueue_craft_job` rows − Σ `cores_refunded` over the day's `cc_cancel_craft_job` rows — cores held in craft escrow for the Legendary Core Catalyst. (Escrowed cores are out of the player's balance but not destroyed; if reforge later destroys cores outright, it gets its own sink meter rather than reusing this one) |
+| `legendary_cores_spent` | Σ `escrow_cores` over the day's `cc_enqueue_craft_job` rows − Σ `cores_refunded` over the day's `cc_cancel_craft_job` rows + Σ `cores_charged` over the day's `cc_reforge_item` rows (migration 0027) — cores that left player balances for a spend: catalyst escrows (held, refundable on cancel) plus reforge charges (destroyed outright). Each core is counted exactly once; the reforge share is broken out in `legendary_cores_destroyed_reforge` below |
+| `reforges_completed` | Count of the day's `cc_reforge_item` rows (migration 0027) |
+| `scrap_destroyed_reforge` | Σ `scrap_charged` over the day's `cc_reforge_item` rows — scrap destroyed by reforge (a scrap meter, never a credits meter: it does not enter `credits_destroyed_total`) |
+| `legendary_cores_destroyed_reforge` | Σ `cores_charged` over the day's `cc_reforge_item` rows — the destroyed share of `legendary_cores_spent`, broken out so the reforge sink reads separately from catalyst escrow |
 
 Transfers are not mints or sinks: a market sale's principal moves
 buyer → seller (only the destroyed fee leaves supply), and repair
@@ -119,6 +122,8 @@ take the game down.
 | `serviceXpPerPoint` | 2 | 0 – 10 (integer) | Player XP per condition point actually restored on board jobs, paid once at settlement (partial jobs included) |
 | `repairAbandonWindowHours` | 48 | 1 – 720 (integer) | Owner reclaim window: an accepted job with no progress for this long can be reclaimed (settles pro-rata, outcome `abandoned`) |
 | `repairListingExpiryDays` | 7 | 1 – 30 (integer) | Unaccepted board listings expire and refund in full after this many days |
+| `reforgeScrapScalar` | 1.0 | 0 – 5 | Multiplier on the reforge scrap cost (salvage value × 3 × scalar; migration 0027). `cc_reforge_item` reads the table itself (`cc_economy_config_number('reforgeScrapScalar', 1)`); the TS pricing mirror is `src/content/reforge.ts` `reforgeCostFor`, fed live values through a provider where wired |
+| `reforgeLegendaryCoreCost` | 2 | 0 – 8 (integer) | Flat legendary cores charged when reforging a Legendary-rarity item (0027); other rarities never pay cores |
 
 Skill-based fee reductions (Darknet Broker, Market Manipulator)
 apply multiplicatively **after** the levered rate, in both the SQL
@@ -214,6 +219,16 @@ unit generates with +2 draws (best-of-N rollQuality, the gear
 system's quality currency — the same lever tempering uses). Cancels
 refund escrowed cores on the material catalyst's schedule (full for
 unstarted units, half floored for the in-progress unit).
+
+**Reforge (migration 0027)** is the second core spend and the first
+outright destruction: rerolling one affix on a Legendary costs
+2 cores (lever `reforgeLegendaryCoreCost`) plus scrap priced at
+three times the item's salvage value (lever `reforgeScrapScalar`;
+non-legendary reforge is scrap-only). At the modal salvage yield
+(2–3 cores for a mid/high-level legendary), one legendary reforge
+costs roughly one salvaged legendary — the loop stays tight by
+construction. The rules live in `src/content/reforge.ts`; both
+currencies are destroyed on use and metered above.
 
 **Watch:** `legendary_cores_minted` vs `legendary_cores_spent` per
 day, and the minted/salvaged ratio (average yield per destroyed

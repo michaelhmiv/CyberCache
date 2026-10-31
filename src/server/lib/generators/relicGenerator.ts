@@ -8,6 +8,7 @@ import {
   pickActivityKind,
 } from './activityModuleGenerator';
 import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
+import { RELIC_AFFIX_POOL } from '@/lib/gear/affixPools';
 
 const RELIC_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.Prismatek,
@@ -31,18 +32,9 @@ export function generateRelic(level: number = 1, externalRng?: () => number, rar
 
   const affixCount = seededInt(Math.max(rarityDef.affixCount.min, 2), Math.max(rarityDef.affixCount.max, 4), rng);
   const affixes: Affix[] = [];
-  const relicAffixPool: Array<{ stat: string; text: string; min: number; max: number; category: Affix['category'] }> = [
-    { stat: 'offlineEarningsMod', text: '+{v}% Offline Earnings', min: 8, max: 20, category: 'idle' },
-    { stat: 'rareDropChanceMod', text: '+{v}% Rare Drop Chance', min: 5, max: 15, category: 'idle' },
-    { stat: 'scrapYieldMod', text: '+{v}% Scrap Yield', min: 8, max: 25, category: 'idle' },
-    { stat: 'xpBoostMod', text: '+{v}% XP Gain', min: 5, max: 20, category: 'idle' },
-    { stat: 'cacheKeyChanceMod', text: '+{v}% Cache Key Drop Rate', min: 5, max: 15, category: 'idle' },
-    { stat: 'bossDamageMod', text: '+{v}% Boss Damage', min: 5, max: 12, category: 'boss' },
-    { stat: 'survivalBoost', text: '+{v}% Survival', min: 5, max: 15, category: 'boss' },
-    { stat: 'consumableEfficiency', text: '+{v}% Consumable Efficiency', min: 5, max: 20, category: 'skill' },
-  ];
+  // The pool is shared with reforge (src/lib/gear/affixPools.ts).
   for (let i = 0; i < affixCount; i++) {
-    const def = relicAffixPool[seededInt(0, relicAffixPool.length - 1, rng)];
+    const def = RELIC_AFFIX_POOL[seededInt(0, RELIC_AFFIX_POOL.length - 1, rng)];
     const rollVal = seededInt(def.min, def.max, rng);
     affixes.push({
       id: `${def.stat}_${i}`,

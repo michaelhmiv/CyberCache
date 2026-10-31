@@ -204,6 +204,20 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.62, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
   }),
+  // Reforge (0027): the bench moment for an affix swap — the item on
+  // the forge bench under the hunter's hands, the new affix landing
+  // with the G-1 beam in the item's rarity read (Epic here), and the
+  // work track full. Work grammar, not the loot ladder: no card.
+  scene('reforge-bench', (img) => {
+    drawBackground(img, AREA_BG.blastforge_yards);
+    drawBeam(img, SCENE_W * 0.58, GROUND * SCENE_H - 40, GRAMMAR.beamWidthPx.high, '#B18CFF');
+    const bench = loadGoldenSprite('set-bench-forge');
+    if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
+    drawWeaponRender(img, GOLDEN_WEAPON, SCENE_W * 0.58 - 44, GROUND * SCENE_H - 78, 88, 32);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
+  }),
   scene('bay', (img) => {
     drawBackground(img, AREA_BG.throwtech_dumpnet);
     const lift = loadGoldenSprite('set-bay-lift');

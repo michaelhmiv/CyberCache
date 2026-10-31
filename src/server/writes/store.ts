@@ -33,6 +33,12 @@ import {
 } from './repairBoard.js';
 import { resolveEconomyConfigValues } from '../economy/config.js';
 import type { DiscoveryRecord } from '../../content/collections.js';
+import {
+  applyReforgeToItem,
+  isReforgeableAffix,
+  reforgeKindOf,
+} from '../../lib/gear/affixPools.js';
+import { createRNG, hashString } from '../../lib/utils/rng.js';
 
 export type Json = Record<string, unknown>;
 
@@ -768,6 +774,17 @@ export interface WriteStore {
   ): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
   /**
+   * Reforge one rolled affix on a gear item (cc_reforge_item, 0027):
+   * the roll is computed in TypeScript from the shared affix pools
+   * (src/lib/gear/affixPools.ts) on a dedicated stream seeded from
+   * the op nonce; the SQL applier revalidates ownership, state,
+   * identity invariants, and the lever-priced cost under the row
+   * lock, charges scrap (+ legendary cores on Legendaries), and
+   * persists atomically. Result carries old_affix / new_affix for
+   * the reveal.
+   */
+  reforgeItem(playerId: string, nonce: string, itemId: string, affixId: string): Promise<Json>;
+  /**
    * Record collection discoveries proven by a settled server-side
    * fact (cc_record_discoveries, 0026). Entries are derived by the
    * route from the operation's own result — never from the request
@@ -1064,6 +1081,53 @@ export class PgWriteStore implements WriteStore {
   }
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json> {
     return this.callJson('select public.cc_recycle_item($1, $2, $3) as result', [playerId, nonce, itemId]);
+  }
+  /**
+   * Reforge (0027): replay → read the server item row → roll on the
+   * dedicated nonce-seeded stream through the shared affix pools →
+   * cc_reforge_item validates + charges + persists atomically. The
+   * pre-checks here exist so the roll can be computed at all; every
+   * one of them is re-checked by the SQL applier under the row lock
+   * (state, lock, funds, cost, and payload invariants included), so
+   * a stale read can never produce a bad write — at worst the apply
+   * refuses and nothing is charged.
+   */
+  async reforgeItem(playerId: string, nonce: string, itemId: string, affixId: string): Promise<Json> {
+    const cleanNonce = (nonce ?? '').trim();
+    if (!cleanNonce || cleanNonce.length < 8) throw writeError('nonce is required');
+    try {
+      const { rows: priorRows } = await this.pool.query(
+        'select result_payload from public.verified_action_ledger where user_id = $1 and idempotency_key = $2',
+        [playerId, cleanNonce],
+      );
+      const prior = priorRows[0]?.result_payload as Json | undefined;
+      if (prior) return prior;
+
+      const { rows } = await this.pool.query(
+        'select kind, payload from public.item_instances where id = $1 and owner_user_id = $2',
+        [itemId, playerId],
+      );
+      const row = rows[0];
+      if (!row) throw writeError('Item not found');
+      const payload = row.payload as GearItem;
+      const kind = reforgeKindOf(row.kind as string, payload);
+      if (!kind) throw writeError('Item cannot be reforged');
+      const affixes = payload.affixes ?? [];
+      const affixIndex = affixes.findIndex((a) => a.id === affixId);
+      if (affixIndex < 0) throw writeError('Affix not found');
+      if (!isReforgeableAffix(affixes[affixIndex])) throw writeError('Affix cannot be reforged');
+      // Dedicated RNG stream: the roll is a pure function of
+      // (player, item, nonce), so a retried apply recomputes the
+      // identical replacement.
+      const rng = createRNG(hashString(`reforge:${playerId}:${itemId}:${cleanNonce}`));
+      const { item: nextPayload, oldAffix } = applyReforgeToItem(kind, payload, affixIndex, rng);
+      return await this.callJson(
+        'select public.cc_reforge_item($1, $2, $3, $4, $5::jsonb, $6::jsonb) as result',
+        [playerId, cleanNonce, itemId, affixId, JSON.stringify(oldAffix), JSON.stringify(nextPayload)],
+      );
+    } catch (err) {
+      return translatePgError(err);
+    }
   }
   recordDiscoveries(playerId: string, entries: DiscoveryRecord[]): Promise<Json> {
     return this.callJson('select public.cc_record_discoveries($1, $2::jsonb) as result', [
