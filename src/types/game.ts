@@ -80,6 +80,8 @@ export enum ConsumableType {
   LootBeacon = 'LootBeacon',
   SalvageContract = 'SalvageContract',
   WorkshopRushTicket = 'WorkshopRushTicket',
+  GenericFuelCell = 'GenericFuelCell',
+  PatchKit = 'PatchKit',
 }
 
 export enum MaterialType {

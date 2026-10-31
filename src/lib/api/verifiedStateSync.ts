@@ -3,11 +3,12 @@ import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { emptySlots, useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
+import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { RiskSetting } from '@/types/game';
 import type { BossAttemptResult } from '@/types/boss';
 import type { GearItem } from '@/types/items';
 import type { ConsumableBatch } from '@/types/player';
-import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
+import { isVehicleRow, serverItemRowToDisplayGear, serverItemRowToVehicle, type ServerItemRow } from './serverItemAdapter';
 
 export type RuntimeProfilePayload = {
   id?: string;
@@ -21,6 +22,8 @@ export type RuntimeProfilePayload = {
   essences?: Record<string, number>;
   consumables?: Record<string, number>;
   consumable_batches?: ConsumableBatch[];
+  /** Vehicle tank in fuel units (0021). */
+  vehicle_fuel?: number | string;
   skill_spends?: Record<string, number>;
   boss_state?: Record<string, unknown>;
   /** Server-computed rematch-escalation state (UTC-day victory counts). */
@@ -33,7 +36,7 @@ export type RuntimeProfilePayload = {
 
 export type LoadoutSnapshotPayload = Partial<Record<LoadoutSlot, string | null>>;
 
-const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic']);
+const validSlots = new Set<LoadoutSlot>(['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic', 'vehicle']);
 
 function numberValue(value: number | string | undefined, fallback = 0): number {
   if (value === undefined) return fallback;
@@ -151,6 +154,7 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
     essences: profile.essences ?? player.essences,
     consumables: profile.consumables ?? player.consumables,
     consumableBatches: consumableBatchArrayValue(profile.consumable_batches) ?? player.consumableBatches,
+    vehicleFuel: numberValue(profile.vehicle_fuel, player.vehicleFuel),
     lastClaimTime: timestampValue(profile.last_idle_claim_at, player.lastClaimTime),
     lastClaimedTick: numberValue(profile.last_claimed_tick, player.lastClaimedTick),
   });
@@ -178,6 +182,30 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
 
 function syncRuntimeItem(row: ServerItemRow | undefined): void {
   if (!row?.id) return;
+  // Vehicles (0021) route to the vehicle store — never the gear
+  // inventory — with the same listed/gone handling.
+  if (isVehicleRow(row)) {
+    if (row.runtime_state === 'salvaged' || row.runtime_state === 'consumed' || row.runtime_state === 'listed') {
+      useVehicleStore.getState().removeVehicle(row.id);
+      clearItemFromLoadout(row.id);
+      return;
+    }
+    const vehicle = serverItemRowToVehicle(row);
+    if (!vehicle) {
+      useVehicleStore.getState().removeVehicle(row.id);
+      clearItemFromLoadout(row.id);
+      return;
+    }
+    useVehicleStore.getState().upsertVehicle(vehicle);
+    const slot = toLoadoutSlot(row.equipped_slot);
+    if (slot) {
+      clearItemFromLoadout(row.id);
+      useLoadoutStore.getState().setSlot(slot, row.id);
+      return;
+    }
+    clearItemFromLoadout(row.id);
+    return;
+  }
   if (row.runtime_state === 'salvaged' || row.runtime_state === 'consumed' || row.runtime_state === 'listed') {
     useInventoryStore.getState().removeItem(row.id);
     clearItemFromLoadout(row.id);

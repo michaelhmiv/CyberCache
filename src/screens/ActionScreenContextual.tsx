@@ -28,6 +28,7 @@ import {
   type ActionFeedEntry,
 } from '@/components/action/ActionWorkspace';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
+import { VehicleStatusLine } from '@/components/gear/VehicleStatusLine';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
 import { ActivityModifierPanel } from '@/components/action/ActivityModifierPanel';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -497,6 +498,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       <div className="relative">
         <CurrentAreaChip onClick={() => setShowAreaSelect(true)} />
       </div>
+
+      {/* Vehicle status (0021): yield bonus, fuel, condition, inactive reason */}
+      <VehicleStatusLine />
 
       {/* 1. Diorama — dashboard animation at top */}
       <LiveTurfDiorama

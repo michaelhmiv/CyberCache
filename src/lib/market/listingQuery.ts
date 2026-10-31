@@ -67,7 +67,7 @@ export interface MarketBrowseRow {
   id: string;
   sellerId: string;
   sellerType: 'player' | 'npc';
-  kind: 'gear' | 'consumable' | 'material';
+  kind: 'gear' | 'consumable' | 'material' | 'vehicle';
   category: MarketCategory;
   displayName: string;
   weaponType: string | null;

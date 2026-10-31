@@ -100,6 +100,25 @@ export interface ChefClaimRequest {
   jwt?: string;
 }
 
+/**
+ * Vehicle outcome of a claim/settlement (0021) — mirrors the Chef's
+ * ClaimResult.vehicle. The roaming surface renders status from it:
+ * active bonus ticks, fuel, condition, and why the bonus was off.
+ */
+export interface ChefVehicleStatus {
+  equipped: boolean;
+  vehicleClassId: string | null;
+  activeTicks: number;
+  ticks: number;
+  fuelUnitsStart: number;
+  fuelUnitsRemaining: number;
+  fuelConsumed: number;
+  conditionStart: number;
+  conditionCurrent: number;
+  conditionMax: number;
+  inactiveReason: 'no_vehicle' | 'out_of_fuel' | null;
+}
+
 export interface ChefClaimResult {
   actionType: string;
   profile: Record<string, unknown>;
@@ -159,6 +178,8 @@ export interface ChefClaimResult {
     diedAtMs: number;
     freeReadyAtMs: number;
   };
+  /** Vehicle outcome for this claim (0021). */
+  vehicle?: ChefVehicleStatus;
   /** Consumables consumed during this claim batch. */
   consumedConsumables?: Record<string, number>;
   /** Updated roaming consumable state for next claim's input. */
@@ -412,6 +433,8 @@ export interface OfflineSettlementResult {
   };
   /** Items generated during settlement. */
   items: GearItem[];
+  /** Vehicle outcome for this settlement (0021) — same math as live claims. */
+  vehicle?: ChefVehicleStatus;
   /** Feed events for UI display. */
   feedEvents: ChefClaimResult['feedEvents'];
   /** Whether this is a cached (idempotent) result. */

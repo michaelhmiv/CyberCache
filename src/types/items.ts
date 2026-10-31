@@ -128,4 +128,26 @@ export interface Ordnance {
   pixelSeed: number;
 }
 
+/**
+ * A vehicle instance's payload (item_instances kind 'vehicle').
+ * Deliberately NOT part of the GearItem union: combat engines read
+ * GearItem, and a vehicle must never be priced as a weapon/relic —
+ * the roaming engine reads it through its own typed channel
+ * (ClaimRequest.vehicle, derived server-side from the instance row).
+ * Class stats live in src/lib/vehicles/vehicles.ts, never here.
+ * Condition lives on the item_instances row (condition_current/max);
+ * the payload mirrors the max for display.
+ */
+export interface Vehicle {
+  id: string;
+  name: string;
+  vehicleClassId: string;
+  level: number;
+  rarity: Rarity;
+  affixes: Affix[];
+  sourceTag: DropSource;
+  isLocked: boolean;
+  pixelSeed: number;
+}
+
 export type GearItem = Weapon | Shield | ClassMod | Relic | Ordnance;

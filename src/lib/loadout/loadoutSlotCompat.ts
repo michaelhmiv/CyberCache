@@ -25,6 +25,9 @@ export function isItemCompatibleWithSlot(item: GearItem, slot: LoadoutSlot): boo
       );
     case 'ordnance':
       return 'damage' in item && 'effect' in item && !('weaponType' in item);
+    case 'vehicle':
+      // Vehicles are not GearItem — the garage equips them, never the gear picker.
+      return false;
     default:
       return false;
   }

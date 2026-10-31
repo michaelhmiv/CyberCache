@@ -35,4 +35,6 @@ export interface PlayerProfile {
   lastWorkshopTick: number;
   /** Server-authoritative tick counter — used to seed the client ticker on page load. */
   lastClaimedTick: number;
+  /** Vehicle tank, in fuel units (0021). Server-side state; one Generic Fuel Cell = 100 units. */
+  vehicleFuel: number;
 }

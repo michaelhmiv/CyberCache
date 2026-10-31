@@ -247,10 +247,14 @@ describe('Chef engine — def-driven outcomes', () => {
 
     // Deterministic (the claim RNG is seeded per tick): the sweep with
     // a Skimmer yields strictly more items, every extra one announced.
+    // The exact count is a stream pin: it moved 10 → 11 with vehicles
+    // (0021), because a vehicle drop (4% of gear drops, rolled on its
+    // own stream) consumes no main-stream rolls, so the stream after
+    // a vehicle hit diverges from the pre-vehicle arithmetic.
     const baseline = runSweep({});
     const skimmed = runSweep({ DataSkimmer: 1 });
     expect(baseline.extraRollEvents).toBe(0);
-    expect(skimmed.extraRollEvents).toBe(10);
+    expect(skimmed.extraRollEvents).toBe(11);
     expect(skimmed.items).toBe(baseline.items + skimmed.extraRollEvents);
     expect(skimmed.items).toBeGreaterThan(baseline.items);
   });

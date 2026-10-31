@@ -207,7 +207,7 @@ describe('vendor catalog — the one source', () => {
     expect(VENDOR_STAPLE_DEFS.map((c) => c.id).sort()).toEqual(
       VENDOR_CONSUMABLES.map((c) => c.id).sort(),
     );
-    expect(VENDOR_STAPLE_DEFS).toHaveLength(7);
+    expect(VENDOR_STAPLE_DEFS).toHaveLength(9); // 7 originals + GenericFuelCell/PatchKit (0021)
     for (const def of VENDOR_STAPLE_DEFS) {
       expect(vendorBasePrice(def.id)).toBe(def.market.vendorPrice);
     }
@@ -258,10 +258,10 @@ describe('vendor catalog — the one source', () => {
       expect(featured).not.toBeNull();
       expect(featured?.itemOfTheDay).toBe(true);
       expect(featured?.unitPrice).toBe(discountedUnitPrice(featured?.basePrice ?? 0));
-      // Stock for the day = 7 staples + 2 rotation + 1 material, no dupes.
+      // Stock for the day = 9 staples + 2 rotation + 1 material, no dupes.
       const stock = vendorStockForDate(key);
-      expect(stock).toHaveLength(10);
-      expect(new Set(stock.map((o) => o.itemKey)).size).toBe(10);
+      expect(stock).toHaveLength(12);
+      expect(new Set(stock.map((o) => o.itemKey)).size).toBe(12);
     }
     expect(seen.size).toBeGreaterThan(10); // the stock actually rotates
   });
@@ -548,7 +548,14 @@ describe('migration 0020 — SQL twin pins', () => {
   });
 
   it('cc_vendor_catalog VALUES list matches the TS catalog exactly', () => {
-    const rows = [...sql.matchAll(/\('([A-Za-z]+)',\s*(\d+),\s*'(staple|rotation|material|essence)'\)/g)].map(
+    // The catalog's live SQL twin is the LATEST restatement:
+    // migration 0021 (vehicles) restates cc_vendor_catalog with the
+    // two vehicle staples added, superseding 0020's list.
+    const catalogSql = readFileSync(
+      resolve(process.cwd(), 'db/migrations/0021_vehicles.sql'),
+      'utf8',
+    );
+    const rows = [...catalogSql.matchAll(/\('([A-Za-z]+)',\s*(\d+),\s*'(staple|rotation|material|essence)'\)/g)].map(
       (match) => ({ itemKey: match[1], basePrice: Number(match[2]), pool: match[3] }),
     );
     const expected = [

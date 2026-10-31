@@ -71,11 +71,30 @@ export async function settleActiveActivityRewards(
 
     // Add server-generated items to inventory (upsert, not replace —
     // receiveServerItems is a full reconcile now, so use upsertItem
-    // to add only the newly persisted items).
+    // to add only the newly persisted items). Vehicle drops (0021)
+    // are not GearItem — they join the garage at full condition.
     if (result.items.length > 0) {
       const { useInventoryStore } = await import('@/store/slices/inventorySlice');
+      const { useVehicleStore } = await import('@/store/slices/vehicleSlice');
+      const { VEHICLE_CONDITION_MAX } = await import('@/lib/vehicles/vehicles');
       const inv = useInventoryStore.getState();
-      result.items.forEach((item) => inv.upsertItem(item));
+      result.items.forEach((item) => {
+        if (item && typeof item === 'object' && 'vehicleClassId' in item) {
+          useVehicleStore.getState().upsertVehicle({
+            ...(item as unknown as import('@/types/items').Vehicle),
+            conditionCurrent: VEHICLE_CONDITION_MAX,
+            conditionMax: VEHICLE_CONDITION_MAX,
+          });
+        } else {
+          inv.upsertItem(item);
+        }
+      });
+    }
+
+    // Vehicle outcome (0021): same status block as a live claim.
+    if (result.vehicle) {
+      const { useVehicleStore } = await import('@/store/slices/vehicleSlice');
+      useVehicleStore.getState().setLastClaimStatus(result.vehicle);
     }
 
     // Save display snapshot AFTER authoritative state is applied.

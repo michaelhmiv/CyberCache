@@ -337,6 +337,25 @@ export const CONSUMABLE_ACTIVATORS: Record<ConsumableType, ConsumableActivator> 
     source: 'activity-result',
   },
 
+  // VEHICLE (0021) — never auto-activated and never a buff: fuel
+  // cells load through cc_refuel_vehicle and patch kits repair
+  // through cc_use_patch_kit. The entries exist so the registry
+  // stays total over ConsumableType; durationSource 'none' keeps
+  // them out of every activation path (their defs carry empty
+  // activityScopes for the same reason).
+  [ConsumableType.GenericFuelCell]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 0,
+    source: 'activity-result',
+  },
+  [ConsumableType.PatchKit]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 0,
+    source: 'activity-result',
+  },
+
   // LEGACY — kept for save compatibility; not vendor-stocked.
   [ConsumableType.Grenade]: {
     durationSource: 'none',

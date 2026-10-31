@@ -26,6 +26,7 @@ import {
   gearCategoryFromPayload,
   gearIdentityFromPayload,
   materialIdentityKey,
+  vehicleIdentityKey,
   type MarketCategory,
 } from '../../lib/market/identityKey';
 import {
@@ -76,6 +77,8 @@ export interface ProfileRowData {
   last_roaming_settled_at: string | null;
   last_settlement_nonce: string | null;
   offline_cap_hours: number;
+  /** Vehicle tank fuel units (migration 0021). Optional: pre-0021 seed rows omit it. */
+  vehicle_fuel?: number;
   /**
    * Computed by PgReadStore.getProfile (not a column): victories per
    * boss on the current UTC day from the verified action ledger — the
@@ -238,6 +241,11 @@ export interface MarketItemData {
   runtime_state: string;
   equipped_slot: string | null;
   payload: Record<string, unknown>;
+  /** Item kind (0021: runtime items carry it so vehicles route to the garage). */
+  kind?: string | null;
+  /** Vehicle wear (0021); null for non-vehicle kinds. */
+  condition_current?: number | null;
+  condition_max?: number | null;
 }
 
 export interface MarketListingData {
@@ -247,7 +255,7 @@ export interface MarketListingData {
   seller_user_id: string;
   /** Market depth (0019): browse facts ride on the listing itself. */
   seller_type: 'player' | 'npc';
-  listing_kind: 'gear' | 'consumable' | 'material';
+  listing_kind: 'gear' | 'consumable' | 'material' | 'vehicle';
   quantity: number;
   quality_percent: number | null;
   consumable_type: string | null;
@@ -307,7 +315,7 @@ export interface RawItemFields {
 }
 
 export function browseRowFor(listing: RawListingFields, item: RawItemFields | null): MarketBrowseRow {
-  const kind = listing.listing_kind === 'consumable' || listing.listing_kind === 'material'
+  const kind = listing.listing_kind === 'consumable' || listing.listing_kind === 'material' || listing.listing_kind === 'vehicle'
     ? listing.listing_kind
     : 'gear';
   const payload = item?.payload ?? {};
@@ -329,6 +337,14 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
     displayName = listing.display_name ?? listing.material_id ?? 'Material';
     identityKey = listing.identity_key
       ?? (listing.material_id ? materialIdentityKey(listing.material_id) : null);
+  } else if (kind === 'vehicle') {
+    // Vehicles (0021): browse like gear, bucketed by class + rarity.
+    category = 'vehicle';
+    rarity = listing.rarity ?? item?.rarity ?? (typeof payload.rarity === 'string' ? payload.rarity : null);
+    itemLevel = listing.item_level ?? item?.item_level ?? (typeof payload.level === 'number' ? payload.level : null);
+    displayName = listing.display_name ?? (typeof payload.name === 'string' ? payload.name : 'Vehicle');
+    identityKey = listing.identity_key
+      ?? vehicleIdentityKey(typeof payload.vehicleClassId === 'string' ? payload.vehicleClassId : '', rarity);
   } else {
     category = (listing.category as MarketCategory | null) ?? gearCategoryFromPayload(payload, item?.kind);
     weaponType = listing.weapon_type ?? (typeof payload.weaponType === 'string' ? payload.weaponType : null);
@@ -561,6 +577,9 @@ export interface MemItem {
   equipped_slot: string | null;
   payload: Record<string, unknown>;
   created_at: string;
+  /** Vehicle wear (0021); absent for non-vehicle seeds. */
+  condition_current?: number | null;
+  condition_max?: number | null;
 }
 
 export interface MemListing {
@@ -573,7 +592,7 @@ export interface MemListing {
   listed_at: string;
   sold_at?: string | null;
   // Market depth (0019) — optional; browseRowFor derives the rest.
-  listing_kind?: 'gear' | 'consumable' | 'material';
+  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle';
   quantity?: number;
   quality_percent?: number | null;
   consumable_type?: string | null;
@@ -818,6 +837,7 @@ export class InMemoryReadStore implements ReadStore {
         id: i.id, item_level: i.item_level, rarity: i.rarity, is_locked: i.is_locked,
         runtime_state: i.runtime_state, equipped_slot: i.equipped_slot,
         payload: i.payload, created_at: i.created_at,
+        kind: i.kind, condition_current: i.condition_current ?? null, condition_max: i.condition_max ?? null,
       }));
   }
 }
@@ -959,6 +979,9 @@ function mapItem(row: Row): MarketItemData {
     runtime_state: row.runtime_state as string,
     equipped_slot: (row.equipped_slot as string | null) ?? null,
     payload: (row.payload as Record<string, unknown>) ?? {},
+    kind: (row.kind as string | null) ?? null,
+    condition_current: numOrNull(row.condition_current),
+    condition_max: numOrNull(row.condition_max),
   };
 }
 
@@ -1204,7 +1227,7 @@ export class PgReadStore implements ReadStore {
 
   async getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]> {
     const { rows } = await this.db.query(
-      `select id, item_level, rarity, is_locked, runtime_state, equipped_slot, payload, created_at
+      `select id, item_level, rarity, is_locked, runtime_state, equipped_slot, payload, created_at, kind, condition_current, condition_max
        from public.item_instances
        where owner_user_id = $1
          and runtime_state <> 'salvaged'

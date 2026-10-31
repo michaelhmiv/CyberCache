@@ -36,7 +36,7 @@ import type { GearItem } from '../../types/items';
 
 export type MarketCategory =
   | 'weapon' | 'shield' | 'relic' | 'classMod' | 'ordnance'
-  | 'consumable' | 'material';
+  | 'consumable' | 'material' | 'vehicle';
 
 export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
   weapon: 'Weapons',
@@ -46,7 +46,18 @@ export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
   ordnance: 'Ordnance',
   consumable: 'Consumables',
   material: 'Materials',
+  vehicle: 'Vehicles',
 };
+
+/**
+ * Vehicle identity (0021): class + rarity. A vehicle's price is
+ * driven by what it is (class) and its rarity; level is the class
+ * gate, not a roll axis, and affix rolls are too granular to bucket
+ * at this population — same reasoning as the gear key.
+ */
+export function vehicleIdentityKey(vehicleClassId: string, rarity: string | null | undefined): string {
+  return `vehicle:${vehicleClassId || 'unknown'}:${rarity || 'Common'}`;
+}
 
 /** The five profile material keys (MaterialType) — the listable materials. */
 export const MARKET_MATERIAL_IDS: readonly string[] = Object.values(MaterialType);
