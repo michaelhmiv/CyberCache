@@ -16,6 +16,39 @@ import {
 // signature via the new src/lib/stats/signatureMechanic.ts module
 // directly. The sim only needs ammoEfficiencyFromWindows for
 // pre-computing the ammo-window efficiency it passes to the chain.
+
+/**
+ * A fired action skill's sim-native effect (Action Skill slice,
+ * src/content/actionSkills.ts owns the magnitudes). Resolved by the
+ * server route from the player's OWN records + live levers and handed
+ * to the Chef engines — the sim only applies it. Every term resolves
+ * through the sim's EXISTING machinery (stagger multiplier, break
+ * totals, flat boss damage like ordnance/nova) — no parallel combat
+ * math. Only Gunslinger (flat burst) and Demolition (saturation) have
+ * sim effects; Scavenger bends drop odds in the Chef and the Fixer's
+ * Overclock scales the consumableQuality input instead. Absent (every
+ * client prep sim, every unfired attempt) = the shipped sim exactly.
+ */
+export interface ActionSkillSimEffect {
+  /** SkillTreeType value of the fired signature. */
+  tree: string;
+  /**
+   * Flat damage dealt to the boss: joins ordnance/nova flat damage
+   * in netBossHp (the kill clock), and — because the survival model
+   * prices a fixed exposure window — erases the same share of the
+   * boss's total damage (the burst exposure fold on bossTotalDamage).
+   */
+  flatDamage?: number;
+  /** Bonus shield-break damage added to the break totals. */
+  shieldBreakBonus?: number;
+  /** Bonus armor-break damage added to the break totals. */
+  armorBreakBonus?: number;
+  /** Stagger window: share of the fight the boss spends staggered. */
+  staggerUptime?: number;
+  /** Boss damage cut while staggered (the Concussive Payload term). */
+  staggerMitigation?: number;
+}
+
 export interface BossSimulationInput {
   primary: Weapon | null;
   secondary: Weapon | null;
@@ -34,6 +67,12 @@ export interface BossSimulationInput {
    * shipped sim exactly.
    */
   consumableQuality?: Record<string, number>;
+  /**
+   * A fired action skill's sim effect (Action Skill slice). Server
+   * resolutions only — the client prep sim never passes it, so prep
+   * output stays the shipped sim bit-for-bit.
+   */
+  actionSkill?: ActionSkillSimEffect;
   risk: RiskSetting;
   boss: BossDef;
   playerLevel: number;
@@ -67,6 +106,8 @@ export interface BossSimulationOutput extends BossPrepAnalysis {
    * is boss.health (so the value is finite and large, not Infinity).
    */
   timeToKill: number;
+  /** Echo of a fired action skill's tree (server resolutions only). */
+  actionSkill?: { tree: string };
 }
 
 interface RuleTotals {
@@ -622,7 +663,43 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     }
   }
 
-  const bossTotalDamage = boss.dps * 30 * staggerDamageMult;
+  // Saturation Strike (Demolition action skill): the ordnance blanket
+  // staggers the boss through the SAME stagger term — the windows
+  // compose multiplicatively on the damage the boss deals, exactly
+  // like a second Concussive Payload window. No new combat math.
+  const saturation = input.actionSkill;
+  if (
+    saturation &&
+    (saturation.staggerUptime ?? 0) > 0 &&
+    (saturation.staggerMitigation ?? 0) > 0
+  ) {
+    const uptime = Math.min(1, Math.max(0, saturation.staggerUptime ?? 0));
+    const mitigation = Math.max(0, saturation.staggerMitigation ?? 0);
+    staggerDamageMult *= 1 - mitigation * uptime;
+    reasons.push(
+      `Saturation Strike: ordnance keeps the boss staggered ~${Math.round(uptime * 100)}% of the fight, cutting its damage by a further ${Math.round(mitigation * uptime * 100)}%.`,
+    );
+  }
+
+  // Burst exposure (action skills with flat damage — Deadeye Salvo,
+  // Saturation Strike): the survival model prices a fixed exposure
+  // window; a burst that burns a share of the boss outright erases
+  // that share of the window — the rounds that never happen deal no
+  // damage. Priced as a multiplier on the boss's total damage in the
+  // same slot as the stagger fold (no new combat math): survival
+  // stays this one computation for every build.
+  let burstExposureMult = 1;
+  if (saturation && (saturation.flatDamage ?? 0) > 0 && boss.health > 0) {
+    const erased = Math.min(0.9, Math.max(0, (saturation.flatDamage ?? 0) / boss.health));
+    burstExposureMult = 1 - erased;
+    if (erased > 0) {
+      reasons.push(
+        `${saturation.tree === 'Demolition' ? 'Saturation Strike' : 'Deadeye Salvo'}: ending the fight ~${Math.round(erased * 100)}% sooner means the boss deals ~${Math.round(erased * 100)}% less damage overall.`,
+      );
+    }
+  }
+
+  const bossTotalDamage = boss.dps * 30 * staggerDamageMult * burstExposureMult;
   const survivalScore = totalSurvival / bossTotalDamage;
   // Overclock Ramp may tax this score once the kill time is known
   // (see the ramp block after the DPS check); until then it is the
@@ -725,6 +802,17 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   shieldBreak *= (1 + (skillBonuses.shieldBreak || 0));
   armorBreak *= (1 + (skillBonuses.armorBreak || 0));
+
+  // Saturation Strike (Demolition action skill): the blanket adds raw
+  // break damage to the totals BEFORE the scores price them — the
+  // sim's own break machinery reads it, nothing is special-cased.
+  if (saturation && ((saturation.shieldBreakBonus ?? 0) > 0 || (saturation.armorBreakBonus ?? 0) > 0)) {
+    shieldBreak += Math.max(0, saturation.shieldBreakBonus ?? 0);
+    armorBreak += Math.max(0, saturation.armorBreakBonus ?? 0);
+    reasons.push(
+      `Saturation Strike: the ordnance blanket adds ${Math.round(saturation.shieldBreakBonus ?? 0)} shield break and ${Math.round(saturation.armorBreakBonus ?? 0)} armor break.`,
+    );
+  }
 
   const shieldBreakScore = boss.shield > 0 ? shieldBreak / boss.shield : 1;
   const armorBreakScore = boss.armor > 0 ? armorBreak / boss.armor : 1;
@@ -885,7 +973,18 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   }
 
   // Nova behavior: bursts are flat damage to the boss, like ordnance.
-  const netBossHp = Math.max(1, boss.health - ordnanceFlatDamage - (bossShieldModel?.novaDamage ?? 0));
+  // A fired action skill's burst (Deadeye Salvo / Saturation Strike)
+  // is flat damage through the same term — it shortens the kill clock
+  // exactly like ordnance flat damage does.
+  const actionSkillFlatDamage = Math.max(0, saturation?.flatDamage ?? 0);
+  if (saturation && actionSkillFlatDamage > 0) {
+    reasons.push(
+      saturation.tree === 'Demolition'
+        ? `Saturation Strike: the opening blanket burns ${Math.round(actionSkillFlatDamage)} health outright.`
+        : `Deadeye Salvo: the burst burns ${Math.round(actionSkillFlatDamage)} health outright.`,
+    );
+  }
+  const netBossHp = Math.max(1, boss.health - ordnanceFlatDamage - (bossShieldModel?.novaDamage ?? 0) - actionSkillFlatDamage);
 
   // Speedloader (Gunslinger major, Phase 2d): attack speed is boosted
   // for the first 10 seconds of the fight. The boost's fight-average
@@ -1038,6 +1137,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     extraLootRollChance: rules.extraLootRollChance,
     effectiveDPS: dps,
     timeToKill,
+    actionSkill: saturation ? { tree: saturation.tree } : undefined,
   };
 }
 

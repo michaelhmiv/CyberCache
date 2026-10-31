@@ -9,7 +9,11 @@ import { RARITIES } from '../../constants/rarities';
 import { getBossRiskModifiers } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
 import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
-import { verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
+import { getActionSkillState, verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
+import { ACTION_SKILL_DEFS, type ActionSkillStateView } from '@/content/actionSkills';
+import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
+import type { SkillTreeType } from '@/types/game';
+import { ActionSkillCard } from './ActionSkillCard';
 import { bossFeeMultiplier, escalatedBossFee } from '../../lib/bossFees';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
@@ -99,18 +103,51 @@ const FightCard: React.FC<{
   bossId: string;
   reducedMotion: boolean | null;
   weapon?: Weapon;
-}> = ({ timeline, phases, bossName, bossId, reducedMotion, weapon }) => {
+  /** Action skill (0030): the attempt's decided fire facts, if any —
+   *  the stage treatment + the charge track draining to its
+   *  post-attempt value. Presentation only. */
+  actionSkillFire?: { tree: SkillTreeType; fired: boolean; chargeAfter: number } | null;
+}> = ({ timeline, phases, bossName, bossId, reducedMotion, weapon, actionSkillFire }) => {
   const playerPct = timeline.playerHpMax > 0 ? (timeline.playerHp / timeline.playerHpMax) * 100 : 0;
   const bossPct = timeline.bossHpMax > 0 ? (timeline.bossHp / timeline.bossHpMax) * 100 : 0;
   const currentPhase = phases[Math.min(timeline.currentPhaseIndex, phases.length - 1)];
   const recentPopups = timeline.damageLog.slice(-3);
+  const fireVisual = actionSkillFire ? getSkillTreeVisual(actionSkillFire.tree) : null;
   return (
     <MobileCard className="space-y-2 border-red/30 bg-red/5">
       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red">
         <span style={{ fontSize: 14 }}>⚔</span>
         Combat Resolution
       </div>
-      <BossFightStage timeline={timeline} phases={phases} bossId={bossId} weapon={weapon} reduced={reducedMotion === true} />
+      <BossFightStage
+        timeline={timeline}
+        phases={phases}
+        bossId={bossId}
+        weapon={weapon}
+        reduced={reducedMotion === true}
+        signatureFire={actionSkillFire?.fired ? actionSkillFire.tree : null}
+      />
+      {actionSkillFire && fireVisual && (
+        <div className="space-y-1" data-testid="fight-action-skill-charge">
+          <div className="flex items-center justify-between text-[10px] text-text-muted">
+            <span className="flex items-center gap-1">
+              <span style={{ fontSize: 11, color: fireVisual.color }}>{fireVisual.sigil}</span>
+              {ACTION_SKILL_DEFS[actionSkillFire.tree].name}
+              {actionSkillFire.fired && <span className="font-black" style={{ color: fireVisual.color }}>FIRED</span>}
+            </span>
+            <span className="font-black text-text-primary">{Math.floor(actionSkillFire.chargeAfter)} charge</span>
+          </div>
+          <div className="relative h-2 overflow-hidden border-2 border-border bg-bg">
+            <motion.div
+              className="absolute inset-y-0 left-0"
+              style={{ backgroundColor: fireVisual.color }}
+              initial={{ width: actionSkillFire.fired ? '100%' : `${actionSkillFire.chargeAfter}%` }}
+              animate={{ width: `${actionSkillFire.chargeAfter}%` }}
+              transition={{ duration: reducedMotion ? 0 : 1.2, ease: 'easeOut', delay: 0.4 }}
+            />
+          </div>
+        </div>
+      )}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
           <span className="flex items-center gap-1"><span style={{ fontSize: 11 }} className="text-green">♥</span> Player</span>
@@ -166,6 +203,21 @@ export const BossEncounterPanel: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [fightTimeline, setFightTimeline] = useState<FightTimeline | null>(null);
   const animationCancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+
+  // Action skill (0030): the player's own signature state, from the
+  // Chef's payloads only. `fireArmed` is pure intent — the server
+  // validates selection, qualification, and charge at resolution.
+  const [actionSkillView, setActionSkillView] = useState<ActionSkillStateView | null>(null);
+  const [fireArmed, setFireArmed] = useState(false);
+  const [fightActionSkill, setFightActionSkill] = useState<{
+    tree: SkillTreeType; fired: boolean; chargeAfter: number;
+  } | null>(null);
+  const loadActionSkill = React.useCallback(() => {
+    getActionSkillState()
+      .then((r) => setActionSkillView(r.actionSkill))
+      .catch(() => { /* the card renders its loading state */ });
+  }, []);
+  useEffect(() => { loadActionSkill(); }, [loadActionSkill]);
 
   // Switching targets resets the encounter surface: the parent keys
   // this panel by boss id, so a target change remounts it fresh.
@@ -241,6 +293,7 @@ export const BossEncounterPanel: React.FC<{
     if (!unlocked || !canAfford || stage !== 'prep') return;
     setError(null);
     setResult(null);
+    setFightActionSkill(null);
     setLootMomentDone(false);
     setStage('fighting');
 
@@ -272,7 +325,19 @@ export const BossEncounterPanel: React.FC<{
         attemptNonce: nextAttemptNonce(),
         consumables: prepared,
         risk,
+        fireActionSkill: fireArmed,
       });
+      setFireArmed(false);
+      setFightActionSkill(outcome.result.actionSkill
+        ? {
+            tree: outcome.result.actionSkill.tree as SkillTreeType,
+            fired: outcome.result.actionSkill.fired,
+            chargeAfter: outcome.actionSkill?.charge ?? actionSkillView?.charge ?? 0,
+          }
+        : null);
+      // Refresh the signature state from the server's own view —
+      // the attempt changed the charge (spent on a fire, or accrued).
+      loadActionSkill();
       syncBossAttemptResult(outcome);
       applyBossConsumableDisplayEvents({
         attemptId: outcome.result.id,
@@ -307,9 +372,11 @@ export const BossEncounterPanel: React.FC<{
     setResult(null);
     setError(null);
     setFightTimeline(null);
+    setFightActionSkill(null);
     setLootMomentDone(false);
     setStage('prep');
     activity.setBossPhase('prep');
+    loadActionSkill();
   };
 
   const loadoutRows: Array<{ slot: string; name: string | null; rarity?: string; detail?: string }> = [
@@ -366,7 +433,15 @@ export const BossEncounterPanel: React.FC<{
       </div>
 
       {stage === 'fighting' && fightTimeline && (
-        <FightCard timeline={fightTimeline} phases={animationPhases} bossName={boss.name} bossId={boss.id} reducedMotion={reducedMotion} weapon={primary ?? undefined} />
+        <FightCard
+          timeline={fightTimeline}
+          phases={animationPhases}
+          bossName={boss.name}
+          bossId={boss.id}
+          reducedMotion={reducedMotion}
+          weapon={primary ?? undefined}
+          actionSkillFire={fightActionSkill}
+        />
       )}
 
       {stage === 'prep' && (
@@ -474,6 +549,15 @@ export const BossEncounterPanel: React.FC<{
             </div>
           </MobileCard>
 
+          {/* Action skill — the player's own signature state (0030).
+              Their data only; nothing about the boss. */}
+          <ActionSkillCard
+            state={actionSkillView}
+            armed={fireArmed}
+            onToggleArmed={setFireArmed}
+            chargeSourceNote="Charges through boss attempts and endless fights — fire it when full for a fight-swinging moment."
+          />
+
           {error && (
             <div className="flex items-start gap-2 border-2 border-red/40 bg-red/10 p-2 text-[11px] text-red">
               <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {error}
@@ -551,6 +635,11 @@ export const BossEncounterPanel: React.FC<{
               )}
               <div className="text-[10px] text-text-muted">Pity banked vs {boss.name}: {pityNow} loss{pityNow === 1 ? '' : 'es'} (+3% per loss, cap +30%)</div>
             </>
+          )}
+          {result.result.actionSkill?.fired && (
+            <div className="text-xs font-black" style={{ color: getSkillTreeVisual(result.result.actionSkill.tree as SkillTreeType).color }} data-testid="boss-result-action-skill">
+              {getSkillTreeVisual(result.result.actionSkill.tree as SkillTreeType).sigil} {ACTION_SKILL_DEFS[result.result.actionSkill.tree as SkillTreeType].name} fired
+            </div>
           )}
           {Object.keys(result.consumedConsumables).length > 0 && (
             <div className="text-[10px] text-text-muted">

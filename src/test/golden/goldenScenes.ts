@@ -219,6 +219,36 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
   }),
+  // Action skill (0030, Fixer brief §3.7): bench-overdrive — the
+  // Workshop at the Overclock fire. The in-progress unit sits on the
+  // forge bench under the G-1 beam in Fixer teal; the G-3 charge
+  // track at the stage floor reads FULL in the same teal (the pool
+  // at the instant before it spends). Composition follows
+  // reforge-bench; the teal is the Fixer's alone.
+  scene('bench-overdrive', (img) => {
+    drawBackground(img, AREA_BG.blastforge_yards);
+    drawBeam(img, SCENE_W * 0.58, GROUND * SCENE_H - 40, GRAMMAR.beamWidthPx.high, '#2EC4B6');
+    const bench = loadGoldenSprite('set-bench-forge');
+    if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
+    drawWeaponRender(img, GOLDEN_WEAPON, SCENE_W * 0.58 - 44, GROUND * SCENE_H - 78, 88, 32);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    // G-3 charge track: full, Fixer teal.
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [46, 196, 182], 255);
+  }),
+  // Action skill (0030): the boss-stage signature fire — Deadeye
+  // Salvo landing. The hunter fires from the aim pose; the G-1 beam
+  // in Gunslinger red stands over the struck boss-side enemy, and
+  // the charge track at the floor reads EMPTY (the pool just spent).
+  scene('boss-signature-fire', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    drawBeam(img, SCENE_W * 0.74, GROUND * SCENE_H, GRAMMAR.beamWidthPx.high, '#FF4B5C');
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.recoil, xPct: 22, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHeldWeapon(img, GOLDEN_WEAPON, hunterBox(img, 22, 57, GROUND));
+    drawEnemy(img, 'dustwaste_frontier', 'brute', 'hit');
+    // G-3 charge track: spent — the empty track is the state.
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+  }),
   scene('bay', (img) => {
     drawBackground(img, AREA_BG.throwtech_dumpnet);
     const lift = loadGoldenSprite('set-bay-lift');

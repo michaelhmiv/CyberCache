@@ -227,6 +227,13 @@ export interface ChefVerifyBossRequest {
   consumables: Record<string, number>;
   /** The player's chosen risk setting for this attempt. */
   risk: RiskSetting;
+  /**
+   * Action skill fire INTENT (0030): true arms the attempt to spend
+   * the player's charged signature inside this resolution. The tree,
+   * qualification, and charge all come from server records — the
+   * client never names them.
+   */
+  fireActionSkill?: boolean;
   jwt?: string;
 }
 
@@ -251,6 +258,8 @@ export interface ChefVerifyBossResult {
   unlockedBossId?: string;
   /** True when the attempt nonce was a replay — nothing was applied twice. */
   idempotentReplay?: boolean;
+  /** Action skill state echo (0030): the server's record after this attempt. */
+  actionSkill?: ChefActionSkillEcho;
   profile?: Record<string, unknown>;
   pityIncremented: boolean;
   telemetry: {
@@ -584,6 +593,15 @@ export interface ChefEndlessEncounterResult {
     bossHpRemaining?: number;
     reasons: string[];
     recommendations: string[];
+    /** Action skill fire facts (0030), present when a signature fired. */
+    actionSkill?: {
+      tree: string;
+      name: string;
+      fired: boolean;
+      surgeRolls?: number;
+      surgeLoot?: string[];
+      qualityMultiplier?: number;
+    };
   };
   victory: boolean;
   rewards: { xp: number; credits: number; scrap: number };
@@ -595,6 +613,8 @@ export interface ChefEndlessEncounterResult {
   payout: ChefEndlessPayout | null;
   profile?: Record<string, unknown>;
   run: ChefEndlessRun;
+  /** Action skill state echo (0030): charge after this encounter. */
+  actionSkill?: ChefActionSkillEcho;
   idempotentReplay?: boolean;
   telemetry?: { serverRolled: true; adjustedWinChance: number; effectiveDps: number; timeToKill: number };
 }
@@ -607,6 +627,8 @@ export interface ChefBankEndlessResult {
   payout: ChefEndlessPayout;
   profile?: Record<string, unknown>;
   run: ChefEndlessRun;
+  /** Action skill state echo (0030): banking resets the pool to 0. */
+  actionSkill?: ChefActionSkillEcho;
   idempotentReplay?: boolean;
 }
 
@@ -617,6 +639,8 @@ export interface ChefEndlessMeResult {
   runsStartedToday: number;
   recentRuns: ChefEndlessRun[];
   activeRun: ChefEndlessRun | null;
+  /** The player's action skill state view (0030). */
+  actionSkill?: import('@/content/actionSkills').ActionSkillStateView;
 }
 
 /** Idempotency nonce for one endless call — unique per tap, stable per send. */
@@ -658,7 +682,11 @@ export async function startEndlessRun(request: {
   );
 }
 
-export async function advanceEndlessEncounter(request: { nonce: string }): Promise<ChefEndlessEncounterResult> {
+export async function advanceEndlessEncounter(request: {
+  nonce: string;
+  /** Action skill fire INTENT (0030) — see ChefVerifyBossRequest. */
+  fireActionSkill?: boolean;
+}): Promise<ChefEndlessEncounterResult> {
   return endlessFetch<ChefEndlessEncounterResult>(
     '/endless/encounter',
     { method: 'POST', body: JSON.stringify(request) },
@@ -676,6 +704,71 @@ export async function bankEndlessRun(request: { nonce: string }): Promise<ChefBa
 
 export async function getEndlessMe(): Promise<ChefEndlessMeResult> {
   return endlessFetch<ChefEndlessMeResult>('/endless/me', { method: 'GET' }, 'Chef endless facts failed');
+}
+
+/**
+ * Action skills (0030). One signature charged ability per skill
+ * tree. The client only ever sends intent (select a tree, arm a
+ * fire, fire the workshop) — qualification, charge, and effects are
+ * server facts in every response.
+ */
+export interface ChefActionSkillEcho {
+  selection: string | null;
+  charge: number;
+}
+
+export interface ChefActionSkillStateResult {
+  verified: true;
+  actionSkill: import('@/content/actionSkills').ActionSkillStateView;
+}
+
+export interface ChefSelectActionSkillResult {
+  verified: true;
+  selection: string | null;
+  actionSkill: import('@/content/actionSkills').ActionSkillStateView;
+  idempotentReplay?: boolean;
+}
+
+export interface ChefFireOverclockWorkshopResult {
+  fired: true;
+  completions: Array<Record<string, unknown>>;
+  jobsCompleted: number;
+  /** True when the nonce was a replay — nothing fired twice. */
+  idempotentReplay?: boolean;
+}
+
+/** Idempotency nonce for one action-skill call — unique per tap, stable per send. */
+export function newActionSkillNonce(kind: 'select' | 'workshop'): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `action-skill-${kind}:${random}`;
+}
+
+export async function getActionSkillState(): Promise<ChefActionSkillStateResult> {
+  return endlessFetch<ChefActionSkillStateResult>(
+    '/action-skill/me',
+    { method: 'GET' },
+    'Chef action skill facts failed',
+  );
+}
+
+export async function selectActionSkill(request: {
+  nonce: string;
+  /** One of the four trees, or null to clear the selection. */
+  tree: string | null;
+}): Promise<ChefSelectActionSkillResult> {
+  return endlessFetch<ChefSelectActionSkillResult>(
+    '/action-skill/select',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef action skill selection failed',
+  );
+}
+
+export async function fireOverclockWorkshop(request: { nonce: string }): Promise<ChefFireOverclockWorkshopResult> {
+  return endlessFetch<ChefFireOverclockWorkshopResult>(
+    '/action-skill/fire-workshop',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef Overclock workshop fire failed',
+  );
 }
 
 /**

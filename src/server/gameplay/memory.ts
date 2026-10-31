@@ -33,6 +33,7 @@ import {
   GameplayStoreError,
   LOADOUT_SLOT_ORDER,
   type ActiveActionRow,
+  type ActionSkillFacts,
   type ApplyEndlessEncounterInput,
   type BossProfileRow,
   type ChefBossAttemptInput,
@@ -59,6 +60,13 @@ import {
 } from '../../lib/skills/skillBonuses';
 import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses';
 import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections';
+import {
+  accrueActionSkillCharge,
+  isActionSkillTree,
+  resolveActionSkill,
+  resolveActionSkillLevers,
+} from '../../content/actionSkills';
+import { SkillTreeType } from '../../types/game';
 import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
 import {
   settleCraftJobs as settleCraftJobsCore,
@@ -104,6 +112,10 @@ export interface InMemoryProfile {
   vehicle_fuel: number;
   /** Legendary core balance (migration 0026). */
   legendary_cores: number;
+  /** Action skill charge pool 0..100 (migration 0030). */
+  action_skill_charge: number;
+  /** Recorded action skill selection (SkillTreeType name), or null (0030). */
+  action_skill_selection: string | null;
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
@@ -268,6 +280,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       cache_token_parts: 0,
       vehicle_fuel: 0,
       legendary_cores: 0,
+      action_skill_charge: 0,
+      action_skill_selection: null,
       materials: {},
       essences: {},
       consumables: {},
@@ -328,6 +342,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       consumable_batches: [],
       vehicle_fuel: p.vehicle_fuel,
       skill_spends: p.skill_spends,
+      action_skill_charge: p.action_skill_charge ?? 0,
+      action_skill_selection: p.action_skill_selection ?? null,
       boss_state: JSON.parse(JSON.stringify(p.boss_state)) as Json,
       last_idle_claim_at: p.last_idle_claim_at,
     };
@@ -440,7 +456,55 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       consumables: { ...p.consumables },
       boss_state: JSON.parse(JSON.stringify(p.boss_state)) as Json,
       skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json,
+      action_skill_charge: p.action_skill_charge ?? 0,
+      action_skill_selection: p.action_skill_selection ?? null,
     };
+  }
+
+  async getActionSkillFacts(playerId: string): Promise<ActionSkillFacts | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    const mod = [...this.items.values()].find(
+      (item) =>
+        item.owner_user_id === playerId &&
+        item.runtime_state === 'equipped' &&
+        item.payload &&
+        'treeBonus' in item.payload,
+    );
+    return {
+      skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json,
+      class_mod_payload: (mod ? JSON.parse(JSON.stringify(mod.payload)) : {}) as Json,
+      action_skill_charge: p.action_skill_charge ?? 0,
+      action_skill_selection: p.action_skill_selection ?? null,
+    };
+  }
+
+  async setActionSkillSelection(playerId: string, nonce: string, tree: string | null): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    if (!nonce || nonce.trim().length < 8) throw new GameplayStoreError('nonce is required');
+    const prior = this.ledger.get(nonce);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true };
+    if (tree !== null) {
+      if (!isActionSkillTree(tree)) {
+        throw new GameplayStoreError(`Unknown action skill tree: ${tree}`);
+      }
+      const { qualified } = resolveActionSkill(
+        (p.skill_spends ?? {}) as Record<string, number>,
+        this.classModBoostsFor(playerId),
+        null,
+      );
+      if (!qualified.includes(tree)) {
+        throw new GameplayStoreError('Action skill not qualified for the selected tree');
+      }
+    }
+    p.action_skill_selection = tree;
+    const result: Json = {
+      action_type: 'cc_set_action_skill_selection',
+      selection: tree,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(nonce, result);
+    return result;
   }
 
   async getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
@@ -632,6 +696,28 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       }),
     };
     const settled = settleCraftJobsCore(adapter, playerId, { maxAdvanceMs: Math.max(0, capMs) });
+    // 0030: offline craft completions charge a Fixer-selected
+    // player's Overclock pool, like every verified settlement (the
+    // SQL path accrues inside cc_complete_craft_unit). Rates resolve
+    // at the content defaults in this twin.
+    if (settled.completions.length > 0 && profile.action_skill_selection === 'Fixer') {
+      const { qualified } = resolveActionSkill(
+        (profile.skill_spends ?? {}) as Record<string, number>,
+        this.classModBoostsFor(playerId),
+        'Fixer',
+      );
+      if (qualified.includes(SkillTreeType.Fixer)) {
+        const levers = resolveActionSkillLevers();
+        let gain = 0;
+        for (const completion of settled.completions) {
+          gain +=
+            completion.kind === 'repair'
+              ? levers.actionSkillChargePerRepairPoint * (completion.pointsRestored ?? 0)
+              : levers.actionSkillChargePerCraftUnit;
+        }
+        profile.action_skill_charge = accrueActionSkillCharge(profile.action_skill_charge ?? 0, gain);
+      }
+    }
     profile.player_level = view.player_level;
     profile.player_xp = view.player_xp;
     profile.credits = view.credits;
@@ -806,6 +892,46 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return { consumables: { ...next } };
   }
 
+  /**
+   * Action skill charge resolution shared by the boss + endless
+   * applier mirrors (0030): a fire is validated against the profile's
+   * recorded selection + keystone qualification derived from the
+   * player's OWN records, and spends the pool to 0; a non-firing
+   * resolution accrues at the route-resolved rate, capped. Throws the
+   * SQL applier's messages verbatim. Returns the payload block both
+   * appliers record.
+   */
+  private resolveActionSkillCharge(
+    p: InMemoryProfile,
+    playerId: string,
+    tree: string | null | undefined,
+    rate: number | undefined,
+  ): { tree: string | null; fired: boolean; charge_after: number } {
+    if (tree !== null && tree !== undefined) {
+      if (!isActionSkillTree(tree)) {
+        throw new GameplayStoreError(`Unknown action skill tree: ${tree}`);
+      }
+      if (p.action_skill_selection !== tree) {
+        throw new GameplayStoreError('Action skill selection mismatch');
+      }
+      const { qualified } = resolveActionSkill(
+        (p.skill_spends ?? {}) as Record<string, number>,
+        this.classModBoostsFor(playerId),
+        p.action_skill_selection,
+      );
+      if (!qualified.includes(tree)) {
+        throw new GameplayStoreError('Action skill not qualified for the selected tree');
+      }
+      if ((p.action_skill_charge ?? 0) < 100) {
+        throw new GameplayStoreError('Action skill is not charged');
+      }
+      p.action_skill_charge = 0;
+      return { tree, fired: true, charge_after: 0 };
+    }
+    p.action_skill_charge = accrueActionSkillCharge(p.action_skill_charge ?? 0, rate ?? 0);
+    return { tree: null, fired: false, charge_after: p.action_skill_charge };
+  }
+
   async applyChefBossAttempt(playerId: string, attempt: ChefBossAttemptInput): Promise<Json> {
     const p = this.requireProfile(playerId);
     const nonceKey = `${playerId}:chef-boss:${attempt.bossId}:${attempt.attemptNonce}`;
@@ -821,6 +947,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (Math.trunc(attempt.entryFee) > 0 && p.credits < Math.trunc(attempt.entryFee)) {
       throw new GameplayStoreError('Insufficient credits for boss entry fee');
     }
+
+    // 0030: action skill spend/accrue (mirrors the SQL applier block).
+    const actionSkill = this.resolveActionSkillCharge(
+      p,
+      playerId,
+      attempt.actionSkillTree ?? null,
+      attempt.actionSkillChargeRate,
+    );
 
     const leveled = applyXp(p.player_level, p.player_xp, Math.max(0, Math.trunc(attempt.xp)));
     p.player_level = leveled.player_level;
@@ -871,6 +1005,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       entry_fee: Math.trunc(attempt.entryFee),
       // 0014: the SQL applier records the awarded XP in the payload.
       xp_awarded: Math.max(0, Math.trunc(attempt.xp)),
+      // 0030: the action skill outcome (fire meters fold from this).
+      action_skill: actionSkill,
     };
     this.ledger.set(nonceKey, result);
     if (attempt.victory) {
@@ -922,6 +1058,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     run.paid_xp = paid.xp;
     run.paid_scrap = paid.scrap;
     run.payout_fraction = frac;
+    // 0030: every run ending resets the action skill charge pool
+    // (the SQL appliers write the same reset on each ending path).
+    p.action_skill_charge = 0;
     // Release the personal slot when it points at this run.
     const action = this.activeActions.get(run.user_id);
     if (action && action.active_action === 'endless_run' && action.target_id === run.id) {
@@ -1049,6 +1188,16 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       throw new GameplayStoreError('Endless depth mismatch');
     }
 
+    // 0030: action skill spend/accrue. When this encounter ends the
+    // run, settleEndlessEscrow below resets the pool to 0 — the same
+    // net state the SQL applier lands (validate + spend, then reset).
+    const actionSkill = this.resolveActionSkillCharge(
+      p,
+      playerId,
+      input.actionSkillTree ?? null,
+      input.actionSkillChargeRate,
+    );
+
     run.encounters.push(input.encounter);
     let payout: { credits: number; xp: number; scrap: number; fraction: number } | null = null;
     if (input.victory) {
@@ -1085,6 +1234,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       run_status: run.status,
       milestone_drop: (input.milestoneDrop ?? null) as Json,
       payout: payout as Json,
+      action_skill: actionSkill,
       profile: this.snapshot(p),
       run: this.endlessRunView(run),
     };

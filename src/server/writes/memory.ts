@@ -9,6 +9,7 @@
  * authority for SQL-exact behavior.
  */
 import type { ProfileRowData } from '../reads/store.js';
+import { SkillTreeType } from '../../types/game.js';
 import {
   MARKET_FEE_RATE,
   isFoundSource,
@@ -40,6 +41,7 @@ import {
   enqueueCraftJob as enqueueCraftJobCore,
   enqueueRepairJob as enqueueRepairJobCore,
   fitCraftTool as fitCraftToolCore,
+  overclockCompleteInProgressUnits,
   settleCraftJobs as settleCraftJobsCore,
   unlockCraftBench as unlockCraftBenchCore,
   CraftEngineError,
@@ -75,6 +77,12 @@ import {
   repairWorkRatePointsPerHour,
 } from '../../content/repair.js';
 import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
+import {
+  accrueActionSkillCharge,
+  resolveActionSkill,
+  resolveActionSkillLevers,
+  ACTION_SKILL_CHARGE_MAX,
+} from '../../content/actionSkills.js';
 import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections.js';
 import { reforgeCostFor, type ReforgeLeverValues } from '../../content/reforge.js';
 import {
@@ -457,6 +465,8 @@ export class InMemoryWriteStore implements WriteStore {
       consumable_batches: batches,
       vehicle_fuel: p.vehicle_fuel ?? 0,
       skill_spends: clone(p.skill_spends),
+      action_skill_charge: p.action_skill_charge ?? 0,
+      action_skill_selection: p.action_skill_selection ?? null,
       boss_state: clone(p.boss_state),
       last_idle_claim_at: p.last_idle_claim_at,
     };
@@ -1644,6 +1654,46 @@ export class InMemoryWriteStore implements WriteStore {
     };
   }
 
+  /**
+   * Action skill charge accrual from verified workshop settlements
+   * (0030; mirrors the accrual blocks in cc_complete_craft_unit and
+   * cc_repair_finalize_job): a Fixer-SELECTED player who still holds
+   * the Fixer keystone gains charge from their own completed work —
+   * per craft unit, and per repair point restored. Rates resolve at
+   * the content defaults in this twin; the SQL side reads the live
+   * economy_config levers (harness-verified).
+   */
+  private accrueActionSkillChargeFor(playerId: string, gain: number): void {
+    if (!(gain > 0)) return;
+    const p = this.profileOrNull(playerId);
+    if (!p || p.action_skill_selection !== SkillTreeType.Fixer) return;
+    const { qualified } = resolveActionSkill(
+      asNumberMap(p.skill_spends),
+      this.classModBoostsFor(playerId),
+      SkillTreeType.Fixer,
+    );
+    if (!qualified.includes(SkillTreeType.Fixer)) return;
+    p.action_skill_charge = accrueActionSkillCharge(p.action_skill_charge ?? 0, gain);
+    this.touch(p);
+  }
+
+  /** Accrue from a batch of craft settler completions (units + self-repair points). */
+  private accrueActionSkillFromCompletions(
+    playerId: string,
+    completions: Array<{ kind: string; pointsRestored?: number }>,
+  ): void {
+    if (completions.length === 0) return;
+    const levers = resolveActionSkillLevers();
+    let gain = 0;
+    for (const completion of completions) {
+      gain +=
+        completion.kind === 'repair'
+          ? levers.actionSkillChargePerRepairPoint * (completion.pointsRestored ?? 0)
+          : levers.actionSkillChargePerCraftUnit;
+    }
+    this.accrueActionSkillChargeFor(playerId, gain);
+  }
+
   /** Engine errors carry the SQL functions' messages; surface them
    *  through the same WriteStoreError mapping. */
   private craftCall<T>(fn: () => T): T {
@@ -1697,8 +1747,9 @@ export class InMemoryWriteStore implements WriteStore {
    *  set/clear functions with the same hook). */
   private settleCraftBeforeTransition(playerId: string): void {
     if (!this.profileOrNull(playerId)) return;
-    this.craftCall(() => settleCraftJobsCore(this.craftAdapter(), playerId));
+    const settled = this.craftCall(() => settleCraftJobsCore(this.craftAdapter(), playerId));
     this.flushCraftView(playerId);
+    this.accrueActionSkillFromCompletions(playerId, settled.completions);
   }
 
   async enqueueCraftJob(playerId: string, nonce: string, input: EnqueueCraftJobInput): Promise<Json> {
@@ -1789,6 +1840,7 @@ export class InMemoryWriteStore implements WriteStore {
       settleCraftJobsCore(this.craftAdapter(), playerId, { maxAdvanceMs }),
     );
     this.flushCraftView(playerId);
+    this.accrueActionSkillFromCompletions(playerId, settled.completions);
     return {
       settled: settled.settled,
       advanced_ms: settled.advancedMs,
@@ -1798,10 +1850,60 @@ export class InMemoryWriteStore implements WriteStore {
     };
   }
 
+  /**
+   * Fire Overclock at the Workshop (cc_fire_overclock_workshop,
+   * 0030): validate Fixer selection + keystone qualification + full
+   * charge from the player's own records, refuse WITHOUT spending
+   * when no bench has a unit in progress, then spend the pool and
+   * complete the in-progress unit on every bench through the shared
+   * craft engine (the settler's own completion path). The completed
+   * units accrue charge normally — after the spend, like SQL.
+   */
+  async fireOverclockWorkshop(playerId: string, nonce: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    if (p.action_skill_selection !== SkillTreeType.Fixer) {
+      throw writeError('Overclock requires the Fixer signature selected');
+    }
+    const { qualified } = resolveActionSkill(
+      asNumberMap(p.skill_spends),
+      this.classModBoostsFor(playerId),
+      SkillTreeType.Fixer,
+    );
+    if (!qualified.includes(SkillTreeType.Fixer)) {
+      throw writeError('Action skill not qualified for the selected tree');
+    }
+    if ((p.action_skill_charge ?? 0) < ACTION_SKILL_CHARGE_MAX) {
+      throw writeError('Action skill is not charged');
+    }
+    const fired = this.craftCall(() =>
+      overclockCompleteInProgressUnits(this.craftAdapter(), playerId),
+    );
+    if (fired.completions.length === 0 && fired.jobsCompleted === 0) {
+      throw writeError('No craft unit in progress');
+    }
+    p.action_skill_charge = 0;
+    this.touch(p);
+    this.flushCraftView(playerId);
+    this.accrueActionSkillFromCompletions(playerId, fired.completions);
+    const result: Json = {
+      action_type: 'cc_fire_overclock_workshop',
+      fired: true,
+      completions: fired.completions as unknown as Json,
+      jobs_completed: fired.jobsCompleted,
+      xp_awarded: fired.xpAwarded,
+      profile: this.profileSnapshot(p),
+    };
+    return this.record(playerId, 'cc_fire_overclock_workshop', key, result);
+  }
+
   async getWorkshopState(playerId: string): Promise<Json> {
     if (!this.profileOrNull(playerId)) throw writeError('Profile not found');
-    this.craftCall(() => settleCraftJobsCore(this.craftAdapter(), playerId));
+    const settled = this.craftCall(() => settleCraftJobsCore(this.craftAdapter(), playerId));
     this.flushCraftView(playerId);
+    this.accrueActionSkillFromCompletions(playerId, settled.completions);
     const view = this.craftViews.get(playerId) as CraftProfileView;
     const masteries: Record<string, { level: number; xp: number }> = {
       crafting_consumables: { level: 1, xp: 0 },
@@ -1879,6 +1981,12 @@ export class InMemoryWriteStore implements WriteStore {
       }
       this.addMasteryXp(provider.id, REPAIR_MASTERY_TRACK, repairMasteryXp(restored));
       if (outcome === 'completed') this.addStat(provider.id, 'services.completed', 1);
+      // 0030: board repair work charges a Fixer-selected mechanic's
+      // Overclock pool (per point restored; mirrors the SQL block).
+      this.accrueActionSkillChargeFor(
+        provider.id,
+        resolveActionSkillLevers().actionSkillChargePerRepairPoint * restored,
+      );
     }
     // Abandonment is a conduct record, not work: it lands even when
     // zero points were restored (the usual case).

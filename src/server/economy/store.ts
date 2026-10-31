@@ -78,6 +78,13 @@ export interface EconomyMetricsRow {
   endlessFeesDestroyed: number;
   endlessMilestoneDrops: number;
   endlessMilestoneDropsByRarity: Record<string, number>;
+  /** Action skill fire meters (migration 0030): fires per tree per
+   *  day, folded from the appliers' ledger results. Firing moves no
+   *  currency, so these never touch the minted/destroyed totals. */
+  actionSkillFiresGunslinger: number;
+  actionSkillFiresDemolition: number;
+  actionSkillFiresScavenger: number;
+  actionSkillFiresFixer: number;
   computedAt: string;
 }
 
@@ -141,6 +148,10 @@ interface PgMetricsRow {
   endless_fees_destroyed?: string;
   endless_milestone_drops?: number;
   endless_milestone_drops_by_rarity?: Record<string, number>;
+  action_skill_fires_gunslinger?: number;
+  action_skill_fires_demolition?: number;
+  action_skill_fires_scavenger?: number;
+  action_skill_fires_fixer?: number;
   computed_at: string;
 }
 
@@ -197,6 +208,10 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     endlessFeesDestroyed: Number(r.endless_fees_destroyed ?? 0),
     endlessMilestoneDrops: Number(r.endless_milestone_drops ?? 0),
     endlessMilestoneDropsByRarity: r.endless_milestone_drops_by_rarity ?? {},
+    actionSkillFiresGunslinger: Number(r.action_skill_fires_gunslinger ?? 0),
+    actionSkillFiresDemolition: Number(r.action_skill_fires_demolition ?? 0),
+    actionSkillFiresScavenger: Number(r.action_skill_fires_scavenger ?? 0),
+    actionSkillFiresFixer: Number(r.action_skill_fires_fixer ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -219,6 +234,8 @@ const METRICS_COLUMNS = `
   endless_deepest_depth, endless_credits_paid, endless_xp_paid,
   endless_fees_destroyed, endless_milestone_drops,
   endless_milestone_drops_by_rarity,
+  action_skill_fires_gunslinger, action_skill_fires_demolition,
+  action_skill_fires_scavenger, action_skill_fires_fixer,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

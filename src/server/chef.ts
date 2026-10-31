@@ -73,6 +73,10 @@ import {
   type EndlessEncounterDef,
   type EndlessLeverValues,
 } from '../content/endless';
+import {
+  ACTION_SKILL_DEFS,
+  type ActionSkillFirePlan,
+} from '../content/actionSkills';
 import { getEligibleLegendaryEffects } from '../constants/legendaryEffects';
 import {
   getBossConsumableUsage,
@@ -381,6 +385,16 @@ export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
     /** Probability the guaranteed victory roll is a dedicated drop. */
     bossDedicatedChance?: number;
   };
+  /**
+   * Action skill fire plan (Action Skill slice, 0030): resolved by
+   * the verify-boss route from the player's OWN server records
+   * (recorded selection + keystone qualification) and the live
+   * levers — never from the client body, which carries only a boolean
+   * fire intent. The applier re-validates selection, qualification,
+   * and charge under the row lock before spending the pool. Absent =
+   * no fire this attempt.
+   */
+  actionSkillFire?: ActionSkillFirePlan | null;
 }
 
 export interface BossAttemptChefResult {
@@ -1998,6 +2012,13 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   const entryFee = Math.max(0, Math.trunc(request.entryFee ?? 0));
 
   const input: BossSimulationInput = { ...request, boss };
+  // Action skill (0030): the route-resolved fire plan's sim effect
+  // joins the sim input. The Fixer plan instead pre-scaled
+  // request.consumableQuality (already in the spread); the Scavenger
+  // plan resolves in the loot block below.
+  if (request.actionSkillFire?.simEffect) {
+    input.actionSkill = request.actionSkillFire.simEffect;
+  }
 
   // Telemetry DPS, re-derived from the gear objects. Since the trust
   // hardening (Phase 0 Slice 6) those objects are themselves derived
@@ -2073,6 +2094,7 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   let secondOpinionScrap: BossAttemptChefResult['secondOpinionScrap'] = null;
   let unlockedBossId: string | undefined;
   let dedicatedDropAwarded = false;
+  let surgeLootIds: string[] = [];
   if (victory) {
     const currentIndex = REGION_1_BOSSES.findIndex((entry) => entry.id === boss.id);
     unlockedBossId = REGION_1_BOSSES[currentIndex + 1]?.id;
@@ -2139,6 +2161,29 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
       };
       loot[0] = kept;
     }
+
+    // Cache Surge (Scavenger action skill, 0030): extra rolls on
+    // victory through the SAME generator the normal rolls use, with
+    // the surge rarity weights (content-owned, hard-clamped). The
+    // surge never touches the dedicated roll above and mints nothing
+    // outside the drop pipeline — these are ordinary boss-drop rolls
+    // with bent odds, stored and metered exactly like normal loot.
+    const surgePlan = request.actionSkillFire;
+    if (surgePlan?.tree === 'Scavenger' && (surgePlan.surgeRolls ?? 0) > 0) {
+      for (let i = 0; i < (surgePlan.surgeRolls ?? 0); i++) {
+        const surgeItem = generateWeapon(
+          {
+            source: DropSource.BossDrop,
+            level: boss.level,
+            bossTier: boss.tier,
+            zoneWeights: surgePlan.surgeWeights,
+          },
+          rng,
+        );
+        loot.push(surgeItem);
+        surgeLootIds.push(surgeItem.id);
+      }
+    }
   }
 
   const projectedPhase = sim.projectedFailurePhase;
@@ -2182,6 +2227,24 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     loot: loot.map((item) => item.id),
     reasons: Array.from(new Set(resultReasons)),
     recommendations: sim.recommendations,
+    ...(request.actionSkillFire
+      ? {
+          actionSkill: {
+            tree: request.actionSkillFire.tree,
+            name: ACTION_SKILL_DEFS[request.actionSkillFire.tree].name,
+            fired: true,
+            ...(surgeLootIds.length > 0
+              ? {
+                  surgeRolls: request.actionSkillFire.surgeRolls ?? 0,
+                  surgeLoot: surgeLootIds,
+                }
+              : {}),
+            ...(request.actionSkillFire.qualityMultiplier !== undefined
+              ? { qualityMultiplier: request.actionSkillFire.qualityMultiplier }
+              : {}),
+          },
+        }
+      : {}),
   };
 
   return {
@@ -2228,6 +2291,12 @@ export interface EndlessEncounterRequest extends Omit<BossSimulationInput, 'boss
    * (direct engine calls in tests).
    */
   economy?: Partial<EndlessLeverValues>;
+  /**
+   * Action skill fire plan (0030): route-resolved from server
+   * records + levers, exactly like the boss attempt's — see
+   * BossAttemptRequest.actionSkillFire. Absent = no fire.
+   */
+  actionSkillFire?: ActionSkillFirePlan | null;
 }
 
 export interface EndlessEncounterChefResult {
@@ -2248,12 +2317,23 @@ export interface EndlessEncounterChefResult {
     bossHpRemaining?: number;
     reasons: string[];
     recommendations: string[];
+    /** Action skill fired in this encounter (0030; player's own data). */
+    actionSkill?: {
+      tree: string;
+      name: string;
+      fired: boolean;
+      surgeRolls?: number;
+      surgeLoot?: string[];
+      qualityMultiplier?: number;
+    };
   };
   /** Escrow deltas for THIS encounter (paid at run end, not now). */
   rewards: { xp: number; credits: number; scrap: number };
   milestone: boolean;
   /** Milestone gear drop (stored immediately by the route, boss-loot pattern). */
   items: GearItem[];
+  /** Cache Surge drops (0030): extra rolls on a victorious fired encounter, stored like milestone items. */
+  surgeItems: GearItem[];
   /** True when this victory reached the depth cap — the run banks in full. */
   capReached: boolean;
   telemetry: {
@@ -2286,6 +2366,12 @@ export function processEndlessEncounter(request: EndlessEncounterRequest): Endle
   const boss = encounter.def;
 
   const input: BossSimulationInput = { ...request, boss };
+  // Action skill (0030): sim-native signatures join the sim input;
+  // the Fixer plan pre-scaled request.consumableQuality in the route;
+  // the Scavenger plan resolves after the victory roll below.
+  if (request.actionSkillFire?.simEffect) {
+    input.actionSkill = request.actionSkillFire.simEffect;
+  }
 
   const serverGearEffectiveDps = computeEffectiveDpsFromGear({
     weapons: [request.primary, request.secondary, request.heavy].filter(
@@ -2360,6 +2446,28 @@ export function processEndlessEncounter(request: EndlessEncounterRequest): Endle
     if (drop) items.push({ ...drop, sourceTag: DropSource.BossDrop });
   }
 
+  // Cache Surge (Scavenger action skill, 0030): extra rolls on a
+  // victorious fired encounter through the shipped generator with
+  // the surge rarity weights — ordinary Chamber drops with bent
+  // odds, stored and metered like milestone drops. Nothing is minted
+  // outside the drop pipeline.
+  const surgeItems: GearItem[] = [];
+  const surgePlan = request.actionSkillFire;
+  if (victory && surgePlan?.tree === 'Scavenger' && (surgePlan.surgeRolls ?? 0) > 0) {
+    for (let i = 0; i < (surgePlan.surgeRolls ?? 0); i++) {
+      const surgeDrop = generateWeapon(
+        {
+          source: DropSource.BossDrop,
+          level: encounter.level,
+          bossTier: boss.tier,
+          zoneWeights: surgePlan.surgeWeights,
+        },
+        rng,
+      );
+      surgeItems.push({ ...surgeDrop, sourceTag: DropSource.BossDrop });
+    }
+  }
+
   const projectedPhase = sim.projectedFailurePhase;
   let phaseFailed: string | undefined;
   let bossHpRemaining: number | undefined;
@@ -2414,10 +2522,29 @@ export function processEndlessEncounter(request: EndlessEncounterRequest): Endle
       bossHpRemaining,
       reasons: Array.from(new Set(resultReasons)),
       recommendations: sim.recommendations,
+      ...(request.actionSkillFire
+        ? {
+            actionSkill: {
+              tree: request.actionSkillFire.tree,
+              name: ACTION_SKILL_DEFS[request.actionSkillFire.tree].name,
+              fired: true,
+              ...(surgeItems.length > 0
+                ? {
+                    surgeRolls: request.actionSkillFire.surgeRolls ?? 0,
+                    surgeLoot: surgeItems.map((item) => item.name),
+                  }
+                : {}),
+              ...(request.actionSkillFire.qualityMultiplier !== undefined
+                ? { qualityMultiplier: request.actionSkillFire.qualityMultiplier }
+                : {}),
+            },
+          }
+        : {}),
     },
     rewards,
     milestone,
     items,
+    surgeItems,
     capReached: victory && request.depth >= maxDepth,
     telemetry: {
       serverRolled: true,

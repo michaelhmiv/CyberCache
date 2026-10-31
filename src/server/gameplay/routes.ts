@@ -22,6 +22,12 @@ import {
   createGetEndlessHandler,
   createStartEndlessRunHandler,
 } from '../routes/endless';
+import {
+  createFireOverclockWorkshopHandler,
+  createGetActionSkillHandler,
+  createSelectActionSkillHandler,
+} from '../routes/actionSkill';
+import type { WriteStore } from '../writes/store';
 import type { ChefGameplayStore } from './store';
 
 export function mountChefHealthRoute(app: Express): void {
@@ -51,4 +57,22 @@ export function mountGameplayRoutes(app: Express, store: ChefGameplayStore, conf
   console.log(
     '[chef] gameplay routes mounted: POST /api/claim, /api/settle-offline, /api/verify-boss, /api/salvage, /api/resurrect, /api/endless/* (Route B B6)',
   );
+}
+
+/**
+ * Action skill routes (0030): the state read + selection live on the
+ * gameplay store; the Overclock workshop fire completes craft units,
+ * so it mounts on the write store. Mounted separately because the two
+ * stores are composed independently in index.ts.
+ */
+export function mountActionSkillRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  writeStore: WriteStore,
+  config: GameplayRoutesConfig,
+): void {
+  app.get('/api/action-skill/me', createGetActionSkillHandler(gameplayStore, config));
+  app.post('/api/action-skill/select', createSelectActionSkillHandler(gameplayStore, config));
+  app.post('/api/action-skill/fire-workshop', createFireOverclockWorkshopHandler(writeStore, config));
+  console.log('[chef] action skill routes mounted: GET /api/action-skill/me, POST /api/action-skill/select, /api/action-skill/fire-workshop (0030)');
 }

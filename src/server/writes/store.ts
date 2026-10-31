@@ -817,6 +817,15 @@ export interface WriteStore {
    */
   settleCraftJobs(playerId: string, maxAdvanceMs?: number): Promise<Json>;
   /**
+   * Fire Overclock at the Workshop (cc_fire_overclock_workshop,
+   * 0030): spends the full action-skill charge pool and instantly
+   * completes the in-progress unit on every active bench through
+   * cc_complete_craft_unit. Validation (Fixer selection + keystone
+   * qualification + full charge + a unit actually in progress) is the
+   * applier's, under the profile row lock; nonce-idempotent.
+   */
+  fireOverclockWorkshop(playerId: string, nonce: string): Promise<Json>;
+  /**
    * The Workshop state read: settles lazily, finalizes any pending
    * crafted gear through the shared generators, and returns benches,
    * tools, jobs (with derived display state), and mastery levels.
@@ -1208,6 +1217,15 @@ export class PgWriteStore implements WriteStore {
     const result = await this.callJson('select public.cc_settle_craft_jobs($1, $2) as result', [
       playerId, maxAdvanceMs ?? null,
     ]);
+    await finalizePendingCraftedGear(this.pool, playerId);
+    return result;
+  }
+  async fireOverclockWorkshop(playerId: string, nonce: string): Promise<Json> {
+    const result = await this.callJson('select public.cc_fire_overclock_workshop($1, $2) as result', [
+      playerId, nonce,
+    ]);
+    // A fired unit can complete a gear job — finalize its pending
+    // crafted gear exactly like a settle does.
     await finalizePendingCraftedGear(this.pool, playerId);
     return result;
   }

@@ -108,6 +108,35 @@ export interface EconomyConfigValues {
   endlessMilestoneEpicPerDepth: number;
   /** Hard cap on endless depth (anti-pathology valve). */
   endlessMaxDepth: number;
+  // Action skills (0030) — content owner: src/content/actionSkills.ts
+  // (ACTION_SKILL_LEVER_DEFAULTS / ACTION_SKILL_LEVER_CLAMPS, pinned
+  // against these literals by tests).
+  /** Charge granted by a resolved boss attempt that did not fire. */
+  actionSkillChargePerBossAttempt: number;
+  /** Charge granted by a resolved endless encounter that did not fire. */
+  actionSkillChargePerEndlessEncounter: number;
+  /** Charge per craft unit completed (Fixer-selected players only). */
+  actionSkillChargePerCraftUnit: number;
+  /** Charge per repair condition point restored (Fixer-selected only). */
+  actionSkillChargePerRepairPoint: number;
+  /** Deadeye Salvo: share of the target's max health dealt as damage. */
+  gunslingerBurstBossHpShare: number;
+  /** Saturation Strike: share of the target's max health dealt as damage. */
+  demolitionSaturationBossHpShare: number;
+  /** Saturation Strike: share of shield AND armor added as break damage. */
+  demolitionSaturationBreakShare: number;
+  /** Saturation Strike: stagger uptime (share of the fight staggered). */
+  demolitionSaturationStaggerUptime: number;
+  /** Saturation Strike: boss damage cut while staggered. */
+  demolitionSaturationStaggerMitigation: number;
+  /** Cache Surge: extra generic drop rolls on victory (integer). */
+  scavengerSurgeBonusRolls: number;
+  /** Cache Surge: Legendary rarity-weight multiplier (HARD clamp [1, 3]). */
+  scavengerSurgeLegendaryWeightMult: number;
+  /** Cache Surge: Epic rarity-weight multiplier. */
+  scavengerSurgeEpicWeightMult: number;
+  /** Overclock combat fire: consumable quality multiplier (Fixer brief §3.7). */
+  overclockQualityMultiplier: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -152,6 +181,19 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   endlessMilestoneLegendaryPerDepth: 0.1,
   endlessMilestoneEpicPerDepth: 0.05,
   endlessMaxDepth: 250,
+  actionSkillChargePerBossAttempt: 34,
+  actionSkillChargePerEndlessEncounter: 20,
+  actionSkillChargePerCraftUnit: 3,
+  actionSkillChargePerRepairPoint: 0.2,
+  gunslingerBurstBossHpShare: 0.12,
+  demolitionSaturationBossHpShare: 0.07,
+  demolitionSaturationBreakShare: 0.35,
+  demolitionSaturationStaggerUptime: 0.5,
+  demolitionSaturationStaggerMitigation: 0.3,
+  scavengerSurgeBonusRolls: 2,
+  scavengerSurgeLegendaryWeightMult: 2,
+  scavengerSurgeEpicWeightMult: 1.5,
+  overclockQualityMultiplier: 1.25,
 };
 
 export interface EconomyConfigKeySpec {
@@ -316,6 +358,58 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   endlessMaxDepth: {
     key: 'endlessMaxDepth', min: 10, max: 1000, integer: true,
     defaultOwner: 'src/content/endless.ts ENDLESS_MAX_DEPTH_DEFAULT',
+  },
+  actionSkillChargePerBossAttempt: {
+    key: 'actionSkillChargePerBossAttempt', min: 0, max: 100, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  actionSkillChargePerEndlessEncounter: {
+    key: 'actionSkillChargePerEndlessEncounter', min: 0, max: 100, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  actionSkillChargePerCraftUnit: {
+    key: 'actionSkillChargePerCraftUnit', min: 0, max: 25, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  actionSkillChargePerRepairPoint: {
+    key: 'actionSkillChargePerRepairPoint', min: 0, max: 2, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  gunslingerBurstBossHpShare: {
+    key: 'gunslingerBurstBossHpShare', min: 0, max: 0.35, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  demolitionSaturationBossHpShare: {
+    key: 'demolitionSaturationBossHpShare', min: 0, max: 0.25, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  demolitionSaturationBreakShare: {
+    key: 'demolitionSaturationBreakShare', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  demolitionSaturationStaggerUptime: {
+    key: 'demolitionSaturationStaggerUptime', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  demolitionSaturationStaggerMitigation: {
+    key: 'demolitionSaturationStaggerMitigation', min: 0, max: 0.6, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  scavengerSurgeBonusRolls: {
+    key: 'scavengerSurgeBonusRolls', min: 0, max: 5, integer: true,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  scavengerSurgeLegendaryWeightMult: {
+    key: 'scavengerSurgeLegendaryWeightMult', min: 1, max: 3, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  scavengerSurgeEpicWeightMult: {
+    key: 'scavengerSurgeEpicWeightMult', min: 1, max: 3, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  overclockQualityMultiplier: {
+    key: 'overclockQualityMultiplier', min: 1.0, max: 1.5, integer: false,
+    defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
   },
 };
 

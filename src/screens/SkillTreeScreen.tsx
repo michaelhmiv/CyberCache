@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, RotateCcw } from 'lucide-react';
 import { getSkillTreeNodes } from '@/constants/skillTrees';
@@ -7,6 +7,110 @@ import { SkillNode } from '@/types/skill';
 import { usePlayerStore, useSkillStore } from '@/store';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { SkillKeystoneArt } from '@/components/common/SkillKeystoneArt';
+import {
+  getActionSkillState,
+  newActionSkillNonce,
+  selectActionSkill,
+} from '@/lib/chef/chefClient';
+import {
+  ACTION_SKILL_DEFS,
+  ACTION_SKILL_CHARGE_MAX,
+  NO_KEYSTONE_NOTE,
+  type ActionSkillStateView,
+} from '@/content/actionSkills';
+import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
+
+/**
+ * ActionSkillPicker — the ONE active signature choice (0030). The
+ * server derives qualification from skill spends + the equipped
+ * class mod; this picker only sends the player's pick. It lives
+ * here, where respec happens — changing keystones changes what can
+ * be picked, and a respec that drops the selected keystone clears
+ * the signature server-side.
+ */
+const ActionSkillPicker: React.FC = () => {
+  const [view, setView] = useState<ActionSkillStateView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [pickError, setPickError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    getActionSkillState()
+      .then((r) => setView(r.actionSkill))
+      .catch(() => { /* no picker without the server's word */ });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  if (!view) return null;
+
+  const pick = async (tree: SkillTreeType | null) => {
+    if (busy) return;
+    setBusy(true);
+    setPickError(null);
+    try {
+      const result = await selectActionSkill({ nonce: newActionSkillNonce('select'), tree });
+      setView(result.actionSkill);
+    } catch (error) {
+      setPickError(error instanceof Error ? error.message : 'Selection failed');
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="bl-card space-y-2 p-3" data-testid="action-skill-picker">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-black uppercase tracking-wide text-text-primary">Action Skill</div>
+        {view.selected && (
+          <div className="font-mono text-[11px] font-black text-text-primary">
+            {Math.floor(view.charge)}/{ACTION_SKILL_CHARGE_MAX} charge
+          </div>
+        )}
+      </div>
+      {view.qualified.length === 0 ? (
+        <div className="text-[11px] leading-snug text-text-muted" data-testid="action-skill-picker-none">
+          {NO_KEYSTONE_NOTE}
+        </div>
+      ) : (
+        <>
+          <div className="text-[11px] leading-snug text-text-muted">
+            Owning a tree&apos;s keystone unlocks its signature. Pick ONE active signature — it charges through boss attempts and endless fights (Fixers also charge at the benches and the repair bay).
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {view.qualified.map((tree) => {
+              const def = ACTION_SKILL_DEFS[tree];
+              const visual = getSkillTreeVisual(tree);
+              const isActive = view.selected === tree;
+              return (
+                <button
+                  key={tree}
+                  type="button"
+                  data-testid={`action-skill-pick-${tree}`}
+                  onClick={() => void pick(isActive ? null : tree)}
+                  disabled={busy}
+                  className={`border-2 p-2 text-left disabled:opacity-50 ${isActive ? 'ring-2 ring-amber/70' : ''}`}
+                  style={{ borderLeftColor: visual.color, borderLeftWidth: 5 }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span style={{ color: visual.color, fontSize: 14 }}>{visual.sigil}</span>
+                    <span className="text-[11px] font-black text-text-primary">{def.name}</span>
+                  </div>
+                  <div className="mt-0.5 text-[9px] leading-tight text-text-muted">{def.summary}</div>
+                  <div className="mt-1 text-[9px] font-black uppercase" style={{ color: visual.color }}>
+                    {isActive ? 'Active — tap to clear' : `${tree} signature`}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {pickError && (
+            <div role="alert" className="text-[10px] font-black uppercase text-red">{pickError}</div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
 
 const TREES = [
   { id: SkillTreeType.Gunslinger, label: 'Gunslinger', color: '#FF4B5C', desc: 'Weapon damage, crits, speed' },
@@ -133,6 +237,8 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
           {respecButton}
         </div>
       )}
+
+      <ActionSkillPicker />
 
       <div className={embedded ? '' : 'space-y-4'}>
         {TREES.map((tree) => (

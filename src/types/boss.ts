@@ -112,4 +112,18 @@ export interface BossAttemptResult {
   loot: string[]; // item IDs
   reasons: string[];
   recommendations: string[];
+  /**
+   * Action skill fired in this attempt (Action Skill slice, 0030):
+   * the signature's tree + name, whether its effect resolved, and —
+   * for Cache Surge — the surge rolls and what they produced. Absent
+   * when no signature fired. Player's own data only (intel law).
+   */
+  actionSkill?: {
+    tree: string;
+    name: string;
+    fired: boolean;
+    surgeRolls?: number;
+    surgeLoot?: string[];
+    qualityMultiplier?: number;
+  };
 }

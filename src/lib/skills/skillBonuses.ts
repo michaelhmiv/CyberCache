@@ -26,19 +26,18 @@ const TREE_NAME_MAP: Record<string, SkillTreeType> = {
 };
 
 /**
- * Compute the flat skill-bonus record for a set of spent points.
- *
- * Class mod boosts merge Borderlands-style: nodeBoosts add directly
- * (can exceed maxPoints); treeBonus grants +1 to every node in the
- * named tree, capped at each node's maxPoints.
+ * The effective points per node: spent points merged with class mod
+ * boosts (nodeBoosts add directly and can exceed maxPoints; treeBonus
+ * grants +1 to every node in the named tree, capped at each node's
+ * maxPoints). ONE owner of this merge — computeSkillBonuses prices
+ * effects from it, and keystone-ownership derivations (action-skill
+ * qualification, src/content/actionSkills.ts) read it directly. The
+ * SQL twin is cc_skill_effective_points (migration 0029).
  */
-export function computeSkillBonuses(
+export function effectiveSkillPoints(
   spent: Record<string, number>,
   classModBoosts: ClassModBoosts = { nodeBoosts: {} },
 ): Record<string, number> {
-  const bonuses: Record<string, number> = {};
-
-  // Merge spent points with class mod boosts to get effective points per node.
   const effective: Record<string, number> = { ...spent };
 
   // nodeBoosts: add directly (Borderlands-style: can exceed maxPoints).
@@ -57,6 +56,23 @@ export function computeSkillBonuses(
       }
     }
   }
+  return effective;
+}
+
+/**
+ * Compute the flat skill-bonus record for a set of spent points.
+ *
+ * Class mod boosts merge Borderlands-style: nodeBoosts add directly
+ * (can exceed maxPoints); treeBonus grants +1 to every node in the
+ * named tree, capped at each node's maxPoints.
+ */
+export function computeSkillBonuses(
+  spent: Record<string, number>,
+  classModBoosts: ClassModBoosts = { nodeBoosts: {} },
+): Record<string, number> {
+  const bonuses: Record<string, number> = {};
+
+  const effective = effectiveSkillPoints(spent, classModBoosts);
 
   for (const [nodeId, points] of Object.entries(effective)) {
     const node = SKILL_NODES.find((n) => n.id === nodeId);

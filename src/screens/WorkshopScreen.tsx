@@ -27,7 +27,16 @@ import {
   type CraftRecipe,
 } from '@/content/crafting';
 import { GRAMMAR } from '@/lib/pixel/grammar';
-import { Rarity } from '@/types/game';
+import { Rarity, SkillTreeType } from '@/types/game';
+import {
+  fireOverclockWorkshop,
+  getActionSkillState,
+  newActionSkillNonce,
+} from '@/lib/chef/chefClient';
+import {
+  ACTION_SKILL_CHARGE_MAX,
+  type ActionSkillStateView,
+} from '@/content/actionSkills';
 import { buildCraftingActivity } from '@/lib/activity/activityBuilders';
 import { useFilterSort } from '@/lib/hooks/useFilterSort';
 import { chipClip } from '@/lib/ui/clips';
@@ -107,6 +116,100 @@ function pausedReason(activeActionKind: string | null): string {
       return "you're away";
   }
 }
+
+/**
+ * OverclockBar — the Fixer signature's workshop face (0030, brief
+ * §3.7): the G-3 charge track under the bench stage. One pool, shared
+ * with the combat fire; the workshop fire instantly completes the
+ * in-progress unit on every active bench through the normal settler
+ * — it buys time, never output. Renders only for players whose
+ * active signature is Overclock (a hint for Fixer-qualified players
+ * who selected another tree).
+ */
+const OverclockBar: React.FC = () => {
+  const workshop = useWorkshopStore();
+  const [view, setView] = useState<ActionSkillStateView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    getActionSkillState()
+      .then((r) => setView(r.actionSkill))
+      .catch(() => { /* no bar without the server's word */ });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  if (!view) return null;
+  if (view.selected !== SkillTreeType.Fixer) {
+    if (!view.qualified.includes(SkillTreeType.Fixer)) return null;
+    return (
+      <div className="text-[11px] text-text-muted" data-testid="overclock-hint">
+        ⚒ Overclock is yours to select — make Fixer your active signature in the Skill Trees screen to charge it here.
+      </div>
+    );
+  }
+
+  const pct = Math.max(0, Math.min(100, (view.charge / ACTION_SKILL_CHARGE_MAX) * 100));
+  const fire = async () => {
+    if (busy || !view.charged) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const result = await fireOverclockWorkshop({ nonce: newActionSkillNonce('workshop') });
+      setNote(`Overclock fired — ${result.completions.length} unit${result.completions.length === 1 ? '' : 's'} completed instantly, at full quality and XP.`);
+      await workshop.refresh();
+      load();
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : 'Overclock refused.');
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="space-y-2 rounded-lg border-2 p-3"
+      style={{ borderColor: '#2EC4B666', backgroundColor: '#2EC4B60d' }}
+      data-testid="overclock-bar"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 16, color: '#2EC4B6' }}>⚒</span>
+          <div className="text-xs font-black text-text-primary">Overclock</div>
+        </div>
+        <div className="font-mono text-[11px] font-black text-text-primary" data-testid="overclock-charge-label">
+          {Math.floor(view.charge)}/{ACTION_SKILL_CHARGE_MAX}
+        </div>
+      </div>
+      {/* G-3 charge track in the Fixer teal */}
+      <div className="relative h-3 overflow-hidden border-2 border-border bg-bg" data-testid="overclock-charge-track">
+        <div
+          className="absolute inset-y-0 left-0"
+          style={{ width: `${pct}%`, backgroundColor: '#2EC4B6' }}
+          data-testid="overclock-charge-fill"
+        />
+        <span className="absolute inset-y-0 flex items-center" style={{ left: `calc(${pct}% - 8px)`, color: '#2EC4B6', fontSize: 10 }}>
+          ⚒
+        </span>
+      </div>
+      <div className="text-[10px] text-text-muted">
+        Overclock — fills as your benches and bay complete work. Firing completes the in-progress unit on every active bench, instantly, at full quality and XP.
+      </div>
+      <button
+        type="button"
+        data-testid="overclock-fire"
+        onClick={() => void fire()}
+        disabled={!view.charged || busy}
+        className="bl-primary w-full py-2 text-[11px] font-black uppercase tracking-wider disabled:opacity-50"
+        style={view.charged ? { backgroundColor: '#2EC4B6', color: '#050608' } : undefined}
+      >
+        {busy ? 'Firing…' : view.charged ? '⚒ Fire Overclock' : 'Overclock charging…'}
+      </button>
+      {note && <div className="text-[10px] text-text-secondary" data-testid="overclock-note">{note}</div>}
+    </div>
+  );
+};
 
 export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }> = ({ onNavigate }) => {
   const player = usePlayerStore();
@@ -259,6 +362,10 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           </div>
         )}
       </div>
+
+      {/* Overclock (0030): the Fixer signature's charge track lives
+          directly under the bench stage it accelerates. */}
+      <OverclockBar />
 
       <MobileCard className="space-y-1 border-amber/30 bg-amber/5">
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-amber">
