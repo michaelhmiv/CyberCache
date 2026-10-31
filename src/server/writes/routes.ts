@@ -7,6 +7,7 @@
  *   POST /api/ops/make-item                 verifiedOps.makeItem                cc_make_item(nonce)
  *   POST /api/ops/claim-rewarded-cache-key  verifiedOps.claimRewardedCacheKey   cc_claim_rewarded_cache_key(...)
  *   POST /api/ops/vendor-buy                verifiedOps.vendorBuy               cc_vendor_buy(...)
+ *   POST /api/ops/vendor-sell               verifiedOps.vendorSell*             cc_vendor_sell(...)
  *   POST /api/ops/claim-crafted-consumable  verifiedOps.claimCraftedConsumable  cc_claim_crafted_consumable(...)
  *   POST /api/ops/consume-consumable        verifiedOps.consumeConsumableItem   cc_consume_consumable(...)
  *   POST /api/ops/recycle-item              verifiedOps.recycleItem             cc_recycle_item(...)
@@ -148,6 +149,32 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   op('/api/ops/vendor-buy', async (playerId, req) =>
     store.vendorBuy(playerId, str(body(req).nonce), str(body(req).item_key), num(body(req).quantity) ?? 1),
   );
+  op('/api/ops/vendor-sell', async (playerId, req, res) => {
+    const kind = str(body(req).kind);
+    if (kind === 'gear') {
+      const itemId = uuidField(req, res, 'item_id', 'item id');
+      if (!itemId) return null;
+      return store.vendorSell(playerId, str(body(req).nonce), { kind, itemId });
+    }
+    if (kind === 'consumable') {
+      const batchId = uuidField(req, res, 'batch_id', 'batch id');
+      if (!batchId) return null;
+      const quantity = numField(req, res, 'quantity', 'quantity value');
+      if (quantity === null) return null;
+      return store.vendorSell(playerId, str(body(req).nonce), { kind, batchId, quantity });
+    }
+    if (kind === 'material') {
+      const quantity = numField(req, res, 'quantity', 'quantity value');
+      if (quantity === null) return null;
+      return store.vendorSell(playerId, str(body(req).nonce), {
+        kind,
+        materialId: str(body(req).material_id),
+        quantity,
+      });
+    }
+    validation(res, 'A valid sell kind is required');
+    return null;
+  });
   op('/api/ops/claim-crafted-consumable', async (playerId, req) =>
     store.claimCraftedConsumable(
       playerId,

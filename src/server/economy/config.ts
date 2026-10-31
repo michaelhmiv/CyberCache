@@ -36,6 +36,8 @@ export interface EconomyConfigValues {
   rematchEscalationCap: number;
   /** Multiplier on the Legendary weight of area drop tables at claim time. */
   roamingLegendaryScalar: number;
+  /** Fraction of an item's vendor value the NPC vendor pays on buyback. */
+  vendorBuybackRate: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -47,6 +49,7 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   fragmentChance: 0.008,
   rematchEscalationCap: 8,
   roamingLegendaryScalar: 1.0,
+  vendorBuybackRate: 0.4,
 };
 
 export interface EconomyConfigKeySpec {
@@ -79,6 +82,10 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   roamingLegendaryScalar: {
     key: 'roamingLegendaryScalar', min: 0, max: 5, integer: false,
     defaultOwner: 'new lever; 1.0 = the shipped area drop tables unchanged',
+  },
+  vendorBuybackRate: {
+    key: 'vendorBuybackRate', min: 0, max: 0.9, integer: false,
+    defaultOwner: 'src/lib/vendor/catalog.ts VENDOR_BUYBACK_RATE_DEFAULT',
   },
 };
 

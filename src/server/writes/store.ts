@@ -323,9 +323,10 @@ export function emptyWriteSeed(): WriteSeed {
 
 // ---------------------------------------------------------------------------
 // Pure economy rules, ported from the SQL helpers in 0004
-// (cc_salvage_scrap, cc_apply_xp, cc_vendor_price, cc_consumable_recipe_*,
+// (cc_salvage_scrap, cc_apply_xp, cc_consumable_recipe_*,
 // cc_hash_string / cc_mulberry32_next, cc_generate_weapon_payload,
-// cc_compute_item_estimated_value, cc_draw_odds, cc_mastery_level).
+// cc_draw_odds, cc_mastery_level). Vendor pricing and the item
+// estimated value live in src/lib/vendor/catalog.ts (0020).
 // ---------------------------------------------------------------------------
 
 /** cc_salvage_scrap: round((10 + level*5) * rarity multiplier), title-case rarities. */
@@ -356,20 +357,12 @@ export function skillSpendTotal(spends: Json): number {
   return total;
 }
 
-/** cc_vendor_price: the vendor catalog (null = not sold). */
-const VENDOR_CATALOG: Record<string, number> = {
-  MedKit: 250,
-  ShieldCell: 300,
-  AmmoPack: 150,
-  Grenade: 400,
-  BossScanner: 600,
-  InsuranceToken: 800,
-  LuckBooster: 350,
-};
-
-export function vendorPrice(itemKey: string): number | null {
-  return VENDOR_CATALOG[itemKey] ?? null;
-}
+/**
+ * Vendor pricing used to live here as a hardcoded VENDOR_CATALOG
+ * record — the second of three copies. It now derives from the ONE
+ * vendor catalog (src/lib/vendor/catalog.ts): staples + date-seeded
+ * rotation + Item of the Day, with the SQL twin in migration 0020.
+ */
 
 /**
  * cc_consumable_recipe_materials: requirements keyed by recipe_id ONLY.
@@ -496,38 +489,18 @@ function pick<T>(values: readonly T[], roll: number): T {
   return values[Math.min(values.length - 1, Math.floor(roll * values.length))];
 }
 
-function num(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
 function roundTo(value: number, places: number): number {
   const factor = 10 ** places;
   return Math.round(value * factor) / factor;
 }
 
-/** cc_compute_item_estimated_value: floor(level*100*rarityMult + kind bonus). */
-export function computeItemEstimatedValue(payload: Json, kind: string, rarity: string, itemLevel: number): number {
-  const mult =
-    rarity === 'Uncommon' ? 2 : rarity === 'Rare' ? 5 : rarity === 'Epic' ? 10 : rarity === 'Legendary' ? 25 : 1;
-  const level = Math.max(1, itemLevel || 1);
-  const base = level * 100 * mult;
-  let bonus = 0;
-  if (kind === 'weapon') {
-    bonus = num(payload.combatPower) * 2;
-  } else if (kind === 'shield') {
-    bonus = num(payload.hp) * 0.5 * (1 + num(payload.mitigation));
-  } else if (kind === 'classMod') {
-    const affixCount = Array.isArray(payload.affixes) ? payload.affixes.length : 0;
-    const nodeBoosts = payload.nodeBoosts && typeof payload.nodeBoosts === 'object' ? Object.keys(payload.nodeBoosts).length : 0;
-    bonus = (nodeBoosts * 50 + affixCount * 30) * level;
-  } else if (kind === 'relic') {
-    const affixCount = Array.isArray(payload.affixes) ? payload.affixes.length : 0;
-    bonus = affixCount * 40 * mult;
-  } else if (kind === 'ordnance') {
-    bonus = (num(payload.damage) + num(payload.shieldDamage) + num(payload.armorDamage)) * 1.5;
-  }
-  return Math.floor(base + bonus);
-}
+/**
+ * cc_compute_item_estimated_value — the canonical implementation
+ * lives in the vendor catalog module (its value is what buyback
+ * pays on, and the vendor screen previews with it); re-exported
+ * here so the server stores keep their existing import surface.
+ */
+export { computeItemEstimatedValue } from '../../lib/vendor/catalog.js';
 
 interface WeaponBase {
   baseDamage: number;
@@ -677,6 +650,15 @@ export function newUuid(): string {
 // Store seam
 // ---------------------------------------------------------------------------
 
+/** cc_vendor_sell input: exactly one sale target per call. */
+export interface VendorSellInput {
+  kind: 'gear' | 'consumable' | 'material';
+  itemId?: string | null;
+  batchId?: string | null;
+  materialId?: string | null;
+  quantity?: number;
+}
+
 export interface SetActiveActionInput {
   activity_kind: string;
   target_type?: string | null;
@@ -697,6 +679,7 @@ export interface WriteStore {
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json>;
   disablePushDevice(playerId: string, token: string): Promise<Json>;
   vendorBuy(playerId: string, nonce: string, itemKey: string, quantity: number): Promise<Json>;
+  vendorSell(playerId: string, nonce: string, input: VendorSellInput): Promise<Json>;
   claimCraftedConsumable(playerId: string, nonce: string, recipeId: string, itemKey: string, quantity: number): Promise<Json>;
   consumeConsumable(
     playerId: string,
@@ -812,6 +795,17 @@ export class PgWriteStore implements WriteStore {
   }
   vendorBuy(playerId: string, nonce: string, itemKey: string, quantity: number): Promise<Json> {
     return this.callJson('select public.cc_vendor_buy($1, $2, $3, $4) as result', [playerId, nonce, itemKey, quantity]);
+  }
+  vendorSell(playerId: string, nonce: string, input: VendorSellInput): Promise<Json> {
+    return this.callJson('select public.cc_vendor_sell($1, $2, $3, $4, $5, $6, $7) as result', [
+      playerId,
+      nonce,
+      input.kind,
+      input.itemId ?? null,
+      input.batchId ?? null,
+      input.materialId ?? null,
+      input.quantity ?? 1,
+    ]);
   }
   claimCraftedConsumable(playerId: string, nonce: string, recipeId: string, itemKey: string, quantity: number): Promise<Json> {
     return this.callJson('select public.cc_claim_crafted_consumable($1, $2, $3, $4, $5) as result', [

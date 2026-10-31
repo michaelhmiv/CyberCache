@@ -22,6 +22,7 @@ export interface EconomyMetricsRow {
   creditsMintedBoss: number;
   creditsMintedOffline: number;
   creditsMintedOther: number;
+  creditsMintedVendorBuyback: number;
   creditsMintedTotal: number;
   creditsDestroyedMarketFees: number;
   creditsDestroyedVendor: number;
@@ -61,6 +62,7 @@ interface PgMetricsRow {
   credits_minted_boss: string;
   credits_minted_offline: string;
   credits_minted_other: string;
+  credits_minted_vendor_buyback: string;
   credits_minted_total: string;
   credits_destroyed_market_fees: string;
   credits_destroyed_vendor: string;
@@ -93,6 +95,7 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     creditsMintedBoss: Number(r.credits_minted_boss),
     creditsMintedOffline: Number(r.credits_minted_offline),
     creditsMintedOther: Number(r.credits_minted_other),
+    creditsMintedVendorBuyback: Number(r.credits_minted_vendor_buyback),
     creditsMintedTotal: Number(r.credits_minted_total),
     creditsDestroyedMarketFees: Number(r.credits_destroyed_market_fees),
     creditsDestroyedVendor: Number(r.credits_destroyed_vendor),
@@ -120,7 +123,8 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
 
 const METRICS_COLUMNS = `
   day::text as day, credits_minted_roaming, credits_minted_boss,
-  credits_minted_offline, credits_minted_other, credits_minted_total,
+  credits_minted_offline, credits_minted_other, credits_minted_vendor_buyback,
+  credits_minted_total,
   credits_destroyed_market_fees, credits_destroyed_vendor,
   credits_destroyed_resurrection, credits_destroyed_respec,
   credits_destroyed_boss_entry_fees, credits_destroyed_boss_death_fees,

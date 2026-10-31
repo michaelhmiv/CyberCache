@@ -44,6 +44,9 @@ export const verifiedOps = {
   }),
   disablePushDevice: (token: string) => op('/push/disable', { token }),
   vendorBuy: (itemKey: string, quantity = 1) => op('/ops/vendor-buy', { nonce: requestId('vendor'), item_key: itemKey, quantity }),
+  vendorSellGear: (itemId: string) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'gear', item_id: itemId }),
+  vendorSellConsumable: (batchId: string, quantity: number) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'consumable', batch_id: batchId, quantity }),
+  vendorSellMaterial: (materialId: string, quantity: number) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'material', material_id: materialId, quantity }),
   claimCraftedConsumable: (input: { recipeId: string; itemKey: string; quantity: number }) => op('/ops/claim-crafted-consumable', {
     nonce: requestId('craft-consumable'),
     recipe_id: input.recipeId,

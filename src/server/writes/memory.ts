@@ -25,6 +25,14 @@ import {
 } from '../../lib/market/identityKey.js';
 import type { ClassModBoosts } from '../../lib/skills/skillBonuses.js';
 import {
+  VENDOR_BUYBACK_RATE_DEFAULT,
+  VENDOR_MATERIALS,
+  consumableUnitVendorValue,
+  vendorBuybackPayout,
+  vendorDateKey,
+  vendorOfferFor,
+} from '../../lib/vendor/catalog.js';
+import {
   applyXp,
   computeItemEstimatedValue,
   drawOdds,
@@ -38,7 +46,6 @@ import {
   salvageScrap,
   skillSpendTotal,
   validateUsername,
-  vendorPrice,
   writeError,
   type ActiveActionData,
   type CombatStatsData,
@@ -51,6 +58,7 @@ import {
   type ServiceJobData,
   type SetActiveActionInput,
   type SkillNodeData,
+  type VendorSellInput,
   type WriteItemData,
   type WriteListingData,
   type WriteSeed,
@@ -84,6 +92,15 @@ export interface InMemoryWriteOptions {
    * provider exists so tests exercise the lever through the mirror.
    */
   feeRateProvider?: () => number | Promise<number>;
+  /**
+   * Live vendor buyback-rate lever (economy_config
+   * 'vendorBuybackRate', 0018/0020), resolved per sale — the mirror
+   * of cc_vendor_sell reading the table inside its transaction.
+   * Defaults to VENDOR_BUYBACK_RATE_DEFAULT. Production sales run
+   * the SQL path; this provider exists so tests exercise the lever
+   * through the mirror.
+   */
+  buybackRateProvider?: () => number | Promise<number>;
 }
 
 function clone<T>(value: T): T {
@@ -100,6 +117,7 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly rng: () => number;
   private readonly uuid: () => string;
   private readonly feeRateProvider: () => number | Promise<number>;
+  private readonly buybackRateProvider: () => number | Promise<number>;
 
   private profiles = new Map<string, ProfileRowData>();
   private items = new Map<string, WriteItemData>();
@@ -117,6 +135,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.rng = opts.rng ?? Math.random;
     this.uuid = opts.uuid ?? newUuid;
     this.feeRateProvider = opts.feeRateProvider ?? (() => MARKET_FEE_RATE);
+    this.buybackRateProvider = opts.buybackRateProvider ?? (() => VENDOR_BUYBACK_RATE_DEFAULT);
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) this.profiles.set(p.id, p);
     for (const i of this.seed.items) this.items.set(i.id, i);
@@ -648,35 +667,152 @@ export class InMemoryWriteStore implements WriteStore {
     return { action_type: 'cc_disable_push_device' };
   }
 
+  /** The levered buyback rate for a sale, clamped to the lever's range. */
+  private async resolvedBuybackRate(): Promise<number> {
+    const raw = await this.buybackRateProvider();
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return VENDOR_BUYBACK_RATE_DEFAULT;
+    return Math.min(0.9, Math.max(0, raw));
+  }
+
   async vendorBuy(playerId: string, nonce: string, itemKey: string, quantity: number): Promise<Json> {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
-    const unitPrice = vendorPrice(itemKey);
-    if (unitPrice === null) throw writeError('Unknown vendor item');
+    // The ONE vendor catalog: staples always, rotation + Item of the
+    // Day by the UTC date of this purchase (SQL twin: cc_vendor_price).
+    const offer = vendorOfferFor(itemKey, vendorDateKey(this.nowFn()));
+    if (offer === null) throw writeError('Unknown vendor item');
     const qty = Math.max(1, Math.floor(quantity) || 1);
-    const total = unitPrice * qty;
+    const total = offer.unitPrice * qty;
     if (p.credits < total) throw writeError('Insufficient credits');
     p.credits -= total;
-    const consumables = asNumberMap(p.consumables);
-    consumables[itemKey] = (consumables[itemKey] ?? 0) + qty;
-    p.consumables = consumables;
+    let batchId: string | null = null;
+    if (offer.kind === 'consumable') {
+      const consumables = asNumberMap(p.consumables);
+      consumables[itemKey] = (consumables[itemKey] ?? 0) + qty;
+      p.consumables = consumables;
+      batchId = this.addConsumableBatch(playerId, itemKey, qty, 100, 'vendor', null, null, {
+        unit_price: offer.unitPrice,
+        total_price: total,
+      });
+    } else {
+      const counters = asNumberMap(offer.kind === 'material' ? p.materials : p.essences);
+      counters[itemKey] = (counters[itemKey] ?? 0) + qty;
+      if (offer.kind === 'material') p.materials = counters;
+      else p.essences = counters;
+    }
     this.touch(p);
-    const batchId = this.addConsumableBatch(playerId, itemKey, qty, 100, 'vendor', null, null, {
-      unit_price: unitPrice,
-      total_price: total,
-    });
     const result: Json = {
       action_type: 'cc_vendor_buy',
       profile: this.profileSnapshot(p),
       item_key: itemKey,
+      kind: offer.kind,
       quantity: qty,
-      quality_percent: 100,
+      quality_percent: offer.kind === 'consumable' ? 100 : null,
       batch_id: batchId,
+      unit_price: offer.unitPrice,
+      item_of_the_day: offer.itemOfTheDay,
       total_price: total,
     };
     return this.record(playerId, 'cc_vendor_buy', key, result);
+  }
+
+  async vendorSell(playerId: string, nonce: string, input: VendorSellInput): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const rate = await this.resolvedBuybackRate();
+    const qty = Math.max(1, Math.floor(input.quantity ?? 1) || 1);
+
+    if (input.kind === 'gear') {
+      const item = this.ownItem(playerId, input.itemId ?? '');
+      if (item.is_locked) throw writeError('Locked item');
+      if (item.runtime_state !== 'available') throw writeError('Item state invalid');
+      // The vendor value of a gear instance is its stored estimated
+      // value — the same number generation stamped on the row and
+      // net worth sums (SQL twin: item_instances.estimated_value).
+      const vendorValue = Math.max(0, Math.floor(item.estimated_value) || 0);
+      const payout = vendorBuybackPayout(vendorValue, rate);
+      item.runtime_state = 'consumed';
+      item.tradeable = false;
+      item.equipped_slot = null;
+      this.touchItem(item);
+      p.credits += payout;
+      this.touch(p);
+      const result: Json = {
+        action_type: 'cc_vendor_sell',
+        profile: this.profileSnapshot(p),
+        kind: 'gear',
+        item: clone(item) as unknown as Json,
+        vendor_value: vendorValue,
+        buyback_rate: rate,
+        quantity: 1,
+        total_payout: payout,
+        loadout: this.loadoutSnapshot(playerId),
+      };
+      return this.record(playerId, 'cc_vendor_sell', key, result);
+    }
+
+    if (input.kind === 'consumable') {
+      const batch = this.seed.consumableBatches.find(
+        (b) => b.id === (input.batchId ?? '') && b.owner_user_id === playerId,
+      );
+      if (!batch) throw writeError('Batch not found');
+      if (batch.quantity < qty) throw writeError('Insufficient quantity');
+      const unitValue = consumableUnitVendorValue(batch.consumable_type, batch.quality_percent);
+      if (unitValue === null) throw writeError('Item has no vendor value');
+      const vendorValue = unitValue * qty;
+      const payout = vendorBuybackPayout(vendorValue, rate);
+      batch.quantity -= qty;
+      batch.updated_at = this.nowIso();
+      const consumables = asNumberMap(p.consumables);
+      consumables[batch.consumable_type] = Math.max(0, (consumables[batch.consumable_type] ?? 0) - qty);
+      p.consumables = consumables;
+      p.credits += payout;
+      this.touch(p);
+      const result: Json = {
+        action_type: 'cc_vendor_sell',
+        profile: this.profileSnapshot(p),
+        kind: 'consumable',
+        item_key: batch.consumable_type,
+        batch_id: batch.id,
+        quality_percent: batch.quality_percent,
+        vendor_value: vendorValue,
+        buyback_rate: rate,
+        quantity: qty,
+        total_payout: payout,
+      };
+      return this.record(playerId, 'cc_vendor_sell', key, result);
+    }
+
+    if (input.kind === 'material') {
+      const entry = VENDOR_MATERIALS.find((m) => m.id === (input.materialId ?? ''));
+      if (!entry) throw writeError('Unknown material');
+      const counters = asNumberMap(entry.kind === 'material' ? p.materials : p.essences);
+      if ((counters[entry.id] ?? 0) < qty) throw writeError(`Insufficient material ${entry.id}`);
+      const vendorValue = entry.unitPrice * qty;
+      const payout = vendorBuybackPayout(vendorValue, rate);
+      counters[entry.id] = (counters[entry.id] ?? 0) - qty;
+      if (entry.kind === 'material') p.materials = counters;
+      else p.essences = counters;
+      p.credits += payout;
+      this.touch(p);
+      const result: Json = {
+        action_type: 'cc_vendor_sell',
+        profile: this.profileSnapshot(p),
+        kind: 'material',
+        item_key: entry.id,
+        vendor_value: vendorValue,
+        buyback_rate: rate,
+        quantity: qty,
+        total_payout: payout,
+      };
+      return this.record(playerId, 'cc_vendor_sell', key, result);
+    }
+
+    throw writeError('Unknown vendor sell kind');
   }
 
   async claimCraftedConsumable(
