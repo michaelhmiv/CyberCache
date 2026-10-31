@@ -46,6 +46,7 @@ export enum SkillTreeType {
   Gunslinger = 'Gunslinger',
   Demolition = 'Demolition',
   Scavenger = 'Scavenger',
+  Fixer = 'Fixer',
 }
 
 export enum ConsumableType {

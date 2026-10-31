@@ -176,39 +176,54 @@ export function conditionFraction(conditionCurrent: number, conditionMax: number
 
 /**
  * The effective yield factor for one tick:
- *   1 + (baseYield − 1) × (1 + yieldAffixPct) × conditionFraction × scalar
+ *   1 + (baseYield − 1) × (1 + yieldAffixPct + vehicleYieldBonus)
+ *     × conditionFraction × scalar
  * At zero condition (or scalar 0) the factor is exactly 1.
+ * `vehicleYieldBonus` is the Fixer Rig Tuning / Aero Fairings total
+ * (migration 0029), derived server-side from the claim owner's skill
+ * records — it adds INTO the affix bracket, it does not multiply it.
  */
 export function effectiveVehicleYield(
   vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>,
   fraction: number,
   yieldScalar: number,
+  vehicleYieldBonus = 0,
 ): number {
   const def = getVehicleClass(vehicle.vehicleClassId);
   if (!def) return 1;
   const totals = vehicleAffixTotals(vehicle);
-  const bonus = (def.baseYield - 1) * (1 + totals.yieldPct);
+  const bonus = (def.baseYield - 1) * (1 + totals.yieldPct + Math.max(0, vehicleYieldBonus || 0));
   return 1 + bonus * Math.max(0, Math.min(1, fraction)) * Math.max(0, yieldScalar);
 }
 
-/** Fuel units burned per fueled tick, after the efficiency affix (floored at 10% of base). */
-export function vehicleBurnPerTick(vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>): number {
+/** Fuel units burned per fueled tick, after the efficiency affix
+ *  (floored at 10% of base). The Fixer Lean Burn term (migration
+ *  0029) applies AFTER the affix term: × (1 − min(0.30, bonus)). */
+export function vehicleBurnPerTick(
+  vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>,
+  vehicleFuelBonus = 0,
+): number {
   const def = getVehicleClass(vehicle.vehicleClassId);
   if (!def) return 0;
   const totals = vehicleAffixTotals(vehicle);
-  return def.fuelBurnPerTick * Math.max(0.1, 1 - totals.fuelEfficiencyPct);
+  const skillTerm = 1 - Math.min(0.3, Math.max(0, vehicleFuelBonus || 0));
+  return def.fuelBurnPerTick * Math.max(0.1, 1 - totals.fuelEfficiencyPct) * skillTerm;
 }
 
-/** Condition points lost per fueled tick in an area of the given danger rating. */
+/** Condition points lost per fueled tick in an area of the given
+ *  danger rating. The Fixer Fleet Engineer major (migration 0029)
+ *  scales the result by (1 − vehicleDecayReduction). */
 export function vehicleDecayPerTick(
   vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>,
   dangerRating: DangerRating,
+  vehicleDecayReduction = 0,
 ): number {
   const def = getVehicleClass(vehicle.vehicleClassId);
   if (!def) return 0;
   const totals = vehicleAffixTotals(vehicle);
   const danger = AREA_DANGER_DECAY[dangerRating] ?? 1;
-  return VEHICLE_BASE_DECAY_PER_TICK * danger * def.conditionLossMultiplier * Math.max(0, 1 - totals.framePct);
+  const skillTerm = Math.max(0, 1 - Math.max(0, vehicleDecayReduction || 0));
+  return VEHICLE_BASE_DECAY_PER_TICK * danger * def.conditionLossMultiplier * Math.max(0, 1 - totals.framePct) * skillTerm;
 }
 
 /** Extra material-quantity chance: class cargo identity + cargo rack affixes. */

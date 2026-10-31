@@ -46,6 +46,7 @@ import {
   type CraftAdapter,
   type CraftLeverValues,
   type CraftProfileView,
+  type FixerEnqueueBonuses,
 } from './craftEngine.js';
 import {
   CRAFT_XP_RATE_DEFAULT,
@@ -64,12 +65,13 @@ import {
   REPAIR_WORK_RATE_BASE_DEFAULT,
   REPAIR_WORK_RATE_BASE_MAX,
   REPAIR_WORK_RATE_BASE_MIN,
-  repairEfficiencyMultiplier,
+  repairEfficiencyWithSkill,
   repairKitRestorePoints,
   repairMasteryXp,
   repairProRataPayout,
   repairServiceFee,
   repairServiceXp,
+  repairSpeedRateMultiplier,
   repairWorkRatePointsPerHour,
 } from '../../content/repair.js';
 import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
@@ -877,7 +879,14 @@ export class InMemoryWriteStore implements WriteStore {
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
-    const rate = await this.resolvedBuybackRate();
+    // Appraiser's Eye (Fixer small, 0029): the seller's vendorBuyback
+    // Bonus adds onto the levered rate under the same 0.90 ceiling —
+    // rate = min(0.90, leverRate + vendorBuybackBonus), derived from
+    // the seller's records (SQL twin: cc_vendor_sell in 0029).
+    const vendorBuybackBonus =
+      computeSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId))
+        .vendorBuybackBonus ?? 0;
+    const rate = Math.min(0.9, (await this.resolvedBuybackRate()) + Math.max(0, vendorBuybackBonus));
     const qty = Math.max(1, Math.floor(input.quantity ?? 1) || 1);
 
     if (input.kind === 'gear') {
@@ -1529,6 +1538,13 @@ export class InMemoryWriteStore implements WriteStore {
         const row = this.seed.masteries.find((m) => m.user_id === playerId && m.mastery_id === track);
         return row ? Math.max(1, row.mastery_level) : 1;
       },
+      skillBonus: (playerId, key) => {
+        const p = this.profileOrNull(playerId);
+        if (!p) return 0;
+        return (
+          computeSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId))[key] ?? 0
+        );
+      },
       addMasteryXp: (playerId, track, xp) => {
         this.addMasteryXp(playerId, track, xp);
       },
@@ -1650,6 +1666,31 @@ export class InMemoryWriteStore implements WriteStore {
       .consumableEfficiency ?? 0;
   }
 
+  /** The Fixer enqueue-time totals (0029), from the same records and
+   *  the same derivation as craftEfficiencyBonus. The Pg store needs
+   *  no twin: migration 0029 derives these inside the SQL functions
+   *  from profiles.skill_spends + the equipped class mod payload. */
+  private fixerEnqueueBonuses(playerId: string): FixerEnqueueBonuses {
+    const zero: FixerEnqueueBonuses = {
+      craftSpeedBonus: 0,
+      workshopQueueBonus: 0,
+      rushReductionCapBonus: 0,
+      coreCatalystDrawBonus: 0,
+    };
+    const p = this.profileOrNull(playerId);
+    if (!p) return zero;
+    const gear = [...this.items.values()]
+      .filter((i) => i.owner_user_id === playerId && i.runtime_state === 'equipped')
+      .map((i) => i.payload as unknown as GearItem);
+    const bonuses = skillBonusesFromRecords(gear, (p.skill_spends ?? {}) as Record<string, number>);
+    return {
+      craftSpeedBonus: bonuses.craftSpeedBonus ?? 0,
+      workshopQueueBonus: bonuses.workshopQueueBonus ?? 0,
+      rushReductionCapBonus: bonuses.rushReductionCapBonus ?? 0,
+      coreCatalystDrawBonus: bonuses.coreCatalystDrawBonus ?? 0,
+    };
+  }
+
   /** Settle the player's craft jobs against the outgoing action —
    *  called by the activity transitions (0024 restates the SQL
    *  set/clear functions with the same hook). */
@@ -1679,6 +1720,7 @@ export class InMemoryWriteStore implements WriteStore {
         useCoreCatalyst: input.useCoreCatalyst ?? false,
         useRushTicket: input.useRushTicket ?? false,
         consumableEfficiencyBonus: this.craftEfficiencyBonus(playerId),
+        fixerBonuses: this.fixerEnqueueBonuses(playerId),
       }),
     );
     this.flushCraftView(playerId);
@@ -2100,14 +2142,28 @@ export class InMemoryWriteStore implements WriteStore {
     job.provider_user_id = playerId;
     job.status = 'active';
     job.kit_type = kitType;
+    // Fixer terms (0029), from the MECHANIC's records: the speed term
+    // raises the snapshotted work rate (the rate form of the duration
+    // multiplier — board work accrues points over time), and the
+    // efficiency term composes past the mastery cap (ceiling 1.80).
+    // The settler burns kits at this snapshot unchanged.
+    const mechanicBonuses = computeSkillBonuses(
+      asNumberMap(p.skill_spends),
+      this.classModBoostsFor(playerId),
+    );
     job.repair_snapshot = {
       masteryLevel,
-      workRatePointsPerHour: repairWorkRatePointsPerHour(
+      workRatePointsPerHour:
+        repairWorkRatePointsPerHour(
+          masteryLevel,
+          levers.repairWorkRateBase,
+          levers.repairMasterySpeedPerLevel,
+        ) * repairSpeedRateMultiplier(mechanicBonuses.repairSpeedBonus ?? 0),
+      efficiency: repairEfficiencyWithSkill(
         masteryLevel,
-        levers.repairWorkRateBase,
-        levers.repairMasterySpeedPerLevel,
+        levers.repairMasteryEfficiencyPerLevel,
+        mechanicBonuses.repairEfficiencyBonus ?? 0,
       ),
-      efficiency: repairEfficiencyMultiplier(masteryLevel, levers.repairMasteryEfficiencyPerLevel),
     };
     job.accepted_at = this.nowIso();
     job.last_settled_at = this.nowIso();
@@ -2606,26 +2662,41 @@ export class InMemoryWriteStore implements WriteStore {
       sellerProceeds: listing.price_credits,
     };
     let foundBySeller = false;
+    let craftedBySeller = false;
     if (kind === 'gear' || kind === 'vehicle') {
       if (seller && soldItem && soldItem.supply_mode !== 'npc_market') {
         foundBySeller = this.sellerFoundItem(seller.id, soldItem);
+        // House Brand gate (Fixer major, 0029): the item counts as
+        // crafted exactly the way the economy metrics identify
+        // crafted sales — its payload origin is 'crafted'. Found and
+        // crafted are disjoint (a crafted item's source is Crafted,
+        // never a find source), so the two gated fee terms can never
+        // both fire on one sale.
+        craftedBySeller =
+          ((soldItem.payload ?? {}) as Record<string, unknown>).origin === 'crafted';
         feeBreakdown = marketFeeForSeller({
           price: listing.price_credits,
           skillSpends: seller.skill_spends ?? {},
           classModBoosts: this.classModBoostsFor(seller.id),
           foundBySeller,
+          craftedBySeller,
           feeRate: await this.feeRateProvider(),
         });
       }
     } else if (seller && listing.seller_type !== 'npc') {
       // Consumable / material sale (0019): the same fee through the
-      // same completion path, Darknet Broker reduction only — stacks
-      // carry no find provenance, so Market Manipulator never applies.
+      // same completion path, Darknet Broker reduction only for the
+      // Scavenger terms — stacks carry no find provenance, so Market
+      // Manipulator never applies. House Brand (0029) still applies
+      // to crafted consumable batches: batch_origin 'crafted' is the
+      // metrics rule for a crafted sale. Materials are never crafted.
+      craftedBySeller = kind === 'consumable' && listing.batch_origin === 'crafted';
       feeBreakdown = marketFeeForSeller({
         price: listing.price_credits,
         skillSpends: seller.skill_spends ?? {},
         classModBoosts: this.classModBoostsFor(seller.id),
         foundBySeller: false,
+        craftedBySeller,
         feeRate: await this.feeRateProvider(),
       });
     }
@@ -2691,6 +2762,7 @@ export class InMemoryWriteStore implements WriteStore {
         fee_rate: feeBreakdown.feeRate,
         fee_reduction: feeBreakdown.feeReduction,
         found_item: foundBySeller,
+        crafted_item: craftedBySeller,
       },
     };
     return this.record(playerId, 'cc_accept_listing', key, result);

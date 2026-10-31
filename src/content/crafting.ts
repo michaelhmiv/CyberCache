@@ -511,10 +511,29 @@ export function refineOutputCount(recipe: CraftRecipe, masteryLevel: number, bas
 
 // ─── Gear temper (§2.5c) ─────────────────────────────────────────────
 
-/** temperChance = base (lever) + 0.01 × gear mastery level, cap 0.30. */
-export function gearTemperChance(gearMasteryLevel: number, baseChance: number): number {
+/** temperChance = base (lever) + 0.01 × gear mastery level
+ *  + Master Artificer (Fixer major, migration 0029), cap 0.30. */
+export function gearTemperChance(gearMasteryLevel: number, baseChance: number, skillBonus = 0): number {
   const lv = Math.max(1, Math.floor(gearMasteryLevel) || 1);
-  return Math.min(0.3, Math.max(0, baseChance) + 0.01 * lv);
+  return Math.min(0.3, Math.max(0, baseChance) + 0.01 * lv + Math.max(0, skillBonus));
+}
+
+/**
+ * The composed craft quality shift (migration 0029): the economy
+ * lever, the Fixer Calibrated Eye / Tolerance Stacking total, and a
+ * future Research shift compose ADDITIVELY under ONE clamp,
+ * [−10, +20] — whichever of Fixer/Research lands first owns the
+ * clamp (Fixer landed first). The result feeds craftQualityBounds'
+ * qualityShift input in the TS settler; cc_complete_craft_unit
+ * composes identically in SQL.
+ */
+export function composedCraftQualityShift(
+  leverShift: number,
+  skillBonus: number,
+  researchShift = 0,
+): number {
+  const sum = (leverShift || 0) + Math.max(0, skillBonus || 0) + (researchShift || 0);
+  return Math.min(20, Math.max(-10, sum));
 }
 
 // ─── Duration snapshot modifiers ─────────────────────────────────────
@@ -532,9 +551,36 @@ export function consumableEfficiencyDurationMultiplier(efficiencyBonus: number):
   return 1 - Math.min(0.2, 0.02 * points);
 }
 
+/**
+ * The Fixer craft-speed consumer (migration 0029): Assembly Rhythm /
+ * Parallel Hands carry +0.025 craftSpeedBonus per point; the server
+ * craft consumer converts the TOTAL bonus into a second unit-duration
+ * multiplier 1 − min(0.25, bonus), applied AFTER the Scavenger
+ * consumableEfficiency term. The two skill multipliers compose
+ * multiplicatively under a combined 0.60× floor (0.80 × 0.75 = 0.60
+ * at both caps — the floor binds exactly there and nowhere else).
+ * Snapshotted at enqueue in BOTH store implementations.
+ */
+export function fixerCraftSpeedDurationMultiplier(craftSpeedBonus: number): number {
+  return 1 - Math.min(0.25, Math.max(0, craftSpeedBonus || 0));
+}
+
 /** Workshop Rush Ticket time reduction at a given ticket quality:
  *  the def's own scaling (0.2 base, chance-mode cap 0.45) — resolved
  *  through getConsumableRuntimeEffects by the caller; this constant
  *  pair documents the fallback when no def read is available. */
 export const RUSH_TICKET_BASE_REDUCTION = 0.2;
 export const RUSH_TICKET_MAX_REDUCTION = 0.45;
+
+/**
+ * The rush-ticket reduction the craft enqueue snapshots (migration
+ * 0029): min(cap, 0.2 × quality/100) — the SQL twin's clamp in
+ * cc_enqueue_craft_job, restated here so both implementations share
+ * one formula. The Fixer keystone's rushReductionCapBonus raises the
+ * cap (0.45 → 0.55 maxed); at capBonus 0 this equals the consumable
+ * def's FULL_CHANCE read for every reachable ticket quality.
+ */
+export function rushTicketTimeReduction(qualityPercent: number, capBonus = 0): number {
+  const cap = RUSH_TICKET_MAX_REDUCTION + Math.max(0, capBonus || 0);
+  return Math.min(cap, RUSH_TICKET_BASE_REDUCTION * (qualityPercent || 0) / 100);
+}
