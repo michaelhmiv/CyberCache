@@ -82,7 +82,7 @@ import { mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/ro
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { InMemoryWriteStore } from '../server/writes/memory';
 import { emptyWriteSeed, type ProfileRowData } from '../server/writes/store';
-import { InMemoryEconomyStore, emptyEconomySeed } from '../server/economy/memory';
+import { InMemoryEconomyStore } from '../server/economy/memory';
 import { issueAccessToken } from '../server/auth/tokens';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
