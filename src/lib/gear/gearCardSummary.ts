@@ -6,6 +6,10 @@
  * identity-only tags or placeholder text.
  */
 import { RARITIES } from '@/constants/rarities';
+import {
+  SHIELD_BEHAVIORS,
+  shieldBehaviorOf,
+} from '@/lib/combat/shieldBehaviors';
 import type { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance, Affix } from '@/types/items';
 
 // ── Type Guards ──────────────────────────────────────────────────────────────
@@ -153,6 +157,9 @@ export function gearCardSummary(item: GearItem): GearCardSummary {
   }
 
   if (isShield(item)) {
+    // Behavior (Phase 2c): visible on the card — name in the stats and
+    // a badge for non-Standard behaviors. Legacy shields read Standard.
+    const behavior = shieldBehaviorOf(item);
     return {
       meta: [item.rarity, `Lv.${item.level}`, 'Shield', item.element],
       primaryStats: [
@@ -166,13 +173,21 @@ export function gearCardSummary(item: GearItem): GearCardSummary {
       ],
       secondaryStats: [
         {
+          label: 'Behavior',
+          value: SHIELD_BEHAVIORS[behavior].name,
+          tone: 'text-amber',
+        },
+        {
           label: 'Affix',
           value: String(item.affixes.length),
           tone: 'text-text-secondary',
         },
         { label: 'Source', value: item.sourceTag, tone: 'text-text-secondary' },
       ],
-      badges: activity ? [activity.label] : [],
+      badges: [
+        ...(activity ? [activity.label] : []),
+        ...(behavior !== 'standard' ? [SHIELD_BEHAVIORS[behavior].name] : []),
+      ],
     };
   }
 

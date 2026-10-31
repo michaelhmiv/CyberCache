@@ -255,6 +255,27 @@ Rejected with no charge and the death still standing: no death record (409), fre
 
 ---
 
+## 6.1 Shield Behaviors
+
+Shields roll a behavior archetype at generation (weights by rarity in
+`src/lib/combat/shieldBehaviors.ts` — Common mostly Standard, Legendary
+always a real behavior). The behavior is stored in the item payload;
+shields generated before behaviors existed carry no field and read as
+Standard everywhere (never rewritten). One module owns the definitions
+and tuning constants; roaming resolves behaviors per-hit inside
+`computeMonsterDamageVsHunter`, the boss sim folds them into its pooled
+model (`modelShieldBehaviorForBoss`).
+
+| Behavior | Effect |
+|---|---|
+| Standard | No special behavior. |
+| Nova | When the shield breaks (crosses to 0 while armed), it erupts for 150% of capacity damage — roaming: at the kill cycle's current target; boss: flat damage off the boss's HP. Fires once per break; re-arms only after the shield is restored above 50% of capacity. |
+| Absorb | While the shield is up, each incoming hit has a 15% chance to be fully negated and restore 5% of capacity as shield HP. |
+| Amp | While shield HP is at full capacity, outgoing damage ×1.25. (Boss sim: fight-averaged over the fraction of the fight the shield pool holds.) |
+| Turtle | Capacity ×1.5 at generation, recharge rate ×0.5. Note: no engine consumes `rechargeRate` — shield HP rises only via Shield Cell restores / boss consumable pools — so in the current sims the capacity edge stands alone and the halved stat is the standing tradeoff wherever recharge is read. |
+
+---
+
 ## 7. Salvage Formulas
 
 Current authority: `cc_recycle_item` is the verified salvage economy path.
@@ -497,6 +518,7 @@ Nothing outside the prepared set is ever touched.
 ## 12. Current Implementation Status
 
 ### ✅ Fully Wired
+- Shield behaviors (see §6.1): Nova / Absorb / Amp / Turtle rolled at generation, resolved in the roaming damage contract and the boss pooled sim from the one `shieldBehaviors.ts` module; legacy shields read as Standard
 - Death & resurrection (see §4.2): server-recorded deaths (claim sim → `profiles.death_state`/`death_log`), server-validated free timer, server-charged paid revive at the displayed price, nonce-idempotent `POST /api/resurrect`
 - Legendary effects (14): glass_sun, ricochet_gospel, warranty_void, debt_collector, armor_eater (armor-break half), kickback, echo_chamber, bad_decision, hot_swapper, insurance_fraud_weapon — plus second_opinion, salvage_rights, market_crash and jackpot, which are implemented in the Chef / Postgres appliers rather than the simulator (see §1)
 - All 19 consumable effects in boss simulator

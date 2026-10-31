@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import type { GearItem, Weapon } from '@/types/items';
+import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
 
 // ── Type Guards ──────────────────────────────────────────────────────────────
 
@@ -57,11 +58,14 @@ function weaponDeltas(current: Weapon, candidate: Weapon): DeltaEntry[] {
 function shieldDeltas(current: ReturnType<typeof isShield> extends true ? GearItem : never, candidate: GearItem): DeltaEntry[] {
   const c = current as { hp: number; mitigation: number; rechargeRate: number; element?: string };
   const t = candidate as { hp: number; mitigation: number; rechargeRate: number; element?: string };
+  const cBehavior = SHIELD_BEHAVIORS[shieldBehaviorOf(c)].name;
+  const tBehavior = SHIELD_BEHAVIORS[shieldBehaviorOf(t)].name;
   return [
     { label: 'HP', delta: delta(c.hp, t.hp), better: t.hp > c.hp ? true : t.hp < c.hp ? false : null },
     { label: 'Mit', delta: deltaPct(c.mitigation, t.mitigation), better: t.mitigation > c.mitigation ? true : t.mitigation < c.mitigation ? false : null },
     { label: 'Rech', delta: delta(c.rechargeRate, t.rechargeRate), better: t.rechargeRate > c.rechargeRate ? true : t.rechargeRate < c.rechargeRate ? false : null },
     { label: 'Ele', delta: (c.element || '—') !== (t.element || '—') ? `${c.element || '—'} → ${t.element || '—'}` : (t.element || '—'), better: null },
+    { label: 'Behav', delta: cBehavior !== tBehavior ? `${cBehavior} → ${tBehavior}` : tBehavior, better: null },
   ];
 }
 

@@ -7,6 +7,11 @@ import { calculateSalvageYield } from '@/constants/salvageRules';
 import { useBossStore, useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
 import { computeLoadoutDps, computeStandardDps } from '@/lib/stats/dpsChain';
 import { REGION_1_BOSSES } from '@/constants/bosses';
+import {
+  SHIELD_BEHAVIORS,
+  describeShieldBehavior,
+  shieldBehaviorOf,
+} from '@/lib/combat/shieldBehaviors';
 import type { Affix, ClassMod, GearItem, Ordnance, Relic, Shield as ShieldItem, Weapon } from '@/types/items';
 import type { Listing } from '@/types/market';
 
@@ -97,7 +102,20 @@ function statRows(item: GearItem, bossRelativeDps?: number, bossName?: string): 
     }
     return rows;
   }
-  if (isShield(item)) return [['Shield HP', item.hp, 'text-cyan', item.hp], ['Recharge Rate', `${Math.round(item.rechargeRate)}/s`], ['Mitigation', pct(item.mitigation), 'text-green'], ['Element', item.element]];
+  if (isShield(item)) {
+    // Behavior (Phase 2c): name + plain-language effect with this
+    // shield's real numbers — no invisible mechanics. Legacy shields
+    // read as Standard.
+    const behavior = shieldBehaviorOf(item);
+    return [
+      ['Shield HP', item.hp, 'text-cyan', item.hp],
+      ['Recharge Rate', `${Math.round(item.rechargeRate)}/s`],
+      ['Mitigation', pct(item.mitigation), 'text-green'],
+      ['Element', item.element],
+      ['Behavior', SHIELD_BEHAVIORS[behavior].name, 'text-amber'],
+      ['Effect', describeShieldBehavior(behavior, item)],
+    ];
+  }
   if (isClassMod(item)) return [['Skill Tree', item.treeBonus, 'text-purple'], ['Boosted Nodes', Object.keys(item.nodeBoosts).length], ['Total Node Boost', Object.values(item.nodeBoosts).reduce((s, v) => s + v, 0), 'text-purple'], ['Affixes', item.affixes.length]];
   if (isOrdnance(item)) return [['Payload Damage', item.damage, 'text-red', item.damage], ['Shield Damage', item.shieldDamage, 'text-cyan'], ['Armor Damage', item.armorDamage, 'text-purple'], ['Element', item.element], ['Effect', item.effect]];
   // Relic: show affix category breakdown (relics are all about affixes)
