@@ -1051,6 +1051,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         open={!!inspectItem}
         onClose={() => setInspectItem(null)}
         contextLabel="Inventory Inspect"
+        allowReforge
         actions={inspectItem ? (
           <div className="grid grid-cols-4 gap-2">
             <button type="button" onClick={() => equip(inspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">

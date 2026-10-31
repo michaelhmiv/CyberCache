@@ -163,6 +163,31 @@ export function applyShieldBehaviorGenerationStats(
   };
 }
 
+/**
+ * Inverse of applyShieldBehaviorGenerationStats, for reforge
+ * (migration 0027): a baked shield's stored stats carry the Turtle
+ * transform, so swapping an affix must un-transform, swap in the
+ * untransformed space, and re-apply. HP inverts exactly (the ×1.5
+ * rounding error is < 0.5 pre-image). Recharge rate inverts onto the
+ * generator's own 0.1 grid — the ×0.5 rounding can leave the true
+ * pre-image ambiguous by one 0.1 step in rare half-step cases;
+ * rechargeRate is consumed by no engine (see the module header), and
+ * the affix's own contribution is applied and removed exactly
+ * relative to the recovered base either way.
+ */
+export function invertShieldBehaviorGenerationStats(
+  behavior: ShieldBehaviorId,
+  stats: { hp: number; rechargeRate: number },
+): { hp: number; rechargeRate: number } {
+  if (behavior !== 'turtle') return { hp: stats.hp, rechargeRate: stats.rechargeRate };
+  return {
+    hp: Math.round(stats.hp / SHIELD_BEHAVIOR_TUNING.turtleCapacityMult),
+    rechargeRate: parseFloat(
+      (stats.rechargeRate / SHIELD_BEHAVIOR_TUNING.turtleRechargeMult).toFixed(1),
+    ),
+  };
+}
+
 /** Nova burst damage for a shield of the given capacity. */
 export function novaDamageForCapacity(capacity: number): number {
   return Math.max(0, Math.round(capacity * SHIELD_BEHAVIOR_TUNING.novaPctOfCapacity));

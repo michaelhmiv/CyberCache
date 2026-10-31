@@ -11,6 +11,7 @@
  *   POST /api/ops/claim-crafted-consumable  verifiedOps.claimCraftedConsumable  cc_claim_crafted_consumable(...)
  *   POST /api/ops/consume-consumable        verifiedOps.consumeConsumableItem   cc_consume_consumable(...)
  *   POST /api/ops/recycle-item              verifiedOps.recycleItem             cc_recycle_item(...)
+ *   POST /api/ops/reforge-item              verifiedOps.reforgeItem             cc_reforge_item(...)
  *   POST /api/ops/item-lock                 verifiedOps.setItemLock             cc_item_lock(...)
  *   POST /api/ops/equip-item                verifiedOps.equipItem               cc_equip_item(...)
  *   POST /api/ops/unequip-slot              verifiedOps.unequipSlot             cc_unequip_slot(...)
@@ -347,6 +348,16 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     // when they dropped).
     await recordResultItemDiscoveries(store, playerId, result, 'salvage');
     return result;
+  });
+  // Reforge (0027): intent only — item + affix id. The store derives
+  // the roll from the server item record through the shared affix
+  // pools; the SQL applier prices, charges, and persists. No
+  // discovery recording: reforging never changes an item's identity
+  // (effect / frame), so the collection log is untouched by design.
+  op('/api/ops/reforge-item', async (playerId, req, res) => {
+    const itemId = uuidField(req, res, 'item_id', 'item id');
+    if (!itemId) return null;
+    return store.reforgeItem(playerId, str(body(req).nonce), itemId, str(body(req).affix_id));
   });
   op('/api/ops/item-lock', async (playerId, req, res) => {
     const itemId = uuidField(req, res, 'item_id', 'item id');

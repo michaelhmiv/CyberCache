@@ -79,6 +79,10 @@ export interface EconomyConfigValues {
   repairAbandonWindowHours: number;
   /** Days an unaccepted repair posting stays open before refund. */
   repairListingExpiryDays: number;
+  /** Multiplier on the reforge scrap cost (reforge slice, 0027). */
+  reforgeScrapScalar: number;
+  /** Flat legendary-core cost of reforging a Legendary (0027). */
+  reforgeLegendaryCoreCost: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -109,6 +113,8 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   serviceXpPerPoint: 2,
   repairAbandonWindowHours: 48,
   repairListingExpiryDays: 7,
+  reforgeScrapScalar: 1,
+  reforgeLegendaryCoreCost: 2,
 };
 
 export interface EconomyConfigKeySpec {
@@ -217,6 +223,14 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   repairListingExpiryDays: {
     key: 'repairListingExpiryDays', min: 1, max: 30, integer: true,
     defaultOwner: 'src/content/repair.ts REPAIR_LISTING_EXPIRY_DAYS_DEFAULT',
+  },
+  reforgeScrapScalar: {
+    key: 'reforgeScrapScalar', min: 0, max: 5, integer: false,
+    defaultOwner: 'src/content/reforge.ts REFORGE_SCRAP_SCALAR_DEFAULT',
+  },
+  reforgeLegendaryCoreCost: {
+    key: 'reforgeLegendaryCoreCost', min: 0, max: 8, integer: true,
+    defaultOwner: 'src/content/reforge.ts REFORGE_LEGENDARY_CORE_COST_DEFAULT',
   },
 };
 

@@ -57,6 +57,13 @@ export interface EconomyMetricsRow {
   legendariesSalvaged: number;
   legendaryCoresMinted: number;
   legendaryCoresSpent: number;
+  /** Reforge meters (migration 0027): completed reforges, the scrap
+   *  destroyed by them, and the legendary cores they destroyed (the
+   *  reforge share of legendaryCoresSpent, broken out — a subset
+   *  view, never an additional count). */
+  reforgesCompleted: number;
+  scrapDestroyedReforge: number;
+  legendaryCoresDestroyedReforge: number;
   computedAt: string;
 }
 
@@ -108,6 +115,9 @@ interface PgMetricsRow {
   legendaries_salvaged?: number;
   legendary_cores_minted?: string;
   legendary_cores_spent?: string;
+  reforges_completed?: number;
+  scrap_destroyed_reforge?: string;
+  legendary_cores_destroyed_reforge?: string;
   computed_at: string;
 }
 
@@ -152,6 +162,9 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     legendariesSalvaged: Number(r.legendaries_salvaged ?? 0),
     legendaryCoresMinted: Number(r.legendary_cores_minted ?? 0),
     legendaryCoresSpent: Number(r.legendary_cores_spent ?? 0),
+    reforgesCompleted: Number(r.reforges_completed ?? 0),
+    scrapDestroyedReforge: Number(r.scrap_destroyed_reforge ?? 0),
+    legendaryCoresDestroyedReforge: Number(r.legendary_cores_destroyed_reforge ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -169,6 +182,7 @@ const METRICS_COLUMNS = `
   market_median_price, market_median_by_rarity,
   cache_keys_from_ads, cache_opens, cache_fragments_awarded,
   legendaries_salvaged, legendary_cores_minted, legendary_cores_spent,
+  reforges_completed, scrap_destroyed_reforge, legendary_cores_destroyed_reforge,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

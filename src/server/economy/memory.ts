@@ -205,9 +205,18 @@ export class InMemoryEconomyStore implements EconomyStore {
       (r) => dig(r.result_payload, 'item', 'rarity') === 'Legendary',
     ).length;
     const legendaryCoresMinted = sumBy(['cc_recycle_item'], (p) => num(dig(p, 'cores_award')));
+    // Reforge meters (0027): reforge destroys cores outright, so its
+    // cores extend legendary_cores_spent (each core counted once);
+    // the dedicated columns break the reforge share out for the sink
+    // report. Scrap destroyed by reforge is its own meter — scrap is
+    // not a credits meter and never enters credits_destroyed_total.
+    const reforgesCompleted = rows.filter((r) => r.action_type === 'cc_reforge_item').length;
+    const scrapDestroyedReforge = sumBy(['cc_reforge_item'], (p) => num(dig(p, 'scrap_charged')));
+    const legendaryCoresDestroyedReforge = sumBy(['cc_reforge_item'], (p) => num(dig(p, 'cores_charged')));
     const legendaryCoresSpent =
       sumBy(['cc_enqueue_craft_job'], (p) => num(dig(p, 'job', 'escrow_cores')))
-      - sumBy(['cc_cancel_craft_job'], (p) => num(dig(p, 'cores_refunded')));
+      - sumBy(['cc_cancel_craft_job'], (p) => num(dig(p, 'cores_refunded')))
+      + legendaryCoresDestroyedReforge;
 
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
@@ -265,6 +274,9 @@ export class InMemoryEconomyStore implements EconomyStore {
       legendariesSalvaged,
       legendaryCoresMinted,
       legendaryCoresSpent,
+      reforgesCompleted,
+      scrapDestroyedReforge,
+      legendaryCoresDestroyedReforge,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

@@ -8,6 +8,7 @@ import {
   pickActivityKind,
 } from './activityModuleGenerator';
 import { BASE_ACTIVITY_MODULE_CHANCE } from '@/content/activityModuleDefs';
+import { CLASSMOD_AFFIX_POOL } from '@/lib/gear/affixPools';
 
 const SKILL_NODE_IDS = [
   'gs_dmg_1', 'gs_dmg_2', 'gs_crit_1', 'gs_crit_2', 'gs_critdmg_1', 'gs_critdmg_2',
@@ -54,14 +55,9 @@ export function generateClassMod(level: number = 1, externalRng?: () => number, 
 
   const affixCount = seededInt(rarityDef.affixCount.min, rarityDef.affixCount.max, rng);
   const affixes: Affix[] = [];
-  const classModAffixPool = [
-    { stat: 'weaponDamage', text: '+{v}% Weapon Damage', min: 3, max: 10 },
-    { stat: 'critChance', text: '+{v}% Crit Chance', min: 2, max: 6 },
-    { stat: 'bossDamageMod', text: '+{v}% Boss Damage', min: 5, max: 12 },
-    { stat: 'skillPoints', text: '+{v} Bonus Skill Points', min: 1, max: 3 },
-  ];
+  // The pool is shared with reforge (src/lib/gear/affixPools.ts).
   for (let i = 0; i < affixCount; i++) {
-    const def = classModAffixPool[seededInt(0, classModAffixPool.length - 1, rng)];
+    const def = CLASSMOD_AFFIX_POOL[seededInt(0, CLASSMOD_AFFIX_POOL.length - 1, rng)];
     const rollVal = seededInt(def.min, def.max, rng);
     affixes.push({
       id: `${def.stat}_${i}`,
