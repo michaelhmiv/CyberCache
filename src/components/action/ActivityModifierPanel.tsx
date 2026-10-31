@@ -22,6 +22,7 @@ const ACTIVITY_GLYPHS: Partial<Record<ActivityKind, string>> = {
   workshop_service: getActivityVisual('workshop_service').glyph,
   roaming_loot: getActivityVisual('roaming_loot').glyph,
   idle_standby: getActivityVisual('idle_standby').glyph,
+  endless_run: getActivityVisual('endless_run').glyph,
 };
 
 

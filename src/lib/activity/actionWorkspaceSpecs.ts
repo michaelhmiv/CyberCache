@@ -128,6 +128,17 @@ export const ACTION_WORKSPACE_SPECS: Record<ActivityKind, MechanicWorkspaceSpec>
     visualLoop: ['kiosk scan', 'item transfer', 'credit pulse', 'listing stamp'],
     priorities: ['state', 'reward-intel', 'decision', 'feed', 'selector'],
   },
+  endless_run: {
+    kind: 'endless_run',
+    title: 'Chaos Chamber',
+    liveVerb: 'descending',
+    coreDecision: 'Push one depth deeper, or bank the escrow and leave alive?',
+    rewardIntel: ['current depth', 'best depth', 'escrow credits', 'escrow xp', 'escrow scrap', 'next encounter level', 'escalation rate', 'milestone depth'],
+    feedEvents: ['run started', 'depth cleared', 'milestone drop', 'run banked', 'run ended'],
+    selector: 'Endless panel in the Fight area; the run holds the action slot until it ends.',
+    visualLoop: ['arena depth track', 'band tint escalation', 'enemy approach', 'loot burst'],
+    priorities: ['state', 'reward-intel', 'decision', 'feed'],
+  },
 };
 
 export const getActionWorkspaceSpec = (kind: ActivityKind): MechanicWorkspaceSpec => ACTION_WORKSPACE_SPECS[kind] ?? ACTION_WORKSPACE_SPECS.idle_standby;

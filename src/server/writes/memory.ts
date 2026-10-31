@@ -148,6 +148,7 @@ const ACTIVE_KINDS = [
   'salvaging',
   'workshop_service',
   'market_listing',
+  'endless_run',
 ] as const;
 const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave'] as const;
 

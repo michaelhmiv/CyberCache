@@ -17,6 +17,7 @@ import {
   useWorkshopStore,
 } from '@/store';
 import { BossEncounterPanel } from '@/components/fight/BossEncounterPanel';
+import { EndlessPanel } from '@/components/fight/EndlessPanel';
 import { BossPickerList } from '@/components/fight/BossPickerList';
 import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -81,6 +82,7 @@ const copy: Record<ActivityKind, { title: string; detail: string }> = {
   salvaging: { title: 'Salvaging', detail: 'Breaking items into scrap, materials, or essences.' },
   workshop_service: { title: 'Workshop Service', detail: 'Maintaining machines, queues, and production outputs.' },
   market_listing: { title: 'Market Listing', detail: 'Posting or managing gear at the trade kiosk.' },
+  endless_run: { title: 'Chaos Chamber', detail: 'Descending the Endless gauntlet — escrow pays when the run ends.' },
 };
 
 const bossPrepCopy = {
@@ -228,6 +230,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showBossPicker, setShowBossPicker] = useState(false);
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
   const [showMarketPicker, setShowMarketPicker] = useState(false);
+  const [showEndless, setShowEndless] = useState(false);
   const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
   // Tick feed events from the canonical ticker — the single source of truth
   // for roaming rewards. The Action screen is a consumer, not an engine.
@@ -396,6 +399,14 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, onNavigate };
 
   const workspace = (() => {
+    // Endless (0028): the Chamber owns the workspace while a run
+    // holds the slot, and opens in prep mode from the switch grid —
+    // entering (the fee, the belt burn, the slot) is the panel's own
+    // server call, never a client-side activity staging.
+    if (currentKind === 'endless_run' || showEndless) {
+      return <EndlessPanel onLeave={() => setShowEndless(false)} />;
+    }
+
     // Idle/standby: no panel — the compact action selector handles starting actions.
     if (currentKind === 'idle_standby' || currentKind === 'none') return null;
 
@@ -466,10 +477,16 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return null; // fallback: no workspace panel needed
   })();
 
+  const openEndless = useCallback(() => {
+    setShowEndless(true);
+    setShowSwitch(false);
+  }, []);
+
   const switchActions = [
     { label: 'Roam', detail: selectedArea.name, icon: <ActivityGlyph kind="roaming_loot" size={16} /> as React.ReactNode, run: () => startRoam() },
     { label: 'Boss Prep', detail: prepBossTarget?.name ?? 'Choose target', icon: <ActivityGlyph kind="boss_fight" size={16} /> as React.ReactNode, run: () => startPrep() },
     { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <span style={{ fontSize: 16 }} className="text-amber">⚔</span> as React.ReactNode, run: () => startBossFight() },
+    { label: 'Endless', detail: 'Chaos Chamber', icon: <ActivityGlyph kind="endless_run" size={16} /> as React.ReactNode, run: openEndless },
     { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: <ActivityGlyph kind="crafting" size={16} /> as React.ReactNode, run: () => startCrafting() },
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
   ].slice(0, MAX_SWITCH_ROWS);
@@ -556,6 +573,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
                 (label === 'Roam' && currentKind === 'roaming_loot') ||
                 (label === 'Boss Prep' && isBossPrep) ||
                 (label === 'Boss Fight' && isBossFight) ||
+                (label === 'Endless' && (currentKind === 'endless_run' || showEndless)) ||
                 (label === 'Craft' && currentKind === 'crafting') ||
                 (label === 'Salvage' && currentKind === 'salvaging')
                   ? 'border-amber/60 bg-amber/10'

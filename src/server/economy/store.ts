@@ -64,6 +64,20 @@ export interface EconomyMetricsRow {
   reforgesCompleted: number;
   scrapDestroyedReforge: number;
   legendaryCoresDestroyedReforge: number;
+  /** Endless meters (migration 0028): runs started/ended, encounters
+   *  cleared, the day's deepest ended run, escrow payouts (credits
+   *  fold into creditsMintedTotal; XP is metered here only), entry
+   *  fees destroyed (folded into creditsDestroyedTotal), and
+   *  milestone drops by rarity. */
+  endlessRunsStarted: number;
+  endlessRunsEnded: number;
+  endlessEncountersCleared: number;
+  endlessDeepestDepth: number;
+  endlessCreditsPaid: number;
+  endlessXpPaid: number;
+  endlessFeesDestroyed: number;
+  endlessMilestoneDrops: number;
+  endlessMilestoneDropsByRarity: Record<string, number>;
   computedAt: string;
 }
 
@@ -118,6 +132,15 @@ interface PgMetricsRow {
   reforges_completed?: number;
   scrap_destroyed_reforge?: string;
   legendary_cores_destroyed_reforge?: string;
+  endless_runs_started?: number;
+  endless_runs_ended?: number;
+  endless_encounters_cleared?: number;
+  endless_deepest_depth?: number;
+  endless_credits_paid?: string;
+  endless_xp_paid?: string;
+  endless_fees_destroyed?: string;
+  endless_milestone_drops?: number;
+  endless_milestone_drops_by_rarity?: Record<string, number>;
   computed_at: string;
 }
 
@@ -165,6 +188,15 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     reforgesCompleted: Number(r.reforges_completed ?? 0),
     scrapDestroyedReforge: Number(r.scrap_destroyed_reforge ?? 0),
     legendaryCoresDestroyedReforge: Number(r.legendary_cores_destroyed_reforge ?? 0),
+    endlessRunsStarted: Number(r.endless_runs_started ?? 0),
+    endlessRunsEnded: Number(r.endless_runs_ended ?? 0),
+    endlessEncountersCleared: Number(r.endless_encounters_cleared ?? 0),
+    endlessDeepestDepth: Number(r.endless_deepest_depth ?? 0),
+    endlessCreditsPaid: Number(r.endless_credits_paid ?? 0),
+    endlessXpPaid: Number(r.endless_xp_paid ?? 0),
+    endlessFeesDestroyed: Number(r.endless_fees_destroyed ?? 0),
+    endlessMilestoneDrops: Number(r.endless_milestone_drops ?? 0),
+    endlessMilestoneDropsByRarity: r.endless_milestone_drops_by_rarity ?? {},
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -183,6 +215,10 @@ const METRICS_COLUMNS = `
   cache_keys_from_ads, cache_opens, cache_fragments_awarded,
   legendaries_salvaged, legendary_cores_minted, legendary_cores_spent,
   reforges_completed, scrap_destroyed_reforge, legendary_cores_destroyed_reforge,
+  endless_runs_started, endless_runs_ended, endless_encounters_cleared,
+  endless_deepest_depth, endless_credits_paid, endless_xp_paid,
+  endless_fees_destroyed, endless_milestone_drops,
+  endless_milestone_drops_by_rarity,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

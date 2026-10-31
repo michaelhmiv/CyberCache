@@ -255,6 +255,21 @@ export function syncVerifiedResult(result: Record<string, unknown>): void {
   syncLoadoutSnapshot(result.loadout);
 }
 
+/**
+ * Endless results (0028): the canonical profile snapshot plus any
+ * milestone gear the Chef awarded (already stored server-side; the
+ * client upserts the display copies). Escrow/run state itself is NOT
+ * mirrored into a client store — the panel re-reads it from
+ * GET /api/endless/me, keeping server facts the single source.
+ */
+export function syncEndlessResult(result: {
+  profile?: RuntimeProfilePayload;
+  items?: GearItem[];
+}): void {
+  syncRuntimeProfile(result.profile);
+  if (result.items?.length) result.items.forEach((item) => useInventoryStore.getState().upsertItem(item));
+}
+
 export function syncBossAttemptResult(result: {
   profile?: RuntimeProfilePayload;
   items?: GearItem[];

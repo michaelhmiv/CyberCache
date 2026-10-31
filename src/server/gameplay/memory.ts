@@ -33,14 +33,19 @@ import {
   GameplayStoreError,
   LOADOUT_SLOT_ORDER,
   type ActiveActionRow,
+  type ApplyEndlessEncounterInput,
   type BossProfileRow,
   type ChefBossAttemptInput,
   type ChefGameplayStore,
   type ChefRewardsInput,
   type DeathRecord,
+  type EndEndlessRunInput,
+  type EndlessFacts,
+  type EndlessRunRow,
   type EquippedItemEntry,
   type EquippedVehicleRow,
   type LoadoutSlot,
+  type StartEndlessRunInput,
   type VehicleUsageInput,
   type ResurrectInput,
   type RoamingProfileRow,
@@ -235,6 +240,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
    * simplification above); batches here are the quality record.
    */
   readonly consumableBatches: InMemoryConsumableBatch[] = [];
+  /** Endless run rows (migration 0028) — the mirror of endless_runs. */
+  readonly endlessRuns: Array<EndlessRunRow & { user_id: string; encounters: Json[] }> = [];
+  /** Endless start timestamps (the store clock) for the fee-escalation count. */
+  readonly endlessStartLog: Array<{ playerId: string; atMs: number }> = [];
   /** Craft jobs (migration 0024) for the offline craft settler. */
   readonly craftJobs: CraftJobRecord[] = [];
   /** Stat counter mirror for craft settler side effects. */
@@ -869,6 +878,252 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (weaponId) this.addMasteryXp(playerId, weaponId, Math.max(0, Math.trunc(attempt.xp)));
     this.grantConsumedMastery(playerId, asRecord(attempt.consumables));
     return result;
+  }
+
+  // --- Endless mode (migration 0028 mirrors) ---
+
+  private endlessRunView(run: EndlessRunRow & { user_id: string; encounters: Json[] }): EndlessRunRow {
+    const { user_id: _userId, encounters: _encounters, ...view } = run;
+    return JSON.parse(JSON.stringify(view)) as EndlessRunRow;
+  }
+
+  /** Pay a run's escrow into the profile at `fraction` (1 = banked in full). */
+  private settleEndlessEscrow(
+    p: InMemoryProfile,
+    run: EndlessRunRow & { user_id: string; encounters: Json[] },
+    status: 'banked' | 'died' | 'abandoned',
+    fraction: number,
+  ): { credits: number; xp: number; scrap: number; fraction: number } {
+    const frac = Math.max(0, Math.min(1, fraction));
+    const paid = {
+      credits: Math.floor(run.escrow_credits * frac),
+      xp: Math.floor(run.escrow_xp * frac),
+      scrap: Math.floor(run.escrow_scrap * frac),
+    };
+    p.credits += paid.credits;
+    p.scrap += paid.scrap;
+    if (paid.xp > 0) {
+      const leveled = applyXp(p.player_level, p.player_xp, paid.xp);
+      p.player_level = leveled.player_level;
+      p.player_xp = leveled.player_xp;
+    }
+    run.status = status;
+    run.ended_at = this.now().toISOString();
+    run.paid_credits = paid.credits;
+    run.paid_xp = paid.xp;
+    run.paid_scrap = paid.scrap;
+    run.payout_fraction = frac;
+    // Release the personal slot when it points at this run.
+    const action = this.activeActions.get(run.user_id);
+    if (action && action.active_action === 'endless_run' && action.target_id === run.id) {
+      this.activeActions.set(run.user_id, {
+        user_id: run.user_id,
+        active_action: 'idle_standby',
+        target_id: null,
+        started_at: this.now().toISOString(),
+        last_heartbeat_at: this.now().toISOString(),
+        activity_payload: {},
+      });
+    }
+    return { ...paid, fraction: frac };
+  }
+
+  async startEndlessRun(playerId: string, input: StartEndlessRunInput): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const nonceKey = `${playerId}:endless-start:${input.nonce}`;
+    const prior = this.ledger.get(nonceKey);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true };
+
+    if (deathRecordFromJson(p.death_state)) {
+      throw new GameplayStoreError('Hunter is dead — resurrect before entering the Chamber');
+    }
+    // Validations run before any mutation (the SQL applier gets the
+    // same atomicity from its transaction): belt counts first, then
+    // the fee against the post-abandon balance — a carried-out bank
+    // can fund the next entry, like cc_start_endless_run.
+    const prepared = asRecord(input.preparedConsumables);
+    for (const [type, qty] of Object.entries(prepared)) {
+      if (Math.trunc(p.consumables[type] ?? 0) < qty) {
+        throw new GameplayStoreError(`Insufficient consumable quantity for ${type}`);
+      }
+    }
+    const existing = this.endlessRuns.find((r) => r.user_id === playerId && r.status === 'active');
+    const fee = Math.max(0, Math.trunc(input.entryFee));
+    const abandonCredits = existing
+      ? Math.floor(existing.escrow_credits * Math.max(0, Math.min(1, input.deathPayoutFraction)))
+      : 0;
+    if (p.credits + abandonCredits < fee) {
+      throw new GameplayStoreError('Insufficient credits for endless entry fee');
+    }
+
+    // A still-active run is carried out first: abandoned at the death
+    // fraction (the cc_start_endless_run ordering — settle, then open).
+    let abandonedSettlement: Json = null;
+    if (existing) {
+      const payout = this.settleEndlessEscrow(p, existing, 'abandoned', input.deathPayoutFraction);
+      abandonedSettlement = {
+        run_id: existing.id,
+        depth_reached: existing.depth_reached,
+        payout,
+      } as Json;
+    }
+
+    // Burn the prepared belt (once, at entry — the run is one attempt).
+    const nextConsumables = { ...p.consumables };
+    for (const [type, qty] of Object.entries(prepared)) {
+      nextConsumables[type] = Math.max(0, Math.trunc(nextConsumables[type] ?? 0) - qty);
+    }
+    p.consumables = nextConsumables;
+    p.credits -= fee;
+
+    const run: EndlessRunRow & { user_id: string; encounters: Json[] } = {
+      id: randomUUID(),
+      user_id: playerId,
+      status: 'active',
+      started_at: this.now().toISOString(),
+      ended_at: null,
+      start_level: p.player_level,
+      risk: input.risk,
+      prepared_consumables: prepared,
+      depth_reached: 0,
+      escrow_credits: 0,
+      escrow_xp: 0,
+      escrow_scrap: 0,
+      entry_fee: fee,
+      milestone_drops: [],
+      paid_credits: 0,
+      paid_xp: 0,
+      paid_scrap: 0,
+      payout_fraction: null,
+      encounters: [],
+    };
+    this.endlessRuns.push(run);
+    this.endlessStartLog.push({ playerId, atMs: this.now().getTime() });
+    this.activeActions.set(playerId, {
+      user_id: playerId,
+      active_action: 'endless_run',
+      target_id: run.id,
+      started_at: this.now().toISOString(),
+      last_heartbeat_at: this.now().toISOString(),
+      activity_payload: { run_id: run.id, mode: 'chaos_chamber' },
+    });
+
+    const result: Json = {
+      action_type: 'cc_start_endless_run',
+      run: this.endlessRunView(run),
+      entry_fee: fee,
+      runs_started_today: this.endlessStartLog.filter(
+        (e) => e.playerId === playerId && e.atMs >= Date.parse(new Date(this.now()).toISOString().slice(0, 10) + 'T00:00:00.000Z'),
+      ).length,
+      abandoned_settlement: abandonedSettlement,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(nonceKey, result);
+    return result;
+  }
+
+  async applyEndlessEncounter(playerId: string, input: ApplyEndlessEncounterInput): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const nonceKey = `${playerId}:endless-encounter:${input.nonce}`;
+    const prior = this.ledger.get(nonceKey);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true };
+
+    const run = this.endlessRuns.find((r) => r.id === input.runId && r.user_id === playerId);
+    if (!run || run.status !== 'active') {
+      throw new GameplayStoreError('Endless run is not active');
+    }
+    const action = this.activeActions.get(playerId);
+    if (!action || action.active_action !== 'endless_run' || action.target_id !== run.id) {
+      throw new GameplayStoreError('Endless run does not hold the action slot');
+    }
+    if (Math.trunc(input.depth) !== run.depth_reached + 1) {
+      throw new GameplayStoreError('Endless depth mismatch');
+    }
+
+    run.encounters.push(input.encounter);
+    let payout: { credits: number; xp: number; scrap: number; fraction: number } | null = null;
+    if (input.victory) {
+      run.escrow_credits += Math.max(0, Math.trunc(input.rewards.credits));
+      run.escrow_xp += Math.max(0, Math.trunc(input.rewards.xp));
+      run.escrow_scrap += Math.max(0, Math.trunc(input.rewards.scrap));
+      run.depth_reached = Math.trunc(input.depth);
+      if (input.milestoneDrop) {
+        run.milestone_drops.push({
+          depth: Math.trunc(input.depth),
+          rarity: input.milestoneDrop.rarity,
+          kind: input.milestoneDrop.kind,
+          name: input.milestoneDrop.name,
+        });
+      }
+      if (input.capReached) {
+        payout = this.settleEndlessEscrow(p, run, 'banked', 1);
+      }
+    } else {
+      payout = this.settleEndlessEscrow(p, run, 'died', input.deathPayoutFraction);
+    }
+
+    const result: Json = {
+      action_type: 'cc_apply_endless_encounter',
+      run_id: run.id,
+      depth: Math.trunc(input.depth),
+      victory: input.victory,
+      rewards: {
+        xp: Math.max(0, Math.trunc(input.rewards.xp)),
+        credits: Math.max(0, Math.trunc(input.rewards.credits)),
+        scrap: Math.max(0, Math.trunc(input.rewards.scrap)),
+      },
+      escrow: { credits: run.escrow_credits, xp: run.escrow_xp, scrap: run.escrow_scrap },
+      run_status: run.status,
+      milestone_drop: (input.milestoneDrop ?? null) as Json,
+      payout: payout as Json,
+      profile: this.snapshot(p),
+      run: this.endlessRunView(run),
+    };
+    this.ledger.set(nonceKey, result);
+    return result;
+  }
+
+  async endEndlessRun(playerId: string, input: EndEndlessRunInput): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const nonceKey = `${playerId}:endless-end:${input.nonce}`;
+    const prior = this.ledger.get(nonceKey);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true };
+
+    const run = this.endlessRuns.find((r) => r.user_id === playerId && r.status === 'active');
+    if (!run) {
+      return { action_type: 'cc_end_endless_run', ended: false, reason: 'no_active_run' } as Json;
+    }
+    const payout = this.settleEndlessEscrow(p, run, 'banked', 1);
+    const result: Json = {
+      action_type: 'cc_end_endless_run',
+      ended: true,
+      run_id: run.id,
+      depth_reached: run.depth_reached,
+      payout,
+      profile: this.snapshot(p),
+      run: this.endlessRunView(run),
+    };
+    this.ledger.set(nonceKey, result);
+    return result;
+  }
+
+  async getActiveEndlessRun(playerId: string): Promise<EndlessRunRow | null> {
+    const run = this.endlessRuns.find((r) => r.user_id === playerId && r.status === 'active');
+    return run ? this.endlessRunView(run) : null;
+  }
+
+  async getEndlessFacts(playerId: string, dayStartIso: string): Promise<EndlessFacts> {
+    const ended = this.endlessRuns
+      .filter((r) => r.user_id === playerId && r.status !== 'active')
+      .sort((a, b) => (b.ended_at ?? '').localeCompare(a.ended_at ?? ''));
+    const dayStartMs = Date.parse(dayStartIso);
+    return {
+      bestDepth: ended.reduce((max, r) => Math.max(max, r.depth_reached), 0),
+      runsStartedToday: this.endlessStartLog.filter(
+        (e) => e.playerId === playerId && e.atMs >= dayStartMs,
+      ).length,
+      recentRuns: ended.slice(0, 10).map((r) => this.endlessRunView(r)),
+    };
   }
 
   async getDeathRecord(playerId: string): Promise<DeathRecord | null> {

@@ -30,6 +30,11 @@ describe('golden-image regression', () => {
     expect(ids.filter((id) => id.startsWith('loot-'))).toHaveLength(5);
     expect(ids.filter((id) => id.startsWith('fx-'))).toHaveLength(6);
     expect(ids.filter((id) => id.startsWith('arena-'))).toHaveLength(13);
+    // Endless (0028): the depth-treatment band variants.
+    expect(ids.filter((id) => id.startsWith('endless-depth-'))).toHaveLength(3);
+    expect(ids).toContain('endless-depth-1');
+    expect(ids).toContain('endless-depth-12');
+    expect(ids).toContain('endless-depth-25');
   });
 
   for (const goldenScene of GOLDEN_SCENES) {

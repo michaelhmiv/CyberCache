@@ -6,7 +6,8 @@ export type ActivityKind =
   | 'crafting'
   | 'salvaging'
   | 'workshop_service'
-  | 'market_listing';
+  | 'market_listing'
+  | 'endless_run';
 
 export type ActivityTargetType =
   | 'none'
@@ -14,7 +15,8 @@ export type ActivityTargetType =
   | 'boss'
   | 'item'
   | 'workshop_job'
-  | 'market_listing';
+  | 'market_listing'
+  | 'endless';
 
 export type BossPhase = 'prep' | 'fight';
 
@@ -84,6 +86,7 @@ export const PRODUCTIVE_ACTIVITY_LABELS: Record<ActivityKind, string> = {
   salvaging: 'Salvaging',
   workshop_service: 'Workshop service',
   market_listing: 'Market listing',
+  endless_run: 'Endless run',
 };
 
 export function isProductiveActivity(kind: ActivityKind): boolean {
