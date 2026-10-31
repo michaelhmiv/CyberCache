@@ -109,7 +109,7 @@ describe('mechanics foundation validation', () => {
   });
 
   it('keeps Region 1 bosses sequential and phase-driven', () => {
-    expect(REGION_1_BOSSES).toHaveLength(7);
+    expect(REGION_1_BOSSES).toHaveLength(13);
     expect(uniqueCount(REGION_1_BOSSES.map((boss) => boss.id))).toBe(REGION_1_BOSSES.length);
 
     for (let index = 0; index < REGION_1_BOSSES.length; index += 1) {

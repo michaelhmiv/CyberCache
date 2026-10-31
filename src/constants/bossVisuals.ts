@@ -122,6 +122,12 @@ export const BOSS_VISUALS: Record<string, BossVisual> = {
   mirage_duster: { id: 'mirage_duster', sigil: 'MD', color: '#8B5CF6', accentColor: '#A5F3FC', archetype: 'hybrid', description: 'Phase-shifting evasive target with shield backup.' },
   rust_prophet: { id: 'rust_prophet', sigil: 'RP', color: '#F59E0B', accentColor: '#C4FF2F', archetype: 'mechanical', description: 'Armored repair platform. Corrosive counter essential.' },
   scrap_bishop: { id: 'scrap_bishop', sigil: 'SB', color: '#FF9000', accentColor: '#C4FF2F', archetype: 'mechanical', description: 'Three-phase siege engine. Full counter spread required.' },
+  spinneret_widow: { id: 'spinneret_widow', sigil: 'W9', color: '#9BE15D', accentColor: '#FFEA3A', archetype: 'mechanical', description: 'Loom-armed salvage spider. Her overclock punishes slow kills.' },
+  mnemosyne_mirror: { id: 'mnemosyne_mirror', sigil: 'MM', color: '#8B5CF6', accentColor: '#F5F5F5', archetype: 'hybrid', description: 'Adaptive mirror construct. Attunes to your primary weapon.' },
+  static_choir: { id: 'static_choir', sigil: 'SC', color: '#FFEA3A', accentColor: '#E0F2FE', archetype: 'mechanical', description: 'Broadcast choir behind a harmonic shroud. Stagger breaks the chord.' },
+  verdant_maw: { id: 'verdant_maw', sigil: 'VM', color: '#A855F7', accentColor: '#FFEA3A', archetype: 'organic', description: 'Living heartwood armor over a furnace heart. Armor break is the fight.' },
+  sister_null: { id: 'sister_null', sigil: 'SN', color: '#8B5CF6', accentColor: '#FF9DF5', archetype: 'hybrid', description: 'Void anchor cultist. Status pressure collapses her rift.' },
+  vaultkeeper_omega: { id: 'vaultkeeper_omega', sigil: 'VO', color: '#FF9000', accentColor: '#FF9DF5', archetype: 'mechanical', description: 'Warden of the First Cache. Siege layers over a final overclock.' },
 };
 
 export function getBossVisual(id: string): BossVisual {

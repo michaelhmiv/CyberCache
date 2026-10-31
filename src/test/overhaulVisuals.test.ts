@@ -65,7 +65,7 @@ describe('manifest completeness (§4)', () => {
       expect(has(`boss-${boss.id.replace(/_/g, '-')}`)).toBe(true);
     }
     const arenaIds = new Set(Object.values(PIXEL_BOSS_ARENAS).map((a) => a.backgroundId));
-    expect(arenaIds.size).toBe(7);
+    expect(arenaIds.size).toBe(REGION_1_BOSSES.length);
   });
 
   it('every event prop, area visual, dialect status, and action set resolves', () => {

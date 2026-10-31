@@ -9,7 +9,7 @@ Currently in **closed testing on Google Play** (Android). The server runs on Rai
 - **Idle roaming** — your hunter farms zones in real time and keeps earning while you're away (offline settlement with a configurable cap). Roaming income accrues fractionally and banks to the fraction of a credit — see `MECHANICS.md`.
 - **Deep weapon system** — 6 weapon types × 6 manufacturers × 6 elements × 5 rarities. The generator rolls exactly 6 part slots per weapon, plus procedural affixes. **25 legendaries**, each with a bespoke pixel sprite and a real, implemented effect (the full honesty table lives in `MECHANICS.md` §11).
 - **7 gear slots** — Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic.
-- **Boss combat** — 4-phase simulation (Survival → Break → DPS → Mechanics) against 7 bosses, with risk settings, elemental matchups, consumable planning, and a win-chance estimate before you commit.
+- **Boss combat** — 4-phase simulation (Survival → Break → DPS → Mechanics) against 13 bosses, with risk settings, elemental matchups, consumable planning, and per-boss signature mechanics.
 - **Skill trees** — Gunslinger, Demolition, Scavenger; bonuses feed the same economy and simulation the server runs.
 - **Economy** — Credits, Scrap, Cache Keys and fragments, 10 crafting materials, a vendor, a Workshop with a crafting queue, and a marketplace where listings are real (player-posted, NPC-seeded) and every transaction settles on the server.
 - **Accounts** — start playing instantly as a guest; link **Sign in with Google** later and keep the same account. Progress lives server-side per account.

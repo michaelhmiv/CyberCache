@@ -74,6 +74,26 @@ type BossSimWeapon = Weapon & {
   signatureMechanic?: string;
 };
 
+/**
+ * Overclock Ramp tuning (boss roster expansion): a boss with the
+ * `overclock_ramp` mechanic deals damage that scales with how long
+ * the fight runs. The first GRACE seconds are unramped; past that,
+ * total boss damage grows RATE per second of time-to-kill, capped at
+ * MAX_MULT. Kill speed is the counter — the same pooled expected-
+ * value style as the Amp shield model: at a 30s kill the ramp is
+ * ×1.20, at 45s ×1.50, at 70s+ it caps at ×2.00.
+ */
+export const OVERCLOCK_RAMP = {
+  graceSeconds: 20,
+  ratePerSecond: 0.02,
+  maxMult: 2,
+} as const;
+
+export function overclockRampMult(timeToKill: number): number {
+  const over = Math.max(0, timeToKill - OVERCLOCK_RAMP.graceSeconds);
+  return Math.min(OVERCLOCK_RAMP.maxMult, 1 + over * OVERCLOCK_RAMP.ratePerSecond);
+}
+
 export function getBossRiskModifiers(risk: RiskSetting) {
   switch (risk) {
     case RiskSetting.Conservative:
@@ -416,6 +436,27 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // jackpot) are implemented in the Chef / Postgres appliers, not here.
   const legendary = applyLegendaryEffects(primary, pityCount);
 
+  // Adaptive Plating (Mnemosyne Mirror, boss roster expansion): the
+  // boss attunes to the PRIMARY weapon's element — it is struck from
+  // her weaknesses and read as resisted for every DPS-chain call.
+  // Sidearms and heavies of other elements are untouched, which is
+  // exactly the build question the mechanic asks. The def's listed
+  // profile stays the prep intel; the attunement applies on top of
+  // it, and only while a primary is equipped.
+  const adaptiveElement = boss.mechanic.id === 'adaptive_plating' ? primary?.element : undefined;
+  const effectiveWeaknesses = adaptiveElement
+    ? boss.weaknesses.filter((e) => e !== adaptiveElement)
+    : boss.weaknesses;
+  const effectiveResistances =
+    adaptiveElement && !boss.resistances.includes(adaptiveElement)
+      ? [...boss.resistances, adaptiveElement]
+      : boss.resistances;
+  if (adaptiveElement) {
+    reasons.push(
+      `Adaptive Plating: attuned to your primary's ${adaptiveElement} — it reads as resisted, never a weakness.`,
+    );
+  }
+
   // 1. Survival Check
   // ONE hunter HP formula everywhere: computeHunterMaxHp (700 + 60 per
   // level + shield HP) — the same formula the mechanics snapshot and
@@ -558,6 +599,10 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   const bossTotalDamage = boss.dps * 30 * staggerDamageMult;
   const survivalScore = totalSurvival / bossTotalDamage;
+  // Overclock Ramp may tax this score once the kill time is known
+  // (see the ramp block after the DPS check); until then it is the
+  // plain survival score and every other boss sims exactly as before.
+  let effectiveSurvivalScore = survivalScore;
 
   if (survivalScore < 0.8) {
     reasons.push('Your survival is weak. Boss damage will overwhelm your shield.');
@@ -719,8 +764,8 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     // in DPS_CONSUMABLE_EFFECTS.
     const chainDps = computeWeaponDps({
       weapon: primary,
-      bossWeaknesses: boss.weaknesses,
-      bossResistances: boss.resistances,
+      bossWeaknesses: effectiveWeaknesses,
+      bossResistances: effectiveResistances,
       consumables,
       legendaryDamageMult: legendary.damageMult,
       ammoEfficiency: ammoEff,
@@ -738,8 +783,8 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     // default 1.0 in the chain.
     const chainDps = computeWeaponDps({
       weapon: secondary,
-      bossWeaknesses: boss.weaknesses,
-      bossResistances: boss.resistances,
+      bossWeaknesses: effectiveWeaknesses,
+      bossResistances: effectiveResistances,
       consumables,
       legendaryDamageMult: 1, // secondary doesn't get the primary's legendary bonus
       bossDamageMod: secondary.bossDamageMod,
@@ -756,8 +801,8 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     // element matchup applies.
     const chainDps = computeWeaponDps({
       weapon: heavy,
-      bossWeaknesses: boss.weaknesses,
-      bossResistances: boss.resistances,
+      bossWeaknesses: effectiveWeaknesses,
+      bossResistances: effectiveResistances,
       consumables,
       legendaryDamageMult: 1,
       bossDamageMod: heavy.bossDamageMod,
@@ -799,7 +844,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       ? (skillBonuses.bossDamageSniperPistol || 0)
       : 0;
   const weaknessMatchBonus =
-    [primary, secondary, heavy].some((weapon) => weapon && boss.weaknesses.includes(weapon.element))
+    [primary, secondary, heavy].some((weapon) => weapon && effectiveWeaknesses.includes(weapon.element))
       ? (skillBonuses.weaknessMatchDamage || 0)
       : 0;
   const effectiveCritChance = (primary?.critChance || 0) + (skillBonuses.critChance || 0);
@@ -854,6 +899,22 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     }
   }
 
+  // Overclock Ramp (boss roster expansion): the boss's damage grows
+  // with fight length, so the survival score is taxed by the ramp
+  // multiplier priced off the final time-to-kill. Burst builds that
+  // kill inside the grace window feel no ramp at all; sustain builds
+  // pay for every extra second. Only the survival leg moves —
+  // effectiveDPS / timeToKill stay the physical values.
+  if (boss.mechanic.id === 'overclock_ramp' && dps > 0) {
+    const rampMult = overclockRampMult(timeToKill);
+    if (rampMult > 1) {
+      effectiveSurvivalScore = survivalScore / rampMult;
+      reasons.push(
+        `${boss.mechanic.name}: at a ~${Math.round(timeToKill)}s kill, boss damage ramps to ${rampMult.toFixed(2)}× — kill speed is the counter.`,
+      );
+    }
+  }
+
   if (dpsScore < 0.8) {
     reasons.push('Your DPS is too low. You will not defeat the boss before timeout.');
     recommendations.push('Upgrade primary weapon or bring Ammo Packs.');
@@ -891,7 +952,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const phaseAnalyses = buildPhaseAnalyses(
     input,
     selectedDefs,
-    { survivalScore, shieldBreakScore, armorBreakScore, dpsScore, mechanicScore },
+    { survivalScore: effectiveSurvivalScore, shieldBreakScore, armorBreakScore, dpsScore, mechanicScore },
     equippedAnswers
   );
   const projectedFailurePhase = selectProjectedFailurePhase(phaseAnalyses);
@@ -916,7 +977,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const pityBonus = Math.min(0.30, pityCount * 0.03);
   
   // 6. Chaos / RNG — only applied during actual combat, not preview
-  const baseChance = Math.min(survivalScore, 1) * Math.min(breakScore, 1) * Math.min(dpsScore, 1.5) * mechanicScore + pityBonus;
+  const baseChance = Math.min(effectiveSurvivalScore, 1) * Math.min(breakScore, 1) * Math.min(dpsScore, 1.5) * mechanicScore + pityBonus;
   const winChance = Math.max(0.02, Math.min(0.98, baseChance));
 
   // In actual combat (called from executeBossAttempt), chaos roll is applied there
@@ -937,13 +998,13 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     missingCounters,
     consumablesAtRisk,
     riskSummary: getRiskSummary(risk),
-    survivalScore,
+    survivalScore: effectiveSurvivalScore,
     breakScore,
     dpsScore,
     mechanicScore,
     reasons: unique(reasons),
     recommendations: unique(recommendations),
-    expectedConsumableUsage: getBossConsumableUsage(consumables, winChance >= 0.5, survivalScore),
+    expectedConsumableUsage: getBossConsumableUsage(consumables, winChance >= 0.5, effectiveSurvivalScore),
     deathFee,
     bonusLootChance: rules.bonusLootChance,
     extraLootRollChance: rules.extraLootRollChance,

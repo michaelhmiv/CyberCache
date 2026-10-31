@@ -406,6 +406,13 @@ def build_glyphs() -> None:
     aprop("arena-prop-toll-gantry", "redline", lambda d, b, a, t: (d.rectangle([1, 2, 2, 15], fill=t + (255,)), d.rectangle([14, 2, 15, 15], fill=t + (255,)), d.rectangle([1, 2, 15, 4], fill=b + (255,)), d.rectangle([7, 2, 9, 6], fill=a + (255,))))
     aprop("arena-prop-heartwood-gate", "ironwood", lambda d, b, a, t: (d.rectangle([2, 1, 5, 15], fill=b + (255,)), d.rectangle([11, 1, 14, 15], fill=b + (255,)), d.rectangle([2, 1, 14, 4], fill=b + (255,)), d.ellipse([6, 5, 10, 9], fill=a + (160,))))
     aprop("arena-prop-holo-dais", "helixworks", lambda d, b, a, t: (d.polygon([(3, 13), (13, 13), (11, 15), (5, 15)], fill=b + (255,)), d.ellipse([5, 3, 11, 9], outline=a + (220,)), d.ellipse([6, 4, 10, 8], outline=a + (140,))))
+    # Boss roster expansion arenas (tiers 8-13): one signature prop each.
+    aprop("arena-prop-web-anchor", "throwtech", lambda d, b, a, t: (d.rectangle([7, 5, 9, 15], fill=t + (255,)), d.polygon([(8, 0), (15, 6), (12, 7), (8, 3)], outline=a + (255,)), d.polygon([(8, 0), (1, 6), (4, 7), (8, 3)], outline=a + (200,)), d.line([8, 3, 8, 5], fill=a + (255,)), d.ellipse([7, 5, 9, 7], fill=a + (255,))))
+    aprop("arena-prop-prism-spire", "prismatek", lambda d, b, a, t: (d.polygon([(8, 0), (11, 10), (8, 15), (5, 10)], fill=a + (190,)), d.line([8, 0, 8, 15], fill=(240, 250, 255, 220)), d.polygon([(5, 10), (11, 10), (13, 15), (3, 15)], fill=b + (255,))))
+    aprop("arena-prop-dish-array", "redline", lambda d, b, a, t: (d.rectangle([7, 7, 8, 15], fill=t + (255,)), d.arc([2, 0, 14, 10], 300, 120, fill=b + (255,)), d.arc([4, 2, 12, 9], 300, 120, fill=a + (200,)), d.ellipse([7, 4, 9, 6], fill=a + (255,))))
+    aprop("arena-prop-ember-heart", "ironwood", lambda d, b, a, t: (d.polygon([(8, 15), (3, 8), (5, 3), (8, 6), (11, 3), (13, 8)], fill=b + (255,), outline=t + (255,)), d.ellipse([6, 7, 10, 11], fill=(255, 122, 26, 255)), d.ellipse([7, 8, 9, 10], fill=(255, 209, 102, 255))))
+    aprop("arena-prop-rift-shard", "helixworks", lambda d, b, a, t: (d.polygon([(8, 0), (10, 6), (8, 9), (10, 16), (7, 10), (8, 6), (6, 2)], fill=a + (230,)), d.polygon([(8, 3), (9, 7), (8, 12)], fill=(20, 8, 32, 255)), d.line([2, 13, 6, 11], fill=a + (140,)), d.line([10, 12, 14, 14], fill=a + (140,))))
+    aprop("arena-prop-vault-wheel", "dustwaste", lambda d, b, a, t: (d.ellipse([3, 2, 13, 12], outline=(196, 178, 128, 255)), d.ellipse([6, 5, 10, 9], outline=a + (255,)), d.line([8, 2, 8, 12], fill=(196, 178, 128, 255)), d.line([3, 7, 13, 7], fill=(196, 178, 128, 255)), d.rectangle([5, 13, 11, 15], fill=t + (255,))))
 
     # ---- gear overlays: belt consumables + shield/relic/class-mod ----
     def belt(sprite_id: str, painter) -> None:
@@ -547,6 +554,23 @@ def build_imports() -> None:
             "kind": "background",
             "anchors": {"centerMass": {"x": 0.5, "y": 0.5}, "groundLine": {"x": 0.5, "y": 0.86}},
         }
+    # Boss roster expansion (tiers 8-13): bespoke boss sprites keyed by
+    # pixel-key.py from magenta sources (art-source/), palette-quantized
+    # to 192 colors per the heavy-sprite rule in save_sprite, plus their
+    # unique arena backgrounds.
+    for boss in ("spinneret-widow", "mnemosyne-mirror", "static-choir", "verdant-maw", "sister-null", "vaultkeeper-omega"):
+        sidecar = json.loads((SPRITES / f"boss-{boss}.anchors.json").read_text())
+        img = Image.open(SPRITES / f"boss-{boss}.png")
+        manifest_additions[f"boss-{boss}"] = {
+            "src": f"sprites/boss-{boss}.png", "width": img.size[0], "height": img.size[1],
+            "kind": "enemy", "anchors": sidecar["anchors"],
+        }
+        img = Image.open(SPRITES / f"arena-{boss}.jpg")
+        manifest_additions[f"arena-{boss}"] = {
+            "src": f"sprites/arena-{boss}.jpg", "width": img.size[0], "height": img.size[1],
+            "kind": "background",
+            "anchors": {"centerMass": {"x": 0.5, "y": 0.5}, "groundLine": {"x": 0.5, "y": 0.86}},
+        }
 
 
 def build_goldenbg() -> None:
@@ -558,6 +582,8 @@ def build_goldenbg() -> None:
     sources = [f"zone-{zone}-bg" for zone in ZONES] + [
         "arena-dune-tyrant", "arena-siltstalker", "arena-heap-guard", "arena-ashgut",
         "arena-mirage-duster", "arena-rust-prophet", "arena-scrap-bishop",
+        "arena-spinneret-widow", "arena-mnemosyne-mirror", "arena-static-choir",
+        "arena-verdant-maw", "arena-sister-null", "arena-vaultkeeper-omega",
     ]
     for sprite_id in sources:
         img = Image.open(SPRITES / f"{sprite_id}.jpg").convert("RGB")

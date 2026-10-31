@@ -1,0 +1,29 @@
+{
+  "sprite": "boss-spinneret-widow",
+  "src": "art-source/media-generation-boss-spinneret-source-0-ca179747-3d4c-48a9-a163-13be0febeb02.webp",
+  "out": "src/assets/pixel/sprites/boss-spinneret-widow.png",
+  "width": 849,
+  "height": 512,
+  "anchors": {
+    "feet": {
+      "x": 0.394,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5116,
+      "y": 0.4773
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.807
+    },
+    "lootPoint": {
+      "x": 0.401,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2695,
+      "y": 0.6744
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "sprite": "boss-verdant-maw",
+  "src": "art-source/media-generation-boss-verdant-maw-source-0-99c0e25f-5f7e-4fb0-81c8-806c140b7fbe.webp",
+  "out": "src/assets/pixel/sprites/boss-verdant-maw.png",
+  "width": 374,
+  "height": 512,
+  "anchors": {
+    "feet": {
+      "x": 0.5778,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5655,
+      "y": 0.4808
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.3855
+    },
+    "lootPoint": {
+      "x": 0.4626,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2993,
+      "y": 0.6708
+    }
+  }
+}

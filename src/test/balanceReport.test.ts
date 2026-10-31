@@ -23,7 +23,7 @@ describe('balance report utility', () => {
   it('formats a readable summary', () => {
     const text = formatMechanicsBalanceReport(createMechanicsBalanceReport());
     expect(text).toContain('CyberCache');
-    expect(text).toContain('Bosses: 7');
+    expect(text).toContain('Bosses: 13');
     expect(text).toContain('Archetypes: 6');
   });
 });

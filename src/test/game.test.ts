@@ -84,7 +84,7 @@ const testShield: Shield = {
 
 describe('Boss Progression', () => {
   it('should unlock with correct default state', () => {
-    expect(REGION_1_BOSSES).toHaveLength(7);
+    expect(REGION_1_BOSSES).toHaveLength(13);
     expect(REGION_1_BOSSES[0].id).toBe('dune_tyrant');
     expect(REGION_1_BOSSES[0].tier).toBe(1);
   });
