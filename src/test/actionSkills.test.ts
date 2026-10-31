@@ -78,7 +78,7 @@ import { generateClassMod } from '../server/lib/generators/classModGenerator';
 import { generateOrdnance } from '../server/lib/generators/ordnanceGenerator';
 import { generateRelic } from '../server/lib/generators/relicGenerator';
 import { processBossAttempt, type BossAttemptRequest } from '../server/chef';
-import { mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/routes';
+import { mountActionSkillRoutes, mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/routes';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { InMemoryWriteStore } from '../server/writes/memory';
 import { emptyWriteSeed, type ProfileRowData } from '../server/writes/store';
@@ -414,7 +414,8 @@ async function makeServer(
   const app = express();
   app.use(express.json());
   mountChefHealthRoute(app);
-  mountGameplayRoutes(app, store, writes, { jwtSecret: SECRET });
+  mountGameplayRoutes(app, store, { jwtSecret: SECRET });
+  mountActionSkillRoutes(app, store, writes, { jwtSecret: SECRET });
   const server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   closers.push(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -481,6 +482,10 @@ function seedGear(store: InMemoryChefGameplayStore, playerId: string, level: num
 let nonceCounter = 0;
 const nextNonce = (tag: string) => `${tag}-${++nonceCounter}-${Date.now()}`;
 
+// verify-boss attempt nonces are numbers (the shipped route contract).
+let bossNonceCounter = 0;
+const nextBossNonce = () => ++bossNonceCounter;
+
 describe('action skills over HTTP (boss attempts)', () => {
   it('a non-firing attempt accrues charge at the boss rate, capped at 100', async () => {
     const h = await makeServer();
@@ -491,8 +496,8 @@ describe('action skills over HTTP (boss attempts)', () => {
       boss_state: bossState(),
     });
     seedGear(h.store, A, 40, 1);
-    const res = await post(h, '/api/boss/attempt', {
-      bossId: 'dune_tyrant', attemptNonce: nextNonce('accrue'), attemptKind: 'standard', riskLevel: 'balanced',
+    const res = await post(h, '/api/verify-boss', {
+      bossId: 'dune_tyrant', attemptNonce: nextBossNonce(), consumables: {}, risk: 'Balanced',
     }, h.tokenA);
     expect(res.status).toBe(200);
     expect((res.json.actionSkill as Json).charge).toBe(100); // 66 + 34, capped
@@ -508,19 +513,19 @@ describe('action skills over HTTP (boss attempts)', () => {
       boss_state: bossState(),
     });
     seedGear(h.store, A, 40, 2);
-    const nonce = nextNonce('fire');
+    const nonce = nextBossNonce();
     const body = {
-      bossId: 'dune_tyrant', attemptNonce: nonce, attemptKind: 'standard', riskLevel: 'balanced',
+      bossId: 'dune_tyrant', attemptNonce: nonce, consumables: {}, risk: 'Balanced',
       fireActionSkill: true,
     };
-    const res = await post(h, '/api/boss/attempt', body, h.tokenA);
+    const res = await post(h, '/api/verify-boss', body, h.tokenA);
     expect(res.status).toBe(200);
     const result = res.json.result as Json;
     expect(result.actionSkill).toMatchObject({ tree: 'Gunslinger', fired: true });
     expect((res.json.actionSkill as Json).charge).toBe(0);
     expect(h.store.profiles.get(A)?.action_skill_charge).toBe(0);
 
-    const replay = await post(h, '/api/boss/attempt', body, h.tokenA);
+    const replay = await post(h, '/api/verify-boss', body, h.tokenA);
     expect(replay.status).toBe(200);
     expect(replay.json.idempotentReplay).toBe(true);
     expect((replay.json.result as Json).actionSkill).toMatchObject({ tree: 'Gunslinger', fired: true });
@@ -536,12 +541,12 @@ describe('action skills over HTTP (boss attempts)', () => {
       boss_state: bossState(),
     });
     seedGear(h.store, A, 40, 3);
-    const res = await post(h, '/api/boss/attempt', {
-      bossId: 'dune_tyrant', attemptNonce: nextNonce('refuse'), attemptKind: 'standard', riskLevel: 'balanced',
+    const res = await post(h, '/api/verify-boss', {
+      bossId: 'dune_tyrant', attemptNonce: nextBossNonce(), consumables: {}, risk: 'Balanced',
       fireActionSkill: true,
     }, h.tokenA);
     expect(res.status).toBe(400);
-    expect(String(res.json.error)).toMatch(/not charged/i);
+    expect(String(res.json.detail)).toMatch(/not charged/i);
     const profile = h.store.profiles.get(A)!;
     expect(profile.credits).toBe(5000);
     expect(profile.action_skill_charge).toBe(50);
@@ -557,8 +562,8 @@ describe('action skills over HTTP (boss attempts)', () => {
       boss_state: bossState(),
     });
     seedGear(h.store, A, 40, 4);
-    const res = await post(h, '/api/boss/attempt', {
-      bossId: 'dune_tyrant', attemptNonce: nextNonce('forge'), attemptKind: 'standard', riskLevel: 'balanced',
+    const res = await post(h, '/api/verify-boss', {
+      bossId: 'dune_tyrant', attemptNonce: nextBossNonce(), consumables: {}, risk: 'Balanced',
       fireActionSkill: true,
       // Forgery attempts: claim Demolition, claim infinite charge.
       actionSkillTree: 'Demolition', action_skill_tree: 'Demolition', charge: 9999, actionSkillCharge: 9999,
@@ -576,12 +581,12 @@ describe('action skills over HTTP (boss attempts)', () => {
       boss_state: bossState(),
     });
     seedGear(h.store, A, 40, 5);
-    const res = await post(h, '/api/boss/attempt', {
-      bossId: 'dune_tyrant', attemptNonce: nextNonce('nosel'), attemptKind: 'standard', riskLevel: 'balanced',
+    const res = await post(h, '/api/verify-boss', {
+      bossId: 'dune_tyrant', attemptNonce: nextBossNonce(), consumables: {}, risk: 'Balanced',
       fireActionSkill: true,
     }, h.tokenA);
     expect(res.status).toBe(400);
-    expect(String(res.json.error)).toMatch(/no active action skill/i);
+    expect(String(res.json.detail)).toMatch(/no active action skill/i);
   });
 });
 
@@ -597,13 +602,13 @@ describe('action skill selection endpoints', () => {
 
     const bad = await post(h, '/api/action-skill/select', { tree: 'Scavenger', nonce: nextNonce('sel') }, h.tokenA);
     expect(bad.status).toBe(400);
-    expect(String(bad.json.error)).toMatch(/not qualified/i);
+    expect(String(bad.json.detail)).toMatch(/not qualified/i);
     expect(h.store.profiles.get(A)?.action_skill_selection).toBeNull();
 
     const nonce = nextNonce('sel');
     const ok = await post(h, '/api/action-skill/select', { tree: 'Fixer', nonce }, h.tokenA);
     expect(ok.status).toBe(200);
-    expect((ok.json.state as Json).selected).toBe('Fixer');
+    expect((ok.json.actionSkill as Json).selected).toBe('Fixer');
     expect(h.store.profiles.get(A)?.action_skill_selection).toBe('Fixer');
 
     const replay = await post(h, '/api/action-skill/select', { tree: 'Fixer', nonce }, h.tokenA);
@@ -612,7 +617,7 @@ describe('action skill selection endpoints', () => {
 
     const cleared = await post(h, '/api/action-skill/select', { tree: null, nonce: nextNonce('sel') }, h.tokenA);
     expect(cleared.status).toBe(200);
-    expect((cleared.json.state as Json).selected).toBeNull();
+    expect((cleared.json.actionSkill as Json).selected).toBeNull();
     expect(h.store.profiles.get(A)?.action_skill_selection).toBeNull();
   });
 
@@ -625,7 +630,7 @@ describe('action skill selection endpoints', () => {
     });
     const me = await get(h, '/api/action-skill/me', h.tokenA);
     expect(me.status).toBe(200);
-    const state = me.json.state as Json;
+    const state = me.json.actionSkill as Json;
     expect(state.selected).toBeNull();
     expect(state.noKeystoneNote).toBe(NO_KEYSTONE_NOTE);
     expect(Array.isArray(state.signatures)).toBe(true);
@@ -689,7 +694,7 @@ describe('action skills in endless runs', () => {
     seedGear(h.store, A, 40, 11);
 
     const startRun = async () => {
-      const res = await post(h, '/api/endless/start', { startNonce: nextNonce('estart'), consumables: {} }, h.tokenA);
+      const res = await post(h, '/api/endless/start', { nonce: nextNonce('estart'), consumables: {}, risk: 'Balanced' }, h.tokenA);
       expect(res.status).toBe(200);
     };
     await startRun();
@@ -700,7 +705,7 @@ describe('action skills in endless runs', () => {
     let charge = 60;
     let sawCarry = false;
     for (let i = 0; i < 20 && charge < 100; i++) {
-      const adv = await post(h, '/api/endless/advance', { advanceNonce: nextNonce('eadv') }, h.tokenA);
+      const adv = await post(h, '/api/endless/encounter', { nonce: nextNonce('eadv') }, h.tokenA);
       if (adv.status !== 200) {
         await startRun(); // previous run ended (death) — pool was reset
         charge = 0;
@@ -723,8 +728,8 @@ describe('action skills in endless runs', () => {
 
     // Fire mid-run: spends the pool inside the encounter resolution
     // (win or lose, the fired encounter grants no accrual).
-    const fired = await post(h, '/api/endless/advance', {
-      advanceNonce: nextNonce('eadv'), fireActionSkill: true,
+    const fired = await post(h, '/api/endless/encounter', {
+      nonce: nextNonce('eadv'), fireActionSkill: true,
     }, h.tokenA);
     expect(fired.status).toBe(200);
     expect((fired.json.result as Json).actionSkill).toMatchObject({ tree: 'Gunslinger', fired: true });
@@ -741,9 +746,9 @@ describe('action skills in endless runs', () => {
       boss_state: bossState(),
     });
     seedGear(h.store, A, 40, 12);
-    const start = await post(h, '/api/endless/start', { startNonce: nextNonce('estart'), consumables: {} }, h.tokenA);
+    const start = await post(h, '/api/endless/start', { nonce: nextNonce('estart'), consumables: {}, risk: 'Balanced' }, h.tokenA);
     expect(start.status).toBe(200);
-    const bank = await post(h, '/api/endless/bank', { bankNonce: nextNonce('ebank') }, h.tokenA);
+    const bank = await post(h, '/api/endless/bank', { nonce: nextNonce('ebank') }, h.tokenA);
     expect(bank.status).toBe(200);
     expect((bank.json.actionSkill as Json).charge).toBe(0); // run end resets the pool
     expect(h.store.profiles.get(A)?.action_skill_charge).toBe(0);
@@ -763,9 +768,9 @@ describe('action skills in endless runs', () => {
         action_skill_charge: 90, action_skill_selection: 'Gunslinger',
         boss_state: bossState(),
       });
-      const start = await post(h, '/api/endless/start', { startNonce: nextNonce('dstart'), consumables: {} }, token);
+      const start = await post(h, '/api/endless/start', { nonce: nextNonce('dstart'), consumables: {}, risk: 'Balanced' }, token);
       expect(start.status).toBe(200);
-      const adv = await post(h, '/api/endless/advance', { advanceNonce: nextNonce('dadv') }, token);
+      const adv = await post(h, '/api/endless/encounter', { nonce: nextNonce('dadv') }, token);
       expect(adv.status).toBe(200);
       const result = adv.json.result as Json;
       if (result.victory === false) {
@@ -805,7 +810,7 @@ describe('per-tree effects inside processBossAttempt', () => {
       actionSkillFire: plan,
     };
     const result = processBossAttempt(req);
-    expect(result.actionSkill).toMatchObject({ tree: 'Fixer', fired: true, qualityMultiplier: 1.25 });
+    expect(result.result.actionSkill).toMatchObject({ tree: 'Fixer', fired: true, qualityMultiplier: 1.25 });
 
     // And the scaled quality is real sim input, not a label: on a
     // survival-bound build it raises the survival score.
@@ -836,14 +841,18 @@ describe('per-tree effects inside processBossAttempt', () => {
         actionSkillFire: plan,
       };
       const result = processBossAttempt(req);
-      expect(result.actionSkill).toMatchObject({ tree: 'Scavenger', fired: true, surgeRolls: 2 });
+      expect(result.result.actionSkill).toMatchObject({ tree: 'Scavenger', fired: true, surgeRolls: 2 });
       if (result.result.victory) {
         victories++;
-        const surge = result.actionSkill?.surgeLoot ?? [];
+        // surgeLoot carries the surge items' IDs (BossAttemptResult
+        // contract); resolve them against the chef result's loot.
+        const surge = result.result.actionSkill?.surgeLoot ?? [];
         expect(surge).toHaveLength(2);
-        for (const item of surge) {
-          expect(item.type).toBe('weapon');
-          expect(item.level).toBe(boss.level);
+        for (const id of surge) {
+          const item = result.loot.find((i) => i.id === id) as { weaponType?: unknown; level?: unknown } | undefined;
+          expect(item).toBeDefined();
+          expect(typeof item?.weaponType).toBe('string');
+          expect(item?.level).toBe(boss.level);
         }
         // Surge items ride the normal loot array (stored by the applier).
         expect(result.loot.length).toBeGreaterThanOrEqual(2);
@@ -851,7 +860,7 @@ describe('per-tree effects inside processBossAttempt', () => {
         // victory formula only (win credits + bounty, no fee here).
         expect(result.creditsDelta).toBeGreaterThan(0);
       } else {
-        expect(result.actionSkill?.surgeLoot ?? []).toHaveLength(0);
+        expect(result.result.actionSkill?.surgeLoot ?? []).toHaveLength(0);
       }
     }
     expect(victories).toBeGreaterThan(0);
@@ -896,7 +905,7 @@ function makeWriteStore(profiles: ProfileRowData[]): InMemoryWriteStore {
 }
 
 async function startMedkitJob(store: InMemoryWriteStore, playerId: string, units = 2): Promise<void> {
-  await store.enqueueCraftJob(playerId, nextNonce('enq'), { bench: 0, recipeId: 'recipe_medkit', units });
+  await store.enqueueCraftJob(playerId, nextNonce('enq'), { bench: 1, recipeId: 'recipe_medkit', units });
   await store.setActiveAction(playerId, nextNonce('act'), { activity_kind: 'crafting' });
 }
 
@@ -931,7 +940,11 @@ describe('Overclock workshop fire (Fixer brief §3.7)', () => {
     const nonce = nextNonce('oclock');
     await store.fireOverclockWorkshop(A, nonce);
     const replay = await store.fireOverclockWorkshop(A, nonce);
-    expect(replay.idempotentReplay).toBe(true);
+    // Writes-twin replay contract: the stored result returns verbatim
+    // (the flag the SQL twin adds rides the HTTP layer, not this
+    // store) — the property that matters is no second completion,
+    // asserted via unitsCompleted below.
+    expect(replay.fired).toBe(true);
     const state = await store.getWorkshopState(A);
     const job = (state.jobs as Array<Json & { recipeId: string }>).find((j) => j.recipeId === 'recipe_medkit')!;
     expect(job.unitsCompleted).toBe(1);
