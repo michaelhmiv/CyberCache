@@ -111,6 +111,34 @@ export function buildCraftingActivity(recipe: { id: string; name: string; catego
   };
 }
 
+/**
+ * Workshop service work (mechanics & repair, 0025): the one activity
+ * slot pointed at a repair job — a board job the player accepted as
+ * mechanic, or their own timed self-repair job. Progress accrues
+ * server-side only while this action targets the job (board jobs) or
+ * is simply active (self-repair lane).
+ */
+export function buildWorkshopServiceActivity(job: { id: string; label: string }): StartActivityInput {
+  return {
+    kind: 'workshop_service',
+    targetType: 'workshop_job',
+    targetId: job.id,
+    targetLabel: job.label,
+    sceneKey: 'workshop:service',
+    notes: `Servicing ${job.label}`,
+    activityPayload: {
+      job_id: job.id,
+      job_label: job.label,
+    },
+    publicPayload: {
+      activity_label: `Repair work — ${job.label}`,
+      target_label: job.label,
+      scene_key: 'workshop:service',
+    },
+    publicVisible: true,
+  };
+}
+
 export function buildSalvagingActivity(item: GearItem): StartActivityInput {
   return {
     kind: 'salvaging',

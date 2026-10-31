@@ -562,17 +562,43 @@ describe('refuel + patch kit (writes mirror)', () => {
     await expect(store.refuelVehicle(S, 'refuel-nonce-0002', 2)).rejects.toThrow('Insufficient consumable');
   });
 
-  it('a patch kit restores 30 × batch quality% condition, capped at max', async () => {
-    const store = makeWriteStore(fuelSeed());
-    const result = rec(await store.usePatchKit(S, 'patch-nonce-0001', VEH_ITEM));
-    // FIFO batch is 50% quality: 30 × 0.5 = 15 points on 37 → 52.
-    expect(result.restored).toBe(15);
-    expect(result.condition_current).toBe(52);
-    expect(rec(rec(result.profile).consumables).PatchKit).toBe(1);
+  it('self-repair is a timed job (0025): a patch kit restores 30 × quality% once the work lands', async () => {
+    // The instant cc_use_patch_kit is retired: repair is work. This
+    // store gets a mutable clock so the job's timed unit can elapse.
+    let clock = Date.parse('2026-10-30T12:00:00.000Z');
+    let n = 0;
+    const store = new InMemoryWriteStore(fuelSeed(), {
+      now: () => new Date(clock),
+      rng: () => 0.5,
+      uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`,
+    });
+    const enqueued = rec(await store.enqueueRepairJob(S, 'repair-nonce-0001', {
+      itemId: VEH_ITEM, kitType: 'PatchKit', units: 1,
+    }));
+    const job = rec(enqueued.job);
+    // Untrained: 30 base points at 20 pts/h = 1.5h per kit.
+    expect(job.unitDurationMs).toBe(5_400_000);
+    expect(job.kind).toBe('repair');
+    // The kit escrows at enqueue; nothing is restored yet.
+    expect(rec(rec(enqueued.profile).consumables).PatchKit).toBe(1);
+    expect(store.seed.items.find((i) => i.id === VEH_ITEM)?.condition_current).toBe(37);
+
+    await store.setActiveAction(S, 'repair-nonce-0002', {
+      activity_kind: 'workshop_service', target_type: 'workshop_job',
+      target_id: job.id as string, activity_payload: {}, public_payload: {},
+    });
+    clock += 5_400_000 + 60_000;
+    const state = rec(await store.getWorkshopState(S));
+    const done = (state.jobs as Array<Record<string, unknown>>).find((j) => j.id === job.id)!;
+    expect(done.state).toBe('complete');
+    // FIFO batch is 50% quality: 30 × 0.5 × 1.0 efficiency = 15 → 37 → 52.
+    expect(done.repairPointsRestored).toBe(15);
     expect(store.seed.items.find((i) => i.id === VEH_ITEM)?.condition_current).toBe(52);
 
     // Non-vehicle targets are rejected.
-    await expect(store.usePatchKit(S, 'patch-nonce-0002', 'batch-kit')).rejects.toThrow();
+    await expect(store.enqueueRepairJob(S, 'repair-nonce-0003', {
+      itemId: 'batch-kit', kitType: 'PatchKit', units: 1,
+    })).rejects.toThrow();
   });
 });
 

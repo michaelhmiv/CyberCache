@@ -67,6 +67,18 @@ export interface EconomyConfigValues {
   gearTemperBaseChance: number;
   /** Base refining yield rate before the mastery term. */
   refineBaseYield: number;
+  /** Base repair work rate, condition points per hour (mechanics 0025). */
+  repairWorkRateBase: number;
+  /** Repair work-rate gain per services.repair mastery level. */
+  repairMasterySpeedPerLevel: number;
+  /** Per-kit restoration gain per services.repair mastery level. */
+  repairMasteryEfficiencyPerLevel: number;
+  /** Player XP paid to a mechanic per condition point restored. */
+  serviceXpPerPoint: number;
+  /** Hours without progress before a repair job's owner may reclaim it. */
+  repairAbandonWindowHours: number;
+  /** Days an unaccepted repair posting stays open before refund. */
+  repairListingExpiryDays: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -91,6 +103,12 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   craftQualityShift: 0,
   gearTemperBaseChance: 0.05,
   refineBaseYield: 0.8,
+  repairWorkRateBase: 20,
+  repairMasterySpeedPerLevel: 0.02,
+  repairMasteryEfficiencyPerLevel: 0.02,
+  serviceXpPerPoint: 2,
+  repairAbandonWindowHours: 48,
+  repairListingExpiryDays: 7,
 };
 
 export interface EconomyConfigKeySpec {
@@ -175,6 +193,30 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   refineBaseYield: {
     key: 'refineBaseYield', min: 0.5, max: 1, integer: false,
     defaultOwner: 'src/content/crafting.ts REFINE_BASE_YIELD_DEFAULT',
+  },
+  repairWorkRateBase: {
+    key: 'repairWorkRateBase', min: 1, max: 200, integer: false,
+    defaultOwner: 'src/content/repair.ts REPAIR_WORK_RATE_BASE_DEFAULT',
+  },
+  repairMasterySpeedPerLevel: {
+    key: 'repairMasterySpeedPerLevel', min: 0, max: 0.1, integer: false,
+    defaultOwner: 'src/content/repair.ts REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT',
+  },
+  repairMasteryEfficiencyPerLevel: {
+    key: 'repairMasteryEfficiencyPerLevel', min: 0, max: 0.1, integer: false,
+    defaultOwner: 'src/content/repair.ts REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT',
+  },
+  serviceXpPerPoint: {
+    key: 'serviceXpPerPoint', min: 0, max: 10, integer: true,
+    defaultOwner: 'src/content/repair.ts SERVICE_XP_PER_POINT_DEFAULT',
+  },
+  repairAbandonWindowHours: {
+    key: 'repairAbandonWindowHours', min: 1, max: 720, integer: true,
+    defaultOwner: 'src/content/repair.ts REPAIR_ABANDON_WINDOW_HOURS_DEFAULT',
+  },
+  repairListingExpiryDays: {
+    key: 'repairListingExpiryDays', min: 1, max: 30, integer: true,
+    defaultOwner: 'src/content/repair.ts REPAIR_LISTING_EXPIRY_DAYS_DEFAULT',
   },
 };
 

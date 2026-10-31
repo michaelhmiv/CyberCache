@@ -50,10 +50,23 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `refined_units_produced` | Refined/composite material units created by refine jobs that day (the sink's other side: 10 in → 8–10 out) |
 | `gear_items_crafted` | `item_instances` created that day with `payload.origin = 'crafted'` (gear frames; never Legendary by construction) |
 | `crafted_market_sales` / `crafted_market_volume` | Completed market sales whose listing was a crafted batch or a crafted-origin item, and Σ their prices — the crafter-economy pulse (specialization proof tracking) |
+| `repair_jobs_posted` | Repair-board jobs posted that day (migration 0025; counted at posting) |
+| `repair_jobs_completed` | Repair jobs reaching a terminal settlement that day (`service_jobs.completed_at`) |
+| `repair_points_restored` | Σ condition points actually restored by board jobs settled that day (the work the XP prices) |
+| `repair_credits_volume` | Σ gross service payouts (paid part only; refunds never move) |
+| `repair_fees_destroyed` | Σ service fees destroyed at settlement — these also fold into `credits_destroyed_total` |
+| `repair_kits_consumed` | Patch kits burned that day across BOTH lanes (board jobs + timed self-repair units) |
+| `repair_xp_awarded` | Σ player XP paid by board settlements (2/point restored at the default lever) |
 
 Transfers are not mints or sinks: a market sale's principal moves
-buyer → seller (only the destroyed fee leaves supply), and service
-job payments (`cc_item_job_finish`) move escrow → provider.
+buyer → seller (only the destroyed fee leaves supply), and repair
+service payments (migration 0025) move escrow → mechanic the same
+way — owners escrow the full price at posting, completion pays in
+full, every other terminal state pays pro-rata for points actually
+restored, and the shared market fee is destroyed from the paid part
+(Darknet Broker's reduction applies; Market Manipulator's does not —
+no item changes hands). The dormant 0004 `cc_item_job_finish` flow
+is deleted.
 
 ### Price intelligence (migration 0019)
 
@@ -97,10 +110,18 @@ take the game down.
 | `craftQualityShift` | 0 | −10 – +10 | Quality bounds at completion (`cc_craft_quality_bounds`; TS twin `craftQualityBounds`) — shifts both bounds |
 | `gearTemperBaseChance` | 0.05 | 0 – 0.30 | Gear-frame completion (temper draw count) — +0.01 per gear-mastery level from the same formula, read live at completion |
 | `refineBaseYield` | 0.80 | 0.50 – 1.00 | Refine completion — yield rate = base + 0.004 × refining mastery level (cap 1.00), read live at completion |
+| `repairWorkRateBase` | 20 | 1 – 200 | Repair work rate (condition points/hour at mastery 1) — snapshotted into self-repair unit durations at enqueue and board-job snapshots at accept (migration 0025) |
+| `repairMasterySpeedPerLevel` | 0.02 | 0 – 0.1 | Work-rate multiplier per repair-mastery level above 1 (speed factor caps ×2.0); snapshotted with the rate |
+| `repairMasteryEfficiencyPerLevel` | 0.02 | 0 – 0.1 | Per-kit restoration multiplier per repair-mastery level above 1 (caps ×1.5); snapshotted with the rate |
+| `serviceXpPerPoint` | 2 | 0 – 10 (integer) | Player XP per condition point actually restored on board jobs, paid once at settlement (partial jobs included) |
+| `repairAbandonWindowHours` | 48 | 1 – 720 (integer) | Owner reclaim window: an accepted job with no progress for this long can be reclaimed (settles pro-rata, outcome `abandoned`) |
+| `repairListingExpiryDays` | 7 | 1 – 30 (integer) | Unaccepted board listings expire and refund in full after this many days |
 
 Skill-based fee reductions (Darknet Broker, Market Manipulator)
 apply multiplicatively **after** the levered rate, in both the SQL
-and TS paths.
+and TS paths. Service payments (0025) take the Darknet Broker
+reduction only — no item changes hands, so Market Manipulator does
+not apply.
 
 ## Pulling a report / moving a lever
 
@@ -123,13 +144,14 @@ curl -s -X POST https://chef-production.up.railway.app/api/admin/economy/config 
 The response echoes the full effective config after the write. For
 history: `select * from public.economy_config_history order by changed_at desc;`
 
-## Watching for abuse: repair-board self-dealing (later slice)
+## Watching for abuse: repair-board self-dealing (live, migration 0025)
 
-The mechanics/repair slice will run an open job board, and the
-self-dealing question (alts washing jobs to farm mechanic XP /
-credits) is a **detection** problem, not new schema: repair
-completions will land in the same verified ledger as everything
-else. The detection query shape is: per provider, repair-job
+The repair board is live, and per Michael's ruling self-dealing is
+NOT blocked upfront (same-account self-accept is refused; alts are
+a **detection** problem, not new schema): repair completions land
+in the same verified ledger as everything else, and the repair
+meters above make wash volume visible per day. The detection query
+shape is: per provider, repair-job
 completions grouped by counterparty — flag providers whose volume
 concentrates on one or two counterparties, whose charged prices sit
 far from the day's `market_median_by_rarity`-style medians for

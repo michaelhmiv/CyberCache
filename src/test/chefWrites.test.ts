@@ -545,36 +545,27 @@ describe('market + services', () => {
     expect(again.json.message).toBe('Listing not active');
   });
 
-  it('service flow: request locks the item, provider finishes and gets paid', async () => {
-    const requested = await post(h, '/api/ops/service-request', h.tokenA, { nonce: nonce(), item_id: ITEM_A2, service_id: 'repair' });
-    expect(requested.status).toBe(200);
-    const job = requested.json.job as Record<string, unknown>;
-    const jobId = job.id as string;
-    expect(job.status).toBe('listed');
-    expect((requested.json.item as Record<string, unknown>).runtime_state).toBe('locked');
-
-    const ownAccept = await post(h, '/api/ops/service-accept', h.tokenA, { nonce: nonce(), job_id: jobId, price_credits: 100 });
-    expect(ownAccept.status).toBe(403);
-    expect(ownAccept.json.message).toBe('Cannot accept own job');
-
-    const accepted = await post(h, '/api/ops/service-accept', h.tokenB, { nonce: nonce(), job_id: jobId, price_credits: 100, duration_minutes: 30 });
-    expect(accepted.status).toBe(200);
-    expect((accepted.json.job as Record<string, unknown>).status).toBe('accepted');
-
-    const wrongFinisher = await post(h, '/api/ops/service-finish', h.tokenA, { nonce: nonce(), job_id: jobId });
-    expect(wrongFinisher.status).toBe(404);
-    expect(wrongFinisher.json.message).toBe('Job not found');
-
-    const ownerBefore = h.store.seed.profiles.find((p) => p.id === A)?.credits ?? 0;
-    const providerBefore = h.store.seed.profiles.find((p) => p.id === B)?.credits ?? 0;
-    const finished = await post(h, '/api/ops/service-finish', h.tokenB, { nonce: nonce(), job_id: jobId });
-    expect(finished.status).toBe(200);
-    expect(finished.json.price_credits).toBe(100);
-    expect((finished.json.profile as Record<string, unknown>).credits).toBe(providerBefore + 100);
-    expect((finished.json.owner_profile as Record<string, unknown>).credits).toBe(ownerBefore - 100);
-    const item = finished.json.item as Record<string, unknown>;
-    expect(item.runtime_state).toBe('available');
-    expect(item.condition_current).toBe(50);
+  it('the dormant 0004 service flow is retired (0025): old routes 404, the repair board answers', async () => {
+    // The flawed dormant flow (provider-priced, escrow-free, instant)
+    // is gone; repair services live on the escrow board, covered
+    // end-to-end in repairServices.test.ts.
+    for (const path of ['/api/ops/service-request', '/api/ops/service-accept', '/api/ops/service-finish', '/api/ops/use-patch-kit']) {
+      // Unregistered routes answer with the framework's plain 404 —
+      // raw fetch because the harness's post() parses JSON bodies.
+      const res = await fetch(`${h.base}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${h.tokenA}` },
+        body: JSON.stringify({ nonce: nonce(), item_id: ITEM_A2, job_id: ITEM_A2 }),
+      });
+      expect(res.status).toBe(404);
+    }
+    const boardRes = await fetch(`${h.base}/api/repair/board`, {
+      headers: { authorization: `Bearer ${h.tokenA}` },
+    });
+    expect(boardRes.status).toBe(200);
+    const board = (await boardRes.json()) as Record<string, unknown>;
+    expect(board.open).toEqual([]);
+    expect(board.mine).toEqual([]);
   });
 });
 

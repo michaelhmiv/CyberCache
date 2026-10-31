@@ -5,7 +5,7 @@ import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
 import { GearHub } from '@/components/gear/GearHub';
 import { ConsumablesScreen } from './ConsumablesScreen';
 import { WorkshopScreen } from './WorkshopScreen';
-import { useInventoryStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
+import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useWorkshopStore } from '@/store';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
@@ -109,7 +109,13 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
           />
         )}
         {activeTab === 'loadout' && (
-          <SyncedLoadoutScreen requestedPickerSlot={pendingPickerSlot} />
+          <SyncedLoadoutScreen
+            requestedPickerSlot={pendingPickerSlot}
+            onRequestService={() => {
+              useMarketStore.getState().setActiveTab('repair');
+              onNavigate('market');
+            }}
+          />
         )}
         {activeTab === 'consumables' && <ConsumablesScreen onNavigate={onNavigate} />}
         {activeTab === 'workshop' && <WorkshopScreen onNavigate={onNavigate} />}

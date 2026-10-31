@@ -19,7 +19,7 @@ import { fetchWorkshopState, verifiedOps } from '@/lib/api/verifiedOps';
 export interface WorkshopJobView {
   id: string;
   bench: number;
-  kind: 'consumable' | 'refine' | 'gear' | 'tool';
+  kind: 'consumable' | 'refine' | 'gear' | 'tool' | 'repair';
   recipeId: string;
   name: string;
   state: 'running' | 'queued' | 'paused' | 'complete' | 'cancelled';
@@ -34,6 +34,10 @@ export interface WorkshopJobView {
   outputs: Array<Record<string, unknown>>;
   createdAtMs: number;
   completedAtMs: number | null;
+  /** Repair jobs only (0025): the vehicle + kit and points restored. */
+  repairItemId: string | null;
+  repairKitType: string | null;
+  repairPointsRestored: number;
 }
 
 export interface WorkshopCompletionView extends Record<string, unknown> {

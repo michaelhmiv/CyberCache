@@ -26,6 +26,12 @@ import {
   type CraftJobRecord,
   type CraftJobSnapshot,
 } from './craftEngine.js';
+import {
+  buildRepairBoardView,
+  resolveRepairLevers,
+  type RepairVehicleInfo,
+} from './repairBoard.js';
+import { resolveEconomyConfigValues } from '../economy/config.js';
 
 export type Json = Record<string, unknown>;
 
@@ -162,6 +168,33 @@ export interface ServiceJobData {
   created_at: string;
   accepted_at: string | null;
   completed_at: string | null;
+  // ── Mechanics & repair services (migration 0025) ────────────────
+  // Present on repair jobs (profession_id 'repair'); absent on
+  // legacy rows. The price is escrowed in full at posting; work
+  // accrues only while the job is the provider's active action.
+  target_points?: number | null;
+  points_restored?: number;
+  work_points_banked?: number;
+  /** Remaining restoration capacity of the currently open kit. */
+  open_kit_capacity?: number;
+  /** Capacity of the currently open kit when it was opened. */
+  open_kit_total?: number;
+  open_kit_quality?: number | null;
+  accrued_work_ms?: number;
+  last_settled_at?: string | null;
+  last_progress_at?: string | null;
+  expires_at?: string | null;
+  outcome?: string | null;
+  paid_credits?: number | null;
+  fee_credits?: number | null;
+  xp_awarded?: number | null;
+  kit_type?: string | null;
+  kits_consumed?: Array<{ kitType: string; quality: number; pointsApplied: number }>;
+  repair_snapshot?: {
+    masteryLevel: number;
+    workRatePointsPerHour: number;
+    efficiency: number;
+  } | null;
 }
 
 export interface ConsumableBatchData {
@@ -701,6 +734,18 @@ export interface EnqueueCraftJobInput {
   useRushTicket?: boolean;
 }
 
+/**
+ * cc_enqueue_repair_job input (0025). The unit duration, per-kit
+ * restoration, and mastery snapshot are derived by the store from
+ * server records — the request body carries only the vehicle, the
+ * kit type, and how many kits to escrow.
+ */
+export interface EnqueueRepairJobInput {
+  itemId: string;
+  kitType: string;
+  units: number;
+}
+
 export interface WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json>;
   makeItem(playerId: string, nonce: string): Promise<Json>;
@@ -729,13 +774,6 @@ export interface WriteStore {
    * to the vendor's GenericFuelCell.
    */
   refuelVehicle(playerId: string, nonce: string, cells: number, itemKey?: string): Promise<Json>;
-  /**
-   * Restore one vehicle instance's condition with a patch kit
-   * (cc_use_patch_kit, 0021; restated in 0024 for the crafted kit
-   * tiers — base restore by type × consumed batch quality). itemKey
-   * defaults to the baseline PatchKit.
-   */
-  usePatchKit(playerId: string, nonce: string, itemId: string, itemKey?: string): Promise<Json>;
   // ── Crafting-as-occupation (migration 0024) ──────────────────────
   /** Enqueue a server craft job with full escrow (cc_enqueue_craft_job). */
   enqueueCraftJob(playerId: string, nonce: string, input: EnqueueCraftJobInput): Promise<Json>;
@@ -757,6 +795,38 @@ export interface WriteStore {
    * tools, jobs (with derived display state), and mastery levels.
    */
   getWorkshopState(playerId: string): Promise<Json>;
+  // ── Mechanics & repair services (migration 0025) ────────────────
+  /**
+   * Enqueue a TIMED self-repair job on the craft job machinery
+   * (cc_enqueue_repair_job): the owner's patch kits escrow at
+   * enqueue and apply while `workshop_service` is the active action.
+   * Replaces the retired instant cc_use_patch_kit (dropped in 0025).
+   */
+  enqueueRepairJob(playerId: string, nonce: string, input: EnqueueRepairJobInput): Promise<Json>;
+  /**
+   * Post a repair job to the open board (cc_post_repair_job): the
+   * full price escrows from the owner's verified balance at posting
+   * and the vehicle locks in service. Verified accounts only.
+   */
+  postRepairJob(playerId: string, nonce: string, itemId: string, targetPoints: number | null, priceCredits: number): Promise<Json>;
+  /** Accept an open board job (cc_accept_repair_job), snapshotting
+   *  the mechanic's rate/efficiency and chosen kit type. */
+  acceptRepairJob(playerId: string, nonce: string, jobId: string, kitType: string): Promise<Json>;
+  /** Provider delivers the job as-is (cc_repair_job_finish):
+   *  settles, then pays pro-rata for points actually restored. */
+  finishRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
+  /** Owner or provider cancels (cc_repair_job_cancel): full refund
+   *  before acceptance; pro-rata pay + remainder refund after. */
+  cancelRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
+  /** Owner reclaims a job abandoned past the no-progress window
+   *  (cc_repair_job_reclaim). */
+  reclaimRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
+  /**
+   * The repair board read: settles every job the caller owns or
+   * provides (expiring stale listings), then returns open postings,
+   * my postings, my workbench, and board/mechanic stats.
+   */
+  getRepairBoard(playerId: string): Promise<Json>;
   idleClaim(playerId: string, nonce: string): Promise<Json>;
   retrain(playerId: string, nonce: string): Promise<Json>;
   trainSkill(playerId: string, nonce: string, nodeId: string): Promise<Json>;
@@ -766,9 +836,6 @@ export interface WriteStore {
   marketCreateMaterial(playerId: string, nonce: string, materialId: string, quantity: number, priceCredits: number): Promise<Json>;
   marketCancel(playerId: string, nonce: string, listingId: string): Promise<Json>;
   acceptListing(playerId: string, nonce: string, listingId: string): Promise<Json>;
-  requestItemService(playerId: string, nonce: string, itemId: string, serviceId: string): Promise<Json>;
-  acceptItemService(playerId: string, nonce: string, jobId: string, priceCredits: number, durationMinutes: number): Promise<Json>;
-  finishItemService(playerId: string, nonce: string, jobId: string): Promise<Json>;
   resetProgress(playerId: string, nonce: string): Promise<Json>;
   getActiveActivity(playerId: string): Promise<ActiveActionData | null>;
   setActiveAction(playerId: string, nonce: string, input: SetActiveActionInput): Promise<Json>;
@@ -854,6 +921,49 @@ function mapCraftJobRow(row: Row): CraftJobRecord {
     last_settled_ms: ms(row.last_settled_at),
     completed_at_ms:
       row.completed_at === null || row.completed_at === undefined ? null : ms(row.completed_at),
+  };
+}
+
+/** Map a service_jobs row (0025 repair columns included) to the
+ *  seed-shaped record the board view builder consumes. */
+function mapServiceJobRow(row: Row): ServiceJobData {
+  const isoOrNull = (value: unknown): string | null =>
+    value === null || value === undefined ? null : iso(value);
+  const numOrNull = (value: unknown): number | null =>
+    value === null || value === undefined ? null : Number(value);
+  return {
+    id: String(row.id),
+    owner_user_id: String(row.owner_user_id),
+    provider_user_id: row.provider_user_id ? String(row.provider_user_id) : null,
+    profession_id: String(row.profession_id),
+    status: String(row.status),
+    target_item_instance_id: String(row.target_item_instance_id),
+    requested_service_id: row.requested_service_id ? String(row.requested_service_id) : null,
+    quoted_price_credits: numOrNull(row.quoted_price_credits),
+    quoted_duration_minutes: numOrNull(row.quoted_duration_minutes),
+    owner_supplied_material_ids: (row.owner_supplied_material_ids ?? []) as string[],
+    provider_supplied_material_ids: (row.provider_supplied_material_ids ?? []) as string[],
+    escrow_id: row.escrow_id ? String(row.escrow_id) : null,
+    created_at: iso(row.created_at),
+    accepted_at: isoOrNull(row.accepted_at),
+    completed_at: isoOrNull(row.completed_at),
+    target_points: numOrNull(row.target_points),
+    points_restored: Number(row.points_restored ?? 0),
+    work_points_banked: Number(row.work_points_banked ?? 0),
+    open_kit_capacity: Number(row.open_kit_capacity ?? 0),
+    open_kit_total: Number(row.open_kit_total ?? 0),
+    open_kit_quality: numOrNull(row.open_kit_quality),
+    accrued_work_ms: Number(row.accrued_work_ms ?? 0),
+    last_settled_at: isoOrNull(row.last_settled_at),
+    last_progress_at: isoOrNull(row.last_progress_at),
+    expires_at: isoOrNull(row.expires_at),
+    outcome: row.outcome ? String(row.outcome) : null,
+    paid_credits: numOrNull(row.paid_credits),
+    fee_credits: numOrNull(row.fee_credits),
+    xp_awarded: numOrNull(row.xp_awarded),
+    kit_type: row.kit_type ? String(row.kit_type) : null,
+    kits_consumed: (row.kits_consumed ?? []) as ServiceJobData['kits_consumed'],
+    repair_snapshot: (row.repair_snapshot ?? null) as ServiceJobData['repair_snapshot'],
   };
 }
 
@@ -956,9 +1066,6 @@ export class PgWriteStore implements WriteStore {
   refuelVehicle(playerId: string, nonce: string, cells: number, itemKey = 'GenericFuelCell'): Promise<Json> {
     return this.callJson('select public.cc_refuel_vehicle($1, $2, $3, $4) as result', [playerId, nonce, cells, itemKey]);
   }
-  usePatchKit(playerId: string, nonce: string, itemId: string, itemKey = 'PatchKit'): Promise<Json> {
-    return this.callJson('select public.cc_use_patch_kit($1, $2, $3, $4) as result', [playerId, nonce, itemId, itemKey]);
-  }
   // ── Crafting-as-occupation (migration 0024) ──────────────────────
   /**
    * The §2.7 skill consumer's input, derived from server records:
@@ -1036,7 +1143,7 @@ export class PgWriteStore implements WriteStore {
         [playerId],
       );
       const { rows: masteryRows } = await this.pool.query(
-        "select mastery_id, mastery_level, mastery_xp from public.player_masteries where user_id = $1 and mastery_id in ('crafting_consumables', 'crafting.refining', 'crafting.gear')",
+        "select mastery_id, mastery_level, mastery_xp from public.player_masteries where user_id = $1 and mastery_id in ('crafting_consumables', 'crafting.refining', 'crafting.gear', 'services.repair')",
         [playerId],
       );
       const { rows: actionRows } = await this.pool.query(
@@ -1047,6 +1154,7 @@ export class PgWriteStore implements WriteStore {
         crafting_consumables: { level: 1, xp: 0 },
         'crafting.refining': { level: 1, xp: 0 },
         'crafting.gear': { level: 1, xp: 0 },
+        'services.repair': { level: 1, xp: 0 },
       };
       for (const row of masteryRows) {
         masteries[String(row.mastery_id)] = {
@@ -1070,6 +1178,106 @@ export class PgWriteStore implements WriteStore {
         masteries,
         activeActionKind: actionRows[0] ? String(actionRows[0].active_action) : null,
       }) as Json;
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+  // ── Mechanics & repair services (migration 0025) ────────────────
+  enqueueRepairJob(playerId: string, nonce: string, input: EnqueueRepairJobInput): Promise<Json> {
+    return this.callJson('select public.cc_enqueue_repair_job($1, $2, $3, $4, $5) as result', [
+      playerId, nonce, input.itemId, input.kitType, input.units,
+    ]);
+  }
+  postRepairJob(playerId: string, nonce: string, itemId: string, targetPoints: number | null, priceCredits: number): Promise<Json> {
+    return this.callJson('select public.cc_post_repair_job($1, $2, $3, $4, $5) as result', [
+      playerId, nonce, itemId, targetPoints, priceCredits,
+    ]);
+  }
+  acceptRepairJob(playerId: string, nonce: string, jobId: string, kitType: string): Promise<Json> {
+    return this.callJson('select public.cc_accept_repair_job($1, $2, $3, $4) as result', [
+      playerId, nonce, jobId, kitType,
+    ]);
+  }
+  finishRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    return this.callJson('select public.cc_repair_job_finish($1, $2, $3) as result', [playerId, nonce, jobId]);
+  }
+  cancelRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    return this.callJson('select public.cc_repair_job_cancel($1, $2, $3) as result', [playerId, nonce, jobId]);
+  }
+  reclaimRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    return this.callJson('select public.cc_repair_job_reclaim($1, $2, $3) as result', [playerId, nonce, jobId]);
+  }
+  async getRepairBoard(playerId: string): Promise<Json> {
+    await this.callJson('select public.cc_settle_repair_jobs_for($1) as result', [playerId]);
+    try {
+      const { rows: jobRows } = await this.pool.query(
+        `select * from public.service_jobs
+          where profession_id = 'repair'
+            and (status = 'listed'
+                 or owner_user_id = $1
+                 or provider_user_id = $1
+                 or (status = 'completed' and completed_at > now() - interval '90 days'))
+          order by created_at desc
+          limit 500`,
+        [playerId],
+      );
+      const jobs = jobRows.map(mapServiceJobRow);
+      const itemIds = [...new Set(jobs.map((j) => j.target_item_instance_id))];
+      const vehicles = new Map<string, RepairVehicleInfo | null>();
+      if (itemIds.length > 0) {
+        const { rows: itemRows } = await this.pool.query(
+          'select id, kind, payload, rarity, condition_current, condition_max from public.item_instances where id = any($1::uuid[])',
+          [itemIds],
+        );
+        for (const row of itemRows) {
+          vehicles.set(String(row.id), {
+            kind: String(row.kind),
+            payload: (row.payload ?? {}) as Record<string, unknown>,
+            rarity: row.rarity ? String(row.rarity) : null,
+            conditionCurrent: Number(row.condition_current ?? 100),
+            conditionMax: Number(row.condition_max ?? 100),
+          });
+        }
+      }
+      const userIds = [
+        ...new Set(jobs.flatMap((j) => [j.owner_user_id, j.provider_user_id]).filter(Boolean)),
+      ] as string[];
+      const names = new Map<string, string | null>();
+      if (userIds.length > 0) {
+        const { rows: profileRows } = await this.pool.query(
+          'select id, username from public.profiles where id = any($1::uuid[])',
+          [userIds],
+        );
+        for (const row of profileRows) {
+          names.set(String(row.id), row.username ? String(row.username) : null);
+        }
+      }
+      const { rows: masteryRows } = await this.pool.query(
+        "select mastery_level, mastery_xp from public.player_masteries where user_id = $1 and mastery_id = 'services.repair'",
+        [playerId],
+      );
+      const { rows: configRows } = await this.pool.query('select key, value from public.economy_config');
+      const stored: Record<string, unknown> = {};
+      for (const row of configRows) stored[String(row.key)] = row.value;
+      const config = resolveEconomyConfigValues(stored);
+      const levers = resolveRepairLevers({
+        serviceXpPerPoint: config.serviceXpPerPoint,
+        repairAbandonWindowHours: config.repairAbandonWindowHours,
+        repairListingExpiryDays: config.repairListingExpiryDays,
+      });
+      return buildRepairBoardView({
+        callerId: playerId,
+        jobs,
+        vehicles,
+        names,
+        nowMs: Date.now(),
+        abandonWindowHours: levers.repairAbandonWindowHours,
+        myMastery: {
+          level: Number(masteryRows[0]?.mastery_level ?? 1),
+          xp: Number(masteryRows[0]?.mastery_xp ?? 0),
+        },
+        levers: { ...levers, marketFeeRate: config.marketFeeRate },
+      }) as unknown as Json;
     } catch (err) {
       return translatePgError(err);
     }
@@ -1100,26 +1308,6 @@ export class PgWriteStore implements WriteStore {
   }
   acceptListing(playerId: string, nonce: string, listingId: string): Promise<Json> {
     return this.callJson('select public.cc_accept_listing($1, $2, $3) as result', [playerId, nonce, listingId]);
-  }
-  requestItemService(playerId: string, nonce: string, itemId: string, serviceId: string): Promise<Json> {
-    return this.callJson('select public.cc_item_service_request($1, $2, $3, $4) as result', [
-      playerId,
-      nonce,
-      itemId,
-      serviceId,
-    ]);
-  }
-  acceptItemService(playerId: string, nonce: string, jobId: string, priceCredits: number, durationMinutes: number): Promise<Json> {
-    return this.callJson('select public.cc_item_service_accept($1, $2, $3, $4, $5) as result', [
-      playerId,
-      nonce,
-      jobId,
-      priceCredits,
-      durationMinutes,
-    ]);
-  }
-  finishItemService(playerId: string, nonce: string, jobId: string): Promise<Json> {
-    return this.callJson('select public.cc_item_job_finish($1, $2, $3) as result', [playerId, nonce, jobId]);
   }
   resetProgress(playerId: string, nonce: string): Promise<Json> {
     return this.callJson('select public.cc_reset_progress($1, $2) as result', [playerId, nonce]);
