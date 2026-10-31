@@ -164,8 +164,11 @@ export class InMemoryEconomyStore implements EconomyStore {
     const legendariesBoss = legendaryItems.filter((i) => i.payload.sourceTag === 'Boss Drop').length;
     const legendariesCache = legendaryItems.filter((i) => i.payload.sourceTag === 'Cache-Forged').length;
 
+    const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
+      num(dig(p, 'total_payout')));
     const creditsMintedTotal =
-      creditsMintedRoaming + creditsMintedBoss + creditsMintedOffline + creditsMintedOther;
+      creditsMintedRoaming + creditsMintedBoss + creditsMintedOffline + creditsMintedOther
+      + creditsMintedVendorBuyback;
     const creditsDestroyedTotal =
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
       + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees;
@@ -176,6 +179,7 @@ export class InMemoryEconomyStore implements EconomyStore {
       creditsMintedBoss,
       creditsMintedOffline,
       creditsMintedOther,
+      creditsMintedVendorBuyback,
       creditsMintedTotal,
       creditsDestroyedMarketFees,
       creditsDestroyedVendor,

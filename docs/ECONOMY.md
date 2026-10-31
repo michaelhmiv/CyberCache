@@ -25,6 +25,7 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `credits_minted_boss` | Boss victories, **grossed up**: the ledger's `attempt.creditsGained` is already net of the entry fee, so the meter adds `entry_fee` back on victories |
 | `credits_minted_offline` | Offline settlements (`cc_settle_offline_roaming` → `rewards.credits_awarded`; unsettled rows mint nothing) |
 | `credits_minted_other` | Legacy idle claims (`cc_idle_claim`), legacy roaming claims (`cc_claim_roaming_rewards`), and new-account bundles (`cc_initial_bundle` — a flat 5,000-credit grant recorded as a literal in the function, so the meter counts rows × 5,000) |
+| `credits_minted_vendor_buyback` | Vendor buyback payouts (`cc_vendor_sell` → `total_payout`, migration 0020). The vendor counter creates these credits, so they are a mint; gross vendor sink stays in `credits_destroyed_vendor` and the counter's net is the difference |
 | `credits_minted_total` | Sum of the four sources |
 | `credits_destroyed_market_fees` | The market sale fee destroyed on completed player sales (`cc_accept_listing` → `market_fee.fee_credits`; NPC sales are exempt and record 0) |
 | `credits_destroyed_vendor` | NPC vendor purchases (`cc_vendor_buy` → `total_price`) |
@@ -82,6 +83,7 @@ take the game down.
 | `fragmentChance` | 0.008 | 0 – 1 | Claim + settle-offline routes stamp it onto `ClaimRequest.economy`; the Chef uses it over `FRAGMENT_CHANCE` (activity bonuses still multiply on top) |
 | `rematchEscalationCap` | 8 | 1 – 64 (integer) | Verify-boss route passes it to `escalatedBossFee` — **the charged fee is the truth**. Client prep-panel displays use the shipped default (×8) and are advisory only |
 | `roamingLegendaryScalar` | 1.0 | 0 – 5 | Claim + settle-offline routes stamp it onto `ClaimRequest.economy`; the Chef multiplies the Legendary entry of the area's `dropPoolRarityWeights` on a copy at roll time. The area tables are constants and are never edited |
+| `vendorBuybackRate` | 0.4 | 0 – 0.9 | `cc_vendor_sell` reads the table itself (`cc_economy_config_number('vendorBuybackRate', 0.4)`, clamped 0..0.9); the TS mirror (`src/server/writes/memory.ts`) takes the rate from a provider where wired. The catalog it pays against is `src/lib/vendor/catalog.ts` (SQL twin `cc_vendor_catalog`, migration 0020) |
 
 Skill-based fee reductions (Darknet Broker, Market Manipulator)
 apply multiplicatively **after** the levered rate, in both the SQL
