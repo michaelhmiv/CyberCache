@@ -83,6 +83,8 @@ export interface ProfileRowData {
   workshop_benches?: number;
   /** Workshop tool assets (migration 0024): { owned, fitted, charges }. Optional: pre-0024 rows omit it. */
   workshop_tools?: Record<string, unknown>;
+  /** Legendary core balance (migration 0026). Optional: pre-0026 seed rows omit it. */
+  legendary_cores?: number;
   /**
    * Computed by PgReadStore.getProfile (not a column): victories per
    * boss on the current UTC day from the verified action ledger — the
@@ -92,6 +94,26 @@ export interface ProfileRowData {
   boss_victories_today?: Record<string, number>;
   username_updated_at: string | null;
   username_change_count: number;
+}
+
+/** One collection_discoveries row (migration 0026). */
+export interface CollectionDiscoveryData {
+  family: string;
+  entry_key: string;
+  source: string;
+  discovered_at: string;
+}
+
+/**
+ * The caller's collection log state (migration 0026): the legendary
+ * core balance plus every discovery row. The catalog itself is
+ * content (src/content/collections.ts); this read carries only the
+ * player's proven facts, so a public projection (the later profile
+ * showcase) can read the same shape.
+ */
+export interface CollectionsData {
+  legendary_cores: number;
+  discoveries: CollectionDiscoveryData[];
 }
 
 export interface ProgressionSnapshotData {
@@ -447,6 +469,8 @@ export interface ReadStore {
   getMarketPriceStats(keys: string[]): Promise<Record<string, PriceStats>>;
   /** Caller's own runtime items (runtimeStateService item read). */
   getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]>;
+  /** Caller's collection log + legendary core balance (0026); null when no profile. */
+  getCollections(playerId: string): Promise<CollectionsData | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -621,6 +645,8 @@ export interface ReadSeed {
   netWorth: Record<string, number>;
   items: MemItem[];
   listings: MemListing[];
+  /** Collection discovery rows (0026). Optional: older seeds omit it. */
+  discoveries?: (CollectionDiscoveryData & { user_id: string })[];
 }
 
 export function emptyReadSeed(): ReadSeed {
@@ -635,6 +661,16 @@ export class InMemoryReadStore implements ReadStore {
 
   async getProfile(playerId: string): Promise<ProfileRowData | null> {
     return this.seed.profiles.find((p) => p.id === playerId) ?? null;
+  }
+
+  async getCollections(playerId: string): Promise<CollectionsData | null> {
+    const profile = this.seed.profiles.find((p) => p.id === playerId);
+    if (!profile) return null;
+    const discoveries = (this.seed.discoveries ?? [])
+      .filter((d) => d.user_id === playerId)
+      .map(({ family, entry_key, source, discovered_at }) => ({ family, entry_key, source, discovered_at }))
+      .sort((a, b) => a.discovered_at.localeCompare(b.discovered_at));
+    return { legendary_cores: profile.legendary_cores ?? 0, discoveries };
   }
 
   async getMyProgressionSnapshots(playerId: string, query: SnapshotQuery): Promise<ProgressionSnapshotData[]> {
@@ -1014,6 +1050,30 @@ export class PgReadStore implements ReadStore {
       if (typeof row.boss_id === 'string') bossVictoriesToday[row.boss_id] = num(row.victories);
     }
     return { ...profile, boss_victories_today: bossVictoriesToday };
+  }
+
+  async getCollections(playerId: string): Promise<CollectionsData | null> {
+    const { rows } = await this.db.query(
+      'select legendary_cores from public.profiles where id = $1',
+      [playerId],
+    );
+    if (!rows.length) return null;
+    const { rows: discoveryRows } = await this.db.query(
+      `select family, entry_key, source, discovered_at
+         from public.collection_discoveries
+        where user_id = $1
+        order by discovered_at asc, family asc, entry_key asc`,
+      [playerId],
+    );
+    return {
+      legendary_cores: num((rows[0] as Row).legendary_cores),
+      discoveries: (discoveryRows as Row[]).map((row) => ({
+        family: String(row.family),
+        entry_key: String(row.entry_key),
+        source: String(row.source),
+        discovered_at: iso(row.discovered_at),
+      })),
+    };
   }
 
   async getMyProgressionSnapshots(playerId: string, query: SnapshotQuery): Promise<ProgressionSnapshotData[]> {

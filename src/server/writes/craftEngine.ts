@@ -25,6 +25,8 @@ import {
   benchDef,
   catalystForRecipe,
   CATALYST_REQUIRES_BENCH,
+  CORE_CATALYST_CORES_PER_UNIT,
+  CORE_CATALYST_DRAWS_BONUS,
   consumableEfficiencyDurationMultiplier,
   craftMasteryForKind,
   craftQualityBounds,
@@ -90,6 +92,8 @@ export interface CraftJobSnapshot {
   rushReduction: number;
   craftTimeScalar: number;
   catalystMaterialId: string | null;
+  /** Legendary Core Catalyst (0026): gear jobs only; +2 draws/unit. */
+  coreCatalyst?: boolean;
   gearRarity: string | null;
   /** Repair jobs only (kind 'repair', mechanics slice 0025): the
    *  vehicle being restored, the patch kits escrowed at enqueue (one
@@ -153,6 +157,8 @@ export interface CraftJobRecord {
   /** Per-unit inputs × units (the full escrow taken at enqueue). */
   escrow_inputs: Record<string, number>;
   escrow_catalyst: Record<string, number>;
+  /** Legendary cores escrowed at enqueue (0026); refunded on cancel. */
+  escrow_cores?: number;
   rush_ticket_quality: number | null;
   rush_ticket_origin: string | null;
   snapshot: CraftJobSnapshot;
@@ -178,6 +184,8 @@ export interface CraftProfileView {
   essences: Record<string, number>;
   consumables: Record<string, number>;
   workshop_benches: number;
+  /** Legendary core balance (0026); mirrors profiles.legendary_cores. */
+  legendary_cores: number;
   workshop_tools: WorkshopToolsState;
   offline_cap_hours: number | null;
 }
@@ -517,7 +525,8 @@ function completeCraftUnit(
       rarity,
       itemLevel: profile.player_level,
       creatorId: playerId,
-      draws: tempered ? 3 : 1,
+      // Core catalyst (0026): +2 draws on top of the temper lever.
+      draws: (tempered ? 3 : 1) + (job.snapshot.coreCatalyst ? CORE_CATALYST_DRAWS_BONUS : 0),
       rng: adapter.rng,
     });
     output.itemId = adapter.insertGearItem(playerId, candidate);
@@ -549,6 +558,7 @@ export interface EnqueueCraftJobInput {
   units: number;
   rarity?: string | null;
   useCatalyst?: boolean;
+  useCoreCatalyst?: boolean;
   useRushTicket?: boolean;
   /** computeSkillBonuses total for consumableEfficiency (server-derived). */
   consumableEfficiencyBonus: number;
@@ -619,6 +629,20 @@ export function enqueueCraftJob(
     if (bench < CATALYST_REQUIRES_BENCH) fail('Catalysts require the Forge (bench 2)');
   }
 
+  // Legendary Core Catalyst (0026): gear frames only, one core per
+  // unit escrowed at enqueue; mutually exclusive with the material
+  // catalyst and Forge-gated like it (migration 0026's SQL twin
+  // carries the same gates and messages).
+  let coreCatalyst = false;
+  let escrowCores = 0;
+  if (input.useCoreCatalyst) {
+    if (catalystMaterialId) fail('Choose one catalyst: material or legendary core');
+    if (r.kind !== 'gear') fail('Legendary core catalyst applies to gear frames only');
+    if (bench < CATALYST_REQUIRES_BENCH) fail('Catalysts require the Forge (bench 2)');
+    coreCatalyst = true;
+    escrowCores = units * CORE_CATALYST_CORES_PER_UNIT;
+  }
+
   // Verify the full escrow before taking any of it (atomicity).
   const escrowInputs: Record<string, number> = {};
   for (const [key, perUnit] of Object.entries(r.inputs)) {
@@ -632,6 +656,9 @@ export function enqueueCraftJob(
   if (catalystMaterialId) {
     escrowCatalyst[catalystMaterialId] = units;
     if ((p.materials[catalystMaterialId] ?? 0) < units) fail(`Insufficient material ${catalystMaterialId}`);
+  }
+  if (escrowCores > 0 && (p.legendary_cores ?? 0) < escrowCores) {
+    fail('Insufficient legendary cores');
   }
   if (input.useRushTicket && (p.consumables['WorkshopRushTicket'] ?? 0) < 1) {
     fail('No Workshop Rush Ticket available');
@@ -663,6 +690,9 @@ export function enqueueCraftJob(
   for (const [key, total] of Object.entries(escrowCatalyst)) {
     p.materials[key] = (p.materials[key] ?? 0) - total;
   }
+  if (escrowCores > 0) {
+    p.legendary_cores = (p.legendary_cores ?? 0) - escrowCores;
+  }
 
   // Snapshotted unit duration: base × skill × tool × scalar × rush.
   const levers = adapter.levers();
@@ -690,6 +720,7 @@ export function enqueueCraftJob(
     status: 'active',
     escrow_inputs: escrowInputs,
     escrow_catalyst: escrowCatalyst,
+    escrow_cores: escrowCores,
     rush_ticket_quality: rushTicketQuality,
     rush_ticket_origin: rushTicketOrigin,
     snapshot: {
@@ -702,6 +733,7 @@ export function enqueueCraftJob(
       rushReduction,
       craftTimeScalar: levers.craftTimeScalar,
       catalystMaterialId,
+      coreCatalyst,
       gearRarity: gearRarity ? String(gearRarity) : null,
     },
     xp_awarded: 0,
@@ -849,6 +881,8 @@ export interface CancelCraftJobResult {
   jobId: string;
   refundedInputs: Record<string, number>;
   rushTicketRefunded: boolean;
+  /** Legendary cores refunded (0026); 0 for non-core jobs. */
+  coresRefunded: number;
 }
 
 export function cancelCraftJob(
@@ -876,6 +910,7 @@ export function cancelCraftJob(
       jobId: j.id,
       refundedInputs: snap && refundedCount > 0 ? { [snap.kitType]: refundedCount } : {},
       rushTicketRefunded: false,
+      coresRefunded: 0,
     };
   }
 
@@ -911,6 +946,19 @@ export function cancelCraftJob(
   }
   refundMap(catalystPerUnit, p.materials);
 
+  // Legendary cores (0026): the material catalyst's refund schedule —
+  // full for unstarted units, half (floored) for the in-progress one.
+  let coresRefunded = 0;
+  const escrowCores = j.escrow_cores ?? 0;
+  if (escrowCores > 0 && j.units_total > 0) {
+    const perUnitCores = escrowCores / j.units_total;
+    coresRefunded = Math.floor(perUnitCores * unstarted)
+      + (inProgress ? Math.floor(perUnitCores * 0.5) : 0);
+    if (coresRefunded > 0) {
+      p.legendary_cores = (p.legendary_cores ?? 0) + coresRefunded;
+    }
+  }
+
   // Rush ticket: refunded as a batch at its escrowed quality only
   // when the job never started; on a started job it is spent.
   let rushTicketRefunded = false;
@@ -928,7 +976,7 @@ export function cancelCraftJob(
   }
 
   j.status = 'cancelled';
-  return { jobId: j.id, refundedInputs: refunded, rushTicketRefunded };
+  return { jobId: j.id, refundedInputs: refunded, rushTicketRefunded, coresRefunded };
 }
 
 // ─── Bench unlock (§2.2) ─────────────────────────────────────────────
@@ -1016,6 +1064,9 @@ export interface CraftJobView {
   xpAwarded: number;
   gearRarity: string | null;
   catalystMaterialId: string | null;
+  /** Legendary Core Catalyst job (0026): escrowed cores, +2 draws/unit. */
+  coreCatalyst: boolean;
+  escrowCores: number;
   outputs: CraftJobOutput[];
   createdAtMs: number;
   completedAtMs: number | null;
@@ -1050,6 +1101,8 @@ export function craftJobView(
     xpAwarded: job.xp_awarded,
     gearRarity: job.snapshot.gearRarity,
     catalystMaterialId: job.snapshot.catalystMaterialId,
+    coreCatalyst: !!job.snapshot.coreCatalyst,
+    escrowCores: job.escrow_cores ?? 0,
     outputs: job.outputs,
     createdAtMs: job.created_at_ms,
     completedAtMs: job.completed_at_ms,

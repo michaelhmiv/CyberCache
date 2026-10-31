@@ -18,6 +18,8 @@ export type RuntimeProfilePayload = {
   scrap?: number | string;
   cache_tokens?: number | string;
   cache_token_parts?: number | string;
+  /** Legendary core balance (0026). */
+  legendary_cores?: number | string;
   materials?: Record<string, number>;
   essences?: Record<string, number>;
   consumables?: Record<string, number>;
@@ -150,6 +152,7 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
     scrap: numberValue(profile.scrap, player.scrap),
     cacheKeys: numberValue(profile.cache_tokens, player.cacheKeys),
     cacheKeyFragments: numberValue(profile.cache_token_parts, player.cacheKeyFragments),
+    legendaryCores: numberValue(profile.legendary_cores, player.legendaryCores),
     materials: profile.materials ?? player.materials,
     essences: profile.essences ?? player.essences,
     consumables: profile.consumables ?? player.consumables,

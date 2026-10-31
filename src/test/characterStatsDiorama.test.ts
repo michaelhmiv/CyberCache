@@ -54,6 +54,7 @@ function makePlayer(overrides: Partial<PlayerProfile> = {}): PlayerProfile {
     scrap: 0,
     cacheKeys: 0,
     cacheKeyFragments: 0,
+    legendaryCores: 0,
     currentZoneId: 'dustwaste',
     highestZoneId: 'dustwaste',
     offlineCapHours: 0,

@@ -22,7 +22,7 @@ export type VisualAssetKind =
   | 'consumable';
 
 export type GearVisualId = 'weapon' | 'shield' | 'classMod' | 'relic' | 'ordnance';
-export type ResourceVisualId = 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'xp' | 'level' | 'masteryPoint' | 'loot';
+export type ResourceVisualId = 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'xp' | 'level' | 'masteryPoint' | 'loot' | 'legendaryCore';
 
 export interface VisualAsset {
   id: string;
@@ -235,6 +235,7 @@ export const RESOURCE_VISUALS: Record<ResourceVisualId, VisualAsset> = {
   level: { id: 'level', kind: 'resource', label: 'Level', shortLabel: 'LV', mark: 'LV', color: '#E040FB', accentColor: '#EA80FC', description: 'Hunter level.', texture: 'metal' },
   masteryPoint: { id: 'masteryPoint', kind: 'resource', label: 'Mastery Point', shortLabel: 'MP', mark: 'M', color: '#A855F7', accentColor: '#FF9DF5', description: 'Skill tree currency.', texture: 'data' },
   loot: { id: 'loot', kind: 'resource', label: 'Loot', shortLabel: 'LOOT', mark: 'L', color: '#76FF03', accentColor: '#B2FF59', description: 'Gear reward.', texture: 'ordnance' },
+  legendaryCore: { id: 'legendaryCore', kind: 'resource', label: 'Legendary Core', shortLabel: 'CORE', mark: 'C', color: '#FF9800', accentColor: '#FFCC80', description: 'Salvaged from Legendary gear. Powers core-catalyzed crafting and high-end rerolls.', texture: 'crystal' },
 };
 
 export const DROP_SOURCE_VISUALS = {

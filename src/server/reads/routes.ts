@@ -17,6 +17,7 @@
  *   GET /api/market/listings             marketListings.fetchMarketListings  market_listings + item_instances embed (active, server browse query 0019)
  *   GET /api/market/price-stats          marketListings.fetchPriceStats     completed-sales stats per identity key (0019)
  *   GET /api/runtime/items               runtimeStateService.syncRuntimeItemsForUser  item_instances (own, RLS)
+ *   GET /api/collections/me              CollectionsScreen                    collection_discoveries (own) + profiles.legendary_cores (0026)
  *
  * Identity rules (hard): the caller's player id comes ONLY from the
  * verified Chef JWT (chefPlayerId). Query/body player ids are never read.
@@ -141,6 +142,19 @@ function parseLimit(raw: unknown, fallback: number, max: number): number {
 }
 
 export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConfig): void {
+  // Collection log (0026): the caller's proven discoveries + legendary
+  // core balance. The catalog is client content; this read carries
+  // only the player's own server-side facts.
+  app.get('/api/collections/me', async (req, res) => {
+    const id = caller(config, req, res);
+    if (!id) return;
+    try {
+      const collections = await store.getCollections(id);
+      if (!collections) return notFound(res, 'Profile');
+      res.json(collections);
+    } catch (err) { fail(res, err); }
+  });
+
   app.get('/api/profile/me', async (req, res) => {
     const id = caller(config, req, res);
     if (!id) return;

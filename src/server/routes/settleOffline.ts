@@ -20,6 +20,8 @@ import { ABSOLUTE_OFFLINE_CAP_HOURS, effectiveOfflineCapHours } from '../../cont
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { isHotArea } from '../../content/hotArea';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
+import { recordItemDiscoveries } from './roamingHandler';
+import { eliteDiscovery } from '../../content/collections';
 
 function formatTimeAway(ms: number): string {
   const totalMinutes = Math.floor(ms / 60000);
@@ -354,6 +356,7 @@ export function createSettleOfflineHandler(
       if (result.items.length > 0) {
         try {
           await store.storeChefItems(playerId, result.items);
+          await recordItemDiscoveries(store, playerId, result.items, 'offline_drop');
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error('[chef] settlement store items failed:', message);
@@ -375,6 +378,17 @@ export function createSettleOfflineHandler(
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error('[chef] settlement roaming-event record failed:', message);
+        }
+        if (result.eliteKills > 0) {
+          const elite = eliteDiscovery(area.id);
+          if (elite) {
+            try {
+              await store.recordDiscoveries(playerId, [elite]);
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              console.error('[chef] settlement elite discovery failed:', message);
+            }
+          }
         }
       }
 

@@ -53,6 +53,7 @@ import {
   type ClassModBoosts,
 } from '../../lib/skills/skillBonuses';
 import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses';
+import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections';
 import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
 import {
   settleCraftJobs as settleCraftJobsCore,
@@ -96,6 +97,8 @@ export interface InMemoryProfile {
   cache_token_parts: number;
   /** Vehicle tank fuel units (migration 0021). */
   vehicle_fuel: number;
+  /** Legendary core balance (migration 0026). */
+  legendary_cores: number;
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
@@ -255,6 +258,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       cache_tokens: 0,
       cache_token_parts: 0,
       vehicle_fuel: 0,
+      legendary_cores: 0,
       materials: {},
       essences: {},
       consumables: {},
@@ -308,6 +312,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       scrap: p.scrap,
       cache_tokens: p.cache_tokens,
       cache_token_parts: p.cache_token_parts,
+      legendary_cores: p.legendary_cores ?? 0,
       materials: { ...p.materials },
       essences: { ...p.essences },
       consumables: { ...p.consumables },
@@ -498,6 +503,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       essences: profile.essences,
       consumables: profile.consumables,
       workshop_benches: this.workshopBenches.get(playerId) ?? 1,
+      legendary_cores: profile.legendary_cores ?? 0,
       workshop_tools: tools,
       offline_cap_hours: profile.offline_cap_hours,
     };
@@ -922,6 +928,41 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     } as Json;
   }
 
+  private discoveryRows: Array<DiscoveryRecord & { user_id: string; discovered_at: string }> = [];
+
+  /**
+   * cc_record_discoveries (0026): the in-memory twin — insert-on-
+   * conflict-do-nothing against (player, family, entry). Test-visible
+   * via discoveriesFor().
+   */
+  async recordDiscoveries(playerId: string, entries: DiscoveryRecord[]): Promise<Json> {
+    this.requireProfile(playerId);
+    let recorded = 0;
+    for (const entry of entries ?? []) {
+      if (!entry?.family || !entry?.entry_key) continue;
+      const exists = this.discoveryRows.some(
+        (r) => r.user_id === playerId && r.family === entry.family && r.entry_key === entry.entry_key,
+      );
+      if (exists) continue;
+      this.discoveryRows.push({
+        user_id: playerId,
+        family: entry.family,
+        entry_key: entry.entry_key,
+        source: entry.source || 'unknown',
+        discovered_at: new Date().toISOString(),
+      });
+      recorded += 1;
+    }
+    return { recorded } as Json;
+  }
+
+  /** Test/read accessor: this player's recorded discovery rows. */
+  discoveriesFor(playerId: string): Array<DiscoveryRecord & { discovered_at: string }> {
+    return this.discoveryRows
+      .filter((r) => r.user_id === playerId)
+      .map(({ family, entry_key, source, discovered_at }) => ({ family, entry_key, source, discovered_at }));
+  }
+
   /**
    * cc_resurrect (0013): nonce-idempotent via the ledger; the free
    * path validates against this store's clock and the recorded death;
@@ -1124,10 +1165,20 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (bonusMaterial) {
       p.materials[bonusMaterial] = (p.materials[bonusMaterial] ?? 0) + 1;
     }
+    // Legendary cores (0026): minted by the same formula as the SQL
+    // twin (src/content/collections.ts), NOT scaled by the scrap
+    // bonuses above (Market Crash 4x included).
+    const cores = legendaryCoreYieldFor({
+      rarity: item.rarity,
+      item_level: item.item_level,
+      kind: item.kind,
+      payload: (item.payload ?? {}) as Record<string, unknown>,
+    });
     item.runtime_state = 'consumed';
     item.tradeable = false;
     item.equipped_slot = null;
     p.scrap += award;
+    p.legendary_cores = (p.legendary_cores ?? 0) + cores;
     const result: Json = {
       action_type: 'cc_recycle_item',
       profile: this.snapshot(p),
@@ -1142,6 +1193,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         payload: item.payload,
       },
       scrap_award: award,
+      cores_award: cores,
       bonus_material: bonusMaterial,
       loadout: null,
     };

@@ -22,6 +22,8 @@ export interface PlayerProfile {
   scrap: number;
   cacheKeys: number;
   cacheKeyFragments: number;
+  /** Legendary core balance (0026) — server-owned, synced from the profile snapshot. */
+  legendaryCores: number;
   currentZoneId: string;
   highestZoneId: string;
   offlineCapHours: number;

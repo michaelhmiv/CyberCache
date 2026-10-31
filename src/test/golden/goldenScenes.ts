@@ -277,4 +277,76 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     drawHunter(img, 'aim');
     drawEnemy(img, 'dustwaste_frontier', 'runner', 'idle');
   }),
+  // Collections (0026): the trophy shelf. Found legendaries sit in
+  // full color on the top plank — the center frame under the G-1
+  // legendary beam — while the unproven entries below read as dark
+  // silhouettes (weapon renders + a boss plate, darkened through a
+  // temp canvas so the cached sprites are never mutated). The hunter
+  // stands off at idle, admiring the shelf; the war-room table fronts
+  // the stage and the progress strip reads shelf completion.
+  scene('collections-shelf', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    // Trophy-wall treatment: the stage darkens (the bench-paused
+    // idle-dark move) so the shelf reads as an interior wall — found
+    // pieces glow in color, unproven pieces read as dark silhouettes
+    // on slate plaques.
+    fillRect(img, 0, 0, SCENE_W, SCENE_H, [8, 8, 12], 96);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H * 0.46, hexToRgb('#f2c063'), 18);
+    const groundY = GROUND * SCENE_H;
+    // Shelf planks + brackets.
+    for (const plankY of [118, 172]) {
+      fillRect(img, 96, plankY, 264, 5, [58, 42, 30], 255);
+      fillRect(img, 96, plankY, 264, 1, [122, 92, 58], 255);
+      fillRect(img, 108, plankY + 5, 4, 10, [40, 30, 22], 255);
+      fillRect(img, 344, plankY + 5, 4, 10, [40, 30, 22], 255);
+    }
+    // Silhouette plaques on the lower plank (behind the ghosts).
+    for (const plaqueX of [104, 192, 280]) {
+      fillRect(img, plaqueX, 172 - 52, 80, 50, [15, 17, 23], 235);
+      fillRect(img, plaqueX, 172 - 52, 80, 2, [96, 96, 108], 255);
+    }
+    // Found shelf: three legendary frames in color; the center one
+    // carries the loot-moment beam (the logged-legendary read).
+    const found: PixelWeaponInput[] = [
+      { id: 'shelf-1', weaponType: WeaponType.Sniper, manufacturer: Manufacturer.Prismatek, rarity: Rarity.Legendary, element: Element.Void, pixelSeed: 777, rollQuality: 92 },
+      { id: 'shelf-2', weaponType: WeaponType.SMG, manufacturer: Manufacturer.Redline, rarity: Rarity.Legendary, element: Element.Shock, pixelSeed: 31337, rollQuality: 88 },
+      { id: 'shelf-3', weaponType: WeaponType.Shotgun, manufacturer: Manufacturer.BlastForge, rarity: Rarity.Legendary, element: Element.Fire, pixelSeed: 5150, rollQuality: 84 },
+    ];
+    drawBeam(img, 228, 118, GRAMMAR.beamWidthPx.legendary, '#FFD166');
+    found.forEach((weapon, i) => {
+      drawWeaponRender(img, weapon, 108 + i * 88, 118 - 32, 80, 30);
+    });
+    // Missing shelf: silhouettes only — two frames and a boss plate.
+    const ghostWeapon = (weapon: PixelWeaponInput, x: number) => {
+      const temp = newCanvas();
+      drawWeaponRender(temp, weapon, x, 172 - 32, 80, 30);
+      for (let i = 0; i < temp.data.length; i += 4) {
+        if (temp.data[i + 3] > 0) {
+          temp.data[i] = 44; temp.data[i + 1] = 48; temp.data[i + 2] = 58;
+        }
+      }
+      blit(img, temp, 0, 0, SCENE_W, SCENE_H);
+    };
+    ghostWeapon({ id: 'shelf-g1', weaponType: WeaponType.Launcher, manufacturer: Manufacturer.ThrowTech, rarity: Rarity.Legendary, pixelSeed: 606, rollQuality: 70 }, 108);
+    ghostWeapon({ id: 'shelf-g2', weaponType: WeaponType.Pistol, manufacturer: Manufacturer.HelixWorks, rarity: Rarity.Legendary, pixelSeed: 909, rollQuality: 70 }, 196);
+    const boss = loadGoldenSprite('boss-dune-tyrant');
+    if (boss) {
+      const ghost = { width: boss.width, height: boss.height, data: new Uint8Array(boss.data) };
+      for (let i = 0; i < ghost.data.length; i += 4) {
+        if (ghost.data[i + 3] > 0) {
+          ghost.data[i] = 52; ghost.data[i + 1] = 57; ghost.data[i + 2] = 68;
+        }
+      }
+      const h = 48;
+      const w = h * (boss.width / boss.height);
+      blit(img, ghost, 322 - w / 2, 172 - h, w, h);
+    }
+    // The hunter + the war-room table fronting the stage.
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 11, heightPct: 46, feetX: 0.2717 }, GROUND);
+    const table = loadGoldenSprite('set-war-room-table');
+    if (table) blit(img, table, SCENE_W * 0.47 - 55, groundY - 30, 110, 30);
+    // Shelf progress strip (amber, the bench scenes' progress read).
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.31, GRAMMAR.progress.heightPx, [255, 152, 0], 255);
+  }),
 ];

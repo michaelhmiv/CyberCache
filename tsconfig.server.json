@@ -29,6 +29,7 @@
     "src/constants/legendaryEffects.ts",
     "src/constants/elements.ts",
     "src/content/lootResolver.ts",
+    "src/content/collections.ts",
     "src/types/game.ts",
     "src/types/items.ts"
   ]

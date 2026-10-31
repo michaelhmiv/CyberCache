@@ -37,6 +37,8 @@ import {
   weightedQualityForUnits,
 } from '../../lib/consumables/batchProfile';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
+import { recordItemDiscoveries } from './roamingHandler';
+import { bossDiscovery } from '../../content/collections';
 
 /**
  * Validate the client's PREPARED consumable set against DB-owned
@@ -340,6 +342,22 @@ export function createVerifyBossHandler(
           });
           return;
         }
+        await recordItemDiscoveries(store, playerId, result.items, 'boss_loot');
+      }
+
+      // Collection discovery (0026): the victory was applied by the
+      // Chef applier above — record the boss entry from that settled
+      // fact. Log-and-continue; the attempt is already paid.
+      if (result.result.victory) {
+        const boss = bossDiscovery(body.bossId);
+        if (boss) {
+          try {
+            await store.recordDiscoveries(playerId, [boss]);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error('[chef] Failed to record boss discovery:', message);
+          }
+        }
       }
 
       res.json({
@@ -382,6 +400,10 @@ export function createSalvageHandler(store: ChefGameplayStore, config: AuthConfi
         res.status(500).json({ error: 'Failed to recycle item', detail: message });
         return;
       }
+
+      // Salvaging proves the item was held — record it in the
+      // collection log too (idempotent; the drop usually logged it).
+      await recordItemDiscoveries(store, playerId, [result?.item], 'salvage');
 
       res.json({
         salvaged: true,

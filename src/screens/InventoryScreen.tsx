@@ -69,7 +69,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
             </div>
             <div>
               <div className="text-sm font-black text-text-primary">Open Data Cache</div>
-              <div className="text-[10px] text-text-muted">{player.cacheKeys} keys · {player.cacheKeyFragments}/5 fragments</div>
+              <div className="text-[10px] text-text-muted">{player.cacheKeys} keys · {player.cacheKeyFragments}/5 fragments · {player.legendaryCores} cores</div>
             </div>
           </div>
           <div className="bl-primary px-3 py-1 text-xs font-black">Open</div>

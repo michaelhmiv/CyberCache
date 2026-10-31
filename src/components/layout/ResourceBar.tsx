@@ -2,7 +2,7 @@
  * ResourceBar — compact universal resource header for all tabs.
  *
  * Replaces the bl-title text-3xl heading + subtitle on every tab with a
- * dense 5-chip resource strip showing Credits, Scrap, Keys, Loot, Level.
+ * dense 6-chip resource strip showing Credits, Scrap, Keys, Cores, Loot, Level.
  *
  * Tapping any chip can optionally open a detail tooltip or navigate.
  * All icons rendered via ResourceIcon (central visualAssets registry).
@@ -24,6 +24,7 @@ const ACCENT_COLORS: Record<ChipProps['resourceId'], string> = {
   cacheFragment: 'bg-green',
   loot: 'bg-red',
   level: 'bg-amber',
+  legendaryCore: 'bg-amber',
 };
 
 function compact(n: number): string {
@@ -34,7 +35,7 @@ function compact(n: number): string {
 }
 
 interface ChipProps {
-  resourceId: 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'loot' | 'level';
+  resourceId: 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'loot' | 'level' | 'legendaryCore';
   value: string | number;
   sub: string;
   seed?: number;
@@ -45,7 +46,7 @@ interface ChipProps {
 
 const Chip: React.FC<ChipProps> = ({ resourceId, value, sub, seed = 0, action, wide }) => (
   <motion.div
-    className={`relative min-w-[70px] overflow-hidden border-2 border-border bg-bg px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] ${wide ? 'flex-[1.35]' : 'flex-1'}`}
+    className={`relative min-w-[58px] overflow-hidden border-2 border-border bg-bg px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] ${wide ? 'flex-[1.35]' : 'flex-1'}`}
     style={signClip}
     whileTap={{ scale: 0.97 }}
   >
@@ -135,6 +136,12 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
               <Plus size={13} strokeWidth={3} />
             </button>
           )}
+        />
+        <Chip
+          resourceId="legendaryCore"
+          value={player.legendaryCores}
+          sub="cores"
+          seed={6}
         />
         <Chip
           resourceId="loot"
