@@ -1093,8 +1093,8 @@ end;
 $function$;
 
 -- ---------------------------------------------------------------------
--- 5 (cont). cc_complete_craft_unit, restated from its 0031 body
--- with ONE added line: repair-unit completions record
+-- 5 (cont). cc_complete_craft_unit, REGENERATED onto its 0038 body
+-- (Research) with ONE added line: repair-unit completions record
 -- services.points_restored for the mechanic (the craft settler
 -- writes no ledger row, so the unit function carries the stat).
 -- ---------------------------------------------------------------------
@@ -1137,6 +1137,9 @@ declare
   -- Fixer completion terms (0029)
   v_mod_payload jsonb;
   v_craft_quality_bonus numeric := 0;
+  v_research_shift numeric := 0;
+  v_research_temper numeric := 0;
+  v_research_draws integer := 0;
   v_craft_temper_bonus numeric := 0;
   v_shift numeric;
   v_kit_base numeric;
@@ -1149,6 +1152,11 @@ begin
   if not found then raise exception 'Job not found'; end if;
   actor := job.owner_user_id;
   select * into p from public.profiles where id = actor for update;
+  -- Research (0038): the owner's completion-derived terms, read once
+  -- from research_completions (server records only).
+  v_research_shift := public.cc_research_bonus_number(p.id, 'craftQualityShift');
+  v_research_temper := public.cc_research_bonus_number(p.id, 'gearTemperBonus');
+  v_research_draws := public.cc_research_bonus_number(p.id, 'gearDrawBonus')::integer;
   if not found then raise exception 'Profile not found'; end if;
   if job.kind = 'repair' then
     -- Self-repair unit (0025): apply the next escrowed patch kit.
@@ -1188,8 +1196,8 @@ begin
      returning condition_current into v_item.condition_current;
     v_restored := round(v_item.condition_current - v_before, 2);
     if v_restored > 0 then
-      perform public.cc_add_mastery_xp(actor, 'services.repair', ceil(v_restored)::integer);
       perform public.cc_add_stat(actor, 'services.points_restored', round(v_restored)::bigint);
+      perform public.cc_add_mastery_xp(actor, 'services.repair', ceil(v_restored)::integer);
     end if;
     v_output := v_output || jsonb_build_object(
       'itemId', v_item.id,
@@ -1230,7 +1238,7 @@ begin
     + public.cc_skill_effective_points(p.skill_spends, v_mod_payload, 'fix_quality_2', 'Fixer', 5));
   v_craft_temper_bonus := 0.05 *
     public.cc_skill_effective_points(p.skill_spends, v_mod_payload, 'fix_major_1', 'Fixer', 1);
-  v_shift := least(20, greatest(-10, p_quality_shift + v_craft_quality_bonus));
+  v_shift := least(20, greatest(-10, p_quality_shift + v_craft_quality_bonus + v_research_shift));
 
   recipe := public.cc_craft_recipe(job.recipe_id);
   if recipe is null then raise exception 'Unknown craft recipe'; end if;
@@ -1264,11 +1272,11 @@ begin
       * coalesce((job.snapshot ->> 'toolQualityMultiplier')::numeric, 1)
     )::numeric, 2);
     v_roll := least((v_bounds ->> 'cap')::numeric, greatest(1, v_roll));
-    v_qty := 1;
+    v_qty := coalesce((recipe ->> 'outputQuantity')::integer, 1);
     v_bonus := false;
     if coalesce((job.snapshot ->> 'toolBonusUnitChance')::numeric, 0) > 0
        and random() < (job.snapshot ->> 'toolBonusUnitChance')::numeric then
-      v_qty := 2;
+      v_qty := v_qty + 1;
       v_bonus := true;
     end if;
     perform public.cc_add_consumable_batch(
@@ -1304,7 +1312,7 @@ begin
     );
   elsif job.kind = 'gear' then
     v_ml := public.cc_player_mastery_level(actor, 'crafting.gear');
-    v_tempered := random() < least(0.3, greatest(0, p_temper_base) + 0.01 * v_ml + v_craft_temper_bonus);
+    v_tempered := random() < least(0.3, greatest(0, p_temper_base) + 0.01 * v_ml + v_craft_temper_bonus + v_research_temper);
     v_output := v_output || jsonb_build_object(
       'pending', true,
       'slot', recipe ->> 'gearSlot',
@@ -1313,7 +1321,8 @@ begin
       'draws', (case when v_tempered then 3 else 1 end)
         + case when job.snapshot ->> 'coreCatalyst' = 'true'
             then 2 + coalesce((job.snapshot ->> 'coreCatalystDrawBonus')::integer, 0)
-            else 0 end,
+            else 0 end
+        + v_research_draws,
       'tempered', v_tempered
     );
   elsif job.kind = 'tool' then
@@ -1364,7 +1373,10 @@ end;$$;
 
 -- ---------------------------------------------------------------------
 -- 6 (cont). New economy_metrics columns + cc_compute_economy_metrics
--- restated from its 0037 body with the contract folds.
+-- REGENERATED onto its 0038 body (Research) with the contract folds
+-- applied on top — restating from the pre-0038 (0037) body would
+-- have silently dropped the research meters (the research_* folds
+-- and the research_credits_destroyed term of destroyed_total).
 -- ---------------------------------------------------------------------
 alter table public.economy_metrics
   add column if not exists credits_minted_contracts bigint not null default 0,
@@ -1548,6 +1560,16 @@ begin
       filter (where action_type = 'cc_login_streak_claim'), 0) as fragments_login_streak,
     coalesce(sum((result_payload ->> 'cache_keys_awarded')::bigint)
       filter (where action_type = 'cc_login_streak_claim'), 0) as keys_login_streak,
+    -- Research (0038): enrollments, completions, and the enrollment
+    -- fees destroyed at enroll (ledger facts; the destroyed fold
+    -- joins credits_destroyed_total below — Research is the sink).
+    count(*) filter (where action_type = 'cc_enroll_research') as research_started,
+    count(*) filter (where action_type = 'cc_research_complete') as research_completed,
+    coalesce(sum((result_payload ->> 'cost_credits')::bigint)
+      filter (where action_type = 'cc_enroll_research'), 0) as research_destroyed,
+    -- Contracts board (0042): claim/set-bonus mints, reroll
+    -- scrap destroyed, keys awarded, expired-unclaimed count
+    -- (ledger + instance facts; minted joins minted_total).
       coalesce(sum((result_payload ->> 'credits_awarded')::bigint)
         filter (where action_type in ('cc_claim_contract_reward', 'cc_claim_contract_set_bonus')), 0) as minted_contracts,
       coalesce(count(*)
@@ -1673,7 +1695,7 @@ begin
   v_destroyed_total := m.destroyed_market_fees + m.destroyed_vendor
     + m.destroyed_resurrection + m.destroyed_respec
     + m.destroyed_boss_entry_fees + m.destroyed_boss_death_fees
-    + rj.fees_destroyed + m.endless_fees_destroyed;
+    + rj.fees_destroyed + m.endless_fees_destroyed + m.research_destroyed;
 
   insert into public.economy_metrics (
     day,
@@ -1707,6 +1729,8 @@ begin
     extraction_passes, extraction_xp_awarded, materials_minted_extraction,
     credits_minted_login_streak, cache_fragments_from_login_streak,
     cache_keys_from_login_streak,
+    research_enrollments_started, research_courses_completed,
+    research_credits_destroyed,
     credits_minted_contracts, contracts_claimed, contracts_expired_unclaimed,
     contract_rerolls, contract_keys_awarded, scrap_destroyed_contract_rerolls,
     computed_at
@@ -1796,6 +1820,7 @@ begin
          having sum((f.value)::bigint) > 0
        ) minted),
     m.minted_login_streak, m.fragments_login_streak, m.keys_login_streak::integer,
+    m.research_started, m.research_completed, m.research_destroyed,
     m.minted_contracts, m.contracts_claimed::integer, m.contracts_expired_unclaimed::integer,
     m.contract_rerolls::integer, m.contract_keys_awarded::integer, m.scrap_destroyed_contract_rerolls,
     now()
@@ -1881,6 +1906,9 @@ begin
     credits_minted_login_streak = excluded.credits_minted_login_streak,
     cache_fragments_from_login_streak = excluded.cache_fragments_from_login_streak,
     cache_keys_from_login_streak = excluded.cache_keys_from_login_streak,
+    research_enrollments_started = excluded.research_enrollments_started,
+    research_courses_completed = excluded.research_courses_completed,
+    research_credits_destroyed = excluded.research_credits_destroyed,
     credits_minted_contracts = excluded.credits_minted_contracts,
     contracts_claimed = excluded.contracts_claimed,
     contracts_expired_unclaimed = excluded.contracts_expired_unclaimed,
