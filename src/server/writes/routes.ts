@@ -11,6 +11,7 @@
  *   POST /api/ops/consume-consumable        verifiedOps.consumeConsumableItem   cc_consume_consumable(...)
  *   POST /api/ops/recycle-item              verifiedOps.recycleItem             cc_recycle_item(...)
  *   POST /api/ops/reforge-item              verifiedOps.reforgeItem             cc_reforge_item(...)
+ *   POST /api/ops/slot-pull                 verifiedOps.slotPull                cc_slot_pull(...)
  *   POST /api/ops/item-lock                 verifiedOps.setItemLock             cc_item_lock(...)
  *   POST /api/ops/equip-item                verifiedOps.equipItem               cc_equip_item(...)
  *   POST /api/ops/unequip-slot              verifiedOps.unequipSlot             cc_unequip_slot(...)
@@ -420,6 +421,16 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     const itemId = uuidField(req, res, 'item_id', 'item id');
     if (!itemId) return null;
     return store.reforgeItem(playerId, str(body(req).nonce), itemId, str(body(req).affix_id));
+  });
+  // Data Slots (0049): intent only — a bet tier + nonce. The op
+  // derives the levered bet, enforces the verified gate + daily
+  // pull cap, draws server-side from the seeded slot_machine odds
+  // table, and pays in the same transaction. The client animates
+  // the returned outcome; it never rolls.
+  op('/api/ops/slot-pull', async (playerId, req, res) => {
+    const tier = numField(req, res, 'bet_tier', 'bet tier');
+    if (tier === null) return null;
+    return store.slotPull(playerId, str(body(req).nonce), tier);
   });
   op('/api/ops/item-lock', async (playerId, req, res) => {
     const itemId = uuidField(req, res, 'item_id', 'item id');

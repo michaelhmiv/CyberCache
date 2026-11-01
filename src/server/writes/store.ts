@@ -798,6 +798,16 @@ export interface EnqueueShieldTechJobInput {
 export interface WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json>;
   makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json>;
+  /**
+   * Data Slots (cc_slot_pull, 0049): one pull of the vendor slot
+   * machine. The SQL op is the whole machine — nonce replay, the
+   * verified gate, the levered tier bet, the daily pull cap, the
+   * server draw over the seeded slot_machine odds table, and the
+   * payout (credits / staple bundle / fragments / budget-charged
+   * cache key with the fragment fallback) land in one transaction
+   * with one ledger row. The store only forwards intent.
+   */
+  slotPull(playerId: string, nonce: string, betTier: number): Promise<Json>;
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json>;
   disablePushDevice(playerId: string, token: string): Promise<Json>;
   vendorBuy(playerId: string, nonce: string, itemKey: string, quantity: number): Promise<Json>;
@@ -1109,6 +1119,9 @@ export class PgWriteStore implements WriteStore {
       payment,
       adUnitId,
     ]);
+  }
+  slotPull(playerId: string, nonce: string, betTier: number): Promise<Json> {
+    return this.callJson('select public.cc_slot_pull($1, $2, $3) as result', [playerId, nonce, betTier]);
   }
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json> {
     return this.callJson('select public.cc_register_push_device($1, $2, $3, $4) as result', [

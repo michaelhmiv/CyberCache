@@ -65,17 +65,24 @@ describe('0045 — repair_refund event type', () => {
     expect(after).toContain("p_origin not in ('vendor', 'crafted', 'market', 'reward', 'admin', 'standing')");
   });
 
-  it('its writer is the chain-final restatement of cc_add_consumable_batch', () => {
-    // 0045 was the chain's last migration when this pin was written;
-    // 0047/0048 landed after it (PR #252 rework) and restate OTHER
-    // functions. The invariant that protects production is narrower
-    // and durable: no migration after 0045 restates the batch writer,
-    // so the repair_refund widening is the chain-final writer body.
+  it('its writer survives as the chain-final restatement of cc_add_consumable_batch', () => {
+    // 0045 was the chain's last batch-writer restatement when this
+    // pin was written; 0047/0048 landed after it (PR #252 rework)
+    // and restate OTHER functions. 0049 (Data Slots) restates the
+    // writer again — from the 0045 body, adding only 'slot_bundle'
+    // (pinned in slots.test.ts) — so the durable invariant is: the
+    // chain-final writer body still carries the repair_refund
+    // widening in BOTH lists. If a future restatement drops it, the
+    // 0045 production defect returns; this pin is where it fails.
     const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
     expect(files).toContain('0045_repair_refund_event.sql');
     const restatements = files.filter((f) =>
       read(f).includes('CREATE OR REPLACE FUNCTION public.cc_add_consumable_batch'));
-    expect(restatements[restatements.length - 1]).toBe('0045_repair_refund_event.sql');
+    const finalWriter = read(restatements[restatements.length - 1]);
+    expect(finalWriter).toContain(
+      "'standing_buy', 'shieldtech_refund', 'repair_refund', 'slot_bundle') then raise exception 'invalid consumable event type'",
+    );
+    expect(finalWriter).toContain("'shieldtech_refund'::text, 'repair_refund'::text, 'slot_bundle'::text");
   });
 
   it('the defect it fixes is real: the live refund call sites pass repair_refund', () => {

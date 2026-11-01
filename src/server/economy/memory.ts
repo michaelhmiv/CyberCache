@@ -386,16 +386,36 @@ export class InMemoryEconomyStore implements EconomyStore {
       standingRankUps[mfr] = (standingRankUps[mfr] ?? 0) + 1;
     }
 
+    // Data Slots (0049): the machine's meters fold from the day's
+    // cc_slot_pull ledger rows, exactly as in SQL — pulls, wagered,
+    // credit payouts, and the in-kind counts. The fold is GROSS, as
+    // every prior slice: payouts join creditsMintedTotal (via
+    // creditsMintedSlots) and wagers join creditsDestroyedTotal;
+    // creditsDestroyedSlots is the net-sink memo (wagered − paid,
+    // floored at 0) and is never separately folded.
+    const slotRows = rows.filter((r) => r.action_type === 'cc_slot_pull');
+    const slotPulls = slotRows.length;
+    const slotCreditsWagered = sumBy(['cc_slot_pull'], (p) => num(dig(p, 'bet_credits')));
+    const slotCreditsPaid = sumBy(['cc_slot_pull'], (p) => num(dig(p, 'payout', 'credits_paid')));
+    const slotBundlesPaid = slotRows.filter((r) => dig(r.result_payload, 'outcome') === 'vendor_bundle').length;
+    const slotFragmentsPaid = sumBy(['cc_slot_pull'], (p) => num(dig(p, 'payout', 'fragments_paid')));
+    const slotKeysPaid = slotRows.filter((r) => dig(r.result_payload, 'payout', 'key_paid') === true).length;
+    const slotFragmentFallbacks = slotRows.filter(
+      (r) => dig(r.result_payload, 'payout', 'key_fallback') === true).length;
+    const creditsMintedSlots = slotCreditsPaid;
+    const creditsDestroyedSlots = Math.max(0, slotCreditsWagered - slotCreditsPaid);
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
       creditsMintedRoaming + creditsMintedBoss + creditsMintedOffline + creditsMintedOther
       + creditsMintedVendorBuyback + endlessCreditsPaid + creditsMintedDispatch + creditsMintedCourier
-      + creditsMintedLoginStreak;
+      + creditsMintedLoginStreak + creditsMintedSlots;
     const creditsDestroyedTotal =
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
       + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees
-      + endlessFeesDestroyed + researchCreditsDestroyed + standingCreditsDestroyed;
+      + endlessFeesDestroyed + researchCreditsDestroyed + standingCreditsDestroyed
+      + slotCreditsWagered;
 
     const row: EconomyMetricsRow = {
       day,
@@ -495,6 +515,15 @@ export class InMemoryEconomyStore implements EconomyStore {
       standingCreditsDestroyed,
       standingOrdersFulfilled,
       standingRankUps,
+      slotPulls,
+      slotCreditsWagered,
+      slotCreditsPaid,
+      slotBundlesPaid,
+      slotFragmentsPaid,
+      slotKeysPaid,
+      slotFragmentFallbacks,
+      creditsMintedSlots,
+      creditsDestroyedSlots,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

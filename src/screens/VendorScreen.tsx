@@ -12,6 +12,7 @@ import type { ConsumableDef } from '@/types/consumables';
 import type { GearItem } from '@/types/items';
 import { chipClip } from '@/lib/ui/clips';
 import { RepDeskPanel } from '@/components/vendor/RepDeskPanel';
+import { DataSlotsPanel } from '@/components/vendor/DataSlotsPanel';
 import { gearCategoryFromPayload } from '@/lib/market/identityKey';
 import {
   VENDOR_BUYBACK_RATE_DEFAULT,
@@ -469,6 +470,12 @@ export const VendorScreen: React.FC = () => {
 
         </div>
       )}
+
+      {/* Data Slots (0049): the machine is a stall fixture at the
+          foot of the stall — below the rotation and staples, above
+          the buyback desk — visible in every mode, guests included
+          (the pull itself is verified-only, gated server-side). */}
+      <DataSlotsPanel />
     </div>
   );
 };
