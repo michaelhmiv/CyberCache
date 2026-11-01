@@ -477,17 +477,39 @@ async function engineAtDepth(
   });
 }
 
+interface WinningRunStart {
+  /** The winning start's response body (run, entryFee, runsStartedToday). */
+  json: Json;
+  /** How many starts the search made, the winning start included. */
+  attempts: number;
+  /** Sum of the entry fees those starts charged, from their responses. */
+  totalFees: number;
+}
+
 /**
  * Start runs until one whose first `wins` depths are precomputed
  * victories (run ids are random, so outcomes vary per run; precompute
  * ≡ route is proven by the advance test, so the chosen run's path is
- * guaranteed). Abandoned candidates settle at the death fraction —
- * harmless at these balances.
+ * guaranteed).
+ *
+ * The candidate starts are REAL starts, not free probes: each one
+ * charges its (escalating) entry fee, bumps the per-day start
+ * counter, and is abandoned by the next start (settling its escrow —
+ * always 0, candidates never fight — at the death fraction). Tests
+ * must therefore derive every fee / balance / run-row expectation
+ * from this accounting or from live read-backs, never from
+ * first-start assumptions: how many candidates a search burns is
+ * run-id luck. (This coupling flaked three shipped-path tests —
+ * advance's hardcoded post-fee balance, encounter replay's
+ * endlessRuns[0], re-entry's abandoned count — whenever a search
+ * needed a second candidate.)
  */
-async function startWinningRun(h: Harness, wins: number): Promise<Json> {
+async function startWinningRun(h: Harness, wins: number): Promise<WinningRunStart> {
+  let totalFees = 0;
   for (let attempt = 0; attempt < 16; attempt++) {
     const started = await startRun(h);
     expect(started.status).toBe(200);
+    totalFees += started.json.entryFee as number;
     const run = started.json.run as { id: string; start_level: number; prepared_consumables: Record<string, number>; risk: string };
     let ok = true;
     for (let d = 1; d <= wins; d++) {
@@ -497,7 +519,7 @@ async function startWinningRun(h: Harness, wins: number): Promise<Json> {
         break;
       }
     }
-    if (ok) return started.json;
+    if (ok) return { json: started.json, attempts: attempt + 1, totalFees };
   }
   throw new Error(`no run with ${wins} opening victories found`);
 }
@@ -583,8 +605,8 @@ describe('endless shipped path (HTTP)', () => {
     const h = await makeServer();
     h.store.seedProfile({ id: A, player_level: 20, credits: 10000, consumables: {} });
     seedStrongWeapon(h.store);
-    const startedJson = await startWinningRun(h, 1);
-    const run = startedJson.run as { id: string; start_level: number; prepared_consumables: Record<string, number>; risk: string; depth_reached: number };
+    const start = await startWinningRun(h, 1);
+    const run = start.json.run as { id: string; start_level: number; prepared_consumables: Record<string, number>; risk: string; depth_reached: number };
     const profileRow = h.store.profiles.get(A)!;
     const expected = await precomputeNext(h.store, run, profileRow);
     expect(expected.result.victory).toBe(true); // the seeded gun clears depth 1
@@ -613,8 +635,11 @@ describe('endless shipped path (HTTP)', () => {
       scrap: expected.rewards.scrap,
     });
     // Escrow is not income yet: the profile still holds only the
-    // post-fee balance.
-    expect(h.store.profiles.get(A)!.credits).toBe(9800);
+    // post-fee balance — the seed minus EVERY fee the run search
+    // charged (candidate starts settle at escrow 0, so nothing came
+    // back). Deriving from the search accounting keeps this exact
+    // however many candidates the search burned.
+    expect(h.store.profiles.get(A)!.credits).toBe(10000 - start.totalFees);
     const storedRun = h.store.endlessRuns.find((r) => r.id === run.id)!;
     expect(storedRun.depth_reached).toBe(1);
     expect(storedRun.status).toBe('active');
@@ -624,7 +649,8 @@ describe('endless shipped path (HTTP)', () => {
     const h = await makeServer();
     h.store.seedProfile({ id: A, player_level: 20, credits: 10000, consumables: {} });
     seedStrongWeapon(h.store);
-    await startWinningRun(h, 1);
+    const start = await startWinningRun(h, 1);
+    const winningRunId = (start.json.run as { id: string }).id;
     const nonce = nextNonce('encounter');
     const first = await post(h.base, '/api/endless/encounter', { nonce }, h.tokenA);
     const replay = await post(h.base, '/api/endless/encounter', { nonce }, h.tokenA);
@@ -632,7 +658,9 @@ describe('endless shipped path (HTTP)', () => {
     expect(replay.status).toBe(200);
     expect(replay.json.idempotentReplay).toBe(true);
     expect(replay.json.items).toEqual([]);
-    const run = h.store.endlessRuns[0];
+    // The winning run by id — endlessRuns[0] is a burned search
+    // candidate whenever the search needed more than one start.
+    const run = h.store.endlessRuns.find((r) => r.id === winningRunId)!;
     expect(run.depth_reached).toBe(1);
     expect(run.escrow_credits).toBe((first.json.rewards as { credits: number }).credits);
   });
@@ -669,8 +697,8 @@ describe('endless shipped path (HTTP)', () => {
     const h = await makeServer();
     h.store.seedProfile({ id: A, player_level: 20, credits: 10000, consumables: {} });
     seedStrongWeapon(h.store);
-    const startedJson = await startWinningRun(h, 2);
-    const run = startedJson.run as { id: string; start_level: number; prepared_consumables: Record<string, number>; risk: string; depth_reached: number };
+    const start = await startWinningRun(h, 2);
+    const run = start.json.run as { id: string; start_level: number; prepared_consumables: Record<string, number>; risk: string; depth_reached: number };
 
     // Clear two depths (precomputed victories with the seeded gun).
     let escrow = { xp: 0, credits: 0, scrap: 0 };
@@ -720,8 +748,8 @@ describe('endless shipped path (HTTP)', () => {
     const h = await makeServer();
     h.store.seedProfile({ id: A, player_level: 20, credits: 10000, consumables: {} });
     seedStrongWeapon(h.store);
-    const startedJson = await startWinningRun(h, 2);
-    const runId = (startedJson.run as { id: string }).id;
+    const start = await startWinningRun(h, 2);
+    const runId = (start.json.run as { id: string }).id;
 
     // Advance while the precomputed outcome is a victory; stop at
     // the first precomputed defeat and send exactly that encounter.
@@ -770,8 +798,7 @@ describe('endless shipped path (HTTP)', () => {
     const h = await makeServer();
     h.store.seedProfile({ id: A, player_level: 20, credits: 100000, consumables: {} });
     seedStrongWeapon(h.store);
-    const firstJson = await startWinningRun(h, 1);
-    const first = { json: firstJson };
+    const first = await startWinningRun(h, 1);
     // The winning start may not be the day's first (run-search
     // candidates count too) — expectations derive from its own
     // response, and the NEXT start escalates from there.
@@ -792,16 +819,23 @@ describe('endless shipped path (HTTP)', () => {
     expect(settlement.payout.fraction).toBe(0.5);
     expect(settlement.payout.credits).toBe(Math.floor(escrow.credits * 0.5));
     expect(h.store.profiles.get(A)!.credits).toBe(creditsBefore + settlement.payout.credits - secondFee);
-    expect(h.store.endlessRuns.filter((r) => r.status === 'abandoned')).toHaveLength(1);
-    expect(h.store.endlessRuns.filter((r) => r.status === 'active')).toHaveLength(1);
+    // The winning run is the one the second start carried out; the
+    // abandoned rows are it PLUS every candidate the search burned
+    // (each superseded by the next start) — first.attempts in total.
+    const firstRunId = (first.json.run as { id: string }).id;
+    expect(h.store.endlessRuns.find((r) => r.id === firstRunId)!.status).toBe('abandoned');
+    expect(h.store.endlessRuns.filter((r) => r.status === 'abandoned')).toHaveLength(first.attempts);
+    const activeRuns = h.store.endlessRuns.filter((r) => r.status === 'active');
+    expect(activeRuns).toHaveLength(1);
+    expect(activeRuns[0].id).toBe((second.json.run as { id: string }).id);
   });
 
   it('milestone: the depth-5 victory drops ONE generated item, stored immediately and recorded on the run', async () => {
     const h = await makeServer();
     h.store.seedProfile({ id: A, player_level: 30, credits: 100000, consumables: {} });
     seedStrongWeapon(h.store);
-    const startedJson = await startWinningRun(h, 5);
-    const runId = (startedJson.run as { id: string }).id;
+    const start = await startWinningRun(h, 5);
+    const runId = (start.json.run as { id: string }).id;
 
     let milestoneRes: Json | null = null;
     for (let guard = 0; guard < 5; guard++) {
