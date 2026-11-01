@@ -22,7 +22,7 @@ vi.mock('@/lib/api/verifiedOps', () => ({
   verifiedOps: { initialBundle: vi.fn() },
 }));
 
-import { ensureInitialBundle, isInitialBundleClaimed } from '@/lib/api/initialBundle';
+import { ensureInitialBundle, isInitialBundleClaimed, parseInitialBundleGrant } from '@/lib/api/initialBundle';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import type { ProfileRow } from '@/lib/api/profileService';
 
@@ -37,6 +37,23 @@ const profile = (overrides: Record<string, unknown> = {}): ProfileRow => ({
 } as unknown as ProfileRow);
 
 const claimedProfile = () => profile({ boss_state: { initial_bundle_claimed: true } });
+
+/**
+ * The op result as the real twins produce it (cc_initial_bundle in
+ * db/migrations/0021_vehicles.sql + the in-memory writes twin):
+ * the post-grant profile snapshot and the granted bike row. The
+ * fixture profile holds 85 credits / 12 scrap / 0 keys, so the
+ * granted deltas are the bundle's 5,000 / 500 / 3.
+ */
+const grantResult = (overrides: Record<string, unknown> = {}) => ({
+  action_type: 'cc_initial_bundle',
+  profile: { id: 'player-1', credits: 5085, scrap: 512, cache_tokens: 3 },
+  item: { id: 'bike-1', kind: 'vehicle', payload: { name: 'Scrap Bike', vehicleClassId: 'scrap_bike' } },
+  loadout: {},
+  ...overrides,
+});
+
+const EXPECTED_GRANT = { credits: 5000, scrap: 500, cacheKeys: 3, vehicleName: 'Scrap Bike' };
 
 describe('isInitialBundleClaimed', () => {
   it('reads the boss_state flag (boolean and string wire forms)', () => {
@@ -53,38 +70,38 @@ describe('ensureInitialBundle', () => {
     vi.mocked(verifiedOps.initialBundle).mockReset();
   });
 
-  it('grants a fresh account exactly once', async () => {
-    const grant = vi.fn(async () => ({}));
-    await expect(ensureInitialBundle(profile(), grant)).resolves.toBe(true);
+  it('grants a fresh account exactly once and returns the parsed grant', async () => {
+    const grant = vi.fn(async () => grantResult());
+    await expect(ensureInitialBundle(profile(), grant)).resolves.toEqual(EXPECTED_GRANT);
     expect(grant).toHaveBeenCalledTimes(1);
   });
 
   it('grants a pre-existing ungranted account (the 85-credit fingerprint)', async () => {
     // The live account that exposed F1: earned credits only, no keys,
     // bundle never claimed. Bootstrap must still grant it.
-    const grant = vi.fn(async () => ({}));
-    await expect(ensureInitialBundle(profile(), grant)).resolves.toBe(true);
+    const grant = vi.fn(async () => grantResult());
+    await expect(ensureInitialBundle(profile(), grant)).resolves.toEqual(EXPECTED_GRANT);
     expect(grant).toHaveBeenCalledTimes(1);
   });
 
   it('grants nothing on the second bootstrap (profile now reads claimed)', async () => {
-    const grant = vi.fn(async () => ({}));
+    const grant = vi.fn(async () => grantResult());
     await ensureInitialBundle(profile(), grant);
-    await expect(ensureInitialBundle(claimedProfile(), grant)).resolves.toBe(false);
+    await expect(ensureInitialBundle(claimedProfile(), grant)).resolves.toBeNull();
     expect(grant).toHaveBeenCalledTimes(1);
   });
 
   it('never calls the grant for an already-claimed profile', async () => {
-    const grant = vi.fn(async () => ({}));
-    await expect(ensureInitialBundle(claimedProfile(), grant)).resolves.toBe(false);
+    const grant = vi.fn(async () => grantResult());
+    await expect(ensureInitialBundle(claimedProfile(), grant)).resolves.toBeNull();
     expect(grant).not.toHaveBeenCalled();
   });
 
-  it('treats the server already-claimed race as success (no throw)', async () => {
+  it('treats the server already-claimed race as success (no throw, no reveal)', async () => {
     const grant = vi.fn(async () => {
       throw new Error('Initial bundle already claimed');
     });
-    await expect(ensureInitialBundle(profile(), grant)).resolves.toBe(false);
+    await expect(ensureInitialBundle(profile(), grant)).resolves.toBeNull();
   });
 
   it('rethrows unrelated failures so bootstrap can log and retry next session', async () => {
@@ -95,8 +112,8 @@ describe('ensureInitialBundle', () => {
   });
 
   it('defaults to the verified initial-bundle op', async () => {
-    vi.mocked(verifiedOps.initialBundle).mockResolvedValue({} as never);
-    await expect(ensureInitialBundle(profile())).resolves.toBe(true);
+    vi.mocked(verifiedOps.initialBundle).mockResolvedValue(grantResult() as never);
+    await expect(ensureInitialBundle(profile())).resolves.toEqual(EXPECTED_GRANT);
     expect(verifiedOps.initialBundle).toHaveBeenCalledTimes(1);
   });
 
@@ -107,5 +124,45 @@ describe('ensureInitialBundle', () => {
     expect(grantAt).toBeGreaterThan(-1);
     expect(syncAt).toBeGreaterThan(-1);
     expect(grantAt).toBeLessThan(syncAt);
+  });
+
+  it('feeds the parsed grant to the one-time starter reveal', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/auth/AuthProvider.tsx'), 'utf8');
+    expect(source).toContain('useInitialBundleRevealStore.getState().show(bundleGrant)');
+    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    expect(app).toContain('<StarterBundleReveal />');
+  });
+});
+
+describe('parseInitialBundleGrant (FR-02 — the reveal reads the op result, never constants)', () => {
+  it('derives the granted deltas and vehicle name from the op result', () => {
+    expect(parseInitialBundleGrant(profile(), grantResult())).toEqual(EXPECTED_GRANT);
+  });
+
+  it('reports deltas, not post-grant totals', () => {
+    // A richer pre-grant profile: only the bundle's own amounts show.
+    const before = profile({ credits: 10000, scrap: 700, cache_tokens: 2 });
+    const result = grantResult({
+      profile: { id: 'player-1', credits: 15000, scrap: 1200, cache_tokens: 5 },
+    });
+    expect(parseInitialBundleGrant(before, result)).toEqual(EXPECTED_GRANT);
+  });
+
+  it('handles the no-new-vehicle result (bike already held) with a null vehicle name', () => {
+    const result = grantResult({ item: null });
+    expect(parseInitialBundleGrant(profile(), result)).toEqual({ ...EXPECTED_GRANT, vehicleName: null });
+  });
+
+  it('returns null when the result carries no profile snapshot', () => {
+    expect(parseInitialBundleGrant(profile(), { action_type: 'cc_initial_bundle' })).toBeNull();
+    expect(parseInitialBundleGrant(profile(), null)).toBeNull();
+    expect(parseInitialBundleGrant(profile(), undefined)).toBeNull();
+  });
+
+  it('returns null when a snapshot amount is not a number (no fabricated reveal)', () => {
+    const result = grantResult({
+      profile: { id: 'player-1', credits: '5085', scrap: 512, cache_tokens: 3 },
+    });
+    expect(parseInitialBundleGrant(profile(), result)).toBeNull();
   });
 });

@@ -596,7 +596,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted">contextual command workspace</div>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[10px] font-black text-amber">Switch</button>
+          <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[10px] font-black text-amber">Switch Action</button>
           <button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[10px] font-black text-red disabled:opacity-50">Stop</button>
         </div>
       </div>
@@ -635,7 +635,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         }
         secondaryActionLabel={
           currentKind === 'boss_fight' ? 'Choose Boss'
-          : currentKind === 'roaming_loot' ? 'Switch Area'
+          : currentKind === 'roaming_loot' ? 'Change Area'
           : 'Switch Action'
         }
       />
@@ -674,7 +674,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         </div>
         {currentKind !== 'idle_standby' && currentKind !== 'none' && (
           <div className="mt-2 pt-2 border-t border-border/40 text-[10px] text-text-muted text-center">
-            {detail.detail} · Tap <span className="text-amber font-black">Switch</span> to change action
+            {detail.detail} · Tap <span className="text-amber font-black">Switch Action</span> to change action
           </div>
         )}
       </div>

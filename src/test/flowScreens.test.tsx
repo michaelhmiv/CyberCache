@@ -59,6 +59,15 @@ vi.mock('@/lib/api/leaderboardService', () => ({
   })),
 }));
 vi.mock('@/lib/api/publicProfileService', () => ({ getPublicProfile: vi.fn(async () => null) }));
+// Chef state reads: default to an unreachable Chef (the panels'
+// designed hidden state, like fetchProfileLifetime above); the
+// GUEST-01 test resolves real-shaped state views to prove the
+// guest previews render from them.
+vi.mock('@/lib/chef/chefClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/chef/chefClient')>()),
+  getLoginStreakState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
+  getCacheRankState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
+}));
 // Spread the real modules: child components import pure helpers from
 // these services (e.g. extractMetricSeries) that must stay real.
 vi.mock('@/lib/api/statsService', async (importOriginal) => ({
@@ -80,6 +89,7 @@ import { LeaderboardsScreen } from '@/screens/LeaderboardsScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { getLeaderboard } from '@/lib/api/leaderboardService';
+import { getCacheRankState, getLoginStreakState } from '@/lib/chef/chefClient';
 import {
   useActivityStore,
   useBossStore,
@@ -191,6 +201,10 @@ beforeEach(() => {
   vi.mocked(verifiedOps.recycleItem).mockReset();
   vi.mocked(verifiedOps.equipItem).mockReset();
   vi.mocked(getLeaderboard).mockReset();
+  // Back to the unreachable-Chef default (a bare mockReset would
+  // resolve undefined and break the panels' result handling).
+  vi.mocked(getLoginStreakState).mockImplementation(async () => { throw new Error('no chef in screen tests'); });
+  vi.mocked(getCacheRankState).mockImplementation(async () => { throw new Error('no chef in screen tests'); });
   seedStores();
 });
 
@@ -203,7 +217,7 @@ describe('F5 — Action-tab salvage executes through the verified op', () => {
     } as never);
     render(<ActionScreenContextual onNavigate={() => {}} />);
 
-    fireEvent.click(screen.getByText('Switch Action'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Action' }));
     // The switch drawer's Salvage row (label + "N items" detail).
     const salvageRow = (await screen.findAllByRole('button')).find(
       (b) => b.textContent?.includes('Salvage') && b.textContent?.includes('items'),
@@ -225,7 +239,7 @@ describe('F5 — Action-tab salvage executes through the verified op', () => {
     vi.mocked(verifiedOps.recycleItem).mockRejectedValue(new Error('Item is equipped'));
     render(<ActionScreenContextual onNavigate={() => {}} />);
 
-    fireEvent.click(screen.getByText('Switch Action'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch Action' }));
     const salvageRow = (await screen.findAllByRole('button')).find(
       (b) => b.textContent?.includes('Salvage') && b.textContent?.includes('items'),
     );
@@ -270,7 +284,7 @@ describe('F7/F16 — Dashboard errors stay put; Choose Boss opens the picker', (
       }) as never,
     });
     render(<DashboardScreen onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Start Wastes Run'));
+    fireEvent.click(screen.getByText('Start Roam'));
     expect(await screen.findByText('Activity service unavailable')).toBeInTheDocument();
     expect(onNavigate).not.toHaveBeenCalledWith('fight');
   });
@@ -281,8 +295,18 @@ describe('F7/F16 — Dashboard errors stay put; Choose Boss opens the picker', (
       start: vi.fn(async () => IDLE_ACTIVITY) as never,
     });
     render(<DashboardScreen onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Start Wastes Run'));
+    fireEvent.click(screen.getByText('Start Roam'));
     await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('fight'));
+  });
+
+  it('NAV-01: the Action Board Roaming row is navigation only — it never starts the run', async () => {
+    const onNavigate = vi.fn();
+    const start = vi.fn(async () => IDLE_ACTIVITY);
+    useActivityStore.setState({ start: start as never });
+    render(<DashboardScreen onNavigate={onNavigate} />);
+    fireEvent.click(screen.getByText('Roaming'));
+    expect(onNavigate).toHaveBeenCalledWith('fight');
+    expect(start).not.toHaveBeenCalled();
   });
 
   it('Choose Boss (no current boss) fires the picker callback, not a navigation', async () => {
@@ -301,6 +325,71 @@ describe('F6 — Leaderboards gate + error state', () => {
     render(<LeaderboardsScreen />);
     expect(await screen.findByText('Sign in with Google to unlock leaderboards.')).toBeInTheDocument();
     expect(screen.getByText('Sign in with Google — keep your progress')).toBeInTheDocument();
+    expect(getLeaderboard).not.toHaveBeenCalled();
+  });
+
+  it('GUEST-01: guests get read-only streak + cache-rank previews above the lock', async () => {
+    hoisted.auth.account = guestAccount;
+    // State views in the exact shapes the Chef returns
+    // (ChefLoginStreakResult / ChefCacheRankStateResult).
+    vi.mocked(getLoginStreakState).mockResolvedValue({
+      verified: true,
+      loginStreak: {
+        currentStreak: 3,
+        longestStreak: 5,
+        tier: 1,
+        cycleDay: 3,
+        todayState: 'earned',
+        todayReward: { credits: 200, fragments: 1, cacheKeys: 0 },
+        nextReward: { credits: 250, fragments: 1, cacheKeys: 0 },
+        nextStreakLength: 4,
+        ladder: [
+          { cycleDay: 1, credits: 100, fragments: 0, cacheKeys: 0, state: 'earned' },
+          { cycleDay: 2, credits: 150, fragments: 0, cacheKeys: 0, state: 'earned' },
+          { cycleDay: 3, credits: 200, fragments: 1, cacheKeys: 0, state: 'today' },
+        ],
+        missRule: 'Miss a day and the streak restarts at Day 1 — your longest streak is kept on your profile.',
+      },
+      granted: {
+        alreadyClaimed: true,
+        streakLength: 3,
+        cycleDay: 3,
+        tier: 1,
+        creditsAwarded: 0,
+        fragmentsAwarded: 0,
+        cacheKeysAwarded: 0,
+      },
+      profile: null,
+    } as never);
+    vi.mocked(getCacheRankState).mockResolvedValue({
+      verified: true,
+      cacheRank: {
+        tokens: 2,
+        tokensEarned: 2,
+        level: 3,
+        xpIntoLevel: 10,
+        xpForLevel: 100,
+        nextTokenLevel: 4,
+        milestones: [{ level: 10, bundle: 5, claimed: false }],
+        tracks: [
+          {
+            id: 'greed', name: 'Greed', summary: '+ credits earned', glyph: '⬢', color: '#F2C063',
+            ranks: 0, maxRanks: 10, effect: 0, perRank: 0.01, nextCost: 1, maxed: false,
+          },
+        ],
+        bonuses: {},
+      },
+    } as never);
+    render(<LeaderboardsScreen />);
+
+    // The guest's own progress renders…
+    expect(await screen.findByText('Login Streak')).toBeInTheDocument();
+    expect(await screen.findByText('Cache Rank')).toBeInTheDocument();
+    // …read-only: the preview carries the spend pointer, never a spend button.
+    expect(screen.getByText(/Spend tokens from the Cache Rank panel on your Hunter profile/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /⬢ 1/ })).toBeNull();
+    // …and the leaderboard tables stay locked, unfetched.
+    expect(screen.getByText('Sign in with Google to unlock leaderboards.')).toBeInTheDocument();
     expect(getLeaderboard).not.toHaveBeenCalled();
   });
 
