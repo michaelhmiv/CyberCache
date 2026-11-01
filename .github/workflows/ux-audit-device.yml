@@ -1,0 +1,197 @@
+name: APK UX evidence capture
+on:
+  push:
+    branches:
+      - audit/android-ux-2026-11-01
+permissions:
+  contents: read
+  actions: read
+jobs:
+  walkthrough:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Download exact signed release 300034
+        uses: actions/download-artifact@v4
+        with:
+          name: cybercache-release-apk
+          path: apk
+          run-id: 41325951742
+          github-token: ${{ github.token }}
+      - name: Verify downloaded APK
+        run: echo '10a9194625fb6928adee4042dad6d15ac4395800ec2e165dffb5b5b3278c6307  apk/app-release.apk' | sha256sum -c
+      - name: Drive fresh Android guest workflows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          ram-size: 2048M
+          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none -no-snapshot
+          script: |
+            adb install -r apk/app-release.apk
+            python3 -u - <<'PY'
+            import subprocess, pathlib, time, json, re, xml.etree.ElementTree as ET
+            O=pathlib.Path("ux-evidence");O.mkdir(exist_ok=True)
+            PKG="com.michaelhmiv.cybercache"
+            journal=[]; coverage={}
+            def adb(*a,timeout=40):
+                p=subprocess.run(["adb",*a],capture_output=True,timeout=timeout)
+                return p.stdout.decode(errors="replace"),p.returncode,p.stderr.decode(errors="replace")
+            def record(action,**kw):
+                row={"time":time.time(),"action":action,**kw};journal.append(row)
+                (O/"journal.json").write_text(json.dumps(journal,indent=2))
+                print(json.dumps(row),flush=True)
+            def shot(name):
+                p=subprocess.run(["adb","exec-out","screencap","-p"],capture_output=True,timeout=30)
+                (O/(name+".png")).write_bytes(p.stdout)
+            def tree():
+                for attempt in range(3):
+                    out,code,err=adb("shell","uiautomator","dump","/sdcard/audit.xml",timeout=25)
+                    if code==0:
+                        xml,_,_=adb("exec-out","cat","/sdcard/audit.xml")
+                        try:return xml,list(ET.fromstring(xml).iter("node"))
+                        except ET.ParseError:pass
+                    time.sleep(1)
+                return "",[]
+            def state(name):
+                shot(name)
+                xml,ns=tree();(O/(name+".xml")).write_text(xml)
+                rows=[n.attrib for n in ns]
+                texts=[n.get("text") or n.get("content-desc") for n in ns if n.get("text") or n.get("content-desc")]
+                record("capture",name=name,texts=texts)
+                return ns
+            def find(label,ns=None,contains=False):
+                if ns is None:_,ns=tree()
+                needle=label.casefold()
+                matches=[]
+                for n in ns:
+                    if n.get("enabled")=="false":continue
+                    for key in ["text","content-desc"]:
+                        t=(n.get(key) or "").strip().casefold()
+                        if t==needle or (contains and needle in t):
+                            b=list(map(int,re.findall(r"\d+",n.get("bounds",""))))
+                            if len(b)==4 and b[2]>b[0] and b[3]>b[1]:
+                                matches.append((n,b));break
+                return matches
+            def tap(label,contains=False,ns=None):
+                matches=find(label,ns,contains)
+                if not matches:
+                    record("not-found",label=label);return False
+                matches.sort(key=lambda nb:(nb[0].get("clickable")!="true",(nb[1][2]-nb[1][0])*(nb[1][3]-nb[1][1])))
+                n,b=matches[0];x=(b[0]+b[2])//2;y=(b[1]+b[3])//2
+                adb("shell","input","tap",str(x),str(y));record("tap",label=label,actual=n.attrib,x=x,y=y)
+                time.sleep(2);return True
+            def key(code):
+                adb("shell","input","keyevent",code);record("key",key=code);time.sleep(2)
+            def swipe(up=True):
+                a=["360","1120","360","480","500"] if up else ["360","430","360","1120","500"]
+                adb("shell","input","swipe",*a);record("swipe",direction="up" if up else "down");time.sleep(1)
+            def nav(label):
+                ok=tap(label);coverage["nav-"+label]=ok;return ok
+            def seek(label,maxswipes=6):
+                for k in range(maxswipes+1):
+                    _,ns=tree()
+                    if find(label,ns):return tap(label,ns=ns)
+                    if k<maxswipes:swipe()
+                record("unreached",label=label);return False
+            def launch():
+                adb("shell","am","start","-n",PKG+"/.MainActivity");time.sleep(6)
+            def back_test(name):
+                key("KEYCODE_BACK")
+                state(name)
+                focus,_,_=adb("shell","dumpsys","activity","activities")
+                lines=[l.strip() for l in focus.splitlines() if "mResumedActivity" in l or "topResumedActivity" in l]
+                record("back-focus",lines=lines)
+                launch()
+            try:
+                info={}
+                for field,args in {"android":["shell","getprop","ro.build.version.release"],"size":["shell","wm","size"],"density":["shell","wm","density"],"webview":["shell","dumpsys","webviewupdate"]}.items():
+                    info[field]=adb(*args)[0]
+                (O/"device-before.json").write_text(json.dumps(info,indent=2))
+                adb("shell","wm","size","720x1560");adb("shell","wm","density","294")
+                adb("shell","settings","put","system","screen_off_timeout","2147483647")
+                adb("shell","input","keyevent","KEYCODE_WAKEUP");adb("shell","input","keyevent","82")
+                launch()
+                ns=state("01-first-launch")
+                guest=tap("Continue as Guest",ns=ns)
+                coverage["guest-entry"]=guest
+                if guest:
+                    time.sleep(6)
+                    ns=state("02-after-guest")
+                    if find("Collect",ns):tap("Collect",ns=ns)
+                    state("03-board-first-run")
+                    if nav("Action"):
+                        ns=state("04-action-idle")
+                        if tap("Start Roam",ns=ns):
+                            coverage["start-roam"]=True;time.sleep(9);state("05-roaming")
+                        else:coverage["start-roam"]=False
+                    if nav("Gear"):
+                        state("06-gear")
+                        tap("Loadout");ns=state("07-loadout")
+                        if tap("Primary",contains=True,ns=ns):
+                            state("08-slot-picker");back_test("09-system-back-from-picker")
+                    nav("Board")
+                    if seek("Crack Cache"):
+                        ns=state("10-cache")
+                        if tap("OPEN FREE CACHE",ns=ns):
+                            time.sleep(5);ns=state("11-cache-reward")
+                            if tap("Equip",ns=ns):state("12-cache-equipped")
+                            else:tap("Keep",ns=ns)
+                    nav("Board")
+                    if seek("Workshop"):
+                        ns=state("13-workshop")
+                        if tap("Med Kit",contains=True,ns=ns):state("14-workshop-recipe")
+                        back_test("15-system-back-from-workshop")
+                    nav("Market")
+                    ns=state("16-market")
+                    tap("Vendor",ns=ns);state("17-vendor")
+                    tap("Buy");state("18-player-market-gate")
+                    if nav("Rank"):state("19-rank")
+                    if nav("Hunter"):state("20-hunter")
+                    nav("Board")
+                    if seek("Skill Trees"):state("21-skills")
+                    nav("Board")
+                    if seek("Dispatch"):state("22-dispatch")
+                    nav("Board")
+                    if seek("Settings"):state("23-settings")
+                    nav("Action");state("24-before-background")
+                    key("KEYCODE_HOME");time.sleep(15);launch();state("25-after-background")
+                    adb("shell","am","force-stop",PKG);record("force-stop");time.sleep(8);launch();state("26-after-process-restart")
+                    adb("shell","settings","put","system","font_scale","2.0")
+                    adb("shell","am","force-stop",PKG);launch();state("27-font-200-board")
+                    nav("Action");state("28-font-200-action")
+                    adb("shell","settings","put","system","font_scale","1.0")
+                    adb("shell","wm","size","640x1280");adb("shell","wm","density","320")
+                    adb("shell","am","force-stop",PKG);launch();state("29-compact-320-board")
+                    nav("Action");state("30-compact-320-action")
+                    adb("shell","wm","size","1560x720");adb("shell","wm","density","294")
+                    adb("shell","am","force-stop",PKG);launch();state("31-landscape")
+                    adb("shell","wm","size","720x1560");adb("shell","wm","density","294")
+                    adb("shell","am","force-stop",PKG);launch()
+                    nav("Action");tap("Stop");state("32-end-state")
+                (O/"coverage.json").write_text(json.dumps(coverage,indent=2))
+            finally:
+                logs,_,_=adb("logcat","-d","-s","chromium","Capacitor/Console","AndroidRuntime")
+                logs=re.sub(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+","[JWT REDACTED]",logs)
+                (O/"app-log.txt").write_text(logs)
+                (O/"installed-package.txt").write_text(adb("shell","dumpsys","package",PKG)[0])
+                (O/"device-after.json").write_text(json.dumps({k:adb("shell","getprop",k)[0] for k in ["ro.build.version.release","ro.build.version.sdk","ro.product.model"]},indent=2))
+            
+            PY
+      - name: Upload walkthrough evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cybercache-ux-device-evidence-300034
+          path: ux-evidence/
+          if-no-files-found: warn
+          retention-days: 14
