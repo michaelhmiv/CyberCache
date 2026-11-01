@@ -37,6 +37,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
 import { compactResourceValue } from '@/lib/ui/formatValue';
+import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -120,7 +121,9 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
 
-  const equippedCount = Object.values(loadout.slots).filter(Boolean).length;
+  // CONS-04: gear slots only (7) via the shared loadout read model —
+  // the vehicle slot in the raw map is not gear.
+  const equippedCount = countEquippedLoadoutSlots(buildLoadoutRows(loadout.slots, inventory.items));
 
   // Audit UX-04: no profile yet — skeleton chips, never the store's
   // placeholder numbers (which read as a new account's false zeros).

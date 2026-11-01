@@ -29,7 +29,10 @@ const makeWeapon = (overrides: Partial<Weapon> = {}): Weapon =>
     rollQuality: 62,
     baseDamage: 2847,
     attackSpeed: 6.2,
-    critChance: 15,
+    // Real item contract: critChance is a fraction (the card renders
+    // ×100). This fixture carried 15 — the percent-scale value the old
+    // buggy celebration formatter was written against (DISP-03).
+    critChance: 0.15,
     critDamage: 150,
     statusChance: 20,
     statusDamage: 45,
@@ -78,7 +81,7 @@ describe('LootMoment — full mode (stage surface)', () => {
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Volt Carbine');
     expect(hero.textContent).toContain('RARE SMG');
-    expect(hero.textContent).toContain('DMG 2,847 · FR 6.2 · CRIT 15%');
+    expect(hero.textContent).toContain('Dmg 2,847 · Spd 6.20 · Crit 15.0%');
     // No legendary treatment for a Rare.
     expect(screen.queryByTestId('fx-god-rays')).toBeNull();
     expect(screen.queryByTestId('loot-risen-item')).toBeNull();
@@ -106,7 +109,7 @@ describe('LootMoment — full mode (stage surface)', () => {
     expect(hero.textContent).toContain('★ LEGENDARY SNIPER');
     // P4 wave 2: the hand-written flavor override wins over the effect description.
     expect(hero.textContent).toContain('Sets the sky on fire. Literally.');
-    expect(hero.textContent).toContain('DMG 2,847');
+    expect(hero.textContent).toContain('Dmg 2,847');
   });
 
   it('climbs the ladder: earlier drops stack as plain cards under the current hero', () => {
@@ -198,7 +201,7 @@ describe('LootMoment — reduced motion', () => {
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Emberfall');
     expect(hero.textContent).toContain('Sets the sky on fire. Literally.');
-    expect(hero.textContent).toContain('DMG 2,847');
+    expect(hero.textContent).toContain('Dmg 2,847');
     expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
     expect(screen.queryByTestId('fx-shockwave-ring')).toBeNull();
     expect(screen.queryByTestId('fx-twinkles')).toBeNull();

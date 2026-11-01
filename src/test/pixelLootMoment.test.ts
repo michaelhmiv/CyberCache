@@ -28,7 +28,10 @@ const makeWeapon = (overrides: Partial<Weapon> = {}): Weapon =>
     rollQuality: 62,
     baseDamage: 2847,
     attackSpeed: 6.2,
-    critChance: 15,
+    // Real item contract: critChance is a fraction (the card renders
+    // ×100). This fixture carried 15 — the percent-scale value the old
+    // buggy celebration formatter was written against (DISP-03).
+    critChance: 0.15,
     critDamage: 150,
     statusChance: 20,
     statusDamage: 45,
@@ -150,7 +153,7 @@ describe('lootCardData — card derivation from real item data', () => {
     expect(card.name).toBe('Volt Carbine');
     expect(card.stamp).toBe('RARE SMG');
     expect(card.kindLabel).toBe('SMG');
-    expect(card.statLine).toBe('DMG 2,847 · FR 6.2 · CRIT 15%');
+    expect(card.statLine).toBe('Dmg 2,847 · Spd 6.20 · Crit 15.0%');
     expect(card.isWeapon).toBe(true);
     expect(card.flavor).toBeUndefined(); // flavor is a legendary-only line
   });

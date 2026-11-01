@@ -347,6 +347,16 @@ export interface ChefBossAttemptInput {
    * when null.
    */
   actionSkillTree?: string | null;
+  /**
+   * The attempt's rolled loot payloads (0040 applier arg). The applier
+   * stores them INSIDE the attempt transaction via cc_store_chef_items,
+   * so attempt + rewards + loot + ledger row commit — or roll back —
+   * together (CONS-02: a post-commit loot-store failure previously left
+   * a recorded victory whose loot never arrived). Optional so older
+   * callers/tests that persist no loot keep working; the applier
+   * defaults it to an empty array.
+   */
+  items?: unknown[];
   /** Route-resolved charge accrual rate (memory mirror; SQL reads its own config). */
   actionSkillChargeRate?: number;
 }
@@ -1621,7 +1631,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   applyChefBossAttempt(playerId: string, attempt: ChefBossAttemptInput): Promise<Json> {
     return this.callJson(
-      'select public.cc_apply_chef_boss_attempt($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) as result',
+      'select public.cc_apply_chef_boss_attempt($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) as result',
       [
         playerId,
         attempt.bossId,
@@ -1635,6 +1645,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         attempt.scrap,
         attempt.entryFee,
         attempt.actionSkillTree ?? null,
+        (attempt.items ?? []) as Json,
       ],
     );
   }

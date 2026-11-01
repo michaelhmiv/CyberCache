@@ -57,7 +57,21 @@ export function buildBossFightActivity(
   boss: { id: string; name: string; level?: number; tier?: number; weaknesses?: string[] },
   weapon?: Weapon,
   phase: BossPhase = DEFAULT_BOSS_PHASE,
+  outcome?: 'victory' | 'defeat',
 ): StartActivityInput {
+  // CONS-03 (audit fix A): the 'resolved' phase is the encounter's
+  // terminal state — the attempt has settled, so the persisted label
+  // must say so. Before this phase existed, a resolved attempt left
+  // the activity staged at 'fight' forever and every read surface
+  // (Profile CURRENT ACTIVITY, the Dashboard boss card) kept claiming
+  // "Fighting <boss>" after the victory and across reloads.
+  const label = phase === 'fight'
+    ? `Fighting ${boss.name}`
+    : phase === 'resolved'
+      ? outcome === 'defeat'
+        ? `Fell to ${boss.name}`
+        : `Defeated ${boss.name}`
+      : `Preparing for ${boss.name}`;
   return {
     kind: 'boss_fight',
     bossPhase: phase,
@@ -65,7 +79,7 @@ export function buildBossFightActivity(
     targetId: boss.id,
     targetLabel: boss.name,
     sceneKey: `boss:${boss.id}`,
-    notes: phase === 'fight' ? `Fighting ${boss.name}` : `Preparing for ${boss.name}`,
+    notes: label,
     activityPayload: {
       boss_id: boss.id,
       boss_name: boss.name,
@@ -74,7 +88,7 @@ export function buildBossFightActivity(
       weapon_id: weapon?.id ?? null,
     },
     publicPayload: {
-      activity_label: phase === 'fight' ? `Fighting ${boss.name}` : `Preparing for ${boss.name}`,
+      activity_label: label,
       target_label: boss.name,
       boss_level: boss.level ?? null,
       boss_tier: boss.tier ?? null,

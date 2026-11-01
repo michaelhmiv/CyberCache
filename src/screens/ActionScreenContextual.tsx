@@ -58,6 +58,7 @@ import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { selectEquippedWeapons } from '@/lib/loadout/equippedWeaponTruth';
+import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 
 const TICK_SECONDS = 3;
@@ -89,6 +90,11 @@ const copy: Record<ActivityKind, { title: string; detail: string }> = {
 const bossPrepCopy = {
   title: 'Boss Prep',
   detail: 'Checking weaknesses, counters, and loadout readiness before a discrete encounter.',
+};
+
+const bossResolvedCopy = {
+  title: 'Boss Encounter',
+  detail: 'The encounter is settled — review the outcome, run it back, or leave.',
 };
 
 const idleEvent: RunVisualEvent = {
@@ -230,7 +236,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const bossPhase = activity.current.bossPhase;
   const isBossPrep = currentKind === 'boss_fight' && bossPhase === 'prep';
   const isBossFight = currentKind === 'boss_fight' && bossPhase === 'fight';
-  const equippedCount = Object.values(loadoutStore.slots).filter(Boolean).length;
+  // CONS-03: a resolved encounter keeps the boss panel mounted (the
+  // result lives there) without claiming a fight is in progress.
+  const isBossResolved = currentKind === 'boss_fight' && bossPhase === 'resolved';
+  // CONS-04: gear-equipped counts the 7 gear slots only, via the one
+  // read model every surface shares — the loadout store's raw slot map
+  // also holds the vehicle slot, which is reported separately.
+  const equippedCount = countEquippedLoadoutSlots(buildLoadoutRows(loadoutStore.slots, inventory.items));
   const currentBoss = bossStore.currentBossId ? REGION_1_BOSSES.find((b) => b.id === bossStore.currentBossId) : null;
   const prepBossTarget = currentBoss ?? REGION_1_BOSSES.find((b) => bossStore.unlockedBossIds.includes(b.id) && !bossStore.defeatedBossIds.includes(b.id)) ?? REGION_1_BOSSES[0];
   const equippedWeapons = selectEquippedWeapons(loadoutStore);
@@ -251,7 +263,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   // claims (migration 0009), so the honest preview is the raw rate.
   const scrapPerTick = parseFloat(((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0))).toFixed(2));
   const targetLabel = activity.current.targetLabel ?? (currentKind === 'idle_standby' || currentKind === 'none' ? 'No target selected' : selectedArea.name);
-  const detail = isBossPrep ? bossPrepCopy : copy[currentKind] ?? copy.idle_standby;
+  const detail = isBossPrep ? bossPrepCopy : isBossResolved ? bossResolvedCopy : copy[currentKind] ?? copy.idle_standby;
   // Merge tick-feed events (from the canonical ticker) with lifecycle events
   // (action start/stop, cache open). The ticker is the single source of truth
   // for roaming rewards; the Action screen is a consumer, not an engine.
@@ -536,7 +548,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     // loop — boss intel + prep, the single Chef attempt, the outcome
     // animation, and the result. Same component for both phases so a
     // phase flip never remounts it mid-attempt.
-    if (isBossPrep || isBossFight) {
+    if (isBossPrep || isBossFight || isBossResolved) {
       if (!prepBossTarget) return (
         <div className="border-2 border-border bg-surface/95 p-3" style={panelClip}>
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-red">Boss Encounter</div>

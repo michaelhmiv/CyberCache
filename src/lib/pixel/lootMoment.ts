@@ -122,10 +122,29 @@ const fmtRate = (value: number): string => {
   return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
 };
 
+/**
+ * The weapon stat figures — ONE source for every surface that prints
+ * them (DISP-03, audit fix A): this celebration line and WeaponCard.
+ * Formats are the card's contract: damage as rolled, speed at two
+ * decimals, crit as a true percentage at one decimal. The celebration
+ * used to round speed to one decimal and print the crit FRACTION as
+ * if it were a percent (0.095 → "0.1%"), so the same item read
+ * "FR 1.5 · CRIT 0.1%" in the celebration and "Spd 1.47 · Crit 9.5%"
+ * on its card in the 2026-11-01 walk.
+ */
+export function weaponStatFigures(item: Weapon): { dmg: string; spd: string; crit: string } {
+  return {
+    dmg: fmtInt(item.baseDamage),
+    spd: item.attackSpeed.toFixed(2),
+    crit: `${(item.critChance * 100).toFixed(1)}%`,
+  };
+}
+
 /** The card's stat line — real numbers from the item's own rolled fields. */
 export function lootStatLine(item: GearItem): string {
   if (isWeapon(item)) {
-    return `DMG ${fmtInt(item.baseDamage)} · FR ${fmtRate(item.attackSpeed)} · CRIT ${fmtRate(item.critChance)}%`;
+    const figures = weaponStatFigures(item);
+    return `Dmg ${figures.dmg} · Spd ${figures.spd} · Crit ${figures.crit}`;
   }
   if (isShield(item)) {
     // Behavior (Phase 2c): named on the loot card when non-Standard.

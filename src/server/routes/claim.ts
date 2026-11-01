@@ -221,6 +221,14 @@ export function createVerifyBossHandler(
         });
         return;
       }
+      // COPY-01 (audit fix A): which fee this attempt's charge
+      // represents, classified from the same server records that
+      // priced it (base fee > 0 and the pre-attempt defeated set).
+      // The victory panel labels its fee line from this field — never
+      // from render-time boss state, which is how a free first entry
+      // got captioned as a "rematch fee" in the 2026-11-01 walk.
+      const feeKind: 'entry' | 'rematch' | null =
+        baseEntryFee > 0 ? (defeatedBossIds.includes(body.bossId) ? 'rematch' : 'entry') : null;
 
       // --- Prepared consumables (Phase 0 boss loop) ---
       // The player's chosen set, validated against owned inventory.
@@ -402,6 +410,10 @@ export function createVerifyBossHandler(
           entryFee: result.entryFee,
           actionSkillTree,
           actionSkillChargeRate: actionSkillLeverValues.actionSkillChargePerBossAttempt,
+          // 0040 (CONS-02): the rolled loot rides the applier and is
+          // stored inside the attempt transaction — attempt, rewards,
+          // loot and the ledger row now commit or roll back together.
+          items: result.items,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -443,24 +455,24 @@ export function createVerifyBossHandler(
           // The pre-attempt count on a replay already includes the
           // original application's victory — it IS the current count.
           bossVictoriesToday: victoriesToday,
+          // COPY-01: same itemization fields as the fresh path. On a
+          // replay nothing new was charged or granted, so the level
+          // span is empty (before == after == the current record).
+          creditsReward: (storedAttempt?.victory ?? result.result.victory)
+            ? result.creditsDelta + result.entryFee
+            : 0,
+          feeKind,
+          levelBefore: serverLevel,
+          levelAfter: serverLevel,
         });
         return;
       }
 
+      // 0040 (CONS-02): the loot was stored by the applier inside the
+      // attempt transaction — there is no second store call left to
+      // fail after the commit and orphan the victory. Item
+      // discoveries read the settled items from the roll.
       if (result.items.length > 0) {
-        try {
-          await store.storeChefItems(playerId, result.items);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error('[chef] Failed to store boss loot:', message);
-          res.status(500).json({
-            error: 'Failed to store boss loot items',
-            detail: message,
-            profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
-            victory: result.result.victory,
-          });
-          return;
-        }
         await recordItemDiscoveries(store, playerId, result.items, 'boss_loot');
       }
 
@@ -490,6 +502,20 @@ export function createVerifyBossHandler(
         actionSkill: actionSkillEcho((rpcResult as Record<string, unknown>)?.profile),
         // Post-attempt victory count for the panel's fee display.
         bossVictoriesToday: victoriesToday + (result.result.victory ? 1 : 0),
+        // COPY-01 (audit fix A): the itemization the victory panel
+        // renders — the gross reward before the fee (the net stays
+        // creditsDelta), the fee's server-classified kind, and the
+        // level span this attempt's XP crossed, all from the settled
+        // records so the panel never recomputes money truth.
+        creditsReward: result.result.victory ? result.creditsDelta + result.entryFee : 0,
+        feeKind,
+        levelBefore: serverLevel,
+        levelAfter: (() => {
+          const snapshot = (rpcResult as Record<string, unknown>)?.profile as
+            | Record<string, unknown>
+            | undefined;
+          return typeof snapshot?.player_level === 'number' ? snapshot.player_level : undefined;
+        })(),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

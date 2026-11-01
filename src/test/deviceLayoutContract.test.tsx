@@ -95,7 +95,10 @@ describe('layout contract — ResourceBar at phone width', () => {
       profileLoaded: true,
     });
     useInventoryStore.setState({
-      items: Array.from({ length: 123 }, (_, i) => ({ id: `it-${i}` })) as never,
+      // it-0 is the equipped primary: it needs a weapon shape or the
+      // shared loadout read model (CONS-04) resolves its slot as
+      // wrong-slot-type and the equipped count is honestly 0.
+      items: Array.from({ length: 123 }, (_, i) => (i === 0 ? { id: 'it-0', weaponType: 'Pistol' } : { id: `it-${i}` })) as never,
     });
     useLoadoutStore.setState((s) => ({ slots: { ...s.slots, primary: 'it-0' } }));
   });
