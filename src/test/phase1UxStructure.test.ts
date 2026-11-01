@@ -9,6 +9,13 @@
  *  - GearHub and ChestScreen contain NO equip calls — equipping
  *    lives only in the gear home's Slot Picker path (ActionLoadout
  *    manage mode + preset application, both hosted by the home).
+ *    SUPERSEDED IN PART by the 2026-11-01 UX audit (same exception
+ *    class as flow-fix F11): UX-01 makes the cache reveal's Equip
+ *    button equip in place (ChestScreen), and UX-02 adds an Unequip
+ *    action to GearHub's inspect sheet — the audit found both
+ *    surfaces promising an equip/unequip they did not perform.
+ *    Equips from GearHub still route through the home; the picker
+ *    remains the one placement surface.
  *  - Both boss-picker entry points render the shared BossPickerList;
  *    both area-picker entry points render the shared AreaPickerList.
  *  - The Fight tab mounts ActionLoadout read-only with a Manage door.
@@ -41,18 +48,28 @@ function listSourceFiles(dir: string): string[] {
 }
 
 describe('Phase 1 structure — one gear home', () => {
-  it('GearHub routes equips through the home and never equips itself', () => {
+  it('GearHub routes equips through the home; unequip runs the shipped op (audit UX-02)', () => {
     const gearHub = readSource('src/components/gear/GearHub.tsx');
     expect(gearHub).not.toContain('verifiedOps.equipItem');
-    expect(gearHub).not.toContain('verifiedOps.unequipSlot');
     expect(gearHub).toContain('onEquipRequest');
+    // UX audit UX-02 (2026-11-01): the inspect sheet's reforge copy
+    // said "unequip it first" but offered no Unequip. Unequip is a
+    // slot operation, not an equip intent, so the sheet runs the
+    // shipped verified op directly — the one deliberate exception
+    // to this pin's original "never equips itself" wording.
+    expect(gearHub).toContain('verifiedOps.unequipSlot');
   });
 
-  it('ChestScreen offers a gear door instead of equipping post-open', () => {
+  it('ChestScreen equips the revealed weapon in place (audit UX-01)', () => {
     const chest = readSource('src/screens/ChestScreen.tsx');
-    expect(chest).not.toContain('equipItem');
-    expect(chest).toContain('Equip in Gear');
-    expect(chest).toContain("onNavigate?.('inventory')");
+    // The 2026-11-01 UX audit reversed this surface's Phase 1 pin:
+    // the "Equip in Gear" button only navigated while claiming to
+    // equip (the real equip took 3 more taps). It now equips via
+    // the shipped verified op with the loadout panel's undo toast.
+    expect(chest).toContain('verifiedOps.equipItem');
+    expect(chest).toContain('SwapUndoToast');
+    expect(chest).not.toContain("onNavigate?.('inventory')");
+    expect(chest).not.toContain('Equip in Gear');
   });
 
   it('the Fight tab loadout is read-only with a Manage door into the home', () => {
@@ -76,6 +93,8 @@ describe('Phase 1 structure — one gear home', () => {
       'src/store/slices/loadoutPresetsSlice.ts', // preset apply (rendered by the home)
       'src/lib/api/verifiedOps.ts', // the transport itself
       'src/screens/ActionScreenContextual.tsx', // flow-fix F11: loot-feed inspect Equip — a fresh drop equips from its inspect sheet, per the flow audit's explicit fix
+      'src/screens/ChestScreen.tsx', // UX audit UX-01 (2026-11-01): the cache reveal Equip button equips in place + undo — it previously only navigated while claiming to equip
+      'src/components/gear/GearHub.tsx', // UX audit UX-02 (2026-11-01): inspect-sheet Unequip only (verifiedOps.unequipSlot) — equips still route through the home's picker
     ]);
     const offenders: string[] = [];
     for (const file of listSourceFiles(resolve(REPO, 'src'))) {

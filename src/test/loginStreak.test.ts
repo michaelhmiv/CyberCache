@@ -303,7 +303,7 @@ describe('login streak state view', () => {
     expect(view.ladder[0].credits).toBe(150);
     expect(view.ladder[6].credits).toBe(750);
     expect(view.ladder.map((d) => d.state)[0]).toBe('today');
-    expect(formatLoginStreakReward(view.ladder[6])).toBe('750 cr · 4 frag · cache key');
+    expect(formatLoginStreakReward(view.ladder[6])).toBe('750 credits · 4 fragments · cache key');
   });
 });
 

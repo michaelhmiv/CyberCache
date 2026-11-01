@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Info, Lock, Play, Unlock } from 'lucide-react';
-import { usePlayerStore, useInventoryStore, useIdleStore } from '@/store';
+import { usePlayerStore, useInventoryStore, useIdleStore, useLoadoutStore } from '@/store';
+import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
+import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
+import { SwapUndoToast } from '@/components/action/SwapUndoToast';
 import { RARITIES } from '@/constants/rarities';
 import { verifiedOps, type VerifiedResult } from '@/lib/api/verifiedOps';
 import { fetchCacheLane, type CacheLaneState } from '@/lib/api/cacheLaneService';
@@ -46,13 +49,17 @@ function gearTypeLabel(item: GearItem): string {
 
 const GearItemCard: React.FC<{
   item: GearItem;
-  action: 'none' | 'scrapped' | 'locked' | 'unlocked';
-  /** Phase 1 (one gear home): no equipping here — this door routes to
-   *  the gear home, where the Slot Picker equips. */
-  onOpenGear: () => void;
+  action: 'none' | 'scrapped' | 'locked' | 'unlocked' | 'equipped';
+  /** Audit UX-01: equips the revealed weapon in place via the
+   *  shipped verified equip op (the button used to only navigate to
+   *  the gear tab while saying "Equip"). The Phase 1 "one gear home"
+   *  pin that kept equipping out of this surface was superseded by
+   *  the 2026-11-01 UX audit — same exception class as flow-fix F11's
+   *  loot-feed equip. */
+  onEquip: () => void;
   onScrap: () => void;
   onLockToggle: () => void;
-}> = ({ item, action, onOpenGear, onScrap, onLockToggle }) => {
+}> = ({ item, action, onEquip, onScrap, onLockToggle }) => {
   const rarityDef = RARITIES[item.rarity];
   const itemIsWeapon = isWeapon(item);
   const itemIsLocked = item.isLocked;
@@ -133,11 +140,12 @@ const GearItemCard: React.FC<{
       <div className="flex items-center gap-2">
         {itemIsWeapon && (
           <button
-            onClick={onOpenGear}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber/20 text-amber text-[11px] font-bold active:scale-95 transition-transform"
+            onClick={onEquip}
+            disabled={action === 'equipped'}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber/20 text-amber text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-60"
           >
             <span style={{ fontSize: '12px' }}>⚔</span>
-            Equip in Gear
+            {action === 'equipped' ? 'Equipped' : 'Equip'}
           </button>
         )}
         <button
@@ -161,7 +169,7 @@ const GearItemCard: React.FC<{
   );
 };
 
-export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = ({ onNavigate }) => {
+export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = () => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
 
@@ -173,7 +181,9 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   // was set.
   const [momentDone, setMomentDone] = useState(false);
   const reducedMotion = !!useReducedMotion();
-  const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked'>>({});
+  const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked' | 'equipped'>>({});
+  // Audit UX-01: the reveal equip's undo window (SwapUndoToast state).
+  const [equipUndo, setEquipUndo] = useState<{ itemId: string; itemName: string; slot: LoadoutSlot; previousId: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const keys = player.cacheKeys;
@@ -230,6 +240,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     setOpening(true);
     setError(null);
     setItemActions({});
+    setEquipUndo(null);
     setMomentDone(false);
     try {
       const result = await verifiedOps.makeItem({ payment, adUnitId });
@@ -270,6 +281,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   const close = () => {
     setRevealed(null);
     setItemActions({});
+    setEquipUndo(null);
     setMomentDone(false);
   };
 
@@ -306,6 +318,45 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     setRevealed((prev) => prev?.map((i) => (i.id === item.id ? { ...i, isLocked: nextLocked } : i)) ?? null);
   };
 
+  // Audit UX-01: the reveal card's Equip button equips for real.
+  // Slot resolution mirrors the shipped call sites (roaming feed F11,
+  // gear home): first empty weapon slot, else primary — then the
+  // strict compatibility rule (loadoutSlotCompat) gets the final say
+  // before the verified op runs. On success the SwapUndoToast offers
+  // the same one-tap reversal as the loadout panel: re-equip the
+  // displaced item, or clear the slot when it was empty.
+  const handleEquip = async (item: GearItem) => {
+    const slots = useLoadoutStore.getState().slots;
+    const slot = (['primary', 'secondary', 'heavy'] as LoadoutSlot[]).find((s) => !slots[s]) ?? 'primary';
+    if (!isItemCompatibleWithSlot(item, slot)) {
+      setError(`"${item.name}" doesn't fit the ${slot} slot — open Gear to place it manually.`);
+      return;
+    }
+    const previousId = slots[slot] ?? null;
+    setError(null);
+    try {
+      await verifiedOps.equipItem(item.id, slot);
+      setItemActions((prev) => ({ ...prev, [item.id]: 'equipped' }));
+      setEquipUndo({ itemId: item.id, itemName: item.name, slot, previousId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to equip that item.');
+    }
+  };
+
+  const handleEquipUndo = async () => {
+    const undo = equipUndo;
+    if (!undo) return;
+    setEquipUndo(null);
+    setError(null);
+    try {
+      if (undo.previousId) await verifiedOps.equipItem(undo.previousId, undo.slot);
+      else await verifiedOps.unequipSlot(undo.slot);
+      setItemActions((prev) => ({ ...prev, [undo.itemId]: 'none' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to undo that equip.');
+    }
+  };
+
   const odds: Record<string, string> = {
     Common: '0%',
     Uncommon: '0%',
@@ -331,7 +382,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
           <span className="text-text-secondary">Keys:</span>
           <span className="text-amber font-bold">{keys}</span>
           {frags > 0 && (
-            <span className="text-text-muted text-xs">(+{frags} frags)</span>
+            <span className="text-text-muted text-xs">(+{frags} fragment{frags === 1 ? '' : 's'})</span>
           )}
         </div>
       </div>
@@ -521,7 +572,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                   key={item.id}
                   item={item}
                   action={itemActions[item.id] ?? 'none'}
-                  onOpenGear={() => onNavigate?.('inventory')}
+                  onEquip={() => void handleEquip(item)}
                   onScrap={() => handleScrap(item, i)}
                   onLockToggle={() => handleLockToggle(item, i)}
                 />
@@ -538,6 +589,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                   onClick={() => {
                     setRevealed(null);
                     setItemActions({});
+                    setEquipUndo(null);
                     if (freeAvailable) handleOpenFree();
                     else handleOpenKey();
                   }}
@@ -558,6 +610,17 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Audit UX-01: equip confirmation + UNDO, same toast the
+          loadout panel uses. Portaled, so it rides above the reveal
+          overlay too. */}
+      <SwapUndoToast
+        visible={!!equipUndo}
+        itemName={equipUndo?.itemName ?? ''}
+        previousName={equipUndo?.previousId ? inventory.items.find((i) => i.id === equipUndo.previousId)?.name ?? null : null}
+        onUndo={() => void handleEquipUndo()}
+        onDismiss={() => setEquipUndo(null)}
+      />
     </div>
   );
 };

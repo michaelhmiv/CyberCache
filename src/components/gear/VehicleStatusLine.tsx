@@ -75,10 +75,10 @@ export const VehicleStatusLine: React.FC<{ onOpenGarage?: () => void }> = ({ onO
         {garageButton}
       </div>
       {outOfFuel && (
-        <div className="text-amber">Out of fuel — vehicle bonus inactive, roaming on foot at ×1.00. Load Generic Fuel Cells in the Garage.</div>
+        <div className="leading-snug text-amber [overflow-wrap:anywhere]">Out of fuel — vehicle bonus inactive, roaming on foot at ×1.00. Load Generic Fuel Cells in the Garage.</div>
       )}
       {!outOfFuel && wornOut && (
-        <div className="text-amber">Vehicle worn out — bonus is ×1.00 until repaired. Use a Patch Kit in the Garage.</div>
+        <div className="leading-snug text-amber [overflow-wrap:anywhere]">Vehicle worn out — bonus is ×1.00 until repaired. Use a Patch Kit in the Garage.</div>
       )}
       {!outOfFuel && !wornOut && lastClaim && lastClaim.activeTicks < lastClaim.ticks && (
         <div>Bonus active for {lastClaim.activeTicks} of the last {lastClaim.ticks} ticks (fuel ran dry mid-claim).</div>
