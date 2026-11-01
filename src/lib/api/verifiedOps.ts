@@ -12,6 +12,8 @@
  * with the fallback rather than left as a wrong-rate back door.
  */
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
+import { isNotFoundError } from './http';
+import { syncRuntimeItemsForUser } from './runtimeStateService';
 import { apiRequest } from './http';
 import { syncVerifiedResult } from './verifiedStateSync';
 
@@ -89,7 +91,25 @@ export const verifiedOps = {
   // affix pools, and returns old_affix / new_affix for the reveal.
   reforgeItem: (itemId: string, affixId: string) => op('/ops/reforge-item', { nonce: requestId('reforge'), item_id: itemId, affix_id: affixId }),
   itemLock: (itemId: string, locked: boolean) => op('/ops/item-lock', { nonce: requestId('lock'), item_id: itemId, locked }),
-  equipItem: (itemId: string, slotName: string) => op('/ops/equip-item', { nonce: requestId('equip'), item_id: itemId, slot_name: slotName }),
+  equipItem: async (itemId: string, slotName: string) => {
+    try {
+      return await op('/ops/equip-item', { nonce: requestId('equip'), item_id: itemId, slot_name: slotName });
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        // The displayed item is not in the server's inventory for
+        // this account — a stale display copy (an item earned before
+        // the 0047 identity fix landed, or one already salvaged /
+        // listed / consumed since the list was drawn). Re-sync the
+        // inventory from server truth before surfacing the failure,
+        // so the list the player sees is the list that exists, and
+        // say what actually happened instead of a bare
+        // 'Item not found'.
+        await syncRuntimeItemsForUser('');
+        throw new Error('That item is no longer in your inventory — your gear list has been refreshed.', { cause: error });
+      }
+      throw error;
+    }
+  },
   unequipSlot: (slotName: string) => op('/ops/unequip-slot', { nonce: requestId('unequip'), slot_name: slotName }),
   refuelVehicle: (cells: number, itemKey?: string) => op('/ops/refuel-vehicle', { nonce: requestId('refuel'), cells, item_key: itemKey ?? null }),
   // Mechanics & repair services (0025): self-repair is a timed job;
