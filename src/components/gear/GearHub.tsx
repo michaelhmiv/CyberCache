@@ -27,6 +27,8 @@ import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useLoadoutStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { verifiedOps } from '@/lib/api/verifiedOps';
+import { formatRpcError } from '@/lib/api/rpcError';
+import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 import type { GearItem } from '@/types/items';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
@@ -334,6 +336,12 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
 
   // Inspect
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
+  // Visible failure notices (flow audit F4/F8): an equip that cannot
+  // resolve a slot and a lock that the server refuses must SAY so —
+  // never close the sheet or flip a flag as if they succeeded.
+  const [inspectNotice, setInspectNotice] = useState<string | null>(null);
+  const [hubNotice, setHubNotice] = useState<string | null>(null);
+  const [lockBusyId, setLockBusyId] = useState<string | null>(null);
 
   const equippedIds = useMemo(
     () => new Set(Object.values(loadout.slots).filter(Boolean) as string[]),
@@ -462,6 +470,11 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
 
   const compareItemA = compareA ? inventory.getById(compareA) : null;
   const compareItemB = compareB ? inventory.getById(compareB) : null;
+  // The inspect sheet reads the LIVE store row, not the tap-time
+  // snapshot: a verified lock/equip replaces the row, and the
+  // sheet's actions (Lock ↔ Unlock, Equip) must key off the current
+  // state, not the state when the sheet opened.
+  const liveInspectItem = inspectItem ? (inventory.getById(inspectItem.id) ?? inspectItem) : null;
 
   const toggleFilter = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
     setter((prev) => {
@@ -475,6 +488,14 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   // home, which opens the Slot Picker there. Weapons target the first
   // empty weapon slot, or Primary when all three are filled (the
   // picker then offers the swap). GearHub itself never equips.
+  // Flow audit F4: the old code closed the inspect sheet even when
+  // the handoff went nowhere. Two failure shapes are now surfaced
+  // instead: no slot resolves at all, and — because the card-summary
+  // isRelic guard is a catch-all — a resolved slot the Slot Picker's
+  // own strict compatibility rule (loadoutSlotCompat, the rule the
+  // picker filters by) would reject, which used to strand the player
+  // in an empty picker. Either way the sheet stays open with a
+  // notice naming the kind.
   const equip = (item: GearItem) => {
     let slot: LoadoutSlot | null = null;
     if (isShield(item)) { slot = 'shield'; }
@@ -486,8 +507,34 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       slot = weaponSlots.find((s) => !loadout.slots[s]) ?? 'primary';
     }
 
-    if (slot) onEquipRequest?.(item, slot);
+    if (!slot || !isItemCompatibleWithSlot(item, slot)) {
+      console.warn('[GearHub] equip: no picker-compatible loadout slot for item', item.id);
+      setInspectNotice(`"${item.name}" can't be equipped — its kind (${kindLabel(item)}) doesn't fit any loadout slot.`);
+      return;
+    }
+    setInspectNotice(null);
+    onEquipRequest?.(item, slot);
     setInspectItem(null);
+  };
+
+  // Item lock (flow audit F8): the Gear home used to flip a bare
+  // local flag that the next server sync silently overwrote — the
+  // "protection" never existed server-side. Lock/unlock now go
+  // through the verified op (the ChestScreen pattern): await
+  // verifiedOps.itemLock, then mirror locally; on failure the flag
+  // does NOT move and the player sees why.
+  const toggleLock = async (item: GearItem) => {
+    if (lockBusyId) return;
+    setLockBusyId(item.id);
+    setInspectNotice(null);
+    try {
+      await verifiedOps.itemLock(item.id, !item.isLocked);
+      if (item.isLocked) inventory.unlockItem(item.id); else inventory.lockItem(item.id);
+    } catch (err) {
+      setInspectNotice(`Couldn't ${item.isLocked ? 'unlock' : 'lock'} "${item.name}" — ${formatRpcError(err)}`);
+    } finally {
+      setLockBusyId(null);
+    }
   };
 
   const scrap = async (item: GearItem) => {
@@ -528,17 +575,32 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     })();
   };
 
-  const bulkLock = () => {
-    selectedIds.forEach((id) => inventory.lockItem(id));
-    setSelectedIds(new Set());
-    setSelectMode(false);
+  // Bulk lock/unlock (F8): same verified path as the single toggle,
+  // sequential like bulk scrap; failures are named, never swallowed.
+  const bulkSetLocked = (locked: boolean) => {
+    void (async () => {
+      const failures: string[] = [];
+      for (const id of selectedIds) {
+        const item = inventory.getById(id);
+        if (!item || item.isLocked === locked) continue;
+        try {
+          await verifiedOps.itemLock(id, locked);
+          if (locked) inventory.lockItem(id); else inventory.unlockItem(id);
+        } catch {
+          failures.push(item.name);
+        }
+      }
+      if (failures.length > 0) {
+        setHubNotice(`Couldn't ${locked ? 'lock' : 'unlock'}: ${failures.join(', ')} — the server refused; their protection state is unchanged.`);
+      }
+      setSelectedIds(new Set());
+      setSelectMode(false);
+    })();
   };
 
-  const bulkUnlock = () => {
-    selectedIds.forEach((id) => inventory.unlockItem(id));
-    setSelectedIds(new Set());
-    setSelectMode(false);
-  };
+  const bulkLock = () => bulkSetLocked(true);
+
+  const bulkUnlock = () => bulkSetLocked(false);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -565,6 +627,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       setCompareB(item.id);
       return;
     }
+    setInspectNotice(null);
     setInspectItem(item);
   };
 
@@ -745,6 +808,16 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         </div>
       )}
 
+      {/* Bulk-action failure notice (F8) */}
+      {hubNotice && (
+        <div className="flex items-start justify-between gap-2 border border-red/40 bg-red/10 p-2 text-[10px] font-bold text-red-light" role="alert">
+          <span>{hubNotice}</span>
+          <button type="button" onClick={() => setHubNotice(null)} className="shrink-0 text-red-light/70 hover:text-red-light" aria-label="Dismiss notice">
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
       {/* Bulk action bar */}
       <AnimatePresence>
         {selectMode && selectedIds.size > 0 && (
@@ -758,13 +831,13 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             <button onClick={selectAll} className="text-[9px] text-text-muted">All</button>
             <button onClick={deselectAll} className="text-[9px] text-text-muted">None</button>
             <div className="flex-1" />
-            <button onClick={bulkLock} className="rounded-lg border border-border bg-surface px-2 py-1 text-[9px] font-black text-text-muted">
+            <button onClick={bulkLock} aria-label="Lock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[9px] font-black text-text-muted">
               <Lock size={12} />
             </button>
-            <button onClick={bulkUnlock} className="rounded-lg border border-border bg-surface px-2 py-1 text-[9px] font-black text-text-muted">
+            <button onClick={bulkUnlock} aria-label="Unlock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[9px] font-black text-text-muted">
               <Unlock size={12} />
             </button>
-            <button onClick={bulkScrap} className="rounded-lg border border-red/40 bg-red/10 px-2 py-1 text-[9px] font-black text-red">
+            <button onClick={bulkScrap} aria-label="Scrap selected" className="rounded-lg border border-red/40 bg-red/10 px-2 py-1 text-[9px] font-black text-red">
               <Trash2 size={12} />
             </button>
           </motion.div>
@@ -1047,24 +1120,29 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
 
       {/* Inspect sheet */}
       <GearInspectSheet
-        item={inspectItem}
+        item={liveInspectItem}
         open={!!inspectItem}
-        onClose={() => setInspectItem(null)}
+        onClose={() => { setInspectItem(null); setInspectNotice(null); }}
         contextLabel="Inventory Inspect"
         allowReforge
-        actions={inspectItem ? (
+        actions={liveInspectItem ? (
           <div className="grid grid-cols-4 gap-2">
-            <button type="button" onClick={() => equip(inspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
+            {inspectNotice && (
+              <div className="col-span-4 border border-red/40 bg-red/10 p-2 text-[10px] font-bold text-red-light" role="alert">
+                {inspectNotice}
+              </div>
+            )}
+            <button type="button" onClick={() => equip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
               <span style={{ fontSize: 15 }}>⚔</span>Equip
             </button>
             <button type="button" onClick={() => onNavigate?.('market')} className="flex flex-col items-center gap-1 border border-green/40 bg-green/10 py-2 text-[9px] font-black text-green">
               <ArrowLeftRight size={15} />Market
             </button>
-            <button type="button" onClick={() => inspectItem.isLocked ? inventory.unlockItem(inspectItem.id) : inventory.lockItem(inspectItem.id)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[9px] font-black text-text-secondary">
-              {inspectItem.isLocked ? <Unlock size={15} /> : <Lock size={15} />}
-              {inspectItem.isLocked ? 'Unlock' : 'Lock'}
+            <button type="button" disabled={lockBusyId === liveInspectItem.id} onClick={() => void toggleLock(liveInspectItem)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[9px] font-black text-text-secondary disabled:opacity-50">
+              {liveInspectItem.isLocked ? <Unlock size={15} /> : <Lock size={15} />}
+              {lockBusyId === liveInspectItem.id ? 'Working…' : liveInspectItem.isLocked ? 'Unlock' : 'Lock'}
             </button>
-            <button type="button" onClick={() => void scrap(inspectItem)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
+            <button type="button" onClick={() => void scrap(liveInspectItem)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
               <Trash2 size={15} />Salvage
             </button>
           </div>

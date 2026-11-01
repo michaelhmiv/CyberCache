@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 
 import { ResourceBar } from '@/components/layout/ResourceBar';
+import { compactResourceValue } from '@/lib/ui/formatValue';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
 import { GearHub } from '@/components/gear/GearHub';
 import { ConsumablesScreen } from './ConsumablesScreen';
@@ -13,6 +14,15 @@ type InventoryTab = 'gear' | 'loadout' | 'consumables' | 'workshop';
 
 interface InventoryScreenProps {
   onNavigate: (screen: string) => void;
+  /**
+   * Tab intent from navigation (flow audit F2): loadout doors
+   * (Dashboard "Loadout Bench", the Fight tab's Manage door,
+   * onNavigate('loadout')) carry { tab: 'loadout' } so the gear home
+   * opens ON the Loadout tab — the one equip surface — instead of
+   * depositing the player on the Gear list. Absent intent (the Gear
+   * bottom tab) defaults to the Gear tab as before.
+   */
+  tabIntent?: { tab: InventoryTab; seq: number } | null;
 }
 
 const TAB_SIGILS: Record<InventoryTab, { glyph: string; color: string }> = {
@@ -25,13 +35,23 @@ const TAB_SIGILS: Record<InventoryTab, { glyph: string; color: string }> = {
 const SummaryTile: React.FC<{ label: string; value: string | number; sub?: string }> = ({ label, value, sub }) => (
   <div className="bl-card min-w-0 p-2">
     <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">{label}</div>
-    <div className="truncate text-lg font-black leading-tight text-text-primary">{value}</div>
+    <div className="whitespace-nowrap text-lg font-black leading-tight text-text-primary">{value}</div>
     {sub && <div className="truncate text-[9px] text-text-muted">{sub}</div>}
   </div>
 );
 
-export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<InventoryTab>('gear');
+export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, tabIntent = null }) => {
+  const [activeTab, setActiveTab] = useState<InventoryTab>(() => tabIntent?.tab ?? 'gear');
+  // A fresh intent (new seq) re-applies even if the home is already
+  // mounted — e.g. a second loadout door tapped in the same session.
+  // Render-phase adjustment (React's pattern for prop-driven state)
+  // rather than an effect: the intent lands in the same commit as
+  // the navigation that carried it.
+  const [appliedIntentSeq, setAppliedIntentSeq] = useState<number | null>(tabIntent?.seq ?? null);
+  if (tabIntent && tabIntent.seq !== appliedIntentSeq) {
+    setAppliedIntentSeq(tabIntent.seq);
+    setActiveTab(tabIntent.tab);
+  }
   // Gear-home equip door: GearHub's Equip action lands here; the Loadout
   // tab opens the Slot Picker (the one equip surface) on the slot.
   const [pendingPickerSlot, setPendingPickerSlot] = useState<LoadoutSlot | null>(null);
@@ -55,7 +75,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate }) 
         <div className="grid grid-cols-4 gap-2">
           <SummaryTile label="Items" value={inventory.items.length} sub={`${lockedCount} locked`} />
           <SummaryTile label="Loadout" value={`${equippedCount}/7`} sub="resolved slots" />
-          <SummaryTile label="Cash" value={player.credits.toLocaleString()} sub={`${player.scrap.toLocaleString()} scrap`} />
+          <SummaryTile label="Cash" value={compactResourceValue(player.credits)} sub={`${compactResourceValue(player.scrap)} scrap`} />
           <SummaryTile label="Jobs" value={queueCount} sub="workshop" />
         </div>
 

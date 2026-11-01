@@ -24,6 +24,7 @@ import { SwapUndoToast } from '@/components/action/SwapUndoToast';
 import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
+import { compactResourceValue } from '@/lib/ui/formatValue';
 import type { Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
@@ -196,16 +197,22 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
 
   // Auto-expand when loadout is empty — the player needs to see what to fill.
   // A mount-time picker request (gear-home deep link) also forces expand.
+  // Flow audit F3: in the gear home (manage mode) the panel ALWAYS
+  // mounts expanded — a persisted collapse used to hide the entire
+  // slot grid behind a header + preset switcher, so the one equip
+  // surface mounted with nothing to tap. Collapse persistence now
+  // belongs only to read-only display contexts (the Fight tab).
   const [collapsed, setCollapsed] = useState(() => {
     if (requestedPickerSlot) return false;
     if (emptyLoadout) return false; // always expand for empty loadout
+    if (!readOnly) return false; // gear home: slots reachable on arrival
     return readCollapsed();
   });
 
   // Resource summary: always visible
   const resourceStats = useMemo(() => [
-    { label: 'Credits', value: player.credits.toLocaleString(), tone: 'text-cyan' as const },
-    { label: 'Scrap', value: player.scrap.toLocaleString(), tone: 'text-green' as const },
+    { label: 'Credits', value: compactResourceValue(player.credits), tone: 'text-cyan' as const },
+    { label: 'Scrap', value: compactResourceValue(player.scrap), tone: 'text-green' as const },
     { label: 'Items', value: inventory.items.length, tone: 'text-amber' as const },
     { label: 'Keys', value: `${player.cacheKeys}+${player.cacheKeyFragments}`, tone: 'text-purple' as const },
   ], [player.credits, player.scrap, player.cacheKeys, player.cacheKeyFragments, inventory.items.length]);
@@ -230,10 +237,12 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
   const toggle = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
-      saveCollapsed(next);
+      // Only display contexts persist the collapse (F3) — a collapse
+      // made in the gear home must not hide the equip grid next visit.
+      if (readOnly) saveCollapsed(next);
       return next;
     });
-  }, []);
+  }, [readOnly]);
 
   const onEquip = useCallback(async (itemId: string) => {
     if (!pickerSlot) return;
@@ -341,7 +350,7 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
         {resourceStats.map(({ label, value, tone }) => (
           <div key={label} className="flex-1 border border-border/60 bg-bg/40 px-1.5 py-1 text-center" style={signClip}>
             <div className="text-[7px] font-black uppercase tracking-wider text-text-muted">{label}</div>
-            <div className={`text-[10px] font-black truncate ${tone}`}>{value}</div>
+            <div className={`text-[10px] font-black whitespace-nowrap ${tone}`}>{value}</div>
           </div>
         ))}
       </div>

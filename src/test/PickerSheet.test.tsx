@@ -44,14 +44,16 @@ describe('PickerSheet', () => {
 
   it('calls onClose when overlay is clicked', () => {
     const onClose = vi.fn();
-    const { container } = render(
+    render(
       <PickerSheet title="Pick an item" onClose={onClose}>
         <div>List</div>
       </PickerSheet>,
     );
 
-    // Overlay is the outer fixed div.
-    const overlay = container.firstChild as HTMLElement;
+    // Overlay is the outer fixed div (portaled to document.body since
+    // device feedback r2, so it is no longer the render container's
+    // first child).
+    const overlay = screen.getByTestId('picker-sheet-overlay');
     fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalledTimes(1);
   });

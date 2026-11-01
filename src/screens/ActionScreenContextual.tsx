@@ -599,7 +599,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* 3. Loadout — star-pattern gear constellation. Read-only here:
           the Fight tab displays the loadout; the gear home (Inventory)
           is the one place it is managed. */}
-      <ActionLoadout readOnly onManageLoadout={() => onNavigate?.('inventory')} />
+      <ActionLoadout readOnly onManageLoadout={() => onNavigate?.('loadout')} />
 
       {/* 2b. Activity modifiers — procedural gear bonuses for current action */}
       <ActivityModifierPanel activityKind={currentKind} />

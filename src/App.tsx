@@ -64,6 +64,15 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
+  // Deep-link focus inside the Profile tab: 'skills' lands the player
+  // ON the Profile-embedded SkillTreeScreen (scrolled into view), not
+  // at the top of the Profile page (device feedback r2).
+  const [profileFocus, setProfileFocus] = useState<'skills' | null>(null);
+  // Tab intent for the gear home (flow audit F2): every "loadout"
+  // door must open Inventory ON its Loadout tab — the one equip
+  // surface — not on the Gear list. `seq` makes a repeat intent
+  // re-apply even while Inventory is already mounted.
+  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'gear' | 'loadout'; seq: number } | null>(null);
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -104,18 +113,22 @@ function App() {
   }
 
   const handleNavigate = (screen: string) => {
+    if (screen === 'skills') {
+      setActiveTab('profile');
+      setSubScreen(null);
+      setProfileFocus('skills');
+      return;
+    }
+    setProfileFocus(null);
+    setInventoryTabIntent(null);
     if (screen === 'loadout' || screen === 'loot') {
       setActiveTab('inventory');
       setSubScreen(null);
+      setInventoryTabIntent({ tab: 'loadout', seq: Date.now() });
       return;
     }
     if (screen === 'vendor') {
       setActiveTab('market');
-      setSubScreen(null);
-      return;
-    }
-    if (screen === 'skills') {
-      setActiveTab('profile');
       setSubScreen(null);
       return;
     }
@@ -215,7 +228,7 @@ function App() {
         <ScreenWrapper activeTab={activeTab}>
           {activeTab === 'dashboard' && <TabErrorBoundary surface="Dashboard"><DashboardScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
           {activeTab === 'fight' && <TabErrorBoundary surface="Action"><ActionScreenContextual onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} /></TabErrorBoundary>}
-          {activeTab === 'inventory' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
+          {activeTab === 'inventory' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} tabIntent={inventoryTabIntent} /></TabErrorBoundary>}
           {activeTab === 'market' && (
             <TabErrorBoundary surface="Market">
               {/* No whole-tab gate: the NPC vendor is open to guests.
@@ -224,11 +237,11 @@ function App() {
             </TabErrorBoundary>
           )}
           {activeTab === 'leaderboards' && <TabErrorBoundary surface="Leaderboards"><LeaderboardsScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
-          {activeTab === 'profile' && <TabErrorBoundary surface="Profile"><ProfileScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
+          {activeTab === 'profile' && <TabErrorBoundary surface="Profile"><ProfileScreen onNavigate={handleNavigate} focusSection={profileFocus} /></TabErrorBoundary>}
         </ScreenWrapper>
       )}
 
-      <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); }} />
+      <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); }} />
       <DeathOverlay />
       <SalvageToastContainer />
       <OfflineRecap />
