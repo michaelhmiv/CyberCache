@@ -134,7 +134,7 @@ def main():
                             f"(see diagnostics-{segment}.txt).")
                 elif entries is None:
                     note = (f"segment '{segment}' produced no manifest "
-                            "(the crawl step ended before the segment "
+                            "(its crawl job ended before the segment "
                             "reported).")
                 else:
                     note = (f"segment '{segment}' ended before this stop "

@@ -1,44 +1,60 @@
 #!/usr/bin/env bash
-# Segment runner for the screen-inventory crawl.
+# Single-segment runner for the screen-inventory crawl.
 #
 # Invoked from .github/workflows/screen-inventory.yml inside the
 # reactivecircus/android-emulator-runner step (the action executes its
 # `script:` input line-by-line through sh, so anything with functions
 # or loops has to live in a real file like this one — the workflow's
-# script is a single call to this file).
+# script is a single call to this file). Usage:
+#
+#   crawl-screen-inventory.sh <segment>
+#
+# where <segment> is one of: board action gear market rank hunter.
+# The workflow runs SIX of these in PARALLEL matrix jobs — one
+# segment per runner, each with its own emulator — and a merge job
+# assembles the six outputs afterwards. This script therefore runs
+# exactly ONE segment: the one named on the command line.
 #
 # WHY SEGMENTS: run 2 (41343111864, 2026-11-01) produced ZERO
 # screenshots — the emulator died ~4.5 minutes into the single
 # monolithic crawl (adb: device offline; emu kill: connection
 # refused), and everything on-device was lost because the only pull
-# happened after the whole crawl. This runner invokes each crawl
-# segment (one @Test method in ScreenInventoryTest) as its OWN
-# `am instrument` call and pulls the output directory after EVERY
-# segment, so a dead emulator can cost at most one segment.
+# happened after the whole crawl. Each segment (one @Test method in
+# ScreenInventoryTest) is therefore its OWN `am instrument` call with
+# a pull of the output directory right after it, so a dead emulator
+# can cost at most one segment. WHY PARALLEL: run 3 (41346444027)
+# ran the six segments sequentially inside one step and spent ~2
+# hours there with no per-segment visibility before being cancelled;
+# as matrix jobs the total wall-clock is the slowest single segment,
+# each segment's state is visible on its own job, and each segment
+# has its own timeout budget.
 #
-# RECOVERY SEMANTICS:
-#  - Before each segment: `adb get-state` must say "device"; if not,
-#    the emulator is restarted once (relaunching the same AVD with the
-#    same options the runner action used) before the segment starts.
-#  - If a segment's pull contains no manifest.json, diagnostics are
+# RECOVERY SEMANTICS (unchanged, now scoped to this job's segment):
+#  - Before the segment: `adb get-state` must say "device"; if not,
+#    the emulator is restarted once (relaunching the same AVD with
+#    the same options the runner action used) before the segment
+#    starts.
+#  - If the segment's pull contains no manifest.json, diagnostics are
 #    written (diagnostics-<segment>.txt), the emulator is restarted,
 #    and the segment is re-run ONCE.
 #  - If the retry still produces no manifest, the segment is recorded
 #    in dead-segments.txt; scripts/merge-screen-inventory.py later
-#    records its stops as missed with reason "emulator died", and this
-#    runner CONTINUES with the next segment (whose own pre-segment
-#    health check restarts the emulator again if needed). A double
-#    emulator death in one segment therefore costs that segment only.
+#    records its stops as missed with reason "emulator died". A
+#    double emulator death therefore costs this segment only — the
+#    other five matrix jobs are unaffected either way.
 #
-# Outputs (under $GITHUB_WORKSPACE/screen-inventory-out/):
-#  - segments/<segment>/screen-inventory/  that segment's pull
+# Outputs (under $GITHUB_WORKSPACE/screen-inventory-out/, uploaded by
+# the workflow as artifact screen-inventory-segment-<segment>):
+#  - segments/<segment>/screen-inventory/  this segment's pull
 #  - segments/<segment>.instrument.log     raw instrument output
-#  - diagnostics-<segment>.txt             only for segments that died
-#  - dead-segments.txt                     one dead segment per line
-# The workflow merges these into screen-inventory-final/ next.
+#  - diagnostics-<segment>.txt             only if the segment died
+#  - dead-segments.txt                     this segment, or empty
+# The workflow's merge job assembles these into the layout the merge
+# script consumes and merges them into the final inventory.
 #
-# Exit code is always 0: segment failures are data for the merge +
-# verify steps, which are what turn the run red.
+# Exit code is always 0 once the segment argument validates: segment
+# failures are data for the merge + verify steps, which are what turn
+# the run red.
 
 set -u
 
@@ -50,9 +66,12 @@ DEVICE_DIR_ALT="/storage/emulated/0/Android/data/$PKG/files/screen-inventory"
 APP_APK="app/build/outputs/apk/debug/app-debug.apk"
 TEST_APK="app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
 # Generous per-attempt bound: the board segment alone waits out a
-# 120s cold-start budget plus 8 stops with retries. A wedged
-# instrument (device dying silently) must not eat the whole job.
-SEGMENT_TIMEOUT_S=1500
+# 120s cold-start budget plus 8 stops with retries, and healthy
+# segments finish in single-digit minutes. A wedged instrument
+# (device dying silently) must not eat the segment's whole job: the
+# matrix job budget is 35 min, of which build + boot take ~8, so a
+# 900s attempt cap leaves room for the restart + one retry.
+SEGMENT_TIMEOUT_S=900
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -67,7 +86,8 @@ mkdir -p "$SEGDIR"
 : > "$OUT/dead-segments.txt"
 
 # segment name -> @Test method (canonical order; the merge script
-# holds the matching stop lists — keep them in sync).
+# holds the matching stop lists and the workflow's matrix holds the
+# matching segment names — keep all three in sync).
 SEGMENTS=(
   "board:crawlBoardSegment"
   "action:crawlActionSegment"
@@ -210,7 +230,7 @@ run_segment() {
     fi
   done
   echo "$seg" >> "$OUT/dead-segments.txt"
-  echo "Segment $seg DEAD after restart + retry — its stops will be recorded as missed (emulator died); continuing."
+  echo "Segment $seg DEAD after restart + retry — its stops will be recorded as missed (emulator died)."
   return 1
 }
 
@@ -218,10 +238,33 @@ adb wait-for-device
 adb install -r -t "$APP_APK"
 adb install -r -t "$TEST_APK"
 
+# ---------------------------------------------------------------------
+# Single-segment dispatch: this job runs exactly one segment — the
+# one named on the command line. The other five run in parallel
+# matrix jobs of their own; nothing here may wait on them.
+# ---------------------------------------------------------------------
+SEGMENT="${1:-}"
+METHOD=""
 for pair in "${SEGMENTS[@]}"; do
-  run_segment "${pair%%:*}" "${pair##*:}" || true
+  if [ "${pair%%:*}" = "$SEGMENT" ]; then
+    METHOD="${pair##*:}"
+    break
+  fi
 done
+if [ -z "$SEGMENT" ] || [ -z "$METHOD" ]; then
+  echo "usage: crawl-screen-inventory.sh <segment>" >&2
+  printf 'known segments:' >&2
+  for pair in "${SEGMENTS[@]}"; do printf ' %s' "${pair%%:*}" >&2; done
+  printf '\n' >&2
+  exit 2
+fi
 
-echo "All segments attempted. Dead segments: $(tr '\n' ' ' < "$OUT/dead-segments.txt")"
+run_segment "$SEGMENT" "$METHOD" || true
+
+if grep -qx "$SEGMENT" "$OUT/dead-segments.txt"; then
+  echo "Segment $SEGMENT DEAD — its stops will be recorded as missed (emulator died)."
+else
+  echo "Segment $SEGMENT done."
+fi
 find "$OUT" -maxdepth 3 -type f | sort | head -100 || true
 exit 0
