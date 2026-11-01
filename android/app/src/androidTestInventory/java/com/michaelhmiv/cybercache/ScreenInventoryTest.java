@@ -32,10 +32,26 @@ import java.util.Set;
 /**
  * Screen inventory crawl (on-demand harness — see docs/SCREEN_INVENTORY.md).
  *
- * Launches the real app, enters as a guest, captures the first-run starter
- * bundle reveal as its own named stop, dismisses it, then walks every
- * reachable screen, saving a screenshot + window-hierarchy dump per stop
- * and a manifest.json describing what was reached.
+ * Launches the real app, enters as a guest, and walks every reachable
+ * screen, saving a screenshot + window-hierarchy dump per stop and a
+ * manifest.json describing what was reached. The board segment captures
+ * the first-run starter bundle reveal as its own named stop before
+ * dismissing it.
+ *
+ * SEGMENTATION (added after run 2, 2026-11-01 — run 41343111864 lost
+ * EVERYTHING when the emulator died ~4.5 minutes into the single
+ * monolithic crawl: one instrument process held the whole inventory,
+ * and the post-run pull found no device): the crawl is split into one
+ * @Test method per area (board / action / gear / market / rank /
+ * hunter). The screen-inventory workflow invokes each segment as its
+ * OWN `am instrument` call and pulls the output dir after EVERY
+ * segment, so a dead emulator can cost at most one segment. Each
+ * segment process writes a manifest.json containing only its own
+ * stops; the workflow merges the per-segment manifests into the single
+ * inventory manifest on the runner (scripts/merge-screen-inventory.py).
+ * A segment that produces no manifest is retried once after an
+ * emulator restart; if it still produces none, the merge records its
+ * stops as missed ("emulator died") and the remaining segments run.
  *
  * Design contract (hardened after run 1, 2026-11-01 — run 1 reached only
  * 7 of 32 stops and 6 of those 7 captures were the wrong layer or the
@@ -68,11 +84,15 @@ import java.util.Set;
  *  - SCROLL-SEARCH: below-the-fold targets are found with a bounded
  *    swipe-and-scan loop (never a fixed scroll count); when a target
  *    took >0 swipes, the manifest note says how many.
- *  - The test fails only when the app does not launch, the guest entry
- *    never renders, or the guest Board (home) never verifies. Deep-stop
- *    misses are manifest data; the WORKFLOW fails the run when fewer
- *    than MIN_REACHED_STOPS of the stops are reached (see
- *    .github/workflows/screen-inventory.yml).
+ *  - The board segment fails hard only when the app does not launch,
+ *    the guest entry never renders, or the guest Board (home) never
+ *    verifies. Other segments fail hard when their entry (launch +
+ *    guest session + Board render) never completes — a failed segment
+ *    writes no manifest, which is exactly the signal the workflow's
+ *    restart-and-retry-once recovery keys on. Deep-stop misses are
+ *    manifest data; the WORKFLOW fails the run when fewer than
+ *    MIN_REACHED_STOPS of the stops in the MERGED manifest are reached
+ *    (see .github/workflows/screen-inventory.yml).
  *  - The crawl never buys, sells, salvages, or starts a boss fight. It
  *    does claim the starter bundle ("Collect") and may start roaming /
  *    switch the current action on the throwaway guest account — the same
@@ -80,9 +100,10 @@ import java.util.Set;
  *
  * Output lands in the app's external files dir under "screen-inventory"
  * (/sdcard/Android/data/com.michaelhmiv.cybercache/files/screen-inventory),
- * which the screen-inventory workflow pulls with adb after the run.
- * manifest.json is rewritten after every stop, so a partial crawl still
- * leaves a truthful manifest behind.
+ * which the screen-inventory workflow pulls with adb after EVERY
+ * segment. Within a segment, manifest.json is rewritten after every
+ * stop, so even a segment that dies halfway leaves a truthful partial
+ * manifest on the device — the per-segment pull is what rescues it.
  */
 @RunWith(AndroidJUnit4.class)
 public class ScreenInventoryTest {
@@ -1038,11 +1059,61 @@ public class ScreenInventoryTest {
     }
 
     // ------------------------------------------------------------------
-    // The crawl
+    // Segment entry for every segment EXCEPT board. The board segment
+    // owns the first-run stops (auth, starter reveal, board-home) and
+    // records its own entry failures; every other segment just needs a
+    // live guest session standing on an uncovered Board, and signals
+    // entry failure by throwing — a segment that cannot enter writes NO
+    // manifest, which is the workflow's cue to restart the emulator and
+    // retry the segment once before recording it as dead.
+    // ------------------------------------------------------------------
+
+    private void enterAsGuestForSegment() {
+        launchApp();
+        // Same cold-start budget and acceptance rule as the board
+        // segment: either an auth affordance or an already-live session.
+        String firstPaint = waitVisible(120000,
+                "Continue as Guest", "Sign in with Google", "Current area:");
+        if (firstPaint == null) {
+            String evidence = snapRaw("launch-failure");
+            throw new AssertionError("Segment entry failed: neither the auth screen nor a live "
+                    + "session rendered within 120s of launch. Evidence screenshot + hierarchy "
+                    + "captured as " + evidence + ".");
+        }
+        boolean authSeen = "Continue as Guest".equals(firstPaint) || "Sign in with Google".equals(firstPaint);
+        if (authSeen) {
+            if (!tapVisible("Continue as Guest")) {
+                throw new AssertionError("Segment entry failed: guest entry button was visible "
+                        + "but could not be tapped");
+            }
+            settleLong();
+        }
+        if (waitVisible(60000, "Current area:") == null) {
+            throw new AssertionError("Segment entry failed: guest Board never rendered");
+        }
+        // This segment does not own the first-run stops — just clear any
+        // covering layer (starter reveal on a fresh guest, offline recap
+        // on a returning one) so the segment's stops start uncovered.
+        // Claiming the bundle here is the same state change the board
+        // segment makes; the crawl's contract already allows it.
+        if (vf("Collect") != null || vf("Loot Secured") != null) {
+            dismissReveal();
+        }
+        clearModals();
+    }
+
+    // ------------------------------------------------------------------
+    // The crawl — one @Test method per area segment. The workflow runs
+    // each segment as a separate `am instrument` invocation and pulls
+    // the output dir after each one (scripts/crawl-screen-inventory.sh),
+    // then merges the per-segment manifests into the single inventory
+    // manifest (scripts/merge-screen-inventory.py). Stop order inside a
+    // segment is visit order; the canonical merged order lives in the
+    // merge script and docs/SCREEN_INVENTORY.md — keep all three in sync.
     // ------------------------------------------------------------------
 
     @Test
-    public void crawlAllScreens() {
+    public void crawlBoardSegment() {
         // ---- Launch + guest entry (hard-failure section) ----
         launchApp();
         // Cold-start budget: on a freshly booted emulator the first paint
@@ -1201,6 +1272,14 @@ public class ScreenInventoryTest {
             return ok;
         });
 
+        flushManifest();
+        Log.i(TAG, "Board segment complete: " + shotSeq + " screenshots.");
+    }
+
+    @Test
+    public void crawlActionSegment() {
+        enterAsGuestForSegment();
+
         // ---- ACTION ----
         stop("action-main", TAB_ACTION, () -> capture("action-main",
                 "Action tab as a fresh guest finds it: standby state, action stage, vehicle line, loadout strip, feed — verified by the real 'Switch Action' button in the viewport.",
@@ -1318,6 +1397,14 @@ public class ScreenInventoryTest {
             return ok;
         });
 
+        flushManifest();
+        Log.i(TAG, "Action segment complete: " + shotSeq + " screenshots.");
+    }
+
+    @Test
+    public void crawlGearSegment() {
+        enterAsGuestForSegment();
+
         // ---- GEAR (Inventory) ----
         stop("gear-loadout", TAB_GEAR, () -> {
             if (!tapGearTab("Loadout")) {
@@ -1425,6 +1512,14 @@ public class ScreenInventoryTest {
                     false, "Workshop");
         });
 
+        flushManifest();
+        Log.i(TAG, "Gear segment complete: " + shotSeq + " screenshots.");
+    }
+
+    @Test
+    public void crawlMarketSegment() {
+        enterAsGuestForSegment();
+
         // ---- MARKET (post-#254: guests SEE every tab with real data;
         //      only transacting is sign-in locked, at the action) ----
         stop("market-vendor", TAB_MARKET, () -> {
@@ -1479,10 +1574,26 @@ public class ScreenInventoryTest {
                     false, "Open postings", "Post a recalibration");
         });
 
+        flushManifest();
+        Log.i(TAG, "Market segment complete: " + shotSeq + " screenshots.");
+    }
+
+    @Test
+    public void crawlRankSegment() {
+        enterAsGuestForSegment();
+
         // ---- RANK ----
         stop("rank-leaderboards", TAB_RANK, () -> capture("rank-leaderboards",
                 "Rank tab: Leaderboards — weekly races with drop-luck rewards, last week's finals, and the player's standings (guest reads are open; the crawl signs nothing).",
                 false, "Leaderboards", "Weekly Races"));
+
+        flushManifest();
+        Log.i(TAG, "Rank segment complete: " + shotSeq + " screenshots.");
+    }
+
+    @Test
+    public void crawlHunterSegment() {
+        enterAsGuestForSegment();
 
         // ---- HUNTER (Profile) ----
         stop("hunter-profile", TAB_HUNTER, () -> capture("hunter-profile",
@@ -1560,6 +1671,6 @@ public class ScreenInventoryTest {
         });
 
         flushManifest();
-        Log.i(TAG, "Screen inventory crawl complete: " + shotSeq + " screenshots.");
+        Log.i(TAG, "Hunter segment complete: " + shotSeq + " screenshots. Screen inventory crawl finished.");
     }
 }

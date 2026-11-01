@@ -7,6 +7,16 @@ name: Screen Inventory
 # `screen-inventory` artifact. This is the design-review evidence
 # harness — real renders of the real APK, not descriptions.
 #
+# The crawl runs in per-area SEGMENTS (board / action / gear / market /
+# rank / hunter), each its own `am instrument` call with an `adb pull`
+# after every segment, driven by scripts/crawl-screen-inventory.sh and
+# merged by scripts/merge-screen-inventory.py. Run 2 (41343111864)
+# produced zero screenshots because the emulator died ~4.5 minutes
+# into the previous single monolithic crawl and the only pull came
+# after it; segmentation caps that loss at one segment, and the
+# runner restarts the emulator and retries a dead segment once
+# before recording its stops as missed ("emulator died").
+#
 # MANUAL DISPATCH ONLY, by design (owner directive, 2026-11-01): it is
 # deliberately NOT part of per-PR CI — a full crawl takes minutes of
 # emulator time and its output is a design artifact, not a gate.
@@ -32,7 +42,10 @@ env:
 jobs:
   screen-inventory:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 120 (not 60): a full crawl is ~15-20 min, but emulator-death
+    # recovery — restarts plus one full retry per dead segment — needs
+    # headroom to be worth anything.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -77,14 +90,21 @@ jobs:
       # it the class is not in the test APK at all, which is also why
       # per-PR connectedDebugAndroidTest never runs it.
       - name: Compile app + instrumented tests (fail fast)
+        id: compile-apks
         working-directory: android
         run: ./gradlew assembleDebug assembleDebugAndroidTest -PincludeScreenInventory --stacktrace
 
-      # Install both APKs and run ONLY the inventory class, then pull
-      # whatever the crawl produced. The pull runs even when the crawl
-      # failed partway — a partial inventory is still evidence; the
-      # manifest check below is what turns a catastrophic run red.
-      - name: Crawl screens on emulator
+      # Install both APKs, then run the crawl SEGMENT BY SEGMENT via
+      # scripts/crawl-screen-inventory.sh: one `am instrument` call
+      # per segment (board / action / gear / market / rank / hunter),
+      # an `adb pull` of the inventory dir after EACH segment, an
+      # emulator restart + one retry for any segment whose pull has
+      # no manifest, and diagnostics-<segment>.txt for dead segments.
+      # (The runner script is a real file because this action executes
+      # its `script:` input line-by-line through sh — functions and
+      # loops cannot live here.) The script always exits 0: segment
+      # failures are data for the merge + verify steps below.
+      - name: Crawl screens on emulator (segmented)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -92,35 +112,37 @@ jobs:
           arch: x86_64
           profile: pixel_7
           working-directory: android
-          script: |
-            adb wait-for-device
-            adb install -r -t app/build/outputs/apk/debug/app-debug.apk
-            adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-            adb shell am instrument -w -r -e class com.michaelhmiv.cybercache.ScreenInventoryTest com.michaelhmiv.cybercache.test/androidx.test.runner.AndroidJUnitRunner || true
-            adb root || true
-            adb pull /sdcard/Android/data/com.michaelhmiv.cybercache/files/screen-inventory "$GITHUB_WORKSPACE/screen-inventory-out" || adb pull /storage/emulated/0/Android/data/com.michaelhmiv.cybercache/files/screen-inventory "$GITHUB_WORKSPACE/screen-inventory-out" || true
-            find "$GITHUB_WORKSPACE/screen-inventory-out" -maxdepth 2 -type f | sort | head -100 || true
+          script: bash ../scripts/crawl-screen-inventory.sh
+
+      # Merge the per-segment pulls into the ONE final inventory:
+      # screen-inventory-final/manifest.json (all 32 stops, canonical
+      # order; dead segments' stops synthesized as missed) + the
+      # renumbered screenshots/hierarchies + any diagnostics files.
+      - name: Merge segment manifests
+        if: always() && steps.compile-apks.outcome == 'success'
+        run: python3 scripts/merge-screen-inventory.py screen-inventory-out screen-inventory-final
 
       - name: Upload screen inventory
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: screen-inventory
-          path: screen-inventory-out/
+          path: screen-inventory-final/
           if-no-files-found: warn
           retention-days: 30
 
-      # The crawl writes manifest.json after every stop, so its absence
-      # means the app never launched or the pull failed. Presence alone
-      # is NOT success: the run also fails when fewer than
+      # The merged manifest always has exactly 32 entries (dead or
+      # truncated segments get synthesized misses), so its absence
+      # means the merge step never produced one. Presence alone is
+      # NOT success: the run also fails when fewer than
       # MIN_REACHED_STOPS stops were reached (see the env block at the
       # top of this file). Reached now means anchor-verified captures —
       # the crawl never records a wrong-layer screenshot as reached.
       - name: Verify manifest coverage meets the threshold
         run: |
-          MANIFEST="$(find screen-inventory-out -name manifest.json | head -1)"
-          if [ -z "$MANIFEST" ]; then
-            echo "::error::No manifest.json in the pulled inventory — the app did not launch, the guest home never rendered, or the adb pull failed. Check the crawl step log."
+          MANIFEST="screen-inventory-final/manifest.json"
+          if [ ! -f "$MANIFEST" ]; then
+            echo "::error::No merged manifest.json — the merge step produced no inventory (no segment reported, or the crawl step never ran). Check the crawl and merge step logs."
             echo "## Screen inventory: NO MANIFEST" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
