@@ -18,6 +18,7 @@
  *   GET /api/market/price-stats          marketListings.fetchPriceStats     completed-sales stats per identity key (0019)
  *   GET /api/runtime/items               runtimeStateService.syncRuntimeItemsForUser  item_instances (own, RLS)
  *   GET /api/collections/me              CollectionsScreen                    collection_discoveries (own) + profiles.legendary_cores (0026)
+ *   GET /api/caches/me                   ChestScreen (cache surface)          cache_box_openings (own, today) + profiles.cache_tokens (0037)
  *   GET /api/profile/stats               ProfileScreen (trophy shelf)       lifetime fold over server records only (0034)
  *   GET /api/leaderboard/weekly          LeaderboardsScreen (weekly races)  weekly fold over server records + settlement outcomes (0035)
  *
@@ -154,6 +155,20 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
       const collections = await store.getCollections(id);
       if (!collections) return notFound(res, 'Profile');
       res.json(collections);
+    } catch (err) { fail(res, err); }
+  });
+
+  // Cache box lane (0037): the caller's daily box budget — opened
+  // today, remaining, whether the free box is still available, and
+  // when the budget resets. Identity from the JWT only; the day is
+  // the server's UTC day.
+  app.get('/api/caches/me', async (req, res) => {
+    const id = caller(config, req, res);
+    if (!id) return;
+    try {
+      const lane = await store.getCacheLane(id, new Date());
+      if (!lane) return notFound(res, 'Profile');
+      res.json(lane);
     } catch (err) { fail(res, err); }
   });
 

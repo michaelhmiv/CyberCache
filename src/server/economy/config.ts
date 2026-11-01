@@ -206,6 +206,12 @@ export interface EconomyConfigValues {
   streakCreditScalar: number;
   /** Scalar on every login-streak ladder fragment amount. */
   streakFragmentScalar: number;
+  // Cache box lane (0037) — content owner: src/content/cacheLane.ts
+  // (CACHE_LANE_LEVER_DEFAULTS / CACHE_LANE_LEVER_CLAMPS, pinned
+  // against these literals by tests; cc_make_item reads it via
+  // cc_economy_config_number with the identical clamp).
+  /** Total cache boxes openable per UTC day, free box included. */
+  cacheBoxDailyCap: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -289,6 +295,7 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   extractMasteryYieldPerLevel: 0.005,
   streakCreditScalar: 1,
   streakFragmentScalar: 1,
+  cacheBoxDailyCap: 10,
 };
 
 export interface EconomyConfigKeySpec {
@@ -609,6 +616,10 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   streakFragmentScalar: {
     key: 'streakFragmentScalar', min: 0, max: 3, integer: false,
     defaultOwner: 'src/content/loginStreak.ts LOGIN_STREAK_LEVER_DEFAULTS',
+  },
+  cacheBoxDailyCap: {
+    key: 'cacheBoxDailyCap', min: 1, max: 30, integer: true,
+    defaultOwner: 'src/content/cacheLane.ts CACHE_LANE_LEVER_DEFAULTS',
   },
 };
 

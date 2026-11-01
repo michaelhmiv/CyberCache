@@ -338,6 +338,8 @@ export interface WriteSeed {
   oddsOutcomes: OddsOutcomeData[];
   roamingAreas: RoamingAreaData[];
   adGrants: { user_id: string; reward_type: string; status: string; granted_at: string }[];
+  /** Cache box opening rows (migration 0037), the daily budget's record. */
+  cacheBoxOpenings: { user_id: string; open_day: string; payment: string; ad_unit_id: string | null; item_id: string | null; opened_at: string }[];
   ledger: LedgerEntryData[];
   runtimeSnapshots: RuntimeSnapshotData[];
   combatStats: CombatStatsData[];
@@ -366,6 +368,7 @@ export function emptyWriteSeed(): WriteSeed {
     oddsOutcomes: [],
     roamingAreas: [],
     adGrants: [],
+    cacheBoxOpenings: [],
     ledger: [],
     runtimeSnapshots: [],
     combatStats: [],
@@ -759,8 +762,7 @@ export interface EnqueueRepairJobInput {
 
 export interface WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json>;
-  makeItem(playerId: string, nonce: string): Promise<Json>;
-  claimRewardedCacheKey(playerId: string, nonce: string, adUnitId: string, rewardSource: string): Promise<Json>;
+  makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json>;
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json>;
   disablePushDevice(playerId: string, token: string): Promise<Json>;
   vendorBuy(playerId: string, nonce: string, itemKey: string, quantity: number): Promise<Json>;
@@ -1028,15 +1030,12 @@ export class PgWriteStore implements WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json> {
     return this.callJson('select public.cc_initial_bundle($1, $2) as result', [playerId, nonce]);
   }
-  makeItem(playerId: string, nonce: string): Promise<Json> {
-    return this.callJson('select public.cc_make_item($1, $2) as result', [playerId, nonce]);
-  }
-  claimRewardedCacheKey(playerId: string, nonce: string, adUnitId: string, rewardSource: string): Promise<Json> {
-    return this.callJson('select public.cc_claim_rewarded_cache_key($1, $2, $3, $4) as result', [
+  makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json> {
+    return this.callJson('select public.cc_make_item($1, $2, $3, $4) as result', [
       playerId,
       nonce,
+      payment,
       adUnitId,
-      rewardSource,
     ]);
   }
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json> {

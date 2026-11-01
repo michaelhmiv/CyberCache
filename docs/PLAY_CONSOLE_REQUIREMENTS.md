@@ -30,8 +30,9 @@ with a test account before submitting for review.
 
 - Contains ads: Yes
 - Ad network: Google AdMob
-- Current rewarded use: users may choose to watch a rewarded video to receive a
-  server-verified cache key.
+- Current rewarded use: users may choose to watch a rewarded video to open an
+  additional Data Cache box the same day (daily budget of 10 cache openings
+  total, the first one free, enforced server-side; migration 0037).
 - The app should not imply that ads are required for all gameplay.
 
 ## Data Safety draft answers

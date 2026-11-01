@@ -41,8 +41,11 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `market_sales` / `market_volume` | Completed sales (`cc_accept_listing`) and Σ sale price |
 | `market_median_price` | Median sale price (`percentile_cont(0.5)`); `null` on a day with no sales |
 | `market_median_by_rarity` | Same median per item rarity, as jsonb — the pricing baseline other systems compare against |
-| `cache_keys_from_ads` | Rewarded-ad key claims (`cc_claim_rewarded_cache_key`) |
-| `cache_keys_from_leaderboards` | Cache keys paid by weekly-leaderboard settlement (Σ `cache_keys_awarded` over `cc_leaderboard_settlement` rows, migration 0035). A deliberate separate mint from the ad lane: the cache-lane daily cap accounts only `cache_keys_from_ads`, and keys are not credits — this meter never enters the minted/destroyed totals. Ceiling by construction: 4 races/week × 6 podium keys = 24 keys/week across the whole player base |
+| `cache_keys_from_ads` | Rewarded-ad key claims (`cc_claim_rewarded_cache_key`). **Legacy since 0037:** the claim function is dropped and no new rows are written; the fold survives so pre-lane history keeps counting |
+| `cache_boxes_opened_free` | Cache openings resolved free that day (`cc_make_item` rows with `result_payload.payment = 'free'`, migration 0037) — the daily free box |
+| `cache_boxes_opened_ad` | Cache openings paid by a watch-ad attestation (`payment = 'ad'`, migration 0037) |
+| `cache_boxes_opened_key` | Cache openings paid with a key (`payment = 'key'`, migration 0037). Pre-0037 `cc_make_item` rows carry no payment and count here — every historical opening was key-paid (or the free box, indistinguishable in the old payload) |
+| `cache_keys_from_leaderboards` | Cache keys paid by weekly-leaderboard settlement (Σ `cache_keys_awarded` over `cc_leaderboard_settlement` rows, migration 0035). A deliberate separate mint from the ad lane: since 0037 the lane is a budget of OPENINGS (free/key/ad), not a cap on any key source — leaderboard keys simply join the stock and buy ad-free openings inside it. Keys are not credits — this meter never enters the minted/destroyed totals. Ceiling by construction: 4 races/week × 6 podium keys = 24 keys/week across the whole player base |
 | `cache_keys_from_login_streak` | Cache keys paid by the daily login streak (Σ `cache_keys_awarded` over `cc_login_streak_claim` rows, migration 0036). A third deliberate key source, metered distinctly from the ad lane and from leaderboard keys: one key per completed 7-day cycle, never scaled by tier — ceiling by construction: ≤1 key/week/player |
 | `cache_fragments_from_login_streak` | Cache fragments paid by the daily login streak (Σ `fragments_awarded` over `cc_login_streak_claim` rows, migration 0036). Metered as its own source rather than folded into `cache_fragments_awarded`, which stays the roaming/offline claim fold. A tier-1 week pays 9 fragments ≈ 1 hour of roaming fragment drops (0.008/tick) |
 | `cache_opens` | Cache opens (`cc_make_item` + `cc_draw_item`) |
@@ -145,6 +148,7 @@ take the game down.
 | `endlessDpsGrowth` | 1.10 | 1 – 1.5 | Endless enemy DPS multiplier per depth, compounding (0028) |
 | `endlessXpPerLevel` | 6 | 0 – 50 | Escrow XP per endless encounter, per encounter level (before the +4%/depth reward growth) — vs a boss victory's 50/level for a discrete fee-charged attempt |
 | `endlessCreditsPerLevel` | 22 | 0 – 200 | Escrow credits per endless encounter, per encounter level — vs a boss victory's 150/level gross |
+| `cacheBoxDailyCap` | 10 | 1 – 30 (integer) | Cache lane (0037): total Data-Cache openings per player per UTC day, the free box included. `cc_make_item` reads the table itself (`cc_economy_config_number('cacheBoxDailyCap', 10)`, clamped 1..30); the TS mirror is `src/content/cacheLane.ts`, with the in-memory write/read twins taking the value through providers where wired. The free count (1/day) is a rule, not a lever |
 | `endlessScrapPerLevel` | 0.5 | 0 – 10 | Escrow scrap per endless encounter, per encounter level |
 | `endlessRewardDepthGrowth` | 0.04 | 0 – 0.25 | Additive per-depth growth on per-encounter escrow rewards |
 | `endlessDeathPayoutFraction` | 0.5 | 0 – 1 | Fraction of escrow paid when an endless run ends in death (or abandonment at re-entry); banking pays 1.0. `cc_apply_endless_encounter` / `cc_start_endless_run` read the table themselves |

@@ -44,6 +44,10 @@ export interface EconomyMetricsRow {
   cacheKeysFromAds: number;
   cacheOpens: number;
   cacheFragmentsAwarded: number;
+  /** Cache box lane issuance by payment (migration 0037). */
+  cacheBoxesOpenedFree: number;
+  cacheBoxesOpenedAd: number;
+  cacheBoxesOpenedKey: number;
   /** Craft meters (migration 0024, brief §2.10). */
   craftJobsCompleted: number;
   craftUnitsCompleted: number;
@@ -225,6 +229,9 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     cacheKeysFromAds: Number(r.cache_keys_from_ads),
     cacheOpens: Number(r.cache_opens),
     cacheFragmentsAwarded: Number(r.cache_fragments_awarded),
+    cacheBoxesOpenedFree: Number(r.cache_boxes_opened_free ?? 0),
+    cacheBoxesOpenedAd: Number(r.cache_boxes_opened_ad ?? 0),
+    cacheBoxesOpenedKey: Number(r.cache_boxes_opened_key ?? 0),
     craftJobsCompleted: Number(r.craft_jobs_completed ?? 0),
     craftUnitsCompleted: Number(r.craft_units_completed ?? 0),
     craftXpAwarded: Number(r.craft_xp_awarded ?? 0),

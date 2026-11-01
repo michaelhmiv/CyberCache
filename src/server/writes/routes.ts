@@ -4,8 +4,7 @@
  *
  * Route → client service → old Supabase call:
  *   POST /api/ops/initial-bundle            verifiedOps.ensureInitialBundle     cc_initial_bundle(nonce)
- *   POST /api/ops/make-item                 verifiedOps.makeItem                cc_make_item(nonce)
- *   POST /api/ops/claim-rewarded-cache-key  verifiedOps.claimRewardedCacheKey   cc_claim_rewarded_cache_key(...)
+ *   POST /api/ops/make-item                 verifiedOps.makeItem                cc_make_item(nonce, payment, ad_unit_id) — cache box lane (0037): daily budget, free-first payment (free / key / client-attested ad); the retired cc_claim_rewarded_cache_key route is gone
  *   POST /api/ops/vendor-buy                verifiedOps.vendorBuy               cc_vendor_buy(...)
  *   POST /api/ops/vendor-sell               verifiedOps.vendorSell*             cc_vendor_sell(...)
  *   POST /api/ops/claim-crafted-consumable  verifiedOps.claimCraftedConsumable  cc_claim_crafted_consumable(...)
@@ -169,18 +168,15 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
 
   op('/api/ops/initial-bundle', async (playerId, req) => store.initialBundle(playerId, str(body(req).nonce)));
   op('/api/ops/make-item', async (playerId, req) => {
-    const result = await store.makeItem(playerId, str(body(req).nonce));
+    const result = await store.makeItem(
+      playerId,
+      str(body(req).nonce),
+      optStr(body(req).payment) ?? 'key',
+      optStr(body(req).ad_unit_id) ?? null,
+    );
     await recordResultItemDiscoveries(store, playerId, result, 'cache_forge');
     return result;
   });
-  op('/api/ops/claim-rewarded-cache-key', async (playerId, req) =>
-    store.claimRewardedCacheKey(
-      playerId,
-      str(body(req).nonce),
-      str(body(req).ad_unit_id),
-      optStr(body(req).reward_source) ?? 'admob_rewarded',
-    ),
-  );
   op('/api/ops/vendor-buy', async (playerId, req) =>
     store.vendorBuy(playerId, str(body(req).nonce), str(body(req).item_key), num(body(req).quantity) ?? 1),
   );

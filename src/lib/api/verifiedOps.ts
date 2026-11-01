@@ -31,11 +31,15 @@ const op = async (path: string, body: Record<string, unknown>): Promise<Verified
 
 export const verifiedOps = {
   initialBundle: () => op('/ops/initial-bundle', { nonce: requestId('initial') }),
-  makeItem: () => op('/ops/make-item', { nonce: requestId('make') }),
-  claimRewardedCacheKey: (input: { adUnitId: string; rewardSource?: string }) => op('/ops/claim-rewarded-cache-key', {
-    nonce: requestId('ad-cache-key'),
-    ad_unit_id: input.adUnitId,
-    reward_source: input.rewardSource ?? 'admob_rewarded',
+  // Cache box lane (0037): one op opens a box; the payment names
+  // how this opening is paid. The server owns the free-first rule
+  // (the day's first opening resolves free whatever is requested),
+  // the daily cap, and the draw. 'ad' is a client attestation — the
+  // ad unit id is the claim; there is no rewarded-key claim anymore.
+  makeItem: (input?: { payment?: 'free' | 'ad' | 'key'; adUnitId?: string }) => op('/ops/make-item', {
+    nonce: requestId('make'),
+    payment: input?.payment ?? 'key',
+    ad_unit_id: input?.adUnitId ?? null,
   }),
   registerPushDevice: ({ token, platform, appVersion }: { token: string; platform?: string; appVersion?: string }) => op('/push/register', {
     token,

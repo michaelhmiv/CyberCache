@@ -138,8 +138,8 @@ Use `.env.example` for local web/native development variables and `.env.android.
 
 ## Runtime Behavior
 
-- The only rewarded-ad entry point is the small plus button in the top cache-key chip.
-- The client shows a rewarded ad, then calls `cc_claim_rewarded_cache_key`.
-- The Chef increments `profiles.cache_tokens` server-side, with daily cap, cooldown, and idempotency.
+- The only rewarded-ad entry point is the cache surface (ChestScreen): the daily free box needs no ad; further boxes that day can be opened by watching a rewarded ad (or spending a cache key), up to the daily budget of 10 openings total (migration 0037).
+- The client shows a rewarded ad, then calls the cache-open op (`cc_make_item` with the ad attestation); the Chef enforces the daily budget, free-first ordering, and nonce idempotency server-side. Ads never appear on the play screen.
+- (Pre-0037 the lane minted keys via `cc_claim_rewarded_cache_key` from a ResourceBar plus button; that function and entry point are retired.)
 - Google sign-in uses native Android Google Sign-In to obtain an ID token, then the Chef verifies it and links/creates the account (B1.5). The Android OAuth client in Google Cloud still needs the package name and signing certificate fingerprints, but the app does not read an Android OAuth JSON file for sign-in.
 - Push notification registration only runs in native builds and stores FCM tokens through `cc_register_push_device`.
