@@ -217,6 +217,7 @@ ALLOWED_STORAGE=(
   "$SRC/components/pixelArt/LootMoment.tsx:UI celebration seen-preference for tap-to-skip (not progression)"
   "$SRC/store/slices/offlineRecapSlice.ts:display-only copy of already-settled offline rewards so the summary can be re-opened after dismissal (not progression; server settlement stays the only economy truth)"
   "$SRC/components/dashboard/LiveTurfDiorama.tsx:reads the device-local hunter head-variant cosmetic preference (not progression)"
+  "$SRC/components/dashboard/ResearchChip.tsx:one-time Course Complete card dismissal keyed to the server completion (UI preference only; completions are server records, never stored here)"
   "$SRC/screens/SettingsScreen.tsx:writes the device-local hunter head-variant cosmetic preference (not progression)"
   "$SRC/test/:test files"
 )

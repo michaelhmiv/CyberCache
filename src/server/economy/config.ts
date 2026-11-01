@@ -212,6 +212,14 @@ export interface EconomyConfigValues {
   // cc_economy_config_number with the identical clamp).
   /** Total cache boxes openable per UTC day, free box included. */
   cacheBoxDailyCap: number;
+  // Research (0038) — content owner: src/content/research.ts
+  // (RESEARCH_LEVER_DEFAULTS / RESEARCH_LEVER_CLAMPS, pinned
+  // against these literals by tests; SQL reads them via
+  // cc_economy_config_number with identical clamps).
+  /** Multiplies catalog course durations at enroll (snapshotted). */
+  researchDurationScalar: number;
+  /** Multiplies catalog course costs at enroll (snapshotted). */
+  researchCostScalar: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -296,6 +304,8 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   streakCreditScalar: 1,
   streakFragmentScalar: 1,
   cacheBoxDailyCap: 10,
+  researchDurationScalar: 1,
+  researchCostScalar: 1,
 };
 
 export interface EconomyConfigKeySpec {
@@ -620,6 +630,14 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   cacheBoxDailyCap: {
     key: 'cacheBoxDailyCap', min: 1, max: 30, integer: true,
     defaultOwner: 'src/content/cacheLane.ts CACHE_LANE_LEVER_DEFAULTS',
+  },
+  researchDurationScalar: {
+    key: 'researchDurationScalar', min: 0.5, max: 2, integer: false,
+    defaultOwner: 'src/content/research.ts RESEARCH_LEVER_DEFAULTS',
+  },
+  researchCostScalar: {
+    key: 'researchCostScalar', min: 0.5, max: 3, integer: false,
+    defaultOwner: 'src/content/research.ts RESEARCH_LEVER_DEFAULTS',
   },
 };
 

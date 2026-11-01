@@ -36,6 +36,11 @@ import {
 } from '../routes/dispatch';
 import { createGetExtractionHandler, type ExtractionConfig } from '../routes/extraction';
 import { createGetLoginStreakHandler } from '../routes/loginStreak';
+import {
+  createCancelResearchHandler,
+  createEnrollResearchHandler,
+  createGetResearchHandler,
+} from '../routes/research';
 import type { WriteStore } from '../writes/store';
 import type { ChefGameplayStore } from './store';
 
@@ -146,4 +151,21 @@ export function mountLoginStreakRoutes(
 ): void {
   app.get('/api/login-streak/me', createGetLoginStreakHandler(gameplayStore, config));
   console.log('[chef] login streak routes mounted: GET /api/login-streak/me (0036)');
+}
+
+/**
+ * Research routes (0038): the parallel education track's state
+ * read + enroll/cancel on the gameplay store. Deliberately NOT an
+ * activity: mounting here adds no ActivityKind and no workspace
+ * spec (brief §2.3.2) — enrollment runs beside the action slot.
+ */
+export function mountResearchRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  config: GameplayRoutesConfig,
+): void {
+  app.get('/api/research/me', createGetResearchHandler(gameplayStore, config));
+  app.post('/api/research/enroll', createEnrollResearchHandler(gameplayStore, config));
+  app.post('/api/research/cancel', createCancelResearchHandler(gameplayStore, config));
+  console.log('[chef] research routes mounted: GET /api/research/me, POST /api/research/enroll, POST /api/research/cancel (0038)');
 }

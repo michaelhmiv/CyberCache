@@ -53,6 +53,7 @@ import {
   planActionSkillFire,
 } from './actionSkill';
 import { cacheRankBonuses } from '../../content/cacheRank';
+import { mergeResearchBonuses } from '../../content/research';
 import { cacheRankLevers } from './cacheRank';
 
 type EndlessConfig = AuthConfig & { economyConfig?: EconomyConfig };
@@ -273,8 +274,12 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
       // Cache Rank keys). Damage/max HP ride the sim through merged
       // skillBonuses keys.
       const serverCacheRank = cacheRankBonuses(profile.cache_rank_spends, await cacheRankLevers(config));
+      // Research (0038): completion-derived bonuses merge onto the
+      // sim's bonus record (Xenotech terms), settle-first via the
+      // store — never from the body.
+      const researchBonuses = await store.getResearchBonuses(playerId);
       const simSkillBonuses = {
-        ...serverSkillBonuses,
+        ...mergeResearchBonuses(serverSkillBonuses, researchBonuses),
         cacheRankDamageBonus: serverCacheRank.damage,
         cacheRankMaxHpBonus: serverCacheRank.maxHp,
       };

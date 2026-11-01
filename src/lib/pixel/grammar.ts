@@ -38,6 +38,7 @@ export const ACTION_SETS = {
   vendor: ['set-vendor-stall', 'set-vendor-sign'],
   resurrection: ['set-resurrection-pod'],
   warRoom: ['set-war-room-table'],
+  research: ['set-war-room-table', 'set-research-terminal', 'set-research-shelf'],
 } as const;
 
 export type ActionSceneKind = keyof typeof ACTION_SETS;

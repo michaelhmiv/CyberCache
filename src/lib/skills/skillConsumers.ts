@@ -261,3 +261,66 @@ export const CACHE_RANK_BONUS_CONSUMERS: Record<string, SkillEffectConsumer[]> =
   ],
 };
 
+
+/**
+ * The Research bonus registry (research slice, 0038) — the same
+ * discipline applied to the twelve research bonus keys (content
+ * owner: src/content/research.ts). Every key names the real engines
+ * that read its completion-derived total, TS and SQL twins alike;
+ * the research structural test fails if a key lacks an entry, if an
+ * entry's needle no longer appears in its file, or if the
+ * registry's keys drift from RESEARCH_EFFECT_KEYS. A research
+ * unlock that stops being read anywhere is a dead unlock — the
+ * registry is where that gets caught (the #216 lesson).
+ */
+export const RESEARCH_EFFECT_CONSUMERS: Record<string, SkillEffectConsumer[]> = {
+  craftQualityShift: [
+    { engine: 'craft quality bounds at completion (TS settler)', file: 'src/server/writes/craftEngine.ts', needle: "researchBonus?.(playerId, 'craftQualityShift')" },
+    { engine: 'craft quality shift in cc_complete_craft_unit', file: 'db/migrations/0038_research.sql', needle: "cc_research_bonus_number(p.id, 'craftQualityShift')" },
+  ],
+  gearTemperBonus: [
+    { engine: 'crafted gear temper roll (TS settler)', file: 'src/server/writes/craftEngine.ts', needle: "researchBonus?.(playerId, 'gearTemperBonus')" },
+    { engine: 'crafted gear temper roll in cc_complete_craft_unit', file: 'db/migrations/0038_research.sql', needle: "cc_research_bonus_number(p.id, 'gearTemperBonus')" },
+  ],
+  gearDrawBonus: [
+    { engine: 'crafted gear generation draws (TS settler)', file: 'src/server/writes/craftEngine.ts', needle: "researchBonus?.(playerId, 'gearDrawBonus')" },
+    { engine: 'crafted gear draws in cc_complete_craft_unit', file: 'db/migrations/0038_research.sql', needle: "cc_research_bonus_number(p.id, 'gearDrawBonus')" },
+  ],
+  repairWorkRateBonus: [
+    { engine: 'self-repair work rate at enqueue (TS settler)', file: 'src/server/writes/craftEngine.ts', needle: "researchBonus?.(playerId, 'repairWorkRateBonus')" },
+    { engine: 'board repair work rate at accept (TS mirror)', file: 'src/server/writes/memory.ts', needle: 'researchBonusesFor(playerId).repairWorkRateBonus' },
+    { engine: 'repair work rate snapshots in cc_accept_repair_job / cc_enqueue_repair_job', file: 'db/migrations/0038_research.sql', needle: "cc_research_bonus_number(actor, 'repairWorkRateBonus')" },
+  ],
+  vehicleDecayReduction: [
+    { engine: 'research merge onto the derived bonus record (multiplicative with the Fixer term)', file: 'src/content/research.ts', needle: 'merged.vehicleDecayReduction = 1 - (1 - skill) * (1 - research.vehicleDecayReduction)' },
+    { engine: 'Chef roaming claim vehicle tick decay', file: CHEF, needle: 'vehicleDecayPerTick(' },
+  ],
+  repairServiceXpBonus: [
+    { engine: 'board repair XP at finalize (TS mirror)', file: 'src/server/writes/memory.ts', needle: 'researchBonusesFor(provider.id).repairServiceXpBonus' },
+    { engine: 'board repair XP in cc_repair_finalize_job', file: 'db/migrations/0038_research.sql', needle: "cc_research_bonus_number(p.provider_user_id, 'repairServiceXpBonus')" },
+  ],
+  vendorBuybackBonus: [
+    { engine: 'vendor buyback rate (TS mirror)', file: 'src/server/writes/memory.ts', needle: 'researchBonusesFor(playerId).vendorBuybackBonus' },
+    { engine: 'vendor buyback rate in cc_vendor_sell', file: 'db/migrations/0038_research.sql', needle: "cc_research_bonus_number(actor, 'vendorBuybackBonus')" },
+  ],
+  offlineCapBonus: [
+    { engine: 'offline settlement cap composition (settle-offline route)', file: 'src/server/routes/settleOffline.ts', needle: 'researchBonuses.offlineCapBonus' },
+    { engine: 'offline cap in cc_settle_craft_jobs / cc_settle_repair_job / cc_settle_extraction_time', file: 'db/migrations/0038_research.sql', needle: 'cc_research_offline_cap_bonus(p.id)' },
+  ],
+  marketFeeReduction: [
+    { engine: 'market fee breakdown (TS)', file: 'src/lib/market/marketFee.ts', needle: 'darknet + manipulator + houseBrand + Math.max(0, researchFeeReduction)' },
+    { engine: 'market fee in cc_accept_listing (both branches)', file: 'db/migrations/0038_research.sql', needle: "cc_research_bonus_number(seller.id, 'marketFeeReduction')" },
+  ],
+  weaponDamage: [
+    { engine: 'research merge onto the derived bonus record (routes)', file: 'src/content/research.ts', needle: 'merged.weaponDamage = (merged.weaponDamage ?? 0) + research.weaponDamage' },
+    { engine: 'Chef derived DPS composite reads the merged key', file: 'src/lib/skills/skillBonuses.ts', needle: 'weaponDamage' },
+  ],
+  shieldCapacity: [
+    { engine: 'research merge onto the derived bonus record (routes)', file: 'src/content/research.ts', needle: 'merged.shieldCapacity = (merged.shieldCapacity ?? 0) + research.shieldCapacity' },
+    { engine: 'Chef survival composite reads the merged key', file: 'src/lib/skills/skillBonuses.ts', needle: 'shieldCapacity' },
+  ],
+  bossDedicatedChanceBonus: [
+    { engine: 'boss attempt economy block (verify-boss route)', file: 'src/server/routes/claim.ts', needle: 'researchBonuses.bossDedicatedChanceBonus' },
+    { engine: 'Chef boss victory dedicated-drop roll', file: CHEF, needle: 'bossDedicatedChance' },
+  ],
+};

@@ -9,6 +9,7 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { MasterySection } from '@/components/profile/MasterySection';
 import { CacheRankPanel } from '@/components/profile/CacheRankPanel';
+import { ResearchPanel } from '@/components/profile/ResearchPanel';
 import { TrophyShelfPanel } from '@/components/profile/TrophyShelfPanel';
 import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
 import { SkillTreeScreen } from './SkillTreeScreen';
@@ -235,6 +236,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       <MasterySection />
 
       <CacheRankPanel />
+      <ResearchPanel />
 
       <LifetimeStatsPanel />
 
