@@ -325,11 +325,22 @@ export class InMemoryEconomyStore implements EconomyStore {
       .filter((r) => r.action_type === 'cc_leaderboard_settlement')
       .reduce((acc, r) => acc + num(dig(r.result_payload, 'cache_keys_awarded')), 0);
 
+    // Login streak (0036): the day's cc_login_streak_claim grants —
+    // credits fold into the minted total (a real faucet); fragments
+    // and keys are their own sources, exactly as in SQL.
+    const creditsMintedLoginStreak = sumBy(['cc_login_streak_claim'], (p) =>
+      num(dig(p, 'credits_awarded')));
+    const cacheFragmentsFromLoginStreak = sumBy(['cc_login_streak_claim'], (p) =>
+      num(dig(p, 'fragments_awarded')));
+    const cacheKeysFromLoginStreak = sumBy(['cc_login_streak_claim'], (p) =>
+      num(dig(p, 'cache_keys_awarded')));
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
       creditsMintedRoaming + creditsMintedBoss + creditsMintedOffline + creditsMintedOther
-      + creditsMintedVendorBuyback + endlessCreditsPaid + creditsMintedDispatch + creditsMintedCourier;
+      + creditsMintedVendorBuyback + endlessCreditsPaid + creditsMintedDispatch + creditsMintedCourier
+      + creditsMintedLoginStreak;
     const creditsDestroyedTotal =
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
       + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees
@@ -406,6 +417,9 @@ export class InMemoryEconomyStore implements EconomyStore {
       extractionXpAwarded,
       materialsMintedExtraction,
       cacheKeysFromLeaderboards,
+      creditsMintedLoginStreak,
+      cacheFragmentsFromLoginStreak,
+      cacheKeysFromLoginStreak,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

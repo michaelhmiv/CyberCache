@@ -108,6 +108,14 @@ export interface EconomyMetricsRow {
    *  metered distinctly from ad-lane issuance (cacheKeysFromAds).
    *  Keys are not credits; this never touches the totals. */
   cacheKeysFromLeaderboards: number;
+  /** Login-streak meters (migration 0036): the day's
+   *  cc_login_streak_claim grants. Credits are a real faucet and
+   *  are included in creditsMintedTotal; fragments and keys are
+   *  their own sources — the keys are NOT leaderboard keys and NOT
+   *  ad-lane issuance, and never enter the credit totals. */
+  creditsMintedLoginStreak: number;
+  cacheFragmentsFromLoginStreak: number;
+  cacheKeysFromLoginStreak: number;
   computedAt: string;
 }
 
@@ -166,6 +174,9 @@ interface PgMetricsRow {
   extraction_xp_awarded?: string;
   materials_minted_extraction?: Record<string, number>;
   cache_keys_from_leaderboards?: number;
+  credits_minted_login_streak?: string;
+  cache_fragments_from_login_streak?: string;
+  cache_keys_from_login_streak?: number;
   endless_runs_started?: number;
   endless_runs_ended?: number;
   endless_encounters_cleared?: number;
@@ -249,6 +260,9 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     extractionXpAwarded: Number(r.extraction_xp_awarded ?? 0),
     materialsMintedExtraction: r.materials_minted_extraction ?? {},
     cacheKeysFromLeaderboards: Number(r.cache_keys_from_leaderboards ?? 0),
+    creditsMintedLoginStreak: Number(r.credits_minted_login_streak ?? 0),
+    cacheFragmentsFromLoginStreak: Number(r.cache_fragments_from_login_streak ?? 0),
+    cacheKeysFromLoginStreak: Number(r.cache_keys_from_login_streak ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -277,6 +291,8 @@ const METRICS_COLUMNS = `
   credits_minted_dispatch, credits_minted_courier,
   extraction_passes, extraction_xp_awarded, materials_minted_extraction,
   cache_keys_from_leaderboards,
+  credits_minted_login_streak, cache_fragments_from_login_streak,
+  cache_keys_from_login_streak,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

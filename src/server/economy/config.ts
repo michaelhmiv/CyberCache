@@ -198,6 +198,14 @@ export interface EconomyConfigValues {
   extractGearFactorFloor: number;
   /** Yield bonus per gathering.extraction mastery level past 1. */
   extractMasteryYieldPerLevel: number;
+  // Login streak (0036) — content owner: src/content/loginStreak.ts
+  // (LOGIN_STREAK_LEVER_DEFAULTS / LOGIN_STREAK_LEVER_CLAMPS, pinned
+  // against these literals by tests; SQL reads them via
+  // cc_economy_config_number with identical clamps).
+  /** Scalar on every login-streak ladder credit amount. */
+  streakCreditScalar: number;
+  /** Scalar on every login-streak ladder fragment amount. */
+  streakFragmentScalar: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -279,6 +287,8 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   extractDeepYieldMult: 1.5,
   extractGearFactorFloor: 0.4,
   extractMasteryYieldPerLevel: 0.005,
+  streakCreditScalar: 1,
+  streakFragmentScalar: 1,
 };
 
 export interface EconomyConfigKeySpec {
@@ -591,6 +601,14 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   extractMasteryYieldPerLevel: {
     key: 'extractMasteryYieldPerLevel', min: 0, max: 0.02, integer: false,
     defaultOwner: 'src/content/extraction.ts EXTRACTION_LEVER_DEFAULTS',
+  },
+  streakCreditScalar: {
+    key: 'streakCreditScalar', min: 0, max: 3, integer: false,
+    defaultOwner: 'src/content/loginStreak.ts LOGIN_STREAK_LEVER_DEFAULTS',
+  },
+  streakFragmentScalar: {
+    key: 'streakFragmentScalar', min: 0, max: 3, integer: false,
+    defaultOwner: 'src/content/loginStreak.ts LOGIN_STREAK_LEVER_DEFAULTS',
   },
 };
 

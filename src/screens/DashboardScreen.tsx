@@ -23,6 +23,7 @@ import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker'
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
+import { LoginStreakPanel } from '@/components/dashboard/LoginStreakPanel';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
 import { ActiveBuffPills } from '@/components/stats/ActiveBuffPills';
@@ -400,6 +401,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
             </button>
           </Panel>
         )}
+        {/* Daily login streak (0036): mounting the panel IS the
+            daily check-in — the Chef records the day and grants
+            the ladder reward server-side on first view. */}
+        <LoginStreakPanel />
         <Panel label="Level Strip"><div className="flex items-center gap-2"><div className="relative flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-4 border-border bg-amber/15 shadow-[5px_5px_0_rgba(0,0,0,0.75)]"><div className="absolute inset-1 border border-amber/40" /><div className="text-center"><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Level</div><div className="text-3xl font-black leading-none text-amber">{player.level}</div></div></div><div className="min-w-0 flex-1"><div className="flex items-end justify-between gap-2"><div><div className="text-sm font-black uppercase tracking-wide text-text-primary">Level Progress</div><div className="text-[9px] text-text-muted">{player.xp.toLocaleString()} / {xpToNextLevelValue.toLocaleString()} XP · {xpRemaining.toLocaleString()} left</div></div></div><div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}><motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} /><div className="absolute inset-0 grid grid-cols-5">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}</div></div></div></div></Panel>
         <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} boss={currentBoss ?? undefined} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} bossPhase={activity.current.bossPhase} activityLabel={activityLabel} activityTarget={activityTarget} statSummary={computedStats} onFight={startSelectedRoaming} onSecondary={openBossPrep} secondaryActionLabel={currentBoss ? 'Prep Boss' : 'Choose Boss'} secondaryActionDetail={currentBoss ? `${currentBoss.weaknesses.length} weakness tags` : 'Open Action target picker'} />
         <Panel

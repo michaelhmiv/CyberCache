@@ -135,6 +135,28 @@ export interface CacheRankFacts {
 }
 
 /**
+ * Login-streak facts (0036) for the /api/login-streak routes: the
+ * standing state row plus today's claim row when it exists. `today`
+ * is the SERVER's UTC day (the store's own clock — DB time on Pg),
+ * the same day the grant function records against.
+ */
+export interface LoginStreakFacts {
+  current_streak: number;
+  longest_streak: number;
+  last_claim_day: string | null;
+  today: string;
+  today_claim: {
+    day: string;
+    streak_length: number;
+    cycle_day: number;
+    tier: number;
+    credits_awarded: number;
+    fragments_awarded: number;
+    cache_keys_awarded: number;
+  } | null;
+}
+
+/**
  * A dispatch mission row (migration 0032) — the read model the
  * /api/dispatch routes render from. Terms are the DEPARTURE
  * snapshot; settlement facts land on the same row.
@@ -604,6 +626,19 @@ export interface ChefGameplayStore {
    */
   spendCacheRankBonus(playerId: string, nonce: string, bonusId: string): Promise<Json>;
   /**
+   * The login-streak facts for the /api/login-streak routes (0036):
+   * standing state + today's claim — server records only.
+   */
+  getLoginStreakFacts(playerId: string): Promise<LoginStreakFacts | null>;
+  /**
+   * Record today's login-streak check-in (cc_record_login_streak_day,
+   * 0036): the first authenticated check-in of a UTC day grants the
+   * ladder reward for the new streak position; a replay the same
+   * day returns the stored claim (already_claimed) and grants
+   * nothing. Exactly-once is the claims table's (player, day) key.
+   */
+  recordLoginStreakDay(playerId: string): Promise<Json>;
+  /**
    * Dispatch facts (0032): profile level/fuel + every item the
    * player owns, for the routes' term computation. Server records
    * only.
@@ -943,6 +978,47 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       nonce,
       bonusId,
     ]);
+  }
+
+  async getLoginStreakFacts(playerId: string): Promise<LoginStreakFacts | null> {
+    const state = await this.one(
+      `select coalesce(s.current_streak, 0) as current_streak,
+              coalesce(s.longest_streak, 0) as longest_streak,
+              s.last_claim_day::text as last_claim_day,
+              ((now() at time zone 'UTC')::date)::text as today
+         from public.profiles p
+         left join public.login_streak_state s on s.player_id = p.id
+        where p.id = $1`,
+      [playerId],
+      (row) => ({
+        current_streak: num(row.current_streak),
+        longest_streak: num(row.longest_streak),
+        last_claim_day: typeof row.last_claim_day === 'string' ? row.last_claim_day : null,
+        today: typeof row.today === 'string' ? row.today.slice(0, 10) : '',
+      }),
+    );
+    if (!state) return null;
+    const claim = await this.one(
+      `select claim_day::text as day, streak_length, cycle_day, tier,
+              credits_awarded, fragments_awarded, cache_keys_awarded
+         from public.login_streak_claims
+        where player_id = $1 and claim_day = (now() at time zone 'UTC')::date`,
+      [playerId],
+      (row) => ({
+        day: typeof row.day === 'string' ? row.day.slice(0, 10) : '',
+        streak_length: num(row.streak_length),
+        cycle_day: num(row.cycle_day),
+        tier: num(row.tier),
+        credits_awarded: num(row.credits_awarded),
+        fragments_awarded: num(row.fragments_awarded),
+        cache_keys_awarded: num(row.cache_keys_awarded),
+      }),
+    );
+    return { ...state, today_claim: claim ?? null };
+  }
+
+  recordLoginStreakDay(playerId: string): Promise<Json> {
+    return this.callJson('select public.cc_record_login_streak_day($1) as result', [playerId]);
   }
 
   async getDispatchFacts(playerId: string): Promise<{ profile: DispatchProfileFacts; items: DispatchCandidateItem[] } | null> {

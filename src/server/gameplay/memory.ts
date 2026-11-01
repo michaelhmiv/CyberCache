@@ -35,6 +35,7 @@ import {
   type ActiveActionRow,
   type ActionSkillFacts,
   type CacheRankFacts,
+  type LoginStreakFacts,
   type DispatchCandidateItem,
   type DispatchMissionRow,
   type DispatchProfileFacts,
@@ -111,6 +112,14 @@ import {
   type ExtractionLeverValues,
   type ExtractionMethod,
 } from '../../content/extraction';
+import {
+  loginStreakGrantFor,
+  loginStreakLengthAfter,
+  loginStreakPositionFor,
+  loginStreakUtcDay,
+  resolveLoginStreakLevers,
+  type LoginStreakLeverValues,
+} from '../../content/loginStreak';
 import { isHotArea } from '../../content/hotArea';
 import {
   accrueExtractionTime,
@@ -330,12 +339,37 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   /** Stat counter mirror for extraction settler side effects. */
   readonly extractionStatCounters: Array<{ user_id: string; stat_key: string; stat_value: number }> = [];
 
+  /** Login-streak standing state (0036): playerId → the state row. */
+  readonly loginStreakStates = new Map<string, {
+    current_streak: number;
+    longest_streak: number;
+    last_claim_day: string | null;
+    last_cycle_day: number | null;
+    last_tier: number | null;
+  }>();
+  /** Login-streak claim rows (0036): `${playerId}:${day}` → the claim. */
+  readonly loginStreakClaims = new Map<string, {
+    day: string;
+    streak_length: number;
+    cycle_day: number;
+    tier: number;
+    credits_awarded: number;
+    fragments_awarded: number;
+    cache_keys_awarded: number;
+  }>();
+
   constructor(
     private readonly now: () => Date = () => new Date(),
     private readonly cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>,
     private readonly dispatchLeverProvider?: () => Partial<DispatchLeverValues>,
     private readonly extractionLeverProvider?: () => Partial<ExtractionLeverValues>,
+    private readonly loginStreakLeverProvider?: () => Partial<LoginStreakLeverValues>,
   ) {}
+
+  /** Login-streak levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
+  loginStreakLevers(): LoginStreakLeverValues {
+    return resolveLoginStreakLevers(this.loginStreakLeverProvider?.());
+  }
 
   /** Extraction levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
   extractionLevers(): ExtractionLeverValues {
@@ -697,6 +731,91 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       profile: this.snapshot(p),
     };
     this.ledger.set(nonce, result);
+    return result;
+  }
+
+  // ─── Login streak (0036) ─────────────────────────────────────────
+  // Mirrors cc_record_login_streak_day: same streak arithmetic,
+  // same ladder + lever scalars, same claim-row idempotency, same
+  // ledger payload shape.
+
+  async getLoginStreakFacts(playerId: string): Promise<LoginStreakFacts | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    const today = loginStreakUtcDay(this.now());
+    const state = this.loginStreakStates.get(playerId);
+    const claim = this.loginStreakClaims.get(`${playerId}:${today}`);
+    return {
+      current_streak: state?.current_streak ?? 0,
+      longest_streak: state?.longest_streak ?? 0,
+      last_claim_day: state?.last_claim_day ?? null,
+      today,
+      today_claim: claim ? { ...claim } : null,
+    };
+  }
+
+  /** cc_record_login_streak_day mirror: the (player, day) claim row is the idempotency anchor. */
+  async recordLoginStreakDay(playerId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const today = loginStreakUtcDay(this.now());
+    const claimKey = `${playerId}:${today}`;
+    const prior = this.loginStreakClaims.get(claimKey);
+    if (prior) {
+      return {
+        action_type: 'cc_login_streak_claim',
+        already_claimed: true,
+        day: prior.day,
+        streak_length: prior.streak_length,
+        cycle_day: prior.cycle_day,
+        tier: prior.tier,
+        credits_awarded: prior.credits_awarded,
+        fragments_awarded: prior.fragments_awarded,
+        cache_keys_awarded: prior.cache_keys_awarded,
+        profile: this.snapshot(p),
+      };
+    }
+    const state = this.loginStreakStates.get(playerId) ?? {
+      current_streak: 0,
+      longest_streak: 0,
+      last_claim_day: null,
+      last_cycle_day: null,
+      last_tier: null,
+    };
+    const streakLength = loginStreakLengthAfter(state.last_claim_day, state.current_streak, today);
+    const position = loginStreakPositionFor(streakLength);
+    const grant = loginStreakGrantFor(position.cycleDay, position.tier, this.loginStreakLevers());
+    p.credits += grant.credits;
+    p.cache_token_parts = (p.cache_token_parts ?? 0) + grant.fragments;
+    p.cache_tokens += grant.cacheKeys;
+    const claim = {
+      day: today,
+      streak_length: streakLength,
+      cycle_day: position.cycleDay,
+      tier: position.tier,
+      credits_awarded: grant.credits,
+      fragments_awarded: grant.fragments,
+      cache_keys_awarded: grant.cacheKeys,
+    };
+    this.loginStreakClaims.set(claimKey, claim);
+    state.current_streak = streakLength;
+    state.longest_streak = Math.max(state.longest_streak, streakLength);
+    state.last_claim_day = today;
+    state.last_cycle_day = position.cycleDay;
+    state.last_tier = position.tier;
+    this.loginStreakStates.set(playerId, state);
+    const result: Json = {
+      action_type: 'cc_login_streak_claim',
+      already_claimed: false,
+      day: today,
+      streak_length: streakLength,
+      cycle_day: position.cycleDay,
+      tier: position.tier,
+      credits_awarded: grant.credits,
+      fragments_awarded: grant.fragments,
+      cache_keys_awarded: grant.cacheKeys,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(`login-streak:${playerId}:${today}`, result);
     return result;
   }
 
