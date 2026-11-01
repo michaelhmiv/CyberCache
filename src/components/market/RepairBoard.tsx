@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
-import { useActivityStore, usePlayerStore } from '@/store';
+import { useActivityStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { fetchRepairBoard, verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
@@ -82,8 +82,10 @@ const KIT_LABELS: Record<string, string> = {
   MasterPatchKit: 'Master Patch Kit',
 };
 
-function vehicleSpriteId(classId: string | null): string {
-  return classId ? `vehicle-${classId.replace(/_/g, '-')}` : 'vehicle-dune-buggy';
+function vehicleSpriteId(classId: string | null): string | null {
+  // Real-item invariant: a job with no identified vehicle renders NO
+  // vehicle in the bay — never a generic stand-in buggy.
+  return classId ? `vehicle-${classId.replace(/_/g, '-')}` : null;
 }
 
 function vehicleLabel(job: RepairJobViewT): string {
@@ -103,6 +105,10 @@ export const RepairBoard: React.FC = () => {
   const myId = user?.id ?? null;
   const consumables = usePlayerStore((s) => s.consumables);
   const vehicles = useVehicleStore((s) => s.vehicles);
+  const loadout = useLoadoutStore();
+  // Real-item invariant: the bay hunter carries the player's actual
+  // weapon state — unequipped renders the gun-free rig.
+  const hunterWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
   const activity = useActivityStore();
 
   const [board, setBoard] = useState<RepairBoardViewT | null>(null);
@@ -211,7 +217,8 @@ export const RepairBoard: React.FC = () => {
         causeLabel={sceneJob ? vehicleLabel(sceneJob) : 'Repair bay'}
         buysLabel={sceneJob ? `${sceneJob.kitsConsumed.length} kits used` : 'awaiting a job'}
         result={activeWork ? undefined : lastCompleted ? 'success' : undefined}
-        vehicleSpriteId={sceneJob ? vehicleSpriteId(sceneJob.vehicle?.classId ?? null) : undefined}
+        vehicleSpriteId={sceneJob ? vehicleSpriteId(sceneJob.vehicle?.classId ?? null) : null}
+        unarmed={!hunterWeapon}
       />
       {activeWork && (
         <div className="text-[11px] text-text-muted -mt-1">

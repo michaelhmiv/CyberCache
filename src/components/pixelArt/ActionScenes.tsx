@@ -83,9 +83,10 @@ const SceneShell: React.FC<{
   );
 };
 
-export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: string; benchSpriteId?: string }> = ({
+export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: string; benchSpriteId?: string; unarmed?: boolean }> = ({
   backgroundId = 'zone-blastforge-bg',
   benchSpriteId = 'set-bench-forge',
+  unarmed = false,
   reduced = false,
   ...rest
 }) => {
@@ -95,7 +96,7 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
       <PixelActor spriteId={benchSpriteId} xPct={58} heightPct={36} groundY={groundY} reduced={reduced} breathe={false} testId="crafting-bench-set" />
       <PixelActor spriteId="set-refinery-crusher" xPct={86} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} />
       <PixelRigActor
-        rig={hunterRigWithHead('visor')}
+        rig={hunterRigWithHead('visor', unarmed)}
         xPct={30}
         heightPct={57}
         groundY={groundY}
@@ -108,14 +109,17 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
   );
 };
 
-export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string; vehicleSpriteId?: string }> = ({
+export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string; vehicleSpriteId?: string | null; unarmed?: boolean }> = ({
   backgroundId = 'zone-throwtech-bg',
-  vehicleSpriteId = 'vehicle-dune-buggy',
+  vehicleSpriteId,
+  unarmed = false,
   reduced = false,
   ...rest
 }) => {
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
-  const vehicle = getPixelSprite(vehicleSpriteId);
+  // Real-item invariant: no vehicle assigned to the bay renders NO
+  // vehicle — the scene never invents a generic stand-in buggy.
+  const vehicle = vehicleSpriteId ? getPixelSprite(vehicleSpriteId) : undefined;
   return (
     <SceneShell backgroundId={backgroundId} testId="repair-bay-scene" reduced={reduced} {...rest}>
       <PixelActor spriteId="set-bay-lift" xPct={62} heightPct={38} groundY={groundY} reduced={reduced} breathe={false} testId="repair-bay-lift" />
@@ -132,7 +136,7 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
       )}
       <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
       <PixelRigActor
-        rig={hunterRigWithHead('visor')}
+        rig={hunterRigWithHead('visor', unarmed)}
         xPct={24}
         heightPct={57}
         groundY={groundY}

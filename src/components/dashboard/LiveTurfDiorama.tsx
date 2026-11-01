@@ -947,7 +947,7 @@ const PixelSceneLayer: React.FC<{
       >
         {showEnemy ? (
           <PixelRigActor
-            rig={hunterRigWithHead(headVariantPreference())}
+            rig={hunterRigWithHead(headVariantPreference(), !weapon)}
             {...hunterPlacement}
             feetX={hunterSprite.anchors.feet?.x ?? 0.27}
             reduced={reduced}
@@ -1013,7 +1013,7 @@ const PixelSceneLayer: React.FC<{
               );
             })}
           </PixelRigActor>
-        ) : (
+        ) : weapon ? (
           <PixelActor
             spriteId="hunter"
             {...hunterPlacement}
@@ -1032,6 +1032,18 @@ const PixelSceneLayer: React.FC<{
               </div>
             )}
           </PixelActor>
+        ) : (
+          /* Unarmed (real-item invariant): the whole 'hunter' sprite
+             has a rifle baked in, so the idle hunter swaps to the
+             gun-free rig — hands at sides, no phantom weapon. */
+          <PixelRigActor
+            rig={hunterRigWithHead(headVariantPreference(), true)}
+            {...hunterPlacement}
+            feetX={hunterSprite.anchors.feet?.x ?? 0.27}
+            reduced={reduced}
+            pose={HUNTER_POSES.idle}
+            testId="pixel-hunter"
+          />
         )}
       </motion.div>
 
