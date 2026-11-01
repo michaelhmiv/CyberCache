@@ -60,6 +60,7 @@ import { ResourceBar } from '@/components/layout/ResourceBar';
 import { selectEquippedWeapons } from '@/lib/loadout/equippedWeaponTruth';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { ActionTickTimer } from '@/components/action/ActionTickTimer';
+import { ClaimSyncStatusLine } from '@/components/action/ClaimSyncStatusLine';
 
 const TICK_SECONDS = 3;
 const LOG_LIMIT = 10;
@@ -622,6 +623,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           The Garage door (audit UX-06) deep-links to the labeled Garage
           section of the Loadout tab. */}
       <VehicleStatusLine onOpenGarage={() => onNavigate?.('garage')} />
+
+      {/* Claim sync stall: visible when roaming claims stop landing
+          (ticker-exposed flag) — rewards are paused, not silently lost. */}
+      <ClaimSyncStatusLine />
 
       {/* 1. Diorama — dashboard animation at top */}
       <LiveTurfDiorama

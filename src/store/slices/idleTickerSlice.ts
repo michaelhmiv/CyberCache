@@ -40,10 +40,16 @@ import { useLoadoutStore } from './loadoutSlice';
 import { useVehicleStore } from './vehicleSlice';
 import { VEHICLE_CONDITION_MAX } from '@/lib/vehicles/vehicles';
 import type { Vehicle } from '@/types/items';
-import type { ChefVehicleStatus } from '@/lib/chef/chefClient';
+import type { ChefClaimResult, ChefVehicleStatus } from '@/lib/chef/chefClient';
 
 const TICK_MS = 3000;
 const DEFAULT_AREA_ID = ROAMING_AREAS[0]?.id ?? 'dustwaste_frontier';
+/** Pause before the single same-batch claim retry (see tickNow). */
+const CLAIM_RETRY_DELAY_MS = 1000;
+/** Consecutive failed claim cycles before the stall is surfaced. */
+const CLAIM_STALL_THRESHOLD = 2;
+/** The tick guard's rejection string (roamingHandler): proof a batch landed. */
+const ALREADY_CLAIMED_ERROR = 'tick_count already claimed';
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let lastTickAt = 0;
@@ -51,11 +57,44 @@ let ticking = false;
 let totalTickCount = 0;
 let roamingConsumableState: unknown = undefined;
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * True when a claim rejection is the server tick guard proving this
+ * batch already landed (HTTP 409 'tick_count already claimed' — the
+ * claim route's only 409). Distinguishable by design: submitClaim
+ * attaches the status and the server's error string to the thrown
+ * error; the message checks keep older error shapes recognizable.
+ */
+export const isAlreadyClaimedError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const e = error as { status?: unknown; chefError?: unknown; message?: unknown };
+  if (e.chefError === ALREADY_CLAIMED_ERROR) return true;
+  if (e.status === 409) return true;
+  if (typeof e.message === 'string') {
+    return e.message.includes(ALREADY_CLAIMED_ERROR) || /^Chef claim failed \(409\)/.test(e.message);
+  }
+  return false;
+};
+
 export interface IdleTickerState {
   running: boolean;
   lastTickAt: number;
   /** Monotonically increasing tick counter — used as the RNG seed and server nonce. */
   totalTickCount: number;
+  /**
+   * Claim cycles in a row whose batch never landed (initial attempt +
+   * the same-batch retry both failed). Reset by any landed claim,
+   * including one proven landed by the tick guard's 409.
+   */
+  consecutiveClaimFailures: number;
+  /**
+   * Visible sync-stall flag: set once consecutiveClaimFailures reaches
+   * CLAIM_STALL_THRESHOLD so the Action screen can tell the player
+   * rewards are paused instead of letting the roaming scene animate
+   * over a silently broken sync. Cleared by the next landed claim.
+   */
+  syncStalled: boolean;
   start: () => void;
   stop: () => void;
   /** Force a single tick (e.g. when the user resumes the tab or comes back from offline). */
@@ -173,6 +212,8 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
   running: false,
   lastTickAt: 0,
   totalTickCount: 0,
+  consecutiveClaimFailures: 0,
+  syncStalled: false,
   start: () => {
     if (intervalId) return;
     intervalId = setInterval(() => {
@@ -232,32 +273,102 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       // Chef derives the loadout and skill bonuses from its own records
       // (trust hardening, Phase 0 Slice 6), so no gear or skill payload
       // is sent for it to ignore.
+      //
+      // The request is built ONCE: if the first attempt fails, the
+      // batch is retried exactly once, after a short pause, with the
+      // IDENTICAL payload (same ticks, same tickCount — nothing is
+      // recomputed). That is safe against double-payment because of
+      // the server's tick guard: a claim whose tickCount is not after
+      // last_claimed_tick is refused with 409 'tick_count already
+      // claimed' before any engine work, and cc_apply_chef_rewards
+      // applies atomically. So the retry can only ever pay the batch
+      // once: either it passes the guard and lands (the first attempt
+      // never committed), or the guard fires and proves the first
+      // attempt DID commit and only its response was lost.
+      const claimRequest = {
+        playerId,
+        areaId,
+        ticks,
+        tickCount: totalTickCount,
+        playerLevel: usePlayerStore.getState().level,
+        killCycle: {
+          currentTargetId: useKillCycleStore.getState().currentTargetId,
+          currentTargetHp: useKillCycleStore.getState().currentTargetHp,
+          currentTargetHpMax: useKillCycleStore.getState().currentTargetHpMax,
+          monstersKilledCount: useKillCycleStore.getState().monstersKilledCount,
+          totalKills: useKillCycleStore.getState().totalKills,
+          lastKilledMonsterId: useKillCycleStore.getState().lastKilledMonsterId,
+        },
+        survival: {
+          currentHp: useSurvivalStore.getState().currentHp,
+          shieldHp: useSurvivalStore.getState().shieldHp,
+          maxHp: useSurvivalStore.getState().maxHp,
+          shieldNovaArmed: useSurvivalStore.getState().shieldNovaArmed,
+        },
+        roamingConsumableState,
+      };
+
+      let chefResult: ChefClaimResult | undefined;
+      let alreadyLanded = false;
+      let claimFailure: unknown = null;
       try {
         const { submitClaim } = await import('@/lib/chef/chefClient');
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            chefResult = await submitClaim(claimRequest);
+            claimFailure = null;
+            break;
+          } catch (error) {
+            if (isAlreadyClaimedError(error)) {
+              // The guard's 409: this batch is already paid server-
+              // side. NOT a failure and NOT a payload to apply — the
+              // outcome handling below converges from server truth.
+              alreadyLanded = true;
+              claimFailure = null;
+              break;
+            }
+            claimFailure = error;
+            if (attempt === 0) await sleep(CLAIM_RETRY_DELAY_MS);
+          }
+        }
+      } catch (error) {
+        // The chefClient module itself failed to load — a failed cycle.
+        claimFailure = error;
+      }
 
-        const chefResult = await submitClaim({
-          playerId,
-          areaId,
-          ticks,
-          tickCount: totalTickCount,
-          playerLevel: usePlayerStore.getState().level,
-          killCycle: {
-            currentTargetId: useKillCycleStore.getState().currentTargetId,
-            currentTargetHp: useKillCycleStore.getState().currentTargetHp,
-            currentTargetHpMax: useKillCycleStore.getState().currentTargetHpMax,
-            monstersKilledCount: useKillCycleStore.getState().monstersKilledCount,
-            totalKills: useKillCycleStore.getState().totalKills,
-            lastKilledMonsterId: useKillCycleStore.getState().lastKilledMonsterId,
-          },
-          survival: {
-            currentHp: useSurvivalStore.getState().currentHp,
-            shieldHp: useSurvivalStore.getState().shieldHp,
-            maxHp: useSurvivalStore.getState().maxHp,
-            shieldNovaArmed: useSurvivalStore.getState().shieldNovaArmed,
-          },
-          roamingConsumableState,
+      if (alreadyLanded) {
+        // Landed-but-lost: the rewards are on the server, but the
+        // response payload (profile, items, feed) never reached us,
+        // so there is nothing to apply — and applying anything would
+        // risk double-counting. Converge the inventory from the
+        // server's item ledger instead; profile / kill-cycle /
+        // survival converge on the next successful claim's payload.
+        try {
+          const { syncRuntimeItemsForUser } = await import('@/lib/api/runtimeStateService');
+          await syncRuntimeItemsForUser(playerId);
+        } catch (error) {
+          void error;
+        }
+        set({ consecutiveClaimFailures: 0, syncStalled: false });
+      } else if (claimFailure) {
+        // A failed Chef claim pays NOTHING. There is deliberately no
+        // fallback engine: the retired cc_claim_roaming_rewards path
+        // paid stale flat rates (1 credit/tick, 0 scrap in every area,
+        // no gear mods, skills, or consumables) whenever the Chef
+        // hiccuped, silently settling the player off-design. The
+        // failed batch is skipped and the next cycle retries against
+        // the Chef — but the failure is no longer silent: consecutive
+        // failed cycles trip syncStalled, which the Action screen
+        // renders until a claim lands again.
+        const failures = get().consecutiveClaimFailures + 1;
+        set({
+          consecutiveClaimFailures: failures,
+          ...(failures >= CLAIM_STALL_THRESHOLD ? { syncStalled: true } : {}),
         });
-
+        console.warn('[idleTicker] Chef claim failed; no rewards applied this cycle:', claimFailure);
+      } else if (chefResult) {
+        set({ consecutiveClaimFailures: 0, syncStalled: false });
+        try {
         // ── Apply server-authoritative results ──
         // This is the ONLY place that writes to authoritative stores.
         applyServerRewards(chefResult as unknown as Record<string, unknown>);
@@ -291,16 +402,13 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           }
           feedStore.push(merged);
         }
-      } catch (error) {
-        // A failed Chef claim pays NOTHING. There is deliberately no
-        // fallback engine: the retired cc_claim_roaming_rewards path
-        // paid stale flat rates (1 credit/tick, 0 scrap in every area,
-        // no gear mods, skills, or consumables) whenever the Chef
-        // hiccuped, silently settling the player off-design. The
-        // failed batch is skipped and the next cycle retries against
-        // the Chef — the server's tick guard (tickCount must exceed
-        // last_claimed_tick) keeps the numbering safe.
-        console.warn('[idleTicker] Chef claim failed; no rewards applied this cycle:', error);
+        } catch (error) {
+          // The claim landed; only the local application of its
+          // results glitched. Not a sync failure — the stall counter
+          // tracks claim transport — and the next cycle's payload
+          // re-syncs the authoritative stores.
+          console.warn('[idleTicker] Failed to apply Chef claim results:', error);
+        }
       }
 
       // Persist runtime stores to Supabase (debounced sync)
@@ -326,7 +434,7 @@ export const unmountIdleTicker = (): void => {
     clearInterval(intervalId);
     intervalId = null;
   }
-  useIdleTickerStore.setState({ running: false });
+  useIdleTickerStore.setState({ running: false, consecutiveClaimFailures: 0, syncStalled: false });
   lastTickAt = 0;
 };
 

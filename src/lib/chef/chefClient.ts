@@ -302,6 +302,18 @@ export interface ChefVerifyBossResult {
 }
 
 /**
+ * Error thrown by submitClaim for a non-OK Chef response. Carries the
+ * HTTP status and the server's `error` string as properties so callers
+ * can distinguish specific rejections — above all the tick guard's
+ * 409 'tick_count already claimed', which proves an earlier attempt
+ * at the same batch actually landed — without parsing the message.
+ */
+export interface ChefClaimError extends Error {
+  status?: number;
+  chefError?: string;
+}
+
+/**
  * Submit a roaming tick claim to the Chef.
  */
 export async function submitClaim(request: ChefClaimRequest): Promise<ChefClaimResult> {
@@ -319,7 +331,11 @@ export async function submitClaim(request: ChefClaimRequest): Promise<ChefClaimR
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     const detail = (errorBody as { detail?: string }).detail || response.statusText;
-    throw new Error(`Chef claim failed (${response.status}): ${detail}`);
+    const error = new Error(`Chef claim failed (${response.status}): ${detail}`) as ChefClaimError;
+    error.status = response.status;
+    const chefError = (errorBody as { error?: string }).error;
+    if (typeof chefError === 'string') error.chefError = chefError;
+    throw error;
   }
 
   return response.json();
