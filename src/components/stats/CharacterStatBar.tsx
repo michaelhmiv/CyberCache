@@ -52,13 +52,15 @@ const MiniMetric = memo(function MiniMetric({ metric, currentHp: _currentHp, max
   const { key } = metric;
   const display = metric.display;
   return (
-    <div {...rest} className={`relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-2 py-1.5 ${rest.className ?? ''}`} style={slashClip}>
+    <div {...rest} className={`relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-1.5 py-1.5 ${rest.className ?? ''}`} style={slashClip}>
       <div className={`absolute left-0 top-0 h-full w-1 ${tone.rail}`} />
-      <div className="flex items-center gap-1.5 pl-0.5">
+      <div className="flex items-center gap-1 pl-0.5">
         {key === 'health' ? <span className={tone.text} style={{ fontSize: '12px' }}>♥</span> : key === 'dps' ? <span className={tone.text} style={{ fontSize: '12px' }}>◎</span> : key === 'boss' ? <span className={tone.text} style={{ fontSize: '12px' }}>◈</span> : key === 'rareFind' ? <span className={tone.text} style={{ fontSize: '12px' }}>✦</span> : <span className={tone.text} style={{ fontSize: '12px' }}>📡</span>}
         <div className="min-w-0 leading-none">
           <div className="truncate text-[8px] font-black uppercase tracking-wide text-text-muted">{metric.label}</div>
-          <div className={`truncate text-[11px] font-black ${tone.text}`}>{display}</div>
+          {/* The VALUE never truncates (device feedback r2): labels
+              may abbreviate, numbers may not. */}
+          <div className={`whitespace-nowrap text-[11px] font-black ${tone.text}`}>{display}</div>
         </div>
       </div>
       {metric.stacked && metric.stacked.length > 0 && <StackedBar segments={metric.stacked} total={metric.value} />}

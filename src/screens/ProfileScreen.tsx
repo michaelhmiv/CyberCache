@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
 import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/api/statsService';
@@ -22,6 +22,13 @@ import type { LeaderboardMetric } from '@/lib/api/leaderboardService';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: string) => void;
+  /**
+   * Deep-link focus (device feedback r2): 'skills' scrolls the
+   * Profile-embedded SkillTreeScreen into view on arrival — the
+   * Dashboard "Skill Trees" action routes here, so the player lands
+   * on the trees themselves instead of the top of the Profile page.
+   */
+  focusSection?: 'skills' | null;
 }
 
 const ActionRow: React.FC<{ glyph: string; label: string; desc: string; onClick: () => void; tone?: string }> = ({ glyph, label, desc, onClick, tone = '#FF9000' }) => (
@@ -42,7 +49,7 @@ const ActionRow: React.FC<{ glyph: string; label: string; desc: string; onClick:
 
 const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusSection = null }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const activity = useActivityStore();
@@ -55,6 +62,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const [renameOpen, setRenameOpen] = useState(false);
   const [detailMetric, setDetailMetric] = useState<{ metric: ProgressionMetric; leaderboardMetric?: LeaderboardMetric; label: string; value: number; color: string } | null>(null);
   const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
+
+  // Deep-link focus: when the player arrives via the Dashboard
+  // "Skill Trees" action, bring the embedded SkillTreeScreen to them.
+  const skillTreesRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (focusSection !== 'skills') return;
+    const el = skillTreesRef.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, [focusSection]);
 
   useEffect(() => {
     if (!user) return;
@@ -194,14 +212,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         )}
       </MobileCard>
 
-      <MobileCard className="space-y-3" rarityColor="#FF4B5C">
-        <div className="flex items-center gap-2">
-          <span className="font-black text-red" style={{ fontSize: '16px' }}>⚡</span>
-          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Skill Trees</div>
-          <div className="ml-auto text-[10px] text-text-muted">{availableSkillPoints} pts available</div>
-        </div>
-        <SkillTreeScreen embedded />
-      </MobileCard>
+      <div
+        ref={skillTreesRef}
+        data-testid="profile-skill-trees"
+        className={focusSection === 'skills' ? 'scroll-mt-2 rounded-xl ring-2 ring-purple' : 'scroll-mt-2'}
+      >
+        <MobileCard className="space-y-3" rarityColor="#FF4B5C">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-red" style={{ fontSize: '16px' }}>⚡</span>
+            <div className="text-xs font-black uppercase tracking-wide text-text-primary">Skill Trees</div>
+            <div className="ml-auto text-[10px] text-text-muted">{availableSkillPoints} pts available</div>
+          </div>
+          <SkillTreeScreen embedded />
+        </MobileCard>
+      </div>
 
       <MasterySection />
 

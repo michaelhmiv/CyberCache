@@ -7,8 +7,14 @@
  *
  * This component is view-only; the caller owns the swap state and undo
  * action. That keeps verified equip logic in one place per caller.
+ *
+ * Rendered through a portal to document.body (device feedback r2):
+ * the toast is position:fixed, and its only caller mounts it inside
+ * the loadout panel whose clip-path + overflow:hidden would trap the
+ * toast inside the panel's box instead of the bottom of the screen.
  */
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Undo2 } from 'lucide-react';
 
@@ -36,10 +42,11 @@ export const SwapUndoToast: React.FC<SwapUndoToastProps> = ({
     return () => window.clearTimeout(timer);
   }, [visible, durationMs, onDismiss]);
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {visible && (
         <motion.div
+          data-testid="swap-undo-toast"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
@@ -68,6 +75,7 @@ export const SwapUndoToast: React.FC<SwapUndoToastProps> = ({
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };

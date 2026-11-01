@@ -4,6 +4,16 @@
  * Replaces the bl-title text-3xl heading + subtitle on every tab with a
  * dense 6-chip resource strip showing Credits, Scrap, Keys, Cores, Loot, Level.
  *
+ * Phone-width contract (device feedback r2): at 360dp the six chips
+ * lay out 3-across × 2 rows (6-across only from 560dp up). Six chips
+ * in one row at phone width left ~27px for the number itself — the
+ * value clipped and the label ellipsized ("85 cre…"). Each chip now
+ * stacks: icon + full label on line 1 (with the secondary count —
+ * key fragments, equipped fraction — right-aligned), the numeric
+ * value on line 2 at full size. A value NEVER truncates or clips:
+ * it carries no truncate/overflow treatment and the formatter below
+ * bounds every output to ≤6 glyphs (src/lib/ui/formatValue.ts).
+ *
  * Tapping any chip can optionally open a detail tooltip or navigate.
  * All icons rendered via ResourceIcon (central visualAssets registry).
  */
@@ -11,6 +21,7 @@ import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Plus, Play, X } from 'lucide-react';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
+import { compactResourceValue } from '@/lib/ui/formatValue';
 import { showRewardedCacheKeyAd, canUseRewardedCacheKeyAds } from '@/lib/ads/rewardedCacheKeyAd';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
@@ -27,36 +38,36 @@ const ACCENT_COLORS: Record<ChipProps['resourceId'], string> = {
   legendaryCore: 'bg-amber',
 };
 
-function compact(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
-  if (n >= 1_000) return n.toLocaleString();
-  return String(n);
-}
-
 interface ChipProps {
   resourceId: 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'loot' | 'level' | 'legendaryCore';
   value: string | number;
-  sub: string;
+  /** Full-word label (CREDITS / SCRAP / KEYS / CORES / LOOT / LEVEL). */
+  label: string;
+  /** Secondary count on the label line (key fragments, equipped fraction). */
+  micro?: string;
   seed?: number;
   action?: React.ReactNode;
-  /** Wider flex share — the key chip's fragment count must never truncate (audit X1). */
-  wide?: boolean;
 }
 
-const Chip: React.FC<ChipProps> = ({ resourceId, value, sub, seed = 0, action, wide }) => (
+const Chip: React.FC<ChipProps> = ({ resourceId, value, label, micro, seed = 0, action }) => (
   <motion.div
-    className={`relative min-w-[58px] overflow-hidden border-2 border-border bg-bg px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] ${wide ? 'flex-[1.35]' : 'flex-1'}`}
+    data-testid={`resource-chip-${resourceId}`}
+    className="relative min-h-[46px] overflow-hidden border-2 border-border bg-bg px-1.5 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
     style={signClip}
     whileTap={{ scale: 0.97 }}
   >
     {/* Colored left-edge accent bar */}
     <div className={`absolute left-0 top-0 h-full w-1 ${ACCENT_COLORS[resourceId]}`} />
-    {/* Left color bar derived from the resource's visualAsset */}
-    <ResourceIcon id={resourceId} size={18} seed={seed} className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-70" />
-    <div className={`ml-6 ${action ? 'mr-7' : ''}`}>
-      <div className="text-base font-black leading-none text-text-primary">{value}</div>
-      <div className="truncate text-[8px] text-text-muted">{sub}</div>
+    <div className="flex items-center gap-1 pl-1.5">
+      <ResourceIcon id={resourceId} size={13} seed={seed} className="shrink-0 opacity-80" />
+      <span className="text-[8px] font-black uppercase tracking-wider text-text-muted">{label}</span>
+      {micro && <span className="ml-auto text-[8px] font-black text-text-secondary">{micro}</span>}
+    </div>
+    <div
+      data-testid={`resource-value-${resourceId}`}
+      className={`pl-1.5 text-[15px] font-black leading-tight whitespace-nowrap text-text-primary ${action ? 'pr-6' : ''}`}
+    >
+      {value}
     </div>
     {action}
   </motion.div>
@@ -107,31 +118,31 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
 
   return (
     <>
-      <div className={`flex gap-1.5 ${className}`}>
+      <div className={`grid grid-cols-3 gap-1.5 min-[560px]:grid-cols-6 ${className}`}>
         <Chip
           resourceId="credits"
-          value={compact(player.credits)}
-          sub="credits"
+          value={compactResourceValue(player.credits)}
+          label="Credits"
           seed={1}
         />
         <Chip
           resourceId="scrap"
-          value={compact(player.scrap)}
-          sub="scrap"
+          value={compactResourceValue(player.scrap)}
+          label="Scrap"
           seed={2}
         />
         <Chip
           resourceId="cacheKey"
           value={player.cacheKeys}
-          sub={`${player.cacheKeyFragments}/5 frags`}
+          label="Keys"
+          micro={`${player.cacheKeyFragments}/5`}
           seed={3}
-          wide
           action={(
             <button
               type="button"
               aria-label="Watch ad for cache key"
               onClick={openRewardDialog}
-              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border border-amber/70 bg-amber text-bg shadow-[0_0_10px_rgba(247,210,11,0.35)] active:scale-95"
+              className="absolute right-1 bottom-1 flex h-5 w-5 items-center justify-center rounded-full border border-amber/70 bg-amber text-bg shadow-[0_0_10px_rgba(247,210,11,0.35)] active:scale-95"
             >
               <Plus size={13} strokeWidth={3} />
             </button>
@@ -140,19 +151,20 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
         <Chip
           resourceId="legendaryCore"
           value={player.legendaryCores}
-          sub="cores"
+          label="Cores"
           seed={6}
         />
         <Chip
           resourceId="loot"
           value={inventory.items.length}
-          sub={`${equippedCount}/7 equip`}
+          label="Loot"
+          micro={`${equippedCount}/7`}
           seed={4}
         />
         <Chip
           resourceId="level"
           value={player.level}
-          sub="level"
+          label="Level"
           seed={5}
         />
       </div>
