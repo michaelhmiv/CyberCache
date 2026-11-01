@@ -758,6 +758,83 @@ def write_manifest() -> None:
     print(f"manifest: {len(data['sprites'])} sprites total")
 
 
+def build_shieldtech() -> None:
+    """Shield-tech services (0044): the calibration rig set piece and
+    the five behavior sigils. The rig is drawn neutral (steel + cyan
+    emitter light) — the behavior COLOR enters the scene through the
+    glyph sprite of the ACTUAL job shield's target behavior, never
+    baked into the set piece (real-item invariant)."""
+    def setpiece(sprite_id: str, w: int, h: int, painter) -> None:
+        img, d = glyph(w, h)
+        painter(d)
+        finish_glyph(sprite_id, img, scale=3)
+
+    steel = (96, 102, 110, 255)
+    dark = (44, 46, 52, 255)
+    cyan = (57, 208, 216, 255)
+    pale = (240, 250, 255, 255)
+
+    def rig(d):
+        # Stand: base bar, two legs, a crossbar the shield floats over.
+        d.rectangle([4, 18, 28, 19], fill=dark)
+        d.line([8, 18, 13, 13], fill=steel)
+        d.line([24, 18, 19, 13], fill=steel)
+        d.rectangle([11, 12, 21, 13], fill=steel)
+        # Emitter posts at the ring's sides, tips lit.
+        d.rectangle([3, 6, 4, 12], fill=steel)
+        d.rectangle([28, 6, 29, 12], fill=steel)
+        d.rectangle([3, 5, 4, 6], fill=cyan)
+        d.rectangle([28, 5, 29, 6], fill=cyan)
+        # The floating shield (neutral plate — its behavior sigil is
+        # the glyph sprite the scene overlays).
+        d.polygon([(12, 3), (20, 3), (20, 8), (16, 12), (12, 8)], fill=(70, 74, 84, 255), outline=pale)
+        d.polygon([(14, 5), (18, 5), (18, 8), (16, 10), (14, 8)], fill=(140, 220, 255, 160))
+        # Emitter ring: broken arcs around the shield, lit in segments.
+        d.arc([9, 0, 23, 14], 300, 20, fill=cyan)
+        d.arc([9, 0, 23, 14], 60, 130, fill=cyan)
+        d.arc([9, 0, 23, 14], 160, 230, fill=cyan)
+        d.arc([9, 0, 23, 14], 250, 285, fill=(57, 208, 216, 140))
+    setpiece("set-calibration-rig", 32, 20, rig)
+
+    def sigil(sprite_id: str, painter) -> None:
+        img, d = glyph(16, 16)
+        painter(d)
+        finish_glyph(sprite_id, img)
+
+    gray = (154, 149, 138, 255)
+    nova = (255, 110, 64, 255)
+    absorb = (57, 208, 216, 255)
+    amp = (177, 140, 255, 255)
+    turtle = (127, 176, 105, 255)
+    # Standard: a plain ringed shield outline — nothing special, by design.
+    sigil("glyph-behavior-standard", lambda d: (
+        d.polygon([(5, 2), (11, 2), (11, 8), (8, 13), (5, 8)], outline=gray),
+        d.line([5, 7, 11, 7], fill=gray),
+    ))
+    # Nova: an eight-point burst.
+    sigil("glyph-behavior-nova", lambda d: (
+        d.polygon([(8, 0), (9, 5), (14, 3), (10, 7), (15, 8), (10, 9), (14, 13), (9, 11), (8, 16), (7, 11), (2, 13), (6, 9), (1, 8), (6, 7), (2, 3), (7, 5)], fill=nova),
+        d.ellipse([6, 6, 10, 10], fill=(255, 209, 102, 255)),
+    ))
+    # Absorb: a shield cradling a droplet core.
+    sigil("glyph-behavior-absorb", lambda d: (
+        d.polygon([(4, 1), (12, 1), (12, 8), (8, 14), (4, 8)], outline=absorb),
+        d.polygon([(8, 4), (10, 8), (8, 11), (6, 8)], fill=absorb),
+        d.ellipse([7, 7, 9, 9], fill=pale),
+    ))
+    # Amp: twin chevrons driving up.
+    sigil("glyph-behavior-amp", lambda d: (
+        d.polygon([(8, 1), (13, 7), (10, 7), (8, 4), (6, 7), (3, 7)], fill=amp),
+        d.polygon([(8, 7), (13, 13), (10, 13), (8, 10), (6, 13), (3, 13)], fill=amp),
+    ))
+    # Turtle: a heavy filled shell with a rim band.
+    sigil("glyph-behavior-turtle", lambda d: (
+        d.polygon([(4, 1), (12, 1), (12, 8), (8, 14), (4, 8)], fill=turtle),
+        d.polygon([(4, 1), (12, 1), (12, 4), (4, 4)], fill=(95, 140, 76, 255)),
+        d.line([8, 4, 8, 12], fill=(95, 140, 76, 255)),
+    ))
+
+
 SECTIONS = {
     "imports": build_imports,
     "rigs": build_rigs,
@@ -769,6 +846,7 @@ SECTIONS = {
     "sets": build_sets,
     "unarmed": build_unarmed,
     "goldenbg": build_goldenbg,
+    "shieldtech": build_shieldtech,
 }
 
 if __name__ == "__main__":

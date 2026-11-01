@@ -321,6 +321,41 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [127, 176, 105], 255);
   }),
+  // Shield-tech services (0044): the calibration rig mid-job — the
+  // shield floats in the emitter ring, the Amp sigil (the job's
+  // target behavior, from the actual job record) lit at the ring,
+  // the second core waiting on the tray, the track at half. And the
+  // flip beat: full track, the beam in Amp violet at the rig, the
+  // hunter released to the celebrate pose.
+  scene('shieldtech-progress', (img) => {
+    drawBackground(img, AREA_BG.throwtech_dumpnet);
+    const listing = loadGoldenSprite('set-bay-wall-listing');
+    if (listing) blit(img, listing, SCENE_W * 0.16 - 52, GROUND * SCENE_H - 56, 104, 56);
+    const rig = loadGoldenSprite('set-calibration-rig');
+    if (rig) blit(img, rig, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    const glyph = loadGoldenSprite('glyph-behavior-amp');
+    if (glyph) blit(img, glyph, SCENE_W * 0.56, GROUND * SCENE_H - 96, 44, 44);
+    const tray = loadGoldenSprite('set-bay-tray');
+    if (tray) blit(img, tray, SCENE_W * 0.34 - 40, GROUND * SCENE_H - 34, 80, 34);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.5, GRAMMAR.progress.heightPx, [57, 208, 216], 255);
+  }),
+  scene('shieldtech-complete', (img) => {
+    drawBackground(img, AREA_BG.throwtech_dumpnet);
+    const listing = loadGoldenSprite('set-bay-wall-listing');
+    if (listing) blit(img, listing, SCENE_W * 0.16 - 52, GROUND * SCENE_H - 56, 104, 56);
+    drawBeam(img, SCENE_W * 0.62, GROUND * SCENE_H - 40, GRAMMAR.beamWidthPx.high, '#B18CFF');
+    const rig = loadGoldenSprite('set-calibration-rig');
+    if (rig) blit(img, rig, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    const glyph = loadGoldenSprite('glyph-behavior-amp');
+    if (glyph) blit(img, glyph, SCENE_W * 0.56, GROUND * SCENE_H - 96, 44, 44);
+    const tray = loadGoldenSprite('set-bay-tray');
+    if (tray) blit(img, tray, SCENE_W * 0.34 - 40, GROUND * SCENE_H - 34, 80, 34);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.celebrate, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [57, 208, 216], 255);
+  }),
   // Crafting-as-occupation (0024, brief §2.9): the bench stage per
   // bench tier + the paused state (hunter away roaming — bench stands
   // idle-dark under its pennant, progress frozen mid-bar).

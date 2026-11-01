@@ -63,6 +63,20 @@ import {
   repairMasteryXp,
   repairWorkRatePointsPerHour,
 } from '../../content/repair.js';
+import {
+  MAX_ACTIVE_SHIELDTECH_JOBS,
+  SHIELD_TECH_MASTERY_TRACK,
+  SHIELDTECH_BENCH,
+  calibrationCoreCapacityPoints,
+  isLegalShieldTechTarget,
+  rebasedShieldPayload,
+  shieldPayloadDrifted,
+  shieldTechCoreUnitDurationMs,
+  shieldTechEfficiencyMultiplier,
+  shieldTechMasteryXp,
+  shieldTechWorkRatePointsPerHour,
+} from '../../content/shieldTech.js';
+import { shieldBehaviorOf, type ShieldBehaviorId } from '../../lib/combat/shieldBehaviors.js';
 import { Rarity } from '../../types/game.js';
 import { applyXp } from './store.js';
 import {
@@ -107,6 +121,27 @@ export interface CraftJobSnapshot {
    *  efficiency snapshot priced from the owner's repair mastery at
    *  enqueue time. */
   repair?: CraftRepairSnapshot;
+  /** Shield-tech jobs only (kind 'shieldtech', shield-tech slice
+   *  0044): the shield being recalibrated, the behavior swap, the
+   *  posting payload snapshot (the flip's identity check), the
+   *  Calibration Cores escrowed at enqueue (one quality/origin
+   *  record per unit, in burn order), and the rate / efficiency
+   *  snapshot priced from the owner's shield-tech mastery. */
+  shieldtech?: CraftShieldTechSnapshot;
+}
+
+export interface CraftShieldTechSnapshot {
+  itemId: string;
+  fromBehavior: string;
+  toBehavior: string;
+  targetPoints: number;
+  payload: Record<string, unknown>;
+  coreQualities: number[];
+  coreOrigins: string[];
+  efficiency: number;
+  workRatePointsPerHour: number;
+  masteryLevel: number;
+  pointsApplied: number;
 }
 
 export interface CraftRepairSnapshot {
@@ -146,6 +181,24 @@ export interface CraftJobOutput {
    *  early and every unstarted kit is refunded. Never persisted as
    *  a completion output. */
   vehicleFull?: boolean;
+  /** Shield-tech units: calibration points this unit applied. */
+  pointsApplied?: number;
+  /** Shield-tech units: accumulated points after this unit. */
+  totalPointsApplied?: number;
+  /** Shield-tech units: this unit's flip landed the recalibration. */
+  flipped?: boolean;
+  fromBehavior?: string;
+  toBehavior?: string;
+  /** Settler-internal signals (0044): the flip landed or was refused
+   *  on payload drift — either way the job's work is done, this
+   *  unit's core is spent, and unstarted cores refund. Never
+   *  persisted as completion outputs beyond the unit record. */
+  shieldtechComplete?: boolean;
+  shieldDrift?: boolean;
+  /** Settler-internal signal: the shield was gone, busy, or no
+   *  longer carried the enqueued behavior when this unit would have
+   *  started; the job ends and this + later cores refund. */
+  shieldUnavailable?: boolean;
 }
 
 export interface CraftJobRecord {
@@ -206,6 +259,10 @@ export interface CraftLeverValues {
   repairWorkRateBase: number;
   repairMasterySpeedPerLevel: number;
   repairMasteryEfficiencyPerLevel: number;
+  /** Shield-tech levers (0044); defaults in src/content/shieldTech.ts. */
+  shieldTechWorkRateBase: number;
+  shieldTechMasterySpeedPerLevel: number;
+  shieldTechMasteryEfficiencyPerLevel: number;
 }
 
 export interface CraftAdapter {
@@ -262,6 +319,19 @@ export interface CraftAdapter {
     playerId: string,
     itemId: string,
   ): { kind: string; runtimeState: string; conditionCurrent: number; conditionMax: number } | null;
+  /** Shield-tech jobs: read one owned item's shield state. */
+  shieldInfo(
+    playerId: string,
+    itemId: string,
+  ): {
+    kind: string;
+    runtimeState: string;
+    isLocked: boolean;
+    rarity: string | null;
+    payload: Record<string, unknown>;
+  } | null;
+  /** Shield-tech jobs: write a shield's payload (the flip). */
+  applyShieldPayload(playerId: string, itemId: string, payload: Record<string, unknown>): void;
   /** Repair jobs: restore condition points (clamped at max) and
    *  return the resulting condition state. */
   restoreVehicle(
@@ -328,7 +398,7 @@ export function settleCraftJobs(
     const startMs = job.last_settled_ms;
     const rawDelta = Math.max(0, now - startMs);
     job.last_settled_ms = now;
-    const lane = job.kind === 'repair' ? 'workshop_service' : 'crafting';
+    const lane = job.kind === 'repair' || job.kind === 'shieldtech' ? 'workshop_service' : 'crafting';
     if (!action || action.kind !== lane || rawDelta <= 0) {
       perJobAdvance.set(job.id, 0);
       continue;
@@ -403,6 +473,32 @@ export function settleCraftJobs(
             result.jobsCompleted += 1;
             break;
           }
+          if (output.shieldUnavailable) {
+            // Shield-tech job whose shield is gone, busy, or no
+            // longer carries the enqueued behavior: this unit never
+            // started — end the job and refund this and every later
+            // core at its escrowed quality (0044).
+            refundRemainingShieldTechCores(adapter, job);
+            job.status = 'complete';
+            job.completed_at_ms = now;
+            result.jobsCompleted += 1;
+            break;
+          }
+          if (output.shieldtechComplete || output.shieldDrift) {
+            // The job's work is done (the flip landed, or refused on
+            // drift): this unit's core is spent; refund only the
+            // unstarted cores and end the job. The unit itself was
+            // already recorded by completeCraftUnit below.
+            refundRemainingShieldTechCores(adapter, job);
+            if (job.units_completed < job.units_total) {
+              job.status = 'complete';
+              job.completed_at_ms = now;
+              result.jobsCompleted += 1;
+            }
+            result.xpAwarded += output.xp;
+            result.completions.push({ ...output, jobId: job.id, recipeId: job.recipe_id });
+            break;
+          }
           result.xpAwarded += output.xp;
           result.completions.push({ ...output, jobId: job.id, recipeId: job.recipe_id });
         }
@@ -465,6 +561,24 @@ export function overclockCompleteInProgressUnits(
       job.status = 'complete';
       job.completed_at_ms = now;
       result.jobsCompleted += 1;
+      continue;
+    }
+    if (output.shieldUnavailable) {
+      refundRemainingShieldTechCores(adapter, job);
+      job.status = 'complete';
+      job.completed_at_ms = now;
+      result.jobsCompleted += 1;
+      continue;
+    }
+    if (output.shieldtechComplete || output.shieldDrift) {
+      refundRemainingShieldTechCores(adapter, job);
+      result.xpAwarded += output.xp;
+      result.completions.push({ ...output, jobId: job.id, recipeId: job.recipe_id });
+      if (job.units_completed < job.units_total) {
+        job.status = 'complete';
+        job.completed_at_ms = now;
+        result.jobsCompleted += 1;
+      }
       continue;
     }
     result.xpAwarded += output.xp;
@@ -563,6 +677,91 @@ function completeRepairUnit(
   return output;
 }
 
+/** Refund every Calibration Core a shield-tech job escrowed but
+ *  never applied (early finish, drift, cancellation), each as a
+ *  batch at its recorded quality and origin. Refunds start at
+ *  units_completed — the first unstarted unit's core. */
+function refundRemainingShieldTechCores(adapter: CraftAdapter, job: CraftJobRecord): number {
+  const snap = job.snapshot.shieldtech;
+  if (!snap) return 0;
+  let refunded = 0;
+  for (let i = job.units_completed; i < job.units_total; i += 1) {
+    adapter.addBatch(
+      job.owner_user_id,
+      'CalibrationCore',
+      1,
+      snap.coreQualities[i] ?? 100,
+      snap.coreOrigins[i] ?? 'crafted',
+      job.owner_user_id,
+      null,
+    );
+    refunded += 1;
+  }
+  return refunded;
+}
+
+/**
+ * One self-lane recalibration unit (0044): apply the next escrowed
+ * Calibration Core. Its capacity (base 2,500 × quality% × the
+ * owner's efficiency snapshot) accrues toward the target; the flip
+ * lands only when accumulated points cover the target, and only if
+ * the shield is still exactly the shield that was enqueued (the
+ * finalize identity rule). Pays NO player XP (consumption, the
+ * self-repair rule); shield-tech mastery trains by points applied.
+ */
+function completeShieldTechUnit(
+  adapter: CraftAdapter,
+  job: CraftJobRecord,
+): CraftJobOutput {
+  const snap = job.snapshot.shieldtech;
+  if (!snap) fail('Shield-tech job snapshot missing');
+  const playerId = job.owner_user_id;
+  const unit = job.units_completed + 1;
+  const output: CraftJobOutput = { unit, kind: 'shieldtech', xp: 0, completedAtMs: adapter.nowMs() };
+
+  const info = adapter.shieldInfo(playerId, snap.itemId);
+  if (
+    !info ||
+    info.kind !== 'shield' ||
+    info.runtimeState !== 'available' ||
+    info.isLocked ||
+    shieldBehaviorOf(info.payload) !== snap.fromBehavior
+  ) {
+    // The unit never starts: the settler ends the job here and
+    // refunds this and every later core at its recorded quality.
+    output.shieldUnavailable = true;
+    return output;
+  }
+  const quality = snap.coreQualities[job.units_completed] ?? 100;
+  const applied = calibrationCoreCapacityPoints(quality, snap.efficiency);
+  const total = Math.round((snap.pointsApplied + applied) * 10000) / 10000;
+  snap.pointsApplied = total;
+  if (applied > 0) {
+    adapter.addMasteryXp(playerId, SHIELD_TECH_MASTERY_TRACK, shieldTechMasteryXp(applied));
+  }
+  output.itemId = snap.itemId;
+  output.quality = quality;
+  output.pointsApplied = applied;
+  output.totalPointsApplied = total;
+  if (total >= snap.targetPoints) {
+    if (shieldPayloadDrifted(info.payload, snap.payload)) {
+      // The shield changed under the job (e.g. a reforge landed
+      // first): the flip refuses; the settler ends the job and
+      // refunds the unstarted cores. This core is spent.
+      output.shieldDrift = true;
+    } else {
+      adapter.applyShieldPayload(playerId, snap.itemId, rebasedShieldPayload(info.payload, snap.toBehavior as ShieldBehaviorId));
+      output.flipped = true;
+      output.fromBehavior = snap.fromBehavior;
+      output.toBehavior = snap.toBehavior;
+      output.shieldtechComplete = true;
+    }
+  }
+  job.units_completed += 1;
+  job.outputs.push(output);
+  return output;
+}
+
 function completeCraftUnit(
   adapter: CraftAdapter,
   profile: CraftProfileView,
@@ -570,6 +769,7 @@ function completeCraftUnit(
   levers: CraftLeverValues,
 ): CraftJobOutput {
   if (job.kind === 'repair') return completeRepairUnit(adapter, job);
+  if (job.kind === 'shieldtech') return completeShieldTechUnit(adapter, job);
   const recipe = getCraftRecipe(job.recipe_id) as CraftRecipe;
   const unit = job.units_completed + 1;
   const playerId = job.owner_user_id;
@@ -1051,6 +1251,151 @@ export function enqueueRepairJob(
   return { job };
 }
 
+// ─── Self-lane recalibration enqueue (0044) ──────────────────────────
+
+export interface EnqueueShieldTechJobInput {
+  itemId: string;
+  toBehavior: string;
+}
+
+const SHIELD_BEHAVIOR_ID_SET = new Set(['standard', 'nova', 'absorb', 'amp', 'turtle']);
+
+/**
+ * Self-lane recalibration as a TIMED job (0044): the owner's own
+ * Calibration Cores escrow at enqueue — exactly the count whose true
+ * capacity (base 2,500 × quality% × the owner's efficiency snapshot,
+ * walked worst-first in the game's one burn order) covers the
+ * shield's stored capacity — and apply one at a time while
+ * `workshop_service` is the active action. No verified-account gate
+ * (consumption, the self-repair rule); no price, no fee, no player
+ * XP. The target must satisfy the generation rule (R8): a Legendary
+ * shield can never be recalibrated to Standard.
+ */
+export function enqueueShieldTechJob(
+  adapter: CraftAdapter,
+  playerId: string,
+  input: EnqueueShieldTechJobInput,
+): { job: CraftJobRecord } {
+  settleCraftJobs(adapter, playerId);
+  const profile = adapter.profile(playerId);
+  if (!profile) fail('Profile not found');
+
+  const info = adapter.shieldInfo(playerId, input.itemId);
+  if (!info) fail('Shield not found');
+  if (info.kind !== 'shield') fail('Only shields can be recalibrated');
+  if (info.runtimeState !== 'available' || info.isLocked) {
+    fail('Shield is not available for recalibration');
+  }
+  const payload = info.payload;
+  const fromBehavior = shieldBehaviorOf(payload);
+  if (!SHIELD_BEHAVIOR_ID_SET.has(input.toBehavior)) fail('Unknown shield behavior');
+  const toBehavior = input.toBehavior as ShieldBehaviorId;
+  if (toBehavior === fromBehavior) fail('Shield already carries that behavior');
+  const rarity = (info.rarity ?? 'Common') as Parameters<typeof isLegalShieldTechTarget>[0];
+  if (!isLegalShieldTechTarget(rarity, toBehavior)) {
+    if (toBehavior === 'standard' && rarity === 'Legendary') {
+      fail('Legendary shields cannot be recalibrated to Standard');
+    }
+    fail('Behavior cannot be generated for this rarity');
+  }
+  const hp = payload.hp;
+  if (typeof hp !== 'number' || !Number.isFinite(hp)) fail('Shield has no stored capacity');
+  const targetPoints = Math.round(hp);
+  if (targetPoints < 1) fail('Shield has no stored capacity');
+
+  const shieldTechJobs = adapter
+    .jobs(playerId)
+    .filter((j) => j.status === 'active' && j.kind === 'shieldtech');
+  if (shieldTechJobs.some((j) => j.snapshot.shieldtech?.itemId === input.itemId)) {
+    fail('A recalibration job is already running for this shield');
+  }
+  if (shieldTechJobs.length >= MAX_ACTIVE_SHIELDTECH_JOBS) fail('Too many recalibration jobs already running');
+
+  const levers = adapter.levers();
+  const masteryLevel = adapter.masteryLevel(playerId, SHIELD_TECH_MASTERY_TRACK);
+  const workRate = shieldTechWorkRatePointsPerHour(
+    masteryLevel,
+    levers.shieldTechWorkRateBase,
+    levers.shieldTechMasterySpeedPerLevel,
+  );
+  const efficiency = shieldTechEfficiencyMultiplier(
+    masteryLevel,
+    levers.shieldTechMasteryEfficiencyPerLevel,
+  );
+  const unitDurationMs = shieldTechCoreUnitDurationMs(workRate);
+
+  // Escrow the cores: burn worst-first, accumulating true capacity
+  // until the target is covered. If the owner's cores cannot cover
+  // it, every burned core goes back at its recorded quality/origin
+  // and the enqueue refuses — nothing is consumed.
+  const coreQualities: number[] = [];
+  const coreOrigins: string[] = [];
+  let covered = 0;
+  while (covered < targetPoints) {
+    const burned = adapter.burnOneBatchUnit(playerId, 'CalibrationCore');
+    if (!burned) {
+      for (let i = 0; i < coreQualities.length; i += 1) {
+        adapter.addBatch(playerId, 'CalibrationCore', 1, coreQualities[i], coreOrigins[i], playerId, null);
+      }
+      fail('Not enough Calibration Core capacity for this shield');
+    }
+    coreQualities.push(burned.quality);
+    coreOrigins.push(burned.origin);
+    covered += calibrationCoreCapacityPoints(burned.quality, efficiency);
+  }
+
+  const now = adapter.nowMs();
+  const job: CraftJobRecord = {
+    id: adapter.uuid(),
+    owner_user_id: playerId,
+    bench: SHIELDTECH_BENCH,
+    kind: 'shieldtech',
+    recipe_id: 'shieldtech_recalibration',
+    units_total: coreQualities.length,
+    units_completed: 0,
+    unit_duration_ms: unitDurationMs,
+    accrued_ms: 0,
+    status: 'active',
+    escrow_inputs: {},
+    escrow_catalyst: {},
+    rush_ticket_quality: null,
+    rush_ticket_origin: null,
+    snapshot: {
+      toolId: null,
+      toolQualityMultiplier: 1,
+      toolDurationMultiplier: 1,
+      toolRefineYieldBonus: 0,
+      toolBonusUnitChance: 0,
+      skillDurationMultiplier: 1,
+      rushReduction: 0,
+      craftTimeScalar: 1,
+      catalystMaterialId: null,
+      gearRarity: null,
+      shieldtech: {
+        itemId: input.itemId,
+        fromBehavior,
+        toBehavior,
+        targetPoints,
+        payload: { ...payload },
+        coreQualities,
+        coreOrigins,
+        efficiency,
+        workRatePointsPerHour: workRate,
+        masteryLevel,
+        pointsApplied: 0,
+      },
+    },
+    xp_awarded: 0,
+    outputs: [],
+    tool_charged: false,
+    created_at_ms: now,
+    last_settled_ms: now,
+    completed_at_ms: null,
+  };
+  adapter.addJob(job);
+  return { job };
+}
+
 // ─── Cancel (§2.1 refund table) ──────────────────────────────────────
 
 export interface CancelCraftJobResult {
@@ -1085,6 +1430,23 @@ export function cancelCraftJob(
     return {
       jobId: j.id,
       refundedInputs: snap && refundedCount > 0 ? { [snap.kitType]: refundedCount } : {},
+      rushTicketRefunded: false,
+      coresRefunded: 0,
+    };
+  }
+
+  // Shield-tech jobs (0044): cores are discrete items — every core
+  // not yet applied refunds whole, including the in-progress unit's
+  // core. Applied cores stay spent; the shield is unchanged (the
+  // flip only ever lands at full coverage, inside the completion
+  // that ends the job).
+  if (j.kind === 'shieldtech') {
+    const snap = j.snapshot.shieldtech;
+    const refundedCount = snap ? refundRemainingShieldTechCores(adapter, j) : 0;
+    j.status = 'cancelled';
+    return {
+      jobId: j.id,
+      refundedInputs: snap && refundedCount > 0 ? { CalibrationCore: refundedCount } : {},
       rushTicketRefunded: false,
       coresRefunded: 0,
     };
@@ -1250,6 +1612,12 @@ export interface CraftJobView {
   repairItemId: string | null;
   repairKitType: string | null;
   repairPointsRestored: number;
+  /** Shield-tech jobs only (0044): the shield + behavior swap and
+   *  total calibration points applied. */
+  shieldtechItemId: string | null;
+  shieldtechFromBehavior: string | null;
+  shieldtechToBehavior: string | null;
+  shieldtechPointsApplied: number;
 }
 
 export function craftJobView(
@@ -1259,12 +1627,19 @@ export function craftJobView(
 ): CraftJobView {
   const recipe = getCraftRecipe(job.recipe_id);
   const repair = job.kind === 'repair' ? job.snapshot.repair : undefined;
+  const shieldtech = job.kind === 'shieldtech' ? job.snapshot.shieldtech : undefined;
   return {
     id: job.id,
     bench: job.bench,
     kind: job.kind,
     recipeId: job.recipe_id,
-    name: recipe?.name ?? (repair ? `Vehicle repair — ${repair.kitType}` : job.recipe_id),
+    name:
+      recipe?.name ??
+      (repair
+        ? `Vehicle repair — ${repair.kitType}`
+        : shieldtech
+          ? `Shield recalibration — ${shieldtech.fromBehavior} → ${shieldtech.toBehavior}`
+          : job.recipe_id),
     state: deriveJobDisplayState(job, allJobs, activeActionKind),
     unitsTotal: job.units_total,
     unitsCompleted: job.units_completed,
@@ -1285,6 +1660,10 @@ export function craftJobView(
     repairItemId: repair?.itemId ?? null,
     repairKitType: repair?.kitType ?? null,
     repairPointsRestored: job.outputs.reduce((sum, o) => sum + (o.pointsRestored ?? 0), 0),
+    shieldtechItemId: shieldtech?.itemId ?? null,
+    shieldtechFromBehavior: shieldtech?.fromBehavior ?? null,
+    shieldtechToBehavior: shieldtech?.toBehavior ?? null,
+    shieldtechPointsApplied: job.outputs.reduce((sum, o) => sum + (o.pointsApplied ?? 0), 0),
   };
 }
 

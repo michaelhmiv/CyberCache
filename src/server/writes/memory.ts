@@ -40,12 +40,14 @@ import {
   CRAFT_HEARTBEAT_GRACE_MS,
   enqueueCraftJob as enqueueCraftJobCore,
   enqueueRepairJob as enqueueRepairJobCore,
+  enqueueShieldTechJob as enqueueShieldTechJobCore,
   fitCraftTool as fitCraftToolCore,
   overclockCompleteInProgressUnits,
   settleCraftJobs as settleCraftJobsCore,
   unlockCraftBench as unlockCraftBenchCore,
   CraftEngineError,
   type CraftAdapter,
+  type EnqueueShieldTechJobInput,
   type CraftLeverValues,
   type CraftProfileView,
   type FixerEnqueueBonuses,
@@ -124,6 +126,31 @@ import {
   type RepairLeverValues,
   type RepairVehicleInfo,
 } from './repairBoard.js';
+import {
+  buildShieldTechBoardView,
+  resolveShieldTechLevers,
+  type ShieldTechLeverValues,
+  type ShieldTechShieldInfo,
+} from './shieldTechBoard.js';
+import {
+  SHIELD_TECH_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
+  SHIELD_TECH_MASTERY_PER_LEVEL_MAX,
+  SHIELD_TECH_MASTERY_PER_LEVEL_MIN,
+  SHIELD_TECH_MASTERY_SPEED_PER_LEVEL_DEFAULT,
+  SHIELD_TECH_MASTERY_TRACK,
+  SHIELD_TECH_WORK_RATE_BASE_DEFAULT,
+  SHIELD_TECH_WORK_RATE_BASE_MAX,
+  SHIELD_TECH_WORK_RATE_BASE_MIN,
+  calibrationCoreCapacityPoints,
+  isLegalShieldTechTarget,
+  rebasedShieldPayload,
+  shieldPayloadDrifted,
+  shieldTechEfficiencyMultiplier,
+  shieldTechMasteryXp,
+  shieldTechServiceXp,
+  shieldTechWorkRatePointsPerHour,
+} from '../../content/shieldTech.js';
+import { shieldBehaviorOf, type ShieldBehaviorId } from '../../lib/combat/shieldBehaviors.js';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
 import type { GearItem } from '../../types/items.js';
 import { buildStarterVehicle } from '../lib/generators/vehicleGenerator.js';
@@ -227,6 +254,13 @@ export interface InMemoryWriteOptions {
    */
   repairLeverProvider?: () => Partial<RepairLeverValues>;
   /**
+   * Live shield-tech lever values (economy_config, 0044) beyond the
+   * craft lever set — XP per point, abandonment window, listing
+   * expiry — resolved per shield-tech op, clamped by
+   * resolveShieldTechLevers.
+   */
+  shieldTechLeverProvider?: () => Partial<ShieldTechLeverValues>;
+  /**
    * Live reforge lever values (economy_config, 0027) — the scrap
    * scalar and the flat legendary core cost — resolved per reforge,
    * merged over the content defaults. The mirror of cc_reforge_item
@@ -267,6 +301,7 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly buybackRateProvider: () => number | Promise<number>;
   private readonly craftLeverProvider: () => Partial<CraftLeverValues>;
   private readonly repairLeverProvider: () => Partial<RepairLeverValues>;
+  private readonly shieldTechLeverProvider: () => Partial<ShieldTechLeverValues>;
   private readonly reforgeLeverProvider: () => Partial<ReforgeLeverValues>;
   private readonly cacheRankLeverProvider: () => Partial<CacheRankLeverValues>;
   private readonly cacheLaneLeverProvider: () => Partial<CacheLaneLeverValues>;
@@ -294,6 +329,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.buybackRateProvider = opts.buybackRateProvider ?? (() => VENDOR_BUYBACK_RATE_DEFAULT);
     this.craftLeverProvider = opts.craftLeverProvider ?? (() => ({}));
     this.repairLeverProvider = opts.repairLeverProvider ?? (() => ({}));
+    this.shieldTechLeverProvider = opts.shieldTechLeverProvider ?? (() => ({}));
     this.reforgeLeverProvider = opts.reforgeLeverProvider ?? (() => ({}));
     this.cacheRankLeverProvider = opts.cacheRankLeverProvider ?? (() => ({}));
     this.cacheLaneLeverProvider = opts.cacheLaneLeverProvider ?? (() => ({}));
@@ -1624,6 +1660,24 @@ export class InMemoryWriteStore implements WriteStore {
         REPAIR_MASTERY_PER_LEVEL_MIN,
         REPAIR_MASTERY_PER_LEVEL_MAX,
       ),
+      shieldTechWorkRateBase: clamp(
+        provided.shieldTechWorkRateBase,
+        SHIELD_TECH_WORK_RATE_BASE_DEFAULT,
+        SHIELD_TECH_WORK_RATE_BASE_MIN,
+        SHIELD_TECH_WORK_RATE_BASE_MAX,
+      ),
+      shieldTechMasterySpeedPerLevel: clamp(
+        provided.shieldTechMasterySpeedPerLevel,
+        SHIELD_TECH_MASTERY_SPEED_PER_LEVEL_DEFAULT,
+        SHIELD_TECH_MASTERY_PER_LEVEL_MIN,
+        SHIELD_TECH_MASTERY_PER_LEVEL_MAX,
+      ),
+      shieldTechMasteryEfficiencyPerLevel: clamp(
+        provided.shieldTechMasteryEfficiencyPerLevel,
+        SHIELD_TECH_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
+        SHIELD_TECH_MASTERY_PER_LEVEL_MIN,
+        SHIELD_TECH_MASTERY_PER_LEVEL_MAX,
+      ),
     };
   }
 
@@ -1812,6 +1866,23 @@ export class InMemoryWriteStore implements WriteStore {
           conditionCurrent: item.condition_current ?? VEHICLE_CONDITION_MAX,
           conditionMax: item.condition_max ?? VEHICLE_CONDITION_MAX,
         };
+      },
+      shieldInfo: (playerId, itemId) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== playerId) return null;
+        return {
+          kind: item.kind,
+          runtimeState: item.runtime_state,
+          isLocked: item.is_locked,
+          rarity: item.rarity ?? null,
+          payload: (item.payload ?? {}) as Record<string, unknown>,
+        };
+      },
+      applyShieldPayload: (playerId, itemId, payload) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== playerId || item.kind !== 'shield') return;
+        item.payload = payload as Json;
+        item.updated_at = this.nowIso();
       },
       restoreVehicle: (playerId, itemId, points) => {
         const item = this.items.get(itemId);
@@ -2172,6 +2243,7 @@ export class InMemoryWriteStore implements WriteStore {
       'crafting.refining': { level: 1, xp: 0 },
       'crafting.gear': { level: 1, xp: 0 },
       'services.repair': { level: 1, xp: 0 },
+      'services.shield_tech': { level: 1, xp: 0 },
     };
     for (const m of this.seed.masteries) {
       if (m.user_id === playerId && m.mastery_id in masteries) {
@@ -2685,6 +2757,518 @@ export class InMemoryWriteStore implements WriteStore {
         level: masteryRow ? Math.max(1, masteryRow.mastery_level) : 1,
         xp: masteryRow?.mastery_xp ?? 0,
       },
+      levers: { ...levers, marketFeeRate: await this.feeRateProvider() },
+    }) as unknown as Json;
+  }
+
+
+  // ── Shield-tech services (migration 0044) ───────────────────────
+  //
+  // The repair board's discipline, for behavior recalibration: the
+  // owner posts a shield at a set price and escrows the FULL price
+  // up front; any verified shield tech accepts and supplies the
+  // Calibration Cores; work (calibration points — the shield's
+  // stored capacity) accrues only while the job is the tech's active
+  // action (workshop_service targeting the job), settled from
+  // timestamps with the same attended/away split as crafting; every
+  // terminal state pays pro-rata for points actually calibrated,
+  // minus the shared market fee (Darknet Broker reduction applies),
+  // and refunds the rest. The behavior FLIP lands only at 100%: the
+  // stored payload is rebased (un-bake the old behavior's generation
+  // transform, apply the new one) only if the shield is still
+  // bit-identical to its posting snapshot outside
+  // behavior/hp/rechargeRate. The SQL twins are the cc_*shieldtech*
+  // functions in migration 0044. Deliberately NO Fixer / research /
+  // cache-rank composition in this lane — the brief predates those
+  // wirings for repair, and parity with the SQL is the law here.
+
+  private shieldTechLevers(): ShieldTechLeverValues {
+    return resolveShieldTechLevers(this.shieldTechLeverProvider());
+  }
+
+  private shieldTechMasteryLevel(playerId: string): number {
+    const row = this.seed.masteries.find(
+      (m) => m.user_id === playerId && m.mastery_id === SHIELD_TECH_MASTERY_TRACK,
+    );
+    return row ? Math.max(1, row.mastery_level) : 1;
+  }
+
+  /** Terminal settlement for one shield-tech board job: pro-rata
+   *  pay, shared fee destroyed, remainder refunded, the flip at
+   *  full completion only, shield released, XP + mastery by points
+   *  actually calibrated. Idempotent: terminal jobs never re-settle. */
+  private async finalizeShieldTechJob(job: ServiceJobData, outcome: string): Promise<void> {
+    if (job.status === 'completed' || job.status === 'cancelled') return;
+    const price = job.quoted_price_credits ?? 0;
+    const target = job.target_points ?? 0;
+    const calibrated = job.points_restored ?? 0;
+    const payout = outcome === 'completed' ? price : repairProRataPayout(price, calibrated, target);
+    let fee = 0;
+    let xpAward = 0;
+    const provider = job.provider_user_id ? this.profileOrNull(job.provider_user_id) : null;
+    if (provider && payout > 0) {
+      const gear = [...this.items.values()]
+        .filter((i) => i.owner_user_id === provider.id && i.runtime_state === 'equipped')
+        .map((i) => i.payload as unknown as GearItem);
+      const bonuses = skillBonusesFromRecords(gear, (provider.skill_spends ?? {}) as Record<string, number>);
+      fee = repairServiceFee(payout, await this.feeRateProvider(), bonuses).feeCredits;
+      provider.credits += payout - fee;
+      this.touch(provider);
+    }
+    if (provider && calibrated > 0) {
+      xpAward = shieldTechServiceXp(
+        calibrated,
+        Math.min(2, Math.max(0, this.shieldTechLevers().shieldTechXpPerPoint)),
+      );
+      if (xpAward > 0) {
+        const next = applyXp(provider.player_level, provider.player_xp, xpAward);
+        provider.player_level = next.player_level;
+        provider.player_xp = next.player_xp;
+        this.applyCacheRankGrant(provider);
+        this.touch(provider);
+      }
+      this.addMasteryXp(provider.id, SHIELD_TECH_MASTERY_TRACK, shieldTechMasteryXp(calibrated));
+      if (outcome === 'completed') this.addStat(provider.id, 'services.completed', 1);
+    }
+    // Abandonment is a conduct record, not work: it lands even when
+    // zero points were calibrated (the usual case).
+    if (provider && outcome === 'abandoned') {
+      this.addStat(provider.id, 'services.abandoned', 1);
+    }
+    const owner = this.profileOrNull(job.owner_user_id);
+    if (owner && price - payout > 0) {
+      owner.credits += price - payout;
+      this.touch(owner);
+    }
+    const item = this.items.get(job.target_item_instance_id);
+    // The flip: only a fully completed job changes the shield, and
+    // only if its payload is still exactly the posting snapshot
+    // outside the three behavior fields. flipApplied is stamped on
+    // EVERY terminal state (false unless the flip landed) — the
+    // SQL finalize does the same.
+    if (job.shieldtech_snapshot) {
+      const snap = job.shieldtech_snapshot;
+      let flipApplied = false;
+      if (outcome === 'completed' && item) {
+        const current = (item.payload ?? {}) as Record<string, unknown>;
+        if (!shieldPayloadDrifted(current, snap.payload)) {
+          item.payload = rebasedShieldPayload(current, snap.toBehavior as ShieldBehaviorId) as Json;
+          flipApplied = true;
+        }
+      }
+      job.shieldtech_snapshot = { ...snap, flipApplied };
+    }
+    if (item) {
+      item.runtime_state = 'available';
+      item.is_locked = false;
+      this.touchItem(item);
+      this.recalcNetWorth(item.owner_user_id);
+    }
+    job.status = outcome === 'completed' || outcome === 'delivered_partial' ? 'completed' : 'cancelled';
+    job.outcome = outcome;
+    job.paid_credits = payout;
+    job.fee_credits = fee;
+    job.xp_awarded = xpAward;
+    job.completed_at = this.nowIso();
+  }
+
+  /** Advance one active shield-tech board job from server
+   *  timestamps. Progress accrues ONLY while the provider's active
+   *  action is workshop_service targeting this job; every settle
+   *  rebases last_settled_at so idle time can never accrue later.
+   *  Cores burn worst-first from the tech's batches as work needs
+   *  capacity, each priced at base × quality% × the acceptance-time
+   *  efficiency. */
+  private async settleShieldTechJob(job: ServiceJobData): Promise<void> {
+    if (job.status !== 'active' || !job.provider_user_id || !job.shieldtech_snapshot) return;
+    const snap = job.shieldtech_snapshot;
+    if (typeof snap.workRatePointsPerHour !== 'number' || typeof snap.efficiency !== 'number') return;
+    const providerId = job.provider_user_id;
+    const nowMs = this.nowFn().getTime();
+    const lastSettled = job.last_settled_at ? Date.parse(job.last_settled_at) : nowMs;
+    job.last_settled_at = this.nowIso();
+    const raw = Math.max(0, nowMs - lastSettled);
+    if (raw <= 0) return;
+    const action = this.activities.get(providerId);
+    if (!action || action.active_action !== 'workshop_service' || action.target_id !== job.id) return;
+    const provider = this.profileOrNull(providerId);
+    if (!provider) return;
+    const heartbeatMs = action.last_heartbeat_at ? new Date(action.last_heartbeat_at).getTime() : null;
+    const attendedMs = Math.min(
+      raw,
+      Math.max(0, (heartbeatMs ?? lastSettled) + CRAFT_HEARTBEAT_GRACE_MS - lastSettled),
+    );
+    const awayCapMs =
+      effectiveOfflineCapHours({
+        level: provider.player_level,
+        bonusHours: 0,
+        userCapHours: provider.offline_cap_hours ?? null,
+        ceilingHours: 24,
+      }) * 3600 * 1000;
+    const advance = attendedMs + Math.min(raw - attendedMs, awayCapMs);
+    if (advance <= 0) return;
+    job.accrued_work_ms = (job.accrued_work_ms ?? 0) + advance;
+
+    const target = job.target_points ?? 0;
+    let calibrated = job.points_restored ?? 0;
+    let workPoints = (job.work_points_banked ?? 0) + (advance / 3600000) * snap.workRatePointsPerHour;
+    while (workPoints > 0.000001 && calibrated < target - 0.0001) {
+      if ((job.open_kit_capacity ?? 0) <= 0.000001) {
+        const burned = this.craftAdapter().burnOneBatchUnit(providerId, 'CalibrationCore');
+        if (!burned) break;
+        const capacity = calibrationCoreCapacityPoints(burned.quality, snap.efficiency);
+        job.open_kit_capacity = capacity;
+        job.open_kit_total = capacity;
+        job.open_kit_quality = burned.quality;
+        job.kits_consumed = [
+          ...(job.kits_consumed ?? []),
+          { kitType: 'CalibrationCore', quality: burned.quality, pointsApplied: 0 },
+        ];
+      }
+      const applied = Math.min(workPoints, job.open_kit_capacity ?? 0, target - calibrated);
+      if (applied <= 0.000001) break;
+      workPoints -= applied;
+      job.open_kit_capacity = (job.open_kit_capacity ?? 0) - applied;
+      calibrated = Math.round((calibrated + applied) * 10000) / 10000;
+      const consumed = job.kits_consumed ?? [];
+      if (consumed.length > 0) {
+        consumed[consumed.length - 1] = {
+          ...consumed[consumed.length - 1],
+          pointsApplied: consumed[consumed.length - 1].pointsApplied + applied,
+        };
+      }
+      job.last_progress_at = this.nowIso();
+    }
+    job.work_points_banked = workPoints;
+    job.points_restored = calibrated;
+    if (calibrated >= target - 0.0001) {
+      await this.finalizeShieldTechJob(job, 'completed');
+    }
+  }
+
+  /** Settle (and expire) every shield-tech job the caller owns or
+   *  provides — the board read and every shield-tech op run it first. */
+  private async settleShieldTechJobsFor(playerId: string): Promise<void> {
+    const nowMs = this.nowFn().getTime();
+    for (const job of [...this.seed.serviceJobs]) {
+      if (job.profession_id !== 'shield_tech') continue;
+      if (job.owner_user_id !== playerId && job.provider_user_id !== playerId) continue;
+      if (job.status === 'listed') {
+        const expires = job.expires_at ? Date.parse(job.expires_at) : null;
+        if (expires !== null && nowMs >= expires) await this.finalizeShieldTechJob(job, 'expired');
+      } else if (job.status === 'active') {
+        await this.settleShieldTechJob(job);
+      }
+    }
+  }
+
+  /** Settle shield-tech board jobs before an activity transition,
+   *  mirroring the 0044 restatement of cc_set_active_action /
+   *  cc_clear_active_action. */
+  private async settleShieldTechBeforeTransition(playerId: string): Promise<void> {
+    if (!this.profileOrNull(playerId)) return;
+    await this.settleShieldTechJobsFor(playerId);
+  }
+
+  async enqueueShieldTechJob(playerId: string, nonce: string, input: EnqueueShieldTechJobInput): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    // No verified-account gate: self-lane recalibration is
+    // consumption (your own cores on your own shield), the same
+    // treatment as self-repair. The board below IS gated.
+    const p = this.profile(playerId);
+    const { job } = this.craftCall(() =>
+      enqueueShieldTechJobCore(this.craftAdapter(), playerId, {
+        itemId: input.itemId,
+        toBehavior: input.toBehavior,
+      }),
+    );
+    this.flushCraftView(playerId);
+    const jobs = this.seed.craftJobs.filter((j) => j.owner_user_id === playerId);
+    const result: Json = {
+      action_type: 'cc_enqueue_shieldtech_job',
+      profile: this.profileSnapshot(p),
+      job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+    };
+    return this.record(playerId, 'cc_enqueue_shieldtech_job', key, result);
+  }
+
+  async postShieldTechJob(
+    playerId: string,
+    nonce: string,
+    itemId: string,
+    toBehavior: string,
+    priceCredits: number,
+  ): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    this.requireEconomy(playerId);
+    await this.settleShieldTechJobsFor(playerId);
+    const p = this.profile(playerId);
+    const item = this.ownItem(playerId, itemId);
+    if (item.kind !== 'shield') throw writeError('Item is not a shield');
+    if (item.runtime_state !== 'available' || item.is_locked) {
+      throw writeError('Item state invalid');
+    }
+    if (!['standard', 'nova', 'absorb', 'amp', 'turtle'].includes(toBehavior)) {
+      throw writeError('Unknown shield behavior');
+    }
+    const target = toBehavior as ShieldBehaviorId;
+    const payload = (item.payload ?? {}) as Record<string, unknown>;
+    const fromBehavior = shieldBehaviorOf(payload);
+    if (target === fromBehavior) throw writeError('Shield already carries that behavior');
+    const rarity = (item.rarity ?? 'Common') as Parameters<typeof isLegalShieldTechTarget>[0];
+    if (!isLegalShieldTechTarget(rarity, target)) {
+      if (target === 'standard' && rarity === 'Legendary') {
+        throw writeError('Legendary shields cannot be recalibrated to Standard');
+      }
+      throw writeError('Behavior cannot be generated for this rarity');
+    }
+    const hp = payload.hp;
+    if (typeof hp !== 'number' || !Number.isFinite(hp)) throw writeError('Shield has no stored capacity');
+    const targetPoints = Math.round(hp);
+    if (targetPoints < 1) throw writeError('Shield has no stored capacity');
+    const price = Math.floor(priceCredits);
+    if (!Number.isFinite(price) || price < 1) throw writeError('Invalid price');
+    if (p.credits < price) throw writeError('Insufficient credits');
+    // Escrow: the full price leaves the owner's balance NOW and is
+    // held against the job until a terminal state releases it.
+    p.credits -= price;
+    this.touch(p);
+    item.runtime_state = 'in_service';
+    item.is_locked = true;
+    this.touchItem(item);
+    this.recalcNetWorth(playerId);
+    const levers = this.shieldTechLevers();
+    const job: ServiceJobData = {
+      id: this.uuid(),
+      owner_user_id: playerId,
+      provider_user_id: null,
+      profession_id: 'shield_tech',
+      status: 'listed',
+      target_item_instance_id: item.id,
+      requested_service_id: 'shield_recalibration',
+      quoted_price_credits: price,
+      quoted_duration_minutes: null,
+      owner_supplied_material_ids: [],
+      provider_supplied_material_ids: [],
+      escrow_id: this.uuid(),
+      created_at: this.nowIso(),
+      accepted_at: null,
+      completed_at: null,
+      target_points: targetPoints,
+      points_restored: 0,
+      work_points_banked: 0,
+      open_kit_capacity: 0,
+      open_kit_total: 0,
+      open_kit_quality: null,
+      accrued_work_ms: 0,
+      last_settled_at: null,
+      last_progress_at: null,
+      expires_at: new Date(this.nowFn().getTime() + levers.shieldTechListingExpiryDays * 86400000).toISOString(),
+      outcome: null,
+      paid_credits: null,
+      fee_credits: null,
+      xp_awarded: null,
+      kit_type: 'CalibrationCore',
+      kits_consumed: [],
+      repair_snapshot: null,
+      from_behavior: fromBehavior,
+      to_behavior: target,
+      shieldtech_snapshot: {
+        fromBehavior,
+        toBehavior: target,
+        targetPoints,
+        payload: clone(payload),
+      },
+    };
+    this.insertJob(job);
+    const result: Json = {
+      action_type: 'cc_post_shieldtech_job',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+      item: this.itemJson(item),
+    };
+    return this.record(playerId, 'cc_post_shieldtech_job', key, result);
+  }
+
+  async acceptShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    this.requireEconomy(playerId);
+    const job = this.jobs.get(jobId);
+    if (!job || job.profession_id !== 'shield_tech') throw writeError('Shield-tech job not found');
+    if (job.status === 'listed' && job.expires_at && this.nowFn().getTime() >= Date.parse(job.expires_at)) {
+      await this.finalizeShieldTechJob(job, 'expired');
+      throw writeError('Listing has expired');
+    }
+    if (job.status !== 'listed') throw writeError('Service job not available');
+    if (job.owner_user_id === playerId) throw writeError('Cannot accept own job');
+    const p = this.profile(playerId);
+    if ((asNumberMap(p.consumables)['CalibrationCore'] ?? 0) < 1) {
+      throw writeError('No CalibrationCore available');
+    }
+    const levers = this.craftLevers();
+    const masteryLevel = this.shieldTechMasteryLevel(playerId);
+    job.provider_user_id = playerId;
+    job.status = 'active';
+    job.shieldtech_snapshot = {
+      ...(job.shieldtech_snapshot ?? {
+        fromBehavior: job.from_behavior ?? 'standard',
+        toBehavior: job.to_behavior ?? 'standard',
+        targetPoints: job.target_points ?? 0,
+        payload: {},
+      }),
+      masteryLevel,
+      workRatePointsPerHour: shieldTechWorkRatePointsPerHour(
+        masteryLevel,
+        levers.shieldTechWorkRateBase,
+        levers.shieldTechMasterySpeedPerLevel,
+      ),
+      efficiency: shieldTechEfficiencyMultiplier(
+        masteryLevel,
+        levers.shieldTechMasteryEfficiencyPerLevel,
+      ),
+    };
+    job.accepted_at = this.nowIso();
+    job.last_settled_at = this.nowIso();
+    job.last_progress_at = this.nowIso();
+    const result: Json = {
+      action_type: 'cc_accept_shieldtech_job',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+    };
+    return this.record(playerId, 'cc_accept_shieldtech_job', key, result);
+  }
+
+  async finishShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const job = this.jobs.get(jobId);
+    if (!job || job.profession_id !== 'shield_tech' || job.provider_user_id !== playerId) {
+      throw writeError('Job not found');
+    }
+    if (job.status !== 'active') throw writeError('Job is not active');
+    await this.settleShieldTechJob(job);
+    if (job.status === 'active') {
+      await this.finalizeShieldTechJob(job, (job.points_restored ?? 0) > 0 ? 'delivered_partial' : 'cancelled_by_provider');
+    }
+    const p = this.profile(playerId);
+    const result: Json = {
+      action_type: 'cc_shieldtech_job_finish',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+    };
+    return this.record(playerId, 'cc_shieldtech_job_finish', key, result);
+  }
+
+  async cancelShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const job = this.jobs.get(jobId);
+    if (
+      !job ||
+      job.profession_id !== 'shield_tech' ||
+      (job.owner_user_id !== playerId && job.provider_user_id !== playerId)
+    ) {
+      throw writeError('Job not found');
+    }
+    const isOwner = job.owner_user_id === playerId;
+    if (job.status === 'listed') {
+      if (!isOwner) throw writeError('Job not found');
+      await this.finalizeShieldTechJob(job, 'cancelled_by_owner');
+    } else if (job.status === 'active') {
+      await this.settleShieldTechJob(job);
+      if (job.status === 'active') {
+        await this.finalizeShieldTechJob(job, isOwner ? 'cancelled_by_owner' : 'cancelled_by_provider');
+      }
+    } else {
+      throw writeError('Job is not active');
+    }
+    const p = this.profile(playerId);
+    const result: Json = {
+      action_type: 'cc_shieldtech_job_cancel',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+    };
+    return this.record(playerId, 'cc_shieldtech_job_cancel', key, result);
+  }
+
+  async reclaimShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const job = this.jobs.get(jobId);
+    if (!job || job.profession_id !== 'shield_tech' || job.owner_user_id !== playerId) {
+      throw writeError('Job not found');
+    }
+    if (job.status !== 'active') throw writeError('Job is not active');
+    await this.settleShieldTechJob(job);
+    if (job.status !== 'active') throw writeError('Job already completed');
+    const lastProgress = job.last_progress_at ? Date.parse(job.last_progress_at) : 0;
+    const windowMs = this.shieldTechLevers().shieldTechAbandonWindowHours * 3600000;
+    if (this.nowFn().getTime() - lastProgress < windowMs) {
+      throw writeError('Shield tech is still within the abandonment window');
+    }
+    await this.finalizeShieldTechJob(job, 'abandoned');
+    const p = this.profile(playerId);
+    const result: Json = {
+      action_type: 'cc_shieldtech_job_reclaim',
+      profile: this.profileSnapshot(p),
+      job: this.jobJson(job),
+    };
+    return this.record(playerId, 'cc_shieldtech_job_reclaim', key, result);
+  }
+
+  async getShieldTechBoard(playerId: string): Promise<Json> {
+    if (!this.profileOrNull(playerId)) throw writeError('Profile not found');
+    await this.settleShieldTechJobsFor(playerId);
+    const shields = new Map<string, ShieldTechShieldInfo | null>();
+    const names = new Map<string, string | null>();
+    for (const job of this.seed.serviceJobs) {
+      if (job.profession_id !== 'shield_tech') continue;
+      const item = this.items.get(job.target_item_instance_id);
+      shields.set(
+        job.target_item_instance_id,
+        item
+          ? {
+              kind: item.kind,
+              payload: (item.payload ?? {}) as Record<string, unknown>,
+              rarity: item.rarity ?? null,
+            }
+          : null,
+      );
+      for (const userId of [job.owner_user_id, job.provider_user_id]) {
+        if (userId && !names.has(userId)) {
+          names.set(userId, this.profileOrNull(userId)?.username ?? null);
+        }
+      }
+    }
+    const masteryRow = this.seed.masteries.find(
+      (m) => m.user_id === playerId && m.mastery_id === SHIELD_TECH_MASTERY_TRACK,
+    );
+    const levers = this.shieldTechLevers();
+    const myLevel = masteryRow ? Math.max(1, masteryRow.mastery_level) : 1;
+    return buildShieldTechBoardView({
+      callerId: playerId,
+      jobs: this.seed.serviceJobs,
+      shields,
+      names,
+      nowMs: this.nowFn().getTime(),
+      abandonWindowHours: levers.shieldTechAbandonWindowHours,
+      myMastery: {
+        level: myLevel,
+        xp: masteryRow?.mastery_xp ?? 0,
+      },
+      readerEfficiency: shieldTechEfficiencyMultiplier(
+        myLevel,
+        this.craftLevers().shieldTechMasteryEfficiencyPerLevel,
+      ),
       levers: { ...levers, marketFeeRate: await this.feeRateProvider() },
     }) as unknown as Json;
   }
@@ -3274,6 +3858,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.settleCraftBeforeTransition(playerId);
     // Repair settler hook (0025): board jobs settle on transitions too.
     await this.settleRepairBeforeTransition(playerId);
+    await this.settleShieldTechBeforeTransition(playerId);
     // Extraction accrual hook (0033): the outgoing action's
     // extraction time folds into completed passes before the switch.
     this.settleExtractionBeforeTransition(playerId);
@@ -3312,6 +3897,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.settleCraftBeforeTransition(playerId);
     // Repair settler hook (0025), same as setActiveAction.
     await this.settleRepairBeforeTransition(playerId);
+    await this.settleShieldTechBeforeTransition(playerId);
     // Extraction accrual hook (0033), same as setActiveAction.
     this.settleExtractionBeforeTransition(playerId);
     const now = this.nowIso();

@@ -292,8 +292,13 @@ describe('migration 0024 parity pins', () => {
     // 0043's exclusive recipes carry requiresStanding and postdate
     // 0024 the same way; their SQL parity is pinned against 0043 in
     // manufacturerStanding.test.ts.
+    // 0044's Calibration Core recipe postdates 0024 the same way;
+    // its SQL parity is pinned against 0044 in
+    // shieldTechServices.test.ts.
     expect(catalog).toEqual(
-      ALL_CRAFT_RECIPES.filter((r) => !r.requiresResearch && !r.requiresStanding).map(projectRecipe),
+      ALL_CRAFT_RECIPES.filter(
+        (r) => !r.requiresResearch && !r.requiresStanding && r.id !== 'recipe_calibration_core',
+      ).map(projectRecipe),
     );
   });
 
