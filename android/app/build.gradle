@@ -38,6 +38,22 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    sourceSets {
+        // The screen-inventory crawl (ScreenInventoryTest) lives in a
+        // separate source dir ON PURPOSE and only joins androidTest when
+        // -PincludeScreenInventory is passed (the dispatch-only
+        // screen-inventory workflow passes it). Without the property the
+        // class is not compiled into the test APK at all, so the per-PR
+        // connectedDebugAndroidTest job can never pick it up — the crawl
+        // needs the live Chef and minutes of emulator time and is a
+        // design-evidence harness, not a CI gate. See
+        // docs/SCREEN_INVENTORY.md.
+        androidTest {
+            if (project.hasProperty('includeScreenInventory')) {
+                java.srcDirs += 'src/androidTestInventory/java'
+            }
+        }
+    }
 }
 
 repositories {

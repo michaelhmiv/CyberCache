@@ -62,9 +62,13 @@ jobs:
 
       # Fail fast: both APKs (app + instrumented tests, incl. the
       # inventory crawl) must compile before any emulator boots.
+      # -PincludeScreenInventory is what adds ScreenInventoryTest to the
+      # androidTest source set (see android/app/build.gradle) — without
+      # it the class is not in the test APK at all, which is also why
+      # per-PR connectedDebugAndroidTest never runs it.
       - name: Compile app + instrumented tests (fail fast)
         working-directory: android
-        run: ./gradlew assembleDebug assembleDebugAndroidTest --stacktrace
+        run: ./gradlew assembleDebug assembleDebugAndroidTest -PincludeScreenInventory --stacktrace
 
       # Install both APKs and run ONLY the inventory class, then pull
       # whatever the crawl produced. The pull runs even when the crawl

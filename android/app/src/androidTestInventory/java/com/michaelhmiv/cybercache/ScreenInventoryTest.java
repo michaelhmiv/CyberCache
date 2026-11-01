@@ -13,7 +13,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
-import androidx.test.uiautomator.Until;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -474,22 +473,34 @@ public class ScreenInventoryTest {
     public void crawlAllScreens() {
         // ---- Launch + guest entry (the only hard-failure section) ----
         launchApp();
-        boolean authSeen = device.wait(Until.hasObject(By.textContains("Continue as Guest")), 45000);
-        if (!authSeen) {
-            // A returning session skips auth entirely — that is fine too.
-            if (waitForAny(5000, "Level Progress", "Login Streak") == null) {
-                record("", "auth", false, "Neither the auth screen nor a live session rendered after launch.");
-                flushManifest();
-                assertTrue("App did not reach the auth screen or a live session after launch", false);
-            }
-        } else {
+        // Cold-start budget: on a freshly booted emulator the first paint
+        // waits on WebView init + bundle load + the session check against
+        // the live Chef. The original 45s auth wait proved too short in
+        // exactly that environment (the class's accidental per-PR run on
+        // PR #251 died here at 53s) — allow 120s, and accept either auth
+        // affordance OR an already-live session as "the app painted".
+        String firstPaint = waitForAny(120000,
+                "Continue as Guest", "Sign in with Google", "Level Progress", "Login Streak");
+        if (firstPaint == null) {
+            // Capture what WAS on screen before failing, so a launch
+            // failure is diagnosable from the artifact (white WebView?
+            // splash? error boundary?) instead of a bare assertion.
+            String evidence = captureFailureEvidence("launch-failure");
+            record(evidence, "auth", false,
+                    "Neither the auth screen nor a live session rendered within 120s of launch."
+                            + " Evidence screenshot + hierarchy captured as " + evidence + ".");
+            flushManifest();
+            assertTrue("App did not reach the auth screen or a live session after launch", false);
+        }
+        boolean authSeen = "Continue as Guest".equals(firstPaint) || "Sign in with Google".equals(firstPaint);
+        if (authSeen) {
             snap("auth", "Auth screen as launched: Sign in with Google + Continue as Guest (the only two entries by design).");
             String tapped = tap("Continue as Guest");
             assertTrue("Guest entry button was visible but could not be tapped", tapped != null);
             settleLong();
         }
         dismissFirstRunSurfaces();
-        boolean home = waitForAny(20000, "Level Progress", "Login Streak", "Contracts") != null;
+        boolean home = waitForAny(45000, "Level Progress", "Login Streak", "Contracts") != null;
         if (!home) {
             record("", "board-home", false, "Guest Board never rendered after guest entry + first-run dismissal.");
             flushManifest();
@@ -933,6 +944,11 @@ public class ScreenInventoryTest {
             device.swipe((int) (displayWidth * 0.85), y, (int) (displayWidth * 0.25), y, 16);
             SystemClock.sleep(600);
         }
+    }
+
+    /** Screenshot + hierarchy of whatever is on screen right now (failure evidence). */
+    private String captureFailureEvidence(String screen) {
+        return marketStateShot(screen);
     }
 
     /**

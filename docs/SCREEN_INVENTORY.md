@@ -40,13 +40,26 @@ For every crawl stop, in visit order:
 
 ## How the crawl works
 
-`ScreenInventoryTest` (`android/app/src/androidTest/java/com/michaelhmiv/cybercache/`)
+`ScreenInventoryTest` (`android/app/src/androidTestInventory/java/com/michaelhmiv/cybercache/`)
 launches the app, taps **Continue as Guest**, dismisses first-run
 surfaces (starter-bundle reveal → *Collect*; a pending offline recap →
 *Got it*), and then walks the app by **visible text and content-desc**
 via UiAutomator — the same labels a user sees (bottom-nav labels come
 from `src/constants/navSigils.ts`: Board / Action / Gear / Market /
 Rank / Hunter).
+
+**Why `androidTestInventory`, not `androidTest`:** the class must never
+run in per-PR CI. It lives in its own source dir that joins the
+`androidTest` source set only when Gradle is invoked with
+`-PincludeScreenInventory` (see the `sourceSets` block in
+`android/app/build.gradle`); the screen-inventory workflow's compile
+step passes that property. Without it the class is not compiled into
+the test APK at all, so `connectedDebugAndroidTest` (the per-PR
+emulator job) cannot pick it up — when the class still lived in
+`androidTest`, PR #251's own emulator check ran the whole 32-stop
+crawl and failed. Ordinary instrumented tests (e.g.
+`ExampleInstrumentedTest`) stay in `src/androidTest` and run per-PR
+exactly as before.
 
 The crawl is read-only in spirit: it never buys, sells, salvages, or
 starts a boss fight. On the throwaway guest account it does claim the
@@ -138,7 +151,17 @@ opens them instead, as the boss-prep stop does.
 ## Verification status
 
 The workflow compiles both APKs (`assembleDebug` +
-`assembleDebugAndroidTest`) **before** booting the emulator, so a broken
-crawl fails fast and cheap. The first live dispatch after this harness
-lands is its shakedown run: expect the manifest to be the source of
-truth about which stops need label fixes, and iterate from there.
+`assembleDebugAndroidTest -PincludeScreenInventory`) **before** booting
+the emulator, so a broken crawl fails fast and cheap. The first live
+dispatch after this harness lands is its shakedown run: expect the
+manifest to be the source of truth about which stops need label fixes,
+and iterate from there.
+
+Launch robustness note: the crawl's first-paint wait is 120s and accepts
+either auth affordance or a live session — on a freshly booted emulator,
+WebView init + bundle load + the first session check against the live
+Chef can exceed the naive 45s this started with (that shorter wait is
+what killed the accidental per-PR run). If the wait still expires, the
+test captures a `launch-failure` screenshot + hierarchy into the
+inventory before failing, so the artifact shows what was actually on
+screen.
