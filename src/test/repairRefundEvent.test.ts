@@ -65,9 +65,14 @@ describe('0045 — repair_refund event type', () => {
     expect(after).toContain("p_origin not in ('vendor', 'crafted', 'market', 'reward', 'admin', 'standing')");
   });
 
-  it('is the last migration, and its writer is the chain-final restatement', () => {
+  it('its writer is the chain-final restatement of cc_add_consumable_batch', () => {
+    // 0045 was the chain's last migration when this pin was written;
+    // 0047/0048 landed after it (PR #252 rework) and restate OTHER
+    // functions. The invariant that protects production is narrower
+    // and durable: no migration after 0045 restates the batch writer,
+    // so the repair_refund widening is the chain-final writer body.
     const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
-    expect(files[files.length - 1]).toBe('0045_repair_refund_event.sql');
+    expect(files).toContain('0045_repair_refund_event.sql');
     const restatements = files.filter((f) =>
       read(f).includes('CREATE OR REPLACE FUNCTION public.cc_add_consumable_batch'));
     expect(restatements[restatements.length - 1]).toBe('0045_repair_refund_event.sql');

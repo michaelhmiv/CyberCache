@@ -122,7 +122,7 @@ describe('item identity (0047) — Chef-delivered items are addressable by the d
     const sql48 = read('db/migrations/0048_crafting_guest_access.sql');
     const body48 = sql48.slice(sql48.indexOf('create or replace function public.cc_enqueue_craft_job('));
     expect(body48).not.toContain('if not public.can_use_player_economy(actor)');
-    expect(body46).not.toContain("raise exception 'Verified account required'");
-    expect(body46).toContain('requiresStanding'); // the standing recipe gate survives — only the account gate went
+    expect(body48).not.toContain("raise exception 'Verified account required'");
+    expect(body48).toContain('requiresStanding'); // the standing recipe gate survives — only the account gate went
   });
 });
