@@ -249,6 +249,20 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
   const lastSettlement = useOfflineRecapStore((s) => s.lastSettlement);
   const recapDismissed = useOfflineRecapStore((s) => s.dismissed);
   const reopenRecap = useOfflineRecapStore((s) => s.reopen);
+  // The recap union has three shapes (roaming / crafting / extraction)
+  // and only the roaming one carries `rewards`/`items`. The reopen
+  // chip must discriminate exactly like OfflineRecap does — reading
+  // `.rewards` unconditionally crashed the Dashboard for any player
+  // whose last settlement was a crafting or extraction one (device
+  // report 2026-11-01: "Cannot read properties of undefined (reading
+  // 'creditsAwarded')", persisted across restarts by the recap store).
+  const recapSummary = !lastSettlement
+    ? null
+    : 'crafting' in lastSettlement
+      ? `+${lastSettlement.crafting.xpAwarded.toLocaleString()} XP · ${lastSettlement.crafting.jobsCompleted} craft job${lastSettlement.crafting.jobsCompleted === 1 ? '' : 's'} finished`
+      : 'extraction' in lastSettlement
+        ? `+${lastSettlement.extraction.xpAwarded.toLocaleString()} XP · ${lastSettlement.extraction.passesCompleted} extraction pass${lastSettlement.extraction.passesCompleted === 1 ? '' : 'es'} finished`
+        : `+${lastSettlement.rewards.creditsAwarded.toLocaleString()} credits · +${lastSettlement.rewards.xpAwarded.toLocaleString()} XP${lastSettlement.items.length > 0 ? ` · ${lastSettlement.items.length} item${lastSettlement.items.length === 1 ? '' : 's'}` : ''}`;
   const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.slice(0, 5), [tickEvents]);
   const [activityError, setActivityError] = useState<string | null>(null);
 
@@ -423,8 +437,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
             >
               <span className="min-w-0">
                 <span className="block truncate text-xs font-black text-text-primary">
-                  +{lastSettlement.rewards.creditsAwarded.toLocaleString()} credits · +{lastSettlement.rewards.xpAwarded.toLocaleString()} XP
-                  {lastSettlement.items.length > 0 ? ` · ${lastSettlement.items.length} item${lastSettlement.items.length === 1 ? '' : 's'}` : ''}
+                  {recapSummary}
                 </span>
                 <span className="block text-[9px] text-text-muted">Last offline summary — tap to view it again</span>
               </span>
