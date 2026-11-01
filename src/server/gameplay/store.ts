@@ -37,6 +37,7 @@ import {
 } from '../../content/extraction';
 import { applyXp, masteryLevelForXp } from '../writes/store';
 import { isHotArea } from '../../content/hotArea';
+import { contractBandForLevel, type ContractSetFacts } from '../../content/contracts';
 import { createTickRng } from '../../lib/rng/tickRng';
 import { skillBonusesFromRecords } from './serverLoadout';
 import {
@@ -159,6 +160,19 @@ export interface LoginStreakFacts {
     fragments_awarded: number;
     cache_keys_awarded: number;
   } | null;
+}
+
+/**
+ * Contracts-board facts (0042) for the /api/contracts routes: the
+ * profile's claim gate + both current sets (instances at their
+ * current generation, progress evaluated server-side — SQL
+ * cc_contract_progress on Pg; the content evaluator on the twin).
+ */
+export interface ContractsFacts {
+  account_type: string;
+  player_level: number;
+  daily: ContractSetFacts;
+  weekly: ContractSetFacts;
 }
 
 /**
@@ -654,6 +668,31 @@ export interface ChefGameplayStore {
    */
   recordLoginStreakDay(playerId: string): Promise<Json>;
   /**
+   * Contracts-board facts (0042): both current sets with evaluated
+   * progress. Facts only — issuance happens through issueContracts.
+   */
+  getContractsFacts(playerId: string): Promise<ContractsFacts | null>;
+  /**
+   * Materialize one period set (cc_issue_contracts, 0042): seeded
+   * (daily global per band, weekly per player), baselines frozen,
+   * exactly the set's rows once — re-issuing an issued period is a
+   * no-op summary.
+   */
+  issueContracts(playerId: string, periodKind: 'daily' | 'weekly'): Promise<Json>;
+  /**
+   * Claim one contract (cc_claim_contract_reward, 0042): re-evaluates
+   * in-transaction, pays the frozen reward exactly once (nonce
+   * replay), pays the full-set bonus in the same transaction when
+   * the claim completes the set. Guests and expired refuse.
+   */
+  claimContractReward(playerId: string, nonce: string, instanceId: string): Promise<Json>;
+  /**
+   * Reroll one contract (cc_reroll_contract, 0042): 1 free per set,
+   * then scrap destroyed; replacement drawn fresh with a fresh
+   * baseline. Completed-unclaimed, claimed, and expired refuse.
+   */
+  rerollContract(playerId: string, nonce: string, instanceId: string): Promise<Json>;
+  /**
    * Research facts (0038) for the /api/research routes: profile
    * level / benches / credits + completion rows + the active
    * enrollment. The read SETTLES first (cc_settle_research) — a
@@ -1061,6 +1100,107 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   recordLoginStreakDay(playerId: string): Promise<Json> {
     return this.callJson('select public.cc_record_login_streak_day($1) as result', [playerId]);
+  }
+
+  issueContracts(playerId: string, periodKind: 'daily' | 'weekly'): Promise<Json> {
+    return this.callJson('select public.cc_issue_contracts($1, $2) as result', [playerId, periodKind]);
+  }
+
+  claimContractReward(playerId: string, nonce: string, instanceId: string): Promise<Json> {
+    return this.callJson('select public.cc_claim_contract_reward($1, $2, $3) as result', [
+      playerId,
+      nonce,
+      instanceId,
+    ]);
+  }
+
+  rerollContract(playerId: string, nonce: string, instanceId: string): Promise<Json> {
+    return this.callJson('select public.cc_reroll_contract($1, $2, $3) as result', [
+      playerId,
+      nonce,
+      instanceId,
+    ]);
+  }
+
+  async getContractsFacts(playerId: string): Promise<ContractsFacts | null> {
+    const profile = await this.one(
+      'select player_level, account_type from public.profiles where id = $1',
+      [playerId],
+      (row) => ({
+        player_level: num(row.player_level),
+        account_type: typeof row.account_type === 'string' ? row.account_type : 'guest',
+      }),
+    );
+    if (!profile) return null;
+    try {
+      const { rows } = await this.pool.query(
+        `select i.id, i.period_kind, i.period_key, i.slot, i.generation, i.template_id, i.band,
+                i.params, i.baseline, i.target, i.reward, i.status,
+                i.issued_at::text as issued_at, i.claimed_at::text as claimed_at,
+                (public.cc_contract_progress(i.id) ->> 'progress')::bigint as progress,
+                exists (select 1 from public.contract_set_bonuses b
+                         where b.user_id = i.user_id and b.period_kind = i.period_kind
+                           and b.period_key = i.period_key) as set_bonus_claimed
+           from public.contract_instances i
+          where i.user_id = $1
+            and ((i.period_kind = 'daily'
+                  and i.period_key = ((now() at time zone 'UTC')::date)::text)
+              or (i.period_kind = 'weekly'
+                  and i.period_key = (date_trunc('week', ((now() at time zone 'UTC')::date)::timestamp)::date)::text))
+          order by i.period_kind, i.slot, i.generation`,
+        [playerId],
+      );
+      const assemble = (kind: 'daily' | 'weekly'): ContractSetFacts => {
+        const setRows = (rows as Row[]).filter((row) => String(row.period_kind) === kind);
+        const currentBySlot = new Map<number, Row>();
+        for (const row of setRows) currentBySlot.set(num(row.slot), row);
+        const current = [...currentBySlot.values()].sort((a, b) => num(a.slot) - num(b.slot));
+        const bandRow = current[0];
+        return {
+          band: (typeof bandRow?.band === 'string'
+            ? bandRow.band
+            : contractBandForLevel(profile.player_level).id) as ContractSetFacts['band'],
+          instances: current.map((row) => {
+            const params = json(row.params) as { bossId?: string } | null;
+            const reward = json(row.reward) as { credits?: number; fragments?: number } | null;
+            const baseline = json(row.baseline) as Record<string, number> | null;
+            return {
+              id: String(row.id ?? ''),
+              periodKind: kind,
+              periodKey: String(row.period_key ?? ''),
+              slot: num(row.slot),
+              generation: num(row.generation),
+              templateId: String(row.template_id ?? ''),
+              params: params && typeof params === 'object' ? params : {},
+              target: num(row.target),
+              baseline: baseline && typeof baseline === 'object' ? baseline : {},
+              reward: {
+                credits: num(reward?.credits),
+                fragments: num(reward?.fragments),
+              },
+              status: (String(row.status) === 'claimed'
+                ? 'claimed'
+                : String(row.status) === 'rerolled'
+                  ? 'rerolled'
+                  : 'active') as 'active' | 'claimed' | 'rerolled',
+              issuedAt: typeof row.issued_at === 'string' ? row.issued_at : '',
+              claimedAt: typeof row.claimed_at === 'string' ? row.claimed_at : null,
+              progress: num(row.progress),
+            };
+          }),
+          rerollsUsed: setRows.filter((row) => String(row.status) === 'rerolled').length,
+          setBonusClaimed: setRows.some((row) => row.set_bonus_claimed === true),
+        };
+      };
+      return {
+        account_type: profile.account_type,
+        player_level: profile.player_level,
+        daily: assemble('daily'),
+        weekly: assemble('weekly'),
+      };
+    } catch (err) {
+      return translatePgError(err);
+    }
   }
 
   async getResearchFacts(playerId: string): Promise<ResearchFacts | null> {

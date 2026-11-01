@@ -26,6 +26,7 @@ import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { LoginStreakPanel } from '@/components/dashboard/LoginStreakPanel';
+import { ContractsPanel } from '@/components/dashboard/ContractsPanel';
 import { ResearchChip, ResearchCompletionCard } from '@/components/dashboard/ResearchChip';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
@@ -424,6 +425,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
             daily check-in — the Chef records the day and grants
             the ladder reward server-side on first view. */}
         <LoginStreakPanel />
+        {/* Contracts board (0042): rotating work orders — the
+            panel's read issues both sets server-side; claims and
+            rerolls are Chef ops. Sits under the streak in the daily
+            loop, per the brief (Dashboard card, no new tab). */}
+        <ContractsPanel />
         {/* Research (0038): the one-time course-complete card —
             appears on the first open after a course settles. */}
         <ResearchCompletionCard />

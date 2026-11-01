@@ -36,6 +36,7 @@ import {
   type ActionSkillFacts,
   type CacheRankFacts,
   type LoginStreakFacts,
+  type ContractsFacts,
   type DispatchCandidateItem,
   type DispatchMissionRow,
   type DispatchProfileFacts,
@@ -99,6 +100,34 @@ import {
   type CraftProfileView,
   type WorkshopToolsState,
 } from '../writes/craftEngine';
+import {
+  CONTRACT_STAT_KEYS,
+  CONTRACT_TEMPLATE_BY_ID,
+  contractBandById,
+  contractBandForLevel,
+  contractPeriodExpired,
+  contractPeriodKey,
+  contractPeriodWindow,
+  contractProgressFor,
+  contractRewardFor,
+  contractSetBonusFor,
+  contractSetSeed,
+  contractTargetFor,
+  drawContractReroll,
+  drawContractSet,
+  resolveContractLevers,
+  type ContractBandId,
+  type ContractInstanceRecord,
+  type ContractLeverValues,
+  type ContractPeriodKind,
+  type ContractSetFacts,
+  type ContractTemplate,
+  type ContractWindowFacts,
+} from '../../content/contracts';
+import { REGION_1_BOSSES } from '../../constants/bosses';
+
+/** Band-eligible bounty source for contract draws (id + level only). */
+const CONTRACT_BOSS_CHOICES = REGION_1_BOSSES.map((b) => ({ id: b.id, level: b.level }));
 import {
   CRAFT_XP_RATE_DEFAULT,
   CRAFT_TIME_SCALAR_DEFAULT,
@@ -379,6 +408,26 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     cache_keys_awarded: number;
   }>();
 
+  /**
+   * Contract instances (0042 mirror of contract_instances): every
+   * generation ever issued — rerolled rows stay, exactly like SQL.
+   */
+  readonly contractInstances: Array<ContractInstanceRecord & { user_id: string; band: string }> = [];
+  /** Contract set bonuses (0042): `${playerId}:${kind}:${periodKey}` → the paid bonus. */
+  readonly contractSetBonuses = new Map<string, { credits: number; fragments: number; cacheKeys: number }>();
+  /**
+   * Standing stat counters the contracts evaluator diffs (0042):
+   * `${playerId}:${statKey}` → value. Fed by hooks at this twin's
+   * pay paths — the same points where the SQL 0014 trigger's stats
+   * land (roaming claims, boss victories, roaming events, salvage,
+   * consumable use, repair completions). Kinds whose domains this
+   * twin does not implement (market, cache draws, reforge) stay 0
+   * here, the twin's standing simplification.
+   */
+  readonly contractStats = new Map<string, number>();
+  /** Extraction unit log (0042 window fold): units found per settle. */
+  readonly contractExtractionLog: Array<{ playerId: string; units: number; atMs: number }> = [];
+
   constructor(
     private readonly now: () => Date = () => new Date(),
     private readonly cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>,
@@ -386,7 +435,13 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     private readonly extractionLeverProvider?: () => Partial<ExtractionLeverValues>,
     private readonly loginStreakLeverProvider?: () => Partial<LoginStreakLeverValues>,
     private readonly researchLeverProvider?: () => Partial<ResearchLeverValues>,
+    private readonly contractsLeverProvider?: () => Partial<ContractLeverValues>,
   ) {}
+
+  /** Contracts levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
+  contractsLevers(): ContractLeverValues {
+    return resolveContractLevers(this.contractsLeverProvider?.());
+  }
 
   /** Research levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
   researchLevers(): ResearchLeverValues {
@@ -989,6 +1044,299 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   // cc_dispatch_recall: same validations, same error messages, same
   // pro-rata settlement arithmetic, same ledger payloads.
 
+  // ─── Contracts board (0042) ─────────────────────────────────────
+  // The twin mirrors cc_issue_contracts / cc_claim_contract_reward /
+  // cc_reroll_contract / cc_contract_progress with the content
+  // module's own pure functions, so generation, baselines, targets,
+  // and rewards cannot drift from the Pg path. Progress facts come
+  // from this twin's own records (craft outputs, discovery rows,
+  // endless runs, boss victory log, extraction log) plus the
+  // contractStats hooks at the pay paths below.
+
+  private addContractStat(playerId: string, statKey: string, amount: number): void {
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const key = `${playerId}:${statKey}`;
+    this.contractStats.set(key, (this.contractStats.get(key) ?? 0) + Math.trunc(amount));
+  }
+
+  private contractStatsSnapshot(playerId: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const [key, value] of this.contractStats) {
+      if (key.startsWith(`${playerId}:`)) out[key.slice(playerId.length + 1)] = value;
+    }
+    // consumables_crafted is not hook-fed: it folds from craft outputs.
+    out['consumables_crafted'] = this.craftJobs
+      .filter((j) => j.owner_user_id === playerId)
+      .reduce((n, j) => n + j.outputs.filter((o) => o.consumableType != null).length, 0);
+    return out;
+  }
+
+  private contractBaselineFor(playerId: string, template: ContractTemplate): Record<string, number> {
+    const statKey = CONTRACT_STAT_KEYS[template.kind];
+    if (!statKey) return {};
+    return { [statKey]: this.contractStatsSnapshot(playerId)[statKey] ?? 0 };
+  }
+
+  private contractWindowFactsFor(playerId: string, inst: ContractInstanceRecord): ContractWindowFacts {
+    const { start, end } = contractPeriodWindow(inst.periodKind, inst.periodKey);
+    const startMs = Date.parse(start);
+    const endMs = Date.parse(end);
+    const inWindow = (ms: number) => ms >= startMs && ms < endMs;
+    let crafts = 0;
+    let refines = 0;
+    for (const job of this.craftJobs) {
+      if (job.owner_user_id !== playerId) continue;
+      for (const o of job.outputs) {
+        if (!inWindow(o.completedAtMs)) continue;
+        crafts += 1;
+        if (o.kind === 'refine') refines += 1;
+      }
+    }
+    const endedRuns = this.endlessRuns.filter(
+      (r) => r.user_id === playerId && r.status !== 'active' && r.ended_at && inWindow(Date.parse(r.ended_at)),
+    );
+    const specificBossVictories: Record<string, number> = {};
+    for (const v of this.bossVictoryLog) {
+      if (v.playerId === playerId && inWindow(v.atMs)) {
+        specificBossVictories[v.bossId] = (specificBossVictories[v.bossId] ?? 0) + 1;
+      }
+    }
+    return {
+      crafts,
+      refines,
+      sellerSales: 0,
+      discoveries: this.discoveryRows.filter(
+        (d) => d.user_id === playerId && inWindow(Date.parse(d.discovered_at)),
+      ).length,
+      endlessRuns: endedRuns.length,
+      endlessBestDepth: endedRuns.reduce((m, r) => Math.max(m, r.depth_reached), 0),
+      extractionUnits: this.contractExtractionLog
+        .filter((e) => e.playerId === playerId && inWindow(e.atMs))
+        .reduce((n, e) => n + e.units, 0),
+      specificBossVictories,
+    };
+  }
+
+  private currentContractInstances(playerId: string, kind: ContractPeriodKind, periodKey: string) {
+    const rows = this.contractInstances.filter(
+      (i) => i.user_id === playerId && i.periodKind === kind && i.periodKey === periodKey,
+    );
+    const bySlot = new Map<number, (typeof rows)[number]>();
+    for (const row of rows) {
+      const cur = bySlot.get(row.slot);
+      if (!cur || row.generation > cur.generation) bySlot.set(row.slot, row);
+    }
+    return { rows, current: [...bySlot.values()].sort((a, b) => a.slot - b.slot) };
+  }
+
+  async issueContracts(playerId: string, periodKind: ContractPeriodKind): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const now = this.now();
+    const periodKey = contractPeriodKey(periodKind, now);
+    const existing = this.contractInstances.some(
+      (i) => i.user_id === playerId && i.periodKind === periodKind && i.periodKey === periodKey,
+    );
+    if (existing) {
+      return { period_kind: periodKind, period_key: periodKey, issued: 0, already_issued: true } as Json;
+    }
+    const band = contractBandForLevel(p.player_level);
+    const levers = this.contractsLevers();
+    const count = periodKind === 'daily' ? levers.contractDailyCount : levers.contractWeeklyCount;
+    const draws = drawContractSet({
+      seed: contractSetSeed(periodKind, periodKey, band.id, playerId),
+      kind: periodKind,
+      band,
+      count,
+      bosses: CONTRACT_BOSS_CHOICES,
+    });
+    draws.forEach((draw, slot) => {
+      this.contractInstances.push({
+        user_id: playerId,
+        id: randomUUID(),
+        periodKind,
+        periodKey,
+        slot,
+        generation: 0,
+        templateId: draw.template.id,
+        band: band.id,
+        params: draw.params,
+        target: contractTargetFor(draw.template, periodKind, band, levers),
+        baseline: this.contractBaselineFor(playerId, draw.template),
+        reward: contractRewardFor(draw.template, periodKind, band, levers),
+        status: 'active',
+        issuedAt: now.toISOString(),
+        claimedAt: null,
+      });
+    });
+    return {
+      period_kind: periodKind, period_key: periodKey, band: band.id,
+      issued: draws.length, already_issued: false,
+    } as Json;
+  }
+
+  async getContractsFacts(playerId: string): Promise<ContractsFacts | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    const now = this.now();
+    const assemble = (kind: ContractPeriodKind): ContractSetFacts => {
+      const periodKey = contractPeriodKey(kind, now);
+      const { rows, current } = this.currentContractInstances(playerId, kind, periodKey);
+      const stats = this.contractStatsSnapshot(playerId);
+      return {
+        band: (current[0]?.band ?? contractBandForLevel(p.player_level).id) as ContractSetFacts['band'],
+        instances: current.map((inst) => ({
+          ...inst,
+          progress: contractProgressFor(inst, stats, this.contractWindowFactsFor(playerId, inst)),
+        })),
+        rerollsUsed: rows.filter((r) => r.status === 'rerolled').length,
+        setBonusClaimed: this.contractSetBonuses.has(`${playerId}:${kind}:${periodKey}`),
+      };
+    };
+    const accountType = (p as Record<string, unknown>).account_type;
+    return {
+      account_type: typeof accountType === 'string' ? accountType : 'guest',
+      player_level: p.player_level,
+      daily: assemble('daily'),
+      weekly: assemble('weekly'),
+    };
+  }
+
+  async claimContractReward(playerId: string, nonce: string, instanceId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const ledgerKey = `contracts-claim:${playerId}:${nonce}`;
+    const prior = this.ledger.get(ledgerKey);
+    if (prior) return prior;
+    if (!nonce || nonce.length < 8) throw new GameplayStoreError('A claim nonce is required');
+    const facts = await this.getContractsFacts(playerId);
+    if (facts && facts.account_type === 'guest') {
+      throw new GameplayStoreError('Contracts require a verified account — link Google sign-in to claim rewards');
+    }
+    const inst = this.contractInstances.find((i) => i.id === instanceId && i.user_id === playerId);
+    if (!inst) throw new GameplayStoreError('Contract not found');
+    if (inst.status === 'claimed') throw new GameplayStoreError('Contract already claimed');
+    if (inst.status === 'rerolled') throw new GameplayStoreError('Contract was rerolled');
+    if (contractPeriodExpired(inst.periodKind, inst.periodKey, this.now())) {
+      throw new GameplayStoreError('Contract expired — the window has closed');
+    }
+    const progress = contractProgressFor(
+      inst,
+      this.contractStatsSnapshot(playerId),
+      this.contractWindowFactsFor(playerId, inst),
+    );
+    if (progress < inst.target) throw new GameplayStoreError('Contract not complete');
+
+    p.credits += inst.reward.credits;
+    p.cache_token_parts += inst.reward.fragments;
+    inst.status = 'claimed';
+    inst.claimedAt = this.now().toISOString();
+
+    let setBonus: Json = null;
+    const bonusKey = `${playerId}:${inst.periodKind}:${inst.periodKey}`;
+    const { current } = this.currentContractInstances(playerId, inst.periodKind, inst.periodKey);
+    if (current.length > 0 && current.every((i) => i.status === 'claimed')
+      && !this.contractSetBonuses.has(bonusKey)) {
+      const bonus = contractSetBonusFor(
+        inst.periodKind, contractBandById(inst.band as ContractBandId), this.contractsLevers());
+      this.contractSetBonuses.set(bonusKey, bonus);
+      p.credits += bonus.credits;
+      p.cache_token_parts += bonus.fragments;
+      p.cache_tokens += bonus.cacheKeys;
+      setBonus = { credits: bonus.credits, fragments: bonus.fragments, cache_keys: bonus.cacheKeys } as Json;
+    }
+
+    const result = {
+      action_type: 'cc_claim_contract_reward',
+      instance_id: inst.id,
+      template_id: inst.templateId,
+      period_kind: inst.periodKind,
+      period_key: inst.periodKey,
+      credits_awarded: inst.reward.credits,
+      fragments_awarded: inst.reward.fragments,
+      set_bonus: setBonus,
+      profile: this.snapshot(p),
+    } as Json;
+    this.ledger.set(ledgerKey, result);
+    return result;
+  }
+
+  async rerollContract(playerId: string, nonce: string, instanceId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const ledgerKey = `contracts-reroll:${playerId}:${nonce}`;
+    const prior = this.ledger.get(ledgerKey);
+    if (prior) return prior;
+    if (!nonce || nonce.length < 8) throw new GameplayStoreError('A reroll nonce is required');
+    const inst = this.contractInstances.find((i) => i.id === instanceId && i.user_id === playerId);
+    if (!inst) throw new GameplayStoreError('Contract not found');
+    if (inst.status === 'claimed') throw new GameplayStoreError('Claimed contracts cannot be rerolled');
+    if (inst.status === 'rerolled') throw new GameplayStoreError('Contract already rerolled');
+    if (contractPeriodExpired(inst.periodKind, inst.periodKey, this.now())) {
+      throw new GameplayStoreError('Contract expired — the window has closed');
+    }
+    const progress = contractProgressFor(
+      inst,
+      this.contractStatsSnapshot(playerId),
+      this.contractWindowFactsFor(playerId, inst),
+    );
+    if (progress >= inst.target) {
+      throw new GameplayStoreError('Contract complete — claim it or let it expire');
+    }
+    const levers = this.contractsLevers();
+    const { rows, current } = this.currentContractInstances(playerId, inst.periodKind, inst.periodKey);
+    const used = rows.filter((r) => r.status === 'rerolled').length;
+    const free = used < 1;
+    const cost = free ? 0 : inst.periodKind === 'daily'
+      ? levers.contractRerollScrapDaily : levers.contractRerollScrapWeekly;
+    if (cost > 0 && p.scrap < cost) throw new GameplayStoreError('Insufficient scrap for a reroll');
+    const band = contractBandById(inst.band as ContractBandId);
+    const draw = drawContractReroll({
+      kind: inst.periodKind,
+      periodKey: inst.periodKey,
+      band,
+      playerId,
+      slot: inst.slot,
+      generation: inst.generation + 1,
+      bosses: CONTRACT_BOSS_CHOICES,
+      excludeIds: current.map((i) => i.templateId),
+      setFamilies: current
+        .filter((i) => i.slot !== inst.slot)
+        .map((i) => CONTRACT_TEMPLATE_BY_ID.get(i.templateId)?.family ?? 'meta'),
+    });
+    if (!draw) throw new GameplayStoreError('No replacement contract available on this board');
+    if (cost > 0) p.scrap -= cost;
+    inst.status = 'rerolled';
+    const replacement: ContractInstanceRecord & { user_id: string; band: string } = {
+      user_id: playerId,
+      id: randomUUID(),
+      periodKind: inst.periodKind,
+      periodKey: inst.periodKey,
+      slot: inst.slot,
+      generation: inst.generation + 1,
+      templateId: draw.template.id,
+      band: inst.band,
+      params: draw.params,
+      target: contractTargetFor(draw.template, inst.periodKind, band, levers),
+      baseline: this.contractBaselineFor(playerId, draw.template),
+      reward: contractRewardFor(draw.template, inst.periodKind, band, levers),
+      status: 'active',
+      issuedAt: this.now().toISOString(),
+      claimedAt: null,
+    };
+    this.contractInstances.push(replacement);
+    const result = {
+      action_type: 'cc_reroll_contract',
+      instance_id: replacement.id,
+      replaced_instance_id: inst.id,
+      template_id: draw.template.id,
+      period_kind: inst.periodKind,
+      period_key: inst.periodKey,
+      scrap_charged: cost,
+      free_reroll: free,
+      profile: this.snapshot(p),
+    } as Json;
+    this.ledger.set(ledgerKey, result);
+    return result;
+  }
+
   async getDispatchFacts(playerId: string): Promise<{ profile: DispatchProfileFacts; items: DispatchCandidateItem[] } | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
@@ -1437,6 +1785,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       }),
     };
     const settled = settleCraftJobsCore(adapter, playerId, { maxAdvanceMs: Math.max(0, capMs) });
+    // 0042: contracts stat mirror — repair-unit completions restore
+    // condition points for the item's owner (self-repair lane; the
+    // SQL stat lands inside cc_complete_craft_unit).
+    for (const completion of settled.completions) {
+      if (completion.kind === 'repair' && (completion.pointsRestored ?? 0) > 0) {
+        this.addContractStat(playerId, 'services.points_restored', Math.round(completion.pointsRestored ?? 0));
+      }
+    }
     // 0030: offline craft completions charge a Fixer-selected
     // player's Overclock pool, like every verified settlement (the
     // SQL path accrues inside cc_complete_craft_unit). Rates resolve
@@ -1624,6 +1980,12 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       isHot: (areaId) => isHotArea(areaId, input.now),
       hotAreaMaterialBonus: input.hotAreaMaterialBonus,
     });
+    // 0042: contracts window fold — extraction units found this settle.
+    const extractionUnits = Object.values(settled.materials).reduce((n, q) => n + q, 0)
+      + Object.values(settled.essences).reduce((n, q) => n + q, 0);
+    if (extractionUnits > 0) {
+      this.contractExtractionLog.push({ playerId, units: extractionUnits, atMs: this.now().getTime() });
+    }
     return {
       advancedMs: accrued.advancedMs,
       xpAwarded: settled.xpAwarded,
@@ -1774,6 +2136,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const echo = this.applyRewardBundle(p, rewards);
     // 0034: lifetime kill record (cc_record_kill_stats on the pay path).
     this.recordKillStats(playerId, rewards.kills);
+    // 0042: contracts stat mirror (the SQL trigger's roaming branch).
+    this.addContractStat(playerId, 'combat.roaming_kills', rewards.kills);
+    this.addContractStat(playerId, 'combat.idle_xp_claimed', rewards.xp);
     p.last_claimed_tick = tickCount;
     p.last_roaming_settled_at = this.now().toISOString();
 
@@ -1841,10 +2206,12 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const p = this.profiles.get(playerId);
     if (!p) return { consumables: {} };
     const next = { ...p.consumables };
+    let usedTotal = 0;
     for (const [itemKey, rawQty] of Object.entries(asRecord(consumed))) {
       if (rawQty <= 0) continue;
       const applied = Math.min(rawQty, Math.max(0, Math.trunc(next[itemKey] ?? 0)));
       if (applied <= 0) continue;
+      usedTotal += applied;
       next[itemKey] = Math.trunc(next[itemKey] ?? 0) - applied;
       this.consumableEvents.push({
         user_id: playerId,
@@ -1855,6 +2222,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         reason: `Consumed during roaming tick ${tickCount} in ${areaId}`,
       });
     }
+    // 0042: contracts stat mirror (consumables.used).
+    this.addContractStat(playerId, 'consumables.used', usedTotal);
     p.consumables = next;
     return { consumables: { ...next } };
   }
@@ -1989,6 +2358,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     this.ledger.set(nonceKey, result);
     if (attempt.victory) {
       this.bossVictoryLog.push({ playerId, bossId: attempt.bossId, atMs: this.now().getTime() });
+      // 0042: contracts stat mirror (boss victories).
+      this.addContractStat(playerId, 'combat.boss_defeats', 1);
     }
     // 0014: mirror the trigger's cc_apply_boss_attempt branch —
     // attempts always count, defeats pay on victory, weapon mastery
@@ -2312,6 +2683,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       areaId: input.areaId,
       tickCount: Math.trunc(input.tickCount),
     });
+    // 0042: contracts stat mirror (events fired + elite kills).
+    this.addContractStat(playerId, 'roaming.events_fired', input.events.length);
+    this.addContractStat(playerId, 'combat.elite_kills', eliteKills);
     if (eliteKills > 0) this.addMasteryXp(playerId, 'combat.elite_kills', eliteKills * 100);
     return {
       recorded_event_rows: input.events.length > 0 ? 1 : 0,
@@ -2455,6 +2829,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const echo = this.applyRewardBundle(p, rewards);
     // 0034: lifetime kill record (cc_record_kill_stats on the settled path).
     this.recordKillStats(playerId, rewards.kills);
+    // 0042: contracts stat mirror (the SQL trigger's offline branch).
+    this.addContractStat(playerId, 'combat.roaming_kills', rewards.kills);
+    this.addContractStat(playerId, 'combat.idle_xp_claimed', rewards.xp);
 
     // 0012: apply the engine's consumed set in the same settlement —
     // clamped to owned counts, with consumable_events rows, mirroring
@@ -2478,6 +2855,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         });
       }
       p.consumables = nextConsumables;
+      // 0042: contracts stat mirror (consumables.used, offline shape).
+      this.addContractStat(playerId, 'consumables.used',
+        Object.values(appliedConsumables).reduce((n, q) => n + q, 0));
     }
 
     p.last_claimed_tick = newTickCount;
@@ -2573,6 +2953,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     item.tradeable = false;
     item.equipped_slot = null;
     p.scrap += award;
+    // 0042: contracts stat mirror (salvages).
+    this.addContractStat(playerId, 'inventory.recycle.count', 1);
     p.legendary_cores = (p.legendary_cores ?? 0) + cores;
     const result: Json = {
       action_type: 'cc_recycle_item',

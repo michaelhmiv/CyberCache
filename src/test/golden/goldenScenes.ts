@@ -10,6 +10,15 @@
  * direction at G0–G4, never individual diffs); regenerate with
  * `npm run golden:update`.
  */
+import { REGION_1_BOSSES } from '@/constants/bosses';
+import {
+  contractBandById,
+  contractSetSeed,
+  contractTargetFor,
+  drawContractSet,
+  resolveContractLevers,
+  type ContractFamily,
+} from '@/content/contracts';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
 import { AREA_VISUALS, PIXEL_BOSS_ARENAS, endlessBandTint } from '@/content/areaPalettes';
 import { CACHE_RANK_BONUS_DEFS } from '@/content/cacheRank';
@@ -679,6 +688,90 @@ export const GOLDEN_SCENES: GoldenScene[] = [
         const color = filled ? hexToRgb(endlessBandTint(pipBand).color) : ([38, 40, 48] as const);
         fillRect(img, 12 + i * cellW + 1, 8, cellW - 2, GRAMMAR.progress.heightPx, [color[0], color[1], color[2]], 255);
       }
+    });
+  }),
+  // Contracts board (0042): the war-room board. Both scenes draw a
+  // REAL board — the set is drawn by the content module's own
+  // generator from its pinned seed (daily: the 2026-11-02 B2 board,
+  // global per band; weekly: the same week's golden-player set), so
+  // a taxonomy or draw change repaints here. Cards are rows in the
+  // board grammar: family chip at the left, the G-3 progress track
+  // filled to the pinned progress fraction; a completed card is lit
+  // with a light spill in the STANDARD beam color (never the
+  // legendary beam — the weekly key takes the standard beam too,
+  // brief §2.8). The war-room table (G-5) fronts the stage; the
+  // hunter idles at it.
+  ...(['daily', 'weekly'] as const).map((kind) => {
+    const band = contractBandById('B2');
+    const levers = resolveContractLevers();
+    const draws = drawContractSet({
+      seed: contractSetSeed(kind, '2026-11-02', 'B2', 'golden-player'),
+      kind,
+      band,
+      count: kind === 'daily' ? 3 : 5,
+      bosses: REGION_1_BOSSES.map((b) => ({ id: b.id, level: b.level })),
+    });
+    const fractions = kind === 'daily' ? [1, 0.75, 0.34] : [1, 0.8, 0.45, 0.2, 0];
+    const familyColors: Record<ContractFamily, string> = {
+      combat: '#E2483D', boss: '#9B6BD3', craft: '#E8B33D',
+      service: '#4FB0A5', market: '#7FB069', meta: '#8A94A6',
+    };
+    return scene(kind === 'daily' ? 'contracts-board' : 'contracts-board-weekly', (img) => {
+      drawBackground(img, AREA_BG.dustwaste_frontier);
+      fillRect(img, 0, 0, SCENE_W, SCENE_H, [8, 8, 12], 110);
+      // Board backplate + brass header rule + set-bonus line.
+      const boardX = 108;
+      const boardW = SCENE_W - boardX - 10;
+      const boardH = kind === 'daily' ? 168 : 208;
+      fillRect(img, boardX, 24, boardW, boardH, [13, 15, 21], 245);
+      fillRect(img, boardX, 24, boardW, 2, hexToRgb('#E8B33D'), 255);
+      fillRect(img, boardX, 24 + boardH - 2, boardW, 2, [58, 42, 30], 255);
+      // Set-bonus marker: daily = fragment pips; weekly = the key
+      // diamond on the STANDARD beam (drawn with the claimable card).
+      if (kind === 'daily') {
+        for (let pip = 0; pip < 2; pip += 1) {
+          fillRect(img, boardX + boardW - 34 + pip * 12, 32, 8, 8, hexToRgb('#E8B33D'), 255);
+        }
+      } else {
+        for (const [half, color] of [[7, '#8a6a24'], [5, '#E8B33D'], [2, '#ffe1a1']] as const) {
+          fillRect(img, boardX + boardW - 16 - half, 40 - half, half * 2, half * 2, hexToRgb(color), 255);
+        }
+      }
+      draws.forEach((draw, row) => {
+        const target = contractTargetFor(draw.template, kind, band, levers);
+        const fraction = fractions[row] ?? 0;
+        const complete = fraction >= 1;
+        const y = 48 + row * (kind === 'daily' ? 40 : 32);
+        const cardH = kind === 'daily' ? 34 : 26;
+        // One card geometry (G-2 language): lit when claimable —
+        // brass outline + a light spill in the standard-beam color
+        // above the card (the full G-1 beam is the loot moment's,
+        // not a board card's; the claim flash itself is G-6).
+        fillRect(img, boardX + 8, y, boardW - 16, cardH, complete ? [30, 26, 14] : [20, 22, 30], 255);
+        fillRect(img, boardX + 8, y, 3, cardH, hexToRgb(familyColors[draw.template.family]), 255);
+        if (complete) {
+          fillRect(img, boardX + 8, y, boardW - 16, 2, hexToRgb('#E8B33D'), 255);
+          fillRect(img, boardX + 8, y + cardH - 2, boardW - 16, 2, hexToRgb('#E8B33D'), 255);
+          fillRect(img, boardX + 26 - GRAMMAR.beamWidthPx.standard / 2, y - 6, GRAMMAR.beamWidthPx.standard, 6, hexToRgb('#E8B33D'), 120);
+        }
+        // G-3 progress track: filled to the pinned progress/target.
+        const trackX = boardX + 20;
+        const trackW = boardW - 36;
+        const trackY = y + cardH - GRAMMAR.progress.heightPx - 5;
+        fillRect(img, trackX, trackY, trackW, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+        const filledW = Math.round(trackW * Math.min(1, (Math.floor(target * fraction)) / target));
+        if (filledW > 0) {
+          fillRect(img, trackX, trackY, filledW, GRAMMAR.progress.heightPx, hexToRgb(complete ? '#E8B33D' : '#9c7c2e'), 255);
+        }
+        // Boss-param cards carry their bounty plate chip.
+        if (draw.params.bossId) {
+          fillRect(img, boardX + boardW - 24, y + 5, 10, 10, hexToRgb('#9B6BD3'), 255);
+        }
+      });
+      // War-room table (G-5) fronts the stage; hunter at the board.
+      const table = loadGoldenSprite('set-war-room-table');
+      if (table) blit(img, table, SCENE_W * 0.5 - 90, GROUND * SCENE_H - 46, 180, 46);
+      drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG_UNARMED, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
     });
   }),
 ];
