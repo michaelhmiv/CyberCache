@@ -20,6 +20,7 @@ import { getRoamingArea } from '../../constants/roamingAreas';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { isHotArea } from '../../content/hotArea';
 import { cacheRankBonuses } from '../../content/cacheRank';
+import { mergeResearchBonuses } from '../../content/research';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import {
@@ -145,9 +146,15 @@ export function createClaimHandler(
         res.status(500).json({ error: 'Failed to read loadout', detail: message });
         return;
       }
-      const skillBonuses = skillBonusesFromRecords(
-        equippedGear,
-        (profile.skill_spends ?? {}) as Record<string, number>,
+      const skillBonuses = mergeResearchBonuses(
+        skillBonusesFromRecords(
+          equippedGear,
+          (profile.skill_spends ?? {}) as Record<string, number>,
+        ),
+        // Research (0038): Xenotech weapon damage / shield capacity
+        // + Powertrain's decay term merge onto the one bonus record
+        // (settle-first, from research_completions rows).
+        await store.getResearchBonuses(playerId),
       );
 
       // Vehicle (Phase 2b): the equipped vehicle instance + tank

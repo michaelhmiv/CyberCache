@@ -102,6 +102,7 @@ import {
   type CacheRankBonuses,
   type CacheRankLeverValues,
 } from '../../content/cacheRank.js';
+import { computeResearchBonuses, type ResearchBonuses } from '../../content/research.js';
 import { reforgeCostFor, type ReforgeLeverValues } from '../../content/reforge.js';
 import {
   cacheLaneUtcDay,
@@ -973,7 +974,14 @@ export class InMemoryWriteStore implements WriteStore {
     const vendorBuybackBonus =
       computeSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId))
         .vendorBuybackBonus ?? 0;
-    const rate = Math.min(0.9, (await this.resolvedBuybackRate()) + Math.max(0, vendorBuybackBonus));
+    // Street Economics (0038): the seller's research term joins
+    // under the same 0.90 ceiling (SQL twin: cc_vendor_sell).
+    const rate = Math.min(
+      0.9,
+      (await this.resolvedBuybackRate())
+        + Math.max(0, vendorBuybackBonus)
+        + this.researchBonusesFor(playerId).vendorBuybackBonus,
+    );
     const qty = Math.max(1, Math.floor(input.quantity ?? 1) || 1);
 
     if (input.kind === 'gear') {
@@ -1519,6 +1527,33 @@ export class InMemoryWriteStore implements WriteStore {
   }
 
   /** The profile's resolved Cache Rank bonuses (0031), from its own spend record. */
+  /**
+   * Research completion facts (0038) for this twin: playerId →
+   * completed course ids. The writes store's compositions (vendor
+   * buyback, market fee, repair XP/rate) derive their research
+   * terms from these records — the mirror of cc_research_bonus_
+   * number reading research_completions in SQL. The gameplay store
+   * owns enrollments/settlement; this map records the settled facts
+   * the write paths price against.
+   */
+  readonly researchCompletions = new Map<string, Set<string>>();
+
+  /** Record a settled course completion (the cc_settle_research fact). */
+  completeResearchCourse(playerId: string, courseId: string): void {
+    let set = this.researchCompletions.get(playerId);
+    if (!set) {
+      set = new Set();
+      this.researchCompletions.set(playerId, set);
+    }
+    set.add(courseId);
+  }
+
+  /** The player's completion-derived research bonus record. */
+  researchBonusesFor(playerId: string): ResearchBonuses {
+    const set = this.researchCompletions.get(playerId);
+    return computeResearchBonuses(set ? [...set] : []);
+  }
+
   cacheRankBonusesFor(p: ProfileRowData): CacheRankBonuses {
     return resolveCacheRankBonuses(p.cache_rank_spends, this.cacheRankLevers());
   }
@@ -1670,6 +1705,12 @@ export class InMemoryWriteStore implements WriteStore {
         if (!p) return 0;
         return this.cacheRankBonusesFor(p).xp;
       },
+      researchBonus: (playerId, key) => {
+        const bonuses = this.researchBonusesFor(playerId) as unknown as Record<string, number>;
+        return bonuses[key] ?? 0;
+      },
+      researchCompleted: (playerId, courseId) =>
+        this.researchCompletions.get(playerId)?.has(courseId) ?? false,
       addMasteryXp: (playerId, track, xp) => {
         this.addMasteryXp(playerId, track, xp);
       },
@@ -2177,7 +2218,14 @@ export class InMemoryWriteStore implements WriteStore {
       this.touch(provider);
     }
     if (provider && restored > 0) {
-      xpAward = repairServiceXp(restored, this.repairLevers().serviceXpPerPoint);
+      // Master Mechanic (0038): the provider's certification adds
+      // +1 XP per point after the lever clamp (SQL twin:
+      // cc_repair_finalize_job).
+      xpAward = repairServiceXp(
+        restored,
+        Math.min(10, Math.max(0, this.repairLevers().serviceXpPerPoint))
+          + this.researchBonusesFor(provider.id).repairServiceXpBonus,
+      );
       // Cache Rank Fast Learner (0031): repair XP carries the same
       // XP bonus as every other source (the SQL twin scales v_xp in
       // cc_repair_finalize_job identically).
@@ -2477,7 +2525,11 @@ export class InMemoryWriteStore implements WriteStore {
           masteryLevel,
           levers.repairWorkRateBase,
           levers.repairMasterySpeedPerLevel,
-        ) * repairSpeedRateMultiplier(mechanicBonuses.repairSpeedBonus ?? 0),
+        ) * repairSpeedRateMultiplier(mechanicBonuses.repairSpeedBonus ?? 0)
+        // Wrench Basics (0038): the mechanic's research term
+        // multiplies the snapshotted rate (SQL twin:
+        // cc_accept_repair_job).
+        * (1 + this.researchBonusesFor(playerId).repairWorkRateBonus),
       efficiency: repairEfficiencyWithSkill(
         masteryLevel,
         levers.repairMasteryEfficiencyPerLevel,
@@ -3007,6 +3059,8 @@ export class InMemoryWriteStore implements WriteStore {
           // Cache Rank Silver Tongue (0031): post-fee uplift from the
           // seller's own cache_rank_spends.
           cacheRankProceedsBonus: this.cacheRankBonusesFor(seller).marketProceeds,
+          // Syndicate Ledger (0038): the seller's research fee term.
+          researchFeeReduction: this.researchBonusesFor(seller.id).marketFeeReduction,
         });
       }
     } else if (seller && listing.seller_type !== 'npc') {
@@ -3025,6 +3079,8 @@ export class InMemoryWriteStore implements WriteStore {
         craftedBySeller,
         feeRate: await this.feeRateProvider(),
         cacheRankProceedsBonus: this.cacheRankBonusesFor(seller).marketProceeds,
+        // Syndicate Ledger (0038): the seller's research fee term.
+        researchFeeReduction: this.researchBonusesFor(seller.id).marketFeeReduction,
       });
     }
     if (seller) {

@@ -120,6 +120,17 @@ import {
   resolveLoginStreakLevers,
   type LoginStreakLeverValues,
 } from '../../content/loginStreak';
+import {
+  RESEARCH_MASTERY_TRACK,
+  computeResearchBonuses,
+  researchCourse,
+  researchEnrollmentTerms,
+  researchMasteryXpFor,
+  resolveResearchLevers,
+  type ResearchBonuses,
+  type ResearchFacts,
+  type ResearchLeverValues,
+} from '../../content/research';
 import { isHotArea } from '../../content/hotArea';
 import {
   accrueExtractionTime,
@@ -347,6 +358,16 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     last_cycle_day: number | null;
     last_tier: number | null;
   }>();
+  /** Research enrollments (0038): playerId → the ONE active enrollment. */
+  readonly researchEnrollments = new Map<string, {
+    course_id: string;
+    enrolled_at: string;
+    completes_at: string;
+    cost_credits: number;
+    duration_ms: number;
+  }>();
+  /** Research completions (0038): playerId → courseId → completed_at (ISO). */
+  readonly researchCompletions = new Map<string, Map<string, string>>();
   /** Login-streak claim rows (0036): `${playerId}:${day}` → the claim. */
   readonly loginStreakClaims = new Map<string, {
     day: string;
@@ -364,7 +385,13 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     private readonly dispatchLeverProvider?: () => Partial<DispatchLeverValues>,
     private readonly extractionLeverProvider?: () => Partial<ExtractionLeverValues>,
     private readonly loginStreakLeverProvider?: () => Partial<LoginStreakLeverValues>,
+    private readonly researchLeverProvider?: () => Partial<ResearchLeverValues>,
   ) {}
+
+  /** Research levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
+  researchLevers(): ResearchLeverValues {
+    return resolveResearchLevers(this.researchLeverProvider?.());
+  }
 
   /** Login-streak levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
   loginStreakLevers(): LoginStreakLeverValues {
@@ -819,6 +846,144 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return result;
   }
 
+  // ─── Research (0038) ─────────────────────────────────────────────
+  // Mirrors cc_settle_research / cc_enroll_research /
+  // cc_cancel_research: pure wall-clock progress, lazy settlement,
+  // fee destroyed at enroll, cancel forfeits, NO player XP.
+
+  /** cc_settle_research mirror: a due enrollment becomes a completion + the one-time mastery grant. */
+  settleResearch(playerId: string): { course_id: string; completed_at: string; mastery_xp: number }[] {
+    const enrollment = this.researchEnrollments.get(playerId);
+    if (!enrollment) return [];
+    if (Date.parse(enrollment.completes_at) > this.now().getTime()) return [];
+    const course = researchCourse(enrollment.course_id);
+    const masteryXp = course ? researchMasteryXpFor(course) : 0;
+    let completions = this.researchCompletions.get(playerId);
+    if (!completions) {
+      completions = new Map();
+      this.researchCompletions.set(playerId, completions);
+    }
+    completions.set(enrollment.course_id, enrollment.completes_at);
+    this.researchEnrollments.delete(playerId);
+    if (masteryXp > 0) this.addMasteryXp(playerId, RESEARCH_MASTERY_TRACK, masteryXp);
+    const fact = {
+      course_id: enrollment.course_id,
+      completed_at: enrollment.completes_at,
+      mastery_xp: masteryXp,
+    };
+    this.ledger.set(`research-complete:${playerId}:${enrollment.course_id}`, {
+      action_type: 'cc_research_complete',
+      ...fact,
+    });
+    return [fact];
+  }
+
+  async getResearchFacts(playerId: string): Promise<ResearchFacts | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    this.settleResearch(playerId);
+    const enrollment = this.researchEnrollments.get(playerId);
+    const completions = this.researchCompletions.get(playerId);
+    return {
+      playerLevel: p.player_level,
+      workshopBenches: p.workshop_benches,
+      credits: p.credits,
+      completed: completions
+        ? [...completions.entries()]
+            .map(([courseId, completedAt]) => ({ courseId, completedAt }))
+            .sort((a, b) => (a.completedAt < b.completedAt ? -1 : 1))
+        : [],
+      activeEnrollment: enrollment
+        ? {
+            courseId: enrollment.course_id,
+            enrolledAt: enrollment.enrolled_at,
+            completesAt: enrollment.completes_at,
+            costCredits: enrollment.cost_credits,
+            durationMs: enrollment.duration_ms,
+          }
+        : null,
+      nowMs: this.now().getTime(),
+    };
+  }
+
+  async enrollResearch(playerId: string, nonce: string, courseId: string): Promise<Json> {
+    if (!nonce) throw new GameplayStoreError('cc_enroll_research requires a nonce');
+    const key = `cc_enroll_research:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true } as Json;
+    this.settleResearch(playerId);
+    const p = this.requireProfile(playerId);
+    const course = researchCourse(courseId);
+    if (!course) throw new GameplayStoreError('unknown_course');
+    const completions = this.researchCompletions.get(playerId);
+    if (completions?.has(courseId)) throw new GameplayStoreError('course_already_completed');
+    if (this.researchEnrollments.has(playerId)) {
+      throw new GameplayStoreError('research_already_enrolled');
+    }
+    if (course.requiresLevel != null && p.player_level < course.requiresLevel) {
+      throw new GameplayStoreError('level_too_low');
+    }
+    if (course.prerequisite && !completions?.has(course.prerequisite)) {
+      throw new GameplayStoreError('prerequisite_not_met');
+    }
+    if (course.requiresBench != null && (p.workshop_benches ?? 1) < course.requiresBench) {
+      throw new GameplayStoreError('bench_too_low');
+    }
+    const terms = researchEnrollmentTerms(course, this.researchLevers());
+    if (p.credits < terms.costCredits) throw new GameplayStoreError('insufficient_credits');
+    p.credits -= terms.costCredits;
+    const enrolledAt = this.now();
+    const completesAt = new Date(enrolledAt.getTime() + terms.durationMs);
+    this.researchEnrollments.set(playerId, {
+      course_id: courseId,
+      enrolled_at: enrolledAt.toISOString(),
+      completes_at: completesAt.toISOString(),
+      cost_credits: terms.costCredits,
+      duration_ms: terms.durationMs,
+    });
+    const result: Json = {
+      action_type: 'cc_enroll_research',
+      course_id: courseId,
+      cost_credits: terms.costCredits,
+      duration_ms: terms.durationMs,
+      enrolled_at: enrolledAt.toISOString(),
+      completes_at: completesAt.toISOString(),
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(key, result);
+    return result;
+  }
+
+  async cancelResearch(playerId: string, nonce: string): Promise<Json> {
+    if (!nonce) throw new GameplayStoreError('cc_cancel_research requires a nonce');
+    const key = `cc_cancel_research:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true } as Json;
+    this.settleResearch(playerId);
+    this.requireProfile(playerId);
+    const enrollment = this.researchEnrollments.get(playerId);
+    let result: Json;
+    if (!enrollment) {
+      result = { action_type: 'cc_cancel_research', cancelled: false };
+    } else {
+      this.researchEnrollments.delete(playerId);
+      result = {
+        action_type: 'cc_cancel_research',
+        cancelled: true,
+        course_id: enrollment.course_id,
+        fee_forfeited: enrollment.cost_credits,
+      };
+    }
+    this.ledger.set(key, result);
+    return result;
+  }
+
+  async getResearchBonuses(playerId: string): Promise<ResearchBonuses> {
+    this.settleResearch(playerId);
+    const completions = this.researchCompletions.get(playerId);
+    return computeResearchBonuses(completions ? [...completions.keys()] : []);
+  }
+
   // ─── Dispatch (0032) ─────────────────────────────────────────────
   // Mirrors cc_dispatch_depart / cc_dispatch_settle_due /
   // cc_dispatch_recall: same validations, same error messages, same
@@ -1172,6 +1337,19 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         const prof = this.profiles.get(id);
         if (!prof) return 0;
         return cacheRankBonuses(prof.cache_rank_spends, this.cacheRankLevers()).xp;
+      },
+      // Research (0038): settle-first, then read this store's
+      // completion records (the mirror of cc_research_bonus_number).
+      researchBonus: (id, key) => {
+        this.settleResearch(id);
+        const completions = this.researchCompletions.get(id);
+        if (!completions) return 0;
+        const bonuses = computeResearchBonuses([...completions.keys()]) as unknown as Record<string, number>;
+        return bonuses[key] ?? 0;
+      },
+      researchCompleted: (id, courseId) => {
+        this.settleResearch(id);
+        return this.researchCompletions.get(id)?.has(courseId) ?? false;
       },
       addMasteryXp: (id, track, xp) => {
         const existing = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
