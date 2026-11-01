@@ -159,8 +159,8 @@ describe('Dashboard recap — settlement-shape discrimination (level pop-up)', (
     expect(screen.queryByTestId('offline-recap-reopen')).toBeNull();
     fireEvent.click(screen.getByTestId('top-level-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
-    expect(screen.getByText('Dustwaste Frontier')).toBeTruthy();
     expect(screen.getByText('Credits')).toBeTruthy();
+    expect(screen.getByText('Away for')).toBeTruthy();
   }, 30_000);
 
   it('crafting settlement: no crash; the pop-up card shows the crafting truth', async () => {
