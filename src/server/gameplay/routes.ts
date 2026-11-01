@@ -36,6 +36,7 @@ import {
 } from '../routes/dispatch';
 import { createGetExtractionHandler, type ExtractionConfig } from '../routes/extraction';
 import { createGetLoginStreakHandler } from '../routes/loginStreak';
+import { createClaimContractHandler, createGetContractsHandler, createRerollContractHandler } from '../routes/contracts';
 import type { WriteStore } from '../writes/store';
 import type { ChefGameplayStore } from './store';
 
@@ -146,4 +147,20 @@ export function mountLoginStreakRoutes(
 ): void {
   app.get('/api/login-streak/me', createGetLoginStreakHandler(gameplayStore, config));
   console.log('[chef] login streak routes mounted: GET /api/login-streak/me (0036)');
+}
+
+/**
+ * Contracts board routes (0042): the Dashboard board read
+ * (issue-on-first-read) plus claim/reroll ops, on the gameplay
+ * store. Mounted alongside the login streak routes in index.ts.
+ */
+export function mountContractsRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  config: GameplayRoutesConfig,
+): void {
+  app.get('/api/contracts/me', createGetContractsHandler(gameplayStore, config));
+  app.post('/api/contracts/claim', createClaimContractHandler(gameplayStore, config));
+  app.post('/api/contracts/reroll', createRerollContractHandler(gameplayStore, config));
+  console.log('[chef] contracts routes mounted: GET /api/contracts/me, POST /api/contracts/claim, POST /api/contracts/reroll (0042)');
 }

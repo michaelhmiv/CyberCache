@@ -823,6 +823,75 @@ export async function getLoginStreakState(): Promise<ChefLoginStreakResult> {
 }
 
 /**
+ * Contracts board (0042). The board read issues both sets
+ * server-side on first read (seeded: daily global per band, weekly
+ * per player) and returns the board view — progress is evaluated
+ * from server records, never client claims. Claim/reroll send
+ * intent only (a nonce + the instance id); rewards, targets, and
+ * the replacement draw are all server truth.
+ */
+export interface ChefContractsResult {
+  verified: true;
+  contracts: import('@/content/contracts').ContractBoardView;
+  profile: Record<string, unknown> | null;
+}
+
+export interface ChefClaimContractResult extends ChefContractsResult {
+  claimed: {
+    instanceId: string;
+    templateId: string | null;
+    creditsAwarded: number;
+    fragmentsAwarded: number;
+    setBonus: { credits: number; fragments: number; cache_keys: number } | null;
+  };
+}
+
+export interface ChefRerollContractResult extends ChefContractsResult {
+  rerolled: {
+    instanceId: string | null;
+    replacedInstanceId: string;
+    templateId: string | null;
+    scrapCharged: number;
+    freeReroll: boolean;
+  };
+}
+
+export function newContractNonce(kind: 'claim' | 'reroll'): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `contracts-${kind}:${random}`;
+}
+
+export async function getContractsState(): Promise<ChefContractsResult> {
+  return endlessFetch<ChefContractsResult>(
+    '/contracts/me',
+    { method: 'GET' },
+    'Chef contracts board failed',
+  );
+}
+
+export async function claimContract(request: {
+  nonce: string;
+  instanceId: string;
+}): Promise<ChefClaimContractResult> {
+  return endlessFetch<ChefClaimContractResult>(
+    '/contracts/claim',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef contract claim failed',
+  );
+}
+
+export async function rerollContract(request: {
+  nonce: string;
+  instanceId: string;
+}): Promise<ChefRerollContractResult> {
+  return endlessFetch<ChefRerollContractResult>(
+    '/contracts/reroll',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef contract reroll failed',
+  );
+}
+
+/**
  * Dispatch (0032). Timed contracts for spare loadouts (foot) and
  * spare vehicles (courier). The client sends intent only — an offer
  * id, item/vehicle ids, a nonce; every term (payouts, fuel, wear,

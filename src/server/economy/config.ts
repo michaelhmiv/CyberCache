@@ -212,6 +212,25 @@ export interface EconomyConfigValues {
   // cc_economy_config_number with the identical clamp).
   /** Total cache boxes openable per UTC day, free box included. */
   cacheBoxDailyCap: number;
+  // Contracts board (0042) — content owner: src/content/contracts.ts
+  // (CONTRACT_LEVER_DEFAULTS / CONTRACT_LEVER_CLAMPS, pinned against
+  // these literals by tests; cc_issue_contracts / cc_claim_contract_reward
+  // / cc_reroll_contract read them via cc_economy_config_number with
+  // identical clamps).
+  /** Scalar on every contract credit/fragment reward, priced at issuance. */
+  contractRewardScalar: number;
+  /** Scalar on every contract target, priced at issuance. */
+  contractTargetScalar: number;
+  /** Contracts on the daily board. */
+  contractDailyCount: number;
+  /** Contracts on the weekly board. */
+  contractWeeklyCount: number;
+  /** Scrap destroyed by a non-free daily reroll. */
+  contractRerollScrapDaily: number;
+  /** Scrap destroyed by a non-free weekly reroll. */
+  contractRerollScrapWeekly: number;
+  /** Cache keys in the weekly full-set bonus. */
+  contractWeeklyKeys: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -296,6 +315,13 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   streakCreditScalar: 1,
   streakFragmentScalar: 1,
   cacheBoxDailyCap: 10,
+  contractRewardScalar: 1,
+  contractTargetScalar: 1,
+  contractDailyCount: 3,
+  contractWeeklyCount: 5,
+  contractRerollScrapDaily: 100,
+  contractRerollScrapWeekly: 400,
+  contractWeeklyKeys: 1,
 };
 
 export interface EconomyConfigKeySpec {
@@ -620,6 +646,34 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   cacheBoxDailyCap: {
     key: 'cacheBoxDailyCap', min: 1, max: 30, integer: true,
     defaultOwner: 'src/content/cacheLane.ts CACHE_LANE_LEVER_DEFAULTS',
+  },
+  contractRewardScalar: {
+    key: 'contractRewardScalar', min: 0, max: 2, integer: false,
+    defaultOwner: 'src/content/contracts.ts CONTRACT_LEVER_DEFAULTS',
+  },
+  contractTargetScalar: {
+    key: 'contractTargetScalar', min: 0.5, max: 2, integer: false,
+    defaultOwner: 'src/content/contracts.ts CONTRACT_LEVER_DEFAULTS',
+  },
+  contractDailyCount: {
+    key: 'contractDailyCount', min: 1, max: 5, integer: true,
+    defaultOwner: 'src/content/contracts.ts CONTRACT_LEVER_DEFAULTS',
+  },
+  contractWeeklyCount: {
+    key: 'contractWeeklyCount', min: 1, max: 8, integer: true,
+    defaultOwner: 'src/content/contracts.ts CONTRACT_LEVER_DEFAULTS',
+  },
+  contractRerollScrapDaily: {
+    key: 'contractRerollScrapDaily', min: 0, max: 1000, integer: true,
+    defaultOwner: 'src/content/contracts.ts CONTRACT_LEVER_DEFAULTS',
+  },
+  contractRerollScrapWeekly: {
+    key: 'contractRerollScrapWeekly', min: 0, max: 5000, integer: true,
+    defaultOwner: 'src/content/contracts.ts CONTRACT_LEVER_DEFAULTS',
+  },
+  contractWeeklyKeys: {
+    key: 'contractWeeklyKeys', min: 0, max: 3, integer: true,
+    defaultOwner: 'src/content/contracts.ts CONTRACT_LEVER_DEFAULTS',
   },
 };
 
