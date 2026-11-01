@@ -107,7 +107,10 @@ describe('BossFightStage (P2 movement system)', () => {
     expect(screen.getByTestId('boss-fight-banner')).toBeTruthy();
     expect(screen.queryByTestId('boss-fight-beats')).toBeNull();
     expect(screen.queryByTestId('fx-embers')).toBeNull();
-    expect(screen.getByTestId('boss-stage-hunter').getAttribute('data-entrance')).toBe('none');
+    // This stage's hunter carries no weapon, so the real-item
+    // invariant renders the gun-free rig (no entrance choreography)
+    // instead of the baked-gun whole sprite.
+    expect(screen.getByTestId('boss-stage-hunter').getAttribute('data-rig')).toBe('hunter-unarmed');
   });
 });
 

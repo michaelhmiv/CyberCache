@@ -597,6 +597,128 @@ def build_goldenbg() -> None:
     print(f"goldenbg: {len(sources)} twins -> {out_dir}")
 
 
+# ----------------------------------------------------------------------
+# 10. Unarmed hunter rig variants (real-item invariant)
+# ----------------------------------------------------------------------
+# The shipped hunter art holds a rifle, and the segmented rig inherits
+# it: the arm-fore crop IS mostly the rifle, the arm-upper / arm-off
+# crops carry the receiver, and the torso crop keeps a gun patch at its
+# top-right. An unequipped hunter therefore rendered a phantom rifle in
+# every rig scene. These four variant segments paint the same hunter
+# WITHOUT the weapon: the torso with its gun patch erased + row-
+# inpainted from its own armor, and three hanging-arm segments ("hands
+# at sides") painted in the shipped armor palette / shading language
+# (navy ramp sampled from the shipped arm + shin segments). Existing
+# sprites are NEVER touched — the equipped path stays bit-identical;
+# the unarmed rig swaps only these four segments.
+
+UNARMED_OUTLINE = (9, 11, 18, 255)
+UNARMED_DARK = (13, 32, 64, 255)
+UNARMED_BASE = (23, 48, 92, 255)
+UNARMED_MID = (42, 76, 131, 255)
+UNARMED_LIGHT = (78, 116, 174, 255)
+UNARMED_CYAN = (64, 224, 255, 255)
+UNARMED_GLOVE = (15, 17, 25, 255)
+UNARMED_GLOVE_L = (40, 46, 62, 255)
+UNARMED_FAR_DARK = (10, 24, 48, 255)
+UNARMED_FAR_BASE = (17, 36, 69, 255)
+UNARMED_FAR_GLOVE = (11, 13, 19, 255)
+
+
+def _grow(pts, cx, cy, d):
+    return [(x + (-d if x < cx else d if x > cx else 0),
+             y + (-d if y < cy else d if y > cy else 0)) for x, y in pts]
+
+
+def build_unarmed() -> None:
+    hunter = Image.open(SPRITES / "hunter.png").convert("RGBA")
+
+    # --- torso: erase the gun patch, inpaint from the row's own armor ---
+    torso = hunter.crop((24, 76, 148, 198))
+    tp = torso.load()
+    # Gun patch in torso-local coords: the rifle receiver crosses the
+    # whole chest (frame x ~88..148, y ~96..138 -> local x 64..124,
+    # y 20..62), scope glow included — the blue-gray gunmetal is too
+    # close to the armor navy for a color test, so the measured rect is
+    # erased outright and each row is inpainted from the armor pixel at
+    # its left edge (cyan accents never seed the smear, so the chest
+    # light cannot streak).
+    GX0, GY0, GX1, GY1 = 64, 20, 124, 62
+    for y in range(GY0, GY1):
+        last = None
+        for x in range(GX0):
+            r, g, b, a = tp[x, y]
+            if a > 200 and not (g > 150 and b > 180):
+                last = (r, g, b, a)
+        # The gun WAS the silhouette out to the crop edge; the body
+        # underneath slopes from the neck (~x96) over the shoulder
+        # (~x112) and tapers to the waist (~x98) — the hanging arm
+        # (frame x>=103) covers the seam.
+        t = (y - GY0) / max(1, GY1 - GY0)
+        edge = int(96 + t * 64) if t < 0.25 else int(112 - (t - 0.25) * 18.7)
+        for x in range(GX0, GX1):
+            if tp[x, y][3] == 0:
+                continue
+            if last is None or x > edge:
+                tp[x, y] = (0, 0, 0, 0)
+            elif x == edge:
+                tp[x, y] = (last[0] // 2, last[1] // 2, last[2] // 2, 255)
+            else:
+                tp[x, y] = last
+    save_sprite("rig-hunter-torso-unarmed", torso, "character", {"pivot": {"x": 0.45, "y": 0.1}})
+
+    # --- near upper arm: shoulder pad + hanging sleeve (52x70) ---
+    img = Image.new("RGBA", (52, 70), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    arm = [(11, 18), (31, 18), (28, 58), (14, 58)]
+    d.polygon(_grow(arm, 21, 38, 1), fill=UNARMED_OUTLINE)
+    d.polygon(arm, fill=UNARMED_BASE)
+    d.polygon([(11, 18), (19, 18), (18, 58), (14, 58)], fill=UNARMED_DARK)
+    d.rectangle((24, 20, 26, 56), fill=UNARMED_MID)
+    d.polygon([(13, 52), (29, 52), (28, 58), (14, 58)], fill=UNARMED_DARK)
+    d.ellipse((3, 1, 33, 24), fill=UNARMED_OUTLINE)
+    d.ellipse((4, 2, 32, 23), fill=UNARMED_LIGHT)
+    d.ellipse((4, 6, 32, 23), fill=UNARMED_MID)
+    d.polygon([(8, 12), (28, 12), (27, 17), (10, 17)], fill=UNARMED_BASE)
+    d.rectangle((21, 9, 28, 11), fill=UNARMED_CYAN)
+    save_sprite("rig-hunter-arm-upper-unarmed", img, "character", {"pivot": {"x": 0.37, "y": 0.17}})
+
+    # --- near forearm + glove: hangs to mid-thigh (48x76) ---
+    img = Image.new("RGBA", (48, 76), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    fore = [(13, 4), (31, 4), (29, 44), (15, 44)]
+    d.polygon(_grow(fore, 22, 24, 1), fill=UNARMED_OUTLINE)
+    d.polygon(fore, fill=UNARMED_BASE)
+    d.polygon([(13, 4), (19, 4), (18, 44), (15, 44)], fill=UNARMED_DARK)
+    d.rectangle((24, 6, 26, 42), fill=UNARMED_MID)
+    d.rectangle((13, 38, 30, 46), fill=UNARMED_OUTLINE)
+    d.rectangle((14, 39, 29, 45), fill=UNARMED_MID)
+    d.rectangle((20, 41, 26, 43), fill=UNARMED_CYAN)
+    d.rounded_rectangle((10, 44, 33, 68), radius=6, fill=UNARMED_OUTLINE)
+    d.rounded_rectangle((11, 45, 32, 67), radius=5, fill=UNARMED_GLOVE)
+    d.ellipse((12, 44, 20, 53), fill=UNARMED_GLOVE_L)
+    d.ellipse((19, 43, 27, 52), fill=UNARMED_GLOVE_L)
+    d.ellipse((25, 44, 32, 52), fill=UNARMED_GLOVE_L)
+    d.ellipse((29, 52, 37, 61), fill=UNARMED_OUTLINE)
+    d.ellipse((30, 53, 36, 60), fill=UNARMED_GLOVE)
+    d.line((19, 54, 19, 63), fill=UNARMED_OUTLINE)
+    d.line((25, 54, 25, 63), fill=UNARMED_OUTLINE)
+    save_sprite("rig-hunter-arm-fore-unarmed", img, "character", {"pivot": {"x": 0.46, "y": 0.08}})
+
+    # --- far forearm + hand: peeks below the torso hem (36x74) ---
+    img = Image.new("RGBA", (36, 74), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    far = [(12, 2), (26, 2), (25, 52), (13, 52)]
+    d.polygon(_grow(far, 19, 27, 1), fill=UNARMED_OUTLINE)
+    d.polygon(far, fill=UNARMED_FAR_BASE)
+    d.polygon([(12, 2), (17, 2), (17, 52), (13, 52)], fill=UNARMED_FAR_DARK)
+    d.rounded_rectangle((10, 50, 28, 71), radius=5, fill=UNARMED_OUTLINE)
+    d.rounded_rectangle((11, 51, 27, 70), radius=4, fill=UNARMED_FAR_GLOVE)
+    d.line((19, 56, 19, 65), fill=UNARMED_OUTLINE)
+    save_sprite("rig-hunter-arm-off-unarmed", img, "character", {"pivot": {"x": 0.5, "y": 0.05}})
+    print("unarmed: 4 variant segments (gun-free torso + hands at sides)")
+
+
 def write_manifest() -> None:
     data = json.loads(MANIFEST.read_text())
     data["sprites"].update(manifest_additions)
@@ -618,6 +740,7 @@ SECTIONS = {
     "glyphs": build_glyphs,
     "vehicles": build_vehicles,
     "sets": build_sets,
+    "unarmed": build_unarmed,
     "goldenbg": build_goldenbg,
 }
 

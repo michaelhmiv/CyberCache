@@ -10,7 +10,7 @@ import { buildExtractionActivity } from '../../lib/activity/activityBuilders';
 import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '../../constants/roamingAreas';
 import { signatureMaterialForArea } from '../../content/roamingEvents';
 import { pixelBackgroundForArea } from '../../lib/pixel/manifest';
-import { useIdleStore, usePlayerStore } from '../../store';
+import { useIdleStore, useLoadoutStore, usePlayerStore } from '../../store';
 import { useNow } from '../../hooks/useNow';
 import { ExtractionScene } from '../pixelArt/ActionScenes';
 import { AreaPickerList, CurrentAreaChip } from '../common/AreaPicker';
@@ -49,6 +49,8 @@ function formatFinds(finds: Record<string, number>): string {
 
 export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave }) => {
   const playerLevel = usePlayerStore((s) => s.level);
+  const loadout = useLoadoutStore();
+  const hunterWeapon = loadout.getWeapon('primary');
   const selectedAreaId = useIdleStore((s) => s.selectedRoamingAreaId);
   const setSelectedArea = useIdleStore((s) => s.setSelectedRoamingArea);
   const now = useNow();
@@ -163,6 +165,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
         backgroundId={sceneBackground}
         deep={state?.passMethod === 'deep'}
         paused={state?.hasState && !active}
+        unarmed={!hunterWeapon}
         progress={progress}
         causeLabel={
           state?.hasState

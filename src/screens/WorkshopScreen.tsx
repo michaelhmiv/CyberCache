@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X, Lock } from 'lucide-react';
-import { useActivityStore, usePlayerStore, useWorkshopStore } from '@/store';
+import { useActivityStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 import { useAuth } from '@/auth/AuthProvider';
 import { isVerifiedAccount } from '@/auth/accountState';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -215,6 +215,10 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const player = usePlayerStore();
   const workshop = useWorkshopStore();
   const activity = useActivityStore();
+  const loadout = useLoadoutStore();
+  // Real-item invariant: the bench hunter carries the player's actual
+  // weapon state — unequipped renders the gun-free rig.
+  const hunterWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
   const { account } = useAuth();
   const verified = isVerifiedAccount(account);
   const [expandedMaterials, setExpandedMaterials] = useState(false);
@@ -327,7 +331,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           hunter at work while crafting is active; paused jobs sit
           idle-dark under a Paused pennant. */}
       <div className="relative overflow-hidden rounded-lg border-2 border-border">
-        <CraftingBenchScene benchSpriteId={stageBench.spriteId} />
+        <CraftingBenchScene benchSpriteId={stageBench.spriteId} unarmed={!hunterWeapon} />
         <div className="absolute left-2 top-2 flex gap-1.5">
           {CRAFT_BENCHES.map((b) => {
             const locked = b.bench > benchesOwned;

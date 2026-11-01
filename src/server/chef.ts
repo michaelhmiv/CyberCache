@@ -64,6 +64,7 @@ import {
   signatureMaterialForArea,
   type RoamingEventDef,
 } from '../content/roamingEvents';
+import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '../content/roamingRates';
 import { HOT_AREA_DANGER_MULTIPLIER, HOT_AREA_MATERIAL_BONUS, HOT_AREA_YIELD_BONUS } from '../content/hotArea';
 import {
   endlessEncounterForDepth,
@@ -451,17 +452,14 @@ export interface BossAttemptChefResult {
 // --- Constants ---
 
 const TICK_MS = 3000;
-const GEAR_THRESHOLD = 0.22;
-/**
- * Cache-key fragment faucet: chance per roaming tick (before activity
- * bonuses). Pacing-baseline tuning (lifecycle evaluation): 0.03 → 0.008 —
- * the launch rate minted ~7 keys/hour of roaming; fragments now trickle
- * at ~2 keys/hour while the jackpot legendary's guaranteed fragment and
- * the 5-fragments-per-key conversion are unchanged. Chest odds (the
- * 60/32/8 displayed to players) are a separate table and do not move.
- */
-export const FRAGMENT_CHANCE = 0.008;
-const MATERIAL_CHANCE = 0.08;
+// The roaming faucet's base rates live in ONE owner —
+// src/content/roamingRates.ts — shared with the client displays so a
+// tuning change can never again leave the UI promising a stale rate.
+// Chest odds (the 60/32/8 displayed to players) are a separate table
+// and do not move.
+const GEAR_THRESHOLD = GEAR_DROP_CHANCE;
+export const FRAGMENT_CHANCE = CACHE_FRAGMENT_CHANCE;
+const MATERIAL_CHANCE = MATERIAL_FIND_CHANCE;
 
 function clampChance(value: number): number {
   return Math.max(0, Math.min(0.98, value));

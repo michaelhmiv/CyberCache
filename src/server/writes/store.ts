@@ -384,12 +384,10 @@ export function emptyWriteSeed(): WriteSeed {
 // estimated value live in src/lib/vendor/catalog.ts (0020).
 // ---------------------------------------------------------------------------
 
-/** cc_salvage_scrap: round((10 + level*5) * rarity multiplier), title-case rarities. */
-export function salvageScrap(rarity: string, itemLevel: number): number {
-  const mult =
-    rarity === 'Uncommon' ? 1.5 : rarity === 'Rare' ? 2.5 : rarity === 'Epic' ? 4 : rarity === 'Legendary' ? 8 : 1;
-  return Math.max(1, Math.round((10 + Math.max(1, itemLevel || 1) * 5) * mult));
-}
+/** cc_salvage_scrap's TS twin lives in the shared salvage-rules module
+ *  (src/lib/skills/salvageBonuses.ts) so the client quotes the same
+ *  base award; re-exported here for this package's existing imports. */
+export { salvageScrap } from '../../lib/skills/salvageBonuses.js';
 
 /** cc_apply_xp: per-level thresholds come from the one shared curve. */
 export function applyXp(level: number, xp: number, award: number): { player_level: number; player_xp: number } {

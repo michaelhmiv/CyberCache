@@ -37,13 +37,21 @@ describe('W1 — material display names, never raw ids', () => {
 });
 
 describe('render fixes (source shape)', () => {
-  it('X1/D3/X4 — resource bar: key chip is wide, scrap is "scrap", level is not duplicated', () => {
+  it('X1/D3/X4 — resource bar: key fragments never truncate, scrap is "scrap", level is not duplicated', () => {
     const bar = read('../components/layout/ResourceBar.tsx');
-    expect(bar).toContain('sub="scrap"');
+    // Device feedback r2 superseded the audit-X1 "wide key chip" hack:
+    // the bar is now a 3-across grid at phone width (6-across from
+    // 560dp) with stacked chips, and the key chip's fragment count is
+    // a right-aligned micro on the label line — same intent (the
+    // fragment count is always fully visible), stronger contract.
+    expect(bar).toContain('label="Scrap"');
     expect(bar).not.toContain('sub="bench"');
-    expect(bar).toContain('sub="level"');
-    expect(bar).not.toContain('sub={`LV ${player.level}`}');
-    expect(bar).toContain('wide');
+    expect(bar).toContain('label="Level"');
+    expect(bar).not.toContain('LV ${player.level}');
+    expect(bar).toContain('grid grid-cols-3');
+    expect(bar).toContain('min-[560px]:grid-cols-6');
+    expect(bar).toContain('micro={`${player.cacheKeyFragments}/5`}');
+    expect(bar).not.toContain('flex-[1.35]');
   });
 
   it('M1 — market empty state waits for loading to finish', () => {

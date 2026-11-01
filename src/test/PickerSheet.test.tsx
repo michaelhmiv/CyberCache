@@ -44,16 +44,35 @@ describe('PickerSheet', () => {
 
   it('calls onClose when overlay is clicked', () => {
     const onClose = vi.fn();
-    const { container } = render(
+    render(
       <PickerSheet title="Pick an item" onClose={onClose}>
         <div>List</div>
       </PickerSheet>,
     );
 
-    // Overlay is the outer fixed div.
-    const overlay = container.firstChild as HTMLElement;
+    // Overlay is the outer fixed div, portaled to document.body (device
+    // feedback r2, via the SheetPortal wrapper from flow-fix F17), so it
+    // is found on document.body, not inside the render container.
+    const overlay = screen.getByTestId('picker-sheet-overlay');
     fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders at the document root, outside any transformed ancestor (F17)', () => {
+    render(
+      <div style={{ transform: 'translateX(24px)' }} data-testid="transformed-ancestor">
+        <PickerSheet title="Pick an item" onClose={vi.fn()}>
+          <div>List</div>
+        </PickerSheet>
+      </div>,
+    );
+
+    const overlay = screen.getByTestId('picker-sheet-overlay');
+    // Portaled: the overlay's parent is document.body, never the
+    // transformed container — so `position: fixed` always anchors to
+    // the viewport regardless of ancestor transforms.
+    expect(overlay.parentElement).toBe(document.body);
+    expect(screen.getByTestId('transformed-ancestor').contains(overlay)).toBe(false);
   });
 
   it('does not call onClose when sheet content is clicked', () => {

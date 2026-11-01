@@ -58,7 +58,11 @@ describe('Phase 1 structure — one gear home', () => {
   it('the Fight tab loadout is read-only with a Manage door into the home', () => {
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     expect(action).toContain('<ActionLoadout readOnly');
-    expect(action).toContain("onManageLoadout={() => onNavigate?.('inventory')}");
+    // Device-feedback r2 / flow audit F2: the Manage door fires the
+    // 'loadout' target so the gear home opens ON its Loadout tab —
+    // the bare 'inventory' target deposited the player on the Gear
+    // list, one undiscovered tab-switch from the equip surface.
+    expect(action).toContain("onManageLoadout={() => onNavigate?.('loadout')}");
     const loadout = readSource('src/components/action/ActionLoadout.tsx');
     expect(loadout).toContain('readOnly');
     // The picker renders only outside read-only mode.
@@ -71,6 +75,7 @@ describe('Phase 1 structure — one gear home', () => {
       'src/components/gear/GaragePanel.tsx', // Phase 2b garage (rendered by the gear home)
       'src/store/slices/loadoutPresetsSlice.ts', // preset apply (rendered by the home)
       'src/lib/api/verifiedOps.ts', // the transport itself
+      'src/screens/ActionScreenContextual.tsx', // flow-fix F11: loot-feed inspect Equip — a fresh drop equips from its inspect sheet, per the flow audit's explicit fix
     ]);
     const offenders: string[] = [];
     for (const file of listSourceFiles(resolve(REPO, 'src'))) {

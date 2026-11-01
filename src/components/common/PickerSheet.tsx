@@ -5,10 +5,19 @@
  * and a sticky header slot + scrollable body. Callers supply the
  * search/filter/sort/list content so the chrome stays consistent
  * across SlotGearPicker, ConsumablePicker, etc.
+ *
+ * The sheet renders through a portal to document.body (device
+ * feedback r2): the overlay is position:fixed, and a fixed element is
+ * trapped by any ancestor carrying clip-path / overflow:hidden /
+ * transform — the loadout panel's angled clip-path did exactly that
+ * to the Slot Picker on device, squeezing the "full-screen" sheet
+ * into the panel's box where its rows could not be reached. Sheets
+ * must never be descendants of panel chrome.
  */
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import { SheetPortal } from './SheetPortal';
 
 interface PickerSheetProps {
   title: string;
@@ -31,8 +40,10 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
   onClose,
 }) => {
   return (
+    <SheetPortal>
     <AnimatePresence>
       <motion.div
+        data-testid="picker-sheet-overlay"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -81,5 +92,6 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
         </motion.div>
       </motion.div>
     </AnimatePresence>
+    </SheetPortal>
   );
 };

@@ -139,6 +139,15 @@ export function mountAuthRoutes(app: Express, store: AuthStore, config: AuthConf
         res.json(sessionBody(config.jwtSecret, session));
       } catch (err) {
         if (err instanceof GoogleTokenError) {
+          // Diagnostic: log WHY verification failed (the reason plus the
+          // token's public aud/iss claims) so a rejected sign-in is
+          // debuggable from server logs. No token material is logged.
+          let claims = 'unparseable';
+          try {
+            const payload = JSON.parse(Buffer.from(String(idToken).split('.')[1], 'base64url').toString('utf8')) as { aud?: unknown; iss?: unknown };
+            claims = `aud=${String(payload.aud)} iss=${String(payload.iss)}`;
+          } catch { /* keep 'unparseable' */ }
+          console.warn(`[chef-auth] google sign-in rejected: ${err.reason} (${claims})`);
           res.status(401).json({ error: 'invalid_google_token', message: 'Google sign-in could not be verified' });
           return;
         }

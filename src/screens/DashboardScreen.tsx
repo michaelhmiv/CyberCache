@@ -49,6 +49,9 @@ import type { Weapon } from '@/types/items';
 
 interface DashboardScreenProps {
   onNavigate: (screen: string) => void;
+  /** Opens the App-level boss picker (flow-fix F16). Optional so
+   *  existing mounts keep working; falls back to the Action tab. */
+  onOpenBossSelect?: () => void;
 }
 
 type Tone = 'amber' | 'green' | 'blue' | 'red' | 'purple' | 'cyan';
@@ -217,7 +220,7 @@ const InfoGauge: React.FC<{ label: string; value: string | number; detail: strin
   );
 };
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, onOpenBossSelect }) => {
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const skills = useSkillStore();
@@ -299,6 +302,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const selectedRoamingActive = activity.current.kind === 'roaming_loot' && activity.current.targetType === 'roaming_area' && activity.current.targetId === selectedArea.id;
   const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : `start ${selectedArea.name}`;
 
+  // Navigation on these handlers happens ONLY on success (flow-fix
+  // F7): they used to navigate in a `finally`, so a failed start landed
+  // the player on the Action tab while the error sat on the Dashboard
+  // behind them, never seen. On failure the player now stays here,
+  // where the activityError panel renders.
   const startSelectedRoaming = useCallback(async () => {
     setActivityError(null);
     try {
@@ -317,32 +325,37 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       }
       await activity.start(buildRoamingLootActivity(selectedArea, equippedWeapon));
       idle.setFarming(true);
+      onNavigate('fight');
     } catch (error) {
       setActivityError(error instanceof Error ? error.message : 'Unable to start roaming activity.');
-    } finally {
-      onNavigate('fight');
     }
   }, [activity, equippedWeapon, idle, onNavigate, selectedArea]);
 
   const openBossPrep = useCallback(async () => {
     if (!currentBoss) {
-      onNavigate('fight');
+      // "Choose Boss" must open a boss chooser (flow-fix F16): the
+      // App-level BossSelectModal, not a bare tab switch into the
+      // roaming workspace.
+      if (onOpenBossSelect) {
+        onOpenBossSelect();
+      } else {
+        onNavigate('fight');
+      }
       return;
     }
     setActivityError(null);
     try {
       await activity.start(buildBossFightActivity(currentBoss, equippedWeapon, 'prep'));
       idle.setFarming(false);
+      onNavigate('fight');
     } catch (error) {
       setActivityError(error instanceof Error ? error.message : 'Unable to start boss prep activity.');
-    } finally {
-      onNavigate('fight');
     }
-  }, [activity, currentBoss, equippedWeapon, idle, onNavigate]);
+  }, [activity, currentBoss, equippedWeapon, idle, onNavigate, onOpenBossSelect]);
 
   const actions = [
     { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync the selected area, then enter combat.', icon: <span style={{ fontSize: 16 }} className="text-red">⚔</span>, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
-    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <span style={{ fontSize: 16 }} className="text-amber">◈</span>, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('inventory') },
+    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <span style={{ fontSize: 16 }} className="text-amber">◈</span>, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('loadout') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
     { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <span style={{ fontSize: 16 }} className="text-purple">♕</span>, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
     { id: 'workshop', label: 'Workshop', desc: 'Bench jobs run while Crafting holds the action slot.', icon: <span style={{ fontSize: 16 }} className="text-blue">⚒</span>, tone: 'blue' as Tone, stat: `${openWorkshopJobs} jobs`, onClick: () => onNavigate('workshop') },

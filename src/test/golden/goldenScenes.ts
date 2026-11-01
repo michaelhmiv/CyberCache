@@ -18,7 +18,7 @@ import { ELEMENT_DIALECTS, shotCadence } from '@/lib/pixel/elementFx';
 import { GRAMMAR } from '@/lib/pixel/grammar';
 import { decodePng, type RgbaImage } from '@/lib/pixel/pngCodec';
 import { blit, drawBeam, drawHeldWeapon, drawLine, drawRig, drawWeaponRender, fillRect, hexToRgb, hunterBox, newCanvas, SCENE_H, SCENE_W } from '@/lib/pixel/sceneRenderer';
-import { ENEMY_POSES, HUNTER_POSES, enemyRig, HUNTER_RIG } from '@/lib/pixel/rig';
+import { ENEMY_POSES, HUNTER_POSES, enemyRig, HUNTER_RIG, HUNTER_RIG_UNARMED } from '@/lib/pixel/rig';
 import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import { readFileSync } from 'node:fs';
@@ -71,7 +71,10 @@ function drawBackground(img: RgbaImage, bgId: string): void {
 }
 
 function drawHunter(img: RgbaImage, pose: keyof typeof HUNTER_POSES, withWeapon = true): void {
-  drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES[pose], xPct: 22, heightPct: 57, feetX: 0.2717 }, GROUND);
+  // Real-item invariant: no held weapon drawn ⟺ the gun-free rig —
+  // the armed rig's segments carry a rifle baked into the shipped art.
+  const rig = withWeapon ? HUNTER_RIG : HUNTER_RIG_UNARMED;
+  drawRig(img, loadGoldenSprite, { rig, pose: HUNTER_POSES[pose], xPct: 22, heightPct: 57, feetX: 0.2717 }, GROUND);
   if (withWeapon) drawHeldWeapon(img, GOLDEN_WEAPON, hunterBox(img, 22, 57, GROUND));
 }
 
@@ -130,6 +133,26 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (pennant) blit(img, pennant, SCENE_W - 44, 6, 36, 36);
     drawHunter(img, 'aim');
     drawEnemy(img, 'dustwaste_frontier', 'brute', 'idle');
+  }),
+  // Unarmed hunter (real-item invariant): the reported bug — no weapon
+  // equipped must render NO weapon, roaming and in the boss arena.
+  scene('roam-unarmed', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    drawHunter(img, 'idle', false);
+    drawEnemy(img, 'dustwaste_frontier', 'brute', 'idle');
+  }),
+  scene('arena-unarmed', (img) => {
+    const arena = PIXEL_BOSS_ARENAS.dune_tyrant;
+    drawBackground(img, arena.backgroundId);
+    drawHunter(img, 'idle', false);
+    const prop = loadGoldenSprite(arena.propId);
+    if (prop) blit(img, prop, SCENE_W * 0.5 - 24, GROUND * SCENE_H - 52, 48, 52);
+    const bossSprite = loadGoldenSprite('boss-dune-tyrant');
+    if (bossSprite) {
+      const h = SCENE_H * 0.8;
+      const w = h * (bossSprite.width / bossSprite.height);
+      blit(img, bossSprite, SCENE_W * 0.76 - w * 0.63, GROUND * SCENE_H - h, w, h);
+    }
   }),
   // The bespoke Dustwaste elite on stage.
   scene('elite-dustwaste', (img) => {

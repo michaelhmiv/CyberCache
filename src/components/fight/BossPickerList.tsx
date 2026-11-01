@@ -69,8 +69,8 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
             }`}
           >
             {/* Header Row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 {isDefeated ? (
                   <CheckCircle size={18} className="text-green" />
                 ) : isLocked ? (
@@ -106,13 +106,13 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
 
             {/* Stats Row */}
             <div className="flex items-center justify-between gap-2 text-[10px] text-text-secondary">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-3">
                 <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>♥</span> HP {boss.health.toLocaleString()}</div>
                 {boss.shield > 0 && <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>⚡</span> Shield {boss.shield.toLocaleString()}</div>}
                 {boss.armor > 0 && <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>◈</span> Armor {boss.armor.toLocaleString()}</div>}
               </div>
               <div
-                className="border-2 border-border bg-bg/80 px-1.5 py-0.5"
+                className="shrink-0 border-2 border-border bg-bg/80 px-1.5 py-0.5"
                 data-testid={`bossselect-dps-${boss.id}`}
               >
                 <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{bestOwnedWeapon ? 'Preview: best owned vs' : 'Your weapon vs'} {boss.name.split(' ').slice(-1)[0]}</div>

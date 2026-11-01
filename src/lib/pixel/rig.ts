@@ -59,6 +59,34 @@ export const HUNTER_RIG: RigDef = {
   ],
 };
 
+/**
+ * Unarmed hunter rig (real-item invariant): the shipped hunter art
+ * holds a rifle, so HUNTER_RIG's arm/torso segments carry a baked-in
+ * gun — an unequipped hunter rendered a phantom weapon. This variant
+ * swaps ONLY the four weapon-bearing segments for gun-free variants
+ * (scripts/pixel-segments.py `unarmed` section: gun patch erased from
+ * the torso, arms hanging at the sides). Same frame, same segment ids,
+ * so every pose applies unchanged; the seven untouched segments are
+ * shared with HUNTER_RIG and the equipped path stays bit-identical.
+ */
+export const HUNTER_RIG_UNARMED: RigDef = {
+  id: 'hunter-unarmed',
+  frameWidth: 260,
+  frameHeight: 320,
+  segments: [
+    { id: 'back', spriteId: 'rig-hunter-back', frameX: 0, frameY: 44, width: 62, height: 108, z: 0 },
+    { id: 'thighB', spriteId: 'rig-hunter-thigh-b', frameX: 20, frameY: 178, width: 54, height: 74, z: 1 },
+    { id: 'shinB', spriteId: 'rig-hunter-shin-b', frameX: 16, frameY: 240, width: 58, height: 80, z: 1 },
+    { id: 'armOff', spriteId: 'rig-hunter-arm-off-unarmed', frameX: 44, frameY: 150, width: 36, height: 74, z: 1 },
+    { id: 'torso', spriteId: 'rig-hunter-torso-unarmed', frameX: 24, frameY: 76, width: 124, height: 122, z: 2 },
+    { id: 'thighF', spriteId: 'rig-hunter-thigh-f', frameX: 62, frameY: 178, width: 58, height: 74, z: 3 },
+    { id: 'shinF', spriteId: 'rig-hunter-shin-f', frameX: 62, frameY: 240, width: 70, height: 80, z: 3 },
+    { id: 'head', spriteId: 'rig-hunter-head', frameX: 34, frameY: 0, width: 86, height: 88, z: 4 },
+    { id: 'armUpper', spriteId: 'rig-hunter-arm-upper-unarmed', frameX: 92, frameY: 86, width: 52, height: 70, z: 5 },
+    { id: 'armFore', spriteId: 'rig-hunter-arm-fore-unarmed', frameX: 94, frameY: 148, width: 48, height: 76, z: 6 },
+  ],
+};
+
 /** Selectable hunter head variants (Q6 ruling). 'visor' is the shipped
  *  head segment; the others are repaints produced by the same script. */
 export const HUNTER_HEAD_VARIANTS = [
@@ -70,11 +98,12 @@ export const HUNTER_HEAD_VARIANTS = [
 
 export type HunterHeadVariantId = (typeof HUNTER_HEAD_VARIANTS)[number]['id'];
 
-export function hunterRigWithHead(variant: HunterHeadVariantId): RigDef {
+export function hunterRigWithHead(variant: HunterHeadVariantId, unarmed = false): RigDef {
   const head = HUNTER_HEAD_VARIANTS.find((v) => v.id === variant) ?? HUNTER_HEAD_VARIANTS[0];
+  const base = unarmed ? HUNTER_RIG_UNARMED : HUNTER_RIG;
   return {
-    ...HUNTER_RIG,
-    segments: HUNTER_RIG.segments.map((s) => (s.id === 'head' ? { ...s, spriteId: head.spriteId } : s)),
+    ...base,
+    segments: base.segments.map((s) => (s.id === 'head' ? { ...s, spriteId: head.spriteId } : s)),
   };
 }
 

@@ -29,7 +29,10 @@ describe('golden-image regression', () => {
     expect(ids).toContain('vehicle-roam');
     expect(ids.filter((id) => id.startsWith('loot-'))).toHaveLength(5);
     expect(ids.filter((id) => id.startsWith('fx-'))).toHaveLength(6);
-    expect(ids.filter((id) => id.startsWith('arena-'))).toHaveLength(13);
+    expect(ids.filter((id) => id.startsWith('arena-'))).toHaveLength(14);
+    // Unarmed hunter (real-item invariant): roaming + arena scenes.
+    expect(ids).toContain('roam-unarmed');
+    expect(ids).toContain('arena-unarmed');
     // Endless (0028): the depth-treatment band variants.
     expect(ids.filter((id) => id.startsWith('endless-depth-'))).toHaveLength(3);
     expect(ids).toContain('endless-depth-1');

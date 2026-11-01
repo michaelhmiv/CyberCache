@@ -560,7 +560,11 @@ export const MarketScreen: React.FC = () => {
     <div className="space-y-3 p-4 pb-20">
       <ResourceBar />
 
-      <div className="flex flex-wrap gap-2">
+      {/* Phone-width contract (device feedback r2): six tabs in an
+          even 3×2 grid — the old flex-wrap broke 4+2 with uneven tab
+          widths, and "Repair Services" squeezed against its 60px
+          floor. Grid cells give every label room and ≥44px targets. */}
+      <div className="grid grid-cols-3 gap-2">
         {TABS.map((t) => {
           const tabLocked = marketLocked && t.id !== 'vendor';
           return (
@@ -568,10 +572,10 @@ export const MarketScreen: React.FC = () => {
               key={t.id}
               onClick={() => market.setActiveTab(t.id)}
               aria-label={tabLocked ? `${t.label} (locked — sign in to use the player market)` : t.label}
-              className={`relative flex flex-1 flex-col items-center gap-1 rounded-xl border py-2 min-w-[60px] text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
+              className={`relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border py-2 text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
             >
               {t.icon ? <t.icon size={16} /> : <span className="font-black" style={{ fontSize: '16px' }}>{t.glyph}</span>}
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 whitespace-nowrap">
                 {t.label}
                 {tabLocked && <Lock size={9} aria-hidden />}
               </span>
