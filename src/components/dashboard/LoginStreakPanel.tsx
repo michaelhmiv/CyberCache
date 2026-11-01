@@ -6,12 +6,14 @@ import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
 
 const STREAK_ACCENT = '#FF8A3D';
 
-/** Reward parts as stacked micro-lines (never ellipsized). */
+/** Reward parts as stacked micro-lines (never ellipsized).
+ *  Audit COPY-02: units spelled out — this panel is a first-run
+ *  surface and "cr"/"frag" are never defined for a new player. */
 function rewardLines(reward: LoginStreakReward): string[] {
   const lines: string[] = [];
-  if (reward.credits > 0) lines.push(`${reward.credits} cr`);
-  if (reward.fragments > 0) lines.push(`${reward.fragments} frag`);
-  if (reward.cacheKeys > 0) lines.push(reward.cacheKeys === 1 ? 'cache key' : `${reward.cacheKeys} keys`);
+  if (reward.credits > 0) lines.push(`${reward.credits} ${reward.credits === 1 ? 'credit' : 'credits'}`);
+  if (reward.fragments > 0) lines.push(`${reward.fragments} ${reward.fragments === 1 ? 'fragment' : 'fragments'}`);
+  if (reward.cacheKeys > 0) lines.push(reward.cacheKeys === 1 ? 'cache key' : `${reward.cacheKeys} cache keys`);
   return lines;
 }
 

@@ -273,9 +273,16 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const tickDisplayEvents: Array<{ id: string; label: string; detail: string; tone: string; eventType?: string; value?: number; areaId?: string }> = tickEvents
     .filter((e) => !e.areaId || e.areaId === selectedArea.id || e.areaId === roamingTargetId)
     .slice(0, LOG_LIMIT);
-  const visualFeed = (currentKind === 'idle_standby' || currentKind === 'none')
-    ? feed
-    : [...tickDisplayEvents, ...feed.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT);
+  // Audit UX-03: the merged feed renders in EVERY activity state.
+  // The old code switched to the local lifecycle list alone when
+  // idle, and stopAction reset that list to the empty placeholder —
+  // together they wiped the session's reward record the moment the
+  // player stopped roaming. Now the tick events (the earnings
+  // record) stay merged across stop, stopping adds a divider line
+  // instead of a wipe, and the placeholder shows only when there is
+  // genuinely nothing to show yet.
+  const mergedFeed = [...tickDisplayEvents, ...feed.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT);
+  const visualFeed = mergedFeed.length > 0 ? mergedFeed : feed;
   const workshopJobs = workshop.server?.jobs ?? [];
   const benchesFree = Math.max(0, (workshop.server?.benches ?? 1) - new Set(workshopJobs.filter((j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused').map((j) => j.bench)).size);
   const salvageCandidates = inventory.items.filter((item) => !item.isLocked).slice(0, 12);
@@ -443,7 +450,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     try {
       await activity.clear();
       idle.setFarming(false);
-      setFeed([idleEvent]);
+      // Audit UX-03: a stop divider in the feed, never a reset — the
+      // session's earnings record above the line stays visible.
+      pushEvents([makeRunEvent('ACTION STOPPED', 'Session ended. The record above is this run\'s history — rewards are already banked on your profile.', 'patrol', 'run_stopped')]);
     } catch (error) {
       pushEvents([makeRunEvent('STOP FAILED', error instanceof Error ? error.message : 'The action service rejected the stop request.', 'patrol', 'run_stopped')]);
     }

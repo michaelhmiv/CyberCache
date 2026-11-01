@@ -231,6 +231,15 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     <div className={embedded ? 'space-y-4' : 'bl-page space-y-4 p-4 pb-20'}>
       {header}
       {stats}
+      {/* Audit UX-07: the board never said where points come from or
+          what spending costs before the tap. One explainer line in
+          both render modes, matching the shipped math exactly:
+          pointsEarned = level − 1 (1 per level), a node's cost is
+          spent from its inspect panel, and cc_retrain refunds every
+          spent point at pointsSpent × 100cr. */}
+      <div className="text-[10px] leading-snug text-text-muted">
+        Skill points come from levels — 1 per level ({pointsEarned} earned at level {player.level}). Tap a node to inspect it and spend its listed cost. Respec refunds every spent point for 100cr per point.
+      </div>
       {embedded && (
         <div className="flex items-center justify-between gap-3">
           <div className="text-[10px] text-text-muted">Respec refunds every spent point for {pointsSpent * 100}cr.</div>
@@ -284,7 +293,15 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                   <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Tier {tier}</div>
                   <div className="grid grid-cols-3 gap-2">
                     {Array.from({ length: 3 }).map((_, idx) => {
-                      const node = tierNodes.find((n) => n.index === idx + 1) || (tierNodes.length === 1 && idx === 1 ? tierNodes[0] : undefined);
+                      // Audit COPY-03: a single-node tier renders its
+                      // node exactly once, centered. The old expression
+                      // matched an index-1 lone node (every keystone
+                      // tier) at column 0 via find AND at column 1 via
+                      // the centering fallback — the keystone listed
+                      // twice on its own board.
+                      const node = tierNodes.length === 1
+                        ? (idx === 1 ? tierNodes[0] : undefined)
+                        : tierNodes.find((n) => n.index === idx + 1);
                       if (!node) return <div key={`empty-${tier}-${idx}`} />;
 
                       const currentPoints = skillStore.spent[node.id] || 0;

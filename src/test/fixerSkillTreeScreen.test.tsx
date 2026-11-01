@@ -64,8 +64,8 @@ describe('SkillTreeScreen — Fixer tab', () => {
     });
 
     // The keystone is gated: its majors are unmet, so a tap selects
-    // but never trains. (The shipped board renders a lone tier node
-    // in two grid slots — same for every tree's keystone.)
+    // but never trains. (Audit COPY-03: a lone tier node renders in
+    // exactly one grid slot — it used to render twice.)
     fireEvent.click(screen.getAllByRole('button', { name: /The Fixer/ })[0]);
     expect(mockTrain).toHaveBeenCalledTimes(1);
   }, 30_000);

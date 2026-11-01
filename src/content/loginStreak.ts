@@ -354,11 +354,13 @@ export function loginStreakStateView(
   };
 }
 
-/** Compact one-line reward label for the panel ("200 cr · 1 frag · key"). */
+/** Compact one-line reward label for the panel ("200 credits · 1 fragment · cache key").
+ *  Audit COPY-02: first-run copy spells the units out — new players
+ *  have never seen "cr"/"frag" defined anywhere. */
 export function formatLoginStreakReward(reward: LoginStreakReward): string {
   const parts: string[] = [];
-  if (reward.credits > 0) parts.push(`${reward.credits} cr`);
-  if (reward.fragments > 0) parts.push(`${reward.fragments} frag`);
-  if (reward.cacheKeys > 0) parts.push(reward.cacheKeys === 1 ? 'cache key' : `${reward.cacheKeys} keys`);
+  if (reward.credits > 0) parts.push(`${reward.credits} ${reward.credits === 1 ? 'credit' : 'credits'}`);
+  if (reward.fragments > 0) parts.push(`${reward.fragments} ${reward.fragments === 1 ? 'fragment' : 'fragments'}`);
+  if (reward.cacheKeys > 0) parts.push(reward.cacheKeys === 1 ? 'cache key' : `${reward.cacheKeys} cache keys`);
   return parts.length > 0 ? parts.join(' · ') : '—';
 }

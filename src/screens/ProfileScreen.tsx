@@ -46,7 +46,10 @@ const ActionRow: React.FC<{ glyph: string; label: string; desc: string; onClick:
     </div>
     <div className="min-w-0 flex-1">
       <div className="text-sm font-black uppercase tracking-wide text-text-primary">{label}</div>
-      <div className="text-[10px] text-text-muted">{desc}</div>
+      {/* Audit DISP-02: descriptions wrap to two lines — never cut
+          mid-word (the row has the full card width; nothing here may
+          ellipsize a description). */}
+      <div className="text-[10px] leading-snug text-text-muted [overflow-wrap:anywhere]">{desc}</div>
     </div>
   </button>
 );

@@ -117,7 +117,7 @@ const SlotChip: React.FC<{
   onClick: () => void;
 }> = ({ label, glyph, item, isCenter, onClick }) => {
   const filled = !!item;
-  const accent = item?.rarity ? SATURATED[item.rarity] ?? '#7B756D' : '#7B756D';
+  const accent = item?.rarity ? SATURATED[item.rarity] ?? '#8A847C' : '#8A847C';
   const name = item?.name ?? (isCenter ? 'No weapon' : 'Open');
 
   return (
@@ -142,7 +142,7 @@ const SlotChip: React.FC<{
       </div>
       <div
         className={`text-[10px] font-black leading-tight truncate max-w-full ${isCenter ? 'text-sm' : ''}`}
-        style={{ color: filled ? accent : '#7B756D' }}
+        style={{ color: filled ? accent : '#8A847C' }}
       >
         {name}
       </div>

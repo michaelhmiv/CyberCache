@@ -3,6 +3,14 @@ import { ConsumableBatch, PlayerProfile } from '../../types/player';
 import { WorkshopQueue } from '../../types/workshop';
 
 export interface PlayerState extends PlayerProfile {
+  /**
+   * True once a server profile has actually landed via syncFromServer
+   * (audit UX-04). The store's initial values are placeholders
+   * (5000cr/500 scrap/3 keys), so surfaces that paint resources must
+   * skeleton until this flips — never show numbers the server has
+   * not confirmed yet.
+   */
+  profileLoaded: boolean;
   setPlayer: (partial: Partial<PlayerProfile>) => void;
   /** Sync canonical values from the server. Pure replace — no local deltas merged. */
   syncFromServer: (server: Partial<PlayerProfile>) => void;
@@ -68,6 +76,7 @@ function normalizeBatch(raw: ConsumableBatch): ConsumableBatch {
 
 export const usePlayerStore = create<PlayerState>()((set, get) => ({
   ...initialPlayerState(),
+  profileLoaded: false,
 
   /**
    * Apply server-canonical values. Pure replace — no local deltas,
@@ -78,7 +87,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     const consumableBatches = Array.isArray(server.consumableBatches)
       ? server.consumableBatches.map(normalizeBatch).filter((batch) => batch.quantity > 0)
       : state.consumableBatches;
-    return { ...state, ...server, consumableBatches };
+    return { ...state, ...server, consumableBatches, profileLoaded: true };
   }),
 
   setPlayer: (partial) => set((state) => ({ ...state, ...partial })),

@@ -42,8 +42,11 @@ describe('render fixes (source shape)', () => {
     // Device feedback r2 superseded the audit-X1 "wide key chip" hack:
     // the bar is now a 3-across grid at phone width (6-across from
     // 560dp) with stacked chips, and the key chip's fragment count is
-    // a right-aligned micro on the label line — same intent (the
-    // fragment count is always fully visible), stronger contract.
+    // a right-aligned micro — same intent (the fragment count is
+    // always fully visible), stronger contract. Audit DISP-01 moved
+    // that micro onto the value line as a labeled stack (fraction
+    // over its unit name), off the slanted top-right corner that
+    // clipped it; audit UX-04 added the profile-loaded skeleton.
     expect(bar).toContain('label="Scrap"');
     expect(bar).not.toContain('sub="bench"');
     expect(bar).toContain('label="Level"');
@@ -51,6 +54,9 @@ describe('render fixes (source shape)', () => {
     expect(bar).toContain('grid grid-cols-3');
     expect(bar).toContain('min-[560px]:grid-cols-6');
     expect(bar).toContain('micro={`${player.cacheKeyFragments}/5`}');
+    expect(bar).toContain('microUnit="frag"');
+    expect(bar).toContain('microUnit="equipped"');
+    expect(bar).toContain('resource-bar-loading');
     expect(bar).not.toContain('flex-[1.35]');
   });
 
