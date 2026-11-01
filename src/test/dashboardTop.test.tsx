@@ -327,6 +327,63 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
   });
 });
 
+describe('Short-absence suppression — under 5 minutes never auto-presents (owner\'s rule)', () => {
+  const shortRoaming = { ...recap, elapsedMs: 120_000, timeAway: '2m' } as unknown as SettlementRecap;
+  const craftingRecap = (advancedMs: number) => ({
+    settled: true,
+    crafting: { advancedMs, xpAwarded: 40, jobsCompleted: 1, completions: [], capHours: 4 },
+  }) as unknown as SettlementRecap;
+  const extractionRecap = (advancedMs: number) => ({
+    settled: true,
+    extraction: { advancedMs, xpAwarded: 25, passesCompleted: 0, passes: [], materials: {}, essences: {}, capHours: 4 },
+  }) as unknown as SettlementRecap;
+
+  it('stores short absences already-dismissed, per variant, at the entry seam', () => {
+    const store = useOfflineRecapStore.getState();
+
+    store.setSettlement(shortRoaming);
+    expect(useOfflineRecapStore.getState().dismissed).toBe(true);
+    // Tucked, not dropped: the summary itself is stored whole.
+    expect(useOfflineRecapStore.getState().lastSettlement?.rewards.creditsAwarded).toBe(4321);
+
+    store.setSettlement(craftingRecap(60_000));
+    expect(useOfflineRecapStore.getState().dismissed).toBe(true);
+
+    store.setSettlement(extractionRecap(299_999));
+    expect(useOfflineRecapStore.getState().dismissed).toBe(true);
+  });
+
+  it('keeps today\'s presentation at and above 5 minutes, per variant', () => {
+    const store = useOfflineRecapStore.getState();
+
+    store.setSettlement({ ...recap, elapsedMs: 300_000 } as unknown as SettlementRecap);
+    expect(useOfflineRecapStore.getState().dismissed).toBe(false);
+
+    store.setSettlement(craftingRecap(3_600_000));
+    expect(useOfflineRecapStore.getState().dismissed).toBe(false);
+
+    store.setSettlement(extractionRecap(300_000));
+    expect(useOfflineRecapStore.getState().dismissed).toBe(false);
+  });
+
+  it('a short absence shows NO beacon on Dashboard mount, and the summary stays reachable in the level pop-up', async () => {
+    useOfflineRecapStore.getState().setSettlement(shortRoaming);
+    render(<DashboardScreen onNavigate={() => {}} />);
+
+    // First paint settles with no auto-presentation of any kind.
+    await screen.findByTestId('dashboard-top-bar');
+    expect(screen.queryByTestId('level-away-pulse')).toBeNull();
+    expect(screen.getByTestId('top-level-button').textContent).not.toContain('AWAY');
+    expect(screen.getByTestId('top-level-button').getAttribute('aria-label'))
+      .not.toContain('While you were away');
+
+    // On demand it is all there, numbers unchanged.
+    fireEvent.click(screen.getByTestId('top-level-button'));
+    expect(await screen.findByText('While You Were Away')).toBeTruthy();
+    expect(screen.getByText('Away for')).toBeTruthy();
+  });
+});
+
 describe('Dashboard top — level pop-up holds specifics + the away recap', () => {
   it('opens level specifics from the same store numbers', async () => {
     render(<DashboardScreen onNavigate={() => {}} />);
