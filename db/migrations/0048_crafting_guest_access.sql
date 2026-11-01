@@ -1,4 +1,4 @@
--- 0046_crafting_guest_access.sql
+-- 0048_crafting_guest_access.sql
 --
 -- Michael's ruling (2026-11-01): "Verified account shouldn't be
 -- needed for crafting."
@@ -88,7 +88,7 @@ begin
   perform public.cc_settle_craft_jobs(actor);
   select * into p from public.profiles where id = actor for update;
   if not found then raise exception 'Profile not found'; end if;
-  -- Guest access (0046): enqueueing is open to every authenticated
+  -- Guest access (0048): enqueueing is open to every authenticated
   -- account, guests included (Michael's ruling, 2026-11-01:
   -- "Verified account shouldn't be needed for crafting"). The
   -- player-market gate is a separate treatment and is NOT changed:

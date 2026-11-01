@@ -219,7 +219,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   // weapon state — unequipped renders the gun-free rig.
   const hunterWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
   // Crafting is open to every account, guests included (Michael's
-  // ruling, 2026-11-01; server gate removed in migration 0046) — the
+  // ruling, 2026-11-01; server gate removed in migration 0048) — the
   // Workshop carries no verified-account gate.
   // Manufacturer Standing (0043): exclusive recipes gate on the
   // maker's granted rank (server enforces in cc_enqueue_craft_job;

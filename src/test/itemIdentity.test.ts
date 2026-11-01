@@ -12,7 +12,7 @@
  * them — raised 'Item not found'. Only a cold /api/runtime/items
  * re-sync (row ids) masked it.
  *
- * Fix (migration 0045 + the twin below): the stored row takes the
+ * Fix (migration 0047 + the twin below): the stored row takes the
  * payload's id when it is a well-formed uuid no row holds yet. These
  * tests pin the twin's half of the contract and the composed
  * behavior the device needs: the id a Chef delivery hands the client
@@ -54,7 +54,7 @@ function profileRow(overrides: Partial<ProfileRowData> & { id: string }): Profil
   } as ProfileRowData;
 }
 
-describe('item identity (0045) — Chef-delivered items are addressable by the delivered id', () => {
+describe('item identity (0047) — Chef-delivered items are addressable by the delivered id', () => {
   it('storeChefItems stores the row under the payload id; the write store equips by that id', async () => {
     const gameplay = new InMemoryChefGameplayStore();
     gameplay.seedProfile({ id: A, player_level: 5, credits: 0, consumables: {} });
@@ -111,17 +111,17 @@ describe('item identity (0045) — Chef-delivered items are addressable by the d
     expect(bRow?.id).not.toBe(weapon.id); // collision-free fallback; B's copy is row-addressed after sync
   });
 
-  it('SQL pins: 0045 stores rows under the payload id; 0046 removes only the craft gate', () => {
+  it('SQL pins: 0047 stores rows under the payload id; 0048 removes only the craft gate', () => {
     const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
-    const sql45 = read('db/migrations/0045_item_identity.sql');
-    expect(sql45).toContain('coalesce(row_id, gen_random_uuid())');
-    expect(sql45).not.toContain('gen_random_uuid(), actor, kind');
+    const sql47 = read('db/migrations/0047_item_identity.sql');
+    expect(sql47).toContain('coalesce(row_id, gen_random_uuid())');
+    expect(sql47).not.toContain('gen_random_uuid(), actor, kind');
 
     const sql43 = read('db/migrations/0043_manufacturer_standing.sql');
     expect(sql43).toContain('can_use_player_economy'); // sanity: the gate existed in the base body
-    const sql46 = read('db/migrations/0046_crafting_guest_access.sql');
-    const body46 = sql46.slice(sql46.indexOf('create or replace function public.cc_enqueue_craft_job('));
-    expect(body46).not.toContain('if not public.can_use_player_economy(actor)');
+    const sql48 = read('db/migrations/0048_crafting_guest_access.sql');
+    const body48 = sql48.slice(sql48.indexOf('create or replace function public.cc_enqueue_craft_job('));
+    expect(body48).not.toContain('if not public.can_use_player_economy(actor)');
     expect(body46).not.toContain("raise exception 'Verified account required'");
     expect(body46).toContain('requiresStanding'); // the standing recipe gate survives — only the account gate went
   });

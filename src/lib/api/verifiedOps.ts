@@ -98,7 +98,7 @@ export const verifiedOps = {
       if (isNotFoundError(error)) {
         // The displayed item is not in the server's inventory for
         // this account — a stale display copy (an item earned before
-        // the 0045 identity fix landed, or one already salvaged /
+        // the 0047 identity fix landed, or one already salvaged /
         // listed / consumed since the list was drawn). Re-sync the
         // inventory from server truth before surfacing the failure,
         // so the list the player sees is the list that exists, and

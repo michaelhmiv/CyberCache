@@ -2089,10 +2089,10 @@ export class InMemoryWriteStore implements WriteStore {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
     if (prior) return prior;
-    // Guest access (0046 twin): enqueueing is open to guests —
+    // Guest access (0048 twin): enqueueing is open to guests —
     // Michael's ruling ("Verified account shouldn't be needed for
     // crafting"). The SQL twin dropped its can_use_player_economy
-    // gate in migration 0046; the player-market gate is unchanged.
+    // gate in migration 0048; the player-market gate is unchanged.
     const p = this.profile(playerId);
     const { job } = this.craftCall(() =>
       enqueueCraftJobCore(this.craftAdapter(), playerId, {

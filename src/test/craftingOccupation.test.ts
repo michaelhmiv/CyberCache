@@ -273,9 +273,9 @@ describe('crafting occupation — job model through the shipped routes', () => {
     expect(prof(POOR).materials).toEqual({});
   });
 
-  it('guests craft fully (0046): enqueue escrows + the job completes for a guest', async () => {
+  it('guests craft fully (0048): enqueue escrows + the job completes for a guest', async () => {
     // Michael's ruling (2026-11-01): "Verified account shouldn't be
-    // needed for crafting." Pre-0046 this enqueue was a 403
+    // needed for crafting." Pre-0048 this enqueue was a 403
     // 'Verified account required'; the market gate is unchanged.
     const alloyBefore = prof(GUEST).materials.ScrapAlloy;
     const res = await post('/api/ops/craft-enqueue', h.tokens[GUEST], {

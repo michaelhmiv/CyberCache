@@ -2508,7 +2508,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       const kind = itemKind(payload);
       const rarity = typeof payload.rarity === 'string' ? payload.rarity : null;
       const itemLevel = Math.trunc(Number(payload.level) || 1);
-      // Item identity (0045 twin): the stored row takes the payload's
+      // Item identity (0047 twin): the stored row takes the payload's
       // own id when it is a non-empty string no row holds yet — the
       // client receives the payload, so its id must be the row's id,
       // or every id-addressed op on the item fails 'Item not found'.

@@ -1,4 +1,4 @@
--- 0045_item_identity.sql
+-- 0047_item_identity.sql
 --
 -- DEVICE DEFECT FIX (2026-11-01): "Item not found" on EVERY equip.
 --
@@ -54,10 +54,10 @@ begin
     if item_id is null or item_id = '' then continue; end if;
     if exists (select 1 from public.item_instances where owner_user_id = actor and payload ->> 'id' = item_id) then continue; end if;
 
-    -- Item identity (0045): the row takes the payload's own id when
+    -- Item identity (0047): the row takes the payload's own id when
     -- it is a well-formed uuid that no row holds yet, so the item the
     -- Chef hands the client IS the item the server can find. Before
-    -- 0045 the row minted gen_random_uuid() and every Chef-delivered
+    -- 0047 the row minted gen_random_uuid() and every Chef-delivered
     -- item (claim / settle-offline / boss loot) reached the client
     -- under a phantom id — every id-addressed op on it (equip first
     -- among them) failed with 'Item not found'. A payload id already
