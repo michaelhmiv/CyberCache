@@ -95,6 +95,14 @@ export interface EconomyMetricsRow {
    *  Both are real mints and fold into creditsMintedTotal. */
   creditsMintedDispatch: number;
   creditsMintedCourier: number;
+  /** Extraction meters (migration 0033): passes finalized and XP
+   *  awarded per day from the cc_apply_extraction ledger payloads,
+   *  plus the per-material-id mint map (materials and essences —
+   *  disjoint id spaces, summed per id). Extraction mints no
+   *  credits; these never touch the minted/destroyed totals. */
+  extractionPasses: number;
+  extractionXpAwarded: number;
+  materialsMintedExtraction: Record<string, number>;
   computedAt: string;
 }
 
@@ -149,6 +157,9 @@ interface PgMetricsRow {
   reforges_completed?: number;
   scrap_destroyed_reforge?: string;
   legendary_cores_destroyed_reforge?: string;
+  extraction_passes?: number;
+  extraction_xp_awarded?: string;
+  materials_minted_extraction?: Record<string, number>;
   endless_runs_started?: number;
   endless_runs_ended?: number;
   endless_encounters_cleared?: number;
@@ -228,6 +239,9 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     cacheRankTokensSpent: Number(r.cache_rank_tokens_spent ?? 0),
     creditsMintedDispatch: Number(r.credits_minted_dispatch ?? 0),
     creditsMintedCourier: Number(r.credits_minted_courier ?? 0),
+    extractionPasses: Number(r.extraction_passes ?? 0),
+    extractionXpAwarded: Number(r.extraction_xp_awarded ?? 0),
+    materialsMintedExtraction: r.materials_minted_extraction ?? {},
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -254,6 +268,7 @@ const METRICS_COLUMNS = `
   action_skill_fires_scavenger, action_skill_fires_fixer,
   cache_rank_tokens_granted, cache_rank_tokens_spent,
   credits_minted_dispatch, credits_minted_courier,
+  extraction_passes, extraction_xp_awarded, materials_minted_extraction,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

@@ -109,6 +109,63 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
   );
 };
 
+export interface ExtractionSceneProps extends ActionSceneProps {
+  backgroundId?: string;
+  /** Deep Delve: the rig dressed larger, the light lower — depth reads at a glance. */
+  deep?: boolean;
+  /** Not the active action: the site sits idle-dark under a Paused pennant. */
+  paused?: boolean;
+  /** Real-item invariant (0030-era, #230): no weapon equipped
+   *  renders the unarmed rig — hands empty at the rig. */
+  unarmed?: boolean;
+}
+
+/**
+ * Extraction scene (0033): the hunter WORKING the site — the stake
+ * line marks the claim, the sift rig does the sorting, and the
+ * crates fill as passes land. The pose is `work`, the weapon slung
+ * (no held weapon is drawn — this is gathering, not combat), and NO
+ * vehicle is in frame by law (vehicles do not apply to extraction
+ * in v1). Deep Delve drops the light and scales the rig up; a
+ * paused site sits idle-dark with its pennant up.
+ */
+export const ExtractionScene: React.FC<ExtractionSceneProps> = ({
+  backgroundId = 'zone-dustwaste-bg',
+  deep = false,
+  paused = false,
+  unarmed = false,
+  reduced = false,
+  ...rest
+}) => {
+  const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
+  return (
+    <SceneShell backgroundId={backgroundId} testId="extraction-scene" reduced={reduced} {...rest}>
+      <PixelActor spriteId="set-extract-stakes" xPct={14} heightPct={26} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-stakes" />
+      <PixelActor spriteId="set-extract-rig" xPct={58} heightPct={deep ? 44 : 36} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-rig" />
+      <PixelActor spriteId="set-extract-crates" xPct={86} heightPct={24} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-crates" />
+      <PixelRigActor
+        rig={hunterRigWithHead('visor', unarmed)}
+        xPct={32}
+        heightPct={57}
+        groundY={groundY}
+        feetX={0.27}
+        reduced={reduced}
+        pose={paused ? HUNTER_POSES.idle : HUNTER_POSES.work}
+        testId="extraction-hunter"
+      />
+      {deep && <div className="pointer-events-none absolute inset-0 z-10 bg-indigo-950/35" data-testid="extraction-deep-shade" />}
+      {paused && (
+        <>
+          <div className="pointer-events-none absolute inset-0 z-10 bg-black/55" data-testid="extraction-paused-shade" />
+          <div className="absolute left-3 top-3 z-20 border-2 border-border bg-bg/85 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-text-primary" data-testid="extraction-paused-pennant">
+            Paused
+          </div>
+        </>
+      )}
+    </SceneShell>
+  );
+};
+
 export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string; vehicleSpriteId?: string | null; unarmed?: boolean }> = ({
   backgroundId = 'zone-throwtech-bg',
   vehicleSpriteId,

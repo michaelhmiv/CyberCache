@@ -78,6 +78,16 @@ import {
 } from '../../content/repair.js';
 import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
 import {
+  isExtractionMethod,
+  type ExtractionMethod,
+} from '../../content/extraction.js';
+import {
+  accrueExtractionTime,
+  assertExtractionStartAllowed,
+  syncExtractionSelection,
+  type ExtractionAdapter,
+} from './extractionEngine.js';
+import {
   accrueActionSkillCharge,
   resolveActionSkill,
   resolveActionSkillLevers,
@@ -167,6 +177,7 @@ const ACTIVE_KINDS = [
   'workshop_service',
   'market_listing',
   'endless_run',
+  'extraction',
 ] as const;
 const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave'] as const;
 
@@ -1816,6 +1827,97 @@ export class InMemoryWriteStore implements WriteStore {
     };
   }
 
+  /** The extraction engine adapter bound to this store's seed —
+   *  the twin of migration 0033's accrual hook. The writes store
+   *  only accrues + gates; finalization (rolls) belongs to the
+   *  gameplay store's settle path, exactly as in SQL where
+   *  cc_set_active_action calls cc_settle_extraction_time and
+   *  cc_apply_extraction runs from the Chef settle. */
+  private extractionAdapter(): ExtractionAdapter {
+    return {
+      nowMs: () => this.nowFn().getTime(),
+      profile: (id) => {
+        const p = this.profileOrNull(id);
+        if (!p) return null;
+        return {
+          level: p.player_level,
+          skillSpends: (p.skill_spends ?? {}) as Record<string, number>,
+          cacheRankSpends: (p.cache_rank_spends ?? {}) as Record<string, number>,
+          deathState: ((p as unknown as Record<string, unknown>).death_state ?? {}) as Record<string, unknown>,
+          offlineCapHours: p.offline_cap_hours ? p.offline_cap_hours : null,
+          verified: this.canUseEconomy(p),
+        };
+      },
+      activeAction: (id) => {
+        const a = this.activities.get(id);
+        if (!a) return null;
+        return {
+          kind: a.active_action,
+          targetId: a.target_id,
+          payload: (a.activity_payload ?? {}) as Record<string, unknown>,
+          lastHeartbeatMs: a.last_heartbeat_at ? new Date(a.last_heartbeat_at).getTime() : null,
+          startedMs: a.started_at ? new Date(a.started_at).getTime() : null,
+        };
+      },
+      equippedItems: (id) =>
+        this.seed.items
+          .filter((i) => i.owner_user_id === id && i.runtime_state === 'equipped' && i.equipped_slot)
+          .map((i) => ({
+            slot: i.equipped_slot as never,
+            item: i.payload as unknown as GearItem,
+          })),
+      masteryLevel: (id, track) => {
+        const row = this.seed.masteries.find((m) => m.user_id === id && m.mastery_id === track);
+        return row ? Math.max(1, row.mastery_level) : 1;
+      },
+      addMasteryXp: (id, track, xp) => this.addMasteryXp(id, track, xp),
+      state: (id) => this.seed.extractionStates.find((s) => s.user_id === id) ?? null,
+      saveState: (id, state) => {
+        const idx = this.seed.extractionStates.findIndex((s) => s.user_id === id);
+        if (idx >= 0) this.seed.extractionStates[idx] = state;
+        else this.seed.extractionStates.push(state);
+      },
+      applyPlayerXp: (id, xp) => {
+        const p = this.profile(id);
+        const next = applyXp(p.player_level, p.player_xp, xp);
+        p.player_level = next.player_level;
+        p.player_xp = next.player_xp;
+        this.touch(p);
+        return p.player_level;
+      },
+      creditFinds: (id, materials, essences) => {
+        const p = this.profile(id);
+        for (const [k, v] of Object.entries(materials)) p.materials[k] = (p.materials[k] ?? 0) + v;
+        for (const [k, v] of Object.entries(essences)) p.essences[k] = (p.essences[k] ?? 0) + v;
+        this.touch(p);
+      },
+      addStat: (id, key, amount) => this.addStat(id, key, amount),
+      recordSettle: () => undefined,
+    };
+  }
+
+  /** Accrue the player's extraction time against the outgoing
+   *  action — called by the activity transitions (0033 restates the
+   *  SQL set/clear functions with the same hook). Accrual only:
+   *  completed passes finalize at state reads / offline settlement. */
+  private settleExtractionBeforeTransition(playerId: string): void {
+    if (!this.profileOrNull(playerId)) return;
+    accrueExtractionTime(this.extractionAdapter(), playerId);
+  }
+
+  /** Extraction start gates + selection sync (0033's hook in
+   *  cc_set_active_action): verified account, no standing death
+   *  record, unlocked area, Deep Delve needs mastery 5. Throws the
+   *  SQL twin's messages BEFORE the activity row changes. */
+  private gateExtractionStart(playerId: string, input: SetActiveActionInput): void {
+    const adapter = this.extractionAdapter();
+    const areaId = input.target_id ?? '';
+    const rawMethod = (input.activity_payload as Record<string, unknown> | undefined)?.method;
+    const method: ExtractionMethod = isExtractionMethod(rawMethod) ? rawMethod : 'surface';
+    assertExtractionStartAllowed(adapter, playerId, areaId, method);
+    syncExtractionSelection(adapter, playerId, areaId, method);
+  }
+
   /** Settle the player's craft jobs against the outgoing action —
    *  called by the activity transitions (0024 restates the SQL
    *  set/clear functions with the same hook). */
@@ -3071,6 +3173,12 @@ export class InMemoryWriteStore implements WriteStore {
     this.settleCraftBeforeTransition(playerId);
     // Repair settler hook (0025): board jobs settle on transitions too.
     await this.settleRepairBeforeTransition(playerId);
+    // Extraction accrual hook (0033): the outgoing action's
+    // extraction time folds into completed passes before the switch.
+    this.settleExtractionBeforeTransition(playerId);
+    // Extraction start gates (0033): an incoming extraction action
+    // validates + syncs its site/method selection, or throws.
+    if (kind === 'extraction') this.gateExtractionStart(playerId, input);
     const now = this.nowIso();
     const emptyToNull = (v: string | null | undefined) => (v === '' || v === undefined ? null : v);
     const row: ActiveActionData = {
@@ -3103,6 +3211,8 @@ export class InMemoryWriteStore implements WriteStore {
     this.settleCraftBeforeTransition(playerId);
     // Repair settler hook (0025), same as setActiveAction.
     await this.settleRepairBeforeTransition(playerId);
+    // Extraction accrual hook (0033), same as setActiveAction.
+    this.settleExtractionBeforeTransition(playerId);
     const now = this.nowIso();
     const row: ActiveActionData = {
       user_id: playerId,

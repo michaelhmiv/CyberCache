@@ -830,3 +830,95 @@ areaUnlockLevel 20 (the Skimmer pattern).
 **Meters.** Settle payouts fold into `credits_minted_dispatch`
 (foot) and `credits_minted_courier` in the daily economy metrics,
 both inside the minted total.
+
+## 17. Extraction (migration 0033)
+
+The gathering occupation: timed material production for the
+crafter economy, occupying the PERSONAL action slot like crafting
+(roam OR craft OR extract OR boss/endless — one at a time).
+Content owner: `src/content/extraction.ts`; server state:
+`public.extraction_state`; TS twin `src/server/writes/extractionEngine.ts`.
+
+**Passes.** Work runs in 10-minute passes at one site (area +
+method). A pass accrues ONLY while `extraction` is the active
+action, under crafting's settlement window math verbatim (attended
+time to the heartbeat + 300s grace, never truncated; the away tail
+capped by min(earned offline tier, user limiter) in [1h, 24h];
+offline settlement passes its keystone-inclusive cap in as an
+explicit max-advance). Accrued ms carry across pauses; passes
+complete back-to-back while the slot holds. Site/method changes
+take effect at the NEXT pass boundary — a pass always settles on
+the terms it started on (its `{index, areaId, method}` is stored
+in `pending_passes` at completion).
+
+**Settlement split.** Accrual is pure time accounting
+(`cc_settle_extraction_time`, hooked into the restated
+`cc_set_active_action` / `cc_clear_active_action` and called by
+the Chef before rolls); the rolls are TypeScript (the find pool
+and tick-RNG streams have no SQL twin) and finalize through
+`cc_apply_extraction`, which re-validates the batch (sequential
+indexes continuing the finalized count, each pass matching the
+pending record, find keys inside the 20-material / 5-essence
+whitelist, per-pass units ≤ 2× draws, draws ≤ 500) and prices XP
+itself. Settles happen at activity transitions, state reads
+(`GET /api/extraction/state` settles first), and offline
+settlement at login (the recap gains an extraction section).
+
+**Yield.** Each pass performs `round(32 × gearFactor ×
+methodYield × masteryYield × hotAreaFactor)` draws against the
+area's shipped pool (`rollAreaMaterialFind`: base materials at
+weight 2, essences 3 at home / 0.75 as guest) — 192 draws/hour
+Surface, 2× roaming's ~96 finds/hour byproduct rate. Material
+finds in their home area substitute the Tier-2 signature at
+`extractSignatureChance` 0.15 on the `extract:signature` stream
+(roaming's own 0.10 is a separate constant). Scavenger
+`lootQuantity` applies per find (+1 unit at the skill total).
+Finds are materials and essences ONLY — no gear, credits, scrap,
+fragments, or cores, and no events or elites. Roaming's activity
+mods, roaming consumable find mods, and VEHICLES do not apply
+(v1 boundary).
+
+**XP.** `passXp = round(1/6 × benchmarkXpPerHour(level) ×
+extractXpRate)` — the crafting peg (1200 ticks × the best
+unlocked area's idleXpPerTick) at the 0.75 ruling, lever
+hard-clamped [0.70, 0.85] in the accessor, the SQL applier, and
+`cc_extract_pass_xp` (which delegates to `cc_craft_unit_xp` at
+600000 ms so the twins cannot drift). Measured across the ladder:
+0.750–0.7525 of roaming's hourly XP. Cache Rank's XP bonus
+composes once per pass. Mastery: `gathering.extraction`, 20 XP
+per completed pass; yield +0.5%/level past 1, capped +25%. No
+location or weapon mastery is earned.
+
+**Gear factor.** Priced at settlement from server records:
+`clamp(pool / (pool + expectedPassDamage), extractGearFactorFloor
+0.40, 1.00)` where pool is the one HP formula
+(`computeHunterMaxHp`) + shield capacity, and expectedPassDamage
+runs the area's roster through the shipped monster-damage path
+(accuracy × attack power × element/shield mitigation) as an
+expectation over the pass's 200 ticks. Gear swapped mid-pass
+reprices the unfinished pass at completion — deliberately unlike
+crafting's snapshot.
+
+**Deep Delve.** Surface Sweep ×1.0 anywhere unlocked. Deep Delve
+×`extractDeepYieldMult` 1.5 (288 draws/hour): selecting it
+requires mastery ≥ 5 (refused at the op below that); each deep
+pass ALSO requires the gear factor ≥ 0.80 at settlement — a pass
+settling below pays as Surface and the UI says why. The factor
+is never a selection gate, so gear swaps degrade gracefully
+instead of erroring.
+
+**Gates.** Starts ride `cc_set_active_action` (kind
+`extraction`): verified accounts only (guests refused), no
+standing death record, the area must exist and be unlocked.
+Forged gear-factor/mastery/area claims are never read — every
+input is a server record.
+
+**Meters.** `extraction_passes`, `extraction_xp_awarded`, and
+`materials_minted_extraction` (jsonb by material id — the mint
+mirror of `materials_destroyed_crafting`) fold the
+`cc_apply_extraction` ledger rows in `cc_compute_economy_metrics`
++ the in-memory twin. Levers: `extractXpRate` 0.75 [0.70, 0.85]
+hard, `extractFindsPerHour` 192 [48, 480], `extractSignatureChance`
+0.15 [0, 0.40], `extractDeepYieldMult` 1.5 [1.0, 2.5],
+`extractGearFactorFloor` 0.40 [0, 1],
+`extractMasteryYieldPerLevel` 0.005 [0, 0.02].

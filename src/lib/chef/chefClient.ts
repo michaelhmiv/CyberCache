@@ -488,6 +488,25 @@ export interface OfflineCraftSettlementResult {
 }
 
 /**
+ * Offline EXTRACTION settlement (0033): when the recorded action
+ * was extraction, settle-offline advances the player's passes under
+ * the same effective offline cap and returns the finalized batch
+ * for the recap's extraction section.
+ */
+export interface OfflineExtractionSettlementResult {
+  settled: true;
+  extraction: {
+    advancedMs: number;
+    xpAwarded: number;
+    passesCompleted: number;
+    passes: ChefExtractionPass[];
+    materials: Record<string, number>;
+    essences: Record<string, number>;
+    capHours: number;
+  };
+}
+
+/**
  * Request server-authoritative offline settlement.
  *
  * The server computes elapsed time using DB timestamps (not client
@@ -498,7 +517,7 @@ export interface OfflineCraftSettlementResult {
  */
 export async function settleOffline(
   request: OfflineSettlementRequest,
-): Promise<OfflineSettlementResult | OfflineCraftSettlementResult | OfflineSettlementNoOp> {
+): Promise<OfflineSettlementResult | OfflineCraftSettlementResult | OfflineExtractionSettlementResult | OfflineSettlementNoOp> {
   const jwt = request.jwt || (await getSessionJwt());
 
   const response = await fetch(chefUrl('/settle-offline'), {
@@ -516,7 +535,7 @@ export async function settleOffline(
     throw new Error(`Chef offline settlement failed (${response.status}): ${detail}`);
   }
 
-  return response.json();
+  return response.json() as Promise<OfflineSettlementResult | OfflineCraftSettlementResult | OfflineExtractionSettlementResult | OfflineSettlementNoOp>;
 }
 
 /**
@@ -911,6 +930,77 @@ export async function recallDispatch(request: {
     '/dispatch/recall',
     { method: 'POST', body: JSON.stringify(request) },
     'Chef dispatch recall failed',
+  );
+}
+
+/**
+ * Extraction (0033). The gathering occupation's one read: it settles
+ * first (accrual + finalization of completed passes), then returns
+ * the state row, the mastery facts, a content-owner preview priced
+ * from the current loadout, and the batch this read just settled.
+ * Starting/switching rides the ordinary activity path
+ * (activityService.startActiveActivity with kind 'extraction').
+ */
+export interface ChefExtractionPass {
+  index: number;
+  areaId: string;
+  method: 'surface' | 'deep' | string;
+  draws: number;
+  gearFactor: number;
+  deepDegraded: boolean;
+  xpAwarded: number;
+  materials: Record<string, number>;
+  essences: Record<string, number>;
+  signatureUnits: number;
+}
+
+export interface ChefExtractionPreview {
+  areaId: string;
+  areaName: string;
+  method: 'surface' | 'deep' | string;
+  gearFactor: number;
+  survivalPool: number;
+  expectedPassDamage: number;
+  drawsPerPass: number;
+  xpPerPass: number;
+  deepDegraded: boolean;
+  deepUnlocked: boolean;
+  isHot: boolean;
+}
+
+export interface ChefExtractionState {
+  active: boolean;
+  hasState: boolean;
+  areaId: string | null;
+  method: 'surface' | 'deep' | string;
+  passAreaId: string | null;
+  passMethod: 'surface' | 'deep' | string;
+  accruedMs: number;
+  passMs: number;
+  pendingPasses: number;
+  finalizedPasses: number;
+  totalXpAwarded: number;
+  mastery: { level: number; xp: number };
+  preview: ChefExtractionPreview | null;
+  settled: {
+    advancedMs: number;
+    xpAwarded: number;
+    materials: Record<string, number>;
+    essences: Record<string, number>;
+    passes: ChefExtractionPass[];
+  };
+}
+
+export interface ChefExtractionStateResult {
+  verified: true;
+  extraction: ChefExtractionState;
+}
+
+export async function getExtractionState(): Promise<ChefExtractionStateResult> {
+  return endlessFetch<ChefExtractionStateResult>(
+    '/extraction/state',
+    { method: 'GET' },
+    'Chef extraction state failed',
   );
 }
 

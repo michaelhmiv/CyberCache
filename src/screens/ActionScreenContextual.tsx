@@ -18,6 +18,7 @@ import {
 } from '@/store';
 import { BossEncounterPanel } from '@/components/fight/BossEncounterPanel';
 import { EndlessPanel } from '@/components/fight/EndlessPanel';
+import { ExtractionPanel } from '@/components/fight/ExtractionPanel';
 import { BossPickerList } from '@/components/fight/BossPickerList';
 import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -78,6 +79,7 @@ const copy: Record<ActivityKind, { title: string; detail: string }> = {
   roaming_loot: { title: 'Roaming Loot', detail: 'Sweeping the area for XP, credits, scrap, gear, materials, and cache fragments.' },
   boss_fight: { title: 'Boss Encounter', detail: 'Resolving a focused boss encounter instead of the roaming loop.' },
   crafting: { title: 'Crafting', detail: 'Working at the bench to build or modify gear.' },
+  extraction: { title: 'Extraction', detail: 'Working a dig site for materials and essences — passes land every 10 minutes.' },
   salvaging: { title: 'Salvaging', detail: 'Breaking items into scrap — instant and server-settled; pick the next item.' },
   workshop_service: { title: 'Workshop Service', detail: 'Maintaining machines, queues, and production outputs.' },
   market_listing: { title: 'Market Listing', detail: 'Posting or managing gear at the trade kiosk.' },
@@ -207,6 +209,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showBossPicker, setShowBossPicker] = useState(false);
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
   const [showEndless, setShowEndless] = useState(false);
+  const [showExtraction, setShowExtraction] = useState(false);
   const [feedActionBusy, setFeedActionBusy] = useState(false);
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
   const [salvagePendingIds, setSalvagePendingIds] = useState<ReadonlySet<string>>(new Set());
@@ -465,6 +468,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       return <EndlessPanel onLeave={() => setShowEndless(false)} />;
     }
 
+    // Extraction (0033): the panel owns the occupation surface
+    // while it holds the slot, and opens from the switch grid —
+    // claiming the site is the panel's own server call.
+    if (currentKind === 'extraction' || showExtraction) {
+      return <ExtractionPanel onLeave={() => setShowExtraction(false)} />;
+    }
+
     // Idle/standby: no panel — the compact action selector handles starting actions.
     if (currentKind === 'idle_standby' || currentKind === 'none') return null;
 
@@ -540,11 +550,17 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     setShowSwitch(false);
   }, []);
 
+  const openExtraction = useCallback(() => {
+    setShowExtraction(true);
+    setShowSwitch(false);
+  }, []);
+
   const switchActions = [
     { label: 'Roam', detail: selectedArea.name, icon: <ActivityGlyph kind="roaming_loot" size={16} /> as React.ReactNode, run: () => startRoam() },
     { label: 'Boss Prep', detail: prepBossTarget?.name ?? 'Choose target', icon: <ActivityGlyph kind="boss_fight" size={16} /> as React.ReactNode, run: () => startPrep() },
     { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <span style={{ fontSize: 16 }} className="text-amber">⚔</span> as React.ReactNode, run: () => startBossFight() },
     { label: 'Endless', detail: 'Chaos Chamber', icon: <ActivityGlyph kind="endless_run" size={16} /> as React.ReactNode, run: openEndless },
+    { label: 'Extract', detail: selectedArea.name, icon: <ActivityGlyph kind="extraction" size={16} /> as React.ReactNode, run: openExtraction },
     { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: <ActivityGlyph kind="crafting" size={16} /> as React.ReactNode, run: () => startCrafting() },
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
   ].slice(0, MAX_SWITCH_ROWS);
@@ -632,6 +648,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
                 (label === 'Boss Prep' && isBossPrep) ||
                 (label === 'Boss Fight' && isBossFight) ||
                 (label === 'Endless' && (currentKind === 'endless_run' || showEndless)) ||
+                (label === 'Extract' && (currentKind === 'extraction' || showExtraction)) ||
                 (label === 'Craft' && currentKind === 'crafting') ||
                 (label === 'Salvage' && currentKind === 'salvaging')
                   ? 'border-amber/60 bg-amber/10'

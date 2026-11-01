@@ -139,6 +139,17 @@ export const ACTION_WORKSPACE_SPECS: Record<ActivityKind, MechanicWorkspaceSpec>
     visualLoop: ['arena depth track', 'band tint escalation', 'enemy approach', 'loot burst'],
     priorities: ['state', 'reward-intel', 'decision', 'feed'],
   },
+  extraction: {
+    kind: 'extraction',
+    title: 'Extraction',
+    liveVerb: 'working the site',
+    coreDecision: 'Which site, and Surface Sweep or Deep Delve?',
+    rewardIntel: ['pass countdown', 'draws per pass', 'gear factor', 'xp per pass', 'mastery level', 'signature material', 'hot area'],
+    feedEvents: ['pass started', 'pass complete', 'material find', 'essence find', 'signature find', 'deep delve degraded'],
+    selector: 'Extraction panel in the Fight area; site follows the roaming area picker.',
+    visualLoop: ['stake line scan', 'sift and sort at the rig', 'crate stacking', 'find flash'],
+    priorities: ['state', 'reward-intel', 'decision', 'feed'],
+  },
 };
 
 export const getActionWorkspaceSpec = (kind: ActivityKind): MechanicWorkspaceSpec => ACTION_WORKSPACE_SPECS[kind] ?? ACTION_WORKSPACE_SPECS.idle_standby;

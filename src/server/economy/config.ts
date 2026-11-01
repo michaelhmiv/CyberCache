@@ -179,6 +179,25 @@ export interface EconomyConfigValues {
   courierPremiumMultiplier: number;
   /** Route ticks per courier contract hour. */
   courierRouteTicksPerHour: number;
+  // Extraction (0033) — content owner: src/content/extraction.ts
+  // (EXTRACTION_LEVER_DEFAULTS / EXTRACTION_LEVER_CLAMPS, pinned
+  // against these literals by tests).
+  /**
+   * Extraction XP as a fraction of roaming's XP/hour. The [0.70,
+   * 0.85] range is LAW — the occupations band (DECISIONS R2) — so
+   * validation hard-clamps to it, exactly like craftXpRate.
+   */
+  extractXpRate: number;
+  /** Material/essence draws per hour at gear factor 1 (Surface). */
+  extractFindsPerHour: number;
+  /** Signature substitution chance for home-area material draws. */
+  extractSignatureChance: number;
+  /** Deep Delve draw multiplier. */
+  extractDeepYieldMult: number;
+  /** Floor on the settlement-time gear factor. */
+  extractGearFactorFloor: number;
+  /** Yield bonus per gathering.extraction mastery level past 1. */
+  extractMasteryYieldPerLevel: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -254,6 +273,12 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   dispatchMaterialRate: 1,
   courierPremiumMultiplier: 1.6,
   courierRouteTicksPerHour: 120,
+  extractXpRate: 0.75,
+  extractFindsPerHour: 192,
+  extractSignatureChance: 0.15,
+  extractDeepYieldMult: 1.5,
+  extractGearFactorFloor: 0.4,
+  extractMasteryYieldPerLevel: 0.005,
 };
 
 export interface EconomyConfigKeySpec {
@@ -542,6 +567,30 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   courierRouteTicksPerHour: {
     key: 'courierRouteTicksPerHour', min: 60, max: 240, integer: true,
     defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS (courier brief §2.8)',
+  },
+  extractXpRate: {
+    key: 'extractXpRate', min: 0.7, max: 0.85, integer: false,
+    defaultOwner: 'src/content/extraction.ts EXTRACTION_LEVER_DEFAULTS (the [0.70, 0.85] band is the occupations law — validation clamps to it)',
+  },
+  extractFindsPerHour: {
+    key: 'extractFindsPerHour', min: 48, max: 480, integer: true,
+    defaultOwner: 'src/content/extraction.ts EXTRACTION_LEVER_DEFAULTS',
+  },
+  extractSignatureChance: {
+    key: 'extractSignatureChance', min: 0, max: 0.4, integer: false,
+    defaultOwner: 'src/content/extraction.ts EXTRACTION_LEVER_DEFAULTS',
+  },
+  extractDeepYieldMult: {
+    key: 'extractDeepYieldMult', min: 1, max: 2.5, integer: false,
+    defaultOwner: 'src/content/extraction.ts EXTRACTION_LEVER_DEFAULTS',
+  },
+  extractGearFactorFloor: {
+    key: 'extractGearFactorFloor', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/extraction.ts EXTRACTION_LEVER_DEFAULTS',
+  },
+  extractMasteryYieldPerLevel: {
+    key: 'extractMasteryYieldPerLevel', min: 0, max: 0.02, integer: false,
+    defaultOwner: 'src/content/extraction.ts EXTRACTION_LEVER_DEFAULTS',
   },
 };
 

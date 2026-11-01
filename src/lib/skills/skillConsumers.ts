@@ -119,6 +119,17 @@ export const SKILL_EFFECT_CONSUMERS: Record<string, SkillEffectConsumer[]> = {
     { engine: 'craft job duration snapshot (SQL twin, trusted server parameter)', file: 'db/migrations/0024_crafting_occupation.sql', needle: 'p_efficiency_bonus' },
   ],
 
+  // ---- Small-node consumer wired by the Extraction slice (0033) ----
+  // lootQuantity (Scavenger small) already fed the Chef's roaming
+  // material finds; extraction is its second call site — the pass
+  // roller reads the same resolved total through the content owner,
+  // rolled per find on its own stream, gated on > 0 exactly like the
+  // Chef gate so stream identity holds for players without the node.
+  lootQuantity: [
+    { engine: 'Chef roaming claim material finds', file: CHEF, needle: 'skillBonuses.lootQuantity' },
+    { engine: 'extraction pass finds (per-find quantity roll)', file: 'src/content/extraction.ts', needle: 'lootQuantityBonus' },
+  ],
+
   // ---- Small-node consumer wired by the Cache Rank slice (0031) ----
   // cacheQuality (Encrypted Payloads, Scavenger small) waited for a
   // cache-lane consumer since the keystone slice (#216). The cache

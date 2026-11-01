@@ -98,6 +98,15 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
     shortLabel: 'ENDLESS',
     description: 'Inside the Chaos Chamber — depth is the score, escrow pays at the end.',
   },
+  extraction: {
+    kind: 'extraction',
+    glyph: '⛏',
+    color: '#E8B33C',
+    accentColor: '#57D0D8',
+    label: 'Extraction',
+    shortLabel: 'EXTRACT',
+    description: 'Working a site pass by pass — materials and essences for the crafter economy.',
+  },
 };
 
 export function getActivityVisual(kind: ActivityKind): ActivityVisual {

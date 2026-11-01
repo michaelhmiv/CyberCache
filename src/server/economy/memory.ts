@@ -297,6 +297,27 @@ export class InMemoryEconomyStore implements EconomyStore {
       .filter((r) => r.action_type === 'cc_dispatch_settle' && dig(r.result_payload, 'family') === 'courier')
       .reduce((acc, r) => acc + num(dig(r.result_payload, 'payout', 'credits')), 0);
 
+    // Extraction meters (0033): passes + XP from the
+    // cc_apply_extraction ledger payloads; the mint map folds the
+    // payloads' finds_materials and finds_essences maps per id
+    // (disjoint id spaces) — the SQL function's attribution rules.
+    const extractionRows = rows.filter((r) => r.action_type === 'cc_apply_extraction');
+    const extractionPasses = extractionRows.reduce(
+      (acc, r) => acc + num(dig(r.result_payload, 'passes_completed')), 0);
+    const extractionXpAwarded = extractionRows.reduce(
+      (acc, r) => acc + num(dig(r.result_payload, 'xp_awarded')), 0);
+    const materialsMintedExtraction: Record<string, number> = {};
+    for (const r of extractionRows) {
+      for (const mapKey of ['finds_materials', 'finds_essences'] as const) {
+        const map = dig(r.result_payload, mapKey);
+        if (!map || typeof map !== 'object') continue;
+        for (const [key, value] of Object.entries(map as Record<string, unknown>)) {
+          materialsMintedExtraction[key] =
+            (materialsMintedExtraction[key] ?? 0) + (Number(value) || 0);
+        }
+      }
+    }
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
@@ -374,6 +395,9 @@ export class InMemoryEconomyStore implements EconomyStore {
       cacheRankTokensSpent,
       creditsMintedDispatch,
       creditsMintedCourier,
+      extractionPasses,
+      extractionXpAwarded,
+      materialsMintedExtraction,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);
