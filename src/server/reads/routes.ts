@@ -19,6 +19,7 @@
  *   GET /api/runtime/items               runtimeStateService.syncRuntimeItemsForUser  item_instances (own, RLS)
  *   GET /api/collections/me              CollectionsScreen                    collection_discoveries (own) + profiles.legendary_cores (0026)
  *   GET /api/profile/stats               ProfileScreen (trophy shelf)       lifetime fold over server records only (0034)
+ *   GET /api/leaderboard/weekly          LeaderboardsScreen (weekly races)  weekly fold over server records + settlement outcomes (0035)
  *
  * Identity rules (hard): the caller's player id comes ONLY from the
  * verified Chef JWT (chefPlayerId). Query/body player ids are never read.
@@ -247,6 +248,20 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
       const rank = await store.getMyLeaderboardRank(id, metric, period);
       if (!rank) return notFound(res, 'Leaderboard rank');
       res.json(rank);
+    } catch (err) { fail(res, err); }
+  });
+
+  // Weekly race boards (0035): current week's live standings folded
+  // from server records + last week's finals and the caller's own
+  // reward outcome. Identity from the JWT only — no player id is
+  // read from the request anywhere in this payload.
+  app.get('/api/leaderboard/weekly', async (req, res) => {
+    const id = caller(config, req, res);
+    if (!id) return;
+    try {
+      const boards = await store.getWeeklyLeaderboards(id, new Date());
+      if (!boards) return notFound(res, 'Profile');
+      res.json(boards);
     } catch (err) { fail(res, err); }
   });
 

@@ -196,6 +196,18 @@ export function createVerifyBossHandler(
       const economyValues = config.economyConfig
         ? await config.economyConfig.snapshot()
         : undefined;
+      // Drop luck (0035): the player's active weekly-leaderboard
+      // buff, read from the server's own buff rows — never the body.
+      // A read failure is a 500 like the other server-record reads
+      // on this route.
+      let dropLuckBonus = 0;
+      try {
+        dropLuckBonus = await store.getActiveDropBonus(playerId, new Date());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read drop buff', detail: message });
+        return;
+      }
       const entryFee = escalatedBossFee(
         baseEntryFee,
         victoriesToday,
@@ -351,8 +363,13 @@ export function createVerifyBossHandler(
         pityCount: serverPityCount,
         entryFee,
         economy: economyValues
-          ? { bossDedicatedChance: economyValues.bossDedicatedChance }
-          : undefined,
+          ? {
+              bossDedicatedChance: economyValues.bossDedicatedChance,
+              ...(dropLuckBonus > 0 ? { dropLuckBonus } : {}),
+            }
+          : dropLuckBonus > 0
+            ? { dropLuckBonus }
+            : undefined,
         actionSkillFire: actionSkillPlan,
         ...serverSlots,
         skillBonuses: simSkillBonuses,

@@ -21,6 +21,7 @@ import { mountWriteRoutes } from './writes/routes';
 import { PgWriteStore } from './writes/store';
 import { mountJobRoutes } from './jobs/routes';
 import { PgJobStore } from './jobs/store';
+import { PgLeaderboardStore } from './leaderboards/store';
 import { PgEconomyStore } from './economy/store';
 import { EconomyConfig } from './economy/config';
 import { fcmSenderFromEnv } from './jobs/fcm';
@@ -147,6 +148,8 @@ if (chefJwtSecret && databaseUrl) {
         fcmSender: fcmSenderFromEnv(),
         economyStore,
         economyConfig,
+        // Weekly leaderboard settlement (0035) rides the heartbeat.
+        leaderboardStore: new PgLeaderboardStore(pool),
       });
       console.log(
         chefJobSecret

@@ -523,6 +523,14 @@ export interface ChefGameplayStore {
    */
   getEquippedVehicle(playerId: string): Promise<EquippedVehicleRow | null>;
   /**
+   * The player's active weekly-leaderboard drop-luck bonus (0035):
+   * the MAX bonus among unexpired leaderboard_drop_buffs grants, 0
+   * when none. Read by the claim / verify-boss / settle-offline
+   * routes and stamped onto the engine request's economy block —
+   * the request body never carries it, and buffs never stack.
+   */
+  getActiveDropBonus(playerId: string, now: Date): Promise<number>;
+  /**
    * Persist a claim's vehicle outcome (cc_apply_vehicle_usage):
    * tank fuel + the equipped instance's condition, applied only
    * while that instance is still the player's equipped vehicle.
@@ -1302,6 +1310,16 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         conditionMax: num(row.condition_max),
       }),
     );
+  }
+
+  async getActiveDropBonus(playerId: string, now: Date): Promise<number> {
+    const bonus = await this.one(
+      `select coalesce(max(bonus), 0) as bonus from public.leaderboard_drop_buffs
+        where player_id = $1 and expires_at > $2::timestamptz`,
+      [playerId, now.toISOString()],
+      (row) => Number(row.bonus ?? 0),
+    );
+    return bonus ?? 0;
   }
 
   applyVehicleUsage(playerId: string, usage: VehicleUsageInput): Promise<Json> {

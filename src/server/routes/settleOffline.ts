@@ -295,6 +295,18 @@ export function createSettleOfflineHandler(
       const economyValues = config.economyConfig
         ? await config.economyConfig.snapshot()
         : undefined;
+      // Drop luck (0035): the player's active weekly-leaderboard
+      // buff, from the server's own buff rows (engine parity: the
+      // offline claim carries the same buff a foreground claim
+      // would). A read failure is a 500 like the reads above.
+      let dropLuckBonus = 0;
+      try {
+        dropLuckBonus = await store.getActiveDropBonus(playerId, config.now?.() ?? new Date());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read drop buff', detail: message });
+        return;
+      }
       const offlineCapBonus = Math.max(0, Math.floor(skillBonuses.offlineCapBonus ?? 0));
       const capHours = effectiveOfflineCapHours({
         level: profile.player_level || 1,
@@ -369,8 +381,11 @@ export function createSettleOfflineHandler(
               eliteEscalationChance: economyValues.eliteEscalationChance,
               hotAreaMaterialBonus: economyValues.hotAreaMaterialBonus,
               hotAreaYieldBonus: economyValues.hotAreaYieldBonus,
+              ...(dropLuckBonus > 0 ? { dropLuckBonus } : {}),
             }
-          : undefined,
+          : dropLuckBonus > 0
+            ? { dropLuckBonus }
+            : undefined,
         hotArea: isHotArea(area.id, config.now?.() ?? new Date()),
       };
 

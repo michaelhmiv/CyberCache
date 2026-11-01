@@ -44,6 +44,7 @@ import {
   type EconomyConfig,
 } from '../economy/config';
 import type { EconomyStore } from '../economy/store';
+import type { LeaderboardStore } from '../leaderboards/store';
 
 export interface JobRoutesConfig extends AuthConfig {
   /** CHEF_JOB_SECRET; when empty the /api/jobs/* routes are not mounted. */
@@ -56,6 +57,8 @@ export interface JobRoutesConfig extends AuthConfig {
   economyStore?: EconomyStore;
   /** Live lever accessor shared with the gameplay routes (0018). */
   economyConfig?: EconomyConfig;
+  /** Weekly leaderboard settlement (0035); absent = settlement skipped. */
+  leaderboardStore?: LeaderboardStore;
 }
 
 /** UTC day (YYYY-MM-DD) `offsetDays` before today. */
@@ -129,7 +132,27 @@ export function mountJobRoutes(app: Express, store: JobStore, config: JobRoutesC
           economyMetrics = { error: 'metrics_compute_failed' };
         }
       }
-      return { job: 'daily-heartbeat', recorded, economyMetrics };
+      // Weekly leaderboard settlement (0035): every closed week
+      // settles exactly once inside the store; the heartbeat is just
+      // the vehicle (world-boss brief §2.7 — no new cron, self-
+      // healing after outages). Same failure posture as the metrics:
+      // reported in the response, never fails the heartbeat, retried
+      // tomorrow.
+      let leaderboardSettlement: Record<string, unknown> | null = null;
+      if (config.leaderboardStore) {
+        try {
+          const settled = await config.leaderboardStore.settleClosedWeeks(new Date());
+          leaderboardSettlement = {
+            settledWeeks: settled.settledWeeks,
+            rewardsPaid: settled.rewardsPaid,
+            cacheKeysPaid: settled.cacheKeysPaid,
+          };
+        } catch (err) {
+          console.error('[chef-jobs] leaderboard settlement failed', err);
+          leaderboardSettlement = { error: 'leaderboard_settlement_failed' };
+        }
+      }
+      return { job: 'daily-heartbeat', recorded, economyMetrics, leaderboardSettlement };
     });
 
     // --- Economy admin (0018) -------------------------------------

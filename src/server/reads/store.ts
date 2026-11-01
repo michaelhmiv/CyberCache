@@ -42,6 +42,18 @@ import {
   type PriceStats,
   type SaleRecord,
 } from '../../lib/market/priceStats';
+import {
+  racesForWeek,
+  weekKeyOf,
+  weekKeyOffset,
+  weekWindow,
+} from '../../content/leaderboards';
+import {
+  computeRaceStandings,
+  WEEKLY_FOLD_ACTION_TYPES,
+  type WeeklyFoldInput,
+} from '../leaderboards/fold';
+import { NPC_MARKET_USER_ID } from '../lib/npcMarket';
 
 // ---------------------------------------------------------------------------
 // Row shapes — mirrors of the client service interfaces (kept server-local
@@ -146,11 +158,15 @@ export interface LedgerEntryData {
   user_id: string;
   action_type: string;
   result_payload: Record<string, unknown>;
+  /** Row timestamp — read only by the weekly leaderboard fold (0035). */
+  created_at?: string;
 }
 
 export interface EndlessRunRecordData {
   status: string;
   depth_reached: number;
+  /** Run end timestamp — read only by the weekly leaderboard fold (0035). */
+  ended_at?: string | null;
 }
 
 export interface DispatchMissionRecordData {
@@ -299,6 +315,76 @@ export interface ProfileLifetimeData {
     cache_rank_total_ranks: number;
     collections_discovered: number;
   };
+}
+
+// ---------------------------------------------------------------------------
+// Weekly leaderboards (0035 read).
+//
+// The race boards are the weekly fold (src/server/leaderboards/fold.ts)
+// over the same server records the lifetime fold reads, windowed to
+// the current and previous ISO weeks. Entries are FACTS (rank, value,
+// when the value was reached); reward outcomes for the previous week
+// come from leaderboard_rewards — written only by settlement — so a
+// reward shown here was actually paid. The caller's own standings are
+// resolved from the JWT identity only.
+// ---------------------------------------------------------------------------
+
+export interface WeeklyRaceEntryData {
+  rank: number;
+  player_id: string;
+  username: string | null;
+  value: number;
+  reached_at: string;
+}
+
+export interface WeeklyRaceRewardData {
+  rank: number;
+  cache_keys: number;
+  buff_bonus: number;
+  buff_hours: number;
+  buff_expires_at: string | null;
+}
+
+export interface WeeklyRaceBoardData {
+  id: string;
+  label: string;
+  unit: string;
+  blurb: string;
+  min_qualifying_value: number;
+  /** Top entries (WEEKLY_BOARD_TOP_N), best first. */
+  entries: WeeklyRaceEntryData[];
+  participant_count: number;
+  /** The caller's standing, even outside the top entries; null when unranked. */
+  me: { rank: number; value: number } | null;
+  /** Previous week only: the caller's settled reward, or null. */
+  my_reward: WeeklyRaceRewardData | null;
+}
+
+export interface WeeklyLeaderboardsData {
+  week: { key: string; start: string; ends_at: string };
+  races: WeeklyRaceBoardData[];
+  previous_week: {
+    key: string;
+    start: string;
+    ends_at: string;
+    settled: boolean;
+    settled_at: string | null;
+    races: WeeklyRaceBoardData[];
+  };
+  /** The caller's strongest active drop-luck buff, if any. */
+  my_drop_buff: { bonus: number; expires_at: string } | null;
+}
+
+/** One leaderboard_rewards row (0035), as the read stores carry it. */
+export interface WeeklyRewardRecordData {
+  week_key: string;
+  race_id: string;
+  player_id: string;
+  rank: number;
+  cache_keys: number;
+  buff_bonus: number;
+  buff_hours: number;
+  buff_expires_at: string | null;
 }
 
 export interface ProgressionSnapshotData {
@@ -658,6 +744,8 @@ export interface ReadStore {
   getCollections(playerId: string): Promise<CollectionsData | null>;
   /** Caller's lifetime stats + trophy showcase, folded from server records (0034); null when no profile. */
   getProfileStats(playerId: string): Promise<ProfileLifetimeData | null>;
+  /** Weekly race boards: current week's live standings + last week's finals and the caller's reward outcome (0035); null when no profile. */
+  getWeeklyLeaderboards(playerId: string, now: Date): Promise<WeeklyLeaderboardsData | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1017,6 +1105,88 @@ export function computeProfileLifetime(input: ProfileLifetimeInput): ProfileLife
 }
 
 // ---------------------------------------------------------------------------
+// Weekly boards (0035) — the shaping both read stores run. The fold
+// input covers [previous week start, current week end); each week's
+// boards fold their own window out of it, so one fetch serves both.
+// ---------------------------------------------------------------------------
+
+export const WEEKLY_BOARD_TOP_N = 10;
+
+export interface WeeklyBoardsRaw {
+  input: WeeklyFoldInput;
+  /** week_key → settled_at (ISO), for weeks settlement has closed. */
+  settlements: ReadonlyMap<string, string>;
+  /** Reward rows (the read stores fetch the caller's; shaping filters by week + race + caller). */
+  rewards: readonly WeeklyRewardRecordData[];
+  /** The caller's drop-luck buff rows, active or not (shaping filters by expiry). */
+  dropBuffs: ReadonlyArray<{ bonus: number; expires_at: string }>;
+}
+
+export function buildWeeklyLeaderboards(
+  raw: WeeklyBoardsRaw,
+  playerId: string,
+  now: Date,
+): WeeklyLeaderboardsData {
+  const currentKey = weekKeyOf(now);
+  const previousKey = weekKeyOffset(now, -1);
+  const boardFor = (weekKey: string, withRewards: boolean): WeeklyRaceBoardData[] => {
+    const { start, end } = weekWindow(weekKey);
+    return racesForWeek(weekKey).map((race) => {
+      const standings = computeRaceStandings(raw.input, race.id, start, end);
+      const mine = standings.find((s) => s.player_id === playerId);
+      const reward = withRewards
+        ? raw.rewards.find(
+          (r) => r.week_key === weekKey && r.race_id === race.id && r.player_id === playerId,
+        )
+        : undefined;
+      return {
+        id: race.id,
+        label: race.label,
+        unit: race.unit,
+        blurb: race.blurb,
+        min_qualifying_value: race.minQualifyingValue,
+        entries: standings.slice(0, WEEKLY_BOARD_TOP_N),
+        participant_count: standings.length,
+        me: mine ? { rank: mine.rank, value: mine.value } : null,
+        my_reward: reward
+          ? {
+            rank: reward.rank,
+            cache_keys: reward.cache_keys,
+            buff_bonus: reward.buff_bonus,
+            buff_hours: reward.buff_hours,
+            buff_expires_at: reward.buff_expires_at,
+          }
+          : null,
+      };
+    });
+  };
+  const nowMs = now.getTime();
+  let myDropBuff: { bonus: number; expires_at: string } | null = null;
+  for (const buff of raw.dropBuffs) {
+    if (Date.parse(buff.expires_at) <= nowMs) continue;
+    if (!myDropBuff || buff.bonus > myDropBuff.bonus
+      || (buff.bonus === myDropBuff.bonus && buff.expires_at > myDropBuff.expires_at)) {
+      myDropBuff = { bonus: buff.bonus, expires_at: buff.expires_at };
+    }
+  }
+  const currentWindow = weekWindow(currentKey);
+  const previousWindow = weekWindow(previousKey);
+  return {
+    week: { key: currentKey, start: currentWindow.start, ends_at: currentWindow.end },
+    races: boardFor(currentKey, false),
+    previous_week: {
+      key: previousKey,
+      start: previousWindow.start,
+      ends_at: previousWindow.end,
+      settled: raw.settlements.has(previousKey),
+      settled_at: raw.settlements.get(previousKey) ?? null,
+      races: boardFor(previousKey, true),
+    },
+    my_drop_buff: myDropBuff,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // In-memory implementation (tests; single-process dev)
 // ---------------------------------------------------------------------------
 
@@ -1117,6 +1287,12 @@ export interface ReadSeed {
   extractionStates?: Array<{ user_id: string; finalized_passes: number; total_xp_awarded: number }>;
   /** player_kill_stats rows (0034). Optional. */
   killStats?: Array<{ user_id: string; weapon_type: string; kills: number }>;
+  /** Weekly leaderboard settlement rows (0035). Optional. */
+  leaderboardSettlements?: Array<{ week_key: string; settled_at: string }>;
+  /** Weekly leaderboard reward rows (0035). Optional. */
+  leaderboardRewards?: WeeklyRewardRecordData[];
+  /** Weekly leaderboard drop-luck buff rows (0035). Optional. */
+  dropBuffs?: Array<{ player_id: string; bonus: number; expires_at: string }>;
 }
 
 export function emptyReadSeed(): ReadSeed {
@@ -1187,6 +1363,36 @@ export class InMemoryReadStore implements ReadStore {
       killStats,
       items: await this.getMyRuntimeItems(playerId),
     });
+  }
+
+  async getWeeklyLeaderboards(playerId: string, now: Date): Promise<WeeklyLeaderboardsData | null> {
+    const profile = this.seed.profiles.find((p) => p.id === playerId);
+    if (!profile) return null;
+    return buildWeeklyLeaderboards({
+      input: {
+        profiles: this.seed.profiles.map((p) => ({
+          id: p.id, username: p.username, created_at: p.created_at,
+        })),
+        // Seed ledger rows without a timestamp cannot be windowed;
+        // they sit at the epoch and fall outside every real week.
+        ledger: (this.seed.ledger ?? []).map((e) => ({
+          user_id: e.user_id,
+          action_type: e.action_type,
+          result_payload: e.result_payload,
+          created_at: e.created_at ?? '1970-01-01T00:00:00.000Z',
+        })),
+        endlessRuns: (this.seed.endlessRuns ?? []).map((r) => ({
+          user_id: r.user_id,
+          status: r.status,
+          depth_reached: r.depth_reached,
+          ended_at: r.ended_at ?? null,
+        })),
+        excludedPlayerIds: [NPC_MARKET_USER_ID],
+      },
+      settlements: new Map((this.seed.leaderboardSettlements ?? []).map((s) => [s.week_key, s.settled_at])),
+      rewards: this.seed.leaderboardRewards ?? [],
+      dropBuffs: (this.seed.dropBuffs ?? []).filter((b) => b.player_id === playerId),
+    }, playerId, now);
   }
 
   async getMyProgressionSnapshots(playerId: string, query: SnapshotQuery): Promise<ProgressionSnapshotData[]> {
@@ -1942,5 +2148,97 @@ export class PgReadStore implements ReadStore {
       [playerId],
     );
     return rows.map((r) => ({ ...mapItem(r), created_at: iso(r.created_at) }));
+  }
+
+  async getWeeklyLeaderboards(playerId: string, now: Date): Promise<WeeklyLeaderboardsData | null> {
+    const { rows: callerRows } = await this.db.query(
+      'select id from public.profiles where id = $1',
+      [playerId],
+    );
+    if (!callerRows.length) return null;
+
+    const currentKey = weekKeyOf(now);
+    const previousKey = weekKeyOffset(now, -1);
+    const rangeStart = weekWindow(previousKey).start;
+    const rangeEnd = weekWindow(currentKey).end;
+
+    const { rows: profileRows } = await this.db.query(
+      'select id, username, created_at from public.profiles order by created_at asc, id asc',
+    );
+    // The fold's action types only, across both weeks — result
+    // payloads + timestamps; request payloads never fold.
+    const { rows: ledgerRows } = await this.db.query(
+      `select user_id, action_type, result_payload, created_at
+         from public.verified_action_ledger
+        where action_type = any($1::text[])
+          and created_at >= $2::timestamptz and created_at < $3::timestamptz
+        order by created_at asc`,
+      [[...WEEKLY_FOLD_ACTION_TYPES], rangeStart, rangeEnd],
+    );
+    const { rows: runRows } = await this.db.query(
+      `select user_id, status, depth_reached, ended_at
+         from public.endless_runs
+        where ended_at is not null
+          and ended_at >= $1::timestamptz and ended_at < $2::timestamptz`,
+      [rangeStart, rangeEnd],
+    );
+    const { rows: settlementRows } = await this.db.query(
+      'select week_key, settled_at from public.leaderboard_settlements where week_key = $1',
+      [previousKey],
+    );
+    const { rows: rewardRows } = await this.db.query(
+      `select week_key, race_id, player_id, rank, cache_keys, buff_bonus, buff_hours, buff_expires_at
+         from public.leaderboard_rewards
+        where player_id = $1 and week_key = $2`,
+      [playerId, previousKey],
+    );
+    const { rows: buffRows } = await this.db.query(
+      `select bonus, expires_at from public.leaderboard_drop_buffs
+        where player_id = $1 and expires_at > $2::timestamptz
+        order by expires_at desc`,
+      [playerId, now.toISOString()],
+    );
+
+    return buildWeeklyLeaderboards({
+      input: {
+        profiles: (profileRows as Row[]).map((row) => ({
+          id: String(row.id),
+          username: (row.username as string | null) ?? null,
+          created_at: iso(row.created_at),
+        })),
+        ledger: (ledgerRows as Row[]).map((row) => ({
+          user_id: String(row.user_id),
+          action_type: String(row.action_type),
+          result_payload: foldRecord(row.result_payload),
+          created_at: iso(row.created_at),
+        })),
+        endlessRuns: (runRows as Row[]).map((row) => ({
+          user_id: String(row.user_id),
+          status: String(row.status),
+          depth_reached: num(row.depth_reached),
+          ended_at: row.ended_at === null || row.ended_at === undefined ? null : iso(row.ended_at),
+        })),
+        excludedPlayerIds: [NPC_MARKET_USER_ID],
+      },
+      settlements: new Map((settlementRows as Row[]).map((row) => [
+        String(row.week_key), iso(row.settled_at),
+      ])),
+      rewards: (rewardRows as Row[]).map((row) => ({
+        week_key: String(row.week_key),
+        race_id: String(row.race_id),
+        player_id: String(row.player_id),
+        rank: num(row.rank),
+        cache_keys: num(row.cache_keys),
+        buff_bonus: Number(row.buff_bonus ?? 0),
+        buff_hours: num(row.buff_hours),
+        buff_expires_at: row.buff_expires_at === null || row.buff_expires_at === undefined
+          ? null
+          : iso(row.buff_expires_at),
+      })),
+      dropBuffs: (buffRows as Row[]).map((row) => ({
+        bonus: Number(row.bonus ?? 0),
+        expires_at: iso(row.expires_at),
+      })),
+    }, playerId, now);
   }
 }

@@ -103,6 +103,11 @@ export interface EconomyMetricsRow {
   extractionPasses: number;
   extractionXpAwarded: number;
   materialsMintedExtraction: Record<string, number>;
+  /** Weekly-leaderboard meters (migration 0035): cache keys paid by
+   *  settlement — the cc_leaderboard_settlement rows' awarded keys,
+   *  metered distinctly from ad-lane issuance (cacheKeysFromAds).
+   *  Keys are not credits; this never touches the totals. */
+  cacheKeysFromLeaderboards: number;
   computedAt: string;
 }
 
@@ -160,6 +165,7 @@ interface PgMetricsRow {
   extraction_passes?: number;
   extraction_xp_awarded?: string;
   materials_minted_extraction?: Record<string, number>;
+  cache_keys_from_leaderboards?: number;
   endless_runs_started?: number;
   endless_runs_ended?: number;
   endless_encounters_cleared?: number;
@@ -242,6 +248,7 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     extractionPasses: Number(r.extraction_passes ?? 0),
     extractionXpAwarded: Number(r.extraction_xp_awarded ?? 0),
     materialsMintedExtraction: r.materials_minted_extraction ?? {},
+    cacheKeysFromLeaderboards: Number(r.cache_keys_from_leaderboards ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -269,6 +276,7 @@ const METRICS_COLUMNS = `
   cache_rank_tokens_granted, cache_rank_tokens_spent,
   credits_minted_dispatch, credits_minted_courier,
   extraction_passes, extraction_xp_awarded, materials_minted_extraction,
+  cache_keys_from_leaderboards,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

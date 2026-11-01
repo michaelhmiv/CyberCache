@@ -172,6 +172,20 @@ export function createClaimHandler(
         ? await config.economyConfig.snapshot()
         : undefined;
 
+      // Drop luck (0035): the player's active weekly-leaderboard
+      // buff, read from the server's own buff rows — never the body.
+      // A read failure is a 500 like the loadout/vehicle reads above:
+      // paying a claim without the player's real buff state would
+      // silently drop a bonus they earned.
+      let dropLuckBonus = 0;
+      try {
+        dropLuckBonus = await store.getActiveDropBonus(playerId, config.now?.() ?? new Date());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read drop buff', detail: message });
+        return;
+      }
+
       // Merge inventory + roaming state into the claim
       const claimWithConsumables: ClaimRequest = {
         ...claim,
@@ -213,8 +227,11 @@ export function createClaimHandler(
               eliteEscalationChance: economyValues.eliteEscalationChance,
               hotAreaMaterialBonus: economyValues.hotAreaMaterialBonus,
               hotAreaYieldBonus: economyValues.hotAreaYieldBonus,
+              ...(dropLuckBonus > 0 ? { dropLuckBonus } : {}),
             }
-          : undefined,
+          : dropLuckBonus > 0
+            ? { dropLuckBonus }
+            : undefined,
         // Daily hot area (overhaul): derived from the SERVER's UTC
         // date at claim time — never cron, never the body. The
         // engine applies the yield/material bonuses and the danger

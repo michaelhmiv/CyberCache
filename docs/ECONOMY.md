@@ -41,6 +41,7 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `market_median_price` | Median sale price (`percentile_cont(0.5)`); `null` on a day with no sales |
 | `market_median_by_rarity` | Same median per item rarity, as jsonb — the pricing baseline other systems compare against |
 | `cache_keys_from_ads` | Rewarded-ad key claims (`cc_claim_rewarded_cache_key`) |
+| `cache_keys_from_leaderboards` | Cache keys paid by weekly-leaderboard settlement (Σ `cache_keys_awarded` over `cc_leaderboard_settlement` rows, migration 0035). A deliberate separate mint from the ad lane: the cache-lane daily cap accounts only `cache_keys_from_ads`, and keys are not credits — this meter never enters the minted/destroyed totals. Ceiling by construction: 4 races/week × 6 podium keys = 24 keys/week across the whole player base |
 | `cache_opens` | Cache opens (`cc_make_item` + `cc_draw_item`) |
 | `cache_fragments_awarded` | Σ `rewards.cache_fragments_awarded` over claim/settle/legacy-roaming rows. **Gap:** keys issued by fragment conversion are not separately attributable in ledger payloads — watch fragments awarded vs. opens instead |
 | `craft_jobs_completed` | Craft jobs whose last unit completed that day (`craft_jobs.completed_at`, migration 0024) |

@@ -4,13 +4,204 @@ import { FeatureGate } from '@/auth/FeatureGate';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LeaderboardMetricPicker } from '@/components/leaderboard/LeaderboardMetricPicker';
 import { LeaderboardList } from '@/components/leaderboard/LeaderboardList';
-import { getLeaderboard, type LeaderboardEntry, type LeaderboardMetric, type LeaderboardPeriod } from '@/lib/api/leaderboardService';
+import {
+  getLeaderboard,
+  getWeeklyLeaderboards,
+  type LeaderboardEntry,
+  type LeaderboardMetric,
+  type LeaderboardPeriod,
+  type WeeklyLeaderboards,
+  type WeeklyRaceBoard,
+} from '@/lib/api/leaderboardService';
+import { MobileCard } from '@/components/layout/MobileCard';
 import { getPublicProfile, type PlayerPublicProfile } from '@/lib/api/publicProfileService';
 import { PublicProfilePanel } from '@/components/profile/PublicProfilePanel';
 
 interface LeaderboardsScreenProps {
   onNavigate?: (screen: string) => void;
 }
+
+const shortDay = (iso: string): string =>
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+const weekRangeLabel = (startIso: string, endsAtIso: string): string => {
+  const lastDay = new Date(Date.parse(endsAtIso) - 86_400_000).toISOString();
+  return `${shortDay(startIso)} – ${shortDay(lastDay)}`;
+};
+
+/**
+ * One race's standings. Values render with tabular numerals and no
+ * truncation (device-pass rule: numbers never ellipsize); only the
+ * username may truncate. The caller's row is pinned below the top
+ * entries when they rank outside them.
+ */
+const WeeklyRaceStandings: React.FC<{
+  race: WeeklyRaceBoard;
+  myPlayerId?: string | null;
+  final?: boolean;
+}> = ({ race, myPlayerId, final }) => {
+  const inTop = race.entries.some((e) => e.player_id === myPlayerId);
+  const reward = final ? race.my_reward : null;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-baseline gap-2">
+        <div className="text-xs font-black uppercase tracking-wide text-text-primary">{race.label}</div>
+        <div className="ml-auto whitespace-nowrap text-[10px] text-text-muted">
+          {race.participant_count === 1 ? '1 racer' : `${race.participant_count} racers`}
+        </div>
+      </div>
+      <div className="text-[10px] text-text-muted">{race.blurb}</div>
+      {race.entries.length === 0 ? (
+        <div className="py-1 text-[11px] text-text-muted">
+          No qualifying runs yet{final ? '' : ' this week'}.
+        </div>
+      ) : (
+        <div>
+          {race.entries.map((entry) => (
+            <div
+              key={entry.player_id}
+              className={`flex items-center gap-2 py-1 ${entry.player_id === myPlayerId ? 'bg-amber/10' : ''}`}
+            >
+              <span className="w-7 shrink-0 text-right text-xs font-black text-amber">#{entry.rank}</span>
+              <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">
+                {entry.username ?? 'Hunter'}
+              </span>
+              <span className="whitespace-nowrap text-xs font-black tabular-nums text-text-primary">
+                {entry.value.toLocaleString('en-US')}
+              </span>
+              <span className="whitespace-nowrap text-[10px] text-text-muted">{race.unit}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {race.me && !inTop && (
+        <div className="flex items-center gap-2 border-t border-amber/40 bg-amber/10 px-1 py-1">
+          <span className="w-7 shrink-0 text-right text-xs font-black text-amber">#{race.me.rank}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">You</span>
+          <span className="whitespace-nowrap text-xs font-black tabular-nums text-text-primary">
+            {race.me.value.toLocaleString('en-US')}
+          </span>
+          <span className="whitespace-nowrap text-[10px] text-text-muted">{race.unit}</span>
+        </div>
+      )}
+      {reward && (
+        <div className="border border-amber/50 bg-amber/10 px-2 py-1 text-[11px] font-bold text-text-primary">
+          You finished #{reward.rank}
+          {reward.cache_keys > 0 && <> — {reward.cache_keys} cache {reward.cache_keys === 1 ? 'key' : 'keys'} earned</>}
+          {reward.buff_bonus > 0 && (
+            <> · +{Math.round(reward.buff_bonus * 100)}% drop luck for {reward.buff_hours}h</>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Weekly races (0035): the current week's live standings, the
+ * caller's pinned rank, last week's finals + rewards, and the
+ * caller's active drop-luck buff. Own fetch + error/retry state —
+ * a weekly failure never takes the all-time board down with it.
+ */
+const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId }) => {
+  const [data, setData] = useState<WeeklyLeaderboards | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getWeeklyLeaderboards()
+      .then((boards) => {
+        if (cancelled) return;
+        setData(boards);
+        setError(null);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Weekly races could not be loaded.');
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [reloadKey]);
+
+  if (loading) {
+    return (
+      <MobileCard className="space-y-2" rarityColor="#FF9000">
+        <div className="h-4 w-1/3 animate-pulse rounded bg-bg" />
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-4 animate-pulse rounded bg-bg" />
+        ))}
+      </MobileCard>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="border-2 border-red/50 bg-red/10 p-4 text-center">
+        <div className="text-sm font-black text-red">Weekly races unavailable</div>
+        <div className="mt-1 text-xs text-text-muted">{error ?? 'Weekly races could not be loaded.'}</div>
+        <button
+          type="button"
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="bl-primary mt-3 px-4 py-2 text-xs font-black"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const prev = data.previous_week;
+  const prevPlaced = prev.races.some((r) => r.my_reward !== null || r.me !== null);
+
+  return (
+    <MobileCard className="space-y-4" rarityColor="#FF9000">
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="font-black text-amber" style={{ fontSize: '14px' }}>⚑</span>
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Weekly Races</div>
+          <div className="ml-auto whitespace-nowrap text-[10px] text-text-muted">
+            {weekRangeLabel(data.week.start, data.week.ends_at)}
+          </div>
+        </div>
+        <div className="mt-1 text-[10px] text-text-muted">
+          Top finishers win cache keys and drop luck when the week closes Monday 00:00 UTC.
+        </div>
+        {data.my_drop_buff && (
+          <div className="mt-2 border border-amber/50 bg-amber/10 px-2 py-1 text-[11px] font-bold text-text-primary">
+            Drop luck active: +{Math.round(data.my_drop_buff.bonus * 100)}% until {shortDay(data.my_drop_buff.expires_at)}
+          </div>
+        )}
+      </div>
+
+      {data.races.map((race) => (
+        <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} />
+      ))}
+
+      <div className="border-t border-border pt-3">
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Last Week — Final</div>
+          <div className="ml-auto whitespace-nowrap text-[10px] text-text-muted">
+            {weekRangeLabel(prev.start, prev.ends_at)}
+          </div>
+        </div>
+        {!prev.settled && (
+          <div className="mt-1 text-[10px] text-text-muted">Rewards settle at the next daily heartbeat.</div>
+        )}
+        <div className="mt-2 space-y-4">
+          {prev.races.map((race) => (
+            <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} final />
+          ))}
+        </div>
+        {prev.settled && !prevPlaced && (
+          <div className="mt-2 text-[11px] text-text-muted">You didn&apos;t place last week — this week is open.</div>
+        )}
+      </div>
+    </MobileCard>
+  );
+};
 
 /**
  * The board itself — mounted only inside the FeatureGate below, so a
@@ -73,6 +264,8 @@ const LeaderboardBoard: React.FC = () => {
 
   return (
     <>
+      <WeeklyRacesPanel myPlayerId={user?.id} />
+
       <LeaderboardMetricPicker
         metric={metric}
         period={period}
