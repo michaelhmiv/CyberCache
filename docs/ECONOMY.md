@@ -26,6 +26,7 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `credits_minted_offline` | Offline settlements (`cc_settle_offline_roaming` → `rewards.credits_awarded`; unsettled rows mint nothing) |
 | `credits_minted_other` | Legacy idle claims (`cc_idle_claim`), legacy roaming claims (`cc_claim_roaming_rewards`), and new-account bundles (`cc_initial_bundle` — a flat 5,000-credit grant recorded as a literal in the function, so the meter counts rows × 5,000). From migration 0031 it also folds the Cache Rank Silver Tongue market uplift: Σ `market_fee.cache_rank_proceeds_bonus` over the day's `cc_accept_listing` rows (the uplift is minted to the seller; the fee share stays destroyed in `credits_destroyed_market_fees`) |
 | `credits_minted_vendor_buyback` | Vendor buyback payouts (`cc_vendor_sell` → `total_payout`, migration 0020). The vendor counter creates these credits, so they are a mint; gross vendor sink stays in `credits_destroyed_vendor` and the counter's net is the difference |
+| `credits_minted_login_streak` | Daily login-streak credit grants (Σ `credits_awarded` over `cc_login_streak_claim` rows, migration 0036). A real faucet — it folds into `credits_minted_total`. Sized small by design: a tier-1 week pays 1,900 credits ≈ 2 hours of baseline roaming (15 cr/min), spread over 7 days; the tier-5 ceiling week pays 5,700 |
 | `credits_minted_total` | Sum of the four sources |
 | `credits_destroyed_market_fees` | The market sale fee destroyed on completed player sales (`cc_accept_listing` → `market_fee.fee_credits`; NPC sales are exempt and record 0) |
 | `credits_destroyed_vendor` | NPC vendor purchases (`cc_vendor_buy` → `total_price`) |
@@ -42,6 +43,8 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `market_median_by_rarity` | Same median per item rarity, as jsonb — the pricing baseline other systems compare against |
 | `cache_keys_from_ads` | Rewarded-ad key claims (`cc_claim_rewarded_cache_key`) |
 | `cache_keys_from_leaderboards` | Cache keys paid by weekly-leaderboard settlement (Σ `cache_keys_awarded` over `cc_leaderboard_settlement` rows, migration 0035). A deliberate separate mint from the ad lane: the cache-lane daily cap accounts only `cache_keys_from_ads`, and keys are not credits — this meter never enters the minted/destroyed totals. Ceiling by construction: 4 races/week × 6 podium keys = 24 keys/week across the whole player base |
+| `cache_keys_from_login_streak` | Cache keys paid by the daily login streak (Σ `cache_keys_awarded` over `cc_login_streak_claim` rows, migration 0036). A third deliberate key source, metered distinctly from the ad lane and from leaderboard keys: one key per completed 7-day cycle, never scaled by tier — ceiling by construction: ≤1 key/week/player |
+| `cache_fragments_from_login_streak` | Cache fragments paid by the daily login streak (Σ `fragments_awarded` over `cc_login_streak_claim` rows, migration 0036). Metered as its own source rather than folded into `cache_fragments_awarded`, which stays the roaming/offline claim fold. A tier-1 week pays 9 fragments ≈ 1 hour of roaming fragment drops (0.008/tick) |
 | `cache_opens` | Cache opens (`cc_make_item` + `cc_draw_item`) |
 | `cache_fragments_awarded` | Σ `rewards.cache_fragments_awarded` over claim/settle/legacy-roaming rows. **Gap:** keys issued by fragment conversion are not separately attributable in ledger payloads — watch fragments awarded vs. opens instead |
 | `craft_jobs_completed` | Craft jobs whose last unit completed that day (`craft_jobs.completed_at`, migration 0024) |
@@ -162,6 +165,8 @@ take the game down.
 | `cacheRankMaxHpPerRank` | 0.01 | 0 – 0.02 | Thick Skin: +max HP fraction per rank (+10% max) on base HP only; shield HP is never scaled |
 | `cacheRankCacheQualityPerRank` | 0.02 | 0 – 0.04 | Cache Optimizer: +cache quality per rank (+0.20 max) — non-minimum rarity weights × (1 + q) in `cc_make_item` + the TS draw twin; shares the lane with the `cacheQuality` skill effect |
 | `cacheRankMarketProceedsPerRank` | 0.005 | 0 – 0.01 | Silver Tongue: +fraction of POST-FEE proceeds per rank (+5% max), minted to the seller in `cc_accept_listing` + the TS fee mirror; NPC listings exempt |
+| `streakCreditScalar` | 1.0 | 0 – 3 | Scalar on every daily login-streak credit grant (0036). `cc_record_login_streak_day` reads the table itself (`cc_economy_config_number('streakCreditScalar', 1)`, clamped 0..3, floored after scaling); the content owner is `src/content/loginStreak.ts`. 0 turns streak credits off without touching the ladder |
+| `streakFragmentScalar` | 1.0 | 0 – 3 | Scalar on every daily login-streak fragment grant (0036); same read pattern as `streakCreditScalar`. The day-7 cache key is NOT scaled by any lever — it stays 1 per completed cycle by construction |
 
 Skill-based fee reductions (Darknet Broker, Market Manipulator)
 apply multiplicatively **after** the levered rate, in both the SQL

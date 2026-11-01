@@ -793,6 +793,36 @@ export async function spendCacheRankBonus(request: {
 }
 
 /**
+ * Login streak (0036). The daily check-in is an observe-and-record
+ * read: the first authenticated call of a UTC day grants the
+ * ladder reward server-side (exactly-once per day); the response
+ * carries the state view, what the check-in granted, and the
+ * profile snapshot to sync.
+ */
+export interface ChefLoginStreakResult {
+  verified: true;
+  loginStreak: import('@/content/loginStreak').LoginStreakStateView;
+  granted: {
+    alreadyClaimed: boolean;
+    streakLength: number | null;
+    cycleDay: number | null;
+    tier: number | null;
+    creditsAwarded: number;
+    fragmentsAwarded: number;
+    cacheKeysAwarded: number;
+  };
+  profile: Record<string, unknown> | null;
+}
+
+export async function getLoginStreakState(): Promise<ChefLoginStreakResult> {
+  return endlessFetch<ChefLoginStreakResult>(
+    '/login-streak/me',
+    { method: 'GET' },
+    'Chef login streak failed',
+  );
+}
+
+/**
  * Dispatch (0032). Timed contracts for spare loadouts (foot) and
  * spare vehicles (courier). The client sends intent only — an offer
  * id, item/vehicle ids, a nonce; every term (payouts, fuel, wear,

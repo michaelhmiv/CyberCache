@@ -35,6 +35,7 @@ import {
   createStartDispatchHandler,
 } from '../routes/dispatch';
 import { createGetExtractionHandler, type ExtractionConfig } from '../routes/extraction';
+import { createGetLoginStreakHandler } from '../routes/loginStreak';
 import type { WriteStore } from '../writes/store';
 import type { ChefGameplayStore } from './store';
 
@@ -131,4 +132,18 @@ export function mountExtractionRoutes(
   const extractionConfig: ExtractionConfig = config;
   app.get('/api/extraction/state', createGetExtractionHandler(gameplayStore, extractionConfig));
   console.log('[chef] extraction routes mounted: GET /api/extraction/state (0033)');
+}
+
+/**
+ * Login streak routes (0036): the daily check-in state read
+ * (observe-and-record) on the gameplay store. Mounted alongside
+ * the cache rank routes in index.ts.
+ */
+export function mountLoginStreakRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  config: GameplayRoutesConfig,
+): void {
+  app.get('/api/login-streak/me', createGetLoginStreakHandler(gameplayStore, config));
+  console.log('[chef] login streak routes mounted: GET /api/login-streak/me (0036)');
 }
