@@ -24,8 +24,7 @@ import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
 import { RepairBoard } from '@/components/market/RepairBoard';
 import { ShieldTechBoard } from '@/components/market/ShieldTechBoard';
-import { FeatureGate } from '@/auth/FeatureGate';
-import { canUseFeature } from '@/auth/accountState';
+import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
 import { MaterialUsageSheet } from '@/components/common/MaterialUsageSheet';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { fetchMarketListings, fetchMyMarketListings } from '@/lib/api/marketListings';
@@ -217,11 +216,14 @@ export const MarketScreen: React.FC = () => {
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const skillBonuses = useSkillStore().getBonuses();
-  const { user, account } = useAuth();
-  // Guest locks BEFORE the tap: player-market tabs carry a lock badge
-  // up front when the account can't use the market feature, instead of
-  // looking open and refusing after the tap.
-  const marketLocked = !canUseFeature(account, 'market').allowed;
+  const { user } = useAuth();
+  // Guest-visibility law (2026-11-01): every tab renders for every
+  // session with real data — visibility is the enticement. The player-
+  // economy lock lives on the TRANSACT actions only (Buy / List /
+  // Cancel): a guest sees the button and its lock, and tapping it
+  // raises the sign-in prompt instead of firing the op the server
+  // would refuse ('Verified account required').
+  const { locked: marketLocked, guardTransact, prompt: transactLockPrompt } = useEconomyTransactLock();
   const currentUserId = user?.id ?? null;
   const [search, setSearch] = useState('');
   const [sellSearch, setSellSearch] = useState('');
@@ -255,18 +257,10 @@ export const MarketScreen: React.FC = () => {
   const [pendingListId, setPendingListId] = useState<string | null>(null);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
 
-  // Guests land on the Vendor (open to everyone); the player-market
-  // tabs stay gated below. Runs once per mount so a guest is never
-  // greeted by the Locked panel for a tab they didn't choose.
-  const landedRef = React.useRef(false);
-  useEffect(() => {
-    if (landedRef.current || !user) return;
-    landedRef.current = true;
-    if (user.isAnonymous && market.activeTab !== 'vendor') {
-      market.setActiveTab('vendor');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.isAnonymous]);
+  // Guests land wherever the tab state points — every tab is
+  // viewable now, so there is no vendor redirect on mount (the old
+  // bounce existed only to keep guests from greeting the Locked
+  // panel, which no longer exists).
 
   const buyQuery = useMemo<MarketListingQuery>(() => {
     const numOrUndef = (v: string) => {
@@ -567,30 +561,27 @@ export const MarketScreen: React.FC = () => {
           widths, and "Repair Services" squeezed against its 60px
           floor. Grid cells give every label room and ≥44px targets. */}
       <div className="grid grid-cols-3 gap-2">
-        {TABS.map((t) => {
-          const tabLocked = marketLocked && t.id !== 'vendor';
-          return (
-            <button
-              key={t.id}
-              onClick={() => market.setActiveTab(t.id)}
-              aria-label={tabLocked ? `${t.label} (locked — sign in to use the player market)` : t.label}
-              className={`relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border py-2 text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
-            >
-              {t.icon ? <t.icon size={16} /> : <span className="font-black" style={{ fontSize: '16px' }}>{t.glyph}</span>}
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                {t.label}
-                {tabLocked && <Lock size={9} aria-hidden />}
-              </span>
-              {tabLocked && <span className="text-[7px] font-black uppercase tracking-wider opacity-80">Locked</span>}
-            </button>
-          );
-        })}
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => market.setActiveTab(t.id)}
+            aria-label={t.label}
+            className={`relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border py-2 text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
+          >
+            {t.icon ? <t.icon size={16} /> : <span className="font-black" style={{ fontSize: '16px' }}>{t.glyph}</span>}
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              {t.label}
+            </span>
+          </button>
+        ))}
       </div>
+
+      {transactLockPrompt}
 
       {market.activeTab === 'vendor' && <VendorScreen />}
 
       {market.activeTab !== 'vendor' && (
-        <FeatureGate feature="market">
+        <>
       {market.activeTab === 'buy' && (
         <div className="space-y-3">
           <button
@@ -676,8 +667,8 @@ export const MarketScreen: React.FC = () => {
                     <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
                   )}
                   <PriceTrend stats={stats} />
-                  <button onClick={() => handleBuy(listing)} disabled={player.credits < listing.price || pendingBuyId === listing.id} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">
-                    {pendingBuyId === listing.id ? 'Buying…' : 'Buy Now'}
+                  <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id || (!marketLocked && player.credits < listing.price)} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">
+                    {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
                   </button>
                 </div>
               );
@@ -730,8 +721,8 @@ export const MarketScreen: React.FC = () => {
                 <GearMiniCard item={item} onInspect={() => setInspectItem(item)} />
                 <div className="flex items-center gap-2">
                   <input type="number" value={price} onChange={(e) => setListingPrice((p) => ({ ...p, [item.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" />
-                  <button onClick={() => handleList(item.id)} disabled={pendingListId === item.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
-                    {pendingListId === item.id ? 'Listing…' : 'List'}
+                  <button onClick={() => guardTransact('sell', () => void handleList(item.id))} disabled={pendingListId === item.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                    {pendingListId === item.id ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
                   </button>
                 </div>
                 <SalesGuidance stats={stats} />
@@ -756,8 +747,8 @@ export const MarketScreen: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={batch.quantity} onChange={(e) => setStackQty((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
-                      <button onClick={() => handleListConsumable(batch.id)} disabled={pendingListId === batch.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
-                        {pendingListId === batch.id ? 'Listing…' : 'List'}
+                      <button onClick={() => guardTransact('sell', () => void handleListConsumable(batch.id))} disabled={pendingListId === batch.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                        {pendingListId === batch.id ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
                       </button>
                     </div>
                     <SalesGuidance stats={stats} perUnit />
@@ -783,8 +774,8 @@ export const MarketScreen: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
-                      <button onClick={() => handleListMaterial(materialId)} disabled={pendingListId === materialId} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
-                        {pendingListId === materialId ? 'Listing…' : 'List'}
+                      <button onClick={() => guardTransact('sell', () => void handleListMaterial(materialId))} disabled={pendingListId === materialId} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                        {pendingListId === materialId ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
                       </button>
                     </div>
                     <SalesGuidance stats={stats} perUnit />
@@ -845,8 +836,8 @@ export const MarketScreen: React.FC = () => {
                 <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
               )}
               <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
-              <button onClick={() => handleCancelListing(listing)} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500 disabled:opacity-50">
-                {pendingCancelId === listing.id ? 'Cancelling…' : 'Cancel Listing'}
+              <button onClick={() => guardTransact('cancel a listing', () => void handleCancelListing(listing))} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500 disabled:opacity-50">
+                {pendingCancelId === listing.id ? 'Cancelling…' : (<>Cancel Listing{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
               </button>
             </div>
             );
@@ -864,7 +855,7 @@ export const MarketScreen: React.FC = () => {
         </div>
       )}
 
-        </FeatureGate>
+        </>
       )}
 
       <GearInspectSheet item={inspectItem} open={!!inspectItem} onClose={() => setInspectItem(null)} contextLabel="Market Inspect" />

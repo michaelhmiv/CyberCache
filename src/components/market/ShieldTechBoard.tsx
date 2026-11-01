@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Lock } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
+import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
 import { useActivityStore, useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
 import { fetchShieldTechBoard, verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
@@ -166,6 +168,18 @@ export const ShieldTechBoard: React.FC = () => {
     }
   };
 
+  // Guest-visibility law (2026-11-01): the board renders for every
+  // session (the read accepts any JWT) — the lock sits on the
+  // transact actions. A guest tapping Post / Accept / Cancel gets
+  // the sign-in prompt; the server refuses the op regardless
+  // (cc_post_shieldtech_job / cc_accept_shieldtech_job check
+  // can_use_player_economy). The self-lane enqueue is NOT an economy
+  // op and is deliberately untouched — guests recalibrate their own
+  // shields (0044 test-pinned). "Work on it" likewise stays on run().
+  const { locked: economyLocked, guardTransact, prompt: transactLockPrompt } = useEconomyTransactLock();
+  const runTransact = (action: string, fn: () => Promise<unknown>) =>
+    guardTransact(action, () => void run(fn));
+
   const equippedIds = useMemo(
     () => new Set(Object.values(loadout.slots).filter(Boolean) as string[]),
     [loadout.slots],
@@ -242,6 +256,8 @@ export const ShieldTechBoard: React.FC = () => {
         {error && <div className="text-xs text-red-400">{error}</div>}
       </div>
 
+      {transactLockPrompt}
+
       <ShieldTechBayScene
         progress={activeWork ? activeWork.progress : lastCompleted ? 1 : 0}
         causeLabel={sceneJob ? `${shieldLabel(sceneJob)} — ${swapLabel(sceneJob)}` : 'Calibration rig'}
@@ -308,14 +324,14 @@ export const ShieldTechBoard: React.FC = () => {
                 type="button"
                 disabled={busy || !postShield || !postTarget || !postPrice}
                 onClick={() =>
-                  void run(async () => {
+                  runTransact('post a shield-tech job', async () => {
                     await verifiedOps.postShieldTechJob(postShield!.id, postTarget!, Number(postPrice));
                     setPostPrice('');
                   })
                 }
                 className="px-3 py-1.5 text-xs font-bold border border-amber bg-amber text-bg disabled:opacity-40"
               >
-                Post + escrow
+                Post + escrow{economyLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}
               </button>
             </div>
             {postShield && postTarget && (
@@ -392,11 +408,11 @@ export const ShieldTechBoard: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    disabled={busy || myCores < 1}
-                    onClick={() => void run(() => verifiedOps.acceptShieldTechJob(job.id))}
+                    disabled={busy || (!economyLocked && myCores < 1)}
+                    onClick={() => runTransact('take this shield-tech job', () => verifiedOps.acceptShieldTechJob(job.id))}
                     className="px-3 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
                   >
-                    {myCores < 1 ? 'No Calibration Cores' : 'Accept job'}
+                    {economyLocked ? (<>Accept job<Lock size={11} className="ml-1 inline" aria-hidden /></>) : myCores < 1 ? 'No Calibration Cores' : 'Accept job'}
                   </button>
                   <span className="text-[11px] text-text-muted">
                     You supply the cores as you work; payout is the full price on completion.
@@ -438,7 +454,7 @@ export const ShieldTechBoard: React.FC = () => {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void run(() => verifiedOps.cancelShieldTechJob(job.id))}
+                    onClick={() => runTransact('manage this job', () => verifiedOps.cancelShieldTechJob(job.id))}
                     className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
                   >
                     {job.status === 'listed' ? 'Cancel (full refund)' : 'Cancel job'}
@@ -447,7 +463,7 @@ export const ShieldTechBoard: React.FC = () => {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void run(() => verifiedOps.reclaimShieldTechJob(job.id))}
+                      onClick={() => runTransact('manage this job', () => verifiedOps.reclaimShieldTechJob(job.id))}
                       className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
                     >
                       Reclaim shield (tech idle {board.levers.shieldTechAbandonWindowHours}h)
@@ -516,7 +532,7 @@ export const ShieldTechBoard: React.FC = () => {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void run(() => verifiedOps.finishShieldTechJob(job.id))}
+                    onClick={() => runTransact('manage this job', () => verifiedOps.finishShieldTechJob(job.id))}
                     className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-emerald-400 disabled:opacity-40"
                   >
                     Deliver now
@@ -524,7 +540,7 @@ export const ShieldTechBoard: React.FC = () => {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void run(() => verifiedOps.cancelShieldTechJob(job.id))}
+                    onClick={() => runTransact('manage this job', () => verifiedOps.cancelShieldTechJob(job.id))}
                     className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
                   >
                     Quit job

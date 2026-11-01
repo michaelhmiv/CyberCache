@@ -8,9 +8,9 @@
  *   visible (the old finally-block navigated away from the error).
  * - F16: Dashboard "Choose Boss" opens the boss picker callback
  *   instead of landing on a boss-less Fight tab.
- * - F6: Leaderboards enforces the account gate for guests (no fetch,
- *   lock + sign-in shown) and surfaces fetch failures with Retry
- *   instead of an eternal spinner.
+ * - F6: Leaderboards render for every session (guest-visibility
+ *   law: the board is view-open, the fetch fires for guests) and
+ *   surface fetch failures with Retry instead of an eternal spinner.
  * - F9: a guest's Profile carries a "Link Google" row that runs the
  *   existing in-place upgrade; verified accounts don't see it.
  */
@@ -319,78 +319,32 @@ describe('F7/F16 — Dashboard errors stay put; Choose Boss opens the picker', (
   });
 });
 
-describe('F6 — Leaderboards gate + error state', () => {
-  it('guests see the lock and sign-in path; no leaderboard fetch fires', async () => {
+describe('F6 — Leaderboards visible to guests + error state', () => {
+  it('guests see the real board: the fetch fires with their session and no lock wall renders', async () => {
     hoisted.auth.account = guestAccount;
+    vi.mocked(getLeaderboard).mockResolvedValue([
+      { rank: 1, player_id: 'user-9', username: 'alpha_hunter', value: 4200, previous_value: 4000, trend: 1 },
+    ]);
     render(<LeaderboardsScreen />);
-    expect(await screen.findByText('Sign in with Google to unlock leaderboards.')).toBeInTheDocument();
-    expect(screen.getByText('Sign in with Google — keep your progress')).toBeInTheDocument();
-    expect(getLeaderboard).not.toHaveBeenCalled();
+    // The standings render for a guest — visibility is the law now,
+    // and the read routes accept any Chef JWT (guests included).
+    expect(await screen.findByText('alpha_hunter')).toBeInTheDocument();
+    expect(getLeaderboard).toHaveBeenCalled();
+    expect(screen.queryByText('Sign in with Google to unlock leaderboards.')).toBeNull();
+    expect(screen.queryByText('Account upgrade needed')).toBeNull();
   });
 
-  it('GUEST-01: guests get read-only streak + cache-rank previews above the lock', async () => {
+  it('GUEST-01 (superseded): the locked-board consolation previews are gone — the board itself is the guest view', async () => {
     hoisted.auth.account = guestAccount;
-    // State views in the exact shapes the Chef returns
-    // (ChefLoginStreakResult / ChefCacheRankStateResult).
-    vi.mocked(getLoginStreakState).mockResolvedValue({
-      verified: true,
-      loginStreak: {
-        currentStreak: 3,
-        longestStreak: 5,
-        tier: 1,
-        cycleDay: 3,
-        todayState: 'earned',
-        todayReward: { credits: 200, fragments: 1, cacheKeys: 0 },
-        nextReward: { credits: 250, fragments: 1, cacheKeys: 0 },
-        nextStreakLength: 4,
-        ladder: [
-          { cycleDay: 1, credits: 100, fragments: 0, cacheKeys: 0, state: 'earned' },
-          { cycleDay: 2, credits: 150, fragments: 0, cacheKeys: 0, state: 'earned' },
-          { cycleDay: 3, credits: 200, fragments: 1, cacheKeys: 0, state: 'today' },
-        ],
-        missRule: 'Miss a day and the streak restarts at Day 1 — your longest streak is kept on your profile.',
-      },
-      granted: {
-        alreadyClaimed: true,
-        streakLength: 3,
-        cycleDay: 3,
-        tier: 1,
-        creditsAwarded: 0,
-        fragmentsAwarded: 0,
-        cacheKeysAwarded: 0,
-      },
-      profile: null,
-    } as never);
-    vi.mocked(getCacheRankState).mockResolvedValue({
-      verified: true,
-      cacheRank: {
-        tokens: 2,
-        tokensEarned: 2,
-        level: 3,
-        xpIntoLevel: 10,
-        xpForLevel: 100,
-        nextTokenLevel: 4,
-        milestones: [{ level: 10, bundle: 5, claimed: false }],
-        tracks: [
-          {
-            id: 'greed', name: 'Greed', summary: '+ credits earned', glyph: '⬢', color: '#F2C063',
-            ranks: 0, maxRanks: 10, effect: 0, perRank: 0.01, nextCost: 1, maxed: false,
-          },
-        ],
-        bonuses: {},
-      },
-    } as never);
+    vi.mocked(getLeaderboard).mockResolvedValue([]);
     render(<LeaderboardsScreen />);
-
-    // The guest's own progress renders…
-    expect(await screen.findByText('Login Streak')).toBeInTheDocument();
-    expect(await screen.findByText('Cache Rank')).toBeInTheDocument();
-    // …read-only: the preview carries the spend pointer, never a spend button.
-    expect(screen.getByText(/Spend tokens from the Cache Rank panel on your Hunter profile/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /⬢ 1/ })).toBeNull();
-    // …and the leaderboard tables stay locked, unfetched.
-    expect(screen.getByText('Sign in with Google to unlock leaderboards.')).toBeInTheDocument();
-    expect(getLeaderboard).not.toHaveBeenCalled();
+    expect(await screen.findByText('No leaderboard data yet.')).toBeInTheDocument();
+    // No streak/cache-rank consolation panels above a lock: those
+    // live on the Dashboard and the Hunter profile; this screen is
+    // the standings for everyone.
+    expect(screen.queryByText('Login Streak')).toBeNull();
+    expect(screen.queryByText('Cache Rank')).toBeNull();
+    expect(screen.queryByText(/Spend tokens from the Cache Rank panel/)).toBeNull();
   });
 
   it('a failed fetch shows an error panel with Retry (no eternal spinner)', async () => {

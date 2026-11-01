@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Lock } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
+import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
 import { useActivityStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { fetchRepairBoard, verifiedOps } from '@/lib/api/verifiedOps';
@@ -147,6 +149,17 @@ export const RepairBoard: React.FC = () => {
     }
   };
 
+  // Guest-visibility law (2026-11-01): the board renders for every
+  // session (the read accepts any JWT) — the lock sits on the
+  // transact actions. A guest tapping Post / Accept / Cancel gets
+  // the sign-in prompt; the server refuses the op regardless
+  // (cc_post_repair_job / cc_accept_repair_job check
+  // can_use_player_economy). "Work on it" is not an economy op and
+  // stays on run() — a guest can never hold a job to work.
+  const { locked: economyLocked, guardTransact, prompt: transactLockPrompt } = useEconomyTransactLock();
+  const runTransact = (action: string, fn: () => Promise<unknown>) =>
+    guardTransact(action, () => void run(fn));
+
   const wornVehicles = useMemo(
     () => vehicles.filter((v) => v.conditionCurrent < v.conditionMax),
     [vehicles],
@@ -212,6 +225,8 @@ export const RepairBoard: React.FC = () => {
         {error && <div className="text-xs text-red-400">{error}</div>}
       </div>
 
+      {transactLockPrompt}
+
       <RepairBayScene
         progress={activeWork ? activeWork.progress : lastCompleted ? 1 : 0}
         causeLabel={sceneJob ? vehicleLabel(sceneJob) : 'Repair bay'}
@@ -271,7 +286,7 @@ export const RepairBoard: React.FC = () => {
                 type="button"
                 disabled={busy || !postVehicle || !postPrice}
                 onClick={() =>
-                  void run(async () => {
+                  runTransact('post a repair job', async () => {
                     await verifiedOps.postRepairJob(
                       postVehicle!.id,
                       Number(postPrice),
@@ -283,7 +298,7 @@ export const RepairBoard: React.FC = () => {
                 }
                 className="px-3 py-1.5 text-xs font-bold border border-amber bg-amber text-bg disabled:opacity-40"
               >
-                Post + escrow
+                Post + escrow{economyLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}
               </button>
             </div>
             <div className="text-[11px] text-text-muted">
@@ -346,11 +361,11 @@ export const RepairBoard: React.FC = () => {
                   </select>
                   <button
                     type="button"
-                    disabled={busy || owned < 1}
-                    onClick={() => void run(() => verifiedOps.acceptRepairJob(job.id, kit))}
+                    disabled={busy || (!economyLocked && owned < 1)}
+                    onClick={() => runTransact('take this repair job', () => verifiedOps.acceptRepairJob(job.id, kit))}
                     className="px-3 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
                   >
-                    {owned < 1 ? `No ${KIT_LABELS[kit]}s` : 'Accept job'}
+                    {economyLocked ? (<>Accept job<Lock size={11} className="ml-1 inline" aria-hidden /></>) : owned < 1 ? `No ${KIT_LABELS[kit]}s` : 'Accept job'}
                   </button>
                   <span className="text-[11px] text-text-muted">
                     You supply the kits as you work; payout is the full price on completion.
@@ -387,7 +402,7 @@ export const RepairBoard: React.FC = () => {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void run(() => verifiedOps.cancelRepairJob(job.id))}
+                    onClick={() => runTransact('manage this job', () => verifiedOps.cancelRepairJob(job.id))}
                     className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
                   >
                     {job.status === 'listed' ? 'Cancel (full refund)' : 'Cancel job'}
@@ -396,7 +411,7 @@ export const RepairBoard: React.FC = () => {
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void run(() => verifiedOps.reclaimRepairJob(job.id))}
+                      onClick={() => runTransact('manage this job', () => verifiedOps.reclaimRepairJob(job.id))}
                       className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
                     >
                       Reclaim vehicle (mechanic idle {board.levers.repairAbandonWindowHours}h)
@@ -466,7 +481,7 @@ export const RepairBoard: React.FC = () => {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void run(() => verifiedOps.finishRepairJob(job.id))}
+                    onClick={() => runTransact('manage this job', () => verifiedOps.finishRepairJob(job.id))}
                     className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-emerald-400 disabled:opacity-40"
                   >
                     Deliver now
@@ -474,7 +489,7 @@ export const RepairBoard: React.FC = () => {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void run(() => verifiedOps.cancelRepairJob(job.id))}
+                    onClick={() => runTransact('manage this job', () => verifiedOps.cancelRepairJob(job.id))}
                     className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
                   >
                     Quit job
