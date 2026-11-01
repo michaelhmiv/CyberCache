@@ -1,1 +1,1 @@
-{"id":"004","action":"label","label":"⚔ ACTION","wait":2}
+{"id":"005","action":"label","label":"START ROAM","contains":true,"wait":8}
