@@ -24,11 +24,9 @@ import { MANUFACTURERS } from '@/constants/manufacturers';
 import type { Manufacturer } from '@/types/game';
 import { getRoamingArea } from '@/constants/roamingAreas';
 import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
-import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
-import { LoginStreakPanel } from '@/components/dashboard/LoginStreakPanel';
-import { ContractsPanel } from '@/components/dashboard/ContractsPanel';
+import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { ResearchChip, ResearchCompletionCard } from '@/components/dashboard/ResearchChip';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
@@ -42,7 +40,6 @@ import { buildBossFightActivity, buildRoamingLootActivity } from '@/lib/activity
 import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { computeMedKitBuffer } from '@/lib/combat/damageContract';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
-import { xpToNextLevel } from '@/content/simulation';
 import { getAreaVisual } from '@/constants/areaVisuals';
 import { AreaBackground } from '@/components/common/AreaBackground';
 import { getActivityVisual } from '@/constants/activityVisuals';
@@ -246,9 +243,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
   const idle = useIdleStore();
   const activity = useActivityStore();
   const tickEvents = useTickFeedStore((state) => state.events);
-  const lastSettlement = useOfflineRecapStore((s) => s.lastSettlement);
-  const recapDismissed = useOfflineRecapStore((s) => s.dismissed);
-  const reopenRecap = useOfflineRecapStore((s) => s.reopen);
   const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.slice(0, 5), [tickEvents]);
   const [activityError, setActivityError] = useState<string | null>(null);
 
@@ -313,9 +307,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
   const openWorkshopJobs = (workshop.server?.jobs ?? []).filter(
     (j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused',
   ).length;
-  const xpToNextLevelValue = xpToNextLevel(player.level);
-  const xpProgress = Math.min(100, Math.max(0, (player.xp / xpToNextLevelValue) * 100));
-  const xpRemaining = Math.max(0, xpToNextLevelValue - player.xp);
   const activePayload = activity.current.publicPayload;
   const activityLabel = safeText(activePayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
   const activityTarget = activity.current.targetLabel ?? safeText(activePayload.target_label) ?? 'No target';
@@ -403,6 +394,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
         <ResourceBar className="mb-2" />
+        {/* Dashboard top row (2026-11-01): level progress button +
+            streak/contracts icon pop-ups — first paint, no scroll.
+            The top bar's mount performs the streak check-in and
+            the contracts board read; the offline recap lives in
+            its level pop-up. */}
+        <DashboardTopBar />
         {/* Persistent current-area chip — tap opens the one area picker */}
         <div className="flex flex-wrap items-stretch gap-2">
           <CurrentAreaChip onClick={() => setTurfPickerOpen(true)} />
@@ -412,39 +409,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
           <ResearchChip />
         </div>
         {activityError && <Panel label="Action Error"><div className="text-xs font-bold text-red">{activityError}</div></Panel>}
-        {/* Re-entry for the last offline summary after it was dismissed */}
-        {lastSettlement && recapDismissed && (
-          <Panel label="While You Were Away">
-            <button
-              type="button"
-              data-testid="offline-recap-reopen"
-              onClick={reopenRecap}
-              className="flex w-full items-center justify-between gap-2 text-left"
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-black text-text-primary">
-                  +{lastSettlement.rewards.creditsAwarded.toLocaleString()} credits · +{lastSettlement.rewards.xpAwarded.toLocaleString()} XP
-                  {lastSettlement.items.length > 0 ? ` · ${lastSettlement.items.length} item${lastSettlement.items.length === 1 ? '' : 's'}` : ''}
-                </span>
-                <span className="block text-[9px] text-text-muted">Last offline summary — tap to view it again</span>
-              </span>
-              <ChevronRight size={14} className="shrink-0 text-amber" />
-            </button>
-          </Panel>
-        )}
-        {/* Daily login streak (0036): mounting the panel IS the
-            daily check-in — the Chef records the day and grants
-            the ladder reward server-side on first view. */}
-        <LoginStreakPanel />
-        {/* Contracts board (0042): rotating work orders — the
-            panel's read issues both sets server-side; claims and
-            rerolls are Chef ops. Sits under the streak in the daily
-            loop, per the brief (Dashboard card, no new tab). */}
-        <ContractsPanel />
         {/* Research (0038): the one-time course-complete card —
             appears on the first open after a course settles. */}
         <ResearchCompletionCard />
-        <Panel label="Level Strip"><div className="flex items-center gap-2"><div className="relative flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-4 border-border bg-amber/15 shadow-[5px_5px_0_rgba(0,0,0,0.75)]"><div className="absolute inset-1 border border-amber/40" /><div className="text-center"><div className="text-[8px] font-black uppercase tracking-widest text-text-muted">Level</div><div className="text-3xl font-black leading-none text-amber">{player.level}</div></div></div><div className="min-w-0 flex-1"><div className="flex items-end justify-between gap-2"><div><div className="text-sm font-black uppercase tracking-wide text-text-primary">Level Progress</div><div className="text-[9px] text-text-muted">{player.xp.toLocaleString()} / {xpToNextLevelValue.toLocaleString()} XP · {xpRemaining.toLocaleString()} left</div></div></div><div className="relative mt-1.5 h-4 overflow-hidden border-2 border-border bg-bg" style={signClip}><motion.div className="h-full bg-green shadow-[0_0_12px_rgba(124,252,0,0.25)]" initial={false} animate={{ width: `${xpProgress}%` }} transition={{ type: 'spring', stiffness: 90, damping: 18 }} /><div className="absolute inset-0 grid grid-cols-5">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="border-l border-bg/70 first:border-l-0" />)}</div></div></div></div></Panel>
         <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} boss={currentBoss ?? undefined} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} bossPhase={activity.current.bossPhase} activityLabel={activityLabel} activityTarget={activityTarget} statSummary={computedStats} onFight={startSelectedRoaming} onSecondary={openBossPrep} secondaryActionLabel={currentBoss ? 'Prep Boss' : 'Choose Boss'} secondaryActionDetail={currentBoss ? `${currentBoss.weaknesses.length} weakness tags` : 'Open Action target picker'} />
         <Panel
           label="Hunter Totals"

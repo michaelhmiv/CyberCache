@@ -6,6 +6,8 @@ import { settleActiveActivityRewards } from '../lib/activity/activitySettlement'
 import { ensureInitialBundle, isInitialBundleClaimed } from '../lib/api/initialBundle';
 import { useInitialBundleRevealStore } from '../store/slices/initialBundleRevealSlice';
 import { usePushPrimerStore } from '../store/slices/pushPrimerSlice';
+import { useLoginStreakStore } from '../store/slices/loginStreakSlice';
+import { useContractsStore } from '../store/slices/contractsSlice';
 import { syncRuntimeItemsForUser } from '../lib/api/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/api/verifiedStateSync';
 import { initializeNativeAuth } from '../lib/nativeAuth';
@@ -60,6 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetRuntimeStoresToInitialState();
     useInitialBundleRevealStore.getState().reset();
     usePushPrimerStore.getState().reset();
+    // Dashboard-top panel stores are session/account-scoped: a
+    // new user must never inherit the previous account's streak
+    // or contracts board (their loads are once-per-session).
+    useLoginStreakStore.getState().reset();
+    useContractsStore.getState().reset();
     useActivityStore.getState().reset();
     setRawUser(nextUser);
     setUser(toAuthSessionUser(nextUser));
