@@ -25,7 +25,6 @@ import { useAuth } from './auth/AuthProvider';
 import { useEffect } from 'react';
 import { mountIdleTicker, unmountIdleTicker } from './store';
 import { SalvageToastContainer } from './components/action/SalvageToast';
-import { OfflineRecap } from './components/activity/OfflineRecap';
 import { StarterBundleReveal } from './components/activity/StarterBundleReveal';
 import { useOfflineRecapListener } from './components/activity/useOfflineRecapListener';
 import { useOfflineResumeSettlement } from './components/activity/useOfflineResumeSettlement';
@@ -260,7 +259,10 @@ function App() {
       <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); }} />
       <DeathOverlay />
       <SalvageToastContainer />
-      <OfflineRecap />
+      {/* The offline recap no longer mounts here: it lives in the
+          Dashboard level pop-up (DashboardTopBar → OfflineRecapCard).
+          useOfflineRecapListener (above) still feeds settlements
+          into the recap store at the App level. */}
       <StarterBundleReveal />
       <SettlementDebugOverlay />
     </div>

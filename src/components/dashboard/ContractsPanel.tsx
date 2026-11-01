@@ -2,58 +2,53 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   claimContract,
-  getContractsState,
   newContractNonce,
   rerollContract,
   type ChefContractsResult,
 } from '@/lib/chef/chefClient';
 import type { ContractInstanceView, ContractSetView } from '@/content/contracts';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
+import { useContractsStore } from '@/store/slices/contractsSlice';
 
 const CONTRACTS_ACCENT = '#E8B33D';
 
 /**
- * Contracts board panel (Dashboard) — the rotating work orders
- * (0042).
+ * Contracts board panel — the rotating work orders (0042;
+ * pop-up body since the 2026-11-01 Dashboard top redesign).
  *
- * A Dashboard card, not a destination (brief §2.8): the daily set
- * renders in full, the weekly set expands below it. Mounting reads
- * GET /api/contracts/me, which issues both sets server-side on
- * first read (seeded — daily global per band, weekly per player)
- * and returns progress evaluated from server records. Claim and
- * reroll send intent only (nonce + instance id); the Chef
- * re-evaluates, pays, and redraws — this panel renders the returned
- * board and syncs the returned profile snapshot. It computes no
- * progress, no target, and no reward. Renders nothing until the
- * Chef answers, so an unreachable Chef simply omits the panel;
+ * The board lives in the shared contracts store now: the
+ * Dashboard's contracts ICON performs the mount read
+ * (GET /api/contracts/me) that issues both sets server-side on
+ * first read (seeded — daily global per band, weekly per
+ * player), and this panel renders the store's board — mounting
+ * here still triggers the load when nothing has loaded yet.
+ * Claim and reroll send intent only (nonce + instance id); the
+ * Chef re-evaluates, pays, and redraws — this panel renders the
+ * returned board (written back through the store, so the
+ * icon's claimable badge updates with the panel) and syncs the
+ * returned profile snapshot. It computes no progress, no
+ * target, and no reward. Renders nothing until the Chef
+ * answers, so an unreachable Chef simply omits the panel;
  * failed ops surface their refusal in the flash strip.
  */
 export const ContractsPanel: React.FC = () => {
-  const [result, setResult] = useState<ChefContractsResult | null>(null);
+  const result = useContractsStore((s) => s.result);
+  const loadBoard = useContractsStore((s) => s.load);
+  const applyBoard = useContractsStore((s) => s.applyResult);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ text: string; error: boolean } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    getContractsState()
-      .then((next) => {
-        if (!cancelled) setResult(next);
-      })
-      .catch(() => {
-        // Chef unreachable: the panel stays hidden.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadBoard();
+  }, [loadBoard]);
 
   const applyResult = useCallback((next: ChefContractsResult) => {
-    setResult(next);
+    applyBoard(next);
     if (next.profile) {
       syncVerifiedResult(next as unknown as Record<string, unknown>);
     }
-  }, []);
+  }, [applyBoard]);
 
   const onClaim = useCallback(async (contract: ContractInstanceView) => {
     setBusyId(contract.id);

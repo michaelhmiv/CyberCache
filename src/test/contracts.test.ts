@@ -836,6 +836,14 @@ describe('migration 0042 textual pins', () => {
       join(process.cwd(), 'src/components/dashboard/ContractsPanel.tsx'), 'utf8');
     expect(panel).not.toContain('contractProgressFor');
     expect(panel).not.toContain('drawContractSet');
-    expect(panel).toContain('getContractsState');
+    // Dashboard-top redesign (2026-11-01): the board read moved
+    // from the panel into the shared contracts store (the
+    // Dashboard icon performs it so the claimable badge never
+    // waits on opening the pop-up). The pin follows the fetch:
+    // the panel consumes the store; the store performs the read.
+    expect(panel).toContain('useContractsStore');
+    const slice = readFileSync(
+      join(process.cwd(), 'src/store/slices/contractsSlice.ts'), 'utf8');
+    expect(slice).toContain('getContractsState');
   });
 });

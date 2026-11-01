@@ -207,10 +207,17 @@ describe('Offline settlement — UI recap', () => {
     expect(recap).toContain('dismiss');
   });
 
-  // Test 17: Recap shows when lastSettlement exists and not dismissed
-  it('OfflineRecap returns null when dismissed or no settlement', () => {
+  // Test 17: Recap shows whenever a settlement exists.
+  // Dashboard-top redesign (2026-11-01) supersedes the old guard:
+  // the recap card moved into the Dashboard level pop-up, where it
+  // must render whenever a settlement exists — `dismissed` is now
+  // only the level button's beacon read-marker, not a render gate
+  // (otherwise the pop-up could never re-show an acknowledged
+  // recap, which was the reopen strip's whole job).
+  it('OfflineRecap returns null only when there is no settlement', () => {
     const recap = readSource('src/components/activity/OfflineRecap.tsx');
-    expect(recap).toContain('if (!lastSettlement || dismissed) return null');
+    expect(recap).toContain('if (!lastSettlement) return null');
+    expect(recap).not.toContain('if (!lastSettlement || dismissed) return null');
   });
 
   // Test 18: Listener wires event to store
