@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X, Lock } from 'lucide-react';
 import { useActivityStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
-import { useAuth } from '@/auth/AuthProvider';
-import { isVerifiedAccount } from '@/auth/accountState';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
 import { MaterialUsageSheet } from '@/components/common/MaterialUsageSheet';
@@ -220,8 +218,9 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   // Real-item invariant: the bench hunter carries the player's actual
   // weapon state — unequipped renders the gun-free rig.
   const hunterWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
-  const { account } = useAuth();
-  const verified = isVerifiedAccount(account);
+  // Crafting is open to every account, guests included (Michael's
+  // ruling, 2026-11-01; server gate removed in migration 0046) — the
+  // Workshop carries no verified-account gate.
   // Manufacturer Standing (0043): exclusive recipes gate on the
   // maker's granted rank (server enforces in cc_enqueue_craft_job;
   // this read drives the card's lock chip so the refusal is visible
@@ -414,13 +413,6 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         )}
         {activityError && <div className="text-[10px] text-red">{activityError}</div>}
         {workshop.error && <div className="text-[10px] text-red">{workshop.error}</div>}
-        {!verified && (
-          <div className="text-[10px] text-text-secondary leading-relaxed">
-            <span className="font-bold text-amber">Guests browse free.</span> Running the benches takes a verified
-            account — the vendor sells flat-100% staples meanwhile, and crafted quality above 100% comes from
-            verified crafters on the market.
-          </div>
-        )}
       </MobileCard>
 
       {server && server.recentCompletions.length > 0 && (
@@ -589,7 +581,6 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
               benchesOwned={benchesOwned}
               masteries={masteries}
               jobsOnBench={(bench) => activeJobs.filter((j) => j.bench === bench).length}
-              verified={verified}
               standingRanks={standingRanks}
               onEnqueue={(input) => workshop.enqueue(input)}
             />
@@ -768,7 +759,6 @@ const RecipeCard: React.FC<{
   benchesOwned: number;
   masteries: Record<string, { level: number; xp: number }>;
   jobsOnBench: (bench: number) => number;
-  verified: boolean;
   standingRanks?: Record<string, number>;
   onEnqueue: (input: {
     bench: number;
@@ -778,7 +768,7 @@ const RecipeCard: React.FC<{
     useCatalyst?: boolean;
     useRushTicket?: boolean;
   }) => Promise<boolean>;
-}> = ({ recipe, playerLevel, materials, essences, consumables, benchesOwned, masteries, jobsOnBench, verified, standingRanks, onEnqueue }) => {
+}> = ({ recipe, playerLevel, materials, essences, consumables, benchesOwned, masteries, jobsOnBench, standingRanks, onEnqueue }) => {
   const isGear = recipe.kind === 'gear';
   const [rarity, setRarity] = useState<string>('Common');
   const requiredBenchForRarity = isGear ? gearRarityRequiresBench(rarity as Rarity) : 1;
@@ -831,10 +821,8 @@ const RecipeCard: React.FC<{
   const epicMasteryLocked = isGear && rarity === 'Epic' && (masteries['crafting.gear']?.level ?? 1) < 10;
   const materialsShort = inputRows.some((r) => !r.enough) || (useCatalyst && catalystHave < units);
   const canEnqueue =
-    verified && !levelLocked && !benchLocked && !masteryLocked && !standingLocked && !epicMasteryLocked && !materialsShort && !benchQueueFull;
-  const disabledReason = !verified
-    ? 'Verified account required'
-    : levelLocked
+    !levelLocked && !benchLocked && !masteryLocked && !standingLocked && !epicMasteryLocked && !materialsShort && !benchQueueFull;
+  const disabledReason = levelLocked
       ? `Lv.${recipe.requiresLevel}`
       : benchLocked
         ? `Unlock bench ${benchSel}`

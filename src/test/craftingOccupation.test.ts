@@ -273,12 +273,25 @@ describe('crafting occupation — job model through the shipped routes', () => {
     expect(prof(POOR).materials).toEqual({});
   });
 
-  it('guests are gated at enqueue (vendor staples remain their path)', async () => {
+  it('guests craft fully (0046): enqueue escrows + the job completes for a guest', async () => {
+    // Michael's ruling (2026-11-01): "Verified account shouldn't be
+    // needed for crafting." Pre-0046 this enqueue was a 403
+    // 'Verified account required'; the market gate is unchanged.
+    const alloyBefore = prof(GUEST).materials.ScrapAlloy;
     const res = await post('/api/ops/craft-enqueue', h.tokens[GUEST], {
       nonce: nonce(), bench: 1, recipe_id: 'recipe_medkit', units: 1,
     });
-    expect(res.status).toBe(403); // the store's forbidden mapping, same as market ops
-    expect(JSON.stringify(res.json)).toContain('Verified account required');
+    expect(res.status).toBe(200);
+    expect(prof(GUEST).materials.ScrapAlloy).toBe(alloyBefore - 15); // MedKit escrow, same as verified
+    const setRes = await post('/api/activity/set', h.tokens[GUEST], {
+      nonce: nonce(), activity_kind: 'crafting', activity_payload: {}, public_payload: {},
+    });
+    expect(setRes.status).toBe(200);
+    advance(12 * 60 * 1000 + 1000);
+    const view = await get('/api/workshop/me', h.tokens[GUEST]);
+    const job = view.json.jobs.find((j: { recipeId: string }) => j.recipeId === 'recipe_medkit');
+    expect(job.unitsCompleted).toBe(1);
+    expect(prof(GUEST).consumables.MedKit).toBe(1);
   });
 
   it('nonce replay returns the prior result and never double-escrows', async () => {
