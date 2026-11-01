@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { MobileCard } from '@/components/layout/MobileCard';
-import { getLoginStreakState, type ChefLoginStreakResult } from '@/lib/chef/chefClient';
 import { formatLoginStreakReward, type LoginStreakReward } from '@/content/loginStreak';
-import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
+import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
 
 const STREAK_ACCENT = '#FF8A3D';
 
@@ -18,40 +17,34 @@ function rewardLines(reward: LoginStreakReward): string[] {
 }
 
 /**
- * Login streak panel (Dashboard) — the daily check-in surface
- * (0036).
+ * Login streak panel — the daily check-in surface (0036).
  *
  * The daily flow in this game is session start → offline
- * settlement → Dashboard; there is no daily claim button. This
- * panel's mount IS the check-in: GET /api/login-streak/me records
- * the first authenticated check-in of the UTC day server-side and
- * grants the ladder reward exactly once (the panel then syncs the
- * returned profile snapshot). Everything rendered here is the
- * Chef's state view — the client computes no streak, no day, and
- * no amount. Renders nothing until the Chef answers, so an
- * unreachable Chef simply omits the panel.
+ * settlement → Dashboard; there is no daily claim button. The
+ * check-in is the state read itself: GET /api/login-streak/me
+ * records the first authenticated check-in of the UTC day
+ * server-side and grants the ladder reward exactly once.
+ *
+ * Dashboard-top redesign (2026-11-01): the read lives in the
+ * shared login-streak store now, because the Dashboard's streak
+ * ICON performs it on Dashboard mount — the check-in must never
+ * be gated on opening this panel's pop-up — and this panel (in
+ * the pop-up, and on the Leaderboards guest preview) renders
+ * the store's state. Mounting here still triggers the load when
+ * nothing has loaded yet (the Leaderboards preview path), and
+ * the grant's profile sync happens once, in the store's load.
+ * Everything rendered is the Chef's state view — the client
+ * computes no streak, no day, and no amount. Renders nothing
+ * until the Chef answers, so an unreachable Chef simply omits
+ * the panel.
  */
 export const LoginStreakPanel: React.FC = () => {
-  const [result, setResult] = useState<ChefLoginStreakResult | null>(null);
+  const result = useLoginStreakStore((s) => s.result);
+  const load = useLoginStreakStore((s) => s.load);
 
   useEffect(() => {
-    let cancelled = false;
-    getLoginStreakState()
-      .then((next) => {
-        if (cancelled) return;
-        setResult(next);
-        if (next.profile) {
-          syncVerifiedResult(next as unknown as Record<string, unknown>);
-        }
-      })
-      .catch(() => {
-        // Chef unreachable: the panel stays hidden (the Dashboard
-        // renders the rest from its own stores).
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void load();
+  }, [load]);
 
   if (!result) return null;
   const view = result.loginStreak;

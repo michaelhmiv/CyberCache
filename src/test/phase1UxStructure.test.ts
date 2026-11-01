@@ -213,8 +213,17 @@ describe('Phase 1 structure — presets + offline summary + used-in', () => {
     const slice = readSource('src/store/slices/offlineRecapSlice.ts');
     expect(slice).toContain('reopen');
     expect(slice).toContain('cybercache.offlineRecap.v1');
+    // Dashboard-top redesign (2026-11-01) supersedes the reopen
+    // strip: the recap's re-entry is now the Dashboard top bar's
+    // level button — its pop-up renders the recap card whenever a
+    // settlement exists, dismissed or not. The pin follows the
+    // surface to its new home.
+    const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
+    expect(topBar).toContain('OfflineRecapCard');
+    expect(topBar).toContain('top-level-button');
     const dashboard = readSource('src/screens/DashboardScreen.tsx');
-    expect(dashboard).toContain('offline-recap-reopen');
+    expect(dashboard).toContain('DashboardTopBar');
+    expect(dashboard).not.toContain('offline-recap-reopen');
   });
 
   it('material "Used in" reads the single recipe source in workshop + market', () => {

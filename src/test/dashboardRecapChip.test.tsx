@@ -1,17 +1,24 @@
 /**
- * Device regression (2026-11-01): the Dashboard crashed on render —
- * "Cannot read properties of undefined (reading 'creditsAwarded')" —
- * for any player whose last offline settlement was a CRAFTING or
- * EXTRACTION one. The OfflineRecap component discriminates the three
- * settlement shapes, but the Dashboard's "While You Were Away" reopen
- * chip read `.rewards.creditsAwarded` / `.items` unconditionally, and
- * only the roaming shape carries those. The recap store PERSISTS the
- * settlement, so the crash looped on every Dashboard load until the
- * store cleared. These tests seed each shape as a dismissed recap and
- * render the real Dashboard: no crash, and the chip's summary line is
- * the variant's own truth.
+ * Device regression (2026-11-01, PR #249) — settlement-shape
+ * discrimination, adapted to the dashboard-top redesign.
+ *
+ * The original bug: the Dashboard crashed on render — "Cannot read
+ * properties of undefined (reading 'creditsAwarded')" — for any
+ * player whose last offline settlement was a CRAFTING or EXTRACTION
+ * one, because the Dashboard's "While You Were Away" reopen chip
+ * read `.rewards.creditsAwarded` / `.items` unconditionally while
+ * only the roaming shape carries those. PR #249 fixed the chip to
+ * discriminate the three shapes.
+ *
+ * The dashboard-top redesign (this PR) removes the chip entirely:
+ * the recap's re-entry is the level pop-up, whose OfflineRecapCard
+ * discriminates the shapes exactly as it always did. The crash
+ * class is therefore guarded HERE now: these tests seed each shape
+ * as a dismissed recap and render the real Dashboard — no crash,
+ * no chip — then open the level pop-up and read the variant's own
+ * truth from the card.
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => ({
@@ -136,7 +143,7 @@ const extraction = {
   },
 } as unknown as SettlementRecap;
 
-describe('Dashboard recap reopen chip — settlement-shape discrimination', () => {
+describe('Dashboard recap — settlement-shape discrimination (level pop-up)', () => {
   beforeEach(() => {
     useOfflineRecapStore.setState({ lastSettlement: null, dismissed: false });
   });
@@ -145,21 +152,34 @@ describe('Dashboard recap reopen chip — settlement-shape discrimination', () =
     useOfflineRecapStore.setState({ lastSettlement: null, dismissed: false });
   });
 
-  it('roaming settlement: renders the credits/XP summary (unchanged behavior)', async () => {
+  it('roaming settlement: no crash, no chip; the pop-up card shows the roaming recap', async () => {
     useOfflineRecapStore.setState({ lastSettlement: roaming, dismissed: true });
     render(<DashboardScreen onNavigate={vi.fn()} />);
-    expect(await screen.findByText(/\+1,250 credits · \+300 XP/)).toBeTruthy();
+    expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
+    expect(screen.queryByTestId('offline-recap-reopen')).toBeNull();
+    fireEvent.click(screen.getByTestId('top-level-button'));
+    expect(await screen.findByText('While You Were Away')).toBeTruthy();
+    expect(screen.getByText('Credits')).toBeTruthy();
+    expect(screen.getByText('Away for')).toBeTruthy();
   }, 30_000);
 
-  it('crafting settlement: no crash, chip shows the crafting truth', async () => {
+  it('crafting settlement: no crash; the pop-up card shows the crafting truth', async () => {
     useOfflineRecapStore.setState({ lastSettlement: crafting, dismissed: true });
     render(<DashboardScreen onNavigate={vi.fn()} />);
-    expect(await screen.findByText(/\+175 XP · 2 craft jobs finished/)).toBeTruthy();
+    expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('top-level-button'));
+    expect(await screen.findByText('While You Were Away')).toBeTruthy();
+    expect(screen.getByText('The benches kept working')).toBeTruthy();
+    expect(screen.getByText(/2 jobs finished/)).toBeTruthy();
   }, 30_000);
 
-  it('extraction settlement: no crash, chip shows the extraction truth', async () => {
+  it('extraction settlement: no crash; the pop-up card shows the extraction truth', async () => {
     useOfflineRecapStore.setState({ lastSettlement: extraction, dismissed: true });
     render(<DashboardScreen onNavigate={vi.fn()} />);
-    expect(await screen.findByText(/\+90 XP · 1 extraction pass finished/)).toBeTruthy();
+    expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('top-level-button'));
+    expect(await screen.findByText('While You Were Away')).toBeTruthy();
+    expect(screen.getByText('The site kept producing')).toBeTruthy();
+    expect(screen.getByText(/1 pass completed/)).toBeTruthy();
   }, 30_000);
 });
