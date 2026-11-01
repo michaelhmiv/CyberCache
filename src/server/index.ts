@@ -10,7 +10,7 @@
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
-import { mountActionSkillRoutes, mountChefHealthRoute, mountGameplayRoutes } from './gameplay/routes';
+import { mountActionSkillRoutes, mountCacheRankRoutes, mountChefHealthRoute, mountGameplayRoutes } from './gameplay/routes';
 import { PgChefGameplayStore } from './gameplay/store';
 import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 import { mountAuthRoutes } from './auth/routes';
@@ -115,6 +115,12 @@ if (chefJwtSecret && databaseUrl) {
       // Action skill routes (0030): state/selection on the gameplay
       // store, the Overclock workshop fire on the write store.
       mountActionSkillRoutes(app, gameplayStore, writeStore, {
+        jwtSecret: chefJwtSecret,
+        economyConfig,
+      });
+      // Cache Rank routes (0031): state read (observe-and-grant) +
+      // spend on the gameplay store.
+      mountCacheRankRoutes(app, gameplayStore, {
         jwtSecret: chefJwtSecret,
         economyConfig,
       });

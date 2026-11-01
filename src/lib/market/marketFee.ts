@@ -32,6 +32,12 @@
  *
  * NPC-seeded listings (item supply_mode 'npc_market') are exempt: the
  * fee does not apply and the NPC payout is unchanged.
+ *
+ * Cache Rank Silver Tongue (0031): a seller with Silver Tongue ranks
+ * is minted an uplift of floor(post-fee proceeds × bonus) on top of
+ * their proceeds — the fee itself is computed exactly as above and
+ * destroyed in full; the uplift never reduces it. NPC sales are
+ * exempt from the uplift as well (no fee branch runs for them).
  */
 import { computeSkillBonuses, type ClassModBoosts } from '../skills/skillBonuses';
 import { DropSource } from '../../types/game';
@@ -65,7 +71,15 @@ export interface MarketFeeBreakdown {
   effectiveRate: number;
   /** Whole credits destroyed by the fee. */
   fee: number;
-  /** Credits the seller is credited: price − fee. */
+  /**
+   * Cache Rank Silver Tongue rate (0031): the fraction of the
+   * POST-FEE proceeds minted to the seller on top. 0 when the
+   * seller has no Silver Tongue ranks (or for display callers).
+   */
+  proceedsBonusRate: number;
+  /** Whole credits minted by the Silver Tongue uplift (0031). */
+  proceedsBonus: number;
+  /** Credits the seller is credited: price − fee + proceedsBonus. */
   sellerProceeds: number;
 }
 
@@ -107,6 +121,7 @@ export function marketFeeForPrice(
   price: number,
   feeReduction: number,
   feeRate: number = MARKET_FEE_RATE,
+  proceedsBonusRate = 0,
 ): MarketFeeBreakdown {
   const rate = Math.min(1, Math.max(0, feeRate));
   const reduction = Math.min(1, Math.max(0, feeReduction));
@@ -115,13 +130,21 @@ export function marketFeeForPrice(
   // (e.g. 10000 × 0.0375) so the TS mirror floors exactly where the
   // SQL numeric computation in cc_accept_listing does.
   const fee = Math.floor(price * effectiveRate + 1e-9);
+  // Cache Rank Silver Tongue (0031): composition order is FIXED —
+  // the fee is computed first (rate × (1 − reductions), destroyed),
+  // then the uplift is floor(post-fee proceeds × bonus rate) and
+  // MINTED to the seller. The SQL twin is cc_accept_listing (0031).
+  const bonusRate = Math.min(1, Math.max(0, proceedsBonusRate));
+  const proceedsBonus = Math.floor((price - fee) * bonusRate + 1e-9);
   return {
     price,
     feeRate: rate,
     feeReduction: reduction,
     effectiveRate,
     fee,
-    sellerProceeds: price - fee,
+    proceedsBonusRate: bonusRate,
+    proceedsBonus,
+    sellerProceeds: price - fee + proceedsBonus,
   };
 }
 
@@ -139,6 +162,12 @@ export function marketFeeForSeller(input: {
   craftedBySeller?: boolean;
   /** Live fee-rate lever (0018); defaults to MARKET_FEE_RATE. */
   feeRate?: number;
+  /**
+   * The seller's resolved Cache Rank Silver Tongue fraction (0031),
+   * derived by the caller from the seller's cache_rank_spends —
+   * applied to the post-fee proceeds. Absent = 0.
+   */
+  cacheRankProceedsBonus?: number;
 }): MarketFeeBreakdown {
   const bonuses = computeSkillBonuses(
     input.skillSpends,
@@ -148,5 +177,6 @@ export function marketFeeForSeller(input: {
     input.price,
     marketFeeReduction(bonuses, input.foundBySeller, input.craftedBySeller ?? false),
     input.feeRate,
+    input.cacheRankProceedsBonus ?? 0,
   );
 }

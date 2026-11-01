@@ -126,7 +126,10 @@ export class InMemoryEconomyStore implements EconomyStore {
     const creditsMintedOther =
       sumBy(['cc_idle_claim'], (p) => num(dig(p, 'rewards', 'credits')))
       + sumBy(['cc_claim_roaming_rewards'], (p) => num(dig(p, 'rewards', 'credits_awarded')))
-      + 5000 * rows.filter((r) => r.action_type === 'cc_initial_bundle').length;
+      + 5000 * rows.filter((r) => r.action_type === 'cc_initial_bundle').length
+      // Cache Rank Silver Tongue (0031): the minted proceeds uplift
+      // folds into minted_other, exactly as in SQL.
+      + sumBy(['cc_accept_listing'], (p) => num(dig(p, 'market_fee', 'cache_rank_proceeds_bonus')));
 
     const creditsDestroyedMarketFees = sumBy(['cc_accept_listing'], (p) =>
       num(dig(p, 'market_fee', 'fee_credits')));
@@ -278,6 +281,12 @@ export class InMemoryEconomyStore implements EconomyStore {
     const actionSkillFiresFixer = countFires('Fixer')
       + rows.filter((r) => r.action_type === 'cc_fire_overclock_workshop').length;
 
+    // Cache Rank token meters (0031): grants/spends from their
+    // ledger payloads — tokens, never credits.
+    const cacheRankTokensGranted = sumBy(['cc_cache_rank_grant'], (p) =>
+      num(dig(p, 'tokens_granted')));
+    const cacheRankTokensSpent = sumBy(['cc_cache_rank_spend'], (p) => num(dig(p, 'cost')));
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
@@ -351,6 +360,8 @@ export class InMemoryEconomyStore implements EconomyStore {
       actionSkillFiresDemolition,
       actionSkillFiresScavenger,
       actionSkillFiresFixer,
+      cacheRankTokensGranted,
+      cacheRankTokensSpent,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

@@ -27,6 +27,7 @@ import {
   createGetActionSkillHandler,
   createSelectActionSkillHandler,
 } from '../routes/actionSkill';
+import { createGetCacheRankHandler, createSpendCacheRankHandler } from '../routes/cacheRank';
 import type { WriteStore } from '../writes/store';
 import type { ChefGameplayStore } from './store';
 
@@ -75,4 +76,19 @@ export function mountActionSkillRoutes(
   app.post('/api/action-skill/select', createSelectActionSkillHandler(gameplayStore, config));
   app.post('/api/action-skill/fire-workshop', createFireOverclockWorkshopHandler(writeStore, config));
   console.log('[chef] action skill routes mounted: GET /api/action-skill/me, POST /api/action-skill/select, /api/action-skill/fire-workshop (0030)');
+}
+
+/**
+ * Cache Rank routes (0031): state read (observe-and-grant) + spend,
+ * both on the gameplay store. Mounted separately alongside the
+ * action skill routes in index.ts.
+ */
+export function mountCacheRankRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  config: GameplayRoutesConfig,
+): void {
+  app.get('/api/cache-rank/me', createGetCacheRankHandler(gameplayStore, config));
+  app.post('/api/cache-rank/spend', createSpendCacheRankHandler(gameplayStore, config));
+  console.log('[chef] cache rank routes mounted: GET /api/cache-rank/me, POST /api/cache-rank/spend (0031)');
 }

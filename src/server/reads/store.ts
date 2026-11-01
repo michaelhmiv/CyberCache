@@ -89,6 +89,12 @@ export interface ProfileRowData {
   action_skill_charge?: number;
   /** Recorded action skill selection (migration 0030). Optional: pre-0030 rows omit it (= null). */
   action_skill_selection?: string | null;
+  /** Cache Rank token balance (migration 0031). Optional: pre-0031 seed rows omit it (= 0). */
+  cache_rank_tokens?: number;
+  /** Cache Rank grant watermark (migration 0031). Optional: pre-0031 rows omit it (= 0). */
+  cache_rank_grant_level?: number;
+  /** Cache Rank per-track spend ranks (migration 0031). Optional: pre-0031 rows omit it (= {}). */
+  cache_rank_spends?: Record<string, number>;
   /**
    * Computed by PgReadStore.getProfile (not a column): victories per
    * boss on the current UTC day from the verified action ledger — the

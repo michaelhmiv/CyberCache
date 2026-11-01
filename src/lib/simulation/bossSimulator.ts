@@ -513,7 +513,13 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // the roaming survival store use. The sim used to run its own
   // 500 + 40/level pool, so boss survival was silently ~27% lower
   // than the HP the player sees everywhere else.
-  const playerHP = computeHunterMaxHp(playerLevel, 0);
+  // Cache Rank Thick Skin (0031): the routes merge the resolved
+  // bonus into skillBonuses as cacheRankMaxHpBonus; it scales the
+  // base hunter HP only (shield HP is gear, never scaled) — the
+  // same split the mechanics snapshot applies.
+  const playerHP = Math.round(
+    computeHunterMaxHp(playerLevel, 0) * (1 + (skillBonuses.cacheRankMaxHpBonus || 0)),
+  );
   const playerShieldHP = shield?.hp || 0;
 
   const medkits = consumables['MedKit'] || 0;
@@ -965,7 +971,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       : 0;
   const effectiveCritChance = (primary?.critChance || 0) + (skillBonuses.critChance || 0);
   const highCritBonus = effectiveCritChance > 0.5 ? (skillBonuses.highCritBossDamage || 0) : 0;
-  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod + focusFireBonus + weaknessMatchBonus + highCritBonus) * classModDpsMult;
+  dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.cacheRankDamageBonus || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod + focusFireBonus + weaknessMatchBonus + highCritBonus) * classModDpsMult;
 
   // Amp behavior: fight-averaged DPS multiplier from the shield model.
   if (bossShieldModel) {

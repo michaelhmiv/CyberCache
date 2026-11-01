@@ -52,6 +52,8 @@ import {
   deferredActionSkillFirePlan,
   planActionSkillFire,
 } from './actionSkill';
+import { cacheRankBonuses } from '../../content/cacheRank';
+import { cacheRankLevers } from './cacheRank';
 
 type EndlessConfig = AuthConfig & { economyConfig?: EconomyConfig };
 
@@ -265,6 +267,18 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
         (profile.skill_spends ?? {}) as Record<string, number>,
       );
 
+      // Cache Rank (0031): resolved from the profile's own
+      // cache_rank_spends + the Cache Rank lever set (the encounter's
+      // `levers` above are the endless-picked subset and carry no
+      // Cache Rank keys). Damage/max HP ride the sim through merged
+      // skillBonuses keys.
+      const serverCacheRank = cacheRankBonuses(profile.cache_rank_spends, await cacheRankLevers(config));
+      const simSkillBonuses = {
+        ...serverSkillBonuses,
+        cacheRankDamageBonus: serverCacheRank.damage,
+        cacheRankMaxHpBonus: serverCacheRank.maxHp,
+      };
+
       // The belt burned at entry still prices into every encounter:
       // quality from the server's batch rows against owned counts.
       const ownedConsumables: Record<string, number> =
@@ -342,7 +356,8 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
         economy: levers,
         actionSkillFire: actionSkillPlan,
         ...serverSlots,
-        skillBonuses: serverSkillBonuses,
+        skillBonuses: simSkillBonuses,
+        cacheRankBonuses: serverCacheRank,
       });
 
       const milestoneItem = outcome.items[0];

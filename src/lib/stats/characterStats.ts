@@ -7,6 +7,7 @@ import { computeStandardDps } from '@/lib/stats/dpsChain';
 import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
+import { cacheRankBonuses } from '@/content/cacheRank';
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
 import type { ActivityKind } from '@/types/activity';
 import type { StatSource } from '@/lib/stats/statSources';
@@ -125,7 +126,10 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
   const baseDps = mechanics.standardWeaponDps.value;
   const weaponDamageBonus = skillTotal(spentSkills, 'weaponDamage') + skillTotal(spentSkills, 'attackSpeed') + skillTotal(spentSkills, 'critChance') * 0.5 + skillTotal(spentSkills, 'critDamage') * 0.5;
   const affixDamageBonus = gearAffixes(gear, 'weaponDamage').reduce((sum, item) => sum + item.affix.value, 0);
-  const totalDps = baseDps * (1 + weaponDamageBonus + affixDamageBonus);
+  // Cache Rank Heavy Hand (0031): the same resolved fraction the
+  // snapshot folds into simulatedBossDps.
+  const cacheRankDamageBonus = cacheRankBonuses(player.cacheRankSpends).damage;
+  const totalDps = baseDps * (1 + weaponDamageBonus + affixDamageBonus + cacheRankDamageBonus);
   // When a boss is supplied, the DPS metric becomes the boss-relative DPS so
   // the player can read the effective damage they'll deal. Otherwise it stays
   // as the standard-target total. The detail label flips with the context.
@@ -157,7 +161,7 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
       launcherBonus +
       weaknessMatchBonus
     : 0;
-  const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus + bossSkillBonus);
+  const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus + bossSkillBonus + cacheRankDamageBonus);
   const dpsDisplayValue = boss ? totalDpsForBoss : totalDps;
   const dpsDetail = boss
     ? `vs ${boss.name} (${(boss.weaknesses[0] ?? 'no weakness').toLowerCase()})`

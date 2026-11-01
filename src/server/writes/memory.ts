@@ -84,6 +84,14 @@ import {
   ACTION_SKILL_CHARGE_MAX,
 } from '../../content/actionSkills.js';
 import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections.js';
+import {
+  cacheRankBonuses as resolveCacheRankBonuses,
+  cacheRankEntitlement,
+  cacheQualityAdjustedWeights,
+  resolveCacheRankLevers,
+  type CacheRankBonuses,
+  type CacheRankLeverValues,
+} from '../../content/cacheRank.js';
 import { reforgeCostFor, type ReforgeLeverValues } from '../../content/reforge.js';
 import {
   applyReforgeToItem,
@@ -205,6 +213,14 @@ export interface InMemoryWriteOptions {
    * reading the table through cc_economy_config_number.
    */
   reforgeLeverProvider?: () => Partial<ReforgeLeverValues>;
+  /**
+   * Live Cache Rank lever values (economy_config, 0031), resolved
+   * per Cache Rank op — the mirror of the SQL helpers reading the
+   * table through cc_economy_config_number. Production runs the SQL
+   * path; this provider exists so tests exercise the levers through
+   * the mirror.
+   */
+  cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>;
 }
 
 function clone<T>(value: T): T {
@@ -225,7 +241,10 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly craftLeverProvider: () => Partial<CraftLeverValues>;
   private readonly repairLeverProvider: () => Partial<RepairLeverValues>;
   private readonly reforgeLeverProvider: () => Partial<ReforgeLeverValues>;
+  private readonly cacheRankLeverProvider: () => Partial<CacheRankLeverValues>;
   private craftViews = new Map<string, CraftProfileView>();
+  /** Cache Rank grant log (0031 mirror of the cc_cache_rank_grant ledger rows) for test introspection. */
+  readonly cacheRankGrantLog: Array<{ playerId: string; fromLevel: number; toLevel: number; tokens: number }> = [];
 
   private profiles = new Map<string, ProfileRowData>();
   private items = new Map<string, WriteItemData>();
@@ -248,6 +267,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.craftLeverProvider = opts.craftLeverProvider ?? (() => ({}));
     this.repairLeverProvider = opts.repairLeverProvider ?? (() => ({}));
     this.reforgeLeverProvider = opts.reforgeLeverProvider ?? (() => ({}));
+    this.cacheRankLeverProvider = opts.cacheRankLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) this.profiles.set(p.id, p);
     for (const i of this.seed.items) this.items.set(i.id, i);
@@ -459,6 +479,9 @@ export class InMemoryWriteStore implements WriteStore {
       cache_tokens: p.cache_tokens,
       cache_token_parts: p.cache_token_parts,
       legendary_cores: p.legendary_cores ?? 0,
+      cache_rank_tokens: p.cache_rank_tokens ?? 0,
+      cache_rank_grant_level: p.cache_rank_grant_level ?? 0,
+      cache_rank_spends: clone(p.cache_rank_spends ?? {}),
       materials: clone(p.materials),
       essences: clone(p.essences),
       consumables: clone(p.consumables),
@@ -701,7 +724,19 @@ export class InMemoryWriteStore implements WriteStore {
     if (p.cache_tokens < 1) throw writeError('Not enough tokens');
     const outcomes = this.seed.oddsOutcomes.filter((o) => o.table_id === 'cache_primary_rarity');
     if (!outcomes.length) throw writeError('No outcomes configured for cache_primary_rarity');
-    const draw = drawOdds('cache_primary_rarity', outcomes, this.rng());
+    // Cache quality (0031): the draw reads the TOTAL cache quality —
+    // the Scavenger node's cacheQuality effect (skill spends only;
+    // class-mod boosts do not feed the draw) PLUS the Cache Rank
+    // Cache Optimizer track. The first consumer of the cacheQuality
+    // effect; the SQL twin is cc_make_item's quality-aware
+    // cc_draw_odds call.
+    const skillQuality = computeSkillBonuses(asNumberMap(p.skill_spends)).cacheQuality ?? 0;
+    const cacheQuality = Math.max(0, skillQuality) + this.cacheRankBonusesFor(p).cacheQuality;
+    const draw = drawOdds(
+      'cache_primary_rarity',
+      cacheQualityAdjustedWeights(outcomes, cacheQuality),
+      this.rng(),
+    );
     const rarity = draw.outcome;
     p.cache_tokens -= 1;
     this.touch(p);
@@ -741,6 +776,7 @@ export class InMemoryWriteStore implements WriteStore {
       action_type: 'cc_make_item',
       profile: this.profileSnapshot(p),
       odds: draw as unknown as Json,
+      cache_quality: cacheQuality,
       item: this.itemJson(item),
     };
     return this.record(playerId, 'cc_make_item', key, result);
@@ -1437,6 +1473,38 @@ export class InMemoryWriteStore implements WriteStore {
   // seed state; lever values resolve per op through the injectable
   // provider, clamped to the economy registry ranges.
 
+  /** Cache Rank levers for this twin (0031): injected provider over content defaults. */
+  cacheRankLevers(): CacheRankLeverValues {
+    return resolveCacheRankLevers(this.cacheRankLeverProvider());
+  }
+
+  /** The profile's resolved Cache Rank bonuses (0031), from its own spend record. */
+  cacheRankBonusesFor(p: ProfileRowData): CacheRankBonuses {
+    return resolveCacheRankBonuses(p.cache_rank_spends, this.cacheRankLevers());
+  }
+
+  /**
+   * The grant the BEFORE UPDATE OF player_level trigger performs in
+   * SQL (0031): pay entitlement(level) − entitlement(watermark)
+   * exactly once and advance the watermark. Called after EVERY
+   * level assignment in this twin. Returns the tokens granted.
+   */
+  applyCacheRankGrant(p: ProfileRowData): number {
+    const from = Math.trunc(Number(p.cache_rank_grant_level) || 0);
+    if (p.player_level <= from) return 0;
+    const levers = this.cacheRankLevers();
+    const grant = Math.max(
+      0,
+      cacheRankEntitlement(p.player_level, levers) - cacheRankEntitlement(from, levers),
+    );
+    if (grant > 0) {
+      p.cache_rank_tokens = Math.trunc(Number(p.cache_rank_tokens) || 0) + grant;
+      this.cacheRankGrantLog.push({ playerId: p.id, fromLevel: from, toLevel: p.player_level, tokens: grant });
+    }
+    p.cache_rank_grant_level = p.player_level;
+    return grant;
+  }
+
   private craftLevers(): CraftLeverValues {
     const provided = this.craftLeverProvider();
     const clamp = (value: number | undefined, def: number, min: number, max: number): number => {
@@ -1520,6 +1588,7 @@ export class InMemoryWriteStore implements WriteStore {
     if (!view || !p) return;
     p.player_level = view.player_level;
     p.player_xp = view.player_xp;
+    this.applyCacheRankGrant(p);
     p.credits = view.credits;
     p.legendary_cores = view.legendary_cores;
     p.workshop_benches = view.workshop_benches;
@@ -1555,6 +1624,11 @@ export class InMemoryWriteStore implements WriteStore {
         return (
           computeSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId))[key] ?? 0
         );
+      },
+      cacheRankXpBonus: (playerId) => {
+        const p = this.profileOrNull(playerId);
+        if (!p) return 0;
+        return this.cacheRankBonusesFor(p).xp;
       },
       addMasteryXp: (playerId, track, xp) => {
         this.addMasteryXp(playerId, track, xp);
@@ -1973,10 +2047,15 @@ export class InMemoryWriteStore implements WriteStore {
     }
     if (provider && restored > 0) {
       xpAward = repairServiceXp(restored, this.repairLevers().serviceXpPerPoint);
+      // Cache Rank Fast Learner (0031): repair XP carries the same
+      // XP bonus as every other source (the SQL twin scales v_xp in
+      // cc_repair_finalize_job identically).
+      xpAward = Math.round(xpAward * (1 + this.cacheRankBonusesFor(provider).xp));
       if (xpAward > 0) {
         const next = applyXp(provider.player_level, provider.player_xp, xpAward);
         provider.player_level = next.player_level;
         provider.player_xp = next.player_xp;
+        this.applyCacheRankGrant(provider);
         this.touch(provider);
       }
       this.addMasteryXp(provider.id, REPAIR_MASTERY_TRACK, repairMasteryXp(restored));
@@ -2425,6 +2504,7 @@ export class InMemoryWriteStore implements WriteStore {
     const next = applyXp(p.player_level, p.player_xp, xpAward);
     p.player_level = next.player_level;
     p.player_xp = next.player_xp;
+    this.applyCacheRankGrant(p);
     p.credits += creditAward;
     p.last_idle_claim_at = this.nowIso();
     this.touch(p);
@@ -2504,6 +2584,7 @@ export class InMemoryWriteStore implements WriteStore {
     const next = applyXp(p.player_level, p.player_xp, xpAward);
     p.player_level = next.player_level;
     p.player_xp = next.player_xp;
+    this.applyCacheRankGrant(p);
     p.credits += creditAward;
     let parts = p.cache_token_parts + partAward;
     let tokens = p.cache_tokens;
@@ -2768,6 +2849,8 @@ export class InMemoryWriteStore implements WriteStore {
       feeReduction: 0,
       effectiveRate: 0,
       fee: 0,
+      proceedsBonusRate: 0,
+      proceedsBonus: 0,
       sellerProceeds: listing.price_credits,
     };
     let foundBySeller = false;
@@ -2790,6 +2873,9 @@ export class InMemoryWriteStore implements WriteStore {
           foundBySeller,
           craftedBySeller,
           feeRate: await this.feeRateProvider(),
+          // Cache Rank Silver Tongue (0031): post-fee uplift from the
+          // seller's own cache_rank_spends.
+          cacheRankProceedsBonus: this.cacheRankBonusesFor(seller).marketProceeds,
         });
       }
     } else if (seller && listing.seller_type !== 'npc') {
@@ -2807,6 +2893,7 @@ export class InMemoryWriteStore implements WriteStore {
         foundBySeller: false,
         craftedBySeller,
         feeRate: await this.feeRateProvider(),
+        cacheRankProceedsBonus: this.cacheRankBonusesFor(seller).marketProceeds,
       });
     }
     if (seller) {
@@ -2868,6 +2955,7 @@ export class InMemoryWriteStore implements WriteStore {
       market_fee: {
         fee_credits: feeBreakdown.fee,
         seller_proceeds: feeBreakdown.sellerProceeds,
+        cache_rank_proceeds_bonus: feeBreakdown.proceedsBonus,
         fee_rate: feeBreakdown.feeRate,
         fee_reduction: feeBreakdown.feeReduction,
         found_item: foundBySeller,

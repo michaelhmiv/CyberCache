@@ -14,7 +14,7 @@ describe('Character stat boss DPS regression', () => {
     expect(stats).toContain('bossSkillBonus');
     expect(stats).toContain("skillTotal(spentSkills, 'bossDamageMod')");
     expect(stats).toContain("skillTotal(spentSkills, 'weaknessMatchDamage')");
-    expect(stats).toContain('totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus + bossSkillBonus)');
+    expect(stats).toContain('totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus + bossSkillBonus + cacheRankDamageBonus)');
   });
 
   it('roaming XP formula includes skill tree xpBoostMod', () => {

@@ -41,6 +41,8 @@ const initialPlayerState = (): PlayerProfile => ({
   cacheKeys: 3,
   cacheKeyFragments: 0,
   legendaryCores: 0,
+  cacheRankTokens: 0,
+  cacheRankSpends: {},
   currentZoneId: 'dustwaste_1',
   highestZoneId: 'dustwaste_1',
   offlineCapHours: 2,

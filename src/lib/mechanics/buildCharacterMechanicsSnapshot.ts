@@ -4,6 +4,7 @@ import type { BossDef } from '@/types/boss';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { PlayerProfile } from '@/types/player';
 import { computeHunterMaxHp } from '@/lib/combat/damageContract';
+import { cacheRankBonuses } from '@/content/cacheRank';
 import { computeBossRelativeDps, computeStandardDps } from '@/lib/stats/dpsChain';
 import { STAT_SOURCE_BUCKETS, type StatSourceBucket } from '@/lib/stats/sourceBuckets';
 
@@ -99,7 +100,16 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
   const gear = [...weapons, input.shield, input.classMod, input.relic, input.ordnance];
   const shieldHp = input.shield?.hp ?? 0;
   const baseHp = computeHunterMaxHp(input.player.level, 0);
-  const maxHp = computeHunterMaxHp(input.player.level, shieldHp);
+  // Cache Rank (0031): resolved from the player's synced spend
+  // record. Thick Skin scales the BASE hunter HP only — shield HP
+  // is gear and never scales (the boss sim applies the identical
+  // split via its merged cacheRankMaxHpBonus key). Heavy Hand joins
+  // the simulated boss DPS below via cacheRankDamageBonus.
+  const cacheRank = cacheRankBonuses(input.player.cacheRankSpends);
+  const cacheRankMaxHpBonus = cacheRank.maxHp;
+  const cacheRankDamageBonus = cacheRank.damage;
+  const scaledBaseHp = Math.round(baseHp * (1 + cacheRankMaxHpBonus));
+  const maxHp = scaledBaseHp + shieldHp;
   const mitigation = Math.min(0.8, input.shield?.mitigation ?? 0);
   const effectiveHp = Math.round(maxHp / Math.max(0.2, 1 - mitigation));
   const standardWeaponDps = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon), 0);
@@ -139,7 +149,7 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
   // rather than threaded into the per-weapon chain to keep the snapshot
   // fast and the contribution trace readable. For the authoritative combat
   // number, use bossSimulator.simulateBoss() which runs the full chain.
-  const playerDamageBonus = skillDamageBonus + gearDamageBonus + skillBossBonus + gearBossBonus;
+  const playerDamageBonus = skillDamageBonus + gearDamageBonus + skillBossBonus + gearBossBonus + cacheRankDamageBonus;
   const bossDpsAfterPlayerMods = bossRelativeDps * (1 + playerDamageBonus);
   const weaponShieldBreak = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon) * Math.max(0, weapon.shieldDamageMod), 0);
   const weaponArmorBreak = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon) * Math.max(0, weapon.armorDamageMod), 0);
@@ -159,6 +169,9 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
   return {
     maxHp: scalar(maxHp, [
       contribution('base', 'Hunter chassis', 'baseHp', baseHp),
+      ...(cacheRankMaxHpBonus > 0
+        ? [contribution('skill', 'Cache Rank', 'cacheRankMaxHpBonus', scaledBaseHp - baseHp)]
+        : []),
       contribution('gear', input.shield?.name ?? 'No shield', 'shieldHp', shieldHp),
     ]),
     shield: scalar(shieldHp, [contribution('gear', input.shield?.name ?? 'No shield', 'shieldHp', shieldHp)]),
@@ -178,6 +191,9 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
     simulatedBossDps: scalar(input.bossSimDps ?? bossDpsAfterPlayerMods, [
       contribution('weapon', 'Boss-relative DPS', 'bossRelativeDps', bossRelativeDps),
       contribution('skill', 'Skill tree damage', 'skillDamageMods', bossRelativeDps * (skillDamageBonus + skillBossBonus)),
+      ...(cacheRankDamageBonus > 0
+        ? [contribution('skill', 'Cache Rank', 'cacheRankDamageBonus', bossRelativeDps * cacheRankDamageBonus)]
+        : []),
       contribution('gear', 'Gear affixes', 'gearDamageMods', bossRelativeDps * (gearDamageBonus + gearBossBonus)),
       contribution('server', 'Server simulation override', 'bossSimDpsOverride', input.bossSimDps === undefined ? 0 : input.bossSimDps - bossDpsAfterPlayerMods),
     ]),

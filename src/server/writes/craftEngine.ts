@@ -223,6 +223,10 @@ export interface CraftAdapter {
    *  predate the Fixer tree (0029) read as 0 — every Fixer term is
    *  additive over the pre-Fixer behavior at 0. */
   skillBonus?(playerId: string, key: string): number;
+  /** The player's Cache Rank Fast Learner XP fraction (0031),
+   *  derived by the store from the player's own cache_rank_spends.
+   *  Optional: adapters that predate Cache Rank read as 0. */
+  cacheRankXpBonus?(playerId: string): number;
   addMasteryXp(playerId: string, track: string, xp: number): void;
   addStat(playerId: string, key: string, amount: number): void;
   /** Add a consumable batch and bump the profile count with it. */
@@ -558,7 +562,14 @@ function completeCraftUnit(
   // All completion reads (XP level, mastery-driven bounds/yield,
   // item level) snapshot the state at the unit's completion instant;
   // this unit's own XP and mastery land after its output is priced.
-  const xp = craftUnitXp(job.unit_duration_ms, profile.player_level, levers.craftXpRate);
+  // Cache Rank Fast Learner (0031): craft XP carries the same XP
+  // bonus as every other source — applied after the peg rate,
+  // before applyXp (the SQL twin scales v_xp in
+  // cc_complete_craft_unit identically).
+  const xp = Math.round(
+    craftUnitXp(job.unit_duration_ms, profile.player_level, levers.craftXpRate) *
+      (1 + (adapter.cacheRankXpBonus?.(playerId) ?? 0)),
+  );
   const output: CraftJobOutput = { unit, kind: job.kind, xp, completedAtMs: adapter.nowMs() };
 
   if (job.kind === 'consumable' && recipe.consumableType) {

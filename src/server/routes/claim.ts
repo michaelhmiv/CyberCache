@@ -45,6 +45,7 @@ import {
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { recordItemDiscoveries } from './roamingHandler';
 import { bossDiscovery } from '../../content/collections';
+import { cacheRankBonuses } from '../../content/cacheRank';
 
 /**
  * Validate the client's PREPARED consumable set against DB-owned
@@ -265,6 +266,17 @@ export function createVerifyBossHandler(
         (profile.skill_spends ?? {}) as Record<string, number>,
       );
 
+      // Cache Rank (0031): resolved from the profile's own
+      // cache_rank_spends + the live levers. Damage/max HP ride the
+      // sim through merged skillBonuses keys (the sim's one bonus
+      // record); XP/credits/scrap ride the request's typed field.
+      const serverCacheRank = cacheRankBonuses(profile.cache_rank_spends, economyValues);
+      const simSkillBonuses = {
+        ...serverSkillBonuses,
+        cacheRankDamageBonus: serverCacheRank.damage,
+        cacheRankMaxHpBonus: serverCacheRank.maxHp,
+      };
+
       // --- Action skill fire (0030) ---
       // The body carries only the boolean intent. The plan — which
       // signature, what effect — is resolved HERE from server records
@@ -343,7 +355,8 @@ export function createVerifyBossHandler(
           : undefined,
         actionSkillFire: actionSkillPlan,
         ...serverSlots,
-        skillBonuses: serverSkillBonuses,
+        skillBonuses: simSkillBonuses,
+        cacheRankBonuses: serverCacheRank,
       };
 
       const result = processBossAttempt(request);
