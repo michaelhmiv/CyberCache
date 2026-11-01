@@ -37,6 +37,7 @@ export const ACTION_SETS = {
   dispatch: ['set-dispatch-pad', 'set-dispatch-board', 'set-dispatch-route'],
   extraction: ['set-extract-stakes', 'set-extract-rig', 'set-extract-crates'],
   vendor: ['set-vendor-stall', 'set-vendor-sign'],
+  slots: ['set-vendor-stall', 'set-vendor-sign', 'prop-slot-machine'],
   resurrection: ['set-resurrection-pod'],
   warRoom: ['set-war-room-table'],
   research: ['set-war-room-table', 'set-research-terminal', 'set-research-shelf'],

@@ -29,6 +29,7 @@ import {
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
 import { AREA_VISUALS, PIXEL_BOSS_ARENAS, endlessBandTint } from '@/content/areaPalettes';
 import { CACHE_RANK_BONUS_DEFS } from '@/content/cacheRank';
+import { SLOT_OUTCOMES } from '@/content/slots';
 import { endlessDepthBand, endlessEncounterForDepth } from '@/content/endless';
 import { ELEMENT_DIALECTS, shotCadence } from '@/lib/pixel/elementFx';
 import { GRAMMAR } from '@/lib/pixel/grammar';
@@ -949,4 +950,78 @@ export const GOLDEN_SCENES: GoldenScene[] = [
       }
     });
   }),
+  // Data Slots (0049): the vendor's machine at the stall's edge, on
+  // the vendor grammar set. Both scenes compose from the REAL
+  // payout table (SLOT_OUTCOMES — the printed-table card's rows are
+  // the seeded weights, so a retune repaints here) and the shipped
+  // prop sprite. The hunter stands at the counter unarmed, as in
+  // every vendor scene; the stall's owner works the lever.
+  scene('slots-idle', (img) => {
+    drawSlotStall(img, false);
+  }),
+  // The key win: the CACHE presentation — the key glyph under the
+  // cache beam (gold, the cache lane's color) — explicitly NOT the
+  // loot-drop rarity ladder (brief §2.9, law 1). The machine's own
+  // light burst rings the marquee; nothing here borrows the
+  // loot-moment timings.
+  scene('slots-key-win', (img) => {
+    drawSlotStall(img, true);
+  }),
 ];
+
+/** The slot stall composition shared by both slot scenes. */
+function drawSlotStall(img: RgbaImage, keyWin: boolean): void {
+  drawBackground(img, AREA_BG.dustwaste_frontier);
+  // Interior wash (the rep-desk move): the stall is a counter room.
+  fillRect(img, 0, 0, SCENE_W, SCENE_H, [8, 8, 12], 96);
+  const groundY = GROUND * SCENE_H;
+  // The vendor stall + sign, right of stage (the rep-desk framing).
+  const stall = loadGoldenSprite('set-vendor-stall');
+  if (stall) blit(img, stall, SCENE_W * 0.58, groundY - 62, 128, 80);
+  const sign = loadGoldenSprite('set-vendor-sign');
+  if (sign) blit(img, sign, SCENE_W * 0.58 + 22, groundY - 62 - 46, 84, 52);
+  // The machine at the stall's left edge.
+  const machineX = 196;
+  const machineTop = groundY - 72;
+  const machine = loadGoldenSprite('prop-slot-machine');
+  if (machine) blit(img, machine, machineX, machineTop, 54, 72);
+  if (keyWin) {
+    // Cache beam over the machine + the key glyph beneath it.
+    drawBeam(img, machineX + 27, machineTop, GRAMMAR.beamWidthPx.standard, '#FFD166');
+    const kx = machineX + 27;
+    const ky = machineTop - 26;
+    fillRect(img, kx - 5, ky, 10, 3, hexToRgb('#FFD166'), 255);
+    fillRect(img, kx - 5, ky + 7, 10, 3, hexToRgb('#FFD166'), 255);
+    fillRect(img, kx - 5, ky, 3, 10, hexToRgb('#FFD166'), 255);
+    fillRect(img, kx + 2, ky, 3, 10, hexToRgb('#FFD166'), 255);
+    fillRect(img, kx + 5, ky + 8, 8, 3, hexToRgb('#FFD166'), 255);
+    fillRect(img, kx + 10, ky + 11, 3, 5, hexToRgb('#FFD166'), 255);
+    // The machine's own light burst: sparks around the marquee.
+    for (const [sx, sy, len] of [[-14, -6, 8], [62, -4, 8], [-10, 14, 6], [64, 16, 6]] as const) {
+      fillRect(img, machineX + sx, machineTop + sy, len, 2, hexToRgb('#F2C063'), 255);
+    }
+  }
+  // The printed payout table (G-2 card geometry) on the counter:
+  // one row per outcome — glyph chip + a bar whose length IS the
+  // seeded weight, so the card on the machine and the card in this
+  // scene are the same data.
+  const glyphColors: Record<string, string> = {
+    none: '#4a4f5c', credits: '#F2C063', bundle: '#7FB069', fragments: '#57E6D9', key: '#FFD166',
+  };
+  const cardX = 70;
+  const cardY = 140;
+  fillRect(img, cardX, cardY, GRAMMAR.card.widthPx, 92, [13, 15, 21], 242);
+  fillRect(img, cardX, cardY, GRAMMAR.card.widthPx, 2, hexToRgb('#F2C063'), 255);
+  SLOT_OUTCOMES.forEach((outcome, i) => {
+    const y = cardY + 8 + i * 9;
+    fillRect(img, cardX + 5, y, 5, 5, hexToRgb(glyphColors[outcome.kind]), 255);
+    fillRect(img, cardX + 14, y + 1, 96, 3, [30, 34, 44], 255);
+    const w = Math.max(1, Math.round(96 * (outcome.weight / 10000)));
+    fillRect(img, cardX + 14, y + 1, w, 3, hexToRgb(glyphColors[outcome.kind]), 255);
+  });
+  // The hunter at the counter, unarmed (the rep-desk framing).
+  drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG_UNARMED, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
+  // Floor strip (G-3): pulls remaining today, in machine amber.
+  fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+  fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.73, GRAMMAR.progress.heightPx, hexToRgb('#F2C063'), 255);
+}

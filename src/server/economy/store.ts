@@ -142,6 +142,23 @@ export interface EconomyMetricsRow {
   standingCreditsDestroyed: number;
   standingOrdersFulfilled: number;
   standingRankUps: Record<string, number>;
+  /** Data Slots meters (migration 0049): pulls, credits wagered
+   *  (a component of creditsDestroyedTotal — the gross fold every
+   *  prior slice uses), credits paid (== creditsMintedSlots, a
+   *  component of creditsMintedTotal), bundles / fragments / keys
+   *  paid in kind, key→fragment fallbacks, and the net slot sink
+   *  memo creditsDestroyedSlots (wagered − paid, floored at 0; a
+   *  breakout only, never separately folded). Slots mint no gear,
+   *  cores, scrap, or essences. */
+  slotPulls: number;
+  slotCreditsWagered: number;
+  slotCreditsPaid: number;
+  slotBundlesPaid: number;
+  slotFragmentsPaid: number;
+  slotKeysPaid: number;
+  slotFragmentFallbacks: number;
+  creditsMintedSlots: number;
+  creditsDestroyedSlots: number;
   computedAt: string;
 }
 
@@ -212,6 +229,15 @@ interface PgMetricsRow {
   standing_credits_destroyed?: number;
   standing_orders_fulfilled?: number;
   standing_rank_ups?: Record<string, number>;
+  slot_pulls?: number;
+  slot_credits_wagered?: number;
+  slot_credits_paid?: number;
+  slot_bundles_paid?: number;
+  slot_fragments_paid?: number;
+  slot_keys_paid?: number;
+  slot_fragment_fallbacks?: number;
+  credits_minted_slots?: number;
+  credits_destroyed_slots?: number;
   endless_runs_started?: number;
   endless_runs_ended?: number;
   endless_encounters_cleared?: number;
@@ -313,6 +339,15 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     standingCreditsDestroyed: Number(r.standing_credits_destroyed ?? 0),
     standingOrdersFulfilled: Number(r.standing_orders_fulfilled ?? 0),
     standingRankUps: r.standing_rank_ups ?? {},
+    slotPulls: Number(r.slot_pulls ?? 0),
+    slotCreditsWagered: Number(r.slot_credits_wagered ?? 0),
+    slotCreditsPaid: Number(r.slot_credits_paid ?? 0),
+    slotBundlesPaid: Number(r.slot_bundles_paid ?? 0),
+    slotFragmentsPaid: Number(r.slot_fragments_paid ?? 0),
+    slotKeysPaid: Number(r.slot_keys_paid ?? 0),
+    slotFragmentFallbacks: Number(r.slot_fragment_fallbacks ?? 0),
+    creditsMintedSlots: Number(r.credits_minted_slots ?? 0),
+    creditsDestroyedSlots: Number(r.credits_destroyed_slots ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -348,6 +383,9 @@ const METRICS_COLUMNS = `
   standing_points_awarded, standing_items_destroyed,
   standing_tribute_credits_destroyed, standing_credits_destroyed,
   standing_orders_fulfilled, standing_rank_ups,
+  slot_pulls, slot_credits_wagered, slot_credits_paid,
+  slot_bundles_paid, slot_fragments_paid, slot_keys_paid,
+  slot_fragment_fallbacks, credits_minted_slots, credits_destroyed_slots,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

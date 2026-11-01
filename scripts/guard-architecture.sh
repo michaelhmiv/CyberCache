@@ -76,6 +76,7 @@ ALLOWED_TIMERS=(
   "$SRC/components/fight/BossPrepModal.tsx:fight animation delay (display-only)"
   "$SRC/components/pixelArt/LootMoment.tsx:loot celebration pacing (display-only; advances presentation state, drops already awarded)"
   "$SRC/components/profile/UsernameSetupModal.tsx:username availability debounce (form validation)"
+  "$SRC/components/vendor/DataSlotsPanel.tsx:reel-settle pacing (display-only; cycles glyphs while the Chef decides, stops on the returned outcome)"
   "$SRC/hooks/useNow.ts:shared reactive clock hook"
   "$SRC/lib/activity/useActionStageOrchestrator.ts:animation beat pacing (display-only)"
   "$SRC/lib/animation/fightTimeline.ts:animation phase timing (display-only)"

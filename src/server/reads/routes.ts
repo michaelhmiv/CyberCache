@@ -19,6 +19,7 @@
  *   GET /api/runtime/items               runtimeStateService.syncRuntimeItemsForUser  item_instances (own, RLS)
  *   GET /api/collections/me              CollectionsScreen                    collection_discoveries (own) + profiles.legendary_cores (0026)
  *   GET /api/caches/me                   ChestScreen (cache surface)          cache_box_openings (own, today) + profiles.cache_tokens (0037)
+ *   GET /api/slots/me                    VendorScreen (Data Slots panel)      profiles.slot_pulls_* (own, today) + economy_config levers (0049)
  *   GET /api/profile/stats               ProfileScreen (trophy shelf)       lifetime fold over server records only (0034)
  *   GET /api/leaderboard/weekly          LeaderboardsScreen (weekly races)  weekly fold over server records + settlement outcomes (0035)
  *
@@ -169,6 +170,21 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
       const lane = await store.getCacheLane(id, new Date());
       if (!lane) return notFound(res, 'Profile');
       res.json(lane);
+    } catch (err) { fail(res, err); }
+  });
+
+  // Data Slots (0049): the machine's display state — levered bet
+  // tiers, the caller's pulls used / remaining today, and the cache
+  // budget a key prize would charge. Identity from the JWT only.
+  // Guests may read it (the machine is visible to everyone; the
+  // pull op itself is verified-only).
+  app.get('/api/slots/me', async (req, res) => {
+    const id = caller(config, req, res);
+    if (!id) return;
+    try {
+      const state = await store.getSlotState(id, new Date());
+      if (!state) return notFound(res, 'Profile');
+      res.json(state);
     } catch (err) { fail(res, err); }
   });
 

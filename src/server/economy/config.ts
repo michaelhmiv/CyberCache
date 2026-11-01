@@ -224,6 +224,19 @@ export interface EconomyConfigValues {
   // cc_economy_config_number with the identical clamp).
   /** Total cache boxes openable per UTC day, free box included. */
   cacheBoxDailyCap: number;
+  // Data Slots (0049) — content owner: src/content/slots.ts
+  // (SLOT_LEVER_DEFAULTS / SLOT_LEVER_CLAMPS, pinned against these
+  // literals by tests; cc_slot_pull reads them via
+  // cc_economy_config_number with identical clamps). The payout
+  // table itself is odds data (migration 0049 seed), never a lever.
+  /** Pulls per UTC day on the vendor slot machine; 0 closes it. */
+  slotDailyPullCap: number;
+  /** Bet size for slot tier 1 (Chump Change). */
+  slotBetTier1: number;
+  /** Bet size for slot tier 2 (Working Stiff). */
+  slotBetTier2: number;
+  /** Bet size for slot tier 3 (High Roller). */
+  slotBetTier3: number;
   // Contracts board (0042) — content owner: src/content/contracts.ts
   // (CONTRACT_LEVER_DEFAULTS / CONTRACT_LEVER_CLAMPS, pinned against
   // these literals by tests; cc_issue_contracts / cc_claim_contract_reward
@@ -359,6 +372,10 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   streakCreditScalar: 1,
   streakFragmentScalar: 1,
   cacheBoxDailyCap: 10,
+  slotDailyPullCap: 100,
+  slotBetTier1: 50,
+  slotBetTier2: 250,
+  slotBetTier3: 1000,
   contractRewardScalar: 1,
   contractTargetScalar: 1,
   contractDailyCount: 3,
@@ -722,6 +739,22 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   cacheBoxDailyCap: {
     key: 'cacheBoxDailyCap', min: 1, max: 30, integer: true,
     defaultOwner: 'src/content/cacheLane.ts CACHE_LANE_LEVER_DEFAULTS',
+  },
+  slotDailyPullCap: {
+    key: 'slotDailyPullCap', min: 0, max: 1000, integer: true,
+    defaultOwner: 'src/content/slots.ts SLOT_LEVER_DEFAULTS',
+  },
+  slotBetTier1: {
+    key: 'slotBetTier1', min: 1, max: 100000, integer: true,
+    defaultOwner: 'src/content/slots.ts SLOT_LEVER_DEFAULTS',
+  },
+  slotBetTier2: {
+    key: 'slotBetTier2', min: 1, max: 100000, integer: true,
+    defaultOwner: 'src/content/slots.ts SLOT_LEVER_DEFAULTS',
+  },
+  slotBetTier3: {
+    key: 'slotBetTier3', min: 1, max: 100000, integer: true,
+    defaultOwner: 'src/content/slots.ts SLOT_LEVER_DEFAULTS',
   },
   contractRewardScalar: {
     key: 'contractRewardScalar', min: 0, max: 2, integer: false,

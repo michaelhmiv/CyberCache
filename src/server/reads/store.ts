@@ -58,6 +58,12 @@ import {
   type CacheLaneView,
 } from '../../content/cacheLane';
 import {
+  buildSlotStateView,
+  resolveSlotLevers,
+  slotUtcDay,
+  type SlotStateView,
+} from '../../content/slots';
+import {
   computeRaceStandings,
   WEEKLY_FOLD_ACTION_TYPES,
   type WeeklyFoldInput,
@@ -116,6 +122,10 @@ export interface ProfileRowData {
   cache_rank_grant_level?: number;
   /** Cache Rank per-track spend ranks (migration 0031). Optional: pre-0031 rows omit it (= {}). */
   cache_rank_spends?: Record<string, number>;
+  /** Data Slots daily pull counter day (migration 0049). Optional: pre-0049 rows omit it (= null). */
+  slot_pulls_day?: string | null;
+  /** Data Slots pulls on slot_pulls_day (migration 0049). Optional: pre-0049 rows omit it (= 0). */
+  slot_pulls_count?: number;
   /**
    * Computed by PgReadStore.getProfile (not a column): victories per
    * boss on the current UTC day from the verified action ledger — the
@@ -757,6 +767,8 @@ export interface ReadStore {
   getWeeklyLeaderboards(playerId: string, now: Date): Promise<WeeklyLeaderboardsData | null>;
   /** Caller's cache box lane state for the current UTC day (0037): opened today / remaining / free available; null when no profile. */
   getCacheLane(playerId: string, now: Date): Promise<CacheLaneView | null>;
+  /** Caller's Data Slots state for the current UTC day (0049): levered tiers, pulls used / remaining, and the cache budget a key prize would charge; null when no profile. */
+  getSlotState(playerId: string, now: Date): Promise<SlotStateView | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1421,6 +1433,29 @@ export class InMemoryReadStore implements ReadStore {
     );
   }
 
+  async getSlotState(playerId: string, now: Date): Promise<SlotStateView | null> {
+    const profile = this.seed.profiles.find((p) => p.id === playerId);
+    if (!profile) return null;
+    const day = slotUtcDay(now);
+    const pullsToday = profile.slot_pulls_day === day ? (profile.slot_pulls_count ?? 0) : 0;
+    let openedToday = 0;
+    for (const row of this.seed.cacheBoxOpenings ?? []) {
+      if (row.user_id === playerId && row.open_day === day) openedToday += 1;
+    }
+    // The twin serves the shipped default levers; the Pg store reads
+    // the live economy_config values — the same split getCacheLane
+    // uses above.
+    return buildSlotStateView(
+      {
+        day,
+        pullsToday,
+        cacheOpenedToday: openedToday,
+        cacheCap: resolveCacheLaneLevers().cacheBoxDailyCap,
+      },
+      resolveSlotLevers(),
+    );
+  }
+
   async getProfileStats(playerId: string): Promise<ProfileLifetimeData | null> {
     const profile = this.seed.profiles.find((p) => p.id === playerId);
     if (!profile) return null;
@@ -1943,6 +1978,54 @@ export class PgReadStore implements ReadStore {
       { day, keys: num((rows[0] as Row).cache_tokens), byPayment },
       levers,
     );
+  }
+
+  async getSlotState(playerId: string, now: Date): Promise<SlotStateView | null> {
+    const { rows } = await this.db.query(
+      'select slot_pulls_day, slot_pulls_count from public.profiles where id = $1',
+      [playerId],
+    );
+    if (!rows.length) return null;
+    const day = slotUtcDay(now);
+    const profileRow = rows[0] as Row;
+    const rawDay = profileRow.slot_pulls_day;
+    const pullsDay =
+      rawDay instanceof Date
+        ? rawDay.toISOString().slice(0, 10)
+        : typeof rawDay === 'string'
+          ? rawDay.slice(0, 10)
+          : null;
+    const pullsToday = pullsDay === day ? num(profileRow.slot_pulls_count) : 0;
+    const { rows: openingRows } = await this.db.query(
+      `select count(*)::integer as n
+         from public.cache_box_openings
+        where player_id = $1 and open_day = $2::date`,
+      [playerId, day],
+    );
+    const openedToday = openingRows.length ? num((openingRows[0] as Row).n) : 0;
+    // The slot levers + the cache cap are live economy_config values
+    // (0018): stored values when present; the content resolvers
+    // apply defaults + clamps, identical to cc_slot_pull's
+    // cc_economy_config_number reads.
+    const { rows: configRows } = await this.db.query(
+      `select key, value from public.economy_config
+        where key = any(array['slotDailyPullCap', 'slotBetTier1', 'slotBetTier2', 'slotBetTier3', 'cacheBoxDailyCap'])`,
+    );
+    const raw: Record<string, number> = {};
+    for (const row of configRows as Row[]) {
+      const parsed = Number(row.value);
+      if (Number.isFinite(parsed)) raw[String(row.key)] = parsed;
+    }
+    const levers = resolveSlotLevers({
+      slotDailyPullCap: raw.slotDailyPullCap,
+      slotBetTier1: raw.slotBetTier1,
+      slotBetTier2: raw.slotBetTier2,
+      slotBetTier3: raw.slotBetTier3,
+    });
+    const cacheCap = resolveCacheLaneLevers(
+      raw.cacheBoxDailyCap !== undefined ? { cacheBoxDailyCap: raw.cacheBoxDailyCap } : undefined,
+    ).cacheBoxDailyCap;
+    return buildSlotStateView({ day, pullsToday, cacheOpenedToday: openedToday, cacheCap }, levers);
   }
 
   async getProfileStats(playerId: string): Promise<ProfileLifetimeData | null> {
