@@ -9,8 +9,10 @@ from a description, a mock, or a golden-scene board again.
 
 1. GitHub → **Actions** → **Screen Inventory** → **Run workflow**
    (pick the branch you want inventoried — usually `master`).
-2. Wait for the run (~10–20 minutes: web build, APK build, emulator
-   boot, then the crawl itself).
+2. Wait for the run (~15–30 minutes: web build, APK build, emulator
+   boot, then the crawl itself — longer when the emulator dies and
+   segments restart/retry; see "Segmentation & emulator-death
+   recovery" below).
 3. Download the **`screen-inventory`** artifact from the run page.
 
 It is **manual-dispatch only, on purpose** (owner directive, 2026-11-01).
@@ -26,11 +28,19 @@ For every crawl stop, in visit order:
 - `NN-<screen>.png` — the screenshot (Pixel 7, 1080×2400).
 - `NN-<screen>.xml` — the UiAutomator window-hierarchy dump for the same
   moment (what text was actually on screen — the crawl's own evidence).
-- `manifest.json` — the index. One entry per stop:
+- `manifest.json` — the index. One entry per stop (the **merged**
+  manifest: exactly 32 entries in canonical visit order — see
+  "Segmentation & emulator-death recovery" below):
 
 ```json
 { "file": "07-action-main.png", "screen": "action-main", "reached": true, "note": "…" }
 ```
+
+- `diagnostics-<segment>.txt` — present only for a segment that died:
+  the adb state, instrument-log tail, emulator-restart log tail, and
+  the last ~200 lines of logcat captured when its pull found no
+  manifest. It is the evidence behind that segment's synthesized
+  "emulator died" misses in the manifest.
 
 - `reached: true` — the screen rendered and was captured, with the
   stop's own anchor element verified visible in the viewport at the
@@ -38,11 +48,12 @@ For every crawl stop, in visit order:
   modal/sheet is the stop's named subject). The verifying anchor is
   named in the `note`.
 - `reached: false` — the stop could not be reached; `note` says why
-  (it is always the reason from the stop's second, re-anchored
-  attempt). The job goes red when no `manifest.json` exists at all
-  (app didn't launch, guest home never rendered, or the pull failed)
-  **or when fewer than `MIN_REACHED_STOPS` (28) of the 32 stops are
-  reached** — see "The coverage gate" below.
+  (for stops a segment attempted, it is always the reason from the
+  stop's second, re-anchored attempt; for stops in a dead segment,
+  the note is the synthesized "emulator died" reason). The job goes
+  red when the merged `manifest.json` was never produced (the merge
+  step never ran) **or when fewer than `MIN_REACHED_STOPS` (28) of
+  the 32 stops are reached** — see "The coverage gate" below.
 
 ## How the crawl works
 
@@ -53,6 +64,47 @@ before dismissing it via *Collect*, and then walks the app by
 **verified visible text** via UiAutomator — the same labels a user
 sees (bottom-nav labels come from `src/constants/navSigils.ts`: Board /
 Action / Gear / Market / Rank / Hunter).
+
+### Segmentation & emulator-death recovery
+
+Run 2 (41343111864, 2026-11-01) produced **zero** screenshots: the
+emulator died ~4.5 minutes into the crawl (`adb get-state`: device
+offline; `emu kill`: connection refused), and because the old harness
+was one monolithic instrument run with a single pull at the end,
+everything on-device was lost with it. The crawl is therefore split
+into **six per-area segments** — `crawlBoardSegment`,
+`crawlActionSegment`, `crawlGearSegment`, `crawlMarketSegment`,
+`crawlRankSegment`, `crawlHunterSegment` — and
+`scripts/crawl-screen-inventory.sh` (invoked from the workflow's
+emulator step) drives them:
+
+- Each segment is its own `am instrument` call, followed immediately
+  by an `adb pull` of the output dir into
+  `screen-inventory-out/segments/<segment>/`. A dead emulator can
+  cost at most one segment.
+- Before each segment the runner checks `adb get-state`; an
+  unhealthy device is restarted once (same AVD, same emulator
+  options the runner action used, APKs reinstalled) before the
+  segment starts.
+- A segment whose pull contains no `manifest.json` gets a
+  `diagnostics-<segment>.txt`, an emulator restart, and exactly one
+  retry. If the retry also produces no manifest — a double emulator
+  death in one segment — the segment is dead: the merge records all
+  its stops as missed with reason **"emulator died"** and the crawl
+  CONTINUES with the next segment.
+- `scripts/merge-screen-inventory.py` then merges the per-segment
+  manifests **on the runner side** into the artifact's single
+  `manifest.json`: always exactly 32 entries in canonical order,
+  screenshots renumbered in merged visit order. Stops a live segment
+  never attempted are synthesized as missed saying so, and a
+  "reached" entry whose screenshot exists in no pull is downgraded
+  to missed — reached still requires evidence.
+- Non-board segments enter through `enterAsGuestForSegment()`:
+  launch, guest entry if the auth screen shows, Board render, modal
+  layers cleared — without recording stops (the board segment owns
+  the first-run stops). Entry failure throws, which is deliberate: a
+  segment that cannot enter writes no manifest, the exact signal the
+  restart-and-retry recovery keys on.
 
 ### The verification contract (why run 1's 7/32 is not repeatable)
 
@@ -94,8 +146,9 @@ blurred Board. The crawl was rewritten around three rules:
 
 ### The coverage gate
 
-The workflow's verify step parses `manifest.json`, prints the reached
-count and every missed screen's name + reason to the job summary, and
+The workflow's verify step parses the **merged** `manifest.json`,
+prints the reached count and every missed screen's name + reason to
+the job summary, and
 **fails the run when reached < `MIN_REACHED_STOPS`** — a named constant
 in the `env:` block at the top of
 `.github/workflows/screen-inventory.yml`, currently **28 of 32**. A
@@ -139,11 +192,13 @@ The test writes to the app's external files dir:
 /sdcard/Android/data/com.michaelhmiv.cybercache/files/screen-inventory/
 ```
 
-`manifest.json` is rewritten after **every** stop, so even a crawl that
-dies halfway leaves a truthful partial manifest. The workflow pulls the
-directory with `adb pull` after the instrumented run (with an
+`manifest.json` is rewritten after **every** stop within a segment,
+so even a segment that dies halfway leaves a truthful partial
+manifest. The workflow clears this dir before each segment attempt
+and pulls it with `adb pull` after **every segment** (with an
 `adb root` best-effort first — emulator images allow it, and it makes
-the `Android/data` read reliable).
+the `Android/data` read reliable), so a manifest in a pull can only
+be the segment attempt that just ran.
 
 ## The crawl map
 
@@ -197,11 +252,18 @@ inside the sheets.
 
 When a screen is added, renamed, or moved:
 
-1. Add/adjust a `stop(...)` block in `ScreenInventoryTest.crawlAllScreens()`
-   — stops are deliberately independent; one broken stop must only ever
-   cost its own manifest entry. A stop body navigates, then returns
-   `capture(...)` with the stop's own anchor(s): never record a stop
-   reached from a bare tap or a fixed scroll.
+1. Add/adjust a `stop(...)` block in the owning segment method of
+   `ScreenInventoryTest` (`crawlBoardSegment` / `crawlActionSegment` /
+   `crawlGearSegment` / `crawlMarketSegment` / `crawlRankSegment` /
+   `crawlHunterSegment`) — stops are deliberately independent; one
+   broken stop must only ever cost its own manifest entry. A stop
+   body navigates, then returns `capture(...)` with the stop's own
+   anchor(s): never record a stop reached from a bare tap or a fixed
+   scroll. **The canonical stop map lives in three places that must
+   change together:** the segment methods, the `SEGMENTS` table in
+   `scripts/merge-screen-inventory.py`, and the table below (the
+   segment → method list in `scripts/crawl-screen-inventory.sh`
+   changes only when a whole segment is added or removed).
 2. Navigate by the **label the WebView actually exposes** (aria →
    node text; check case and glyph prefixes), with a fallback label if
    the copy has variants. If a label is renamed in `src/`, update the
@@ -222,10 +284,13 @@ The workflow compiles both APKs (`assembleDebug` +
 the emulator, so a broken crawl fails fast and cheap. Run 1 (the
 harness's shakedown, 2026-11-01) reached 7 of 32 with 6 false-positive
 captures; the crawl was then rewritten under the verification contract
-above and the workflow gained the `MIN_REACHED_STOPS` gate. The
-hardened crawl's own verification is the next live dispatch: this
-environment has no KVM, so the rewrite is compile-verified locally and
-proven by the manifest of the first post-merge run.
+above and the workflow gained the `MIN_REACHED_STOPS` gate. Run 2
+(41343111864) reached 0 of 32 — not a coverage result: the emulator
+died mid-crawl and the monolithic run lost everything, which is what
+the segmentation + recovery above now insulates against. Like the
+hardening rewrite before it, the segmented crawl is compile-verified
+locally (this environment has no KVM) and proven by the manifest of
+the first post-merge dispatch.
 
 Launch robustness note: the crawl's first-paint wait is 120s and accepts
 either auth affordance or a live session — on a freshly booted emulator,
