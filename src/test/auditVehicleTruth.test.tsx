@@ -312,7 +312,9 @@ describe('audit B — Action workspace Switch/Stop carry a 44px touch height', (
 
   it('Switch and Stop both declare min-h-[44px]', () => {
     const source = readSource('src/screens/ActionScreenContextual.tsx');
-    expect(buttonOpeningTag(source, 'Switch')).toContain('min-h-[44px]');
+    // Label is 'Switch Action' since audit fix C unified the switcher
+    // verbs (NAV-01); this pin guards the 44px touch height from fix B.
+    expect(buttonOpeningTag(source, 'Switch Action')).toContain('min-h-[44px]');
     expect(buttonOpeningTag(source, 'Stop')).toContain('min-h-[44px]');
   });
 });
