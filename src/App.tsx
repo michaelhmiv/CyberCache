@@ -226,7 +226,7 @@ function App() {
         renderSubScreen()
       ) : (
         <ScreenWrapper activeTab={activeTab}>
-          {activeTab === 'dashboard' && <TabErrorBoundary surface="Dashboard"><DashboardScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
+          {activeTab === 'dashboard' && <TabErrorBoundary surface="Dashboard"><DashboardScreen onNavigate={handleNavigate} onOpenBossSelect={() => setBossSelectOpen(true)} /></TabErrorBoundary>}
           {activeTab === 'fight' && <TabErrorBoundary surface="Action"><ActionScreenContextual onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} /></TabErrorBoundary>}
           {activeTab === 'inventory' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} tabIntent={inventoryTabIntent} /></TabErrorBoundary>}
           {activeTab === 'market' && (

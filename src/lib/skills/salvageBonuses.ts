@@ -17,6 +17,21 @@
  * salvage rules (here), two runtimes kept in parity by tests.
  */
 
+/**
+ * salvageScrap — the BASE scrap award for recycling an item, before
+ * item-side multipliers (Market Crash) and skill bonuses:
+ * round((10 + level*5) * rarity multiplier). This is the TS twin of the
+ * SQL helper cc_salvage_scrap (migration 0004). It lives here — the
+ * shared salvage-rules module — so the client can quote the same base
+ * award the server settles from (the Action salvage panel's estimate)
+ * instead of restating the formula.
+ */
+export function salvageScrap(rarity: string, itemLevel: number): number {
+  const mult =
+    rarity === 'Uncommon' ? 1.5 : rarity === 'Rare' ? 2.5 : rarity === 'Epic' ? 4 : rarity === 'Legendary' ? 8 : 1;
+  return Math.max(1, Math.round((10 + Math.max(1, itemLevel || 1) * 5) * mult));
+}
+
 /** Bonus crafting material by salvaged item kind — the same
  *  type→material convention as calculateSalvageYield in
  *  src/constants/salvageRules.ts (weapons yield BallisticParts,

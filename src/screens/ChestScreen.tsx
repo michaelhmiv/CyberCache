@@ -202,15 +202,29 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     setMomentDone(false);
   };
 
+  // Reveal actions surface failures in the screen's error banner
+  // (flow-fix F13) — they used to await the verified ops bare, so a
+  // rejection left the card exactly as it was with no explanation.
   const handleScrap = async (item: GearItem, _idx: number) => {
     if (item.isLocked) return;
-    await verifiedOps.recycleItem(item.id);
-    setItemActions((prev) => ({ ...prev, [item.id]: 'scrapped' }));
+    setError(null);
+    try {
+      await verifiedOps.recycleItem(item.id);
+      setItemActions((prev) => ({ ...prev, [item.id]: 'scrapped' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to scrap that item.');
+    }
   };
 
   const handleLockToggle = async (item: GearItem, _idx: number) => {
     const nextLocked = !item.isLocked;
-    await verifiedOps.itemLock(item.id, nextLocked);
+    setError(null);
+    try {
+      await verifiedOps.itemLock(item.id, nextLocked);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update the lock on that item.');
+      return;
+    }
     if (nextLocked) {
       inventory.lockItem(item.id);
       setItemActions((prev) => ({ ...prev, [item.id]: 'locked' }));

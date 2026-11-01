@@ -11,6 +11,7 @@ import { MasterySection } from '@/components/profile/MasterySection';
 import { CacheRankPanel } from '@/components/profile/CacheRankPanel';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { useAuth } from '@/auth/AuthProvider';
+import { isGuestAccount } from '@/auth/accountState';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
@@ -55,7 +56,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const activity = useActivityStore();
   const skillStore = useSkillStore();
   const deathLog = useSurvivalStore((s) => s.deathLog);
-  const { account, user, signOut, actionLoading } = useAuth();
+  const { account, user, signOut, signInWithGoogle, actionLoading } = useAuth();
   const [stats, setStats] = useState<PlayerPublicStats | null>(null);
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -365,6 +366,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
       <div className="space-y-2">
         <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Account Tools</div>
+        {/* Guests get a deliberate path to link Google (flow-fix F9):
+            linking upgrades the guest in place server-side, keeping
+            all progress. Before this row the only link entry points
+            were the sign-in screen a signed-in guest never sees again
+            and the locked-feature wall. */}
+        {isGuestAccount(account) && (
+          <ActionRow glyph="G" label={actionLoading ? 'Linking…' : 'Link Google'} desc="Keep your progress — upgrade this guest account in place and unlock trading, services, and leaderboards" onClick={() => signInWithGoogle()} tone="#5AA7FF" />
+        )}
         <ActionRow glyph="⚙" label="Settings" desc="Preferences, display, and local save controls" onClick={() => onNavigate?.('settings')} tone="#9CA3AF" />
         <ActionRow glyph="?" label="Field Manual" desc="Mechanics, progression, caches, combat, and economy rules" onClick={() => onNavigate?.('help')} tone="#F7D20B" />
         <ActionRow glyph="✦" label="Collections" desc="The trophy shelf — effects, bosses, frames, and named elites you've proven, plus your legendary cores" onClick={() => onNavigate?.('collections')} tone="#FF9800" />

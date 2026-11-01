@@ -49,7 +49,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
     loadout.setConsumableSlot(slot, consumableId);
     if (consumableId) {
       const name = CONSUMABLES[consumableId]?.name ?? consumableId;
-      setNotice(`${name} assigned to ${SLOT_LABELS[slot]}.`);
+      setNotice(`${name} on your belt (${SLOT_LABELS[slot]}) — it pre-loads boss prep.`);
     } else {
       setNotice(`${SLOT_LABELS[slot]} cleared.`);
     }
@@ -68,7 +68,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
     try {
       loadout.setConsumableSlot(pickerSlot, consumableId);
       const name = CONSUMABLES[consumableId]?.name ?? consumableId;
-      setNotice(`${name} assigned to ${SLOT_LABELS[pickerSlot]}.`);
+      setNotice(`${name} on your belt (${SLOT_LABELS[pickerSlot]}) — it pre-loads boss prep.`);
       setPickerSlot(null);
     } catch (err) {
       setPickerError(err instanceof Error ? err.message : 'Unable to assign consumable.');
@@ -103,7 +103,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
     if (!targetSlot) targetSlot = CONSUMABLE_SLOTS[0];
     loadout.setConsumableSlot(targetSlot, id);
     const name = CONSUMABLES[id]?.name ?? id;
-    setNotice(`${name} assigned to ${SLOT_LABELS[targetSlot!]}.`);
+    setNotice(`${name} on your belt (${SLOT_LABELS[targetSlot!]}) — it pre-loads boss prep.`);
     setInspecting(null);
   };
 
@@ -117,7 +117,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-lg font-black text-text-primary">Consumables</div>
-          <div className="text-[10px] text-text-muted">Tap a slot to assign, swap, or inspect.</div>
+          <div className="text-[10px] text-text-muted">Your belt — tap a slot to assign, swap, or inspect.</div>
         </div>
         <button type="button" onClick={openVendor} className="rounded-full border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] font-black text-amber">
           <span className="inline-flex items-center gap-1"><span style={{ fontSize: '11px' }}>$</span> Vendor</span>
@@ -130,9 +130,11 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
       </div>
 
       <div className="rounded-lg border border-border bg-surface px-3 py-2 text-[10px] text-text-muted">
-        While roaming, every roaming consumable you own activates automatically — slots don't turn
-        effects on or off. Slots are a quick view of what you're carrying; boss fights use the set
-        you prepare on the boss screen.
+        These three slots are your belt. Boss fights start with your belt pre-loaded — one of
+        each belted type you own — and you set the exact counts on the boss screen before the
+        attempt; what the boss screen shows is what burns. While roaming, every roaming
+        consumable you own activates automatically — the belt doesn't turn roaming effects
+        on or off.
       </div>
 
       {notice && <div className="rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[10px] text-amber">{notice}</div>}

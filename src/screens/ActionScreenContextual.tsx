@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
   Clock,
-  X,
 } from 'lucide-react';
 import {
   useActivityStore,
@@ -12,6 +11,7 @@ import {
   useLoadoutStore,
   useMarketStore,
   usePlayerStore,
+  useSalvageFeedStore,
   useSkillStore,
   useSurvivalStore,
   useWorkshopStore,
@@ -37,13 +37,15 @@ import {
   getRoamingArea,
   type RoamingAreaDef,
 } from '@/constants/roamingAreas';
-import { calculateSalvageYield } from '@/constants/salvageRules';
 import {
   buildBossFightActivity,
   buildCraftingActivity,
   buildRoamingLootActivity,
-  buildSalvagingActivity,
 } from '@/lib/activity/activityBuilders';
+import { verifiedOps } from '@/lib/api/verifiedOps';
+import { salvageScrap } from '@/lib/skills/salvageBonuses';
+import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '@/content/roamingRates';
+import { isClassMod, isOrdnance, isRelic, isShield, isWeapon } from '@/lib/gear/gearCardSummary';
 import { canStartCraft } from '@/lib/craftingEngine';
 import type { WorkshopJobView } from '@/store/slices/workshopSlice';
 import { makeRunEvent, type RunVisualEvent } from '@/lib/run/runEvents';
@@ -59,9 +61,6 @@ import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 
 const TICK_SECONDS = 3;
 const LOG_LIMIT = 10;
-const DROP_CHANCE_PER_TICK = 0.22;
-const CACHE_FRAGMENT_CHANCE_PER_TICK = 0.03;
-const MATERIAL_FIND_CHANCE_PER_TICK = 0.08;
 const MAX_SWITCH_ROWS = 8;
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
@@ -79,7 +78,7 @@ const copy: Record<ActivityKind, { title: string; detail: string }> = {
   roaming_loot: { title: 'Roaming Loot', detail: 'Sweeping the area for XP, credits, scrap, gear, materials, and cache fragments.' },
   boss_fight: { title: 'Boss Encounter', detail: 'Resolving a focused boss encounter instead of the roaming loop.' },
   crafting: { title: 'Crafting', detail: 'Working at the bench to build or modify gear.' },
-  salvaging: { title: 'Salvaging', detail: 'Breaking items into scrap, materials, or essences.' },
+  salvaging: { title: 'Salvaging', detail: 'Breaking items into scrap — instant and server-settled; pick the next item.' },
   workshop_service: { title: 'Workshop Service', detail: 'Maintaining machines, queues, and production outputs.' },
   market_listing: { title: 'Market Listing', detail: 'Posting or managing gear at the trade kiosk.' },
   endless_run: { title: 'Chaos Chamber', detail: 'Descending the Endless gauntlet — escrow pays when the run ends.' },
@@ -96,14 +95,6 @@ const idleEvent: RunVisualEvent = {
   detail: 'Choose a hunter action. The workspace below changes to the current action.',
   tone: 'patrol',
   eventType: 'idle',
-};
-
-const describeGear = (item: GearItem) => {
-  if ('weaponType' in item) return `${item.rarity} ${item.weaponType}`;
-  if ('hp' in item) return `${item.rarity} Shield`;
-  if ('treeBonus' in item) return `${item.rarity} Class Mod`;
-  if ('damage' in item) return `${item.rarity} Ordnance`;
-  return `${item.rarity} Relic`;
 };
 
 const formatDuration = (ms: number) => {
@@ -130,34 +121,21 @@ const Section: React.FC<{ title: string; eyebrow?: string; children: React.React
   </MobileCard>
 );
 
-const GearInspectModal: React.FC<{ item: GearItem | null; onClose: () => void }> = ({ item, onClose }) => {
-  if (!item) return null;
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
-      <motion.div initial={{ y: 20, scale: 0.96 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20, scale: 0.96 }} className="w-full max-w-sm border-2 border-border bg-bg p-4" style={panelClip} onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Gear Inspect</div>
-            <div className="text-lg font-black text-text-primary">{item.name}</div>
-            <div className="text-xs text-text-muted">{describeGear(item)} · Lv.{item.level}</div>
-          </div>
-          <button type="button" onClick={onClose} className="bl-secondary p-2 text-text-muted"><X size={14} /></button>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-          <div className="border border-border bg-surface p-2"><span className="text-text-muted">Rarity</span><div className="font-black text-amber">{item.rarity}</div></div>
-          <div className="border border-border bg-surface p-2"><span className="text-text-muted">Source</span><div className="font-black text-text-primary">{'sourceTag' in item ? item.sourceTag : 'Action reward'}</div></div>
-        </div>
-        {'weaponType' in item && (
-          <div className="mt-3 grid grid-cols-3 gap-2 text-[10px]">
-            <div className="border border-border bg-surface p-2"><span className="text-text-muted">Power</span><div className="font-black text-text-primary">{item.combatPower}</div></div>
-            <div className="border border-border bg-surface p-2"><span className="text-text-muted">Element</span><div className="font-black text-amber">{item.element}</div></div>
-            <div className="border border-border bg-surface p-2"><span className="text-text-muted">Maker</span><div className="truncate font-black text-text-primary">{item.manufacturer}</div></div>
-          </div>
-        )}
-        <button type="button" onClick={onClose} className="mt-4 bl-primary w-full py-2 text-xs font-black">Close Inspect</button>
-      </motion.div>
-    </motion.div>
-  );
+/**
+ * The slot an item equips into, resolved with the same type-guard
+ * chain GearHub uses (flow-fix F11): weapons take the first empty
+ * weapon slot, falling back to primary. Null = no slot fits the item.
+ */
+const resolveEquipSlot = (item: GearItem, slots: Record<string, unknown>): string | null => {
+  if (isShield(item)) return 'shield';
+  if (isClassMod(item)) return 'classMod';
+  if (isOrdnance(item)) return 'ordnance';
+  if (isRelic(item)) return 'relic';
+  if (isWeapon(item)) {
+    const weaponSlots = ['primary', 'secondary', 'heavy'];
+    return weaponSlots.find((s) => !slots[s]) ?? 'primary';
+  }
+  return null;
 };
 
 type CommonPanelProps = {
@@ -189,11 +167,10 @@ const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<strin
 const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePicker: () => void }> = ({ items, startSalvage, onNavigate, onSalvagePicker }) => {
   const candidates = items.filter((item) => !item.isLocked).slice(0, 8);
   const top = candidates[0];
-  const y = top ? calculateSalvageYield(top) : null;
   return (
     <div className="space-y-3">
-      <RewardIntelPanel title="Breakdown forecast" eyebrow="salvage intel" stats={[{ label: 'Candidates', value: candidates.length }, { label: 'Alloy', value: y?.scrapAlloy ?? 0, tone: 'green' }, { label: 'Parts', value: y?.ballisticParts ?? 0, tone: 'amber' }, { label: 'Reactive', value: y?.reactiveComponents ?? 0, tone: 'cyan' }, { label: 'Tech', value: y?.techFragments ?? 0 }, { label: 'Void', value: y?.voidDust ?? 0, tone: 'red' }]}>Top candidate: {top?.name ?? 'None'}. Higher rarity = dramatically more materials.</RewardIntelPanel>
-      <Section title="Salvage Control" eyebrow="item selector" icon={<ActivityGlyph kind="salvaging" />}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => startSalvage(top)} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Set Top Candidate As Action</button><button type="button" onClick={() => onNavigate?.('inventory')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear</button></Section>
+      <RewardIntelPanel title="Breakdown estimate" eyebrow="salvage intel" stats={[{ label: 'Candidates', value: candidates.length }, { label: 'Base scrap', value: top ? salvageScrap(top.rarity, top.level) : 0, tone: 'green' }, { label: 'Settles', value: 'Instant', tone: 'amber' }]}>Top candidate: {top?.name ?? 'None'}. The estimate is the base scrap award from the shared salvage rules — the server adds your salvage skill bonuses (and legendary cores on Legendaries) when it settles, and the feed reports the real award. Salvage executes immediately and never occupies your action slot.</RewardIntelPanel>
+      <Section title="Salvage Control" eyebrow="item selector" icon={<ActivityGlyph kind="salvaging" />}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => { if (top) startSalvage(top); }} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Salvage Top Candidate Now</button><button type="button" onClick={() => onNavigate?.('inventory')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear</button></Section>
     </div>
   );
 };
@@ -229,9 +206,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showAreaSelect, setShowAreaSelect] = useState(false);
   const [showBossPicker, setShowBossPicker] = useState(false);
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
-  const [showMarketPicker, setShowMarketPicker] = useState(false);
   const [showEndless, setShowEndless] = useState(false);
-  const [inspectGear, setInspectGear] = useState<GearItem | null>(null);
+  const [feedActionBusy, setFeedActionBusy] = useState(false);
+  const [feedActionError, setFeedActionError] = useState<string | null>(null);
+  const [salvagePendingIds, setSalvagePendingIds] = useState<ReadonlySet<string>>(new Set());
   // Tick feed events from the canonical ticker — the single source of truth
   // for roaming rewards. The Action screen is a consumer, not an engine.
   const tickEvents = useTickFeedStore((s) => s.events);
@@ -285,7 +263,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     : [...tickDisplayEvents, ...feed.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT);
   const workshopJobs = workshop.server?.jobs ?? [];
   const benchesFree = Math.max(0, (workshop.server?.benches ?? 1) - new Set(workshopJobs.filter((j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused').map((j) => j.bench)).size);
-  const sellableItems = inventory.items.filter((item) => !item.isLocked);
   const salvageCandidates = inventory.items.filter((item) => !item.isLocked).slice(0, 12);
   const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, player.materials, player.essences, player.level) }));
 
@@ -301,7 +278,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       setShowAreaSelect(false);
       setShowBossPicker(false);
       setShowSalvagePicker(false);
-      setShowMarketPicker(false);
       pushEvents([event]);
     } catch (error) {
       pushEvents([makeRunEvent('ACTION FAILED', error instanceof Error ? error.message : 'The action service rejected the transition.', 'patrol', 'run_stopped')]);
@@ -333,14 +309,97 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     startAction(buildCraftingActivity(recipe, null), makeRunEvent('CRAFTING', `Bench focus set to ${recipe.name}.`, 'patrol', 'crafting'));
   }, [craftable, startAction]);
 
+  // Salvage (flow-fix F5): the Action tab used to stage a `salvaging`
+  // activity that no server system consumed — the item was never
+  // recycled, no payout or error ever arrived, and the fake activity
+  // occupied the action slot, halting roaming. Salvage now executes
+  // immediately through the same verified recycle path the Gear home
+  // uses (server-settled, skill bonuses included) and reports the
+  // server's real award in the feed.
+  const executeSalvage = useCallback(async (item: GearItem): Promise<boolean> => {
+    if (salvagePendingIds.has(item.id)) return false;
+    setSalvagePendingIds((prev) => new Set(prev).add(item.id));
+    try {
+      const result = await verifiedOps.recycleItem(item.id);
+      const award = Number(result.scrap_award ?? 0);
+      const cores = Number(result.cores_award ?? 0);
+      const bonusMaterial = typeof result.bonus_material === 'string' ? result.bonus_material : null;
+      useSalvageFeedStore.getState().push(item, {
+        scrapValue: award,
+        scrapAlloy: 0,
+        ballisticParts: 0,
+        reactiveComponents: 0,
+        techFragments: 0,
+        voidDust: 0,
+        essences: {},
+      });
+      pushEvents([makeRunEvent(
+        'SALVAGED',
+        `${item.name} recycled for +${award} scrap${cores > 0 ? ` · +${cores} legendary core${cores === 1 ? '' : 's'}` : ''}${bonusMaterial ? ` · +1 ${bonusMaterial}` : ''}.`,
+        'cash',
+        'salvaging',
+      )]);
+      return true;
+    } catch (error) {
+      pushEvents([makeRunEvent('SALVAGE FAILED', error instanceof Error ? error.message : 'The recycle service rejected the item.', 'patrol', 'run_stopped')]);
+      return false;
+    } finally {
+      setSalvagePendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }, [pushEvents, salvagePendingIds]);
+
   const startSalvage = useCallback((item?: GearItem) => {
-    const target = item ?? salvageCandidates[0];
-    if (!target) {
-      onNavigate?.('inventory');
+    if (item) {
+      void executeSalvage(item);
       return;
     }
-    startAction(buildSalvagingActivity(target), makeRunEvent('SALVAGE TARGET', `${target.name} staged for breakdown.`, 'patrol', 'salvaging'));
-  }, [onNavigate, salvageCandidates, startAction]);
+    if (salvageCandidates.length > 0) {
+      setShowSalvagePicker(true);
+      return;
+    }
+    pushEvents([makeRunEvent('NOTHING TO SALVAGE', 'No unlocked items to break down. Roam or crack a cache to find gear.', 'patrol', 'run_stopped')]);
+  }, [executeSalvage, pushEvents, salvageCandidates]);
+
+  // Feed inspect actions (flow-fix F11): a dropped item can be
+  // equipped or salvaged from the loot feed's inspect sheet, through
+  // the same verified ops the item surfaces use. Returning true lets
+  // the sheet close; failures keep it open with the error inline.
+  const handleFeedEquip = useCallback(async (item: GearItem): Promise<boolean> => {
+    const slot = resolveEquipSlot(item, loadoutStore.slots as Record<string, unknown>);
+    if (!slot) {
+      setFeedActionError(`No equip slot fits ${item.name}.`);
+      return false;
+    }
+    setFeedActionBusy(true);
+    setFeedActionError(null);
+    try {
+      await verifiedOps.equipItem(item.id, slot);
+      pushEvents([makeRunEvent('EQUIPPED', `${item.name} equipped (${slot}).`, 'loot', 'gear_drop')]);
+      return true;
+    } catch (error) {
+      setFeedActionError(error instanceof Error ? error.message : 'Equip failed.');
+      return false;
+    } finally {
+      setFeedActionBusy(false);
+    }
+  }, [loadoutStore.slots, pushEvents]);
+
+  const handleFeedSalvage = useCallback(async (item: GearItem): Promise<boolean> => {
+    if (salvagePendingIds.has(item.id)) return false;
+    setFeedActionBusy(true);
+    setFeedActionError(null);
+    try {
+      const done = await executeSalvage(item);
+      if (!done) setFeedActionError('Salvage failed — see the feed for the server response.');
+      return done;
+    } finally {
+      setFeedActionBusy(false);
+    }
+  }, [executeSalvage, salvagePendingIds]);
 
   // Diorama callbacks — route primary/secondary buttons to context-aware actions
   const onDioramaPrimary = useCallback(() => {
@@ -393,7 +452,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => ({
     ...event,
     gear: (event as { gear?: GearItem }).gear,
-    onInspect: (event as { gear?: GearItem }).gear ? () => setInspectGear((event as { gear?: GearItem }).gear ?? null) : undefined,
   }));
 
   const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, onNavigate };
@@ -441,11 +499,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             </div>
             <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
               <div className="text-text-muted">Gear</div>
-              <div className="font-black text-amber">{Math.round(DROP_CHANCE_PER_TICK * 100)}%/tick</div>
+              <div className="font-black text-amber">{Math.round(GEAR_DROP_CHANCE * 100)}%/tick</div>
             </div>
             <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
               <div className="text-text-muted">Frag</div>
-              <div className="font-black text-cyan">{Math.round(CACHE_FRAGMENT_CHANCE_PER_TICK * 100)}%/tick</div>
+              <div className="font-black text-cyan">{Math.round(CACHE_FRAGMENT_CHANCE * 100)}%/tick</div>
             </div>
           </div>
           <div className="relative mt-2 pt-2 border-t border-border/40 text-[9px] text-text-muted">
@@ -633,8 +691,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         </div>
       </div>
 
-      {/* 6. Feed — loot log below the decision panels */}
-      <ActionFeed entries={feedEntries} />
+      {/* 6. Feed — loot log below the decision panels. Dropped items
+          are actionable from their inspect sheet (F11). */}
+      <ActionFeed entries={feedEntries} onGearEquip={handleFeedEquip} onGearSalvage={handleFeedSalvage} gearActionBusy={feedActionBusy} gearActionError={feedActionError} />
 
       {/* Drawers — unchanged */}
       <AnimatePresence>
@@ -647,9 +706,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             <div className="mb-3 grid grid-cols-3 gap-1.5 text-[9px]">
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Credits</span><div className="font-black text-cyan">+{creditsPerTick}/tick</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Scrap</span><div className="font-black text-green">+{scrapPerTick}/tick</div></div>
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Gear</span><div className="font-black text-amber">{Math.round(DROP_CHANCE_PER_TICK * 100)}%/tick</div></div>
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Cache Frag</span><div className="font-black text-cyan">{Math.round(CACHE_FRAGMENT_CHANCE_PER_TICK * 100)}%/tick</div></div>
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Materials</span><div className="font-black text-green">{Math.round(MATERIAL_FIND_CHANCE_PER_TICK * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Gear</span><div className="font-black text-amber">{Math.round(GEAR_DROP_CHANCE * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Cache Frag</span><div className="font-black text-cyan">{Math.round(CACHE_FRAGMENT_CHANCE * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Materials</span><div className="font-black text-green">{Math.round(MATERIAL_FIND_CHANCE * 100)}%/tick</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Enemy</span><div className="font-black text-text-primary">{selectedArea.enemyType.split(' ')[0]}</div></div>
             </div>
           )}
@@ -658,13 +717,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <ContextualPickerSheet open={showBossPicker} title="Choose Boss Target" detail="Boss selection no longer consumes the default action screen." onClose={() => setShowBossPicker(false)}>
           <BossPickerList onSelect={(boss) => startPrep(boss)} />
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down. Higher rarity = dramatically more materials." onClose={() => setShowSalvagePicker(false)}>
-          {salvageCandidates.map((item) => { const y = calculateSalvageYield(item); return <button key={item.id} type="button" onClick={() => startSalvage(item)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">+{y.scrapAlloy} alloy · +{y.ballisticParts} parts · +{y.reactiveComponents} reactive · +{y.techFragments} tech</div></button>; })}
+        <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down — salvage settles instantly. Estimates are the base scrap award; the server adds skill bonuses." onClose={() => setShowSalvagePicker(false)}>
+          {salvageCandidates.map((item) => <button key={item.id} type="button" onClick={() => { setShowSalvagePicker(false); startSalvage(item); }} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">Base ≈{salvageScrap(item.rarity, item.level)} scrap · higher rarity = more scrap</div></button>)}
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showMarketPicker} title="Choose Listing Candidate" detail="Market candidates are contextual controls." onClose={() => setShowMarketPicker(false)}>
-          {sellableItems.slice(0, 10).map((item) => <button key={item.id} type="button" onClick={() => onNavigate?.('market')} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">{describeGear(item)} · tap to open Market listing flow</div></button>)}
-        </ContextualPickerSheet>
-        {inspectGear && <GearInspectModal item={inspectGear} onClose={() => setInspectGear(null)} />}
       </AnimatePresence>
     </div>
   );

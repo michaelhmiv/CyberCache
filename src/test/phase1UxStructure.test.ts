@@ -75,6 +75,7 @@ describe('Phase 1 structure — one gear home', () => {
       'src/components/gear/GaragePanel.tsx', // Phase 2b garage (rendered by the gear home)
       'src/store/slices/loadoutPresetsSlice.ts', // preset apply (rendered by the home)
       'src/lib/api/verifiedOps.ts', // the transport itself
+      'src/screens/ActionScreenContextual.tsx', // flow-fix F11: loot-feed inspect Equip — a fresh drop equips from its inspect sheet, per the flow audit's explicit fix
     ]);
     const offenders: string[] = [];
     for (const file of listSourceFiles(resolve(REPO, 'src'))) {

@@ -32,7 +32,11 @@ describe('workflow regression audit', () => {
 
   it('Dashboard secondary boss action opens boss targeting when no boss is selected instead of cracking caches', () => {
     const source = read('screens/DashboardScreen.tsx');
-    expect(source).toContain("if (!currentBoss) {\n      onNavigate('fight');");
+    // Flow-fix F16: "Choose Boss" opens the App-level boss chooser via
+    // the onOpenBossSelect callback (a bare tab switch into a boss-less
+    // Fight tab was the audited break); navigation is only the fallback
+    // when no chooser is wired.
+    expect(source).toContain('if (onOpenBossSelect) {\n        onOpenBossSelect();');
     expect(source).toContain("secondaryActionLabel={currentBoss ? 'Prep Boss' : 'Choose Boss'}");
   });
 });
