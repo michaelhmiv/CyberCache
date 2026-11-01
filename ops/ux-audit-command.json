@@ -1,1 +1,1 @@
-{"id":"009","action":"tap","x":125,"y":982,"wait":3}
+{"id":"010","action":"key","key":"KEYCODE_BACK","wait":2}
