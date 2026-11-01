@@ -1,0 +1,31 @@
+-- =====================================================================
+-- 0039 — Hotfix: drop the stale 2-arg cc_store_chef_items overload.
+--
+-- Migration 0007 defined cc_store_chef_items(uuid, jsonb). Migration
+-- 0021 (vehicles) restated it as (uuid, jsonb, text default
+-- 'chef_claim') WITHOUT dropping the 2-arg original, so both
+-- overloads have been live since 0021. Every TypeScript call site
+-- (gameplay store: claim, endless, roaming, offline-settle routes)
+-- calls with two UNTYPED parameters, which Postgres cannot resolve
+-- between the exact 2-arg overload and the 3-arg overload via its
+-- default — "function public.cc_store_chef_items(unknown, unknown)
+-- is not unique" (500). Result: no item-storing path through the TS
+-- store has worked since 0021 landed — boss attempts fail outright
+-- at verification, and roaming/endless/offline gear drops cannot be
+-- stored. SQL-internal callers were unaffected (typed arguments
+-- resolve to the exact overload), which is why caches and crafting
+-- kept working and the slice test suites (SQL-driven) stayed green.
+--
+-- The 0021 3-arg body is the canonical superset (it handles vehicle
+-- payloads; its p_source defaults to 'chef_claim', the 0007 body's
+-- implicit behavior). Dropping the 2-arg overload makes every
+-- existing 2-arg call resolve to it via the default.
+--
+-- Audited and deliberately NOT touched here: cc_draw_odds(text)
+-- (0004) also survives beside its 2-arg 0031 form, but resolution
+-- there is by exact argument count with no defaults involved, and
+-- no current function body calls the 1-arg form. The migration
+-- guard test (migrationOverloadGuard) pins the general invariant.
+-- =====================================================================
+
+drop function if exists public.cc_store_chef_items(uuid, jsonb);
