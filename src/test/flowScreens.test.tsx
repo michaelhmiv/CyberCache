@@ -44,7 +44,20 @@ vi.mock('@/lib/api/verifiedOps', () => ({
   fetchProfileLifetime: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
-vi.mock('@/lib/api/leaderboardService', () => ({ getLeaderboard: vi.fn() }));
+vi.mock('@/lib/api/leaderboardService', () => ({
+  getLeaderboard: vi.fn(),
+  // Weekly races (0035): resolves an empty slate so the F6 tests
+  // exercise the all-time board's gate/error flow undisturbed.
+  getWeeklyLeaderboards: vi.fn(() => Promise.resolve({
+    week: { key: '2026-10-26', start: '2026-10-26T00:00:00.000Z', ends_at: '2026-11-02T00:00:00.000Z' },
+    races: [],
+    previous_week: {
+      key: '2026-10-19', start: '2026-10-19T00:00:00.000Z', ends_at: '2026-10-26T00:00:00.000Z',
+      settled: false, settled_at: null, races: [],
+    },
+    my_drop_buff: null,
+  })),
+}));
 vi.mock('@/lib/api/publicProfileService', () => ({ getPublicProfile: vi.fn(async () => null) }));
 // Spread the real modules: child components import pure helpers from
 // these services (e.g. extractMetricSeries) that must stay real.

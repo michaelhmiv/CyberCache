@@ -65,3 +65,60 @@ export async function getMyLeaderboardRank(
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Weekly races (0035) — GET /api/leaderboard/weekly. Unlike the
+// all-time board above, failures THROW: the weekly panel renders its
+// own error + retry state instead of swallowing into an empty board.
+// Every value is folded server-side from verified records; the
+// previous week's rewards were actually paid by settlement.
+// ---------------------------------------------------------------------------
+
+export interface WeeklyRaceEntry {
+  rank: number;
+  player_id: string;
+  username: string | null;
+  value: number;
+  reached_at: string;
+}
+
+export interface WeeklyRaceReward {
+  rank: number;
+  cache_keys: number;
+  buff_bonus: number;
+  buff_hours: number;
+  buff_expires_at: string | null;
+}
+
+export interface WeeklyRaceBoard {
+  id: string;
+  label: string;
+  unit: string;
+  blurb: string;
+  min_qualifying_value: number;
+  entries: WeeklyRaceEntry[];
+  participant_count: number;
+  /** The caller's standing, even outside entries; null when unranked. */
+  me: { rank: number; value: number } | null;
+  /** Previous week only: the caller's settled reward, or null. */
+  my_reward: WeeklyRaceReward | null;
+}
+
+export interface WeeklyLeaderboards {
+  week: { key: string; start: string; ends_at: string };
+  races: WeeklyRaceBoard[];
+  previous_week: {
+    key: string;
+    start: string;
+    ends_at: string;
+    settled: boolean;
+    settled_at: string | null;
+    races: WeeklyRaceBoard[];
+  };
+  /** The caller's strongest active drop-luck buff, if any. */
+  my_drop_buff: { bonus: number; expires_at: string } | null;
+}
+
+export async function getWeeklyLeaderboards(): Promise<WeeklyLeaderboards> {
+  return apiRequest<WeeklyLeaderboards>('/leaderboard/weekly');
+}

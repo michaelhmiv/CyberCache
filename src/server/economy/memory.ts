@@ -318,6 +318,13 @@ export class InMemoryEconomyStore implements EconomyStore {
       }
     }
 
+    // Weekly leaderboards (0035): cache keys paid by the day's
+    // cc_leaderboard_settlement rows — metered distinctly from
+    // ad-lane issuance (cacheKeysFromAds), never in credit totals.
+    const cacheKeysFromLeaderboards = rows
+      .filter((r) => r.action_type === 'cc_leaderboard_settlement')
+      .reduce((acc, r) => acc + num(dig(r.result_payload, 'cache_keys_awarded')), 0);
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
@@ -398,6 +405,7 @@ export class InMemoryEconomyStore implements EconomyStore {
       extractionPasses,
       extractionXpAwarded,
       materialsMintedExtraction,
+      cacheKeysFromLeaderboards,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

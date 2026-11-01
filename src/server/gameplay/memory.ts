@@ -321,6 +321,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly dispatchMissions: Array<DispatchMissionRow & { user_id: string }> = [];
   /** Dispatch settlement log (0032 mirror of the cc_dispatch_settle ledger rows) for test introspection. */
   readonly dispatchSettleLog: Json[] = [];
+  /** Drop-luck buff grants (migration 0035) — the mirror of leaderboard_drop_buffs. */
+  readonly dropBuffs: Array<{ playerId: string; bonus: number; expiresAt: string }> = [];
   /** Extraction state rows (migration 0033) — the mirror of extraction_state. */
   readonly extractionStates = new Map<string, ExtractionStateRecord>();
   /** Extraction settle log (0033 mirror of the cc_apply_extraction ledger rows) for test introspection. */
@@ -1365,6 +1367,22 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         slot: item.equipped_slot as LoadoutSlot,
         item: JSON.parse(JSON.stringify(item.payload)) as GearItem,
       }));
+  }
+
+  async getActiveDropBonus(playerId: string, now: Date): Promise<number> {
+    const nowMs = now.getTime();
+    let best = 0;
+    for (const buff of this.dropBuffs) {
+      if (buff.playerId !== playerId) continue;
+      if (Date.parse(buff.expiresAt) <= nowMs) continue;
+      best = Math.max(best, buff.bonus);
+    }
+    return best;
+  }
+
+  /** Test helper: grant a drop-luck buff row (0035 mirror). */
+  seedDropBuff(playerId: string, bonus: number, expiresAt: string): void {
+    this.dropBuffs.push({ playerId, bonus, expiresAt });
   }
 
   async getEquippedVehicle(playerId: string): Promise<EquippedVehicleRow | null> {

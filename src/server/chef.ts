@@ -246,6 +246,14 @@ export interface ClaimRequest {
     hotAreaMaterialBonus?: number;
     /** Credits/XP yield bonus when the claim's area is the daily hot area. */
     hotAreaYieldBonus?: number;
+    /**
+     * Weekly-leaderboard drop luck (0035): the player's active buff
+     * fraction, resolved by the claim routes from leaderboard_drop_
+     * buffs — never from the client body. While > 0, Epic/Legendary
+     * rarity weights in the drop roll multiply by (1 + bonus).
+     * Absent/0 = the shipped weights, bit-identical.
+     */
+    dropLuckBonus?: number;
   };
   /**
    * True when the claim's area is today's daily hot area — derived by
@@ -394,6 +402,13 @@ export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
   economy?: {
     /** Probability the guaranteed victory roll is a dedicated drop. */
     bossDedicatedChance?: number;
+    /**
+     * Weekly-leaderboard drop luck (0035): the player's active buff
+     * fraction, resolved by the verify-boss route from leaderboard_
+     * drop_buffs — never from the client body. The dedicated-drop
+     * chance multiplies by (1 + bonus). Absent/0 = unchanged.
+     */
+    dropLuckBonus?: number;
   };
   /**
    * Action skill fire plan (Action Skill slice, 0030): resolved by
@@ -766,7 +781,7 @@ export function processRoamingClaim(
   // floor (elite drops: nothing below the floor can roll — the honest
   // implementation of "Epic rarity floor") and an optional quality
   // boost (weakpoint/surge/bounty shifts toward Rare/Epic/Legendary).
-  const shapedRarityWeights = (opts?: { floor?: Rarity; boost?: boolean }): Partial<Record<Rarity, number>> => {
+  const shapedRarityWeights = (opts?: { floor?: Rarity; boost?: boolean; luck?: number }): Partial<Record<Rarity, number>> => {
     const floorIdx = opts?.floor ? RARITY_SEQUENCE.indexOf(opts.floor) : 0;
     const out: Partial<Record<Rarity, number>> = {};
     for (let i = 0; i < RARITY_SEQUENCE.length; i++) {
@@ -776,13 +791,16 @@ export function processRoamingClaim(
         if (r === Rarity.Rare) w *= 1.5;
         if (r === Rarity.Epic || r === Rarity.Legendary) w *= 2;
       }
+      // Drop luck (0035): the weekly-leaderboard buff scales the two
+      // top rarities by (1 + bonus); floored-out weights stay 0.
+      if (opts?.luck && (r === Rarity.Epic || r === Rarity.Legendary)) w *= 1 + opts.luck;
       out[r] = w;
     }
     return out;
   };
   const shapedZoneWeights = (
     base: Partial<Record<Rarity, number>>,
-    opts?: { floor?: Rarity; boost?: boolean },
+    opts?: { floor?: Rarity; boost?: boolean; luck?: number },
   ): Partial<Record<Rarity, number>> => {
     const floorIdx = opts?.floor ? RARITY_SEQUENCE.indexOf(opts.floor) : 0;
     const out: Partial<Record<Rarity, number>> = { ...base };
@@ -793,6 +811,9 @@ export function processRoamingClaim(
       else if (opts?.boost) {
         if (r === Rarity.Rare) out[r] = (out[r] ?? 0) * 1.5;
         if (r === Rarity.Epic || r === Rarity.Legendary) out[r] = (out[r] ?? 0) * 2;
+      }
+      if (i >= floorIdx && opts?.luck && (r === Rarity.Epic || r === Rarity.Legendary)) {
+        out[r] = (out[r] ?? 0) * (1 + opts.luck);
       }
     }
     return out;
@@ -811,6 +832,10 @@ export function processRoamingClaim(
     opts?: { rarityFloor?: Rarity; qualityBoost?: boolean },
   ): GearItem | Vehicle | undefined => {
     const boost = (opts?.qualityBoost ?? false) || evNextDropQualityBoost || (evSurgeTicks > 0 && evSurgeMatched);
+    // Drop luck (0035): the request's stamped leaderboard buff. It
+    // joins the shape ONLY when active, so an unbuffed claim's
+    // weights — and every determinism pin — stay bit-identical.
+    const luck = request.economy?.dropLuckBonus ?? 0;
     if (evNextDropQualityBoost) evNextDropQualityBoost = false;
     if (!opts?.rarityFloor) {
       // Vehicle drops (Phase 2b): a share of gear drops are vehicles
@@ -839,7 +864,9 @@ export function processRoamingClaim(
         }
       : area;
     const kind = rollAreaDropKind(kindArea, dropRng);
-    const shape = opts?.rarityFloor || boost ? { floor: opts?.rarityFloor, boost } : undefined;
+    const shape = opts?.rarityFloor || boost || luck > 0
+      ? { floor: opts?.rarityFloor, boost, ...(luck > 0 ? { luck } : {}) }
+      : undefined;
     switch (kind) {
       case 'weapon': {
         const options = buildAreaWeaponDropOptions(area, playerLevel, dropRng);
@@ -2135,7 +2162,10 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
       if (
         i === 0 &&
         dedicatedPool.length > 0 &&
+        // Drop luck (0035): the leaderboard buff multiplies the
+        // dedicated-drop chance, the boss path's drop-chance lever.
         rng() < (request.economy?.bossDedicatedChance ?? BOSS_DEDICATED_DROP_CHANCE)
+          * (1 + (request.economy?.dropLuckBonus ?? 0))
       ) {
         const pick = dedicatedPool[Math.floor(rng() * dedicatedPool.length)];
         loot.push(
