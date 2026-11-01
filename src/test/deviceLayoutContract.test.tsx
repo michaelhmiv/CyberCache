@@ -11,10 +11,14 @@
  *
  * The contract pinned here (logical widths 360dp / 412dp):
  *  - ResourceBar: 3-across grid at phone width (6-across only from
- *    560dp), stacked chips (icon + full label + secondary count on
- *    line 1, the value on line 2), values carry NO truncate/clip
- *    treatment, chips are ≥44dp tall, and the shared formatter
- *    bounds every value to ≤6 glyphs so it always fits.
+ *    560dp), stacked chips (icon + full label on line 1, the value on
+ *    line 2 with the secondary count as a labeled stack beside it),
+ *    values carry NO truncate/clip treatment, chips are ≥44dp tall,
+ *    and the shared formatter bounds every value to ≤6 glyphs so it
+ *    always fits. Until the first server profile lands the bar
+ *    renders skeleton chips instead of placeholder numbers (audit
+ *    UX-04), and fractional balances under 10,000 render with one
+ *    decimal (audit UX-05).
  *  - Hunter Totals (Board): metric values never truncate.
  *  - Market tabs: an even 3×2 grid with ≥44px targets (was a
  *    flex-wrap that broke 4+2 against a 60px floor).
@@ -61,6 +65,24 @@ describe('layout contract — compactResourceValue bounds', () => {
     }
     expect(compactResourceValue(999_950_000)).toBe('1.0B');
   });
+
+  it('renders fractional balances under 10,000 with one decimal (audit UX-05)', () => {
+    // Roaming pays +0.75cr/+0.15 scrap per tick; an integer render
+    // made scrap look frozen while the fraction banked server-side.
+    expect(compactResourceValue(0.75)).toBe('0.8');
+    expect(compactResourceValue(0.25)).toBe('0.3');
+    expect(compactResourceValue(500.5)).toBe('500.5');
+    expect(compactResourceValue(5_100.3)).toBe('5100.3');
+    expect(compactResourceValue(9_999.9)).toBe('9999.9');
+    // A fraction that rounds up to 10000.0 falls into the K form.
+    expect(compactResourceValue(9_999.96)).toBe('10.0K');
+    // Integer values keep the established grouped/compact forms.
+    expect(compactResourceValue(5_100)).toBe('5,100');
+    expect(compactResourceValue(10_000.5)).toBe('10.0K');
+    for (let n = 0; n < 10_000; n += 613) {
+      expect(compactResourceValue(n + 0.75).length).toBeLessThanOrEqual(6);
+    }
+  });
 });
 
 describe('layout contract — ResourceBar at phone width', () => {
@@ -68,6 +90,9 @@ describe('layout contract — ResourceBar at phone width', () => {
     usePlayerStore.setState({
       credits: 999_949, scrap: 12_345, cacheKeys: 15, cacheKeyFragments: 3,
       legendaryCores: 2, level: 100,
+      // Audit UX-04: these tests simulate a loaded profile — the bar
+      // skeletons until the first server sync sets this flag.
+      profileLoaded: true,
     });
     useInventoryStore.setState({
       items: Array.from({ length: 123 }, (_, i) => ({ id: `it-${i}` })) as never,
@@ -110,6 +135,23 @@ describe('layout contract — ResourceBar at phone width', () => {
     // The two counts Michael's screenshot truncated ("15 1/7 …").
     expect(screen.getByText('3/5')).toBeTruthy();
     expect(screen.getByText('1/7')).toBeTruthy();
+    // Audit DISP-01: each secondary count carries a micro-label
+    // naming what it counts — a bare "3/5" over the key count read
+    // as two unlabeled quantities stacked on one tile.
+    expect(screen.getByText('frag')).toBeTruthy();
+    expect(screen.getByText('equipped')).toBeTruthy();
+  });
+
+  it('skeletons until the first server profile lands — never false zeros (audit UX-04)', () => {
+    usePlayerStore.setState(usePlayerStore.getInitialState(), true);
+    expect(usePlayerStore.getState().profileLoaded).toBe(false);
+    render(<ResourceBar />);
+    expect(screen.getByTestId('resource-bar-loading')).toBeTruthy();
+    expect(screen.getByTestId('resource-chip-credits-skeleton')).toBeTruthy();
+    // No value testids exist in the skeleton — nothing paints the
+    // store's placeholder numbers as if they were the player's.
+    expect(screen.queryByTestId('resource-value-credits')).toBeNull();
+    expect(screen.queryByTestId('resource-value-scrap')).toBeNull();
   });
 
   it('chips keep a ≥44dp tap height and the angled-chip language', () => {

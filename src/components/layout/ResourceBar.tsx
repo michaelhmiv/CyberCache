@@ -8,11 +8,22 @@
  * lay out 3-across × 2 rows (6-across only from 560dp up). Six chips
  * in one row at phone width left ~27px for the number itself — the
  * value clipped and the label ellipsized ("85 cre…"). Each chip now
- * stacks: icon + full label on line 1 (with the secondary count —
- * key fragments, equipped fraction — right-aligned), the numeric
- * value on line 2 at full size. A value NEVER truncates or clips:
- * it carries no truncate/overflow treatment and the formatter below
- * bounds every output to ≤6 glyphs (src/lib/ui/formatValue.ts).
+ * stacks: icon + full label on line 1, the numeric value on line 2 at
+ * full size. A value NEVER truncates or clips: it carries no
+ * truncate/overflow treatment and the formatter bounds every output
+ * to ≤6 glyphs (src/lib/ui/formatValue.ts).
+ *
+ * Audit DISP-01: the secondary count (key fragments, equipped
+ * fraction) used to sit unlabeled at the slanted top-right corner of
+ * the label line, where the chip clip ate its tail ("KEYS 0/"). It
+ * now rides the value line as a right-aligned stack — the fraction
+ * over a micro-label naming the quantity ("frag" / "equipped") —
+ * inset from both slants.
+ *
+ * Audit UX-04: until the first server profile lands
+ * (playerSlice.profileLoaded), the bar renders skeleton chips with
+ * the same geometry — never the store's placeholder numbers, which
+ * read as a fresh account's false zeros.
  *
  * Tapping any chip can optionally open a detail tooltip or navigate.
  * All icons rendered via ResourceIcon (central visualAssets registry).
@@ -45,12 +56,14 @@ interface ChipProps {
   value: string | number;
   /** Full-word label (CREDITS / SCRAP / KEYS / CORES / LOOT / LEVEL). */
   label: string;
-  /** Secondary count on the label line (key fragments, equipped fraction). */
+  /** Secondary count on the value line (key fragments, equipped fraction). */
   micro?: string;
+  /** Micro-label naming what `micro` counts (audit DISP-01). */
+  microUnit?: string;
   seed?: number;
 }
 
-const Chip: React.FC<ChipProps> = ({ resourceId, value, label, micro, seed = 0 }) => (
+const Chip: React.FC<ChipProps> = ({ resourceId, value, label, micro, microUnit, seed = 0 }) => (
   <motion.div
     data-testid={`resource-chip-${resourceId}`}
     className="relative min-h-[46px] overflow-hidden border-2 border-border bg-bg px-1.5 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
@@ -62,15 +75,39 @@ const Chip: React.FC<ChipProps> = ({ resourceId, value, label, micro, seed = 0 }
     <div className="flex items-center gap-1 pl-1.5">
       <ResourceIcon id={resourceId} size={13} seed={seed} className="shrink-0 opacity-80" />
       <span className="text-[8px] font-black uppercase tracking-wider text-text-muted">{label}</span>
-      {micro && <span className="ml-auto text-[8px] font-black text-text-secondary">{micro}</span>}
     </div>
-    <div
-      data-testid={`resource-value-${resourceId}`}
-      className="pl-1.5 text-[15px] font-black leading-tight whitespace-nowrap text-text-primary"
-    >
-      {value}
+    <div className="flex items-end gap-1 pl-1.5">
+      <div
+        data-testid={`resource-value-${resourceId}`}
+        className="text-[15px] font-black leading-tight whitespace-nowrap text-text-primary"
+      >
+        {value}
+      </div>
+      {micro && (
+        <div className="ml-auto shrink-0 whitespace-nowrap pr-1.5 text-right leading-none">
+          <div className="text-[8px] font-black text-text-secondary">{micro}</div>
+          {microUnit && (
+            <div className="mt-[1px] text-[7px] font-black uppercase tracking-wide text-text-muted">{microUnit}</div>
+          )}
+        </div>
+      )}
     </div>
   </motion.div>
+);
+
+/** Skeleton chip (audit UX-04): identical geometry, no numbers. */
+const SkeletonChip: React.FC<{ resourceId: ChipProps['resourceId'] }> = ({ resourceId }) => (
+  <div
+    data-testid={`resource-chip-${resourceId}-skeleton`}
+    className="relative min-h-[46px] overflow-hidden border-2 border-border bg-bg px-1.5 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+    style={signClip}
+  >
+    <div className={`absolute left-0 top-0 h-full w-1 ${ACCENT_COLORS[resourceId]}`} />
+    <div className="animate-pulse pl-1.5">
+      <div className="h-[9px] w-3/5 bg-surface-raised" />
+      <div className="mt-[7px] h-[15px] w-2/5 bg-surface-raised" />
+    </div>
+  </div>
 );
 
 interface ResourceBarProps {
@@ -84,6 +121,21 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
   const loadout = useLoadoutStore();
 
   const equippedCount = Object.values(loadout.slots).filter(Boolean).length;
+
+  // Audit UX-04: no profile yet — skeleton chips, never the store's
+  // placeholder numbers (which read as a new account's false zeros).
+  if (!player.profileLoaded) {
+    return (
+      <div data-testid="resource-bar-loading" className={`grid grid-cols-3 gap-1.5 min-[560px]:grid-cols-6 ${className}`}>
+        <SkeletonChip resourceId="credits" />
+        <SkeletonChip resourceId="scrap" />
+        <SkeletonChip resourceId="cacheKey" />
+        <SkeletonChip resourceId="legendaryCore" />
+        <SkeletonChip resourceId="loot" />
+        <SkeletonChip resourceId="level" />
+      </div>
+    );
+  }
 
   return (
     <div className={`grid grid-cols-3 gap-1.5 min-[560px]:grid-cols-6 ${className}`}>
@@ -104,6 +156,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
         value={player.cacheKeys}
         label="Keys"
         micro={`${player.cacheKeyFragments}/5`}
+        microUnit="frag"
         seed={3}
       />
       <Chip
@@ -117,6 +170,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
         value={inventory.items.length}
         label="Loot"
         micro={`${equippedCount}/7`}
+        microUnit="equipped"
         seed={4}
       />
       <Chip

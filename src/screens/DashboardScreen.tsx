@@ -363,6 +363,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
     { id: 'workshop', label: 'Workshop', desc: 'Bench jobs run while Crafting holds the action slot.', icon: <span style={{ fontSize: 16 }} className="text-blue">⚒</span>, tone: 'blue' as Tone, stat: `${openWorkshopJobs} jobs`, onClick: () => onNavigate('workshop') },
     { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <span style={{ fontSize: 16 }} className="text-cyan">➤</span>, tone: 'cyan' as Tone, stat: 'Contract board', onClick: () => onNavigate('dispatch') },
     { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: <span style={{ fontSize: 16 }} className="text-cyan">$</span>, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
+    // Audit SET-01: Settings used to be reachable only via HUNTER →
+    // ACCOUNT TOOLS. Same row, same destination, on the Dashboard —
+    // the HUNTER path stays.
+    { id: 'settings', label: 'Settings', desc: 'Preferences, display, and local save controls.', icon: <span style={{ fontSize: 16 }} className="text-text-secondary">⚙</span>, tone: 'cyan' as Tone, stat: 'Account tools', onClick: () => onNavigate('settings') },
   ];
 
   return (

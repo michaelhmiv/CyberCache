@@ -65,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     let profile = await profileService.ensureProfile(nextUser);
-    syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
 
     // Initial bundle (flow-fix F1): every account receives its
     // starter economy exactly once — the op shipped with a Chef route
@@ -75,15 +74,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // bootstrap is safe for fresh and pre-existing accounts alike. On
     // grant, re-read the profile so the account state below carries
     // the bundled balances; the op already synced stores itself.
+    //
+    // Audit UX-04: the runtime profile sync happens AFTER this
+    // bundle attempt, not before it — the first values the resource
+    // bar can paint already include the starter bundle, never a
+    // frame of pre-bundle zeros. Until the sync below lands, the
+    // player store's profileLoaded flag stays false and the bar
+    // renders skeletons.
     try {
       const granted = await ensureInitialBundle(profile);
       if (granted) {
         profile = await profileService.ensureProfile(nextUser);
-        syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
       }
     } catch (error) {
       console.warn('Initial bundle grant skipped:', error instanceof Error ? error.message : error);
     }
+
+    syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
 
     await syncRuntimeItemsForUser(nextUser.id);
 

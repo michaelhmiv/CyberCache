@@ -21,6 +21,7 @@ import {
   Square,
   ArrowLeftRight,
   SlidersHorizontal,
+  Undo2,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
@@ -342,6 +343,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   const [inspectNotice, setInspectNotice] = useState<string | null>(null);
   const [hubNotice, setHubNotice] = useState<string | null>(null);
   const [lockBusyId, setLockBusyId] = useState<string | null>(null);
+  const [unequipBusy, setUnequipBusy] = useState(false);
 
   const equippedIds = useMemo(
     () => new Set(Object.values(loadout.slots).filter(Boolean) as string[]),
@@ -475,6 +477,9 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   // sheet's actions (Lock ↔ Unlock, Equip) must key off the current
   // state, not the state when the sheet opened.
   const liveInspectItem = inspectItem ? (inventory.getById(inspectItem.id) ?? inspectItem) : null;
+  // Audit UX-02: the slot the inspected item currently occupies, if
+  // any — drives the Unequip action in the inspect sheet below.
+  const inspectSlot = liveInspectItem ? loadoutSlotFor(liveInspectItem.id, loadout.slots) : null;
 
   const toggleFilter = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
     setter((prev) => {
@@ -534,6 +539,32 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       setInspectNotice(`Couldn't ${item.isLocked ? 'unlock' : 'lock'} "${item.name}" — ${formatRpcError(err)}`);
     } finally {
       setLockBusyId(null);
+    }
+  };
+
+  // Unequip (audit UX-02): the inspect sheet's reforge copy told
+  // players to "unequip it first" while the sheet offered no Unequip
+  // — the only path was closing the sheet and hunting the slot in the
+  // picker. Unequip is a slot operation, not an equip intent, so it
+  // runs the shipped verified op directly (the itemLock pattern
+  // above): the op's result sync applies the server loadout snapshot,
+  // the sheet stays open on the live row, and a refusal surfaces in
+  // the notice instead of failing silently.
+  const unequip = async (item: GearItem) => {
+    if (unequipBusy) return;
+    const slot = loadoutSlotFor(item.id, loadout.slots);
+    if (!slot) {
+      setInspectNotice(`"${item.name}" is not in any loadout slot.`);
+      return;
+    }
+    setUnequipBusy(true);
+    setInspectNotice(null);
+    try {
+      await verifiedOps.unequipSlot(slot);
+    } catch (err) {
+      setInspectNotice(`Couldn't unequip "${item.name}" — ${formatRpcError(err)}`);
+    } finally {
+      setUnequipBusy(false);
     }
   };
 
@@ -1132,9 +1163,16 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                 {inspectNotice}
               </div>
             )}
-            <button type="button" onClick={() => equip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
-              <span style={{ fontSize: 15 }}>⚔</span>Equip
-            </button>
+            {inspectSlot ? (
+              <button type="button" disabled={unequipBusy} onClick={() => void unequip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[9px] font-black text-text-secondary disabled:opacity-50">
+                <Undo2 size={15} />
+                {unequipBusy ? 'Working…' : 'Unequip'}
+              </button>
+            ) : (
+              <button type="button" onClick={() => equip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
+                <span style={{ fontSize: 15 }}>⚔</span>Equip
+              </button>
+            )}
             <button type="button" onClick={() => onNavigate?.('market')} className="flex flex-col items-center gap-1 border border-green/40 bg-green/10 py-2 text-[9px] font-black text-green">
               <ArrowLeftRight size={15} />Market
             </button>
