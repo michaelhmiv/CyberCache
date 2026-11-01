@@ -23,8 +23,13 @@ import { usePlayerStore } from '@/store';
  * from the spend response's state and syncs the player store from
  * the same server values. Renders nothing until the Chef answers,
  * so an unreachable Chef simply omits the panel.
+ *
+ * `readOnly` renders the same Chef state without the spend buttons
+ * — the guest preview on the RANK tab (audit GUEST-01), where the
+ * panel is a look at progress the guest already owns, not a spend
+ * surface (spending stays here on the Profile).
  */
-export const CacheRankPanel: React.FC = () => {
+export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = false }) => {
   const [state, setState] = useState<CacheRankStateView | null>(null);
   const [busyTrack, setBusyTrack] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -168,21 +173,23 @@ export const CacheRankPanel: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <button
-                onClick={() => void spend(track)}
-                disabled={track.maxed || !affordable || busyTrack !== null}
-                className="shrink-0 rounded px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wide transition-transform active:scale-95 disabled:opacity-40"
-                style={{
-                  backgroundColor: track.maxed ? 'rgba(255,255,255,0.08)' : '#F2C063',
-                  color: track.maxed ? '#9CA3AF' : '#1A1206',
-                }}
-              >
-                {track.maxed
-                  ? 'Max'
-                  : busyTrack === track.id
-                    ? '…'
-                    : `⬢ ${track.nextCost}`}
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => void spend(track)}
+                  disabled={track.maxed || !affordable || busyTrack !== null}
+                  className="shrink-0 rounded px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wide transition-transform active:scale-95 disabled:opacity-40"
+                  style={{
+                    backgroundColor: track.maxed ? 'rgba(255,255,255,0.08)' : '#F2C063',
+                    color: track.maxed ? '#9CA3AF' : '#1A1206',
+                  }}
+                >
+                  {track.maxed
+                    ? 'Max'
+                    : busyTrack === track.id
+                      ? '…'
+                      : `⬢ ${track.nextCost}`}
+                </button>
+              )}
             </div>
           );
         })}
@@ -192,6 +199,7 @@ export const CacheRankPanel: React.FC = () => {
       <div className="text-[10px] text-text-muted">
         Tokens come from levels only — one per level, plus bundles at the milestones above. Ranks are
         permanent and there is no respec: bonuses are tiny and broad by design.
+        {readOnly && ' Spend tokens from the Cache Rank panel on your Hunter profile.'}
       </div>
     </MobileCard>
   );

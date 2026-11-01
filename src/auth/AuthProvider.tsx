@@ -3,7 +3,9 @@ import * as authService from '../lib/api/authService';
 import * as profileService from '../lib/api/profileService';
 import type { ApiUser } from '../lib/api/session';
 import { settleActiveActivityRewards } from '../lib/activity/activitySettlement';
-import { ensureInitialBundle } from '../lib/api/initialBundle';
+import { ensureInitialBundle, isInitialBundleClaimed } from '../lib/api/initialBundle';
+import { useInitialBundleRevealStore } from '../store/slices/initialBundleRevealSlice';
+import { usePushPrimerStore } from '../store/slices/pushPrimerSlice';
 import { syncRuntimeItemsForUser } from '../lib/api/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/api/verifiedStateSync';
 import { initializeNativeAuth } from '../lib/nativeAuth';
@@ -56,6 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadUser = useCallback(async (nextUser: ApiUser | null) => {
     stopRuntimeStorePersistence();
     resetRuntimeStoresToInitialState();
+    useInitialBundleRevealStore.getState().reset();
+    usePushPrimerStore.getState().reset();
     useActivityStore.getState().reset();
     setRawUser(nextUser);
     setUser(toAuthSessionUser(nextUser));
@@ -75,11 +79,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // bootstrap is safe for fresh and pre-existing accounts alike. On
     // grant, re-read the profile so the account state below carries
     // the bundled balances; the op already synced stores itself.
+    // First-run reveal (audit FR-02): when THIS bootstrap performed
+    // the grant, present the one-time starter reveal from the parsed
+    // grant — already-granted accounts (and lost claim races) get no
+    // reveal, since ensureInitialBundle only returns a grant for the
+    // call that actually granted.
     try {
-      const granted = await ensureInitialBundle(profile);
-      if (granted) {
+      const wasClaimed = isInitialBundleClaimed(profile);
+      const bundleGrant = await ensureInitialBundle(profile);
+      if (!wasClaimed) {
         profile = await profileService.ensureProfile(nextUser);
         syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+        if (bundleGrant) {
+          useInitialBundleRevealStore.getState().show(bundleGrant);
+        }
       }
     } catch (error) {
       console.warn('Initial bundle grant skipped:', error instanceof Error ? error.message : error);

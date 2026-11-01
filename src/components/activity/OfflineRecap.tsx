@@ -14,6 +14,7 @@ import { MaterialBadge } from '@/components/common/MaterialBadge';
 import { getVisualAsset } from '@/constants/visualAssets';
 import { getCraftRecipe } from '@/content/crafting';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
+import { PushPrimerRow } from './PushPrimer';
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -129,6 +130,7 @@ export function OfflineRecap() {
                 </p>
               )}
             </div>
+            <PushPrimerRow />
             <div className="px-5 pb-5 pt-2">
               <button onClick={dismiss} className="w-full bl-primary text-sm font-black py-2">
                 Got it
@@ -214,6 +216,7 @@ export function OfflineRecap() {
                 </p>
               )}
             </div>
+            <PushPrimerRow />
             <div className="px-5 pb-5 pt-2">
               <button onClick={dismiss} className="w-full bl-primary text-sm font-black py-2">
                 Got it
@@ -369,6 +372,7 @@ export function OfflineRecap() {
           )}
 
           {/* Dismiss CTA */}
+          <PushPrimerRow />
           <div className="px-5 pb-5 pt-2">
             <button
               onClick={dismiss}
