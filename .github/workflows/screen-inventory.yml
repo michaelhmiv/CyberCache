@@ -19,6 +19,16 @@ on:
 permissions:
   contents: read
 
+env:
+  # Minimum number of crawl stops that must be REACHED (anchor-verified
+  # captures in manifest.json) for this run to pass. Run 1 (2026-11-01)
+  # reached 7 of 32 and the job still reported success — a partial set
+  # presented as complete is the failure mode this gate exists to kill.
+  # The crawl targets all 32 stops; 28 is the floor below which the
+  # inventory is too incomplete to hand to a design review. The missed
+  # screens are listed in the job summary either way.
+  MIN_REACHED_STOPS: 28
+
 jobs:
   screen-inventory:
     runs-on: ubuntu-latest
@@ -101,15 +111,50 @@ jobs:
           retention-days: 30
 
       # The crawl writes manifest.json after every stop, so its absence
-      # means the app never launched or the pull failed — the only two
-      # outcomes that should fail this job. Missed deep screens are
-      # recorded inside the manifest, not by failing the run.
-      - name: Verify manifest was produced
+      # means the app never launched or the pull failed. Presence alone
+      # is NOT success: the run also fails when fewer than
+      # MIN_REACHED_STOPS stops were reached (see the env block at the
+      # top of this file). Reached now means anchor-verified captures —
+      # the crawl never records a wrong-layer screenshot as reached.
+      - name: Verify manifest coverage meets the threshold
         run: |
-          if find screen-inventory-out -name manifest.json | grep -q .; then
-            echo "manifest.json found:"
-            find screen-inventory-out -name manifest.json -exec cat {} \;
-          else
+          MANIFEST="$(find screen-inventory-out -name manifest.json | head -1)"
+          if [ -z "$MANIFEST" ]; then
             echo "::error::No manifest.json in the pulled inventory — the app did not launch, the guest home never rendered, or the adb pull failed. Check the crawl step log."
+            echo "## Screen inventory: NO MANIFEST" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          echo "manifest.json found at $MANIFEST:"
+          cat "$MANIFEST"
+          python3 - "$MANIFEST" "$MIN_REACHED_STOPS" <<'PYEOF'
+          import json, os, sys
+
+          manifest_path, minimum = sys.argv[1], int(sys.argv[2])
+          with open(manifest_path) as f:
+              entries = json.load(f).get("entries", [])
+          total = len(entries)
+          reached = [e for e in entries if e.get("reached")]
+          missed = [e for e in entries if not e.get("reached")]
+
+          lines = [f"## Screen inventory: {len(reached)}/{total} stops reached "
+                   f"(minimum {minimum})", ""]
+          if missed:
+              lines.append("### Missed screens")
+              lines += [f"- `{e.get('screen', '?')}` — {e.get('note', '')}" for e in missed]
+              lines.append("")
+          if reached:
+              lines.append("### Reached screens")
+              lines += [f"- `{e.get('screen', '?')}`" for e in reached]
+          summary = "\n".join(lines) + "\n"
+          print(summary)
+          step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if step_summary:
+              with open(step_summary, "a") as f:
+                  f.write(summary)
+
+          if len(reached) < minimum:
+              print(f"::error::Screen inventory reached only {len(reached)}/{total} stops "
+                    f"(< MIN_REACHED_STOPS={minimum}). Missed: "
+                    + ", ".join(e.get("screen", "?") for e in missed))
+              sys.exit(1)
+          PYEOF
