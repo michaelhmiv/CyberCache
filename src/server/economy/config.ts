@@ -137,6 +137,33 @@ export interface EconomyConfigValues {
   scavengerSurgeEpicWeightMult: number;
   /** Overclock combat fire: consumable quality multiplier (Fixer brief §3.7). */
   overclockQualityMultiplier: number;
+  // Cache Rank (0031) — content owner: src/content/cacheRank.ts
+  // (CACHE_RANK_LEVER_DEFAULTS / CACHE_RANK_LEVER_CLAMPS, pinned
+  // against these literals by tests).
+  /** Cache Rank tokens granted per level gained. */
+  cacheRankTokensPerLevel: number;
+  /** Cache Rank bundle at the first milestone level (L10). */
+  cacheRankMilestoneBundleBase: number;
+  /** Cache Rank bundle growth per milestone step. */
+  cacheRankMilestoneBundleStep: number;
+  /** Cache Rank cost of rank 1 on any track. */
+  cacheRankCostBase: number;
+  /** Cache Rank cost growth per rank pair. */
+  cacheRankCostGrowth: number;
+  /** +credits fraction per Cache Rank Greed rank. */
+  cacheRankCreditsPerRank: number;
+  /** +XP fraction per Cache Rank Fast Learner rank. */
+  cacheRankXpPerRank: number;
+  /** +scrap fraction per Cache Rank Salvage Hound rank. */
+  cacheRankScrapPerRank: number;
+  /** +damage fraction per Cache Rank Heavy Hand rank. */
+  cacheRankDamagePerRank: number;
+  /** +max HP fraction per Cache Rank Thick Skin rank. */
+  cacheRankMaxHpPerRank: number;
+  /** +cache quality per Cache Rank Cache Optimizer rank. */
+  cacheRankCacheQualityPerRank: number;
+  /** +market proceeds fraction per Cache Rank Silver Tongue rank. */
+  cacheRankMarketProceedsPerRank: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -194,6 +221,18 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   scavengerSurgeLegendaryWeightMult: 2,
   scavengerSurgeEpicWeightMult: 1.5,
   overclockQualityMultiplier: 1.25,
+  cacheRankTokensPerLevel: 1,
+  cacheRankMilestoneBundleBase: 5,
+  cacheRankMilestoneBundleStep: 5,
+  cacheRankCostBase: 1,
+  cacheRankCostGrowth: 1,
+  cacheRankCreditsPerRank: 0.01,
+  cacheRankXpPerRank: 0.01,
+  cacheRankScrapPerRank: 0.01,
+  cacheRankDamagePerRank: 0.005,
+  cacheRankMaxHpPerRank: 0.01,
+  cacheRankCacheQualityPerRank: 0.02,
+  cacheRankMarketProceedsPerRank: 0.005,
 };
 
 export interface EconomyConfigKeySpec {
@@ -410,6 +449,54 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   overclockQualityMultiplier: {
     key: 'overclockQualityMultiplier', min: 1.0, max: 1.5, integer: false,
     defaultOwner: 'src/content/actionSkills.ts ACTION_SKILL_LEVER_DEFAULTS',
+  },
+  cacheRankTokensPerLevel: {
+    key: 'cacheRankTokensPerLevel', min: 0, max: 3, integer: true,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankMilestoneBundleBase: {
+    key: 'cacheRankMilestoneBundleBase', min: 0, max: 25, integer: true,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankMilestoneBundleStep: {
+    key: 'cacheRankMilestoneBundleStep', min: 0, max: 25, integer: true,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankCostBase: {
+    key: 'cacheRankCostBase', min: 1, max: 10, integer: true,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankCostGrowth: {
+    key: 'cacheRankCostGrowth', min: 0, max: 2, integer: false,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankCreditsPerRank: {
+    key: 'cacheRankCreditsPerRank', min: 0, max: 0.02, integer: false,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankXpPerRank: {
+    key: 'cacheRankXpPerRank', min: 0, max: 0.02, integer: false,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankScrapPerRank: {
+    key: 'cacheRankScrapPerRank', min: 0, max: 0.02, integer: false,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankDamagePerRank: {
+    key: 'cacheRankDamagePerRank', min: 0, max: 0.01, integer: false,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankMaxHpPerRank: {
+    key: 'cacheRankMaxHpPerRank', min: 0, max: 0.02, integer: false,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankCacheQualityPerRank: {
+    key: 'cacheRankCacheQualityPerRank', min: 0, max: 0.04, integer: false,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  cacheRankMarketProceedsPerRank: {
+    key: 'cacheRankMarketProceedsPerRank', min: 0, max: 0.01, integer: false,
+    defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
   },
 };
 

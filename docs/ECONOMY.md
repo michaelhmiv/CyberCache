@@ -24,7 +24,7 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `credits_minted_roaming` | Foreground roaming claims (`cc_apply_chef_rewards` → `rewards.credits_awarded`) |
 | `credits_minted_boss` | Boss victories, **grossed up**: the ledger's `attempt.creditsGained` is already net of the entry fee, so the meter adds `entry_fee` back on victories |
 | `credits_minted_offline` | Offline settlements (`cc_settle_offline_roaming` → `rewards.credits_awarded`; unsettled rows mint nothing) |
-| `credits_minted_other` | Legacy idle claims (`cc_idle_claim`), legacy roaming claims (`cc_claim_roaming_rewards`), and new-account bundles (`cc_initial_bundle` — a flat 5,000-credit grant recorded as a literal in the function, so the meter counts rows × 5,000) |
+| `credits_minted_other` | Legacy idle claims (`cc_idle_claim`), legacy roaming claims (`cc_claim_roaming_rewards`), and new-account bundles (`cc_initial_bundle` — a flat 5,000-credit grant recorded as a literal in the function, so the meter counts rows × 5,000). From migration 0031 it also folds the Cache Rank Silver Tongue market uplift: Σ `market_fee.cache_rank_proceeds_bonus` over the day's `cc_accept_listing` rows (the uplift is minted to the seller; the fee share stays destroyed in `credits_destroyed_market_fees`) |
 | `credits_minted_vendor_buyback` | Vendor buyback payouts (`cc_vendor_sell` → `total_payout`, migration 0020). The vendor counter creates these credits, so they are a mint; gross vendor sink stays in `credits_destroyed_vendor` and the counter's net is the difference |
 | `credits_minted_total` | Sum of the four sources |
 | `credits_destroyed_market_fees` | The market sale fee destroyed on completed player sales (`cc_accept_listing` → `market_fee.fee_credits`; NPC sales are exempt and record 0) |
@@ -71,6 +71,8 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `endless_xp_paid` | Same shape for XP — metered here only (XP is not a credits meter) |
 | `endless_fees_destroyed` | Σ `entry_fee` over the day's `cc_start_endless_run` rows — destroyed at entry; folds into `credits_destroyed_total` |
 | `endless_milestone_drops` / `endless_milestone_drops_by_rarity` | Count of milestone drops recorded on the day's encounter rows, total and as a rarity → count map |
+| `cache_rank_tokens_granted` | Σ `tokens_granted` over the day's `cc_cache_rank_grant` rows (migration 0031) — level-derived grants only; the watermark + ledger key make replays invisible here (a replay inserts no row) |
+| `cache_rank_tokens_spent` | Σ `cost` over the day's `cc_cache_rank_spend` rows — the token sink; lifetime granted − spent should track Σ `profiles.cache_rank_tokens` |
 
 Transfers are not mints or sinks: a market sale's principal moves
 buyer → seller (only the destroyed fee leaves supply), and repair
@@ -144,6 +146,18 @@ take the game down.
 | `endlessMilestoneLegendaryPerDepth` | 0.10 | 0 – 1 | Milestone-drop Legendary rarity-weight growth per depth (weight multiplier 1 + rate × depth, capped ×10) |
 | `endlessMilestoneEpicPerDepth` | 0.05 | 0 – 1 | Milestone-drop Epic rarity-weight growth per depth (multiplier capped ×5) |
 | `endlessMaxDepth` | 250 | 10 – 1000 (integer) | Hard endless depth cap — reaching it banks the run in full (anti-pathology valve) |
+| `cacheRankTokensPerLevel` | 1 | 0 – 3 (integer) | Cache Rank tokens per level gained (0031); entitlement is recomputed from the watermark, so a raise never re-pays old levels |
+| `cacheRankMilestoneBundleBase` | 5 | 0 – 25 (integer) | Cache Rank bundle at the first milestone (L10); bundle at milestone k = base + step × (k − 1) |
+| `cacheRankMilestoneBundleStep` | 5 | 0 – 25 (integer) | Growth between milestone bundles (defaults give +5/+10/+15/+20/+25 at L10/25/50/75/100; total earnable at defaults = 174) |
+| `cacheRankCostBase` | 1 | 1 – 10 (integer) | Cache Rank cost of a track's first ranks: cost(next at r) = round(base + growth × floor(r / 2)) |
+| `cacheRankCostGrowth` | 1 | 0 – 2 | Cost growth per rank pair (defaults: 1,1,2,2,3,3,4,4,5,5 = 30/track; full menu 210 > 174 earnable) |
+| `cacheRankCreditsPerRank` | 0.01 | 0 – 0.02 | Greed: +credits earn fraction per rank (×10 ranks = +10% max), multiplied LAST in the Chef rates |
+| `cacheRankXpPerRank` | 0.01 | 0 – 0.02 | Fast Learner: +XP fraction per rank — Chef rates + craft/repair completion XP in both twins |
+| `cacheRankScrapPerRank` | 0.01 | 0 – 0.02 | Salvage Hound: +scrap fraction per rank |
+| `cacheRankDamagePerRank` | 0.005 | 0 – 0.01 | Heavy Hand: +damage fraction per rank (+5% max) — Chef derived DPS + the boss sim seam |
+| `cacheRankMaxHpPerRank` | 0.01 | 0 – 0.02 | Thick Skin: +max HP fraction per rank (+10% max) on base HP only; shield HP is never scaled |
+| `cacheRankCacheQualityPerRank` | 0.02 | 0 – 0.04 | Cache Optimizer: +cache quality per rank (+0.20 max) — non-minimum rarity weights × (1 + q) in `cc_make_item` + the TS draw twin; shares the lane with the `cacheQuality` skill effect |
+| `cacheRankMarketProceedsPerRank` | 0.005 | 0 – 0.01 | Silver Tongue: +fraction of POST-FEE proceeds per rank (+5% max), minted to the seller in `cc_accept_listing` + the TS fee mirror; NPC listings exempt |
 
 Skill-based fee reductions (Darknet Broker, Market Manipulator)
 apply multiplicatively **after** the levered rate, in both the SQL

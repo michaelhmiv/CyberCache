@@ -12,6 +12,7 @@
  */
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
 import { AREA_VISUALS, PIXEL_BOSS_ARENAS, endlessBandTint } from '@/content/areaPalettes';
+import { CACHE_RANK_BONUS_DEFS } from '@/content/cacheRank';
 import { endlessDepthBand, endlessEncounterForDepth } from '@/content/endless';
 import { ELEMENT_DIALECTS, shotCadence } from '@/lib/pixel/elementFx';
 import { GRAMMAR } from '@/lib/pixel/grammar';
@@ -393,6 +394,45 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     // Shelf progress strip (amber, the bench scenes' progress read).
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.31, GRAMMAR.progress.heightPx, [255, 152, 0], 255);
+  }),
+  // Cache Rank (0031): the rank board on the trophy wall. The seven
+  // tracks render as pip rows in their own colors (rows and colors
+  // derive from CACHE_RANK_BONUS_DEFS, so a menu change repaints
+  // here), filled to a fixed sample spend set; the unspent token
+  // emblem — an amber diamond — hangs over the board under a thin
+  // beam, and the floor strip reads progress to the next token in
+  // rank amber. Same interior grammar as collections-shelf; the
+  // hunter stands off at idle, reading the board.
+  scene('cache-rank-panel', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H, [8, 8, 12], 96);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H * 0.46, hexToRgb('#f2c063'), 18);
+    // Board backplate + header rule.
+    fillRect(img, 158, 40, 284, 168, [13, 15, 21], 242);
+    fillRect(img, 158, 40, 284, 2, hexToRgb('#f2c063'), 255);
+    fillRect(img, 158, 206, 284, 2, [58, 42, 30], 255);
+    // Token emblem: nested amber squares (the diamond read) + beam.
+    drawBeam(img, 300, 40, GRAMMAR.beamWidthPx.low, '#F2C063');
+    for (const [half, color] of [[13, '#8a6a24'], [10, '#f2c063'], [5, '#ffe1a1']] as const) {
+      fillRect(img, 300 - half, 62 - half, half * 2, half * 2, hexToRgb(color), 255);
+    }
+    // Track rows: 10 pips each — filled in the track color to the
+    // sample rank, the rest dark slate.
+    const sampleSpends: Record<string, number> = { credits: 6, xp: 4, scrap: 3, damage: 2, maxHp: 5, cacheQuality: 1, marketProceeds: 0 };
+    CACHE_RANK_BONUS_DEFS.forEach((def, row) => {
+      const y = 88 + row * 16;
+      fillRect(img, 170, y + 1, 6, 6, hexToRgb(def.color), 255);
+      const filled = sampleSpends[def.id] ?? 0;
+      for (let pip = 0; pip < def.maxRanks; pip += 1) {
+        const x = 186 + pip * 24;
+        if (pip < filled) fillRect(img, x, y, 18, 8, hexToRgb(def.color), 255);
+        else fillRect(img, x, y, 18, 8, [34, 38, 48], 255);
+      }
+    });
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 8, heightPct: 44, feetX: 0.2717 }, GROUND);
+    // Next-token progress strip in rank amber.
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.62, GRAMMAR.progress.heightPx, [242, 192, 99], 255);
   }),
   // Endless (0028): the Chaos Chamber's depth treatment — the band
   // wash over the arena (ENDLESS_BAND_TINTS, the same table the live

@@ -85,6 +85,11 @@ export interface EconomyMetricsRow {
   actionSkillFiresDemolition: number;
   actionSkillFiresScavenger: number;
   actionSkillFiresFixer: number;
+  /** Cache Rank token meters (migration 0031): tokens granted /
+   *  spent per day from the grant/spend ledger payloads. Tokens are
+   *  not credits; these never touch the minted/destroyed totals. */
+  cacheRankTokensGranted: number;
+  cacheRankTokensSpent: number;
   computedAt: string;
 }
 
@@ -152,6 +157,8 @@ interface PgMetricsRow {
   action_skill_fires_demolition?: number;
   action_skill_fires_scavenger?: number;
   action_skill_fires_fixer?: number;
+  cache_rank_tokens_granted?: number;
+  cache_rank_tokens_spent?: number;
   computed_at: string;
 }
 
@@ -212,6 +219,8 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     actionSkillFiresDemolition: Number(r.action_skill_fires_demolition ?? 0),
     actionSkillFiresScavenger: Number(r.action_skill_fires_scavenger ?? 0),
     actionSkillFiresFixer: Number(r.action_skill_fires_fixer ?? 0),
+    cacheRankTokensGranted: Number(r.cache_rank_tokens_granted ?? 0),
+    cacheRankTokensSpent: Number(r.cache_rank_tokens_spent ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -236,6 +245,7 @@ const METRICS_COLUMNS = `
   endless_milestone_drops_by_rarity,
   action_skill_fires_gunslinger, action_skill_fires_demolition,
   action_skill_fires_scavenger, action_skill_fires_fixer,
+  cache_rank_tokens_granted, cache_rank_tokens_spent,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

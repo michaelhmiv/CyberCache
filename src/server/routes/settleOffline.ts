@@ -19,6 +19,7 @@ import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { ABSOLUTE_OFFLINE_CAP_HOURS, effectiveOfflineCapHours } from '../../content/offlineCap';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { isHotArea } from '../../content/hotArea';
+import { cacheRankBonuses } from '../../content/cacheRank';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { recordItemDiscoveries } from './roamingHandler';
 import { eliteDiscovery } from '../../content/collections';
@@ -257,6 +258,10 @@ export function createSettleOfflineHandler(
         effectiveDps: 0,
         equippedGear,
         skillBonuses,
+        // Cache Rank bonuses (0031): from the profile's own
+        // cache_rank_spends + live levers — settlement simulates the
+        // same ticks a foreground claim would (engine parity).
+        cacheRankBonuses: cacheRankBonuses(profile.cache_rank_spends, economyValues),
         consumableInventory: (profile.consumables ?? {}) as Record<string, number>,
         consumableQualityProfile: buildConsumableQualityProfile(
           settlementBatches,

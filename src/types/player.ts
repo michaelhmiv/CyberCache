@@ -24,6 +24,10 @@ export interface PlayerProfile {
   cacheKeyFragments: number;
   /** Legendary core balance (0026) — server-owned, synced from the profile snapshot. */
   legendaryCores: number;
+  /** Cache Rank token balance (0031) — server-owned, synced from the profile snapshot. */
+  cacheRankTokens: number;
+  /** Cache Rank per-track spend ranks (0031) — server-owned, synced from the profile snapshot. */
+  cacheRankSpends: Record<string, number>;
   currentZoneId: string;
   highestZoneId: string;
   offlineCapHours: number;

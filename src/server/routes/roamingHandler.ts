@@ -19,6 +19,7 @@ import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { getRoamingArea } from '../../constants/roamingAreas';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { isHotArea } from '../../content/hotArea';
+import { cacheRankBonuses } from '../../content/cacheRank';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import {
@@ -181,6 +182,11 @@ export function createClaimHandler(
         // Server-derived loadout + skills (trust hardening, above).
         equippedGear,
         skillBonuses,
+        // Cache Rank bonuses (0031): resolved from the profile's own
+        // cache_rank_spends + the live levers — the body's copy
+        // (spread in via `claim`) is overridden here and never
+        // reaches the engine.
+        cacheRankBonuses: cacheRankBonuses(profile.cache_rank_spends, economyValues),
         // Server-authoritative scrap bank (migration 0009): read from the
         // profile, never from the client body spread above.
         scrapRemainder: profile.scrap_remainder,

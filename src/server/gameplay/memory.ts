@@ -34,6 +34,7 @@ import {
   LOADOUT_SLOT_ORDER,
   type ActiveActionRow,
   type ActionSkillFacts,
+  type CacheRankFacts,
   type ApplyEndlessEncounterInput,
   type BossProfileRow,
   type ChefBossAttemptInput,
@@ -66,6 +67,15 @@ import {
   resolveActionSkill,
   resolveActionSkillLevers,
 } from '../../content/actionSkills';
+import {
+  cacheRankBonusDef,
+  cacheRankBonuses,
+  cacheRankCostForRank,
+  cacheRankEntitlement,
+  resolveCacheRankLevers,
+  sanitizeCacheRankSpends,
+  type CacheRankLeverValues,
+} from '../../content/cacheRank';
 import { SkillTreeType } from '../../types/game';
 import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
 import {
@@ -112,6 +122,12 @@ export interface InMemoryProfile {
   vehicle_fuel: number;
   /** Legendary core balance (migration 0026). */
   legendary_cores: number;
+  /** Cache Rank token balance (migration 0031). */
+  cache_rank_tokens: number;
+  /** Cache Rank grant watermark — highest level whose entitlement is paid (0031). */
+  cache_rank_grant_level: number;
+  /** Cache Rank per-track spend ranks (migration 0031). */
+  cache_rank_spends: Record<string, number>;
   /** Action skill charge pool 0..100 (migration 0030). */
   action_skill_charge: number;
   /** Recorded action skill selection (SkillTreeType name), or null (0030). */
@@ -263,8 +279,43 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   /** Workshop bench/tool state for the craft settler (defaults: bench 1, no tools). */
   readonly workshopBenches = new Map<string, number>();
   readonly workshopTools = new Map<string, WorkshopToolsState>();
+  /** Cache Rank grant log (0031 mirror of the cc_cache_rank_grant ledger rows) for test introspection. */
+  readonly cacheRankGrantLog: Array<{ playerId: string; fromLevel: number; toLevel: number; tokens: number }> = [];
+  /** Cache Rank spend log (0031 mirror of the cc_cache_rank_spend ledger rows). */
+  readonly cacheRankSpendLog: Array<{ playerId: string; bonusId: string; rankAfter: number; cost: number }> = [];
 
-  constructor(private readonly now: () => Date = () => new Date()) {}
+  constructor(
+    private readonly now: () => Date = () => new Date(),
+    private readonly cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>,
+  ) {}
+
+  /** Cache Rank levers for this twin: injected provider, else content defaults (the Pg store reads the live economy config). */
+  cacheRankLevers(): CacheRankLeverValues {
+    return resolveCacheRankLevers(this.cacheRankLeverProvider?.());
+  }
+
+  /**
+   * The grant the BEFORE UPDATE OF player_level trigger performs in
+   * SQL (0031): pay entitlement(level) − entitlement(watermark)
+   * exactly once and advance the watermark. Called after EVERY
+   * level assignment in this twin — the trigger's coverage by
+   * construction. Returns the tokens granted.
+   */
+  applyCacheRankGrant(p: InMemoryProfile): number {
+    const from = Math.trunc(Number(p.cache_rank_grant_level) || 0);
+    if (p.player_level <= from) return 0;
+    const levers = this.cacheRankLevers();
+    const grant = Math.max(
+      0,
+      cacheRankEntitlement(p.player_level, levers) - cacheRankEntitlement(from, levers),
+    );
+    if (grant > 0) {
+      p.cache_rank_tokens = Math.trunc(Number(p.cache_rank_tokens) || 0) + grant;
+      this.cacheRankGrantLog.push({ playerId: p.id, fromLevel: from, toLevel: p.player_level, tokens: grant });
+    }
+    p.cache_rank_grant_level = p.player_level;
+    return grant;
+  }
 
   /** Test helper: insert a profile row with June defaults. */
   seedProfile(overrides: Partial<InMemoryProfile> & { id: string }): InMemoryProfile {
@@ -280,6 +331,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       cache_token_parts: 0,
       vehicle_fuel: 0,
       legendary_cores: 0,
+      cache_rank_tokens: 0,
+      cache_rank_grant_level: 0,
+      cache_rank_spends: {},
       action_skill_charge: 0,
       action_skill_selection: null,
       materials: {},
@@ -336,6 +390,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       cache_tokens: p.cache_tokens,
       cache_token_parts: p.cache_token_parts,
       legendary_cores: p.legendary_cores ?? 0,
+      cache_rank_tokens: p.cache_rank_tokens ?? 0,
+      cache_rank_grant_level: p.cache_rank_grant_level ?? 0,
+      cache_rank_spends: { ...(p.cache_rank_spends ?? {}) },
       materials: { ...p.materials },
       essences: { ...p.essences },
       consumables: { ...p.consumables },
@@ -365,6 +422,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const leveled = applyXp(p.player_level, p.player_xp, rewards.xp);
     p.player_level = leveled.player_level;
     p.player_xp = leveled.player_xp;
+    this.applyCacheRankGrant(p);
     p.credits += Math.trunc(rewards.credits);
     p.scrap += Math.trunc(rewards.scrap);
     if (rewards.scrapRemainder != null) p.scrap_remainder = rewards.scrapRemainder;
@@ -444,7 +502,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, vehicle_fuel: p.vehicle_fuel };
+    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, vehicle_fuel: p.vehicle_fuel, cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -458,6 +516,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json,
       action_skill_charge: p.action_skill_charge ?? 0,
       action_skill_selection: p.action_skill_selection ?? null,
+      cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json,
     };
   }
 
@@ -522,7 +581,65 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       credits_remainder: p.credits_remainder,
       xp_remainder: p.xp_remainder,
       vehicle_fuel: p.vehicle_fuel,
+      cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json,
     };
+  }
+
+  async getCacheRankFacts(playerId: string): Promise<CacheRankFacts | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    return {
+      player_level: p.player_level,
+      player_xp: p.player_xp,
+      cache_rank_tokens: p.cache_rank_tokens ?? 0,
+      cache_rank_grant_level: p.cache_rank_grant_level ?? 0,
+      cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json,
+    };
+  }
+
+  /** cc_grant_cache_rank_tokens mirror: observe-and-grant, idempotent by the watermark. */
+  async grantCacheRankTokens(playerId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const granted = this.applyCacheRankGrant(p);
+    return {
+      granted,
+      tokens: p.cache_rank_tokens ?? 0,
+      grant_level: p.cache_rank_grant_level ?? 0,
+      level: p.player_level,
+    };
+  }
+
+  /** cc_spend_cache_rank mirror: pending grant first, then balance/cap validation from server records. */
+  async spendCacheRankBonus(playerId: string, nonce: string, bonusId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    if (!nonce || nonce.trim().length < 8) throw new GameplayStoreError('nonce is required');
+    const prior = this.ledger.get(nonce);
+    if (prior) return prior;
+    this.applyCacheRankGrant(p);
+    const def = cacheRankBonusDef(bonusId);
+    if (!def) throw new GameplayStoreError('Unknown Cache Rank bonus');
+    const spends = sanitizeCacheRankSpends(p.cache_rank_spends);
+    const ranks = spends[def.id];
+    if (ranks >= def.maxRanks) throw new GameplayStoreError('Cache Rank bonus maxed');
+    const levers = this.cacheRankLevers();
+    const cost = cacheRankCostForRank(ranks, levers);
+    if ((p.cache_rank_tokens ?? 0) < cost) {
+      throw new GameplayStoreError('Not enough Cache Rank tokens');
+    }
+    p.cache_rank_tokens = (p.cache_rank_tokens ?? 0) - cost;
+    spends[def.id] = ranks + 1;
+    p.cache_rank_spends = spends;
+    this.cacheRankSpendLog.push({ playerId, bonusId: def.id, rankAfter: ranks + 1, cost });
+    const result: Json = {
+      action_type: 'cc_cache_rank_spend',
+      bonus_id: def.id,
+      rank_after: ranks + 1,
+      cost,
+      tokens: p.cache_rank_tokens,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(nonce, result);
+    return result;
   }
 
   async getActiveAction(playerId: string): Promise<ActiveActionRow | null> {
@@ -609,6 +726,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
           if (typeof v === 'number' && Number.isFinite(v)) spends[k] = v;
         }
         return computeSkillBonuses(spends, this.classModBoostsFor(id))[key] ?? 0;
+      },
+      cacheRankXpBonus: (id) => {
+        const prof = this.profiles.get(id);
+        if (!prof) return 0;
+        return cacheRankBonuses(prof.cache_rank_spends, this.cacheRankLevers()).xp;
       },
       addMasteryXp: (id, track, xp) => {
         const existing = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
@@ -720,6 +842,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     }
     profile.player_level = view.player_level;
     profile.player_xp = view.player_xp;
+    this.applyCacheRankGrant(profile);
     profile.credits = view.credits;
     this.workshopBenches.set(playerId, view.workshop_benches);
     return {
@@ -959,6 +1082,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const leveled = applyXp(p.player_level, p.player_xp, Math.max(0, Math.trunc(attempt.xp)));
     p.player_level = leveled.player_level;
     p.player_xp = leveled.player_xp;
+    this.applyCacheRankGrant(p);
 
     const nextConsumables = { ...p.consumables };
     for (const [itemKey, rawQty] of Object.entries(asRecord(attempt.consumables))) {
@@ -1051,6 +1175,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       const leveled = applyXp(p.player_level, p.player_xp, paid.xp);
       p.player_level = leveled.player_level;
       p.player_xp = leveled.player_xp;
+      this.applyCacheRankGrant(p);
     }
     run.status = status;
     run.ended_at = this.now().toISOString();

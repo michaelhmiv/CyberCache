@@ -73,6 +73,7 @@ import {
   type EndlessEncounterDef,
   type EndlessLeverValues,
 } from '../content/endless';
+import type { CacheRankBonuses } from '../content/cacheRank';
 import {
   ACTION_SKILL_DEFS,
   type ActionSkillFirePlan,
@@ -136,6 +137,14 @@ export interface ClaimRequest {
    * copy is overridden by the claim route and never reaches here.
    */
   skillBonuses?: Record<string, number>;
+  /**
+   * Cache Rank bonuses (Cache Rank slice, 0031): resolved by the
+   * claim routes from profiles.cache_rank_spends through
+   * src/content/cacheRank.ts — never from the client body. Applied
+   * LAST in each multiplier stack (after gear/skill/activity/hot
+   * multipliers). Absent = all-zero (direct engine calls in tests).
+   */
+  cacheRankBonuses?: CacheRankBonuses;
   /**
    * Maximum ticks to process. Foreground live claims use 20;
    * offline settlement uses Infinity (capped by elapsed time only).
@@ -395,6 +404,15 @@ export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
    * no fire this attempt.
    */
   actionSkillFire?: ActionSkillFirePlan | null;
+  /**
+   * Cache Rank bonuses (Cache Rank slice, 0031): resolved by the
+   * verify-boss route from profiles.cache_rank_spends — never from
+   * the client body. XP/credits/scrap apply to the victory rewards
+   * last; damage/max HP reach the sim through the merged
+   * skillBonuses keys (cacheRankDamageBonus / cacheRankMaxHpBonus).
+   * Absent = all-zero.
+   */
+  cacheRankBonuses?: CacheRankBonuses;
 }
 
 export interface BossAttemptChefResult {
@@ -612,10 +630,13 @@ export function processRoamingClaim(
   const hotYieldMult = isHotAreaClaim ? 1 + (request.economy?.hotAreaYieldBonus ?? HOT_AREA_YIELD_BONUS) : 1;
   const hotMaterialMult = isHotAreaClaim ? 1 + (request.economy?.hotAreaMaterialBonus ?? HOT_AREA_MATERIAL_BONUS) : 1;
 
-  const effectiveCreditsPerTick = creditsPerTick * offlineMult * activityCreditsMult * hotYieldMult;
-  const effectiveScrapPerTick = scrapPerTick * scrapMult * activityScrapMult * legendaryScrapMult;
+  // Cache Rank (0031): the resolved bonuses multiply LAST, after the
+  // gear/skill/activity/hot stacks — the fixed composition order.
+  const cacheRank = request.cacheRankBonuses;
+  const effectiveCreditsPerTick = creditsPerTick * offlineMult * activityCreditsMult * hotYieldMult * (1 + (cacheRank?.credits ?? 0));
+  const effectiveScrapPerTick = scrapPerTick * scrapMult * activityScrapMult * legendaryScrapMult * (1 + (cacheRank?.scrap ?? 0));
   // XP likewise (0010): rates like 1.2/tick used to round down to 1.
-  const effectiveXpPerTick = xpPerTick * activityXpMult * hotYieldMult;
+  const effectiveXpPerTick = xpPerTick * activityXpMult * hotYieldMult * (1 + (cacheRank?.xp ?? 0));
 
   // Clamp ticks to maxTicks (foreground: 20; offline settlement: Infinity)
   const maxTicks = request.maxTicks ?? 20;
@@ -651,7 +672,7 @@ export function processRoamingClaim(
     ordnance: (request.equippedGear ?? []).find((g) => 'damage' in g && !('weaponType' in g)) ?? null,
     relic: slotRelic,
     classMod: slotClassMod,
-    skillDpsMult: 1 + (request.skillBonuses?.dps ?? 0),
+    skillDpsMult: 1 + (request.skillBonuses?.dps ?? 0) + (cacheRank?.damage ?? 0),
     skillStatusChance: request.skillBonuses?.statusChance ?? 0,
   });
   const effectiveDps = serverDerivedDps;
@@ -2050,7 +2071,11 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     : 0;
 
   const deathFee = victory ? 0 : sim.deathFee;
-  const rawCreditsDelta = victory ? Math.round(boss.level * 150 * legendary.creditMult) : -deathFee;
+  // Cache Rank Greed (0031): victory credits scale last; the death
+  // fee never does.
+  const rawCreditsDelta = victory
+    ? Math.round(boss.level * 150 * legendary.creditMult * (1 + (request.cacheRankBonuses?.credits ?? 0)))
+    : -deathFee;
   // The entry fee is charged on every resolved attempt, win or lose —
   // it is part of the net delta the applier persists.
   const creditsDelta = applyBadDecisionBonus(rawCreditsDelta, request.primary) - entryFee;
@@ -2068,7 +2093,8 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   xpMult += request.skillBonuses?.xpBoostMod ?? 0;
   // Pacing-baseline tuning: boss XP is boss.level × 50 (was × 20) so the
   // boss ladder stays a meaningful XP source under the stretched curve.
-  const xpAwarded = victory ? Math.round(boss.level * 50 * xpMult) : 0;
+  // Cache Rank Fast Learner (0031) multiplies last.
+  const xpAwarded = victory ? Math.round(boss.level * 50 * xpMult * (1 + (request.cacheRankBonuses?.xp ?? 0))) : 0;
 
   const consumedConsumables = getBossConsumableUsage(request.consumables, victory, sim.survivalScore);
   const refundChance = getInsuranceFraudRefundChance(request.primary);
@@ -2152,7 +2178,10 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
       const first = loot[0] as import('../types/items').Weapon;
       const kept = twin.combatPower > first.combatPower ? twin : first;
       const scrapped = kept === twin ? first : twin;
-      scrapAwarded = salvageScrap(scrapped.rarity, scrapped.level);
+      // Cache Rank Salvage Hound (0031): the twin's scrap scales last.
+      scrapAwarded = Math.round(
+        salvageScrap(scrapped.rarity, scrapped.level) * (1 + (request.cacheRankBonuses?.scrap ?? 0)),
+      );
       secondOpinionScrap = {
         name: scrapped.name,
         rarity: scrapped.rarity,
@@ -2297,6 +2326,14 @@ export interface EndlessEncounterRequest extends Omit<BossSimulationInput, 'boss
    * BossAttemptRequest.actionSkillFire. Absent = no fire.
    */
   actionSkillFire?: ActionSkillFirePlan | null;
+  /**
+   * Cache Rank bonuses (Cache Rank slice, 0031): resolved by the
+   * endless route from profiles.cache_rank_spends — never from the
+   * client body. Applied to the escrow deltas last; damage/max HP
+   * reach the sim through the merged skillBonuses keys. Absent =
+   * all-zero.
+   */
+  cacheRankBonuses?: CacheRankBonuses;
 }
 
 export interface EndlessEncounterChefResult {
@@ -2403,10 +2440,12 @@ export function processEndlessEncounter(request: EndlessEncounterRequest): Endle
     if (affix.stat === 'xpBoostMod') xpMult += affix.value;
   });
   xpMult += request.skillBonuses?.xpBoostMod ?? 0;
+  // Cache Rank (0031): escrow deltas scale last, per currency.
+  const endlessCacheRank = request.cacheRankBonuses;
   const rewards = {
-    xp: Math.round(baseRewards.xp * xpMult),
-    credits: Math.round(baseRewards.credits * legendary.creditMult),
-    scrap: baseRewards.scrap,
+    xp: Math.round(baseRewards.xp * xpMult * (1 + (endlessCacheRank?.xp ?? 0))),
+    credits: Math.round(baseRewards.credits * legendary.creditMult * (1 + (endlessCacheRank?.credits ?? 0))),
+    scrap: Math.round(baseRewards.scrap * (1 + (endlessCacheRank?.scrap ?? 0))),
   };
 
   const milestone = victory && isEndlessMilestoneDepth(request.depth);

@@ -119,6 +119,19 @@ export const SKILL_EFFECT_CONSUMERS: Record<string, SkillEffectConsumer[]> = {
     { engine: 'craft job duration snapshot (SQL twin, trusted server parameter)', file: 'db/migrations/0024_crafting_occupation.sql', needle: 'p_efficiency_bonus' },
   ],
 
+  // ---- Small-node consumer wired by the Cache Rank slice (0031) ----
+  // cacheQuality (Encrypted Payloads, Scavenger small) waited for a
+  // cache-lane consumer since the keystone slice (#216). The cache
+  // draw now reads it: total quality = this skill effect (skill
+  // spends x node definitions; class-mod boosts do not feed the
+  // draw) + the Cache Rank Cache Optimizer track, shifting the
+  // cache_primary_rarity draw weights above the table's lowest tier.
+  cacheQuality: [
+    { engine: 'cache draw weight shift (TS write mirror of cc_make_item)', file: 'src/server/writes/memory.ts', needle: 'cacheQualityAdjustedWeights' },
+    { engine: 'cache draw weight shift in cc_make_item (0031 restatement)', file: 'db/migrations/0031_cache_rank.sql', needle: 'cache_quality' },
+    { engine: 'resolved-bonus derivation (the Cache Rank track of the same total)', file: 'src/content/cacheRank.ts', needle: 'cacheQuality' },
+  ],
+
   // ---- Fixer majors / keystone (migration 0029) ----
   // Every Fixer term derives server-side from the actor's own
   // records (profiles.skill_spends + equipped class mod) through
@@ -184,3 +197,56 @@ export const SKILL_EFFECT_CONSUMERS: Record<string, SkillEffectConsumer[]> = {
     { engine: 'vendor buyback rate in cc_vendor_sell', file: 'db/migrations/0029_fixer_tree.sql', needle: 'vendor_buyback_bonus' },
   ],
 };
+
+/**
+ * The Cache Rank bonus registry (Cache Rank slice, 0031) — the same
+ * discipline as SKILL_EFFECT_CONSUMERS, applied to the seven Cache
+ * Rank tracks (content owner: src/content/cacheRank.ts). Every
+ * track must name the real engines that read its resolved fraction,
+ * TS and SQL twins alike; the Cache Rank structural test fails if a
+ * track lacks an entry, if an entry's needle no longer appears in
+ * its file, or if the registry's keys drift from
+ * CACHE_RANK_BONUS_IDS. A bonus that stops being read anywhere is a
+ * dead bonus, and this registry is where that gets caught.
+ */
+export const CACHE_RANK_BONUS_CONSUMERS: Record<string, SkillEffectConsumer[]> = {
+  credits: [
+    { engine: 'Chef roaming claim credit rate (multiplies last)', file: CHEF, needle: 'cacheRank?.credits' },
+    { engine: 'Chef boss attempt victory credits', file: CHEF, needle: 'cacheRankBonuses?.credits' },
+    { engine: 'Chef endless encounter escrow credits', file: CHEF, needle: 'endlessCacheRank?.credits' },
+  ],
+  xp: [
+    { engine: 'Chef roaming claim XP rate (multiplies last)', file: CHEF, needle: 'cacheRank?.xp' },
+    { engine: 'Chef boss attempt victory XP', file: CHEF, needle: 'cacheRankBonuses?.xp' },
+    { engine: 'Chef endless encounter escrow XP', file: CHEF, needle: 'endlessCacheRank?.xp' },
+    { engine: 'craft unit XP at completion (TS settler)', file: 'src/server/writes/craftEngine.ts', needle: 'cacheRankXpBonus' },
+    { engine: 'craft unit XP in cc_complete_craft_unit', file: 'db/migrations/0031_cache_rank.sql', needle: "cc_cache_rank_bonus_fraction(p.cache_rank_spends, 'xp')" },
+    { engine: 'board repair XP at finalize (TS mirror)', file: 'src/server/writes/memory.ts', needle: 'cacheRankBonusesFor(provider).xp' },
+    { engine: 'board repair XP in cc_repair_finalize_job', file: 'db/migrations/0031_cache_rank.sql', needle: "cc_cache_rank_bonus_fraction(provider.cache_rank_spends, 'xp')" },
+  ],
+  scrap: [
+    { engine: 'Chef roaming claim scrap rate (multiplies last)', file: CHEF, needle: 'cacheRank?.scrap' },
+    { engine: 'Chef boss attempt Second Opinion scrap', file: CHEF, needle: 'cacheRankBonuses?.scrap' },
+    { engine: 'Chef endless encounter escrow scrap', file: CHEF, needle: 'endlessCacheRank?.scrap' },
+  ],
+  damage: [
+    { engine: 'Chef roaming claim derived DPS', file: CHEF, needle: 'cacheRank?.damage' },
+    { engine: 'boss sim DPS (merged skillBonuses key)', file: BOSS_SIM, needle: 'cacheRankDamageBonus' },
+    { engine: 'mechanics snapshot simulated boss DPS', file: 'src/lib/mechanics/buildCharacterMechanicsSnapshot.ts', needle: 'cacheRankDamageBonus' },
+  ],
+  maxHp: [
+    { engine: 'boss sim survival HP (merged skillBonuses key)', file: BOSS_SIM, needle: 'cacheRankMaxHpBonus' },
+    { engine: 'mechanics snapshot max HP (base HP part only)', file: 'src/lib/mechanics/buildCharacterMechanicsSnapshot.ts', needle: 'cacheRankMaxHpBonus' },
+  ],
+  cacheQuality: [
+    { engine: 'cache draw weight shift (TS write mirror of cc_make_item)', file: 'src/server/writes/memory.ts', needle: 'cacheQualityAdjustedWeights' },
+    { engine: 'cache draw weight shift in cc_make_item (0031 restatement)', file: 'db/migrations/0031_cache_rank.sql', needle: 'cache_quality' },
+  ],
+  marketProceeds: [
+    { engine: 'market fee breakdown, post-fee uplift (TS)', file: 'src/lib/market/marketFee.ts', needle: 'proceedsBonus' },
+    { engine: 'market completion uplift in cc_accept_listing', file: 'db/migrations/0031_cache_rank.sql', needle: 'cache_rank_proceeds_bonus' },
+    { engine: 'minted uplift folds into credits_minted_other (SQL metrics)', file: 'db/migrations/0031_cache_rank.sql', needle: 'cache_rank_proceeds_bonus' },
+    { engine: 'minted uplift folds into credits_minted_other (TS metrics mirror)', file: 'src/server/economy/memory.ts', needle: 'cache_rank_proceeds_bonus' },
+  ],
+};
+

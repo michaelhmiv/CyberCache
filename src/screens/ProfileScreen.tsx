@@ -8,6 +8,7 @@ import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { MasterySection } from '@/components/profile/MasterySection';
+import { CacheRankPanel } from '@/components/profile/CacheRankPanel';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { useAuth } from '@/auth/AuthProvider';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
@@ -203,6 +204,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
       </MobileCard>
 
       <MasterySection />
+
+      <CacheRankPanel />
 
       <MobileCard className="space-y-2" rarityColor="#7CFC00">
         <div className="flex items-center gap-2">

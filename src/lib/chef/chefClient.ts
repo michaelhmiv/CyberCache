@@ -737,6 +737,42 @@ export interface ChefFireOverclockWorkshopResult {
   idempotentReplay?: boolean;
 }
 
+export interface ChefCacheRankStateResult {
+  verified: true;
+  cacheRank: import('@/content/cacheRank').CacheRankStateView;
+}
+
+export interface ChefSpendCacheRankResult {
+  verified: true;
+  spent: { bonusId: string; rankAfter: number | null; cost: number | null };
+  cacheRank: import('@/content/cacheRank').CacheRankStateView | null;
+}
+
+/** Idempotency nonce for one Cache Rank spend — unique per tap, stable per send. */
+export function newCacheRankNonce(): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `cache-rank-spend:${random}`;
+}
+
+export async function getCacheRankState(): Promise<ChefCacheRankStateResult> {
+  return endlessFetch<ChefCacheRankStateResult>(
+    '/cache-rank/me',
+    { method: 'GET' },
+    'Chef cache rank facts failed',
+  );
+}
+
+export async function spendCacheRankBonus(request: {
+  nonce: string;
+  bonusId: string;
+}): Promise<ChefSpendCacheRankResult> {
+  return endlessFetch<ChefSpendCacheRankResult>(
+    '/cache-rank/spend',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef cache rank spend failed',
+  );
+}
+
 /** Idempotency nonce for one action-skill call — unique per tap, stable per send. */
 export function newActionSkillNonce(kind: 'select' | 'workshop'): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;

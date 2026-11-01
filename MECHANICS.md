@@ -696,3 +696,68 @@ delta stays ≤ +0.65, and a hopeless fight (no weapons) stays at the
 0.02 floor — flat damage cannot fabricate a win. Firing mints and
 destroys no currency; fires are metered per tree per day
 (`action_skill_fires_*`).
+
+## 15. Cache Rank (migration 0031)
+
+A Badass-rank analogue: a SEPARATE token currency earned from LEVELS
+and spent on tiny permanent bonuses. Content owner:
+`src/content/cacheRank.ts`; every magnitude is a live lever (economy
+config) with the defaults below. Cache Rank never touches the
+skill-point budget (level − 1 points) and is never respec'd — tokens
+are level-bound, bonuses are tiny and broad, so a misclick is cheap
+by construction (deliberate non-goal: no respec; this is not an
+achievement system — it pays for levels, not feats).
+
+**Earning.** 1 token per level gained (`cacheRankTokensPerLevel`,
+clamp [0, 3]) plus milestone bundles at levels 10 / 25 / 50 / 75 /
+100 of +5 / +10 / +15 / +20 / +25 (bundle at milestone k =
+`cacheRankMilestoneBundleBase` + step × (k − 1); both levers clamp
+[0, 25]). Entitlement(L) = (L − 1) × perLevel + Σ bundles ≤ L:
+L10 = 14, L25 = 39, L50 = 79, L75 = 124, L100 = 174 — **174 tokens
+is everything a level-100 hunter can ever earn** at defaults.
+Grants are SERVER-DERIVED and exactly-once: `profiles.cache_rank_grant_level`
+is a watermark; a BEFORE UPDATE trigger on `player_level`, the
+idempotent `cc_grant_cache_rank_tokens` RPC, and an inline grant
+inside the spend RPC all advance it under the row lock, each paying
+entitlement(level) − entitlement(watermark) and recording a
+`cc_cache_rank_grant` ledger row keyed
+`cache-rank-grant:{uid}:{from}:{to}`. A pre-existing profile
+(watermark 0) is granted its full retroactive entitlement ONCE on
+first touch, never again — replays, claims, and offline settlements
+cannot double-grant because the watermark only moves forward and
+the ledger key refuses a second insert. Guests earn identically;
+nothing is account-gated.
+
+**Spending.** `cc_spend_cache_rank` (nonce-idempotent via the
+verified-action ledger): one rank of one track per call. Cost of the
+next rank at r ranks = round(`cacheRankCostBase` + `cacheRankCostGrowth`
+× floor(r / 2)) — at defaults 1, 1, 2, 2, 3, 3, 4, 4, 5, 5 = **30
+tokens per track, 210 for the whole menu > 174 earnable**, so full
+completion is impossible and choices stay real. Each track caps at
+10 ranks; per-rank effects and all-maxed totals:
+
+| Track | Per rank | All-maxed (10 ranks) | Consumer |
+|---|---|---|---|
+| Greed (credits) | +1% earn rates | +10% | Chef claim/boss/endless rates, multiplied LAST |
+| Fast Learner (XP) | +1% XP | +10% | Chef rates + craft/repair completion XP (both twins) |
+| Salvage Hound (scrap) | +1% scrap | +10% | Chef claim/boss salvage/endless scrap |
+| Heavy Hand (damage) | +0.5% damage | +5% | Chef derived DPS + boss sim seam |
+| Thick Skin (max HP) | +1% max HP | +10% | Mechanics snapshot + boss sim (base HP only; shield HP unscaled) |
+| Cache Optimizer (quality) | +0.02 cache quality | +0.20 | `cc_make_item` draw + TS twin — WIRES the dead `cacheQuality` skill effect (#216) into the same lane: non-minimum rarity tiers' weights × (1 + q) |
+| Silver Tongue (market) | +0.5% of post-fee proceeds | +5% | `cc_accept_listing` + TS fee mirror — see order below |
+
+**Market composition order** (documented, test-pinned): sale price
+→ fee = rate × (1 − Darknet/Manipulator/House Brand reductions),
+destroyed → Silver Tongue uplift = floor(post-fee proceeds ×
+fraction), MINTED to the seller and metered inside
+`credits_minted_other`. NPC listings are exempt from the fee branch
+and therefore from the uplift. Earn multipliers compose LAST, after
+gear, skill, activity, and hot-streak terms. All seven tracks are
+registered in `CACHE_RANK_BONUS_CONSUMERS`
+(`src/lib/skills/skillConsumers.ts`): a track whose consumer needle
+disappears from its engine fails the Cache Rank structural test —
+the #216 dead-bonus discipline.
+
+**Meters.** `cache_rank_tokens_granted` (Σ `tokens_granted` over
+`cc_cache_rank_grant`) and `cache_rank_tokens_spent` (Σ `cost` over
+`cc_cache_rank_spend`) in the daily economy metrics + in-memory twin.

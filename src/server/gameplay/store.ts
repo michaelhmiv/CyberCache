@@ -50,6 +50,8 @@ export interface RoamingProfileRow {
   xp_remainder: number;
   /** Vehicle tank fuel units (migration 0021), profiles.vehicle_fuel. */
   vehicle_fuel: number;
+  /** Cache Rank spends (migration 0031) — routes resolve the claim's Cache Rank bonuses from this, never from a client body. */
+  cache_rank_spends: Json;
 }
 
 /** profiles subset the boss handler reads. */
@@ -64,6 +66,8 @@ export interface BossProfileRow {
   action_skill_charge: number;
   /** Recorded action skill selection (a SkillTreeType name), or null (0030). */
   action_skill_selection: string | null;
+  /** Cache Rank spends (migration 0031) — the boss route resolves Cache Rank bonuses from this, never from a client body. */
+  cache_rank_spends: Json;
 }
 
 /**
@@ -97,6 +101,22 @@ export interface SettlementProfileRow {
   xp_remainder: number;
   /** Vehicle tank fuel units (migration 0021), profiles.vehicle_fuel. */
   vehicle_fuel: number;
+  /** Cache Rank spends (migration 0031) — offline settlement resolves Cache Rank bonuses from this, never from a client body. */
+  cache_rank_spends: Json;
+}
+
+/**
+ * The Cache Rank facts (migration 0031): the player's own server
+ * records the /api/cache-rank routes render from — level and XP
+ * (the earning input + next-token progress), the token balance, the
+ * grant watermark, and the spend record. Never the request body.
+ */
+export interface CacheRankFacts {
+  player_level: number;
+  player_xp: number;
+  cache_rank_tokens: number;
+  cache_rank_grant_level: number;
+  cache_rank_spends: Json;
 }
 
 /** active_actions row the offline-settlement handler reads. */
@@ -406,6 +426,24 @@ export interface ChefGameplayStore {
    */
   setActionSkillSelection(playerId: string, nonce: string, tree: string | null): Promise<Json>;
   /**
+   * The Cache Rank facts for the /api/cache-rank routes (0031):
+   * level/XP, token balance, grant watermark, spends — server
+   * records only.
+   */
+  getCacheRankFacts(playerId: string): Promise<CacheRankFacts | null>;
+  /**
+   * Observe-and-grant (cc_grant_cache_rank_tokens, 0031): pays any
+   * ungranted level entitlement and advances the watermark.
+   * Idempotent — repeats pay nothing.
+   */
+  grantCacheRankTokens(playerId: string): Promise<Json>;
+  /**
+   * Spend one Cache Rank rank (cc_spend_cache_rank, 0031): applies
+   * any pending grant inline, then validates balance/cap against
+   * server records and debits. Nonce-idempotent via the ledger.
+   */
+  spendCacheRankBonus(playerId: string, nonce: string, bonusId: string): Promise<Json>;
+  /**
    * Victories against one boss since `dayStartIso` (UTC day start),
    * counted from the verified action ledger — the source for the
    * rematch-fee escalation (src/lib/bossFees.ts). Replayed nonces never
@@ -560,7 +598,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel from public.profiles where id = $1',
+      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel, cache_rank_spends from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -571,13 +609,14 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         credits_remainder: num(row.credits_remainder),
         xp_remainder: num(row.xp_remainder),
         vehicle_fuel: num(row.vehicle_fuel),
+        cache_rank_spends: json(row.cache_rank_spends),
       }),
     );
   }
 
   getBossProfile(playerId: string): Promise<BossProfileRow | null> {
     return this.one(
-      'select player_level, credits, consumables, boss_state, skill_spends, action_skill_charge, action_skill_selection from public.profiles where id = $1',
+      'select player_level, credits, consumables, boss_state, skill_spends, action_skill_charge, action_skill_selection, cache_rank_spends from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -590,6 +629,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
           row.action_skill_selection === null || row.action_skill_selection === undefined
             ? null
             : String(row.action_skill_selection),
+        cache_rank_spends: json(row.cache_rank_spends),
       }),
     );
   }
@@ -626,9 +666,35 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     ]);
   }
 
+  getCacheRankFacts(playerId: string): Promise<CacheRankFacts | null> {
+    return this.one(
+      'select player_level, player_xp, cache_rank_tokens, cache_rank_grant_level, cache_rank_spends from public.profiles where id = $1',
+      [playerId],
+      (row) => ({
+        player_level: num(row.player_level),
+        player_xp: num(row.player_xp),
+        cache_rank_tokens: num(row.cache_rank_tokens),
+        cache_rank_grant_level: num(row.cache_rank_grant_level),
+        cache_rank_spends: json(row.cache_rank_spends),
+      }),
+    );
+  }
+
+  grantCacheRankTokens(playerId: string): Promise<Json> {
+    return this.callJson('select public.cc_grant_cache_rank_tokens($1) as result', [playerId]);
+  }
+
+  spendCacheRankBonus(playerId: string, nonce: string, bonusId: string): Promise<Json> {
+    return this.callJson('select public.cc_spend_cache_rank($1, $2, $3) as result', [
+      playerId,
+      nonce,
+      bonusId,
+    ]);
+  }
+
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel from public.profiles where id = $1',
+      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel, cache_rank_spends from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -645,6 +711,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         credits_remainder: num(row.credits_remainder),
         xp_remainder: num(row.xp_remainder),
         vehicle_fuel: num(row.vehicle_fuel),
+        cache_rank_spends: json(row.cache_rank_spends),
       }),
     );
   }

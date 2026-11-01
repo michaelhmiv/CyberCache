@@ -16,7 +16,7 @@ describe('Roaming claim server authority regression', () => {
     const store = readSource('src/server/gameplay/store.ts');
     // Phase 2b: the claim read also pulls vehicle_fuel (the tank is
     // profile state) — the consumables column stays in the same read.
-    expect(store).toContain('select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel from public.profiles');
+    expect(store).toContain('select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel, cache_rank_spends from public.profiles');
     expect(handler).toContain('store.getRoamingProfile(playerId)');
     expect(handler).toContain('consumableInventory');
     expect(handler).toContain('claimWithConsumables');

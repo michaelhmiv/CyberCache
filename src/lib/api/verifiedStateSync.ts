@@ -20,6 +20,9 @@ export type RuntimeProfilePayload = {
   cache_token_parts?: number | string;
   /** Legendary core balance (0026). */
   legendary_cores?: number | string;
+  /** Cache Rank token balance + spend ranks (0031). */
+  cache_rank_tokens?: number | string;
+  cache_rank_spends?: Record<string, number>;
   materials?: Record<string, number>;
   essences?: Record<string, number>;
   consumables?: Record<string, number>;
@@ -153,6 +156,8 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
     cacheKeys: numberValue(profile.cache_tokens, player.cacheKeys),
     cacheKeyFragments: numberValue(profile.cache_token_parts, player.cacheKeyFragments),
     legendaryCores: numberValue(profile.legendary_cores, player.legendaryCores),
+    cacheRankTokens: numberValue(profile.cache_rank_tokens, player.cacheRankTokens),
+    cacheRankSpends: recordValue(profile.cache_rank_spends) ?? player.cacheRankSpends,
     materials: profile.materials ?? player.materials,
     essences: profile.essences ?? player.essences,
     consumables: profile.consumables ?? player.consumables,
