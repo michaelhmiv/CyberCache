@@ -26,11 +26,12 @@ import { useEffect } from 'react';
 import { mountIdleTicker, unmountIdleTicker } from './store';
 import { SalvageToastContainer } from './components/action/SalvageToast';
 import { OfflineRecap } from './components/activity/OfflineRecap';
+import { StarterBundleReveal } from './components/activity/StarterBundleReveal';
 import { useOfflineRecapListener } from './components/activity/useOfflineRecapListener';
 import { useOfflineResumeSettlement } from './components/activity/useOfflineResumeSettlement';
 import { useLeaveSignals } from './components/activity/useLeaveSignals';
 import { SettlementDebugOverlay } from './components/activity/SettlementDebugOverlay';
-import { registerPushNotifications } from './lib/notifications/pushNotifications';
+import { syncPushRegistration } from './lib/notifications/pushNotifications';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'leaderboards' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | null;
@@ -88,10 +89,14 @@ function App() {
   // Mount the singleton idle ticker once per authenticated session. The ticker
   // submits roaming claims to the Chef (/api/claim), which simulates and
   // settles every tick server-side; the client only applies the response.
+  // Push (audit PERM-01): session start NEVER prompts for notification
+  // permission — it only re-registers the device when permission was
+  // already granted. The ask itself lives on the offline recap's
+  // primer (PushPrimerRow → requestPushNotifications).
   useEffect(() => {
     if (!user || loading) return undefined;
     mountIdleTicker();
-    void registerPushNotifications();
+    void syncPushRegistration();
     return () => {
       unmountIdleTicker();
     };
@@ -245,6 +250,7 @@ function App() {
       <DeathOverlay />
       <SalvageToastContainer />
       <OfflineRecap />
+      <StarterBundleReveal />
       <SettlementDebugOverlay />
     </div>
   );

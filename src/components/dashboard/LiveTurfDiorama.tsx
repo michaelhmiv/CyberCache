@@ -1241,7 +1241,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : 'No weapon equipped';
   const motionCaption = latestEvent ? `${latestEvent.label} ${latestEvent.detail}` : copy.caption;
   const targetMode = latestEvent ? 'event' : copy.status;
-  const primaryLabel = primaryActionLabel ?? (activityKind === 'roaming_loot' ? 'View run' : activityKind === 'idle_standby' || activityKind === 'none' ? 'Start action' : 'Manage action');
+  const primaryLabel = primaryActionLabel ?? (activityKind === 'roaming_loot' ? 'View run' : activityKind === 'idle_standby' || activityKind === 'none' ? 'Start Roam' : 'Manage action');
   const primaryDetail = primaryActionDetail ?? (activityKind === 'roaming_loot' ? area.enemyType : copy.caption);
   const secondaryLabel = secondaryActionLabel ?? (bossName ? 'Prep boss' : 'Switch');
   const secondaryDetail = secondaryActionDetail ?? (bossName ? `${bossWeaknessCount} weakness tags` : `${cacheKeys} keys ready`);

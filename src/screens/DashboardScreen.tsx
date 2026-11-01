@@ -301,7 +301,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
   const activityLabel = safeText(activePayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
   const activityTarget = activity.current.targetLabel ?? safeText(activePayload.target_label) ?? 'No target';
   const selectedRoamingActive = activity.current.kind === 'roaming_loot' && activity.current.targetType === 'roaming_area' && activity.current.targetId === selectedArea.id;
-  const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : `start ${selectedArea.name}`;
+  const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : selectedArea.name;
 
   // Navigation on these handlers happens ONLY on success (flow-fix
   // F7): they used to navigate in a `finally`, so a failed start landed
@@ -355,7 +355,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
   }, [activity, currentBoss, equippedWeapon, idle, onNavigate, onOpenBossSelect]);
 
   const actions = [
-    { id: 'fight', label: selectedRoamingActive ? 'Enter Active Run' : 'Start Wastes Run', desc: 'Sync the selected area, then enter combat.', icon: <span style={{ fontSize: 16 }} className="text-red">⚔</span>, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: startSelectedRoaming },
+    // Audit NAV-01: the Action Board row is status + navigation, not
+    // a rival start button. Roaming starts under ONE verb — the
+    // diorama's "Start Roam" here and in the Action workspace — so
+    // this row reports the run's state and opens the workspace.
+    { id: 'fight', label: 'Roaming', desc: selectedRoamingActive ? 'Run live now — open the Action workspace to manage it.' : 'Open the Action workspace to start roaming.', icon: <span style={{ fontSize: 16 }} className="text-red">⚔</span>, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: () => onNavigate('fight') },
     { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <span style={{ fontSize: 16 }} className="text-amber">◈</span>, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('loadout') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
     { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <span style={{ fontSize: 16 }} className="text-purple">♕</span>, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
@@ -479,9 +483,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
               onClick={() => setTurfPickerOpen(true)}
               className="flex items-center gap-1 border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber transition-colors hover:bg-amber/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber"
               style={signClip}
-              aria-label="Switch area"
+              aria-label="Change area"
             >
-              Switch
+              Change Area
               <ChevronDown size={9} />
             </button>
           }
@@ -504,7 +508,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
               <ChevronDown size={12} className="shrink-0 text-text-muted" />
             </div>
             <div className="relative mt-1 truncate text-[9px] text-amber">{selectedArea.lootBias[0]}</div>
-            <div className="relative mt-1 text-[8px] uppercase tracking-[0.16em] text-text-muted">Tap to switch area</div>
+            <div className="relative mt-1 text-[8px] uppercase tracking-[0.16em] text-text-muted">Tap to change area</div>
           </button>
         </Panel>
       </div>

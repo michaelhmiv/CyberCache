@@ -46,7 +46,7 @@ const AreaCard: React.FC<{
           onClick={selected && onStart ? onStart : onSelect}
           disabled={!unlocked}
           className="min-w-0 flex-1 text-left"
-          aria-label={selected && onStart ? `Run ${area.name}` : `Select ${area.name}`}
+          aria-label={selected && onStart ? `Start roam in ${area.name}` : `Select ${area.name}`}
         >
           <div className="text-sm font-black text-text-primary">
             {area.name}
@@ -61,7 +61,7 @@ const AreaCard: React.FC<{
         </button>
         {onStart && (
           <button type="button" onClick={onStart} disabled={!unlocked} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber disabled:opacity-40">
-            {selected ? 'Run' : 'Switch'}
+            Start Roam
           </button>
         )}
       </div>
@@ -77,7 +77,7 @@ const AreaCard: React.FC<{
 
 export const AreaPickerList: React.FC<{
   onSelect: (area: RoamingAreaDef) => void;
-  /** When provided, cards also offer Run/Switch (start roaming this area). */
+  /** When provided, cards also offer Start Roam (start roaming this area). */
   onStart?: (area: RoamingAreaDef) => void;
 }> = ({ onSelect, onStart }) => {
   const playerLevel = usePlayerStore((s) => s.level);

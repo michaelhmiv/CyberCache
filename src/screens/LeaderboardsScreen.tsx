@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
+import { canUseFeature } from '@/auth/accountState';
 import { FeatureGate } from '@/auth/FeatureGate';
+import { LoginStreakPanel } from '@/components/dashboard/LoginStreakPanel';
+import { CacheRankPanel } from '@/components/profile/CacheRankPanel';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LeaderboardMetricPicker } from '@/components/leaderboard/LeaderboardMetricPicker';
 import { LeaderboardList } from '@/components/leaderboard/LeaderboardList';
@@ -306,6 +309,9 @@ const LeaderboardBoard: React.FC = () => {
 };
 
 export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
+  const { account } = useAuth();
+  const boardsAllowed = canUseFeature(account, 'leaderboards').allowed;
+
   return (
     <div className="bl-page space-y-3 p-4 pb-20">
       <ResourceBar />
@@ -314,6 +320,21 @@ export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
         <span style={{ fontSize: 18 }} className="text-amber">♕</span>
         <div className="text-lg font-black uppercase tracking-wide text-text-primary">Leaderboards</div>
       </div>
+
+      {/* Guest previews (audit GUEST-01): the gate below locks the
+          leaderboard TABLES, but a guest's own streak and cache-rank
+          progress is already theirs — visible on the Dashboard and
+          the Hunter profile. When the boards are locked, render
+          those two panels read-only above the gate instead of
+          leaving the tab a bare lock wall. (Mounting the streak
+          panel here is the same daily check-in it performs on the
+          Dashboard — the Chef records the day exactly once.) */}
+      {!boardsAllowed && (
+        <>
+          <LoginStreakPanel />
+          <CacheRankPanel readOnly />
+        </>
+      )}
 
       {/* Leaderboards require a verified account with a username
           (accountState.canUseFeature); guests see the lock and the
