@@ -29,6 +29,9 @@ export const AuthScreen: React.FC = () => {
             <div className="bl-title text-4xl leading-none text-amber">CyberCache</div>
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-text-muted">Load Hunter File</div>
           </div>
+          <div className="text-xs leading-relaxed text-text-secondary">
+            Roam the wastes, loot gear, build your hunter, and take down bosses — the hunt keeps paying out while you&apos;re away.
+          </div>
           <div className="text-xs leading-relaxed text-text-muted">
             Jump in as a guest and play right away — the vendor yard is open to everyone. Sign in with Google to unlock the player market and services, and to keep your hunter on any device.
           </div>
@@ -51,7 +54,7 @@ export const AuthScreen: React.FC = () => {
           <button
             onClick={() => auth.signInWithGoogle()}
             disabled={auth.actionLoading}
-            className="bl-primary flex w-full items-center justify-center gap-2 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
+            className="bl-primary flex min-h-11 w-full items-center justify-center gap-2 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -64,7 +67,7 @@ export const AuthScreen: React.FC = () => {
           <button
             onClick={() => auth.continueAsGuest()}
             disabled={auth.actionLoading}
-            className="bl-secondary w-full py-3 text-sm font-bold disabled:opacity-50"
+            className="bl-secondary min-h-11 w-full py-3 text-sm font-bold disabled:opacity-50"
           >
             Continue as Guest
           </button>

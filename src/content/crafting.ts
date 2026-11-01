@@ -132,9 +132,18 @@ export interface CraftRecipe {
   /** Minimum owned bench this recipe may run on. */
   requiresBench: number;
   requiresMastery?: { track: string; level: number };
+  /** Research gate (0038): the course id whose completion unlocks
+   *  this recipe — a fourth gate beside level / bench / mastery,
+   *  enforced in both stores (cc_enqueue_craft_job reads
+   *  research_completions). */
+  requiresResearch?: string;
   station: CraftStation;
   /** consumable kind: the output consumable type. */
   consumableType?: string;
+  /** consumable kind: units produced per completed job unit
+   *  (default 1; the Research batch recipes produce 3). A fitted
+   *  tool's bonus unit adds +1 on top, as it does at quantity 1. */
+  outputQuantity?: number;
   /** refine kind: the output material and its base-rate yield count. */
   outputMaterial?: string;
   outputBase?: number;
@@ -332,12 +341,44 @@ export const CORE_CATALYST_CORES_PER_UNIT = 1;
 
 // ─── The catalog ─────────────────────────────────────────────────────
 
+/**
+ * Research batch recipes (0038, Production Systems): three shipped
+ * consumables produced in batches of 3 — 2.5× the base recipe's
+ * inputs and 2.2× its unit duration per 3 units (cheaper in time
+ * than three singles, dearer in materials: the production-line
+ * trade). Inputs are per-input ceil(base × 2.5) so every input is a
+ * whole unit (Patch Kit's 1 Reactive Component prices as 3).
+ * Data-only recipes behind the requiresResearch gate — the SQL
+ * twin lives in cc_craft_recipe_catalog (migration 0038).
+ */
+export const BATCH_RECIPES: CraftRecipe[] = [
+  {
+    id: 'recipe_shield_cell_batch', kind: 'consumable', name: 'Shield Cell ×3 (Batch)', category: 'survival',
+    inputs: { ScrapAlloy: 50, ReactiveComponents: 30 }, unitDurationMs: 1980000,
+    requiresLevel: 3, requiresBench: 1, station: 'bench', consumableType: 'ShieldCell',
+    requiresResearch: 'production_systems', outputQuantity: 3,
+  },
+  {
+    id: 'recipe_patch_kit_batch', kind: 'consumable', name: 'Patch Kit ×3 (Batch)', category: 'utility',
+    inputs: { ScrapAlloy: 10, ReactiveComponents: 3 }, unitDurationMs: 1584000,
+    requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'PatchKit',
+    requiresResearch: 'production_systems', outputQuantity: 3,
+  },
+  {
+    id: 'recipe_ordnance_batch', kind: 'consumable', name: 'Ordnance Charge ×3 (Batch)', category: 'offense',
+    inputs: { ScrapAlloy: 30, BallisticParts: 25 }, unitDurationMs: 1584000,
+    requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'OrdnanceCharge',
+    requiresResearch: 'production_systems', outputQuantity: 3,
+  },
+];
+
 export const ALL_CRAFT_RECIPES: readonly CraftRecipe[] = [
   ...LEGACY_RECIPES,
   ...VEHICLE_CONSUMABLE_RECIPES,
   ...REFINING_RECIPES,
   ...GEAR_FRAME_RECIPES,
   ...TOOL_RECIPES,
+  ...BATCH_RECIPES,
 ];
 
 const RECIPE_BY_ID = new Map(ALL_CRAFT_RECIPES.map((r) => [r.id, r]));

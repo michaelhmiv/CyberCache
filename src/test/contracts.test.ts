@@ -379,7 +379,7 @@ describe('contracts — in-memory gameplay store', () => {
     let now = new Date(startIso);
     const provider = typeof levers === 'function' ? levers : () => levers ?? {};
     const store = new InMemoryChefGameplayStore(
-      () => now, undefined, undefined, undefined, undefined, provider,
+      () => now, undefined, undefined, undefined, undefined, undefined, provider,
     );
     return { store, setNow: (iso: string) => { now = new Date(iso); } };
   }

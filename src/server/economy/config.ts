@@ -231,6 +231,14 @@ export interface EconomyConfigValues {
   contractRerollScrapWeekly: number;
   /** Cache keys in the weekly full-set bonus. */
   contractWeeklyKeys: number;
+  // Research (0038) — content owner: src/content/research.ts
+  // (RESEARCH_LEVER_DEFAULTS / RESEARCH_LEVER_CLAMPS, pinned
+  // against these literals by tests; SQL reads them via
+  // cc_economy_config_number with identical clamps).
+  /** Multiplies catalog course durations at enroll (snapshotted). */
+  researchDurationScalar: number;
+  /** Multiplies catalog course costs at enroll (snapshotted). */
+  researchCostScalar: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -322,6 +330,8 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   contractRerollScrapDaily: 100,
   contractRerollScrapWeekly: 400,
   contractWeeklyKeys: 1,
+  researchDurationScalar: 1,
+  researchCostScalar: 1,
 };
 
 export interface EconomyConfigKeySpec {
@@ -674,6 +684,14 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   contractWeeklyKeys: {
     key: 'contractWeeklyKeys', min: 0, max: 3, integer: true,
     defaultOwner: 'src/content/contracts.ts CONTRACT_LEVER_DEFAULTS',
+  },
+  researchDurationScalar: {
+    key: 'researchDurationScalar', min: 0.5, max: 2, integer: false,
+    defaultOwner: 'src/content/research.ts RESEARCH_LEVER_DEFAULTS',
+  },
+  researchCostScalar: {
+    key: 'researchCostScalar', min: 0.5, max: 3, integer: false,
+    defaultOwner: 'src/content/research.ts RESEARCH_LEVER_DEFAULTS',
   },
 };
 

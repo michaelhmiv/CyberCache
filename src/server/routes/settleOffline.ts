@@ -17,6 +17,7 @@ import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { ABSOLUTE_OFFLINE_CAP_HOURS, effectiveOfflineCapHours } from '../../content/offlineCap';
+import { mergeResearchBonuses } from '../../content/research';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { HOT_AREA_MATERIAL_BONUS, isHotArea } from '../../content/hotArea';
 import { resolveExtractionLevers } from '../../content/extraction';
@@ -93,12 +94,17 @@ export function createSettleOfflineHandler(
           craftGear,
           (craftProfile.skill_spends ?? {}) as Record<string, number>,
         );
+        // Research (0038): Supply Chains' +1h joins the cap's bonus
+        // hours (settle-first derivation from completion rows).
+        const craftResearchBonuses = await store.getResearchBonuses(playerId);
         const craftEconomy = config.economyConfig
           ? await config.economyConfig.snapshot()
           : undefined;
         const craftCapHours = effectiveOfflineCapHours({
           level: craftProfile.player_level || 1,
-          bonusHours: Math.max(0, Math.floor(craftSkillBonuses.offlineCapBonus ?? 0)),
+          bonusHours:
+            Math.max(0, Math.floor(craftSkillBonuses.offlineCapBonus ?? 0))
+            + craftResearchBonuses.offlineCapBonus,
           userCapHours: craftProfile.offline_cap_hours,
           ceilingHours: craftEconomy?.absoluteOfflineCapHours ?? ABSOLUTE_OFFLINE_CAP_HOURS,
         });
@@ -163,12 +169,15 @@ export function createSettleOfflineHandler(
           extractGear,
           (extractProfile.skill_spends ?? {}) as Record<string, number>,
         );
+        const extractResearchBonuses = await store.getResearchBonuses(playerId);
         const extractEconomy = config.economyConfig
           ? await config.economyConfig.snapshot()
           : undefined;
         const extractCapHours = effectiveOfflineCapHours({
           level: extractProfile.player_level || 1,
-          bonusHours: Math.max(0, Math.floor(extractSkillBonuses.offlineCapBonus ?? 0)),
+          bonusHours:
+            Math.max(0, Math.floor(extractSkillBonuses.offlineCapBonus ?? 0))
+            + extractResearchBonuses.offlineCapBonus,
           userCapHours: extractProfile.offline_cap_hours,
           ceilingHours: extractEconomy?.absoluteOfflineCapHours ?? ABSOLUTE_OFFLINE_CAP_HOURS,
         });
@@ -259,9 +268,16 @@ export function createSettleOfflineHandler(
         res.status(500).json({ error: 'Failed to read loadout', detail: message });
         return;
       }
-      const skillBonuses = skillBonusesFromRecords(
-        equippedGear,
-        (profile.skill_spends ?? {}) as Record<string, number>,
+      // Research (0038): completion-derived bonuses merge onto the
+      // one bonus record (Xenotech terms + Powertrain decay), and
+      // Supply Chains' +1h joins the cap's bonus hours below.
+      const researchBonuses = await store.getResearchBonuses(playerId);
+      const skillBonuses = mergeResearchBonuses(
+        skillBonusesFromRecords(
+          equippedGear,
+          (profile.skill_spends ?? {}) as Record<string, number>,
+        ),
+        researchBonuses,
       );
 
       // Vehicle parity (Phase 2b): offline settlement runs the SAME
@@ -307,7 +323,9 @@ export function createSettleOfflineHandler(
         res.status(500).json({ error: 'Failed to read drop buff', detail: message });
         return;
       }
-      const offlineCapBonus = Math.max(0, Math.floor(skillBonuses.offlineCapBonus ?? 0));
+      const offlineCapBonus =
+        Math.max(0, Math.floor(skillBonuses.offlineCapBonus ?? 0))
+        + researchBonuses.offlineCapBonus;
       const capHours = effectiveOfflineCapHours({
         level: profile.player_level || 1,
         bonusHours: offlineCapBonus,

@@ -1171,3 +1171,69 @@ async function getSessionJwt(): Promise<string | undefined> {
     return undefined;
   }
 }
+
+/**
+ * Research (0038). The parallel education track: one enrollment at
+ * a time, progress is pure wall-clock on the server, completions
+ * are server records. The client sends intent only — a course id
+ * and a nonce; terms (fee, duration) come from the catalog +
+ * levers server-side and return inside the state view.
+ */
+export interface ChefResearchStateResult {
+  verified: true;
+  research: import('@/content/research').ResearchStateView;
+}
+
+export interface ChefResearchEnrollResult {
+  verified: true;
+  enrolled: Record<string, unknown>;
+  research: import('@/content/research').ResearchStateView | null;
+  profile: Record<string, unknown> | null;
+}
+
+export interface ChefResearchCancelResult {
+  verified: true;
+  cancelled: Record<string, unknown>;
+  research: import('@/content/research').ResearchStateView | null;
+}
+
+/** Idempotency nonce for one Research enroll tap. */
+export function newResearchEnrollNonce(): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `research-enroll:${random}`;
+}
+
+/** Idempotency nonce for one Research cancel tap. */
+export function newResearchCancelNonce(): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `research-cancel:${random}`;
+}
+
+export async function getResearchState(): Promise<ChefResearchStateResult> {
+  return endlessFetch<ChefResearchStateResult>(
+    '/research/me',
+    { method: 'GET' },
+    'Chef research state failed',
+  );
+}
+
+export async function enrollResearch(request: {
+  nonce: string;
+  courseId: string;
+}): Promise<ChefResearchEnrollResult> {
+  return endlessFetch<ChefResearchEnrollResult>(
+    '/research/enroll',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef research enrollment failed',
+  );
+}
+
+export async function cancelResearch(request: {
+  nonce: string;
+}): Promise<ChefResearchCancelResult> {
+  return endlessFetch<ChefResearchCancelResult>(
+    '/research/cancel',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef research cancellation failed',
+  );
+}

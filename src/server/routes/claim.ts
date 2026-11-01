@@ -24,7 +24,7 @@
  * src/server/gameplay/routes.ts.
  */
 import type { Request, Response } from 'express';
-import { processBossAttempt, type BossAttemptRequest } from '../chef';
+import { BOSS_DEDICATED_DROP_CHANCE, processBossAttempt, type BossAttemptRequest } from '../chef';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import { CONSUMABLES } from '../../constants/consumables';
 import type { AuthConfig } from '../auth/routes';
@@ -46,6 +46,7 @@ import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { recordItemDiscoveries } from './roamingHandler';
 import { bossDiscovery } from '../../content/collections';
 import { cacheRankBonuses } from '../../content/cacheRank';
+import { mergeResearchBonuses } from '../../content/research';
 
 /**
  * Validate the client's PREPARED consumable set against DB-owned
@@ -278,13 +279,21 @@ export function createVerifyBossHandler(
         (profile.skill_spends ?? {}) as Record<string, number>,
       );
 
+      // Research (0038): completion-derived bonuses merge onto the
+      // same record — Xenotech weapon damage / shield capacity ride
+      // the sim, and Void Theory's dedicated-chance term joins the
+      // economy block below. Derived from research_completions rows
+      // via the store (settle-first), never from the body.
+      const researchBonuses = await store.getResearchBonuses(playerId);
+      const mergedSkillBonuses = mergeResearchBonuses(serverSkillBonuses, researchBonuses);
+
       // Cache Rank (0031): resolved from the profile's own
       // cache_rank_spends + the live levers. Damage/max HP ride the
       // sim through merged skillBonuses keys (the sim's one bonus
       // record); XP/credits/scrap ride the request's typed field.
       const serverCacheRank = cacheRankBonuses(profile.cache_rank_spends, economyValues);
       const simSkillBonuses = {
-        ...serverSkillBonuses,
+        ...mergedSkillBonuses,
         cacheRankDamageBonus: serverCacheRank.damage,
         cacheRankMaxHpBonus: serverCacheRank.maxHp,
       };
@@ -362,14 +371,14 @@ export function createVerifyBossHandler(
         consumableQuality: effectiveConsumableQuality,
         pityCount: serverPityCount,
         entryFee,
-        economy: economyValues
-          ? {
-              bossDedicatedChance: economyValues.bossDedicatedChance,
-              ...(dropLuckBonus > 0 ? { dropLuckBonus } : {}),
-            }
-          : dropLuckBonus > 0
-            ? { dropLuckBonus }
-            : undefined,
+        economy: {
+          // The levered dedicated chance + Void Theory's +0.01
+          // (0038) when the certification is held.
+          bossDedicatedChance:
+            (economyValues?.bossDedicatedChance ?? BOSS_DEDICATED_DROP_CHANCE)
+            + researchBonuses.bossDedicatedChanceBonus,
+          ...(dropLuckBonus > 0 ? { dropLuckBonus } : {}),
+        },
         actionSkillFire: actionSkillPlan,
         ...serverSlots,
         skillBonuses: simSkillBonuses,

@@ -394,6 +394,41 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.45, GRAMMAR.progress.heightPx, [154, 149, 138], 255);
   }),
+  // Research (0038): the hunter studying at the terminal — the
+  // education track's own scene. War-room table, terminal, and the
+  // credential shelf (one plaque earned; the shelf fills from the
+  // player's completion records). The G-3 track runs at ~40%: the
+  // track names the course by its progress, never its minutes.
+  scene('research-study', (img) => {
+    drawBackground(img, AREA_BG.helixworks_labyrinth);
+    const table = loadGoldenSprite('set-war-room-table');
+    if (table) blit(img, table, SCENE_W * 0.16 - 42, GROUND * SCENE_H - 52, 84, 52);
+    const terminal = loadGoldenSprite('set-research-terminal');
+    if (terminal) blit(img, terminal, SCENE_W * 0.55 - 52, GROUND * SCENE_H - 62, 104, 62);
+    const shelf = loadGoldenSprite('set-research-shelf');
+    if (shelf) blit(img, shelf, SCENE_W * 0.88 - 42, GROUND * SCENE_H - 52, 84, 52);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.4, GRAMMAR.progress.heightPx, [255, 176, 32], 255);
+  }),
+  // Course complete: one G-6 flash in the faculty color (Fabrication
+  // amber), a G-1 beam over the shelf where the credential hangs,
+  // the track full — a completion reads quieter than a drop, on
+  // purpose: it is a credential, not loot.
+  scene('research-complete', (img) => {
+    drawBackground(img, AREA_BG.helixworks_labyrinth);
+    const table = loadGoldenSprite('set-war-room-table');
+    if (table) blit(img, table, SCENE_W * 0.16 - 42, GROUND * SCENE_H - 52, 84, 52);
+    const terminal = loadGoldenSprite('set-research-terminal');
+    if (terminal) blit(img, terminal, SCENE_W * 0.55 - 52, GROUND * SCENE_H - 62, 104, 62);
+    const shelf = loadGoldenSprite('set-research-shelf');
+    if (shelf) blit(img, shelf, SCENE_W * 0.88 - 42, GROUND * SCENE_H - 52, 84, 52);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H, [255, 176, 32], 36);
+    drawBeam(img, SCENE_W * 0.88, GROUND * SCENE_H - 30, GRAMMAR.beamWidthPx.standard, '#FFB020');
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [255, 176, 32], 255);
+  }),
   // Vehicle at the scene edge (Q4 parked presentation).
   scene('vehicle-roam', (img) => {
     drawBackground(img, AREA_BG.dustwaste_frontier);

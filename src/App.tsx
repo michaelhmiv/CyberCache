@@ -26,11 +26,12 @@ import { useEffect } from 'react';
 import { mountIdleTicker, unmountIdleTicker } from './store';
 import { SalvageToastContainer } from './components/action/SalvageToast';
 import { OfflineRecap } from './components/activity/OfflineRecap';
+import { StarterBundleReveal } from './components/activity/StarterBundleReveal';
 import { useOfflineRecapListener } from './components/activity/useOfflineRecapListener';
 import { useOfflineResumeSettlement } from './components/activity/useOfflineResumeSettlement';
 import { useLeaveSignals } from './components/activity/useLeaveSignals';
 import { SettlementDebugOverlay } from './components/activity/SettlementDebugOverlay';
-import { registerPushNotifications } from './lib/notifications/pushNotifications';
+import { syncPushRegistration } from './lib/notifications/pushNotifications';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'leaderboards' | 'profile';
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | null;
@@ -71,8 +72,10 @@ function App() {
   // Tab intent for the gear home (flow audit F2): every "loadout"
   // door must open Inventory ON its Loadout tab — the one equip
   // surface — not on the Gear list. `seq` makes a repeat intent
-  // re-apply even while Inventory is already mounted.
-  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'gear' | 'loadout'; seq: number } | null>(null);
+  // re-apply even while Inventory is already mounted. `anchor`
+  // (audit UX-06) deep-links a section of the tab — 'garage'
+  // scrolls the labeled Garage section into view on arrival.
+  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'gear' | 'loadout'; seq: number; anchor?: 'garage' } | null>(null);
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -88,10 +91,14 @@ function App() {
   // Mount the singleton idle ticker once per authenticated session. The ticker
   // submits roaming claims to the Chef (/api/claim), which simulates and
   // settles every tick server-side; the client only applies the response.
+  // Push (audit PERM-01): session start NEVER prompts for notification
+  // permission — it only re-registers the device when permission was
+  // already granted. The ask itself lives on the offline recap's
+  // primer (PushPrimerRow → requestPushNotifications).
   useEffect(() => {
     if (!user || loading) return undefined;
     mountIdleTicker();
-    void registerPushNotifications();
+    void syncPushRegistration();
     return () => {
       unmountIdleTicker();
     };
@@ -125,6 +132,15 @@ function App() {
       setActiveTab('inventory');
       setSubScreen(null);
       setInventoryTabIntent({ tab: 'loadout', seq: Date.now() });
+      return;
+    }
+    if (screen === 'garage') {
+      // Garage door (audit UX-06): the Garage is the labeled section
+      // below the slots on the Loadout tab — land there and scroll
+      // it into view (anchor rides the same tab intent).
+      setActiveTab('inventory');
+      setSubScreen(null);
+      setInventoryTabIntent({ tab: 'loadout', seq: Date.now(), anchor: 'garage' });
       return;
     }
     if (screen === 'vendor') {
@@ -245,6 +261,7 @@ function App() {
       <DeathOverlay />
       <SalvageToastContainer />
       <OfflineRecap />
+      <StarterBundleReveal />
       <SettlementDebugOverlay />
     </div>
   );

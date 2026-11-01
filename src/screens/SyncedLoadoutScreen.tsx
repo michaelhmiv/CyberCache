@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActionLoadout, type ActionLoadoutProps } from '@/components/action/ActionLoadout';
 import { GaragePanel } from '@/components/gear/GaragePanel';
 
 type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'> & {
   /** Jump to the Market's Repair Services board (0025). */
   onRequestService?: () => void;
+  /**
+   * Garage deep link (audit UX-06): when the player arrives via a
+   * "Garage" door (the Action banner's), the intent carries this seq;
+   * on a fresh seq the labeled Garage section scrolls into view —
+   * the same focus pattern Profile uses for its Skill Trees door.
+   */
+  focusGarageSeq?: number | null;
 };
 
 /**
@@ -15,6 +22,15 @@ type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'> 
  * their own list, through the same verified ops.
  */
 export const SyncedLoadoutScreen: React.FC<SyncedLoadoutScreenProps> = (props) => {
+  const { focusGarageSeq } = props;
+  useEffect(() => {
+    if (focusGarageSeq == null) return;
+    const el = document.getElementById('garage-panel');
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, [focusGarageSeq]);
+
   return (
     <div className="p-4 space-y-4 pb-20">
       <div>

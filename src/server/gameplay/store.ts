@@ -40,6 +40,11 @@ import { isHotArea } from '../../content/hotArea';
 import { contractBandForLevel, type ContractSetFacts } from '../../content/contracts';
 import { createTickRng } from '../../lib/rng/tickRng';
 import { skillBonusesFromRecords } from './serverLoadout';
+import {
+  computeResearchBonuses,
+  type ResearchBonuses,
+  type ResearchFacts,
+} from '../../content/research';
 
 export type { Json };
 
@@ -678,6 +683,33 @@ export interface ChefGameplayStore {
    */
   rerollContract(playerId: string, nonce: string, instanceId: string): Promise<Json>;
   /**
+   * Research facts (0038) for the /api/research routes: profile
+   * level / benches / credits + completion rows + the active
+   * enrollment. The read SETTLES first (cc_settle_research) — a
+   * course past its completes_at reads as a completion, never as
+   * an enrollment. Server records only.
+   */
+  getResearchFacts(playerId: string): Promise<ResearchFacts | null>;
+  /**
+   * Enroll in a course (cc_enroll_research, 0038): settle-first,
+   * catalog/level/prereq/bench validation, the lever-scaled fee is
+   * charged and DESTROYED, terms snapshot into the enrollment.
+   * Nonce-idempotent via the ledger. NO player XP, ever.
+   */
+  enrollResearch(playerId: string, nonce: string, courseId: string): Promise<Json>;
+  /**
+   * Cancel the active enrollment (cc_cancel_research, 0038):
+   * progress lost, fee kept. Nonce-idempotent via the ledger.
+   */
+  cancelResearch(playerId: string, nonce: string): Promise<Json>;
+  /**
+   * The engine read: settle, then derive the bonus record from
+   * research_completions rows (computeResearchBonuses). Every
+   * research consumer on the gameplay side reads through here or
+   * through the restated SQL compositions.
+   */
+  getResearchBonuses(playerId: string): Promise<ResearchBonuses>;
+  /**
    * Dispatch facts (0032): profile level/fuel + every item the
    * player owns, for the routes' term computation. Server records
    * only.
@@ -1156,6 +1188,92 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         daily: assemble('daily'),
         weekly: assemble('weekly'),
       };
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+
+  async getResearchFacts(playerId: string): Promise<ResearchFacts | null> {
+    // Lazy settlement first: a due enrollment becomes a completion
+    // before any fact is read (0038 — no cron duty by design).
+    await this.callJson('select public.cc_settle_research($1) as result', [playerId]);
+    const profile = await this.one(
+      `select player_level, workshop_benches, credits,
+              (extract(epoch from now()) * 1000)::bigint as now_ms
+         from public.profiles where id = $1`,
+      [playerId],
+      (row) => ({
+        player_level: num(row.player_level),
+        workshop_benches: num(row.workshop_benches),
+        credits: num(row.credits),
+        now_ms: num(row.now_ms),
+      }),
+    );
+    if (!profile) return null;
+    let completed: ResearchFacts['completed'];
+    let activeEnrollment: ResearchFacts['activeEnrollment'] = null;
+    try {
+      const isoOf = (value: unknown): string =>
+        value instanceof Date ? value.toISOString() : String(value ?? '');
+      const { rows } = await this.pool.query(
+        `select course_id, completed_at
+           from public.research_completions where user_id = $1
+          order by completed_at asc`,
+        [playerId],
+      );
+      completed = rows.map((row) => ({
+        courseId: String(row.course_id),
+        completedAt: isoOf(row.completed_at),
+      }));
+      const { rows: enrollmentRows } = await this.pool.query(
+        `select course_id, enrolled_at, completes_at, snapshot
+           from public.research_enrollments where user_id = $1`,
+        [playerId],
+      );
+      const enr = enrollmentRows[0];
+      if (enr) {
+        const snapshot = json(enr.snapshot);
+        activeEnrollment = {
+          courseId: String(enr.course_id),
+          enrolledAt: isoOf(enr.enrolled_at),
+          completesAt: isoOf(enr.completes_at),
+          costCredits: num(snapshot.costCredits),
+          durationMs: num(snapshot.durationMs),
+        };
+      }
+    } catch (err) {
+      return translatePgError(err);
+    }
+    return {
+      playerLevel: profile.player_level,
+      workshopBenches: profile.workshop_benches,
+      credits: profile.credits,
+      completed,
+      activeEnrollment,
+      nowMs: profile.now_ms,
+    };
+  }
+
+  enrollResearch(playerId: string, nonce: string, courseId: string): Promise<Json> {
+    return this.callJson('select public.cc_enroll_research($1, $2, $3) as result', [
+      playerId, nonce, courseId,
+    ]);
+  }
+
+  cancelResearch(playerId: string, nonce: string): Promise<Json> {
+    return this.callJson('select public.cc_cancel_research($1, $2) as result', [
+      playerId, nonce,
+    ]);
+  }
+
+  async getResearchBonuses(playerId: string): Promise<ResearchBonuses> {
+    await this.callJson('select public.cc_settle_research($1) as result', [playerId]);
+    try {
+      const { rows } = await this.pool.query(
+        'select course_id from public.research_completions where user_id = $1',
+        [playerId],
+      );
+      return computeResearchBonuses(rows.map((row) => String(row.course_id)));
     } catch (err) {
       return translatePgError(err);
     }

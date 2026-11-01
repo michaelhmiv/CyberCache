@@ -227,6 +227,16 @@ export interface CraftAdapter {
    *  derived by the store from the player's own cache_rank_spends.
    *  Optional: adapters that predate Cache Rank read as 0. */
   cacheRankXpBonus?(playerId: string): number;
+  /** Research (0038): one completion-derived bonus total for the
+   *  player (a computeResearchBonuses key), derived by the store
+   *  from the player's OWN research_completions records. Optional:
+   *  adapters that predate Research read as 0 — every research term
+   *  is additive over the pre-Research behavior at 0. */
+  researchBonus?(playerId: string, key: string): number;
+  /** Research (0038): whether the player holds a course completion
+   *  (the batch recipes' enqueue gate). Optional: pre-Research
+   *  adapters read as false (the gate refuses). */
+  researchCompleted?(playerId: string, courseId: string): boolean;
   addMasteryXp(playerId: string, track: string, xp: number): void;
   addStat(playerId: string, key: string, amount: number): void;
   /** Add a consumable batch and bump the profile count with it. */
@@ -585,13 +595,17 @@ function completeCraftUnit(
       qualityShift: composedCraftQualityShift(
         levers.craftQualityShift,
         adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+        adapter.researchBonus?.(playerId, 'craftQualityShift') ?? 0,
       ),
     });
     const quality = rollCraftQuality(bounds, job.bench, adapter.rng, job.snapshot.toolQualityMultiplier);
-    let quantity = 1;
+    // Batch recipes (0038) produce outputQuantity units per unit;
+    // every shipped recipe is 1 (bit-identical). A fitted tool's
+    // bonus unit adds +1 on top, as it does at quantity 1.
+    let quantity = recipe.outputQuantity ?? 1;
     let bonusUnit = false;
     if (job.snapshot.toolBonusUnitChance > 0 && adapter.rng() < job.snapshot.toolBonusUnitChance) {
-      quantity = 2;
+      quantity += 1;
       bonusUnit = true;
     }
     adapter.addBatch(playerId, recipe.consumableType, quantity, quality, 'crafted', playerId, recipe.id);
@@ -612,7 +626,8 @@ function completeCraftUnit(
     const tempered = adapter.rng() < gearTemperChance(
       gearLevel,
       levers.gearTemperBaseChance,
-      adapter.skillBonus?.(playerId, 'craftTemperBonus') ?? 0,
+      (adapter.skillBonus?.(playerId, 'craftTemperBonus') ?? 0)
+        + (adapter.researchBonus?.(playerId, 'gearTemperBonus') ?? 0),
     );
     const candidate = generateCraftedGearItem({
       slot: recipe.gearSlot as CraftGearSlot,
@@ -624,7 +639,8 @@ function completeCraftUnit(
       draws: (tempered ? 3 : 1)
         + (job.snapshot.coreCatalyst
           ? CORE_CATALYST_DRAWS_BONUS + (job.snapshot.coreCatalystDrawBonus ?? 0)
-          : 0),
+          : 0)
+        + (adapter.researchBonus?.(playerId, 'gearDrawBonus') ?? 0),
       rng: adapter.rng,
     });
     output.itemId = adapter.insertGearItem(playerId, candidate);
@@ -700,6 +716,12 @@ export function enqueueCraftJob(
   if (p.player_level < r.requiresLevel) fail(`Requires level ${r.requiresLevel}`);
   if (r.requiresMastery && adapter.masteryLevel(playerId, r.requiresMastery.track) < r.requiresMastery.level) {
     fail(`Requires ${r.requiresMastery.track} mastery ${r.requiresMastery.level}`);
+  }
+  // Research gate (0038): the batch recipes require the Production
+  // Systems completion — a fourth gate beside level / bench /
+  // mastery, read from the player's completion records.
+  if (r.requiresResearch && !(adapter.researchCompleted?.(playerId, r.requiresResearch) ?? false)) {
+    fail('research_required');
   }
 
   // Gear rarity: forced at enqueue, Epic-capped by law.
@@ -949,11 +971,13 @@ export function enqueueRepairJob(
 
   const levers = adapter.levers();
   const masteryLevel = adapter.masteryLevel(playerId, REPAIR_MASTERY_TRACK);
+  // Wrench Basics (0038): the owner's research term multiplies the
+  // work rate (the SQL twin composes it into the same snapshot).
   const workRate = repairWorkRatePointsPerHour(
     masteryLevel,
     levers.repairWorkRateBase,
     levers.repairMasterySpeedPerLevel,
-  );
+  ) * (1 + (adapter.researchBonus?.(playerId, 'repairWorkRateBonus') ?? 0));
   // Fixer terms (0029), from the owner's records: efficiency composes
   // multiplicatively past the mastery cap (repairEfficiencyWithSkill,
   // ceiling 1.80); the speed term multiplies the snapshotted duration.
