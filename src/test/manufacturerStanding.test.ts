@@ -1094,9 +1094,14 @@ describe('migration 0043 — textual pins', () => {
     expect(parts.length).toBeGreaterThanOrEqual(3);
     const catalog = JSON.parse(parts[1]) as Array<Json>;
     expect(catalog).toHaveLength(58);
-    expect(ALL_CRAFT_RECIPES).toHaveLength(58);
+    // 59 since 0044 added the Calibration Core recipe (pinned
+    // against 0044's restated catalog in shieldTechServices.test.ts).
+    expect(ALL_CRAFT_RECIPES).toHaveLength(59);
     const sqlIds = new Set(catalog.map((r) => r.id));
     for (const recipe of ALL_CRAFT_RECIPES) {
+      // recipe_calibration_core postdates 0043 (it lands in 0044's
+      // restated catalog, pinned in shieldTechServices.test.ts).
+      if (recipe.id === 'recipe_calibration_core') continue;
       expect(sqlIds.has(recipe.id), recipe.id).toBe(true);
     }
     // The six standing recipes match the TS catalog field for field.

@@ -103,6 +103,12 @@ export enum ConsumableType {
   PrismCoating = 'PrismCoating',
   ThrowTechDecoyKit = 'ThrowTechDecoyKit',
   HelixCalibrationKit = 'HelixCalibrationKit',
+  // Shield-Tech services (0044): the Calibration Core — the
+  // crafter-only consumable a shield tech burns to recalibrate a
+  // shield's behavior archetype. vendorExcluded: it exists only from
+  // crafters and the player market. Def in src/constants/consumables.ts;
+  // the capacity model lives in src/content/shieldTech.ts.
+  CalibrationCore = 'CalibrationCore',
 }
 
 export enum MaterialType {

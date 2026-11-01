@@ -22,6 +22,13 @@
  *   POST /api/ops/repair-cancel             verifiedOps.cancelRepairJob         cc_repair_job_cancel(...)
  *   POST /api/ops/repair-reclaim            verifiedOps.reclaimRepairJob        cc_repair_job_reclaim(...)
  *   GET  /api/repair/board                  verifiedOps.fetchRepairBoard        cc_settle_repair_jobs_for + board view
+ *   POST /api/ops/shieldtech-enqueue        verifiedOps.enqueueShieldTechJob    cc_enqueue_shieldtech_job(...)
+ *   POST /api/ops/shieldtech-post           verifiedOps.postShieldTechJob       cc_post_shieldtech_job(...)
+ *   POST /api/ops/shieldtech-accept         verifiedOps.acceptShieldTechJob     cc_accept_shieldtech_job(...)
+ *   POST /api/ops/shieldtech-finish         verifiedOps.finishShieldTechJob     cc_shieldtech_job_finish(...)
+ *   POST /api/ops/shieldtech-cancel         verifiedOps.cancelShieldTechJob     cc_shieldtech_job_cancel(...)
+ *   POST /api/ops/shieldtech-reclaim        verifiedOps.reclaimShieldTechJob    cc_shieldtech_job_reclaim(...)
+ *   GET  /api/shieldtech/board              verifiedOps.fetchShieldTechBoard    cc_settle_shieldtech_jobs_for + board view
  *   POST /api/ops/idle-claim                verifiedOps.claimIdleRewards        cc_idle_claim(nonce)
  *   POST /api/ops/retrain                   verifiedOps.retrainSkills           cc_retrain(nonce)
  *   POST /api/ops/train-skill               verifiedOps.trainSkill              cc_train_skill(...)
@@ -321,6 +328,65 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     if (!playerId) return;
     try {
       res.json(await store.getRepairBoard(playerId));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+  // Shield-tech services (0044): self-lane recalibration is a timed
+  // job on the craft machinery; the board is an open market — post a
+  // shield at a set price with the full price escrowed up front, any
+  // verified tech accepts and supplies the Calibration Cores. The
+  // accept body carries NO item_key: the core type is the server
+  // constant 'CalibrationCore'. Bodies carry intent only; rates,
+  // core counts, fees and XP are all derived server-side.
+  op('/api/ops/shieldtech-enqueue', async (playerId, req, res) => {
+    const itemId = uuidField(req, res, 'item_id', 'item id');
+    if (!itemId) return null;
+    return store.enqueueShieldTechJob(playerId, str(body(req).nonce), {
+      itemId,
+      toBehavior: str(body(req).to_behavior),
+    });
+  });
+  op('/api/ops/shieldtech-post', async (playerId, req, res) => {
+    const itemId = uuidField(req, res, 'item_id', 'item id');
+    if (!itemId) return null;
+    const price = numField(req, res, 'price_credits', 'price_credits value');
+    if (price === null) return null;
+    return store.postShieldTechJob(
+      playerId,
+      str(body(req).nonce),
+      itemId,
+      str(body(req).to_behavior),
+      price,
+    );
+  });
+  op('/api/ops/shieldtech-accept', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.acceptShieldTechJob(playerId, str(body(req).nonce), jobId);
+  });
+  op('/api/ops/shieldtech-finish', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.finishShieldTechJob(playerId, str(body(req).nonce), jobId);
+  });
+  op('/api/ops/shieldtech-cancel', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.cancelShieldTechJob(playerId, str(body(req).nonce), jobId);
+  });
+  op('/api/ops/shieldtech-reclaim', async (playerId, req, res) => {
+    const jobId = uuidField(req, res, 'job_id', 'job id');
+    if (!jobId) return null;
+    return store.reclaimShieldTechJob(playerId, str(body(req).nonce), jobId);
+  });
+  // The shield-tech board read: settles the caller's jobs (expiring
+  // stale listings), then returns the shared board view.
+  app.get('/api/shieldtech/board', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    try {
+      res.json(await store.getShieldTechBoard(playerId));
     } catch (err) {
       fail(res, err);
     }

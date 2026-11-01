@@ -113,7 +113,7 @@ export function benchDef(bench: number): CraftBenchDef {
 
 // ─── The unified craft catalog (§2.5) ────────────────────────────────
 
-export type CraftJobKind = 'consumable' | 'refine' | 'gear' | 'tool' | 'repair';
+export type CraftJobKind = 'consumable' | 'refine' | 'gear' | 'tool' | 'repair' | 'shieldtech';
 export type CraftStation = 'bench' | 'crusher' | 'furnace';
 
 export interface CraftRecipe {
@@ -201,6 +201,16 @@ const VEHICLE_CONSUMABLE_RECIPES: CraftRecipe[] = [
     id: 'recipe_fuel_cell', kind: 'consumable', name: 'Fuel Cell', category: 'utility',
     inputs: { ScrapAlloy: 6, NitrocellGel: 1 }, unitDurationMs: 15 * MIN,
     requiresLevel: 8, requiresBench: 1, station: 'bench', consumableType: 'FuelCell',
+  },
+  {
+    // Shield-Tech services (0044, brief §2.4): the Calibration Core —
+    // the shield-tech lane's crafter-only consumable. PrismShards
+    // (the Prismatek signature material) ties cores to the shield
+    // economy's home territory. 40 min, Forge bench.
+    id: 'recipe_calibration_core', kind: 'consumable', name: 'Calibration Core', category: 'utility',
+    inputs: { ReactiveComponents: 20, TechFragments: 15, PrismShards: 2, VoidDust: 2 },
+    unitDurationMs: 40 * MIN,
+    requiresLevel: 15, requiresBench: 2, station: 'bench', consumableType: 'CalibrationCore',
   },
 ];
 

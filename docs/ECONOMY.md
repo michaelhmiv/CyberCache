@@ -82,6 +82,13 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `repair_fees_destroyed` | Σ service fees destroyed at settlement — these also fold into `credits_destroyed_total` |
 | `repair_kits_consumed` | Patch kits burned that day across BOTH lanes (board jobs + timed self-repair units) |
 | `repair_xp_awarded` | Σ player XP paid by board settlements (2/point restored at the default lever) |
+| `shieldtech_jobs_posted` | Shield-tech board jobs posted that day (migration 0044; counted at posting) |
+| `shieldtech_jobs_completed` | Shield-tech jobs reaching a terminal settlement that day (`service_jobs.completed_at`, `profession_id = 'shield_tech'`) |
+| `shieldtech_points_calibrated` | Σ calibration points actually applied by board jobs settled that day (the work the XP prices) |
+| `shieldtech_credits_volume` | Σ gross shield-tech payouts (paid part only; refunds never move) |
+| `shieldtech_fees_destroyed` | Σ service fees destroyed at shield-tech settlement — these also fold into `credits_destroyed_total` |
+| `shieldtech_cores_consumed` | Calibration cores burned that day across BOTH lanes (board jobs + timed self-recalibration units) |
+| `shieldtech_xp_awarded` | Σ player XP paid by board settlements (0.25/point calibrated at the default lever) |
 | `legendaries_salvaged` | Legendary items destroyed by salvage that day (`cc_recycle_item` rows whose result item is Legendary). A DESTRUCTION meter — deliberately separate from the `legendaries_*` creation meters above; a legendary is counted once at creation (by source) and once here when it dies, never twice in the same meter |
 | `legendary_cores_minted` | Σ `cores_award` over the day's `cc_recycle_item` rows — cores enter supply only when a Legendary is salvaged (migration 0026) |
 | `legendary_cores_spent` | Σ `escrow_cores` over the day's `cc_enqueue_craft_job` rows − Σ `cores_refunded` over the day's `cc_cancel_craft_job` rows + Σ `cores_charged` over the day's `cc_reforge_item` rows (migration 0027) — cores that left player balances for a spend: catalyst escrows (held, refundable on cancel) plus reforge charges (destroyed outright). Each core is counted exactly once; the reforge share is broken out in `legendary_cores_destroyed_reforge` below |
@@ -157,6 +164,12 @@ take the game down.
 | `serviceXpPerPoint` | 2 | 0 – 10 (integer) | Player XP per condition point actually restored on board jobs, paid once at settlement (partial jobs included) |
 | `repairAbandonWindowHours` | 48 | 1 – 720 (integer) | Owner reclaim window: an accepted job with no progress for this long can be reclaimed (settles pro-rata, outcome `abandoned`) |
 | `repairListingExpiryDays` | 7 | 1 – 30 (integer) | Unaccepted board listings expire and refund in full after this many days |
+| `shieldTechWorkRateBase` | 500 | 50 – 5000 | Shield-tech work rate (calibration points/hour at mastery 1) — snapshotted into self-recalibration unit durations at enqueue and board-job snapshots at accept (migration 0044; rules owner `src/content/shieldTech.ts`) |
+| `shieldTechMasterySpeedPerLevel` | 0.02 | 0 – 0.1 | Work-rate multiplier per shield-tech-mastery level above 1 (speed factor caps ×2.0); snapshotted with the rate |
+| `shieldTechMasteryEfficiencyPerLevel` | 0.02 | 0 – 0.1 | Per-core capacity multiplier per shield-tech-mastery level above 1 (caps ×1.5); snapshotted with the rate |
+| `shieldTechXpPerPoint` | 0.25 | 0 – 2 | Player XP per calibration point actually applied on board jobs, paid once at settlement (partial jobs included) |
+| `shieldTechAbandonWindowHours` | 48 | 1 – 720 (integer) | Owner reclaim window for shield-tech jobs: an accepted job with no progress for this long can be reclaimed (settles pro-rata, outcome `abandoned`) |
+| `shieldTechListingExpiryDays` | 7 | 1 – 30 (integer) | Unaccepted shield-tech listings expire and refund in full after this many days |
 | `reforgeScrapScalar` | 1.0 | 0 – 5 | Multiplier on the reforge scrap cost (salvage value × 3 × scalar; migration 0027). `cc_reforge_item` reads the table itself (`cc_economy_config_number('reforgeScrapScalar', 1)`); the TS pricing mirror is `src/content/reforge.ts` `reforgeCostFor`, fed live values through a provider where wired |
 | `reforgeLegendaryCoreCost` | 2 | 0 – 8 (integer) | Flat legendary cores charged when reforging a Legendary-rarity item (0027); other rarities never pay cores |
 | `endlessHpGrowth` | 1.12 | 1 – 1.5 | Endless enemy health/shield/armor multiplier per depth, compounding (0028); rules owner `src/content/endless.ts` |
@@ -244,6 +257,16 @@ comparable work, or whose completion cadence is machine-regular.
 The meters in this doc provide the economy-wide baselines those
 deviations are measured against. No new tables are needed when the
 repair slice lands.
+
+Shield-tech services (migration 0044) inherit this discipline
+unchanged: same-account self-accept is refused, nothing else is
+blocked upfront, and the `shieldtech_*` meters above plus the
+board's per-rarity median credits-per-1,000-points guidance are
+the baselines wash volume is measured against. The one hard rule
+the lane adds is not economic at all: recalibrating a Legendary
+shield to Standard behavior is refused outright (DECISIONS R8) —
+the one behavior swap that would let a recalibration destroy value
+instead of moving it.
 
 ## Roaming-variance levers (migration 0023, visual overhaul slice)
 

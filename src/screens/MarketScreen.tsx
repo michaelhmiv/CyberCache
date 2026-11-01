@@ -23,6 +23,7 @@ import type { MarketListingQuery, MarketSort } from '@/lib/market/listingQuery';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { VendorScreen } from './VendorScreen';
 import { RepairBoard } from '@/components/market/RepairBoard';
+import { ShieldTechBoard } from '@/components/market/ShieldTechBoard';
 import { FeatureGate } from '@/auth/FeatureGate';
 import { canUseFeature } from '@/auth/accountState';
 import { MaterialUsageSheet } from '@/components/common/MaterialUsageSheet';
@@ -45,6 +46,7 @@ const TABS: { id: string; label: string; glyph?: string; icon?: React.ElementTyp
   { id: 'mylistings', label: 'My Listings', icon: List },
   { id: 'history', label: 'History', icon: History },
   { id: 'repair', label: 'Repair Services', glyph: '🔧' },
+  { id: 'shieldTech', label: 'Shield Tech', glyph: '🛡' },
 ];
 
 const BUY_CATEGORIES: { id: MarketCategory | null; label: string }[] = [
@@ -853,6 +855,7 @@ export const MarketScreen: React.FC = () => {
       )}
 
       {market.activeTab === 'repair' && <RepairBoard />}
+      {market.activeTab === 'shieldTech' && <ShieldTechBoard />}
 
       {market.activeTab === 'history' && (
         <div className="space-y-2">

@@ -12,6 +12,10 @@ interface MarketState {
   /** How many times NPC listings have been rotated this session. */
   rotateCount: number;
   setActiveTab: (tab: string) => void;
+  /** Shield-tech deep link (0044): a shield id handed from the gear
+   *  inspect sheet to the Shield Tech tab's post form, consumed once. */
+  shieldTechPreselect: string | null;
+  setShieldTechPreselect: (itemId: string | null) => void;
   setListings: (listings: Listing[]) => void;
   addListing: (listing: Listing) => void;
   removeListing: (id: string) => void;
@@ -30,6 +34,8 @@ export const useMarketStore = create<MarketState>()((set) => ({
   rotateCount: 0,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
+  shieldTechPreselect: null,
+  setShieldTechPreselect: (itemId) => set({ shieldTechPreselect: itemId }),
   setListings: (listings) => set({ listings }),
   addListing: (listing) => set((s) => ({ listings: [listing, ...s.listings] })),
   removeListing: (id) => set((s) => ({ listings: s.listings.filter((l) => l.id !== id) })),
