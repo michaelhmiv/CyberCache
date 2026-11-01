@@ -22,7 +22,7 @@ interface InventoryScreenProps {
    * depositing the player on the Gear list. Absent intent (the Gear
    * bottom tab) defaults to the Gear tab as before.
    */
-  tabIntent?: { tab: InventoryTab; seq: number } | null;
+  tabIntent?: { tab: InventoryTab; seq: number; anchor?: 'garage' } | null;
 }
 
 const TAB_SIGILS: Record<InventoryTab, { glyph: string; color: string }> = {
@@ -131,6 +131,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
         {activeTab === 'loadout' && (
           <SyncedLoadoutScreen
             requestedPickerSlot={pendingPickerSlot}
+            focusGarageSeq={tabIntent?.anchor === 'garage' ? tabIntent.seq : null}
             onRequestService={() => {
               useMarketStore.getState().setActiveTab('repair');
               onNavigate('market');

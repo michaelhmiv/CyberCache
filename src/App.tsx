@@ -71,8 +71,10 @@ function App() {
   // Tab intent for the gear home (flow audit F2): every "loadout"
   // door must open Inventory ON its Loadout tab — the one equip
   // surface — not on the Gear list. `seq` makes a repeat intent
-  // re-apply even while Inventory is already mounted.
-  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'gear' | 'loadout'; seq: number } | null>(null);
+  // re-apply even while Inventory is already mounted. `anchor`
+  // (audit UX-06) deep-links a section of the tab — 'garage'
+  // scrolls the labeled Garage section into view on arrival.
+  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'gear' | 'loadout'; seq: number; anchor?: 'garage' } | null>(null);
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -125,6 +127,15 @@ function App() {
       setActiveTab('inventory');
       setSubScreen(null);
       setInventoryTabIntent({ tab: 'loadout', seq: Date.now() });
+      return;
+    }
+    if (screen === 'garage') {
+      // Garage door (audit UX-06): the Garage is the labeled section
+      // below the slots on the Loadout tab — land there and scroll
+      // it into view (anchor rides the same tab intent).
+      setActiveTab('inventory');
+      setSubScreen(null);
+      setInventoryTabIntent({ tab: 'loadout', seq: Date.now(), anchor: 'garage' });
       return;
     }
     if (screen === 'vendor') {
