@@ -50,6 +50,7 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
   const activity = useActivityStore();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     void refreshWorkshop();
@@ -67,6 +68,7 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       await fn();
     } catch (err) {
@@ -76,14 +78,35 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
     }
   };
 
+  // Refuel confirms like the vendor confirms a purchase (audit
+  // UX-08): a silent numbers-only change left players unsure the
+  // load happened. The tank figure is read back from the player
+  // store AFTER the op's server sync lands — the same profile
+  // vehicle_fuel the tank row (and the Action banner) display.
+  const handleRefuel = async (cells: number) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await verifiedOps.refuelVehicle(cells);
+      const tank = usePlayerStore.getState().vehicleFuel;
+      setNotice(`Loaded ${cells} cell${cells === 1 ? '' : 's'} — tank at ${Math.floor(tank)} units.`);
+    } catch (err) {
+      setError(formatRpcError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <section
+      id="garage-panel"
       data-testid="garage-panel"
       className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 space-y-3"
       style={{ clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' }}
     >
       <div>
-        <div className="text-base font-black text-text-primary">Garage</div>
+        <div className="text-lg font-black text-text-primary">Garage</div>
         <div className="text-xs text-text-muted">
           Your vehicle multiplies what every roaming tick yields — it never changes the tick rate. Out of fuel or worn out, you roam on foot at ×1.00.
         </div>
@@ -102,20 +125,21 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
           <button
             type="button"
             disabled={busy || fuelCells < 1}
-            onClick={() => void run(() => verifiedOps.refuelVehicle(1))}
+            onClick={() => void handleRefuel(1)}
             className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
           >
             Load 1 cell (+100 units)
           </button>
           <button
             type="button"
-            disabled={busy || fuelCells < 2}
-            onClick={() => void run(() => verifiedOps.refuelVehicle(fuelCells))}
+            disabled={busy || fuelCells < 1}
+            onClick={() => void handleRefuel(fuelCells)}
             className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
           >
             Load all
           </button>
         </div>
+        {notice && <div className="text-xs text-text-secondary">{notice}</div>}
         <div className="text-[11px] text-text-muted">
           Patch Kits owned: {patchKits} — buy fuel cells and patch kits from the vendor.
         </div>
