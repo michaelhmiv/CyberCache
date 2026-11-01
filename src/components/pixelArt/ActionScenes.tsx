@@ -205,3 +205,50 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
     </SceneShell>
   );
 };
+
+/**
+ * The shield-tech bay (shield-tech services, 0044): the calibration
+ * rig stands where the repair lift stands in the repair bay — same
+ * room, different trade. The shield under calibration floats in the
+ * rig's emitter ring, and the ring's lit arcs carry the TARGET
+ * behavior's sigil: the glyph sprite is chosen from the ACTUAL job
+ * shield's behavior record (real-item invariant — a job with no
+ * identified behavior renders no glyph, never a generic sigil).
+ */
+export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: string; behaviorGlyphId?: string | null; unarmed?: boolean }> = ({
+  backgroundId = 'zone-throwtech-bg',
+  behaviorGlyphId,
+  unarmed = false,
+  reduced = false,
+  ...rest
+}) => {
+  const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
+  const glyph = behaviorGlyphId ? getPixelSprite(behaviorGlyphId) : undefined;
+  return (
+    <SceneShell backgroundId={backgroundId} testId="shieldtech-bay-scene" reduced={reduced} {...rest}>
+      <PixelActor spriteId="set-calibration-rig" xPct={62} heightPct={38} groundY={groundY} reduced={reduced} breathe={false} testId="shieldtech-calibration-rig" />
+      <PixelActor spriteId="set-bay-wall-listing" xPct={16} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} />
+      {glyph && (
+        <img
+          src={glyph.url}
+          alt=""
+          draggable={false}
+          data-testid="shieldtech-behavior-glyph"
+          className="absolute"
+          style={{ left: '56%', bottom: `${(1 - groundY) * 100 + 16}%`, width: '12%', imageRendering: 'pixelated', zIndex: 6 }}
+        />
+      )}
+      <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
+      <PixelRigActor
+        rig={hunterRigWithHead('visor', unarmed)}
+        xPct={24}
+        heightPct={57}
+        groundY={groundY}
+        feetX={0.27}
+        reduced={reduced}
+        pose={HUNTER_POSES.work}
+        testId="shieldtech-bay-hunter"
+      />
+    </SceneShell>
+  );
+};

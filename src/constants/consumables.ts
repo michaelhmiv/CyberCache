@@ -152,6 +152,8 @@ export interface ConsumableRuntimeEffects {
   fuelUnits?: number;
   /** Vehicle condition points one kit restores at 100% quality (cc_use_patch_kit). */
   conditionRestore?: number;
+  /** Calibration points one core carries at 100% quality (shield-tech jobs, migration 0044). */
+  calibrationPoints?: number;
 }
 
 export interface ConsumableHighQualityPerk {
@@ -1444,6 +1446,42 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'Fuel cell loaded into the vehicle tank.',
     ),
     market: market(false, 120, true, true, false, true),
+  }),
+  // Shield-Tech services (0044, brief §2.4): the Calibration Core —
+  // the consumable a shield tech burns while recalibrating a shield's
+  // behavior. Crafter-only on the #219 pattern: never vendor-stocked
+  // in any channel; the 900 cr vendorPrice anchors buyback between
+  // Field Patch Kit (400) and Master Patch Kit (1,200). One core
+  // carries 2,500 calibration points at 100% quality (the capacity
+  // model is owned by src/content/shieldTech.ts and read by the
+  // shield-tech settlers — quality is read by the engine here).
+  [ConsumableType.CalibrationCore]: defineConsumable({
+    id: ConsumableType.CalibrationCore,
+    name: 'Calibration Core',
+    family: 'economy',
+    shortDescription: 'Crafter-made shield calibration core. A shield tech burns these to re-tune a shield\u2019s behavior archetype.',
+    tacticalRole: 'Shield Recalibration',
+    trigger: 'manual',
+    consumePolicy: 'onAttempt',
+    counterTags: ['mechanical'],
+    effectRules: {},
+    craftCategory: 'utility',
+    uiHints: ['Carries 2,500 calibration points at 100% quality — higher quality carries more.', 'Burned by shield-tech jobs; crafted in the Workshop — never sold by the vendor.'],
+    implementationStatus: 'implemented',
+    isBossPrepVisible: false,
+    visual: visual('◈', 'cyan', 'cell', 'reinforced'),
+    quality: quality(900, 75, 150, 'Calibration capacity scales directly with quality.'),
+    runtime: runtime(
+      ['repair'],
+      'utility',
+      'manual',
+      'onAttempt',
+      'inactive_continue',
+      { calibrationPoints: 2500 },
+      { calibrationPoints: { mode: 'flat' } },
+      'Calibration Core consumed: shield recalibration work applied.',
+    ),
+    market: market(false, 900, true, true, false, true),
   }),
   // ---------------------------------------------------------------------
   // Manufacturer Standing exclusives (0043). Each is craftable ONLY by a

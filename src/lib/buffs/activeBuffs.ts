@@ -417,6 +417,15 @@ export const CONSUMABLE_ACTIVATORS: Record<ConsumableType, ConsumableActivator> 
     defaultValue: 0,
     source: 'activity-result',
   },
+  // SHIELD TECH (0044) — same treatment: calibration cores burn
+  // inside shield-tech jobs (cc_settle_shieldtech_job / the timed
+  // self-lane), never through an activation path.
+  [ConsumableType.CalibrationCore]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 0,
+    source: 'activity-result',
+  },
 
   // LEGACY — kept for save compatibility; not vendor-stocked.
   [ConsumableType.Grenade]: {

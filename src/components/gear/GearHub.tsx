@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
-import { useInventoryStore, useLoadoutStore } from '@/store';
+import { useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
@@ -307,6 +307,8 @@ interface GearHubProps {
 export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) => {
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
+  const setMarketTab = useMarketStore((s) => s.setActiveTab);
+  const setShieldTechPreselect = useMarketStore((s) => s.setShieldTechPreselect);
 
   // Browsing + filters
   const [activeKind, setActiveKind] = useState<GearKind>('all');
@@ -1183,6 +1185,25 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             <button type="button" onClick={() => void scrap(liveInspectItem)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
               <Trash2 size={15} />Salvage
             </button>
+            {isShield(liveInspectItem) && !inspectSlot && !liveInspectItem.isLocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  // Shield-tech deep link (0044): hand the shield to
+                  // the Shield Tech tab's post form. Only AVAILABLE
+                  // shields recalibrate — equipped/locked shields are
+                  // refused by the server, so the action hides here.
+                  setShieldTechPreselect(liveInspectItem.id);
+                  setMarketTab('shieldTech');
+                  setInspectItem(null);
+                  setInspectNotice(null);
+                  onNavigate?.('market');
+                }}
+                className="col-span-4 flex items-center justify-center gap-2 border border-cyan/40 bg-cyan/10 py-2 text-[10px] font-black text-cyan"
+              >
+                <span style={{ fontSize: 13 }}>🛡</span>Recalibrate behavior…
+              </button>
+            )}
           </div>
         ) : undefined}
       />

@@ -33,6 +33,7 @@ export const ACTION_SETS = {
   crafting: ['set-bench-basic', 'set-bench-forge', 'set-refinery-crusher'],
   craftingLab: ['set-bench-lab', 'set-refinery-furnace'],
   repair: ['set-bay-lift', 'set-bay-tray', 'set-bay-wall-listing'],
+  shieldTech: ['set-bay-wall-listing', 'set-bay-tray', 'set-calibration-rig'],
   dispatch: ['set-dispatch-pad', 'set-dispatch-board', 'set-dispatch-route'],
   extraction: ['set-extract-stakes', 'set-extract-rig', 'set-extract-crates'],
   vendor: ['set-vendor-stall', 'set-vendor-sign'],

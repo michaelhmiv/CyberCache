@@ -100,6 +100,16 @@ export const verifiedOps = {
   finishRepairJob: (jobId: string) => op('/ops/repair-finish', { nonce: requestId('repair-finish'), job_id: jobId }),
   cancelRepairJob: (jobId: string) => op('/ops/repair-cancel', { nonce: requestId('repair-cancel'), job_id: jobId }),
   reclaimRepairJob: (jobId: string) => op('/ops/repair-reclaim', { nonce: requestId('repair-reclaim'), job_id: jobId }),
+  // Shield-tech services (0044): self-lane recalibration is a timed
+  // job; the board is post → escrow → accept → work → terminal
+  // settle. Accept carries NO item_key — the Calibration Core is the
+  // one consumable, a server constant.
+  enqueueShieldTechJob: (itemId: string, toBehavior: string) => op('/ops/shieldtech-enqueue', { nonce: requestId('shieldtech-enqueue'), item_id: itemId, to_behavior: toBehavior }),
+  postShieldTechJob: (itemId: string, toBehavior: string, priceCredits: number) => op('/ops/shieldtech-post', { nonce: requestId('shieldtech-post'), item_id: itemId, to_behavior: toBehavior, price_credits: priceCredits }),
+  acceptShieldTechJob: (jobId: string) => op('/ops/shieldtech-accept', { nonce: requestId('shieldtech-accept'), job_id: jobId }),
+  finishShieldTechJob: (jobId: string) => op('/ops/shieldtech-finish', { nonce: requestId('shieldtech-finish'), job_id: jobId }),
+  cancelShieldTechJob: (jobId: string) => op('/ops/shieldtech-cancel', { nonce: requestId('shieldtech-cancel'), job_id: jobId }),
+  reclaimShieldTechJob: (jobId: string) => op('/ops/shieldtech-reclaim', { nonce: requestId('shieldtech-reclaim'), job_id: jobId }),
   idleClaim: () => op('/ops/idle-claim', { nonce: requestId('idle') }),
   retrain: () => op('/ops/retrain', { nonce: requestId('retrain') }),
   trainSkill: (nodeId: string) => op('/ops/train-skill', { nonce: requestId(`train:${nodeId}`), node_id: nodeId }),
@@ -131,6 +141,16 @@ export const fetchWorkshopState = async (): Promise<VerifiedResult> =>
  */
 export const fetchRepairBoard = async (): Promise<VerifiedResult> =>
   apiRequest<VerifiedResult>('/repair/board', { method: 'GET' });
+
+/**
+ * The shield-tech board read (GET /api/shieldtech/board): the server
+ * settles the caller's shield-tech jobs (expiring stale listings),
+ * then returns open postings, my postings, my workbench, per-rarity
+ * price medians, and board/tech stats in the one view shape
+ * (buildShieldTechBoardView). A read, not a verified op.
+ */
+export const fetchShieldTechBoard = async (): Promise<VerifiedResult> =>
+  apiRequest<VerifiedResult>('/shieldtech/board', { method: 'GET' });
 
 /** One collection_discoveries row as served by GET /api/collections/me (0026). */
 export interface CollectionDiscoveryPayload {

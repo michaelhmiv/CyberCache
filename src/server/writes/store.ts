@@ -32,6 +32,12 @@ import {
   resolveRepairLevers,
   type RepairVehicleInfo,
 } from './repairBoard.js';
+import {
+  buildShieldTechBoardView,
+  resolveShieldTechLevers,
+  type ShieldTechShieldInfo,
+} from './shieldTechBoard.js';
+import { shieldTechEfficiencyMultiplier } from '../../content/shieldTech.js';
 import { resolveEconomyConfigValues } from '../economy/config.js';
 import type { DiscoveryRecord } from '../../content/collections.js';
 import {
@@ -202,6 +208,24 @@ export interface ServiceJobData {
     masteryLevel: number;
     workRatePointsPerHour: number;
     efficiency: number;
+  } | null;
+  // ── Shield-tech services (migration 0044) ───────────────────────
+  // Present on shield-tech jobs (profession_id 'shield_tech'). The
+  // work unit is the calibration point (the shield's stored
+  // capacity); the consumable is the Calibration Core (kit_type is
+  // stamped 'CalibrationCore' at posting).
+  from_behavior?: string | null;
+  to_behavior?: string | null;
+  shieldtech_snapshot?: {
+    fromBehavior: string;
+    toBehavior: string;
+    targetPoints: number;
+    payload: Record<string, unknown>;
+    masteryLevel?: number;
+    workRatePointsPerHour?: number;
+    efficiency?: number;
+    /** Set at finalize: whether the behavior flip actually landed. */
+    flipApplied?: boolean;
   } | null;
 }
 
@@ -760,6 +784,17 @@ export interface EnqueueRepairJobInput {
   units: number;
 }
 
+/**
+ * cc_enqueue_shieldtech_job input (0044). The core count, unit
+ * duration, and mastery snapshot are derived by the store from
+ * server records — the request body carries only the shield and the
+ * owner-chosen target behavior.
+ */
+export interface EnqueueShieldTechJobInput {
+  itemId: string;
+  toBehavior: string;
+}
+
 export interface WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json>;
   makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json>;
@@ -867,6 +902,40 @@ export interface WriteStore {
    * my postings, my workbench, and board/mechanic stats.
    */
   getRepairBoard(playerId: string): Promise<Json>;
+  /**
+   * Enqueue a TIMED self-lane recalibration on the craft job
+   * machinery (cc_enqueue_shieldtech_job): the owner's own
+   * Calibration Cores escrow at enqueue and apply while
+   * `workshop_service` is the active action.
+   */
+  enqueueShieldTechJob(playerId: string, nonce: string, input: EnqueueShieldTechJobInput): Promise<Json>;
+  /**
+   * Post a shield-tech job to the open board (cc_post_shieldtech_job):
+   * the full price escrows at posting and the shield locks in
+   * service. Verified accounts only; the target behavior must
+   * satisfy the generation rule (R8: never Legendary → Standard).
+   */
+  postShieldTechJob(playerId: string, nonce: string, itemId: string, toBehavior: string, priceCredits: number): Promise<Json>;
+  /** Accept an open shield-tech job (cc_accept_shieldtech_job),
+   *  snapshotting the tech's rate/efficiency. The core type is the
+   *  server constant 'CalibrationCore' — not a request field. */
+  acceptShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
+  /** Provider delivers the job as-is (cc_shieldtech_job_finish):
+   *  settles, then pays pro-rata for points actually calibrated. */
+  finishShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
+  /** Owner or provider cancels (cc_shieldtech_job_cancel): full
+   *  refund before acceptance; pro-rata pay + remainder after. */
+  cancelShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
+  /** Owner reclaims a job abandoned past the no-progress window
+   *  (cc_shieldtech_job_reclaim). */
+  reclaimShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
+  /**
+   * The shield-tech board read: settles every job the caller owns
+   * or provides (expiring stale listings), then returns open
+   * postings, my postings, my workbench, per-rarity price medians,
+   * and board/tech stats.
+   */
+  getShieldTechBoard(playerId: string): Promise<Json>;
   idleClaim(playerId: string, nonce: string): Promise<Json>;
   retrain(playerId: string, nonce: string): Promise<Json>;
   trainSkill(playerId: string, nonce: string, nodeId: string): Promise<Json>;
@@ -1005,6 +1074,9 @@ function mapServiceJobRow(row: Row): ServiceJobData {
     kit_type: row.kit_type ? String(row.kit_type) : null,
     kits_consumed: (row.kits_consumed ?? []) as ServiceJobData['kits_consumed'],
     repair_snapshot: (row.repair_snapshot ?? null) as ServiceJobData['repair_snapshot'],
+    from_behavior: row.from_behavior ? String(row.from_behavior) : null,
+    to_behavior: row.to_behavior ? String(row.to_behavior) : null,
+    shieldtech_snapshot: (row.shieldtech_snapshot ?? null) as ServiceJobData['shieldtech_snapshot'],
   };
 }
 
@@ -1377,6 +1449,106 @@ export class PgWriteStore implements WriteStore {
           level: Number(masteryRows[0]?.mastery_level ?? 1),
           xp: Number(masteryRows[0]?.mastery_xp ?? 0),
         },
+        levers: { ...levers, marketFeeRate: config.marketFeeRate },
+      }) as unknown as Json;
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+  // ── Shield-tech services (migration 0044) ───────────────────────
+  enqueueShieldTechJob(playerId: string, nonce: string, input: EnqueueShieldTechJobInput): Promise<Json> {
+    return this.callJson('select public.cc_enqueue_shieldtech_job($1, $2, $3, $4) as result', [
+      playerId, nonce, input.itemId, input.toBehavior,
+    ]);
+  }
+  postShieldTechJob(playerId: string, nonce: string, itemId: string, toBehavior: string, priceCredits: number): Promise<Json> {
+    return this.callJson('select public.cc_post_shieldtech_job($1, $2, $3, $4, $5) as result', [
+      playerId, nonce, itemId, toBehavior, priceCredits,
+    ]);
+  }
+  acceptShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    return this.callJson('select public.cc_accept_shieldtech_job($1, $2, $3) as result', [
+      playerId, nonce, jobId,
+    ]);
+  }
+  finishShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    return this.callJson('select public.cc_shieldtech_job_finish($1, $2, $3) as result', [playerId, nonce, jobId]);
+  }
+  cancelShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    return this.callJson('select public.cc_shieldtech_job_cancel($1, $2, $3) as result', [playerId, nonce, jobId]);
+  }
+  reclaimShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
+    return this.callJson('select public.cc_shieldtech_job_reclaim($1, $2, $3) as result', [playerId, nonce, jobId]);
+  }
+  async getShieldTechBoard(playerId: string): Promise<Json> {
+    await this.callJson('select public.cc_settle_shieldtech_jobs_for($1) as result', [playerId]);
+    try {
+      const { rows: jobRows } = await this.pool.query(
+        `select * from public.service_jobs
+          where profession_id = 'shield_tech'
+            and (status = 'listed'
+                 or owner_user_id = $1
+                 or provider_user_id = $1
+                 or (status = 'completed' and completed_at > now() - interval '90 days'))
+          order by created_at desc
+          limit 500`,
+        [playerId],
+      );
+      const jobs = jobRows.map(mapServiceJobRow);
+      const itemIds = [...new Set(jobs.map((j) => j.target_item_instance_id))];
+      const shields = new Map<string, ShieldTechShieldInfo | null>();
+      if (itemIds.length > 0) {
+        const { rows: itemRows } = await this.pool.query(
+          'select id, kind, payload, rarity from public.item_instances where id = any($1::uuid[])',
+          [itemIds],
+        );
+        for (const row of itemRows) {
+          shields.set(String(row.id), {
+            kind: String(row.kind),
+            payload: (row.payload ?? {}) as Record<string, unknown>,
+            rarity: row.rarity ? String(row.rarity) : null,
+          });
+        }
+      }
+      const userIds = [
+        ...new Set(jobs.flatMap((j) => [j.owner_user_id, j.provider_user_id]).filter(Boolean)),
+      ] as string[];
+      const names = new Map<string, string | null>();
+      if (userIds.length > 0) {
+        const { rows: profileRows } = await this.pool.query(
+          'select id, username from public.profiles where id = any($1::uuid[])',
+          [userIds],
+        );
+        for (const row of profileRows) {
+          names.set(String(row.id), row.username ? String(row.username) : null);
+        }
+      }
+      const { rows: masteryRows } = await this.pool.query(
+        "select mastery_level, mastery_xp from public.player_masteries where user_id = $1 and mastery_id = 'services.shield_tech'",
+        [playerId],
+      );
+      const { rows: configRows } = await this.pool.query('select key, value from public.economy_config');
+      const stored: Record<string, unknown> = {};
+      for (const row of configRows) stored[String(row.key)] = row.value;
+      const config = resolveEconomyConfigValues(stored);
+      const levers = resolveShieldTechLevers({
+        shieldTechXpPerPoint: config.shieldTechXpPerPoint,
+        shieldTechAbandonWindowHours: config.shieldTechAbandonWindowHours,
+        shieldTechListingExpiryDays: config.shieldTechListingExpiryDays,
+      });
+      const myLevel = Number(masteryRows[0]?.mastery_level ?? 1);
+      return buildShieldTechBoardView({
+        callerId: playerId,
+        jobs,
+        shields,
+        names,
+        nowMs: Date.now(),
+        abandonWindowHours: levers.shieldTechAbandonWindowHours,
+        myMastery: {
+          level: myLevel,
+          xp: Number(masteryRows[0]?.mastery_xp ?? 0),
+        },
+        readerEfficiency: shieldTechEfficiencyMultiplier(myLevel, config.shieldTechMasteryEfficiencyPerLevel),
         levers: { ...levers, marketFeeRate: config.marketFeeRate },
       }) as unknown as Json;
     } catch (err) {

@@ -79,6 +79,18 @@ export interface EconomyConfigValues {
   repairAbandonWindowHours: number;
   /** Days an unaccepted repair posting stays open before refund. */
   repairListingExpiryDays: number;
+  /** Base shield-tech work rate, calibration points per hour (0044). */
+  shieldTechWorkRateBase: number;
+  /** Shield-tech work-rate gain per services.shield_tech mastery level. */
+  shieldTechMasterySpeedPerLevel: number;
+  /** Per-core capacity gain per services.shield_tech mastery level. */
+  shieldTechMasteryEfficiencyPerLevel: number;
+  /** Player XP paid to a shield tech per calibration point completed. */
+  shieldTechXpPerPoint: number;
+  /** Hours without progress before a shield-tech job's owner may reclaim it. */
+  shieldTechAbandonWindowHours: number;
+  /** Days an unaccepted shield-tech posting stays open before refund. */
+  shieldTechListingExpiryDays: number;
   /** Multiplier on the reforge scrap cost (reforge slice, 0027). */
   reforgeScrapScalar: number;
   /** Flat legendary-core cost of reforging a Legendary (0027). */
@@ -287,6 +299,12 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   serviceXpPerPoint: 2,
   repairAbandonWindowHours: 48,
   repairListingExpiryDays: 7,
+  shieldTechWorkRateBase: 500,
+  shieldTechMasterySpeedPerLevel: 0.02,
+  shieldTechMasteryEfficiencyPerLevel: 0.02,
+  shieldTechXpPerPoint: 0.25,
+  shieldTechAbandonWindowHours: 48,
+  shieldTechListingExpiryDays: 7,
   reforgeScrapScalar: 1,
   reforgeLegendaryCoreCost: 2,
   endlessHpGrowth: 1.12,
@@ -464,6 +482,30 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   repairListingExpiryDays: {
     key: 'repairListingExpiryDays', min: 1, max: 30, integer: true,
     defaultOwner: 'src/content/repair.ts REPAIR_LISTING_EXPIRY_DAYS_DEFAULT',
+  },
+  shieldTechWorkRateBase: {
+    key: 'shieldTechWorkRateBase', min: 50, max: 5000, integer: false,
+    defaultOwner: 'src/content/shieldTech.ts SHIELD_TECH_WORK_RATE_BASE_DEFAULT',
+  },
+  shieldTechMasterySpeedPerLevel: {
+    key: 'shieldTechMasterySpeedPerLevel', min: 0, max: 0.1, integer: false,
+    defaultOwner: 'src/content/shieldTech.ts SHIELD_TECH_MASTERY_SPEED_PER_LEVEL_DEFAULT',
+  },
+  shieldTechMasteryEfficiencyPerLevel: {
+    key: 'shieldTechMasteryEfficiencyPerLevel', min: 0, max: 0.1, integer: false,
+    defaultOwner: 'src/content/shieldTech.ts SHIELD_TECH_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT',
+  },
+  shieldTechXpPerPoint: {
+    key: 'shieldTechXpPerPoint', min: 0, max: 2, integer: false,
+    defaultOwner: 'src/content/shieldTech.ts SHIELD_TECH_XP_PER_POINT_DEFAULT',
+  },
+  shieldTechAbandonWindowHours: {
+    key: 'shieldTechAbandonWindowHours', min: 1, max: 720, integer: true,
+    defaultOwner: 'src/content/shieldTech.ts SHIELD_TECH_ABANDON_WINDOW_HOURS_DEFAULT',
+  },
+  shieldTechListingExpiryDays: {
+    key: 'shieldTechListingExpiryDays', min: 1, max: 30, integer: true,
+    defaultOwner: 'src/content/shieldTech.ts SHIELD_TECH_LISTING_EXPIRY_DAYS_DEFAULT',
   },
   reforgeScrapScalar: {
     key: 'reforgeScrapScalar', min: 0, max: 5, integer: false,
