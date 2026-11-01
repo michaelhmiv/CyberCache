@@ -551,6 +551,59 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.62, GRAMMAR.progress.heightPx, [242, 192, 99], 255);
   }),
+  // Profile showcase (0034): the trophy shelf — the server's top-3
+  // weapons on one plank (real compositor renders of fixed instances;
+  // the center Legendary carries the G-1 beam), and beneath it the
+  // three standing facts as furniture: the endless depth track filled
+  // to depth 12 in its band tint, the Cache Rank diamond, and the
+  // collections progress strip. Same interior wall grammar as
+  // collections-shelf / cache-rank-panel; the hunter idles at the
+  // left, reading their own record.
+  scene('profile-showcase', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H, [8, 8, 12], 96);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H * 0.46, hexToRgb('#f2c063'), 18);
+    const groundY = GROUND * SCENE_H;
+    // Shelf wall backplate + the trophy plank.
+    fillRect(img, 120, 52, 316, 158, [13, 15, 21], 235);
+    fillRect(img, 120, 52, 316, 2, hexToRgb('#FFD166'), 255);
+    fillRect(img, 132, 118, 292, 5, [58, 42, 30], 255);
+    fillRect(img, 132, 118, 292, 1, [122, 92, 58], 255);
+    fillRect(img, 144, 123, 4, 10, [40, 30, 22], 255);
+    fillRect(img, 408, 123, 4, 10, [40, 30, 22], 255);
+    // The top-3 shelf: the #1 trophy stands center under its
+    // legendary beam, flanked by the runners-up (a Legendary and an
+    // Epic — beams signal rarity, so only the Legendary gets one).
+    const shelf: PixelWeaponInput[] = [
+      { id: 'showcase-3', weaponType: WeaponType.Pistol, manufacturer: Manufacturer.HelixWorks, rarity: Rarity.Legendary, element: Element.Cryo, pixelSeed: 4711, rollQuality: 90 },
+      { id: 'showcase-1', weaponType: WeaponType.Sniper, manufacturer: Manufacturer.Prismatek, rarity: Rarity.Legendary, element: Element.Void, pixelSeed: 90210, rollQuality: 95 },
+      { id: 'showcase-2', weaponType: WeaponType.SMG, manufacturer: Manufacturer.Redline, rarity: Rarity.Epic, element: Element.Shock, pixelSeed: 6006, rollQuality: 81 },
+    ];
+    drawBeam(img, 278, 118, GRAMMAR.beamWidthPx.legendary, '#FFD166');
+    shelf.forEach((weapon, i) => {
+      drawWeaponRender(img, weapon, 140 + i * 96, 118 - 34, 84, 32);
+    });
+    // Fact row: depth track (15 pips, filled to 12 in the depth-12
+    // band tint), the Cache Rank diamond, and a gold rule.
+    const band = endlessDepthBand(12);
+    const tint = endlessBandTint(band);
+    for (let pip = 0; pip < 15; pip += 1) {
+      const x = 140 + pip * 12;
+      if (pip < 12) fillRect(img, x, 146, 8, 10, hexToRgb(tint.color), 255);
+      else fillRect(img, x, 146, 8, 10, [34, 38, 48], 255);
+    }
+    for (const [half, color] of [[10, '#8a6a24'], [7, '#f2c063'], [3, '#ffe1a1']] as const) {
+      fillRect(img, 356 - half, 168 - half, half * 2, half * 2, hexToRgb(color), 255);
+    }
+    fillRect(img, 140, 190, 180, 2, hexToRgb('#FFD166'), 160);
+    // The hunter, admiring the shelf; war-room table fronting.
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
+    const table = loadGoldenSprite('set-war-room-table');
+    if (table) blit(img, table, SCENE_W * 0.47 - 55, groundY - 30, 110, 30);
+    // Collections progress strip (46 of 81 ≈ 0.57) in trophy gold.
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.57, GRAMMAR.progress.heightPx, hexToRgb('#FFD166'), 255);
+  }),
   // Endless (0028): the Chaos Chamber's depth treatment — the band
   // wash over the arena (ENDLESS_BAND_TINTS, the same table the live
   // stage overlays) plus the depth track across the top: 25 pips,

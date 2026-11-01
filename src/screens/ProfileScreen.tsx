@@ -9,6 +9,8 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { MasterySection } from '@/components/profile/MasterySection';
 import { CacheRankPanel } from '@/components/profile/CacheRankPanel';
+import { TrophyShelfPanel } from '@/components/profile/TrophyShelfPanel';
+import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { useAuth } from '@/auth/AuthProvider';
 import { isGuestAccount } from '@/auth/accountState';
@@ -169,6 +171,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         </div>
       </MobileCard>
 
+      <TrophyShelfPanel />
+
       <MobileCard className="space-y-2" rarityColor="#5AA7FF">
         <div className="flex items-center gap-2">
           <span className="font-black text-blue" style={{ fontSize: '16px' }}>📡</span>
@@ -231,6 +235,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       <MasterySection />
 
       <CacheRankPanel />
+
+      <LifetimeStatsPanel />
 
       <MobileCard className="space-y-2" rarityColor="#7CFC00">
         <div className="flex items-center gap-2">

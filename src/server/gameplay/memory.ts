@@ -284,6 +284,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     tickCount: number;
   }> = [];
   readonly consumableEvents: ConsumableEvent[] = [];
+  /**
+   * Lifetime kills by weapon type (migration 0034 mirror of
+   * player_kill_stats): `${playerId}:${weaponType}` → kills. Written
+   * ONLY by the two roaming appliers' pay paths (applyChefRewards /
+   * settleOfflineRoaming), after their idempotency early-returns —
+   * exactly where the SQL cc_record_kill_stats calls sit.
+   */
+  readonly killStats = new Map<string, number>();
   /** player_masteries mirror — written by the 0014 mastery grants below. */
   readonly masteries: InMemoryMastery[] = [];
   /**
@@ -1397,6 +1405,42 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     };
   }
 
+  /**
+   * cc_record_kill_stats (0034): accumulate a settled claim's kills
+   * under the weapon the hunter currently holds — the equipped weapon
+   * instance's payload weaponType, or 'unarmed' with no weapon
+   * equipped (the SQL derives the same from item_instances). Callers
+   * invoke this ONLY on their pay paths, after the idempotency
+   * early-return, so a replayed claim never double-counts.
+   */
+  private recordKillStats(playerId: string, kills: number): void {
+    if (!Number.isFinite(kills) || kills <= 0) return;
+    let weaponType = 'unarmed';
+    for (const item of this.items.values()) {
+      if (
+        item.owner_user_id === playerId
+        && item.runtime_state === 'equipped'
+        && item.equipped_slot === 'weapon'
+      ) {
+        const fromPayload = item.payload?.weaponType;
+        weaponType = typeof fromPayload === 'string' && fromPayload !== '' ? fromPayload : 'unarmed';
+        break;
+      }
+    }
+    const key = `${playerId}:${weaponType}`;
+    this.killStats.set(key, (this.killStats.get(key) ?? 0) + Math.trunc(kills));
+  }
+
+  /** Test-visible view of the 0034 kill record for one player. */
+  killStatsFor(playerId: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const [key, kills] of this.killStats) {
+      const sep = key.indexOf(':');
+      if (key.slice(0, sep) === playerId) out[key.slice(sep + 1)] = kills;
+    }
+    return out;
+  }
+
   async applyChefRewards(
     playerId: string,
     rewards: ChefRewardsInput,
@@ -1413,6 +1457,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       );
     }
     const echo = this.applyRewardBundle(p, rewards);
+    // 0034: lifetime kill record (cc_record_kill_stats on the pay path).
+    this.recordKillStats(playerId, rewards.kills);
     p.last_claimed_tick = tickCount;
     p.last_roaming_settled_at = this.now().toISOString();
 
@@ -2082,6 +2128,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
 
     const newTickCount = p.last_claimed_tick + ticksRequested;
     const echo = this.applyRewardBundle(p, rewards);
+    // 0034: lifetime kill record (cc_record_kill_stats on the settled path).
+    this.recordKillStats(playerId, rewards.kills);
 
     // 0012: apply the engine's consumed set in the same settlement —
     // clamped to owned counts, with consumable_events rows, mirroring
