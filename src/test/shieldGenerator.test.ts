@@ -52,6 +52,14 @@ describe('shieldGenerator — affixes baked into stats', () => {
   it('affixes with rechargeRate increase shield rechargeRate', () => {
     for (let i = 0; i < 100; i++) {
       const shield = generateShield(1);
+      // Turtle behavior legitimately halves the generated rechargeRate
+      // (applyShieldBehaviorGenerationStats, #215) — an affix-bearing
+      // Turtle can land below the unmodified base floor this test
+      // asserts. That made this test a seed-dependent flake (it failed
+      // two consecutive CI runs on PR #241 while the code was correct).
+      // Only non-Turtle shields carry the unmodified generation stats
+      // the assertion is about.
+      if (shield.behavior === 'turtle') continue;
       const rechAffixes = shield.affixes.filter((a) => a.stat === 'rechargeRate');
       if (rechAffixes.length > 0) {
         const affixMult = rechAffixes.reduce((sum, a) => sum + a.value, 0);
