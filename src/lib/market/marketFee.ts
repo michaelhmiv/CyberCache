@@ -103,11 +103,15 @@ export function marketFeeReduction(
   bonuses: Record<string, number>,
   foundBySeller: boolean,
   craftedBySeller = false,
+  researchFeeReduction = 0,
 ): number {
   const darknet = bonuses.marketFeeReduction ?? 0;
   const manipulator = foundBySeller ? (bonuses.foundItemFeeReduction ?? 0) : 0;
   const houseBrand = craftedBySeller ? (bonuses.craftedItemFeeReduction ?? 0) : 0;
-  return Math.min(1, Math.max(0, darknet + manipulator + houseBrand));
+  // Syndicate Ledger (0038): the seller's research credential is
+  // origin-independent — it composes additively under the same
+  // ≤ 1 clamp (the origin terms stay disjoint per DECISIONS R5).
+  return Math.min(1, Math.max(0, darknet + manipulator + houseBrand + Math.max(0, researchFeeReduction)));
 }
 
 /**
@@ -168,6 +172,12 @@ export function marketFeeForSeller(input: {
    * applied to the post-fee proceeds. Absent = 0.
    */
   cacheRankProceedsBonus?: number;
+  /**
+   * The seller's Syndicate Ledger research fee reduction (0038),
+   * derived by the caller from the seller's research_completions —
+   * applied additively under the ≤ 1 clamp. Absent = 0.
+   */
+  researchFeeReduction?: number;
 }): MarketFeeBreakdown {
   const bonuses = computeSkillBonuses(
     input.skillSpends,
@@ -175,7 +185,12 @@ export function marketFeeForSeller(input: {
   );
   return marketFeeForPrice(
     input.price,
-    marketFeeReduction(bonuses, input.foundBySeller, input.craftedBySeller ?? false),
+    marketFeeReduction(
+      bonuses,
+      input.foundBySeller,
+      input.craftedBySeller ?? false,
+      input.researchFeeReduction ?? 0,
+    ),
     input.feeRate,
     input.cacheRankProceedsBonus ?? 0,
   );

@@ -287,7 +287,9 @@ describe('migration 0024 parity pins', () => {
     expect(match).toBeTruthy();
     const catalog = JSON.parse(match![1]) as Record<string, unknown>[];
     expect(catalog).toHaveLength(49);
-    expect(catalog).toEqual(ALL_CRAFT_RECIPES.map(projectRecipe));
+    // 0038's batch recipes carry requiresResearch and postdate 0024;
+    // their SQL parity is pinned against 0038 in research.test.ts.
+    expect(catalog).toEqual(ALL_CRAFT_RECIPES.filter((r) => !r.requiresResearch).map(projectRecipe));
   });
 
   it('the market material whitelist is exactly the 20 tradeable material ids', () => {

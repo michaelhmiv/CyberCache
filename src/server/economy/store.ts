@@ -120,6 +120,13 @@ export interface EconomyMetricsRow {
   creditsMintedLoginStreak: number;
   cacheFragmentsFromLoginStreak: number;
   cacheKeysFromLoginStreak: number;
+  /** Research meters (migration 0038): enrollments started and
+   *  courses completed that day, plus the enrollment fees destroyed
+   *  at enroll — the fees are a sink and are included in
+   *  creditsDestroyedTotal. */
+  researchEnrollmentsStarted: number;
+  researchCoursesCompleted: number;
+  researchCreditsDestroyed: number;
   computedAt: string;
 }
 
@@ -181,6 +188,9 @@ interface PgMetricsRow {
   credits_minted_login_streak?: string;
   cache_fragments_from_login_streak?: string;
   cache_keys_from_login_streak?: number;
+  research_enrollments_started?: number;
+  research_courses_completed?: number;
+  research_credits_destroyed?: number;
   endless_runs_started?: number;
   endless_runs_ended?: number;
   endless_encounters_cleared?: number;
@@ -270,6 +280,9 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     creditsMintedLoginStreak: Number(r.credits_minted_login_streak ?? 0),
     cacheFragmentsFromLoginStreak: Number(r.cache_fragments_from_login_streak ?? 0),
     cacheKeysFromLoginStreak: Number(r.cache_keys_from_login_streak ?? 0),
+    researchEnrollmentsStarted: Number(r.research_enrollments_started ?? 0),
+    researchCoursesCompleted: Number(r.research_courses_completed ?? 0),
+    researchCreditsDestroyed: Number(r.research_credits_destroyed ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -300,6 +313,8 @@ const METRICS_COLUMNS = `
   cache_keys_from_leaderboards,
   credits_minted_login_streak, cache_fragments_from_login_streak,
   cache_keys_from_login_streak,
+  research_enrollments_started, research_courses_completed,
+  research_credits_destroyed,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

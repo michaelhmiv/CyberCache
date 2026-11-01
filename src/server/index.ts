@@ -10,7 +10,7 @@
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
-import { mountActionSkillRoutes, mountCacheRankRoutes, mountChefHealthRoute, mountDispatchRoutes, mountExtractionRoutes, mountGameplayRoutes, mountLoginStreakRoutes } from './gameplay/routes';
+import { mountActionSkillRoutes, mountCacheRankRoutes, mountChefHealthRoute, mountDispatchRoutes, mountExtractionRoutes, mountGameplayRoutes, mountLoginStreakRoutes, mountResearchRoutes } from './gameplay/routes';
 import { PgChefGameplayStore } from './gameplay/store';
 import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 import { mountAuthRoutes } from './auth/routes';
@@ -140,6 +140,12 @@ if (chefJwtSecret && databaseUrl) {
       // Login streak routes (0036): the daily check-in
       // (observe-and-record) on the gameplay store.
       mountLoginStreakRoutes(app, gameplayStore, {
+        jwtSecret: chefJwtSecret,
+        economyConfig,
+      });
+      // Research routes (0038): the parallel education track —
+      // state read + enroll/cancel on the gameplay store.
+      mountResearchRoutes(app, gameplayStore, {
         jwtSecret: chefJwtSecret,
         economyConfig,
       });

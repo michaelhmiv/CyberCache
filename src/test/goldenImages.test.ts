@@ -40,6 +40,9 @@ describe('golden-image regression', () => {
     expect(ids).toContain('endless-depth-25');
     // Cache Rank (0031): the rank-board scene.
     expect(ids).toContain('cache-rank-panel');
+    // Research (0038): the study + completion scenes.
+    expect(ids).toContain('research-study');
+    expect(ids).toContain('research-complete');
   });
 
   for (const goldenScene of GOLDEN_SCENES) {

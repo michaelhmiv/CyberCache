@@ -335,6 +335,17 @@ export class InMemoryEconomyStore implements EconomyStore {
     const cacheKeysFromLoginStreak = sumBy(['cc_login_streak_claim'], (p) =>
       num(dig(p, 'cache_keys_awarded')));
 
+    // Research (0038): enrollments started + completions that day
+    // from the ledger rows; the destroyed fold is the enroll rows'
+    // cost_credits — it joins creditsDestroyedTotal below exactly
+    // as in SQL (Research is the sink).
+    const researchEnrollmentsStarted = rows.filter(
+      (r) => r.action_type === 'cc_enroll_research').length;
+    const researchCoursesCompleted = rows.filter(
+      (r) => r.action_type === 'cc_research_complete').length;
+    const researchCreditsDestroyed = sumBy(['cc_enroll_research'], (p) =>
+      num(dig(p, 'cost_credits')));
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
@@ -344,7 +355,7 @@ export class InMemoryEconomyStore implements EconomyStore {
     const creditsDestroyedTotal =
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
       + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees
-      + endlessFeesDestroyed;
+      + endlessFeesDestroyed + researchCreditsDestroyed;
 
     const row: EconomyMetricsRow = {
       day,
@@ -435,6 +446,9 @@ export class InMemoryEconomyStore implements EconomyStore {
       creditsMintedLoginStreak,
       cacheFragmentsFromLoginStreak,
       cacheKeysFromLoginStreak,
+      researchEnrollmentsStarted,
+      researchCoursesCompleted,
+      researchCreditsDestroyed,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);
