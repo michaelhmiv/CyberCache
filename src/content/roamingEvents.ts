@@ -1,5 +1,6 @@
 import { Rarity } from '../types/game';
 import type { RoamingAreaDef } from '../constants/roamingAreas';
+import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from './roamingRates';
 
 /**
  * Roaming variance — the event system (roaming-variance brief, Part 2).
@@ -98,9 +99,9 @@ export const EVENT_VALUE_MODEL = {
 export function plainTickValue(area: RoamingAreaDef): number {
   const credits = (area.idleCreditsPerMinute || 15) / 20;
   const scrap = ((area.idleScrapPerMinute || 3) / 20) * EVENT_VALUE_MODEL.scrap;
-  const materials = 0.08 * 12; // MATERIAL_CHANCE × blended find value
-  const fragments = 0.008 * EVENT_VALUE_MODEL.fragment; // FRAGMENT_CHANCE
-  const gear = 0.22 * EVENT_VALUE_MODEL.gearRoll; // GEAR_THRESHOLD
+  const materials = MATERIAL_FIND_CHANCE * 12; // × blended find value
+  const fragments = CACHE_FRAGMENT_CHANCE * EVENT_VALUE_MODEL.fragment;
+  const gear = GEAR_DROP_CHANCE * EVENT_VALUE_MODEL.gearRoll;
   return credits + scrap + materials + fragments + gear;
 }
 

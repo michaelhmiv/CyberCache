@@ -15,9 +15,9 @@
  * must never be descendants of panel chrome.
  */
 import React from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import { SheetPortal } from './SheetPortal';
 
 interface PickerSheetProps {
   title: string;
@@ -39,7 +39,8 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
   children,
   onClose,
 }) => {
-  return createPortal(
+  return (
+    <SheetPortal>
     <AnimatePresence>
       <motion.div
         data-testid="picker-sheet-overlay"
@@ -90,7 +91,7 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>,
-    document.body,
+    </AnimatePresence>
+    </SheetPortal>
   );
 };

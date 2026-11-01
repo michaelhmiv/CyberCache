@@ -45,6 +45,7 @@ export interface BossState extends BossFightState {
   resetPity: (id: string) => void;
   addAttempt: (result: BossAttemptResult) => void;
   setConsumablePrep: (type: string, count: number) => void;
+  seedPrepFromBelt: (belt: Record<string, string | null>, owned: Record<string, number>) => void;
   setRisk: (risk: RiskSetting) => void;
   clearPrep: () => void;
   // PR 6 — live fight mutations
@@ -101,6 +102,21 @@ export const useBossStore = create<BossState>()((set) => ({
     set((s) => ({
       preparedConsumables: { ...s.preparedConsumables, [type]: count },
     })),
+  // Belt seeding (flow-fix F14): the gear home's consumable slots are
+  // the player's standing belt. When boss prep is entered with no prep
+  // set, the belt pre-loads it — one of each belted type the player
+  // actually owns — so the slots are real preparation, not display
+  // state beside the real system. Counts stay adjustable in prep;
+  // what the panel shows before the attempt is what burns.
+  seedPrepFromBelt: (belt, owned) =>
+    set((s) => {
+      if (Object.keys(s.preparedConsumables).length > 0) return s;
+      const seeded: Record<string, number> = {};
+      for (const type of Object.values(belt)) {
+        if (type && (owned[type] ?? 0) > 0) seeded[type] = 1;
+      }
+      return Object.keys(seeded).length > 0 ? { preparedConsumables: seeded } : s;
+    }),
   setRisk: (risk) => set({ selectedRisk: risk }),
   clearPrep: () => set({ preparedConsumables: {}, selectedRisk: RiskSetting.Balanced }),
 

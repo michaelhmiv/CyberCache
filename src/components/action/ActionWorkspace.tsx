@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import { SheetPortal } from '@/components/common/SheetPortal';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+import { salvageScrap } from '@/lib/skills/salvageBonuses';
 import type { GearItem, Weapon } from '@/types/items';
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
@@ -77,7 +79,18 @@ export const ActionFeed: React.FC<{
   title?: string;
   entries: ActionFeedEntry[];
   empty?: string;
-}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet.' }) => {
+  /**
+   * Feed inspect actions (flow-fix F11): when provided, a dropped
+   * item's inspect sheet carries Equip / Salvage actions so the item
+   * is actionable from where it dropped instead of dead-ending at
+   * Close. Handlers resolve true when the sheet should close (the op
+   * settled); failures keep the sheet open and surface gearActionError.
+   */
+  onGearEquip?: (item: GearItem) => Promise<boolean>;
+  onGearSalvage?: (item: GearItem) => Promise<boolean>;
+  gearActionBusy?: boolean;
+  gearActionError?: string | null;
+}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet.', onGearEquip, onGearSalvage, gearActionBusy = false, gearActionError = null }) => {
   const [selectedGear, setSelectedGear] = useState<GearItem | null>(null);
 
   const rarityBorder = (item?: GearItem): string => {
@@ -153,7 +166,39 @@ export const ActionFeed: React.FC<{
           return <button key={entry.id} type="button" onClick={() => entry.gear ? setSelectedGear(entry.gear) : entry.onInspect?.()} className="block w-full active:scale-[0.99]">{Inner}</button>;
         })}
       </div>
-      <GearInspectSheet item={selectedGear} open={!!selectedGear} onClose={() => setSelectedGear(null)} contextLabel="Loot Log Inspect" />
+      <GearInspectSheet
+        item={selectedGear}
+        open={!!selectedGear}
+        onClose={() => setSelectedGear(null)}
+        contextLabel="Loot Log Inspect"
+        actions={selectedGear && (onGearEquip || onGearSalvage) ? (
+          <div>
+            {gearActionError && <div className="mb-2 border border-red/50 bg-red/10 p-2 text-[10px] font-bold text-red">{gearActionError}</div>}
+            <div className="grid grid-cols-2 gap-2">
+              {onGearEquip && (
+                <button
+                  type="button"
+                  disabled={gearActionBusy}
+                  className="bl-primary py-2 text-xs font-black disabled:opacity-50"
+                  onClick={async () => { if (await onGearEquip(selectedGear)) setSelectedGear(null); }}
+                >
+                  Equip
+                </button>
+              )}
+              {onGearSalvage && (
+                <button
+                  type="button"
+                  disabled={gearActionBusy || selectedGear.isLocked}
+                  className="bl-secondary py-2 text-xs font-black text-amber disabled:opacity-50"
+                  onClick={async () => { if (await onGearSalvage(selectedGear)) setSelectedGear(null); }}
+                >
+                  Salvage ≈{salvageScrap(selectedGear.rarity, selectedGear.level)}
+                </button>
+              )}
+            </div>
+          </div>
+        ) : undefined}
+      />
     </section>
   );
 };
@@ -167,6 +212,7 @@ export const ContextualPickerSheet: React.FC<{
 }> = ({ open, title, detail, onClose, children }) => {
   if (!open) return null;
   return (
+    <SheetPortal>
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-black/70" onClick={onClose}>
       <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="max-h-[82vh] w-full overflow-y-auto rounded-t-2xl border-t-2 border-border bg-bg p-4" onClick={(event) => event.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -179,5 +225,6 @@ export const ContextualPickerSheet: React.FC<{
         <div className="space-y-2">{children}</div>
       </motion.div>
     </motion.div>
+    </SheetPortal>
   );
 };

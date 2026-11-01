@@ -3,6 +3,7 @@ import * as authService from '../lib/api/authService';
 import * as profileService from '../lib/api/profileService';
 import type { ApiUser } from '../lib/api/session';
 import { settleActiveActivityRewards } from '../lib/activity/activitySettlement';
+import { ensureInitialBundle } from '../lib/api/initialBundle';
 import { syncRuntimeItemsForUser } from '../lib/api/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/api/verifiedStateSync';
 import { initializeNativeAuth } from '../lib/nativeAuth';
@@ -63,8 +64,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const profile = await profileService.ensureProfile(nextUser);
+    let profile = await profileService.ensureProfile(nextUser);
     syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+
+    // Initial bundle (flow-fix F1): every account receives its
+    // starter economy exactly once — the op shipped with a Chef route
+    // and a client wrapper but no caller, so accounts started at zero
+    // forever. The grant is gated on the profile's own claim flag and
+    // the SQL refuses a second claim, so running this on every
+    // bootstrap is safe for fresh and pre-existing accounts alike. On
+    // grant, re-read the profile so the account state below carries
+    // the bundled balances; the op already synced stores itself.
+    try {
+      const granted = await ensureInitialBundle(profile);
+      if (granted) {
+        profile = await profileService.ensureProfile(nextUser);
+        syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+      }
+    } catch (error) {
+      console.warn('Initial bundle grant skipped:', error instanceof Error ? error.message : error);
+    }
+
     await syncRuntimeItemsForUser(nextUser.id);
 
     // Starter weapon: no client safety net is needed anymore. The

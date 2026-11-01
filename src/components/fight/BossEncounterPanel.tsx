@@ -219,6 +219,21 @@ export const BossEncounterPanel: React.FC<{
   }, []);
   useEffect(() => { loadActionSkill(); }, [loadActionSkill]);
 
+  // Belt seeding (flow-fix F14): entering prep with nothing prepared
+  // pre-loads the standing belt from the gear home's consumable slots
+  // — one of each belted type owned. Runs once per mount (the parent
+  // keys this panel by boss id); in-panel stepper changes are never
+  // overwritten because the store action no-ops once prep is non-empty.
+  const seedPrepFromBelt = bossStore.seedPrepFromBelt;
+  const beltSlots = loadout.consumables;
+  const beltOwnedCounts = player.consumables;
+  const beltSeededRef = useRef(false);
+  useEffect(() => {
+    if (beltSeededRef.current) return;
+    beltSeededRef.current = true;
+    seedPrepFromBelt(beltSlots, beltOwnedCounts);
+  }, [seedPrepFromBelt, beltSlots, beltOwnedCounts]);
+
   // Switching targets resets the encounter surface: the parent keys
   // this panel by boss id, so a target change remounts it fresh.
   useEffect(() => () => {
