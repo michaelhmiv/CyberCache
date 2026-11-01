@@ -375,6 +375,21 @@ export class InMemoryEconomyStore implements EconomyStore {
       cacheOpens: rows.filter(
         (r) => r.action_type === 'cc_make_item' || r.action_type === 'cc_draw_item',
       ).length,
+      // Cache box lane (0037): issuance by resolved payment, folded
+      // from cc_make_item rows. Rows written before 0037 carry no
+      // 'payment' and count as key — every pre-lane opening was
+      // key-paid (the SQL fold's coalesce, mirrored).
+      cacheBoxesOpenedFree: rows.filter(
+        (r) => r.action_type === 'cc_make_item' && dig(r.result_payload, 'payment') === 'free',
+      ).length,
+      cacheBoxesOpenedAd: rows.filter(
+        (r) => r.action_type === 'cc_make_item' && dig(r.result_payload, 'payment') === 'ad',
+      ).length,
+      cacheBoxesOpenedKey: rows.filter(
+        (r) =>
+          r.action_type === 'cc_make_item' &&
+          (dig(r.result_payload, 'payment') === 'key' || dig(r.result_payload, 'payment') === undefined),
+      ).length,
       cacheFragmentsAwarded: sumBy(
         ['cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards'],
         (p) => num(dig(p, 'rewards', 'cache_fragments_awarded')),

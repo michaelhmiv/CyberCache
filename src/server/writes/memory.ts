@@ -104,6 +104,14 @@ import {
 } from '../../content/cacheRank.js';
 import { reforgeCostFor, type ReforgeLeverValues } from '../../content/reforge.js';
 import {
+  cacheLaneUtcDay,
+  cacheLaneView,
+  resolveCacheBoxPayment,
+  resolveCacheLaneLevers,
+  type CacheBoxPaymentCounts,
+  type CacheLaneLeverValues,
+} from '../../content/cacheLane.js';
+import {
   applyReforgeToItem,
   isReforgeableAffix,
   reforgeKindOf,
@@ -232,6 +240,13 @@ export interface InMemoryWriteOptions {
    * the mirror.
    */
   cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>;
+  /**
+   * Live cache-lane lever values (economy_config, 0037) — the daily
+   * box cap — resolved per cache opening, clamped by
+   * resolveCacheLaneLevers. The mirror of cc_make_item reading the
+   * table through cc_economy_config_number.
+   */
+  cacheLaneLeverProvider?: () => Partial<CacheLaneLeverValues>;
 }
 
 function clone<T>(value: T): T {
@@ -253,6 +268,7 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly repairLeverProvider: () => Partial<RepairLeverValues>;
   private readonly reforgeLeverProvider: () => Partial<ReforgeLeverValues>;
   private readonly cacheRankLeverProvider: () => Partial<CacheRankLeverValues>;
+  private readonly cacheLaneLeverProvider: () => Partial<CacheLaneLeverValues>;
   private craftViews = new Map<string, CraftProfileView>();
   /** Cache Rank grant log (0031 mirror of the cc_cache_rank_grant ledger rows) for test introspection. */
   readonly cacheRankGrantLog: Array<{ playerId: string; fromLevel: number; toLevel: number; tokens: number }> = [];
@@ -279,6 +295,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.repairLeverProvider = opts.repairLeverProvider ?? (() => ({}));
     this.reforgeLeverProvider = opts.reforgeLeverProvider ?? (() => ({}));
     this.cacheRankLeverProvider = opts.cacheRankLeverProvider ?? (() => ({}));
+    this.cacheLaneLeverProvider = opts.cacheLaneLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) this.profiles.set(p.id, p);
     for (const i of this.seed.items) this.items.set(i.id, i);
@@ -727,12 +744,37 @@ export class InMemoryWriteStore implements WriteStore {
     return this.record(playerId, 'cc_initial_bundle', key, result);
   }
 
-  async makeItem(playerId: string, nonce: string): Promise<Json> {
+  async makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json> {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
-    if (p.cache_tokens < 1) throw writeError('Not enough tokens');
+    // Cache box lane (0037): the daily budget gate + free-first
+    // payment resolution — the mirror of cc_make_item's SQL (content
+    // owner: src/content/cacheLane.ts). Counted from the openings
+    // record inside this op; the nonce-prior return above means a
+    // replay records nothing and grants nothing.
+    const levers = resolveCacheLaneLevers(this.cacheLaneLeverProvider());
+    const openDay = cacheLaneUtcDay(this.nowFn());
+    const byPayment: CacheBoxPaymentCounts = { free: 0, ad: 0, key: 0 };
+    for (const row of this.seed.cacheBoxOpenings) {
+      if (row.user_id === playerId && row.open_day === openDay) {
+        if (row.payment === 'free' || row.payment === 'ad' || row.payment === 'key') {
+          byPayment[row.payment] += 1;
+        }
+      }
+    }
+    const openedToday = byPayment.free + byPayment.ad + byPayment.key;
+    if (openedToday >= levers.cacheBoxDailyCap) throw writeError('Daily cache box limit reached');
+    const requested = (payment ?? '').trim().toLowerCase() || 'key';
+    const resolved = resolveCacheBoxPayment(requested, byPayment);
+    if (!resolved) {
+      if (requested === 'free') throw writeError('Free cache box already used today');
+      throw writeError('Unknown cache box payment');
+    }
+    const cleanAdUnit = (adUnitId ?? '').trim();
+    if (resolved === 'ad' && !cleanAdUnit) throw writeError('ad_unit_id is required');
+    if (resolved === 'key' && p.cache_tokens < 1) throw writeError('Not enough tokens');
     const outcomes = this.seed.oddsOutcomes.filter((o) => o.table_id === 'cache_primary_rarity');
     if (!outcomes.length) throw writeError('No outcomes configured for cache_primary_rarity');
     // Cache quality (0031): the draw reads the TOTAL cache quality —
@@ -749,8 +791,10 @@ export class InMemoryWriteStore implements WriteStore {
       this.rng(),
     );
     const rarity = draw.outcome;
-    p.cache_tokens -= 1;
-    this.touch(p);
+    if (resolved === 'key') {
+      p.cache_tokens -= 1;
+      this.touch(p);
+    }
     const itemLevel = Math.max(1, p.player_level);
     // SQL computes the value from {'odds': ...} (no combatPower) — faithful.
     const estimated = computeItemEstimatedValue({ odds: draw as unknown as Json }, 'weapon', rarity, itemLevel);
@@ -783,51 +827,36 @@ export class InMemoryWriteStore implements WriteStore {
     };
     this.insertItem(item);
     this.recalcNetWorth(playerId);
+    // Record the opening (0037): the budget's audit row, after the
+    // draw — a replay never reaches here (nonce-prior return above).
+    this.seed.cacheBoxOpenings.push({
+      user_id: playerId,
+      open_day: openDay,
+      payment: resolved,
+      ad_unit_id: resolved === 'ad' ? cleanAdUnit : null,
+      item_id: item.id,
+      opened_at: now,
+    });
+    byPayment[resolved] += 1;
+    const lane = cacheLaneView({ day: openDay, keys: p.cache_tokens, byPayment }, levers);
     const result: Json = {
       action_type: 'cc_make_item',
       profile: this.profileSnapshot(p),
       odds: draw as unknown as Json,
       cache_quality: cacheQuality,
       item: this.itemJson(item),
+      payment: resolved,
+      cache_lane: {
+        day: lane.day,
+        cap: lane.cap,
+        free_per_day: lane.freePerDay,
+        opened_today: lane.openedToday,
+        remaining: lane.remaining,
+        free_available: lane.freeAvailable,
+        by_payment: lane.byPayment,
+      },
     };
     return this.record(playerId, 'cc_make_item', key, result);
-  }
-
-  // _rewardSource is accepted for signature parity with the SQL op (which
-  // records it on the grant row); the mirror's grant rows don't carry it.
-  async claimRewardedCacheKey(playerId: string, nonce: string, adUnitId: string, _rewardSource: string): Promise<Json> {
-    const cleanAdUnit = (adUnitId ?? '').trim();
-    if (!cleanAdUnit) throw writeError('ad_unit_id is required');
-    const key = this.cleanNonce(nonce);
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const nowMs = this.nowFn().getTime();
-    const startOfDay = new Date(this.nowFn());
-    startOfDay.setUTCHours(0, 0, 0, 0);
-    const todays = this.seed.adGrants.filter(
-      (g) =>
-        g.user_id === playerId &&
-        g.reward_type === 'cache_key' &&
-        g.status === 'granted' &&
-        new Date(g.granted_at).getTime() >= startOfDay.getTime(),
-    );
-    if (todays.length >= 3) throw writeError('Daily rewarded cache key limit reached');
-    const cooldown = this.seed.adGrants.some(
-      (g) => g.user_id === playerId && g.reward_type === 'cache_key' && nowMs - new Date(g.granted_at).getTime() < 5 * 60 * 1000,
-    );
-    if (cooldown) throw writeError('Rewarded cache key cooldown active');
-    const p = this.profile(playerId);
-    p.cache_tokens += 1;
-    this.touch(p);
-    this.seed.adGrants.push({ user_id: playerId, reward_type: 'cache_key', status: 'granted', granted_at: this.nowIso() });
-    const result: Json = {
-      action_type: 'cc_claim_rewarded_cache_key',
-      profile: this.profileSnapshot(p),
-      reward_type: 'cache_key',
-      reward_amount: 1,
-      daily_grants_used: todays.length + 1,
-    };
-    return this.record(playerId, 'cc_claim_rewarded_cache_key', key, result);
   }
 
   async registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json> {

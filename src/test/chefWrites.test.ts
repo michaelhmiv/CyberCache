@@ -258,26 +258,40 @@ describe('cache draws, vendor, crafting, consumables', () => {
   });
   afterAll(async () => h.close());
 
-  it('make-item spends a token, mints a weapon, and replays safely', async () => {
+  it('make-item resolves the first opening of the day FREE, mints a weapon, and replays safely', async () => {
     rngQueue = [0.75]; // rarity roll -> Rare (71..100 of 100)
     const n = nonce();
     const res = await post(h, '/api/ops/make-item', h.tokenA, { nonce: n });
     expect(res.status).toBe(200);
     expect(res.json.action_type).toBe('cc_make_item');
+    // Cache box lane (0037): the first opening of the UTC day is
+    // free — the default 'key' request resolves to it, no token is
+    // spent, and the result carries the resolved payment + budget.
+    expect(res.json.payment).toBe('free');
+    const lane = res.json.cache_lane as Record<string, unknown>;
+    expect(lane.opened_today).toBe(1);
+    expect(lane.free_available).toBe(false);
     const minted = res.json.item as Record<string, unknown>;
     expect(minted.kind).toBe('weapon');
     expect(minted.rarity).toBe('Rare');
     expect((minted.payload as Record<string, unknown>).weaponType).toBeDefined();
     const prof = res.json.profile as Record<string, unknown>;
-    expect(prof.cache_tokens).toBe(1);
+    expect(prof.cache_tokens).toBe(2);
 
     const replay = await post(h, '/api/ops/make-item', h.tokenA, { nonce: n });
     expect(replay.json).toEqual(res.json);
     expect(h.store.seed.items.filter((i) => i.owner_user_id === A)).toHaveLength(4);
+    // The replay recorded no second opening.
+    expect(h.store.seed.cacheBoxOpenings.filter((o) => o.user_id === A)).toHaveLength(1);
   });
 
-  it('make-item without tokens fails', async () => {
-    const res = await post(h, '/api/ops/make-item', h.tokenB, { nonce: nonce() });
+  it('make-item without tokens opens free first, then key payment fails', async () => {
+    // B holds no keys: free-first still grants the day's free box;
+    // the NEXT opening asked as 'key' is refused.
+    const free = await post(h, '/api/ops/make-item', h.tokenB, { nonce: nonce(), payment: 'key' });
+    expect(free.status).toBe(200);
+    expect(free.json.payment).toBe('free');
+    const res = await post(h, '/api/ops/make-item', h.tokenB, { nonce: nonce(), payment: 'key' });
     expect(res.status).toBe(400);
     expect(res.json.message).toBe('Not enough tokens');
   });
@@ -343,13 +357,28 @@ describe('cache draws, vendor, crafting, consumables', () => {
     }
   });
 
-  it('rewarded cache key honours the 5-minute cooldown', async () => {
-    const res = await post(h, '/api/ops/claim-rewarded-cache-key', h.tokenA, { nonce: nonce(), ad_unit_id: 'ca-app-pub-x/y' });
-    expect(res.status).toBe(200);
-    expect(res.json.daily_grants_used).toBe(1);
-    const second = await post(h, '/api/ops/claim-rewarded-cache-key', h.tokenA, { nonce: nonce(), ad_unit_id: 'ca-app-pub-x/y' });
-    expect(second.status).toBe(400);
-    expect(second.json.message).toBe('Rewarded cache key cooldown active');
+  it('cache lane: ad openings attest through make-item and require the ad unit id', async () => {
+    // Isolated server so the day's free slot is unconsumed.
+    const h2 = await makeServer();
+    try {
+      // Even an ad request resolves to the free box first (0037).
+      const free = await post(h2, '/api/ops/make-item', h2.tokenA, { nonce: nonce(), payment: 'ad', ad_unit_id: 'ca-app-pub-x/y' });
+      expect(free.status).toBe(200);
+      expect(free.json.payment).toBe('free');
+      // An ad opening without its attestation (the ad unit id) fails.
+      const noUnit = await post(h2, '/api/ops/make-item', h2.tokenA, { nonce: nonce(), payment: 'ad' });
+      expect(noUnit.status).toBe(400);
+      expect(noUnit.json.message).toBe('ad_unit_id is required');
+      // With the unit id, the attested opening lands.
+      const ad = await post(h2, '/api/ops/make-item', h2.tokenA, { nonce: nonce(), payment: 'ad', ad_unit_id: 'ca-app-pub-x/y' });
+      expect(ad.status).toBe(200);
+      expect(ad.json.payment).toBe('ad');
+      const openings = h2.store.seed.cacheBoxOpenings.filter((o) => o.user_id === A);
+      expect(openings.map((o) => o.payment)).toEqual(['free', 'ad']);
+      expect(openings[1].ad_unit_id).toBe('ca-app-pub-x/y');
+    } finally {
+      await h2.close();
+    }
   });
 });
 

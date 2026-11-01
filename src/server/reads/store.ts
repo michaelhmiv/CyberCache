@@ -49,6 +49,13 @@ import {
   weekWindow,
 } from '../../content/leaderboards';
 import {
+  cacheLaneUtcDay,
+  cacheLaneView,
+  resolveCacheLaneLevers,
+  type CacheBoxPaymentCounts,
+  type CacheLaneView,
+} from '../../content/cacheLane';
+import {
   computeRaceStandings,
   WEEKLY_FOLD_ACTION_TYPES,
   type WeeklyFoldInput,
@@ -746,6 +753,8 @@ export interface ReadStore {
   getProfileStats(playerId: string): Promise<ProfileLifetimeData | null>;
   /** Weekly race boards: current week's live standings + last week's finals and the caller's reward outcome (0035); null when no profile. */
   getWeeklyLeaderboards(playerId: string, now: Date): Promise<WeeklyLeaderboardsData | null>;
+  /** Caller's cache box lane state for the current UTC day (0037): opened today / remaining / free available; null when no profile. */
+  getCacheLane(playerId: string, now: Date): Promise<CacheLaneView | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1293,6 +1302,8 @@ export interface ReadSeed {
   leaderboardRewards?: WeeklyRewardRecordData[];
   /** Weekly leaderboard drop-luck buff rows (0035). Optional. */
   dropBuffs?: Array<{ player_id: string; bonus: number; expires_at: string }>;
+  /** Cache box opening rows (0037). Optional: older seeds omit it. */
+  cacheBoxOpenings?: Array<{ user_id: string; open_day: string; payment: string }>;
 }
 
 export function emptyReadSeed(): ReadSeed {
@@ -1317,6 +1328,27 @@ export class InMemoryReadStore implements ReadStore {
       .map(({ family, entry_key, source, discovered_at }) => ({ family, entry_key, source, discovered_at }))
       .sort((a, b) => a.discovered_at.localeCompare(b.discovered_at));
     return { legendary_cores: profile.legendary_cores ?? 0, discoveries };
+  }
+
+  async getCacheLane(playerId: string, now: Date): Promise<CacheLaneView | null> {
+    const profile = this.seed.profiles.find((p) => p.id === playerId);
+    if (!profile) return null;
+    const day = cacheLaneUtcDay(now);
+    const byPayment: CacheBoxPaymentCounts = { free: 0, ad: 0, key: 0 };
+    for (const row of this.seed.cacheBoxOpenings ?? []) {
+      if (row.user_id === playerId && row.open_day === day) {
+        if (row.payment === 'free' || row.payment === 'ad' || row.payment === 'key') {
+          byPayment[row.payment] += 1;
+        }
+      }
+    }
+    // The twin serves the shipped default cap; the Pg store reads
+    // the live cacheBoxDailyCap lever (0018) — the same split the
+    // other levered reads use.
+    return cacheLaneView(
+      { day, keys: profile.cache_tokens, byPayment },
+      resolveCacheLaneLevers(),
+    );
   }
 
   async getProfileStats(playerId: string): Promise<ProfileLifetimeData | null> {
@@ -1796,6 +1828,47 @@ export class PgReadStore implements ReadStore {
         discovered_at: iso(row.discovered_at),
       })),
     };
+  }
+
+  async getCacheLane(playerId: string, now: Date): Promise<CacheLaneView | null> {
+    const { rows } = await this.db.query(
+      'select cache_tokens from public.profiles where id = $1',
+      [playerId],
+    );
+    if (!rows.length) return null;
+    const day = cacheLaneUtcDay(now);
+    const { rows: openingRows } = await this.db.query(
+      `select payment, count(*)::integer as n
+         from public.cache_box_openings
+        where player_id = $1 and open_day = $2::date
+        group by payment`,
+      [playerId, day],
+    );
+    const byPayment: CacheBoxPaymentCounts = { free: 0, ad: 0, key: 0 };
+    for (const row of openingRows as Row[]) {
+      const payment = String(row.payment);
+      if (payment === 'free' || payment === 'ad' || payment === 'key') {
+        byPayment[payment] = num(row.n);
+      }
+    }
+    // The cap is the cacheBoxDailyCap lever (0018): the stored value
+    // when present; the content resolver applies default + clamps,
+    // identical to cc_make_item's cc_economy_config_number read.
+    const { rows: configRows } = await this.db.query(
+      "select value from public.economy_config where key = 'cacheBoxDailyCap'",
+    );
+    let capRaw: number | undefined;
+    if (configRows.length) {
+      const parsed = Number((configRows[0] as Row).value);
+      if (Number.isFinite(parsed)) capRaw = parsed;
+    }
+    const levers = resolveCacheLaneLevers(
+      capRaw !== undefined ? { cacheBoxDailyCap: capRaw } : undefined,
+    );
+    return cacheLaneView(
+      { day, keys: num((rows[0] as Row).cache_tokens), byPayment },
+      levers,
+    );
   }
 
   async getProfileStats(playerId: string): Promise<ProfileLifetimeData | null> {

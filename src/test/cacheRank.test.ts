@@ -838,7 +838,7 @@ describe('cache rank consumers — writes store', () => {
       s.oddsOutcomes = [...ODDS];
       s.profiles = [writeProfile({ id: A, cache_tokens: 5 })];
     }, () => 0.65);
-    const plainMade = await plain.makeItem(A, writeNonce()) as Json;
+    const plainMade = await plain.makeItem(A, writeNonce(), 'key', null) as Json;
     expect(plainMade.cache_quality).toBe(0);
     expect((plainMade.item as Json).rarity).toBe('Common');
 
@@ -850,7 +850,7 @@ describe('cache rank consumers — writes store', () => {
         cache_rank_spends: { cacheQuality: 10 },
       } as Partial<ProfileRowData>)];
     }, () => 0.65);
-    const rankedMade = await ranked.makeItem(A, writeNonce()) as Json;
+    const rankedMade = await ranked.makeItem(A, writeNonce(), 'key', null) as Json;
     expect(rankedMade.cache_quality).toBeCloseTo(0.45, 10); // 0.25 skill + 0.20 rank
     expect((rankedMade.item as Json).rarity).toBe('Rare');
     expect((rankedMade.odds as Json).total_weight).toBeCloseTo(113.5, 6);

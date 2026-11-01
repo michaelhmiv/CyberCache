@@ -201,7 +201,7 @@ describe('read routes (HTTP)', () => {
     '/api/leaderboard?metric=xp', '/api/leaderboard/me?metric=xp',
     `/api/players/${B}/public-profile`, '/api/stats/me', `/api/players/${B}/public-stats`,
     '/api/usernames/availability?username=x', '/api/market/listings', '/api/runtime/items',
-    '/api/market/price-stats?keys=mat:ScrapAlloy',
+    '/api/market/price-stats?keys=mat:ScrapAlloy', '/api/caches/me',
   ];
 
   it('every route requires a valid Chef token (none, garbage, and expired all 401)', async () => {

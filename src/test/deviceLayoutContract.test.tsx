@@ -31,20 +31,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { compactResourceValue } from '@/lib/ui/formatValue';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import type { CharacterStatSummary } from '@/lib/stats/characterStats';
-
-vi.mock('@/lib/ads/rewardedCacheKeyAd', () => ({
-  canUseRewardedCacheKeyAds: () => false,
-  showRewardedCacheKeyAd: async () => { throw new Error('no ads in tests'); },
-}));
-vi.mock('@/lib/api/verifiedOps', () => ({
-  verifiedOps: { claimRewardedCacheKey: vi.fn(async () => ({})) },
-}));
 
 const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
 

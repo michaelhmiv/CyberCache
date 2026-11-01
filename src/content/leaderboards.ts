@@ -214,14 +214,17 @@ export function racesForWeek(weekKey: string): LeaderboardRaceDef[] {
 // Rewards — paid once, at settlement, from the settled standings.
 //
 // Cache keys: the podium pays 3 / 2 / 1 keys. Sizing against the
-// shipped cache economy: the rewarded-ad lane pays at most 3 keys
-// per player per DAY, and a week of races mints at most
-// RACES_PER_WEEK × (3 + 2 + 1) = 24 keys across the ENTIRE player
-// base — less than one active player's weekly ad-lane ceiling, for
-// the whole game. Keys are metered as their own source
-// (cache_keys_from_leaderboards, migration 0035), never folded into
-// the ad lane's count: the cache-lane slice owns the daily cap and
-// its accounting stays clean.
+// shipped cache economy: since migration 0037 every cache opening
+// — free, key-paid, or ad-attested — draws on one daily budget
+// (cacheBoxDailyCap, default 10), so keys from ANY source only
+// ever buy ad-free openings inside that budget, and a week of
+// races mints at most RACES_PER_WEEK × (3 + 2 + 1) = 24 keys
+// across the ENTIRE player base — a stock any single active
+// player burns through in ~2-3 days of key-paid openings. Keys
+// are metered as their own source (cache_keys_from_leaderboards,
+// migration 0035), never folded into the openings meters
+// (cache_boxes_opened_*), whose accounting counts openings, not
+// key sources.
 //
 // Drop luck: a timed buff recorded server-side (leaderboard_drop_
 // buffs) and consumed by the real drop paths — roaming rarity

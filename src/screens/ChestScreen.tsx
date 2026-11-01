@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Info, Lock, Unlock } from 'lucide-react';
+import { Info, Lock, Play, Unlock } from 'lucide-react';
 import { usePlayerStore, useInventoryStore, useIdleStore } from '@/store';
 import { RARITIES } from '@/constants/rarities';
-import { verifiedOps } from '@/lib/api/verifiedOps';
+import { verifiedOps, type VerifiedResult } from '@/lib/api/verifiedOps';
+import { fetchCacheLane, type CacheLaneState } from '@/lib/api/cacheLaneService';
+import { canUseRewardedCacheAds, showRewardedCacheAd } from '@/lib/ads/rewardedCacheAd';
+import { CACHE_LANE_RULE, cacheLaneResetsAt } from '@/content/cacheLane';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/serverItemAdapter';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
 import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
@@ -164,9 +167,10 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
 
   const [opening, setOpening] = useState(false);
   const [revealed, setRevealed] = useState<GearItem[] | null>(null);
-  // P3 loot moment: the cache's drop celebrates first (rarity ladder +
-  // legendary treatment), then the item cards take over. The item was
-  // already granted by the server op before `revealed` was set.
+  // P3 loot moment: the cache's contents celebrate first (rarity
+  // ladder + legendary treatment), then the item cards take over.
+  // The item was already granted by the server op before `revealed`
+  // was set.
   const [momentDone, setMomentDone] = useState(false);
   const reducedMotion = !!useReducedMotion();
   const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked'>>({});
@@ -175,14 +179,61 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   const keys = player.cacheKeys;
   const frags = player.cacheKeyFragments;
 
-  const handleOpen = async () => {
-    if (keys <= 0 || opening) return;
+  // Cache box lane (0037): the daily budget — 1 free box, then key
+  // or watch-ad openings, 10 total per UTC day. The server enforces
+  // all of it inside the open op; this state only presents it. The
+  // ad offer lives HERE and nowhere else (no ads on the play
+  // screen, ever).
+  const [lane, setLane] = useState<CacheLaneState | null>(null);
+
+  const refreshLane = async () => {
+    const state = await fetchCacheLane();
+    if (state) setLane(state);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCacheLane().then((state) => {
+      if (!cancelled && state) setLane(state);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Fold an open op's returned lane view (snake_case jsonb) into state. */
+  const applyLaneFromResult = (result: VerifiedResult) => {
+    const raw = result.cache_lane as Record<string, unknown> | undefined;
+    if (!raw || typeof raw.day !== 'string') return;
+    const by = (raw.by_payment ?? {}) as Record<string, number>;
+    const profile = result.profile as { cache_tokens?: number } | undefined;
+    setLane({
+      day: raw.day,
+      cap: Number(raw.cap ?? 10),
+      freePerDay: Number(raw.free_per_day ?? 1),
+      openedToday: Number(raw.opened_today ?? 0),
+      remaining: Number(raw.remaining ?? 0),
+      freeAvailable: raw.free_available === true,
+      keys: Number(profile?.cache_tokens ?? keys),
+      byPayment: {
+        free: Number(by.free ?? 0),
+        ad: Number(by.ad ?? 0),
+        key: Number(by.key ?? 0),
+      },
+      resetsAt: cacheLaneResetsAt(raw.day),
+      rule: CACHE_LANE_RULE,
+    });
+  };
+
+  const openWith = async (payment: 'free' | 'ad' | 'key', adUnitId?: string) => {
+    if (opening) return;
     setOpening(true);
     setError(null);
     setItemActions({});
     setMomentDone(false);
     try {
-      const result = await verifiedOps.makeItem();
+      const result = await verifiedOps.makeItem({ payment, adUnitId });
+      applyLaneFromResult(result);
       const item = serverItemRowToDisplayGear(result.item as ServerItemRow);
       if (!item) {
         setError('Cache produced an unrecognizable item.');
@@ -191,10 +242,30 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
       setRevealed([item]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to open cache.');
+      void refreshLane();
     } finally {
       setOpening(false);
     }
   };
+
+  const handleOpenFree = () => void openWith('free');
+  const handleOpenKey = () => {
+    if (keys > 0) void openWith('key');
+  };
+  const handleOpenAd = async () => {
+    if (opening) return;
+    setError(null);
+    try {
+      const reward = await showRewardedCacheAd(player.id);
+      await openWith('ad', reward.adUnitId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to open cache.');
+    }
+  };
+
+  const adsReady = canUseRewardedCacheAds();
+  const freeAvailable = lane?.freeAvailable ?? false;
+  const capReached = lane !== null && lane.remaining <= 0;
 
   const close = () => {
     setRevealed(null);
@@ -243,12 +314,14 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     Legendary: '8%',
   };
 
-  const visibleDrops = revealed?.filter((d) => itemActions[d.id] !== 'scrapped') ?? [];
+  const visibleItems = revealed?.filter((d) => itemActions[d.id] !== 'scrapped') ?? [];
   // The cache stage dresses in the player's CURRENT area (§5.9) — the
   // old hard-coded Dustwaste backdrop is gone.
   const currentAreaId = useIdleStore((state) => state.selectedRoamingAreaId);
   const zoneBg = getPixelSprite(pixelBackgroundForArea(currentAreaId) ?? 'zone-dustwaste-bg');
-  const canOpenAnother = keys > 0 && !opening;
+  const canOpenAnother =
+    !opening &&
+    (lane ? lane.remaining > 0 && (lane.freeAvailable || keys > 0) : keys > 0);
 
   return (
     <div className="p-4 space-y-4 pb-20">
@@ -285,17 +358,86 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
         </div>
       </div>
 
+      {lane && (
+        <div className="bg-surface-raised border border-border rounded-xl p-3">
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="text-text-muted">Cache Boxes Today</span>
+            <span className="text-text-secondary font-bold">
+              {lane.openedToday} / {lane.cap} opened · {lane.remaining} left
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-bg overflow-hidden">
+            <div
+              className="h-full rounded-full bg-amber transition-all duration-300"
+              style={{ width: `${Math.min((lane.openedToday / Math.max(lane.cap, 1)) * 100, 100)}%` }}
+            />
+          </div>
+          <div className="text-[10px] text-text-muted mt-1">
+            {lane.freeAvailable
+              ? "Today's FREE box is ready below — no key, no ad."
+              : capReached
+                ? `Daily limit reached — the budget resets at 00:00 UTC (${new Date(lane.resetsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} local).`
+                : 'Free box used today — open more with a key or an ad.'}
+          </div>
+        </div>
+      )}
+
       <div className="bg-surface-raised border border-border rounded-2xl p-6 text-center space-y-3">
         <div className="w-20 h-20 mx-auto flex items-center justify-center">
           <ChestIllustration tier="rare" size={80} open={opening} animate={opening} />
         </div>
-        <button
-          onClick={handleOpen}
-          disabled={keys <= 0 || opening}
-          className="w-full py-3 rounded-xl bg-amber text-bg font-black text-sm uppercase tracking-wider disabled:opacity-40 active:scale-95 transition-transform"
-        >
-          {opening ? 'Decrypting...' : 'OPEN CACHE'}
-        </button>
+        {capReached ? (
+          <div className="rounded-xl border border-border bg-bg p-3 text-xs text-text-secondary">
+            You&apos;ve opened all {lane?.cap ?? 10} of today&apos;s cache boxes. The daily
+            budget resets at 00:00 UTC
+            {lane
+              ? ` (${new Date(lane.resetsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} local)`
+              : ''}{' '}
+            — your first box tomorrow is free again.
+          </div>
+        ) : freeAvailable ? (
+          <>
+            <button
+              onClick={handleOpenFree}
+              disabled={opening}
+              className="w-full py-3 rounded-xl bg-amber text-bg font-black text-sm uppercase tracking-wider disabled:opacity-40 active:scale-95 transition-transform"
+            >
+              {opening ? 'Decrypting...' : 'OPEN FREE CACHE'}
+            </button>
+            <div className="text-[10px] text-text-muted">
+              Today&apos;s free box. After it, open more with a key or an ad — up to{' '}
+              {lane?.cap ?? 10} boxes a day.
+            </div>
+          </>
+        ) : (
+          <div className="space-y-2">
+            <button
+              onClick={handleOpenKey}
+              disabled={keys <= 0 || opening}
+              className="w-full py-3 rounded-xl bg-amber text-bg font-black text-sm uppercase tracking-wider disabled:opacity-40 active:scale-95 transition-transform"
+            >
+              {opening ? 'Decrypting...' : `OPEN WITH KEY (${keys})`}
+            </button>
+            <button
+              onClick={handleOpenAd}
+              disabled={opening || !adsReady}
+              className="flex w-full items-center justify-center gap-2 py-3 rounded-xl bg-amber/20 border border-amber text-amber font-black text-sm uppercase tracking-wider disabled:opacity-40 active:scale-95 transition-transform"
+            >
+              <Play size={14} />
+              Watch Ad to Open
+            </button>
+            {!adsReady && (
+              <div className="text-[10px] text-text-muted">
+                Rewarded ads are available in Android app builds.
+              </div>
+            )}
+            {lane && (
+              <div className="text-[10px] text-text-muted">
+                {lane.remaining} of {lane.cap} boxes left today — always optional, keys work too.
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex items-center justify-center gap-1 text-[10px] text-text-muted">
           <Info size={10} />
           Server-verified rarity roll · Rare or better
@@ -374,7 +516,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
             </motion.div>
             <div className="text-xl font-black text-amber mb-4">CACHE DECRYPTED</div>
             <div className="w-full max-w-[480px] space-y-3 max-h-[55vh] overflow-y-auto">
-              {visibleDrops.map((item, i) => (
+              {visibleItems.map((item, i) => (
                 <GearItemCard
                   key={item.id}
                   item={item}
@@ -384,7 +526,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                   onLockToggle={() => handleLockToggle(item, i)}
                 />
               ))}
-              {visibleDrops.length === 0 && (
+              {visibleItems.length === 0 && (
                 <div className="text-text-muted text-sm text-center py-8">
                   All items collected.
                 </div>
@@ -396,7 +538,8 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                   onClick={() => {
                     setRevealed(null);
                     setItemActions({});
-                    handleOpen();
+                    if (freeAvailable) handleOpenFree();
+                    else handleOpenKey();
                   }}
                   className="px-5 py-2 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm active:scale-95 transition-transform"
                 >

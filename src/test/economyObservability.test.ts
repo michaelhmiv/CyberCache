@@ -293,6 +293,11 @@ describe('daily economy metrics — attribution', () => {
     expect(m.marketMedianByRarity).toEqual({ Rare: 7500, Epic: 3000 });
     expect(m.cacheKeysFromAds).toBe(1);
     expect(m.cacheOpens).toBe(2);
+    // Cache lane (0037): the legacy cc_make_item row carries no
+    // payment and counts as key-paid; no free/ad openings today.
+    expect(m.cacheBoxesOpenedFree).toBe(0);
+    expect(m.cacheBoxesOpenedAd).toBe(0);
+    expect(m.cacheBoxesOpenedKey).toBe(1);
     expect(m.cacheFragmentsAwarded).toBe(10);
   });
 
