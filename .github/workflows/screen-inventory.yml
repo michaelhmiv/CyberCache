@@ -1,0 +1,115 @@
+name: Screen Inventory
+
+# On-demand screen inventory: boots the app on a Pixel 7 emulator
+# (API 35 — same profile as android-ci's emulator job), enters as a
+# guest, crawls every reachable screen with UiAutomator, and uploads
+# the screenshots + window hierarchies + manifest.json as the
+# `screen-inventory` artifact. This is the design-review evidence
+# harness — real renders of the real APK, not descriptions.
+#
+# MANUAL DISPATCH ONLY, by design (owner directive, 2026-11-01): it is
+# deliberately NOT part of per-PR CI — a full crawl takes minutes of
+# emulator time and its output is a design artifact, not a gate.
+# Run it from the Actions tab when a fresh inventory is needed.
+# See docs/SCREEN_INVENTORY.md.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screen-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Accept Android SDK licenses and install platform 36
+        run: |
+          SDKMANAGER="${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # Fail fast: both APKs (app + instrumented tests, incl. the
+      # inventory crawl) must compile before any emulator boots.
+      # -PincludeScreenInventory is what adds ScreenInventoryTest to the
+      # androidTest source set (see android/app/build.gradle) — without
+      # it the class is not in the test APK at all, which is also why
+      # per-PR connectedDebugAndroidTest never runs it.
+      - name: Compile app + instrumented tests (fail fast)
+        working-directory: android
+        run: ./gradlew assembleDebug assembleDebugAndroidTest -PincludeScreenInventory --stacktrace
+
+      # Install both APKs and run ONLY the inventory class, then pull
+      # whatever the crawl produced. The pull runs even when the crawl
+      # failed partway — a partial inventory is still evidence; the
+      # manifest check below is what turns a catastrophic run red.
+      - name: Crawl screens on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          working-directory: android
+          script: |
+            adb wait-for-device
+            adb install -r -t app/build/outputs/apk/debug/app-debug.apk
+            adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w -r -e class com.michaelhmiv.cybercache.ScreenInventoryTest com.michaelhmiv.cybercache.test/androidx.test.runner.AndroidJUnitRunner || true
+            adb root || true
+            adb pull /sdcard/Android/data/com.michaelhmiv.cybercache/files/screen-inventory "$GITHUB_WORKSPACE/screen-inventory-out" || adb pull /storage/emulated/0/Android/data/com.michaelhmiv.cybercache/files/screen-inventory "$GITHUB_WORKSPACE/screen-inventory-out" || true
+            find "$GITHUB_WORKSPACE/screen-inventory-out" -maxdepth 2 -type f | sort | head -100 || true
+
+      - name: Upload screen inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screen-inventory
+          path: screen-inventory-out/
+          if-no-files-found: warn
+          retention-days: 30
+
+      # The crawl writes manifest.json after every stop, so its absence
+      # means the app never launched or the pull failed — the only two
+      # outcomes that should fail this job. Missed deep screens are
+      # recorded inside the manifest, not by failing the run.
+      - name: Verify manifest was produced
+        run: |
+          if find screen-inventory-out -name manifest.json | grep -q .; then
+            echo "manifest.json found:"
+            find screen-inventory-out -name manifest.json -exec cat {} \;
+          else
+            echo "::error::No manifest.json in the pulled inventory — the app did not launch, the guest home never rendered, or the adb pull failed. Check the crawl step log."
+            exit 1
+          fi
