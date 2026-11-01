@@ -1,9 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
-import { canUseFeature } from '@/auth/accountState';
-import { FeatureGate } from '@/auth/FeatureGate';
-import { LoginStreakPanel } from '@/components/dashboard/LoginStreakPanel';
-import { CacheRankPanel } from '@/components/profile/CacheRankPanel';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LeaderboardMetricPicker } from '@/components/leaderboard/LeaderboardMetricPicker';
 import { LeaderboardList } from '@/components/leaderboard/LeaderboardList';
@@ -207,11 +203,12 @@ const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId
 };
 
 /**
- * The board itself — mounted only inside the FeatureGate below, so a
- * guest never fires the fetch the server will refuse (flow-fix F6).
- * Fetch failures land in a visible error state with a retry; the
- * previous version chained `.then()` with no `.catch`, so any failure
- * (including the predictable guest 401) left an eternal spinner.
+ * The board itself. Under the guest-visibility law (2026-11-01) it
+ * renders for every session: the read routes accept any Chef JWT
+ * (guests included), so a guest sees the real standings — the fetch
+ * is no longer gated. Fetch failures land in a visible error state
+ * with a retry; the pre-gate version chained `.then()` with no
+ * `.catch`, so any failure left an eternal spinner.
  */
 const LeaderboardBoard: React.FC = () => {
   const { user } = useAuth();
@@ -309,9 +306,6 @@ const LeaderboardBoard: React.FC = () => {
 };
 
 export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
-  const { account } = useAuth();
-  const boardsAllowed = canUseFeature(account, 'leaderboards').allowed;
-
   return (
     <div className="bl-page space-y-3 p-4 pb-20">
       <ResourceBar />
@@ -321,28 +315,15 @@ export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
         <div className="text-lg font-black uppercase tracking-wide text-text-primary">Leaderboards</div>
       </div>
 
-      {/* Guest previews (audit GUEST-01): the gate below locks the
-          leaderboard TABLES, but a guest's own streak and cache-rank
-          progress is already theirs — visible on the Dashboard and
-          the Hunter profile. When the boards are locked, render
-          those two panels read-only above the gate instead of
-          leaving the tab a bare lock wall. (Mounting the streak
-          panel here is the same daily check-in it performs on the
-          Dashboard — the Chef records the day exactly once.) */}
-      {!boardsAllowed && (
-        <>
-          <LoginStreakPanel />
-          <CacheRankPanel readOnly />
-        </>
-      )}
-
-      {/* Leaderboards require a verified account with a username
-          (accountState.canUseFeature); guests see the lock and the
-          Google upgrade path up front — the same FeatureGate
-          treatment the market gets — instead of a doomed fetch. */}
-      <FeatureGate feature="leaderboards">
-        <LeaderboardBoard />
-      </FeatureGate>
+      {/* Guest-visibility law (2026-11-01): the boards render for
+          every session with real data — guests included. The old
+          FeatureGate lock wall (and the audit GUEST-01 consolation
+          previews mounted above it) is gone: a guest's own streak
+          and cache-rank progress live on the Dashboard and the
+          Hunter profile, and this screen is the standings for
+          everyone. Appearing under a name still takes a username —
+          that rule lives in the fold, not in a view lock. */}
+      <LeaderboardBoard />
     </div>
   );
 };

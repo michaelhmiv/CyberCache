@@ -152,17 +152,20 @@ describe('Phase 1 structure — one crafting home', () => {
   });
 });
 
-describe('Phase 1 structure — locks before the tap + vocabulary', () => {
-  it('market tabs show the gate state up front from the same decision the gate uses', () => {
+describe('Phase 1 structure — transact locks on the actions + vocabulary', () => {
+  it('market tabs are view-open for every session; the economy lock guards the transact actions', () => {
     const market = readSource('src/screens/MarketScreen.tsx');
-    expect(market).toContain("canUseFeature(account, 'market')");
-    expect(market).toContain('tabLocked');
-    expect(market).toContain('Locked');
-    // The vendor stays ungated and ahead of the gate (PR #201 shape).
-    const vendorIdx = market.indexOf("market.activeTab === 'vendor' && <VendorScreen />");
-    const gateIdx = market.indexOf('<FeatureGate feature="market">');
-    expect(vendorIdx).toBeGreaterThan(-1);
-    expect(gateIdx).toBeGreaterThan(vendorIdx);
+    // Guest-visibility law (2026-11-01) supersedes the Phase-1
+    // "locks before the tap" tab badges: tabs carry no lock state —
+    // the same canUseFeature decision now places the lock on the
+    // Buy / List / Cancel actions via the shared transact-lock hook.
+    expect(market).not.toContain('tabLocked');
+    expect(market).not.toContain('<FeatureGate');
+    expect(market).toContain('useEconomyTransactLock');
+    const hook = readSource('src/auth/useEconomyTransactLock.tsx');
+    expect(hook).toContain("canUseFeature(account, 'market')");
+    // The vendor stays ungated (PR #201 shape).
+    expect(market).toContain("market.activeTab === 'vendor' && <VendorScreen />");
   });
 
   it('areas are called Areas in UI copy (no Turf/Route split)', () => {

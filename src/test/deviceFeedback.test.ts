@@ -36,10 +36,14 @@ describe('device feedback — auth screen is Google + guest only', () => {
   });
 
   it('feature gates send guests to Google sign-in, not a register form', () => {
+    // FeatureGate renders the shared SignInLockPrompt; the Google
+    // upgrade path lives there now.
     const gate = readSource('src/auth/FeatureGate.tsx');
-    expect(gate).toContain('signInWithGoogle');
-    expect(gate).not.toContain("setAuthMode('register')");
-    expect(gate).not.toContain('Create Account');
+    const prompt = readSource('src/auth/SignInLockPrompt.tsx');
+    expect(gate).toContain('SignInLockPrompt');
+    expect(prompt).toContain('signInWithGoogle');
+    expect(prompt).not.toContain("setAuthMode('register')");
+    expect(prompt).not.toContain('Create Account');
   });
 });
 
@@ -49,20 +53,22 @@ describe('device feedback — market vendor open to guests', () => {
     expect(app).not.toContain('<FeatureGate feature="market">');
   });
 
-  it('MarketScreen renders the Vendor ungated and gates the rest', () => {
+  it('MarketScreen renders every tab ungated; the lock sits on the transact actions', () => {
     const market = readSource('src/screens/MarketScreen.tsx');
-    const vendorIdx = market.indexOf("market.activeTab === 'vendor' && <VendorScreen />");
-    const gateIdx = market.indexOf('<FeatureGate feature="market">');
-    expect(vendorIdx).toBeGreaterThan(-1);
-    expect(gateIdx).toBeGreaterThan(vendorIdx);
-    // the gated region covers the player-market tabs
-    const gated = market.slice(gateIdx, market.indexOf('</FeatureGate>'));
-    expect(gated).toContain("activeTab === 'buy'");
-    expect(gated).toContain("activeTab === 'sell'");
-    expect(gated).toContain("activeTab === 'mylistings'");
-    expect(gated).toContain("activeTab === 'history'");
-    // guests land on the vendor tab
-    expect(market).toContain("user.isAnonymous && market.activeTab !== 'vendor'");
+    // Guest-visibility law (2026-11-01): no full-surface gate remains
+    // in the market — guests see every tab with real data.
+    expect(market).not.toContain('<FeatureGate');
+    expect(market).toContain("market.activeTab === 'vendor' && <VendorScreen />");
+    expect(market).toContain("activeTab === 'buy'");
+    expect(market).toContain("activeTab === 'sell'");
+    expect(market).toContain("activeTab === 'mylistings'");
+    expect(market).toContain("activeTab === 'history'");
+    // The transact lock is consulted at the actions, not the tabs.
+    expect(market).toContain('useEconomyTransactLock');
+    expect(market).toContain("guardTransact('buy'");
+    expect(market).toContain("guardTransact('sell'");
+    // No mount redirect bounces guests back to the vendor tab.
+    expect(market).not.toContain("user.isAnonymous && market.activeTab !== 'vendor'");
   });
 });
 
