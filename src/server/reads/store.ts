@@ -126,6 +126,181 @@ export interface CollectionsData {
   discoveries: CollectionDiscoveryData[];
 }
 
+// ---------------------------------------------------------------------------
+// Profile lifetime stats + trophy showcase (0034 read).
+//
+// Every figure folds from server records only — the verified action
+// ledger, collection_discoveries, endless_runs, dispatch_missions,
+// craft_jobs, service_jobs, consumable_events, extraction_state,
+// market_listings, player_kill_stats (0034), and the player's own
+// item_instances. Nothing is computed from client state and nothing
+// is estimated: a stat the records cannot prove is simply absent
+// from this payload (the gaps are listed in the slice PR — lifetime
+// deaths, lifetime credits earned/spent, kills by element, and
+// legendary items found by source beyond the discovery-proven
+// subset have no complete server record).
+// ---------------------------------------------------------------------------
+
+/** One verified_action_ledger row (own rows; the fold reads result_payload only). */
+export interface LedgerEntryData {
+  user_id: string;
+  action_type: string;
+  result_payload: Record<string, unknown>;
+}
+
+export interface EndlessRunRecordData {
+  status: string;
+  depth_reached: number;
+}
+
+export interface DispatchMissionRecordData {
+  contract_family: string;
+  status: string;
+  payout_credits: number;
+  payout_fraction: number | null;
+}
+
+export interface CraftJobRecordData {
+  kind: string;
+  units_completed: number;
+  /** Unit outputs; repair-kind jobs carry pointsRestored per unit (0025). */
+  outputs: Array<Record<string, unknown>>;
+}
+
+export interface ServiceJobRecordData {
+  status: string;
+  points_restored: number;
+  paid_credits: number;
+}
+
+export interface ConsumableEventRecordData {
+  consumable_type: string;
+  quantity_delta: number;
+  event_type: string;
+}
+
+/** Raw record set for the lifetime fold — one shape for both stores. */
+export interface ProfileLifetimeInput {
+  profile: {
+    legendary_cores: number;
+    cache_rank_tokens: number;
+    cache_rank_spends: Record<string, number>;
+  };
+  discoveries: CollectionDiscoveryData[];
+  /** The player's OWN ledger rows (folds never read another player's rows for counts). */
+  ledger: LedgerEntryData[];
+  /**
+   * Market fees the player paid AS SELLER, summed from the buyers'
+   * cc_accept_listing ledger results naming them as seller — the fee
+   * is fixed in the sale's result payload (0017/0019) and exists
+   * nowhere else. Each store computes this from its own records.
+   */
+  sellerFeesPaid: number;
+  /** The player's own sold listings (status = 'sold'). */
+  soldListings: Array<{ price_credits: number }>;
+  endlessRuns: EndlessRunRecordData[];
+  dispatchMissions: DispatchMissionRecordData[];
+  craftJobs: CraftJobRecordData[];
+  /** Repair-board jobs where the player is the PROVIDER (0025). */
+  serviceJobs: ServiceJobRecordData[];
+  consumableEvents: ConsumableEventRecordData[];
+  extraction: { finalized_passes: number; total_xp_awarded: number } | null;
+  /** player_kill_stats (0034): weapon type → lifetime roaming kills. */
+  killStats: Record<string, number>;
+  /** The player's own runtime items (showcase ranking input). */
+  items: RuntimeItemData[];
+}
+
+export interface ProfileLifetimeData {
+  kills: {
+    /** Roaming kills: kills_recorded summed over claim + offline-settle ledger results. */
+    roaming: number;
+    by_area: Record<string, number>;
+    /** From player_kill_stats (0034) — accrues only from claims settled after 0034. */
+    by_weapon_type: Record<string, number>;
+    /** Elite kills (roaming.elite_kill telemetry sums, 0023). */
+    elites: number;
+    named_elites_downed: number;
+  };
+  bosses: {
+    attempts: number;
+    victories: number;
+    by_boss: Record<string, number>;
+    /** Distinct bosses downed (collection_discoveries, boss family). */
+    downed: number;
+  };
+  endless: {
+    runs: number;
+    best_depth: number;
+    deaths: number;
+    banked: number;
+    abandoned: number;
+  };
+  legendaries: {
+    salvaged: number;
+    cores_minted: number;
+    /** Minted − current balance: recycling is the only core mint (0026), so the difference is exactly what was spent. */
+    cores_spent: number;
+    cores_balance: number;
+    /** Legendary-effect + legendary-frame discoveries grouped by their recorded source. */
+    discoveries_by_source: Record<string, number>;
+  };
+  caches: {
+    opened: number;
+    rewarded_keys: number;
+  };
+  crafting: {
+    total_units: number;
+    units_by_kind: Record<string, number>;
+  };
+  consumables: {
+    used_total: number;
+    top_used: Array<{ type: string; count: number }>;
+  };
+  repair: {
+    board_points_restored: number;
+    board_jobs_completed: number;
+    board_credits_earned: number;
+    self_points_restored: number;
+    self_jobs: number;
+  };
+  dispatch: {
+    completed: number;
+    foot: number;
+    courier: number;
+    credits_earned: number;
+  };
+  extraction: {
+    passes: number;
+    xp_awarded: number;
+  };
+  market: {
+    sales: number;
+    sales_volume: number;
+    fees_paid: number;
+    purchases: number;
+    purchases_volume: number;
+  };
+  salvage: {
+    items: number;
+    scrap_earned: number;
+  };
+  reforges: number;
+  resurrections: number;
+  collections: {
+    discovered: number;
+    by_family: Record<string, number>;
+  };
+  showcase: {
+    /** Server-ranked top weapons (rarity → level → newest), full runtime-item rows for the compositor. */
+    top_weapons: RuntimeItemData[];
+    best_endless_depth: number;
+    cache_rank_tokens: number;
+    cache_rank_total_ranks: number;
+    collections_discovered: number;
+  };
+}
+
 export interface ProgressionSnapshotData {
   id: number;
   player_id: string;
@@ -481,6 +656,8 @@ export interface ReadStore {
   getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]>;
   /** Caller's collection log + legendary core balance (0026); null when no profile. */
   getCollections(playerId: string): Promise<CollectionsData | null>;
+  /** Caller's lifetime stats + trophy showcase, folded from server records (0034); null when no profile. */
+  getProfileStats(playerId: string): Promise<ProfileLifetimeData | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -573,6 +750,273 @@ export function computeLeaderboard(
 }
 
 // ---------------------------------------------------------------------------
+// Lifetime fold (0034) — the one computation both read stores run.
+// Pg fetches the raw rows; the in-memory store reads its seed; both
+// fold here so the two can never disagree about what a record means.
+// ---------------------------------------------------------------------------
+
+function foldRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function foldNum(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function addTo(map: Record<string, number>, key: string, amount: number): void {
+  if (!key || amount === 0) return;
+  map[key] = (map[key] ?? 0) + amount;
+}
+
+const SHOWCASE_RARITY_RANK: Record<string, number> = {
+  Legendary: 5, Epic: 4, Rare: 3, Uncommon: 2, Common: 1,
+};
+
+/** Server ranking for the trophy shelf: rarity tier, then item level, then newest first. */
+export function rankShowcaseWeapons(items: readonly RuntimeItemData[], limit = 3): RuntimeItemData[] {
+  const levelOf = (item: RuntimeItemData): number =>
+    item.item_level ?? foldNum(foldRecord(item.payload).level) ?? 0;
+  return items
+    .filter((item) => item.kind === 'weapon')
+    .sort((a, b) => {
+      const rarityDelta = (SHOWCASE_RARITY_RANK[b.rarity ?? ''] ?? 0) - (SHOWCASE_RARITY_RANK[a.rarity ?? ''] ?? 0);
+      if (rarityDelta !== 0) return rarityDelta;
+      const levelDelta = levelOf(b) - levelOf(a);
+      if (levelDelta !== 0) return levelDelta;
+      return b.created_at.localeCompare(a.created_at);
+    })
+    .slice(0, limit);
+}
+
+export function computeProfileLifetime(input: ProfileLifetimeInput): ProfileLifetimeData {
+  const killsByArea: Record<string, number> = {};
+  let roamingKills = 0;
+  let eliteKills = 0;
+  let bossAttempts = 0;
+  let bossVictories = 0;
+  const bossByBoss: Record<string, number> = {};
+  let cachesOpened = 0;
+  let rewardedKeys = 0;
+  let salvageItems = 0;
+  let salvageScrap = 0;
+  let legendariesSalvaged = 0;
+  let coresMinted = 0;
+  let purchases = 0;
+  let purchasesVolume = 0;
+  let reforges = 0;
+  let resurrections = 0;
+
+  for (const entry of input.ledger) {
+    const payload = foldRecord(entry.result_payload);
+    switch (entry.action_type) {
+      case 'cc_apply_chef_rewards':
+      case 'cc_settle_offline_roaming': {
+        const kills = foldNum(foldRecord(payload.rewards).kills_recorded);
+        roamingKills += kills;
+        addTo(killsByArea, typeof payload.area_id === 'string' ? payload.area_id : '', kills);
+        break;
+      }
+      case 'roaming.elite_kill':
+        eliteKills += foldNum(payload.elite_kills);
+        break;
+      case 'cc_apply_boss_attempt': {
+        bossAttempts += 1;
+        if (foldRecord(payload.attempt).victory === true) {
+          bossVictories += 1;
+          addTo(bossByBoss, typeof payload.boss_id === 'string' ? payload.boss_id : '', 1);
+        }
+        break;
+      }
+      case 'cc_make_item':
+        cachesOpened += 1;
+        break;
+      case 'cc_claim_rewarded_cache_key':
+        rewardedKeys += 1;
+        break;
+      case 'cc_recycle_item': {
+        salvageItems += 1;
+        salvageScrap += foldNum(payload.scrap_award);
+        coresMinted += foldNum(payload.cores_award);
+        if (foldRecord(payload.item).rarity === 'Legendary') legendariesSalvaged += 1;
+        break;
+      }
+      case 'cc_accept_listing': {
+        purchases += 1;
+        purchasesVolume += foldNum(foldRecord(payload.listing).price_credits);
+        break;
+      }
+      case 'cc_reforge_item':
+        reforges += 1;
+        break;
+      case 'cc_resurrect':
+        resurrections += 1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  const collectionsByFamily: Record<string, number> = {};
+  const legendaryBySource: Record<string, number> = {};
+  let namedElitesDowned = 0;
+  let bossesDowned = 0;
+  for (const discovery of input.discoveries) {
+    addTo(collectionsByFamily, discovery.family, 1);
+    if (discovery.family === 'named_elite') namedElitesDowned += 1;
+    if (discovery.family === 'boss') bossesDowned += 1;
+    if (discovery.family === 'legendary_effect' || discovery.family === 'weapon_frame') {
+      addTo(legendaryBySource, discovery.source, 1);
+    }
+  }
+
+  // Endless: best depth derives from ENDED run rows only (0028 law —
+  // an active run has proven nothing yet).
+  let endlessRuns = 0;
+  let bestDepth = 0;
+  let endlessDeaths = 0;
+  let endlessBanked = 0;
+  let endlessAbandoned = 0;
+  for (const run of input.endlessRuns) {
+    if (run.status === 'active') continue;
+    endlessRuns += 1;
+    bestDepth = Math.max(bestDepth, run.depth_reached);
+    if (run.status === 'died') endlessDeaths += 1;
+    if (run.status === 'banked') endlessBanked += 1;
+    if (run.status === 'abandoned') endlessAbandoned += 1;
+  }
+
+  let dispatchCompleted = 0;
+  let dispatchFoot = 0;
+  let dispatchCourier = 0;
+  let dispatchCredits = 0;
+  for (const mission of input.dispatchMissions) {
+    if (mission.status !== 'settled') continue;
+    dispatchCompleted += 1;
+    if (mission.contract_family === 'foot') dispatchFoot += 1;
+    if (mission.contract_family === 'courier') dispatchCourier += 1;
+    // The settler credits floor(payout × fraction) (0032) — recompute
+    // the paid amount from the row's own snapshotted terms.
+    dispatchCredits += Math.floor(mission.payout_credits * (mission.payout_fraction ?? 1));
+  }
+
+  let craftTotalUnits = 0;
+  const craftByKind: Record<string, number> = {};
+  let selfRepairJobs = 0;
+  let selfRepairPoints = 0;
+  for (const job of input.craftJobs) {
+    craftTotalUnits += job.units_completed;
+    addTo(craftByKind, job.kind, job.units_completed);
+    if (job.kind === 'repair') {
+      selfRepairJobs += 1;
+      for (const output of job.outputs) {
+        selfRepairPoints += foldNum(foldRecord(output).pointsRestored);
+      }
+    }
+  }
+
+  let boardPoints = 0;
+  let boardJobsCompleted = 0;
+  let boardCredits = 0;
+  for (const job of input.serviceJobs) {
+    if (job.status !== 'completed') continue;
+    boardJobsCompleted += 1;
+    boardPoints += job.points_restored;
+    boardCredits += job.paid_credits;
+  }
+
+  const usedByType: Record<string, number> = {};
+  let usedTotal = 0;
+  for (const event of input.consumableEvents) {
+    if (event.event_type !== 'used' || event.quantity_delta >= 0) continue;
+    const used = -event.quantity_delta;
+    usedTotal += used;
+    addTo(usedByType, event.consumable_type, used);
+  }
+  const topUsed = Object.entries(usedByType)
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type))
+    .slice(0, 5);
+
+  const coresBalance = input.profile.legendary_cores;
+  const cacheRankTotalRanks = Object.values(input.profile.cache_rank_spends)
+    .reduce((sum, ranks) => sum + foldNum(ranks), 0);
+
+  return {
+    kills: {
+      roaming: roamingKills,
+      by_area: killsByArea,
+      by_weapon_type: { ...input.killStats },
+      elites: eliteKills,
+      named_elites_downed: namedElitesDowned,
+    },
+    bosses: {
+      attempts: bossAttempts,
+      victories: bossVictories,
+      by_boss: bossByBoss,
+      downed: bossesDowned,
+    },
+    endless: {
+      runs: endlessRuns,
+      best_depth: bestDepth,
+      deaths: endlessDeaths,
+      banked: endlessBanked,
+      abandoned: endlessAbandoned,
+    },
+    legendaries: {
+      salvaged: legendariesSalvaged,
+      cores_minted: coresMinted,
+      cores_spent: Math.max(0, coresMinted - coresBalance),
+      cores_balance: coresBalance,
+      discoveries_by_source: legendaryBySource,
+    },
+    caches: { opened: cachesOpened, rewarded_keys: rewardedKeys },
+    crafting: { total_units: craftTotalUnits, units_by_kind: craftByKind },
+    consumables: { used_total: usedTotal, top_used: topUsed },
+    repair: {
+      board_points_restored: boardPoints,
+      board_jobs_completed: boardJobsCompleted,
+      board_credits_earned: boardCredits,
+      self_points_restored: selfRepairPoints,
+      self_jobs: selfRepairJobs,
+    },
+    dispatch: {
+      completed: dispatchCompleted,
+      foot: dispatchFoot,
+      courier: dispatchCourier,
+      credits_earned: dispatchCredits,
+    },
+    extraction: {
+      passes: input.extraction?.finalized_passes ?? 0,
+      xp_awarded: input.extraction?.total_xp_awarded ?? 0,
+    },
+    market: {
+      sales: input.soldListings.length,
+      sales_volume: input.soldListings.reduce((sum, l) => sum + l.price_credits, 0),
+      fees_paid: input.sellerFeesPaid,
+      purchases,
+      purchases_volume: purchasesVolume,
+    },
+    salvage: { items: salvageItems, scrap_earned: salvageScrap },
+    reforges,
+    resurrections,
+    collections: {
+      discovered: input.discoveries.length,
+      by_family: collectionsByFamily,
+    },
+    showcase: {
+      top_weapons: rankShowcaseWeapons(input.items),
+      best_endless_depth: bestDepth,
+      cache_rank_tokens: input.profile.cache_rank_tokens,
+      cache_rank_total_ranks: cacheRankTotalRanks,
+      collections_discovered: input.discoveries.length,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // In-memory implementation (tests; single-process dev)
 // ---------------------------------------------------------------------------
 
@@ -657,6 +1101,22 @@ export interface ReadSeed {
   listings: MemListing[];
   /** Collection discovery rows (0026). Optional: older seeds omit it. */
   discoveries?: (CollectionDiscoveryData & { user_id: string })[];
+  /** Verified-action ledger rows, ALL users (the seller-fee fold scans buyers' rows). Optional (0034). */
+  ledger?: LedgerEntryData[];
+  /** Endless run rows (0028). Optional (0034). */
+  endlessRuns?: (EndlessRunRecordData & { user_id: string })[];
+  /** Dispatch mission rows (0032). Optional (0034). */
+  dispatchMissions?: (DispatchMissionRecordData & { user_id: string })[];
+  /** Craft job rows (0024/0025). Optional (0034). */
+  craftJobs?: (CraftJobRecordData & { user_id: string })[];
+  /** Repair-board service jobs (0025). Optional (0034). */
+  serviceJobs?: (ServiceJobRecordData & { provider_user_id: string })[];
+  /** Consumable event rows (0004). Optional (0034). */
+  consumableEvents?: (ConsumableEventRecordData & { user_id: string })[];
+  /** Extraction state rows (0033). Optional (0034). */
+  extractionStates?: Array<{ user_id: string; finalized_passes: number; total_xp_awarded: number }>;
+  /** player_kill_stats rows (0034). Optional. */
+  killStats?: Array<{ user_id: string; weapon_type: string; kills: number }>;
 }
 
 export function emptyReadSeed(): ReadSeed {
@@ -681,6 +1141,52 @@ export class InMemoryReadStore implements ReadStore {
       .map(({ family, entry_key, source, discovered_at }) => ({ family, entry_key, source, discovered_at }))
       .sort((a, b) => a.discovered_at.localeCompare(b.discovered_at));
     return { legendary_cores: profile.legendary_cores ?? 0, discoveries };
+  }
+
+  async getProfileStats(playerId: string): Promise<ProfileLifetimeData | null> {
+    const profile = this.seed.profiles.find((p) => p.id === playerId);
+    if (!profile) return null;
+    const ledger = this.seed.ledger ?? [];
+    // Seller fees: scan every user's accept rows for sales naming this
+    // player as seller — the same cross-row fact the Pg store reads.
+    let sellerFeesPaid = 0;
+    for (const entry of ledger) {
+      if (entry.action_type !== 'cc_accept_listing') continue;
+      const payload = foldRecord(entry.result_payload);
+      if (foldRecord(payload.listing).seller_user_id === playerId) {
+        sellerFeesPaid += foldNum(foldRecord(payload.market_fee).fee_credits);
+      }
+    }
+    const killStats: Record<string, number> = {};
+    for (const row of this.seed.killStats ?? []) {
+      if (row.user_id === playerId) killStats[row.weapon_type] = row.kills;
+    }
+    const extraction = (this.seed.extractionStates ?? []).find((s) => s.user_id === playerId);
+    return computeProfileLifetime({
+      profile: {
+        legendary_cores: profile.legendary_cores ?? 0,
+        cache_rank_tokens: profile.cache_rank_tokens ?? 0,
+        cache_rank_spends: profile.cache_rank_spends ?? {},
+      },
+      discoveries: (this.seed.discoveries ?? [])
+        .filter((d) => d.user_id === playerId)
+        .map(({ family, entry_key, source, discovered_at }) => ({ family, entry_key, source, discovered_at })),
+      ledger: ledger.filter((e) => e.user_id === playerId),
+      sellerFeesPaid,
+      soldListings: this.seed.listings
+        .filter((l) => l.seller_user_id === playerId && l.status === 'sold')
+        .map((l) => ({ price_credits: l.price_credits })),
+      endlessRuns: (this.seed.endlessRuns ?? []).filter((r) => r.user_id === playerId),
+      dispatchMissions: (this.seed.dispatchMissions ?? []).filter((m) => m.user_id === playerId),
+      craftJobs: (this.seed.craftJobs ?? []).filter((j) => j.user_id === playerId),
+      serviceJobs: (this.seed.serviceJobs ?? []).filter((j) => j.provider_user_id === playerId),
+      consumableEvents: (this.seed.consumableEvents ?? []).filter((e) => e.user_id === playerId),
+      extraction: extraction
+        ? { finalized_passes: extraction.finalized_passes, total_xp_awarded: extraction.total_xp_awarded }
+        : null,
+      killStats,
+      items: await this.getMyRuntimeItems(playerId),
+    });
   }
 
   async getMyProgressionSnapshots(playerId: string, query: SnapshotQuery): Promise<ProgressionSnapshotData[]> {
@@ -1084,6 +1590,131 @@ export class PgReadStore implements ReadStore {
         discovered_at: iso(row.discovered_at),
       })),
     };
+  }
+
+  async getProfileStats(playerId: string): Promise<ProfileLifetimeData | null> {
+    const { rows: profileRows } = await this.db.query(
+      'select legendary_cores, cache_rank_tokens, cache_rank_spends from public.profiles where id = $1',
+      [playerId],
+    );
+    if (!profileRows.length) return null;
+    const profileRow = profileRows[0] as Row;
+
+    const collections = await this.getCollections(playerId);
+    const discoveries = collections?.discoveries ?? [];
+
+    // The player's own ledger rows for exactly the action types the
+    // fold reads — result payloads only; request payloads never fold.
+    const { rows: ledgerRows } = await this.db.query(
+      `select action_type, result_payload
+         from public.verified_action_ledger
+        where user_id = $1
+          and action_type = any($2::text[])`,
+      [playerId, [
+        'cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'roaming.elite_kill',
+        'cc_apply_boss_attempt', 'cc_make_item', 'cc_claim_rewarded_cache_key',
+        'cc_recycle_item', 'cc_accept_listing', 'cc_reforge_item', 'cc_resurrect',
+      ]],
+    );
+    // Fees this player paid AS SELLER live in the buyers' sale results
+    // (0017/0019 stamp market_fee + the listing's seller into every
+    // cc_accept_listing result) — sum exactly those.
+    const { rows: feeRows } = await this.db.query(
+      `select coalesce(sum((result_payload->'market_fee'->>'fee_credits')::bigint), 0) as fees
+         from public.verified_action_ledger
+        where action_type = 'cc_accept_listing'
+          and result_payload->'listing'->>'seller_user_id' = $1`,
+      [playerId],
+    );
+    const { rows: soldRows } = await this.db.query(
+      `select price_credits from public.market_listings
+        where seller_user_id = $1 and status = 'sold'`,
+      [playerId],
+    );
+    const { rows: endlessRows } = await this.db.query(
+      'select status, depth_reached from public.endless_runs where user_id = $1',
+      [playerId],
+    );
+    const { rows: dispatchRows } = await this.db.query(
+      `select contract_family, status, payout_credits, payout_fraction
+         from public.dispatch_missions where user_id = $1`,
+      [playerId],
+    );
+    const { rows: craftRows } = await this.db.query(
+      `select kind, units_completed, outputs from public.craft_jobs where owner_user_id = $1`,
+      [playerId],
+    );
+    const { rows: serviceRows } = await this.db.query(
+      `select status, points_restored, paid_credits from public.service_jobs
+        where provider_user_id = $1 and profession_id = 'repair'`,
+      [playerId],
+    );
+    const { rows: consumableRows } = await this.db.query(
+      `select consumable_type, quantity_delta from public.consumable_events
+        where user_id = $1 and event_type = 'used'`,
+      [playerId],
+    );
+    const { rows: extractionRows } = await this.db.query(
+      'select finalized_passes, total_xp_awarded from public.extraction_state where user_id = $1',
+      [playerId],
+    );
+    const { rows: killRows } = await this.db.query(
+      'select weapon_type, kills from public.player_kill_stats where user_id = $1',
+      [playerId],
+    );
+    const killStats: Record<string, number> = {};
+    for (const row of killRows as Row[]) killStats[String(row.weapon_type)] = num(row.kills);
+
+    return computeProfileLifetime({
+      profile: {
+        legendary_cores: num(profileRow.legendary_cores),
+        cache_rank_tokens: num(profileRow.cache_rank_tokens),
+        cache_rank_spends: (profileRow.cache_rank_spends as Record<string, number>) ?? {},
+      },
+      discoveries,
+      ledger: (ledgerRows as Row[]).map((row) => ({
+        user_id: playerId,
+        action_type: String(row.action_type),
+        result_payload: foldRecord(row.result_payload),
+      })),
+      sellerFeesPaid: num((feeRows[0] as Row | undefined)?.fees),
+      soldListings: (soldRows as Row[]).map((row) => ({ price_credits: num(row.price_credits) })),
+      endlessRuns: (endlessRows as Row[]).map((row) => ({
+        status: String(row.status),
+        depth_reached: num(row.depth_reached),
+      })),
+      dispatchMissions: (dispatchRows as Row[]).map((row) => ({
+        contract_family: String(row.contract_family),
+        status: String(row.status),
+        payout_credits: num(row.payout_credits),
+        payout_fraction: row.payout_fraction === null || row.payout_fraction === undefined
+          ? null
+          : Number(row.payout_fraction),
+      })),
+      craftJobs: (craftRows as Row[]).map((row) => ({
+        kind: String(row.kind),
+        units_completed: num(row.units_completed),
+        outputs: Array.isArray(row.outputs) ? (row.outputs as Array<Record<string, unknown>>) : [],
+      })),
+      serviceJobs: (serviceRows as Row[]).map((row) => ({
+        status: String(row.status),
+        points_restored: Number(row.points_restored ?? 0),
+        paid_credits: num(row.paid_credits),
+      })),
+      consumableEvents: (consumableRows as Row[]).map((row) => ({
+        consumable_type: String(row.consumable_type),
+        quantity_delta: num(row.quantity_delta),
+        event_type: 'used',
+      })),
+      extraction: extractionRows.length
+        ? {
+            finalized_passes: num((extractionRows[0] as Row).finalized_passes),
+            total_xp_awarded: num((extractionRows[0] as Row).total_xp_awarded),
+          }
+        : null,
+      killStats,
+      items: await this.getMyRuntimeItems(playerId),
+    });
   }
 
   async getMyProgressionSnapshots(playerId: string, query: SnapshotQuery): Promise<ProgressionSnapshotData[]> {

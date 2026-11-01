@@ -18,6 +18,7 @@
  *   GET /api/market/price-stats          marketListings.fetchPriceStats     completed-sales stats per identity key (0019)
  *   GET /api/runtime/items               runtimeStateService.syncRuntimeItemsForUser  item_instances (own, RLS)
  *   GET /api/collections/me              CollectionsScreen                    collection_discoveries (own) + profiles.legendary_cores (0026)
+ *   GET /api/profile/stats               ProfileScreen (trophy shelf)       lifetime fold over server records only (0034)
  *
  * Identity rules (hard): the caller's player id comes ONLY from the
  * verified Chef JWT (chefPlayerId). Query/body player ids are never read.
@@ -152,6 +153,19 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
       const collections = await store.getCollections(id);
       if (!collections) return notFound(res, 'Profile');
       res.json(collections);
+    } catch (err) { fail(res, err); }
+  });
+
+  // Lifetime stats + trophy showcase (0034): every figure folds from
+  // server records (ledger, discoveries, run/mission/job rows) — the
+  // read carries only the caller's proven facts, never catalog data.
+  app.get('/api/profile/stats', async (req, res) => {
+    const id = caller(config, req, res);
+    if (!id) return;
+    try {
+      const stats = await store.getProfileStats(id);
+      if (!stats) return notFound(res, 'Profile');
+      res.json(stats);
     } catch (err) { fail(res, err); }
   });
 

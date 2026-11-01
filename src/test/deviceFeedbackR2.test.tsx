@@ -75,6 +75,11 @@ vi.mock('@/lib/api/verifiedOps', () => ({
     activeActionKind: null,
     recentCompletions: [],
   })),
+  // 0034: Profile's trophy-shelf / lifetime panels fetch on mount.
+  // No Chef exists behind these screen tests, so the fetch rejects
+  // and the panels stay hidden — their designed unreachable-Chef
+  // behavior — leaving the rest of Profile exactly as shipped.
+  fetchProfileLifetime: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
 vi.mock('@/auth/AuthProvider', () => ({

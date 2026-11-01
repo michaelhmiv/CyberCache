@@ -146,3 +146,88 @@ export interface CollectionsPayload {
 
 export const fetchCollections = async (): Promise<CollectionsPayload> =>
   apiRequest<CollectionsPayload>('/collections/me', { method: 'GET' });
+
+/** One item_instances row as served inside the profile showcase (0034). */
+export interface ShowcaseItemPayload {
+  id: string;
+  item_level: number | null;
+  rarity: string | null;
+  is_locked: boolean;
+  runtime_state: string;
+  equipped_slot: string | null;
+  payload: Record<string, unknown>;
+  kind?: string | null;
+  condition_current?: number | null;
+  condition_max?: number | null;
+  created_at: string;
+}
+
+/**
+ * The lifetime record read (GET /api/profile/stats, 0034): every
+ * figure folded server-side from server records (verified-action
+ * ledger, discoveries, run/mission/job rows) — proven facts only.
+ * The showcase block is the trophy shelf's projection of the same
+ * fold. A read, not a verified op.
+ */
+export interface ProfileLifetimePayload {
+  kills: {
+    roaming: number;
+    by_area: Record<string, number>;
+    by_weapon_type: Record<string, number>;
+    elites: number;
+    named_elites_downed: number;
+  };
+  bosses: {
+    attempts: number;
+    victories: number;
+    by_boss: Record<string, number>;
+    downed: number;
+  };
+  endless: {
+    runs: number;
+    best_depth: number;
+    deaths: number;
+    banked: number;
+    abandoned: number;
+  };
+  legendaries: {
+    salvaged: number;
+    cores_minted: number;
+    cores_spent: number;
+    cores_balance: number;
+    discoveries_by_source: Record<string, number>;
+  };
+  caches: { opened: number; rewarded_keys: number };
+  crafting: { total_units: number; units_by_kind: Record<string, number> };
+  consumables: { used_total: number; top_used: Array<{ type: string; count: number }> };
+  repair: {
+    board_points_restored: number;
+    board_jobs_completed: number;
+    board_credits_earned: number;
+    self_points_restored: number;
+    self_jobs: number;
+  };
+  dispatch: { completed: number; foot: number; courier: number; credits_earned: number };
+  extraction: { passes: number; xp_awarded: number };
+  market: {
+    sales: number;
+    sales_volume: number;
+    fees_paid: number;
+    purchases: number;
+    purchases_volume: number;
+  };
+  salvage: { items: number; scrap_earned: number };
+  reforges: number;
+  resurrections: number;
+  collections: { discovered: number; by_family: Record<string, number> };
+  showcase: {
+    top_weapons: ShowcaseItemPayload[];
+    best_endless_depth: number;
+    cache_rank_tokens: number;
+    cache_rank_total_ranks: number;
+    collections_discovered: number;
+  };
+}
+
+export const fetchProfileLifetime = async (): Promise<ProfileLifetimePayload> =>
+  apiRequest<ProfileLifetimePayload>('/profile/stats', { method: 'GET' });
