@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useAnimationControls } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
+import { PixelRigActor } from './PixelRigActor';
 import { PixelWeapon } from './PixelWeapon';
+import { HUNTER_POSES, hunterRigWithHead } from '@/lib/pixel/rig';
 import {
   CritFlash,
   DamageNumber,
@@ -288,15 +290,29 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
           initial={false}
           animate={reduced ? undefined : hunterControls}
         >
-          <PixelActor spriteId="hunter" {...hunterPlacement} reduced={reduced} entrance="walk" enterFrom="left" testId="boss-stage-hunter">
-            {weapon && (
-              <div className="pointer-events-none absolute" style={{ left: '24%', top: '26%', width: '78%', transform: 'rotate(-3deg)' }}>
-                <PixelSway reduced={reduced}>
-                  <PixelWeapon weapon={weapon} fluid testId="boss-stage-weapon" />
-                </PixelSway>
-              </div>
-            )}
-          </PixelActor>
+          {weapon ? (
+            <PixelActor spriteId="hunter" {...hunterPlacement} reduced={reduced} entrance="walk" enterFrom="left" testId="boss-stage-hunter">
+              {weapon && (
+                <div className="pointer-events-none absolute" style={{ left: '24%', top: '26%', width: '78%', transform: 'rotate(-3deg)' }}>
+                  <PixelSway reduced={reduced}>
+                    <PixelWeapon weapon={weapon} fluid testId="boss-stage-weapon" />
+                  </PixelSway>
+                </div>
+              )}
+            </PixelActor>
+          ) : (
+            /* Unarmed (real-item invariant): the whole 'hunter' sprite
+               has a rifle baked in — swap to the gun-free rig so an
+               unequipped hunter carries nothing into the arena. */
+            <PixelRigActor
+              rig={hunterRigWithHead('visor', true)}
+              {...hunterPlacement}
+              feetX={hunterSprite.anchors.feet?.x ?? 0.27}
+              reduced={reduced}
+              pose={HUNTER_POSES.idle}
+              testId="boss-stage-hunter"
+            />
+          )}
         </motion.div>
 
         {/* Boss — drop-in landing, hit reaction, telegraphed lunge, death.
