@@ -99,6 +99,10 @@ function richSeed(): ReadSeed {
   ];
   seed.discoveries = [
     { user_id: A, family: 'boss', entry_key: 'ashgut', source: 'boss_victory', discovered_at: '2026-10-30T00:00:00.000Z' },
+    // CONS-02: every seeded victory carries its boss discovery — the
+    // fold counts a victory only when the discovery proves the
+    // resolution fully applied.
+    { user_id: A, family: 'boss', entry_key: 'dune_tyrant', source: 'boss_victory', discovered_at: '2026-10-30T00:00:00.000Z' },
     { user_id: A, family: 'named_elite', entry_key: 'redline_circuit', source: 'elite_kill', discovered_at: '2026-10-30T00:00:00.000Z' },
     { user_id: A, family: 'legendary_effect', entry_key: 'salvage_rights', source: 'boss_loot', discovered_at: '2026-10-30T00:00:00.000Z' },
     { user_id: A, family: 'weapon_frame', entry_key: 'Shotgun:BlastForge', source: 'boss_loot', discovered_at: '2026-10-30T00:00:00.000Z' },
@@ -143,11 +147,18 @@ function richSeed(): ReadSeed {
     runtime_state: 'available', equipped_slot: null, payload: {},
     created_at: '2026-10-01T00:00:00.000Z', ...over,
   });
+  // Real weapon payloads always carry the full combat number set
+  // (isUsableWeaponPayload's rule) — fixtures must too, or the
+  // CONS-04 showcase/count rules read them as bootstrap-phantoms.
+  const weaponPayload = (weaponType: string) => ({
+    weaponType, baseDamage: 120, attackSpeed: 1.4, critChance: 0.12,
+    critDamage: 1.6, combatPower: 90, bossPower: 45, farmPower: 40,
+  });
   seed.items = [
-    item({ id: 'w-old-legendary', rarity: 'Legendary', item_level: 40, created_at: '2026-10-02T00:00:00.000Z', payload: { weaponType: 'Sniper' } }),
-    item({ id: 'w-new-legendary', rarity: 'Legendary', item_level: 40, created_at: '2026-10-05T00:00:00.000Z', payload: { weaponType: 'Pistol' } }),
-    item({ id: 'w-epic', rarity: 'Epic', item_level: 60, payload: { weaponType: 'Rifle' } }),
-    item({ id: 'w-rare', rarity: 'Rare', item_level: 10, payload: { weaponType: 'Shotgun' } }),
+    item({ id: 'w-old-legendary', rarity: 'Legendary', item_level: 40, created_at: '2026-10-02T00:00:00.000Z', payload: weaponPayload('Sniper') }),
+    item({ id: 'w-new-legendary', rarity: 'Legendary', item_level: 40, created_at: '2026-10-05T00:00:00.000Z', payload: weaponPayload('Pistol') }),
+    item({ id: 'w-epic', rarity: 'Epic', item_level: 60, payload: weaponPayload('Rifle') }),
+    item({ id: 'w-rare', rarity: 'Rare', item_level: 10, payload: weaponPayload('Shotgun') }),
     item({ id: 'a-legendary', kind: 'armor', rarity: 'Legendary', item_level: 99 }),
   ];
   return seed;
@@ -166,7 +177,7 @@ describe('profile lifetime fold — server records only', () => {
     expect(s.kills.elites).toBe(5);
     expect(s.kills.named_elites_downed).toBe(1);
 
-    expect(s.bosses).toEqual({ attempts: 3, victories: 2, by_boss: { ashgut: 1, dune_tyrant: 1 }, downed: 1 });
+    expect(s.bosses).toEqual({ attempts: 3, victories: 2, by_boss: { ashgut: 1, dune_tyrant: 1 }, downed: 2 });
 
     // The active depth-99 run proves nothing: best depth is the died run's 12.
     expect(s.endless).toEqual({ runs: 3, best_depth: 12, deaths: 1, banked: 1, abandoned: 1 });
@@ -199,14 +210,14 @@ describe('profile lifetime fold — server records only', () => {
     expect(s.reforges).toBe(1);
     expect(s.resurrections).toBe(2);
     expect(s.collections).toEqual({
-      discovered: 5,
-      by_family: { boss: 1, named_elite: 1, legendary_effect: 1, weapon_frame: 2 },
+      discovered: 6,
+      by_family: { boss: 2, named_elite: 1, legendary_effect: 1, weapon_frame: 2 },
     });
 
     expect(s.showcase.best_endless_depth).toBe(12);
     expect(s.showcase.cache_rank_tokens).toBe(9);
     expect(s.showcase.cache_rank_total_ranks).toBe(5);
-    expect(s.showcase.collections_discovered).toBe(5);
+    expect(s.showcase.collections_discovered).toBe(6);
     // Rarity beats level; equal rarity+level breaks on newest first;
     // the Legendary ARMOR never shelves (weapons only).
     expect(s.showcase.top_weapons.map((w) => w.id)).toEqual(['w-new-legendary', 'w-old-legendary', 'w-epic']);
@@ -237,11 +248,15 @@ describe('rankShowcaseWeapons — rarity, then level, then newest', () => {
   } as RuntimeItemData);
 
   it('falls back to payload.level when the column is null, and caps at the limit', () => {
+    const numbers = {
+      weaponType: 'Rifle', baseDamage: 120, attackSpeed: 1.4, critChance: 0.12,
+      critDamage: 1.6, combatPower: 90, bossPower: 45, farmPower: 40,
+    };
     const ranked = rankShowcaseWeapons([
-      weapon({ id: 'a', rarity: 'Rare', payload: { level: 30 } }),
-      weapon({ id: 'b', rarity: 'Rare', payload: { level: 12 } }),
-      weapon({ id: 'c', rarity: 'Epic', payload: { level: 1 } }),
-      weapon({ id: 'd', rarity: 'Common', item_level: 99 }),
+      weapon({ id: 'a', rarity: 'Rare', payload: { ...numbers, level: 30 } }),
+      weapon({ id: 'b', rarity: 'Rare', payload: { ...numbers, level: 12 } }),
+      weapon({ id: 'c', rarity: 'Epic', payload: { ...numbers, level: 1 } }),
+      weapon({ id: 'd', rarity: 'Common', item_level: 99, payload: { ...numbers } }),
       weapon({ id: 'e', kind: 'shield', rarity: 'Legendary', item_level: 99 }),
     ]);
     expect(ranked.map((w) => w.id)).toEqual(['c', 'a', 'b']);

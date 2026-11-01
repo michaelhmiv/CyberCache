@@ -1924,9 +1924,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     );
 
     const leveled = applyXp(p.player_level, p.player_xp, Math.max(0, Math.trunc(attempt.xp)));
-    p.player_level = leveled.player_level;
-    p.player_xp = leveled.player_xp;
-    this.applyCacheRankGrant(p);
 
     const nextConsumables = { ...p.consumables };
     for (const [itemKey, rawQty] of Object.entries(asRecord(attempt.consumables))) {
@@ -1936,6 +1933,19 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       }
       nextConsumables[itemKey] = Math.max(0, current - rawQty);
     }
+
+    // 0040 (CONS-02): the attempt's loot is stored as part of the
+    // attempt application — after every validation that can throw,
+    // before the profile mutations — mirroring the SQL applier, which
+    // stores the items inside the attempt transaction. A failure can
+    // therefore never leave a recorded victory whose loot is missing.
+    if (attempt.items && attempt.items.length > 0) {
+      await this.storeChefItems(playerId, attempt.items);
+    }
+
+    p.player_level = leveled.player_level;
+    p.player_xp = leveled.player_xp;
+    this.applyCacheRankGrant(p);
     p.consumables = nextConsumables;
 
     const bossState = JSON.parse(JSON.stringify(p.boss_state)) as Record<string, unknown>;

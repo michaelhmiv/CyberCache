@@ -9,6 +9,7 @@ import {
   useActivityStore,
   useBossStore,
   useIdleStore,
+  useInventoryStore,
   useLoadoutStore,
   usePlayerStore,
   useSkillStore,
@@ -17,6 +18,7 @@ import {
   useActiveBuffsStore,
 } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
+import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { getRoamingArea } from '@/constants/roamingAreas';
 import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
@@ -225,6 +227,7 @@ const InfoGauge: React.FC<{ label: string; value: string | number; detail: strin
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, onOpenBossSelect }) => {
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
+  const inventory = useInventoryStore();
   const skills = useSkillStore();
   const boss = useBossStore();
   const workshop = useWorkshopStore();
@@ -239,7 +242,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
-  const equippedCount = Object.values(loadout.slots).filter(Boolean).length;
+  // CONS-04: gear-equipped counts the 7 gear slots only, via the one
+  // loadout read model — the raw slot map also holds the vehicle slot,
+  // which inflated this count against its /7 denominator.
+  const equippedCount = countEquippedLoadoutSlots(buildLoadoutRows(loadout.slots, inventory.items));
   const spentSkillPoints = skills.getTotalSpent();
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
   const equippedWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy') ?? undefined;

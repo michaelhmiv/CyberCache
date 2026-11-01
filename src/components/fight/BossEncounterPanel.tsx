@@ -17,7 +17,7 @@ import { ActionSkillCard } from './ActionSkillCard';
 import { bossFeeMultiplier, escalatedBossFee } from '../../lib/bossFees';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
-import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore } from '../../store';
+import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSurvivalStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { BossFightStage } from '../pixelArt/BossFightStage';
 import { LootMoment } from '../pixelArt/LootMoment';
@@ -107,8 +107,18 @@ const FightCard: React.FC<{
    *  the stage treatment + the charge track draining to its
    *  post-attempt value. Presentation only. */
   actionSkillFire?: { tree: SkillTreeType; fired: boolean; chargeAfter: number } | null;
-}> = ({ timeline, phases, bossName, bossId, reducedMotion, weapon, actionSkillFire }) => {
-  const playerPct = timeline.playerHpMax > 0 ? (timeline.playerHp / timeline.playerHpMax) * 100 : 0;
+  /**
+   * DATA-01 (audit fix A): the hunter's REAL account HP from the
+   * survival store — the same values every persistent readout shows.
+   * Boss attempts never wound account HP (death/resurrection is the
+   * roaming system), so the Player row reports these untouched values
+   * instead of the timeline's narrative pool, which used to present a
+   * fabricated "228 / 760" as if it were the account's health.
+   */
+  accountHp: number;
+  accountHpMax: number;
+}> = ({ timeline, phases, bossName, bossId, reducedMotion, weapon, actionSkillFire, accountHp, accountHpMax }) => {
+  const playerPct = accountHpMax > 0 ? (accountHp / accountHpMax) * 100 : 0;
   const bossPct = timeline.bossHpMax > 0 ? (timeline.bossHp / timeline.bossHpMax) * 100 : 0;
   const currentPhase = phases[Math.min(timeline.currentPhaseIndex, phases.length - 1)];
   const recentPopups = timeline.damageLog.slice(-3);
@@ -151,9 +161,10 @@ const FightCard: React.FC<{
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
           <span className="flex items-center gap-1"><span style={{ fontSize: 11 }} className="text-green">♥</span> Player</span>
-          <span className="font-black text-text-primary">{timeline.playerHp.toLocaleString()} / {timeline.playerHpMax.toLocaleString()}</span>
+          <span className="font-black text-text-primary">{accountHp.toLocaleString()} / {accountHpMax.toLocaleString()}</span>
         </div>
         <GhostHpBar pct={playerPct} color="#4ADE80" reduced={reducedMotion === true} testId="fight-player-hp" />
+        <div className="text-[9px] text-text-muted">Account HP — boss attempts don&apos;t wound your hunter; the stage above is the simulation.</div>
       </div>
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
@@ -195,6 +206,10 @@ export const BossEncounterPanel: React.FC<{
   const bossStore = useBossStore();
   const loadout = useLoadoutStore();
   const activity = useActivityStore();
+  // DATA-01: the account HP every persistent readout shows (survival
+  // store) — the fight card's Player row reports these real values.
+  const accountHp = useSurvivalStore((state) => state.currentHp);
+  const accountHpMax = useSurvivalStore((state) => state.maxHp);
   const reducedMotion = useReducedMotion();
 
   const [stage, setStage] = useState<PanelStage>('prep');
@@ -361,6 +376,12 @@ export const BossEncounterPanel: React.FC<{
     } catch (chefError) {
       setStage('prep');
       setError(chefError instanceof Error ? chefError.message : 'Chef boss attempt failed.');
+      // CONS-03: the attempt did not resolve — if this panel staged
+      // the encounter at 'fight' on the server, restage it to prep so
+      // the persisted activity stops claiming a fight is in progress.
+      if (activity.current.kind === 'boss_fight' && activity.current.targetId === boss.id) {
+        void activity.start(buildBossFightActivity(boss, primary ?? undefined, 'prep')).catch(() => {});
+      }
       return;
     }
 
@@ -377,6 +398,25 @@ export const BossEncounterPanel: React.FC<{
     );
     if (cancel.cancelled) return;
     setFightTimeline(finalTimeline);
+    // CONS-03 (audit fix A): the attempt has resolved — complete the
+    // encounter on the activity record (client store + server row)
+    // BEFORE the result shows, so no read surface (Profile CURRENT
+    // ACTIVITY, the Dashboard boss card, a reload) can keep claiming
+    // "Fighting <boss>" for a settled attempt. The record stays a
+    // boss_fight activity — the panel keeps its workspace — with the
+    // terminal 'resolved' label. Best-effort: a failed completion
+    // write must not eat the result the Chef already settled.
+    try {
+      await activity.start(buildBossFightActivity(
+        boss,
+        primary ?? undefined,
+        'resolved',
+        outcome.result.victory ? 'victory' : 'defeat',
+      ));
+    } catch {
+      // The result screen still shows; the next staging write or
+      // activity clear corrects the label.
+    }
     setResult(outcome);
     setStage('result');
   };
@@ -391,6 +431,10 @@ export const BossEncounterPanel: React.FC<{
     setLootMomentDone(false);
     setStage('prep');
     activity.setBossPhase('prep');
+    // CONS-03: persist the return to prep too — the resolved record
+    // ("Defeated <boss>") must not linger once a new attempt is being
+    // prepared.
+    void activity.start(buildBossFightActivity(boss, primary ?? undefined, 'prep')).catch(() => {});
     loadActionSkill();
   };
 
@@ -456,6 +500,8 @@ export const BossEncounterPanel: React.FC<{
           reducedMotion={reducedMotion}
           weapon={primary ?? undefined}
           actionSkillFire={fightActionSkill}
+          accountHp={accountHp}
+          accountHpMax={accountHpMax}
         />
       )}
 
@@ -623,11 +669,27 @@ export const BossEncounterPanel: React.FC<{
             <>
               <CheckCircle size={38} className="mx-auto text-green" />
               <div className="text-xl font-black text-green">BOSS DEFEATED</div>
-              <div className="text-xs text-text-secondary">
-                Credits {result.creditsDelta >= 0 ? '+' : ''}{result.creditsDelta.toLocaleString()} net
-                {result.entryFee > 0 && <span className="text-text-muted"> (after the {result.entryFee.toLocaleString()}cr {defeated ? 'rematch' : 'entry'} fee)</span>}
+              {/* COPY-01 (audit fix A): the money, itemized from the
+                  server's settled fields — gross reward, the fee ONLY
+                  when one was charged (labeled by the server's own
+                  feeKind, never render-time boss state), then the net.
+                  The old single line captioned a free first entry as a
+                  "rematch fee" and left the real delta unexplained. */}
+              <div className="space-y-0.5 text-xs text-text-secondary">
+                {(result.creditsReward ?? result.creditsDelta + result.entryFee) > 0 && (
+                  <div>Reward +{(result.creditsReward ?? result.creditsDelta + result.entryFee).toLocaleString()}cr</div>
+                )}
+                {result.entryFee > 0 && (
+                  <div>{result.feeKind === 'rematch' ? 'Rematch' : 'Entry'} fee −{result.entryFee.toLocaleString()}cr</div>
+                )}
+                <div className="font-black text-text-primary">
+                  Credits {result.creditsDelta >= 0 ? '+' : ''}{result.creditsDelta.toLocaleString()} net
+                </div>
               </div>
               <div className="text-xs text-text-secondary">+{result.xpAwarded.toLocaleString()} XP</div>
+              {typeof result.levelBefore === 'number' && typeof result.levelAfter === 'number' && result.levelAfter > result.levelBefore && (
+                <div className="text-xs font-black text-cyan">Level {result.levelBefore} → {result.levelAfter}</div>
+              )}
               {result.dedicatedDropAwarded && (
                 <div className="text-xs font-black text-amber">★ Dedicated drop — one of {boss.name}&apos;s signature legendaries</div>
               )}
@@ -644,7 +706,7 @@ export const BossEncounterPanel: React.FC<{
               {typeof result.result.bossHpRemaining === 'number' && (
                 <div className="text-xs text-text-secondary">Boss HP remaining: {result.result.bossHpRemaining}%</div>
               )}
-              {result.entryFee > 0 && <div className="text-xs text-red">−{result.entryFee.toLocaleString()} credits (entry fee)</div>}
+              {result.entryFee > 0 && <div className="text-xs text-red">−{result.entryFee.toLocaleString()} credits ({result.feeKind === 'rematch' ? 'rematch' : 'entry'} fee)</div>}
               {result.result.creditsLost - result.entryFee > 0 && (
                 <div className="text-xs text-red">−{(result.result.creditsLost - result.entryFee).toLocaleString()} credits (death fee)</div>
               )}

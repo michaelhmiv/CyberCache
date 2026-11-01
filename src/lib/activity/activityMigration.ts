@@ -16,7 +16,7 @@ export function migrateActivityForBossCollapse<T extends Partial<ActiveActivity>
   if (raw.kind === 'boss_prep') {
     return { ...input, kind: 'boss_fight' as ActiveActivity['kind'], bossPhase: DEFAULT_BOSS_PHASE };
   }
-  if (raw.kind === 'boss_fight' && (raw.bossPhase == null || !(typeof raw.bossPhase === 'string' && (raw.bossPhase === 'prep' || raw.bossPhase === 'fight')))) {
+  if (raw.kind === 'boss_fight' && (raw.bossPhase == null || !(typeof raw.bossPhase === 'string' && (raw.bossPhase === 'prep' || raw.bossPhase === 'fight' || raw.bossPhase === 'resolved')))) {
     return { ...input, bossPhase: DEFAULT_BOSS_PHASE };
   }
   return input;

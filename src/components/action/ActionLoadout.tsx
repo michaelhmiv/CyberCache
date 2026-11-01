@@ -25,6 +25,7 @@ import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
 import { compactResourceValue } from '@/lib/ui/formatValue';
+import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import type { Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
@@ -192,7 +193,9 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
   useSkillStore((s) => s.spent);
 
   const dps = loadoutEffectiveDps();
-  const equippedCount = Object.values(loadout.slots).filter(Boolean).length;
+  // CONS-04: gear slots only (7) via the shared loadout read model —
+  // the vehicle slot in the raw map is not gear.
+  const equippedCount = countEquippedLoadoutSlots(buildLoadoutRows(loadout.slots, inventory.items));
   const emptyLoadout = equippedCount === 0;
 
   // Auto-expand when loadout is empty — the player needs to see what to fill.

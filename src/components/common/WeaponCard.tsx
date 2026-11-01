@@ -4,6 +4,7 @@ import { Weapon } from '../../types/items';
 import { RollQualityBadge } from './RollQualityBadge';
 import { VisualBadge } from './VisualBadge';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+import { weaponStatFigures } from '@/lib/pixel/lootMoment';
 import { RARITIES } from '../../constants/rarities';
 
 interface WeaponCardProps {
@@ -14,6 +15,9 @@ interface WeaponCardProps {
 
 export const WeaponCard: React.FC<WeaponCardProps> = ({ weapon, onClick, showDetails = true }) => {
   const rarityColor = RARITIES[weapon.rarity].color;
+  // DISP-03: the figures come from the one shared formatter, so the
+  // card and the loot celebration can never disagree on this item.
+  const figures = weaponStatFigures(weapon);
   return (
     <motion.div
       layout
@@ -50,9 +54,9 @@ export const WeaponCard: React.FC<WeaponCardProps> = ({ weapon, onClick, showDet
         </div>
         {showDetails && (
           <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[9px] font-mono text-text-muted">
-            <span>Dmg {weapon.baseDamage}</span>
-            <span>Spd {weapon.attackSpeed.toFixed(2)}</span>
-            <span>Crit {(weapon.critChance * 100).toFixed(1)}%</span>
+            <span>Dmg {figures.dmg}</span>
+            <span>Spd {figures.spd}</span>
+            <span>Crit {figures.crit}</span>
             <span>Boss {(weapon.bossDamageMod * 100).toFixed(0)}%</span>
           </div>
         )}

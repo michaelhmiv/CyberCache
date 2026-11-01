@@ -19,12 +19,12 @@ export type ActivityTargetType =
   | 'market_listing'
   | 'endless';
 
-export type BossPhase = 'prep' | 'fight';
+export type BossPhase = 'prep' | 'fight' | 'resolved';
 
 export const DEFAULT_BOSS_PHASE: BossPhase = 'prep';
 
 export function isBossPhase(value: unknown): value is BossPhase {
-  return value === 'prep' || value === 'fight';
+  return value === 'prep' || value === 'fight' || value === 'resolved';
 }
 
 export interface ActiveActivity {

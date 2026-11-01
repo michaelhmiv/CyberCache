@@ -251,6 +251,21 @@ export interface ChefVerifyBossResult {
   bonusLootRolls: number;
   /** Entry fee charged for this attempt (def base fee × today's rematch escalation). */
   entryFee: number;
+  /**
+   * Gross victory reward before the entry fee (audit fix A, COPY-01):
+   * creditsDelta + entryFee on a victory, 0 otherwise. The victory
+   * panel itemizes reward / fee / net from these server fields.
+   */
+  creditsReward?: number;
+  /**
+   * Which fee the charge represents, classified server-side from the
+   * pre-attempt records ('entry' | 'rematch'), or null when the boss's
+   * base fee is 0. Never recompute this at render time.
+   */
+  feeKind?: 'entry' | 'rematch' | null;
+  /** Player level before / after this attempt (COPY-01 level line). */
+  levelBefore?: number;
+  levelAfter?: number;
   /** Victories against this boss on the current UTC day, after this attempt. */
   bossVictoriesToday?: number;
   /** True when the guaranteed victory roll landed on a dedicated drop. */

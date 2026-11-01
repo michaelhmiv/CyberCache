@@ -88,9 +88,12 @@ function seed(): ReadSeed {
   ];
   s.netWorth = { [A]: 5000, [B]: 8000 };
   s.items = [
-    { id: 'item-a1', owner_user_id: A, kind: 'weapon', item_level: 40, rarity: 'Legendary', is_locked: false, runtime_state: 'available', equipped_slot: 'primary', payload: { name: 'A Rifle' }, created_at: '2026-10-20T00:00:00.000Z' },
+    // Weapon payloads carry the full combat number set, as every real
+    // stored weapon does — the CONS-04 counting rule (migration 0040)
+    // excludes payload-sparse weapon rows as bootstrap phantoms.
+    { id: 'item-a1', owner_user_id: A, kind: 'weapon', item_level: 40, rarity: 'Legendary', is_locked: false, runtime_state: 'available', equipped_slot: 'primary', payload: { name: 'A Rifle', weaponType: 'Rifle', baseDamage: 300, attackSpeed: 2.5, critChance: 0.2, critDamage: 1.8, combatPower: 200, bossPower: 120, farmPower: 90 }, created_at: '2026-10-20T00:00:00.000Z' },
     { id: 'item-a2', owner_user_id: A, kind: 'shield', item_level: 10, rarity: 'Rare', is_locked: false, runtime_state: 'available', equipped_slot: null, payload: {}, created_at: '2026-10-21T00:00:00.000Z' },
-    { id: 'item-a3', owner_user_id: A, kind: 'weapon', item_level: 5, rarity: 'Common', is_locked: false, runtime_state: 'salvaged', equipped_slot: null, payload: {}, created_at: '2026-10-19T00:00:00.000Z' },
+    { id: 'item-a3', owner_user_id: A, kind: 'weapon', item_level: 5, rarity: 'Common', is_locked: false, runtime_state: 'salvaged', equipped_slot: null, payload: { weaponType: 'Pistol', baseDamage: 40, attackSpeed: 1.8, critChance: 0.08, critDamage: 1.4, combatPower: 30, bossPower: 15, farmPower: 12 }, created_at: '2026-10-19T00:00:00.000Z' },
     { id: 'item-a4', owner_user_id: A, kind: 'relic', item_level: 15, rarity: 'Epic', is_locked: false, runtime_state: 'listed', equipped_slot: null, payload: {}, created_at: '2026-10-22T00:00:00.000Z' },
     { id: 'item-b1', owner_user_id: B, kind: 'weapon', item_level: 20, rarity: 'Epic', is_locked: false, runtime_state: 'listed', equipped_slot: null, payload: { name: 'B Rifle' }, created_at: '2026-10-18T00:00:00.000Z' },
     { id: 'item-b2', owner_user_id: B, kind: 'shield', item_level: 8, rarity: 'Common', is_locked: true, runtime_state: 'available', equipped_slot: null, payload: {}, created_at: '2026-10-23T00:00:00.000Z' },

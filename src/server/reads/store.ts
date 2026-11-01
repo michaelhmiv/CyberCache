@@ -19,6 +19,8 @@
  * cc_get_public_profile / leaderboard projections) — never the profile row.
  */
 import type { PgQuery } from '../auth/store';
+import { isUsableWeaponPayload } from '../gameplay/serverLoadout';
+import type { GearItem } from '../../types/items';
 import { utcDayStartIso } from '../../lib/bossFees';
 import {
   consumableDisplayName,
@@ -872,12 +874,65 @@ const SHOWCASE_RARITY_RANK: Record<string, number> = {
   Legendary: 5, Epic: 4, Rare: 3, Uncommon: 2, Common: 1,
 };
 
+/**
+ * CONS-02 (audit fix A): the discovery gate for boss victories. Before
+ * migration 0040 a boss resolution applied in two commits — the
+ * attempt (with its rewards and victory ledger row) first, the loot
+ * store second — so a failure between them persisted a "victory" whose
+ * resolution never fully landed: the 2026-11-01 production walk showed
+ * "Boss victories 2 of 2 attempts" beside "Bosses downed 0 / 13" for
+ * two attempts that had 500'd in the loot step. The boss discovery
+ * record is the fold's proof of a fully-applied victory — the route
+ * writes it in the same post-apply step as the rest of the resolution —
+ * so a victory row counts only when its boss has a discovery. When both
+ * timestamps are known, the discovery must also not postdate the row
+ * by more than the in-request slack: a discovery written much later
+ * belongs to a LATER real downing of the same boss, not to this row
+ * (a phantom followed by a real down must stay uncounted). Rows or
+ * discoveries without usable timestamps fall back to the existence
+ * check. Migration 0040 makes new phantoms impossible at the source;
+ * this gate keeps pre-0040 rows honest.
+ */
+const BOSS_DISCOVERY_SLACK_MS = 120_000;
+
+function bossVictoryCounts(
+  bossId: string,
+  rowCreatedAt: string | undefined,
+  downedAtByBoss: ReadonlyMap<string, string>,
+): boolean {
+  const discoveredAt = downedAtByBoss.get(bossId);
+  if (!discoveredAt) return false;
+  const rowMs = rowCreatedAt ? Date.parse(rowCreatedAt) : NaN;
+  const discoveredMs = Date.parse(discoveredAt);
+  if (Number.isFinite(rowMs) && Number.isFinite(discoveredMs)) {
+    return discoveredMs <= rowMs + BOSS_DISCOVERY_SLACK_MS;
+  }
+  return true;
+}
+
+/**
+ * The ONE collection counting rule (CONS-04): collection aggregates
+ * count the gear the inventory surfaces can actually show. Vehicles
+ * are excluded (they are reported separately, never as collection
+ * items) and the sparse bootstrap starter weapon is excluded (its
+ * payload carries no combat numbers — isUsableWeaponPayload's rule;
+ * the SQL twin of this rule lives in the player_public_stats view,
+ * restated by migration 0040 with the baseDamage marker).
+ */
+export function isCollectionCountableItem(item: RuntimeItemData): boolean {
+  if (item.kind === 'vehicle') return false;
+  if (item.kind === 'weapon') return isUsableWeaponPayload(item.payload as unknown as GearItem);
+  return true;
+}
+
 /** Server ranking for the trophy shelf: rarity tier, then item level, then newest first. */
 export function rankShowcaseWeapons(items: readonly RuntimeItemData[], limit = 3): RuntimeItemData[] {
   const levelOf = (item: RuntimeItemData): number =>
     item.item_level ?? foldNum(foldRecord(item.payload).level) ?? 0;
   return items
-    .filter((item) => item.kind === 'weapon')
+    // CONS-04: only showable weapons rank — the sparse bootstrap
+    // starter (no combat numbers) never headlines the trophy shelf.
+    .filter((item) => item.kind === 'weapon' && isUsableWeaponPayload(item.payload as unknown as GearItem))
     .sort((a, b) => {
       const rarityDelta = (SHOWCASE_RARITY_RANK[b.rarity ?? ''] ?? 0) - (SHOWCASE_RARITY_RANK[a.rarity ?? ''] ?? 0);
       if (rarityDelta !== 0) return rarityDelta;
@@ -906,6 +961,17 @@ export function computeProfileLifetime(input: ProfileLifetimeInput): ProfileLife
   let reforges = 0;
   let resurrections = 0;
 
+  // Earliest boss discovery per boss — the victory gate's source of
+  // truth (CONS-02), computed before the ledger loop that consults it.
+  const downedAtByBoss = new Map<string, string>();
+  for (const discovery of input.discoveries) {
+    if (discovery.family !== 'boss') continue;
+    const prior = downedAtByBoss.get(discovery.entry_key);
+    if (!prior || discovery.discovered_at < prior) {
+      downedAtByBoss.set(discovery.entry_key, discovery.discovered_at);
+    }
+  }
+
   for (const entry of input.ledger) {
     const payload = foldRecord(entry.result_payload);
     switch (entry.action_type) {
@@ -921,9 +987,13 @@ export function computeProfileLifetime(input: ProfileLifetimeInput): ProfileLife
         break;
       case 'cc_apply_boss_attempt': {
         bossAttempts += 1;
-        if (foldRecord(payload.attempt).victory === true) {
+        const bossId = typeof payload.boss_id === 'string' ? payload.boss_id : '';
+        if (
+          foldRecord(payload.attempt).victory === true
+          && bossVictoryCounts(bossId, entry.created_at, downedAtByBoss)
+        ) {
           bossVictories += 1;
-          addTo(bossByBoss, typeof payload.boss_id === 'string' ? payload.boss_id : '', 1);
+          addTo(bossByBoss, bossId, 1);
         }
         break;
       }
@@ -1497,7 +1567,11 @@ export class InMemoryReadStore implements ReadStore {
     const masteries = this.seed.playerMasteries.filter((m) => m.user_id === playerId);
     const kills = combat?.total_kills ?? 0;
     const deaths = combat?.total_deaths ?? 0;
-    const levels = items.map((i) => i.item_level).filter((v): v is number => v !== null);
+    // CONS-04: the view's counting rule (isCollectionCountableItem) —
+    // this twin of player_public_stats must agree with migration
+    // 0040's restated view on every aggregate.
+    const countable = items.filter(isCollectionCountableItem);
+    const levels = countable.map((i) => i.item_level).filter((v): v is number => v !== null);
     return {
       user_id: profile.id,
       username: profile.username,
@@ -1519,9 +1593,9 @@ export class InMemoryReadStore implements ReadStore {
       kills_by_weapon_type: combat?.kills_by_weapon_type ?? {},
       kills_by_element: combat?.kills_by_element ?? {},
       net_worth: this.seed.netWorth[playerId] ?? 0,
-      total_items: items.length,
-      weapons_owned: items.filter((i) => i.kind === 'weapon').length,
-      legendary_items: items.filter((i) => i.rarity === 'Legendary').length,
+      total_items: countable.length,
+      weapons_owned: countable.filter((i) => i.kind === 'weapon').length,
+      legendary_items: countable.filter((i) => i.rarity === 'Legendary').length,
       highest_item_level: levels.length ? Math.max(...levels) : 0,
       total_mastery_xp: masteries.reduce((sum, m) => sum + m.mastery_xp, 0),
       highest_mastery_level: masteries.length ? Math.max(...masteries.map((m) => m.mastery_level)) : 0,
@@ -1885,7 +1959,7 @@ export class PgReadStore implements ReadStore {
     // The player's own ledger rows for exactly the action types the
     // fold reads — result payloads only; request payloads never fold.
     const { rows: ledgerRows } = await this.db.query(
-      `select action_type, result_payload
+      `select action_type, result_payload, created_at
          from public.verified_action_ledger
         where user_id = $1
           and action_type = any($2::text[])`,
@@ -1955,6 +2029,10 @@ export class PgReadStore implements ReadStore {
         user_id: playerId,
         action_type: String(row.action_type),
         result_payload: foldRecord(row.result_payload),
+        // CONS-02: the victory gate compares row time to discovery time.
+        created_at: row.created_at instanceof Date
+          ? row.created_at.toISOString()
+          : (typeof row.created_at === 'string' ? row.created_at : undefined),
       })),
       sellerFeesPaid: num((feeRows[0] as Row | undefined)?.fees),
       soldListings: (soldRows as Row[]).map((row) => ({ price_credits: num(row.price_credits) })),
