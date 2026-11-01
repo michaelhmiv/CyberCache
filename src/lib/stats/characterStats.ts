@@ -282,6 +282,9 @@ export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
     roaming_loot: sumActivityModifier(gearForMods, 'roaming_loot'),
     idle_standby: sumActivityModifier(gearForMods, 'idle_standby'),
     endless_run: {},
+    // Extraction reads NO gear activity modifiers by law (0033 brief):
+    // roaming activity mods never apply to a pass.
+    extraction: {},
   };
 
   const activityModuleMetrics: StatMetric[] = Object.values(ACTIVITY_MODULE_DEFS).flatMap((def) =>

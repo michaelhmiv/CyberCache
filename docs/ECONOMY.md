@@ -47,6 +47,9 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `craft_units_completed` | Individual units settled that day (job outputs stamped with their completion instant) |
 | `craft_xp_awarded` | Σ player XP paid by craft completions that day (the occupation faucet; compare against roaming XP to audit the 70–85% band) |
 | `materials_destroyed_crafting` | jsonb by material id: escrow consumed at enqueue minus cancel refunds, netted per day from the craft ledger rows. This is the crafting sink — refining inputs and recipe inputs leave supply here |
+| `extraction_passes` | Extraction passes finalized that day (Σ `passes_completed` over `cc_apply_extraction` ledger rows, migration 0033) |
+| `extraction_xp_awarded` | Σ player XP paid by extraction passes that day (the second occupation faucet; audit against `craft_xp_awarded` and roaming XP for the 0.75 peg) |
+| `materials_minted_extraction` | jsonb by material id: units minted by extraction finds that day, aggregated per id across the payload's `finds_materials` and `finds_essences` (disjoint id spaces). The mint mirror of `materials_destroyed_crafting` — the supply side of the crafter economy |
 | `refined_units_produced` | Refined/composite material units created by refine jobs that day (the sink's other side: 10 in → 8–10 out) |
 | `gear_items_crafted` | `item_instances` created that day with `payload.origin = 'crafted'` (gear frames; never Legendary by construction) |
 | `crafted_market_sales` / `crafted_market_volume` | Completed market sales whose listing was a crafted batch or a crafted-origin item, and Σ their prices — the crafter-economy pulse (specialization proof tracking) |

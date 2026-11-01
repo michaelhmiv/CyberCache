@@ -140,6 +140,91 @@ export function OfflineRecap() {
     );
   }
 
+  // Extraction settlement (0033): the away time went to the dig
+  // site — render the extraction section: passes finalized under
+  // the offline cap, their XP, and the finds the passes brought in.
+  if ('extraction' in lastSettlement) {
+    const x = lastSettlement.extraction;
+    const findRows = [
+      ...Object.entries(x.materials).map(([id, qty]) => ({ id, qty, kind: 'material' as const })),
+      ...Object.entries(x.essences).map(([id, qty]) => ({ id, qty, kind: 'essence' as const })),
+    ].sort((a, b) => b.qty - a.qty);
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) dismiss();
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: 'spring', damping: 24, stiffness: 200 }}
+            className="bl-card w-full max-w-sm overflow-hidden"
+          >
+            <div className="px-5 pt-5 pb-3 border-b border-amber/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black text-amber tracking-tight">
+                    While You Were Away
+                  </h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">The site kept producing</p>
+                </div>
+                <button onClick={dismiss} className="bl-secondary p-1.5 rounded" aria-label="Dismiss">
+                  <X className="w-4 h-4" size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="px-5 py-3 space-y-1 border-b border-amber/10">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber" size={16} />
+                <span className="text-sm text-zinc-300">
+                  Site time settled under your {x.capHours}h offline cap
+                </span>
+              </div>
+              <div className="text-xs text-zinc-500">
+                {x.passesCompleted} pass{x.passesCompleted === 1 ? '' : 'es'} completed
+              </div>
+            </div>
+            <div className="px-5 py-3 space-y-1">
+              {x.xpAwarded > 0 && (
+                <RewardRow
+                  icon={<ResourceIcon id="xp" size={16} />}
+                  label="Extraction XP"
+                  value={`+${formatNumber(x.xpAwarded)}`}
+                  accent="text-purple-400"
+                />
+              )}
+              {findRows.slice(0, 8).map((find) => (
+                <RewardRow
+                  key={`extract-${find.kind}-${find.id}`}
+                  icon={<ResourceIcon id="loot" size={16} />}
+                  label={find.id}
+                  value={`×${find.qty}`}
+                  accent="text-green-400"
+                />
+              ))}
+              {findRows.length === 0 && (
+                <p className="text-xs text-zinc-500 text-center">
+                  No passes finished this time — the current pass is still running.
+                </p>
+              )}
+            </div>
+            <div className="px-5 pb-5 pt-2">
+              <button onClick={dismiss} className="w-full bl-primary text-sm font-black py-2">
+                Got it
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
   const s = lastSettlement;
   const hasRewards =
     s.rewards.creditsAwarded > 0 ||

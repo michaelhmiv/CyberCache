@@ -34,6 +34,7 @@ import {
   createRecallDispatchHandler,
   createStartDispatchHandler,
 } from '../routes/dispatch';
+import { createGetExtractionHandler, type ExtractionConfig } from '../routes/extraction';
 import type { WriteStore } from '../writes/store';
 import type { ChefGameplayStore } from './store';
 
@@ -114,4 +115,20 @@ export function mountDispatchRoutes(
   app.post('/api/dispatch/start', createStartDispatchHandler(gameplayStore, config));
   app.post('/api/dispatch/recall', createRecallDispatchHandler(gameplayStore, config));
   console.log('[chef] dispatch routes mounted: GET /api/dispatch/me, POST /api/dispatch/preview, /api/dispatch/start, /api/dispatch/recall (0032)');
+}
+
+/**
+ * Extraction routes (0033): the settle-then-read state surface.
+ * Starting/switching rides the ordinary activity path
+ * (POST /api/activity/set) — there is deliberately no start route
+ * here, so the personal-slot transition rules have one door.
+ */
+export function mountExtractionRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  config: GameplayRoutesConfig,
+): void {
+  const extractionConfig: ExtractionConfig = config;
+  app.get('/api/extraction/state', createGetExtractionHandler(gameplayStore, extractionConfig));
+  console.log('[chef] extraction routes mounted: GET /api/extraction/state (0033)');
 }

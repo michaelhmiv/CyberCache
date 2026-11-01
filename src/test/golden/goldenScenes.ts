@@ -313,6 +313,55 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.62, GRAMMAR.progress.heightPx, [154, 149, 138], 255);
   }),
+  // Extraction (0033): the hunter working a Dustwaste claim — stake
+  // line, sift rig, sorted crates, the work pose with the weapon
+  // slung (no held weapon, no vehicle in frame by law). The work
+  // track runs at pass pace; a signature find reads as a G-1 high
+  // beam over the crates, never the legendary ladder.
+  scene('extraction-surface', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    const stakes = loadGoldenSprite('set-extract-stakes');
+    if (stakes) blit(img, stakes, SCENE_W * 0.14 - 42, GROUND * SCENE_H - 52, 84, 52);
+    const rigPiece = loadGoldenSprite('set-extract-rig');
+    if (rigPiece) blit(img, rigPiece, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
+    const crates = loadGoldenSprite('set-extract-crates');
+    if (crates) blit(img, crates, SCENE_W * 0.86 - 42, GROUND * SCENE_H - 52, 84, 52);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawBeam(img, SCENE_W * 0.86, GROUND * SCENE_H - 30, GRAMMAR.beamWidthPx.high, '#E8B33C');
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.45, GRAMMAR.progress.heightPx, [232, 179, 60], 255);
+  }),
+  // Deep Delve: the light drops indigo, the rig works bigger.
+  scene('extraction-deep', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    const stakes = loadGoldenSprite('set-extract-stakes');
+    if (stakes) blit(img, stakes, SCENE_W * 0.14 - 42, GROUND * SCENE_H - 52, 84, 52);
+    const rigPiece = loadGoldenSprite('set-extract-rig');
+    if (rigPiece) blit(img, rigPiece, SCENE_W * 0.58 - 62, GROUND * SCENE_H - 74, 124, 74);
+    const crates = loadGoldenSprite('set-extract-crates');
+    if (crates) blit(img, crates, SCENE_W * 0.86 - 42, GROUND * SCENE_H - 52, 84, 52);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H, [49, 46, 129], 90); // delve shade
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.45, GRAMMAR.progress.heightPx, [232, 179, 60], 255);
+  }),
+  // Paused: the site sits idle-dark under its pennant while another
+  // action holds the slot.
+  scene('extraction-paused', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    const stakes = loadGoldenSprite('set-extract-stakes');
+    if (stakes) blit(img, stakes, SCENE_W * 0.14 - 42, GROUND * SCENE_H - 52, 84, 52);
+    const rigPiece = loadGoldenSprite('set-extract-rig');
+    if (rigPiece) blit(img, rigPiece, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
+    const crates = loadGoldenSprite('set-extract-crates');
+    if (crates) blit(img, crates, SCENE_W * 0.86 - 42, GROUND * SCENE_H - 52, 84, 52);
+    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    fillRect(img, 0, 0, SCENE_W, SCENE_H, [0, 0, 0], 140); // idle-dark while the slot is elsewhere
+    const pennant = loadGoldenSprite('prop-hot-pennant');
+    if (pennant) blit(img, pennant, SCENE_W - 44, 6, 36, 36);
+    fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+    fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.45, GRAMMAR.progress.heightPx, [154, 149, 138], 255);
+  }),
   // Vehicle at the scene edge (Q4 parked presentation).
   scene('vehicle-roam', (img) => {
     drawBackground(img, AREA_BG.dustwaste_frontier);

@@ -10,7 +10,7 @@
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
-import { mountActionSkillRoutes, mountCacheRankRoutes, mountChefHealthRoute, mountDispatchRoutes, mountGameplayRoutes } from './gameplay/routes';
+import { mountActionSkillRoutes, mountCacheRankRoutes, mountChefHealthRoute, mountDispatchRoutes, mountExtractionRoutes, mountGameplayRoutes } from './gameplay/routes';
 import { PgChefGameplayStore } from './gameplay/store';
 import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 import { mountAuthRoutes } from './auth/routes';
@@ -127,6 +127,12 @@ if (chefJwtSecret && databaseUrl) {
       // Dispatch routes (0032): timed contracts for spare loadouts
       // and spare vehicles, on the gameplay store.
       mountDispatchRoutes(app, gameplayStore, {
+        jwtSecret: chefJwtSecret,
+        economyConfig,
+      });
+      // Extraction routes (0033): settle-then-read state surface for
+      // the gathering occupation, on the gameplay store.
+      mountExtractionRoutes(app, gameplayStore, {
         jwtSecret: chefJwtSecret,
         economyConfig,
       });

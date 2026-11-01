@@ -18,7 +18,8 @@ import type { ChefGameplayStore, Json } from '../gameplay/store';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { ABSOLUTE_OFFLINE_CAP_HOURS, effectiveOfflineCapHours } from '../../content/offlineCap';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
-import { isHotArea } from '../../content/hotArea';
+import { HOT_AREA_MATERIAL_BONUS, isHotArea } from '../../content/hotArea';
+import { resolveExtractionLevers } from '../../content/extraction';
 import { cacheRankBonuses } from '../../content/cacheRank';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { recordItemDiscoveries } from './roamingHandler';
@@ -121,6 +122,81 @@ export function createSettleOfflineHandler(
             jobsCompleted: Number(craftResult.jobs_completed ?? 0),
             completions: (craftResult.completions as unknown[]) ?? [],
             capHours: craftCapHours,
+          },
+        });
+        return;
+      }
+
+      // Extraction offline settlement (0033): the recorded action
+      // was extraction, so the away window advances the player's
+      // extraction passes through the same settler family — the AFK
+      // cap governs extraction exactly as it governs crafting
+      // (effective = min(earned tier + keystone bonus, the player's
+      // limiter, the levered ceiling)), passed in whole as the
+      // settler's max advance. Lazier settles (transitions, reads)
+      // use the internal no-keystone cap inside the settler itself;
+      // only this explicit settlement carries the keystone bonus.
+      // Passes finalize here, so the recap gains an extraction
+      // section with the batch's finds + XP.
+      if (activeAction && activeAction.active_action === 'extraction') {
+        let extractProfile: Awaited<ReturnType<ChefGameplayStore['getSettlementProfile']>>;
+        try {
+          extractProfile = await store.getSettlementProfile(playerId);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.status(500).json({ error: 'Failed to read profile', detail: message });
+          return;
+        }
+        if (!extractProfile) {
+          res.json({ settled: false, reason: 'no_profile' });
+          return;
+        }
+        let extractGear: Awaited<ReturnType<ChefGameplayStore['getEquippedGear']>>;
+        try {
+          extractGear = await store.getEquippedGear(playerId);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.status(500).json({ error: 'Failed to read loadout', detail: message });
+          return;
+        }
+        const extractSkillBonuses = skillBonusesFromRecords(
+          extractGear,
+          (extractProfile.skill_spends ?? {}) as Record<string, number>,
+        );
+        const extractEconomy = config.economyConfig
+          ? await config.economyConfig.snapshot()
+          : undefined;
+        const extractCapHours = effectiveOfflineCapHours({
+          level: extractProfile.player_level || 1,
+          bonusHours: Math.max(0, Math.floor(extractSkillBonuses.offlineCapBonus ?? 0)),
+          userCapHours: extractProfile.offline_cap_hours,
+          ceilingHours: extractEconomy?.absoluteOfflineCapHours ?? ABSOLUTE_OFFLINE_CAP_HOURS,
+        });
+        let extractSettled: Awaited<ReturnType<ChefGameplayStore['settleExtraction']>>;
+        try {
+          extractSettled = await store.settleExtraction(playerId, {
+            levers: resolveExtractionLevers(extractEconomy as Partial<Record<string, unknown>> | undefined),
+            hotAreaMaterialBonus:
+              extractEconomy?.hotAreaMaterialBonus ?? HOT_AREA_MATERIAL_BONUS,
+            maxAdvanceMs: extractCapHours * 60 * 60 * 1000,
+            cacheRankXpFraction: cacheRankBonuses(extractProfile.cache_rank_spends, extractEconomy).xp,
+            now: config.now?.() ?? new Date(),
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.status(500).json({ error: 'Extraction settlement failed', detail: message });
+          return;
+        }
+        res.json({
+          settled: true,
+          extraction: {
+            advancedMs: extractSettled.advancedMs,
+            xpAwarded: extractSettled.xpAwarded,
+            passesCompleted: extractSettled.passes.length,
+            passes: extractSettled.passes,
+            materials: extractSettled.materials,
+            essences: extractSettled.essences,
+            capHours: extractCapHours,
           },
         });
         return;

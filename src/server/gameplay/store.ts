@@ -24,6 +24,21 @@ import type { GearItem, Vehicle } from '../../types/items';
 import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
 import { finalizePendingCraftedGear } from '../writes/craftFinalize';
 import type { DiscoveryRecord } from '../../content/collections';
+import { getRoamingArea } from '../../constants/roamingAreas';
+import {
+  EXTRACTION_MASTERY_XP_PER_PASS,
+  extractionGearFactor,
+  extractionPassDraws,
+  extractionPassXp,
+  resolveExtractionLevers,
+  rollExtractionPass,
+  type ExtractionMethod,
+  type ExtractionShieldFacts,
+} from '../../content/extraction';
+import { applyXp, masteryLevelForXp } from '../writes/store';
+import { isHotArea } from '../../content/hotArea';
+import { createTickRng } from '../../lib/rng/tickRng';
+import { skillBonusesFromRecords } from './serverLoadout';
 
 export type { Json };
 
@@ -180,6 +195,80 @@ export interface DispatchProfileFacts {
   vehicle_fuel: number;
   credits: number;
   scrap: number;
+}
+
+/**
+ * An extraction_state row (migration 0033) — the read model the
+ * /api/extraction routes render from. The standing selection
+ * (area_id/method) is what the player picked; the in-progress pass
+ * keeps the terms it started on (pass_area_id/pass_method) until the
+ * next pass boundary adopts the selection.
+ */
+export interface ExtractionStateRow {
+  area_id: string;
+  method: string;
+  pass_area_id: string;
+  pass_method: string;
+  accrued_ms: number;
+  pending_passes: Array<{ index: number; areaId: string; method: string }>;
+  finalized_passes: number;
+  total_xp_awarded: number;
+  last_settled_ms: number;
+}
+
+/** Facts the extraction preview prices from — server records only. */
+export interface ExtractionFacts {
+  player_level: number;
+  player_xp: number;
+  mastery_level: number;
+  mastery_xp: number;
+  shield_hp: number;
+  shield_mitigation: number;
+  shield_element: string | null;
+}
+
+/** One finalized pass in a settle result (route display shape). */
+export interface ExtractionSettlePass {
+  index: number;
+  areaId: string;
+  method: string;
+  draws: number;
+  gearFactor: number;
+  deepDegraded: boolean;
+  xpAwarded: number;
+  materials: Record<string, number>;
+  essences: Record<string, number>;
+  signatureUnits: number;
+}
+
+/** A settle batch's outcome (accrue + finalize). */
+export interface ExtractionSettle {
+  advancedMs: number;
+  passes: ExtractionSettlePass[];
+  xpAwarded: number;
+  materials: Record<string, number>;
+  essences: Record<string, number>;
+}
+
+/** Inputs the extraction settler prices with — all server-derived. */
+export interface ExtractionSettleInput {
+  levers: {
+    extractXpRate: number;
+    extractFindsPerHour: number;
+    extractSignatureChance: number;
+    extractDeepYieldMult: number;
+    extractGearFactorFloor: number;
+    extractMasteryYieldPerLevel: number;
+  };
+  hotAreaMaterialBonus: number;
+  /** Explicit cap for offline settlement; null = lazy settle rules. */
+  maxAdvanceMs?: number | null;
+  /** Cache Rank Fast Learner fraction, resolved by the route from
+   *  the economy snapshot (the applier resolves its own in SQL from
+   *  the same spends + config; the two are pinned equal by tests). */
+  cacheRankXpFraction: number;
+  /** The day key the hot-area stamp is read against (route clock). */
+  now: Date;
 }
 
 /** active_actions row the offline-settlement handler reads. */
@@ -543,6 +632,27 @@ export interface ChefGameplayStore {
    * Nonce-idempotent via the ledger.
    */
   recallDispatch(playerId: string, nonce: string, missionId: string): Promise<Json>;
+  /**
+   * The player's extraction_state row (0033) after a lazy accrual
+   * (cc_settle_extraction_time): completed passes wait in
+   * pending_passes until a settle finalizes them. Null when the
+   * player has never started extraction.
+   */
+  getExtractionState(playerId: string): Promise<ExtractionStateRow | null>;
+  /**
+   * Level, gathering.extraction mastery, and equipped-shield facts
+   * the extraction preview prices from — server records only.
+   */
+  getExtractionFacts(playerId: string): Promise<ExtractionFacts | null>;
+  /**
+   * Full extraction settle (0033): accrue under the settlement
+   * window (or the explicit maxAdvanceMs cap for offline
+   * settlement), roll every completed pass against the shipped find
+   * pool, and persist the batch through cc_apply_extraction, which
+   * re-validates pass indexes + the material whitelist and prices
+   * XP itself. Idempotent: finalized passes leave pending_passes.
+   */
+  settleExtraction(playerId: string, input: ExtractionSettleInput): Promise<ExtractionSettle>;
   /**
    * Victories against one boss since `dayStartIso` (UTC day start),
    * counted from the verified action ledger — the source for the
@@ -979,6 +1089,181 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     ]);
     await finalizePendingCraftedGear(this.pool, playerId);
     return result;
+  }
+
+  async getExtractionState(playerId: string): Promise<ExtractionStateRow | null> {
+    // Lazy accrual first (0033): the read settles time before it
+    // renders, exactly like the craft reads settle jobs.
+    await this.callJson('select public.cc_settle_extraction_time($1, $2) as result', [playerId, null]);
+    return this.one(
+      `select area_id, method, pass_area_id, pass_method, accrued_ms, pending_passes,
+              finalized_passes, total_xp_awarded,
+              (extract(epoch from last_settled_at) * 1000)::bigint as last_settled_ms
+         from public.extraction_state where user_id = $1`,
+      [playerId],
+      (row) => ({
+        area_id: String(row.area_id),
+        method: String(row.method),
+        pass_area_id: String(row.pass_area_id),
+        pass_method: String(row.pass_method),
+        accrued_ms: num(row.accrued_ms),
+        pending_passes: (Array.isArray(row.pending_passes) ? row.pending_passes : []).map((p) => {
+          const pass = (p ?? {}) as Record<string, unknown>;
+          return {
+            index: num(pass.index),
+            areaId: String(pass.areaId ?? ''),
+            method: String(pass.method ?? 'surface'),
+          };
+        }),
+        finalized_passes: num(row.finalized_passes),
+        total_xp_awarded: num(row.total_xp_awarded),
+        last_settled_ms: num(row.last_settled_ms),
+      }),
+    );
+  }
+
+  async getExtractionFacts(playerId: string): Promise<ExtractionFacts | null> {
+    return this.one(
+      `select p.player_level, p.player_xp,
+              coalesce(m.mastery_level, 1) as mastery_level,
+              coalesce(m.mastery_xp, 0) as mastery_xp,
+              s.payload as shield_payload
+         from public.profiles p
+         left join public.player_masteries m
+           on m.user_id = p.id and m.mastery_id = 'gathering.extraction'
+         left join public.item_instances s
+           on s.owner_user_id = p.id and s.runtime_state = 'equipped' and s.equipped_slot = 'shield'
+        where p.id = $1`,
+      [playerId],
+      (row) => {
+        const shield = (row.shield_payload ?? null) as Record<string, unknown> | null;
+        return {
+          player_level: num(row.player_level),
+          player_xp: num(row.player_xp),
+          mastery_level: num(row.mastery_level) || 1,
+          mastery_xp: num(row.mastery_xp),
+          shield_hp: shield && typeof shield.hp === 'number' ? shield.hp : 0,
+          shield_mitigation: shield && typeof shield.mitigation === 'number' ? shield.mitigation : 0,
+          shield_element: shield && typeof shield.element === 'string' ? shield.element : null,
+        };
+      },
+    );
+  }
+
+  async settleExtraction(playerId: string, input: ExtractionSettleInput): Promise<ExtractionSettle> {
+    const levers = resolveExtractionLevers(input.levers);
+    const accrued = (await this.callJson('select public.cc_settle_extraction_time($1, $2) as result', [
+      playerId,
+      input.maxAdvanceMs == null ? null : Math.max(0, Math.floor(input.maxAdvanceMs)),
+    ])) as Record<string, unknown>;
+    const advancedMs = num(accrued.advanced_ms);
+    const pending = (Array.isArray(accrued.pending_passes) ? accrued.pending_passes : []) as Array<Record<string, unknown>>;
+    const empty: ExtractionSettle = { advancedMs, passes: [], xpAwarded: 0, materials: {}, essences: {} };
+    if (pending.length === 0) return empty;
+
+    // Roll every pending pass in the Chef (the SQL twin cannot roll:
+    // the pool and the tick-RNG streams are TypeScript). Every input
+    // is a server record: profile, mastery, equipped items.
+    const profile = await this.getSettlementProfile(playerId);
+    if (!profile) return empty;
+    const facts = await this.getExtractionFacts(playerId);
+    const items = await this.getEquippedItems(playerId);
+    const gear = items.map((e) => e.item);
+    const skillBonuses = skillBonusesFromRecords(gear, (profile.skill_spends ?? {}) as Record<string, number>);
+    const lootQuantity = Math.max(0, skillBonuses.lootQuantity ?? 0);
+    const shieldEntry = items.find((e) => e.slot === 'shield');
+    const shieldPayload = (shieldEntry?.item ?? null) as unknown as Record<string, unknown> | null;
+    const shield: ExtractionShieldFacts | null = shieldPayload && typeof shieldPayload.hp === 'number'
+      ? {
+          hp: shieldPayload.hp,
+          mitigation: typeof shieldPayload.mitigation === 'number' ? shieldPayload.mitigation : 0,
+          element: typeof shieldPayload.element === 'string' ? shieldPayload.element : null,
+        }
+      : null;
+
+    // Level/mastery evolve as the batch pays out (a level-up mid-
+    // batch reprices later passes, like craft units). The applier
+    // recomputes XP authoritatively with the same sequential rule
+    // (cc_extract_pass_xp + cc_apply_xp per pass); the pricing here
+    // exists to evolve the level/mastery the DRAWS read, and the
+    // memory twin runs the identical sequence.
+    let level = profile.player_level || 1;
+    let xpTotal = facts?.player_xp ?? 0;
+    let masteryXp = facts?.mastery_xp ?? 0;
+    let masteryLevel = facts?.mastery_level ?? 1;
+    const rolled: Array<Record<string, unknown>> = [];
+    for (const pass of pending) {
+      const index = num(pass.index);
+      const areaId = String(pass.areaId ?? '');
+      const method = (String(pass.method ?? 'surface') === 'deep' ? 'deep' : 'surface') as ExtractionMethod;
+      const area = getRoamingArea(areaId);
+      const gearFactor = extractionGearFactor({ level, shield, area, levers });
+      const math = extractionPassDraws({
+        method,
+        masteryLevel,
+        gearFactor,
+        isHot: isHotArea(area.id, input.now),
+        levers,
+        hotAreaMaterialBonus: input.hotAreaMaterialBonus,
+      });
+      const finds = rollExtractionPass(
+        area,
+        math.draws,
+        {
+          main: createTickRng(playerId, 'extract', index),
+          signature: createTickRng(playerId, 'extract:signature', index),
+          lootQuantity: createTickRng(playerId, 'extract:loot', index),
+        },
+        levers,
+        lootQuantity,
+      );
+      rolled.push({
+        index,
+        area_id: area.id,
+        method,
+        draws: math.draws,
+        gear_factor: gearFactor,
+        deep_degraded: math.deepDegraded,
+        finds_materials: finds.materials,
+        finds_essences: finds.essences,
+        signature_units: finds.signatureUnits,
+      });
+      // Sequential pricing evolution (mirrors the applier): this
+      // pass's XP can level the player before the next pass prices.
+      const passXp = Math.round(extractionPassXp(level, levers) * (1 + input.cacheRankXpFraction));
+      const next = applyXp(level, xpTotal, passXp);
+      level = next.player_level;
+      xpTotal = next.player_xp;
+      masteryXp += EXTRACTION_MASTERY_XP_PER_PASS;
+      masteryLevel = masteryLevelForXp(masteryXp);
+    }
+
+    const firstIndex = rolled[0]?.index ?? 0;
+    const applied = (await this.callJson('select public.cc_apply_extraction($1, $2, $3) as result', [
+      playerId,
+      `extraction-settle:${firstIndex}`,
+      JSON.stringify(rolled),
+    ])) as Record<string, unknown>;
+
+    const appliedPasses = (Array.isArray(applied.passes) ? applied.passes : []) as Array<Record<string, unknown>>;
+    return {
+      advancedMs,
+      xpAwarded: num(applied.xp_awarded),
+      materials: (applied.finds_materials ?? {}) as Record<string, number>,
+      essences: (applied.finds_essences ?? {}) as Record<string, number>,
+      passes: appliedPasses.map((p) => ({
+        index: num(p.index),
+        areaId: String(p.area_id ?? ''),
+        method: String(p.method ?? 'surface'),
+        draws: num(p.draws),
+        gearFactor: num(p.gear_factor),
+        deepDegraded: Boolean(p.deep_degraded),
+        xpAwarded: num(p.xp),
+        materials: (p.finds_materials ?? {}) as Record<string, number>,
+        essences: (p.finds_essences ?? {}) as Record<string, number>,
+        signatureUnits: num(p.signature_units),
+      })),
+    };
   }
 
   async getEquippedGear(playerId: string): Promise<GearItem[]> {

@@ -40,6 +40,7 @@ export const ACTION_ANIMATION_PLANS: Record<ActivityKind, ActionAnimationPlan> =
   workshop_service: { kind: 'workshop_service', idle: ['bench-pulse'], onTick: ['bench-pulse'], onLoot: ['machine-ready', 'item-reveal'], onCache: ['machine-ready'], onError: ['phase-pulse'] },
   market_listing: { kind: 'market_listing', idle: ['kiosk-scan'], onTick: ['kiosk-scan'], onLoot: ['kiosk-scan', 'credit-transfer'], onCache: ['kiosk-scan'], onError: ['phase-pulse'] },
   endless_run: { kind: 'endless_run', idle: ['target-motion', 'patrol-step'], onTick: ['target-motion', 'impact-flash', 'boss-reaction'], onLoot: ['boss-reaction', 'reward-flyout'], onCache: ['boss-reaction', 'cache-pulse'], onError: ['target-motion', 'phase-pulse'] },
+  extraction: { kind: 'extraction', idle: ['bench-pulse'], onTick: ['bench-pulse', 'parts-slide'], onLoot: ['material-burst', 'item-reveal'], onCache: ['bench-pulse'], onError: ['phase-pulse'] },
 };
 
 export function getActionAnimationPlan(kind: ActivityKind): ActionAnimationPlan {

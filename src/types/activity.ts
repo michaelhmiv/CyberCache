@@ -7,7 +7,8 @@ export type ActivityKind =
   | 'salvaging'
   | 'workshop_service'
   | 'market_listing'
-  | 'endless_run';
+  | 'endless_run'
+  | 'extraction';
 
 export type ActivityTargetType =
   | 'none'
@@ -87,6 +88,7 @@ export const PRODUCTIVE_ACTIVITY_LABELS: Record<ActivityKind, string> = {
   workshop_service: 'Workshop service',
   market_listing: 'Market listing',
   endless_run: 'Endless run',
+  extraction: 'Extraction',
 };
 
 export function isProductiveActivity(kind: ActivityKind): boolean {

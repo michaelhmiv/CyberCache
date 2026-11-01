@@ -34,6 +34,7 @@ export const ACTION_SETS = {
   craftingLab: ['set-bench-lab', 'set-refinery-furnace'],
   repair: ['set-bay-lift', 'set-bay-tray', 'set-bay-wall-listing'],
   dispatch: ['set-dispatch-pad', 'set-dispatch-board', 'set-dispatch-route'],
+  extraction: ['set-extract-stakes', 'set-extract-rig', 'set-extract-crates'],
   vendor: ['set-vendor-stall', 'set-vendor-sign'],
   resurrection: ['set-resurrection-pod'],
   warRoom: ['set-war-room-table'],

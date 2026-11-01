@@ -112,6 +112,37 @@ export function buildCraftingActivity(recipe: { id: string; name: string; catego
 }
 
 /**
+ * Extraction (0033): the gathering occupation pointed at one site.
+ * The target is the roaming area; the method rides the activity
+ * payload — the server reads BOTH from this recorded action (the
+ * extraction_state row syncs from it at the transition), and a
+ * site/method change takes effect at the next pass boundary.
+ */
+export function buildExtractionActivity(
+  area: { id: string; name: string },
+  method: 'surface' | 'deep',
+): StartActivityInput {
+  return {
+    kind: 'extraction',
+    targetType: 'roaming_area',
+    targetId: area.id,
+    targetLabel: area.name,
+    sceneKey: 'fight:extraction',
+    notes: method === 'deep' ? `Deep Delve in ${area.name}` : `Extracting in ${area.name}`,
+    activityPayload: {
+      area_id: area.id,
+      method,
+    },
+    publicPayload: {
+      activity_label: method === 'deep' ? `Deep Delve — ${area.name}` : `Extraction — ${area.name}`,
+      target_label: area.name,
+      scene_key: 'fight:extraction',
+    },
+    publicVisible: true,
+  };
+}
+
+/**
  * Workshop service work (mechanics & repair, 0025): the one activity
  * slot pointed at a repair job — a board job the player accepted as
  * mechanic, or their own timed self-repair job. Progress accrues

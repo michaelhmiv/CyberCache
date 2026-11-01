@@ -38,6 +38,10 @@ import {
   type DispatchCandidateItem,
   type DispatchMissionRow,
   type DispatchProfileFacts,
+  type ExtractionFacts,
+  type ExtractionSettle,
+  type ExtractionSettleInput,
+  type ExtractionStateRow,
   type ApplyEndlessEncounterInput,
   type BossProfileRow,
   type ChefBossAttemptInput,
@@ -101,6 +105,19 @@ import {
   GEAR_TEMPER_BASE_CHANCE_DEFAULT,
   REFINE_BASE_YIELD_DEFAULT,
 } from '../../content/crafting';
+import {
+  EXTRACTION_MASTERY_TRACK,
+  resolveExtractionLevers,
+  type ExtractionLeverValues,
+  type ExtractionMethod,
+} from '../../content/extraction';
+import { isHotArea } from '../../content/hotArea';
+import {
+  accrueExtractionTime,
+  finalizeExtractionPasses,
+  type ExtractionAdapter,
+  type ExtractionStateRecord,
+} from '../writes/extractionEngine';
 import {
   REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
   REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
@@ -296,12 +313,24 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly dispatchMissions: Array<DispatchMissionRow & { user_id: string }> = [];
   /** Dispatch settlement log (0032 mirror of the cc_dispatch_settle ledger rows) for test introspection. */
   readonly dispatchSettleLog: Json[] = [];
+  /** Extraction state rows (migration 0033) — the mirror of extraction_state. */
+  readonly extractionStates = new Map<string, ExtractionStateRecord>();
+  /** Extraction settle log (0033 mirror of the cc_apply_extraction ledger rows) for test introspection. */
+  readonly extractionSettleLog: Json[] = [];
+  /** Stat counter mirror for extraction settler side effects. */
+  readonly extractionStatCounters: Array<{ user_id: string; stat_key: string; stat_value: number }> = [];
 
   constructor(
     private readonly now: () => Date = () => new Date(),
     private readonly cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>,
     private readonly dispatchLeverProvider?: () => Partial<DispatchLeverValues>,
+    private readonly extractionLeverProvider?: () => Partial<ExtractionLeverValues>,
   ) {}
+
+  /** Extraction levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
+  extractionLevers(): ExtractionLeverValues {
+    return resolveExtractionLevers(this.extractionLeverProvider?.());
+  }
 
   /** Dispatch levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
   dispatchLevers(): DispatchLeverValues {
@@ -1142,7 +1171,178 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return entries.map((entry) => entry.item);
   }
 
+  /**
+   * The extraction engine adapter (src/server/writes/extractionEngine.ts)
+   * bound to this store's state — the twin of migration 0033's SQL
+   * (cc_settle_extraction_time + cc_apply_extraction), shared with
+   * the writes store's transition hooks.
+   */
+  private extractionAdapter(): ExtractionAdapter {
+    return {
+      nowMs: () => this.now().getTime(),
+      profile: (id) => {
+        const p = this.profiles.get(id);
+        if (!p) return null;
+        const spends: Record<string, number> = {};
+        for (const [k, v] of Object.entries((p.skill_spends ?? {}) as Record<string, unknown>)) {
+          if (typeof v === 'number' && Number.isFinite(v)) spends[k] = v;
+        }
+        return {
+          level: p.player_level,
+          skillSpends: spends,
+          cacheRankSpends: sanitizeCacheRankSpends(p.cache_rank_spends),
+          deathState: (p.death_state ?? {}) as Record<string, unknown>,
+          offlineCapHours: p.offline_cap_hours,
+          verified:
+            (p as Record<string, unknown>).account_type === undefined
+              ? true
+              : (p as Record<string, unknown>).account_type === 'verified' &&
+                (p as Record<string, unknown>).email_verified_at != null,
+        };
+      },
+      activeAction: (id) => {
+        const a = this.activeActions.get(id);
+        if (!a) return null;
+        return {
+          kind: a.active_action,
+          targetId: a.target_id,
+          payload: a.activity_payload ?? {},
+          lastHeartbeatMs: a.last_heartbeat_at ? new Date(a.last_heartbeat_at).getTime() : null,
+          startedMs: a.started_at ? new Date(a.started_at).getTime() : null,
+        };
+      },
+      equippedItems: (id) => this.equippedItemsSync(id),
+      masteryLevel: (id, track) => {
+        const row = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
+        return row ? Math.max(1, row.mastery_level) : 1;
+      },
+      addMasteryXp: (id, track, xp) => {
+        const existing = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
+        if (existing) {
+          existing.mastery_xp += xp;
+          existing.mastery_level = masteryLevelForXp(existing.mastery_xp);
+        } else {
+          this.masteries.push({
+            user_id: id,
+            mastery_id: track,
+            mastery_xp: xp,
+            mastery_level: masteryLevelForXp(xp),
+          });
+        }
+      },
+      cacheRankXpBonus: (id) => {
+        const prof = this.profiles.get(id);
+        if (!prof) return 0;
+        return cacheRankBonuses(prof.cache_rank_spends, this.cacheRankLevers()).xp;
+      },
+      state: (id) => this.extractionStates.get(id) ?? null,
+      saveState: (id, state) => {
+        this.extractionStates.set(id, state);
+      },
+      applyPlayerXp: (id, xp) => {
+        const p = this.profiles.get(id);
+        if (!p) return 1;
+        const next = applyXp(p.player_level, p.player_xp, xp);
+        p.player_level = next.player_level;
+        p.player_xp = next.player_xp;
+        this.applyCacheRankGrant(p);
+        return p.player_level;
+      },
+      creditFinds: (id, materials, essences) => {
+        const p = this.profiles.get(id);
+        if (!p) return;
+        for (const [k, v] of Object.entries(materials)) p.materials[k] = (p.materials[k] ?? 0) + v;
+        for (const [k, v] of Object.entries(essences)) p.essences[k] = (p.essences[k] ?? 0) + v;
+      },
+      addStat: (id, key, amount) => {
+        const existing = this.extractionStatCounters.find((s) => s.user_id === id && s.stat_key === key);
+        if (existing) existing.stat_value += amount;
+        else this.extractionStatCounters.push({ user_id: id, stat_key: key, stat_value: amount });
+      },
+      recordSettle: (id, payload) => {
+        this.extractionSettleLog.push({ user_id: id, ...payload } as Json);
+      },
+    };
+  }
+
+  /** Test helper: seed an extraction_state row directly. */
+  seedExtractionState(state: ExtractionStateRecord): ExtractionStateRecord {
+    this.extractionStates.set(state.user_id, state);
+    return state;
+  }
+
+  async getExtractionState(playerId: string): Promise<ExtractionStateRow | null> {
+    // Lazy accrual on read (0033): completed passes wait pending
+    // until a settle finalizes them.
+    accrueExtractionTime(this.extractionAdapter(), playerId);
+    const state = this.extractionStates.get(playerId);
+    if (!state) return null;
+    return {
+      area_id: state.area_id,
+      method: state.method,
+      pass_area_id: state.pass_area_id,
+      pass_method: state.pass_method,
+      accrued_ms: state.accrued_ms,
+      pending_passes: state.pending_passes.map((p) => ({ index: p.index, areaId: p.areaId, method: p.method })),
+      finalized_passes: state.finalized_passes,
+      total_xp_awarded: state.total_xp_awarded,
+      last_settled_ms: state.last_settled_ms,
+    };
+  }
+
+  async getExtractionFacts(playerId: string): Promise<ExtractionFacts | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    const mastery = this.masteries.find(
+      (m) => m.user_id === playerId && m.mastery_id === EXTRACTION_MASTERY_TRACK,
+    );
+    const shield = this.equippedItemsSync(playerId).find((e) => e.slot === 'shield');
+    const payload = (shield?.item ?? null) as unknown as Record<string, unknown> | null;
+    return {
+      player_level: p.player_level,
+      player_xp: p.player_xp,
+      mastery_level: mastery ? Math.max(1, mastery.mastery_level) : 1,
+      mastery_xp: mastery?.mastery_xp ?? 0,
+      shield_hp: payload && typeof payload.hp === 'number' ? payload.hp : 0,
+      shield_mitigation: payload && typeof payload.mitigation === 'number' ? payload.mitigation : 0,
+      shield_element: payload && typeof payload.element === 'string' ? payload.element : null,
+    };
+  }
+
+  async settleExtraction(playerId: string, input: ExtractionSettleInput): Promise<ExtractionSettle> {
+    const adapter = this.extractionAdapter();
+    const levers = resolveExtractionLevers({ ...this.extractionLevers(), ...input.levers });
+    const accrued = accrueExtractionTime(adapter, playerId, { maxAdvanceMs: input.maxAdvanceMs ?? null });
+    const settled = finalizeExtractionPasses(adapter, playerId, levers, {
+      isHot: (areaId) => isHotArea(areaId, input.now),
+      hotAreaMaterialBonus: input.hotAreaMaterialBonus,
+    });
+    return {
+      advancedMs: accrued.advancedMs,
+      xpAwarded: settled.xpAwarded,
+      materials: settled.materials,
+      essences: settled.essences,
+      passes: settled.passes.map((p) => ({
+        index: p.index,
+        areaId: p.areaId,
+        method: p.method as ExtractionMethod,
+        draws: p.draws,
+        gearFactor: p.gearFactor,
+        deepDegraded: p.deepDegraded,
+        xpAwarded: p.xpAwarded,
+        materials: p.materials,
+        essences: p.essences,
+        signatureUnits: p.signatureUnits,
+      })),
+    };
+  }
+
   async getEquippedItems(playerId: string): Promise<EquippedItemEntry[]> {
+    return this.equippedItemsSync(playerId);
+  }
+
+  /** Synchronous equipped-items read (the extraction adapter's seam). */
+  private equippedItemsSync(playerId: string): EquippedItemEntry[] {
     const slotRank = new Map<string, number>(LOADOUT_SLOT_ORDER.map((slot, i) => [slot, i]));
     return [...this.items.values()]
       .filter(

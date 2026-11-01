@@ -26,6 +26,7 @@ import {
   type CraftJobRecord,
   type CraftJobSnapshot,
 } from './craftEngine.js';
+import type { ExtractionStateRecord } from './extractionEngine.js';
 import {
   buildRepairBoardView,
   resolveRepairLevers,
@@ -345,6 +346,8 @@ export interface WriteSeed {
   usernameReservations: string[];
   /** Craft jobs (migration 0024), the in-memory settler's state. */
   craftJobs: CraftJobRecord[];
+  /** Extraction state rows (migration 0033), the accrual twin's state. */
+  extractionStates: ExtractionStateRecord[];
 }
 
 export function emptyWriteSeed(): WriteSeed {
@@ -369,6 +372,7 @@ export function emptyWriteSeed(): WriteSeed {
     notificationSettingsUsers: [],
     usernameReservations: [],
     craftJobs: [],
+    extractionStates: [],
   };
 }
 

@@ -22,13 +22,13 @@
 
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { syncRuntimeProfile } from '@/lib/api/verifiedStateSync';
-import type { OfflineCraftSettlementResult, OfflineSettlementResult } from '@/lib/chef/chefClient';
+import type { OfflineCraftSettlementResult, OfflineExtractionSettlementResult, OfflineSettlementResult } from '@/lib/chef/chefClient';
 
 /**
  * Result shape for downstream consumers (OfflineRecap component).
  * Derived from the server response — the client never computes these values.
  */
-export type SettlementRecap = OfflineSettlementResult | OfflineCraftSettlementResult;
+export type SettlementRecap = OfflineSettlementResult | OfflineCraftSettlementResult | OfflineExtractionSettlementResult;
 
 /**
  * Request server-authoritative offline settlement.
@@ -76,6 +76,25 @@ export async function settleActiveActivityRewards(
     if ('crafting' in result) {
       const { useWorkshopStore } = await import('@/store/slices/workshopSlice');
       await useWorkshopStore.getState().refresh();
+      if (options.saveSnapshot !== false) {
+        await saveCurrentRuntimeStores(userId);
+      }
+      const { useOfflineRecapStore } = await import('@/store/slices/offlineRecapSlice');
+      useOfflineRecapStore.getState().setSettlement(result);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('cybercache:activity-settled', { detail: result }),
+        );
+      }
+      return result;
+    }
+
+    // Extraction settlement (0033): the recorded action was
+    // extraction, so the server finalized passes instead of roaming
+    // ticks. Finds + XP already landed server-side; the recap
+    // renders the extraction section and profile hydration carries
+    // the balances. Nothing is applied client-side.
+    if ('extraction' in result) {
       if (options.saveSnapshot !== false) {
         await saveCurrentRuntimeStores(userId);
       }

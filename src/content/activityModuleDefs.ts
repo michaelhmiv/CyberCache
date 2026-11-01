@@ -89,7 +89,10 @@ export const BASE_ACTIVITY_MODULE_CHANCE = 0.25;
 
 // ── Module Definitions ────────────────────────────────────────────
 
-export const ACTIVITY_MODULE_DEFS: Record<Exclude<ActivityKind, 'none' | 'boss_prep' | 'boss_fight'>, ActivityModuleDef> = {
+// Extraction (0033) is excluded by law: gear activity modules /
+// activity modifiers never apply to a pass — its yield reads the
+// gear factor, mastery, method, and hot-area terms only.
+export const ACTIVITY_MODULE_DEFS: Record<Exclude<ActivityKind, 'none' | 'boss_prep' | 'boss_fight' | 'extraction'>, ActivityModuleDef> = {
 
   // ── Crafting Module ────────────────────────────────────────────
 
