@@ -239,6 +239,24 @@ export interface EconomyConfigValues {
   researchDurationScalar: number;
   /** Multiplies catalog course costs at enroll (snapshotted). */
   researchCostScalar: number;
+  // Manufacturer Standing (0043) — content owner:
+  // src/content/manufacturerStanding.ts (STANDING_LEVER_DEFAULTS /
+  // STANDING_LEVER_CLAMPS, pinned against these literals by tests;
+  // cc_turn_in_item / cc_rank_up_manufacturer /
+  // cc_accrue_manufacturer_standing / cc_standing_order_weapon read
+  // them via cc_economy_config_number with identical clamps).
+  /** Turn-in award divisor over the item's scrap value. */
+  standingScrapDivisor: number;
+  /** Standing per recorded kill from the equipped weapon's drip. */
+  standingPerKill: number;
+  /** Per-manufacturer daily cap on drip points (UTC day). */
+  standingDripDailyCap: number;
+  /** Multiplier on rank-up tribute credit costs. */
+  standingTributeScalar: number;
+  /** Signature Order price, credits. */
+  standingOrderPrice: number;
+  /** Signature Order kill switch (1 = enabled). */
+  standingOrderEnabled: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -332,6 +350,12 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   contractWeeklyKeys: 1,
   researchDurationScalar: 1,
   researchCostScalar: 1,
+  standingScrapDivisor: 10,
+  standingPerKill: 1,
+  standingDripDailyCap: 100,
+  standingTributeScalar: 1,
+  standingOrderPrice: 150000,
+  standingOrderEnabled: 1,
 };
 
 export interface EconomyConfigKeySpec {
@@ -692,6 +716,30 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   researchCostScalar: {
     key: 'researchCostScalar', min: 0.5, max: 3, integer: false,
     defaultOwner: 'src/content/research.ts RESEARCH_LEVER_DEFAULTS',
+  },
+  standingScrapDivisor: {
+    key: 'standingScrapDivisor', min: 2, max: 50, integer: false,
+    defaultOwner: 'src/content/manufacturerStanding.ts STANDING_LEVER_DEFAULTS',
+  },
+  standingPerKill: {
+    key: 'standingPerKill', min: 0, max: 10, integer: false,
+    defaultOwner: 'src/content/manufacturerStanding.ts STANDING_LEVER_DEFAULTS',
+  },
+  standingDripDailyCap: {
+    key: 'standingDripDailyCap', min: 0, max: 1000, integer: true,
+    defaultOwner: 'src/content/manufacturerStanding.ts STANDING_LEVER_DEFAULTS',
+  },
+  standingTributeScalar: {
+    key: 'standingTributeScalar', min: 0, max: 3, integer: false,
+    defaultOwner: 'src/content/manufacturerStanding.ts STANDING_LEVER_DEFAULTS',
+  },
+  standingOrderPrice: {
+    key: 'standingOrderPrice', min: 0, max: 10000000, integer: true,
+    defaultOwner: 'src/content/manufacturerStanding.ts STANDING_LEVER_DEFAULTS',
+  },
+  standingOrderEnabled: {
+    key: 'standingOrderEnabled', min: 0, max: 1, integer: true,
+    defaultOwner: 'src/content/manufacturerStanding.ts STANDING_LEVER_DEFAULTS',
   },
 };
 

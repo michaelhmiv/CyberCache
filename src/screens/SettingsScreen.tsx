@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Clock, AlertTriangle, Info, Settings, ExternalLink } from 'lucide-react';
 import { usePlayerStore, useIdleStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -6,7 +6,10 @@ import { verifiedOps } from '@/lib/api/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_LIMITER_OPTIONS, OFFLINE_CAP_TIERS, earnedOfflineCapHours, effectiveOfflineCapHours, nextOfflineCapTier } from '@/content/offlineCap';
 import { setOfflineCapLimiter } from '@/lib/api/offlineCapService';
-import { HUNTER_HEAD_VARIANTS, type HunterHeadVariantId } from '@/lib/pixel/rig';
+import { HUNTER_HEAD_VARIANTS, isHunterHeadVariantId, type HunterHeadVariantId } from '@/lib/pixel/rig';
+import { getStandingState } from '@/lib/chef/chefClient';
+import { STANDING_COSMETICS } from '@/content/manufacturerStanding';
+import type { Manufacturer } from '@/types/game';
 
 const DATA_DELETION_URL = 'https://chef-production.up.railway.app/data-deletion.html';
 
@@ -28,11 +31,34 @@ export const SettingsScreen: React.FC = () => {
   const [headVariant, setHeadVariant] = useState<HunterHeadVariantId>(() => {
     try {
       const value = window.localStorage.getItem('cc-head-variant');
-      return value === 'optic' || value === 'hood' || value === 'fin' ? value : 'visor';
+      return isHunterHeadVariantId(value) ? value : 'visor';
     } catch {
       return 'visor';
     }
   });
+  // Manufacturer Standing cosmetics (0043): the rank-3 head variants
+  // are listed only when the account owns them (granted rank >= 3 on
+  // that manufacturer's ladder — server state read from the Chef).
+  // Until the read lands, only the base variants show.
+  const [ownedHeadVariants, setOwnedHeadVariants] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    getStandingState()
+      .then((result) => {
+        if (cancelled) return;
+        const owned = new Set<string>();
+        for (const m of result.standing.manufacturers) {
+          if (m.rank >= 3) owned.add(STANDING_COSMETICS[m.manufacturer as Manufacturer].headVariantId);
+        }
+        setOwnedHeadVariants(owned);
+      })
+      .catch(() => {
+        // Chef unreachable: base variants only.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // Draft-override pattern: undefined follows the stored profile value
   // (hydration-safe, no effect sync); a pick replaces it locally.
   const [limiterDraft, setLimiterDraft] = useState<number | null | undefined>(undefined);
@@ -166,9 +192,12 @@ export const SettingsScreen: React.FC = () => {
         </div>
         <div className="text-[10px] text-text-muted">
           Head variant worn by your hunter on the roaming stage. Stored on this device.
+          Manufacturer variants unlock at Rank 3 with each maker — earn them at the Vendor&apos;s Rep Desk.
         </div>
         <div className="grid grid-cols-4 gap-1.5">
-          {HUNTER_HEAD_VARIANTS.map((variant) => (
+          {HUNTER_HEAD_VARIANTS.filter(
+            (variant) => !variant.standingManufacturer || ownedHeadVariants.has(variant.id),
+          ).map((variant) => (
             <button
               key={variant.id}
               onClick={() => {

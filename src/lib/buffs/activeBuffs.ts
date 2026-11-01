@@ -337,6 +337,47 @@ export const CONSUMABLE_ACTIVATORS: Record<ConsumableType, ConsumableActivator> 
     source: 'activity-result',
   },
 
+  // STANDING EXCLUSIVES (0043) — rank-2 manufacturer recipes:
+  // fightStart consumables resolved by the chef like the tactical
+  // and ordnance rows above; the activator only shapes the buff
+  // pill after the chef reports the consumption.
+  [ConsumableType.RedlineTonic]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 1.1,
+    source: 'chef-result',
+  },
+  [ConsumableType.HeartwoodSightOil]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 1.05,
+    source: 'chef-result',
+  },
+  [ConsumableType.ForgeheartCharge]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 1.15,
+    source: 'chef-result',
+  },
+  [ConsumableType.PrismCoating]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 1.12,
+    source: 'chef-result',
+  },
+  [ConsumableType.ThrowTechDecoyKit]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 0.92,
+    source: 'chef-result',
+  },
+  [ConsumableType.HelixCalibrationKit]: {
+    durationSource: 'none',
+    defaultDurationMs: 0,
+    defaultValue: 0.2,
+    source: 'chef-result',
+  },
+
   // VEHICLE (0021) — never auto-activated and never a buff: fuel
   // cells load through cc_refuel_vehicle and patch kits repair
   // through cc_use_patch_kit. The entries exist so the registry

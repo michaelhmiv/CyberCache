@@ -10,7 +10,7 @@
 
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
-import { mountActionSkillRoutes, mountCacheRankRoutes, mountChefHealthRoute, mountContractsRoutes, mountDispatchRoutes, mountExtractionRoutes, mountGameplayRoutes, mountLoginStreakRoutes, mountResearchRoutes } from './gameplay/routes';
+import { mountActionSkillRoutes, mountCacheRankRoutes, mountChefHealthRoute, mountContractsRoutes, mountDispatchRoutes, mountExtractionRoutes, mountGameplayRoutes, mountLoginStreakRoutes, mountResearchRoutes, mountStandingRoutes } from './gameplay/routes';
 import { PgChefGameplayStore } from './gameplay/store';
 import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 import { mountAuthRoutes } from './auth/routes';
@@ -152,6 +152,12 @@ if (chefJwtSecret && databaseUrl) {
       // Research routes (0038): the parallel education track —
       // state read + enroll/cancel on the gameplay store.
       mountResearchRoutes(app, gameplayStore, {
+        jwtSecret: chefJwtSecret,
+        economyConfig,
+      });
+      // Manufacturer Standing routes (0043): the Rep Desk read +
+      // turn-in / rank-up / buy / order on the gameplay store.
+      mountStandingRoutes(app, gameplayStore, {
         jwtSecret: chefJwtSecret,
         economyConfig,
       });

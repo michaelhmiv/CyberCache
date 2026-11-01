@@ -91,6 +91,18 @@ export enum ConsumableType {
   FieldPatchKit = 'FieldPatchKit',
   MasterPatchKit = 'MasterPatchKit',
   FuelCell = 'FuelCell',
+  // Manufacturer Standing exclusives (0043): one craftable consumable
+  // per manufacturer, gated behind rank 2 on that manufacturer's
+  // standing ladder (requiresStanding). vendorExcluded — the NPC
+  // vendor never sells them; they exist only from crafters holding
+  // the rank and from the player market. Defs in
+  // src/constants/consumables.ts.
+  RedlineTonic = 'RedlineTonic',
+  HeartwoodSightOil = 'HeartwoodSightOil',
+  ForgeheartCharge = 'ForgeheartCharge',
+  PrismCoating = 'PrismCoating',
+  ThrowTechDecoyKit = 'ThrowTechDecoyKit',
+  HelixCalibrationKit = 'HelixCalibrationKit',
 }
 
 export enum MaterialType {

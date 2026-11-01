@@ -289,7 +289,12 @@ describe('migration 0024 parity pins', () => {
     expect(catalog).toHaveLength(49);
     // 0038's batch recipes carry requiresResearch and postdate 0024;
     // their SQL parity is pinned against 0038 in research.test.ts.
-    expect(catalog).toEqual(ALL_CRAFT_RECIPES.filter((r) => !r.requiresResearch).map(projectRecipe));
+    // 0043's exclusive recipes carry requiresStanding and postdate
+    // 0024 the same way; their SQL parity is pinned against 0043 in
+    // manufacturerStanding.test.ts.
+    expect(catalog).toEqual(
+      ALL_CRAFT_RECIPES.filter((r) => !r.requiresResearch && !r.requiresStanding).map(projectRecipe),
+    );
   });
 
   it('the market material whitelist is exactly the 20 tradeable material ids', () => {

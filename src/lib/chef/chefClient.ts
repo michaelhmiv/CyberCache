@@ -148,7 +148,22 @@ export interface ChefClaimResult {
     family?: string;
     propId?: string;
     hint?: boolean;
+    /** Manufacturer id on standing beats (0043) — rendered in its color. */
+    manufacturer?: string;
   }>;
+  /**
+   * Manufacturer Standing drip paid by this claim (0043): the
+   * equipped weapon's manufacturer accrued for the claim's recorded
+   * kills. Present when a weapon was equipped; points may be 0 at
+   * the daily cap.
+   */
+  standing?: {
+    manufacturer: string;
+    points: number;
+    capRemaining: number;
+    balance: number;
+    rank: number;
+  };
   /** Roaming events fired during the claim (overhaul), for telemetry/debug surfaces. */
   eventsFired?: Array<{ eventId: string; name: string; family: string; tick: number }>;
   /** Escalated named-elite kills during the claim (overhaul). */
@@ -476,6 +491,14 @@ export interface OfflineSettlementResult {
   feedEvents: ChefClaimResult['feedEvents'];
   /** Whether this is a cached (idempotent) result. */
   idempotent: boolean;
+  /** Manufacturer Standing drip paid by this settlement (0043), when any. */
+  standing?: {
+    manufacturer: string;
+    points: number;
+    capRemaining: number;
+    balance: number;
+    rank: number;
+  };
 }
 
 export type OfflineSettlementNoOp = {
@@ -1250,5 +1273,155 @@ export async function cancelResearch(request: {
     '/research/cancel',
     { method: 'POST', body: JSON.stringify(request) },
     'Chef research cancellation failed',
+  );
+}
+
+/**
+ * Manufacturer Standing (0043). The Rep Desk: six independent
+ * ladders, read as one view; the four ops send intent only (a nonce
+ * plus an item id / manufacturer / offer key) — awards, thresholds,
+ * tributes, prices, and cadence are the server's records and return
+ * inside the refreshed view. The kill drip is NOT here: it accrues
+ * inside claim/settlement responses (a `standing` block) from the
+ * server-derived weapon.
+ */
+export interface ChefStandingStateResult {
+  verified: true;
+  standing: import('@/content/manufacturerStanding').StandingStateView;
+}
+
+export interface ChefStandingTurnInResult {
+  verified: true;
+  turnedIn: {
+    itemId: string;
+    manufacturer: string | null;
+    standingAwarded: number;
+    scrapValue: number;
+    newBalance: number;
+    rank: number;
+  };
+  standing: import('@/content/manufacturerStanding').StandingStateView | null;
+  profile: Record<string, unknown> | null;
+  item: Record<string, unknown> | null;
+  loadout: unknown;
+}
+
+export interface ChefStandingRankUpResult {
+  verified: true;
+  rankedUp: {
+    manufacturer: string;
+    newRank: number;
+    tributeCredits: number;
+    tributeItemId: string | null;
+    standingBalance: number;
+  };
+  standing: import('@/content/manufacturerStanding').StandingStateView | null;
+  profile: Record<string, unknown> | null;
+  item: Record<string, unknown> | null;
+  loadout: unknown;
+}
+
+export interface ChefStandingBuyResult {
+  verified: true;
+  bought: {
+    offerKey: string;
+    manufacturer: string | null;
+    kind: string | null;
+    quantity: number;
+    consumableType: string | null;
+    totalPrice: number;
+  };
+  standing: import('@/content/manufacturerStanding').StandingStateView | null;
+  profile: Record<string, unknown> | null;
+}
+
+export interface ChefStandingOrderResult {
+  verified: true;
+  ordered: {
+    manufacturer: string;
+    item: Record<string, unknown> | null;
+    totalPrice: number;
+  };
+  standing: import('@/content/manufacturerStanding').StandingStateView | null;
+  profile: Record<string, unknown> | null;
+  item: Record<string, unknown> | null;
+}
+
+function standingNonce(label: string): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `standing-${label}:${random}`;
+}
+
+/** Idempotency nonce for one Rep Desk turn-in tap. */
+export function newStandingTurnInNonce(): string {
+  return standingNonce('turn-in');
+}
+
+/** Idempotency nonce for one rank-up tap. */
+export function newStandingRankUpNonce(): string {
+  return standingNonce('rank-up');
+}
+
+/** Idempotency nonce for one Rep Desk purchase tap. */
+export function newStandingBuyNonce(): string {
+  return standingNonce('buy');
+}
+
+/** Idempotency nonce for one Signature Order tap. */
+export function newStandingOrderNonce(): string {
+  return standingNonce('order');
+}
+
+export async function getStandingState(): Promise<ChefStandingStateResult> {
+  return endlessFetch<ChefStandingStateResult>(
+    '/standing/me',
+    { method: 'GET' },
+    'Chef standing state failed',
+  );
+}
+
+export async function turnInItem(request: {
+  nonce: string;
+  itemId: string;
+}): Promise<ChefStandingTurnInResult> {
+  return endlessFetch<ChefStandingTurnInResult>(
+    '/standing/turn-in',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef turn-in failed',
+  );
+}
+
+export async function rankUpManufacturer(request: {
+  nonce: string;
+  manufacturer: string;
+  tributeItemId?: string | null;
+}): Promise<ChefStandingRankUpResult> {
+  return endlessFetch<ChefStandingRankUpResult>(
+    '/standing/rank-up',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef rank up failed',
+  );
+}
+
+export async function standingBuy(request: {
+  nonce: string;
+  offerKey: string;
+  quantity?: number;
+}): Promise<ChefStandingBuyResult> {
+  return endlessFetch<ChefStandingBuyResult>(
+    '/standing/buy',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef standing purchase failed',
+  );
+}
+
+export async function standingOrder(request: {
+  nonce: string;
+  manufacturer: string;
+}): Promise<ChefStandingOrderResult> {
+  return endlessFetch<ChefStandingOrderResult>(
+    '/standing/order',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef signature order failed',
   );
 }

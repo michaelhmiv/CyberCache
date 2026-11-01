@@ -336,6 +336,14 @@ export function OfflineRecap() {
                   accent="text-cyan-400"
                 />
               )}
+              {s.standing && s.standing.points > 0 && (
+                <RewardRow
+                  icon={<ResourceIcon id="masteryPoint" size={16} />}
+                  label={`${s.standing.manufacturer} Standing`}
+                  value={`+${s.standing.points}`}
+                  accent="text-emerald-400"
+                />
+              )}
               {Object.entries(s.rewards.materials).map(([type, count]) => (
                 <RewardRow
                   key={`mat-${type}`}

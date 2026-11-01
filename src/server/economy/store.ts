@@ -127,6 +127,21 @@ export interface EconomyMetricsRow {
   researchEnrollmentsStarted: number;
   researchCoursesCompleted: number;
   researchCreditsDestroyed: number;
+  /** Manufacturer Standing meters (migration 0043): points awarded
+   *  per source (turn-ins from the day's cc_turn_in_item ledger rows;
+   *  drip folded from manufacturer_standing_daily), items destroyed
+   *  by the desk (turn-ins + tribute items), tribute credits
+   *  destroyed, ALL standing credits destroyed (tribute + Rep Shelf /
+   *  Parts Crate buys + Signature Orders — a component of
+   *  creditsDestroyedTotal, never double-counted), Signature Orders
+   *  fulfilled, and rank-ups by manufacturer. Standing mints no
+   *  credits; a turned-in Legendary never joins legendariesSalvaged. */
+  standingPointsAwarded: { turn_in: Record<string, number>; drip: Record<string, number> };
+  standingItemsDestroyed: number;
+  standingTributeCreditsDestroyed: number;
+  standingCreditsDestroyed: number;
+  standingOrdersFulfilled: number;
+  standingRankUps: Record<string, number>;
   computedAt: string;
 }
 
@@ -191,6 +206,12 @@ interface PgMetricsRow {
   research_enrollments_started?: number;
   research_courses_completed?: number;
   research_credits_destroyed?: number;
+  standing_points_awarded?: { turn_in?: Record<string, number>; drip?: Record<string, number> };
+  standing_items_destroyed?: number;
+  standing_tribute_credits_destroyed?: number;
+  standing_credits_destroyed?: number;
+  standing_orders_fulfilled?: number;
+  standing_rank_ups?: Record<string, number>;
   endless_runs_started?: number;
   endless_runs_ended?: number;
   endless_encounters_cleared?: number;
@@ -283,6 +304,15 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     researchEnrollmentsStarted: Number(r.research_enrollments_started ?? 0),
     researchCoursesCompleted: Number(r.research_courses_completed ?? 0),
     researchCreditsDestroyed: Number(r.research_credits_destroyed ?? 0),
+    standingPointsAwarded: {
+      turn_in: r.standing_points_awarded?.turn_in ?? {},
+      drip: r.standing_points_awarded?.drip ?? {},
+    },
+    standingItemsDestroyed: Number(r.standing_items_destroyed ?? 0),
+    standingTributeCreditsDestroyed: Number(r.standing_tribute_credits_destroyed ?? 0),
+    standingCreditsDestroyed: Number(r.standing_credits_destroyed ?? 0),
+    standingOrdersFulfilled: Number(r.standing_orders_fulfilled ?? 0),
+    standingRankUps: r.standing_rank_ups ?? {},
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -315,6 +345,9 @@ const METRICS_COLUMNS = `
   cache_keys_from_login_streak,
   research_enrollments_started, research_courses_completed,
   research_credits_destroyed,
+  standing_points_awarded, standing_items_destroyed,
+  standing_tribute_credits_destroyed, standing_credits_destroyed,
+  standing_orders_fulfilled, standing_rank_ups,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

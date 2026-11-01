@@ -89,14 +89,38 @@ export const HUNTER_RIG_UNARMED: RigDef = {
 
 /** Selectable hunter head variants (Q6 ruling). 'visor' is the shipped
  *  head segment; the others are repaints produced by the same script. */
-export const HUNTER_HEAD_VARIANTS = [
+export interface HunterHeadVariantDef {
+  id: string;
+  label: string;
+  spriteId: string;
+  /**
+   * Manufacturer Standing (0043): set when this variant is that
+   * manufacturer's rank-3 cosmetic. The unlock is server state (the
+   * granted rank); Settings lists the variant only for owners and
+   * selection itself stays device-local.
+   */
+  standingManufacturer?: string;
+}
+
+export const HUNTER_HEAD_VARIANTS: HunterHeadVariantDef[] = [
   { id: 'visor', label: 'Visor', spriteId: 'rig-hunter-head' },
   { id: 'optic', label: 'Optic', spriteId: 'hunter-head-optic' },
   { id: 'hood', label: 'Hood', spriteId: 'hunter-head-hood' },
   { id: 'fin', label: 'Fin', spriteId: 'hunter-head-fin' },
-] as const;
+  { id: 'mfr-redline', label: 'Redline', spriteId: 'hunter-head-redline', standingManufacturer: 'Redline' },
+  { id: 'mfr-ironwood', label: 'Ironwood', spriteId: 'hunter-head-ironwood', standingManufacturer: 'Ironwood' },
+  { id: 'mfr-blastforge', label: 'BlastForge', spriteId: 'hunter-head-blastforge', standingManufacturer: 'BlastForge' },
+  { id: 'mfr-prismatek', label: 'Prismatek', spriteId: 'hunter-head-prismatek', standingManufacturer: 'Prismatek' },
+  { id: 'mfr-throwtech', label: 'ThrowTech', spriteId: 'hunter-head-throwtech', standingManufacturer: 'ThrowTech' },
+  { id: 'mfr-helixworks', label: 'HelixWorks', spriteId: 'hunter-head-helixworks', standingManufacturer: 'HelixWorks' },
+];
 
-export type HunterHeadVariantId = (typeof HUNTER_HEAD_VARIANTS)[number]['id'];
+export type HunterHeadVariantId = string;
+
+/** Whether a stored device-local pick names a shipped variant. */
+export function isHunterHeadVariantId(value: unknown): value is HunterHeadVariantId {
+  return typeof value === 'string' && HUNTER_HEAD_VARIANTS.some((v) => v.id === value);
+}
 
 export function hunterRigWithHead(variant: HunterHeadVariantId, unarmed = false): RigDef {
   const head = HUNTER_HEAD_VARIANTS.find((v) => v.id === variant) ?? HUNTER_HEAD_VARIANTS[0];

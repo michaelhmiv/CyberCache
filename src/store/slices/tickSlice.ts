@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { GearItem } from '@/types/items';
 import type { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 
-export type TickEventTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level' | 'kill' | 'material' | 'essence' | 'fragment' | 'damage' | 'heal' | 'death' | 'consumable' | 'event' | 'event_major';
+export type TickEventTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level' | 'kill' | 'material' | 'essence' | 'fragment' | 'damage' | 'heal' | 'death' | 'consumable' | 'event' | 'event_major' | 'standing';
 
 export type TickEvent = {
   id: string;
@@ -24,6 +24,8 @@ export type TickEvent = {
   eventId?: string;
   /** Roaming-event family: find | fight | hazard | objective. */
   family?: string;
+  /** Manufacturer id (tone 'standing'), from src/constants/manufacturers.ts — the feed renders the event in the manufacturer's color. */
+  manufacturer?: string;
   /** Pixel prop sprite id the stage shows while this event beat is live. */
   propId?: string;
   /** True for Data Skimmer foreshadow hints (a signal, not a fired event). */

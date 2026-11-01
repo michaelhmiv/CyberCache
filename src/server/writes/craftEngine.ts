@@ -237,6 +237,10 @@ export interface CraftAdapter {
    *  (the batch recipes' enqueue gate). Optional: pre-Research
    *  adapters read as false (the gate refuses). */
   researchCompleted?(playerId: string, courseId: string): boolean;
+  /** Manufacturer Standing (0043): the player's GRANTED rank on a
+   *  manufacturer's ladder (the exclusive recipes' enqueue gate).
+   *  Optional: pre-Standing adapters read as 0 (the gate refuses). */
+  standingRank?(playerId: string, manufacturer: string): number;
   addMasteryXp(playerId: string, track: string, xp: number): void;
   addStat(playerId: string, key: string, amount: number): void;
   /** Add a consumable batch and bump the profile count with it. */
@@ -722,6 +726,12 @@ export function enqueueCraftJob(
   // mastery, read from the player's completion records.
   if (r.requiresResearch && !(adapter.researchCompleted?.(playerId, r.requiresResearch) ?? false)) {
     fail('research_required');
+  }
+  // Manufacturer Standing gate (0043): the exclusive recipes require
+  // the granted rank on that manufacturer's own ladder — a fifth gate
+  // beside level / bench / mastery / research.
+  if (r.requiresStanding && (adapter.standingRank?.(playerId, r.requiresStanding.manufacturer) ?? 0) < r.requiresStanding.rank) {
+    fail('standing_required');
   }
 
   // Gear rarity: forced at enqueue, Epic-capped by law.

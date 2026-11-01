@@ -124,6 +124,21 @@ import {
   type ContractTemplate,
   type ContractWindowFacts,
 } from '../../content/contracts';
+import {
+  isStandingManufacturer,
+  isoWeekKey,
+  rarityMeetsMinimum,
+  resolveStandingLevers,
+  standingOffer,
+  standingRankDef,
+  standingTributeCredits,
+  standingTurnInAward,
+  standingTurnInRefusal,
+  utcDayKey,
+  type StandingFacts,
+  type StandingLeverValues,
+} from '../../content/manufacturerStanding';
+import { generateStandingOrderWeapon } from './standingOrder';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 
 /** Band-eligible bounty source for contract draws (id + level only). */
@@ -427,6 +442,12 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly contractStats = new Map<string, number>();
   /** Extraction unit log (0042 window fold): units found per settle. */
   readonly contractExtractionLog: Array<{ playerId: string; units: number; atMs: number }> = [];
+  /** Manufacturer Standing rows (0043): `${playerId}:${manufacturer}` → balance + granted rank. */
+  readonly standingRows = new Map<string, { standing: number; rank: number }>();
+  /** Manufacturer Standing drip counters (0043): `${playerId}:${manufacturer}:${utcDay}` → points. */
+  readonly standingDaily = new Map<string, number>();
+  /** Manufacturer Standing weekly desk purchases (0043): `${playerId}:${manufacturer}:${isoWeek}:${kind}`. */
+  readonly standingWeekly = new Set<string>();
 
   constructor(
     private readonly now: () => Date = () => new Date(),
@@ -436,7 +457,18 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     private readonly loginStreakLeverProvider?: () => Partial<LoginStreakLeverValues>,
     private readonly researchLeverProvider?: () => Partial<ResearchLeverValues>,
     private readonly contractsLeverProvider?: () => Partial<ContractLeverValues>,
+    private readonly standingLeverProvider?: () => Partial<StandingLeverValues>,
   ) {}
+
+  /** Standing levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
+  standingLevers(): StandingLeverValues {
+    return resolveStandingLevers(this.standingLeverProvider?.());
+  }
+
+  /** Granted standing rank (the craft adapter's requiresStanding read). */
+  standingRankFor(playerId: string, manufacturer: string): number {
+    return this.standingRows.get(`${playerId}:${manufacturer}`)?.rank ?? 0;
+  }
 
   /** Contracts levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
   contractsLevers(): ContractLeverValues {
@@ -1037,6 +1069,307 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     this.settleResearch(playerId);
     const completions = this.researchCompletions.get(playerId);
     return computeResearchBonuses(completions ? [...completions.keys()] : []);
+  }
+
+  // ─── Manufacturer Standing (0043) ────────────────────────────────
+  // Mirrors cc_turn_in_item / cc_rank_up_manufacturer /
+  // cc_standing_buy / cc_standing_order_weapon /
+  // cc_accrue_manufacturer_standing. Ladders are independent (R6);
+  // rank grants only on tribute (R7); turn-ins pay standing only.
+
+  /** can_use_player_economy mirror: verified + email-verified (an
+   *  unmarked profile reads verified, this twin's convention). */
+  private canUseStandingEconomy(p: InMemoryProfile): boolean {
+    const rec = p as Record<string, unknown>;
+    if (rec.account_type === undefined) return true;
+    return rec.account_type === 'verified' && rec.email_verified_at != null;
+  }
+
+  async getStandingFacts(playerId: string): Promise<StandingFacts | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    const week = isoWeekKey(this.now());
+    const rows: StandingFacts['rows'] = [];
+    for (const [key, row] of this.standingRows) {
+      const [owner, manufacturer] = key.split(':');
+      if (owner === playerId) rows.push({ manufacturer, standing: row.standing, rank: row.rank });
+    }
+    const weeklyPurchases: StandingFacts['weeklyPurchases'] = [];
+    for (const key of this.standingWeekly) {
+      const [owner, manufacturer, isoWeek, kind] = key.split(':');
+      if (owner === playerId && isoWeek === week) weeklyPurchases.push({ manufacturer, kind });
+    }
+    const accountType = (p as Record<string, unknown>).account_type;
+    return {
+      accountType: typeof accountType === 'string' ? accountType : 'guest',
+      canUsePlayerEconomy: this.canUseStandingEconomy(p),
+      credits: p.credits,
+      playerLevel: p.player_level,
+      rows,
+      weeklyPurchases,
+    };
+  }
+
+  async accrueManufacturerStanding(playerId: string, manufacturer: string, kills: number): Promise<Json> {
+    const levers = this.standingLevers();
+    const cap = levers.standingDripDailyCap;
+    const rowKey = `${playerId}:${manufacturer}`;
+    const row = this.standingRows.get(rowKey) ?? { standing: 0, rank: 0 };
+    if (!isStandingManufacturer(manufacturer) || !Number.isFinite(kills) || kills <= 0) {
+      return {
+        manufacturer, points: 0, cap_remaining: cap,
+        balance: row.standing, rank: row.rank,
+      } as Json;
+    }
+    const dayKey = `${rowKey}:${utcDayKey(this.now())}`;
+    const already = this.standingDaily.get(dayKey) ?? 0;
+    const points = Math.min(cap - already, Math.floor(kills * levers.standingPerKill));
+    if (points <= 0) {
+      return {
+        manufacturer, points: 0, cap_remaining: Math.max(0, cap - already),
+        balance: row.standing, rank: row.rank,
+      } as Json;
+    }
+    this.standingDaily.set(dayKey, already + points);
+    const next = { standing: row.standing + points, rank: row.rank };
+    this.standingRows.set(rowKey, next);
+    return {
+      manufacturer, points,
+      cap_remaining: Math.max(0, cap - already - points),
+      balance: next.standing, rank: next.rank,
+    } as Json;
+  }
+
+  async turnInItem(playerId: string, nonce: string, itemId: string): Promise<Json> {
+    if (!nonce || nonce.length < 8) throw new GameplayStoreError('nonce is required');
+    const key = `cc_turn_in_item:${playerId}:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return prior;
+    const p = this.requireProfile(playerId);
+    if (!this.canUseStandingEconomy(p)) throw new GameplayStoreError('Verified account required');
+    const item = this.items.get(itemId);
+    if (!item || item.owner_user_id !== playerId) throw new GameplayStoreError('Item not found');
+    const manufacturer = typeof item.payload.manufacturer === 'string' ? item.payload.manufacturer : null;
+    const refusal = standingTurnInRefusal({
+      kind: item.kind,
+      runtimeState: item.runtime_state,
+      isLocked: item.is_locked,
+      equippedSlot: item.equipped_slot,
+      rarity: item.rarity,
+      itemLevel: item.item_level,
+      manufacturer,
+      legendaryEffectId: typeof item.payload.legendaryEffectId === 'string' ? item.payload.legendaryEffectId : null,
+    });
+    if (refusal) throw new GameplayStoreError(refusal);
+    const rowKey = `${playerId}:${manufacturer}`;
+    const row = this.standingRows.get(rowKey) ?? { standing: 0, rank: 0 };
+    if (row.rank >= 5) {
+      throw new GameplayStoreError(`Already at maximum rank with ${manufacturer}`);
+    }
+    const levers = this.standingLevers();
+    const award = standingTurnInAward(
+      {
+        rarity: item.rarity,
+        itemLevel: item.item_level,
+        legendaryEffectId: typeof item.payload.legendaryEffectId === 'string' ? item.payload.legendaryEffectId : null,
+      },
+      levers.standingScrapDivisor,
+    );
+    const scrapValue =
+      salvageScrap(item.rarity ?? 'Common', item.item_level) *
+      (item.payload.legendaryEffectId === 'market_crash' ? 4 : 1);
+    item.runtime_state = 'consumed';
+    item.tradeable = false;
+    item.equipped_slot = null;
+    const next = { standing: row.standing + award, rank: row.rank };
+    this.standingRows.set(rowKey, next);
+    const result = {
+      action_type: 'cc_turn_in_item',
+      profile: this.snapshot(p),
+      item: { ...item },
+      manufacturer,
+      standing_awarded: award,
+      scrap_value: scrapValue,
+      new_balance: next.standing,
+      rank: next.rank,
+      loadout: null,
+    } as unknown as Json;
+    this.ledger.set(key, result);
+    return result;
+  }
+
+  async rankUpManufacturer(
+    playerId: string,
+    nonce: string,
+    manufacturer: string,
+    tributeItemId: string | null,
+  ): Promise<Json> {
+    if (!nonce || nonce.length < 8) throw new GameplayStoreError('nonce is required');
+    const key = `cc_rank_up_manufacturer:${playerId}:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return prior;
+    const p = this.requireProfile(playerId);
+    if (!this.canUseStandingEconomy(p)) throw new GameplayStoreError('Verified account required');
+    if (!isStandingManufacturer(manufacturer)) throw new GameplayStoreError('Unknown manufacturer');
+    const rowKey = `${playerId}:${manufacturer}`;
+    const row = this.standingRows.get(rowKey) ?? { standing: 0, rank: 0 };
+    if (row.rank >= 5) throw new GameplayStoreError(`Already at maximum rank with ${manufacturer}`);
+    const nextDef = standingRankDef(row.rank + 1);
+    if (row.standing < nextDef.threshold) {
+      throw new GameplayStoreError(`Requires ${nextDef.threshold} standing with ${manufacturer}`);
+    }
+    const levers = this.standingLevers();
+    const tribute = standingTributeCredits(nextDef.rank, levers.standingTributeScalar);
+    if (p.credits < tribute) throw new GameplayStoreError('Insufficient credits');
+    let tributeItem: InMemoryItem | undefined;
+    if (nextDef.tributeMinRarity) {
+      if (!tributeItemId) {
+        throw new GameplayStoreError(
+          `Rank ${nextDef.rank} requires a tribute item of ${nextDef.tributeMinRarity} rarity or better`,
+        );
+      }
+      tributeItem = this.items.get(tributeItemId);
+      if (!tributeItem || tributeItem.owner_user_id !== playerId) {
+        throw new GameplayStoreError('Tribute item not found');
+      }
+      if (tributeItem.kind === 'vehicle') throw new GameplayStoreError('Vehicles cannot be tribute');
+      if (tributeItem.payload.manufacturer !== manufacturer) {
+        throw new GameplayStoreError(`Tribute item must be made by ${manufacturer}`);
+      }
+      if (!rarityMeetsMinimum(tributeItem.rarity, nextDef.tributeMinRarity)) {
+        throw new GameplayStoreError(`Tribute item must be ${nextDef.tributeMinRarity} rarity or better`);
+      }
+      if (tributeItem.is_locked) throw new GameplayStoreError('Locked item');
+      if (tributeItem.equipped_slot) {
+        throw new GameplayStoreError('Unequip the item before offering it as tribute');
+      }
+      if (tributeItem.runtime_state !== 'available') throw new GameplayStoreError('Item is not available');
+    } else if (tributeItemId) {
+      throw new GameplayStoreError(`Rank ${nextDef.rank} requires no tribute item`);
+    }
+    p.credits -= tribute;
+    if (tributeItem) {
+      tributeItem.runtime_state = 'consumed';
+      tributeItem.tradeable = false;
+      tributeItem.equipped_slot = null;
+    }
+    this.standingRows.set(rowKey, { standing: row.standing, rank: nextDef.rank });
+    const result = {
+      action_type: 'cc_rank_up_manufacturer',
+      profile: this.snapshot(p),
+      manufacturer,
+      new_rank: nextDef.rank,
+      tribute_credits: tribute,
+      tribute_item_id: tributeItemId ?? null,
+      standing_balance: row.standing,
+      item: tributeItem ? { ...tributeItem } : null,
+      loadout: null,
+    } as unknown as Json;
+    this.ledger.set(key, result);
+    return result;
+  }
+
+  async standingBuy(playerId: string, nonce: string, offerKey: string, quantity: number): Promise<Json> {
+    if (!nonce || nonce.length < 8) throw new GameplayStoreError('nonce is required');
+    const key = `cc_standing_buy:${playerId}:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return prior;
+    const p = this.requireProfile(playerId);
+    if (!this.canUseStandingEconomy(p)) throw new GameplayStoreError('Verified account required');
+    const offer = standingOffer(offerKey);
+    if (!offer) throw new GameplayStoreError('Unknown standing offer');
+    const row = this.standingRows.get(`${playerId}:${offer.manufacturer}`) ?? { standing: 0, rank: 0 };
+    if (row.rank < offer.rankRequired) {
+      throw new GameplayStoreError(`Requires rank ${offer.rankRequired} with ${offer.manufacturer}`);
+    }
+    let qty = Math.max(1, Math.trunc(quantity) || 1);
+    const week = isoWeekKey(this.now());
+    const weeklyKey = `${playerId}:${offer.manufacturer}:${week}:crate`;
+    if (offer.kind === 'crate') {
+      qty = 1;
+      if (this.standingWeekly.has(weeklyKey)) {
+        throw new GameplayStoreError('Parts Crate already claimed this week');
+      }
+    }
+    const totalPrice = offer.priceCredits * qty;
+    if (p.credits < totalPrice) throw new GameplayStoreError('Insufficient credits');
+    p.credits -= totalPrice;
+    if (offer.kind === 'shelf' && offer.consumableType) {
+      p.consumables[offer.consumableType] = (p.consumables[offer.consumableType] ?? 0) + qty;
+    } else {
+      for (const [m, n] of Object.entries(offer.materials)) {
+        p.materials[m] = (p.materials[m] ?? 0) + n;
+      }
+      for (const [e, n] of Object.entries(offer.essences)) {
+        p.essences[e] = (p.essences[e] ?? 0) + n;
+      }
+      this.standingWeekly.add(weeklyKey);
+    }
+    const result = {
+      action_type: 'cc_standing_buy',
+      profile: this.snapshot(p),
+      offer_key: offer.offerKey,
+      manufacturer: offer.manufacturer,
+      kind: offer.kind,
+      quantity: qty,
+      consumable_type: offer.consumableType,
+      total_price: totalPrice,
+      batch_id: null,
+    } as unknown as Json;
+    this.ledger.set(key, result);
+    return result;
+  }
+
+  async standingOrderWeapon(playerId: string, nonce: string, manufacturer: string): Promise<Json> {
+    if (!nonce || nonce.length < 8) throw new GameplayStoreError('nonce is required');
+    const key = `cc_standing_order_weapon:${playerId}:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return prior;
+    const p = this.requireProfile(playerId);
+    if (!this.canUseStandingEconomy(p)) throw new GameplayStoreError('Verified account required');
+    if (!isStandingManufacturer(manufacturer)) throw new GameplayStoreError('Unknown manufacturer');
+    const levers = this.standingLevers();
+    if (levers.standingOrderEnabled !== 1) throw new GameplayStoreError('Signature Orders are disabled');
+    const row = this.standingRows.get(`${playerId}:${manufacturer}`) ?? { standing: 0, rank: 0 };
+    if (row.rank < 5) throw new GameplayStoreError(`Requires rank 5 with ${manufacturer}`);
+    const week = isoWeekKey(this.now());
+    const weeklyKey = `${playerId}:${manufacturer}:${week}:order`;
+    if (this.standingWeekly.has(weeklyKey)) {
+      throw new GameplayStoreError('Signature Order already placed this week');
+    }
+    const price = levers.standingOrderPrice;
+    if (p.credits < price) throw new GameplayStoreError('Insufficient credits');
+    const payload = generateStandingOrderWeapon({
+      playerId, nonce, manufacturer, level: p.player_level,
+    });
+    p.credits -= price;
+    const itemId = randomUUID();
+    const rarity = String(payload.rarity ?? 'Rare');
+    const item: InMemoryItem = {
+      id: itemId,
+      owner_user_id: playerId,
+      kind: 'weapon',
+      runtime_state: 'available',
+      is_locked: false,
+      rarity,
+      item_level: Math.max(1, p.player_level),
+      estimated_value: computeItemEstimatedValue(payload, 'weapon', rarity, Math.max(1, p.player_level)),
+      supply_mode: 'verified_action',
+      tradeable: true,
+      equipped_slot: null,
+      payload,
+    };
+    this.items.set(itemId, item);
+    this.standingWeekly.add(weeklyKey);
+    const result = {
+      action_type: 'cc_standing_order_weapon',
+      profile: this.snapshot(p),
+      item: { ...item },
+      manufacturer,
+      total_price: price,
+    } as unknown as Json;
+    this.ledger.set(key, result);
+    return result;
   }
 
   // ─── Dispatch (0032) ─────────────────────────────────────────────
@@ -1699,6 +2032,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         this.settleResearch(id);
         return this.researchCompletions.get(id)?.has(courseId) ?? false;
       },
+      standingRank: (id, manufacturer) => this.standingRankFor(id, manufacturer),
       addMasteryXp: (id, track, xp) => {
         const existing = this.masteries.find((m) => m.user_id === id && m.mastery_id === track);
         if (existing) {

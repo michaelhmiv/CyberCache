@@ -15,7 +15,7 @@ import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
 import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, DeathRecord, Json } from '../gameplay/store';
-import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
+import { equippedWeaponManufacturer, skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { getRoamingArea } from '../../constants/roamingAreas';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { isHotArea } from '../../content/hotArea';
@@ -421,11 +421,52 @@ export function createClaimHandler(
         }
       }
 
+      // Manufacturer Standing (0043): the use drip. Kills recorded
+      // by this claim accrue standing for the SERVER-DERIVED primary
+      // weapon's manufacturer (never a body field — the loadout above
+      // is the server's own), capped per manufacturer per UTC day.
+      // Log-and-continue like the telemetry above: the claim is fully
+      // paid at this point, and the daily counter table is the meter
+      // of record either way.
+      let standingBlock: Record<string, unknown> | null = null;
+      const dripManufacturer = equippedWeaponManufacturer(equippedGear);
+      if (dripManufacturer && result.rewards.killsRecorded > 0) {
+        try {
+          const fact = (await store.accrueManufacturerStanding(
+            playerId,
+            dripManufacturer,
+            result.rewards.killsRecorded,
+          )) as Record<string, unknown>;
+          standingBlock = {
+            manufacturer: String(fact.manufacturer ?? dripManufacturer),
+            points: Number(fact.points ?? 0),
+            capRemaining: Number(fact.cap_remaining ?? 0),
+            balance: Number(fact.balance ?? 0),
+            rank: Number(fact.rank ?? 0),
+          };
+          if (Number(standingBlock.points) > 0) {
+            result.feedEvents.push({
+              at: Date.now(),
+              tone: 'standing',
+              label: `+${standingBlock.points} ${dripManufacturer} standing`,
+              detail: `Kills with a ${dripManufacturer} weapon earn its maker's regard. ${standingBlock.capRemaining} drip points left today.`,
+              manufacturer: dripManufacturer,
+              value: standingBlock.points,
+              areaId: body.areaId,
+            });
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] Failed to accrue manufacturer standing:', message);
+        }
+      }
+
       res.json({
         ...result,
         profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
         consumedConsumables,
         ...(deathPayload ? { death: deathPayload } : {}),
+        ...(standingBlock ? { standing: standingBlock } : {}),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

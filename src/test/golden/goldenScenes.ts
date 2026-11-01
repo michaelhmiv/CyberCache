@@ -11,6 +11,13 @@
  * `npm run golden:update`.
  */
 import { REGION_1_BOSSES } from '@/constants/bosses';
+import { MANUFACTURERS } from '@/constants/manufacturers';
+import {
+  STANDING_RANKS,
+  buildStandingStateView,
+  type StandingFacts,
+  type StandingStateView,
+} from '@/content/manufacturerStanding';
 import {
   contractBandById,
   contractSetSeed,
@@ -772,6 +779,139 @@ export const GOLDEN_SCENES: GoldenScene[] = [
       const table = loadGoldenSprite('set-war-room-table');
       if (table) blit(img, table, SCENE_W * 0.5 - 90, GROUND * SCENE_H - 46, 180, 46);
       drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG_UNARMED, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
+    });
+  }),
+  // Manufacturer Standing (0043): the Rep Desk. Both scenes compose
+  // from a REAL standing view (buildStandingStateView over fabricated
+  // facts) — plaque pips, colors, and the progress strip all derive
+  // from the ladder state, so a content change repaints here. The
+  // vendor stall fronts the stage; the hunter waits at the counter,
+  // unarmed (the desk is a counter, not a fight).
+  ...(['mid', 'maxed'] as const).map((kind) => {
+    const rows =
+      kind === 'mid'
+        ? [
+            { manufacturer: 'Redline', standing: 6320, rank: 3 },
+            { manufacturer: 'Ironwood', standing: 2600, rank: 2 },
+            { manufacturer: 'BlastForge', standing: 700, rank: 1 },
+            { manufacturer: 'Prismatek', standing: 120, rank: 0 },
+            { manufacturer: 'ThrowTech', standing: 2100, rank: 2 },
+            { manufacturer: 'HelixWorks', standing: 0, rank: 0 },
+          ]
+        : [
+            { manufacturer: 'Redline', standing: 26100, rank: 5 },
+            { manufacturer: 'Ironwood', standing: 25400, rank: 5 },
+            { manufacturer: 'BlastForge', standing: 28900, rank: 5 },
+            { manufacturer: 'Prismatek', standing: 25050, rank: 5 },
+            { manufacturer: 'ThrowTech', standing: 31200, rank: 5 },
+            { manufacturer: 'HelixWorks', standing: 26750, rank: 5 },
+          ];
+    const facts: StandingFacts = {
+      accountType: 'verified',
+      canUsePlayerEconomy: true,
+      credits: 900000,
+      playerLevel: 25,
+      rows,
+      weeklyPurchases: [],
+    };
+    const view: StandingStateView = buildStandingStateView(facts);
+    const focus = view.manufacturers[0]; // Redline — the desk's house ladder in both scenes.
+    return scene(kind === 'mid' ? 'rep-desk' : 'rep-desk-maxed', (img) => {
+      drawBackground(img, AREA_BG.dustwaste_frontier);
+      // Interior wash (the collections-shelf move) so the desk reads
+      // as the vendor's counter room, not the open frontier.
+      fillRect(img, 0, 0, SCENE_W, SCENE_H, [8, 8, 12], 96);
+      const groundY = GROUND * SCENE_H;
+      // The vendor stall + sign, right of stage.
+      const stall = loadGoldenSprite('set-vendor-stall');
+      if (stall) blit(img, stall, SCENE_W * 0.58, groundY - 62, 128, 80);
+      const sign = loadGoldenSprite('set-vendor-sign');
+      if (sign) blit(img, sign, SCENE_W * 0.58 + 22, groundY - 62 - 46, 84, 52);
+      // Six rep plaques across the counter front: maker color tab on
+      // top, five rank pips under it — filled pips are the granted
+      // rank from the view, hollow pips the road ahead.
+      view.manufacturers.forEach((m, i) => {
+        const def = MANUFACTURERS[m.manufacturer as keyof typeof MANUFACTURERS];
+        // The row starts right of the hunter (xPct 10 at heightPct 46
+        // occupies roughly the first 64px) so no plaque hides behind
+        // the rig.
+        const x = 68 + i * 51;
+        const y = 168;
+        fillRect(img, x, y, 47, 44, [15, 17, 23], 235);
+        fillRect(img, x, y, 47, 3, hexToRgb(def.color), 255);
+        for (let pip = 0; pip < 5; pip += 1) {
+          const filled = pip < m.rank;
+          fillRect(
+            img,
+            x + 3 + pip * 8,
+            y + 28,
+            6,
+            7,
+            filled ? hexToRgb(def.color) : [44, 48, 58],
+            255,
+          );
+        }
+        // Standing fill: balance progress through the current rank
+        // band, in the maker's color.
+        const bandBase = STANDING_RANKS[m.rank].threshold;
+        const bandTop = m.nextRank ? m.nextRank.threshold : bandBase;
+        const frac = m.nextRank ? Math.min(1, Math.max(0, (m.standing - bandBase) / (bandTop - bandBase))) : 1;
+        fillRect(img, x + 3, y + 12, 41, 3, [0, 0, 0], 200);
+        if (frac > 0) fillRect(img, x + 3, y + 12, Math.round(41 * frac), 3, hexToRgb(def.color), 255);
+      });
+      if (kind === 'mid') {
+        // A turned-in Redline piece on the counter, dissolving into
+        // maker-colored scrap-spark (the turn-in visual: distinct
+        // from salvage's crusher — motes rise, nothing is crushed).
+        const turnedIn: PixelWeaponInput = {
+          id: 'rep-turn-in',
+          weaponType: WeaponType.SMG,
+          manufacturer: Manufacturer.Redline,
+          rarity: Rarity.Rare,
+          element: Element.Kinetic,
+          pixelSeed: 90210,
+          rollQuality: 61,
+        };
+        drawWeaponRender(img, turnedIn, SCENE_W * 0.58 + 26, groundY - 96, 76, 28);
+        const spark = hexToRgb(MANUFACTURERS.Redline.color);
+        const motes: Array<[number, number, number]> = [
+          [0, -6, 200], [14, -14, 255], [30, -10, 160], [46, -20, 255], [58, -8, 180],
+          [8, -26, 140], [24, -32, 220], [40, -28, 150], [52, -38, 200], [66, -18, 120],
+        ];
+        for (const [dx, dy, a] of motes) {
+          fillRect(img, SCENE_W * 0.58 + 30 + dx, groundY - 92 + dy, 2, 2, spark, a);
+        }
+      } else {
+        // Signature Order (rank 5): the weekly order on the counter
+        // under a maker-color beam, beneath the gold maxed banner.
+        fillRect(img, 0, 10, SCENE_W, 16, [30, 26, 14], 255);
+        fillRect(img, 0, 10, SCENE_W, 2, hexToRgb('#E8B33D'), 255);
+        fillRect(img, 0, 24, SCENE_W, 2, hexToRgb('#E8B33D'), 255);
+        const orderWeapon: PixelWeaponInput = {
+          id: 'rep-signature-order',
+          weaponType: WeaponType.SMG,
+          manufacturer: Manufacturer.Redline,
+          rarity: Rarity.Epic,
+          element: Element.Shock,
+          pixelSeed: 4242,
+          rollQuality: 88,
+        };
+        const orderX = SCENE_W * 0.58 + 16;
+        drawBeam(img, orderX + 48, groundY - 66, GRAMMAR.beamWidthPx.standard, MANUFACTURERS.Redline.color);
+        drawWeaponRender(img, orderWeapon, orderX, groundY - 100, 96, 34);
+      }
+      // The hunter at the counter, unarmed, reading the desk.
+      drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG_UNARMED, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
+      // Floor strip: mid-rank reads progress to the focus ladder's
+      // next rank in its color; maxed reads full gold.
+      fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
+      if (kind === 'maxed') {
+        fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, hexToRgb('#E8B33D'), 255);
+      } else if (focus.nextRank) {
+        const bandBase = STANDING_RANKS[focus.rank].threshold;
+        const frac = Math.min(1, Math.max(0, (focus.standing - bandBase) / (focus.nextRank.threshold - bandBase)));
+        fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * frac, GRAMMAR.progress.heightPx, hexToRgb(MANUFACTURERS.Redline.color), 255);
+      }
     });
   }),
 ];

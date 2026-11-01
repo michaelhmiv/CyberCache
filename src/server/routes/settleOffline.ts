@@ -15,7 +15,7 @@ import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
 import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
-import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
+import { equippedWeaponManufacturer, skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { ABSOLUTE_OFFLINE_CAP_HOURS, effectiveOfflineCapHours } from '../../content/offlineCap';
 import { mergeResearchBonuses } from '../../content/research';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
@@ -506,6 +506,36 @@ export function createSettleOfflineHandler(
         }
       }
 
+      // Manufacturer Standing (0043): the use drip on the settled
+      // kills — the brief's Q4 default pays the drip on offline
+      // settlement too, from the same server-derived primary weapon.
+      // Same treatment as telemetry: the settlement is applied
+      // atomically and the nonce forbids a second one, so a failure
+      // is logged, never retried, and never fails the response. A
+      // replayed settlement returns above and never reaches this —
+      // the drip pays exactly once per settlement.
+      let standingBlock: Record<string, unknown> | null = null;
+      const dripManufacturer = equippedWeaponManufacturer(equippedGear);
+      if (dripManufacturer && result.rewards.killsRecorded > 0) {
+        try {
+          const fact = (await store.accrueManufacturerStanding(
+            playerId,
+            dripManufacturer,
+            result.rewards.killsRecorded,
+          )) as Record<string, unknown>;
+          standingBlock = {
+            manufacturer: String(fact.manufacturer ?? dripManufacturer),
+            points: Number(fact.points ?? 0),
+            capRemaining: Number(fact.cap_remaining ?? 0),
+            balance: Number(fact.balance ?? 0),
+            rank: Number(fact.rank ?? 0),
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] settlement standing accrual failed:', message);
+        }
+      }
+
       res.json({
         settled: true,
         areaId: area.id,
@@ -524,6 +554,7 @@ export function createSettleOfflineHandler(
         items: result.items,
         feedEvents: result.feedEvents,
         consumedConsumables: result.consumedConsumables,
+        ...(standingBlock ? { standing: standingBlock } : {}),
         idempotent: false,
       });
     } catch (err) {
