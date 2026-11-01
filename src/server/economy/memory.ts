@@ -346,6 +346,46 @@ export class InMemoryEconomyStore implements EconomyStore {
     const researchCreditsDestroyed = sumBy(['cc_enroll_research'], (p) =>
       num(dig(p, 'cost_credits')));
 
+    // Manufacturer Standing (0043): the desk meters fold from the
+    // day's standing ledger rows, exactly as in SQL — turn-in points
+    // by manufacturer, items destroyed (turn-ins + tribute items),
+    // tribute credits destroyed, desk purchases destroyed (buys +
+    // orders), orders fulfilled, rank-ups by manufacturer. The drip
+    // half of standing_points_awarded reads
+    // manufacturer_standing_daily in SQL, which this double's seed
+    // does not model; it stays {} here (the same documented
+    // simplification as the craft job meters above — the SQL side is
+    // verified against embedded Postgres in the slice harness).
+    // Standing credits destroyed join creditsDestroyedTotal below.
+    const standingTurnInPoints: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.action_type !== 'cc_turn_in_item') continue;
+      const mfr = dig(r.result_payload, 'manufacturer');
+      if (typeof mfr !== 'string') continue;
+      standingTurnInPoints[mfr] =
+        (standingTurnInPoints[mfr] ?? 0) + num(dig(r.result_payload, 'standing_awarded'));
+    }
+    const standingTurnIns = rows.filter((r) => r.action_type === 'cc_turn_in_item').length;
+    const standingTributeItems = rows.filter(
+      (r) => r.action_type === 'cc_rank_up_manufacturer'
+        && dig(r.result_payload, 'tribute_item_id') != null,
+    ).length;
+    const standingItemsDestroyed = standingTurnIns + standingTributeItems;
+    const standingTributeCreditsDestroyed = sumBy(['cc_rank_up_manufacturer'], (p) =>
+      num(dig(p, 'tribute_credits')));
+    const standingPurchasesDestroyed = sumBy(
+      ['cc_standing_buy', 'cc_standing_order_weapon'], (p) => num(dig(p, 'total_price')));
+    const standingCreditsDestroyed = standingTributeCreditsDestroyed + standingPurchasesDestroyed;
+    const standingOrdersFulfilled = rows.filter(
+      (r) => r.action_type === 'cc_standing_order_weapon').length;
+    const standingRankUps: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.action_type !== 'cc_rank_up_manufacturer') continue;
+      const mfr = dig(r.result_payload, 'manufacturer');
+      if (typeof mfr !== 'string') continue;
+      standingRankUps[mfr] = (standingRankUps[mfr] ?? 0) + 1;
+    }
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
@@ -355,7 +395,7 @@ export class InMemoryEconomyStore implements EconomyStore {
     const creditsDestroyedTotal =
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
       + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees
-      + endlessFeesDestroyed + researchCreditsDestroyed;
+      + endlessFeesDestroyed + researchCreditsDestroyed + standingCreditsDestroyed;
 
     const row: EconomyMetricsRow = {
       day,
@@ -449,6 +489,12 @@ export class InMemoryEconomyStore implements EconomyStore {
       researchEnrollmentsStarted,
       researchCoursesCompleted,
       researchCreditsDestroyed,
+      standingPointsAwarded: { turn_in: standingTurnInPoints, drip: {} },
+      standingItemsDestroyed,
+      standingTributeCreditsDestroyed,
+      standingCreditsDestroyed,
+      standingOrdersFulfilled,
+      standingRankUps,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

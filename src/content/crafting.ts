@@ -137,6 +137,12 @@ export interface CraftRecipe {
    *  enforced in both stores (cc_enqueue_craft_job reads
    *  research_completions). */
   requiresResearch?: string;
+  /** Manufacturer Standing gate (0043): the manufacturer ladder and
+   *  rank whose ownership unlocks this recipe — a fifth gate beside
+   *  level / bench / mastery / research, enforced in both stores
+   *  (cc_enqueue_craft_job reads manufacturer_standing). Standing is
+   *  access only: the gate never changes the recipe's numbers. */
+  requiresStanding?: { manufacturer: string; rank: number };
   station: CraftStation;
   /** consumable kind: the output consumable type. */
   consumableType?: string;
@@ -372,6 +378,50 @@ export const BATCH_RECIPES: CraftRecipe[] = [
   },
 ];
 
+/** Manufacturer Standing exclusives (0043, brief §2.5): one recipe per
+ *  manufacturer, gated at rank 2 on that manufacturer's own ladder.
+ *  Ids and output types are pinned against
+ *  src/content/manufacturerStanding.ts (STANDING_RECIPE_TYPES) by the
+ *  slice suite; the SQL catalog carries the same six objects. */
+const STANDING_RECIPES: CraftRecipe[] = [
+  {
+    id: 'recipe_redline_standing', kind: 'consumable', name: 'Redline Tonic', category: 'offense',
+    inputs: { BallisticParts: 12, NitrocellGel: 2, ReactiveComponents: 6 },
+    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    consumableType: 'RedlineTonic', requiresStanding: { manufacturer: 'Redline', rank: 2 },
+  },
+  {
+    id: 'recipe_ironwood_standing', kind: 'consumable', name: 'Heartwood Sight Oil', category: 'offense',
+    inputs: { HeartwoodResin: 2, TechFragments: 10, ReactiveComponents: 6 },
+    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    consumableType: 'HeartwoodSightOil', requiresStanding: { manufacturer: 'Ironwood', rank: 2 },
+  },
+  {
+    id: 'recipe_blastforge_standing', kind: 'consumable', name: 'Forgeheart Charge', category: 'offense',
+    inputs: { ForgeheartIngots: 2, BallisticParts: 12, ReactiveComponents: 8 },
+    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    consumableType: 'ForgeheartCharge', requiresStanding: { manufacturer: 'BlastForge', rank: 2 },
+  },
+  {
+    id: 'recipe_prismatek_standing', kind: 'consumable', name: 'Prism Coating', category: 'offense',
+    inputs: { PrismShards: 2, VoidEssence: 3, TechFragments: 8 },
+    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    consumableType: 'PrismCoating', requiresStanding: { manufacturer: 'Prismatek', rank: 2 },
+  },
+  {
+    id: 'recipe_throwtech_standing', kind: 'consumable', name: 'ThrowTech Decoy Kit', category: 'utility',
+    inputs: { MagnetiteCores: 2, TechFragments: 12, ScrapAlloy: 20 },
+    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    consumableType: 'ThrowTechDecoyKit', requiresStanding: { manufacturer: 'ThrowTech', rank: 2 },
+  },
+  {
+    id: 'recipe_helixworks_standing', kind: 'consumable', name: 'Helix Calibration Kit', category: 'utility',
+    inputs: { Siltglass: 2, TechFragments: 12, VoidDust: 2 },
+    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    consumableType: 'HelixCalibrationKit', requiresStanding: { manufacturer: 'HelixWorks', rank: 2 },
+  },
+];
+
 export const ALL_CRAFT_RECIPES: readonly CraftRecipe[] = [
   ...LEGACY_RECIPES,
   ...VEHICLE_CONSUMABLE_RECIPES,
@@ -379,6 +429,7 @@ export const ALL_CRAFT_RECIPES: readonly CraftRecipe[] = [
   ...GEAR_FRAME_RECIPES,
   ...TOOL_RECIPES,
   ...BATCH_RECIPES,
+  ...STANDING_RECIPES,
 ];
 
 const RECIPE_BY_ID = new Map(ALL_CRAFT_RECIPES.map((r) => [r.id, r]));

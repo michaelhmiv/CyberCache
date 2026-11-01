@@ -20,6 +20,8 @@ import {
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { REGION_1_BOSSES } from '@/constants/bosses';
+import { MANUFACTURERS } from '@/constants/manufacturers';
+import type { Manufacturer } from '@/types/game';
 import { getRoamingArea } from '@/constants/roamingAreas';
 import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
@@ -62,7 +64,7 @@ interface DashboardScreenProps {
 type Tone = 'amber' | 'green' | 'blue' | 'red' | 'purple' | 'cyan';
 type DisplayGainTone = TickEventTone | 'unknown';
 
-type DisplayGainEvent = Pick<TickEvent, 'id' | 'label' | 'detail'> & {
+type DisplayGainEvent = Pick<TickEvent, 'id' | 'label' | 'detail' | 'manufacturer'> & {
   tone?: string;
 };
 
@@ -108,6 +110,10 @@ const gainToneClass: Record<DisplayGainTone, { text: string; bg: string; border:
   consumable: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   event: { text: 'text-cyan', bg: 'bg-cyan/10', border: 'border-cyan/70', fill: 'bg-cyan' },
   event_major: { text: 'text-purple', bg: 'bg-purple/15', border: 'border-purple/80', fill: 'bg-purple' },
+  // Standing gains render in the manufacturer's own color when the
+  // event carries one (inline style at the render site); this is the
+  // fallback for a standing event without one.
+  standing: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
   unknown: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
 };
 
@@ -176,12 +182,17 @@ const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
 
 const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
   const color = getGainToneClass(event.tone);
+  // Standing gains wear the manufacturer's own color (brief §2.7).
+  const manufacturerColor =
+    event.tone === 'standing' && event.manufacturer
+      ? MANUFACTURERS[event.manufacturer as Manufacturer]?.color
+      : undefined;
   return (
-    <motion.div layout initial={{ opacity: 0, y: 14, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 14, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={signClip}>
-      <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} />
+    <motion.div layout initial={{ opacity: 0, y: 14, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 14, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}) }}>
+      <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} style={manufacturerColor ? { backgroundColor: manufacturerColor } : undefined} />
       <RewardIcon tone={event.tone} />
       <div className="min-w-0 leading-none">
-        <div className={`text-base font-black uppercase tracking-wide ${color.text}`}>{event.label}</div>
+        <div className={`text-base font-black uppercase tracking-wide ${color.text}`} style={manufacturerColor ? { color: manufacturerColor } : undefined}>{event.label}</div>
         <div className="mt-0.5 truncate text-[8px] font-black uppercase tracking-[0.14em] text-text-muted">{event.detail}</div>
       </div>
     </motion.div>

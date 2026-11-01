@@ -20,7 +20,7 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
-import { ENEMY_POSES, HUNTER_POSES, enemyRig, hunterRigWithHead, type HunterHeadVariantId } from '@/lib/pixel/rig';
+import { ENEMY_POSES, HUNTER_POSES, enemyRig, hunterRigWithHead, isHunterHeadVariantId, type HunterHeadVariantId } from '@/lib/pixel/rig';
 import { areaVisuals } from '@/content/areaPalettes';
 import { isHotArea } from '@/content/hotArea';
 import { elementDialect, shotCadence } from '@/lib/pixel/elementFx';
@@ -60,7 +60,7 @@ function beltSpriteFor(consumableId: string | null): string | undefined {
 function headVariantPreference(): HunterHeadVariantId {
   try {
     const value = window.localStorage.getItem('cc-head-variant');
-    return value === 'optic' || value === 'hood' || value === 'fin' ? value : 'visor';
+    return isHunterHeadVariantId(value) ? value : 'visor';
   } catch {
     return 'visor';
   }

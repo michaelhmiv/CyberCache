@@ -11,6 +11,7 @@ import { useNow } from '@/hooks/useNow';
 import type { ConsumableDef } from '@/types/consumables';
 import type { GearItem } from '@/types/items';
 import { chipClip } from '@/lib/ui/clips';
+import { RepDeskPanel } from '@/components/vendor/RepDeskPanel';
 import { gearCategoryFromPayload } from '@/lib/market/identityKey';
 import {
   VENDOR_BUYBACK_RATE_DEFAULT,
@@ -30,7 +31,7 @@ export const VendorScreen: React.FC = () => {
   const loadout = useLoadoutStore();
   const [notice, setNotice] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
-  const [mode, setMode] = React.useState<'buy' | 'sell'>('buy');
+  const [mode, setMode] = React.useState<'buy' | 'sell' | 'rep'>('buy');
 
   // Rotation + Item of the Day derive from the ONE vendor catalog by
   // UTC date — the same stock the server charges for today.
@@ -245,6 +246,13 @@ export const VendorScreen: React.FC = () => {
         >
           Sell to Vendor
         </button>
+        <button
+          type="button"
+          onClick={() => setMode('rep')}
+          className={`flex-1 py-2 rounded-xl text-xs font-black border ${mode === 'rep' ? 'bl-primary' : 'border-border bg-surface text-text-secondary'}`}
+        >
+          Rep Desk
+        </button>
       </div>
 
       {notice && <div className="text-xs text-text-secondary">{notice}</div>}
@@ -340,6 +348,8 @@ export const VendorScreen: React.FC = () => {
           </div>
         </>
       )}
+
+      {mode === 'rep' && <RepDeskPanel />}
 
       {mode === 'sell' && (
         <div className="space-y-4">

@@ -45,6 +45,8 @@ import {
   type ResearchBonuses,
   type ResearchFacts,
 } from '../../content/research';
+import { isoWeekKey, type StandingFacts } from '../../content/manufacturerStanding';
+import { generateStandingOrderWeapon } from './standingOrder';
 
 export type { Json };
 
@@ -713,6 +715,50 @@ export interface ChefGameplayStore {
    */
   cancelResearch(playerId: string, nonce: string): Promise<Json>;
   /**
+   * Manufacturer Standing facts (0043) for the /api/standing routes:
+   * profile credits / level / economy gate + the six ladder rows +
+   * this ISO week's desk purchases. Facts only (collections-read
+   * discipline); the view is derived in the content module.
+   */
+  getStandingFacts(playerId: string): Promise<StandingFacts | null>;
+  /**
+   * Turn an item in at the Rep Desk (cc_turn_in_item, 0043): the
+   * item is destroyed for standing only — no scrap, no materials,
+   * no cores, ever. Nonce-idempotent via the ledger.
+   */
+  turnInItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
+  /**
+   * Rank up one ladder (cc_rank_up_manufacturer, 0043): threshold +
+   * tribute (credits, plus an item of the manufacturer at ranks
+   * 3-5). The standing balance is not spent. Nonce-idempotent.
+   */
+  rankUpManufacturer(
+    playerId: string,
+    nonce: string,
+    manufacturer: string,
+    tributeItemId: string | null,
+  ): Promise<Json>;
+  /**
+   * Buy a Rep Desk offer (cc_standing_buy, 0043): rank re-checked
+   * server-side; shelf consumables land at flat 100% quality, Parts
+   * Crates are weekly per manufacturer. Nonce-idempotent.
+   */
+  standingBuy(playerId: string, nonce: string, offerKey: string, quantity: number): Promise<Json>;
+  /**
+   * Place a Signature Order (cc_standing_order_weapon, 0043): the
+   * weapon is generated here with the shared generator (forced
+   * manufacturer, Rare–Epic) and the SQL op revalidates + charges +
+   * persists atomically. Rank 5, weekly, lever-priced.
+   */
+  standingOrderWeapon(playerId: string, nonce: string, manufacturer: string): Promise<Json>;
+  /**
+   * The use drip (cc_accrue_manufacturer_standing, 0043): accrue
+   * standing for server-recorded kills with the server-derived
+   * equipped weapon's manufacturer, capped per UTC day. Called by
+   * the claim + settlement routes only; never client-addressable.
+   */
+  accrueManufacturerStanding(playerId: string, manufacturer: string, kills: number): Promise<Json>;
+  /**
    * The engine read: settle, then derive the bonus record from
    * research_completions rows (computeResearchBonuses). Every
    * research consumer on the gameplay side reads through here or
@@ -1273,6 +1319,95 @@ export class PgChefGameplayStore implements ChefGameplayStore {
   cancelResearch(playerId: string, nonce: string): Promise<Json> {
     return this.callJson('select public.cc_cancel_research($1, $2) as result', [
       playerId, nonce,
+    ]);
+  }
+
+  async getStandingFacts(playerId: string): Promise<StandingFacts | null> {
+    const profile = await this.one(
+      `select player_level, credits, account_type,
+              public.can_use_player_economy($1) as can_economy
+         from public.profiles where id = $1`,
+      [playerId],
+      (row) => ({
+        player_level: num(row.player_level),
+        credits: num(row.credits),
+        account_type: typeof row.account_type === 'string' ? row.account_type : 'guest',
+        can_economy: row.can_economy === true,
+      }),
+    );
+    if (!profile) return null;
+    try {
+      const { rows } = await this.pool.query(
+        'select manufacturer, standing, rank from public.manufacturer_standing where player_id = $1',
+        [playerId],
+      );
+      const { rows: weeklyRows } = await this.pool.query(
+        'select manufacturer, kind from public.standing_weekly_purchases where player_id = $1 and iso_week = $2',
+        [playerId, isoWeekKey(new Date())],
+      );
+      return {
+        accountType: profile.account_type,
+        canUsePlayerEconomy: profile.can_economy,
+        credits: profile.credits,
+        playerLevel: profile.player_level,
+        rows: (rows as Row[]).map((row) => ({
+          manufacturer: String(row.manufacturer),
+          standing: num(row.standing),
+          rank: num(row.rank),
+        })),
+        weeklyPurchases: (weeklyRows as Row[]).map((row) => ({
+          manufacturer: String(row.manufacturer),
+          kind: String(row.kind),
+        })),
+      };
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+
+  turnInItem(playerId: string, nonce: string, itemId: string): Promise<Json> {
+    return this.callJson('select public.cc_turn_in_item($1, $2, $3) as result', [
+      playerId, nonce, itemId,
+    ]);
+  }
+
+  rankUpManufacturer(
+    playerId: string,
+    nonce: string,
+    manufacturer: string,
+    tributeItemId: string | null,
+  ): Promise<Json> {
+    return this.callJson('select public.cc_rank_up_manufacturer($1, $2, $3, $4) as result', [
+      playerId, nonce, manufacturer, tributeItemId,
+    ]);
+  }
+
+  standingBuy(playerId: string, nonce: string, offerKey: string, quantity: number): Promise<Json> {
+    return this.callJson('select public.cc_standing_buy($1, $2, $3, $4) as result', [
+      playerId, nonce, offerKey, quantity,
+    ]);
+  }
+
+  async standingOrderWeapon(playerId: string, nonce: string, manufacturer: string): Promise<Json> {
+    const profile = await this.one(
+      'select player_level from public.profiles where id = $1',
+      [playerId],
+      (row) => ({ player_level: num(row.player_level) }),
+    );
+    const payload = generateStandingOrderWeapon({
+      playerId,
+      nonce,
+      manufacturer,
+      level: profile?.player_level ?? 1,
+    });
+    return this.callJson('select public.cc_standing_order_weapon($1, $2, $3, $4::jsonb) as result', [
+      playerId, nonce, manufacturer, JSON.stringify(payload),
+    ]);
+  }
+
+  accrueManufacturerStanding(playerId: string, manufacturer: string, kills: number): Promise<Json> {
+    return this.callJson('select public.cc_accrue_manufacturer_standing($1, $2, $3) as result', [
+      playerId, manufacturer, kills,
     ]);
   }
 

@@ -113,6 +113,15 @@ vi.mock('@/lib/chef/chefClient', () => ({
   newResearchCancelNonce: () => 'nonce',
   enrollResearch: async () => null,
   cancelResearch: async () => null,
+  getStandingState: async () => null,
+  newStandingTurnInNonce: () => 'nonce',
+  newStandingRankUpNonce: () => 'nonce',
+  newStandingBuyNonce: () => 'nonce',
+  newStandingOrderNonce: () => 'nonce',
+  turnInItem: async () => null,
+  rankUpManufacturer: async () => null,
+  standingBuy: async () => null,
+  standingOrder: async () => null,
 }));
 
 vi.mock('framer-motion', async (importOriginal) => {

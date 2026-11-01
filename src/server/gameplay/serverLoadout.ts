@@ -21,9 +21,24 @@ import { computeSkillBonuses, type ClassModBoosts } from '../../lib/skills/skill
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '../../types/items';
 import type { EquippedItemEntry } from './store';
 
+/**
+ * The manufacturer the standing use-drip pays (0043): the PRIMARY
+ * weapon's manufacturer, derived exactly the way the Chef derives
+ * the primary weapon — the first weapon-typed entry of the
+ * slot-ordered equipped array. Only the weapon slot drips; shields,
+ * class mods, relics, and ordnance never do. Null when no weapon is
+ * equipped or the weapon carries no manufacturer stamp.
+ */
+export function equippedWeaponManufacturer(equippedGear: GearItem[]): string | null {
+  const weapon = (equippedGear ?? []).find(
+    (g): g is Weapon => 'weaponType' in g,
+  );
+  const manufacturer = weapon?.manufacturer;
+  return typeof manufacturer === 'string' && manufacturer.length > 0 ? manufacturer : null;
+}
+
 /** Class mod boosts (treeBonus + nodeBoosts) from a flat gear array. */
-export function classModBoostsFromGear(equippedGear: GearItem[]): ClassModBoosts {
-  const equippedClassMod = equippedGear.find(
+export function classModBoostsFromGear(equippedGear: GearItem[]): ClassModBoosts {  const equippedClassMod = equippedGear.find(
     (g): g is ClassMod => 'treeBonus' in g,
   );
   return equippedClassMod

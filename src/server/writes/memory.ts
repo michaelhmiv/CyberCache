@@ -1548,6 +1548,20 @@ export class InMemoryWriteStore implements WriteStore {
     set.add(courseId);
   }
 
+  /**
+   * Manufacturer Standing granted ranks (0043) for this twin:
+   * `${playerId}:${manufacturer}` → granted rank. The gameplay store
+   * owns the ladders; this map records the granted facts the craft
+   * enqueue gate reads — the mirror of cc_enqueue_craft_job reading
+   * manufacturer_standing in SQL.
+   */
+  readonly standingRanks = new Map<string, number>();
+
+  /** Record a granted standing rank (the cc_rank_up_manufacturer fact). */
+  grantStandingRank(playerId: string, manufacturer: string, rank: number): void {
+    this.standingRanks.set(`${playerId}:${manufacturer}`, rank);
+  }
+
   /** The player's completion-derived research bonus record. */
   researchBonusesFor(playerId: string): ResearchBonuses {
     const set = this.researchCompletions.get(playerId);
@@ -1711,6 +1725,8 @@ export class InMemoryWriteStore implements WriteStore {
       },
       researchCompleted: (playerId, courseId) =>
         this.researchCompletions.get(playerId)?.has(courseId) ?? false,
+      standingRank: (playerId, manufacturer) =>
+        this.standingRanks.get(`${playerId}:${manufacturer}`) ?? 0,
       addMasteryXp: (playerId, track, xp) => {
         this.addMasteryXp(playerId, track, xp);
       },

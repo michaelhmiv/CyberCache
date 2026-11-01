@@ -42,6 +42,13 @@ import {
   createEnrollResearchHandler,
   createGetResearchHandler,
 } from '../routes/research';
+import {
+  createGetStandingHandler,
+  createRankUpManufacturerHandler,
+  createStandingBuyHandler,
+  createStandingOrderHandler,
+  createTurnInItemHandler,
+} from '../routes/standing';
 import type { WriteStore } from '../writes/store';
 import type { ChefGameplayStore } from './store';
 
@@ -185,4 +192,24 @@ export function mountResearchRoutes(
   app.post('/api/research/enroll', createEnrollResearchHandler(gameplayStore, config));
   app.post('/api/research/cancel', createCancelResearchHandler(gameplayStore, config));
   console.log('[chef] research routes mounted: GET /api/research/me, POST /api/research/enroll, POST /api/research/cancel (0038)');
+}
+
+/**
+ * Manufacturer Standing routes (0043): the Rep Desk read + the four
+ * desk ops on the gameplay store. Standing is a reputation track,
+ * not an activity: mounting here adds no ActivityKind and no
+ * workspace spec — the ladders accrue beside the action slot (the
+ * kill drip rides the claim + settlement paths, never a route).
+ */
+export function mountStandingRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  config: GameplayRoutesConfig,
+): void {
+  app.get('/api/standing/me', createGetStandingHandler(gameplayStore, config));
+  app.post('/api/standing/turn-in', createTurnInItemHandler(gameplayStore, config));
+  app.post('/api/standing/rank-up', createRankUpManufacturerHandler(gameplayStore, config));
+  app.post('/api/standing/buy', createStandingBuyHandler(gameplayStore, config));
+  app.post('/api/standing/order', createStandingOrderHandler(gameplayStore, config));
+  console.log('[chef] standing routes mounted: GET /api/standing/me, POST /api/standing/turn-in, POST /api/standing/rank-up, POST /api/standing/buy, POST /api/standing/order (0043)');
 }

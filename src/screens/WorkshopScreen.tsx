@@ -31,6 +31,7 @@ import { Rarity, SkillTreeType } from '@/types/game';
 import {
   fireOverclockWorkshop,
   getActionSkillState,
+  getStandingState,
   newActionSkillNonce,
 } from '@/lib/chef/chefClient';
 import {
@@ -221,6 +222,27 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const hunterWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
   const { account } = useAuth();
   const verified = isVerifiedAccount(account);
+  // Manufacturer Standing (0043): exclusive recipes gate on the
+  // maker's granted rank (server enforces in cc_enqueue_craft_job;
+  // this read drives the card's lock chip so the refusal is visible
+  // before the tap, never a surprise error).
+  const [standingRanks, setStandingRanks] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let cancelled = false;
+    getStandingState()
+      .then((result) => {
+        if (cancelled) return;
+        const ranks: Record<string, number> = {};
+        for (const m of result.standing.manufacturers) ranks[m.manufacturer] = m.rank;
+        setStandingRanks(ranks);
+      })
+      .catch(() => {
+        // Chef unreachable: cards treat standing recipes as locked.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [expandedMaterials, setExpandedMaterials] = useState(false);
   const [usageMaterialId, setUsageMaterialId] = useState<string | null>(null);
   const [selectedBenchRaw, setSelectedBench] = useState(1);
@@ -568,6 +590,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
               masteries={masteries}
               jobsOnBench={(bench) => activeJobs.filter((j) => j.bench === bench).length}
               verified={verified}
+              standingRanks={standingRanks}
               onEnqueue={(input) => workshop.enqueue(input)}
             />
           ))
@@ -746,6 +769,7 @@ const RecipeCard: React.FC<{
   masteries: Record<string, { level: number; xp: number }>;
   jobsOnBench: (bench: number) => number;
   verified: boolean;
+  standingRanks?: Record<string, number>;
   onEnqueue: (input: {
     bench: number;
     recipeId: string;
@@ -754,7 +778,7 @@ const RecipeCard: React.FC<{
     useCatalyst?: boolean;
     useRushTicket?: boolean;
   }) => Promise<boolean>;
-}> = ({ recipe, playerLevel, materials, essences, consumables, benchesOwned, masteries, jobsOnBench, verified, onEnqueue }) => {
+}> = ({ recipe, playerLevel, materials, essences, consumables, benchesOwned, masteries, jobsOnBench, verified, standingRanks, onEnqueue }) => {
   const isGear = recipe.kind === 'gear';
   const [rarity, setRarity] = useState<string>('Common');
   const requiredBenchForRarity = isGear ? gearRarityRequiresBench(rarity as Rarity) : 1;
@@ -801,10 +825,13 @@ const RecipeCard: React.FC<{
   const masteryLocked =
     recipe.requiresMastery !== undefined &&
     (masteries[recipe.requiresMastery.track]?.level ?? 1) < recipe.requiresMastery.level;
+  const standingLocked =
+    recipe.requiresStanding !== undefined &&
+    (standingRanks?.[recipe.requiresStanding.manufacturer] ?? 0) < recipe.requiresStanding.rank;
   const epicMasteryLocked = isGear && rarity === 'Epic' && (masteries['crafting.gear']?.level ?? 1) < 10;
   const materialsShort = inputRows.some((r) => !r.enough) || (useCatalyst && catalystHave < units);
   const canEnqueue =
-    verified && !levelLocked && !benchLocked && !masteryLocked && !epicMasteryLocked && !materialsShort && !benchQueueFull;
+    verified && !levelLocked && !benchLocked && !masteryLocked && !standingLocked && !epicMasteryLocked && !materialsShort && !benchQueueFull;
   const disabledReason = !verified
     ? 'Verified account required'
     : levelLocked
@@ -813,7 +840,9 @@ const RecipeCard: React.FC<{
         ? `Unlock bench ${benchSel}`
         : masteryLocked
           ? `Mastery ${recipe.requiresMastery?.level}`
-          : epicMasteryLocked
+          : standingLocked
+            ? `${recipe.requiresStanding?.manufacturer} Rank ${recipe.requiresStanding?.rank} (Rep Desk)`
+            : epicMasteryLocked
             ? 'Epic needs gear mastery 10'
             : benchQueueFull
               ? 'Bench queue full'
@@ -834,6 +863,9 @@ const RecipeCard: React.FC<{
               )}
               {recipe.requiresBench > 1 && (
                 <span className="text-[9px] px-1 py-0.5 rounded font-bold bg-surface-raised text-text-muted">Bench {recipe.requiresBench}+</span>
+              )}
+              {recipe.requiresStanding && (
+                <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${standingLocked ? 'bg-red/15 text-red' : 'bg-surface-raised text-text-muted'}`}>{recipe.requiresStanding.manufacturer} R{recipe.requiresStanding.rank}</span>
               )}
             </div>
             <div className="text-[9px] text-amber">

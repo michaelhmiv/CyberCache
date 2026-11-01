@@ -282,9 +282,11 @@ describe('DPS modifier chain', () => {
         [
           'AdrenalineShot',
           'AmmoPack',
+          'HeartwoodSightOil',
           'HighCapacityAmmoPack',
           'IncendiaryAmmo',
           'OverchargeStim',
+          'RedlineTonic',
           'TargetPainter',
           'VoidAmmo',
         ],

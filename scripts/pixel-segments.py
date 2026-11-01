@@ -242,6 +242,27 @@ def build_heads() -> None:
         d.polygon([(x - 5, int(h * 0.10)), (x + 5, int(h * 0.10)), (x, int(h * 0.10) - spike_h)], fill=rust if i % 2 else rust_d)
     d.rectangle([cx - 3, int(h * 0.06), cx + 3, int(h * 0.12)], fill=rust_d)
     save_sprite("hunter-head-fin", fin, "character", {"pivot": {"x": 0.5, "y": 0.9}})
+    # Manufacturer Standing (0043): the six rank-3 cosmetic heads —
+    # the visor glass repainted in the maker's color plus a maker
+    # stripe across the crown. Same repaint discipline as 'optic':
+    # only the bright visor pixels (g > 150 and b > 150) take the new
+    # color, so the helm's shading survives untouched.
+    maker_colors = {
+        "redline": (239, 68, 68),
+        "ironwood": (34, 197, 94),
+        "blastforge": (245, 158, 11),
+        "prismatek": (168, 85, 247),
+        "throwtech": (6, 182, 212),
+        "helixworks": (59, 130, 246),
+    }
+    for slug, (mr, mg, mb) in maker_colors.items():
+        mfr = shift_hue_region(base, (0, 0, base.size[0], base.size[1]),
+                               lambda r, g, b, c=(mr, mg, mb): c if (g > 150 and b > 150) else (r, g, b))
+        d = ImageDraw.Draw(mfr)
+        w2, h2 = mfr.size
+        d.rectangle([int(w2 * 0.30), int(h2 * 0.04), int(w2 * 0.70), int(h2 * 0.09)], fill=(mr, mg, mb, 255))
+        d.rectangle([int(w2 * 0.30), int(h2 * 0.10), int(w2 * 0.70), int(h2 * 0.12)], fill=(24, 26, 32, 255))
+        save_sprite(f"hunter-head-{slug}", mfr, "character", {"pivot": {"x": 0.5, "y": 0.9}})
 
 
 # ----------------------------------------------------------------------
