@@ -119,6 +119,69 @@ export interface CacheRankFacts {
   cache_rank_spends: Json;
 }
 
+/**
+ * A dispatch mission row (migration 0032) — the read model the
+ * /api/dispatch routes render from. Terms are the DEPARTURE
+ * snapshot; settlement facts land on the same row.
+ */
+export interface DispatchMissionRow {
+  id: string;
+  contract_family: string;
+  offer_id: string;
+  seed: string;
+  destination_area_id: string;
+  duration_hours: number;
+  status: string;
+  loadout_item_ids: string[];
+  loadout_strength: number;
+  payout_credits: number;
+  payout_scrap: number;
+  payout_material_id: string | null;
+  payout_material_units: number;
+  vehicle_item_id: string | null;
+  vehicle_class_id: string | null;
+  route_ticks: number | null;
+  fuel_charged_units: number;
+  fuel_refunded_units: number;
+  condition_at_departure: number | null;
+  wear_projected: number | null;
+  wear_applied: number | null;
+  breakdown_fraction: number | null;
+  cargo_bonus_units: number;
+  premium_multiplier: number | null;
+  payout_fraction: number | null;
+  departed_at: string;
+  ends_at: string;
+  settled_at: string | null;
+}
+
+/**
+ * An item_instances row as the dispatch routes read it: everything
+ * the term computation needs (state for eligibility, level/rarity
+ * for strength, payload + condition for courier math) — server
+ * records only, never the request body.
+ */
+export interface DispatchCandidateItem {
+  id: string;
+  kind: string;
+  runtime_state: string;
+  is_locked: boolean;
+  equipped_slot: string | null;
+  item_level: number;
+  rarity: string | null;
+  condition_current: number | null;
+  condition_max: number | null;
+  payload: Json;
+}
+
+/** Profile facts the dispatch routes derive terms from. */
+export interface DispatchProfileFacts {
+  player_level: number;
+  vehicle_fuel: number;
+  credits: number;
+  scrap: number;
+}
+
 /** active_actions row the offline-settlement handler reads. */
 export interface ActiveActionRow {
   user_id: string;
@@ -444,6 +507,43 @@ export interface ChefGameplayStore {
    */
   spendCacheRankBonus(playerId: string, nonce: string, bonusId: string): Promise<Json>;
   /**
+   * Dispatch facts (0032): profile level/fuel + every item the
+   * player owns, for the routes' term computation. Server records
+   * only.
+   */
+  getDispatchFacts(playerId: string): Promise<{ profile: DispatchProfileFacts; items: DispatchCandidateItem[] } | null>;
+  /** The player's dispatch missions (active first, then recent). */
+  listDispatchMissions(playerId: string, limit: number): Promise<DispatchMissionRow[]>;
+  /**
+   * Commit a contract (cc_dispatch_depart, 0032): the SQL applier
+   * re-validates every state fact (queue slots, item/vehicle
+   * availability, class-band gate, fuel) and locks the committed
+   * instances. `terms` is the route's content-owner snapshot.
+   * Nonce-idempotent via the ledger.
+   */
+  departDispatch(playerId: string, nonce: string, terms: Json): Promise<Json>;
+  /**
+   * The stored departure for a nonce, if one was already applied
+   * (the ledger row cc_dispatch_depart wrote). The start route
+   * consults this BEFORE pricing: after a departure the committed
+   * instances are in_service, so re-pricing a replayed request
+   * would refuse it — the nonce, not the current state, decides
+   * whether a start is a replay.
+   */
+  getDispatchDeparture(playerId: string, nonce: string): Promise<Json | null>;
+  /**
+   * Settle every due mission (cc_dispatch_settle_due, 0032):
+   * pro-rata/breakdown settlement from the mission rows' own
+   * snapshots, on the server clock. Idempotent.
+   */
+  settleDispatchDue(playerId: string): Promise<Json>;
+  /**
+   * Recall a running mission (cc_dispatch_recall, 0032): settles
+   * now at the elapsed fraction, capped at the breakdown point.
+   * Nonce-idempotent via the ledger.
+   */
+  recallDispatch(playerId: string, nonce: string, missionId: string): Promise<Json>;
+  /**
    * Victories against one boss since `dayStartIso` (UTC day start),
    * counted from the verified action ledger — the source for the
    * rematch-fee escalation (src/lib/bossFees.ts). Replayed nonces never
@@ -528,6 +628,41 @@ export function deathRecordFromJson(value: unknown): DeathRecord | null {
     areaId: typeof record.areaId === 'string' ? record.areaId : '',
     monsterId: typeof record.monsterId === 'string' ? record.monsterId : '',
     monsterName: typeof record.monsterName === 'string' ? record.monsterName : '',
+  };
+}
+
+/** Map a dispatch_missions row (0032) to the shared read model. */
+export function dispatchMissionFromRow(row: Row): DispatchMissionRow {
+  const ids = Array.isArray(row.loadout_item_ids) ? row.loadout_item_ids : [];
+  return {
+    id: String(row.id ?? ''),
+    contract_family: String(row.contract_family ?? 'foot'),
+    offer_id: String(row.offer_id ?? ''),
+    seed: String(row.seed ?? ''),
+    destination_area_id: String(row.destination_area_id ?? ''),
+    duration_hours: num(row.duration_hours),
+    status: String(row.status ?? 'active'),
+    loadout_item_ids: ids.map((v) => String(v)),
+    loadout_strength: num(row.loadout_strength),
+    payout_credits: num(row.payout_credits),
+    payout_scrap: num(row.payout_scrap),
+    payout_material_id: row.payout_material_id === null || row.payout_material_id === undefined ? null : String(row.payout_material_id),
+    payout_material_units: num(row.payout_material_units),
+    vehicle_item_id: row.vehicle_item_id === null || row.vehicle_item_id === undefined ? null : String(row.vehicle_item_id),
+    vehicle_class_id: row.vehicle_class_id === null || row.vehicle_class_id === undefined ? null : String(row.vehicle_class_id),
+    route_ticks: numOrNull(row.route_ticks),
+    fuel_charged_units: num(row.fuel_charged_units),
+    fuel_refunded_units: num(row.fuel_refunded_units),
+    condition_at_departure: numOrNull(row.condition_at_departure),
+    wear_projected: numOrNull(row.wear_projected),
+    wear_applied: numOrNull(row.wear_applied),
+    breakdown_fraction: numOrNull(row.breakdown_fraction),
+    cargo_bonus_units: num(row.cargo_bonus_units),
+    premium_multiplier: numOrNull(row.premium_multiplier),
+    payout_fraction: numOrNull(row.payout_fraction),
+    departed_at: isoOrNull(row.departed_at) ?? '',
+    ends_at: isoOrNull(row.ends_at) ?? '',
+    settled_at: isoOrNull(row.settled_at),
   };
 }
 
@@ -689,6 +824,92 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       playerId,
       nonce,
       bonusId,
+    ]);
+  }
+
+  async getDispatchFacts(playerId: string): Promise<{ profile: DispatchProfileFacts; items: DispatchCandidateItem[] } | null> {
+    const profile = await this.one(
+      'select player_level, vehicle_fuel, credits, scrap from public.profiles where id = $1',
+      [playerId],
+      (row) => ({
+        player_level: num(row.player_level),
+        vehicle_fuel: num(row.vehicle_fuel),
+        credits: num(row.credits),
+        scrap: num(row.scrap),
+      }),
+    );
+    if (!profile) return null;
+    try {
+      const { rows } = await this.pool.query(
+        `select id, kind, runtime_state, is_locked, equipped_slot, item_level, rarity,
+                condition_current, condition_max, payload
+           from public.item_instances where owner_user_id = $1
+          order by created_at asc`,
+        [playerId],
+      );
+      const items = (rows as Row[]).map((row) => ({
+        id: String(row.id ?? ''),
+        kind: String(row.kind ?? ''),
+        runtime_state: String(row.runtime_state ?? 'available'),
+        is_locked: Boolean(row.is_locked),
+        equipped_slot: row.equipped_slot === null || row.equipped_slot === undefined ? null : String(row.equipped_slot),
+        item_level: num(row.item_level),
+        rarity: row.rarity === null || row.rarity === undefined ? null : String(row.rarity),
+        condition_current: numOrNull(row.condition_current),
+        condition_max: numOrNull(row.condition_max),
+        payload: json(row.payload),
+      }));
+      return { profile, items };
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+
+  async listDispatchMissions(playerId: string, limit: number): Promise<DispatchMissionRow[]> {
+    try {
+      const { rows } = await this.pool.query(
+        `select * from public.dispatch_missions where user_id = $1
+          order by (status = 'active') desc, departed_at desc limit $2`,
+        [playerId, Math.max(1, Math.trunc(limit) || 20)],
+      );
+      return (rows as Row[]).map((row) => dispatchMissionFromRow(row));
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+
+  departDispatch(playerId: string, nonce: string, terms: Json): Promise<Json> {
+    return this.callJson('select public.cc_dispatch_depart($1, $2, $3) as result', [
+      playerId,
+      nonce,
+      JSON.stringify(terms),
+    ]);
+  }
+
+  async getDispatchDeparture(playerId: string, nonce: string): Promise<Json | null> {
+    try {
+      const { rows } = await this.pool.query(
+        `select result_payload from public.verified_action_ledger
+          where user_id = $1 and action_type = 'cc_dispatch_depart' and idempotency_key = $2
+          limit 1`,
+        [playerId, nonce],
+      );
+      const row = (rows as Row[])[0];
+      return row ? json(row.result_payload) : null;
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+
+  settleDispatchDue(playerId: string): Promise<Json> {
+    return this.callJson('select public.cc_dispatch_settle_due($1) as result', [playerId]);
+  }
+
+  recallDispatch(playerId: string, nonce: string, missionId: string): Promise<Json> {
+    return this.callJson('select public.cc_dispatch_recall($1, $2, $3) as result', [
+      playerId,
+      nonce,
+      missionId,
     ]);
   }
 

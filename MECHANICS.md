@@ -761,3 +761,72 @@ the #216 dead-bonus discipline.
 **Meters.** `cache_rank_tokens_granted` (Σ `tokens_granted` over
 `cc_cache_rank_grant`) and `cache_rank_tokens_spent` (Σ `cost` over
 `cc_cache_rank_spend`) in the daily economy metrics + in-memory twin.
+
+## 16. Dispatch + Courier Contracts (migration 0032)
+
+Timed contracts for SPARE loadouts (foot) and SPARE vehicles
+(courier), running PARALLEL to the personal action slot — roaming,
+crafting, boss, and endless are never touched. Terms are computed
+by the content owner (`src/content/dispatch.ts`) from server
+records, snapshotted into `dispatch_missions` at departure, and
+settled server-side from the row alone.
+
+**Board.** Six date-seeded offers per UTC day (families by index:
+foot, courier, foot, foot, courier, foot; area + duration
+hash-picked). The server recomputes the board at departure — a
+forged offer id never validates. Durations are 2h / 8h / 24h.
+
+**Queue slots.** One shared pool for both families, sized by the
+`dispatchQueueSlots` lever (default 2, clamp 1–8) — a subscription
+may raise it later (convenience only; nothing built).
+
+**Foot.** The player commits 1–8 spare gear items (available,
+unequipped, non-vehicle). Strength = clamp(0.5–1.5, Σ(itemLevel ×
+rarity weight) / (7 × area unlock × 1.15)). Payouts: credits =
+round(hours × area credits/min × 60 × `dispatchCreditRate` 0.4 ×
+strength); scrap likewise at `dispatchScrapRate` 0.4; materials =
+floor(hours × (1 + unlock/20) × `dispatchMaterialRate` 1 ×
+strength), the material seeded from the area's bias. At matched
+strength 1.0, dispatch pays exactly 0.4× roaming's credits/hour —
+a side faucet, never the best AFK income. No XP, no gear, no
+legendaries, no cores.
+
+**Courier.** Tiers gate on the assigned VEHICLE's class unlock
+(2h ≥ 1, 8h ≥ 18, 24h ≥ 42) — never player level. routeTicks =
+hours × `courierRouteTicksPerHour` (120). Fuel = routeTicks × the
+shipped burn formula, debited in full at departure and refused at
+shortfall (prep names the exact cell shortfall). Wear = routeTicks
+× the shipped decay formula. BREAKDOWN (R10) is deterministic: iff
+projected wear reaches departure condition, the vehicle fails at
+fraction condition/wear — settled pro-rata, unflown fuel refunded,
+vehicle home at 0 condition for the repair lane (#220). Prep shows
+projected wear, return condition, and the breakdown point before
+departure. Worked cases (High danger, 24h): Relay Skimmer — 5,760
+fuel, 115.2 wear, breaks at 100/115.2; Armored Crawler — 4,320
+fuel, 23.04 wear, returns at ~77. Credits = the foot line at
+strength 1 × `courierPremiumMultiplier` 1.6; scrap unpremiated;
+materials = foot units + floor(foot units × vehicle material
+bonus) — the Cargo Hauler's second job (Leviathan Rig: 0.15).
+
+**Settlement.** Lazy on dispatch reads/departures, IN FULL at term
+(the AFK cap does not truncate dispatch). Recall settles at the
+elapsed fraction, capped at the breakdown point. Pro-rata payouts
+floor. Departure and recall are nonce-idempotent; a consumed start
+nonce returns its stored departure even though the committed gear
+is by then in_service.
+
+**Escrow.** Committed instances are `in_service` + locked for the
+duration: refused by dispatch re-assignment, recycle (0026),
+reforge (0027), repair post/enqueue (0025), and — restated in
+0032 — equip, market create, and the item lock toggle.
+
+**Leviathan Rig (R11).** Seventh vehicle class: unlock 75, base
+yield 1.50, burn 1.6/tick, decay ×0.50, material bonus 0.15.
+Crossover vs the Skimmer: both average ~1.45 yield over 2,000
+fueled Medium-danger ticks; the Rig pulls ahead by 5,000 ticks on
+~20% less fuel (3,200 vs 4,000). Generator-gated below
+areaUnlockLevel 20 (the Skimmer pattern).
+
+**Meters.** Settle payouts fold into `credits_minted_dispatch`
+(foot) and `credits_minted_courier` in the daily economy metrics,
+both inside the minted total.

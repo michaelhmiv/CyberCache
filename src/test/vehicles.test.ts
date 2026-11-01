@@ -111,6 +111,7 @@ describe('vehicle math owners', () => {
       ['cargo_hauler', 28, 1.1],
       ['armored_crawler', 42, 1.05],
       ['relay_skimmer', 60, 1.6],
+      ['leviathan_rig', 75, 1.5],
     ];
     expect(VEHICLE_CLASSES.map((c) => [c.id, c.unlockLevel, c.baseYield])).toEqual(expected);
   });
@@ -762,8 +763,11 @@ describe('migration 0021 source pins', () => {
   });
 
   it('the SQL unlock-level twin matches the TS class table for every class', () => {
+    // The twin's current body lives in 0032 (the Leviathan restate);
+    // 0021 carries the original six rows.
+    const sql0032 = readFileSync(resolve(__dirname, '../../db/migrations/0032_dispatch.sql'), 'utf8');
     for (const def of VEHICLE_CLASSES) {
-      expect(sql).toContain(`when '${def.id}' then ${def.unlockLevel}`);
+      expect(sql + sql0032).toContain(`when '${def.id}' then ${def.unlockLevel}`);
     }
     expect(sql).toContain("'Vehicle requires hunter level %'");
   });

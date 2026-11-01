@@ -15,6 +15,7 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { HelpScreen } from './screens/HelpScreen';
 import { WorkshopScreen } from './screens/WorkshopScreen';
 import { CollectionsScreen } from './screens/CollectionsScreen';
+import { DispatchScreen } from './screens/DispatchScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
@@ -32,7 +33,7 @@ import { SettlementDebugOverlay } from './components/activity/SettlementDebugOve
 import { registerPushNotifications } from './lib/notifications/pushNotifications';
 
 type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'leaderboards' | 'profile';
-type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | null;
+type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | null;
 const topLevelTabs: TabId[] = ['dashboard', 'fight', 'inventory', 'market', 'leaderboards', 'profile'];
 
 function VerificationReminderBanner() {
@@ -149,11 +150,14 @@ function App() {
       ),
       workshop: <WorkshopScreen onNavigate={handleNavigate} />,
       collections: <CollectionsScreen />,
+      dispatch: <DispatchScreen />,
     };
     const title = subScreen === 'chest'
       ? 'Crack Cache'
       : subScreen === 'workshop'
         ? 'Workshop'
+        : subScreen === 'dispatch'
+          ? 'Dispatch'
         : subScreen === 'collections'
           ? 'Collections'
         : subScreen === 'help'

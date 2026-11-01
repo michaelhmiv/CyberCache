@@ -35,6 +35,9 @@ import {
   type ActiveActionRow,
   type ActionSkillFacts,
   type CacheRankFacts,
+  type DispatchCandidateItem,
+  type DispatchMissionRow,
+  type DispatchProfileFacts,
   type ApplyEndlessEncounterInput,
   type BossProfileRow,
   type ChefBossAttemptInput,
@@ -76,6 +79,12 @@ import {
   sanitizeCacheRankSpends,
   type CacheRankLeverValues,
 } from '../../content/cacheRank';
+import {
+  courierTierGate,
+  resolveDispatchLevers,
+  type DispatchLeverValues,
+} from '../../content/dispatch';
+import { getVehicleClass } from '../../lib/vehicles/vehicles';
 import { SkillTreeType } from '../../types/game';
 import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
 import {
@@ -283,11 +292,21 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly cacheRankGrantLog: Array<{ playerId: string; fromLevel: number; toLevel: number; tokens: number }> = [];
   /** Cache Rank spend log (0031 mirror of the cc_cache_rank_spend ledger rows). */
   readonly cacheRankSpendLog: Array<{ playerId: string; bonusId: string; rankAfter: number; cost: number }> = [];
+  /** Dispatch mission rows (migration 0032) — the mirror of dispatch_missions. */
+  readonly dispatchMissions: Array<DispatchMissionRow & { user_id: string }> = [];
+  /** Dispatch settlement log (0032 mirror of the cc_dispatch_settle ledger rows) for test introspection. */
+  readonly dispatchSettleLog: Json[] = [];
 
   constructor(
     private readonly now: () => Date = () => new Date(),
     private readonly cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>,
+    private readonly dispatchLeverProvider?: () => Partial<DispatchLeverValues>,
   ) {}
+
+  /** Dispatch levers for this twin: injected provider, else content defaults (the Pg store reads them in SQL via cc_economy_config_number). */
+  dispatchLevers(): DispatchLeverValues {
+    return resolveDispatchLevers(this.dispatchLeverProvider?.());
+  }
 
   /** Cache Rank levers for this twin: injected provider, else content defaults (the Pg store reads the live economy config). */
   cacheRankLevers(): CacheRankLeverValues {
@@ -638,6 +657,270 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       tokens: p.cache_rank_tokens,
       profile: this.snapshot(p),
     };
+    this.ledger.set(nonce, result);
+    return result;
+  }
+
+  // ─── Dispatch (0032) ─────────────────────────────────────────────
+  // Mirrors cc_dispatch_depart / cc_dispatch_settle_due /
+  // cc_dispatch_recall: same validations, same error messages, same
+  // pro-rata settlement arithmetic, same ledger payloads.
+
+  async getDispatchFacts(playerId: string): Promise<{ profile: DispatchProfileFacts; items: DispatchCandidateItem[] } | null> {
+    const p = this.profiles.get(playerId);
+    if (!p) return null;
+    const items: DispatchCandidateItem[] = [...this.items.values()]
+      .filter((i) => i.owner_user_id === playerId)
+      .map((i) => ({
+        id: i.id,
+        kind: i.kind,
+        runtime_state: i.runtime_state,
+        is_locked: i.is_locked,
+        equipped_slot: i.equipped_slot,
+        item_level: i.item_level,
+        rarity: i.rarity,
+        condition_current: i.condition_current ?? null,
+        condition_max: i.condition_max ?? null,
+        payload: JSON.parse(JSON.stringify(i.payload)) as Json,
+      }));
+    return {
+      profile: {
+        player_level: p.player_level,
+        vehicle_fuel: p.vehicle_fuel,
+        credits: p.credits,
+        scrap: p.scrap,
+      },
+      items,
+    };
+  }
+
+  async listDispatchMissions(playerId: string, limit: number): Promise<DispatchMissionRow[]> {
+    return this.dispatchMissions
+      .filter((m) => m.user_id === playerId)
+      .sort((a, b) =>
+        (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1)
+        || b.departed_at.localeCompare(a.departed_at))
+      .slice(0, Math.max(1, Math.trunc(limit) || 20))
+      .map((m) => {
+        const { user_id: _userId, ...row } = m;
+        return { ...row, loadout_item_ids: [...row.loadout_item_ids] };
+      });
+  }
+
+  /** cc_dispatch_depart mirror. */
+  async departDispatch(playerId: string, nonce: string, terms: Json): Promise<Json> {
+    if (!nonce || nonce.trim().length < 8) throw new GameplayStoreError('nonce is required');
+    const prior = this.ledger.get(nonce);
+    if (prior) return prior;
+    const p = this.requireProfile(playerId);
+    const t = terms as Record<string, unknown>;
+    const family = String(t.family ?? '');
+    const duration = Math.trunc(Number(t.duration_hours) || 0);
+    if (family !== 'foot' && family !== 'courier') throw new GameplayStoreError('Unknown dispatch family');
+    if (![2, 8, 24].includes(duration)) throw new GameplayStoreError('Invalid dispatch duration');
+    const payoutCredits = Number(t.payout_credits ?? -1);
+    const payoutScrap = Number(t.payout_scrap ?? -1);
+    const payoutUnits = Number(t.payout_material_units ?? -1);
+    if (!(payoutCredits >= 0 && payoutCredits <= 10000000)
+      || !(payoutScrap >= 0 && payoutScrap <= 1000000)
+      || !(payoutUnits >= 0 && payoutUnits <= 10000)) {
+      throw new GameplayStoreError('Dispatch payout snapshot out of bounds');
+    }
+    const slots = this.dispatchLevers().dispatchQueueSlots;
+    const activeCount = this.dispatchMissions.filter((m) => m.user_id === playerId && m.status === 'active').length;
+    if (activeCount >= slots) throw new GameplayStoreError('Dispatch queue full');
+
+    let loadoutIds: string[] = [];
+    let vehicle: InMemoryItem | null = null;
+    if (family === 'foot') {
+      loadoutIds = Array.isArray(t.loadout_item_ids) ? t.loadout_item_ids.map((v) => String(v)) : [];
+      if (loadoutIds.length < 1 || loadoutIds.length > 8) {
+        throw new GameplayStoreError('Dispatch loadout must carry 1 to 8 items');
+      }
+      let missing = false;
+      for (const id of loadoutIds) {
+        const item = this.items.get(id);
+        if (!item || item.owner_user_id !== playerId) { missing = true; continue; }
+        if (item.runtime_state !== 'available' || item.equipped_slot !== null) {
+          throw new GameplayStoreError(`Dispatch item is not spare: ${item.id}`);
+        }
+        if (item.kind === 'vehicle') {
+          throw new GameplayStoreError('Vehicles ride courier contracts, not foot loadouts');
+        }
+      }
+      if (missing || new Set(loadoutIds).size !== loadoutIds.length) {
+        throw new GameplayStoreError('Dispatch item not found');
+      }
+      for (const id of loadoutIds) {
+        const item = this.items.get(id)!;
+        item.runtime_state = 'in_service';
+        item.is_locked = true;
+      }
+    } else {
+      const vehicleId = String(t.vehicle_item_id ?? '');
+      vehicle = this.items.get(vehicleId) ?? null;
+      if (!vehicle || vehicle.owner_user_id !== playerId) throw new GameplayStoreError('Courier vehicle not found');
+      if (vehicle.kind !== 'vehicle') throw new GameplayStoreError('Courier assignment is not a vehicle');
+      if (vehicle.runtime_state !== 'available' || vehicle.equipped_slot !== null) {
+        throw new GameplayStoreError('Courier vehicle is not spare');
+      }
+      const classId = typeof vehicle.payload.vehicleClassId === 'string' ? vehicle.payload.vehicleClassId : null;
+      if (classId !== (t.vehicle_class_id ?? null)) throw new GameplayStoreError('Courier vehicle class mismatch');
+      const unlock = getVehicleClass(classId)?.unlockLevel ?? -1;
+      if (unlock < courierTierGate(duration as 2 | 8 | 24)) {
+        throw new GameplayStoreError('Vehicle class cannot run this courier tier');
+      }
+      const fuelCharged = Number(t.fuel_charged_units ?? 0);
+      if ((p.vehicle_fuel ?? 0) < fuelCharged) throw new GameplayStoreError('Insufficient vehicle fuel');
+      p.vehicle_fuel = (p.vehicle_fuel ?? 0) - fuelCharged;
+      vehicle.runtime_state = 'in_service';
+      vehicle.is_locked = true;
+    }
+
+    const departedAt = this.now();
+    const mission: DispatchMissionRow & { user_id: string } = {
+      user_id: playerId,
+      id: randomUUID(),
+      contract_family: family,
+      offer_id: String(t.offer_id ?? ''),
+      seed: String(t.seed ?? ''),
+      destination_area_id: String(t.area_id ?? ''),
+      duration_hours: duration,
+      status: 'active',
+      loadout_item_ids: [...loadoutIds],
+      loadout_strength: Number(t.loadout_strength ?? 0),
+      payout_credits: Math.trunc(payoutCredits),
+      payout_scrap: Math.trunc(payoutScrap),
+      payout_material_id: typeof t.payout_material_id === 'string' ? t.payout_material_id : null,
+      payout_material_units: Math.trunc(payoutUnits),
+      vehicle_item_id: family === 'courier' ? vehicle!.id : null,
+      vehicle_class_id: family === 'courier' ? String(t.vehicle_class_id ?? '') : null,
+      route_ticks: family === 'courier' ? Math.trunc(Number(t.route_ticks) || 0) : null,
+      fuel_charged_units: family === 'courier' ? Number(t.fuel_charged_units ?? 0) : 0,
+      fuel_refunded_units: 0,
+      condition_at_departure: family === 'courier' ? Number(t.condition_at_departure ?? 0) : null,
+      wear_projected: family === 'courier' ? Number(t.wear_projected ?? 0) : null,
+      wear_applied: null,
+      breakdown_fraction: family === 'courier' && t.breakdown_fraction !== null && t.breakdown_fraction !== undefined
+        ? Number(t.breakdown_fraction) : null,
+      cargo_bonus_units: Math.trunc(Number(t.cargo_bonus_units ?? 0)),
+      premium_multiplier: family === 'courier' ? Number(t.premium_multiplier ?? 0) : null,
+      payout_fraction: null,
+      departed_at: departedAt.toISOString(),
+      ends_at: new Date(departedAt.getTime() + duration * 3600_000).toISOString(),
+      settled_at: null,
+    };
+    this.dispatchMissions.push(mission);
+    const { user_id: _userId, ...row } = mission;
+    const result: Json = {
+      action_type: 'cc_dispatch_depart',
+      mission: JSON.parse(JSON.stringify(row)) as Json,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(nonce, result);
+    return result;
+  }
+
+  /** The stored departure for a nonce (cc_dispatch_depart ledger mirror). */
+  async getDispatchDeparture(playerId: string, nonce: string): Promise<Json | null> {
+    const prior = this.ledger.get(nonce);
+    if (!prior || prior.action_type !== 'cc_dispatch_depart') return null;
+    const mission = (prior as Record<string, unknown>).mission as Record<string, unknown> | undefined;
+    const owned = this.dispatchMissions.some(
+      (m) => m.user_id === playerId && mission && m.id === mission.id,
+    );
+    return owned ? prior : null;
+  }
+
+  /** The shared settlement (cc_dispatch_settle_mission mirror). */
+  private settleDispatchMission(
+    mission: DispatchMissionRow & { user_id: string },
+    fraction: number,
+    recalled: boolean,
+  ): Json {
+    const p = this.requireProfile(mission.user_id);
+    const f = Math.min(1, Math.max(0, fraction));
+    const credits = Math.floor(mission.payout_credits * f);
+    const scrap = Math.floor(mission.payout_scrap * f);
+    const units = Math.floor(mission.payout_material_units * f);
+    for (const id of mission.loadout_item_ids) {
+      const item = this.items.get(id);
+      if (item && item.runtime_state === 'in_service') {
+        item.runtime_state = 'available';
+        item.is_locked = false;
+      }
+    }
+    let wearApplied: number | null = null;
+    let fuelRefunded = 0;
+    if (mission.contract_family === 'courier' && mission.vehicle_item_id) {
+      wearApplied = (mission.wear_projected ?? 0) * f;
+      fuelRefunded = mission.fuel_charged_units * (1 - f);
+      const vehicle = this.items.get(mission.vehicle_item_id);
+      if (vehicle && vehicle.runtime_state === 'in_service') {
+        vehicle.runtime_state = 'available';
+        vehicle.is_locked = false;
+        vehicle.condition_current = Math.max(0, (mission.condition_at_departure ?? 0) - wearApplied);
+      }
+    }
+    p.credits += credits;
+    p.scrap += scrap;
+    if (mission.payout_material_id && units > 0) {
+      p.materials[mission.payout_material_id] = (p.materials[mission.payout_material_id] ?? 0) + units;
+    }
+    p.vehicle_fuel = (p.vehicle_fuel ?? 0) + fuelRefunded;
+    mission.status = recalled ? 'recalled' : 'settled';
+    mission.settled_at = this.now().toISOString();
+    mission.payout_fraction = f;
+    mission.wear_applied = wearApplied;
+    mission.fuel_refunded_units = fuelRefunded;
+    const result: Json = {
+      action_type: 'cc_dispatch_settle',
+      mission_id: mission.id,
+      family: mission.contract_family,
+      offer_id: mission.offer_id,
+      area_id: mission.destination_area_id,
+      duration_hours: mission.duration_hours,
+      fraction: f,
+      recalled,
+      breakdown: mission.breakdown_fraction !== null && mission.breakdown_fraction < 1
+        && f >= mission.breakdown_fraction - 0.000000001,
+      payout: {
+        credits,
+        scrap,
+        material_id: mission.payout_material_id,
+        material_units: units,
+      },
+      wear_applied: wearApplied,
+      fuel_refunded_units: fuelRefunded,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(`dispatch-settle:${mission.id}`, result);
+    this.dispatchSettleLog.push(result);
+    return result;
+  }
+
+  /** cc_dispatch_settle_due mirror: due missions settle at term (breakdown fraction when set). */
+  async settleDispatchDue(playerId: string): Promise<Json> {
+    const nowMs = this.now().getTime();
+    const due = this.dispatchMissions
+      .filter((m) => m.user_id === playerId && m.status === 'active' && Date.parse(m.ends_at) <= nowMs)
+      .sort((a, b) => a.ends_at.localeCompare(b.ends_at));
+    const settled = due.map((m) => this.settleDispatchMission(m, m.breakdown_fraction ?? 1, false));
+    return { action_type: 'cc_dispatch_settle_due', settled } as Json;
+  }
+
+  /** cc_dispatch_recall mirror: elapsed fraction, capped at the breakdown point. */
+  async recallDispatch(playerId: string, nonce: string, missionId: string): Promise<Json> {
+    if (!nonce || nonce.trim().length < 8) throw new GameplayStoreError('nonce is required');
+    const prior = this.ledger.get(nonce);
+    if (prior) return prior;
+    const mission = this.dispatchMissions.find((m) => m.id === missionId && m.user_id === playerId);
+    if (!mission) throw new GameplayStoreError('Dispatch mission not found');
+    if (mission.status !== 'active') throw new GameplayStoreError('Dispatch mission not active');
+    const elapsedMs = this.now().getTime() - Date.parse(mission.departed_at);
+    let fraction = Math.min(1, Math.max(0, elapsedMs / (mission.duration_hours * 3600_000)));
+    if (mission.breakdown_fraction !== null) fraction = Math.min(fraction, mission.breakdown_fraction);
+    const result = this.settleDispatchMission(mission, fraction, true);
     this.ledger.set(nonce, result);
     return result;
   }

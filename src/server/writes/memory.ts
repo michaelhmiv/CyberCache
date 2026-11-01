@@ -1301,7 +1301,7 @@ export class InMemoryWriteStore implements WriteStore {
     if (prior) return prior;
     const p = this.profile(playerId);
     const item = this.ownItem(playerId, itemId);
-    if (['listed', 'consumed', 'salvaged'].includes(item.runtime_state)) throw writeError('Item state invalid');
+    if (['listed', 'consumed', 'salvaged', 'in_service'].includes(item.runtime_state)) throw writeError('Item state invalid');
     item.is_locked = locked;
     item.runtime_state = locked ? 'locked' : 'available';
     this.touchItem(item);
@@ -2616,7 +2616,7 @@ export class InMemoryWriteStore implements WriteStore {
     if (prior) return prior;
     const p = this.profileOrNull(playerId);
     const item = this.ownItem(playerId, itemId);
-    if (item.account_bound || !item.tradeable || ['listed', 'equipped', 'salvaged', 'consumed'].includes(item.runtime_state)) {
+    if (item.account_bound || !item.tradeable || ['listed', 'equipped', 'salvaged', 'consumed', 'in_service'].includes(item.runtime_state)) {
       throw writeError('Item not listable');
     }
     const payload = (item.payload ?? {}) as Record<string, unknown>;

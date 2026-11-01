@@ -28,6 +28,12 @@ import {
   createSelectActionSkillHandler,
 } from '../routes/actionSkill';
 import { createGetCacheRankHandler, createSpendCacheRankHandler } from '../routes/cacheRank';
+import {
+  createGetDispatchHandler,
+  createPreviewDispatchHandler,
+  createRecallDispatchHandler,
+  createStartDispatchHandler,
+} from '../routes/dispatch';
 import type { WriteStore } from '../writes/store';
 import type { ChefGameplayStore } from './store';
 
@@ -91,4 +97,21 @@ export function mountCacheRankRoutes(
   app.get('/api/cache-rank/me', createGetCacheRankHandler(gameplayStore, config));
   app.post('/api/cache-rank/spend', createSpendCacheRankHandler(gameplayStore, config));
   console.log('[chef] cache rank routes mounted: GET /api/cache-rank/me, POST /api/cache-rank/spend (0031)');
+}
+
+/**
+ * Dispatch routes (0032): board/bay state, prep pricing, departure,
+ * and recall — all on the gameplay store. Mounted alongside the
+ * cache rank routes in index.ts.
+ */
+export function mountDispatchRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  config: GameplayRoutesConfig,
+): void {
+  app.get('/api/dispatch/me', createGetDispatchHandler(gameplayStore, config));
+  app.post('/api/dispatch/preview', createPreviewDispatchHandler(gameplayStore, config));
+  app.post('/api/dispatch/start', createStartDispatchHandler(gameplayStore, config));
+  app.post('/api/dispatch/recall', createRecallDispatchHandler(gameplayStore, config));
+  console.log('[chef] dispatch routes mounted: GET /api/dispatch/me, POST /api/dispatch/preview, /api/dispatch/start, /api/dispatch/recall (0032)');
 }

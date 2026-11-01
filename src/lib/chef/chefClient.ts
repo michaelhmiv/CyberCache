@@ -773,6 +773,147 @@ export async function spendCacheRankBonus(request: {
   );
 }
 
+/**
+ * Dispatch (0032). Timed contracts for spare loadouts (foot) and
+ * spare vehicles (courier). The client sends intent only — an offer
+ * id, item/vehicle ids, a nonce; every term (payouts, fuel, wear,
+ * breakdown) is computed server-side from server records and comes
+ * back in the responses below.
+ */
+export interface ChefDispatchOffer {
+  id: string;
+  family: 'foot' | 'courier';
+  areaId: string;
+  durationHours: number;
+  areaName: string;
+  dangerRating: string;
+  areaUnlockLevel: number;
+  areaLocked: boolean;
+}
+
+export interface ChefDispatchMission {
+  id: string;
+  contract_family: string;
+  offer_id: string;
+  destination_area_id: string;
+  duration_hours: number;
+  status: string;
+  loadout_item_ids: string[];
+  payout_credits: number;
+  payout_scrap: number;
+  payout_material_id: string | null;
+  payout_material_units: number;
+  vehicle_item_id: string | null;
+  vehicle_class_id: string | null;
+  fuel_charged_units: number;
+  fuel_refunded_units: number;
+  wear_projected: number | null;
+  wear_applied: number | null;
+  breakdown_fraction: number | null;
+  payout_fraction: number | null;
+  departed_at: string;
+  ends_at: string;
+  settled_at: string | null;
+}
+
+export interface ChefDispatchCandidate {
+  id: string;
+  kind: string;
+  name: string;
+  itemLevel: number;
+  rarity: string | null;
+  runtimeState: string;
+  equippedSlot: string | null;
+  isLocked: boolean;
+  vehicleClassId: string | null;
+  conditionCurrent: number | null;
+  conditionMax: number | null;
+}
+
+export interface ChefDispatchState {
+  slots: number;
+  slotsUsed: number;
+  playerLevel: number;
+  vehicleFuel: number;
+  offers: ChefDispatchOffer[];
+  missions: ChefDispatchMission[];
+  candidates: ChefDispatchCandidate[];
+}
+
+export interface ChefDispatchStateResult {
+  verified: true;
+  dispatch: ChefDispatchState;
+}
+
+export interface ChefDispatchPreviewResult {
+  verified: true;
+  eligible: boolean;
+  reasons: string[];
+  preview: Record<string, unknown>;
+}
+
+export interface ChefDispatchStartResult {
+  verified: true;
+  departed: Record<string, unknown>;
+  dispatch: ChefDispatchState | null;
+}
+
+export interface ChefDispatchRecallResult {
+  verified: true;
+  settlement: Record<string, unknown>;
+  dispatch: ChefDispatchState | null;
+}
+
+/** Idempotency nonce for one dispatch call — unique per tap, stable per send. */
+export function newDispatchNonce(kind: 'start' | 'recall'): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `dispatch-${kind}:${random}`;
+}
+
+export async function getDispatchState(): Promise<ChefDispatchStateResult> {
+  return endlessFetch<ChefDispatchStateResult>(
+    '/dispatch/me',
+    { method: 'GET' },
+    'Chef dispatch facts failed',
+  );
+}
+
+export async function previewDispatch(request: {
+  offerId: string;
+  itemIds?: string[];
+  vehicleItemId?: string | null;
+}): Promise<ChefDispatchPreviewResult> {
+  return endlessFetch<ChefDispatchPreviewResult>(
+    '/dispatch/preview',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef dispatch preview failed',
+  );
+}
+
+export async function startDispatch(request: {
+  nonce: string;
+  offerId: string;
+  itemIds?: string[];
+  vehicleItemId?: string | null;
+}): Promise<ChefDispatchStartResult> {
+  return endlessFetch<ChefDispatchStartResult>(
+    '/dispatch/start',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef dispatch start failed',
+  );
+}
+
+export async function recallDispatch(request: {
+  nonce: string;
+  missionId: string;
+}): Promise<ChefDispatchRecallResult> {
+  return endlessFetch<ChefDispatchRecallResult>(
+    '/dispatch/recall',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef dispatch recall failed',
+  );
+}
+
 /** Idempotency nonce for one action-skill call — unique per tap, stable per send. */
 export function newActionSkillNonce(kind: 'select' | 'workshop'): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
