@@ -37,6 +37,10 @@ export function vehicleClassWeights(areaUnlockLevel: number): Array<{ def: Vehic
     // The Relay Skimmer is weighted to high areas: it cannot drop in
     // low areas at all, and dominates nothing — it stays rare.
     if (def.id === 'relay_skimmer' && areaUnlockLevel < 20) weight = 0;
+    // The Leviathan Rig follows the Skimmer's pattern (endgame
+    // vehicle brief §2.3): weight 0 below areaUnlockLevel 20 so the
+    // flagship never drops in starter areas; base weight 1 above.
+    if (def.id === 'leviathan_rig' && areaUnlockLevel < 20) weight = 0;
     return { def, weight };
   }).filter((entry) => entry.weight > 0);
 }

@@ -90,6 +90,11 @@ export interface EconomyMetricsRow {
    *  not credits; these never touch the minted/destroyed totals. */
   cacheRankTokensGranted: number;
   cacheRankTokensSpent: number;
+  /** Dispatch mint meters (migration 0032): foot + courier settle
+   *  payouts per day from the cc_dispatch_settle ledger payloads.
+   *  Both are real mints and fold into creditsMintedTotal. */
+  creditsMintedDispatch: number;
+  creditsMintedCourier: number;
   computedAt: string;
 }
 
@@ -221,6 +226,8 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     actionSkillFiresFixer: Number(r.action_skill_fires_fixer ?? 0),
     cacheRankTokensGranted: Number(r.cache_rank_tokens_granted ?? 0),
     cacheRankTokensSpent: Number(r.cache_rank_tokens_spent ?? 0),
+    creditsMintedDispatch: Number(r.credits_minted_dispatch ?? 0),
+    creditsMintedCourier: Number(r.credits_minted_courier ?? 0),
     computedAt: typeof r.computed_at === 'string' ? r.computed_at : new Date(r.computed_at).toISOString(),
   };
 }
@@ -246,6 +253,7 @@ const METRICS_COLUMNS = `
   action_skill_fires_gunslinger, action_skill_fires_demolition,
   action_skill_fires_scavenger, action_skill_fires_fixer,
   cache_rank_tokens_granted, cache_rank_tokens_spent,
+  credits_minted_dispatch, credits_minted_courier,
   computed_at::text as computed_at`;
 
 export class PgEconomyStore implements EconomyStore {

@@ -214,6 +214,9 @@ const VehicleCard: React.FC<{
         <div className="text-sm font-black text-text-primary">
           {vehicle.name}
           {equipped && <span className="ml-2 text-[10px] font-bold text-amber">EQUIPPED</span>}
+          {vehicle.runtimeState === 'in_service' && (
+            <span className="ml-2 text-[10px] font-bold text-cyan">ON CONTRACT</span>
+          )}
         </div>
         <div className="text-[11px] text-text-muted">{vehicle.rarity}</div>
       </div>

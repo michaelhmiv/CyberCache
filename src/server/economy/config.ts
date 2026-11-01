@@ -164,6 +164,21 @@ export interface EconomyConfigValues {
   cacheRankCacheQualityPerRank: number;
   /** +market proceeds fraction per Cache Rank Silver Tongue rank. */
   cacheRankMarketProceedsPerRank: number;
+  // Dispatch + courier (0032) — content owner: src/content/dispatch.ts
+  // (DISPATCH_LEVER_DEFAULTS / DISPATCH_LEVER_CLAMPS, pinned against
+  // these literals by tests).
+  /** Concurrent dispatch missions (foot + courier, one pool). */
+  dispatchQueueSlots: number;
+  /** Foot credit line as a fraction of roaming idle credits. */
+  dispatchCreditRate: number;
+  /** Foot scrap line as a fraction of roaming idle scrap. */
+  dispatchScrapRate: number;
+  /** Scalar on the foot material line's unit count. */
+  dispatchMaterialRate: number;
+  /** Courier credit premium over the same-duration foot line. */
+  courierPremiumMultiplier: number;
+  /** Route ticks per courier contract hour. */
+  courierRouteTicksPerHour: number;
 }
 
 export type EconomyConfigKey = keyof EconomyConfigValues;
@@ -233,6 +248,12 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   cacheRankMaxHpPerRank: 0.01,
   cacheRankCacheQualityPerRank: 0.02,
   cacheRankMarketProceedsPerRank: 0.005,
+  dispatchQueueSlots: 2,
+  dispatchCreditRate: 0.4,
+  dispatchScrapRate: 0.4,
+  dispatchMaterialRate: 1,
+  courierPremiumMultiplier: 1.6,
+  courierRouteTicksPerHour: 120,
 };
 
 export interface EconomyConfigKeySpec {
@@ -497,6 +518,30 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   cacheRankMarketProceedsPerRank: {
     key: 'cacheRankMarketProceedsPerRank', min: 0, max: 0.01, integer: false,
     defaultOwner: 'src/content/cacheRank.ts CACHE_RANK_LEVER_DEFAULTS',
+  },
+  dispatchQueueSlots: {
+    key: 'dispatchQueueSlots', min: 1, max: 8, integer: true,
+    defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS',
+  },
+  dispatchCreditRate: {
+    key: 'dispatchCreditRate', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS',
+  },
+  dispatchScrapRate: {
+    key: 'dispatchScrapRate', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS',
+  },
+  dispatchMaterialRate: {
+    key: 'dispatchMaterialRate', min: 0, max: 3, integer: false,
+    defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS',
+  },
+  courierPremiumMultiplier: {
+    key: 'courierPremiumMultiplier', min: 1, max: 3, integer: false,
+    defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS (courier brief §2.8)',
+  },
+  courierRouteTicksPerHour: {
+    key: 'courierRouteTicksPerHour', min: 60, max: 240, integer: true,
+    defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS (courier brief §2.8)',
   },
 };
 

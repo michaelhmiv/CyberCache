@@ -287,11 +287,21 @@ export class InMemoryEconomyStore implements EconomyStore {
       num(dig(p, 'tokens_granted')));
     const cacheRankTokensSpent = sumBy(['cc_cache_rank_spend'], (p) => num(dig(p, 'cost')));
 
+    // Dispatch mint meters (0032): foot + courier settle payouts
+    // from the cc_dispatch_settle ledger payloads — real mints,
+    // folded into the minted total exactly as in SQL.
+    const creditsMintedDispatch = rows
+      .filter((r) => r.action_type === 'cc_dispatch_settle' && dig(r.result_payload, 'family') === 'foot')
+      .reduce((acc, r) => acc + num(dig(r.result_payload, 'payout', 'credits')), 0);
+    const creditsMintedCourier = rows
+      .filter((r) => r.action_type === 'cc_dispatch_settle' && dig(r.result_payload, 'family') === 'courier')
+      .reduce((acc, r) => acc + num(dig(r.result_payload, 'payout', 'credits')), 0);
+
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
     const creditsMintedTotal =
       creditsMintedRoaming + creditsMintedBoss + creditsMintedOffline + creditsMintedOther
-      + creditsMintedVendorBuyback + endlessCreditsPaid;
+      + creditsMintedVendorBuyback + endlessCreditsPaid + creditsMintedDispatch + creditsMintedCourier;
     const creditsDestroyedTotal =
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
       + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees
@@ -362,6 +372,8 @@ export class InMemoryEconomyStore implements EconomyStore {
       actionSkillFiresFixer,
       cacheRankTokensGranted,
       cacheRankTokensSpent,
+      creditsMintedDispatch,
+      creditsMintedCourier,
       computedAt: new Date().toISOString(),
     };
     this.metrics.set(day, row);

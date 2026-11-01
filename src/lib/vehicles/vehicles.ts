@@ -62,6 +62,14 @@ export const VEHICLE_CLASSES: VehicleClassDef[] = [
   { id: 'cargo_hauler', displayName: 'Cargo Hauler', unlockLevel: 28, baseYield: 1.1, fuelBurnPerTick: 1.3, conditionLossMultiplier: 0.95, materialYieldBonus: 0.3, role: 'Material farming support: lower raw yield, bonus material quantity.' },
   { id: 'armored_crawler', displayName: 'Armored Crawler', unlockLevel: 42, baseYield: 1.05, fuelBurnPerTick: 1.5, conditionLossMultiplier: 0.25, materialYieldBonus: 0, role: 'Dangerous-zone reliability: near-negligible wear.' },
   { id: 'relay_skimmer', displayName: 'Relay Skimmer', unlockLevel: 60, baseYield: 1.6, fuelBurnPerTick: 2.0, conditionLossMultiplier: 1.25, materialYieldBonus: 0, role: 'Fastest yield, highest fuel burn, fragile.' },
+  // The Leviathan Rig (endgame vehicle brief, DECISIONS.md R11):
+  // yield 1.50 — deliberately BELOW the Skimmer's 1.60. Its claim is
+  // SUSTAINED yield: decay 0.50 (half the Skimmer's wear rate, double
+  // the Crawler's) means its mean yield factor over 2,000 fueled
+  // ticks ties the Skimmer's 1.45 while burning ~20% less fuel, and
+  // pulls ahead beyond the crossover. Material bonus 0.15 is exactly
+  // half the Cargo Hauler's 0.30 — the Hauler keeps its identity.
+  { id: 'leviathan_rig', displayName: 'Leviathan Rig', unlockLevel: 75, baseYield: 1.5, fuelBurnPerTick: 1.6, conditionLossMultiplier: 0.5, materialYieldBonus: 0.15, role: 'Endgame flagship: near-Skimmer yield, Crawler-grade endurance, a working cargo rack.' },
 ];
 
 const CLASS_BY_ID = new Map(VEHICLE_CLASSES.map((c) => [c.id, c]));

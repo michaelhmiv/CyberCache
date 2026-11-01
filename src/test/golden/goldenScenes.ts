@@ -323,6 +323,51 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     drawHunter(img, 'aim');
     drawEnemy(img, 'dustwaste_frontier', 'runner', 'idle');
   }),
+  // Leviathan Rig (0032): the L75 endgame hauler parked at the scene
+  // edge of a high area — heaviest silhouette in the class table,
+  // cargo rack + a scuff tell so its size and wear both read.
+  scene('vehicle-roam-leviathan', (img) => {
+    drawBackground(img, AREA_BG.blastforge_yards);
+    const vehicle = loadGoldenSprite('vehicle-leviathan-rig');
+    if (vehicle) blit(img, vehicle, 2, GROUND * SCENE_H - 46, 96, 48);
+    const rack = loadGoldenSprite('vehicle-affix-cargo-rack');
+    if (rack) blit(img, rack, 2, GROUND * SCENE_H - 46, 96, 48);
+    const scuff = loadGoldenSprite('vehicle-condition-scuff');
+    if (scuff) blit(img, scuff, 2, GROUND * SCENE_H - 46, 96, 48);
+    drawHunter(img, 'aim');
+    drawEnemy(img, 'blastforge_yards', 'runner', 'idle');
+  }),
+  // Dispatch pad (0032): the contract board + route marker + a
+  // courier vehicle on the pad, mid-departure. No hunter in frame —
+  // dispatch is the spare crew's work, the hunter is elsewhere.
+  scene('dispatch-pad', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    const pad = loadGoldenSprite('set-dispatch-pad');
+    if (pad) blit(img, pad, SCENE_W * 0.5 - 70, GROUND * SCENE_H - 58, 140, 58);
+    const board = loadGoldenSprite('set-dispatch-board');
+    if (board) blit(img, board, SCENE_W - 62, GROUND * SCENE_H - 74, 52, 52);
+    const route = loadGoldenSprite('set-dispatch-route');
+    if (route) blit(img, route, 18, 14, 54, 54);
+    const vehicle = loadGoldenSprite('vehicle-utility-rover');
+    if (vehicle) blit(img, vehicle, SCENE_W * 0.5 - 44, GROUND * SCENE_H - 42, 88, 44);
+  }),
+  // Courier return, worn (0032): an Armored Crawler back from a
+  // Deep Haul at ~77 condition — scuff tell on the hull, cargo
+  // crates stacked at the pad edge (the cargo line made visible).
+  scene('dispatch-courier-return-worn', (img) => {
+    drawBackground(img, AREA_BG.dustwaste_frontier);
+    const pad = loadGoldenSprite('set-dispatch-pad');
+    if (pad) blit(img, pad, SCENE_W * 0.5 - 70, GROUND * SCENE_H - 58, 140, 58);
+    const vehicle = loadGoldenSprite('vehicle-armored-crawler');
+    if (vehicle) blit(img, vehicle, SCENE_W * 0.5 - 46, GROUND * SCENE_H - 44, 92, 46);
+    const scuff = loadGoldenSprite('vehicle-condition-scuff');
+    if (scuff) blit(img, scuff, SCENE_W * 0.5 - 46, GROUND * SCENE_H - 44, 92, 46);
+    // Cargo piles: the delivered materials, stacked crates.
+    fillRect(img, SCENE_W - 74, GROUND * SCENE_H - 22, 16, 12, [104, 82, 54], 255);
+    fillRect(img, SCENE_W - 74, GROUND * SCENE_H - 23, 16, 2, [76, 58, 38], 255);
+    fillRect(img, SCENE_W - 56, GROUND * SCENE_H - 22, 16, 12, [76, 58, 38], 255);
+    fillRect(img, SCENE_W - 65, GROUND * SCENE_H - 33, 14, 11, [104, 82, 54], 255);
+  }),
   // Collections (0026): the trophy shelf. Found legendaries sit in
   // full color on the top plank — the center frame under the G-1
   // legendary beam — while the unproven entries below read as dark
