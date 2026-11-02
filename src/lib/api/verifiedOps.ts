@@ -243,10 +243,11 @@ export interface ShowcaseItemPayload {
 }
 
 /**
- * The lifetime record read (GET /api/profile/stats, 0034): every
- * figure folded server-side from server records (verified-action
- * ledger, discoveries, run/mission/job rows) — proven facts only.
- * The showcase block is the trophy shelf's projection of the same
+ * The lifetime record read (GET /api/profile/stats, 0034; gaps
+ * closed by 0051): every figure folded server-side from server
+ * records (verified-action ledger, discoveries, run/mission/job
+ * rows, the kill + lifetime counters) — proven facts only. The
+ * showcase block is the trophy shelf's projection of the same
  * fold. A read, not a verified op.
  */
 export interface ProfileLifetimePayload {
@@ -254,8 +255,18 @@ export interface ProfileLifetimePayload {
     roaming: number;
     by_area: Record<string, number>;
     by_weapon_type: Record<string, number>;
+    /** Accrues from claims settled after 0051 — earlier kills carry no element attribution. */
+    by_element: Record<string, number>;
     elites: number;
     named_elites_downed: number;
+  };
+  /** Lifetime deaths — the full server death record (backfilled to 0013). */
+  deaths: number;
+  credits: {
+    earned: number;
+    spent: number;
+    /** When credit counting began for this player; earlier credit history was never recorded. */
+    since: string | null;
   };
   bosses: {
     attempts: number;

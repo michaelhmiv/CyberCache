@@ -52,6 +52,16 @@ Bonuses add on top — the Scavenger keystone's +4 hours is the big one — but 
 
 When you return, everything that settled is summarised in the while-you-were-away recap on [[The Board]].
 
+## Your Lifetime Record
+
+Your Profile carries a **Lifetime Record** under the Trophy Shelf: the all-time, server-proven account of your hunter — roaming kills by area, weapon type, and element; boss attempts and victories; salvage and legendary cores; crafting, repair, dispatch, and market history. Every figure is folded from the game's own server records; nothing is estimated.
+
+Three figures carry their history on their face:
+
+- **Lifetime deaths** counts every death the server has recorded — the full record, reaching back to when deaths first became server-recorded facts.
+- **Credits earned / credits spent** count every credit change since the count began (the record's start is shown on the panel). Credit movements before that were never recorded flow-by-flow, so the totals honestly start there rather than pretending to reach further back.
+- **Kills by element** accrue from the current record forward: earlier kills were recorded by weapon type only, so they carry no element attribution.
+
 ## Cache Rank
 
 Cache Rank lives on the **Hunter tab**, on its own rail stop — the
@@ -77,4 +87,4 @@ Mastery is not decorative. Mastery levels feed real mechanics — crafting maste
 
 ---
 
-_Source of truth: `src/content/simulation.ts`, `src/content/xpResolver.ts`, `src/content/offlineCap.ts`, `src/content/cacheRank.ts`, `src/constants/skillTrees.ts`, `db/migrations/0004_write_apis.sql`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._
+_Source of truth: `src/content/simulation.ts`, `src/content/xpResolver.ts`, `src/content/offlineCap.ts`, `src/content/cacheRank.ts`, `src/constants/skillTrees.ts`, `db/migrations/0004_write_apis.sql`, `db/migrations/0051_profile_lifetime_counters.sql`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

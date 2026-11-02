@@ -164,18 +164,34 @@ export interface CollectionsData {
 }
 
 // ---------------------------------------------------------------------------
-// Profile lifetime stats + trophy showcase (0034 read).
+// Profile lifetime stats + trophy showcase (0034 read; gaps closed
+// by 0051).
 //
 // Every figure folds from server records only — the verified action
 // ledger, collection_discoveries, endless_runs, dispatch_missions,
 // craft_jobs, service_jobs, consumable_events, extraction_state,
-// market_listings, player_kill_stats (0034), and the player's own
+// market_listings, player_kill_stats (0034), player_kill_element_
+// stats + player_lifetime_counters (0051), and the player's own
 // item_instances. Nothing is computed from client state and nothing
 // is estimated: a stat the records cannot prove is simply absent
-// from this payload (the gaps are listed in the slice PR — lifetime
-// deaths, lifetime credits earned/spent, kills by element, and
-// legendary items found by source beyond the discovery-proven
-// subset have no complete server record).
+// from this payload.
+//
+// The three #234 gaps closed in 0051, with their provenance:
+//  - Lifetime deaths: a durable counter (cc_record_death increments
+//    it on the recorded path), backfilled exactly — a resurrection
+//    succeeds only against a standing death and writes one ledger
+//    row per success, so past deaths = resurrect rows + a standing
+//    death, complete since 0013 created the death record.
+//  - Lifetime credits earned/spent: a durable counter fed by a
+//    trigger on profiles.credits (every applied delta, any writer).
+//    Pre-0051 credit history was never recorded per-flow, so the
+//    counter starts at 0051 and the payload carries credits_since —
+//    the figure is never presented as all-time history it is not.
+//  - Kills by element: accrued by cc_record_kill_stats alongside
+//    the weapon type from 0051 on; earlier kills carry no element
+//    attribution (the same rule 0034 set for weapon types).
+// The one remaining gap: legendary items found by source beyond
+// the discovery-proven subset has no complete server record.
 // ---------------------------------------------------------------------------
 
 /** One verified_action_ledger row (own rows; the fold reads result_payload only). */
@@ -248,6 +264,17 @@ export interface ProfileLifetimeInput {
   extraction: { finalized_passes: number; total_xp_awarded: number } | null;
   /** player_kill_stats (0034): weapon type → lifetime roaming kills. */
   killStats: Record<string, number>;
+  /** player_kill_element_stats (0051): element → roaming kills; accrues only from 0051. */
+  killElementStats: Record<string, number>;
+  /** player_lifetime_counters (0051): the durable server-recorded counters. */
+  lifetime: {
+    /** Lifetime deaths (backfilled to the 0013 record; see the header provenance). */
+    deaths: number;
+    credits_earned: number;
+    credits_spent: number;
+    /** When credit counting began for this player (counter row creation); null when no row exists. */
+    credits_since: string | null;
+  };
   /** The player's own runtime items (showcase ranking input). */
   items: RuntimeItemData[];
 }
@@ -259,9 +286,21 @@ export interface ProfileLifetimeData {
     by_area: Record<string, number>;
     /** From player_kill_stats (0034) — accrues only from claims settled after 0034. */
     by_weapon_type: Record<string, number>;
+    /** From player_kill_element_stats (0051) — accrues only from claims settled after 0051. */
+    by_element: Record<string, number>;
     /** Elite kills (roaming.elite_kill telemetry sums, 0023). */
     elites: number;
     named_elites_downed: number;
+  };
+  /** Lifetime deaths (0051 counter; backfilled to the 0013 death record). */
+  deaths: number;
+  credits: {
+    /** Every credit gained since counting began (0051 trigger on profiles.credits). */
+    earned: number;
+    /** Every credit spent since counting began. earned − spent = the balance change since. */
+    spent: number;
+    /** When counting began for this player; null = no credit movement tracked yet. */
+    since: string | null;
   };
   bosses: {
     attempts: number;
@@ -1162,8 +1201,15 @@ export function computeProfileLifetime(input: ProfileLifetimeInput): ProfileLife
       roaming: roamingKills,
       by_area: killsByArea,
       by_weapon_type: { ...input.killStats },
+      by_element: { ...input.killElementStats },
       elites: eliteKills,
       named_elites_downed: namedElitesDowned,
+    },
+    deaths: input.lifetime.deaths,
+    credits: {
+      earned: input.lifetime.credits_earned,
+      spent: input.lifetime.credits_spent,
+      since: input.lifetime.credits_since,
     },
     bosses: {
       attempts: bossAttempts,
@@ -1414,6 +1460,13 @@ export interface ReadSeed {
   extractionStates?: Array<{ user_id: string; finalized_passes: number; total_xp_awarded: number }>;
   /** player_kill_stats rows (0034). Optional. */
   killStats?: Array<{ user_id: string; weapon_type: string; kills: number }>;
+  /** Element kill rows (0051). Optional: older seeds omit it. */
+  killElementStats?: Array<{ user_id: string; element: string; kills: number }>;
+  /** Lifetime counter rows (0051). Optional: older seeds omit it. */
+  lifetimeCounters?: Array<{
+    user_id: string; deaths: number; credits_earned: number; credits_spent: number;
+    tracking_started_at: string;
+  }>;
   /** Weekly leaderboard settlement rows (0035). Optional. */
   leaderboardSettlements?: Array<{ week_key: string; settled_at: string }>;
   /** Weekly leaderboard reward rows (0035). Optional. */
@@ -1510,6 +1563,11 @@ export class InMemoryReadStore implements ReadStore {
     for (const row of this.seed.killStats ?? []) {
       if (row.user_id === playerId) killStats[row.weapon_type] = row.kills;
     }
+    const killElementStats: Record<string, number> = {};
+    for (const row of this.seed.killElementStats ?? []) {
+      if (row.user_id === playerId) killElementStats[row.element] = row.kills;
+    }
+    const lifetimeRow = (this.seed.lifetimeCounters ?? []).find((r) => r.user_id === playerId);
     const extraction = (this.seed.extractionStates ?? []).find((s) => s.user_id === playerId);
     return computeProfileLifetime({
       profile: {
@@ -1534,6 +1592,13 @@ export class InMemoryReadStore implements ReadStore {
         ? { finalized_passes: extraction.finalized_passes, total_xp_awarded: extraction.total_xp_awarded }
         : null,
       killStats,
+      killElementStats,
+      lifetime: {
+        deaths: lifetimeRow?.deaths ?? 0,
+        credits_earned: lifetimeRow?.credits_earned ?? 0,
+        credits_spent: lifetimeRow?.credits_spent ?? 0,
+        credits_since: lifetimeRow?.tracking_started_at ?? null,
+      },
       items: await this.getMyRuntimeItems(playerId),
     });
   }
@@ -2139,6 +2204,18 @@ export class PgReadStore implements ReadStore {
     );
     const killStats: Record<string, number> = {};
     for (const row of killRows as Row[]) killStats[String(row.weapon_type)] = num(row.kills);
+    const { rows: elementRows } = await this.db.query(
+      'select element, kills from public.player_kill_element_stats where user_id = $1',
+      [playerId],
+    );
+    const killElementStats: Record<string, number> = {};
+    for (const row of elementRows as Row[]) killElementStats[String(row.element)] = num(row.kills);
+    const { rows: lifetimeRows } = await this.db.query(
+      `select deaths, credits_earned, credits_spent, tracking_started_at
+         from public.player_lifetime_counters where user_id = $1`,
+      [playerId],
+    );
+    const lifetimeRow = (lifetimeRows as Row[])[0];
 
     return computeProfileLifetime({
       profile: {
@@ -2192,6 +2269,17 @@ export class PgReadStore implements ReadStore {
           }
         : null,
       killStats,
+      killElementStats,
+      lifetime: {
+        deaths: lifetimeRow ? num(lifetimeRow.deaths) : 0,
+        credits_earned: lifetimeRow ? num(lifetimeRow.credits_earned) : 0,
+        credits_spent: lifetimeRow ? num(lifetimeRow.credits_spent) : 0,
+        credits_since: lifetimeRow
+          ? (lifetimeRow.tracking_started_at instanceof Date
+            ? lifetimeRow.tracking_started_at.toISOString()
+            : (typeof lifetimeRow.tracking_started_at === 'string' ? lifetimeRow.tracking_started_at : null))
+          : null,
+      },
       items: await this.getMyRuntimeItems(playerId),
     });
   }

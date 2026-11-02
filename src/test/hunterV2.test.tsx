@@ -128,7 +128,9 @@ function weeklyPayload(overrides: Partial<WeeklyLeaderboards> = {}): WeeklyLeade
 
 function lifetimePayload(collectionsDiscovered: number): ProfileLifetimePayload {
   return {
-    kills: { roaming: 0, by_area: {}, by_weapon_type: {}, elites: 0, named_elites_downed: 0 },
+    kills: { roaming: 0, by_area: {}, by_weapon_type: {}, by_element: {}, elites: 0, named_elites_downed: 0 },
+    deaths: 0,
+    credits: { earned: 0, spent: 0, since: null },
     bosses: { attempts: 0, victories: 0, by_boss: {}, downed: 0 },
     endless: { runs: 0, best_depth: 0, deaths: 0, banked: 0, abandoned: 0 },
     legendaries: { salvaged: 0, cores_minted: 0, cores_spent: 0, cores_balance: 0, discoveries_by_source: {} },
@@ -302,6 +304,30 @@ describe('Hunter arrangement — Trophy tile door + Collections stop', () => {
     fireEvent.click(await screen.findByTestId('hunter-stop-collections'));
     const entry = await screen.findByTestId(`collection-entry-boss-${collectionEntriesForFamily('boss')[0].key}`);
     expect(entry.getAttribute('data-found')).toBe('false');
+  });
+});
+
+describe('Lifetime Record — partial payloads never blank the Profile screen', () => {
+  it('a legacy payload (no by_element, no deaths, no credits) still renders the record and the shelf', async () => {
+    // The pre-0051 wire shape: kills carried no element map and the
+    // payload had no lifetime-counters block at all. This exact shape
+    // once threw inside the panel and blanked the whole screen.
+    const legacy = lifetimePayload(2) as unknown as Record<string, unknown>;
+    delete (legacy.kills as Record<string, unknown>).by_element;
+    delete legacy.deaths;
+    delete legacy.credits;
+    vi.mocked(fetchProfileLifetime).mockResolvedValue(legacy as ProfileLifetimePayload);
+    vi.mocked(fetchCollections).mockResolvedValue({ legendary_cores: 0, discoveries: [] });
+
+    render(<ProfileScreen onNavigate={() => {}} />);
+
+    // The panel renders its empty states instead of throwing.
+    const panel = await screen.findByTestId('lifetime-stats');
+    expect(panel.textContent).toContain('Lifetime Record');
+    expect(panel.textContent).toContain('No element kills on record yet.');
+    expect(panel.textContent).toContain('Lifetime deaths');
+    // And the rest of the screen survives with it.
+    expect(await screen.findByTestId('trophy-collections-tile')).toBeTruthy();
   });
 });
 
