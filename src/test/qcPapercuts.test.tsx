@@ -10,6 +10,10 @@
  *     protruded (-top-1.5 -right-1.5) while every host button
  *     clips at its own box (overflow-hidden + .bl-panel's
  *     clip-path). The badge now sits fully inside the corner.
+ *     (Fix pass on PR #293: the streak pill's corner reservation
+ *     was 2px too small for the enlarged badge and its label's
+ *     last glyph tucked under it — "DAY 1" read as "DAY ". Every
+ *     badged pill's padding reservation is now pinned below.)
  *  3. Collections family header: the title and its blurb shared
  *     one inline run (the blurb collided with the title) and the
  *     "0 / 25" counter wrapped at the right edge. Title, blurb,
@@ -229,6 +233,40 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
     const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
     expect(topBar).toContain('absolute right-1 top-1 z-10');
     expect(topBar).not.toContain('absolute -top-1.5 -right-1.5');
+  });
+
+  // Fix pass on PR #293 (parent-verified from the F1 captures):
+  // the NEW badge is ~36px wide at its right-1 inset, so the
+  // streak pill's pr-10 reservation left ~zero air and the
+  // label's last glyph tucked under the badge on Home —
+  // "DAY 1" rendered as "DAY ". Every badged pill must reserve
+  // its corner in padding (DESIGN.md §6: adapt the host, never
+  // shrink the type); jsdom has no layout, so the reservation
+  // is pinned as a class contract, with the 412×915 capture as
+  // the geometry proof.
+  it('the streak pill reserves its corner while the NEW badge is up — the Day label prints whole', async () => {
+    mockStreak.mockResolvedValue(streakResult(false));
+    render(<HomeScreen onNavigate={() => {}} />);
+
+    const button = await screen.findByTestId('top-streak-button');
+    await waitFor(() => expect(button.textContent).toContain('NEW'));
+    // The full label is present…
+    expect(button.textContent).toContain('Day 3');
+    // …and the pill carries the pr-12 corner reservation, the
+    // same reservation the level pill gives its AWAY badge —
+    // never the pr-10 that let the glyph tuck under the badge.
+    expect(button.className).toContain('pr-12');
+    expect(button.className).not.toContain('pr-10');
+  });
+
+  it('source: every badged claims-row pill reserves its badge corner in padding', () => {
+    const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
+    // Level: the progress block reserves the AWAY badge's corner.
+    expect(topBar).toContain("awayPending ? 'pr-12' : ''");
+    // Contracts: count / lock badges reserve via pr-9.
+    expect(topBar).toContain("contractsPulsing || contractsGuestLocked ? 'pr-9' : ''");
+    // Weekly: the count badge's corner is reserved outright.
+    expect(topBar).toContain('pl-2.5 pr-9');
   });
 });
 

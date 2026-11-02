@@ -100,7 +100,9 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
 
   return (
     <div className="bl-page space-y-4 pb-20">
-      <ResourceBar className="px-4 pt-3" />
+      <div className="px-4 pt-3">
+        <ResourceBar onOpenSettings={() => onNavigate('settings')} />
+      </div>
       <div className="px-4">
         <GearRail activeStop={activeStop} onSelect={goToStop} workshopJobs={queueCount} />
       </div>

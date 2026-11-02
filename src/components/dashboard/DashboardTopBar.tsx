@@ -186,66 +186,71 @@ export const DashboardTopBar: React.FC = () => {
 
   return (
     <>
+      {/* The claim row (drift-fix F1): the same four doors as
+          before, compressed from 52px stacked panels to one thin
+          row of pills (DESIGN.md §4 step 2 — claim chips sit
+          directly under the Strip). Every door, badge, pulse, and
+          sheet is unchanged; badges keep their inset corner, and
+          a pill carrying one reserves that corner in its padding
+          (DESIGN.md §6: adapt the host, never shrink the type). */}
       <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-2">
-        {/* Level — progress bar; the chip is the Return Sheet's
-            door while a settlement exists (DESIGN.md §3/§10),
-            and the level pop-up's door otherwise. */}
+        {/* Level — LV chip + slim progress + readout on one line;
+            the pill is the Return Sheet's door while a settlement
+            exists (DESIGN.md §3/§10), and the level pop-up's door
+            otherwise. The XP truth is the same curve the Strip's
+            fused hairline reads. */}
         <button
           type="button"
           data-testid="top-level-button"
           aria-label={levelLabel}
           onClick={() => setSheet(lastSettlement ? 'return' : 'level')}
-          className="bl-panel relative min-h-[52px] min-w-0 flex-1 overflow-hidden px-3 py-2 text-left"
+          className="bl-panel relative flex min-h-[40px] min-w-0 flex-1 items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
         >
           {awayPending && <PulseGlow color="#F2C063" testId="level-away-pulse" />}
           {awayPending && <CornerBadge text="AWAY" color="#F2C063" />}
-          <span className="relative flex items-center gap-2.5">
-            <span
-              className="flex h-8 w-8 shrink-0 rotate-45 items-center justify-center border-2 border-black/60 bg-amber"
-              aria-hidden
-            >
-              <span className="-rotate-45 text-center leading-none">
-                <span className="block text-[7px] font-black tracking-widest text-black/70">LV</span>
-                <span className="block text-[13px] font-black text-black">{level}</span>
-              </span>
+          <span
+            className="flex shrink-0 items-center gap-1 border-2 border-black/60 bg-amber px-1.5 py-0.5"
+            aria-hidden
+          >
+            <span className="text-[11px] font-black tracking-widest text-black/70">LV</span>
+            <span className="text-[13px] font-black leading-none text-black">{level}</span>
+          </span>
+          {/* While the AWAY badge is up, the progress block reserves
+              the badge's corner (DESIGN.md §6) so the XP readout
+              never tucks under the enlarged badge. */}
+          <span className={`flex min-w-0 flex-1 items-center gap-2 ${awayPending ? 'pr-12' : ''}`}>
+            <span className="block h-1.5 min-w-[12px] flex-1 overflow-hidden border border-black/50 bg-black/40">
+              <motion.span
+                className="block h-full bg-amber"
+                initial={false}
+                animate={{ width: `${xpProgress}%` }}
+                transition={{ type: 'spring', damping: 20 }}
+              />
             </span>
-            {/* While the AWAY badge is up, the text block reserves
-                the badge's corner (DESIGN.md §6: adapt the host,
-                never shrink the type) so the XP readout never tucks
-                under the enlarged badge. */}
-            <span className={`min-w-0 flex-1 ${awayPending ? 'pr-12' : ''}`}>
-              <span className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-[11px] font-black uppercase tracking-wider text-text-muted">
-                  Level Progress
-                </span>
-                <span className="shrink-0 text-[11px] font-bold tabular-nums text-text-muted">
-                  {xp} / {xpNeeded} XP
-                </span>
-              </span>
-              <span className="mt-1 block h-2 overflow-hidden border border-black/50 bg-black/40">
-                <motion.span
-                  className="block h-full bg-amber"
-                  initial={false}
-                  animate={{ width: `${xpProgress}%` }}
-                  transition={{ type: 'spring', damping: 20 }}
-                />
-              </span>
+            <span className="shrink-0 whitespace-nowrap text-[11px] font-bold tabular-nums text-text-muted">
+              {xp} / {xpNeeded} XP
             </span>
           </span>
         </button>
 
-        {/* Daily streak — icon + pop-up door */}
+        {/* Daily streak — icon + pop-up door. While the NEW badge
+            is up, the pill reserves its corner (pr-12): the badge
+            is ~36px wide at its inset, so pr-10 left ~zero air and
+            the label's last glyph ("Day 1" → "DAY ") tucked under
+            it — the fix-pass defect on PR #293's captures. pr-12
+            keeps the full label clear of the badge, the same
+            reservation the level pill gives its AWAY badge. */}
         <button
           type="button"
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className="bl-panel relative flex min-h-[52px] min-w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-2 py-1.5"
+          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakJustClaimed ? 'pr-12' : ''}`}
         >
           {streakJustClaimed && <PulseGlow color={STREAK_ACCENT} testId="streak-claim-pulse" />}
           {streakJustClaimed && <CornerBadge text="NEW" color={STREAK_ACCENT} />}
-          <PxIcon name="flame" size={17} />
-          <span className="text-[11px] font-black uppercase tracking-wider text-text-muted">
+          <PxIcon name="flame" size={15} />
+          <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
             {streakDay !== null ? `Day ${streakDay}` : 'Streak'}
           </span>
         </button>
@@ -256,18 +261,18 @@ export const DashboardTopBar: React.FC = () => {
           data-testid="top-contracts-button"
           aria-label={contractsLabel}
           onClick={() => setSheet('contracts')}
-          className="bl-panel relative flex min-h-[52px] min-w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-2 py-1.5"
+          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${contractsPulsing || contractsGuestLocked ? 'pr-9' : ''}`}
         >
           {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
           {contractsGuestLocked && <CornerBadge icon="lock" color="#8A847C" />}
-          <PxIcon name="orders" size={17} />
-          <span className="text-[11px] font-black uppercase tracking-wider text-text-muted">
+          <PxIcon name="orders" size={15} />
+          <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
             Orders
           </span>
         </button>
 
-        {/* Weekly claimables — chip; renders only while a weekly
+        {/* Weekly claimables — pill; renders only while a weekly
             Parts Crate / Signature Order is claimable (§9). */}
         {weeklyCount > 0 && (
           <button
@@ -275,12 +280,12 @@ export const DashboardTopBar: React.FC = () => {
             data-testid="top-weekly-button"
             aria-label={weeklyLabel}
             onClick={() => setSheet('weekly')}
-            className="bl-panel relative flex min-h-[52px] min-w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-2 py-1.5"
+            className="bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden py-1.5 pl-2.5 pr-9"
           >
             <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
             <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
-            <PxIcon name="crate" size={17} />
-            <span className="text-[11px] font-black uppercase tracking-wider text-text-muted">
+            <PxIcon name="crate" size={15} />
+            <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
               Weekly
             </span>
           </button>

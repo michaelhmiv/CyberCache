@@ -215,7 +215,10 @@ describe('Dashboard top — first paint', () => {
     const xp = Math.floor(needed / 2);
     expect(levelButton.getAttribute('aria-label')).toContain(`${xp} of ${needed} XP`);
     expect(levelButton.textContent).toContain(`${xp} / ${needed} XP`);
-    expect(levelButton.className).toContain('min-h-[52px]');
+    // Drift-fix F1: the claim row compressed from 52px stacked
+    // panels to one thin row of pills (DESIGN.md §4 step 2) — the
+    // level door is a 40px pill now, same sheet behind it.
+    expect(levelButton.className).toContain('min-h-[40px]');
 
     // Document order: ResourceBar chips → top bar → Hunter Totals
     // (the first scroll surface). Nothing above the top bar needs

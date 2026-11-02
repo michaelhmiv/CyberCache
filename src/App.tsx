@@ -274,7 +274,7 @@ function App() {
             <TabErrorBoundary surface="Market">
               {/* No whole-tab gate: the NPC vendor is open to guests.
                   MarketScreen gates its player-market tabs internally. */}
-              <MarketScreen />
+              <MarketScreen onNavigate={handleNavigate} />
             </TabErrorBoundary>
           )}
           {activeTab === 'hunter' && <TabErrorBoundary surface="Profile"><ProfileScreen onNavigate={handleNavigate} focusSection={profileFocus} /></TabErrorBoundary>}
