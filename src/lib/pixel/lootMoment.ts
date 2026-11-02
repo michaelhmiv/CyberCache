@@ -356,3 +356,44 @@ export function gearDropFromEvent(event: TickEvent | undefined): GearItem | null
   if (isTickHit(event)) return null;
   return event.gear;
 }
+
+/**
+ * Loot-rise honesty (Michael's ruling, 2026-11-02): the rise over the kill
+ * site must picture what the tick ACTUALLY granted — never the cache crate
+ * for a lesser find. The mapping is driven by the grant the event carries:
+ *
+ * - tone 'fragment' — a cache-key fragment (value = fragments awarded;
+ *   5 fragments settle into 1 key in the rewards layer) → key-shard rise.
+ * - tone 'material' / 'essence' — a material or essence find → its own icon.
+ * - tone 'kill' — every tick pays base credits + scrap + XP (chef.ts),
+ *   and tone 'cash' pays credits/scrap → the scrap (or coin) rise.
+ * - tone 'cache' — the union's real cache-grant tone (a completed key or
+ *   an actual Cache Box grant) → the crate rise. No roaming producer
+ *   emits it today, so the crate is unreachable from roaming ticks —
+ *   that is the correct outcome, not a gap to fill with an invented grant.
+ * - Gear drops are the LootMoment's, and damage ticks (tone 'loot',
+ *   label '-N') are not loot at all: both map to null here.
+ */
+export type LootRiseVisual = 'crate' | 'fragment' | 'material' | 'essence' | 'scrap' | 'credits';
+
+export function lootRiseVisualForEvent(event: TickEvent | undefined): LootRiseVisual | null {
+  if (!event || event.id === 'idle-loop-ready') return null;
+  if (gearDropFromEvent(event)) return null;
+  switch (event.tone) {
+    case 'cache':
+      return 'crate';
+    case 'fragment':
+      return 'fragment';
+    case 'material':
+      return 'material';
+    case 'essence':
+      return 'essence';
+    case 'kill':
+      // Kill ticks always pay base scrap alongside credits and XP.
+      return 'scrap';
+    case 'cash':
+      return event.label.toLowerCase().includes('scrap') ? 'scrap' : 'credits';
+    default:
+      return null;
+  }
+}

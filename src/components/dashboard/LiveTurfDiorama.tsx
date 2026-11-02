@@ -67,7 +67,7 @@ function headVariantPreference(): HunterHeadVariantId {
   }
 }
 import { LootMoment } from '@/components/pixelArt/LootMoment';
-import { gearDropFromEvent } from '@/lib/pixel/lootMoment';
+import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMoment';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore } from '@/store';
 import { MONSTERS, getMonster } from '@/constants/monsters';
@@ -695,11 +695,13 @@ const PixelSceneLayer: React.FC<{
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
   const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
-  const lootLike = isLootLike(event) && !reduced;
   // A real gear drop on the latest event gets the P3 loot moment (beam +
-  // card at the enemy's loot point); other loot-like events keep the
-  // crate rise below. Hit ticks share tone 'loot' but carry no gear.
+  // card at the enemy's loot point). Every other grant gets the rise
+  // that pictures it via lootRiseVisualForEvent — the cache crate is
+  // reserved for real cache grants, never lesser loot. Hit ticks share
+  // tone 'loot' but carry no gear and get no rise at all.
   const dropItem = gearDropFromEvent(event);
+  const lootRise = reduced ? null : lootRiseVisualForEvent(event);
   const crate = getPixelSprite('crate');
   const [enemyLanded, setEnemyLanded] = useState(false);
 
@@ -1178,11 +1180,40 @@ const PixelSceneLayer: React.FC<{
         </div>
       )}
 
-      {/* Loot crate rise on loot-like events that are not gear drops
-          (fragments, materials, cache ticks) */}
-      {lootLike && !dropItem && crate && (
+      {/* Loot rises (visual honesty): the rise at the enemy's loot point
+          pictures the grant the tick actually carried — key shard for a
+          cache fragment, the material/essence icon for a find, a scrap
+          rise for a kill payout. Icons reuse the scene's drop vocabulary
+          (DropVisualIcon / resource silhouettes). The cache crate below
+          rises ONLY on a real cache grant (tone 'cache'); roaming ticks
+          never carry one, so the crate no longer appears while roaming.
+          Gear drops keep their LootMoment further down. */}
+      {lootRise && lootRise !== 'crate' && event && (
+        <motion.div
+          key={`loot-rise-${event.id}`}
+          data-testid="diorama-loot-rise"
+          data-loot-visual={lootRise}
+          className="pointer-events-none absolute z-20"
+          style={{ left: `${enemyLoot.xPct}%`, top: `${enemyLoot.yPct}%`, width: 46, height: 58, marginLeft: -23, marginTop: -40 }}
+          initial={{ y: 6, opacity: 0, scale: 0.6 }}
+          animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
+          transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
+        >
+          <svg viewBox="-24 -26 48 62" className="block h-full w-full" aria-hidden="true">
+            <DropVisualIcon
+              tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
+              label={lootRise === 'scrap' ? 'scrap' : event.label}
+              x={0}
+              y={0}
+              size={30}
+            />
+          </svg>
+        </motion.div>
+      )}
+      {lootRise === 'crate' && crate && (
         <motion.img
           key={`loot-${event?.id}`}
+          data-testid="diorama-crate-rise"
           src={crate.url}
           alt=""
           draggable={false}
