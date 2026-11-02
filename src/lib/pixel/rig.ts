@@ -8,6 +8,12 @@
  * Frame coordinates are the source sprite's own pixel frame; the actor
  * component scales the frame into its placement box. Pivots come from
  * the manifest `pivot` anchors written by the production script.
+ *
+ * Since the parts-system swap (M2) this module carries the ENEMY
+ * rigs only. The hunter is a part set now — parts.ts (skeleton +
+ * poses), standardIssue.ts (the stock set), headParts.ts (head
+ * variants), partsCompositor.ts (layout + raster) — and the old
+ * hunter rigs/poses/head-variant block were deleted with it.
  */
 
 export interface RigSegmentDef {
@@ -38,121 +44,6 @@ export interface SegmentPose {
 }
 
 export type RigPose = Record<string, SegmentPose>;
-
-/** The hunter frame is the shipped hunter.png frame: 260×320. Segment
- *  boxes mirror scripts/pixel-segments.py HUNTER_SEGMENTS exactly.
- *
- *  Loadout truth: the shipped hunter art holds a rifle, so the raw
- *  segment crops ARE a gun (the arm-fore crop is mostly rifle). This
- *  armed form therefore swaps the four weapon-bearing segments for
- *  gun-free ones — the torso is the unarmed variant (gun patch erased
- *  in #230) and the arms are the HOLDING variants (pixel-segments.py
- *  `holding` section): hands in a gripping pose, holding nothing, so
- *  the compositor/bespoke render of the ACTUAL equipped weapon —
- *  pasted at the grip by the stages — is the only weapon on the
- *  hunter. Same boxes, same pivots: every pose applies unchanged. */
-export const HUNTER_RIG: RigDef = {
-  id: 'hunter',
-  frameWidth: 260,
-  frameHeight: 320,
-  segments: [
-    { id: 'back', spriteId: 'rig-hunter-back', frameX: 0, frameY: 44, width: 62, height: 108, z: 0 },
-    { id: 'thighB', spriteId: 'rig-hunter-thigh-b', frameX: 20, frameY: 178, width: 54, height: 74, z: 1 },
-    { id: 'shinB', spriteId: 'rig-hunter-shin-b', frameX: 16, frameY: 240, width: 58, height: 80, z: 1 },
-    { id: 'torso', spriteId: 'rig-hunter-torso-unarmed', frameX: 24, frameY: 76, width: 124, height: 122, z: 2 },
-    { id: 'armOff', spriteId: 'rig-hunter-arm-off-holding', frameX: 142, frameY: 112, width: 72, height: 44, z: 3 },
-    { id: 'thighF', spriteId: 'rig-hunter-thigh-f', frameX: 62, frameY: 178, width: 58, height: 74, z: 3 },
-    { id: 'shinF', spriteId: 'rig-hunter-shin-f', frameX: 62, frameY: 240, width: 70, height: 80, z: 3 },
-    { id: 'head', spriteId: 'rig-hunter-head', frameX: 34, frameY: 0, width: 86, height: 88, z: 4 },
-    { id: 'armUpper', spriteId: 'rig-hunter-arm-upper-holding', frameX: 84, frameY: 88, width: 68, height: 52, z: 5 },
-    { id: 'armFore', spriteId: 'rig-hunter-arm-fore-holding', frameX: 130, frameY: 92, width: 92, height: 56, z: 6 },
-  ],
-};
-
-/**
- * Unarmed hunter rig (real-item invariant): the shipped hunter art
- * holds a rifle, so the raw segment crops carry a baked-in gun — an
- * unequipped hunter rendered a phantom weapon. This variant swaps the
- * three arm segments for gun-free hanging arms (scripts/pixel-
- * segments.py `unarmed` section) and shares the gun-free torso with
- * HUNTER_RIG (whose own arms are the `holding` variants). Same frame,
- * same segment ids, so every pose applies unchanged; the other seven
- * segments are shared with HUNTER_RIG.
- */
-export const HUNTER_RIG_UNARMED: RigDef = {
-  id: 'hunter-unarmed',
-  frameWidth: 260,
-  frameHeight: 320,
-  segments: [
-    { id: 'back', spriteId: 'rig-hunter-back', frameX: 0, frameY: 44, width: 62, height: 108, z: 0 },
-    { id: 'thighB', spriteId: 'rig-hunter-thigh-b', frameX: 20, frameY: 178, width: 54, height: 74, z: 1 },
-    { id: 'shinB', spriteId: 'rig-hunter-shin-b', frameX: 16, frameY: 240, width: 58, height: 80, z: 1 },
-    { id: 'armOff', spriteId: 'rig-hunter-arm-off-unarmed', frameX: 44, frameY: 150, width: 36, height: 74, z: 1 },
-    { id: 'torso', spriteId: 'rig-hunter-torso-unarmed', frameX: 24, frameY: 76, width: 124, height: 122, z: 2 },
-    { id: 'thighF', spriteId: 'rig-hunter-thigh-f', frameX: 62, frameY: 178, width: 58, height: 74, z: 3 },
-    { id: 'shinF', spriteId: 'rig-hunter-shin-f', frameX: 62, frameY: 240, width: 70, height: 80, z: 3 },
-    { id: 'head', spriteId: 'rig-hunter-head', frameX: 34, frameY: 0, width: 86, height: 88, z: 4 },
-    { id: 'armUpper', spriteId: 'rig-hunter-arm-upper-unarmed', frameX: 92, frameY: 86, width: 52, height: 70, z: 5 },
-    { id: 'armFore', spriteId: 'rig-hunter-arm-fore-unarmed', frameX: 94, frameY: 148, width: 48, height: 76, z: 6 },
-  ],
-};
-
-/** Selectable hunter head variants (Q6 ruling). 'visor' is the shipped
- *  head segment; the others are repaints produced by the same script. */
-export interface HunterHeadVariantDef {
-  id: string;
-  label: string;
-  spriteId: string;
-  /**
-   * Manufacturer Standing (0043): set when this variant is that
-   * manufacturer's rank-3 cosmetic. The unlock is server state (the
-   * granted rank); Settings lists the variant only for owners and
-   * selection itself stays device-local.
-   */
-  standingManufacturer?: string;
-}
-
-export const HUNTER_HEAD_VARIANTS: HunterHeadVariantDef[] = [
-  { id: 'visor', label: 'Visor', spriteId: 'rig-hunter-head' },
-  { id: 'optic', label: 'Optic', spriteId: 'hunter-head-optic' },
-  { id: 'hood', label: 'Hood', spriteId: 'hunter-head-hood' },
-  { id: 'fin', label: 'Fin', spriteId: 'hunter-head-fin' },
-  { id: 'mfr-redline', label: 'Redline', spriteId: 'hunter-head-redline', standingManufacturer: 'Redline' },
-  { id: 'mfr-ironwood', label: 'Ironwood', spriteId: 'hunter-head-ironwood', standingManufacturer: 'Ironwood' },
-  { id: 'mfr-blastforge', label: 'BlastForge', spriteId: 'hunter-head-blastforge', standingManufacturer: 'BlastForge' },
-  { id: 'mfr-prismatek', label: 'Prismatek', spriteId: 'hunter-head-prismatek', standingManufacturer: 'Prismatek' },
-  { id: 'mfr-throwtech', label: 'ThrowTech', spriteId: 'hunter-head-throwtech', standingManufacturer: 'ThrowTech' },
-  { id: 'mfr-helixworks', label: 'HelixWorks', spriteId: 'hunter-head-helixworks', standingManufacturer: 'HelixWorks' },
-];
-
-export type HunterHeadVariantId = string;
-
-/** Whether a stored device-local pick names a shipped variant. */
-export function isHunterHeadVariantId(value: unknown): value is HunterHeadVariantId {
-  return typeof value === 'string' && HUNTER_HEAD_VARIANTS.some((v) => v.id === value);
-}
-
-/** The player's device-local head-variant pick (Settings writes the
- *  'cc-head-variant' localStorage key). Every stage that renders the
- *  hunter reads it through here, so the cosmetic follows the player —
- *  diorama, boss arena, and bench scenes alike. */
-export function headVariantPreference(): HunterHeadVariantId {
-  try {
-    const value = window.localStorage.getItem('cc-head-variant');
-    return isHunterHeadVariantId(value) ? value : 'visor';
-  } catch {
-    return 'visor';
-  }
-}
-
-export function hunterRigWithHead(variant: HunterHeadVariantId, unarmed = false): RigDef {
-  const head = HUNTER_HEAD_VARIANTS.find((v) => v.id === variant) ?? HUNTER_HEAD_VARIANTS[0];
-  const base = unarmed ? HUNTER_RIG_UNARMED : HUNTER_RIG;
-  return {
-    ...base,
-    segments: base.segments.map((s) => (s.id === 'head' ? { ...s, spriteId: head.spriteId } : s)),
-  };
-}
 
 const ENEMY_FRAME: Record<string, { w: number; h: number }> = {
   fodder: { w: 223, h: 384 },
@@ -187,50 +78,6 @@ export function enemyRig(archetype: string): RigDef {
     ],
   };
 }
-
-/** Hunter poses. Rotations stay inside the ±25° collar envelope. */
-export const HUNTER_POSES: Record<'idle' | 'aim' | 'recoil' | 'hit' | 'celebrate' | 'work' | 'death', RigPose> = {
-  idle: {},
-  aim: {
-    armUpper: { rotate: -7, y: -1 },
-    armFore: { rotate: -4 },
-    head: { rotate: 3 },
-    torso: { rotate: 1 },
-  },
-  recoil: {
-    armUpper: { rotate: 5, x: -2 },
-    armFore: { rotate: 7, x: -3 },
-    head: { rotate: -2 },
-  },
-  hit: {
-    torso: { rotate: -4, x: -3 },
-    head: { rotate: -7, y: 1 },
-    armUpper: { rotate: 9 },
-    armFore: { rotate: 11 },
-  },
-  celebrate: {
-    armUpper: { rotate: -24, y: -2 },
-    armFore: { rotate: -18 },
-    head: { rotate: -4, y: -2 },
-    torso: { y: -3 },
-  },
-  work: {
-    armUpper: { rotate: 14, y: 2 },
-    armFore: { rotate: 20 },
-    armOff: { rotate: 10 },
-    head: { rotate: 6, y: 1 },
-    torso: { rotate: 3 },
-  },
-  death: {
-    torso: { rotate: -68, y: 26 },
-    head: { rotate: -52, y: 22 },
-    armUpper: { rotate: -30, y: 18 },
-    armFore: { rotate: -22, y: 16 },
-    armOff: { rotate: -18, y: 14 },
-    thighF: { rotate: -38, y: 10 },
-    thighB: { rotate: -20, y: 8 },
-  },
-};
 
 export const ENEMY_POSES: Record<'idle' | 'lunge' | 'hit' | 'death', RigPose> = {
   idle: {},

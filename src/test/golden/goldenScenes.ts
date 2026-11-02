@@ -34,8 +34,11 @@ import { endlessDepthBand, endlessEncounterForDepth } from '@/content/endless';
 import { ELEMENT_DIALECTS, shotCadence } from '@/lib/pixel/elementFx';
 import { GRAMMAR } from '@/lib/pixel/grammar';
 import { decodePng, type RgbaImage } from '@/lib/pixel/pngCodec';
-import { blit, drawBeam, drawHeldWeapon, drawLine, drawRig, drawWeaponRender, fillRect, hexToRgb, hunterBox, newCanvas, SCENE_H, SCENE_W } from '@/lib/pixel/sceneRenderer';
-import { ENEMY_POSES, HUNTER_POSES, enemyRig, HUNTER_RIG, HUNTER_RIG_UNARMED } from '@/lib/pixel/rig';
+import { blit, drawBeam, drawLine, drawRig, drawWeaponRender, fillRect, hexToRgb, newCanvas, SCENE_H, SCENE_W } from '@/lib/pixel/sceneRenderer';
+import { ENEMY_POSES, enemyRig } from '@/lib/pixel/rig';
+import { PART_POSES, PARTS_FEET_X, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
+import { composePartSet } from '@/lib/pixel/partsCompositor';
+import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import { readFileSync } from 'node:fs';
@@ -87,12 +90,35 @@ function drawBackground(img: RgbaImage, bgId: string): void {
   if (bg) blit(img, bg, 0, 0, SCENE_W, SCENE_H);
 }
 
-function drawHunter(img: RgbaImage, pose: keyof typeof HUNTER_POSES, withWeapon = true): void {
-  // Real-item invariant: no held weapon drawn ⟺ the gun-free rig —
-  // the armed rig's segments carry a rifle baked into the shipped art.
-  const rig = withWeapon ? HUNTER_RIG : HUNTER_RIG_UNARMED;
-  drawRig(img, loadGoldenSprite, { rig, pose: HUNTER_POSES[pose], xPct: 22, heightPct: 57, feetX: 0.2717 }, GROUND);
-  if (withWeapon) drawHeldWeapon(img, GOLDEN_WEAPON, hunterBox(img, 22, 57, GROUND));
+/**
+ * The hunter as a part set (M2): the raster compositor's render,
+ * placed by the same frame-box math the DOM actor uses (feet anchor
+ * PARTS_FEET_X, ground line at groundY). The weapon — when the scene
+ * holds one — is INSIDE the composite, seated grip-to-grip by the
+ * compositor; there is no separate held-weapon pass anymore.
+ * Real-item invariant: no weapon in the composite ⟺ no weapon
+ * exists in the scene, and an unarmed rest pose is 'relaxed'.
+ */
+function drawHunterParts(
+  img: RgbaImage,
+  pose: PartsPoseName,
+  opts: { xPct: number; heightPct: number; groundY?: number; weapon?: PixelWeaponInput },
+): void {
+  const render = composePartSet(STANDARD_ISSUE, PART_POSES[pose], loadGoldenSprite, {
+    weapon: opts.weapon ? { kind: 'compositor', input: opts.weapon } : undefined,
+  });
+  const groundY = opts.groundY ?? GROUND;
+  const boxH = (opts.heightPct / 100) * SCENE_H;
+  const scale = boxH / SKELETON.frameHeight;
+  const boxW = SKELETON.frameWidth * scale;
+  const boxX = (opts.xPct / 100) * SCENE_W - PARTS_FEET_X * boxW;
+  const boxY = groundY * SCENE_H - boxH;
+  blit(img, render.image, boxX + render.origin.x * scale, boxY + render.origin.y * scale, render.image.width * scale, render.image.height * scale);
+}
+
+function drawHunter(img: RgbaImage, pose: PartsPoseName, withWeapon = true): void {
+  const name = !withWeapon && pose === 'idle' ? 'relaxed' : pose;
+  drawHunterParts(img, name, { xPct: 22, heightPct: 57, weapon: withWeapon ? GOLDEN_WEAPON : undefined });
 }
 
 function drawEnemy(img: RgbaImage, areaId: string, archetype: string, pose: keyof typeof ENEMY_POSES): void {
@@ -220,8 +246,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     scene(`fx-${element.toLowerCase()}`, (img) => {
       drawBackground(img, AREA_BG.dustwaste_frontier);
       const weapon = { ...GOLDEN_WEAPON, element };
-      drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.recoil, xPct: 22, heightPct: 57, feetX: 0.2717 }, GROUND);
-      drawHeldWeapon(img, weapon, hunterBox(img, 22, 57, GROUND));
+      drawHunterParts(img, 'recoil', { xPct: 22, heightPct: 57, weapon });
       drawEnemy(img, 'dustwaste_frontier', 'brute', 'hit');
       const dialect = ELEMENT_DIALECTS[element];
       const cadence = shotCadence(weapon.weaponType, 1.2);
@@ -242,7 +267,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     drawBackground(img, AREA_BG.blastforge_yards);
     const bench = loadGoldenSprite('set-bench-forge');
     if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.62, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
   }),
@@ -256,7 +281,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     const bench = loadGoldenSprite('set-bench-forge');
     if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
     drawWeaponRender(img, GOLDEN_WEAPON, SCENE_W * 0.58 - 44, GROUND * SCENE_H - 78, 88, 32);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
   }),
@@ -272,7 +297,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     const bench = loadGoldenSprite('set-bench-forge');
     if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
     drawWeaponRender(img, GOLDEN_WEAPON, SCENE_W * 0.58 - 44, GROUND * SCENE_H - 78, 88, 32);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     // G-3 charge track: full, Fixer teal.
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [46, 196, 182], 255);
@@ -284,8 +309,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
   scene('boss-signature-fire', (img) => {
     drawBackground(img, AREA_BG.dustwaste_frontier);
     drawBeam(img, SCENE_W * 0.74, GROUND * SCENE_H, GRAMMAR.beamWidthPx.high, '#FF4B5C');
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.recoil, xPct: 22, heightPct: 57, feetX: 0.2717 }, GROUND);
-    drawHeldWeapon(img, GOLDEN_WEAPON, hunterBox(img, 22, 57, GROUND));
+    drawHunterParts(img, 'recoil', { xPct: 22, heightPct: 57, weapon: GOLDEN_WEAPON });
     drawEnemy(img, 'dustwaste_frontier', 'brute', 'hit');
     // G-3 charge track: spent — the empty track is the state.
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
@@ -296,7 +320,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (lift) blit(img, lift, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
     const vehicle = loadGoldenSprite('vehicle-dune-buggy');
     if (vehicle) blit(img, vehicle, SCENE_W * 0.44, GROUND * SCENE_H - 44, 108, 54);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 24, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.35, GRAMMAR.progress.heightPx, [127, 176, 105], 255);
   }),
@@ -309,7 +333,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (lift) blit(img, lift, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
     const vehicle = loadGoldenSprite('vehicle-dune-buggy');
     if (vehicle) blit(img, vehicle, SCENE_W * 0.44, GROUND * SCENE_H - 44, 108, 54);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'relaxed', { xPct: 24, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
   }),
   scene('bay-complete', (img) => {
@@ -318,7 +342,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (lift) blit(img, lift, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
     const vehicle = loadGoldenSprite('vehicle-dune-buggy');
     if (vehicle) blit(img, vehicle, SCENE_W * 0.44, GROUND * SCENE_H - 44, 108, 54);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.celebrate, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'celebrate', { xPct: 24, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [127, 176, 105], 255);
   }),
@@ -338,7 +362,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (glyph) blit(img, glyph, SCENE_W * 0.56, GROUND * SCENE_H - 96, 44, 44);
     const tray = loadGoldenSprite('set-bay-tray');
     if (tray) blit(img, tray, SCENE_W * 0.34 - 40, GROUND * SCENE_H - 34, 80, 34);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 24, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.5, GRAMMAR.progress.heightPx, [57, 208, 216], 255);
   }),
@@ -353,7 +377,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (glyph) blit(img, glyph, SCENE_W * 0.56, GROUND * SCENE_H - 96, 44, 44);
     const tray = loadGoldenSprite('set-bay-tray');
     if (tray) blit(img, tray, SCENE_W * 0.34 - 40, GROUND * SCENE_H - 34, 80, 34);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.celebrate, xPct: 24, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'celebrate', { xPct: 24, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [57, 208, 216], 255);
   }),
@@ -364,7 +388,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     drawBackground(img, AREA_BG.blastforge_yards);
     const bench = loadGoldenSprite('set-bench-basic');
     if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.25, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
   }),
@@ -374,7 +398,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
     const furnace = loadGoldenSprite('set-refinery-furnace');
     if (furnace) blit(img, furnace, SCENE_W * 0.86 - 34, GROUND * SCENE_H - 54, 68, 54);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.8, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
   }),
@@ -401,7 +425,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (rigPiece) blit(img, rigPiece, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
     const crates = loadGoldenSprite('set-extract-crates');
     if (crates) blit(img, crates, SCENE_W * 0.86 - 42, GROUND * SCENE_H - 52, 84, 52);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     drawBeam(img, SCENE_W * 0.86, GROUND * SCENE_H - 30, GRAMMAR.beamWidthPx.high, '#E8B33C');
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.45, GRAMMAR.progress.heightPx, [232, 179, 60], 255);
@@ -415,7 +439,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (rigPiece) blit(img, rigPiece, SCENE_W * 0.58 - 62, GROUND * SCENE_H - 74, 124, 74);
     const crates = loadGoldenSprite('set-extract-crates');
     if (crates) blit(img, crates, SCENE_W * 0.86 - 42, GROUND * SCENE_H - 52, 84, 52);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 0, 0, SCENE_W, SCENE_H, [49, 46, 129], 90); // delve shade
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.45, GRAMMAR.progress.heightPx, [232, 179, 60], 255);
@@ -430,7 +454,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (rigPiece) blit(img, rigPiece, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
     const crates = loadGoldenSprite('set-extract-crates');
     if (crates) blit(img, crates, SCENE_W * 0.86 - 42, GROUND * SCENE_H - 52, 84, 52);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'relaxed', { xPct: 30, heightPct: 57 });
     fillRect(img, 0, 0, SCENE_W, SCENE_H, [0, 0, 0], 140); // idle-dark while the slot is elsewhere
     const pennant = loadGoldenSprite('prop-hot-pennant');
     if (pennant) blit(img, pennant, SCENE_W - 44, 6, 36, 36);
@@ -450,7 +474,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (terminal) blit(img, terminal, SCENE_W * 0.55 - 52, GROUND * SCENE_H - 62, 104, 62);
     const shelf = loadGoldenSprite('set-research-shelf');
     if (shelf) blit(img, shelf, SCENE_W * 0.88 - 42, GROUND * SCENE_H - 52, 84, 52);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.4, GRAMMAR.progress.heightPx, [255, 176, 32], 255);
   }),
@@ -466,7 +490,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     if (terminal) blit(img, terminal, SCENE_W * 0.55 - 52, GROUND * SCENE_H - 62, 104, 62);
     const shelf = loadGoldenSprite('set-research-shelf');
     if (shelf) blit(img, shelf, SCENE_W * 0.88 - 42, GROUND * SCENE_H - 52, 84, 52);
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.work, xPct: 30, heightPct: 57, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 0, 0, SCENE_W, SCENE_H, [255, 176, 32], 36);
     drawBeam(img, SCENE_W * 0.88, GROUND * SCENE_H - 30, GRAMMAR.beamWidthPx.standard, '#FFB020');
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
@@ -592,7 +616,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
       blit(img, ghost, 322 - w / 2, 172 - h, w, h);
     }
     // The hunter + the war-room table fronting the stage.
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 11, heightPct: 46, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'relaxed', { xPct: 11, heightPct: 46 });
     const table = loadGoldenSprite('set-war-room-table');
     if (table) blit(img, table, SCENE_W * 0.47 - 55, groundY - 30, 110, 30);
     // Shelf progress strip (amber, the bench scenes' progress read).
@@ -633,7 +657,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
         else fillRect(img, x, y, 18, 8, [34, 38, 48], 255);
       }
     });
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 8, heightPct: 44, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'relaxed', { xPct: 8, heightPct: 44 });
     // Next-token progress strip in rank amber.
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.62, GRAMMAR.progress.heightPx, [242, 192, 99], 255);
@@ -684,7 +708,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     }
     fillRect(img, 140, 190, 180, 2, hexToRgb('#FFD166'), 160);
     // The hunter, admiring the shelf; war-room table fronting.
-    drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
+    drawHunterParts(img, 'relaxed', { xPct: 10, heightPct: 46 });
     const table = loadGoldenSprite('set-war-room-table');
     if (table) blit(img, table, SCENE_W * 0.47 - 55, groundY - 30, 110, 30);
     // Collections progress strip (46 of 81 ≈ 0.57) in trophy gold.
@@ -814,7 +838,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
       // War-room table (G-5) fronts the stage; hunter at the board.
       const table = loadGoldenSprite('set-war-room-table');
       if (table) blit(img, table, SCENE_W * 0.5 - 90, GROUND * SCENE_H - 46, 180, 46);
-      drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG_UNARMED, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
+      drawHunterParts(img, 'relaxed', { xPct: 10, heightPct: 46 });
     });
   }),
   // Manufacturer Standing (0043): the Rep Desk. Both scenes compose
@@ -937,7 +961,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
         drawWeaponRender(img, orderWeapon, orderX, groundY - 100, 96, 34);
       }
       // The hunter at the counter, unarmed, reading the desk.
-      drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG_UNARMED, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
+      drawHunterParts(img, 'relaxed', { xPct: 10, heightPct: 46 });
       // Floor strip: mid-rank reads progress to the focus ladder's
       // next rank in its color; maxed reads full gold.
       fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
@@ -1020,7 +1044,7 @@ function drawSlotStall(img: RgbaImage, keyWin: boolean): void {
     fillRect(img, cardX + 14, y + 1, w, 3, hexToRgb(glyphColors[outcome.kind]), 255);
   });
   // The hunter at the counter, unarmed (the rep-desk framing).
-  drawRig(img, loadGoldenSprite, { rig: HUNTER_RIG_UNARMED, pose: HUNTER_POSES.idle, xPct: 10, heightPct: 46, feetX: 0.2717 }, GROUND);
+  drawHunterParts(img, 'relaxed', { xPct: 10, heightPct: 46 });
   // Floor strip (G-3): pulls remaining today, in machine amber.
   fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
   fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.73, GRAMMAR.progress.heightPx, hexToRgb('#F2C063'), 255);

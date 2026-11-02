@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useAnimationControls } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
-import { PixelRigActor } from './PixelRigActor';
-import { PixelWeapon } from './PixelWeapon';
-import { HUNTER_POSES, headVariantPreference, hunterRigWithHead } from '@/lib/pixel/rig';
-import { weaponGripFraction } from '@/lib/pixel/weaponCompositor';
+import { PixelPartsActor } from './PixelPartsActor';
+import { PART_POSES, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
+import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
+import { layoutPartSet } from '@/lib/pixel/partsCompositor';
+import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
+import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import {
   CritFlash,
   DamageNumber,
@@ -13,7 +15,6 @@ import {
   DustRing,
   ImpactSparks,
   MuzzleFlash,
-  PixelSway,
   ShellCasing,
   TelegraphGlow,
   Tracer,
@@ -133,20 +134,27 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beats, presentingIndex, finished, reduced]);
 
-  const hunterSprite = requirePixelSprite('hunter');
   const bossSprite = getPixelSprite(pixelBossSpriteForBoss(bossId) ?? 'brute') ?? requirePixelSprite('brute');
-  // Held-weapon placement from anchors (the diorama's §4.2 math): the
-  // weapon render's own grip fraction lands on the hunter's manifest
-  // grip anchor, inside the rig actor's frame box.
-  const weaponGrip = weapon ? weaponGripFraction(weapon.weaponType) : { x: 0.4, y: 0.65 };
-  const weaponBoxWidthPct = 78;
-  const weaponBoxHeightPct = weaponBoxWidthPct * (260 / 320) * (44 / 120);
-  const weaponLeftPct = (hunterSprite.anchors.grip?.x ?? 0.55) * 100 - weaponGrip.x * weaponBoxWidthPct;
-  const weaponTopPct = (hunterSprite.anchors.grip?.y ?? 0.37) * 100 - weaponGrip.y * weaponBoxHeightPct;
-  const hunterPose = beat('playerHit') ? HUNTER_POSES.hit : shotBeat ? HUNTER_POSES.recoil : HUNTER_POSES.aim;
-  const muzzle = actorAnchorPoint(hunterSprite, 'muzzle', hunterPlacement);
-  const grip = actorAnchorPoint(hunterSprite, 'grip', hunterPlacement);
-  const hunterMass = actorAnchorPoint(hunterSprite, 'centerMass', hunterPlacement);
+  // The hunter is a part set (M2): FX points resolve from the parts
+  // layout for the pose he is actually in — the grip/muzzle of the
+  // held weapon, the skeleton's chest for his mass. (The deleted
+  // whole-hunter sprite's manifest anchors used to feed these.)
+  const hunterPoseName: PartsPoseName = !weapon
+    ? 'relaxed'
+    : beat('playerHit')
+      ? 'hit'
+      : shotBeat
+        ? 'recoil'
+        : 'aim';
+  const hunterSet = hunterPartSet(headVariantPreference());
+  const hunterLayout = layoutPartSet(
+    hunterSet,
+    PART_POSES[hunterPoseName],
+    weapon ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(weapon)) : undefined,
+  );
+  const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
+  const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
+  const hunterMass = partsAnchorPoint(SKELETON.chest, hunterPlacement);
   const bossMass = actorAnchorPoint(bossSprite, 'centerMass', bossPlacement);
   const bossFeet = actorAnchorPoint(bossSprite, 'feet', bossPlacement);
 
@@ -301,44 +309,21 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
           initial={false}
           animate={reduced ? undefined : hunterControls}
         >
-          {weapon ? (
-            /* Armed (loadout truth): the diorama's rig rendering — the
-               gun-free holding rig posed by the phase's beat, the
-               player's head variant, and the equipped weapon rendered
-               by the compositor at the grip. The whole 'hunter' sprite
-               (rifle baked in) with the weapon pasted at fixed
-               percentages is gone: the compositor render is the only
-               gun in the arena. */
-            <PixelRigActor
-              rig={hunterRigWithHead(headVariantPreference(), false)}
-              {...hunterPlacement}
-              feetX={hunterSprite.anchors.feet?.x ?? 0.27}
-              reduced={reduced}
-              pose={hunterPose}
-              testId="boss-stage-hunter"
-            >
-              <div
-                className="pointer-events-none absolute"
-                style={{ left: `${weaponLeftPct}%`, top: `${weaponTopPct}%`, width: `${weaponBoxWidthPct}%`, transform: 'rotate(-3deg)', zIndex: 7 }}
-              >
-                <PixelSway reduced={reduced}>
-                  <PixelWeapon weapon={weapon} fluid testId="boss-stage-weapon" />
-                </PixelSway>
-              </div>
-            </PixelRigActor>
-          ) : (
-            /* Unarmed (real-item invariant): the whole 'hunter' sprite
-               has a rifle baked in — swap to the gun-free rig so an
-               unequipped hunter carries nothing into the arena. */
-            <PixelRigActor
-              rig={hunterRigWithHead(headVariantPreference(), true)}
-              {...hunterPlacement}
-              feetX={hunterSprite.anchors.feet?.x ?? 0.27}
-              reduced={reduced}
-              pose={HUNTER_POSES.idle}
-              testId="boss-stage-hunter"
-            />
-          )}
+          {/* Loadout truth, parts edition: the part set wears the
+              player's head variant; the equipped weapon instance —
+              and only it — renders grip-to-grip between the arm
+              layers. Unarmed, the hunter stands 'relaxed' with no
+              weapon layer at all: nothing baked in, nothing pasted
+              on. */}
+          <PixelPartsActor
+            set={hunterSet}
+            {...hunterPlacement}
+            reduced={reduced}
+            pose={hunterPoseName}
+            weapon={weapon}
+            weaponTestId="boss-stage-weapon"
+            testId="boss-stage-hunter"
+          />
         </motion.div>
 
         {/* Boss — drop-in landing, hit reaction, telegraphed lunge, death.

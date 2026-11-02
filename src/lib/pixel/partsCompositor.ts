@@ -22,7 +22,9 @@
  * are the QC surface for the joint gates (SPEC §9) — underlap and
  * joint integrity are measured between layers, never eyeballed.
  *
- * NOT wired into the live render path: M2 performs the swap.
+ * M2 wired this into every live hunter surface: the DOM actor
+ * (PixelPartsActor) positions part images by the layout below, and
+ * the raster path here serves the golden scenes + QC gates.
  */
 import type { RgbaImage } from './pngCodec';
 import { blit, blitRotated, hexToRgb, newCanvas, type SpriteLoader } from './sceneRenderer';
@@ -90,140 +92,62 @@ export interface PartsRender {
   };
 }
 
-const rad = (deg: number): number => (deg * Math.PI) / 180;
-
-/** Rotate a vector by `deg` (screen coords, y down, clockwise
- *  positive — the same convention as sceneRenderer's blitRotated). */
-function rot(v: PartPoint, deg: number): PartPoint {
-  const c = Math.cos(rad(deg));
-  const s = Math.sin(rad(deg));
-  return { x: c * v.x - s * v.y, y: s * v.x + c * v.y };
-}
-
-/** Map a part-local point to stage space through a placement:
- *  the placement pins `anchorLocal` at `anchorStage` and rotates
- *  the part by `rotationDeg` about that anchor. */
-function through(anchorStage: PartPoint, rotationDeg: number, anchorLocal: PartPoint, local: PartPoint): PartPoint {
-  const d = rot({ x: local.x - anchorLocal.x, y: local.y - anchorLocal.y }, rotationDeg);
-  return { x: anchorStage.x + d.x, y: anchorStage.y + d.y };
-}
-
-function blank(w: number, h: number): RgbaImage {
-  return newCanvas(w, h);
-}
-
-/** Alpha-over, byte-identical to sceneRenderer's blendPixel math. */
-function blendOver(dst: RgbaImage, x: number, y: number, r: number, g: number, b: number, a: number): void {
-  if (x < 0 || y < 0 || x >= dst.width || y >= dst.height || a <= 0) return;
-  const i = (y * dst.width + x) * 4;
-  const dstA = dst.data[i + 3] / 255;
-  const srcA = a / 255;
-  const outA = srcA + dstA * (1 - srcA);
-  if (outA <= 0) return;
-  dst.data[i] = Math.round((r * srcA + dst.data[i] * dstA * (1 - srcA)) / outA);
-  dst.data[i + 1] = Math.round((g * srcA + dst.data[i + 1] * dstA * (1 - srcA)) / outA);
-  dst.data[i + 2] = Math.round((b * srcA + dst.data[i + 2] * dstA * (1 - srcA)) / outA);
-  dst.data[i + 3] = Math.round(outA * 255);
-}
-
 /**
- * Composite one same-size layer over the image, pixel-exact.
- * sceneRenderer's blit is a RESAMPLER — at identity size its
- * (x/dw)*src.width sampling drops a column on some widths through
- * float error — so identity transfers go through this loop instead:
- * what a layer holds is exactly what the composite shows (G1's
- * accounting depends on it).
+ * The layout of a part set in a pose, WITHOUT rasterization: where
+ * every part sits, where every anchor lands, and where the joints
+ * resolve. This is the single placement truth — composePartSet
+ * rasterizes exactly this layout, the live DOM actor positions its
+ * part images by it, and the stages read the grip/muzzle/mass
+ * points for FX from it. (M2: the stages used to read the deleted
+ * whole-hunter sprite's manifest anchors for those points.)
  */
-function compositeLayerOver(image: RgbaImage, layer: RgbaImage): void {
-  for (let y = 0; y < image.height; y++) {
-    for (let x = 0; x < image.width; x++) {
-      const i = (y * image.width + x) * 4;
-      const a = layer.data[i + 3];
-      if (a > 0) blendOver(image, x, y, layer.data[i], layer.data[i + 1], layer.data[i + 2], a);
-    }
-  }
+export interface PartSetLayout {
+  placements: Partial<Record<PartSlot, PartPlacement>>;
+  anchorStages: Map<string, PartPoint>;
+  joints: {
+    grip: PartPoint;
+    supportHand: PartPoint;
+    elbow: PartPoint;
+    neck: PartPoint;
+    muzzle?: PartPoint;
+  };
+  /** The held weapon's stage geometry, when a weapon layout was
+   *  supplied: the box the weapon render occupies, grip-anchored. */
+  weapon?: {
+    gripStage: PartPoint;
+    targetW: number;
+    targetH: number;
+    gripFrac: PartPoint;
+    muzzleFrac: PartPoint;
+  };
 }
 
-/** Place a part sprite into its layer at 1:1 (rotation 0). Same
- *  float-error concern as compositeLayerOver: a direct copy, not a
- *  resample. */
-function placePartExact(layer: RgbaImage, src: RgbaImage, dx: number, dy: number): void {
-  const ox = Math.round(dx);
-  const oy = Math.round(dy);
-  for (let y = 0; y < src.height; y++) {
-    for (let x = 0; x < src.width; x++) {
-      const i = (y * src.width + x) * 4;
-      const a = src.data[i + 3];
-      if (a > 0) blendOver(layer, ox + x, oy + y, src.data[i], src.data[i + 1], src.data[i + 2], a);
-    }
-  }
+/** Precomputed held-weapon geometry in normalized fractions: the
+ *  grip/muzzle positions inside the weapon render, and its aspect
+ *  (height / width). Callers derive it from the render itself —
+ *  compositorWeaponFractions for kit weapons, the manifest anchors
+ *  for bespoke sprites. */
+export interface PartsWeaponFractions {
+  gripFrac: PartPoint;
+  muzzleFrac: PartPoint;
+  aspect: number;
 }
 
-function rasterizeWeaponRaster(render: ReturnType<typeof composePixelWeapon>): RgbaImage {
-  const img = newCanvas(render.width, render.height);
-  for (let y = 0; y < render.height; y++) {
-    const row = render.rows[y];
-    for (let x = 0; x < render.width; x++) {
-      const shade = row[x];
-      if (shade === '.') continue;
-      const [r, g, b] = hexToRgb(render.colors[shade as keyof typeof render.colors] ?? '#FFFFFF');
-      const i = (y * render.width + x) * 4;
-      img.data[i] = r;
-      img.data[i + 1] = g;
-      img.data[i + 2] = b;
-      img.data[i + 3] = 255;
-    }
-  }
-  return img;
-}
+/** Held weapons render at this stage width (the stages' §4.2 box:
+ *  78% of the 260px frame). */
+export const PARTS_WEAPON_TARGET_W = Math.round(0.78 * SKELETON.frameWidth);
 
-/** Alpha centroid of the lower-left quadrant, normalized —
- *  pixel-key's grip heuristic, recomputed for bespoke sprites whose
- *  caller did not supply the manifest anchor. */
-function gripHeuristic(img: RgbaImage): PartPoint {
-  let sx = 0;
-  let sy = 0;
-  let n = 0;
-  for (let y = Math.floor(img.height / 2); y < img.height; y++) {
-    for (let x = 0; x < Math.floor(img.width / 2); x++) {
-      if (img.data[(y * img.width + x) * 4 + 3] > 0) {
-        sx += x;
-        sy += y;
-        n++;
-      }
-    }
-  }
-  if (n === 0) return { x: 0.27, y: 0.66 };
-  return { x: (sx / n + 0.5) / img.width, y: (sy / n + 0.5) / img.height };
-}
-
-/** Rightmost opaque pixel center of a raster, normalized — the
- *  muzzle, by the manifest's own anchor convention. */
-function muzzleFraction(img: RgbaImage): PartPoint {
-  let bestX = -1;
-  let bestY = 0;
-  for (let y = 0; y < img.height; y++) {
-    for (let x = 0; x < img.width; x++) {
-      if (img.data[(y * img.width + x) * 4 + 3] > 0 && x > bestX) {
-        bestX = x;
-        bestY = y;
-      }
-    }
-  }
-  if (bestX < 0) return { x: 1, y: 0.5 };
-  return { x: (bestX + 0.5) / img.width, y: (bestY + 0.5) / img.height };
-}
-
-export function composePartSet(
+/** Resolve every part's placement for a pose (no rasterization). */
+export function resolvePartPlacements(
   set: PartSetDef,
   pose: PartPose,
-  load: SpriteLoader,
-  opts: { weapon?: PartsWeapon; palette?: PaletteSpec } = {},
-): PartsRender {
-  const W = SKELETON.frameWidth + PARTS_BUFFER_PAD * 2;
-  const H = SKELETON.frameHeight + PARTS_BUFFER_PAD * 2;
-  const origin = { x: -PARTS_BUFFER_PAD, y: -PARTS_BUFFER_PAD };
-  const layers = new Map<string, RgbaImage>();
+): {
+  placements: Partial<Record<PartSlot, PartPlacement>>;
+  grip: PartPoint;
+  supportHand: PartPoint;
+  elbow: PartPoint;
+  neck: PartPoint;
+} {
   const placements: Partial<Record<PartSlot, PartPlacement>> = {};
 
   const torsoPose = pose.torso ?? {};
@@ -316,6 +240,224 @@ export function composePartSet(
     place('shoulderExtraN', torsoThrough(torso.mounts.shoulderMount), torsoRot);
   }
 
+  return { placements, grip: gripStage, supportHand: supportHandStage, elbow: elbowStage, neck: neckStage };
+}
+
+/** Resolve every declared anchor/mount of placed parts to stage
+ *  coordinates, keyed `${slot}:${name}` / `${slot}:mount:${name}`. */
+export function resolveAnchorStages(placements: Partial<Record<PartSlot, PartPlacement>>): Map<string, PartPoint> {
+  const anchorStages = new Map<string, PartPoint>();
+  for (const { slot } of PART_SLOTS) {
+    const placement = placements[slot];
+    if (!placement) continue;
+    const { part, anchorStage, rotationDeg } = placement;
+    const primaryLocal = part.anchors[PRIMARY_ANCHOR[slot]];
+    for (const [name, local] of Object.entries(part.anchors)) {
+      anchorStages.set(`${slot}:${name}`, through(anchorStage, rotationDeg, primaryLocal, local));
+    }
+    for (const [name, local] of Object.entries(part.mounts ?? {})) {
+      anchorStages.set(`${slot}:mount:${name}`, through(anchorStage, rotationDeg, primaryLocal, local));
+    }
+  }
+  return anchorStages;
+}
+
+/** The full layout: placements + anchors + joints (+ the weapon's
+ *  stage box and muzzle when its fractions are supplied). */
+export function layoutPartSet(set: PartSetDef, pose: PartPose, weapon?: PartsWeaponFractions): PartSetLayout {
+  const { placements, grip, supportHand, elbow, neck } = resolvePartPlacements(set, pose);
+  const anchorStages = resolveAnchorStages(placements);
+  let weaponBox: PartSetLayout['weapon'];
+  let muzzle: PartPoint | undefined;
+  if (weapon) {
+    const targetW = PARTS_WEAPON_TARGET_W;
+    const targetH = targetW * weapon.aspect;
+    weaponBox = { gripStage: grip, targetW, targetH, gripFrac: weapon.gripFrac, muzzleFrac: weapon.muzzleFrac };
+    muzzle = {
+      x: grip.x + (weapon.muzzleFrac.x - weapon.gripFrac.x) * targetW,
+      y: grip.y + (weapon.muzzleFrac.y - weapon.gripFrac.y) * targetH,
+    };
+  }
+  return {
+    placements,
+    anchorStages,
+    joints: { grip, supportHand, elbow, neck, muzzle },
+    weapon: weaponBox,
+  };
+}
+
+/** Fractions for a compositor (kit) weapon, from its own render:
+ *  the grip is the type's grip fraction; the muzzle is the render's
+ *  rightmost opaque cell — the same measurement composePartSet
+ *  applies to the rasterized render. */
+export function compositorWeaponFractions(input: PixelWeaponInput): PartsWeaponFractions {
+  const render = composePixelWeapon(input);
+  let bestX = -1;
+  let bestY = 0;
+  for (let y = 0; y < render.height; y++) {
+    const row = render.rows[y];
+    for (let x = 0; x < render.width; x++) {
+      if (row[x] !== '.' && x > bestX) {
+        bestX = x;
+        bestY = y;
+      }
+    }
+  }
+  return {
+    gripFrac: weaponGripFraction(input.weaponType),
+    muzzleFrac: bestX < 0 ? { x: 1, y: 0.5 } : { x: (bestX + 0.5) / render.width, y: (bestY + 0.5) / render.height },
+    aspect: render.height / render.width,
+  };
+}
+
+const rad = (deg: number): number => (deg * Math.PI) / 180;
+
+/** Rotate a vector by `deg` (screen coords, y down, clockwise
+ *  positive — the same convention as sceneRenderer's blitRotated). */
+function rot(v: PartPoint, deg: number): PartPoint {
+  const c = Math.cos(rad(deg));
+  const s = Math.sin(rad(deg));
+  return { x: c * v.x - s * v.y, y: s * v.x + c * v.y };
+}
+
+/** Map a part-local point to stage space through a placement:
+ *  the placement pins `anchorLocal` at `anchorStage` and rotates
+ *  the part by `rotationDeg` about that anchor. */
+function through(anchorStage: PartPoint, rotationDeg: number, anchorLocal: PartPoint, local: PartPoint): PartPoint {
+  const d = rot({ x: local.x - anchorLocal.x, y: local.y - anchorLocal.y }, rotationDeg);
+  return { x: anchorStage.x + d.x, y: anchorStage.y + d.y };
+}
+
+function blank(w: number, h: number): RgbaImage {
+  return newCanvas(w, h);
+}
+
+/** Alpha-over, byte-identical to sceneRenderer's blendPixel math. */
+function blendOver(dst: RgbaImage, x: number, y: number, r: number, g: number, b: number, a: number): void {
+  if (x < 0 || y < 0 || x >= dst.width || y >= dst.height || a <= 0) return;
+  const i = (y * dst.width + x) * 4;
+  const dstA = dst.data[i + 3] / 255;
+  const srcA = a / 255;
+  const outA = srcA + dstA * (1 - srcA);
+  if (outA <= 0) return;
+  dst.data[i] = Math.round((r * srcA + dst.data[i] * dstA * (1 - srcA)) / outA);
+  dst.data[i + 1] = Math.round((g * srcA + dst.data[i + 1] * dstA * (1 - srcA)) / outA);
+  dst.data[i + 2] = Math.round((b * srcA + dst.data[i + 2] * dstA * (1 - srcA)) / outA);
+  dst.data[i + 3] = Math.round(outA * 255);
+}
+
+/**
+ * Composite one same-size layer over the image, pixel-exact.
+ * sceneRenderer's blit is a RESAMPLER — at identity size its
+ * (x/dw)*src.width sampling drops a column on some widths through
+ * float error — so identity transfers go through this loop instead:
+ * what a layer holds is exactly what the composite shows (G1's
+ * accounting depends on it).
+ */
+function compositeLayerOver(image: RgbaImage, layer: RgbaImage): void {
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      const i = (y * image.width + x) * 4;
+      const a = layer.data[i + 3];
+      if (a > 0) blendOver(image, x, y, layer.data[i], layer.data[i + 1], layer.data[i + 2], a);
+    }
+  }
+}
+
+/** Place a part sprite into its layer at 1:1 (rotation 0). Same
+ *  float-error concern as compositeLayerOver: a direct copy, not a
+ *  resample. */
+function placePartExact(layer: RgbaImage, src: RgbaImage, dx: number, dy: number): void {
+  const ox = Math.round(dx);
+  const oy = Math.round(dy);
+  for (let y = 0; y < src.height; y++) {
+    for (let x = 0; x < src.width; x++) {
+      const i = (y * src.width + x) * 4;
+      const a = src.data[i + 3];
+      if (a > 0) blendOver(layer, ox + x, oy + y, src.data[i], src.data[i + 1], src.data[i + 2], a);
+    }
+  }
+}
+
+/** The kit weapon's render as a plain raster (texel = 1 px) — the
+ *  exact image composePartSet blits into the composite. Exported
+ *  for the loadout-truth tests, which rebuild the armed render from
+ *  its two declared sources (parts + weapon raster) and diff. */
+export function rasterizeWeaponRaster(render: ReturnType<typeof composePixelWeapon>): RgbaImage {
+  const img = newCanvas(render.width, render.height);
+  for (let y = 0; y < render.height; y++) {
+    const row = render.rows[y];
+    for (let x = 0; x < render.width; x++) {
+      const shade = row[x];
+      if (shade === '.') continue;
+      const [r, g, b] = hexToRgb(render.colors[shade as keyof typeof render.colors] ?? '#FFFFFF');
+      const i = (y * render.width + x) * 4;
+      img.data[i] = r;
+      img.data[i + 1] = g;
+      img.data[i + 2] = b;
+      img.data[i + 3] = 255;
+    }
+  }
+  return img;
+}
+
+/** Alpha centroid of the lower-left quadrant, normalized —
+ *  pixel-key's grip heuristic, recomputed for bespoke sprites whose
+ *  caller did not supply the manifest anchor. */
+function gripHeuristic(img: RgbaImage): PartPoint {
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  for (let y = Math.floor(img.height / 2); y < img.height; y++) {
+    for (let x = 0; x < Math.floor(img.width / 2); x++) {
+      if (img.data[(y * img.width + x) * 4 + 3] > 0) {
+        sx += x;
+        sy += y;
+        n++;
+      }
+    }
+  }
+  if (n === 0) return { x: 0.27, y: 0.66 };
+  return { x: (sx / n + 0.5) / img.width, y: (sy / n + 0.5) / img.height };
+}
+
+/** Rightmost opaque pixel center of a raster, normalized — the
+ *  muzzle, by the manifest's own anchor convention. */
+function muzzleFraction(img: RgbaImage): PartPoint {
+  let bestX = -1;
+  let bestY = 0;
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      if (img.data[(y * img.width + x) * 4 + 3] > 0 && x > bestX) {
+        bestX = x;
+        bestY = y;
+      }
+    }
+  }
+  if (bestX < 0) return { x: 1, y: 0.5 };
+  return { x: (bestX + 0.5) / img.width, y: (bestY + 0.5) / img.height };
+}
+
+export function composePartSet(
+  set: PartSetDef,
+  pose: PartPose,
+  load: SpriteLoader,
+  opts: { weapon?: PartsWeapon; palette?: PaletteSpec } = {},
+): PartsRender {
+  const W = SKELETON.frameWidth + PARTS_BUFFER_PAD * 2;
+  const H = SKELETON.frameHeight + PARTS_BUFFER_PAD * 2;
+  const origin = { x: -PARTS_BUFFER_PAD, y: -PARTS_BUFFER_PAD };
+  const layers = new Map<string, RgbaImage>();
+  // Placement is the layout resolver's — one placement truth for the
+  // raster compositor, the DOM actor, and the stages' FX points.
+  const {
+    placements,
+    grip: gripStage,
+    supportHand: supportHandStage,
+    elbow: elbowStage,
+    neck: neckStage,
+  } = resolvePartPlacements(set, pose);
+
   // --- Rasterize parts into per-slot layers (buffer space). ---
   const renderPart = (slot: PartSlot): void => {
     const placement = placements[slot];
@@ -393,19 +535,7 @@ export function composePartSet(
   }
 
   // --- Resolve every declared anchor/mount to stage space. ---
-  const anchorStages = new Map<string, PartPoint>();
-  for (const { slot } of PART_SLOTS) {
-    const placement = placements[slot];
-    if (!placement) continue;
-    const { part, anchorStage, rotationDeg } = placement;
-    const primaryLocal = part.anchors[PRIMARY_ANCHOR[slot]];
-    for (const [name, local] of Object.entries(part.anchors)) {
-      anchorStages.set(`${slot}:${name}`, through(anchorStage, rotationDeg, primaryLocal, local));
-    }
-    for (const [name, local] of Object.entries(part.mounts ?? {})) {
-      anchorStages.set(`${slot}:mount:${name}`, through(anchorStage, rotationDeg, primaryLocal, local));
-    }
-  }
+  const anchorStages = resolveAnchorStages(placements);
 
   return {
     image,

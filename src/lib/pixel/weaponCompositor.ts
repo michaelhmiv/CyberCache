@@ -1,5 +1,5 @@
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { Affix, WeaponPart } from '@/types/items';
+import type { Affix, Weapon, WeaponPart } from '@/types/items';
 import { MANUFACTURER_WEAPON_STYLES, RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { getElementVisual } from '@/constants/visualAssets';
 import {
@@ -53,6 +53,26 @@ export interface PixelWeaponInput {
    *  bespoke legendary art (a dropped legendary's rolled name is
    *  procedural; its effect is its named identity). */
   legendaryEffectId?: string;
+}
+
+/** The one Weapon → PixelWeaponInput mapping. PixelWeapon renders
+ *  through it, and the parts stages resolve held-weapon layout
+ *  (grip/muzzle) through it — a surface never re-derives the field
+ *  list locally. */
+export function pixelWeaponInputFromWeapon(weapon: Weapon): PixelWeaponInput {
+  return {
+    weaponType: weapon.weaponType,
+    manufacturer: weapon.manufacturer,
+    rarity: weapon.rarity,
+    element: weapon.element,
+    parts: weapon.parts,
+    name: weapon.name,
+    id: weapon.id,
+    pixelSeed: weapon.pixelSeed,
+    affixes: weapon.affixes,
+    rollQuality: weapon.rollQuality,
+    legendaryEffectId: weapon.legendaryEffectId,
+  };
 }
 
 /** Shade keys used in the render grid. '.' is transparent. */

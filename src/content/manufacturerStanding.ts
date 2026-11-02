@@ -416,7 +416,7 @@ export const STANDING_UNLOCK_CONSUMERS: Record<
         standingUnlockId(manufacturer, 'cosmetic'),
         {
           consumer: 'Settings head-variant list (owned rank-3 variants only)',
-          file: 'src/lib/pixel/rig.ts',
+          file: 'src/lib/pixel/headParts.ts',
           needle: `mfr-${slug}`,
         },
       ],

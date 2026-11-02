@@ -10,8 +10,8 @@
  *      the back part overlaps the torso by ≥ 200 px² at rest (J7).
  *  G3  joint integrity: interior-hole counts at each joint (see
  *      interiorHoles — the count restricted to pixels the joint's
- *      mass actually encloses) never exceed the legacy stand-in
- *      set's counts under identical measurement (baseline-relative).
+ *      mass actually encloses) never exceed the legacy baseline
+ *      counts under identical measurement (baseline-relative).
  *  G4  ground truth (J5): sole anchors and boot bottoms stay on the
  *      ground line in every QC pose.
  *  G5  grip coincidence: the forearm's gripHand anchor and the
@@ -21,12 +21,13 @@
  *      test (SPEC §9); the render-composition smoke test below keeps
  *      the set honest between reads.
  *
- * The legacy stand-in baseline is the shipped HUNTER_RIG built as a
- * part set: each segment crop becomes a part whose anchors are the
- * segment's frame/pivot geometry, so at rest the stand-in reproduces
- * the shipped rig's layout exactly. (One documented clamp: the far
- * shoulder joint sits 1 px past the torso crop's right edge, so the
- * stand-in torso declares shoulderSeatF at x=123 instead of 125.)
+ * The legacy baseline was the shipped HUNTER_RIG built as a part
+ * set (each segment crop a part, anchors from frame/pivot geometry).
+ * M2 deleted the rig and its art, so the baseline is FROZEN:
+ * FROZEN_LEGACY_HOLES / FROZEN_LEGACY_IDLE_OPAQUE below were measured
+ * with this file's own measurement code against the pre-deletion
+ * tree (2026-11-02, master 09149f6 + the M2 pose set), and the gates
+ * now assert the live set never exceeds the frozen counts.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -87,95 +88,22 @@ const SNIPER: PixelWeaponInput = {
   rollQuality: 82,
 };
 
-/** The shipped rig as a part set (G3 baseline). Anchors are derived
- *  from HUNTER_RIG frame boxes: joint stage point − frame top-left. */
-function legacyStandinSet(): PartSetDef {
-  const part = (
-    id: string,
-    slot: PartSlot,
-    spriteId: string,
-    width: number,
-    height: number,
-    anchors: Record<string, PartPoint>,
-    extra: Partial<PartDef> = {},
-  ): PartDef => ({ id, slot, spriteId, width, height, anchors, ...extra });
-  return {
-    id: 'legacy-standin',
-    label: 'Legacy segment rig (stand-in baseline)',
-    parts: {
-      back: part('legacy-back', 'back', 'rig-hunter-back', 62, 108, {
-        mountFace: { x: 50, y: 43 },
-        topExtent: { x: 48, y: 0 },
-      }),
-      thighB: part(
-        'legacy-thigh-b',
-        'thighB',
-        'rig-hunter-thigh-b',
-        54,
-        74,
-        { hip: { x: 27, y: 4 }, knee: { x: 25, y: 66 } },
-        { skirts: { knee: 8 } },
-      ),
-      lowerLegB: part('legacy-shin-b', 'lowerLegB', 'rig-hunter-shin-b', 58, 80, {
-        sole: { x: 28, y: 80 },
-        knee: { x: 29, y: 4 },
-      }),
-      torso: part(
-        'legacy-torso',
-        'torso',
-        'rig-hunter-torso-unarmed',
-        124,
-        122,
-        {
-          pelvisSeat: { x: 50, y: 114 },
-          neckSeat: { x: 57, y: 3 },
-          shoulderSeatN: { x: 71, y: 25 },
-          shoulderSeatF: { x: 123, y: 49 },
-        },
-        { mounts: { shoulderMount: { x: 71, y: 19 }, chestMount: { x: 64, y: 52 } } },
-      ),
-      armFar: part('legacy-arm-off', 'armFar', 'rig-hunter-arm-off-holding', 72, 44, {
-        shoulder: { x: 7, y: 13 },
-        supportHand: { x: 33, y: 12 },
-      }),
-      thighF: part(
-        'legacy-thigh-f',
-        'thighF',
-        'rig-hunter-thigh-f',
-        58,
-        74,
-        { hip: { x: 29, y: 4 }, knee: { x: 35, y: 66 } },
-        { skirts: { knee: 8 } },
-      ),
-      lowerLegF: part('legacy-shin-f', 'lowerLegF', 'rig-hunter-shin-f', 70, 80, {
-        sole: { x: 40, y: 80 },
-        knee: { x: 35, y: 4 },
-      }),
-      head: part(
-        'legacy-head',
-        'head',
-        'rig-hunter-head',
-        86,
-        88,
-        { neckSeat: { x: 47, y: 79 } },
-        { skirts: { neck: 9 } },
-      ),
-      armUpperN: part('legacy-arm-upper', 'armUpperN', 'rig-hunter-arm-upper-holding', 68, 52, {
-        shoulder: { x: 11, y: 13 },
-        elbow: { x: 53, y: 24 },
-      }),
-      armForeN: part(
-        'legacy-arm-fore',
-        'armForeN',
-        'rig-hunter-arm-fore-holding',
-        92,
-        56,
-        { elbow: { x: 7, y: 20 }, gripHand: { x: 13, y: 26 } },
-        { skirts: { elbow: 7 } },
-      ),
-    },
-  };
-}
+/** FROZEN legacy baseline (see header): per-pose, per-joint
+ *  interior-hole counts of the deleted segment rig, plus its idle
+ *  composite coverage. Measured pre-deletion with this file's own
+ *  helpers; the 'relaxed' row was measured with the M2 pose applied
+ *  to the stand-in set. */
+const FROZEN_LEGACY_HOLES: Record<PartsPoseName, Record<string, number>> = {
+  idle: { kneeF: 0, kneeB: 0, elbowN: 0, neck: 0, hipF: 0, hipB: 0, shoulderN: 0 },
+  roam: { kneeF: 0, kneeB: 0, elbowN: 0, neck: 0, hipF: 0, hipB: 0, shoulderN: 0 },
+  aim: { kneeF: 0, kneeB: 0, elbowN: 4, neck: 0, hipF: 0, hipB: 0, shoulderN: 0 },
+  recoil: { kneeF: 0, kneeB: 0, elbowN: 0, neck: 0, hipF: 0, hipB: 0, shoulderN: 0 },
+  hit: { kneeF: 0, kneeB: 0, elbowN: 0, neck: 0, hipF: 0, hipB: 0, shoulderN: 0 },
+  celebrate: { kneeF: 0, kneeB: 0, elbowN: 14, neck: 0, hipF: 0, hipB: 0, shoulderN: 0 },
+  work: { kneeF: 0, kneeB: 0, elbowN: 1, neck: 0, hipF: 0, hipB: 2, shoulderN: 0 },
+  relaxed: { kneeF: 0, kneeB: 0, elbowN: 0, neck: 0, hipF: 0, hipB: 0, shoulderN: 0 },
+};
+const FROZEN_LEGACY_IDLE_OPAQUE = 28303;
 
 // ---------- pixel helpers (buffer space) ----------
 
@@ -315,11 +243,6 @@ describe('parts system — lint & registration', () => {
       expect(entry.width).toBe(part.width);
       expect(entry.height).toBe(part.height);
     }
-  });
-
-  it('the legacy stand-in baseline also passes the lint (the baseline is a legal set)', () => {
-    const { errors } = lintPartSet(legacyStandinSet());
-    expect(errors).toEqual([]);
   });
 });
 
@@ -476,18 +399,17 @@ describe('G2 — joint underlap across the QC pose set (J3)', () => {
   });
 });
 
-describe('G3 — joint integrity vs the legacy stand-in baseline', () => {
+describe('G3 — joint integrity vs the frozen legacy baseline', () => {
   for (const poseName of QC_POSES) {
     it(`pose ${poseName}: no joint has more interior holes than the legacy rig`, () => {
       const fresh = composePartSet(STANDARD_ISSUE, PART_POSES[poseName], loadSprite);
-      const legacy = composePartSet(legacyStandinSet(), PART_POSES[poseName], loadSprite);
       for (const joint of JOINTS) {
         const win = jointWindow(fresh, joint.points(fresh), 17, 10);
         const freshHoles = interiorHoles(fresh.layers.get(joint.a)!, fresh.layers.get(joint.b)!, win);
-        const legacyHoles = interiorHoles(legacy.layers.get(joint.a)!, legacy.layers.get(joint.b)!, win);
+        const legacyHoles = FROZEN_LEGACY_HOLES[poseName][joint.name];
         expect(
           freshHoles,
-          `${poseName}/${joint.name} interior holes (fresh ${freshHoles} vs legacy ${legacyHoles})`,
+          `${poseName}/${joint.name} interior holes (fresh ${freshHoles} vs frozen legacy ${legacyHoles})`,
         ).toBeLessThanOrEqual(legacyHoles);
       }
     });
@@ -573,10 +495,8 @@ describe('G5 — grip coincidence for short and long weapons', () => {
 describe('composition smoke — the set reads as one character', () => {
   it('composite coverage is in the same band as the legacy rig (not a sliver, not a blob)', () => {
     const fresh = composePartSet(STANDARD_ISSUE, PART_POSES.idle, loadSprite);
-    const legacy = composePartSet(legacyStandinSet(), PART_POSES.idle, loadSprite);
     const freshCount = opaqueCount(fresh.image);
-    const legacyCount = opaqueCount(legacy.image);
-    expect(freshCount).toBeGreaterThan(legacyCount * 0.5);
-    expect(freshCount).toBeLessThan(legacyCount * 1.7);
+    expect(freshCount).toBeGreaterThan(FROZEN_LEGACY_IDLE_OPAQUE * 0.5);
+    expect(freshCount).toBeLessThan(FROZEN_LEGACY_IDLE_OPAQUE * 1.7);
   });
 });

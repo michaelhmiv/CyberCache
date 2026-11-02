@@ -129,7 +129,10 @@ describe('derivePhaseBeats', () => {
 });
 
 describe('actorAnchorPoint', () => {
-  const hunter = requirePixelSprite('hunter');
+  // The brute stands in for any anchored sprite (the hunter's whole
+  // sprite was deleted in the parts swap; parts actors resolve their
+  // FX points through partsAnchorPoint instead).
+  const hunter = requirePixelSprite('brute');
   const placement = { xPct: 22, heightPct: 57, groundY: 0.86 };
 
   it("the feet anchor lands exactly on the placement point", () => {

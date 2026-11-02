@@ -15,7 +15,10 @@ import { AREA_VISUALS, PIXEL_BOSS_ARENAS } from '@/content/areaPalettes';
 import { ACTION_SETS, GRAMMAR } from '@/lib/pixel/grammar';
 import { ELEMENT_DIALECTS } from '@/lib/pixel/elementFx';
 import { MOVEMENT } from '@/lib/pixel/movement';
-import { HUNTER_HEAD_VARIANTS, HUNTER_RIG, countRigNodes, enemyRig } from '@/lib/pixel/rig';
+import { countRigNodes, enemyRig } from '@/lib/pixel/rig';
+import { HUNTER_HEAD_VARIANTS } from '@/lib/pixel/headParts';
+import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
+import { countPartNodes } from '@/lib/pixel/parts';
 import { remapPixelData, type PaletteSpec } from '@/lib/pixel/paletteSwap';
 import { composePixelWeapon, partVariant, type PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 import { buildWeaponVisualSpec } from '@/lib/weaponArt/buildWeaponVisualSpec';
@@ -52,7 +55,9 @@ describe('manifest completeness (§4)', () => {
       expect(has(`death-${archetype}-a`)).toBe(true);
       expect(has(`death-${archetype}-b`)).toBe(true);
     }
-    for (const seg of HUNTER_RIG.segments) expect(has(seg.spriteId), seg.spriteId).toBe(true);
+    for (const part of Object.values(STANDARD_ISSUE.parts)) {
+      if (part) expect(has(part.spriteId), part.spriteId).toBe(true);
+    }
     for (const variant of HUNTER_HEAD_VARIANTS) expect(has(variant.spriteId), variant.spriteId).toBe(true);
   });
 
@@ -94,10 +99,15 @@ describe('manifest completeness (§4)', () => {
     }
   });
 
-  it('rig frames stay inside their source frames', () => {
-    for (const seg of HUNTER_RIG.segments) {
-      expect(seg.frameX + seg.width).toBeLessThanOrEqual(HUNTER_RIG.frameWidth);
-      expect(seg.frameY + seg.height).toBeLessThanOrEqual(HUNTER_RIG.frameHeight);
+  it('part anchors stay inside their part frames', () => {
+    for (const part of Object.values(STANDARD_ISSUE.parts)) {
+      if (!part) continue;
+      for (const anchor of Object.values(part.anchors)) {
+        expect(anchor.x).toBeGreaterThanOrEqual(0);
+        expect(anchor.x).toBeLessThanOrEqual(part.width);
+        expect(anchor.y).toBeGreaterThanOrEqual(0);
+        expect(anchor.y).toBeLessThanOrEqual(part.height);
+      }
     }
   });
 });
@@ -200,7 +210,8 @@ describe('compositor instance fidelity (§4.2)', () => {
 describe('performance + payload budgets (§4.9)', () => {
   it('a full stage scene stays inside the animated-node budget', () => {
     const nodes =
-      countRigNodes(HUNTER_RIG) + // hunter rig 10
+      countPartNodes(STANDARD_ISSUE) + // hunter parts 10
+      1 + // held weapon layer
       countRigNodes(enemyRig('brute')) + // enemy rig 4
       3 + // parallax layers
       2 + // animated props

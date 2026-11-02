@@ -10,8 +10,8 @@
  * in the app.
  */
 import type { RgbaImage } from './pngCodec';
-import { composePixelWeapon, weaponGripFraction, type PixelWeaponInput } from './weaponCompositor';
-import { HUNTER_RIG, enemyRig, type RigDef, type RigPose } from './rig';
+import { composePixelWeapon, type PixelWeaponInput } from './weaponCompositor';
+import { enemyRig, type RigDef, type RigPose } from './rig';
 import { remapPixelData, type PaletteSpec } from './paletteSwap';
 
 export type SpriteLoader = (spriteId: string) => RgbaImage | undefined;
@@ -165,29 +165,6 @@ export function drawRig(img: RgbaImage, load: SpriteLoader, actor: SceneActorRig
   }
 }
 
-/** Draw the compositor weapon at the hunter's grip (mirrors the
- *  diorama's anchor math). */
-export function drawHeldWeapon(img: RgbaImage, weapon: PixelWeaponInput, hunterBox: { x: number; y: number; w: number; h: number }): void {
-  const render = composePixelWeapon(weapon);
-  const grip = weaponGripFraction(weapon.weaponType);
-  const gripFrame = { x: 0.55, y: 0.37 }; // hunter manifest grip anchor
-  const wW = hunterBox.w * 0.78;
-  const wH = wW * (render.height / render.width);
-  const dx = hunterBox.x + gripFrame.x * hunterBox.w - grip.x * wW;
-  const dy = hunterBox.y + gripFrame.y * hunterBox.h - grip.y * wH;
-  const cellW = wW / render.width;
-  const cellH = wH / render.height;
-  for (let y = 0; y < render.height; y++) {
-    const row = render.rows[y];
-    for (let x = 0; x < render.width; x++) {
-      const shade = row[x];
-      if (shade === '.') continue;
-      const color = hexToRgb(render.colors[shade as keyof typeof render.colors] ?? '#FFFFFF');
-      fillRect(img, dx + x * cellW, dy + y * cellH, Math.ceil(cellW), Math.ceil(cellH), color);
-    }
-  }
-}
-
 /** Rasterize a compositor render into an arbitrary rect (item cards). */
 export function drawWeaponRender(img: RgbaImage, weapon: PixelWeaponInput, dx: number, dy: number, w: number, h: number): void {
   const render = composePixelWeapon(weapon);
@@ -202,12 +179,6 @@ export function drawWeaponRender(img: RgbaImage, weapon: PixelWeaponInput, dx: n
       fillRect(img, dx + x * cellW, dy + y * cellH, Math.ceil(cellW), Math.ceil(cellH), color);
     }
   }
-}
-
-export function hunterBox(img: RgbaImage, xPct: number, heightPct: number, groundYPct: number): { x: number; y: number; w: number; h: number } {
-  const h = (heightPct / 100) * img.height;
-  const w = h * (HUNTER_RIG.frameWidth / HUNTER_RIG.frameHeight);
-  return { x: (xPct / 100) * img.width - 0.2717 * w, y: groundYPct * img.height - h, w, h };
 }
 
 export { hexToRgb, newCanvas };

@@ -48,7 +48,7 @@ describe('pixel sprite manifest — integrity', () => {
   const manifest = getPixelManifest();
 
   it('has at least the P1 proof sprites registered', () => {
-    for (const id of ['hunter', 'brute', 'crate', 'legendary-emberfall', 'zone-dustwaste-bg']) {
+    for (const id of ['part-si-torso', 'brute', 'crate', 'legendary-emberfall', 'zone-dustwaste-bg']) {
       expect(manifest.sprites[id], `missing sprite ${id}`).toBeDefined();
       expect(getPixelSprite(id)?.url).toBeTruthy();
     }
