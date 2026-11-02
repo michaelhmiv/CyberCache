@@ -35,9 +35,12 @@ Buy a Legendary weapon with an effect you've never owned off
 [[The Market]], and both its effect entry and its frame entry fill on
 delivery. There is nothing to turn in and nothing to forget to claim.
 
-Open Collections from your profile to see the shelf family by family,
-with a found count for each and a hint on every missing entry telling
-you where it comes from — intel, never odds.
+Open Collections from the **Collections stop on the Hunter tab** to
+see the shelf family by family — or tap the **Collections tile on your
+Trophy Shelf** (Profile stop), which opens the same shelf. Each family
+shows a found count, and every missing entry carries a hint telling
+you where it comes from — intel, never odds. Your legendary core
+balance rides in the shelf's header.
 
 ## Legendary cores: minted one way only
 

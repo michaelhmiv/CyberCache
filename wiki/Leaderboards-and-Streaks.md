@@ -1,6 +1,6 @@
 # Leaderboards & Streaks
 
-Two rhythms keep CyberCache ticking between sessions: **weekly leaderboard races** that settle every week, and a **daily login streak** that rewards simply showing up. Both surface right on [[The Board]] — the streak as the flame in the top bar, standings a tap away.
+Two rhythms keep CyberCache ticking between sessions: **weekly leaderboard races** that settle every week, and a **daily login streak** that rewards simply showing up. Both surface in plain sight — the streak as the flame in [[The Board]]'s top bar, and the standings behind the **Standings door on the Hunter tab**. The door wears a live badge: a pill when last week's rewards are waiting for you, a warning when the current week is about to close, and your active drop-luck bonus while one runs.
 
 ## Weekly leaderboards
 

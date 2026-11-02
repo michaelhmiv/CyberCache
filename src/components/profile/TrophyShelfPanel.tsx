@@ -54,11 +54,52 @@ function rarityColor(rarity: string | null): string {
 const FactChip: React.FC<{ label: string; value: string; tone: string }> = ({ label, value, tone }) => (
   <div className="bl-card flex-1 px-2 py-2 text-center" style={{ borderTopColor: tone, borderTopWidth: 3 }}>
     <div className="truncate text-sm font-black text-text-primary">{value}</div>
-    <div className="truncate text-[9px] font-bold uppercase tracking-wide text-text-muted">{label}</div>
+    <div className="truncate text-[11px] font-bold uppercase tracking-wide text-text-muted">{label}</div>
   </div>
 );
 
-export const TrophyShelfPanel: React.FC = () => {
+/**
+ * The Collections fact chip is a DOOR, not a readout (redesign v2,
+ * audit B3): the Trophy Shelf tile is the shelf's obvious entrance,
+ * and before the redesign it opened nothing — the one live door was
+ * a row buried in Account Tools. When the host provides
+ * `onOpenCollections` the chip renders as a button carrying the same
+ * fact; without a host it stays a plain chip.
+ */
+const CollectionsTile: React.FC<{
+  discovered: number;
+  onOpenCollections?: () => void;
+}> = ({ discovered, onOpenCollections }) => {
+  const body = (
+    <>
+      <div className="truncate text-sm font-black text-text-primary">
+        {discovered} / {COLLECTION_TOTAL}
+      </div>
+      <div className="truncate text-[11px] font-bold uppercase tracking-wide text-text-muted">Collections</div>
+    </>
+  );
+  if (!onOpenCollections) {
+    return (
+      <div className="bl-card flex-1 px-2 py-2 text-center" style={{ borderTopColor: '#FF9800', borderTopWidth: 3 }}>
+        {body}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onOpenCollections}
+      data-testid="trophy-collections-tile"
+      aria-label={`Open Collections — ${discovered} of ${COLLECTION_TOTAL} discovered`}
+      className="bl-card flex-1 px-2 py-2 text-center transition-transform active:scale-[0.97]"
+      style={{ borderTopColor: '#FF9800', borderTopWidth: 3 }}
+    >
+      {body}
+    </button>
+  );
+};
+
+export const TrophyShelfPanel: React.FC<{ onOpenCollections?: () => void }> = ({ onOpenCollections }) => {
   const [data, setData] = useState<ProfileLifetimePayload | null>(null);
 
   useEffect(() => {
@@ -86,7 +127,7 @@ export const TrophyShelfPanel: React.FC = () => {
       <div className="flex items-center gap-2">
         <PxIcon name="trophy" size={17} className="text-amber" />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Trophy Shelf</div>
-        <div className="ml-auto text-[10px] text-text-muted">Best gear, server-ranked</div>
+        <div className="ml-auto text-[11px] text-text-muted">Best gear, server-ranked</div>
       </div>
 
       {weapons.length === 0 ? (
@@ -119,7 +160,7 @@ export const TrophyShelfPanel: React.FC = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-xs font-black text-text-primary">{name}</div>
-                  <div className="truncate text-[10px] font-bold" style={{ color }}>
+                  <div className="truncate text-[11px] font-bold" style={{ color }}>
                     {rarity} · Lv {level}
                     {item.equipped_slot === 'weapon' ? ' · Equipped' : ''}
                   </div>
@@ -137,11 +178,7 @@ export const TrophyShelfPanel: React.FC = () => {
           value={`${showcase.cache_rank_total_ranks} ranks · ${showcase.cache_rank_tokens} tokens`}
           tone="#F2C063"
         />
-        <FactChip
-          label="Collections"
-          value={`${showcase.collections_discovered} / ${COLLECTION_TOTAL}`}
-          tone="#FF9800"
-        />
+        <CollectionsTile discovered={showcase.collections_discovered} onOpenCollections={onOpenCollections} />
       </div>
     </MobileCard>
     </div>

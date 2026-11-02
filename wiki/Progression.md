@@ -50,6 +50,11 @@ When you return, everything that settled is summarised in the while-you-were-awa
 
 ## Cache Rank
 
+Cache Rank lives on the **Hunter tab**, on its own rail stop — the
+same rail carries Research and the Skill Trees (mastery rides with
+the trees), so every ladder in this chapter sits one tap from your
+profile and Trophy Shelf.
+
 Cache Rank is the permanent-bonus ladder that sits on top of levels. Its rules are strict:
 
 - **Tokens come from levels only** — one per level gained, plus a bonus bundle at levels 10, 25, 50, 75, and 100. Nothing else in the game grants them: no challenges, no checklists, no purchases.
