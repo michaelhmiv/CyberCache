@@ -21,7 +21,7 @@ import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } fro
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { ENEMY_POSES, enemyRig } from '@/lib/pixel/rig';
-import { PART_POSES, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
+import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
 import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
 import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
@@ -31,35 +31,9 @@ import { isHotArea } from '@/content/hotArea';
 import { elementDialect, shotCadence } from '@/lib/pixel/elementFx';
 import { useLoadoutStore } from '@/store';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
-import { CONSUMABLES } from '@/constants/consumables';
+import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
+import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadoutReadModel';
 
-/** Belt sprite per consumable (overhaul §4.7): specific ids first, then
- *  the family read. The loadout's three consumable slots ride the
- *  hunter's belt on stage. */
-const BELT_SPRITES_BY_ID: Record<string, string> = {
-  med_kit: 'belt-vial',
-  shield_cell: 'belt-cell',
-  swarm_grenade: 'belt-swarm',
-  combat_stims: 'belt-syringe',
-  ammo_box: 'belt-rounds',
-  loot_beacon: 'belt-beacon',
-  salvage_contract: 'belt-contract',
-  data_skimmer: 'belt-scanner',
-  magnetized_payload: 'belt-magazine',
-};
-const BELT_SPRITES_BY_FAMILY: Record<string, string> = {
-  survival: 'belt-vial',
-  ammo: 'belt-magazine',
-  ordnance: 'belt-grenade',
-  tactical: 'belt-scanner',
-  economy: 'belt-ticket',
-  corrupted: 'belt-syringe',
-};
-
-function beltSpriteFor(consumableId: string | null): string | undefined {
-  if (!consumableId) return undefined;
-  return BELT_SPRITES_BY_ID[consumableId] ?? BELT_SPRITES_BY_FAMILY[CONSUMABLES[consumableId as keyof typeof CONSUMABLES]?.family ?? ''];
-}
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMoment';
@@ -705,21 +679,32 @@ const PixelSceneLayer: React.FC<{
   const dialect = elementDialect(weapon?.element);
   const cadence = shotCadence(weapon?.weaponType, weapon?.attackSpeed);
   const loadoutConsumables = useLoadoutStore((state) => state.consumables);
-  const equippedShield = useLoadoutStore((state) => state.slots.shield);
-  const equippedRelic = useLoadoutStore((state) => state.slots.relic);
+  const equippedShieldId = useLoadoutStore((state) => state.slots.shield);
+  const equippedRelicId = useLoadoutStore((state) => state.slots.relic);
   const equippedClassModId = useLoadoutStore((state) => state.slots.classMod);
+  const shieldItem = useInventoryStore((state) =>
+    equippedShieldId ? state.items.find((i) => i.id === equippedShieldId) : undefined,
+  );
+  const relicItem = useInventoryStore((state) =>
+    equippedRelicId ? state.items.find((i) => i.id === equippedRelicId) : undefined,
+  );
   const classModItem = useInventoryStore((state) =>
     equippedClassModId ? state.items.find((i) => i.id === equippedClassModId) : undefined,
   );
   const vehicle = useLoadoutStore((state) => state.getVehicle());
   const vehicleStatus = useVehicleStore((state) => state.lastClaimStatus);
-  const beltSprites = [loadoutConsumables.PreFight, loadoutConsumables.MidFight, loadoutConsumables.Emergency]
-    .map(beltSpriteFor)
-    .filter((s): s is string => !!s);
-  const pauldronTree = (() => {
-    const tree = (classModItem && 'treeBonus' in classModItem ? String(classModItem.treeBonus) : '').toLowerCase();
-    return tree.includes('demolition') ? 'demolition' : tree.includes('scavenger') ? 'scavenger' : 'gunslinger';
-  })();
+  // Equipped gear, MOUNTED on the parts actor (M3): the mounted
+  // reads derive from the ACTUAL equipped instances (gearMounts.ts
+  // keys the shield by its behavior + element, the relic by its
+  // rarity, the pauldron by the class mod's tree, the belt by the
+  // slotted consumables). The overlay chips that used to float over
+  // the figure at fixed frame percentages are gone.
+  const mountedGear = mountedGearForLoadout({
+    shield: isShieldItem(shieldItem) ? shieldItem : undefined,
+    relic: isRelicItem(relicItem) ? relicItem : undefined,
+    classMod: isClassModItem(classModItem) ? classModItem : undefined,
+    consumables: [loadoutConsumables.PreFight, loadoutConsumables.MidFight, loadoutConsumables.Emergency],
+  });
   const isEliteEvent = !!event && (event.tone === 'event' || event.tone === 'event_major') && event.family === 'elite';
   const eventProp = event && (event.tone === 'event' || event.tone === 'event_major') && event.propId
     ? getPixelSprite(event.propId)
@@ -750,8 +735,8 @@ const PixelSceneLayer: React.FC<{
           : ENEMY_POSES.idle;
   // The hunter's part set (M2) — Standard Issue wearing the player's
   // head variant. FX points resolve from the parts layout for the
-  // pose he is actually in: the held weapon's grip/muzzle, the
-  // skeleton's chest for his mass. (The deleted whole-hunter
+  // pose he is actually in: the held weapon's grip/muzzle, and (M3)
+  // the layout's mass joint for his body. (The deleted whole-hunter
   // sprite's manifest anchors used to feed these.)
   const hunterSet = hunterPartSet(headVariantPreference());
   const hunterLayout = layoutPartSet(
@@ -770,7 +755,7 @@ const PixelSceneLayer: React.FC<{
   const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: bossMode && bossSpriteId ? 80 : 66, groundY };
   const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
   const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
-  const hunterMass = partsAnchorPoint(SKELETON.chest, hunterPlacement);
+  const hunterMass = partsAnchorPoint(hunterLayout.joints.mass, hunterPlacement);
   const enemyMass = actorAnchorPoint(enemySprite, 'centerMass', enemyPlacement);
   const enemyFeet = actorAnchorPoint(enemySprite, 'feet', enemyPlacement);
   const enemyLoot = actorAnchorPoint(enemySprite, 'lootPoint', enemyPlacement);
@@ -957,56 +942,8 @@ const PixelSceneLayer: React.FC<{
             weapon={weapon ?? undefined}
             weaponTestId="pixel-held-weapon"
             testId="pixel-hunter"
-          >
-            {/* Equipped gear reads (§4.7): shield emitter, relic sigil,
-                class-mod pauldron, and the loadout's belt consumables —
-                all from the actual equipped instances. */}
-            {equippedShield && getPixelSprite('gear-shield-emitter') && (
-              <img
-                src={getPixelSprite('gear-shield-emitter')!.url}
-                alt=""
-                draggable={false}
-                data-testid="pixel-gear-shield"
-                className="pointer-events-none absolute"
-                style={{ left: '6%', top: '30%', width: '34%', imageRendering: 'pixelated', zIndex: 8 }}
-              />
-            )}
-            {equippedRelic && getPixelSprite('gear-relic-sigil') && (
-              <img
-                src={getPixelSprite('gear-relic-sigil')!.url}
-                alt=""
-                draggable={false}
-                data-testid="pixel-gear-relic"
-                className="pointer-events-none absolute"
-                style={{ left: '24%', top: '34%', width: '20%', imageRendering: 'pixelated', zIndex: 8 }}
-              />
-            )}
-            {equippedClassModId && getPixelSprite(`gear-pauldron-${pauldronTree}`) && (
-              <img
-                src={getPixelSprite(`gear-pauldron-${pauldronTree}`)!.url}
-                alt=""
-                draggable={false}
-                data-testid="pixel-gear-pauldron"
-                className="pointer-events-none absolute"
-                style={{ left: '12%', top: '24%', width: '26%', imageRendering: 'pixelated', zIndex: 8 }}
-              />
-            )}
-            {beltSprites.map((spriteId, i) => {
-              const sprite = getPixelSprite(spriteId);
-              if (!sprite) return null;
-              return (
-                <img
-                  key={`${spriteId}-${i}`}
-                  src={sprite.url}
-                  alt=""
-                  draggable={false}
-                  data-testid="pixel-belt-prop"
-                  className="pointer-events-none absolute"
-                  style={{ left: `${30 + i * 9}%`, top: '56%', width: '11%', imageRendering: 'pixelated', zIndex: 8 }}
-                />
-              );
-            })}
-          </PixelPartsActor>
+            gear={mountedGear}
+          />
         ) : weapon ? (
           /* Armed standby (loadout truth): the part set idles at the
              ready with the equipped weapon — the actual instance —

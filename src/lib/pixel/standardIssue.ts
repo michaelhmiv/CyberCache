@@ -95,6 +95,10 @@ export const STANDARD_ISSUE: PartSetDef = {
       mounts: {
         shoulderMount: { x: 69, y: 28 },
         chestMount: { x: 58, y: 64 },
+        // The waist band (M3): belt consumables hang from here,
+        // fanned along the band. Stage (88, 178) at rest — the
+        // band the overlay-era belt row hung at (top y≈179).
+        beltMount: { x: 62, y: 112 },
       },
       paletteFamily: 'standard-issue',
     },
@@ -107,6 +111,13 @@ export const STANDARD_ISSUE: PartSetDef = {
       anchors: {
         shoulder: { x: 8, y: 8 },
         supportHand: { x: 24, y: 50 },
+      },
+      mounts: {
+        // The shield emitter mount (SPEC §6, M3): mid-forearm of
+        // the support arm — stage (119, 144) at rest. The equipped
+        // shield's behavior glyph projects from here and follows
+        // the arm through every pose.
+        shieldMount: { x: 17, y: 30 },
       },
       paletteFamily: 'standard-issue',
     },

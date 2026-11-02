@@ -128,9 +128,13 @@ export const REQUIRED_ANCHORS: Record<PartSlot, string[]> = {
 /** Mounts a part must offer, per slot. The torso carries the gear
  *  mounts (SPEC §6): a torso without declared mounts fails the lint,
  *  because a gear part is never hidden and never floats at a stock
- *  default — the swallow rule is enforced here, at the data layer. */
+ *  default — the swallow rule is enforced here, at the data layer.
+ *  The far arm carries the shield mount (§6: the shield emitter is
+ *  an arm part, declared by armFar/armForeN — Standard Issue
+ *  declares it on the support arm). */
 export const REQUIRED_MOUNTS: Partial<Record<PartSlot, string[]>> = {
-  torso: ['shoulderMount', 'chestMount'],
+  torso: ['shoulderMount', 'chestMount', 'beltMount'],
+  armFar: ['shieldMount'],
 };
 
 /**

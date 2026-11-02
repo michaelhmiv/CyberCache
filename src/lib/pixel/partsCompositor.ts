@@ -29,6 +29,7 @@
 import type { RgbaImage } from './pngCodec';
 import { blit, blitRotated, hexToRgb, newCanvas, type SpriteLoader } from './sceneRenderer';
 import { composePixelWeapon, weaponGripFraction, type PixelWeaponInput } from './weaponCompositor';
+import { GEAR_PAINT_ORDER, resolveGearMount, type MountedGearItem } from './gearMounts';
 import { remapPixelData, type PaletteSpec } from './paletteSwap';
 import {
   PART_SLOTS,
@@ -87,6 +88,10 @@ export interface PartsRender {
     supportHand: PartPoint;
     elbow: PartPoint;
     neck: PartPoint;
+    /** The figure's center of mass (M3): the midpoint of the
+     *  torso's resolved neckSeat→pelvisSeat span. Player-side FX
+     *  anchor here — layout-resolved, so it follows the pose. */
+    mass: PartPoint;
     /** Weapon muzzle in stage coordinates (FX chain, SPEC §6). */
     muzzle?: PartPoint;
   };
@@ -109,6 +114,8 @@ export interface PartSetLayout {
     supportHand: PartPoint;
     elbow: PartPoint;
     neck: PartPoint;
+    /** The figure's center of mass (M3) — see PartsRender.joints. */
+    mass: PartPoint;
     muzzle?: PartPoint;
   };
   /** The held weapon's stage geometry, when a weapon layout was
@@ -262,6 +269,20 @@ export function resolveAnchorStages(placements: Partial<Record<PartSlot, PartPla
   return anchorStages;
 }
 
+/** The figure's center of mass, resolved from the layout: the
+ *  midpoint of the torso's neckSeat→pelvisSeat span. M3 completed
+ *  the FX anchor chain with this joint — before it, the stages read
+ *  the hard-coded SKELETON.chest design point for player-hit FX,
+ *  which cannot follow the posed figure (in the hit pose the torso
+ *  leans and the point stayed behind). Falls back to that design
+ *  point only when no torso is placed. */
+export function massFromAnchorStages(anchorStages: Map<string, PartPoint>): PartPoint {
+  const neck = anchorStages.get('torso:neckSeat');
+  const pelvis = anchorStages.get('torso:pelvisSeat');
+  if (neck && pelvis) return { x: (neck.x + pelvis.x) / 2, y: (neck.y + pelvis.y) / 2 };
+  return { ...SKELETON.chest };
+}
+
 /** The full layout: placements + anchors + joints (+ the weapon's
  *  stage box and muzzle when its fractions are supplied). */
 export function layoutPartSet(set: PartSetDef, pose: PartPose, weapon?: PartsWeaponFractions): PartSetLayout {
@@ -281,7 +302,7 @@ export function layoutPartSet(set: PartSetDef, pose: PartPose, weapon?: PartsWea
   return {
     placements,
     anchorStages,
-    joints: { grip, supportHand, elbow, neck, muzzle },
+    joints: { grip, supportHand, elbow, neck, mass: massFromAnchorStages(anchorStages), muzzle },
     weapon: weaponBox,
   };
 }
@@ -438,11 +459,33 @@ function muzzleFraction(img: RgbaImage): PartPoint {
   return { x: (bestX + 0.5) / img.width, y: (bestY + 0.5) / img.height };
 }
 
+/** The relic's rarity frame in the raster path: a 2px stroke inset
+ *  1px around the gear sprite's box — the same frame the DOM actor
+ *  draws with an inset box-shadow, in the rarity's own color. */
+function strokeGearFrame(img: RgbaImage, color: string): void {
+  const [r, g, b] = hexToRgb(color);
+  const inset = 1;
+  const thickness = 2;
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      const onVertical = (x >= inset && x < inset + thickness) || (x >= img.width - inset - thickness && x < img.width - inset);
+      const onHorizontal = (y >= inset && y < inset + thickness) || (y >= img.height - inset - thickness && y < img.height - inset);
+      const inBand = x >= inset && x < img.width - inset && y >= inset && y < img.height - inset;
+      if (!inBand || (!onVertical && !onHorizontal)) continue;
+      const i = (y * img.width + x) * 4;
+      img.data[i] = r;
+      img.data[i + 1] = g;
+      img.data[i + 2] = b;
+      img.data[i + 3] = 255;
+    }
+  }
+}
+
 export function composePartSet(
   set: PartSetDef,
   pose: PartPose,
   load: SpriteLoader,
-  opts: { weapon?: PartsWeapon; palette?: PaletteSpec } = {},
+  opts: { weapon?: PartsWeapon; palette?: PaletteSpec; gear?: MountedGearItem[] } = {},
 ): PartsRender {
   const W = SKELETON.frameWidth + PARTS_BUFFER_PAD * 2;
   const H = SKELETON.frameHeight + PARTS_BUFFER_PAD * 2;
@@ -457,6 +500,11 @@ export function composePartSet(
     elbow: elbowStage,
     neck: neckStage,
   } = resolvePartPlacements(set, pose);
+
+  // Every declared anchor/mount, resolved to stage space — the
+  // gear mounts and the mass joint read from the same resolution
+  // the return value carries.
+  const anchorStages = resolveAnchorStages(placements);
 
   // --- Rasterize parts into per-slot layers (buffer space). ---
   const renderPart = (slot: PartSlot): void => {
@@ -523,10 +571,52 @@ export function composePartSet(
 
   for (const { slot } of PART_SLOTS) renderPart(slot);
 
+  // --- Equipped gear (M3): each item rasterizes into its own
+  // layer, hung on the mount its kind declares (gearMounts.ts) and
+  // rotated with the part that carries the mount. An item whose
+  // mount does not resolve renders NOTHING (the swallow rule) —
+  // and with no gear supplied, no gear layers exist at all, so
+  // gearless renders (goldens included) are untouched. ---
+  if (opts.gear) {
+    for (const item of opts.gear) {
+      const mount = resolveGearMount({ anchorStages, placements }, item);
+      if (!mount) continue;
+      const src = load(item.spriteId);
+      if (!src) continue;
+      let pixels = src;
+      if (item.tint) {
+        pixels = { width: src.width, height: src.height, data: new Uint8Array(src.data) };
+        remapPixelData(pixels.data as unknown as Uint8ClampedArray, item.tint);
+      }
+      const targetW = Math.round(item.width);
+      const targetH = Math.round((item.width * src.height) / src.width);
+      let draw = pixels;
+      if (item.frameColor) {
+        draw = blank(targetW, targetH);
+        blit(draw, pixels, 0, 0, targetW, targetH);
+        strokeGearFrame(draw, item.frameColor);
+      }
+      const layer = blank(W, H);
+      blitRotated(
+        layer,
+        draw,
+        mount.stage.x - item.anchor.x * targetW - origin.x,
+        mount.stage.y - item.anchor.y * targetH - origin.y,
+        targetW,
+        targetH,
+        item.anchor.x,
+        item.anchor.y,
+        mount.rotationDeg,
+      );
+      layers.set(item.layerKey, layer);
+    }
+  }
+
   // --- Composite in paint order over the empty frame. ---
   const image = blank(W, H);
   const ordered: { key: string; order: number }[] = [
     ...PART_SLOTS.filter((s) => layers.has(s.slot)).map((s) => ({ key: s.slot as string, order: s.paintOrder })),
+    ...(opts.gear ?? []).filter((g) => layers.has(g.layerKey)).map((g) => ({ key: g.layerKey, order: GEAR_PAINT_ORDER })),
     ...(layers.has('weapon') ? [{ key: 'weapon', order: WEAPON_PAINT_ORDER }] : []),
   ].sort((a, b) => a.order - b.order);
   for (const { key } of ordered) {
@@ -534,15 +624,12 @@ export function composePartSet(
     if (layer) compositeLayerOver(image, layer);
   }
 
-  // --- Resolve every declared anchor/mount to stage space. ---
-  const anchorStages = resolveAnchorStages(placements);
-
   return {
     image,
     origin,
     layers,
     placements,
     anchorStages,
-    joints: { grip: gripStage, supportHand: supportHandStage, elbow: elbowStage, neck: neckStage, muzzle: muzzleStage },
+    joints: { grip: gripStage, supportHand: supportHandStage, elbow: elbowStage, neck: neckStage, mass: massFromAnchorStages(anchorStages), muzzle: muzzleStage },
   };
 }

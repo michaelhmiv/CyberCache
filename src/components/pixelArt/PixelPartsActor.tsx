@@ -13,6 +13,7 @@ import {
   type PartsPoseName,
 } from '@/lib/pixel/parts';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
+import { GEAR_PAINT_ORDER, resolveGearMount, type MountedGearItem } from '@/lib/pixel/gearMounts';
 import { partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
 import {
   pixelWeaponInputFromWeapon,
@@ -51,6 +52,13 @@ interface PixelPartsActorProps {
   weaponInput?: PixelWeaponInput;
   weaponTestId?: string;
   testId?: string;
+  /** Equipped gear to MOUNT on the figure (M3): each item hangs on
+   *  the mount its kind declares (gearMounts.ts) and moves/rotates
+   *  with the part carrying that mount. Items are keyed from the
+   *  ACTUAL equipped instances by the caller; an item whose mount
+   *  does not resolve renders nothing. Absent/empty = no gear
+   *  layers at all. */
+  gear?: MountedGearItem[];
   children?: React.ReactNode;
 }
 
@@ -79,9 +87,36 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   weaponInput,
   weaponTestId,
   testId,
+  gear,
   children,
 }) => {
   const [, setSwapTick] = useState(0);
+  // Preload tinted gear sprites (the shield's element tint runs the
+  // same async palette-swap cache as the parts); when they land,
+  // re-render so the mounted shield picks up the tinted data URL.
+  const tintedGear = useMemo(() => (gear ?? []).filter((g) => g.tint && g.tintKey), [gear]);
+  useEffect(() => {
+    if (tintedGear.length === 0) return;
+    let cancelled = false;
+    let pending = tintedGear.length;
+    for (const item of tintedGear) {
+      const sprite = requirePixelSprite(item.spriteId);
+      const img = new Image();
+      img.onload = () => {
+        paletteSpriteUrl(item.spriteId, sprite.url, item.tintKey!, item.tint!);
+        pending -= 1;
+        if (!cancelled && pending <= 0) setSwapTick((t) => t + 1);
+      };
+      img.onerror = () => {
+        pending -= 1;
+      };
+      img.src = sprite.url;
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [tintedGear]);
+
   // Preload palette swaps; when they land in the cache, re-render so
   // the parts pick up the swapped data URLs.
   useEffect(() => {
@@ -162,6 +197,51 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     [layout, palette, reduced],
   );
 
+  // Mounted gear (M3): every item resolves against THIS actor's
+  // own layout — the same resolveGearMount the raster compositor
+  // uses — so the DOM figure and the raster render hang gear on
+  // identical stage points, rotating with the mounting part on
+  // that part's SEGMENT timing.
+  const gearLayers = useMemo(
+    () =>
+      (gear ?? []).flatMap((item) => {
+        const mount = resolveGearMount(layout, item);
+        if (!mount) return [];
+        const sprite = requirePixelSprite(item.spriteId);
+        const src = item.tint
+          ? paletteSpriteUrl(item.spriteId, sprite.url, item.tintKey!, item.tint)
+          : sprite.url;
+        const targetW = item.width;
+        const targetH = (item.width * sprite.height) / sprite.width;
+        const isArm = mount.slot === 'armFar' || mount.slot === 'armUpperN' || mount.slot === 'armForeN';
+        const duration = reduced
+          ? 0
+          : (isArm ? MOVEMENT.SEGMENT.ARM_RAISE_MS : MOVEMENT.SEGMENT.STEP_BOB_MS) / 1000;
+        return [
+          {
+            key: item.layerKey,
+            kind: item.kind,
+            testId: item.testId,
+            mountKey: mount.anchorKey,
+            spriteId: item.spriteId,
+            src,
+            duration,
+            rotationDeg: mount.rotationDeg,
+            leftPct: ((mount.stage.x - item.anchor.x * targetW) / SKELETON.frameWidth) * 100,
+            topPct: ((mount.stage.y - item.anchor.y * targetH) / SKELETON.frameHeight) * 100,
+            widthPct: (targetW / SKELETON.frameWidth) * 100,
+            heightPct: (targetH / SKELETON.frameHeight) * 100,
+            originXPct: item.anchor.x * 100,
+            originYPct: item.anchor.y * 100,
+            boxShadow: item.frameColor
+              ? `inset 0 0 0 2px ${item.frameColor}${item.frameGlow && item.frameGlow !== 'none' ? `, ${item.frameGlow}` : ''}`
+              : undefined,
+          },
+        ];
+      }),
+    [gear, layout, reduced],
+  );
+
   const weaponBox = layout.weapon
     ? {
         widthPct: (layout.weapon.targetW / SKELETON.frameWidth) * 100,
@@ -213,6 +293,32 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
             initial={false}
             animate={{ rotate: p.rotationDeg }}
             transition={{ duration: p.duration, ease: 'easeOut' }}
+          />
+        ))}
+        {gearLayers.map((g) => (
+          <motion.img
+            key={g.key}
+            src={g.src}
+            alt=""
+            draggable={false}
+            data-testid={g.testId}
+            data-gear-kind={g.kind}
+            data-gear-mount={g.mountKey}
+            data-gear-sprite={g.spriteId}
+            className="pointer-events-none absolute"
+            style={{
+              left: `${g.leftPct}%`,
+              top: `${g.topPct}%`,
+              width: `${g.widthPct}%`,
+              height: `${g.heightPct}%`,
+              imageRendering: 'pixelated',
+              zIndex: GEAR_PAINT_ORDER,
+              transformOrigin: `${g.originXPct}% ${g.originYPct}%`,
+              boxShadow: g.boxShadow,
+            }}
+            initial={false}
+            animate={{ rotate: g.rotationDeg }}
+            transition={{ duration: g.duration, ease: 'easeOut' }}
           />
         ))}
         {heldInput && weaponBox && (
