@@ -54,6 +54,8 @@ When you return, everything that settled is summarised in the while-you-were-awa
 
 ## Your Lifetime Record
 
+Your Profile opens with your identity and the **Trophy Shelf** in one panel: your best weapons, ranked by the server and shown as the actual items, alongside your best endless depth, Cache Rank standing, and collection progress (the Collections box is a door to the full shelf). Under it, the **Now** feed keeps your hunter's present tense in one place — what you're doing right now and where, your level progress, boss defeats, your strongest weapon, bench jobs, and your **Killed By** record of recent deaths.
+
 Your Profile carries a **Lifetime Record** under the Trophy Shelf: the all-time, server-proven account of your hunter — roaming kills by area, weapon type, and element; boss attempts and victories; salvage and legendary cores; crafting, repair, dispatch, and market history. Every figure is folded from the game's own server records; nothing is estimated.
 
 Three figures carry their history on their face:

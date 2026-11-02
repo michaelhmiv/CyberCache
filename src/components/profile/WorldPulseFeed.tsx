@@ -1,10 +1,10 @@
 import React from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { useActivityStore, useBossStore, useInventoryStore, usePlayerStore, useWorkshopStore } from '@/store';
-import { MobileCard } from '@/components/layout/MobileCard';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { xpToNextLevel } from '@/content/simulation';
+import { resolveSceneLabel } from '@/lib/dashboard/sceneLabel';
 
 type PulseEntry = {
   id: string;
@@ -16,7 +16,18 @@ type PulseEntry = {
 
 const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
 
-export const WorldPulseFeed: React.FC<{ bare?: boolean }> = ({ bare = false }) => {
+export const WorldPulseFeed: React.FC<{
+  bare?: boolean;
+  /**
+   * Children (drift-fix F4) render inside the default feed form as
+   * its final section, above the footer line — the Hunter Profile
+   * stop's "Now" panel passes the Killed By record here so the
+   * merged feed stays one panel (DESIGN.md's Now law; mock m36).
+   * The feed form itself is one-liners: icon, bold lead, em-dash
+   * detail, all wrapping at the 11px floor, never truncated.
+   */
+  children?: React.ReactNode;
+}> = ({ bare = false, children }) => {
   const activity = useActivityStore();
   const player = usePlayerStore();
   const inventory = useInventoryStore();
@@ -26,6 +37,10 @@ export const WorldPulseFeed: React.FC<{ bare?: boolean }> = ({ bare = false }) =
   const publicPayload = activity.current.publicPayload;
   const activityLabel = safeText(publicPayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
   const activityTarget = activity.current.targetLabel ?? safeText(publicPayload.target_label);
+  // The Scene row of the retired Current Activity card folds into
+  // the feed's activity line (resolved player label, never the raw
+  // scene key — QC 2026-11-02, A3).
+  const activityScene = resolveSceneLabel(activity.current.sceneKey, safeText(publicPayload.scene_key));
   const latestBoss = bossStore.defeatedBossIds
     .map((id) => REGION_1_BOSSES.find((boss) => boss.id === id))
     .filter(Boolean)
@@ -102,28 +117,31 @@ export const WorldPulseFeed: React.FC<{ bare?: boolean }> = ({ bare = false }) =
     );
   }
 
+  // Feed form (drift-fix F4) — the default: one-liners inside the
+  // host's Now panel. The old standalone "World Pulse" card form
+  // is retired — Profile was its only host, and the approved
+  // composition merges World Pulse + current activity + the death
+  // record into the one Now panel (mock m36; DESIGN.md's Now law).
+  // The Scene suffix on the activity line is feed-form only, so
+  // Home's bare form keeps its signed wording.
   return (
-    <MobileCard className="space-y-2" rarityColor="#5AA7FF">
-      <div className="flex items-center gap-2">
-        <PxIcon name="signal" size={17} className="text-blue" />
-        <div className="text-xs font-black uppercase tracking-wide text-text-primary">World Pulse</div>
-      </div>
-      <div className="space-y-2">
-        {entries.map((entry) => {
-          return (
-            <div key={entry.id} className="flex items-start gap-2 rounded-lg border border-border bg-bg/60 p-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-border bg-surface-raised font-black" style={{ color: entry.tone, fontSize: '14px' }}>
-                <PxIcon name={entry.icon} size={13} />
-              </div>
-              <div className="min-w-0">
-                <div className="truncate text-xs font-black text-text-primary">{entry.label}</div>
-                <div className="text-[10px] text-text-muted leading-snug">{entry.detail}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="text-[10px] text-text-muted">The latest from your hunts, finds, and feats across the wastes.</div>
-    </MobileCard>
+    <div className="space-y-1.5">
+      {entries.map((entry) => (
+        <div key={entry.id} className="flex items-start gap-2 text-xs leading-snug">
+          <span className="mt-px shrink-0" style={{ color: entry.tone }}>
+            <PxIcon name={entry.icon} size={13} />
+          </span>
+          <div className="min-w-0">
+            <b className="break-words font-black text-text-primary">{entry.label}</b>{' '}
+            <span className="break-words text-[11px] text-text-muted">
+              — {entry.detail}
+              {entry.id === 'current-activity' ? ` · ${activityScene}` : ''}
+            </span>
+          </div>
+        </div>
+      ))}
+      {children}
+      <div className="text-[11px] text-text-muted">The latest from your hunts, finds, and feats across the wastes.</div>
+    </div>
   );
 };

@@ -52,8 +52,12 @@ function rarityColor(rarity: string | null): string {
 }
 
 const FactChip: React.FC<{ label: string; value: string; tone: string }> = ({ label, value, tone }) => (
-  <div className="bl-card flex-1 px-2 py-2 text-center" style={{ borderTopColor: tone, borderTopWidth: 3 }}>
-    <div className="text-sm font-black leading-tight text-text-primary">{value}</div>
+  <div className="bl-card min-w-0 flex-1 px-2 py-2 text-center" style={{ borderTopColor: tone, borderTopWidth: 3 }}>
+    {/* Values print whole — "0 ranks · 0 tokens" wraps inside its
+        chip rather than clipping at the chip edge (fidelity audit,
+        drift-fix F4: the shipped shelf read as three stat boxes with
+        ellipsized values). */}
+    <div className="break-words text-sm font-black leading-tight text-text-primary">{value}</div>
     <div className="text-[11px] font-bold uppercase leading-tight tracking-wide text-text-muted">{label}</div>
   </div>
 );
@@ -72,7 +76,7 @@ const CollectionsTile: React.FC<{
 }> = ({ discovered, onOpenCollections }) => {
   const body = (
     <>
-      <div className="text-sm font-black leading-tight text-text-primary">
+      <div className="break-words text-sm font-black leading-tight text-text-primary">
         {discovered} / {COLLECTION_TOTAL}
       </div>
       <div className="text-[11px] font-bold uppercase leading-tight tracking-wide text-text-muted">Collections</div>
@@ -80,7 +84,7 @@ const CollectionsTile: React.FC<{
   );
   if (!onOpenCollections) {
     return (
-      <div className="bl-card flex-1 px-2 py-2 text-center" style={{ borderTopColor: '#FF9800', borderTopWidth: 3 }}>
+      <div className="bl-card min-w-0 flex-1 px-2 py-2 text-center" style={{ borderTopColor: '#FF9800', borderTopWidth: 3 }}>
         {body}
       </div>
     );
@@ -91,7 +95,7 @@ const CollectionsTile: React.FC<{
       onClick={onOpenCollections}
       data-testid="trophy-collections-tile"
       aria-label={`Open Collections — ${discovered} of ${COLLECTION_TOTAL} discovered`}
-      className="bl-card flex-1 px-2 py-2 text-center transition-transform active:scale-[0.97]"
+      className="bl-card min-w-0 flex-1 px-2 py-2 text-center transition-transform active:scale-[0.97]"
       style={{ borderTopColor: '#FF9800', borderTopWidth: 3 }}
     >
       {body}
@@ -99,7 +103,18 @@ const CollectionsTile: React.FC<{
   );
 };
 
-export const TrophyShelfPanel: React.FC<{ onOpenCollections?: () => void }> = ({ onOpenCollections }) => {
+export const TrophyShelfPanel: React.FC<{
+  onOpenCollections?: () => void;
+  /**
+   * Bare form (drift-fix F4): the approved Hunter composition
+   * (mock m36) seats the shelf INSIDE the identity panel — one
+   * panel: identity line, shelf header, trophy rows, fact boxes.
+   * Bare renders the shelf content without its own card chrome so
+   * the host panel carries it; the standalone card form remains
+   * for any other host.
+   */
+  bare?: boolean;
+}> = ({ onOpenCollections, bare = false }) => {
   const [data, setData] = useState<ProfileLifetimePayload | null>(null);
 
   useEffect(() => {
@@ -121,9 +136,8 @@ export const TrophyShelfPanel: React.FC<{ onOpenCollections?: () => void }> = ({
   const { showcase } = data;
   const weapons = showcase.top_weapons;
 
-  return (
-    <div data-testid="trophy-shelf">
-    <MobileCard className="space-y-3" rarityColor="#FFD166">
+  const shelfBody = (
+    <>
       <div className="flex items-center gap-2">
         <PxIcon name="trophy" size={17} className="text-amber" />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Trophy Shelf</div>
@@ -159,8 +173,10 @@ export const TrophyShelfPanel: React.FC<{ onOpenCollections?: () => void }> = ({
                   <PixelWeapon input={weaponInput(item)} size={104} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-black text-text-primary">{name}</div>
-                  <div className="truncate text-[11px] font-bold" style={{ color }}>
+                  {/* The trophy's name prints whole — a shelved
+                      legendary never ellipsizes (values-wrap law). */}
+                  <div className="break-words text-xs font-black leading-snug text-text-primary">{name}</div>
+                  <div className="break-words text-[11px] font-bold leading-snug" style={{ color }}>
                     {rarity} · Lv {level}
                     {item.equipped_slot === 'weapon' ? ' · Equipped' : ''}
                   </div>
@@ -180,7 +196,22 @@ export const TrophyShelfPanel: React.FC<{ onOpenCollections?: () => void }> = ({
         />
         <CollectionsTile discovered={showcase.collections_discovered} onOpenCollections={onOpenCollections} />
       </div>
-    </MobileCard>
+    </>
+  );
+
+  if (bare) {
+    return (
+      <div data-testid="trophy-shelf" className="space-y-3">
+        {shelfBody}
+      </div>
+    );
+  }
+
+  return (
+    <div data-testid="trophy-shelf">
+      <MobileCard className="space-y-3" rarityColor="#FFD166">
+        {shelfBody}
+      </MobileCard>
     </div>
   );
 };
