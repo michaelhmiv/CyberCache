@@ -156,14 +156,17 @@ function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem;
           <div className="text-[10px] text-text-muted">{item.rarity} · Lv.{item.level ?? 1} · {itemKind(item)}</div>
           <div className="flex flex-wrap gap-1 mt-1">
             {summary.primaryStats.slice(0, 3).map((stat) => (
-              <span key={stat.label} className="inline-flex items-center gap-0.5 rounded border border-border bg-bg px-1 py-0.5 text-[9px]">
+              <span key={stat.label} className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[9px]">
                 <span className="text-text-muted">{stat.label}</span>
                 <span className={`font-bold ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
               </span>
             ))}
           </div>
           {summary.badges[0] && (
-            <div className="text-[9px] text-amber mt-0.5 truncate">{summary.badges[0]}</div>
+            // QC A8: the badge line carries stat values (activity
+            // module rates) — it wraps, never ellipsizes. Values on
+            // a card print in full or not at all.
+            <div className="text-[9px] text-amber mt-0.5 leading-snug">{summary.badges[0]}</div>
           )}
           {compareItem && (
             <GearCompare current={compareItem} candidate={item} compact />
@@ -819,7 +822,7 @@ export const MarketScreen: React.FC = () => {
                   ) : (
                     <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
                   )}
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                     <span className="text-[10px] text-text-muted">Seller · {seller}</span>
                     <PriceTrend stats={stats} />
                   </div>

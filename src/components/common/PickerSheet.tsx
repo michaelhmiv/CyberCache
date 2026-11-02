@@ -1,10 +1,16 @@
 /**
- * PickerSheet — shared full-height bottom-sheet chrome for pickers.
+ * PickerSheet — shared bottom-sheet chrome for pickers.
  *
  * Provides the motion wrapper, overlay, close affordance, title area,
  * and a sticky header slot + scrollable body. Callers supply the
  * search/filter/sort/list content so the chrome stays consistent
  * across SlotGearPicker, ConsumablePicker, etc.
+ *
+ * The panel sizes to its content, capped at 92vh — the cap is a
+ * MAX, not a fixed height (QC A5): short sheets (level specifics,
+ * streak ladder, weekly claims) hug their content instead of
+ * floating at the top of a full-height black void, while long
+ * picker lists still fill to the cap and scroll their body.
  *
  * The sheet renders through a portal to document.body (device
  * feedback r2): the overlay is position:fixed, and a fixed element is
@@ -54,7 +60,7 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
-          className="h-[92vh] w-full flex flex-col border-t-2 border-border bg-bg"
+          className="max-h-[92vh] w-full flex flex-col border-t-2 border-border bg-bg"
           onClick={(event) => event.stopPropagation()}
         >
           {/* Header title */}
@@ -85,8 +91,10 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
             </div>
           )}
 
-          {/* Scrollable list body */}
-          <div className="flex-1 overflow-y-auto px-4 pb-6" data-testid="picker-sheet-body">
+          {/* Scrollable list body — min-h-0 lets it shrink below
+              content height once the panel hits the 92vh cap, so
+              the body scrolls instead of stretching the sheet. */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6" data-testid="picker-sheet-body">
             {children}
           </div>
         </motion.div>

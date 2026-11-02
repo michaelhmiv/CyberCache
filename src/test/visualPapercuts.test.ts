@@ -52,7 +52,10 @@ describe('render fixes (source shape)', () => {
     expect(bar).toContain('label="Level"');
     expect(bar).not.toContain('LV ${player.level}');
     expect(bar).toContain('grid grid-cols-3');
-    expect(bar).toContain('min-[560px]:grid-cols-6');
+    // QC A4: 6-across keys off the strip's own width (container
+    // query), not the viewport — the column is capped at 480px.
+    expect(bar).toContain('@min-[560px]:grid-cols-6');
+    expect(bar).toContain('@container');
     expect(bar).toContain('micro={`${player.cacheKeyFragments}/5`}');
     expect(bar).toContain('microUnit="frag"');
     expect(bar).toContain('microUnit="equipped"');
