@@ -1,10 +1,12 @@
 # The Market
 
 The Market is where hunters trade with each other. It lives on the Market
-tab, whose **rail of stops** — **Buy · Vendor · Sell · My Listings ·
-History · Repair · Shield Tech · Rep Desk · Slots** — runs across the
+tab, whose **rail of stops** — **Buy · Sell · Vendor · Repair · Shield
+Tech · Rep Desk · Slots** — runs across the
 top and scrolls sideways; everything below the rail is the stop you
-picked. Every trade is settled by the server: when you list something, the server
+picked. The Sell stop carries three segments of its own — **Sell**,
+**Mine**, and **History** — switched by the segment control at the top
+of the stop. Every trade is settled by the server: when you list something, the server
 holds it in escrow until it sells or you cancel, and when a sale completes
 the credits move buyer → seller through the verified ledger. Nothing about
 a trade is trusted to your device, so a listing you see is a listing that
@@ -69,7 +71,7 @@ usual.
    sold — and pre-fills a sensible price from the median. Price above or
    below it as you like; the guidance is information, not a rule.
 4. Confirm. The item leaves your inventory into escrow. If it doesn't sell,
-   cancel from **My Listings** and it comes straight back.
+   cancel from the **Mine** segment of the Sell stop and it comes straight back.
 
 ## The 5% fee
 
@@ -102,14 +104,14 @@ real cost.
 
 ## Good to know
 
-- The **History** stop keeps your own record of buys and sales, with the
-  other hunter named on every entry.
+- The **History** segment of the Sell stop keeps your own record of buys
+  and sales, with the other hunter named on every entry.
 - Service work doesn't trade here as items — hiring a mechanic or a shield
   tech happens on the [[Repair Board]] and [[Shield-Tech]] stops of this
   same rail, under the same escrow-and-fee rules.
 - Standing with a weapon maker lives at the **Rep Desk** stop on this
   rail — see [[Manufacturer Standing]]. The [[Slots]] machine is a stop
-  here too.
+  here too — and Home's Slots launcher card lands you right on it.
 
 ## The service boards browse the same way
 

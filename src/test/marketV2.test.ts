@@ -4,8 +4,10 @@
  * parent alignment audit's Market defect list, pinned:
  *
  *  - the 7-tile sub-nav grid is gone; one scrolling rail carries
- *    Buy · Vendor · Sell · My Listings · History · Repair ·
- *    Shield Tech · Rep Desk · Slots at the 11px floor;
+ *    exactly DESIGN.md §2's seven stops — Buy · Sell · Vendor ·
+ *    Repair · Shield Tech · Rep Desk · Slots — at the 11px floor,
+ *    with My Listings ("Mine") and History as segments of the
+ *    Sell stop, not stops of their own (Wave D conformance);
  *  - the Vendor's hidden `rep` toggle and the Vendor-foot slot
  *    machine are deleted — standing and slots are rail stops;
  *  - buyback is a named dashed row on the Vendor stop (F2);
@@ -57,13 +59,35 @@ describe('sellerDisplay — sellers print as hunter names', () => {
 describe('market v2 — rail of stops (source pins)', () => {
   const market = readSource('src/screens/MarketScreen.tsx');
 
-  it('the rail replaced the tile grid and carries all nine stops', () => {
+  it('the rail replaced the tile grid and carries exactly the seven §2 stops', () => {
     expect(market).not.toContain('grid grid-cols-3');
     expect(market).toContain('<ChipRail>');
-    const order = ['buy', 'vendor', 'sell', 'mylistings', 'history', 'repair', 'shieldTech', 'repdesk', 'slots'];
+    const order = ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk', 'slots'];
     const positions = order.map((id) => market.indexOf(`{ id: '${id}'`));
     for (const pos of positions) expect(pos).toBeGreaterThan(-1);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    // My Listings and History are NOT rail stops (§2) — the
+    // nine-stop rail from the first v2 build is retired. (The
+    // stop shape carries a px icon; the Sell segments below do
+    // not, which is what keeps this pin precise.)
+    expect(market).not.toContain("{ id: 'mylistings', label: 'My Listings', px");
+    expect(market).not.toContain("{ id: 'history', label: 'History', px");
+  });
+
+  it('My Listings and History live on the Sell stop as its Mine and History segments', () => {
+    // The segment control rides the top of the Sell stop in the
+    // rail's rectangular geometry; the two surfaces render under
+    // the Sell stop, gated on the segment — re-homed, not removed.
+    expect(market).toContain("const SELL_SEGMENTS");
+    expect(market).toContain("{ id: 'mine', label: 'Mine' }");
+    expect(market).toContain("{ id: 'history', label: 'History' }");
+    expect(market).toContain('segmentCls');
+    expect(market).toContain("market.activeTab === 'sell' && sellSegment === 'sell'");
+    expect(market).toContain("market.activeTab === 'sell' && sellSegment === 'mine'");
+    expect(market).toContain("market.activeTab === 'sell' && sellSegment === 'history'");
+    // The Mine segment keeps the cancel action; History keeps its rows.
+    expect(market).toContain('Cancel Listing');
+    expect(market).toContain('historyPartyLabel');
   });
 
   it('Rep Desk and Slots render as first-class stops', () => {

@@ -57,23 +57,41 @@ type MyListSort = 'price' | 'rarity' | 'name';
  * gap (the ChipRail track); the rail scrolls, labels never shrink
  * below the 11px floor. Rep Desk and Slots are first-class stops:
  * standing's canonical door and the slot machine's canonical home.
+ * The rail carries exactly §2's seven stops — My Listings and
+ * History are segments of the Sell stop (SELL_SEGMENTS below),
+ * not stops of their own.
  */
 const STOPS: { id: string; label: string; px: PxIconName }[] = [
   { id: 'buy', label: 'Buy', px: 'basket' },
-  { id: 'vendor', label: 'Vendor', px: 'vendor' },
   { id: 'sell', label: 'Sell', px: 'tag' },
-  { id: 'mylistings', label: 'My Listings', px: 'grid' },
-  { id: 'history', label: 'History', px: 'orders' },
+  { id: 'vendor', label: 'Vendor', px: 'vendor' },
   { id: 'repair', label: 'Repair', px: 'wrench' },
   { id: 'shieldTech', label: 'Shield Tech', px: 'shield' },
   { id: 'repdesk', label: 'Rep Desk', px: 'badge' },
   { id: 'slots', label: 'Slots', px: 'bolt' },
 ];
 
+/** The Sell stop's segments (DESIGN.md §2): the listing form, the
+ *  seller's own live listings ("Mine"), and their trade History.
+ *  One stop, three segments — the segment control at the top of
+ *  the stop switches between them. */
+type SellSegment = 'sell' | 'mine' | 'history';
+const SELL_SEGMENTS: { id: SellSegment; label: string }[] = [
+  { id: 'sell', label: 'Sell' },
+  { id: 'mine', label: 'Mine' },
+  { id: 'history', label: 'History' },
+];
+
 /** One chip geometry for every chip row in the tab (§6: one left
  *  edge, one height, one gap — rows ride the ChipRail track). */
 const chipCls = (active: boolean) =>
   `flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[11px] font-bold ${active ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`;
+
+/** The Sell stop's segment control shares the rail's rectangular
+ *  geometry (§6): one height, square corners, active = amber fill —
+ *  no skewed or rounded sibling shapes in the same row system. */
+const segmentCls = (active: boolean) =>
+  `flex min-h-[44px] flex-1 items-center justify-center border px-3 text-[11px] font-black transition-colors ${active ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`;
 
 const BUY_CATEGORIES: { id: MarketCategory | null; label: string }[] = [
   { id: null, label: 'All' },
@@ -274,6 +292,9 @@ export const MarketScreen: React.FC = () => {
   const [buySort, setBuySort] = useState<MarketSort>('newest');
   const [sellSort, setSellSort] = useState<SellSort>('power');
   const [myListSort, setMyListSort] = useState<MyListSort>('price');
+  // The Sell stop's active segment (§2): 'sell' the listing form,
+  // 'mine' the player's own listings, 'history' their trade record.
+  const [sellSegment, setSellSegment] = useState<SellSegment>('sell');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
   const [loadingListings, setLoadingListings] = useState(true);
@@ -291,6 +312,17 @@ export const MarketScreen: React.FC = () => {
   // viewable now, so there is no vendor redirect on mount (the old
   // bounce existed only to keep guests from greeting the Locked
   // panel, which no longer exists).
+
+  // Tab→stop deep link: consume the one-shot intent App recorded
+  // for a 'market:<stop>' route (e.g. Home's Slots card) — land on
+  // the named stop, then clear it so the intent never re-fires on
+  // a later plain visit to the tab.
+  const marketStopIntent = useMarketStore((s) => s.marketStopIntent);
+  useEffect(() => {
+    if (!marketStopIntent) return;
+    useMarketStore.getState().setActiveTab(marketStopIntent.stop);
+    useMarketStore.getState().clearMarketStopIntent();
+  }, [marketStopIntent]);
 
   const buyQuery = useMemo<MarketListingQuery>(() => {
     const numOrUndef = (v: string) => {
@@ -769,7 +801,7 @@ export const MarketScreen: React.FC = () => {
             {!loadingListings && <span className="text-[10px] text-text-muted">{buyTotal.toLocaleString()} listing{buyTotal === 1 ? '' : 's'}</span>}
           </div>
           <div className="space-y-2">
-            {!loadingListings && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell tab.</div>}
+            {!loadingListings && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell stop.</div>}
             {filteredListings.map((listing) => {
               const seller = sellerDisplayName(listing, currentUserId);
               const stats = listing.identityKey ? priceStats[listing.identityKey] : undefined;
@@ -799,7 +831,27 @@ export const MarketScreen: React.FC = () => {
         </div>
       )}
 
+      {/* The Sell stop's segment control (§2): Sell · Mine ·
+          History share the stop; the control sits at its top in
+          the rail's rectangular geometry. */}
       {market.activeTab === 'sell' && (
+        <div className="flex gap-2" role="tablist" aria-label="Sell">
+          {SELL_SEGMENTS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={sellSegment === s.id}
+              onClick={() => setSellSegment(s.id)}
+              className={segmentCls(sellSegment === s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {market.activeTab === 'sell' && sellSegment === 'sell' && (
         <div className="space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -989,7 +1041,7 @@ export const MarketScreen: React.FC = () => {
         </div>
       )}
 
-      {market.activeTab === 'mylistings' && (
+      {market.activeTab === 'sell' && sellSegment === 'mine' && (
         <div className="space-y-3">
           <button
             onClick={refreshListings}
@@ -1049,7 +1101,7 @@ export const MarketScreen: React.FC = () => {
       {market.activeTab === 'repair' && <RepairBoard />}
       {market.activeTab === 'shieldTech' && <ShieldTechBoard />}
 
-      {market.activeTab === 'history' && (
+      {market.activeTab === 'sell' && sellSegment === 'history' && (
         <div className="space-y-2">
           {market.history.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No transactions yet.</div>}
           {market.history.map((h) => <div key={h.id} className="bl-card space-y-1.5"><div className="flex items-center justify-between"><div className="text-xs font-bold text-text-primary">{h.itemName}</div><div className={`text-xs font-black ${h.type === 'buy' ? 'text-red-400' : 'text-green-400'}`}>{h.type === 'buy' ? '-' : '+'}{h.price.toLocaleString()}cr</div></div><div className="flex items-center justify-between text-[10px] text-text-muted"><span>{historyPartyLabel(h)}</span><span>{h.itemRarity}</span></div></div>)}

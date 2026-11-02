@@ -233,7 +233,8 @@ describe('Home composition — the deck (§4 fixed order)', () => {
     expect(screen.getByText('Crack Cache')).toBeTruthy();
     expect(screen.getByText('Loadout Bench')).toBeTruthy();
     fireEvent.click(screen.getByText('Slots'));
-    expect(onNavigate).toHaveBeenCalledWith('market');
+    // The card deep-links to the Slots STOP (§9), not just the tab.
+    expect(onNavigate).toHaveBeenCalledWith('market:slots');
   });
 });
 

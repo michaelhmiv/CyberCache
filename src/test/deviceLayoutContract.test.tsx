@@ -197,10 +197,14 @@ describe('layout contract — swept surfaces (source shape)', () => {
     expect(market).toContain('text-[11px]');
     expect(market).not.toContain('grid grid-cols-3 gap-2');
     expect(market).not.toContain('min-w-[60px]');
-    // The rail carries all nine stops, Rep Desk + Slots included.
-    for (const id of ['buy', 'vendor', 'sell', 'mylistings', 'history', 'repair', 'shieldTech', 'repdesk', 'slots']) {
+    // The rail carries exactly DESIGN.md §2's seven stops, Rep
+    // Desk + Slots included; My Listings and History are segments
+    // of the Sell stop, not stops.
+    for (const id of ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk', 'slots']) {
       expect(market).toContain(`{ id: '${id}'`);
     }
+    expect(market).not.toContain("{ id: 'mylistings', label: 'My Listings', px");
+    expect(market).not.toContain("{ id: 'history', label: 'History', px");
   });
 
   it('Inventory summary tiles and the loadout resource row use the bounded formatter', () => {

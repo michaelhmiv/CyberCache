@@ -2,6 +2,15 @@ import { create } from 'zustand';
 import type { Listing, MarketHistory as MarketHistoryEntry, MarketFilter as MarketFilters } from '@/types/market';
 import type { ServiceBoardQuery } from '@/lib/market/boardQuery';
 
+/** The Market rail stops (DESIGN.md §2) — the only values the tab's
+ *  stop state and the tab→stop deep link may name. My Listings and
+ *  History are NOT stops: they are segments of the Sell stop (§2). */
+export type MarketStopId = 'buy' | 'sell' | 'vendor' | 'repair' | 'shieldTech' | 'repdesk' | 'slots';
+export const MARKET_STOP_IDS: readonly MarketStopId[] = ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk', 'slots'];
+
+export const isMarketStopId = (value: string): value is MarketStopId =>
+  (MARKET_STOP_IDS as readonly string[]).includes(value);
+
 interface MarketState {
   activeTab: string;
   listings: Listing[];
@@ -13,6 +22,17 @@ interface MarketState {
   /** How many times NPC listings have been rotated this session. */
   rotateCount: number;
   setActiveTab: (tab: string) => void;
+  /** Tab→stop deep link (DESIGN.md §9): a one-shot intent naming
+   *  the Market stop a launcher elsewhere in the app wants to land
+   *  ON — e.g. Home's Slots card asks for 'slots' so the player
+   *  arrives at the wheel, not at the Market tab's last stop.
+   *  App's handleNavigate records it for a 'market:<stop>' route;
+   *  MarketScreen consumes it on arrival (applies + clears), so a
+   *  later plain Market visit keeps the player's own stop. `seq`
+   *  makes a repeat intent re-apply even while Market is mounted. */
+  marketStopIntent: { stop: MarketStopId; seq: number } | null;
+  requestMarketStop: (stop: MarketStopId) => void;
+  clearMarketStopIntent: () => void;
   /** Shield-tech deep link (0044): a shield id handed from the gear
    *  inspect sheet to the Shield Tech tab's post form, consumed once. */
   shieldTechPreselect: string | null;
@@ -43,6 +63,9 @@ export const useMarketStore = create<MarketState>()((set) => ({
   rotateCount: 0,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
+  marketStopIntent: null,
+  requestMarketStop: (stop) => set({ marketStopIntent: { stop, seq: Date.now() } }),
+  clearMarketStopIntent: () => set({ marketStopIntent: null }),
   shieldTechPreselect: null,
   setShieldTechPreselect: (itemId) => set({ shieldTechPreselect: itemId }),
   repairBoardQuery: {},

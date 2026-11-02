@@ -24,6 +24,7 @@ import { isVerificationGraceExpired, shouldShowVerificationReminder } from './au
 import { useAuth } from './auth/AuthProvider';
 import { useEffect } from 'react';
 import { mountIdleTicker, unmountIdleTicker } from './store';
+import { isMarketStopId, useMarketStore } from './store/slices/marketSlice';
 import { SalvageToastContainer } from './components/action/SalvageToast';
 import { StarterBundleReveal } from './components/activity/StarterBundleReveal';
 import { useOfflineRecapListener } from './components/activity/useOfflineRecapListener';
@@ -147,6 +148,21 @@ function App() {
       setActiveTab('gear');
       setSubScreen(null);
       setInventoryTabIntent({ tab: 'loadout', seq: Date.now(), anchor: 'garage' });
+      return;
+    }
+    if (screen.startsWith('market:')) {
+      // Tab→stop deep link (DESIGN.md §9): 'market:<stop>' lands ON
+      // the named Market rail stop, not just on the tab — Home's
+      // Slots launcher rides it, so the card reaches the wheel in
+      // the two taps §9 counts. The intent is recorded on the
+      // market store and consumed by MarketScreen on arrival; an
+      // unknown stop falls back to the plain Market landing.
+      const stop = screen.slice('market:'.length);
+      if (isMarketStopId(stop)) {
+        useMarketStore.getState().requestMarketStop(stop);
+      }
+      setActiveTab('market');
+      setSubScreen(null);
       return;
     }
     if (screen === 'vendor') {

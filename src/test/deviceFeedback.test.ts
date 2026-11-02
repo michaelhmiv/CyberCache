@@ -61,8 +61,10 @@ describe('device feedback — market vendor open to guests', () => {
     expect(market).toContain("market.activeTab === 'vendor' && <VendorScreen />");
     expect(market).toContain("activeTab === 'buy'");
     expect(market).toContain("activeTab === 'sell'");
-    expect(market).toContain("activeTab === 'mylistings'");
-    expect(market).toContain("activeTab === 'history'");
+    // My Listings + History render ungated too — as the Sell
+    // stop's Mine / History segments since the §2 rail collapse.
+    expect(market).toContain("sellSegment === 'mine'");
+    expect(market).toContain("sellSegment === 'history'");
     // The transact lock is consulted at the actions, not the tabs.
     expect(market).toContain('useEconomyTransactLock');
     expect(market).toContain("guardTransact('buy'");
