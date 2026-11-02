@@ -4,6 +4,7 @@
  * Auto-dismisses after 6 seconds.
  */
 import React, { useEffect } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
@@ -55,7 +56,7 @@ const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
           className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-border"
           style={{ background: `${accent}18` }}
         >
-          <span className="font-black" style={{ color: accent, fontSize: '16px' }}>♻</span>
+          <PxIcon name="recycle" size={17} style={{ color: accent }} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

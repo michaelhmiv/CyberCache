@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { usePlayerStore } from '@/store';
 import { fetchCollections, type CollectionsPayload } from '@/lib/api/verifiedOps';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
@@ -86,8 +87,8 @@ const EntryArt: React.FC<{ entry: CollectionEntry; found: boolean }> = ({ entry,
   const sprite = spriteId ? getPixelSprite(spriteId) : undefined;
   if (!sprite) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-3xl text-text-muted" style={silhouette}>
-        ✦
+      <div className="flex h-full w-full items-center justify-center text-text-muted" style={silhouette}>
+        <PxIcon name="star" size={26} />
       </div>
     );
   }

@@ -24,6 +24,7 @@
  */
 
 import React from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion } from 'framer-motion';
 import { X, Clock } from 'lucide-react';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
@@ -278,7 +279,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-4 text-amber/60" style={{ fontSize: 16 }}>⚡</span>
+          <span className="inline-flex h-4 w-4 items-center text-amber/60"><PxIcon name="bolt" size={13} /></span>
           <span className="text-xs text-zinc-500">
             {formatNumber(s.ticksSettled)} ticks settled
             {s.capReached && (

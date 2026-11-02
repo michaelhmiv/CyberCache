@@ -6,6 +6,7 @@
  * shown with its sub-stat breakdown.
  */
 import React, { useMemo } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { getActivityVisual } from '@/constants/activityVisuals';
 import { useLoadoutStore, useInventoryStore } from '@/store';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
@@ -15,14 +16,14 @@ import { getActivityModuleStatLabel } from '@/lib/activity/activityStatMetadata'
 
 // ── Icons per activity ────────────────────────────────────────────
 
-const ACTIVITY_GLYPHS: Partial<Record<ActivityKind, string>> = {
-  crafting: getActivityVisual('crafting').glyph,
-  salvaging: getActivityVisual('salvaging').glyph,
-  market_listing: getActivityVisual('market_listing').glyph,
-  workshop_service: getActivityVisual('workshop_service').glyph,
-  roaming_loot: getActivityVisual('roaming_loot').glyph,
-  idle_standby: getActivityVisual('idle_standby').glyph,
-  endless_run: getActivityVisual('endless_run').glyph,
+const ACTIVITY_ICONS: Partial<Record<ActivityKind, PxIconName>> = {
+  crafting: getActivityVisual('crafting').icon,
+  salvaging: getActivityVisual('salvaging').icon,
+  market_listing: getActivityVisual('market_listing').icon,
+  workshop_service: getActivityVisual('workshop_service').icon,
+  roaming_loot: getActivityVisual('roaming_loot').icon,
+  idle_standby: getActivityVisual('idle_standby').icon,
+  endless_run: getActivityVisual('endless_run').icon,
 };
 
 
@@ -86,7 +87,7 @@ export const ActivityModifierPanel: React.FC<{
   // Don't render if there are no modifiers
   if (entries.length === 0 && contributingGear.length === 0) return null;
 
-  const activityGlyph = ACTIVITY_GLYPHS[activityKind] ?? '○';
+  const activityIcon = ACTIVITY_ICONS[activityKind] ?? 'ring';
   const label = PRODUCTIVE_ACTIVITY_LABELS[activityKind] ?? activityKind;
 
   return (
@@ -94,7 +95,7 @@ export const ActivityModifierPanel: React.FC<{
       style={{ clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' }}>
       {/* Header */}
       <div className="flex items-center gap-2">
-        <span className="font-black text-amber shrink-0" style={{ fontSize: '14px' }}>{activityGlyph}</span>
+        <span className="inline-flex shrink-0 text-amber"><PxIcon name={activityIcon} size={13} /></span>
         <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">{label} Modifiers</div>
       </div>
 

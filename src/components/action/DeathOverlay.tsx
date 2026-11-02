@@ -33,6 +33,7 @@
  * and click-handler coverage (the Chef client is mocked there).
  */
 import React, { useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock } from 'lucide-react';
 import {
@@ -168,7 +169,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
         >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-red bg-red/20 text-red">
-              <span style={{ fontSize: 22 }}>☠</span>
+              <PxIcon name="skull" size={26} />
             </div>
             <div className="min-w-0 flex-1">
               <div

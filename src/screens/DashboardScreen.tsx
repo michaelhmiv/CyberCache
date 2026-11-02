@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
@@ -172,7 +173,7 @@ const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
   const actVisual = getActivityVisual('idle_standby');
   return (
     <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
-      <span className="shrink-0 font-black" style={{ color: color.text.includes('text-text-secondary') ? '#B8B0A8' : '#FF9000', fontSize: '15px' }}>{actVisual.glyph}</span>
+      <PxIcon name={actVisual.icon} size={17} style={{ color: color.text.includes('text-text-secondary') ? '#B8B0A8' : '#FF9000' }} />
     </div>
   );
 };
@@ -369,17 +370,17 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
     // a rival start button. Roaming starts under ONE verb — the
     // diorama's "Start Roam" here and in the Action workspace — so
     // this row reports the run's state and opens the workspace.
-    { id: 'fight', label: 'Roaming', desc: selectedRoamingActive ? 'Run live now — open the Action workspace to manage it.' : 'Open the Action workspace to start roaming.', icon: <span style={{ fontSize: 16 }} className="text-red">⚔</span>, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: () => onNavigate('fight') },
-    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <span style={{ fontSize: 16 }} className="text-amber">◈</span>, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('loadout') },
+    { id: 'fight', label: 'Roaming', desc: selectedRoamingActive ? 'Run live now — open the Action workspace to manage it.' : 'Open the Action workspace to start roaming.', icon: <PxIcon name="crosshair" size={17} className="text-red" />, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: () => onNavigate('fight') },
+    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <PxIcon name="diamondIn" size={17} className="text-amber" />, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('loadout') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
-    { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <span style={{ fontSize: 16 }} className="text-purple">♕</span>, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
-    { id: 'workshop', label: 'Workshop', desc: 'Bench jobs run while Crafting holds the action slot.', icon: <span style={{ fontSize: 16 }} className="text-blue">⚒</span>, tone: 'blue' as Tone, stat: `${openWorkshopJobs} jobs`, onClick: () => onNavigate('workshop') },
-    { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <span style={{ fontSize: 16 }} className="text-cyan">➤</span>, tone: 'cyan' as Tone, stat: 'Contract board', onClick: () => onNavigate('dispatch') },
-    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: <span style={{ fontSize: 16 }} className="text-cyan">$</span>, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
+    { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <PxIcon name="crown" size={17} className="text-purple" />, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
+    { id: 'workshop', label: 'Workshop', desc: 'Bench jobs run while Crafting holds the action slot.', icon: <PxIcon name="hammer" size={17} className="text-blue" />, tone: 'blue' as Tone, stat: `${openWorkshopJobs} jobs`, onClick: () => onNavigate('workshop') },
+    { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', onClick: () => onNavigate('dispatch') },
+    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: <PxIcon name="coin" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
     // Audit SET-01: Settings used to be reachable only via HUNTER →
     // ACCOUNT TOOLS. Same row, same destination, on the Dashboard —
     // the HUNTER path stays.
-    { id: 'settings', label: 'Settings', desc: 'Preferences, display, and local save controls.', icon: <span style={{ fontSize: 16 }} className="text-text-secondary">⚙</span>, tone: 'cyan' as Tone, stat: 'Account tools', onClick: () => onNavigate('settings') },
+    { id: 'settings', label: 'Settings', desc: 'Preferences, display, and local save controls.', icon: <PxIcon name="cog" size={17} className="text-text-secondary" />, tone: 'cyan' as Tone, stat: 'Account tools', onClick: () => onNavigate('settings') },
   ];
 
   return (
@@ -472,7 +473,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
             label="Equipped"
             value={equippedWeapon?.name ?? 'None'}
             detail={equippedWeapon ? `${equippedWeapon.combatPower} combat power` : 'Open loadout bench'}
-            icon={<span style={{ fontSize: 14 }} className="text-red">✦</span>}
+            icon={<PxIcon name="star" size={13} className="text-red" />}
             tone="red"
             onClick={() => onNavigate('inventory')}
           /></div></Panel>

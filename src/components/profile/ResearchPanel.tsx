@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   cancelResearch,
@@ -102,7 +103,7 @@ export const ResearchPanel: React.FC = () => {
   return (
     <MobileCard className="space-y-3" rarityColor="#7FB069">
       <div className="flex items-center gap-2">
-        <span className="font-black" style={{ fontSize: '16px', color: '#7FB069' }}>✎</span>
+        <PxIcon name="pencil" size={17} style={{ color: '#7FB069' }} />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Research</div>
         <div className="ml-auto flex items-baseline gap-1">
           <span className="text-lg font-black" style={{ color: '#7FB069' }}>
@@ -240,7 +241,7 @@ export const ResearchPanel: React.FC = () => {
                       className="shrink-0 rounded px-2 py-1 text-[10px] font-black uppercase"
                       style={{ backgroundColor: `${faculty.color}22`, color: faculty.color }}
                     >
-                      ✓ Complete
+                      <span className="inline-flex items-center gap-1"><PxIcon name="check" size={13} /> Complete</span>
                     </span>
                   )}
                   {isActive && (

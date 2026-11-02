@@ -1,4 +1,5 @@
 import React from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
@@ -42,7 +43,7 @@ export const VehicleStatusLine: React.FC<{ onOpenGarage?: () => void }> = ({ onO
   if (!equipped) {
     return (
       <div data-testid="vehicle-status" className="flex items-center justify-between gap-2 border border-border/60 bg-surface/80 px-2 py-1.5 text-[11px] text-text-muted">
-        <span>🚶 On foot — no vehicle equipped, roaming at ×1.00. Equip one in the Garage (Loadout tab).</span>
+        <span className="inline-flex items-center gap-1"><PxIcon name="person" size={13} /> On foot — no vehicle equipped, roaming at ×1.00. Equip one in the Garage (Loadout tab).</span>
         {garageButton}
       </div>
     );
@@ -66,7 +67,7 @@ export const VehicleStatusLine: React.FC<{ onOpenGarage?: () => void }> = ({ onO
     <div data-testid="vehicle-status" className="border border-border/60 bg-surface/80 px-2 py-1.5 text-[11px] text-text-muted space-y-0.5">
       <div className="flex items-start justify-between gap-2">
         <div>
-          🛞 <span className="font-bold text-text-primary">{equipped.name}</span>
+          <span className="inline-flex items-center gap-1"><PxIcon name="wheel" size={13} /> <span className="font-bold text-text-primary">{equipped.name}</span></span>
           {classEcho} — yield bonus{' '}
           <span className="font-bold text-text-primary">×{outOfFuel || wornOut ? '1.00' : factor.toFixed(2)}</span>
           {' '}· fuel <span className="font-bold text-text-primary">{Math.floor(fuel)} units</span>

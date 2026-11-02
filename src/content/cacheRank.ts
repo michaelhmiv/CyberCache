@@ -47,6 +47,7 @@
  *    a kill count, or a checklist. Levels are the only input.
  */
 import { xpToNextLevel } from './simulation';
+import type { PxIconName } from '@/lib/pixel/icons';
 
 // ─── Earning ─────────────────────────────────────────────────────────
 
@@ -73,8 +74,8 @@ export interface CacheRankBonusDef {
   leverKey: keyof CacheRankLeverValues;
   /** Hard rank cap — mirrored by the cache_rank_bonus_definitions table (0031). */
   maxRanks: number;
-  /** Glyph for the panel's rank pips (visual identity, G-rules). */
-  glyph: string;
+  /** Pixel icon for the panel's rank pips (visual identity, G-rules). */
+  icon: PxIconName;
   /** Accent color for the track (visual identity, G-rules). */
   color: string;
 }
@@ -86,7 +87,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
     summary: 'Credits earned from roaming, bosses, and the Chamber',
     leverKey: 'cacheRankCreditsPerRank',
     maxRanks: 10,
-    glyph: '¢',
+    icon: 'coin',
     color: '#F2C063',
   },
   {
@@ -95,7 +96,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
     summary: 'XP earned from every source',
     leverKey: 'cacheRankXpPerRank',
     maxRanks: 10,
-    glyph: '✧',
+    icon: 'star',
     color: '#7FD4FF',
   },
   {
@@ -104,7 +105,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
     summary: 'Scrap earned from roaming and the Chamber',
     leverKey: 'cacheRankScrapPerRank',
     maxRanks: 10,
-    glyph: '⚒',
+    icon: 'hammer',
     color: '#B08968',
   },
   {
@@ -113,7 +114,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
     summary: 'Damage in roaming, boss fights, and the Chamber',
     leverKey: 'cacheRankDamagePerRank',
     maxRanks: 10,
-    glyph: '✸',
+    icon: 'burst',
     color: '#FF4B5C',
   },
   {
@@ -122,7 +123,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
     summary: 'Maximum hunter HP',
     leverKey: 'cacheRankMaxHpPerRank',
     maxRanks: 10,
-    glyph: '♥',
+    icon: 'heart',
     color: '#FF8FA3',
   },
   {
@@ -131,7 +132,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
     summary: 'Cache quality — Epic and Legendary cache draws weigh heavier',
     leverKey: 'cacheRankCacheQualityPerRank',
     maxRanks: 10,
-    glyph: '⬢',
+    icon: 'hex',
     color: '#B18CFF',
   },
   {
@@ -140,7 +141,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
     summary: 'Market sale proceeds, paid on top of the post-fee amount',
     leverKey: 'cacheRankMarketProceedsPerRank',
     maxRanks: 10,
-    glyph: '§',
+    icon: 'tag',
     color: '#8FE388',
   },
 ];
@@ -402,7 +403,7 @@ export interface CacheRankTrackView {
   id: CacheRankBonusId;
   name: string;
   summary: string;
-  glyph: string;
+  icon: PxIconName;
   color: string;
   ranks: number;
   maxRanks: number;
@@ -458,7 +459,7 @@ export function cacheRankStateView(input: {
       id: def.id,
       name: def.name,
       summary: def.summary,
-      glyph: def.glyph,
+      icon: def.icon,
       color: def.color,
       ranks,
       maxRanks: def.maxRanks,

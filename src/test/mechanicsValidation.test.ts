@@ -38,7 +38,7 @@ describe('mechanics foundation validation', () => {
       expect(consumable.consumePolicy).toBeTruthy();
       expect(consumable.implementationStatus).toBeTruthy();
 
-      expect(consumable.visual.glyph.length).toBeGreaterThan(0);
+      expect(consumable.visual.icon.length).toBeGreaterThan(0);
       expect(consumable.visual.accent).toBeTruthy();
       expect(consumable.visual.silhouette).toBeTruthy();
       expect(consumable.runtime.activityScopes.length).toBeGreaterThan(0);

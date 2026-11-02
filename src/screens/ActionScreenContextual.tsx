@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence } from 'framer-motion';
 import {
   Clock,
@@ -72,7 +73,8 @@ const smallClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%
 /** Renders an activity-kind glyph as a styled span (replaces lucide activity icons). */
 const ActivityGlyph: React.FC<{ kind: ActivityKind; size?: number; className?: string }> = ({ kind, size = 15, className = '' }) => {
   const visual = getActivityVisual(kind);
-  return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px` }}>{visual.glyph}</span>;
+  const pxSize = size <= 14 ? 13 : size <= 21 ? 17 : size <= 33 ? 26 : 40;
+  return <span className={`shrink-0 inline-flex items-center justify-center ${className}`} style={{ color: visual.color }}><PxIcon name={visual.icon} size={pxSize} /></span>;
 };
 
 const copy: Record<ActivityKind, { title: string; detail: string }> = {
@@ -509,7 +511,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             <div>
               <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Active Area</div>
               <div className="flex items-center gap-2 mt-0.5">
-                <span style={{ fontSize: 15 }} className="text-amber shrink-0">📡</span>
+                <PxIcon name="signal" size={17} className="shrink-0 text-amber" />
                 <div>
                   <div className="text-sm font-black text-text-primary">{selectedArea.name}</div>
                   <div className="text-[10px] text-text-muted">{selectedArea.enemyType} · Lv.{selectedArea.unlockLevel} · {selectedArea.dangerRating}</div>
@@ -580,7 +582,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const switchActions = [
     { label: 'Roam', detail: selectedArea.name, icon: <ActivityGlyph kind="roaming_loot" size={16} /> as React.ReactNode, run: () => startRoam() },
     { label: 'Boss Prep', detail: prepBossTarget?.name ?? 'Choose target', icon: <ActivityGlyph kind="boss_fight" size={16} /> as React.ReactNode, run: () => startPrep() },
-    { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <span style={{ fontSize: 16 }} className="text-amber">⚔</span> as React.ReactNode, run: () => startBossFight() },
+    { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <PxIcon name="crosshair" size={17} className="text-amber" /> as React.ReactNode, run: () => startBossFight() },
     { label: 'Endless', detail: 'Chaos Chamber', icon: <ActivityGlyph kind="endless_run" size={16} /> as React.ReactNode, run: openEndless },
     { label: 'Extract', detail: selectedArea.name, icon: <ActivityGlyph kind="extraction" size={16} /> as React.ReactNode, run: openExtraction },
     { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: <ActivityGlyph kind="crafting" size={16} /> as React.ReactNode, run: () => startCrafting() },
@@ -660,7 +662,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* 1b. Compact Action Selector — always at top, replaces IdlePanel */}
       <div className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
         <div className="flex items-center gap-2 mb-2">
-          <span style={{ fontSize: 15 }} className="text-amber shrink-0">⚙</span>
+          <PxIcon name="cog" size={17} className="shrink-0 text-amber" />
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">
             {currentKind === 'idle_standby' || currentKind === 'none' ? 'Choose Action' : `${detail.title} · Controls`}
           </div>
@@ -715,13 +717,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             {Math.round(survival.currentHp)}/{Math.round(survival.maxHp)}
           </span>
           {survival.shieldHp > 0 && (
-            <span className="ml-1 font-black text-cyan">🛡 {Math.round(survival.shieldHp)}</span>
+            <span className="ml-1 inline-flex items-center gap-0.5 font-black text-cyan"><PxIcon name="shield" size={13} /> {Math.round(survival.shieldHp)}</span>
           )}
           {survival.medKitBuffer > 0 && (
-            <span className="ml-1 font-black text-green">✚ {Math.round(survival.medKitBuffer)}</span>
+            <span className="ml-1 inline-flex items-center gap-0.5 font-black text-green"><PxIcon name="cross" size={13} /> {Math.round(survival.medKitBuffer)}</span>
           )}
           {survival.nanoSwarmTicksRemaining > 0 && (
-            <span className="ml-1 font-black text-purple">✦ {survival.nanoSwarmTicksRemaining}t</span>
+            <span className="ml-1 inline-flex items-center gap-0.5 font-black text-purple"><PxIcon name="star" size={13} /> {survival.nanoSwarmTicksRemaining}t</span>
           )}
         </div>
         <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>

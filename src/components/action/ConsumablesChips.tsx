@@ -19,6 +19,7 @@
  * via `readConsumableSlots()` which is a pure store-read.
  */
 import React from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { usePlayerStore, useLoadoutStore } from '@/store';
 import { readConsumableSlots, type ConsumableSlotView } from '@/lib/combat/consumableSlotMap';
 
@@ -55,9 +56,7 @@ const ConsumableChip: React.FC<{ view: ConsumableSlotView }> = ({ view }) => {
       }`}
       style={chipClip}
     >
-      <span aria-hidden className="text-sm leading-none">
-        {view.icon}
-      </span>
+      <PxIcon name={view.icon} size={13} />
       <span className="truncate">{empty ? 'Empty' : view.label}</span>
       <span className="ml-1 text-text-primary">×{view.count}</span>
     </div>

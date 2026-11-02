@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   getCacheRankState,
@@ -91,7 +92,7 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
   return (
     <MobileCard className="space-y-3" rarityColor="#F2C063" glow={state.tokens > 0}>
       <div className="flex items-center gap-2">
-        <span className="font-black" style={{ fontSize: '16px', color: '#F2C063' }}>⬢</span>
+        <PxIcon name="hex" size={17} style={{ color: '#F2C063' }} />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Cache Rank</div>
         <div className="ml-auto flex items-baseline gap-1">
           <span className="text-lg font-black" style={{ color: '#F2C063' }}>{state.tokens}</span>
@@ -148,7 +149,7 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
                 className="bl-icon-plate flex h-9 w-9 shrink-0 items-center justify-center font-black"
                 style={{ backgroundColor: `${track.color}18`, color: track.color, fontSize: '16px' }}
               >
-                {track.glyph}
+                <PxIcon name={track.icon} size={17} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
@@ -187,7 +188,7 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
                     ? 'Max'
                     : busyTrack === track.id
                       ? '…'
-                      : `⬢ ${track.nextCost}`}
+                      : <span className="inline-flex items-center gap-1"><PxIcon name="hex" size={13} /> {track.nextCost}</span>}
                 </button>
               )}
             </div>

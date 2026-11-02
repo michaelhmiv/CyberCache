@@ -319,11 +319,14 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
         .toBe('Contracts — sign in with Google to claim rewards');
     });
     const icon = screen.getByTestId('top-contracts-button');
-    expect(icon.textContent).toContain('🔒');
+    // The lock badge is a pixel icon now (no emoji in the UI): the button
+    // carries two SVGs for a guest — the orders icon and the lock badge.
+    expect(icon.querySelectorAll('svg')).toHaveLength(2);
+    expect(icon.textContent).not.toContain('🔒');
     expect(screen.queryByTestId('contracts-claim-pulse')).toBeNull();
 
     fireEvent.click(icon);
-    expect(await screen.findByText('🔒 Sign in with Google to claim')).toBeTruthy();
+    expect(await screen.findByText('Sign in with Google to claim')).toBeTruthy();
   });
 });
 

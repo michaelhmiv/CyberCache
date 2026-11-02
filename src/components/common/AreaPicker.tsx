@@ -12,6 +12,7 @@
  * turfs, or routes).
  */
 import React from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { ChevronDown } from 'lucide-react';
 import { useIdleStore } from '@/store/slices/idleSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
@@ -91,7 +92,7 @@ export const AreaPickerList: React.FC<{
     <>
       {hotArea && (
         <div className="mb-2 border-2 border-[#E2483D] bg-[#E2483D]/10 p-2 text-[11px] font-bold text-text-primary" data-testid="hot-area-banner">
-          🔥 Hot area today: <span className="text-[#E2483D]">{hotArea.name}</span> — bonus materials and
+          <span className="inline-flex text-[#E2483D]"><PxIcon name="flame" size={13} /></span> Hot area today: <span className="text-[#E2483D]">{hotArea.name}</span> — bonus materials and
           yield, higher danger. Rotates daily.
         </div>
       )}

@@ -37,6 +37,7 @@
  * clipped ancestors, the flow-fix F17 pattern).
  */
 import React, { useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PickerSheet } from '@/components/common/PickerSheet';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -81,13 +82,13 @@ function PulseGlow({ color, testId }: { color: string; testId: string }) {
   );
 }
 
-function CornerBadge({ text, color }: { text: string; color: string }) {
+function CornerBadge({ text, icon, color }: { text?: string; icon?: PxIconName; color: string }) {
   return (
     <span
       className="absolute -top-1.5 -right-1.5 z-10 px-1 py-px text-[9px] font-black leading-none text-black"
       style={{ backgroundColor: color }}
     >
-      {text}
+      {icon ? <PxIcon name={icon} size={13} /> : text}
     </span>
   );
 }
@@ -198,7 +199,7 @@ export const DashboardTopBar: React.FC = () => {
         >
           {streakJustClaimed && <PulseGlow color={STREAK_ACCENT} testId="streak-claim-pulse" />}
           {streakJustClaimed && <CornerBadge text="NEW" color={STREAK_ACCENT} />}
-          <span style={{ fontSize: 19, lineHeight: 1 }} aria-hidden>🔥</span>
+          <PxIcon name="flame" size={17} />
           <span className="text-[8px] font-black uppercase tracking-wider text-text-muted">
             {streakDay !== null ? `Day ${streakDay}` : 'Streak'}
           </span>
@@ -214,8 +215,8 @@ export const DashboardTopBar: React.FC = () => {
         >
           {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
-          {contractsGuestLocked && <CornerBadge text="🔒" color="#8A847C" />}
-          <span style={{ fontSize: 19, lineHeight: 1 }} aria-hidden>📋</span>
+          {contractsGuestLocked && <CornerBadge icon="lock" color="#8A847C" />}
+          <PxIcon name="orders" size={17} />
           <span className="text-[8px] font-black uppercase tracking-wider text-text-muted">
             Orders
           </span>

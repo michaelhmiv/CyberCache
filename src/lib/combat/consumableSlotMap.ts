@@ -10,6 +10,7 @@
  */
 
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
+import type { PxIconName } from '@/lib/pixel/icons';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { CONSUMABLES } from '@/constants/consumables';
 
@@ -24,8 +25,8 @@ export interface ConsumableSlotView {
   label: string;
   /** How many the player currently has. 0 if slot is empty. */
   count: number;
-  /** Icon hint (emoji/glyph) for the chip. */
-  icon: string;
+  /** Pixel icon for the chip (PxIcon name). */
+  icon: PxIconName;
 }
 
 function consumableLabel(typeId: string | null): string {
@@ -33,9 +34,9 @@ function consumableLabel(typeId: string | null): string {
   return CONSUMABLES[typeId]?.name ?? typeId;
 }
 
-function consumableIcon(typeId: string | null): string {
-  if (!typeId) return '—';
-  return CONSUMABLES[typeId]?.visual.glyph ?? '📦';
+function consumableIcon(typeId: string | null): PxIconName {
+  if (!typeId) return 'crate';
+  return CONSUMABLES[typeId]?.visual.icon ?? 'crate';
 }
 
 /**

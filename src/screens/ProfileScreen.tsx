@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
 import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
 import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/api/statsService';
@@ -35,14 +36,14 @@ interface ProfileScreenProps {
   focusSection?: 'skills' | null;
 }
 
-const ActionRow: React.FC<{ glyph: string; label: string; desc: string; onClick: () => void; tone?: string }> = ({ glyph, label, desc, onClick, tone = '#FF9000' }) => (
+const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; desc: string; onClick: () => void; tone?: string }> = ({ glyph, icon, label, desc, onClick, tone = '#FF9000' }) => (
   <button
     onClick={onClick}
     className="bl-card flex w-full items-center gap-3 p-3 text-left transition-transform active:scale-[0.98]"
     style={{ borderLeftColor: tone, borderLeftWidth: 5 }}
   >
     <div className="bl-icon-plate flex h-10 w-10 shrink-0 items-center justify-center font-black" style={{ backgroundColor: `${tone}18`, color: tone, fontSize: '18px' }}>
-      {glyph}
+      {icon ? <PxIcon name={icon} size={17} /> : glyph}
     </div>
     <div className="min-w-0 flex-1">
       <div className="text-sm font-black uppercase tracking-wide text-text-primary">{label}</div>
@@ -179,7 +180,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
       <MobileCard className="space-y-2" rarityColor="#5AA7FF">
         <div className="flex items-center gap-2">
-          <span className="font-black text-blue" style={{ fontSize: '16px' }}>📡</span>
+          <PxIcon name="signal" size={17} className="text-blue" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Current Activity</div>
         </div>
         <div className="space-y-1 text-xs text-text-secondary">
@@ -194,7 +195,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
       <MobileCard className="space-y-2" rarityColor="#FF4B5C">
         <div className="flex items-center gap-2">
-          <span className="font-black text-red" style={{ fontSize: '16px' }}>☠</span>
+          <PxIcon name="skull" size={17} className="text-red" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Killed By</div>
           <div className="ml-auto text-[10px] text-text-muted">{deathLog.length} recorded</div>
         </div>
@@ -228,7 +229,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       >
         <MobileCard className="space-y-3" rarityColor="#FF4B5C">
           <div className="flex items-center gap-2">
-            <span className="font-black text-red" style={{ fontSize: '16px' }}>⚡</span>
+            <PxIcon name="bolt" size={17} className="text-red" />
             <div className="text-xs font-black uppercase tracking-wide text-text-primary">Skill Trees</div>
             <div className="ml-auto text-[10px] text-text-muted">{availableSkillPoints} pts available</div>
           </div>
@@ -245,7 +246,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
       <MobileCard className="space-y-2" rarityColor="#7CFC00">
         <div className="flex items-center gap-2">
-          <span className="font-black text-green" style={{ fontSize: '16px' }}>◈</span>
+          <PxIcon name="diamondIn" size={17} className="text-green" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Account Plate</div>
         </div>
         <div className="space-y-1 text-xs text-text-secondary">
@@ -309,7 +310,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
       <MobileCard className="space-y-3" rarityColor="#FF9000">
         <div className="flex items-center gap-2">
-          <span className="font-black text-amber" style={{ fontSize: '16px' }}>⚔</span>
+          <PxIcon name="crosshair" size={17} className="text-amber" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Field Stats</div>
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
@@ -338,7 +339,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
       <MobileCard className="space-y-3" rarityColor="#FF4B5C">
         <div className="flex items-center gap-2">
-          <span className="font-black text-red" style={{ fontSize: '16px' }}>◎</span>
+          <PxIcon name="rings" size={17} className="text-red" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Combat Breakdown</div>
         </div>
         <div className="space-y-2 text-xs">
@@ -385,11 +386,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         {isGuestAccount(account) && (
           <ActionRow glyph="G" label={actionLoading ? 'Linking…' : 'Link Google'} desc="Keep your progress — upgrade this guest account in place and unlock trading, services, and leaderboards" onClick={() => signInWithGoogle()} tone="#5AA7FF" />
         )}
-        <ActionRow glyph="⚙" label="Settings" desc="Preferences, display, and local save controls" onClick={() => onNavigate?.('settings')} tone="#9CA3AF" />
+        <ActionRow icon="cog" label="Settings" desc="Preferences, display, and local save controls" onClick={() => onNavigate?.('settings')} tone="#9CA3AF" />
         <ActionRow glyph="?" label="Field Manual" desc="Mechanics, progression, caches, combat, and economy rules" onClick={() => onNavigate?.('help')} tone="#F7D20B" />
-        <ActionRow glyph="✦" label="Collections" desc="The trophy shelf — effects, bosses, frames, and named elites you've proven, plus your legendary cores" onClick={() => onNavigate?.('collections')} tone="#FF9800" />
-        <ActionRow glyph="☻" label="Identity" desc="Manage your public hunter name and profile identity" onClick={() => (account?.username || profileSummary?.username ? setRenameOpen(true) : setSetupOpen(true))} tone="#5AA7FF" />
-        <ActionRow glyph="⏻" label={actionLoading ? 'Signing out…' : 'Sign Out'} desc="End this CyberCache session on this device" onClick={() => signOut()} tone="#FF4B5C" />
+        <ActionRow icon="star" label="Collections" desc="The trophy shelf — effects, bosses, frames, and named elites you've proven, plus your legendary cores" onClick={() => onNavigate?.('collections')} tone="#FF9800" />
+        <ActionRow icon="person" label="Identity" desc="Manage your public hunter name and profile identity" onClick={() => (account?.username || profileSummary?.username ? setRenameOpen(true) : setSetupOpen(true))} tone="#5AA7FF" />
+        <ActionRow icon="power" label={actionLoading ? 'Signing out…' : 'Sign Out'} desc="End this CyberCache session on this device" onClick={() => signOut()} tone="#FF4B5C" />
       </div>
       {setupOpen && (
         <UsernameSetupModal

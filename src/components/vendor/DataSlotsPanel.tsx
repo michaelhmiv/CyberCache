@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Coins, Gem, KeyRound, Lock, Package, Star, X } from 'lucide-react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { Lock } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { usePlayerStore } from '@/store';
 import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
@@ -38,12 +39,12 @@ import {
  */
 
 const GLYPH_ICONS: Record<SlotGlyph, React.ReactNode> = {
-  blank: <X size={22} className="text-text-muted" />,
-  credit_stack: <Coins size={22} className="text-amber" />,
-  vial: <Package size={22} className="text-emerald-300" />,
-  fragment: <Gem size={22} className="text-cyan-300" />,
-  key: <KeyRound size={22} className="text-amber" />,
-  jackpot_star: <Star size={22} className="text-amber" />,
+  blank: <PxIcon name="x" size={26} className="text-text-muted" />,
+  credit_stack: <PxIcon name="coin" size={26} className="text-amber" />,
+  vial: <PxIcon name="crate" size={26} className="text-emerald-300" />,
+  fragment: <PxIcon name="frag" size={26} className="text-cyan-300" />,
+  key: <PxIcon name="key" size={26} className="text-amber" />,
+  jackpot_star: <PxIcon name="star5" size={26} className="text-amber" />,
 };
 
 const SPIN_GLYPHS: SlotGlyph[] = ['credit_stack', 'vial', 'fragment', 'key', 'jackpot_star', 'blank'];

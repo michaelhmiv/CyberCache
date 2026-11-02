@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { fetchProfileLifetime, type ProfileLifetimePayload } from '@/lib/api/verifiedOps';
 import { NAMED_ELITES } from '@/content/collections';
@@ -27,10 +28,10 @@ const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   </div>
 );
 
-const Section: React.FC<{ glyph: string; title: string; tone: string; children: React.ReactNode }> = ({ glyph, title, tone, children }) => (
+const Section: React.FC<{ icon: PxIconName; title: string; tone: string; children: React.ReactNode }> = ({ icon, title, tone, children }) => (
   <div className="space-y-1">
     <div className="flex items-center gap-2 pt-1">
-      <span className="font-black" style={{ fontSize: '13px', color: tone }}>{glyph}</span>
+      <PxIcon name={icon} size={13} style={{ color: tone }} />
       <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">{title}</div>
     </div>
     {children}
@@ -82,12 +83,12 @@ export const LifetimeStatsPanel: React.FC = () => {
     <div data-testid="lifetime-stats">
       <MobileCard className="space-y-2" rarityColor="#5AA7FF">
         <div className="flex items-center gap-2">
-          <span className="font-black text-blue" style={{ fontSize: '16px' }}>📜</span>
+          <PxIcon name="book" size={17} className="text-blue" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Lifetime Record</div>
           <div className="ml-auto text-[10px] text-text-muted">Server-proven, all-time</div>
         </div>
 
-        <Section glyph="☠" title="Combat Record" tone="#FF4B5C">
+        <Section icon="skull" title="Combat Record" tone="#FF4B5C">
           <Row label="Roaming kills" value={fmt(data.kills.roaming)} />
           <Row label="Elite kills" value={fmt(data.kills.elites)} />
           <Row label="Named elites downed" value={`${data.kills.named_elites_downed} / ${NAMED_ELITES.length}`} />
@@ -98,7 +99,7 @@ export const LifetimeStatsPanel: React.FC = () => {
           <Row label="Resurrections" value={fmt(data.resurrections)} />
         </Section>
 
-        <Section glyph="⚔" title="Kills by Weapon" tone="#FF4B5C">
+        <Section icon="crosshair" title="Kills by Weapon" tone="#FF4B5C">
           {weaponKills.length === 0 ? (
             <div className="text-[11px] text-text-muted">No weapon kills on record yet.</div>
           ) : (
@@ -112,14 +113,14 @@ export const LifetimeStatsPanel: React.FC = () => {
         </Section>
 
         {areaKills.length > 0 && (
-          <Section glyph="◎" title="Top Hunting Grounds" tone="#FF4B5C">
+          <Section icon="rings" title="Top Hunting Grounds" tone="#FF4B5C">
             {areaKills.map(([areaId, count]) => (
               <Row key={areaId} label={AREA_NAMES.get(areaId) ?? areaId} value={fmt(count)} />
             ))}
           </Section>
         )}
 
-        <Section glyph="✦" title="Loot & Legend" tone="#FFD166">
+        <Section icon="star" title="Loot & Legend" tone="#FFD166">
           <Row label="Legendaries salvaged" value={fmt(data.legendaries.salvaged)} />
           <Row label="Legendary cores minted" value={fmt(data.legendaries.cores_minted)} />
           <Row label="Legendary cores spent" value={fmt(data.legendaries.cores_spent)} />
@@ -131,7 +132,7 @@ export const LifetimeStatsPanel: React.FC = () => {
           ))}
         </Section>
 
-        <Section glyph="⚒" title="Trade & Work" tone="#7CFC00">
+        <Section icon="hammer" title="Trade & Work" tone="#7CFC00">
           <Row label="Market sales" value={`${fmt(data.market.sales)} · ${fmt(data.market.sales_volume)} cr`} />
           <Row label="Market fees paid" value={`${fmt(data.market.fees_paid)} cr`} />
           <Row label="Market purchases" value={`${fmt(data.market.purchases)} · ${fmt(data.market.purchases_volume)} cr`} />
@@ -149,7 +150,7 @@ export const LifetimeStatsPanel: React.FC = () => {
           <Row label="Extraction passes" value={fmt(data.extraction.passes)} />
         </Section>
 
-        <Section glyph="♻" title="Salvage & Reforge" tone="#A855F7">
+        <Section icon="recycle" title="Salvage & Reforge" tone="#A855F7">
           <Row label="Items salvaged" value={fmt(data.salvage.items)} />
           <Row label="Scrap from salvage" value={fmt(data.salvage.scrap_earned)} />
           <Row label="Reforges" value={fmt(data.reforges)} />

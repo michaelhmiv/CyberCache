@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { getMyMasterySummary, masteryLevelProgress, type MasterySummaryRow } from '@/lib/api/masteryService';
 
@@ -27,7 +28,7 @@ export const MasterySection: React.FC = () => {
   return (
     <MobileCard className="space-y-2" rarityColor="#7CFC00">
       <div className="flex items-center gap-2">
-        <span className="font-black text-green" style={{ fontSize: '16px' }}>★</span>
+        <PxIcon name="star5" size={17} className="text-green" />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Mastery</div>
         <div className="ml-auto text-[10px] text-text-muted">{rows ? `${rows.length} tracked` : ''}</div>
       </div>

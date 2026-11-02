@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   claimContract,
@@ -109,7 +110,7 @@ export const ContractsPanel: React.FC = () => {
         <div className="flex items-start justify-between gap-2">
           <div className="text-xs font-black text-text-primary">{contract.title}</div>
           {contract.status === 'claimed' && (
-            <span className="text-[10px] font-black uppercase" style={{ color: CONTRACTS_ACCENT }}>Claimed ✓</span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase" style={{ color: CONTRACTS_ACCENT }}>Claimed <PxIcon name="check" size={13} /></span>
           )}
           {contract.status === 'expired' && (
             <span className="text-[10px] font-black uppercase text-text-muted">Expired</span>
@@ -147,7 +148,7 @@ export const ContractsPanel: React.FC = () => {
                 </button>
               ) : (
                 <div className="flex min-h-[44px] items-center text-[11px] font-bold text-text-muted">
-                  🔒 Sign in with Google to claim
+                  <span className="inline-flex items-center gap-1"><PxIcon name="lock" size={13} /> Sign in with Google to claim</span>
                 </div>
               )
             )}
@@ -176,7 +177,7 @@ export const ContractsPanel: React.FC = () => {
     <div className="flex items-center justify-between text-[11px] font-bold">
       <span style={{ color: set.setBonus.earned ? CONTRACTS_ACCENT : undefined }} className={set.setBonus.earned ? '' : 'text-text-muted'}>
         {set.setBonusLine}
-        {set.setBonus.earned ? ' — earned ✓' : ` (${set.claimedCount}/${set.setSize} claimed)`}
+        {set.setBonus.earned ? <span className="inline-flex items-center gap-1"> — earned <PxIcon name="check" size={13} /></span> : ` (${set.claimedCount}/${set.setSize} claimed)`}
       </span>
     </div>
   );
@@ -184,7 +185,7 @@ export const ContractsPanel: React.FC = () => {
   return (
     <MobileCard className="space-y-3" rarityColor={CONTRACTS_ACCENT} glow={board.daily.contracts.some((c) => c.complete && c.status === 'active')}>
       <div className="flex items-center gap-2">
-        <span className="font-black" style={{ fontSize: '16px' }}>📋</span>
+        <PxIcon name="orders" size={17} />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Contracts</div>
         <span
           className="rounded px-1.5 py-0.5 text-[10px] font-black"
@@ -223,7 +224,7 @@ export const ContractsPanel: React.FC = () => {
           Weekly contracts
         </span>
         <span className="text-[11px] font-bold text-text-muted">
-          {board.weekly.claimedCount}/{board.weekly.setSize} claimed {weeklyOpen ? '▴' : '▾'}
+          {board.weekly.claimedCount}/{board.weekly.setSize} claimed <PxIcon name={weeklyOpen ? 'chevU' : 'chevD'} size={13} />
         </span>
       </button>
       {weeklyOpen && (

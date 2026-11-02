@@ -208,8 +208,8 @@ afterEach(() => {
 });
 
 /** Drive a free cache open through the reveal to the item card.
- *  (The card button's accessible name is "⚔ Equip" — the glyph span
- *  is part of the name, so queries anchor on the /Equip$/ suffix.) */
+ *  (The card button's accessible name is "Equip" — the pixel icon is
+ *  aria-hidden, so queries anchor on the /Equip$/ suffix.) */
 async function openCacheToCard() {
   render(<ChestScreen />);
   fireEvent.click(await screen.findByRole('button', { name: 'OPEN FREE CACHE' }));

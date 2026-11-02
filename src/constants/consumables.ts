@@ -1,4 +1,5 @@
 import { ConsumableLoadout, ConsumableSlot, ConsumableType } from '../types/game';
+import type { PxIconName } from '@/lib/pixel/icons';
 
 export type ConsumableFamily = 'survival' | 'ammo' | 'ordnance' | 'tactical' | 'economy' | 'corrupted';
 export type ConsumableTrigger =
@@ -70,7 +71,7 @@ export interface ConsumableDrawbackRules {
 }
 
 export interface ConsumableVisual {
-  glyph: string;
+  icon: PxIconName;
   accent: 'green' | 'red' | 'orange' | 'cyan' | 'amber' | 'purple' | 'blue';
   silhouette: 'vial' | 'cell' | 'swarm' | 'syringe' | 'magazine' | 'rounds' | 'grenade' | 'scanner' | 'beacon' | 'contract' | 'ticket';
   frame: 'standard' | 'reinforced' | 'volatile' | 'signal' | 'market';
@@ -290,8 +291,8 @@ function market(vendorStocked: boolean, vendorPrice: number, craftable = true, p
   };
 }
 
-function visual(glyph: string, accent: ConsumableVisual['accent'], silhouette: ConsumableVisual['silhouette'], frame: ConsumableVisual['frame'] = 'standard'): ConsumableVisual {
-  return { glyph, accent, silhouette, frame };
+function visual(icon: PxIconName, accent: ConsumableVisual['accent'], silhouette: ConsumableVisual['silhouette'], frame: ConsumableVisual['frame'] = 'standard'): ConsumableVisual {
+  return { icon, accent, silhouette, frame };
 }
 
 function runtime(
@@ -333,7 +334,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Auto-used at 50% HP by default.', 'Quality scales actual HP restored.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('✚', 'green', 'vial'),
+    visual: visual('cross', 'green', 'vial'),
     quality: quality(250, 75, 125, 'Heal amount scales directly with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -365,7 +366,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Auto-used at 50% HP by default.', 'High-quality batches add damage-over-time mitigation.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('✚', 'green', 'vial', 'reinforced'),
+    visual: visual('cross', 'green', 'vial', 'reinforced'),
     quality: quality(600, 80, 140, 'Heal amount scales directly with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -397,7 +398,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Auto-used when shield breaks or drops below 25%.', 'Quality scales shield restored.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('⬡', 'cyan', 'cell'),
+    visual: visual('hex', 'cyan', 'cell'),
     quality: quality(300, 75, 130, 'Shield restored scales directly with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -432,7 +433,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Best when repeated hits or damage-over-time are the failure cause.', 'Quality scales total repair and duration.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('✦', 'green', 'swarm'),
+    visual: visual('star', 'green', 'swarm'),
     quality: quality(800, 80, 145, 'Total repair and repair duration scale with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -465,7 +466,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Triggers at 20% HP or lethal survival checks.', 'Quality scales restore and burst duration.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('⚡', 'red', 'syringe', 'volatile'),
+    visual: visual('bolt', 'red', 'syringe', 'volatile'),
     quality: quality(1200, 75, 150, 'Restore and burst duration scale with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -497,7 +498,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Boss: consumes one per attempt for an ammo window.', 'Roaming: one 100% pack covers 10 minutes of ammo bonus.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('▣', 'red', 'magazine'),
+    visual: visual('grid', 'red', 'magazine'),
     quality: quality(150, 70, 125, 'Roaming duration and boss DPS window scale with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -532,7 +533,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Roaming: one 100% pack covers 20 minutes.', 'High-quality batches add crit chance while covered.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('▤', 'red', 'magazine', 'reinforced'),
+    visual: visual('hatchH', 'red', 'magazine', 'reinforced'),
     quality: quality(375, 75, 140, 'Coverage duration scales strongly with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -567,7 +568,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Consumes when an armor phase or armored elite actually needs it.', 'Quality scales armor-break multiplier.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◈', 'orange', 'rounds'),
+    visual: visual('diamondIn', 'orange', 'rounds'),
     quality: quality(400, 75, 135, 'Armor-break bonus scales with quality.'),
     runtime: runtime(
       ['boss'],
@@ -595,7 +596,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Weak into armor until armor is broken.', 'Quality scales burn DPS contribution.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◇', 'orange', 'rounds', 'volatile'),
+    visual: visual('diamond', 'orange', 'rounds', 'volatile'),
     quality: quality(450, 75, 140, 'Burn DPS contribution scales with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -626,7 +627,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Consumes when shield pressure exists.', 'Quality scales shield-break multiplier.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◇', 'cyan', 'rounds'),
+    visual: visual('diamond', 'cyan', 'rounds'),
     quality: quality(450, 75, 140, 'Shield-break bonus scales with quality.'),
     runtime: runtime(
       ['boss'],
@@ -657,7 +658,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Best against armor and repair bosses.', 'Repair suppression is capped for balance.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◇', 'green', 'rounds'),
+    visual: visual('diamond', 'green', 'rounds'),
     quality: quality(450, 75, 140, 'Armor-break and repair suppression scale with quality.'),
     runtime: runtime(
       ['boss'],
@@ -688,7 +689,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Use when survival is close but Emergency is reserved.', 'Quality lowers incoming pressure further.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◇', 'blue', 'rounds'),
+    visual: visual('diamond', 'blue', 'rounds'),
     quality: quality(450, 75, 140, 'Incoming pressure reduction scales with quality.'),
     runtime: runtime(
       ['roaming', 'boss'],
@@ -720,7 +721,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Best against enrage and DPS-race bosses.', 'Quality scales both the damage and the survival drawback.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◆', 'purple', 'rounds', 'volatile'),
+    visual: visual('diamondFill', 'purple', 'rounds', 'volatile'),
     quality: quality(700, 70, 155, 'DPS bonus and survival risk both scale with quality.'),
     runtime: runtime(
       ['boss'],
@@ -748,7 +749,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Legacy Grenade ID remains for save compatibility.', 'Use crafted Ordnance Charge for player-market batches.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('●', 'orange', 'grenade'),
+    visual: visual('dot', 'orange', 'grenade'),
     quality: quality(400, 75, 125, 'Burst break effects scale with quality.'),
     runtime: runtime(
       ['boss'],
@@ -779,7 +780,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Player-crafted replacement for vendor baseline ordnance.', 'Quality scales shield, armor, and stagger mechanics.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('●', 'orange', 'grenade', 'reinforced'),
+    visual: visual('dot', 'orange', 'grenade', 'reinforced'),
     quality: quality(400, 75, 145, 'Burst break effects scale with quality.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -810,7 +811,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Consumes on shield or mechanical mechanic windows.', 'Quality scales shield break and jam strength.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◉', 'cyan', 'grenade', 'signal'),
+    visual: visual('bullseye', 'cyan', 'grenade', 'signal'),
     quality: quality(650, 75, 145, 'Shield break scales fully; mechanic suppression is capped.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -841,7 +842,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Consumes on armor or repair windows.', 'Quality scales armor break and repair suppression.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◉', 'green', 'grenade', 'volatile'),
+    visual: visual('bullseye', 'green', 'grenade', 'volatile'),
     quality: quality(650, 75, 145, 'Armor break scales fully; repair suppression is capped.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -872,7 +873,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Consumes only when an armor phase exists.', 'Quality scales armor bypass up to a cap.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◌', 'purple', 'grenade', 'volatile'),
+    visual: visual('ringDot', 'purple', 'grenade', 'volatile'),
     quality: quality(1000, 75, 155, 'Armor bypass scales with quality up to a cap.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -900,7 +901,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Best when ordnance is your strongest break tool.', 'Quality scales the ordnance boost.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('⌾', 'orange', 'grenade', 'reinforced'),
+    visual: visual('target', 'orange', 'grenade', 'reinforced'),
     quality: quality(650, 75, 150, 'Ordnance boost scales with quality.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -931,7 +932,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Best when a boss barely survives the DPS window.', 'Quality scales burst DPS.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('↯', 'purple', 'syringe', 'volatile'),
+    visual: visual('bolt', 'purple', 'syringe', 'volatile'),
     quality: quality(800, 70, 150, 'Burst DPS scales with quality.'),
     runtime: runtime(
       ['boss'],
@@ -959,7 +960,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Best against DPS races and enrage bosses.', 'Quality scales focused DPS and can add crit chance.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('⌖', 'red', 'scanner', 'signal'),
+    visual: visual('crosshair', 'red', 'scanner', 'signal'),
     quality: quality(600, 75, 145, 'Focused DPS scales with quality.'),
     runtime: runtime(
       ['boss'],
@@ -990,7 +991,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['100% reveals likely failure category.', 'Higher quality unlocks channel recommendations, win delta, burn projection, and phase warnings.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('▧', 'cyan', 'scanner', 'signal'),
+    visual: visual('hatch', 'cyan', 'scanner', 'signal'),
     quality: quality(600, 80, 160, 'Quality unlocks deeper scanner tiers.'),
     runtime: runtime(
       ['boss'],
@@ -1026,7 +1027,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Only consumes when a matching mechanic fires.', 'Quality scales mechanic reduction up to a cap.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('≋', 'cyan', 'scanner', 'signal'),
+    visual: visual('waves', 'cyan', 'scanner', 'signal'),
     quality: quality(750, 75, 150, 'Mechanic reduction scales with quality.'),
     runtime: runtime(
       ['boss'],
@@ -1057,7 +1058,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Roaming only.', 'Quality scales coverage duration; high quality improves accuracy reduction.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('≋', 'blue', 'scanner', 'signal'),
+    visual: visual('waves', 'blue', 'scanner', 'signal'),
     quality: quality(500, 75, 145, 'Coverage duration scales with quality.'),
     runtime: runtime(
       ['roaming'],
@@ -1089,7 +1090,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Roaming only.', 'While active: +3% roaming event chance (its designed home since the event system landed).', 'Quality scales the bonus loot chance; enemy pressure is an explicit drawback.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('◍', 'amber', 'beacon', 'market'),
+    visual: visual('halfDisc', 'amber', 'beacon', 'market'),
     quality: quality(900, 70, 150, 'Bonus loot chance scales with quality and remains capped.'),
     runtime: runtime(
       ['roaming'],
@@ -1121,7 +1122,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Consumed only on defeat.', 'Quality scales fee reduction up to a cap.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('▰', 'amber', 'contract', 'market'),
+    visual: visual('barFill', 'amber', 'contract', 'market'),
     quality: quality(800, 80, 145, 'Death-fee reduction scales with quality and caps at 70%.'),
     runtime: runtime(
       ['boss'],
@@ -1152,7 +1153,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Only consumes on victory.', 'Quality scales extra-roll chance up to a cap.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('▧', 'amber', 'scanner', 'market'),
+    visual: visual('hatch', 'amber', 'scanner', 'market'),
     quality: quality(900, 75, 150, 'Extra-roll chance scales with quality and caps at 40%.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -1183,7 +1184,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Best when the fight is already farmable.', 'Quality scales bonus loot chance up to a cap.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('★', 'amber', 'beacon', 'market'),
+    visual: visual('star5', 'amber', 'beacon', 'market'),
     quality: quality(350, 75, 135, 'Bonus loot chance scales with quality and caps at 40%.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -1211,7 +1212,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Scrapping, and roaming salvage: material-find roaming events pay +50% while a contract is active.', 'Quality scales yield multiplier and can add rare material chance.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('▱', 'amber', 'contract', 'market'),
+    visual: visual('barEmpty', 'amber', 'contract', 'market'),
     quality: quality(700, 75, 150, 'Yield multiplier scales with quality.'),
     runtime: runtime(
       ['scrapping', 'roaming'],
@@ -1243,7 +1244,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Crafting and repair only.', 'Quality scales time reduction up to a cap.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('▻', 'blue', 'ticket', 'market'),
+    visual: visual('triR', 'blue', 'ticket', 'market'),
     quality: quality(1000, 75, 150, 'Time reduction scales with quality and caps at 45%.'),
     runtime: runtime(
       ['crafting', 'repair'],
@@ -1278,7 +1279,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Legacy compatibility item.', 'New economy uses elemental ammo batches instead.'],
     implementationStatus: 'legacy',
     isBossPrepVisible: false,
-    visual: visual('◌', 'purple', 'rounds'),
+    visual: visual('ringDot', 'purple', 'rounds'),
     quality: quality(500, 100, 100, 'Legacy items do not roll quality.', 100),
     runtime: runtime(
       ['boss'],
@@ -1314,7 +1315,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Loads 100 fuel units per cell from the Garage.', 'Out of fuel never stops roaming — the vehicle bonus just turns off.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('▣', 'amber', 'cell'),
+    visual: visual('grid', 'amber', 'cell'),
     quality: quality(40, 100, 100, 'Baseline cells are flat 100% quality.', 100),
     runtime: runtime(
       ['repair'],
@@ -1342,7 +1343,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Restores 30 condition at 100% quality.', 'Trained mechanics restore more per kit — repair services come later.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('✚', 'orange', 'vial', 'reinforced'),
+    visual: visual('cross', 'orange', 'vial', 'reinforced'),
     quality: quality(150, 75, 150, 'Condition restored scales directly with quality.'),
     runtime: runtime(
       ['repair'],
@@ -1377,7 +1378,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Restores 45 condition at 100% quality.', 'Crafted in the Workshop — never sold by the vendor.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('✚', 'orange', 'vial', 'reinforced'),
+    visual: visual('cross', 'orange', 'vial', 'reinforced'),
     quality: quality(400, 75, 140, 'Condition restored scales directly with quality.'),
     runtime: runtime(
       ['repair'],
@@ -1405,7 +1406,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Restores 80 condition at 100% quality.', 'Requires Consumable Crafting mastery 15 to produce.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('✚', 'amber', 'vial', 'reinforced'),
+    visual: visual('cross', 'amber', 'vial', 'reinforced'),
     quality: quality(1200, 80, 160, 'Condition restored scales directly with quality.'),
     runtime: runtime(
       ['repair'],
@@ -1433,7 +1434,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Loads 100 × quality fuel units through the Garage refuel path.', 'Crafted in the Workshop — the vendor sells only the flat Generic cell.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('▣', 'amber', 'cell', 'reinforced'),
+    visual: visual('grid', 'amber', 'cell', 'reinforced'),
     quality: quality(120, 75, 150, 'Fuel loaded scales directly with quality.'),
     runtime: runtime(
       ['repair'],
@@ -1469,7 +1470,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Carries 2,500 calibration points at 100% quality — higher quality carries more.', 'Burned by shield-tech jobs; crafted in the Workshop — never sold by the vendor.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: false,
-    visual: visual('◈', 'cyan', 'cell', 'reinforced'),
+    visual: visual('diamondIn', 'cyan', 'cell', 'reinforced'),
     quality: quality(900, 75, 150, 'Calibration capacity scales directly with quality.'),
     runtime: runtime(
       ['repair'],
@@ -1505,7 +1506,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Crafted at the bench by Redline rank 2+ hunters.', 'Quality scales the damage bonus.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('↯', 'red', 'syringe', 'volatile'),
+    visual: visual('bolt', 'red', 'syringe', 'volatile'),
     quality: quality(900, 70, 150, 'Damage bonus scales with quality.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -1533,7 +1534,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Crafted at the bench by Ironwood rank 2+ hunters.', 'Quality scales crit chance and the damage bonus.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◎', 'green', 'vial'),
+    visual: visual('rings', 'green', 'vial'),
     quality: quality(750, 75, 150, 'Crit chance scales with quality.'),
     runtime: runtime(
       ['boss'],
@@ -1561,7 +1562,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Crafted at the bench by BlastForge rank 2+ hunters.', 'Quality scales ordnance damage and armor break.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('✸', 'orange', 'grenade', 'volatile'),
+    visual: visual('burst', 'orange', 'grenade', 'volatile'),
     quality: quality(650, 70, 150, 'Ordnance damage and armor break scale with quality.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -1589,7 +1590,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Crafted at the bench by Prismatek rank 2+ hunters.', 'Quality scales shield and armor break.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('◆', 'purple', 'rounds'),
+    visual: visual('diamondFill', 'purple', 'rounds'),
     quality: quality(800, 75, 150, 'Shield and armor break scale with quality.'),
     runtime: runtime(
       ['boss'],
@@ -1617,7 +1618,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Crafted at the bench by ThrowTech rank 2+ hunters.', 'Quality deepens the damage drawn off you.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('♟', 'cyan', 'beacon', 'signal'),
+    visual: visual('pawn', 'cyan', 'beacon', 'signal'),
     quality: quality(700, 75, 150, 'Damage reduction scales with quality.'),
     runtime: runtime(
       ['boss', 'roaming'],
@@ -1645,7 +1646,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     uiHints: ['Crafted at the bench by HelixWorks rank 2+ hunters.', 'Quality scales bonus loot chance up to a cap.'],
     implementationStatus: 'implemented',
     isBossPrepVisible: true,
-    visual: visual('✦', 'blue', 'ticket', 'market'),
+    visual: visual('star', 'blue', 'ticket', 'market'),
     quality: quality(500, 75, 150, 'Bonus loot chance scales with quality and caps at 35%.'),
     runtime: runtime(
       ['boss', 'roaming'],

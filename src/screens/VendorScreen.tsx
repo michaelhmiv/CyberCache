@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { Search, X, ArrowUpDown } from 'lucide-react';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { CONSUMABLES, VENDOR_CONSUMABLES } from '@/constants/consumables';
@@ -262,7 +263,7 @@ export const VendorScreen: React.FC = () => {
         <>
           {itemOfTheDayDef && itemOfTheDayOffer && (
             <div className="space-y-2">
-              <div className="text-[10px] font-black uppercase text-amber">★ Item of the Day — 25% off</div>
+              <div className="flex items-center gap-1 text-[10px] font-black uppercase text-amber"><PxIcon name="star5" size={13} /> Item of the Day — 25% off</div>
               {consumableCard(itemOfTheDayDef, itemOfTheDayOffer)}
             </div>
           )}

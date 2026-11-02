@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, History, List, Lock, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
@@ -44,14 +45,14 @@ const getNow = () => Date.now();
 type SellSort = 'power' | 'rarity' | 'name';
 type MyListSort = 'price' | 'rarity' | 'name';
 
-const TABS: { id: string; label: string; glyph?: string; icon?: React.ElementType }[] = [
-  { id: 'buy', label: 'Buy', glyph: '$' },
-  { id: 'vendor', label: 'Vendor', glyph: '🏪' },
-  { id: 'sell', label: 'Sell', glyph: '🏷' },
+const TABS: { id: string; label: string; px?: PxIconName; icon?: React.ElementType }[] = [
+  { id: 'buy', label: 'Buy', px: 'coin' },
+  { id: 'vendor', label: 'Vendor', px: 'vendor' },
+  { id: 'sell', label: 'Sell', px: 'tag' },
   { id: 'mylistings', label: 'My Listings', icon: List },
   { id: 'history', label: 'History', icon: History },
-  { id: 'repair', label: 'Repair Services', glyph: '🔧' },
-  { id: 'shieldTech', label: 'Shield Tech', glyph: '🛡' },
+  { id: 'repair', label: 'Repair Services', px: 'wrench' },
+  { id: 'shieldTech', label: 'Shield Tech', px: 'shield' },
 ];
 
 const BUY_CATEGORIES: { id: MarketCategory | null; label: string }[] = [
@@ -143,12 +144,12 @@ function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem;
 
 /** Compact card for consumable/material/resource stack listings (0019, 0050). */
 function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; right?: React.ReactNode; onShowUsage?: (materialId: string) => void }) {
-  const glyph = listing.kind === 'consumable'
-    ? (listing.consumableType ? CONSUMABLES[listing.consumableType]?.visual.glyph ?? '🧪' : '🧪')
-    : listing.kind === 'fragment' ? '◆'
-    : listing.kind === 'core' ? '⬢'
-    : listing.kind === 'essence' ? '✦'
-    : '🧱';
+  const icon: PxIconName = listing.kind === 'consumable'
+    ? (listing.consumableType ? CONSUMABLES[listing.consumableType]?.visual.icon ?? 'flask' : 'flask')
+    : listing.kind === 'fragment' ? 'frag'
+    : listing.kind === 'core' ? 'core'
+    : listing.kind === 'essence' ? 'gem'
+    : 'pack';
   const meta = listing.kind === 'consumable'
     ? `Consumable · ${listing.quantity} × · ${Math.round(listing.qualityPercent ?? 100)}% quality`
     : listing.kind === 'fragment'
@@ -160,7 +161,7 @@ function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; righ
           : `Material · ${listing.quantity} ×`;
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg text-lg">{glyph}</div>
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg"><PxIcon name={icon} size={26} /></div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs font-black text-text-primary">{listing.displayName}</div>
         <div className="text-[10px] text-text-muted">{meta}</div>
@@ -171,7 +172,7 @@ function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; righ
             onClick={() => onShowUsage(listing.materialId!)}
             className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-amber"
           >
-            Used in ▸
+            <span className="inline-flex items-center gap-0.5">Used in <PxIcon name="triR" size={13} /></span>
           </button>
         )}
       </div>
@@ -665,7 +666,7 @@ export const MarketScreen: React.FC = () => {
             aria-label={t.label}
             className={`relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border py-2 text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
           >
-            {t.icon ? <t.icon size={16} /> : <span className="font-black" style={{ fontSize: '16px' }}>{t.glyph}</span>}
+            {t.icon ? <t.icon size={16} /> : t.px ? <PxIcon name={t.px} size={17} /> : null}
             <span className="flex items-center gap-1 whitespace-nowrap">
               {t.label}
             </span>

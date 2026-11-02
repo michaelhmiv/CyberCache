@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { useAuth } from '@/auth/AuthProvider';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { LeaderboardMetricPicker } from '@/components/leaderboard/LeaderboardMetricPicker';
@@ -159,7 +160,7 @@ const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId
     <MobileCard className="space-y-4" rarityColor="#FF9000">
       <div>
         <div className="flex items-center gap-2">
-          <span className="font-black text-amber" style={{ fontSize: '14px' }}>⚑</span>
+          <PxIcon name="flag" size={13} className="text-amber" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Weekly Races</div>
           <div className="ml-auto whitespace-nowrap text-[10px] text-text-muted">
             {weekRangeLabel(data.week.start, data.week.ends_at)}
@@ -311,7 +312,7 @@ export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
       <ResourceBar />
 
       <div className="flex items-center gap-2">
-        <span style={{ fontSize: 18 }} className="text-amber">♕</span>
+        <PxIcon name="crown" size={17} className="text-amber" />
         <div className="text-lg font-black uppercase tracking-wide text-text-primary">Leaderboards</div>
       </div>
 

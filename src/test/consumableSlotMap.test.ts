@@ -56,8 +56,8 @@ describe('readConsumableSlots', () => {
   it('returns an icon for known consumable types', () => {
     useLoadoutStore.setState({ consumables: { PreFight: 'MedKit', MidFight: 'ShieldCell', Emergency: 'AmmoPack' } });
     const views = readConsumableSlots();
-    expect(views[0].icon).toBe(CONSUMABLES.MedKit.visual.glyph);
-    expect(views[1].icon).toBe(CONSUMABLES.ShieldCell.visual.glyph);
-    expect(views[2].icon).toBe(CONSUMABLES.AmmoPack.visual.glyph);
+    expect(views[0].icon).toBe(CONSUMABLES.MedKit.visual.icon);
+    expect(views[1].icon).toBe(CONSUMABLES.ShieldCell.visual.icon);
+    expect(views[2].icon).toBe(CONSUMABLES.AmmoPack.visual.icon);
   });
 });

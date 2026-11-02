@@ -14,6 +14,7 @@
  *   Row 3:   (empty)    Relic         Ordnance
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useLoadoutStore, usePlayerStore, useInventoryStore, useSkillStore } from '@/store';
@@ -46,18 +47,18 @@ function saveCollapsed(v: boolean) {
 const SLOT_CONFIG: Array<{
   slot: LoadoutSlot;
   label: string;
-  glyph: string;
+  icon: PxIconName;
   row: number;
   col: number;
   isCenter?: boolean;
 }> = [
-  { slot: 'secondary',  label: 'Secondary', glyph: '◎', row: 1, col: 2 },
-  { slot: 'heavy',      label: 'Heavy',     glyph: '◎', row: 1, col: 3 },
-  { slot: 'shield',     label: 'Shield',    glyph: '◈', row: 2, col: 1 },
-  { slot: 'primary',    label: 'Primary',   glyph: '◎', row: 2, col: 2, isCenter: true },
-  { slot: 'classMod',   label: 'Mod',       glyph: '◆', row: 2, col: 3 },
-  { slot: 'relic',      label: 'Relic',     glyph: '◇', row: 3, col: 2 },
-  { slot: 'ordnance',   label: 'Ordnance',  glyph: '⚡', row: 3, col: 3 },
+  { slot: 'secondary',  label: 'Secondary', icon: 'rings', row: 1, col: 2 },
+  { slot: 'heavy',      label: 'Heavy',     icon: 'rings', row: 1, col: 3 },
+  { slot: 'shield',     label: 'Shield',    icon: 'shield', row: 2, col: 1 },
+  { slot: 'primary',    label: 'Primary',   icon: 'rings', row: 2, col: 2, isCenter: true },
+  { slot: 'classMod',   label: 'Mod',       icon: 'gem', row: 2, col: 3 },
+  { slot: 'relic',      label: 'Relic',     icon: 'diamond', row: 3, col: 2 },
+  { slot: 'ordnance',   label: 'Ordnance',  icon: 'bolt', row: 3, col: 3 },
 ];
 
 const SATURATED: Record<string, string> = {
@@ -111,11 +112,11 @@ const StarConnectors: React.FC = () => (
 
 const SlotChip: React.FC<{
   label: string;
-  glyph: string;
+  icon: PxIconName;
   item: Weapon | ShieldItem | ClassMod | Relic | Ordnance | null;
   isCenter?: boolean;
   onClick: () => void;
-}> = ({ label, glyph, item, isCenter, onClick }) => {
+}> = ({ label, icon, item, isCenter, onClick }) => {
   const filled = !!item;
   const accent = item?.rarity ? SATURATED[item.rarity] ?? '#8A847C' : '#8A847C';
   const name = item?.name ?? (isCenter ? 'No weapon' : 'Open');
@@ -137,7 +138,7 @@ const SlotChip: React.FC<{
       }}
     >
       <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-text-muted">
-        <span className="font-black" style={{ fontSize: isCenter ? '13px' : '10px', color: filled ? accent : undefined }}>{glyph}</span>
+        <span className="inline-flex" style={{ color: filled ? accent : undefined }}><PxIcon name={icon} size={13} /></span>
         <span>{label}</span>
       </div>
       <div
@@ -315,7 +316,7 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
           onClick={toggle}
           className="flex items-center gap-2 text-left hover:text-amber transition-colors"
         >
-          <span className="font-black text-amber shrink-0" style={{ fontSize: '15px' }}>◎</span>
+          <PxIcon name="rings" size={17} className="shrink-0 text-amber" />
           <div>
             <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Loadout</div>
             <div className="text-sm font-black text-text-primary">{equippedCount}/7 Gear</div>
@@ -403,13 +404,13 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
                 className="absolute inset-0 grid gap-1.5 z-10"
                 style={{ gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr 1fr 1fr' }}
               >
-                {SLOT_CONFIG.map(({ slot, label, glyph, row, col, isCenter }) => {
+                {SLOT_CONFIG.map(({ slot, label, icon, row, col, isCenter }) => {
                   const item = slotItem(loadout, slot);
                   return (
                     <div key={slot} style={{ gridRow: row, gridColumn: col }}>
                       <SlotChip
                         label={label}
-                        glyph={glyph}
+                        icon={icon}
                         item={item}
                         isCenter={isCenter}
                         onClick={() => handleSlotTap(slot)}

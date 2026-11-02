@@ -1,4 +1,5 @@
 import React, { memo, useMemo, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { ChevronDown, RefreshCw, X } from 'lucide-react';
 import type { CharacterStatSummary, StatMetric } from '@/lib/stats/characterStats';
 import { pickTopContributions } from '@/lib/stats/topContribs';
@@ -55,7 +56,7 @@ const MiniMetric = memo(function MiniMetric({ metric, currentHp: _currentHp, max
     <div {...rest} className={`relative min-w-0 flex-1 overflow-hidden border border-border bg-bg/90 px-1.5 py-1.5 ${rest.className ?? ''}`} style={slashClip}>
       <div className={`absolute left-0 top-0 h-full w-1 ${tone.rail}`} />
       <div className="flex items-center gap-1 pl-0.5">
-        {key === 'health' ? <span className={tone.text} style={{ fontSize: '12px' }}>♥</span> : key === 'dps' ? <span className={tone.text} style={{ fontSize: '12px' }}>◎</span> : key === 'boss' ? <span className={tone.text} style={{ fontSize: '12px' }}>◈</span> : key === 'rareFind' ? <span className={tone.text} style={{ fontSize: '12px' }}>✦</span> : <span className={tone.text} style={{ fontSize: '12px' }}>📡</span>}
+        {key === 'health' ? <PxIcon name="heart" size={13} className={tone.text} /> : key === 'dps' ? <PxIcon name="rings" size={13} className={tone.text} /> : key === 'boss' ? <PxIcon name="diamondIn" size={13} className={tone.text} /> : key === 'rareFind' ? <PxIcon name="star" size={13} className={tone.text} /> : <PxIcon name="signal" size={13} className={tone.text} />}
         <div className="min-w-0 leading-none">
           <div className="truncate text-[8px] font-black uppercase tracking-wide text-text-muted">{metric.label}</div>
           {/* The VALUE never truncates (device feedback r2): labels

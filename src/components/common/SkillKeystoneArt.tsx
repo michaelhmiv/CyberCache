@@ -8,6 +8,7 @@
  * All colors derive from the SkillTreeVisual registry — nothing hardcoded.
  */
 import React, { useId } from 'react';
+import { PxIconGlyph } from '@/components/pixelArt/PxIcon';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import type { SkillTreeType } from '@/types/game';
 
@@ -137,19 +138,10 @@ export const SkillKeystoneArt: React.FC<SkillKeystoneArtProps> = ({
 
       {nodeType === 'keystone' && (
         <>
-          {/* Tree sigil as SVG text */}
-          <text
-            x="30"
-            y="34"
-            textAnchor="middle"
-            fontSize="14"
-            fontWeight="900"
-            fontFamily="monospace"
-            fill={unlocked ? visual.accentColor : '#888'}
-            fillOpacity="0.95"
-          >
-            {visual.sigil}
-          </text>
+          {/* Tree sigil as pixel icon */}
+          <g transform="translate(22 22)" opacity={0.95}>
+            <PxIconGlyph name={visual.sigil} color={unlocked ? visual.accentColor : '#888'} />
+          </g>
           {/* Radiating lines */}
           <line x1="30" y1="10" x2="30" y2="6" stroke={unlocked ? visual.accentColor : '#888'} strokeWidth="1" strokeOpacity="0.6" />
           <line x1="30" y1="50" x2="30" y2="54" stroke={unlocked ? visual.accentColor : '#888'} strokeWidth="1" strokeOpacity="0.6" />
@@ -158,18 +150,9 @@ export const SkillKeystoneArt: React.FC<SkillKeystoneArtProps> = ({
 
       {/* Lock indicator */}
       {locked && (
-        <text
-          x="30"
-          y="35"
-          textAnchor="middle"
-          fontSize="12"
-          fontWeight="900"
-          fontFamily="monospace"
-          fill="#999"
-          fillOpacity="0.6"
-        >
-          ✕
-        </text>
+        <g transform="translate(23 23) scale(0.875)" opacity={0.6}>
+          <PxIconGlyph name="x" color="#999" />
+        </g>
       )}
     </svg>
   );

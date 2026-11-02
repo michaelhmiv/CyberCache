@@ -174,7 +174,7 @@ describe('Fixer tree — shape and identity', () => {
       expect(SKILL_TREE_VISUALS[tree], `visuals for ${tree}`).toBeDefined();
     }
     expect(SKILL_TREE_VISUALS[SkillTreeType.Fixer]).toMatchObject({
-      sigil: '⚒', color: '#2EC4B6', accentColor: '#FFD166', label: 'Fixer',
+      sigil: 'hammer', color: '#2EC4B6', accentColor: '#FFD166', label: 'Fixer',
       description: 'Crafting, repair, vehicles, and trade.',
     });
     // skillBonuses TREE_NAME_MAP: a Fixer treeBonus mod with no spends
