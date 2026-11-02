@@ -18,8 +18,10 @@
  *    + an aria-label that carries the signal in words; guests get
  *    the lock, never the pulse.
  *  - the offline recap (primer row included, PERM-01) renders
- *    inside the LEVEL pop-up after a settlement — and nowhere in
- *    the Dashboard scroll or App root anymore.
+ *    as the RETURN SHEET (DESIGN.md §10) after a settlement: the
+ *    level chip is its door while a settlement exists, the level
+ *    pop-up holds level specifics only — and the recap is
+ *    nowhere in the Dashboard scroll or App root anymore.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,6 +45,7 @@ vi.mock('@/lib/chef/chefClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/chef/chefClient')>()),
   getLoginStreakState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   getContractsState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
+  getStandingState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   getCacheRankState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   claimContract: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   rerollContract: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
@@ -369,7 +372,7 @@ describe('Short-absence suppression — under 5 minutes never auto-presents (own
     expect(useOfflineRecapStore.getState().dismissed).toBe(false);
   });
 
-  it('a short absence shows NO beacon on Dashboard mount, and the summary stays reachable in the level pop-up', async () => {
+  it('a short absence shows NO beacon on Dashboard mount, and the summary stays reachable through the level chip (the Return Sheet)', async () => {
     useOfflineRecapStore.getState().setSettlement(shortRoaming);
     render(<HomeScreen onNavigate={() => {}} />);
 
@@ -387,7 +390,7 @@ describe('Short-absence suppression — under 5 minutes never auto-presents (own
   });
 });
 
-describe('Dashboard top — level pop-up holds specifics + the away recap', () => {
+describe('Dashboard top — level chip doors: specifics pop-up + the Return Sheet', () => {
   it('opens level specifics from the same store numbers', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
     fireEvent.click(screen.getByTestId('top-level-button'));
@@ -401,7 +404,7 @@ describe('Dashboard top — level pop-up holds specifics + the away recap', () =
     expect(screen.queryByText('While You Were Away')).toBeNull();
   });
 
-  it('an unacknowledged settlement beacons the level button and renders the recap (primer included) inside the pop-up', async () => {
+  it('an unacknowledged settlement beacons the level button and renders the recap (primer included) as the Return Sheet', async () => {
     useOfflineRecapStore.getState().setSettlement(recap);
     render(<HomeScreen onNavigate={() => {}} />);
 
@@ -417,18 +420,22 @@ describe('Dashboard top — level pop-up holds specifics + the away recap', () =
     fireEvent.click(levelButton);
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
     expect(screen.getByText('Away for')).toBeTruthy();
-    // PERM-01: the primer row rides inside the recap, in the pop-up.
+    // PERM-01: the primer row rides inside the recap, in the sheet.
     expect(await screen.findByTestId('push-primer')).toBeTruthy();
+    // Return Sheet form (§10): the totals row prints the absence's
+    // headline numbers (this settlement carries credits).
+    expect(screen.getByTestId('return-totals-row')).toBeTruthy();
 
-    // "Got it" acknowledges: sheet closes, beacon stops, the recap
+    // "Collect" acknowledges: sheet closes, beacon stops, the recap
     // store keeps the settlement (re-readable next open).
-    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collect' }));
     await waitFor(() => expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull());
     expect(useOfflineRecapStore.getState().dismissed).toBe(true);
     expect(useOfflineRecapStore.getState().lastSettlement?.rewards.creditsAwarded).toBe(4321);
     expect(screen.queryByTestId('level-away-pulse')).toBeNull();
 
-    // Re-opening the pop-up re-reads the same recap.
+    // Re-opening through the level chip re-reads the same recap
+    // (the Return Sheet is the recap's only home now).
     fireEvent.click(screen.getByTestId('top-level-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
   });

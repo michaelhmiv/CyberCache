@@ -41,6 +41,8 @@ Two things need **no account at all**:
 
 Guests also earn daily login streak rewards on exactly the same terms as signed-in players — see [[Leaderboards and Streaks]].
 
+Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|Parts Crate or Signature Order]] is claimable, Home's Weekly chip and claimables panel show it with its real price — claiming is a locked action that asks for Google sign-in, per the rule above.
+
 ## Your first hour
 
 1. **Roam the Dustwaste Frontier.** It is the first area and the right place to learn the rhythm: your hunter fights and loots in ticks, and drops appear as the run goes. Start the roam from [[The Board|the Board's]] stage.

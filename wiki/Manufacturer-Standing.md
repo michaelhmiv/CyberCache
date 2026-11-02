@@ -90,6 +90,17 @@ Guests can read the Rep Desk — all six ladders, unlocks, and prices.
 Turning in gear, paying a tribute, buying from a shelf or crate, and
 placing a Signature Order all require a signed-in (verified) account.
 
+## Claiming the weeklies from Home
+
+The two weekly offers also announce themselves on **Home**: while a
+Parts Crate or Signature Order is claimable, a **Weekly chip** sits in
+Home's claim row under the resource bar with the claimable count, and
+the deck carries a **Weekly claimables** panel with the offers and
+their claim buttons. Claiming from Home is the same Rep Desk purchase
+— same prices, same weekly cadence — just without the trip to Market.
+Guests see the chip and the panel too; the lock sits on the claim
+buttons themselves.
+
 ---
 
 _Source of truth: `src/content/manufacturerStanding.ts`, `src/server/routes/standing.ts`, `src/server/gameplay/standingOrder.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

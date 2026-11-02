@@ -16,21 +16,36 @@
  *    ContractsPanel). Pulses with a claimable-count badge when
  *    contracts are ready to claim; guests get the lock badge the
  *    panel's claim buttons carry — no pulse, no count.
+ *  - WEEKLY claim chip (redesign Wave C): renders ONLY while a
+ *    weekly Parts Crate or Signature Order is claimable at the
+ *    Rep Desk (the standing mirror's read drives it). Pulses
+ *    with the claimable count; opens the weekly claim sheet
+ *    (the same claim list the deck's Weekly panel carries).
+ *    Guests see the chip too — the lock sits on the claim
+ *    buttons inside, never on the announcement.
  *
  * HARD INVARIANT — the check-in is NOT behind the tap: this row
  * mounts with the Dashboard and its mount performs the streak
- * state read (which IS the daily check-in) and the contracts
- * board read (which issues the sets and drives the badge). The
- * pop-up panels consume the same shared stores; opening a pop-up
+ * state read (which IS the daily check-in), the contracts
+ * board read (which issues the sets and drives the badge), and
+ * the standing read (which drives the weekly chip). The pop-up
+ * panels consume the same shared stores; opening a pop-up
  * is never what records the day.
  *
- * The LEVEL pop-up holds the level specifics AND the relocated
- * Offline Recap ("while you were away" content — all settlement
- * variants, primer row included). While a settlement is
- * unacknowledged the level button carries the away beacon (pulse
- * + "AWAY" badge); the animation is never the only signal — every
- * animated state is paired with badge text and an accessible
- * label that carries the same information.
+ * The RETURN SHEET (DESIGN.md §10) presents the offline-return
+ * recap: totals row, the absence's best drop as a poster card
+ * on the loot ladder's timings, one Collect button, the push
+ * primer in the footer once. The LEVEL chip is its door —
+ * while a settlement exists (acknowledged or not), tapping the
+ * level button opens the Return Sheet; the level pop-up itself
+ * holds level specifics ONLY, with a door row back to the recap
+ * while one exists. While a settlement is unacknowledged the
+ * level button carries the away beacon (pulse + "AWAY" badge);
+ * the animation is never the only signal — every animated state
+ * is paired with badge text and an accessible label that
+ * carries the same information. The <5-minute suppression and
+ * all settlement logic live in the recap slice, untouched by
+ * this presentation.
  *
  * Pop-ups are the shipped PickerSheet (SheetPortal to
  * document.body — sheets never render inside transformed or
@@ -44,16 +59,19 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { OfflineRecapCard } from '@/components/activity/OfflineRecap';
 import { LoginStreakPanel } from './LoginStreakPanel';
 import { ContractsPanel } from './ContractsPanel';
+import { WeeklyClaimablesList } from './WeeklyClaimables';
 import { usePlayerStore } from '@/store';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
 import { countClaimableContracts, useContractsStore } from '@/store/slices/contractsSlice';
+import { useStandingStore, weeklyClaimables } from '@/store/slices/standingSlice';
 import { xpToNextLevel } from '@/content/simulation';
 
 const STREAK_ACCENT = '#FF8A3D';
 const CONTRACTS_ACCENT = '#E8B33D';
+const WEEKLY_ACCENT = '#3FD6E8';
 
-type TopSheet = 'level' | 'streak' | 'contracts' | null;
+type TopSheet = 'level' | 'return' | 'streak' | 'contracts' | 'weekly' | null;
 
 /** Pulsing glow underlay for an icon whose pop-up holds something
  *  actionable. Decorative only — the badge text and aria-label
@@ -100,6 +118,8 @@ export const DashboardTopBar: React.FC = () => {
   const loadStreak = useLoginStreakStore((s) => s.load);
   const contractsResult = useContractsStore((s) => s.result);
   const loadContracts = useContractsStore((s) => s.load);
+  const standingView = useStandingStore((s) => s.view);
+  const loadStanding = useStandingStore((s) => s.load);
   const lastSettlement = useOfflineRecapStore((s) => s.lastSettlement);
   const recapDismissed = useOfflineRecapStore((s) => s.dismissed);
   const [sheet, setSheet] = useState<TopSheet>(null);
@@ -110,7 +130,8 @@ export const DashboardTopBar: React.FC = () => {
   useEffect(() => {
     void loadStreak();
     void loadContracts();
-  }, [loadStreak, loadContracts]);
+    void loadStanding();
+  }, [loadStreak, loadContracts, loadStanding]);
 
   const xpNeeded = xpToNextLevel(level);
   const xpProgress = xpNeeded > 0 ? Math.min(100, Math.round((xp / xpNeeded) * 100)) : 100;
@@ -128,6 +149,13 @@ export const DashboardTopBar: React.FC = () => {
   const claimable = countClaimableContracts(contractsResult);
   const contractsPulsing = claimable > 0 && board?.canClaim === true;
   const contractsGuestLocked = board !== null && board.canClaim === false;
+
+  const weekly = weeklyClaimables(standingView);
+  const weeklyCount = weekly.length;
+  const weeklyLabel =
+    weeklyCount > 0
+      ? `Weekly claimables — ${weeklyCount} ready at the Rep Desk`
+      : 'Weekly claimables';
 
   const levelLabel =
     `Level ${level} progress — ${xp} of ${xpNeeded} XP, ` +
@@ -148,12 +176,14 @@ export const DashboardTopBar: React.FC = () => {
   return (
     <>
       <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-2">
-        {/* Level — progress bar + pop-up door */}
+        {/* Level — progress bar; the chip is the Return Sheet's
+            door while a settlement exists (DESIGN.md §3/§10),
+            and the level pop-up's door otherwise. */}
         <button
           type="button"
           data-testid="top-level-button"
           aria-label={levelLabel}
-          onClick={() => setSheet('level')}
+          onClick={() => setSheet(lastSettlement ? 'return' : 'level')}
           className="bl-panel relative min-h-[52px] min-w-0 flex-1 overflow-hidden px-3 py-2 text-left"
         >
           {awayPending && <PulseGlow color="#F2C063" testId="level-away-pulse" />}
@@ -170,10 +200,10 @@ export const DashboardTopBar: React.FC = () => {
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-[10px] font-black uppercase tracking-wider text-text-muted">
+                <span className="truncate text-[11px] font-black uppercase tracking-wider text-text-muted">
                   Level Progress
                 </span>
-                <span className="shrink-0 text-[10px] font-bold tabular-nums text-text-muted">
+                <span className="shrink-0 text-[11px] font-bold tabular-nums text-text-muted">
                   {xp} / {xpNeeded} XP
                 </span>
               </span>
@@ -195,12 +225,12 @@ export const DashboardTopBar: React.FC = () => {
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className="bl-panel relative flex min-h-[52px] w-[52px] shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-1 py-1.5"
+          className="bl-panel relative flex min-h-[52px] min-w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-2 py-1.5"
         >
           {streakJustClaimed && <PulseGlow color={STREAK_ACCENT} testId="streak-claim-pulse" />}
           {streakJustClaimed && <CornerBadge text="NEW" color={STREAK_ACCENT} />}
           <PxIcon name="flame" size={17} />
-          <span className="text-[8px] font-black uppercase tracking-wider text-text-muted">
+          <span className="text-[11px] font-black uppercase tracking-wider text-text-muted">
             {streakDay !== null ? `Day ${streakDay}` : 'Streak'}
           </span>
         </button>
@@ -211,16 +241,35 @@ export const DashboardTopBar: React.FC = () => {
           data-testid="top-contracts-button"
           aria-label={contractsLabel}
           onClick={() => setSheet('contracts')}
-          className="bl-panel relative flex min-h-[52px] w-[52px] shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-1 py-1.5"
+          className="bl-panel relative flex min-h-[52px] min-w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-2 py-1.5"
         >
           {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
           {contractsGuestLocked && <CornerBadge icon="lock" color="#8A847C" />}
           <PxIcon name="orders" size={17} />
-          <span className="text-[8px] font-black uppercase tracking-wider text-text-muted">
+          <span className="text-[11px] font-black uppercase tracking-wider text-text-muted">
             Orders
           </span>
         </button>
+
+        {/* Weekly claimables — chip; renders only while a weekly
+            Parts Crate / Signature Order is claimable (§9). */}
+        {weeklyCount > 0 && (
+          <button
+            type="button"
+            data-testid="top-weekly-button"
+            aria-label={weeklyLabel}
+            onClick={() => setSheet('weekly')}
+            className="bl-panel relative flex min-h-[52px] min-w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-2 py-1.5"
+          >
+            <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
+            <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
+            <PxIcon name="crate" size={17} />
+            <span className="text-[11px] font-black uppercase tracking-wider text-text-muted">
+              Weekly
+            </span>
+          </button>
+        )}
       </div>
 
       {sheet === 'level' && (
@@ -232,10 +281,10 @@ export const DashboardTopBar: React.FC = () => {
           <div className="space-y-3 p-3">
             <MobileCard className="p-3">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-text-muted">
+                <span className="text-[11px] font-black uppercase tracking-wider text-text-muted">
                   Level Progress
                 </span>
-                <span className="text-[10px] font-bold tabular-nums text-text-muted">
+                <span className="text-[11px] font-bold tabular-nums text-text-muted">
                   {xpProgress}%
                 </span>
               </div>
@@ -267,12 +316,52 @@ export const DashboardTopBar: React.FC = () => {
               </dl>
             </MobileCard>
 
-            {/* The relocated "while you were away" recap — renders
-                whenever a settlement exists; "Got it" acknowledges
-                it (stops the beacon) and closes the pop-up. */}
+            {/* Level specifics ONLY (DESIGN.md §3): the recap
+                lives on the Return Sheet, nowhere else — this row
+                is its door while a settlement exists. */}
             {lastSettlement && (
-              <OfflineRecapCard onDone={() => setSheet(null)} />
+              <button
+                type="button"
+                onClick={() => setSheet('return')}
+                className="flex w-full items-center justify-between border border-border bg-bg/60 px-3 py-2.5 text-left text-xs font-black text-text-primary"
+              >
+                <span>While You Were Away</span>
+                <PxIcon name="chevR" size={14} />
+              </button>
             )}
+          </div>
+        </PickerSheet>
+      )}
+
+      {sheet === 'return' && lastSettlement && (
+        <PickerSheet title="Return" onClose={() => setSheet(null)}>
+          <div className="space-y-3 p-3">
+            {/* The Return Sheet body (§10): totals row, best drop
+                as a poster card on the loot ladder's timings, one
+                Collect button, the push primer in the footer
+                once — all inside OfflineRecapCard. Collect
+                acknowledges (stops the beacon) and closes. */}
+            <OfflineRecapCard onDone={() => setSheet(null)} />
+            <button
+              type="button"
+              onClick={() => setSheet('level')}
+              className="flex w-full items-center justify-between border border-border bg-bg/60 px-3 py-2.5 text-left text-xs font-black text-text-primary"
+            >
+              <span>Level details</span>
+              <PxIcon name="chevR" size={14} />
+            </button>
+          </div>
+        </PickerSheet>
+      )}
+
+      {sheet === 'weekly' && (
+        <PickerSheet
+          title="Weekly Claimables"
+          subtitle="Rep Desk weekly offers — the desk itself is at Market, Rep Desk"
+          onClose={() => setSheet(null)}
+        >
+          <div className="p-3">
+            <WeeklyClaimablesList />
           </div>
         </PickerSheet>
       )}

@@ -17,7 +17,8 @@
  *    Equips from GearHub still route through the home; the picker
  *    remains the one placement surface.
  *  - Both boss-picker entry points render the shared BossPickerList;
- *    both area-picker entry points render the shared AreaPickerList.
+ *    the one area picker (the stage's sheet, Wave C) renders the
+ *    shared AreaPickerList — the deck hosts no second picker.
  *  - The Fight tab mounts ActionLoadout read-only with a Manage door.
  *  - The Action screen has no private recipe picker (crafting's one
  *    home is the Workshop) and no private area/boss lists.
@@ -120,21 +121,24 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
   });
 
   it('both area entry points render the shared AreaPickerList', () => {
-    // Wave B merge: the Board's area panel + picker live in the
-    // DashboardDeck (Home's deck) now — the pin follows the surface.
-    const dashboard = readSource('src/components/dashboard/DashboardDeck.tsx');
-    expect(dashboard).toContain('<AreaPickerList');
+    // Wave C: there is ONE area picker sheet — the stage's. Its
+    // doors are the stage's area chip, the mode rail's Area stop,
+    // and the diorama; the deck's old second picker is gone (the
+    // anti-duplication intent: one picker implementation).
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     expect(action).toContain('<AreaPickerList');
+    const dashboard = readSource('src/components/dashboard/DashboardDeck.tsx');
+    expect(dashboard).not.toContain('AreaPickerList');
     // The Action screen no longer defines a private area card.
     expect(action).not.toContain('const RouteCard');
   });
 
-  it('the persistent current-area chip is on both main play surfaces', () => {
-    // Both surfaces are on Home now: the deck's chip row and the
-    // Action stage both carry the persistent area chip.
-    expect(readSource('src/components/dashboard/DashboardDeck.tsx')).toContain('<CurrentAreaChip');
+  it('the persistent current-area chip lives on the stage, exactly once', () => {
+    // Wave C (§4): the chip row sits beside the stage (area chip +
+    // research chip). The deck's duplicate chip is removed — one
+    // chip, on the stage surface.
     expect(readSource('src/screens/ActionScreenContextual.tsx')).toContain('<CurrentAreaChip');
+    expect(readSource('src/components/dashboard/DashboardDeck.tsx')).not.toContain('<CurrentAreaChip');
   });
 });
 

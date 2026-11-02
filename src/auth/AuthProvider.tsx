@@ -8,6 +8,7 @@ import { useInitialBundleRevealStore } from '../store/slices/initialBundleReveal
 import { usePushPrimerStore } from '../store/slices/pushPrimerSlice';
 import { useLoginStreakStore } from '../store/slices/loginStreakSlice';
 import { useContractsStore } from '../store/slices/contractsSlice';
+import { useStandingStore } from '../store/slices/standingSlice';
 import { syncRuntimeItemsForUser } from '../lib/api/runtimeStateService';
 import { syncRuntimeProfile } from '../lib/api/verifiedStateSync';
 import { initializeNativeAuth } from '../lib/nativeAuth';
@@ -67,6 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // or contracts board (their loads are once-per-session).
     useLoginStreakStore.getState().reset();
     useContractsStore.getState().reset();
+    // Wave C: the standing mirror behind Home's weekly claimables
+    // is account-scoped for the same reason.
+    useStandingStore.getState().reset();
     useActivityStore.getState().reset();
     setRawUser(nextUser);
     setUser(toAuthSessionUser(nextUser));
