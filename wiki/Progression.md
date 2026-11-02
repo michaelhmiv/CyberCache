@@ -29,6 +29,8 @@ Your skill-point budget is **your level − 1**: a level 1 hunter has no points,
 
 Each tree also carries a signature [[Actions and Occupations|action skill]]. Because points arrive one per level and the trees are deep, a build is a commitment, not a checklist you complete.
 
+**Spending a point:** tap any node to open its brief. The brief's **Spend** button is always there — when a point can't be spent yet, the button stays disabled and the brief says why in plain terms: no points banked (earn one per level), a prerequisite node to buy first, or the node already maxed.
+
 **Respec:** you can retrain at any time, refunding all spent points, for **100 credits per spent point**. Retraining a heavily invested build is expensive by design — plan the big spends.
 
 ## Offline earnings

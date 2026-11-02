@@ -11,6 +11,8 @@ import {
 import {
   formatResearchDuration,
   formatResearchRemaining,
+  researchBenchName,
+  researchCourse,
   researchFaculty,
   type ResearchCourseView,
   type ResearchStateView,
@@ -36,6 +38,12 @@ export const ResearchPanel: React.FC = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  // Course detail (QC A7): every course card opens a full brief —
+  // gates, lever-applied fee/duration, unlock, and the same enroll
+  // affordance the card carries. Viewing is never gated (guests see
+  // the whole catalog with real data); enrolling keeps exactly the
+  // server view's canEnroll gating it has always had.
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const result = await getResearchState();
@@ -98,6 +106,9 @@ export const ResearchPanel: React.FC = () => {
   const active = state.activeEnrollment;
   const activeCourse = active
     ? state.courses.find((c) => c.id === active.courseId)
+    : undefined;
+  const selectedCourse = selectedCourseId
+    ? state.courses.find((c) => c.id === selectedCourseId)
     : undefined;
 
   return (
@@ -207,7 +218,14 @@ export const ResearchPanel: React.FC = () => {
                   className="bl-card flex items-start gap-3 p-2.5"
                   style={{ borderLeftColor: faculty.color, borderLeftWidth: 5 }}
                 >
-                  <div className="min-w-0 flex-1 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCourseId(course.id)}
+                    aria-expanded={selectedCourseId === course.id}
+                    aria-label={`${course.name} course details`}
+                    data-testid={`research-course-${course.id}`}
+                    className="min-w-0 flex-1 space-y-1 text-left"
+                  >
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <span className="text-xs font-black uppercase tracking-wide text-text-primary">
                         {course.name}
@@ -219,6 +237,7 @@ export const ResearchPanel: React.FC = () => {
                         {formatResearchDuration(course.durationNowMs)} ·{' '}
                         {course.costNow.toLocaleString()} cr
                       </span>
+                      <PxIcon name="chevR" size={13} className="self-center text-text-muted" />
                     </div>
                     <div className="text-[10px] text-text-muted">{course.unlockText}</div>
                     <div className="text-[10px] text-text-muted">
@@ -235,7 +254,7 @@ export const ResearchPanel: React.FC = () => {
                         Requires {course.costNow.toLocaleString()} cr
                       </div>
                     )}
-                  </div>
+                  </button>
                   {course.status === 'completed' && (
                     <span
                       className="shrink-0 rounded px-2 py-1 text-[10px] font-black uppercase"
@@ -265,6 +284,117 @@ export const ResearchPanel: React.FC = () => {
           </div>
         </div>
       ))}
+
+      {selectedCourse && (
+        <div
+          className="bl-card space-y-2 p-3"
+          data-testid="research-course-detail"
+          style={{
+            borderLeftColor: researchFaculty(selectedCourse.faculty).color,
+            borderLeftWidth: 5,
+          }}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-xs font-black uppercase tracking-wide text-text-primary">
+                {selectedCourse.name}
+              </div>
+              <div className="text-[10px] font-bold uppercase text-text-muted">
+                {researchFaculty(selectedCourse.faculty).name} · Tier {selectedCourse.tier}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedCourseId(null)}
+              aria-label="Close course details"
+              className="shrink-0 rounded bg-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-text-primary transition-transform active:scale-95"
+            >
+              Close
+            </button>
+          </div>
+          <div className="text-[11px] text-text-secondary">{selectedCourse.unlockText}</div>
+          <div className="space-y-1 text-[11px] text-text-muted">
+            <div>
+              Duration: {formatResearchDuration(selectedCourse.durationNowMs)}
+              {selectedCourse.durationHours * 3_600_000 !== selectedCourse.durationNowMs && (
+                <> (catalog {formatResearchDuration(selectedCourse.durationHours * 3_600_000)})</>
+              )}
+            </div>
+            <div>
+              Fee: {selectedCourse.costNow.toLocaleString()} cr — paid on enrollment, not refunded
+              {selectedCourse.costCredits !== selectedCourse.costNow && (
+                <> (catalog {selectedCourse.costCredits.toLocaleString()} cr)</>
+              )}
+            </div>
+            <div>
+              Pays {selectedCourse.masteryXp.toLocaleString()} Scholarship mastery XP on completion
+              — no player XP.
+            </div>
+            {selectedCourse.requiresLevel != null && (
+              <div>Requires level {selectedCourse.requiresLevel}</div>
+            )}
+            {selectedCourse.requiresBench != null && (
+              <div>Requires {researchBenchName(selectedCourse.requiresBench)}</div>
+            )}
+            {selectedCourse.prerequisite && (
+              <div>
+                Requires completing{' '}
+                {researchCourse(selectedCourse.prerequisite)?.name ?? selectedCourse.prerequisite}{' '}
+                first
+              </div>
+            )}
+          </div>
+          {selectedCourse.status === 'locked' && selectedCourse.lockReasons.length > 0 && (
+            <div className="space-y-0.5">
+              <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">
+                Still needed
+              </div>
+              {selectedCourse.lockReasons.map((reason) => (
+                <div key={reason} className="text-[11px] font-bold text-text-secondary">
+                  {reason}
+                </div>
+              ))}
+            </div>
+          )}
+          {selectedCourse.status === 'completed' && (
+            <span
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-black uppercase"
+              style={{
+                backgroundColor: `${researchFaculty(selectedCourse.faculty).color}22`,
+                color: researchFaculty(selectedCourse.faculty).color,
+              }}
+            >
+              <PxIcon name="check" size={13} /> Complete
+            </span>
+          )}
+          {selectedCourse.status === 'enrolled' && (
+            <div className="text-[11px] font-bold text-text-secondary">
+              In progress — see the course card at the top of this panel for its clock.
+            </div>
+          )}
+          {selectedCourse.canEnroll && (
+            <button
+              onClick={() => void enroll(selectedCourse)}
+              disabled={busy !== null}
+              className="rounded px-3 py-1.5 text-[11px] font-black uppercase tracking-wide transition-transform active:scale-95 disabled:opacity-40"
+              style={{
+                backgroundColor: researchFaculty(selectedCourse.faculty).color,
+                color: '#14100A',
+              }}
+            >
+              {busy === selectedCourse.id
+                ? '…'
+                : `Enroll · ${selectedCourse.costNow.toLocaleString()} cr`}
+            </button>
+          )}
+          {selectedCourse.status === 'available' && !selectedCourse.canEnroll && (
+            <div className="text-[11px] font-bold text-text-muted">
+              Requires {selectedCourse.costNow.toLocaleString()} cr — your balance is{' '}
+              {state.credits.toLocaleString()} cr.
+            </div>
+          )}
+        </div>
+      )}
 
       {error && <div className="text-[11px] font-bold text-red">{error}</div>}
     </MobileCard>

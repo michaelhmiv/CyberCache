@@ -139,6 +139,14 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
             Load all
           </button>
         </div>
+        {fuelCells < 1 && (
+          <div className="text-[11px] text-text-muted" data-testid="garage-fuel-hint">
+            No Generic Fuel Cells in inventory — the Vendor in the Market sells them, and they
+            trade on the player market. Buy a few, then load them here: each cell adds 100 fuel
+            units. Out of fuel never stops roaming; the vehicle bonus just turns off until you
+            refuel.
+          </div>
+        )}
         {notice && <div className="text-xs text-text-secondary">{notice}</div>}
         <div className="text-[11px] text-text-muted">
           Patch Kits owned: {patchKits} — buy fuel cells and patch kits from the vendor.

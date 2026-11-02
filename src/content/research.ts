@@ -520,6 +520,13 @@ export const RESEARCH_CANCEL_TERMS =
 
 const BENCH_NAMES: Record<number, string> = { 2: 'the Forge bench', 3: 'the Lab bench' };
 
+/** Player-facing name of an owned-bench gate. The state view's lock
+ *  reasons and the Research panel's course detail read bench gates
+ *  through this one helper, so the two can never spell them apart. */
+export function researchBenchName(bench: number): string {
+  return BENCH_NAMES[bench] ?? `bench ${bench}`;
+}
+
 /**
  * Derive the panel view from server facts. Pure: the routes (and
  * the in-memory twin's tests) share this derivation, so the Pg and
@@ -542,7 +549,7 @@ export function researchStateView(
       lockReasons.push(`Requires ${researchCourse(course.prerequisite)?.name ?? course.prerequisite}`);
     }
     if (course.requiresBench != null && facts.workshopBenches < course.requiresBench) {
-      lockReasons.push(`Requires ${BENCH_NAMES[course.requiresBench] ?? `bench ${course.requiresBench}`}`);
+      lockReasons.push(`Requires ${researchBenchName(course.requiresBench)}`);
     }
     let status: ResearchCourseStatus;
     if (completedIds.has(course.id)) status = 'completed';
