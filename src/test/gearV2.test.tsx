@@ -86,7 +86,10 @@ describe('Gear v2 — the rail of stops', () => {
 
   it('opens on the Loadout stop; the Garage is NOT rendered under it anymore (F1)', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    expect(await screen.findByText(/Your seven gear slots/)).toBeTruthy();
+    // F5 successor landmark: the Loadout stop's old intro sentence
+    // ("Your seven gear slots…") was removed per the fidelity audit;
+    // the panel header's "Tap a slot to equip" hint is its marker now.
+    expect(await screen.findByText('Tap a slot to equip')).toBeTruthy();
     expect(screen.queryByTestId('garage-panel')).toBeNull();
     // The vehicle slot still shows on Loadout — as its status line,
     // with the Open Garage door to the stop.

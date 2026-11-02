@@ -34,7 +34,7 @@ export const VehicleStatusLine: React.FC<{ onOpenGarage?: () => void }> = ({ onO
     <button
       type="button"
       onClick={onOpenGarage}
-      className="shrink-0 border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-black text-amber"
+      className="shrink-0 border border-border bg-background/60 px-2.5 py-1.5 text-[11px] font-black text-amber"
     >
       Open Garage
     </button>

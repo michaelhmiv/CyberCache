@@ -197,7 +197,10 @@ describe('Phase 1 — one gear home', () => {
     fireEvent.click(equipAction);
 
     // The home switched to Loadout and the Slot Picker is open on Shield.
-    await screen.findByText(/Your seven gear slots/);
+    // F5 successor landmark: the Loadout stop's old intro sentence
+    // ("Your seven gear slots…") was removed per the fidelity audit;
+    // the panel header's "Tap a slot to equip" hint is its marker now.
+    await screen.findByText('Tap a slot to equip');
     expect(await screen.findByText('Shield', { selector: '.bl-title' })).toBeTruthy();
 
     // Equipping through the picker performs the one equip path. (The

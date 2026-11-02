@@ -251,7 +251,10 @@ describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
     render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'loadout', seq: 1 }} />);
 
     // The Loadout stop mounted (not the item grid).
-    await screen.findByText(/Your seven gear slots/);
+    // F5 successor landmark: the Loadout stop's old intro sentence
+    // ("Your seven gear slots…") was removed per the fidelity audit;
+    // the panel header's "Tap a slot to equip" hint is its marker now.
+    await screen.findByText('Tap a slot to equip');
     expect(screen.queryByText('Item Grid')).toBeNull();
 
     // Slots are visible and tappable on arrival; the picker opens.
@@ -274,7 +277,7 @@ describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
   it('without an intent the gear home opens on the Loadout stop (Wave D: the rail’s first stop)', async () => {
     useInventoryStore.setState({ items: [makeWeapon('w-gear', 'Gear Pistol')] });
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    await screen.findByText(/Your seven gear slots/);
+    await screen.findByText('Tap a slot to equip');
     expect(screen.queryByText('Item Grid')).toBeNull();
     expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
   });
@@ -385,7 +388,7 @@ describe('device r2 — equipping through the Slot Picker, every slot kind', () 
     fireEvent.click(await screen.findByText('Door Relic'));
     const equipAction = await screen.findByRole('button', { name: /Equip/ });
     fireEvent.click(equipAction);
-    await screen.findByText(/Your seven gear slots/);
+    await screen.findByText('Tap a slot to equip');
     expect(await screen.findByText('Relic', { selector: '.bl-title' })).toBeTruthy();
     await equipFromPicker('r-door', 'Door Relic', 'relic');
   });

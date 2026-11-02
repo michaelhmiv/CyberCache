@@ -72,9 +72,15 @@ Legendary weapons can additionally carry one named
 
 Everything gear lives on the **Gear tab**, as a rail of five stops:
 
-- **Loadout** — the equip surface: your seven slots and the slot
-  picker. Your vehicle slot shows here too — its status at a glance,
-  with a door straight to the Garage.
+- **Loadout** — the equip surface: your hunter stands at the top of
+  the panel wearing your actual equipped gear — your primary weapon
+  in his hands, shield, relic, and belt mounted on the figure — over
+  the seven slot chips and the slot picker. Weapon chips draw the
+  rolled gun itself, and item names always print in full. Your
+  vehicle slot shows here too — its status at a glance, with a door
+  straight to the Garage. (Your credits, scrap, keys, and item count
+  print once, in the strip at the top of the tab — the loadout panel
+  header carries your DPS and HP instead.)
 - **Grid** — your full item grid, with salvage/recycle.
 - **Items** — your belt, plus every stack you carry: consumable
   batches with their quality % printed, materials, and essences.

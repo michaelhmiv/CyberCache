@@ -21,11 +21,15 @@ type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'> 
  * yield, fuel, condition — with the Open Garage door to the Garage
  * stop, where vehicles actually equip and repair (they are not
  * GearItem, so they keep their own verified ops there).
+ *
+ * Drift-fix F5: the standalone intro sentence that used to sit above
+ * the panel is gone (the proposal carries no page-title header here);
+ * its two facts live in the panel itself — "Tap a slot to equip" in
+ * the header, "changes verify server-side" in the belt caption.
  */
 export const SyncedLoadoutScreen: React.FC<SyncedLoadoutScreenProps> = ({ onOpenGarage, ...loadoutProps }) => {
   return (
     <div className="p-4 space-y-4 pb-20">
-      <div className="text-xs text-text-muted">Your seven gear slots. Tap a slot to equip from your inventory — every change is verified server-side.</div>
       <ActionLoadout {...loadoutProps} />
       <VehicleStatusLine onOpenGarage={onOpenGarage} />
     </div>

@@ -238,12 +238,15 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the banner
     // The Garage stop is mounted and lit — no Loadout, no scrolling.
     expect(await screen.findByTestId('garage-panel')).toBeTruthy();
     expect(screen.getByTestId('gear-stop-garage').getAttribute('aria-selected')).toBe('true');
-    expect(screen.queryByText(/Your seven gear slots/)).toBeNull();
+    // F5 successor landmark: the Loadout stop's old intro sentence
+    // ("Your seven gear slots…") was removed per the fidelity audit;
+    // the panel header's "Tap a slot to equip" hint is its marker now.
+    expect(screen.queryByText('Tap a slot to equip')).toBeNull();
   });
 
   it('without a garage intent the gear home opens on Loadout and the Garage is not mounted', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    expect(await screen.findByText(/Your seven gear slots/)).toBeTruthy();
+    expect(await screen.findByText('Tap a slot to equip')).toBeTruthy();
     expect(screen.queryByTestId('garage-panel')).toBeNull();
     expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
   });
