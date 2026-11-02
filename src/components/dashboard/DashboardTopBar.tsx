@@ -233,13 +233,19 @@ export const DashboardTopBar: React.FC = () => {
           </span>
         </button>
 
-        {/* Daily streak — icon + pop-up door */}
+        {/* Daily streak — icon + pop-up door. While the NEW badge
+            is up, the pill reserves its corner (pr-12): the badge
+            is ~36px wide at its inset, so pr-10 left ~zero air and
+            the label's last glyph ("Day 1" → "DAY ") tucked under
+            it — the fix-pass defect on PR #293's captures. pr-12
+            keeps the full label clear of the badge, the same
+            reservation the level pill gives its AWAY badge. */}
         <button
           type="button"
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakJustClaimed ? 'pr-10' : ''}`}
+          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakJustClaimed ? 'pr-12' : ''}`}
         >
           {streakJustClaimed && <PulseGlow color={STREAK_ACCENT} testId="streak-claim-pulse" />}
           {streakJustClaimed && <CornerBadge text="NEW" color={STREAK_ACCENT} />}
