@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Lock } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { listEntranceProps } from '@/lib/animation/uiMotion';
 import { useAuth } from '@/auth/AuthProvider';
 import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
 import { useActivityStore, useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
@@ -147,6 +149,7 @@ function fmtTimeLeft(expiresAtMs: number | null): string {
 export const RepairBoard: React.FC = () => {
   const { user } = useAuth();
   const myId = user?.id ?? null;
+  const reduceMotion = useReducedMotion();
   const consumables = usePlayerStore((s) => s.consumables);
   const vehicles = useVehicleStore((s) => s.vehicles);
   const loadout = useLoadoutStore();
@@ -453,14 +456,14 @@ export const RepairBoard: React.FC = () => {
               : 'No open jobs. Post yours above — or check back after the next roam.'}
           </div>
         )}
-        {openJobs.map((job) => {
+        {openJobs.map((job, index) => {
           const mine = job.ownerUserId === myId;
           const kit = acceptKit[job.id] ?? 'PatchKit';
           const owned = consumables[kit] ?? 0;
           const req = job.requirements;
           const kitReq = req?.kitOptions.find((o) => o.kitType === kit) ?? null;
           return (
-            <div key={job.id} className="border border-border bg-surface/95 p-3 space-y-2">
+            <motion.div key={job.id} {...listEntranceProps(index, reduceMotion)} className="border border-border bg-surface/95 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-bold text-text-primary">
                   {vehicleLabel(job)}
@@ -522,7 +525,7 @@ export const RepairBoard: React.FC = () => {
                   </span>
                 </div>
               )}
-            </div>
+            </motion.div>
           );
         })}
         {openJobs.length < openTotal && (

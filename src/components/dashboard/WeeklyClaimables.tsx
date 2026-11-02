@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { motion } from 'framer-motion';
+import { ClaimPulse } from '@/components/common/ClaimPulse';
+import { panelEntranceProps } from '@/lib/animation/uiMotion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   useStandingStore,
   weeklyClaimables,
@@ -58,8 +60,11 @@ const ClaimRow: React.FC<{ claimable: WeeklyClaimable; guest: boolean }> = ({ cl
             ? `Sign in with Google to claim the ${claimable.makerName} ${claimable.kind === 'crate' ? 'Parts Crate' : 'Signature Order'}`
             : `Claim the ${claimable.makerName} ${claimable.kind === 'crate' ? 'Parts Crate' : 'Signature Order'} for ${claimable.priceCredits} credits`
         }
-        className="flex shrink-0 items-center gap-1.5 border border-cyan/50 bg-cyan/10 px-2.5 py-2 text-[11px] font-black text-cyan transition-transform active:scale-[0.97] disabled:opacity-50"
+        className="relative flex shrink-0 items-center gap-1.5 border border-cyan/50 bg-cyan/10 px-2.5 py-2 text-[11px] font-black text-cyan transition-transform active:scale-[0.97] disabled:opacity-50"
       >
+        {/* §10: a live claim button pulses until claimed (the
+            guest lock state does not — nothing is claimable). */}
+        {!guest && <ClaimPulse color={WEEKLY_ACCENT} />}
         {guest && <PxIcon name="lock" size={13} />}
         {busy
           ? 'Claiming…'
@@ -125,13 +130,15 @@ export const WeeklyClaimablesList: React.FC = () => {
 export const WeeklyClaimablesPanel: React.FC = () => {
   const view = useStandingStore((s) => s.view);
   const load = useStandingStore((s) => s.load);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     void load();
   }, [load]);
 
   if (weeklyClaimables(view).length === 0) return null;
   return (
-    <section
+    <motion.section
+      {...panelEntranceProps(reduceMotion)}
       data-testid="weekly-claimables-panel"
       className="relative overflow-hidden border-2 bg-surface/95 p-2 shadow-[0_8px_18px_rgba(0,0,0,0.55)]"
       style={{ borderColor: `${WEEKLY_ACCENT}66` }}
@@ -145,6 +152,6 @@ export const WeeklyClaimablesPanel: React.FC = () => {
         <span className="h-px flex-1 bg-border-light" />
       </div>
       <WeeklyClaimablesList />
-    </section>
+    </motion.section>
   );
 };

@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { listEntranceProps } from '@/lib/animation/uiMotion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { useAuth } from '@/auth/AuthProvider';
 import { ResourceBar } from '@/components/layout/ResourceBar';
@@ -39,11 +41,14 @@ const WeeklyRaceStandings: React.FC<{
   race: WeeklyRaceBoard;
   myPlayerId?: string | null;
   final?: boolean;
-}> = ({ race, myPlayerId, final }) => {
+  /** Entrance stagger slot (§10 list entrances). */
+  index?: number;
+}> = ({ race, myPlayerId, final, index = 0 }) => {
+  const reduceMotion = useReducedMotion();
   const inTop = race.entries.some((e) => e.player_id === myPlayerId);
   const reward = final ? race.my_reward : null;
   return (
-    <div className="space-y-1">
+    <motion.div {...listEntranceProps(index, reduceMotion)} className="space-y-1">
       <div className="flex items-baseline gap-2">
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">{race.label}</div>
         <div className="ml-auto whitespace-nowrap text-[10px] text-text-muted">
@@ -93,7 +98,7 @@ const WeeklyRaceStandings: React.FC<{
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
@@ -176,8 +181,8 @@ const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId
         )}
       </div>
 
-      {data.races.map((race) => (
-        <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} />
+      {data.races.map((race, index) => (
+        <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} index={index} />
       ))}
 
       <div className="border-t border-border pt-3">
@@ -191,8 +196,8 @@ const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId
           <div className="mt-1 text-[10px] text-text-muted">Rewards settle at the next daily heartbeat.</div>
         )}
         <div className="mt-2 space-y-4">
-          {prev.races.map((race) => (
-            <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} final />
+          {prev.races.map((race, index) => (
+            <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} final index={index} />
           ))}
         </div>
         {prev.settled && !prevPlaced && (

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Filter, Lock, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
@@ -29,6 +29,7 @@ import type { PriceStats } from '@/lib/market/priceStats';
 import type { MarketListingQuery, MarketSort } from '@/lib/market/listingQuery';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { ChipRail } from '@/components/common/ChipRail';
+import { listEntranceProps, stopTransitionProps } from '@/lib/animation/uiMotion';
 import { VendorScreen } from './VendorScreen';
 import { RepDeskPanel } from '@/components/vendor/RepDeskPanel';
 import { DataSlotsPanel } from '@/components/vendor/DataSlotsPanel';
@@ -260,6 +261,7 @@ function SalesGuidance({ stats, perUnit }: { stats?: PriceStats; perUnit?: boole
 
 export const MarketScreen: React.FC = () => {
   const market = useMarketStore();
+  const reduceMotion = useReducedMotion();
   const inventory = useInventoryStore();
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
@@ -720,6 +722,11 @@ export const MarketScreen: React.FC = () => {
 
       {transactLockPrompt}
 
+      {/* Stop transitions (§10): stops enter with weight instead of
+          hard-cutting — the Gear tab's pattern (AnimatePresence
+          mode="wait", fade + rise, collapsed under reduced motion). */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={market.activeTab} {...stopTransitionProps(reduceMotion)}>
       {market.activeTab === 'vendor' && <VendorScreen />}
 
       {market.activeTab === 'repdesk' && <RepDeskPanel />}
@@ -802,11 +809,11 @@ export const MarketScreen: React.FC = () => {
           </div>
           <div className="space-y-2">
             {!loadingListings && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell stop.</div>}
-            {filteredListings.map((listing) => {
+            {filteredListings.map((listing, index) => {
               const seller = sellerDisplayName(listing, currentUserId);
               const stats = listing.identityKey ? priceStats[listing.identityKey] : undefined;
               return (
-                <div key={listing.id} className="bl-card space-y-2">
+                <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card space-y-2">
                   {listing.kind === 'gear' && listing.itemSnapshot ? (
                     <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
                   ) : (
@@ -819,7 +826,7 @@ export const MarketScreen: React.FC = () => {
                   <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id || (!marketLocked && player.credits < listing.price)} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber py-2 text-xs font-bold text-bg disabled:opacity-40">
                     {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
                   </button>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -1079,10 +1086,10 @@ export const MarketScreen: React.FC = () => {
             <option value="name">Sort: Name A-Z</option>
           </select>
           {sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
-          {sortedMyListings.map((listing) => {
+          {sortedMyListings.map((listing, index) => {
             const preview = feePreview(listing.price, skillBonuses, listing.itemSnapshot?.sourceTag);
             return (
-            <div key={listing.id} className="bl-card space-y-2">
+            <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card space-y-2">
               {listing.kind === 'gear' && listing.itemSnapshot ? (
                 <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
               ) : (
@@ -1092,7 +1099,7 @@ export const MarketScreen: React.FC = () => {
               <button onClick={() => guardTransact('cancel a listing', () => void handleCancelListing(listing))} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500 disabled:opacity-50">
                 {pendingCancelId === listing.id ? 'Cancelling…' : (<>Cancel Listing{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
               </button>
-            </div>
+            </motion.div>
             );
           })}
         </div>
@@ -1104,12 +1111,14 @@ export const MarketScreen: React.FC = () => {
       {market.activeTab === 'sell' && sellSegment === 'history' && (
         <div className="space-y-2">
           {market.history.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No transactions yet.</div>}
-          {market.history.map((h) => <div key={h.id} className="bl-card space-y-1.5"><div className="flex items-center justify-between"><div className="text-xs font-bold text-text-primary">{h.itemName}</div><div className={`text-xs font-black ${h.type === 'buy' ? 'text-red-400' : 'text-green-400'}`}>{h.type === 'buy' ? '-' : '+'}{h.price.toLocaleString()}cr</div></div><div className="flex items-center justify-between text-[10px] text-text-muted"><span>{historyPartyLabel(h)}</span><span>{h.itemRarity}</span></div></div>)}
+          {market.history.map((h, index) => <motion.div key={h.id} {...listEntranceProps(index, reduceMotion)} className="bl-card space-y-1.5"><div className="flex items-center justify-between"><div className="text-xs font-bold text-text-primary">{h.itemName}</div><div className={`text-xs font-black ${h.type === 'buy' ? 'text-red-400' : 'text-green-400'}`}>{h.type === 'buy' ? '-' : '+'}{h.price.toLocaleString()}cr</div></div><div className="flex items-center justify-between text-[10px] text-text-muted"><span>{historyPartyLabel(h)}</span><span>{h.itemRarity}</span></div></motion.div>)}
         </div>
       )}
 
         </>
       )}
+        </motion.div>
+      </AnimatePresence>
 
       <GearInspectSheet item={inspectItem} open={!!inspectItem} onClose={() => setInspectItem(null)} contextLabel="Market Inspect" />
 
