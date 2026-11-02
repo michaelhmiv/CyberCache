@@ -560,7 +560,7 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ a
   return (
     <div className="pointer-events-none absolute right-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="primary-diorama-target-hp">
       <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
-        <span className="truncate">{targetName}</span>
+        <span className="min-w-0 break-words">{targetName}</span>
         <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
       </div>
       <div className="h-2 w-full overflow-hidden border border-border bg-surface">
@@ -593,7 +593,7 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; reduced?: 
   return (
     <div className="pointer-events-none absolute right-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="primary-diorama-boss-hp">
       <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
-        <span className="truncate">{bossName}</span>
+        <span className="min-w-0 break-words">{bossName}</span>
         <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
       </div>
       <GhostHpBar pct={ratio * 100} color={accentColor} reduced={reduced} barClassName="h-2" testId="diorama-boss-hp-bar" />

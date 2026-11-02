@@ -295,8 +295,15 @@ describe('Papercut 4 — diorama title prints whole; the mode prints once', () =
   const diorama = readSource('src/components/dashboard/LiveTurfDiorama.tsx');
 
   it('the stage title wraps instead of ellipsizing', () => {
-    expect(diorama).toContain('bl-title break-words text-2xl');
-    expect(diorama).not.toContain('bl-title truncate');
+    // Drift-fix F2: the poster title plate (bl-title text-2xl) is
+    // deleted outright — the stage's only title read is the slim
+    // plate, whose name span wraps at full size, and the HP
+    // overlays' name spans wrap too. No truncate survives
+    // anywhere in the diorama.
+    expect(diorama).toContain('diorama-stage-plate');
+    expect(diorama).toContain('min-w-0 break-words text-[12px] font-black');
+    expect(diorama).not.toContain('truncate');
+    expect(diorama).not.toContain('bl-title');
   });
 
   it('no in-scene mode tag remains in either scene path', () => {
