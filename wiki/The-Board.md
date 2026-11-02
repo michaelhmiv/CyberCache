@@ -44,7 +44,7 @@ Below the rail sits the **lit workspace** for the current mode, then the **consu
 
 Everything below the fold is the **deck**, in a fixed order:
 
-1. **Launchers** — the directory doors: **Dispatch** and **Crack Cache** first, then **Slots** (the wheel itself lives at the Market rail stop), then the **Loadout Bench** shortcut — which only appears while your loadout is incomplete (fewer than 7 of 7 gear slots filled).
+1. **Launchers** — the directory doors: **Dispatch** and **Crack Cache** first, then **Slots** (the card lands you right on the wheel at the Market rail stop), then the **Loadout Bench** shortcut — which only appears while your loadout is incomplete (fewer than 7 of 7 gear slots filled).
 2. **Weekly claimables** — the weekly Parts Crate and Signature Order offers, with their claim buttons. This panel only exists while something is claimable; an empty week leaves no empty box behind.
 3. **Now** — one merged feed: your latest activity plus the world pulse (current activity, level progress, boss progress, best weapon, bench state).
 4. **Hunter Totals** — your hunter's combat numbers — health, damage, and the rest — computed from your real gear, skills, and buffs. Its **Sources** button opens a full breakdown of where every number comes from.
