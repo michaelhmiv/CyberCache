@@ -14,6 +14,7 @@ import { useBossStore } from '@/store/slices/bossSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { REGION_1_BOSSES } from '@/constants/bosses';
+import { legendaryEffectName } from '@/constants/legendaryEffects';
 import type { BossDef } from '@/types/boss';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { computeLoadoutDps } from '@/lib/stats/dpsChain';
@@ -151,9 +152,9 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
               )}
             </div>
 
-            {/* Rewards */}
+            {/* Rewards — effect NAMES, never the raw ids (QC A3) */}
             <div className="text-[9px] text-text-muted">
-              Drops: {boss.dedicatedDrops.slice(0, 3).join(', ')}
+              Drops: {boss.dedicatedDrops.slice(0, 3).map(legendaryEffectName).join(', ')}
               {boss.dedicatedDrops.length > 3 ? ` +${boss.dedicatedDrops.length - 3} more` : ''}
             </div>
 

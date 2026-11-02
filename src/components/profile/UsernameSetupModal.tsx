@@ -104,7 +104,7 @@ export const UsernameSetupModal: React.FC<Props> = ({
           <input
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="hunter_name"
+            placeholder="Your hunter name"
             className="bl-input w-full px-3 py-2 text-sm"
             maxLength={24}
             autoFocus

@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle, Lock } from 'lucide-react';
 import type { BossDef, PhaseAnalysis } from '../../types/boss';
 import { RiskSetting } from '../../types/game';
 import { CONSUMABLES } from '../../constants/consumables';
-import { LEGENDARY_EFFECTS } from '../../constants/legendaryEffects';
+import { legendaryEffectName } from '../../constants/legendaryEffects';
 import { RARITIES } from '../../constants/rarities';
 import { getBossRiskModifiers } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
@@ -59,8 +59,7 @@ type PanelStage = 'prep' | 'fighting' | 'result';
 
 const rarityColor = (rarity?: string) => RARITIES[rarity as keyof typeof RARITIES]?.color || RARITIES.Common.color;
 
-const legendaryName = (effectId: string) =>
-  LEGENDARY_EFFECTS.find((eff) => eff.id === effectId)?.name ?? effectId;
+const legendaryName = legendaryEffectName;
 
 /** Boss vitals as proportional bars — each pool sized against the largest. */
 const BossVitals: React.FC<{ boss: BossDef }> = ({ boss }) => {

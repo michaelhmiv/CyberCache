@@ -25,6 +25,7 @@ import { isGuestAccount } from '@/auth/accountState';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
+import { resolveSceneLabel } from '@/lib/dashboard/sceneLabel';
 import { StatCard } from '@/components/profile/StatCard';
 import { StatDetailPanel } from '@/components/profile/StatDetailPanel';
 import { ProgressionHistoryCard } from '@/components/progression/ProgressionHistoryCard';
@@ -168,7 +169,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const payload = activity.current.publicPayload;
   const activityLabel = safeText(payload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
   const activityTarget = activity.current.targetLabel ?? safeText(payload.target_label) ?? 'No target';
-  const activityScene = activity.current.sceneKey ?? safeText(payload.scene_key) ?? 'standby';
+  // The Scene row prints the resolved player label ("Crafting Bench",
+  // "Dustwaste Frontier"), never the raw scene key (QC 2026-11-02, A3:
+  // 'workshop:crafting' / 'dustwaste_frontier' reached the screen).
+  const activityScene = resolveSceneLabel(activity.current.sceneKey, safeText(payload.scene_key));
   const topAreas = topBreakdown(stats?.kills_by_area, 3);
   const topWeaponTypes = topBreakdown(stats?.kills_by_weapon_type, 3);
 
@@ -296,7 +300,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           <div className="flex justify-between gap-3"><span>Target</span><span className="truncate text-right font-bold text-text-primary">{activityTarget}</span></div>
           <div className="flex justify-between gap-3"><span>Scene</span><span className="truncate text-right text-text-muted">{activityScene}</span></div>
         </div>
-        <div className="text-[10px] text-text-muted">This panel reads sanitized activity fields and avoids internal runtime details.</div>
       </MobileCard>
 
       <WorldPulseFeed />
@@ -320,7 +323,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
                 className="flex items-center justify-between gap-3 border-b border-border/40 pb-1 last:border-b-0"
               >
                 <div className="min-w-0 flex-1 truncate font-bold text-text-primary">{entry.monsterName}</div>
-                <div className="truncate text-[10px] text-text-muted">{entry.areaId}</div>
+                <div className="truncate text-[10px] text-text-muted">{resolveSceneLabel(entry.areaId)}</div>
                 <div className="shrink-0 text-[10px] text-text-muted">
                   {new Date(entry.at).toLocaleDateString()}
                 </div>

@@ -19,6 +19,11 @@ interface SkillKeystoneArtProps {
   nodeType?: NodeType;
   unlocked?: boolean;
   locked?: boolean;
+  /** Points actually spent in the node. The aria state distinguishes
+   *  "available" (prerequisites met, nothing spent yet) from
+   *  "unlocked" (points spent) — at 0 spent a node is available, not
+   *  unlocked (QC 2026-11-02, A6). Absent = legacy two-state label. */
+  spentPoints?: number;
   size?: number;
   className?: string;
   animate?: boolean;
@@ -48,6 +53,7 @@ export const SkillKeystoneArt: React.FC<SkillKeystoneArtProps> = ({
   nodeType = 'small',
   unlocked = false,
   locked = !unlocked,
+  spentPoints,
   size = 40,
   className = '',
   animate = false,
@@ -66,7 +72,7 @@ export const SkillKeystoneArt: React.FC<SkillKeystoneArtProps> = ({
       viewBox="0 0 60 60"
       className={className}
       role="img"
-      aria-label={`${visual.label} ${nodeType} node${unlocked ? ' (unlocked)' : ' (locked)'}`}
+      aria-label={`${visual.label} ${nodeType} node${spentPoints !== undefined ? (spentPoints > 0 ? ' (unlocked)' : unlocked ? ' (available)' : ' (locked)') : unlocked ? ' (unlocked)' : ' (locked)'}`}
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>

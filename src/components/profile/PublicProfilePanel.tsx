@@ -50,7 +50,7 @@ export const PublicProfilePanel: React.FC<PublicProfilePanelProps> = ({ open, on
                 <div>
                   <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">Public Profile</div>
                   <div className="bl-title text-xl leading-none text-text-primary">
-                    {profile?.username ?? profile?.display_name ?? `Player ${profile?.player_id.slice(0, 6) ?? ''}`}
+                    {profile?.username ?? profile?.display_name ?? 'Vault Runner'}
                   </div>
                 </div>
               </div>

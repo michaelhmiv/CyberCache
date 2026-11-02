@@ -108,7 +108,7 @@ export const LifetimeStatsPanel: React.FC = () => {
             ))
           )}
           <div className="text-[10px] text-text-muted">
-            Weapon-type kills are recorded from the 0034 trophy record onward; the totals above count every claim ever settled.
+            Weapon-type kills come from your trophy record; the totals above count every claim ever settled.
           </div>
         </Section>
 

@@ -23,7 +23,11 @@ export const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ entry, isMe, onC
       </div>
       <div className="min-w-0 flex-1">
         <div className={`truncate text-xs font-bold ${isMe ? 'text-amber' : 'text-text-primary'}`}>
-          {entry.username ?? `Player ${entry.player_id.slice(0, 6)}`}
+          {/* No username yet: the game's generic hunter name ("Vault
+              Runner", the same fallback sellerDisplay uses) — never a
+              slice of the raw player id (QC 2026-11-02, A3:
+              "Player 000000"). */}
+          {entry.username ?? 'Vault Runner'}
         </div>
         {!compact && (
           <div className="text-[9px] text-text-muted">

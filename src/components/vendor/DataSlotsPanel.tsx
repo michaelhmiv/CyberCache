@@ -17,6 +17,7 @@ import {
   type SlotGlyph,
   type SlotStateView,
 } from '@/content/slots';
+import { getConsumableVisual } from '@/constants/visualAssets';
 
 /**
  * Data Slots — the slot machine (0049), whose canonical home is
@@ -91,7 +92,7 @@ function payoutSummary(result: PullResult): string {
     case 'credits':
       return `Paid ${(payout.credits_paid ?? 0).toLocaleString()}cr.`;
     case 'bundle': {
-      const items = (payout.bundle ?? []).map((i) => `${i.item_key} ×${i.quantity}`).join(', ');
+      const items = (payout.bundle ?? []).map((i) => `${getConsumableVisual(i.item_key).label} ×${i.quantity}`).join(', ');
       return `Vendor bundle (${(payout.bundle_value ?? 0).toLocaleString()}cr of goods): ${items}.`;
     }
     case 'fragments':

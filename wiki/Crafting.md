@@ -65,8 +65,10 @@ salvaging (and all tradable on [[The Market]]):
 
 - **5 base materials** — Scrap Alloy, Ballistic Parts, Reactive
   Components, Tech Fragments, and Void Dust — plus their **5 refined
-  forms** and **3 Lab composites**, which refining produces and gear
-  frames consume.
+  forms** (Refined Alloy, Tempered Parts, Stabilized Cells, Woven
+  Circuits, Condensed Void) and **3 Lab composites** (Composite
+  Plating, Circuit Lattice, Voidweave), which refining produces and
+  gear frames consume.
 - **5 essences** — one per non-Kinetic element (Ignition Fluid, Conduit
   Wire, Acid Compound, Cryo Gel, Void Essence). Each essence type
   trades on [[The Market]] as its own quantity commodity, so a crafter
