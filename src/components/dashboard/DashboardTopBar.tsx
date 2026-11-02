@@ -101,9 +101,16 @@ function PulseGlow({ color, testId }: { color: string; testId: string }) {
 }
 
 function CornerBadge({ text, icon, color }: { text?: string; icon?: PxIconName; color: string }) {
+  // Fully INSIDE the button's top-right corner (QC papercut): the
+  // badge used to protrude (-top-1.5 -right-1.5) and every host
+  // button clips at its own box — Tailwind overflow-hidden plus
+  // .bl-panel's overflow:hidden + clip-path — so the protruding
+  // half was sliced off at the button's top edge. The bl-panel
+  // clip-path keeps the top-right corner square, so an inset
+  // badge there renders whole.
   return (
     <span
-      className="absolute -top-1.5 -right-1.5 z-10 px-1 py-px text-[9px] font-black leading-none text-black"
+      className="absolute right-1 top-1 z-10 px-1 py-px text-[9px] font-black leading-none text-black"
       style={{ backgroundColor: color }}
     >
       {icon ? <PxIcon name={icon} size={13} /> : text}

@@ -123,7 +123,7 @@ export const WorldPulseFeed: React.FC<{ bare?: boolean }> = ({ bare = false }) =
           );
         })}
       </div>
-      <div className="text-[10px] text-text-muted">This feed is derived from current stores and activity state. It does not mint rewards, rolls, or events.</div>
+      <div className="text-[10px] text-text-muted">The latest from your hunts, finds, and feats across the wastes.</div>
     </MobileCard>
   );
 };

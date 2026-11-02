@@ -53,8 +53,8 @@ function rarityColor(rarity: string | null): string {
 
 const FactChip: React.FC<{ label: string; value: string; tone: string }> = ({ label, value, tone }) => (
   <div className="bl-card flex-1 px-2 py-2 text-center" style={{ borderTopColor: tone, borderTopWidth: 3 }}>
-    <div className="truncate text-sm font-black text-text-primary">{value}</div>
-    <div className="truncate text-[11px] font-bold uppercase tracking-wide text-text-muted">{label}</div>
+    <div className="text-sm font-black leading-tight text-text-primary">{value}</div>
+    <div className="text-[11px] font-bold uppercase leading-tight tracking-wide text-text-muted">{label}</div>
   </div>
 );
 
@@ -72,10 +72,10 @@ const CollectionsTile: React.FC<{
 }> = ({ discovered, onOpenCollections }) => {
   const body = (
     <>
-      <div className="truncate text-sm font-black text-text-primary">
+      <div className="text-sm font-black leading-tight text-text-primary">
         {discovered} / {COLLECTION_TOTAL}
       </div>
-      <div className="truncate text-[11px] font-bold uppercase tracking-wide text-text-muted">Collections</div>
+      <div className="text-[11px] font-bold uppercase leading-tight tracking-wide text-text-muted">Collections</div>
     </>
   );
   if (!onOpenCollections) {

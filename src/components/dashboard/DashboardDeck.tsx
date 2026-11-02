@@ -188,7 +188,7 @@ const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
       <RewardIcon tone={event.tone} />
       <div className="min-w-0 leading-none">
         <div className={`text-base font-black uppercase tracking-wide ${color.text}`} style={manufacturerColor ? { color: manufacturerColor } : undefined}>{event.label}</div>
-        <div className="mt-0.5 truncate text-[11px] font-black uppercase tracking-[0.14em] text-text-muted">{event.detail}</div>
+        <div className="mt-0.5 text-[11px] font-black uppercase leading-snug tracking-[0.14em] text-text-muted">{event.detail}</div>
       </div>
     </motion.div>
   );

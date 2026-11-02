@@ -681,15 +681,13 @@ const PixelSceneLayer: React.FC<{
   bossSpriteId?: string;
   weapon?: Weapon;
   mode: DioramaMode;
-  modeLabel: string;
-  accent: string;
   event?: LiveTurfFeedEvent;
   reduced: boolean;
   /** Overhaul: the roaming area this stage shows (parallax, palette,
    *  weather, hot-area treatment read from it). */
   areaId: string;
   hot?: boolean;
-}> = ({ backgroundId, bossSpriteId, weapon, mode, modeLabel, accent, event, reduced, areaId, hot = false }) => {
+}> = ({ backgroundId, bossSpriteId, weapon, mode, event, reduced, areaId, hot = false }) => {
   const background = getPixelSprite(backgroundId);
   const groundY = background?.anchors.groundLine?.y ?? 0.86;
   const showEnemy = mode === 'roaming' || mode === 'bossFight';
@@ -852,13 +850,11 @@ const PixelSceneLayer: React.FC<{
       areaId={areaId}
       hot={hot}
     >
-      {/* Mode chip (mirrors the vector scene's in-scene label) */}
-      <div
-        className="pointer-events-none absolute left-2 top-[58px] z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[13px] font-black uppercase tracking-wide"
-        style={{ color: accent, boxShadow: `0 0 12px ${accent}55` }}
-      >
-        {modeLabel}
-      </div>
+      {/* No in-scene mode chip (QC papercut): the HTML title plate
+          above already prints the activity label — the chip hung
+          off the plate's bottom edge repeating the same word
+          ("STANDBY" under "STANDBY"). The mode prints once, on
+          the plate. */}
 
       {/* Set dressing in non-combat modes (grammar G-5): the system's
           set pieces behind the actor; the camp crate is the fallback. */}
@@ -1246,7 +1242,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const primaryDetail = primaryActionDetail ?? (activityKind === 'roaming_loot' ? area.enemyType : copy.caption);
   const secondaryLabel = secondaryActionLabel ?? (bossName ? 'Prep boss' : 'Switch');
   const secondaryDetail = secondaryActionDetail ?? (bossName ? `${bossWeaknessCount} weakness tags` : `${cacheKeys} keys ready`);
-  const titleBlock = <div className="min-w-0 border-2 border-border bg-surface/90 px-2 py-1.5 text-left shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="flex items-center gap-1"><div className="min-w-0 flex-1"><div className="bl-title truncate text-2xl leading-tight text-text-primary">{title}</div><div className="truncate text-[11px] font-black uppercase leading-snug tracking-[0.18em] text-text-muted">{activityLabel || copy.caption}</div></div>{onTitleClick && <ChevronDown size={16} className="shrink-0 text-amber animate-bounce" />}</div></div>;
+  const titleBlock = <div className="min-w-0 border-2 border-border bg-surface/90 px-2 py-1.5 text-left shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="flex items-center gap-1"><div className="min-w-0 flex-1"><div className="bl-title break-words text-2xl leading-tight text-text-primary">{title}</div><div className="text-[11px] font-black uppercase leading-snug tracking-[0.18em] text-text-muted">{activityLabel || copy.caption}</div></div>{onTitleClick && <ChevronDown size={16} className="shrink-0 text-amber animate-bounce" />}</div></div>;
 
   // Enemy center position (where the archetype center is)
   const enemyX = 320;
@@ -1255,10 +1251,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   return (
     <section className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
       {pixelBackgroundId ? (
-        <PixelSceneLayer backgroundId={pixelBackgroundId} bossSpriteId={stageBossSpriteId} weapon={weapon} mode={mode} modeLabel={copy.label} accent={scene.accent} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
+        <PixelSceneLayer backgroundId={pixelBackgroundId} bossSpriteId={stageBossSpriteId} weapon={weapon} mode={mode} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
       ) : (
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 420 286" role="img" aria-label={`${copy.label} activity visualization`}>
-        <defs><linearGradient id={`sky-${safeId}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={scene.skyTop} /><stop offset="54%" stopColor={scene.skyBottom} /><stop offset="100%" stopColor="#050608" /></linearGradient><linearGradient id={`ground-${safeId}`} x1="0" x2="1"><stop offset="0%" stopColor={scene.groundDark} /><stop offset="48%" stopColor={scene.ground} /><stop offset="100%" stopColor={scene.groundDark} /></linearGradient><filter id={`soft-glow-${safeId}`} x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={scene.accent} floodOpacity="0.55" /></filter></defs>
+        <defs><linearGradient id={`sky-${safeId}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={scene.skyTop} /><stop offset="54%" stopColor={scene.skyBottom} /><stop offset="100%" stopColor="#050608" /></linearGradient><linearGradient id={`ground-${safeId}`} x1="0" x2="1"><stop offset="0%" stopColor={scene.groundDark} /><stop offset="48%" stopColor={scene.ground} /><stop offset="100%" stopColor={scene.groundDark} /></linearGradient></defs>
         <rect width="420" height="286" fill={`url(#sky-${safeId})`} />
         <path d="M0 83 C54 65 86 73 140 57 C201 39 248 61 312 45 C359 34 392 41 420 31 L420 149 L0 149 Z" fill={scene.horizon} opacity="0.18" />
         <path d="M0 143 L58 136 L96 145 L155 135 L210 145 L277 137 L339 145 L420 134 L420 286 L0 286 Z" fill={`url(#ground-${safeId})`} stroke="#000" strokeWidth="5" />
@@ -1279,7 +1275,9 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <LootParticles event={latestEvent} reduced={reduced} />
         {/* Player damage flash (screen-wide red overlay) */}
         <PlayerDamageFlash event={latestEvent} reduced={reduced} eventActive={eventActive} />
-        <g filter={`url(#soft-glow-${safeId})`}><path d="M12 18 L135 18 L148 31 L141 46 L12 46 Z" fill="#050608" opacity="0.84" stroke="#000" strokeWidth="4" /><text x="22" y="36" fill={scene.accent} fontSize="15" fontWeight="900">{copy.label.toUpperCase()}</text></g>
+        {/* No in-scene mode label tag (QC papercut): the HTML title
+            plate prints the activity label once — this tag sat
+            behind/under it repeating the same word. */}
       </svg>
       )}
       {/* HTML overlays — any component that renders <div> must live OUTSIDE the <svg> */}
