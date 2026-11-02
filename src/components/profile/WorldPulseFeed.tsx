@@ -16,7 +16,7 @@ type PulseEntry = {
 
 const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
 
-export const WorldPulseFeed: React.FC = () => {
+export const WorldPulseFeed: React.FC<{ bare?: boolean }> = ({ bare = false }) => {
   const activity = useActivityStore();
   const player = usePlayerStore();
   const inventory = useInventoryStore();
@@ -77,6 +77,30 @@ export const WorldPulseFeed: React.FC = () => {
       tone: '#A855F7',
     },
   ];
+
+  // Bare form (redesign Wave C): Home's deck "Now" panel hosts
+  // the feed — the panel prints the one header, so the card
+  // chrome, the feed's own "World Pulse" header, and the
+  // developer-voice footer line all stay with the Profile form.
+  if (bare) {
+    return (
+      <div className="space-y-2">
+        {entries.map((entry) => {
+          return (
+            <div key={entry.id} className="flex items-start gap-2 border border-border bg-bg/60 p-2">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-border bg-surface-raised font-black" style={{ color: entry.tone, fontSize: '14px' }}>
+                <PxIcon name={entry.icon} size={13} />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-xs font-black text-text-primary">{entry.label}</div>
+                <div className="text-[11px] text-text-muted leading-snug">{entry.detail}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <MobileCard className="space-y-2" rarityColor="#5AA7FF">

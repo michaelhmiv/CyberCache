@@ -5,17 +5,14 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
-import { PickerSheet } from '@/components/common/PickerSheet';
 import {
   useActivityStore,
   useBossStore,
-  useIdleStore,
   useInventoryStore,
   useLoadoutStore,
   usePlayerStore,
   useSkillStore,
   useTickFeedStore,
-  useWorkshopStore,
   useActiveBuffsStore,
 } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
@@ -23,49 +20,54 @@ import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loado
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { MANUFACTURERS } from '@/constants/manufacturers';
 import type { Manufacturer } from '@/types/game';
-import { getRoamingArea } from '@/constants/roamingAreas';
-import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
-import { ResearchChip, ResearchCompletionCard } from '@/components/dashboard/ResearchChip';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
-import { ActiveBuffPills } from '@/components/stats/ActiveBuffPills';
-import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
-import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
+import { WeeklyClaimablesPanel } from '@/components/dashboard/WeeklyClaimables';
+import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import { useNow } from '@/hooks/useNow';
 import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
-import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
-import { getAreaVisual } from '@/constants/areaVisuals';
-import { AreaBackground } from '@/components/common/AreaBackground';
 import { getActivityVisual } from '@/constants/activityVisuals';
 import { getResourceVisual } from '@/constants/visualAssets';
 import type { TickEvent, TickEventTone } from '@/store/slices/tickSlice';
 import type { ActivityKind } from '@/types/activity';
 import type { Weapon } from '@/types/items';
 // DisplayGainEvent + gainFeed are still needed by GainToast (the floating
-// fixed-position toasts at the bottom of the screen). The "Numbers Up"
-// panel used to render the same data as a static grid — gone now.
+// fixed-position toasts at the bottom of the screen).
 
 /**
- * DashboardDeck — the Board's below-the-stage panels, kept whole when
- * the Board tab merged into Home (redesign Wave B, DESIGN.md §2/§4).
+ * DashboardDeck — Home's deck, in the FIXED order DESIGN.md §4
+ * fixes for everything below the fold (redesign Wave C):
  *
- * What used to be DashboardScreen below its diorama lives here: the
- * gain toasts, the area/research chip row, Hunter Totals, Consumables,
- * the Action Board launcher grid, Hunter Notes, and the Choose Area
- * panel. The stage itself (the diorama + start/prep handlers) is
- * Home's Action workspace now — the deck's Roaming row therefore
- * scrolls the stage into view instead of navigating to a Fight tab
- * that no longer exists. Settings is NOT a deck row (DESIGN.md §3:
- * its home is Hunter → Account; the Strip gear icon is the shortcut).
+ *   1. Launcher deck — Dispatch and Crack Cache first (the
+ *      Board orphans with no other low-tap door), then Slots,
+ *      then the Loadout shortcut (rendered only while a loadout
+ *      is incomplete, §3). The old Action Board's other rows are
+ *      gone BY DESIGN, not by accident: roaming is the stage
+ *      itself, skills live on the Hunter rail, the Workshop is
+ *      the Gear rail's bench (and the Craft panel's door), and
+ *      Market is a tab.
+ *   2. Weekly claimables — the Parts Crate + Signature Order
+ *      panel; renders only in its claimable states (§4).
+ *   3. Now — the single merged feed (World Pulse + the latest
+ *      player activity). One panel, one header, no duplicates.
+ *   4. Hunter Totals — one header (this panel's label) with its
+ *      one Sources disclosure (this panel's button); the stat
+ *      body renders embedded so its own title never repeats.
+ *
+ * What LEFT the deck in Wave C: the consumable belt (now above
+ * the fold, under the lit workspace), the area/research chip row
+ * (now beside the stage, where the #239 pairing puts research
+ * next to the area), the Choose Area panel and Hunter Notes
+ * (their doors are the stage's Area rail stop / mode sheet and
+ * the Hunter Totals panel). The gain toasts stay — they are a
+ * floating overlay, not a deck block. Settings is NOT a deck
+ * row (DESIGN.md §3: Hunter → Account; the Strip gear icon is
+ * the shortcut).
  */
 interface DashboardDeckProps {
   onNavigate: (screen: string) => void;
-  /** Scrolls Home's stage (the Action workspace) into view — the
-   *  Action Board Roaming row's door now that Board and Action are
-   *  one screen. */
-  onShowStage?: () => void;
 }
 
 type Tone = 'amber' | 'green' | 'blue' | 'red' | 'purple' | 'cyan';
@@ -76,13 +78,6 @@ type DisplayGainEvent = Pick<TickEvent, 'id' | 'label' | 'detail' | 'manufacture
 };
 
 const HUD_ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvaging', 'market_listing', 'workshop_service'];
-
-// NOTE: `TICK_SECONDS`, `FIELD_FIND_CHANCE`, `CACHE_FRAGMENT_CHANCE` removed —
-// the Level Strip footer used them to render static, never-varying hints
-// ("3.00s tick · 22% loot · 3% frag") that duplicated info already shown
-// elsewhere (XP-per-tick on Choose Area cards, loot bias in Hunter Totals'
-// Rare Find metric). The aggregate tick sources already flow through the
-// tick slice / area defs and surface in the right place.
 
 const panelClip = {
   clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)',
@@ -126,8 +121,6 @@ const gainToneClass: Record<DisplayGainTone, { text: string; bg: string; border:
 
 const getGainToneClass = (tone?: string) => gainToneClass[(tone ?? 'unknown') as DisplayGainTone] ?? gainToneClass.unknown;
 
-const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
-
 const Panel: React.FC<React.PropsWithChildren<{
   label?: string;
   className?: string;
@@ -138,7 +131,7 @@ const Panel: React.FC<React.PropsWithChildren<{
     <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(255,144,0,0.12)_0,transparent_34%,rgba(255,75,92,0.08)_100%)]" />
     <div className="pointer-events-none absolute -left-10 top-3 h-3 w-32 -rotate-12 bg-amber/20" />
     {label && (
-      <div className="relative mb-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-text-muted">
+      <div className="relative mb-1 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-text-muted">
         <span className="h-px flex-1 bg-border-light" />
         <span>{label}</span>
         {headerActions && <span className="flex shrink-0 items-center gap-1.5">{headerActions}</span>}
@@ -148,11 +141,6 @@ const Panel: React.FC<React.PropsWithChildren<{
     <div className="relative">{children}</div>
   </section>
 );
-
-const AreaGlyph: React.FC<{ areaId: string; size?: number; className?: string }> = ({ areaId, size = 14, className = '' }) => {
-  const visual = getAreaVisual(areaId);
-  return <span className={`shrink-0 font-black inline-flex items-center justify-center ${className}`} style={{ color: visual.color, fontSize: `${size}px`, width: size, height: size }}>{visual.sigil}</span>;
-};
 
 const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
   const color = getGainToneClass(tone);
@@ -200,7 +188,7 @@ const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
       <RewardIcon tone={event.tone} />
       <div className="min-w-0 leading-none">
         <div className={`text-base font-black uppercase tracking-wide ${color.text}`} style={manufacturerColor ? { color: manufacturerColor } : undefined}>{event.label}</div>
-        <div className="mt-0.5 truncate text-[8px] font-black uppercase tracking-[0.14em] text-text-muted">{event.detail}</div>
+        <div className="mt-0.5 truncate text-[11px] font-black uppercase tracking-[0.14em] text-text-muted">{event.detail}</div>
       </div>
     </motion.div>
   );
@@ -215,55 +203,55 @@ const ActionButton: React.FC<{ label: string; desc: string; stat?: string; icon:
         <div className={`flex h-9 w-9 shrink-0 -rotate-2 items-center justify-center border-2 border-border ${color.bg}`}>{icon}</div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2"><div className="text-xs font-black uppercase tracking-wide text-text-primary">{label}</div><ChevronRight size={14} className={`${color.text} opacity-75 transition-transform group-active:translate-x-0.5`} /></div>
-          <div className="text-[9px] leading-snug text-text-muted">{desc}</div>
-          {stat && <div className={`mt-0.5 text-[9px] font-black ${color.text}`}>{stat}</div>}
+          <div className="text-[11px] leading-snug text-text-muted">{desc}</div>
+          {stat && <div className={`mt-0.5 text-[11px] font-black ${color.text}`}>{stat}</div>}
         </div>
       </div>
     </button>
   );
 };
 
-const InfoGauge: React.FC<{ label: string; value: string | number; detail: string; icon: React.ReactNode; tone: Tone; onClick?: () => void }> = ({ label, value, detail, icon, tone, onClick }) => {
-  const color = toneClass[tone];
-  const isClickable = Boolean(onClick);
+/** One player-activity row in the Now panel — the latest tick
+ *  events, compact; the workspace's Loot Feed stays the full
+ *  feed, this is the deck's glanceable merge (§4). */
+const NowActivityRow: React.FC<{ event: TickEvent }> = ({ event }) => {
+  const color = getGainToneClass(event.tone);
   return (
-    <div onClick={onClick} className={`relative overflow-hidden border-2 border-border bg-bg/75 p-1.5 ${isClickable ? 'cursor-pointer transition-transform active:scale-[0.97] hover:border-amber' : ''}`} style={panelClip}>
-      <div className="flex items-start justify-between gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <div className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>{icon}</div>
-          <div className="min-w-0">
-            <div className="text-[8px] uppercase tracking-wide text-text-muted">{label}</div>
-            <div className="truncate text-xs font-black leading-tight text-text-primary">{value}</div>
-          </div>
-        </div>
-        {isClickable && <ChevronDown size={10} className="shrink-0 text-text-muted" />}
-      </div>
-      <div className="mt-0.5 truncate text-[8px] text-text-muted">{detail}</div>
+    <div className="flex items-center gap-2 border border-border bg-bg/60 px-2 py-1.5">
+      <span className={`h-2 w-2 shrink-0 ${color.fill}`} aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-xs font-black text-text-primary">{event.label}</span>
+      {event.detail && <span className="max-w-[45%] truncate text-[11px] text-text-muted">{event.detail}</span>}
     </div>
   );
 };
 
-export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate, onShowStage }) => {
+interface LauncherAction {
+  id: string;
+  label: string;
+  desc: string;
+  stat?: string;
+  icon: React.ReactNode;
+  tone: Tone;
+  primary?: boolean;
+  onClick: () => void;
+}
+
+export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const inventory = useInventoryStore();
   const skills = useSkillStore();
   const boss = useBossStore();
-  const workshop = useWorkshopStore();
-  const idle = useIdleStore();
   const activity = useActivityStore();
   const tickEvents = useTickFeedStore((state) => state.events);
   const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.slice(0, 5), [tickEvents]);
+  const nowEvents = useMemo(() => tickEvents.slice(0, 3), [tickEvents]);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
-  const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   // CONS-04: gear-equipped counts the 7 gear slots only, via the one
   // loadout read model — the raw slot map also holds the vehicle slot,
   // which inflated this count against its /7 denominator.
   const equippedCount = countEquippedLoadoutSlots(buildLoadoutRows(loadout.slots, inventory.items));
-  const spentSkillPoints = skills.getTotalSpent();
-  const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
-  const equippedWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy') ?? undefined;
   const shieldHp = loadout.getShield()?.hp ?? 0;
   useSyncSurvivalMaxHp(player.level, shieldHp);
   const hunterCurrentHp = useSurvivalStore((state) => state.currentHp);
@@ -271,10 +259,7 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate, onShow
   const survivalMedKitBuffer = useSurvivalStore((state) => state.medKitBuffer);
   const activeBuffsStore = useActiveBuffsStore();
   const [overrideActivity, setOverrideActivity] = useState<ActivityKind | null>(null);
-  const [ledgerOpen, setLedgerOpen] = useState(false);
-  const [focusedSlot, setFocusedSlot] = useState<keyof LoadoutConsumables | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
-  const [turfPickerOpen, setTurfPickerOpen] = useState(false);
   const cycleOverride = React.useCallback(() => {
     setOverrideActivity((current) => {
       const idx = current ? HUD_ACTIVITY_CYCLE.indexOf(current) : -1;
@@ -313,32 +298,21 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate, onShow
     }),
     [player, statWeapons, loadout, skills.spent, currentBoss, activeBuffs, consumableMods, survivalMedKitBuffer],
   );
-  const openWorkshopJobs = (workshop.server?.jobs ?? []).filter(
-    (j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused',
-  ).length;
-  const activePayload = activity.current.publicPayload;
-  const activityLabel = safeText(activePayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
-  void activityLabel;
-  const selectedRoamingActive = activity.current.kind === 'roaming_loot' && activity.current.targetType === 'roaming_area' && activity.current.targetId === selectedArea.id;
-  const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : selectedArea.name;
 
-  const actions = [
-    // Audit NAV-01: the Action Board row is status + navigation, not
-    // a rival start button. Roaming starts under ONE verb — the
-    // stage's "Start Roam" on Home (and in the Action workspace
-    // before the merge) — so this row reports the run's state and
-    // brings the stage into view; Home IS the workspace now.
-    { id: 'roaming', label: 'Roaming', desc: selectedRoamingActive ? 'Run live now — the stage above manages it.' : 'The stage above starts and manages roaming.', icon: <PxIcon name="crosshair" size={17} className="text-red" />, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: () => onShowStage?.() },
-    { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <PxIcon name="diamondIn" size={17} className="text-amber" />, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('loadout') },
-    { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
-    { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <PxIcon name="crown" size={17} className="text-purple" />, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
-    { id: 'workshop', label: 'Workshop', desc: 'Bench jobs run while Crafting holds the action slot.', icon: <PxIcon name="hammer" size={17} className="text-blue" />, tone: 'blue' as Tone, stat: `${openWorkshopJobs} jobs`, onClick: () => onNavigate('workshop') },
-    { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', onClick: () => onNavigate('dispatch') },
-    { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: <PxIcon name="coin" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
-    // Settings is deliberately NOT a deck row (DESIGN.md §3): its
-    // canonical home is Hunter → Account, and Home's settings door
-    // is the Strip's gear icon (audit SET-01's entry, moved to the
-    // one resident DESIGN allows beside the wallet).
+  const actions: LauncherAction[] = [
+    // §4 launcher deck, fixed order: Dispatch and Crack Cache
+    // first — the two Board orphans with no other low-tap door.
+    { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', primary: true, onClick: () => onNavigate('dispatch') },
+    { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, primary: true, onClick: () => onNavigate('chest') },
+    // Slots' canonical home is the Market rail stop (§3); this
+    // card is its ◦ launcher — the Market tab is one tap, the
+    // stop one more inside Market until a stop deep-link exists.
+    { id: 'slots', label: 'Slots', desc: 'Data Slots — the wheel lives at the Market rail stop.', icon: <PxIcon name="bolt" size={17} className="text-purple" />, tone: 'purple' as Tone, stat: 'At Market', onClick: () => onNavigate('market') },
+    // §3/R5: the Loadout shortcut renders ONLY while a loadout
+    // is incomplete — a full 7/7 hunter does not need the door.
+    ...(equippedCount < 7
+      ? [{ id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <PxIcon name="diamondIn" size={17} className="text-amber" />, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, onClick: () => onNavigate('loadout') }]
+      : []),
   ];
 
   return (
@@ -351,17 +325,28 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate, onShow
         )}
       </AnimatePresence>
       <div className="relative space-y-2">
-        {/* Persistent current-area chip — tap opens the one area picker */}
-        <div className="flex flex-wrap items-stretch gap-2">
-          <CurrentAreaChip onClick={() => setTurfPickerOpen(true)} />
-          {/* Research (0038): the in-progress course chip — renders
-              only while a course is enrolled (the education track
-              runs beside the action, so it sits beside the area). */}
-          <ResearchChip />
-        </div>
-        {/* Research (0038): the one-time course-complete card —
-            appears on the first open after a course settles. */}
-        <ResearchCompletionCard />
+        {/* 1 — Launcher deck (§4 fixed order) */}
+        <Panel label="Launchers" className="space-y-2">
+          <div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div>
+          {actions.length > 2 && <div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div>}
+        </Panel>
+
+        {/* 2 — Weekly claimables (renders only in claimable states) */}
+        <WeeklyClaimablesPanel />
+
+        {/* 3 — Now: the single merged feed */}
+        <Panel label="Now">
+          <div className="space-y-2">
+            {nowEvents.length > 0 && (
+              <div className="space-y-1.5">
+                {nowEvents.map((event) => <NowActivityRow key={event.id} event={event} />)}
+              </div>
+            )}
+            <WorldPulseFeed bare />
+          </div>
+        </Panel>
+
+        {/* 4 — Hunter Totals: one header, one Sources disclosure */}
         <Panel
           label="Hunter Totals"
           headerActions={
@@ -369,16 +354,17 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate, onShow
               type="button"
               data-testid="hunter-totals-sources-button"
               onClick={() => setBreakdownOpen(true)}
-              className="flex items-center gap-1 border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber transition-colors hover:bg-amber/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber"
+              className="flex items-center gap-1 border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber transition-colors hover:bg-amber/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber"
               style={signClip}
               aria-label="Open source breakdown for all character stats"
             >
               Sources
-              <ChevronDown size={9} />
+              <ChevronDown size={11} />
             </button>
           }
         >
           <CharacterStatBarBody
+            embedded
             summary={computedStats}
             currentHp={hunterCurrentHp}
             maxHp={hunterMaxHp}
@@ -388,10 +374,6 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate, onShow
             onCycleActivity={cycleOverride}
           />
         </Panel>
-        <Panel label="Consumables">
-          <ActiveBuffPills consumables={loadout.consumables} inventory={player.consumables} onSlotClick={(slot) => { setFocusedSlot(slot); setLedgerOpen(true); }} />
-        </Panel>
-        {ledgerOpen && <ConsumableLedger consumables={loadout.consumables} inventory={player.consumables} focusedSlot={focusedSlot} onClose={() => { setLedgerOpen(false); setFocusedSlot(null); }} />}
         {breakdownOpen && (
           <CharacterStatBreakdownModal
             summary={computedStats}
@@ -400,68 +382,6 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate, onShow
             activityKind={activity.current.kind}
           />
         )}
-        {turfPickerOpen && (
-          <PickerSheet
-            title="Choose Area"
-            subtitle={`Current area: ${selectedArea.name}. Tap an area to switch.`}
-            onClose={() => setTurfPickerOpen(false)}
-          >
-            <div className="space-y-2 p-3">
-              <AreaPickerList
-                onSelect={(area) => {
-                  idle.setSelectedRoamingArea(area.id);
-                  setTurfPickerOpen(false);
-                }}
-              />
-            </div>
-          </PickerSheet>
-        )}
-        <Panel label="Action Board" className="space-y-2"><div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div><div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div></Panel>
-        <Panel label="Hunter Notes"><div className="grid grid-cols-2 gap-1.5"><InfoGauge label="Area" value={selectedArea.manufacturerInfluence} detail={`${selectedArea.dangerRating} · ${selectedArea.lootBias[0]}`} icon={<AreaGlyph areaId={selectedArea.id} size={14} />} tone="amber" onClick={() => setTurfPickerOpen(true)} /><InfoGauge
-            label="Equipped"
-            value={equippedWeapon?.name ?? 'None'}
-            detail={equippedWeapon ? `${equippedWeapon.combatPower} combat power` : 'Open loadout bench'}
-            icon={<PxIcon name="star" size={13} className="text-red" />}
-            tone="red"
-            onClick={() => onNavigate('gear')}
-          /></div></Panel>
-        <Panel
-          label="Choose Area"
-          headerActions={
-            <button
-              type="button"
-              data-testid="dashboard-turf-switch-button"
-              onClick={() => setTurfPickerOpen(true)}
-              className="flex items-center gap-1 border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber transition-colors hover:bg-amber/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber"
-              style={signClip}
-              aria-label="Change area"
-            >
-              Change Area
-              <ChevronDown size={9} />
-            </button>
-          }
-        >
-          <button
-            type="button"
-            onClick={() => setTurfPickerOpen(true)}
-            className="relative w-full overflow-hidden border-2 border-border bg-bg/75 p-2 text-left transition-transform active:scale-[0.98] hover:border-amber"
-            style={panelClip}
-          >
-            <AreaBackground areaId={selectedArea.id} opacity={0.14} />
-            <div className="relative flex items-start justify-between gap-2">
-              <div className="min-w-0 flex items-center gap-2">
-                <AreaGlyph areaId={selectedArea.id} size={16} className="shrink-0" />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-black text-text-primary">{selectedArea.name}</div>
-                  <div className="text-[9px] uppercase tracking-wide text-text-muted">LV {selectedArea.unlockLevel} / {selectedArea.dangerRating}</div>
-                </div>
-              </div>
-              <ChevronDown size={12} className="shrink-0 text-text-muted" />
-            </div>
-            <div className="relative mt-1 truncate text-[9px] text-amber">{selectedArea.lootBias[0]}</div>
-            <div className="relative mt-1 text-[8px] uppercase tracking-[0.16em] text-text-muted">Tap to change area</div>
-          </button>
-        </Panel>
       </div>
     </div>
   );

@@ -10,13 +10,17 @@
  * only the roaming shape carries those. PR #249 fixed the chip to
  * discriminate the three shapes.
  *
- * The dashboard-top redesign (this PR) removes the chip entirely:
- * the recap's re-entry is the level pop-up, whose OfflineRecapCard
- * discriminates the shapes exactly as it always did. The crash
- * class is therefore guarded HERE now: these tests seed each shape
- * as a dismissed recap and render the real Dashboard — no crash,
- * no chip — then open the level pop-up and read the variant's own
- * truth from the card.
+ * The dashboard-top redesign removed the chip entirely: the
+ * recap's re-entry became the level pop-up, whose OfflineRecapCard
+ * discriminates the shapes exactly as it always did. Wave C moved
+ * the recap once more — it now presents as the Return Sheet
+ * (DESIGN.md §10), which the level chip opens whenever a
+ * settlement exists; the card inside is the same discriminating
+ * component. The crash class is therefore guarded HERE now: these
+ * tests seed each shape as a dismissed recap and render the real
+ * Dashboard — no crash, no chip — then open the Return Sheet
+ * through the level chip and read the variant's own truth from
+ * the card.
  */
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -143,7 +147,7 @@ const extraction = {
   },
 } as unknown as SettlementRecap;
 
-describe('Dashboard recap — settlement-shape discrimination (level pop-up)', () => {
+describe('Dashboard recap — settlement-shape discrimination (Return Sheet)', () => {
   beforeEach(() => {
     useOfflineRecapStore.setState({ lastSettlement: null, dismissed: false });
   });
@@ -152,7 +156,7 @@ describe('Dashboard recap — settlement-shape discrimination (level pop-up)', (
     useOfflineRecapStore.setState({ lastSettlement: null, dismissed: false });
   });
 
-  it('roaming settlement: no crash, no chip; the pop-up card shows the roaming recap', async () => {
+  it('roaming settlement: no crash, no chip; the Return Sheet card shows the roaming recap', async () => {
     useOfflineRecapStore.setState({ lastSettlement: roaming, dismissed: true });
     render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
@@ -162,11 +166,15 @@ describe('Dashboard recap — settlement-shape discrimination (level pop-up)', (
     // Scoped to the recap card: merged Home carries other "Credits"
     // labels now (the Strip chip, Hunter Totals rows).
     const card = screen.getByText('While You Were Away').closest('.bl-card') as HTMLElement;
-    expect(within(card).getByText('Credits')).toBeTruthy();
+    // Wave C Return Sheet form: "Credits" prints twice inside the
+    // card BY DESIGN — once in the totals row (the headline) and
+    // once in the itemized reward rows below it.
+    expect(within(card).getByTestId('return-totals-row')).toBeTruthy();
+    expect(within(card).getAllByText('Credits').length).toBeGreaterThanOrEqual(2);
     expect(within(card).getByText(/Away for/)).toBeTruthy();
   }, 30_000);
 
-  it('crafting settlement: no crash; the pop-up card shows the crafting truth', async () => {
+  it('crafting settlement: no crash; the Return Sheet card shows the crafting truth', async () => {
     useOfflineRecapStore.setState({ lastSettlement: crafting, dismissed: true });
     render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
@@ -176,7 +184,7 @@ describe('Dashboard recap — settlement-shape discrimination (level pop-up)', (
     expect(screen.getByText(/2 jobs finished/)).toBeTruthy();
   }, 30_000);
 
-  it('extraction settlement: no crash; the pop-up card shows the extraction truth', async () => {
+  it('extraction settlement: no crash; the Return Sheet card shows the extraction truth', async () => {
     useOfflineRecapStore.setState({ lastSettlement: extraction, dismissed: true });
     render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();

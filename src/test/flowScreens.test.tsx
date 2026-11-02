@@ -307,13 +307,15 @@ describe('F7/F16 — Home stage errors stay put; Choose Boss opens the picker', 
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
-  it('NAV-01: the deck Roaming row is navigation only — it scrolls to the stage and never starts the run', async () => {
-    const onShowStage = vi.fn();
+  it('NAV-01: the deck carries no Roaming row — the stage is the one roaming door', async () => {
+    // Wave C (§4 scarcity): the deck's Roaming row is gone by
+    // design — roaming's only door is the stage itself (Start
+    // Roam / the mode rail), so no deck control can start a run
+    // or rival the stage's start verb.
     const start = vi.fn(async () => IDLE_ACTIVITY);
     useActivityStore.setState({ start: start as never });
-    render(<DashboardDeck onNavigate={() => {}} onShowStage={onShowStage} />);
-    fireEvent.click(screen.getByText('Roaming'));
-    expect(onShowStage).toHaveBeenCalledTimes(1);
+    render(<DashboardDeck onNavigate={() => {}} />);
+    expect(screen.queryByText('Roaming')).toBeNull();
     expect(start).not.toHaveBeenCalled();
   });
 

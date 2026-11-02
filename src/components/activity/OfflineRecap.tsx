@@ -1,21 +1,23 @@
 /**
- * Offline Recap — "While You Were Away" Card
+ * Offline Recap — the RETURN SHEET card (DESIGN.md §10)
  *
  * Rendered when the player logs back in and offline settlement returns
  * rewards. Shows a durable recap of what was earned while offline.
  * Not a transient toast — the settlement stays readable until the
- * player taps "Got it".
+ * player taps "Collect".
  *
- * Dashboard-top redesign (2026-11-01): the recap used to be a fixed
- * full-screen modal mounted at the App root plus a reopen strip in
- * the Dashboard scroll. Per the owner's direction it now lives
- * inside the Dashboard's LEVEL pop-up: this module exports the card
- * (all three settlement variants — roaming / crafting / extraction)
- * and DashboardTopBar renders it in the level sheet whenever a
- * settlement exists. The offline-recap store's `dismissed` flag is
- * now the level button's read marker (it stops the away beacon);
- * the card itself renders whenever a settlement exists, dismissed
- * or not, so re-opening the pop-up always re-reads the recap.
+ * Return Sheet form (redesign Wave C, DESIGN.md §3/§10): the recap
+ * presents as the Return Sheet — a totals row, the absence's best
+ * drop as a poster card animated on the loot ladder's own timings,
+ * one Collect button, and the push primer in the footer once. The
+ * sheet's host is DashboardTopBar: the LEVEL chip opens it whenever
+ * a settlement exists (acknowledged or not), and the level pop-up
+ * holds level specifics only. The offline-recap store's `dismissed`
+ * flag is the level button's read marker (it stops the away
+ * beacon); the card renders whenever a settlement exists so
+ * re-opening the sheet always re-reads the recap. PRESENTATION
+ * ONLY — the <5-minute suppression and every settlement rule stay
+ * in the recap slice / settlement modules, untouched.
  *
  * PERM-01 invariant: the push-notification primer (PushPrimerRow)
  * lives inside each variant body below — it moved WITH the recap
@@ -25,13 +27,15 @@
 
 import React from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { X, Clock } from 'lucide-react';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
 import { MaterialBadge } from '@/components/common/MaterialBadge';
 import { getVisualAsset } from '@/constants/visualAssets';
 import { getCraftRecipe } from '@/content/crafting';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
+import { RARITY_RANK, lootCelebrationForRarity } from '@/lib/pixel/lootMoment';
+import type { GearItem } from '@/types/items';
 import { PushPrimerRow } from './PushPrimer';
 
 function formatNumber(n: number): string {
@@ -60,13 +64,109 @@ function RewardRow({
   );
 }
 
+/**
+ * The Return Sheet's totals row (§10): the absence's headline
+ * numbers in one strip, read straight off the settlement — the
+ * detailed reward rows below stay the itemized truth.
+ */
+function TotalsRow({ cells }: { cells: Array<{ label: string; value: string }> }) {
+  if (cells.length === 0) return null;
+  return (
+    <div
+      data-testid="return-totals-row"
+      className="grid gap-px border-b border-amber/10 bg-amber/10 px-0"
+      style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}
+    >
+      {cells.map((cell) => (
+        <div key={cell.label} className="bg-[#14100B] px-2 py-2 text-center">
+          <div className="text-sm font-black tabular-nums text-text-primary">{cell.value}</div>
+          <div className="text-[11px] font-black uppercase tracking-wider text-zinc-500">
+            {cell.label}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The absence's best drop as a POSTER CARD (§10): the highest-
+ * rarity item the settlement carried, presented in the loot
+ * language — its entrance runs on the loot ladder's own hold
+ * time for that rarity (lootCelebrationForRarity → MOVEMENT
+ * constants; the ladder itself is untouched). Reduced motion
+ * collapses the rise to an instant settle.
+ */
+function BestDropPoster({ items }: { items: GearItem[] }) {
+  const reduceMotion = useReducedMotion();
+  if (items.length === 0) return null;
+  const best = items.reduce((a, b) => (RARITY_RANK[b.rarity] > RARITY_RANK[a.rarity] ? b : a));
+  const celebration = lootCelebrationForRarity(best.rarity);
+  const color = celebration.color;
+  const dps = 'damagePerSecond' in best ? best.damagePerSecond : null;
+  return (
+    <motion.div
+      data-testid="return-best-drop"
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 28, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: reduceMotion ? 0 : celebration.durationMs / 1000,
+        ease: 'easeOut',
+      }}
+      className="mx-5 mt-3 border-2 bg-black/40"
+      style={{
+        borderColor: color,
+        boxShadow:
+          celebration.tier === 'grand' || celebration.tier === 'legendary'
+            ? `0 0 18px ${color}55, inset 0 0 12px ${color}22`
+            : undefined,
+      }}
+    >
+      <div className="h-[3px] w-full" style={{ backgroundColor: color }} aria-hidden />
+      <div className="px-3 py-2.5">
+        <div
+          className="text-[11px] font-black uppercase tracking-[0.14em]"
+          style={{ color }}
+        >
+          Best drop
+        </div>
+        <div className="mt-0.5 truncate text-base font-black" style={{ color }}>
+          {best.name}
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-zinc-300">
+          <span
+            className="border px-1.5 py-0.5"
+            style={{ borderColor: `${color}88`, color }}
+          >
+            {best.rarity}
+          </span>
+          <span className="border border-zinc-600 px-1.5 py-0.5">Lv {best.level}</span>
+          {typeof dps === 'number' && (
+            <span className="border border-zinc-600 px-1.5 py-0.5 tabular-nums">
+              {Math.round(dps)} DPS
+            </span>
+          )}
+          {best.affixes.length > 0 && (
+            <span className="border border-zinc-600 px-1.5 py-0.5">
+              {best.affixes.length} affix{best.affixes.length === 1 ? '' : 'es'}
+            </span>
+          )}
+          {items.length > 1 && (
+            <span className="text-zinc-500">+{items.length - 1} more drop{items.length === 2 ? '' : 's'}</span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
   const { lastSettlement, dismiss } = useOfflineRecapStore();
 
   if (!lastSettlement) return null;
 
-  // "Got it" acknowledges the settlement (stops the level button's
-  // away beacon) and lets the host close the pop-up.
+  // "Collect" acknowledges the settlement (stops the level button's
+  // away beacon) and lets the host close the sheet.
   const acknowledge = () => {
     dismiss();
     onDone?.();
@@ -109,6 +209,13 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
             {c.completions.length === 1 ? '' : 's'} completed
           </div>
         </div>
+        <TotalsRow
+          cells={[
+            ...(c.xpAwarded > 0 ? [{ label: 'Crafting XP', value: `+${formatNumber(c.xpAwarded)}` }] : []),
+            { label: 'Jobs finished', value: String(c.jobsCompleted) },
+            { label: 'Units', value: String(c.completions.length) },
+          ]}
+        />
         <div className="px-5 py-3 space-y-1">
           {c.xpAwarded > 0 && (
             <RewardRow
@@ -148,7 +255,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         <PushPrimerRow />
         <div className="px-5 pb-5 pt-2">
           <button onClick={acknowledge} className="w-full bl-primary text-sm font-black py-2">
-            Got it
+            Collect
           </button>
         </div>
       </motion.div>
@@ -195,6 +302,16 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
             {x.passesCompleted} pass{x.passesCompleted === 1 ? '' : 'es'} completed
           </div>
         </div>
+        <TotalsRow
+          cells={[
+            ...(x.xpAwarded > 0 ? [{ label: 'Extraction XP', value: `+${formatNumber(x.xpAwarded)}` }] : []),
+            { label: 'Passes', value: String(x.passesCompleted) },
+            {
+              label: 'Finds',
+              value: String(findRows.reduce((sum, f) => sum + f.qty, 0)),
+            },
+          ]}
+        />
         <div className="px-5 py-3 space-y-1">
           {x.xpAwarded > 0 && (
             <RewardRow
@@ -222,7 +339,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         <PushPrimerRow />
         <div className="px-5 pb-5 pt-2">
           <button onClick={acknowledge} className="w-full bl-primary text-sm font-black py-2">
-            Got it
+            Collect
           </button>
         </div>
       </motion.div>
@@ -292,6 +409,25 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         </div>
       </div>
 
+      {/* Totals row + best-drop poster (the Return Sheet form) */}
+      <TotalsRow
+        cells={[
+          ...(s.rewards.creditsAwarded > 0
+            ? [{ label: 'Credits', value: `+${formatNumber(s.rewards.creditsAwarded)}` }]
+            : []),
+          ...(s.rewards.scrapAwarded > 0
+            ? [{ label: 'Scrap', value: `+${formatNumber(s.rewards.scrapAwarded)}` }]
+            : []),
+          ...(s.rewards.xpAwarded > 0
+            ? [{ label: 'XP', value: `+${formatNumber(s.rewards.xpAwarded)}` }]
+            : []),
+          ...(s.rewards.cacheFragmentsAwarded > 0
+            ? [{ label: 'Key Fragments', value: `+${s.rewards.cacheFragmentsAwarded}` }]
+            : []),
+        ]}
+      />
+      <BestDropPoster items={s.items} />
+
       {/* Rewards */}
       {hasRewards ? (
         <div className="px-5 py-3 space-y-1">
@@ -353,14 +489,9 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
               accent="text-pink-400"
             />
           ))}
-          {s.items.length > 0 && (
-            <RewardRow
-              icon={<ResourceIcon id="loot" size={16} />}
-              label="Gear Drops"
-              value={s.items.length}
-              accent="text-green-400"
-            />
-          )}
+          {/* The gear count lives on the poster card above (the
+              best drop + "+N more"); the detail rows stay the
+              resource truth. */}
         </div>
       ) : (
         <div className="px-5 py-3">
@@ -370,14 +501,14 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         </div>
       )}
 
-      {/* Dismiss CTA */}
+      {/* Collect CTA — the sheet's one button (§10) */}
       <PushPrimerRow />
       <div className="px-5 pb-5 pt-2">
         <button
           onClick={acknowledge}
           className="w-full bl-primary text-sm font-black py-2"
         >
-          Got it
+          Collect
         </button>
       </div>
     </motion.div>

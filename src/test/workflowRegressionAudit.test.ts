@@ -17,7 +17,11 @@ describe('workflow regression audit', () => {
     // same panel mounted for the result.
     expect(source).toContain('if (isBossPrep || isBossFight || isBossResolved)');
     expect(source).toContain('return <BossEncounterPanel');
-    expect(source).toContain("(label === 'Boss Prep' && isBossPrep)");
+    // Wave C: the mode surface that lights for boss prep is the
+    // Home mode rail now (the compact selector grid is gone) —
+    // its boss stop lights across prep/fight/resolved, all of
+    // which are boss_fight + phase, never a 'boss_prep' kind.
+    expect(source).toContain("(isBossPrep || isBossFight || isBossResolved) ? 'boss'");
     expect(source).not.toMatch(/currentKind === ['"]boss_prep['"]/);
   });
 

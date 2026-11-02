@@ -117,6 +117,7 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
   overrideActivity,
   onChangeOverride,
   onCycleActivity,
+  embedded = false,
 }: {
   summary: CharacterStatSummary;
   currentHp?: number;
@@ -125,6 +126,15 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
   overrideActivity?: ActivityKind | null;
   onChangeOverride?: (next: ActivityKind | null) => void;
   onCycleActivity?: () => void;
+  /**
+   * Embedded in a host panel that already prints the "Hunter
+   * Totals" header and the real Sources affordance (Home's
+   * deck, redesign Wave C): the body's own title text and its
+   * decorative "sources" span are suppressed so every header
+   * prints ONCE (DESIGN.md §1/§6) — the cycle/override controls
+   * stay functional, minus the duplicated words.
+   */
+  embedded?: boolean;
 }) {
   const effectiveKind = overrideActivity ?? activityKind;
   const headline = COMBAT_CORE_METRIC_KEYS
@@ -147,9 +157,11 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onCycleActivity!(); } }}
             className="flex cursor-pointer items-center gap-1 uppercase tracking-[0.18em] text-text-muted transition-colors hover:text-amber focus:outline-none focus-visible:text-amber"
           >
-            Hunter Totals
+            {embedded ? null : 'Hunter Totals'}
             <RefreshCw size={10} className="text-text-muted" />
           </button>
+        ) : embedded ? (
+          <span aria-hidden />
         ) : (
           <span>Hunter Totals</span>
         )}
@@ -161,11 +173,13 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
             data-testid="hud-activity-override"
             onClick={(e) => { e.stopPropagation(); onChangeOverride(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onChangeOverride(null); } }}
-            className="flex cursor-pointer items-center gap-1 text-amber"
+            className={`flex cursor-pointer items-center gap-1 text-amber ${embedded ? 'text-[11px] normal-case tracking-normal' : ''}`}
           >
             <span>viewing: {effectiveKind}</span>
             <X size={10} />
           </span>
+        ) : embedded ? (
+          <span aria-hidden />
         ) : (
           <span className="flex items-center gap-1 text-amber">sources <ChevronDown size={10} /></span>
         )}

@@ -16,13 +16,18 @@ describe('ui surface audit', () => {
     expect(actionScreen).not.toContain('openCache(');
   });
 
-  it('adds an explicit Dashboard area switch affordance', () => {
-    // Wave B: the Board's area panel lives in Home's deck now.
-    const dashboard = readSource('src/components/dashboard/DashboardDeck.tsx');
-    expect(dashboard).toContain('data-testid="dashboard-turf-switch-button"');
+  it('adds an explicit Home area switch affordance', () => {
+    // Wave C: the deck's Choose Area panel is gone — the stage's
+    // mode rail carries the area stop now (DESIGN.md §2/§4), and
+    // the stage's CurrentAreaChip is the second door. Both open
+    // the one area picker.
+    const rail = readSource('src/components/action/HomeModeRail.tsx');
+    const actionScreen = readSource('src/screens/ActionScreenContextual.tsx');
+    expect(actionScreen).toContain('<HomeModeRail');
+    expect(rail).toContain('mode-rail-');
     // Phase 1 vocabulary freeze: areas are "Areas", not "Turf".
     // Audit NAV-01: the one area-switch label is "Change area".
-    expect(dashboard).toContain('aria-label="Change area"');
+    expect(rail).toContain("ariaLabel: 'Change area'");
   });
 
   it('audit NAV-01: one start verb for roaming, one area-switch label', () => {
@@ -43,7 +48,11 @@ describe('ui surface audit', () => {
     // One area-switch label everywhere it is offered.
     expect(actionScreen).toContain("'Change Area'");
     expect(actionScreen).not.toContain("'Switch Area'");
-    expect(dashboard).toContain('Tap to change area');
+    // Wave C: the deck's "Tap to change area" panel is gone; the
+    // frozen label rides the mode rail's Area stop instead.
+    const rail = readSource('src/components/action/HomeModeRail.tsx');
+    expect(rail).toContain("'Change area'");
+    expect(rail).not.toContain('Switch area');
     expect(dashboard).not.toContain('Tap to switch area');
   });
 });

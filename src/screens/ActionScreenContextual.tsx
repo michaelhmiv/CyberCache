@@ -62,6 +62,9 @@ import { selectEquippedWeapons } from '@/lib/loadout/equippedWeaponTruth';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 import { ClaimSyncStatusLine } from '@/components/action/ClaimSyncStatusLine';
+import { HomeModeRail, type HomeModeRailStop } from '@/components/action/HomeModeRail';
+import { ConsumableBelt } from '@/components/dashboard/ConsumableBelt';
+import { ResearchChip, ResearchCompletionCard } from '@/components/dashboard/ResearchChip';
 
 const TICK_SECONDS = 3;
 const LOG_LIMIT = 10;
@@ -593,6 +596,31 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     setShowSwitch(false);
   }, []);
 
+  // Mode rail (redesign Wave C, DESIGN.md §2/§4): the stage's
+  // six stops — Area · Roam · Boss · Endless · Extract · Craft.
+  // Endless / Extract / Craft were promoted here from the mode
+  // sheet (2 taps → 1); the sheet (switchActions below) keeps
+  // every path it had, Salvage included — the rail ADDS the
+  // first-class doors, it does not remove the sheet's.
+  const railActiveStop: Exclude<HomeModeRailStop, 'area'> | null =
+    isRoaming ? 'roam'
+    : (isBossPrep || isBossFight || isBossResolved) ? 'boss'
+    : (currentKind === 'endless_run' || showEndless) ? 'endless'
+    : (currentKind === 'extraction' || showExtraction) ? 'extract'
+    : currentKind === 'crafting' ? 'craft'
+    : null;
+
+  const handleRailSelect = useCallback((stop: HomeModeRailStop) => {
+    switch (stop) {
+      case 'area': setShowAreaSelect(true); break;
+      case 'roam': startRoam(); break;
+      case 'boss': setShowBossPicker(true); break;
+      case 'endless': openEndless(); break;
+      case 'extract': openExtraction(); break;
+      case 'craft': startCrafting(); break;
+    }
+  }, [startRoam, startCrafting, openEndless, openExtraction]);
+
   const switchActions = [
     { label: 'Roam', detail: selectedArea.name, icon: <ActivityGlyph kind="roaming_loot" size={16} /> as React.ReactNode, run: () => startRoam() },
     { label: 'Boss Prep', detail: prepBossTarget?.name ?? 'Choose target', icon: <ActivityGlyph kind="boss_fight" size={16} /> as React.ReactNode, run: () => startPrep() },
@@ -618,30 +646,22 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* Home owns the Strip now (Wave B merge): the ResourceBar
           renders once at the top of the Home screen, not per-stage. */}
 
-      {/* Controls row — Switch / Stop. The old "Action" page-title
-          header is gone: this workspace IS Home's stage now, and a
-          page-title header on the main page is wasted space
-          (DESIGN.md §1/§4). */}
-      <div className="relative flex items-start justify-end gap-3">
-        <div className="flex gap-2">
-          <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[10px] font-black text-amber">Switch Action</button>
-          <button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[10px] font-black text-red disabled:opacity-50">Stop</button>
-        </div>
-      </div>
-
-      {/* Persistent current-area chip — tap opens the one area picker */}
-      <div className="relative">
+      {/* §4: nothing but the Strip and claim chips sits above the
+          Stage. The Switch/Stop controls row that used to lead
+          this screen now sits under the mode rail (the workspace
+          header zone), and the claim-sync line moved down to the
+          session feed it describes. What remains beside the stage
+          is the chip row: the current-area chip + the research
+          chip — the #239 pairing (the education track runs beside
+          the action, so its chip sits beside the area). */}
+      <div className="relative flex flex-wrap items-stretch gap-2">
         <CurrentAreaChip onClick={() => setShowAreaSelect(true)} />
+        <ResearchChip />
       </div>
-
-      {/* Vehicle status (0021): yield bonus, fuel, condition, inactive reason.
-          The Garage door (audit UX-06) deep-links to the labeled Garage
-          section of the Loadout tab. */}
-      <VehicleStatusLine onOpenGarage={() => onNavigate?.('garage')} />
-
-      {/* Claim sync stall: visible when roaming claims stop landing
-          (ticker-exposed flag) — rewards are paused, not silently lost. */}
-      <ClaimSyncStatusLine />
+      {/* Research (0038): the one-time course-complete card —
+          appears on the first open after a course settles
+          (renders null otherwise). */}
+      <ResearchCompletionCard />
 
       {/* 1. Diorama — dashboard animation at top */}
       <LiveTurfDiorama
@@ -672,47 +692,37 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         }
       />
 
-      {/* 1b. Compact Action Selector — always at top, replaces IdlePanel */}
-      <div className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
-        <div className="flex items-center gap-2 mb-2">
-          <PxIcon name="cog" size={17} className="shrink-0 text-amber" />
-          <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">
-            {currentKind === 'idle_standby' || currentKind === 'none' ? 'Choose Action' : `${detail.title} · Controls`}
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-1.5">
-          {switchActions.slice(0, 8).map(({ label, icon, run }) => (
-            <button
-              key={label}
-              type="button"
-              onClick={run}
-              className={`flex flex-col items-center justify-center gap-0.5 border-2 p-2 text-center transition-all active:scale-[0.96] ${
-                (label === 'Roam' && currentKind === 'roaming_loot') ||
-                (label === 'Boss Prep' && isBossPrep) ||
-                (label === 'Boss Fight' && isBossFight) ||
-                (label === 'Endless' && (currentKind === 'endless_run' || showEndless)) ||
-                (label === 'Extract' && (currentKind === 'extraction' || showExtraction)) ||
-                (label === 'Craft' && currentKind === 'crafting') ||
-                (label === 'Salvage' && currentKind === 'salvaging')
-                  ? 'border-amber/60 bg-amber/10'
-                  : 'border-border/60 bg-bg/50 hover:border-amber/30'
-              }`}
-              style={smallClip}
-            >
-              {icon}
-              <span className="text-[9px] font-black uppercase tracking-wide text-text-primary">{label}</span>
-            </button>
-          ))}
-        </div>
-        {currentKind !== 'idle_standby' && currentKind !== 'none' && (
-          <div className="mt-2 pt-2 border-t border-border/40 text-[10px] text-text-muted text-center">
-            {detail.detail} · Tap <span className="text-amber font-black">Switch Action</span> to change action
-          </div>
-        )}
+      {/* 1b. Mode rail (§2/§4) — the stage's six stops under the
+          diorama. This replaces the old compact action selector
+          grid: Endless, Extract, and Craft are first-class rail
+          stops now (1 tap), and the Switch Action sheet below
+          keeps every path it had, Salvage included. */}
+      <div className="relative">
+        <HomeModeRail activeStop={railActiveStop} onSelect={handleRailSelect} />
       </div>
 
-      {/* 2. Action-specific panel — above the loadout where it's visible during active play */}
+      {/* Controls row — Switch / Stop, in the workspace header
+          zone under the rail (§4: above the Stage, only the Strip
+          and claim chips may sit). */}
+      <div className="relative flex items-start justify-end gap-3">
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[11px] font-black text-amber">Switch Action</button>
+          <button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[11px] font-black text-red disabled:opacity-50">Stop</button>
+        </div>
+      </div>
+
+      {/* 2. Action-specific panel — the lit workspace */}
       {workspace}
+
+      {/* Vehicle status (0021): yield bonus, fuel, condition, inactive reason.
+          The Garage door (audit UX-06) deep-links to the labeled Garage
+          section of the Loadout tab. */}
+      <VehicleStatusLine onOpenGarage={() => onNavigate?.('garage')} />
+
+      {/* 2c. Consumable belt (§4 step 5) — above the fold, directly
+          under the lit workspace; it lived in the deck before
+          Wave C. */}
+      <ConsumableBelt />
 
       {/* 3. Loadout — star-pattern gear constellation. Read-only here:
           the Fight tab displays the loadout; the gear home (Inventory)
@@ -750,6 +760,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           </span>
         </div>
       </div>
+
+      {/* Claim sync stall: visible when roaming claims stop landing
+          (ticker-exposed flag) — rewards are paused, not silently
+          lost. It prints in the session zone above the feed it
+          describes (v2 composition), not above the Stage. */}
+      <ClaimSyncStatusLine />
 
       {/* 6. Feed — loot log below the decision panels. Dropped items
           are actionable from their inspect sheet (F11). */}

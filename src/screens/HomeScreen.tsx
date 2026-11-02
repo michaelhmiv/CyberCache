@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
@@ -12,25 +12,21 @@ interface HomeScreenProps {
 }
 
 /**
- * Home — the merged Board + Action tab (redesign Wave B, DESIGN.md
- * §2/§4). The Action experience is the main stage: choose a place,
- * get the immediate rundown. The Board's content rides the same
- * screen — the claim row (level / streak / contracts) under the
- * Strip, and the deck (Action Board launchers, Hunter Totals,
- * consumables, area panels) below the workspace.
+ * Home — the merged Board + Action tab (redesign Wave B shell,
+ * Wave C composition, DESIGN.md §2/§4). The Action experience is
+ * the main stage: choose a place, get the immediate rundown.
  *
- * Composition order (DESIGN.md §4, shell level): Strip (+ the one
- * settings gear resident §1 allows) → claim chips → Stage → the lit
- * mode's workspace → deck. Deep composition polish is Wave C's
- * slice; this shell keeps every door the two old tabs exposed at
- * the coverage audit's tap counts.
+ * Composition order (DESIGN.md §4, the full ladder): Strip (+ the
+ * one settings gear resident §1 allows) → claim chips → Stage →
+ * mode rail → lit workspace → consumable belt (steps 1–5 above
+ * the fold) → the deck below in its fixed order (launchers →
+ * Weekly claimables → Now → Hunter Totals). Nothing but the
+ * Strip and claim chips sits above the Stage, and the Stage is
+ * never below the fold in any state — the mode rail, the lit
+ * workspace, and the belt all render inside the stage component
+ * (ActionScreenContextual) directly under the diorama.
  */
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSelect }) => {
-  const stageRef = useRef<HTMLDivElement>(null);
-  const showStage = () => {
-    stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   return (
     <div className="bl-page relative overflow-hidden p-2 pb-16">
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
@@ -51,16 +47,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
             <PxIcon name="cog" size={17} />
           </button>
         </div>
-        {/* Claim row (2026-11-01 top-bar redesign): level progress
-            button + streak/contracts icon pop-ups — first paint, no
-            scroll. The offline recap lives in its level pop-up. */}
+        {/* Claim row: level chip (the Return Sheet's door) +
+            streak / contracts / weekly claim chips — first paint,
+            no scroll, nothing else above the Stage (§4). */}
         <DashboardTopBar />
-        {/* The Stage — the Action workspace is Home's main stage. */}
-        <div ref={stageRef} className="scroll-mt-2">
+        {/* The Stage — diorama, mode rail, lit workspace, belt. */}
+        <div className="scroll-mt-2">
           <ActionScreenContextual onOpenBossSelect={() => onOpenBossSelect?.()} onNavigate={onNavigate} />
         </div>
-        {/* The deck — everything the Board held below its stage. */}
-        <DashboardDeck onNavigate={onNavigate} onShowStage={showStage} />
+        {/* The deck — §4's fixed four blocks below the fold. */}
+        <DashboardDeck onNavigate={onNavigate} />
       </div>
     </div>
   );

@@ -16,6 +16,8 @@ The pacing figures below are **modeled, not guaranteed** — they come from the 
 
 XP comes from roaming, enemy defeats, boss attempts and victories, salvaging, and completed crafts — the activities themselves, so every occupation levels your hunter.
 
+Your progress is glanceable without opening your profile: Home's **Now** feed carries your level progress alongside your current activity, boss progress, and best weapon (see [[The Board]]).
+
 ## Skill points and the four trees
 
 Your skill-point budget is **your level − 1**: a level 1 hunter has no points, and every level after that earns exactly one. Points are spent across four trees:
