@@ -3,22 +3,23 @@ import { motion } from 'framer-motion';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
 /**
- * Gear rail (redesign Wave D, DESIGN.md §2/§3/§6/§11-F1).
+ * Gear rail (redesign Wave D, DESIGN.md §2/§3/§6).
  *
- * The Gear tab's table of contents: exactly the five stops the
- * language specifies — Loadout · Grid · Items · Workshop · Garage —
- * in the §2 order. The Garage is a stop in its own right (F1): the
- * audit promoted it out of its old framing as a section inside the
- * Loadout tab, and this rail is its canonical door.
+ * The Gear tab's table of contents: exactly the four stops the
+ * language specifies — Loadout · Grid · Items · Workshop — in the
+ * §2 order. The Garage is NOT a stop: DESIGN.md §11 F1 originally
+ * promoted it to one, but the owner overruled that decision
+ * (2026-11-02) — the Garage folds back into the Loadout stop as
+ * its expanding vehicle section, per the approved mock.
  *
  * Geometry follows the Home mode rail (Wave C): one bordered bar,
  * one stop height (48px — a real tap target), icons on the §7 rail
  * size (17px), labels at the §5 floor (11px). The bar scrolls
  * horizontally rather than shrinking its stops (§6
- * scroll-don't-shrink); at the reference width the five stops fit,
+ * scroll-don't-shrink); at the reference width the four stops fit,
  * and narrower viewports get the edge fade.
  */
-export type GearStop = 'loadout' | 'grid' | 'items' | 'workshop' | 'garage';
+export type GearStop = 'loadout' | 'grid' | 'items' | 'workshop';
 
 interface GearStopDef {
   stop: GearStop;
@@ -32,7 +33,6 @@ const GEAR_STOPS: GearStopDef[] = [
   { stop: 'grid', label: 'Grid', icon: 'grid', ariaLabel: 'Item Grid — browse, compare, and salvage your items' },
   { stop: 'items', label: 'Items', icon: 'vial', ariaLabel: 'Items — your belt, consumable stacks, materials, and essences' },
   { stop: 'workshop', label: 'Workshop', icon: 'anvil', ariaLabel: 'Workshop — the crafting bench: recipes and the job queue' },
-  { stop: 'garage', label: 'Garage', icon: 'wheel', ariaLabel: 'Garage — vehicles, fuel, condition, and patch-kit repair' },
 ];
 
 export interface GearRailProps {

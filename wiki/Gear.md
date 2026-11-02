@@ -70,17 +70,24 @@ Legendary weapons can additionally carry one named
 
 ## The one gear home
 
-Everything gear lives on the **Gear tab**, as a rail of five stops:
+Everything gear lives on the **Gear tab**, as a rail of four stops:
 
-- **Loadout** — the equip surface: your seven slots and the slot
-  picker. Your vehicle slot shows here too — its status at a glance,
-  with a door straight to the Garage.
+- **Loadout** — the equip surface: your hunter stands at the top of
+  the panel wearing your actual equipped gear — your primary weapon
+  in his hands, shield, relic, and belt mounted on the figure — over
+  the seven slot chips and the slot picker. Weapon chips draw the
+  rolled gun itself, and item names always print in full. Your
+  vehicle slot lives here too: its status line — equipped vehicle,
+  yield, fuel, condition — heads the **Garage section**, which
+  expands in place right under it with everything vehicle: equip,
+  refuel, and repair (see [[Vehicles and the Garage]]). (Your
+  credits, scrap, keys, and item count print once, in the strip at
+  the top of the tab — the loadout panel header carries your DPS
+  and HP instead.)
 - **Grid** — your full item grid, with salvage/recycle.
 - **Items** — your belt, plus every stack you carry: consumable
   batches with their quality % printed, materials, and essences.
 - **Workshop** — the crafting bench (see [[Crafting]]).
-- **Garage** — your vehicles: equip, refuel, and repair (see
-  [[Vehicles and the Garage]]).
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are

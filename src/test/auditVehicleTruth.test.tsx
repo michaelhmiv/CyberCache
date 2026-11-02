@@ -20,10 +20,15 @@
  *    navigated through the shipped tab intent (App 'garage' →
  *    Inventory loadout tab + anchor seq → scroll into view).
  *    Superseded by redesign Wave D (DESIGN.md §11 F1): the Garage
- *    is now a Gear rail stop in its own right, and the same door's
- *    intent names the stop (App 'garage' → Inventory { tab:
- *    'garage' } → Garage stop mounted, no scroll needed). The
- *    tests below pin the new threading.
+ *    became a Gear rail stop in its own right, and the same door's
+ *    intent named the stop (App 'garage' → Inventory { tab:
+ *    'garage' } → Garage stop mounted, no scroll needed).
+ *    Superseded again by the owner ruling of 2026-11-02 (§11 F1
+ *    as amended): the Garage folds into the Loadout stop, and the
+ *    door's intent now lands on Loadout with the vehicle section
+ *    expanded (App 'garage' → Inventory { tab: 'loadout',
+ *    expandVehicle: true } → Garage panel mounted inside Loadout).
+ *    The tests below pin the current threading.
  *  UX-08 — refueling confirmed nothing, and "Load all" stayed
  *    disabled with exactly 1 cell owned. Fixed: a vendor-pattern
  *    notice ("Loaded N cell(s) — tank at X units.") read back from
@@ -233,29 +238,34 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the banner
     expect(screen.getByText('Garage')).toBeTruthy();
   });
 
-  it('a garage intent opens the gear home ON the Garage stop (Wave D: a stop, not a scroll)', async () => {
-    render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'garage', seq: 7 }} />);
-    // The Garage stop is mounted and lit — no Loadout, no scrolling.
+  it('a garage intent opens the gear home on Loadout with the Garage expanded inside it (owner ruling 2026-11-02)', async () => {
+    render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'loadout', expandVehicle: true, seq: 7 }} />);
+    // The Loadout stop is mounted and lit, and the Garage panel is
+    // already expanded within it — no stop switch, no scroll hunt.
     expect(await screen.findByTestId('garage-panel')).toBeTruthy();
-    expect(screen.getByTestId('gear-stop-garage').getAttribute('aria-selected')).toBe('true');
-    expect(screen.queryByText(/Your seven gear slots/)).toBeNull();
+    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByTestId('gear-stop-garage')).toBeNull();
+    // The Loadout composition is present too (F5 landmark: the
+    // panel header's "Tap a slot to equip" hint).
+    expect(screen.getByText('Tap a slot to equip')).toBeTruthy();
   });
 
   it('without a garage intent the gear home opens on Loadout and the Garage is not mounted', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    expect(await screen.findByText(/Your seven gear slots/)).toBeTruthy();
+    expect(await screen.findByText('Tap a slot to equip')).toBeTruthy();
     expect(screen.queryByTestId('garage-panel')).toBeNull();
     expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('the navigation threading is wired App → Inventory → Garage stop (structural pin)', () => {
+  it('the navigation threading is wired App → Inventory → expanded Garage section (structural pin)', () => {
     const readSource = (rel: string) => readFileSync(resolve(__dirname, '../..', rel), 'utf8');
     const app = readSource('src/App.tsx');
     expect(app).toContain("screen === 'garage'");
-    expect(app).toContain("setInventoryTabIntent({ tab: 'garage'");
+    expect(app).toContain("setInventoryTabIntent({ tab: 'loadout', expandVehicle: true");
     const inventory = readSource('src/screens/InventoryScreen.tsx');
     expect(inventory).toContain("tabIntent?.tab ?? 'loadout'");
     expect(inventory).toContain('setActiveStop(tabIntent.tab)');
+    expect(inventory).toContain('vehicleExpandSignal={vehicleExpandSeq}');
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     expect(action).toContain("onOpenGarage={() => onNavigate?.('garage')}");
   });

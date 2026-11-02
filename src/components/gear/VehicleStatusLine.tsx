@@ -23,18 +23,39 @@ import { conditionFraction, effectiveVehicleYield, getVehicleClass } from '@/lib
  * refuel it kept reading "fuel 0 units · out of fuel" while the
  * Garage correctly showed the full tank.
  */
-export const VehicleStatusLine: React.FC<{ onOpenGarage?: () => void }> = ({ onOpenGarage }) => {
+/**
+ * Two Garage affordances, one per surface (owner ruling 2026-11-02,
+ * DESIGN.md §11 F1 as amended): on the Home stage the line carries
+ * the Open Garage DOOR (`onOpenGarage` — navigates to Gear →
+ * Loadout with the Garage section expanded); on the Loadout itself
+ * it carries the expansion TOGGLE (`onToggleExpand` + `expanded`) —
+ * the Garage unfolds in place under this line, no navigation.
+ */
+export const VehicleStatusLine: React.FC<{
+  onOpenGarage?: () => void;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
+}> = ({ onOpenGarage, expanded, onToggleExpand }) => {
   const equippedId = useLoadoutStore((s) => s.slots.vehicle);
   const vehicles = useVehicleStore((s) => s.vehicles);
   const equipped = equippedId ? vehicles.find((v) => v.id === equippedId) : undefined;
   const vehicleFuel = usePlayerStore((s) => s.vehicleFuel);
   const lastClaim = useVehicleStore((s) => s.lastClaimStatus);
 
-  const garageButton = onOpenGarage ? (
+  const garageButton = onToggleExpand ? (
+    <button
+      type="button"
+      onClick={onToggleExpand}
+      aria-expanded={expanded ?? false}
+      className="shrink-0 border border-border bg-background/60 px-2.5 py-1.5 text-[11px] font-black text-amber"
+    >
+      {expanded ? 'Close Garage' : 'Open Garage'}
+    </button>
+  ) : onOpenGarage ? (
     <button
       type="button"
       onClick={onOpenGarage}
-      className="shrink-0 border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-black text-amber"
+      className="shrink-0 border border-border bg-background/60 px-2.5 py-1.5 text-[11px] font-black text-amber"
     >
       Open Garage
     </button>
@@ -43,7 +64,7 @@ export const VehicleStatusLine: React.FC<{ onOpenGarage?: () => void }> = ({ onO
   if (!equipped) {
     return (
       <div data-testid="vehicle-status" className="flex items-center justify-between gap-2 border border-border/60 bg-surface/80 px-2 py-1.5 text-[11px] text-text-muted">
-        <span className="inline-flex items-center gap-1"><PxIcon name="person" size={13} /> On foot — no vehicle equipped, roaming at ×1.00. Equip one in the Garage (Gear tab, Garage stop).</span>
+        <span className="inline-flex items-center gap-1"><PxIcon name="person" size={13} /> On foot — no vehicle equipped, roaming at ×1.00. {onToggleExpand ? 'Equip one in the Garage below.' : 'Equip one in the Garage (Gear tab, Loadout).'}</span>
         {garageButton}
       </div>
     );

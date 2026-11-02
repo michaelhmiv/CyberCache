@@ -1,15 +1,17 @@
 import React from 'react';
 import { ActionLoadout, type ActionLoadoutProps } from '@/components/action/ActionLoadout';
-import { VehicleStatusLine } from '@/components/gear/VehicleStatusLine';
+import { VehicleGarageSection } from '@/components/gear/VehicleGarageSection';
 
 type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'> & {
   /**
-   * Door to the Garage stop (redesign Wave D): the vehicle slot's
-   * management home is the Gear → Garage rail stop (DESIGN.md §11
-   * F1), so the Loadout stop carries the slot's status line and
-   * this door — the Garage panel itself no longer renders here.
+   * Garage deep-link signal (owner ruling 2026-11-02): the Garage
+   * is folded into this stop (DESIGN.md §11 F1 as amended), so a
+   * Garage door lands here carrying a fresh seq and the vehicle
+   * section below opens already expanded.
    */
-  onOpenGarage?: () => void;
+  vehicleExpandSignal?: number | null;
+  /** The Garage's "post it to the Repair Services board" door. */
+  onRequestService?: () => void;
 };
 
 /**
@@ -17,17 +19,26 @@ type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'> 
  * manage-mode mount of ActionLoadout: the Slot Picker it hosts is
  * the one place gear gets equipped or unequipped. The vehicle slot
  * (DESIGN.md §3: the loadout is 7 gear slots + the vehicle slot)
- * renders as its status line under the doll — equipped vehicle,
- * yield, fuel, condition — with the Open Garage door to the Garage
- * stop, where vehicles actually equip and repair (they are not
- * GearItem, so they keep their own verified ops there).
+ * renders as the vehicle section under the doll — the status line
+ * (equipped vehicle, yield, fuel, condition) as its header, and the
+ * full Garage expanding in place under it: vehicles equip, refuel,
+ * and repair there (they are not GearItem, so they keep their own
+ * verified ops in the Garage panel).
+ *
+ * Drift-fix F5: the standalone intro sentence that used to sit above
+ * the panel is gone (the proposal carries no page-title header here);
+ * its two facts live in the panel itself — "Tap a slot to equip" in
+ * the header, "changes verify server-side" in the belt caption.
  */
-export const SyncedLoadoutScreen: React.FC<SyncedLoadoutScreenProps> = ({ onOpenGarage, ...loadoutProps }) => {
+export const SyncedLoadoutScreen: React.FC<SyncedLoadoutScreenProps> = ({
+  vehicleExpandSignal = null,
+  onRequestService,
+  ...loadoutProps
+}) => {
   return (
     <div className="p-4 space-y-4 pb-20">
-      <div className="text-xs text-text-muted">Your seven gear slots. Tap a slot to equip from your inventory — every change is verified server-side.</div>
       <ActionLoadout {...loadoutProps} />
-      <VehicleStatusLine onOpenGarage={onOpenGarage} />
+      <VehicleGarageSection expandSignal={vehicleExpandSignal} onRequestService={onRequestService} />
     </div>
   );
 };

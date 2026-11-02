@@ -252,7 +252,7 @@ describe('layout contract — swept surfaces (source shape)', () => {
     expect(market).not.toContain("{ id: 'history', label: 'History', px");
   });
 
-  it('the Gear tab prints the wallet once (the Strip); the loadout resource row uses the bounded formatter', () => {
+  it('the Gear tab prints the wallet once (the Strip); no gear-home chrome formats wallet values', () => {
     const inventory = read('src/screens/InventoryScreen.tsx');
     // Wave D removed the summary tiles: the Cash tile re-printed
     // credits/scrap directly under the Strip (DESIGN.md §1 — the
@@ -261,9 +261,15 @@ describe('layout contract — swept surfaces (source shape)', () => {
     expect(inventory).toContain('<ResourceBar');
     expect(inventory).not.toContain('compactResourceValue');
     expect(inventory).not.toContain('player.credits');
+    // Drift-fix F5 completed the rule on the Loadout stop: the
+    // panel's own Credits/Scrap/Items/Keys row (the last wallet
+    // re-print on the Gear tab) is gone — the Strip above the rail
+    // prints all four, and the panel header carries only the
+    // numbers the Strip doesn't (DPS, HP).
     const loadout = read('src/components/action/ActionLoadout.tsx');
-    expect(loadout).toContain('compactResourceValue(player.credits)');
-    expect(loadout).toContain('compactResourceValue(player.scrap)');
+    expect(loadout).not.toContain('compactResourceValue');
+    expect(loadout).not.toContain('player.credits');
+    expect(loadout).not.toContain('player.scrap');
   });
 
   it('the BottomNav labels fit their cells (≤6 chars at the 11px floor in quarter-width cells)', () => {

@@ -21,9 +21,51 @@ import {
   effectiveVehicleYield,
   getVehicleClass,
 } from '@/lib/vehicles/vehicles';
+import { getPixelSprite } from '@/lib/pixel/manifest';
 
 /**
- * Garage (0021) — the vehicle home inside the gear home.
+ * The vehicle's face (the v1 garage content design DESIGN.md §11
+ * F1 preserves — sprite, gauges, patch-kit repair — now carried by
+ * the Loadout's in-place vehicle section, owner ruling 2026-11-02).
+ * The class sprite is the ACTUAL instance's class profile
+ * with its rolled affix overlays and condition wear, derived exactly
+ * as the Home stage derives them for the parked vehicle
+ * (LiveTurfDiorama): cargo rack / scanner array / reinforced frame
+ * by affix stat, the scuff layer under 35% condition.
+ */
+const VehicleSprite: React.FC<{ vehicle: VehicleDisplay }> = ({ vehicle }) => {
+  const fraction = conditionFraction(vehicle.conditionCurrent, vehicle.conditionMax);
+  const overlay = (id: string) => (
+    <img
+      src={getPixelSprite(id)?.url}
+      alt=""
+      draggable={false}
+      className="absolute inset-0 w-full"
+      style={{ imageRendering: 'pixelated' }}
+    />
+  );
+  return (
+    <div className="relative w-[92px] shrink-0 self-start" data-testid="garage-vehicle-sprite">
+      <img
+        src={getPixelSprite(`vehicle-${vehicle.vehicleClassId.replace(/_/g, '-')}`)?.url}
+        alt=""
+        draggable={false}
+        className="w-full"
+        style={{ imageRendering: 'pixelated' }}
+      />
+      {vehicle.affixes.some((a) => a.stat === 'vehicleCargoPct') && overlay('vehicle-affix-cargo-rack')}
+      {vehicle.affixes.some((a) => a.stat === 'vehicleScannerPct') && overlay('vehicle-affix-scanner-array')}
+      {vehicle.affixes.some((a) => a.stat === 'vehicleFramePct') && overlay('vehicle-affix-reinforced-frame')}
+      {fraction < 0.35 && overlay('vehicle-condition-scuff')}
+    </div>
+  );
+};
+
+/**
+ * Garage (0021) — the vehicle home inside the Loadout. It renders
+ * expanded under the vehicle status line in the Loadout stop's
+ * VehicleGarageSection (owner ruling 2026-11-02 folded it here
+ * from its short-lived rail stop; DESIGN.md §11 F1 as amended).
  *
  * Vehicles are real gear in their own slot: equip/unequip go through
  * the same verified ops as gear slots (the server enforces the class
@@ -242,23 +284,28 @@ const VehicleCard: React.FC<{
 
   return (
     <div className={`border p-2 space-y-1 ${equipped ? 'border-amber' : 'border-border'} bg-background/60`}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-black text-text-primary">
-          {vehicle.name}
-          {equipped && <span className="ml-2 text-[11px] font-bold text-amber">EQUIPPED</span>}
-          {vehicle.runtimeState === 'in_service' && (
-            <span className="ml-2 text-[11px] font-bold text-cyan">ON CONTRACT</span>
-          )}
+      <div className="flex gap-2">
+        <VehicleSprite vehicle={vehicle} />
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="text-sm font-black text-text-primary">
+              {vehicle.name}
+              {equipped && <span className="ml-2 text-[11px] font-bold text-amber">EQUIPPED</span>}
+              {vehicle.runtimeState === 'in_service' && (
+                <span className="ml-2 text-[11px] font-bold text-cyan">ON CONTRACT</span>
+              )}
+            </div>
+            <div className="shrink-0 text-[11px] text-text-muted">{vehicle.rarity}</div>
+          </div>
+          <div className="text-[11px] text-text-muted">
+            {def ? `${def.displayName} · requires level ${def.unlockLevel}` : vehicle.vehicleClassId}
+            {def ? ` · base yield ×${def.baseYield.toFixed(2)} · burns ${def.fuelBurnPerTick.toFixed(1)} fuel/tick` : ''}
+          </div>
+          <div className="text-[11px] text-text-muted">
+            Effective yield now: <span className="font-bold text-text-primary">×{effective.toFixed(2)}</span>
+            {' '}(degrades with condition)
+          </div>
         </div>
-        <div className="text-[11px] text-text-muted">{vehicle.rarity}</div>
-      </div>
-      <div className="text-[11px] text-text-muted">
-        {def ? `${def.displayName} · requires level ${def.unlockLevel}` : vehicle.vehicleClassId}
-        {def ? ` · base yield ×${def.baseYield.toFixed(2)} · burns ${def.fuelBurnPerTick.toFixed(1)} fuel/tick` : ''}
-      </div>
-      <div className="text-[11px] text-text-muted">
-        Effective yield now: <span className="font-bold text-text-primary">×{effective.toFixed(2)}</span>
-        {' '}(degrades with condition)
       </div>
       <div>
         <div className="flex justify-between text-[11px] text-text-muted">

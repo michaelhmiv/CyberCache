@@ -6,7 +6,6 @@ import { ResourceBar } from '@/components/layout/ResourceBar';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
 import { GearHub } from '@/components/gear/GearHub';
 import { GearRail, type GearStop } from '@/components/gear/GearRail';
-import { GaragePanel } from '@/components/gear/GaragePanel';
 import { ConsumablesScreen } from './ConsumablesScreen';
 import { WorkshopScreen } from './WorkshopScreen';
 import { useMarketStore, useWorkshopStore } from '@/store';
@@ -20,13 +19,14 @@ interface InventoryScreenProps {
    * Manage door, onNavigate('loadout')) carry { tab: 'loadout' } so
    * the gear home opens ON the Loadout stop — the one equip surface.
    * Garage doors (the roaming banner's "Open Garage") carry
-   * { tab: 'garage' }: since Wave D the Garage is a rail stop in its
-   * own right (DESIGN.md §11 F1), so the intent names the stop
-   * directly instead of landing on Loadout and scrolling to a
-   * section. Absent intent (the Gear bottom tab) opens on Loadout —
-   * the rail's first stop, the doll leads (DESIGN.md §2 order).
+   * { tab: 'loadout', expandVehicle: true }: the owner overruled
+   * §11 F1 on 2026-11-02 and the Garage folded into the Loadout
+   * stop, so the intent lands on Loadout with its vehicle section
+   * already expanded. Absent intent (the Gear bottom tab) opens on
+   * Loadout — the rail's first stop, the doll leads (DESIGN.md §2
+   * order).
    */
-  tabIntent?: { tab: 'loadout' | 'garage'; seq: number } | null;
+  tabIntent?: { tab: 'loadout'; seq: number; expandVehicle?: boolean } | null;
 }
 
 /**
@@ -65,6 +65,11 @@ const BenchServiceDoors: React.FC<{ onGoGrid: () => void }> = ({ onGoGrid }) => 
 
 export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, tabIntent = null }) => {
   const [activeStop, setActiveStop] = useState<GearStop>(() => tabIntent?.tab ?? 'loadout');
+  // Garage deep-link: the seq of an intent that asked for the
+  // vehicle section expanded (see VehicleGarageSection).
+  const [vehicleExpandSeq, setVehicleExpandSeq] = useState<number | null>(
+    () => (tabIntent?.expandVehicle ? tabIntent.seq : null),
+  );
   // A fresh intent (new seq) re-applies even if the home is already
   // mounted — e.g. a second loadout door tapped in the same session.
   // Render-phase adjustment (React's pattern for prop-driven state)
@@ -74,6 +79,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
   if (tabIntent && tabIntent.seq !== appliedIntentSeq) {
     setAppliedIntentSeq(tabIntent.seq);
     setActiveStop(tabIntent.tab);
+    if (tabIntent.expandVehicle) setVehicleExpandSeq(tabIntent.seq);
   }
   // Gear-home equip door: GearHub's Equip action lands here; the
   // Loadout stop opens the Slot Picker (the one equip surface) on
@@ -118,7 +124,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
           {activeStop === 'loadout' && (
             <SyncedLoadoutScreen
               requestedPickerSlot={pendingPickerSlot}
-              onOpenGarage={() => setActiveStop('garage')}
+              vehicleExpandSignal={vehicleExpandSeq}
+              onRequestService={requestService}
             />
           )}
           {activeStop === 'grid' && (
@@ -135,11 +142,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
             <div>
               <BenchServiceDoors onGoGrid={() => goToStop('grid')} />
               <WorkshopScreen onNavigate={onNavigate} />
-            </div>
-          )}
-          {activeStop === 'garage' && (
-            <div className="p-4 pb-20">
-              <GaragePanel onRequestService={requestService} />
             </div>
           )}
         </motion.div>

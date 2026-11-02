@@ -1,31 +1,46 @@
 /**
- * ActionLoadout — star-pattern loadout display.
+ * ActionLoadout — the loadout doll: one tight figure + slot constellation.
  *
  * Two modes (Phase 1: one gear home):
  *  - Manage mode (Inventory → Loadout, the gear home): click any slot
  *    chip to open the Slot Picker — the one equip surface.
  *  - Read-only mode (Fight tab): display only; slot taps and the
  *    Manage button route to the gear home via `onManageLoadout`.
- * DPS readout and consumable chips visible in both expanded and collapsed states.
+ *
+ * Composition (drift-fix F5, from the approved Gear mock): the panel
+ * leads with the equipped hunter himself — the parts actor wearing
+ * the ACTUAL equipped instances (held weapon grip-to-grip, shield /
+ * relic / class-mod pauldron / belt mounted per gearMounts) — over a
+ * compact 3-column constellation of slot chips at the §5 type floor.
+ * The belt chips ride under the constellation. The wallet prints
+ * ONCE, in the Strip (F1): this panel carries no Credits / Scrap /
+ * Items / Keys row — its header prints only what the Strip does not
+ * (DPS, HP, the equipped count).
  *
  * Layout (3-column grid, expanded):
- *   Row 1:   (empty)    Secondary      Heavy
+ *   Row 1:   (figure)   Secondary      Heavy
  *   Row 2:   Shield     ★PRIMARY★    Class Mod
- *   Row 3:   (empty)    Relic         Ordnance
+ *   Row 3:   (figure)   Relic         Ordnance
+ * (the figure band sits above the grid; the grid keeps the star
+ * pattern the connectors draw)
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useLoadoutStore, usePlayerStore, useInventoryStore, useSkillStore } from '@/store';
+import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { ConsumablesChips } from '@/components/action/ConsumablesChips';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
 import { SwapUndoToast } from '@/components/action/SwapUndoToast';
+import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
+import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
+import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
 import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
-import { compactResourceValue } from '@/lib/ui/formatValue';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import type { Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
@@ -120,12 +135,17 @@ const SlotChip: React.FC<{
   const filled = !!item;
   const accent = item?.rarity ? SATURATED[item.rarity] ?? '#8A847C' : '#8A847C';
   const name = item?.name ?? (isCenter ? 'No weapon' : 'Open');
+  // Weapon slots render the ACTUAL instance through the compositor
+  // (the same render the Trophy Shelf uses) — never a generic icon
+  // standing in for a rolled gun. Non-weapon slots carry no
+  // compositor art; their instances mount on the figure above.
+  const weapon = item && 'weaponType' in item ? (item as Weapon) : null;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative z-10 flex w-full flex-col items-center justify-center gap-0.5 border-2 p-1.5 text-center transition-all active:scale-[0.97] ${
+      className={`relative z-10 flex min-h-[60px] w-full flex-col items-center justify-center gap-0.5 border-2 px-1.5 py-1.5 text-center transition-all active:scale-[0.97] ${
         isCenter
           ? 'border-amber/60 bg-amber/10 shadow-[0_0_18px_rgba(255,144,0,0.18)]'
           : filled
@@ -137,18 +157,21 @@ const SlotChip: React.FC<{
         ...(filled && !isCenter ? { borderColor: `${accent}55`, boxShadow: `inset 0 0 0 1px ${accent}20` } : {}),
       }}
     >
-      <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-text-muted">
-        <span className="inline-flex" style={{ color: filled ? accent : undefined }}><PxIcon name={icon} size={13} /></span>
+      <div className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-text-muted">
+        <span className="inline-flex shrink-0" style={{ color: filled ? accent : undefined }}><PxIcon name={icon} size={15} /></span>
         <span>{label}</span>
       </div>
+      {weapon && (
+        <PixelWeapon weapon={weapon} size={84} className="my-0.5 max-w-full" testId={`slot-weapon-${label.toLowerCase()}`} />
+      )}
       <div
-        className={`text-[10px] font-black leading-tight truncate max-w-full ${isCenter ? 'text-sm' : ''}`}
+        className={`max-w-full font-black leading-snug [overflow-wrap:anywhere] ${isCenter ? 'text-[13px]' : 'text-[11px]'}`}
         style={{ color: filled ? accent : '#8A847C' }}
       >
         {name}
       </div>
       {filled && (
-        <div className="text-[7px] font-black uppercase tracking-wider" style={{ color: accent }}>
+        <div className="text-[11px] font-black uppercase tracking-wider" style={{ color: accent }}>
           {item.rarity}
         </div>
       )}
@@ -184,16 +207,38 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
   requestedPickerSlot = null,
 }) => {
   const loadout = useLoadoutStore();
-  const player = usePlayerStore();
   const inventory = useInventoryStore();
+  const reduceMotion = useReducedMotion();
   // Subscribe to consumable changes so the chips re-render
   usePlayerStore((s) => s.consumables);
   useLoadoutStore((s) => s.consumables);
   // Subscribe to skill tree DPS changes — loadoutEffectiveDps() calls getState() internally
   // for skill bonuses, so we must force a re-render when spent points change.
   useSkillStore((s) => s.spent);
+  // HP is the panel's second headline number (the mock's header line:
+  // DPS · HP). The survival store owns the live max — the same read
+  // the Home deck uses. The Strip prints neither, so no duplication.
+  const maxHp = useSurvivalStore((s) => s.maxHp);
 
   const dps = loadoutEffectiveDps();
+
+  // The figure: the parts actor wearing the ACTUAL equipped
+  // instances — primary weapon held grip-to-grip, shield / relic /
+  // class-mod pauldron / belt consumables mounted via the shared
+  // gearMounts derivation (the same one the Home stage uses, M3).
+  // Unarmed hunters stand relaxed with empty hands (real-item
+  // invariant: no phantom weapon layer exists).
+  const figureWeapon = loadout.getWeapon('primary');
+  const figureGear = useMemo(
+    () =>
+      mountedGearForLoadout({
+        shield: loadout.getShield(),
+        relic: loadout.getRelic(),
+        classMod: loadout.getClassMod(),
+        consumables: [loadout.consumables.PreFight, loadout.consumables.MidFight, loadout.consumables.Emergency],
+      }),
+    [loadout],
+  );
   // CONS-04: gear slots only (7) via the shared loadout read model —
   // the vehicle slot in the raw map is not gear.
   const equippedCount = countEquippedLoadoutSlots(buildLoadoutRows(loadout.slots, inventory.items));
@@ -212,14 +257,6 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
     if (!readOnly) return false; // gear home: slots reachable on arrival
     return readCollapsed();
   });
-
-  // Resource summary: always visible
-  const resourceStats = useMemo(() => [
-    { label: 'Credits', value: compactResourceValue(player.credits), tone: 'text-cyan' as const },
-    { label: 'Scrap', value: compactResourceValue(player.scrap), tone: 'text-green' as const },
-    { label: 'Items', value: inventory.items.length, tone: 'text-amber' as const },
-    { label: 'Keys', value: `${player.cacheKeys}+${player.cacheKeyFragments}`, tone: 'text-purple' as const },
-  ], [player.credits, player.scrap, player.cacheKeys, player.cacheKeyFragments, inventory.items.length]);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -309,7 +346,10 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
       className={`relative overflow-hidden border-2 border-border bg-surface/95 p-3 ${className ?? ''}`}
       style={{ clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' }}
     >
-      {/* Header with collapse toggle */}
+      {/* Header with collapse toggle. The wallet is NOT re-printed
+          here — the Strip (F1) owns Credits / Scrap / Keys / Items;
+          this header carries only what the Strip doesn't print:
+          the equipped count, DPS, and HP (the mock's header line). */}
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -318,8 +358,9 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
         >
           <PxIcon name="rings" size={17} className="shrink-0 text-amber" />
           <div>
-            <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Loadout</div>
+            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-amber">Loadout</div>
             <div className="text-sm font-black text-text-primary">{equippedCount}/7 Gear</div>
+            {!readOnly && <div className="text-[11px] font-bold text-text-muted">Tap a slot to equip</div>}
           </div>
         </button>
         <div className="flex items-center gap-2">
@@ -327,16 +368,20 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
             <button
               type="button"
               onClick={onManageLoadout}
-              className="bl-primary px-2.5 py-1.5 text-[10px] font-black"
+              className="bl-primary px-2.5 py-1.5 text-[11px] font-black"
             >
               Manage
             </button>
           )}
           <div className="text-right">
-            <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">DPS</div>
+            <div className="text-[11px] font-black uppercase tracking-widest text-text-muted">DPS</div>
             <div className={`text-lg font-black ${dps > 0 ? 'text-amber' : 'text-text-muted'}`}>
               {dps > 0 ? dps.toFixed(0) : '—'}
             </div>
+          </div>
+          <div className="text-right">
+            <div className="text-[11px] font-black uppercase tracking-widest text-text-muted">HP</div>
+            <div className="text-lg font-black text-text-primary">{Math.round(maxHp)}</div>
           </div>
           <button
             type="button"
@@ -349,27 +394,6 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
         </div>
       </div>
 
-      {/* Resource summary — always visible, compact row */}
-      <div className="mt-2 flex gap-1.5">
-        {resourceStats.map(({ label, value, tone }) => (
-          <div key={label} className="flex-1 border border-border/60 bg-bg/40 px-1.5 py-1 text-center" style={signClip}>
-            <div className="text-[7px] font-black uppercase tracking-wider text-text-muted">{label}</div>
-            <div className={`text-[10px] font-black whitespace-nowrap ${tone}`}>{value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Consumables — always visible, not hidden in collapsed/expanded blocks.
-          The chips are a quick count view of the slotted items only:
-          roaming auto-activates ALL owned roaming consumables, slotted
-          or not — the caption says so plainly. */}
-      <div className="mt-2">
-        <div className="mb-1 text-[8px] font-bold uppercase tracking-wider text-text-muted">
-          Consumables — all owned auto-activate while roaming
-        </div>
-        <ConsumablesChips className="text-[9px]" />
-      </div>
-
       {/* Collapsed summary strip — presets are management, so they live
           only in the gear home (hidden in read-only display mode). */}
       {collapsed && !readOnly && (
@@ -378,12 +402,15 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
         </div>
       )}
       {collapsed && readOnly && (
-        <div className="mt-2 text-[9px] text-text-muted">
+        <div className="mt-2 text-[11px] text-text-muted">
           Gear is managed in one place — tap Manage to open your Loadout.
         </div>
       )}
 
-      {/* Expanded body */}
+      {/* Expanded body — the doll: figure first, then the compact
+          constellation, then the belt. Rows size to their chips (the
+          old 75%-aspect stage box stretched every row and left the
+          panel mostly air — the fidelity audit's Gear finding). */}
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.div
@@ -398,11 +425,31 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
                 <PresetSwitcher />
               </div>
             )}
-            <div className="mt-3 relative" style={{ paddingTop: '75%' }}>
+
+            {/* The equipped hunter, wearing the actual loadout. */}
+            <div
+              data-testid="loadout-figure"
+              className="relative mt-3 h-[176px] overflow-hidden border border-border/60 bg-[radial-gradient(ellipse_at_50%_100%,rgba(255,144,0,0.13),rgba(0,0,0,0.25)_70%)]"
+            >
+              <PixelPartsActor
+                set={hunterPartSet(headVariantPreference())}
+                xPct={50}
+                heightPct={96}
+                groundY={0.97}
+                reduced={reduceMotion ?? false}
+                pose={figureWeapon ? 'idle' : 'relaxed'}
+                weapon={figureWeapon}
+                weaponTestId="loadout-held-weapon"
+                testId="loadout-hunter"
+                gear={figureGear}
+              />
+            </div>
+
+            <div className="relative mt-2">
               <StarConnectors />
               <div
-                className="absolute inset-0 grid gap-1.5 z-10"
-                style={{ gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr 1fr 1fr' }}
+                className="relative z-10 grid gap-1.5"
+                style={{ gridTemplateColumns: '1fr 1fr 1fr' }}
               >
                 {SLOT_CONFIG.map(({ slot, label, icon, row, col, isCenter }) => {
                   const item = slotItem(loadout, slot);
@@ -418,6 +465,18 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* The belt, under the doll (mock order). The chips are a
+                quick count view of the slotted items only: roaming
+                auto-activates ALL owned roaming consumables, slotted
+                or not — the caption says so plainly, and carries the
+                server-side fact the old Gear intro sentence held. */}
+            <div className="mt-3">
+              <ConsumablesChips className="text-[11px]" />
+              <div className="mt-1 text-[11px] font-bold text-text-muted">
+                Belt — all owned consumables auto-activate while roaming. Changes verify server-side; no Save button.
               </div>
             </div>
           </motion.div>
