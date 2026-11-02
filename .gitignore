@@ -7,3 +7,6 @@ dist
 supabase/.temp/
 .local-secrets/
 *.jks
+
+# Written by the wiki publish workflow at publish time; never committed.
+wiki/.sync-sha
