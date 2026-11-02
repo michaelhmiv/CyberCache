@@ -21,7 +21,7 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
-import { ENEMY_POSES, HUNTER_POSES, enemyRig, hunterRigWithHead, isHunterHeadVariantId, type HunterHeadVariantId } from '@/lib/pixel/rig';
+import { ENEMY_POSES, HUNTER_POSES, enemyRig, headVariantPreference, hunterRigWithHead } from '@/lib/pixel/rig';
 import { areaVisuals } from '@/content/areaPalettes';
 import { isHotArea } from '@/content/hotArea';
 import { elementDialect, shotCadence } from '@/lib/pixel/elementFx';
@@ -58,14 +58,6 @@ function beltSpriteFor(consumableId: string | null): string | undefined {
   return BELT_SPRITES_BY_ID[consumableId] ?? BELT_SPRITES_BY_FAMILY[CONSUMABLES[consumableId as keyof typeof CONSUMABLES]?.family ?? ''];
 }
 
-function headVariantPreference(): HunterHeadVariantId {
-  try {
-    const value = window.localStorage.getItem('cc-head-variant');
-    return isHunterHeadVariantId(value) ? value : 'visor';
-  } catch {
-    return 'visor';
-  }
-}
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { gearDropFromEvent } from '@/lib/pixel/lootMoment';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
@@ -1011,24 +1003,28 @@ const PixelSceneLayer: React.FC<{
             })}
           </PixelRigActor>
         ) : weapon ? (
-          <PixelActor
-            spriteId="hunter"
+          /* Armed standby (loadout truth): the whole 'hunter' sprite
+             carries the same baked rifle as the old segment crops, so
+             the idle hunter wears the gun-free holding rig — hands at
+             the grip, the equipped weapon rendered over them — never
+             the static sprite with a second gun pasted on. */
+          <PixelRigActor
+            rig={hunterRigWithHead(headVariantPreference(), false)}
             {...hunterPlacement}
+            feetX={hunterSprite.anchors.feet?.x ?? 0.27}
             reduced={reduced}
-            entrance="none"
+            pose={HUNTER_POSES.idle}
             testId="pixel-hunter"
           >
-            {weapon && (
-              <div
-                className="pointer-events-none absolute"
-                style={{ left: `${weaponLeftPct}%`, top: `${weaponTopPct}%`, width: `${weaponBoxWidthPct}%`, transform: 'rotate(-3deg)' }}
-              >
-                <PixelSway reduced={reduced}>
-                  <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
-                </PixelSway>
-              </div>
-            )}
-          </PixelActor>
+            <div
+              className="pointer-events-none absolute"
+              style={{ left: `${weaponLeftPct}%`, top: `${weaponTopPct}%`, width: `${weaponBoxWidthPct}%`, transform: 'rotate(-3deg)', zIndex: 7 }}
+            >
+              <PixelSway reduced={reduced}>
+                <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
+              </PixelSway>
+            </div>
+          </PixelRigActor>
         ) : (
           /* Unarmed (real-item invariant): the whole 'hunter' sprite
              has a rifle baked in, so the idle hunter swaps to the

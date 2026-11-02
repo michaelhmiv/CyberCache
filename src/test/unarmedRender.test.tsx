@@ -30,6 +30,12 @@ vi.mock('@/lib/feedback/sfx', () => ({
  * variant (HUNTER_RIG_UNARMED) selected whenever no weapon is equipped,
  * plus the slot audit: every slot-driven render must show the slot's
  * actual contents — absent when the slot is empty.
+ *
+ * Loadout-truth extension: the ARMED form is gun-free too — its arms
+ * are the `holding` variants (hands gripping nothing) and its torso is
+ * the shared gun-free torso, so the compositor's render of the actual
+ * equipped weapon is the only gun on any stage. The deep pixel-
+ * identity assertions live in loadoutTruthRender.test.tsx.
  */
 
 const spriteCache = new Map<string, RgbaImage | undefined>();
@@ -79,8 +85,16 @@ describe('unarmed rig variant — structure', () => {
     for (const id of ['back', 'thighB', 'shinB', 'thighF', 'shinF', 'head']) {
       expect(unarmed.get(id), id).toBe(armed.get(id));
     }
-    for (const id of ['torso', 'armUpper', 'armFore', 'armOff']) {
-      expect(unarmed.get(id), id).toBe(`${armed.get(id)}-unarmed`);
+    // Loadout truth: BOTH rigs wear the gun-free torso (the shipped
+    // crop carries the rifle receiver across the chest), and the arms
+    // differ by pose only — holding (armed) vs hanging (unarmed) —
+    // never by a baked gun. The shipped rifle crops appear on NEITHER.
+    expect(armed.get('torso')).toBe('rig-hunter-torso-unarmed');
+    expect(unarmed.get('torso')).toBe('rig-hunter-torso-unarmed');
+    for (const id of ['armUpper', 'armFore', 'armOff'] as const) {
+      const bone = id === 'armUpper' ? 'arm-upper' : id === 'armFore' ? 'arm-fore' : 'arm-off';
+      expect(armed.get(id), id).toBe(`rig-hunter-${bone}-holding`);
+      expect(unarmed.get(id), id).toBe(`rig-hunter-${bone}-unarmed`);
     }
     expect(HUNTER_RIG_UNARMED.frameWidth).toBe(HUNTER_RIG.frameWidth);
     expect(HUNTER_RIG_UNARMED.frameHeight).toBe(HUNTER_RIG.frameHeight);
@@ -88,16 +102,23 @@ describe('unarmed rig variant — structure', () => {
 
   it('hunterRigWithHead defaults to the armed rig and honors head variants on both rigs', () => {
     const seg = (rig: typeof HUNTER_RIG, id: string) => rig.segments.find((s) => s.id === id)?.spriteId;
-    expect(seg(hunterRigWithHead('visor'), 'torso')).toBe('rig-hunter-torso');
+    expect(seg(hunterRigWithHead('visor'), 'torso')).toBe('rig-hunter-torso-unarmed');
     expect(seg(hunterRigWithHead('visor', true), 'torso')).toBe('rig-hunter-torso-unarmed');
     expect(seg(hunterRigWithHead('hood', true), 'head')).toBe('hunter-head-hood');
     expect(seg(hunterRigWithHead('hood', true), 'armFore')).toBe('rig-hunter-arm-fore-unarmed');
-    expect(seg(hunterRigWithHead('hood'), 'armFore')).toBe('rig-hunter-arm-fore');
+    expect(seg(hunterRigWithHead('hood'), 'armFore')).toBe('rig-hunter-arm-fore-holding');
   });
 
   it('every unarmed segment sprite is registered in the manifest', () => {
     const registered = (sprites as { sprites: Record<string, unknown> }).sprites;
     for (const seg of HUNTER_RIG_UNARMED.segments) {
+      expect(registered[seg.spriteId], seg.spriteId).toBeTruthy();
+    }
+  });
+
+  it('every armed (holding) segment sprite is registered in the manifest', () => {
+    const registered = (sprites as { sprites: Record<string, unknown> }).sprites;
+    for (const seg of HUNTER_RIG.segments) {
       expect(registered[seg.spriteId], seg.spriteId).toBeTruthy();
     }
   });
@@ -112,8 +133,19 @@ describe('unarmed rig variant — rendered pixels', () => {
   // glove of the unarmed rig paints here.
   const GLOVE_ZONE: [number, number, number, number] = [121, 199, 134, 218];
 
-  it('the armed rig still carries the baked rifle (control: the zone really is the gun)', () => {
-    expect(frameZoneCount(renderRig(HUNTER_RIG), ...RIFLE_ZONE)).toBeGreaterThan(300);
+  // The barrel zone: right of the hands, where ONLY the baked rifle
+  // used to paint (barrel + muzzle glow). The holding rig paints
+  // nothing there — the equipped-weapon layer is the only thing
+  // allowed to. (Before the loadout-truth fix, the armed rig painted
+  // this zone solid: the phantom rifle itself.)
+  const BARREL_ZONE: [number, number, number, number] = [198, 90, 240, 150];
+
+  it('the holding (armed) rig renders NOTHING where the baked rifle barrel extended', () => {
+    expect(frameZoneCount(renderRig(HUNTER_RIG), ...BARREL_ZONE)).toBe(0);
+  });
+
+  it('the holding rig keeps its hands in the grip zone (a hold, not a hang)', () => {
+    expect(frameZoneCount(renderRig(HUNTER_RIG), 130, 100, 196, 150)).toBeGreaterThan(100);
   });
 
   it('the unarmed rig renders NOTHING in the rifle zone', () => {
@@ -174,10 +206,11 @@ describe('LiveTurfDiorama — unarmed hunter + slot audit', () => {
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
   });
 
-  it('idle WITH a weapon: the whole-sprite path is untouched', () => {
+  it('idle WITH a weapon: gun-free holding rig + the equipped weapon (no whole-sprite path)', () => {
     render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={TEST_WEAPON} activityKind="idle_standby" reducedMotion />);
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-sprite')).toBe('hunter');
+    expect(hunter.getAttribute('data-rig')).toBe('hunter');
+    expect(hunter.getAttribute('data-sprite')).toBeNull();
     expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
   });
 });
@@ -214,10 +247,11 @@ describe('BossFightStage — unarmed hunter', () => {
     expect(screen.queryByTestId('boss-stage-weapon')).toBeNull();
   });
 
-  it('with a weapon: whole sprite + compositor weapon (equipped path unchanged)', () => {
+  it('with a weapon: gun-free holding rig + compositor weapon at the grip (no whole-sprite path)', () => {
     render(<BossFightStage timeline={TIMELINE} phases={PHASES} weapon={TEST_WEAPON} />);
     const hunter = screen.getByTestId('boss-stage-hunter');
-    expect(hunter.getAttribute('data-sprite')).toBe('hunter');
+    expect(hunter.getAttribute('data-rig')).toBe('hunter');
+    expect(hunter.getAttribute('data-sprite')).toBeNull();
     expect(screen.getByTestId('boss-stage-weapon')).toBeTruthy();
   });
 });

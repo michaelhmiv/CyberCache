@@ -32,6 +32,8 @@ Claimable state is designed to be glanceable: if something is waiting for you, t
 
 The centre of Home is **the stage**: your hunter, rendered with the weapon you actually have equipped, your current activity, and the two doors that matter most in the moment — start (or manage) your roam, and prep or choose a boss. This is the Action workspace, living on Home itself: pick an area, tap Start Roam, and the rundown begins on the same screen.
 
+The weapon in your hunter's hands is always the exact weapon you have equipped — its type, make, and rolled parts — held at the grip, with nothing else underneath it. The same hunter, with the same rule, steps into the boss arena: what you see on the Board is what you fight with. Equip nothing and the hands are empty.
+
 At the stage's top edge sits your **current area chip** — tap it to open the area picker and change where roaming happens. If you are enrolled in a [[Progression|Research]] course, its chip sits beside the area chip, because research runs alongside your action rather than replacing it.
 
 ## The mode rail
