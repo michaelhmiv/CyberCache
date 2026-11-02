@@ -80,10 +80,10 @@ function App() {
   // door must open Inventory ON its Loadout stop — the one equip
   // surface — not on the item grid. `seq` makes a repeat intent
   // re-apply even while Inventory is already mounted. The 'garage'
-  // door names the Garage stop directly: since redesign Wave D the
-  // Garage is a Gear rail stop in its own right (DESIGN.md §11 F1),
-  // not a section of the Loadout stop it used to anchor-scroll to.
-  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'loadout' | 'garage'; seq: number } | null>(null);
+  // door lands on the Loadout stop too, with its vehicle section
+  // expanded: the owner overruled DESIGN.md §11 F1 on 2026-11-02
+  // and the Garage folded into Loadout.
+  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'loadout'; seq: number; expandVehicle?: boolean } | null>(null);
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -143,12 +143,12 @@ function App() {
       return;
     }
     if (screen === 'garage') {
-      // Garage door (audit UX-06, redesign Wave D): the Garage is
-      // a Gear rail stop — land on the stop itself; no section
-      // anchor or scroll is needed to reach it anymore.
+      // Garage door (audit UX-06): the Garage lives inside the
+      // Loadout stop (owner ruling 2026-11-02, §11 F1 amended) —
+      // land on Loadout with the vehicle section already expanded.
       setActiveTab('gear');
       setSubScreen(null);
-      setInventoryTabIntent({ tab: 'garage', seq: Date.now() });
+      setInventoryTabIntent({ tab: 'loadout', expandVehicle: true, seq: Date.now() });
       return;
     }
     if (screen.startsWith('market:')) {

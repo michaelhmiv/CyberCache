@@ -1,16 +1,18 @@
 /**
- * Gear v2 (redesign Wave D, DESIGN.md §2/§3/§6/§11-F1) — the Gear
- * tab as a rail of five stops.
+ * Gear v2 (redesign Wave D, DESIGN.md §2/§3/§6) — the Gear tab as
+ * a rail of stops.
  *
  * What this pins:
  *  - The rail carries exactly the §2 stops in order — Loadout ·
- *    Grid · Items · Workshop · Garage — at the §5 floor size with
- *    real tap targets (source shape), and the tab opens on Loadout,
- *    the rail's first stop.
- *  - F1: the Garage is a stop, not a Loadout section. The garage
- *    intent lands on it directly, and the Loadout stop no longer
- *    renders the Garage panel — it carries the vehicle slot's
- *    status line with the Open Garage door instead.
+ *    Grid · Items · Workshop — at the §5 floor size with real tap
+ *    targets (source shape), and the tab opens on Loadout, the
+ *    rail's first stop.
+ *  - F1 successor (owner ruling 2026-11-02, superseding the
+ *    original §11 F1): the Garage is NOT a rail stop — it folds
+ *    into the Loadout stop as the vehicle section. The Loadout
+ *    carries the vehicle slot's status line, whose Open Garage
+ *    toggle expands the full Garage panel in place; a garage
+ *    intent lands on Loadout with the section already expanded.
  *  - The Workshop stop badges its active job count on the rail and
  *    carries the bench-family doors (reforge/salvage signposts to
  *    their canonical Grid/inspect doors).
@@ -68,13 +70,16 @@ describe('Gear v2 — the rail of stops', () => {
     usePlayerStore.setState({ consumables: {}, consumableBatches: [], materials: {}, essences: {} });
   });
 
-  it('renders exactly the five §2 stops in order, at floor size with real tap targets', () => {
+  it('renders exactly the four §2 stops in order, at floor size with real tap targets', () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
     const rail = screen.getByTestId('gear-rail');
     const stops = [...rail.querySelectorAll('[data-testid^="gear-stop-"]')].map((el) => el.getAttribute('data-testid'));
-    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-grid', 'gear-stop-items', 'gear-stop-workshop', 'gear-stop-garage']);
-    for (const label of ['Loadout', 'Grid', 'Items', 'Workshop', 'Garage']) {
-      expect(screen.getByTestId(`gear-stop-${label.toLowerCase() === 'grid' ? 'grid' : label.toLowerCase()}`)).toBeTruthy();
+    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-grid', 'gear-stop-items', 'gear-stop-workshop']);
+    // Owner ruling 2026-11-02: there is no Garage stop — the
+    // Garage folded into Loadout (§11 F1 as amended).
+    expect(screen.queryByTestId('gear-stop-garage')).toBeNull();
+    for (const label of ['Loadout', 'Grid', 'Items', 'Workshop']) {
+      expect(screen.getByTestId(`gear-stop-${label.toLowerCase()}`)).toBeTruthy();
       expect(rail.textContent).toContain(label);
     }
     const railSource = readFileSync(resolve(__dirname, '../../src/components/gear/GearRail.tsx'), 'utf8');
@@ -84,19 +89,28 @@ describe('Gear v2 — the rail of stops', () => {
     expect(railSource).not.toContain('text-[9px]');
   });
 
-  it('opens on the Loadout stop; the Garage is NOT rendered under it anymore (F1)', async () => {
+  it('opens on the Loadout stop; the Garage folds in under the vehicle line (F1 successor — owner ruling 2026-11-02)', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
     // F5 successor landmark: the Loadout stop's old intro sentence
     // ("Your seven gear slots…") was removed per the fidelity audit;
     // the panel header's "Tap a slot to equip" hint is its marker now.
     expect(await screen.findByText('Tap a slot to equip')).toBeTruthy();
+    // Collapsed: the Garage panel is not rendered yet — the vehicle
+    // slot shows as its status line with the expansion toggle.
     expect(screen.queryByTestId('garage-panel')).toBeNull();
-    // The vehicle slot still shows on Loadout — as its status line,
-    // with the Open Garage door to the stop.
     expect(screen.getByTestId('vehicle-status')).toBeTruthy();
+    // One tap expands the full Garage IN PLACE — the Loadout stop
+    // stays lit; there is no Garage stop to navigate to.
     fireEvent.click(screen.getByRole('button', { name: 'Open Garage' }));
     expect(await screen.findByTestId('garage-panel')).toBeTruthy();
-    expect(screen.getByTestId('gear-stop-garage').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('a garage intent lands on Loadout with the vehicle section already expanded', async () => {
+    render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'loadout', expandVehicle: true, seq: 3 }} />);
+    expect(await screen.findByTestId('garage-panel')).toBeTruthy();
+    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Close Garage' })).toBeTruthy();
   });
 
   it('the Grid stop mounts the item grid; the Items stop mounts the belt', async () => {

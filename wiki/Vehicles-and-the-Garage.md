@@ -94,9 +94,13 @@ use one:
 
 ## The Garage
 
-Your Garage is its own stop on the Gear tab: **Gear → Garage**. (The
-Loadout stop still shows your vehicle slot's status — yield, fuel,
-condition — with a door straight to the Garage.) There you can see
+Your Garage is the vehicle section of the Loadout stop: **Gear →
+Loadout**, directly under your gear slots. Your vehicle slot's status
+line — the equipped vehicle, its yield, fuel, and condition — heads
+the section, and one tap on **Open Garage** expands the whole Garage
+in place right there. (Garage doors elsewhere — the one on the
+roaming banner, for instance — land you on Loadout with the section
+already expanded.) Expanded, you can see
 every vehicle you own — each card draws the vehicle itself, with its
 rolled affix fittings (cargo rack, scanner array, reinforced frame)
 fitted on the sprite and its wear showing once condition drops —
@@ -108,4 +112,4 @@ work.
 
 ---
 
-_Source of truth: `db/migrations` (vehicle items), `src/content/dispatch.ts` (courier classes), `src/screens/ChestScreen.tsx` (Garage), `src/lib/vehicles/vehicles.ts`, `src/lib/api/initialBundle.ts`, `src/content/repair.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._
+_Source of truth: `db/migrations` (vehicle items), `src/content/dispatch.ts` (courier classes), `src/components/gear/GaragePanel.tsx` (the Garage section), `src/lib/vehicles/vehicles.ts`, `src/lib/api/initialBundle.ts`, `src/content/repair.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

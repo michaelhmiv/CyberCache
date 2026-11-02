@@ -716,8 +716,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {workspace}
 
       {/* Vehicle status (0021): yield bonus, fuel, condition, inactive reason.
-          The Garage door (audit UX-06) deep-links to the labeled Garage
-          section of the Loadout tab. */}
+          The Garage door (audit UX-06) deep-links to the Loadout stop
+          with its Garage vehicle section expanded (owner ruling
+          2026-11-02 — the Garage is folded into Loadout). */}
       <VehicleStatusLine onOpenGarage={() => onNavigate?.('garage')} />
 
       {/* 2c. Consumable belt (§4 step 5) — above the fold, directly

@@ -67,7 +67,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 | Tab | Rail / composition | Holds |
 |---|---|---|
 | **Home** | Stage, then rail: `Area · Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The lit mode's workspace sits under the stage; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. |
-| **Gear** | Rail: `Loadout · Grid · Items · Workshop · Garage` | The doll, the inventory, consumables, the bench, vehicles. |
+| **Gear** | Rail: `Loadout · Grid · Items · Workshop` | The doll, the inventory, consumables, the bench, vehicles (inside Loadout — §11 F1, owner ruling 2026-11-02). |
 | **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk · Slots` | Player market, NPC storefront, the two service boards as separate stops, manufacturer standing at its own desk, and the slot machine's canonical home. |
 | **Hunter** | Rail: `Profile · Collections · Cache Rank · Research · Skill Trees · Standings · Account` | The hunter's record: profile + Trophy Shelf, collections and cores, ranks, courses, trees, the weekly races behind the Standings door, and account/settings/manual. |
 
@@ -123,8 +123,10 @@ replace the canonical one. (Tap depths are governed by §9.)
   action row, and the ◦ deep link to Market → Shield Tech.
 - **Items** — consumables/materials stacks, quality % printed.
 - **Workshop** — the bench: recipes + job queue.
-- **Garage** — a rail stop in its own right (promoted from a Loadout section):
-  vehicles, fuel cells + refuel, condition + self-repair with patch kits.
+- **Garage (vehicle section of Loadout)** — the Loadout's vehicle slot expands
+  in place into the full Garage: vehicles, fuel cells + refuel, condition +
+  self-repair with patch kits. Not a rail stop (owner ruling 2026-11-02, §11
+  F1).
 
 ### Market
 
@@ -511,13 +513,20 @@ The v2 mocks are the language's presentation, not its law (this document
 wins — see the header). Three defects in them are recorded here so
 implementation corrects them instead of copying them:
 
-- **F1 · Garage's framing.** The audit's spec promotes the Garage to a
-  Gear **rail stop**, and that is its canonical door (§2, §3). The v1
-  Gear PDF framed the garage as an in-place expansion inside the
-  Loadout's vehicle slot; that framing is superseded, but the v1 garage
-  *content* design — sprite, fuel and condition gauges, patch-kit
-  repair — stands as what the stop opens. No new Garage mock was drawn
-  under v2's no-re-issue instruction for Gear.
+- **F1 · Garage's framing — OVERRULED by the owner, 2026-11-02.** The
+  original F1 decision promoted the Garage to a Gear **rail stop**. The
+  owner overruled it after reviewing the built result (voice call,
+  2026-11-02), ruling that we follow the approved mock after all: **the
+  Garage folds into Loadout** — the Loadout's vehicle section expands
+  in place and carries the full Garage content (the m07-loadout
+  lineage), and **the rail stop is retired** (the Gear rail carries
+  four stops: Loadout · Grid · Items · Workshop). A split of vehicle
+  maintenance to another tab was considered and rejected — no split.
+  The v1 garage *content* design — sprite drawn from the actual
+  vehicle instance, fuel and condition gauges, patch-kit repair —
+  stands unchanged as what the in-Loadout vehicle section contains.
+  The pre-ruling F1 text is preserved in git history (pre-2026-11-02
+  revisions of this file).
 - **F2 · Buyback's form.** Buyback renders as a named dashed **row** on
   the Vendor stop's first viewport (§3) — not the Sell segment the audit
   counted it under, and never the deleted 3-mode toggle. The form differs

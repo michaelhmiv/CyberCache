@@ -24,9 +24,10 @@ import {
 import { getPixelSprite } from '@/lib/pixel/manifest';
 
 /**
- * The vehicle's face (DESIGN.md §11 F1: the v1 garage content design
- * — sprite, gauges, patch-kit repair — is what the Garage stop
- * opens). The class sprite is the ACTUAL instance's class profile
+ * The vehicle's face (the v1 garage content design DESIGN.md §11
+ * F1 preserves — sprite, gauges, patch-kit repair — now carried by
+ * the Loadout's in-place vehicle section, owner ruling 2026-11-02).
+ * The class sprite is the ACTUAL instance's class profile
  * with its rolled affix overlays and condition wear, derived exactly
  * as the Home stage derives them for the parked vehicle
  * (LiveTurfDiorama): cargo rack / scanner array / reinforced frame
@@ -61,7 +62,10 @@ const VehicleSprite: React.FC<{ vehicle: VehicleDisplay }> = ({ vehicle }) => {
 };
 
 /**
- * Garage (0021) — the vehicle home inside the gear home.
+ * Garage (0021) — the vehicle home inside the Loadout. It renders
+ * expanded under the vehicle status line in the Loadout stop's
+ * VehicleGarageSection (owner ruling 2026-11-02 folded it here
+ * from its short-lived rail stop; DESIGN.md §11 F1 as amended).
  *
  * Vehicles are real gear in their own slot: equip/unequip go through
  * the same verified ops as gear slots (the server enforces the class

@@ -12,14 +12,22 @@
  *     diagram in an aspect-ratio box of air.
  *  3. Slot chips print at the §5 floor and item names WRAP whole —
  *     the old chips ran 7–10px type and truncated the name.
- *  4. The Garage stop's vehicle cards carry the v1 content design
+ *  4. The Garage's vehicle cards carry the v1 content design
  *     DESIGN.md §11 F1 preserves: the class sprite of the actual
  *     instance, with its condition wear rendered on it.
+ *  5. The fold (owner ruling 2026-11-02, superseding the original
+ *     §11 F1 rail-stop decision): the Garage is NOT a rail stop —
+ *     it expands in place inside the Loadout stop under the
+ *     vehicle status line, revealing the tank panel, the vehicle
+ *     cards, and the repair blocks; a deep-link signal opens it
+ *     already expanded.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
 import { GaragePanel } from '@/components/gear/GaragePanel';
+import { GearRail } from '@/components/gear/GearRail';
+import { SyncedLoadoutScreen } from '@/screens/SyncedLoadoutScreen';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
@@ -156,7 +164,7 @@ describe('F5 — slot chips at the floor, names whole', () => {
   });
 });
 
-describe('F5 — the Garage stop wears the v1 content design', () => {
+describe('F5 — the Garage wears the v1 content design', () => {
   it('a vehicle card renders the class sprite of the actual instance', () => {
     useVehicleStore.setState({ vehicles: [scrapBike()] });
     render(<GaragePanel />);
@@ -184,5 +192,72 @@ describe('F5 — the Garage stop wears the v1 content design', () => {
     const well = screen.getByTestId('garage-vehicle-sprite');
     const srcs = Array.from(well.querySelectorAll('img')).map((i) => i.getAttribute('src') ?? '');
     expect(srcs.some((s) => s.includes('vehicle-condition-scuff'))).toBe(false);
+  });
+});
+
+describe('F5 successor — the Garage folds into Loadout (owner ruling 2026-11-02)', () => {
+  const seedGarageLoadout = (vehicle: VehicleDisplay) => {
+    useVehicleStore.setState({ vehicles: [vehicle] });
+    useLoadoutStore.setState((s) => ({ slots: { ...s.slots, vehicle: vehicle.id } }));
+    usePlayerStore.setState({
+      consumables: { GenericFuelCell: 2, PatchKit: 2 },
+      vehicleFuel: 250,
+    });
+  };
+
+  it('the Gear rail carries no Garage stop', () => {
+    render(<GearRail activeStop="loadout" onSelect={() => undefined} />);
+    const rail = screen.getByTestId('gear-rail');
+    const stops = [...rail.querySelectorAll('[data-testid^="gear-stop-"]')].map((el) => el.getAttribute('data-testid'));
+    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-grid', 'gear-stop-items', 'gear-stop-workshop']);
+    expect(screen.queryByTestId('gear-stop-garage')).toBeNull();
+  });
+
+  it('the Loadout vehicle section starts collapsed behind its status line, summary visible', () => {
+    seedGarageLoadout(scrapBike());
+    render(<SyncedLoadoutScreen />);
+    // The section header prints the summary the mock keeps visible:
+    // vehicle name, fuel, condition.
+    const status = screen.getByTestId('vehicle-status');
+    expect(status.textContent).toContain('Scrap Bike');
+    expect(status.textContent).toContain('fuel');
+    expect(status.textContent).toContain('250 units');
+    expect(status.textContent).toContain('condition');
+    expect(status.textContent).toContain('100%');
+    expect(screen.queryByTestId('garage-panel')).toBeNull();
+  });
+
+  it('one tap expands the full Garage in place — tank, vehicle card, sprite', async () => {
+    seedGarageLoadout(scrapBike());
+    render(<SyncedLoadoutScreen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Garage' }));
+    const panel = await screen.findByTestId('garage-panel');
+    expect(within(panel).getByText('Fuel tank')).toBeTruthy();
+    expect(within(panel).getByText('250 units')).toBeTruthy();
+    expect(within(panel).getByRole('button', { name: 'Load 1 cell (+100 units)' })).toBeTruthy();
+    expect(within(panel).getByRole('button', { name: 'Load all' })).toBeTruthy();
+    expect(within(panel).getByText(/Patch Kits owned: 2/)).toBeTruthy();
+    expect(within(panel).getByTestId('garage-vehicle-sprite')).toBeTruthy();
+    expect(within(panel).getByText('Condition')).toBeTruthy();
+    // The toggle now offers the collapse, state exposed to AT.
+    const toggle = screen.getByRole('button', { name: 'Close Garage' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('the expanded section reveals the repair-start block for a worn vehicle', async () => {
+    seedGarageLoadout(scrapBike({ conditionCurrent: 40, conditionMax: 100 }));
+    render(<SyncedLoadoutScreen onRequestService={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Garage' }));
+    const panel = await screen.findByTestId('garage-panel');
+    expect(within(panel).getByLabelText('Patch kit type')).toBeTruthy();
+    expect(within(panel).getByRole('button', { name: 'Start repair job' })).toBeTruthy();
+    expect(within(panel).getByRole('button', { name: /Repair Services board/ })).toBeTruthy();
+  });
+
+  it('a deep-link expand signal opens the section already expanded', async () => {
+    seedGarageLoadout(scrapBike());
+    render(<SyncedLoadoutScreen vehicleExpandSignal={9} />);
+    expect(await screen.findByTestId('garage-panel')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Close Garage' })).toBeTruthy();
   });
 });
