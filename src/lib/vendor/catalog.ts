@@ -76,7 +76,7 @@ export const VENDOR_MATERIALS: VendorMaterialEntry[] = [
   { id: MaterialType.ScrapAlloy, name: 'Scrap Alloy', kind: 'material', unitPrice: 10 },
   { id: MaterialType.BallisticParts, name: 'Ballistic Parts', kind: 'material', unitPrice: 15 },
   { id: MaterialType.ReactiveComponents, name: 'Reactive Components', kind: 'material', unitPrice: 20 },
-  { id: MaterialType.TechFragments, name: 'Tech Fragments', kind: 'material', unitPrice: 35 },
+  { id: MaterialType.TechFragments, name: 'Tech', kind: 'material', unitPrice: 35 },
   { id: MaterialType.VoidDust, name: 'Void Dust', kind: 'material', unitPrice: 75 },
   { id: EssenceType.IgnitionFluid, name: 'Ignition Fluid', kind: 'essence', unitPrice: 30 },
   { id: EssenceType.ConduitWire, name: 'Conduit Wire', kind: 'essence', unitPrice: 30 },

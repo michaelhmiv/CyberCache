@@ -6,7 +6,7 @@
  * the game itself presents (identity and earning rates).
  */
 import { ROAMING_AREAS } from '../../src/constants/roamingAreas';
-import { type GenBlock, num, table } from './lib';
+import { type GenBlock, num, resourceLabel, table } from './lib';
 
 function areasBody(): string {
   const rows = ROAMING_AREAS.map((a) => [
@@ -17,7 +17,7 @@ function areasBody(): string {
     a.idleCreditsPerMinute,
     a.idleScrapPerMinute,
     num(a.idleXpPerTick),
-    a.materialBias.join(', ') || '—',
+    a.materialBias.map(resourceLabel).join(', ') || '—',
     a.lootBias.join(', ') || '—',
     a.manufacturerInfluence,
   ]);
@@ -33,6 +33,6 @@ function areasBody(): string {
 
 export const areasBlock: GenBlock = {
   id: 'areas',
-  owners: ['src/constants/roamingAreas.ts'],
+  owners: ['src/constants/roamingAreas.ts', 'src/constants/visualAssets.ts'],
   render: areasBody,
 };

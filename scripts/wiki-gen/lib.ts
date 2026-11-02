@@ -21,6 +21,7 @@
  */
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ESSENCE_VISUALS, MATERIAL_VISUALS } from '../../src/constants/visualAssets';
 
 export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const WIKI_DIR = join(REPO_ROOT, 'wiki');
@@ -69,6 +70,21 @@ export function titleCase(id: string): string {
     .replace(/_/g, ' ')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Display label for a material/essence id, resolved from the game's
+ * visual registry (src/constants/visualAssets.ts — the same labels the
+ * client renders through getVisualAsset). Generated tables print the
+ * name players see in game (e.g. the material whose id is
+ * 'TechFragments' displays as 'Tech'); an id with no registry entry
+ * falls back to the raw id so a missing label stays visible in the
+ * annex instead of being silently renamed.
+ */
+export function resourceLabel(id: string): string {
+  const visual = (MATERIAL_VISUALS as Record<string, { label: string }>)[id]
+    ?? (ESSENCE_VISUALS as Record<string, { label: string }>)[id];
+  return visual?.label ?? id;
 }
 
 /** Build a GitHub-flavored markdown table. */

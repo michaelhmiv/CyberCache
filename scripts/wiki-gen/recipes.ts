@@ -10,7 +10,7 @@
 import { ALL_CRAFT_RECIPES, CRAFT_TOOLS, type CraftRecipe } from '../../src/content/crafting';
 import { CONSUMABLES } from '../../src/constants/consumables';
 import { RESEARCH_COURSES } from '../../src/content/research';
-import { type GenBlock, mins, table } from './lib';
+import { type GenBlock, mins, resourceLabel, table } from './lib';
 
 function outputOf(r: CraftRecipe): string {
   switch (r.kind) {
@@ -19,7 +19,7 @@ function outputOf(r: CraftRecipe): string {
       return (r.outputQuantity ?? 1) > 1 ? `${name} ×${r.outputQuantity}` : name;
     }
     case 'refine':
-      return `${r.outputMaterial} ×${r.outputBase}`;
+      return `${resourceLabel(r.outputMaterial)} ×${r.outputBase}`;
     case 'gear':
       return `${r.gearSlot} frame`;
     case 'tool':
@@ -57,7 +57,7 @@ function recipesBody(): string {
     r.kind,
     outputOf(r),
     Object.entries(r.inputs)
-      .map(([mat, n]) => `${mat} ×${n}`)
+      .map(([mat, n]) => `${resourceLabel(mat)} ×${n}`)
       .join(', '),
     timeOf(r),
     gatesOf(r),
@@ -68,6 +68,6 @@ function recipesBody(): string {
 
 export const recipesBlock: GenBlock = {
   id: 'recipes',
-  owners: ['src/content/crafting.ts', 'src/constants/craftingRecipes.ts'],
+  owners: ['src/content/crafting.ts', 'src/constants/craftingRecipes.ts', 'src/constants/visualAssets.ts'],
   render: recipesBody,
 };
