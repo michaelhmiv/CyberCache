@@ -108,12 +108,16 @@ function CornerBadge({ text, icon, color }: { text?: string; icon?: PxIconName; 
   // half was sliced off at the button's top edge. The bl-panel
   // clip-path keeps the top-right corner square, so an inset
   // badge there renders whole.
+  // Size (owner ruling, 2026-11-02): the label renders at the
+  // DESIGN.md §5 floor — 11px, never below. The badge got BIGGER;
+  // the floor did not move. Padding and the icon grow with it so
+  // the pill keeps its proportions.
   return (
     <span
-      className="absolute right-1 top-1 z-10 px-1 py-px text-[9px] font-black leading-none text-black"
+      className="absolute right-1 top-1 z-10 px-1.5 py-0.5 text-[11px] font-black leading-none text-black"
       style={{ backgroundColor: color }}
     >
-      {icon ? <PxIcon name={icon} size={13} /> : text}
+      {icon ? <PxIcon name={icon} size={15} /> : text}
     </span>
   );
 }
@@ -205,7 +209,11 @@ export const DashboardTopBar: React.FC = () => {
                 <span className="block text-[13px] font-black text-black">{level}</span>
               </span>
             </span>
-            <span className="min-w-0 flex-1">
+            {/* While the AWAY badge is up, the text block reserves
+                the badge's corner (DESIGN.md §6: adapt the host,
+                never shrink the type) so the XP readout never tucks
+                under the enlarged badge. */}
+            <span className={`min-w-0 flex-1 ${awayPending ? 'pr-12' : ''}`}>
               <span className="flex items-baseline justify-between gap-2">
                 <span className="truncate text-[11px] font-black uppercase tracking-wider text-text-muted">
                   Level Progress
