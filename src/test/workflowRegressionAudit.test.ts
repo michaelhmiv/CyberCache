@@ -36,14 +36,18 @@ describe('workflow regression audit', () => {
     expect(source).toContain("if (myListSort === 'price') return b.price - a.price;");
   });
 
-  it('Home stage secondary boss action opens boss targeting when a boss fight is staged instead of cracking caches', () => {
-    // Flow-fix F16, Wave B form: the diorama lives on Home's stage
-    // (ActionScreenContextual) now. Its secondary action during a
-    // boss fight is "Choose Boss" and fires the App-level boss
-    // chooser via onOpenBossSelect — never a cache or tab switch.
-    // (Behavioral coverage: flowScreens F16 successor test.)
+  it('Home boss selection opens a picker in place when a boss fight is staged instead of cracking caches', () => {
+    // Flow-fix F16, drift-fix F2 form: the stage no longer carries
+    // a Choose Boss door (its in-stage action bar is retired).
+    // Boss selection from a staged fight lives on the boss
+    // workspace: the encounter panel's Change Boss opens the
+    // local picker sheet, and the App-level chooser stays wired
+    // for the panels and the no-target fallback — never a cache
+    // or tab switch. (Behavioral coverage: flowScreens F16
+    // successor test.)
     const source = read('screens/ActionScreenContextual.tsx');
-    expect(source).toContain("if (currentKind === 'boss_fight') {\n      onOpenBossSelect();");
-    expect(source).toContain("currentKind === 'boss_fight' ? 'Choose Boss'");
+    expect(source).toContain('onChangeBoss={() => setShowBossPicker(true)}');
+    expect(source).toContain('openBoss: onOpenBossSelect');
+    expect(source).not.toContain("currentKind === 'boss_fight' ? 'Choose Boss'");
   });
 });

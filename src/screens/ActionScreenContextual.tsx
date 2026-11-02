@@ -21,7 +21,7 @@ import { BossEncounterPanel } from '@/components/fight/BossEncounterPanel';
 import { EndlessPanel } from '@/components/fight/EndlessPanel';
 import { ExtractionPanel } from '@/components/fight/ExtractionPanel';
 import { BossPickerList } from '@/components/fight/BossPickerList';
-import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
+import { AreaPickerList } from '@/components/common/AreaPicker';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   ActionFeed,
@@ -78,29 +78,6 @@ const ActivityGlyph: React.FC<{ kind: ActivityKind; size?: number; className?: s
   const visual = getActivityVisual(kind);
   const pxSize = size <= 14 ? 13 : size <= 21 ? 17 : size <= 33 ? 26 : 40;
   return <span className={`shrink-0 inline-flex items-center justify-center ${className}`} style={{ color: visual.color }}><PxIcon name={visual.icon} size={pxSize} /></span>;
-};
-
-const copy: Record<ActivityKind, { title: string; detail: string }> = {
-  none: { title: 'No Action', detail: 'Choose what the hunter should do next.' },
-  idle_standby: { title: 'Standby', detail: 'Hunter is visible but not producing rewards.' },
-  roaming_loot: { title: 'Roaming Loot', detail: 'Sweeping the area for XP, credits, scrap, gear, materials, and cache fragments.' },
-  boss_fight: { title: 'Boss Encounter', detail: 'Resolving a focused boss encounter instead of the roaming loop.' },
-  crafting: { title: 'Crafting', detail: 'Working at the bench to build or modify gear.' },
-  extraction: { title: 'Extraction', detail: 'Working a dig site for materials and essences — passes land every 10 minutes.' },
-  salvaging: { title: 'Salvaging', detail: 'Breaking items into scrap — instant and server-settled; pick the next item.' },
-  workshop_service: { title: 'Workshop Service', detail: 'Maintaining machines, queues, and production outputs.' },
-  market_listing: { title: 'Market Listing', detail: 'Posting or managing gear at the trade kiosk.' },
-  endless_run: { title: 'Chaos Chamber', detail: 'Descending the Endless gauntlet — escrow pays when the run ends.' },
-};
-
-const bossPrepCopy = {
-  title: 'Boss Prep',
-  detail: 'Checking weaknesses, counters, and loadout readiness before a discrete encounter.',
-};
-
-const bossResolvedCopy = {
-  title: 'Boss Encounter',
-  detail: 'The encounter is settled — review the outcome, run it back, or leave.',
 };
 
 const idleEvent: RunVisualEvent = {
@@ -268,8 +245,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   // Fractional: scrap accrues unrounded on the server and banks across
   // claims (migration 0009), so the honest preview is the raw rate.
   const scrapPerTick = parseFloat(((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0))).toFixed(2));
-  const targetLabel = activity.current.targetLabel ?? (currentKind === 'idle_standby' || currentKind === 'none' ? 'No target selected' : selectedArea.name);
-  const detail = isBossPrep ? bossPrepCopy : isBossResolved ? bossResolvedCopy : copy[currentKind] ?? copy.idle_standby;
   // Merge tick-feed events (from the canonical ticker) with lifecycle events
   // (action start/stop, cache open). The ticker is the single source of truth
   // for roaming rewards; the Action screen is a consumer, not an engine.
@@ -452,29 +427,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     }
   }, [executeSalvage, salvagePendingIds]);
 
-  // Diorama callbacks — route primary/secondary buttons to context-aware actions
-  const onDioramaPrimary = useCallback(() => {
-    if (currentKind === 'roaming_loot') {
-      setShowAreaSelect(true);
-    } else if (currentKind === 'idle_standby' || currentKind === 'none') {
-      startRoam();
-    } else if (currentKind === 'boss_fight' && prepBossTarget) {
-      startBossFight(prepBossTarget);
-    } else {
-      setShowSwitch(true);
-    }
-  }, [currentKind, startRoam, startBossFight, prepBossTarget]);
-
-  const onDioramaSecondary = useCallback(() => {
-    if (currentKind === 'boss_fight') {
-      onOpenBossSelect();
-    } else if (currentKind === 'roaming_loot') {
-      setShowAreaSelect(true);
-    } else {
-      setShowSwitch(true);
-    }
-  }, [currentKind, onOpenBossSelect]);
-
   const stopAction = useCallback(async () => {
     try {
       await activity.clear();
@@ -525,8 +477,60 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       return <ExtractionPanel onLeave={() => setShowExtraction(false)} />;
     }
 
-    // Idle/standby: no panel — the compact action selector handles starting actions.
-    if (currentKind === 'idle_standby' || currentKind === 'none') return null;
+    // Idle/standby: the Roam panel (drift-fix F2, the approved
+    // mock's anatomy) — the ONE primary action bar lives here in
+    // the workspace, not on the stage: area facts, the full-width
+    // Start Roam, and the secondary ghost row (Change Area ·
+    // Loadout n/7). Before F2 the only Start Roam door was a
+    // button bar printed over the stage art, beside a duplicate
+    // door to the Switch Action sheet.
+    if (currentKind === 'idle_standby' || currentKind === 'none') {
+      return (
+        <div data-testid="home-standby-panel" className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <PxIcon name="pin" size={17} className="shrink-0 text-amber" />
+              <div className="text-sm font-black text-text-primary">Roam — {selectedArea.name}</div>
+            </div>
+            <div className="shrink-0 text-[11px] font-bold text-text-muted">Lv {selectedArea.unlockLevel}+ · {selectedArea.dangerRating} danger</div>
+          </div>
+          {/* F2 fix: Hostiles gets the wide final track so its list
+              wraps into fewer lines at the same 11px floor, and every
+              cell centers its label/value group — the shorter facts
+              no longer sit top-weighted in boxes stretched by the
+              longest cell. */}
+          <div data-testid="home-standby-facts" className="relative mt-2 grid grid-cols-[minmax(0,0.74fr)_minmax(0,0.74fr)_minmax(0,0.92fr)_minmax(0,1.6fr)] gap-1.5 text-[11px]">
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Credits</div>
+              <div className="font-black text-cyan">+{selectedArea.idleCreditsPerMinute}/min</div>
+            </div>
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Scrap</div>
+              <div className="font-black text-green">+{selectedArea.idleScrapPerMinute}/min</div>
+            </div>
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Pays</div>
+              <div className="font-black text-amber">XP · gear</div>
+            </div>
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Hostiles</div>
+              <div className="font-black leading-[1.15] text-text-primary [text-wrap:balance]">{selectedArea.enemyType}</div>
+            </div>
+          </div>
+          <button type="button" onClick={() => startRoam()} className="bl-primary relative mt-3 w-full py-3 text-sm font-black">
+            Start Roam
+          </button>
+          <div className="relative mt-2 flex gap-2">
+            <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary min-h-[44px] flex-1 px-3 py-2 text-[11px] font-black text-amber">
+              Change Area
+            </button>
+            <button type="button" onClick={() => onNavigate?.('loadout')} className="bl-secondary min-h-[44px] flex-1 px-3 py-2 text-[11px] font-black text-amber">
+              Loadout · {equippedCount}/7
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     // Roaming: compact route status panel with key stats at a glance
     if (currentKind === 'roaming_loot') {
@@ -664,14 +668,14 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           Stage. The Switch/Stop controls row that used to lead
           this screen now sits under the mode rail (the workspace
           header zone), and the claim-sync line moved down to the
-          session feed it describes. What remains beside the stage
-          is the chip row: the current-area chip + the research
-          chip — the #239 pairing (the education track runs beside
-          the action, so its chip sits beside the area). */}
-      <div className="relative flex flex-wrap items-stretch gap-2">
-        <CurrentAreaChip onClick={() => setShowAreaSelect(true)} />
-        <ResearchChip />
-      </div>
+          session feed it describes. The one chip that remains in
+          this zone is the research chip (#239: the education track
+          runs beside the action) — the current-area bar that used
+          to share this row is gone (drift-fix F2): the area
+          affordance is the stage's own area plate now (DESIGN.md
+          §1), one slim plate on the art instead of a full-width
+          dropdown bar above it. */}
+      <ResearchChip />
       {/* Research (0038): the one-time course-complete card —
           appears on the first open after a course settles
           (renders null otherwise). */}
@@ -682,34 +686,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         area={selectedArea}
         weapon={activityWeapon}
         bossName={prepBossTarget?.name}
-        bossWeaknessCount={currentBoss?.weaknesses.length ?? 0}
         boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : undefined}
         playerLevel={player.level}
         equippedCount={equippedCount}
-        cacheKeys={player.cacheKeys}
         activityKind={currentKind}
-        activityLabel={detail.title}
-        activityTarget={targetLabel}
-        onFight={onDioramaPrimary}
-        onSecondary={onDioramaSecondary}
         onTitleClick={() => setShowAreaSelect(true)}
-        primaryActionLabel={
-          currentKind === 'idle_standby' || currentKind === 'none' ? 'Start Roam'
-          : currentKind === 'roaming_loot' ? 'Change Area'
-          : isBossPrep ? 'Start Fight'
-          : 'Manage'
-        }
-        secondaryActionLabel={
-          currentKind === 'boss_fight' ? 'Choose Boss'
-          : currentKind === 'roaming_loot' ? 'Change Area'
-          // QC C1: this door opens the same sheet as the controls
-          // row's "Switch Action" button — two identical labels in
-          // one stage zone read as a duplicated header. The diorama
-          // door is named for what it shows (the full action menu);
-          // "Switch Action" prints once, on the controls-row button
-          // and the sheet it opens.
-          : 'All Actions'
-        }
       />
 
       {/* 1b. Mode rail (§2/§4) — the stage's six stops under the

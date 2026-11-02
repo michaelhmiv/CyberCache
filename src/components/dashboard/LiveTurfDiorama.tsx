@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
 import {
@@ -60,29 +59,18 @@ interface LiveTurfDioramaProps {
   area: RoamingAreaDef;
   weapon?: Weapon;
   bossName?: string;
-  bossWeaknessCount?: number;
   boss?: BossDef;
   playerLevel: number;
   equippedCount: number;
-  cacheKeys: number;
   activityKind?: ActivityKind;
   bossPhase?: BossPhase;
-  activityLabel?: string;
-  activityTarget?: string | null;
   statSummary?: CharacterStatSummary;
-  onFight: () => void;
-  onSecondary: () => void;
   onTitleClick?: () => void;
-  primaryActionLabel?: string;
-  primaryActionDetail?: string;
-  secondaryActionLabel?: string;
-  secondaryActionDetail?: string;
 }
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 const safeSvgId = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '');
-const enemyLabel = (area: RoamingAreaDef, bossName?: string) => bossName ?? area.enemyType.split(',')[0] ?? 'Target contact';
 const isImpact = (event?: LiveTurfFeedEvent): event is LiveTurfFeedEvent => !!event && event.id !== 'idle-loop-ready';
 const isLootLike = (event: LiveTurfFeedEvent | undefined): boolean => {
   if (!isImpact(event)) return false;
@@ -99,15 +87,15 @@ const modeFromActivity = (kind?: ActivityKind, bossPhase?: BossPhase): DioramaMo
   return 'idle';
 };
 
-const modeInfo: Record<DioramaMode, { label: string; caption: string; status: string }> = {
-  idle: { label: 'Standby', caption: 'at camp, ready to move', status: 'READY' },
-  roaming: { label: 'Roaming', caption: 'scanning turf for real drops', status: 'ROUTE' },
-  bossPrep: { label: 'Boss prep', caption: 'checking counters and gear tape', status: 'PREP' },
-  bossFight: { label: 'Boss fight', caption: 'resolving boss encounter', status: 'FIGHT' },
-  crafting: { label: 'Crafting', caption: 'bench dispatch in progress', status: 'BENCH' },
-  salvaging: { label: 'Salvaging', caption: 'gear broken into scrap', status: 'SCRAP' },
-  workshopService: { label: 'Workshop', caption: 'servicing queued machines', status: 'SHOP' },
-  marketListing: { label: 'Market', caption: 'working the trade kiosk', status: 'TRADE' },
+const modeInfo: Record<DioramaMode, { label: string; caption: string }> = {
+  idle: { label: 'Standby', caption: 'at camp, ready to move' },
+  roaming: { label: 'Roaming', caption: 'scanning turf for real drops' },
+  bossPrep: { label: 'Boss prep', caption: 'checking counters and gear tape' },
+  bossFight: { label: 'Boss fight', caption: 'resolving boss encounter' },
+  crafting: { label: 'Crafting', caption: 'bench dispatch in progress' },
+  salvaging: { label: 'Salvaging', caption: 'gear broken into scrap' },
+  workshopService: { label: 'Workshop', caption: 'servicing queued machines' },
+  marketListing: { label: 'Market', caption: 'working the trade kiosk' },
 };
 
 // ── Drop visual helpers ──────────────────────────────────────────────────────────
@@ -572,7 +560,7 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ a
   return (
     <div className="pointer-events-none absolute right-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="primary-diorama-target-hp">
       <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
-        <span className="truncate">{targetName}</span>
+        <span className="min-w-0 break-words">{targetName}</span>
         <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
       </div>
       <div className="h-2 w-full overflow-hidden border border-border bg-surface">
@@ -605,7 +593,7 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; reduced?: 
   return (
     <div className="pointer-events-none absolute right-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="primary-diorama-boss-hp">
       <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
-        <span className="truncate">{bossName}</span>
+        <span className="min-w-0 break-words">{bossName}</span>
         <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
       </div>
       <GhostHpBar pct={ratio * 100} color={accentColor} reduced={reduced} barClassName="h-2" testId="diorama-boss-hp-bar" />
@@ -1171,7 +1159,7 @@ const PixelSceneLayer: React.FC<{
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, bossWeaknessCount = 0, playerLevel: _playerLevel, equippedCount, cacheKeys, activityKind = 'idle_standby', bossPhase, activityLabel, activityTarget, onFight, onSecondary, onTitleClick, primaryActionLabel, primaryActionDetail, secondaryActionLabel, secondaryActionDetail }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, onTitleClick }) => {
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the SVG fight can react.
@@ -1190,15 +1178,32 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const projectile = ELEMENT_PROJECTILE[element];
   const eventActive = isImpact(latestEvent);
   const dropItem = gearDropFromEvent(latestEvent);
-  const title = activityTarget || bossName || area.name;
   const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : 'No weapon equipped';
-  const motionCaption = latestEvent ? `${latestEvent.label} ${latestEvent.detail}` : copy.caption;
-  const targetMode = latestEvent ? 'event' : copy.status;
-  const primaryLabel = primaryActionLabel ?? (activityKind === 'roaming_loot' ? 'View run' : activityKind === 'idle_standby' || activityKind === 'none' ? 'Start Roam' : 'Manage action');
-  const primaryDetail = primaryActionDetail ?? (activityKind === 'roaming_loot' ? area.enemyType : copy.caption);
-  const secondaryLabel = secondaryActionLabel ?? (bossName ? 'Prep boss' : 'Switch');
-  const secondaryDetail = secondaryActionDetail ?? (bossName ? `${bossWeaknessCount} weakness tags` : `${cacheKeys} keys ready`);
-  const titleBlock = <div className="min-w-0 border-2 border-border bg-surface/90 px-2 py-1.5 text-left shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="flex items-center gap-1"><div className="min-w-0 flex-1"><div className="bl-title break-words text-2xl leading-tight text-text-primary">{title}</div><div className="text-[11px] font-black uppercase leading-snug tracking-[0.18em] text-text-muted">{activityLabel || copy.caption}</div></div>{onTitleClick && <ChevronDown size={16} className="shrink-0 text-amber animate-bounce" />}</div></div>;
+  // Stage furniture (DESIGN.md §1, drift-fix F2): the Stage carries
+  // exactly three things — one area/target plate, one count plate,
+  // and ONE status ribbon along its bottom edge. The plate is the
+  // area plate (the area picker's stage opener); while a boss
+  // target is live it becomes the target plate. There is no
+  // headline title: the old plate printed the activity target at
+  // poster size, ellipsized long names, and repeated the mode word
+  // the ribbon also carried. The state prints ONCE, in the ribbon:
+  // the mode label + the latest event line, or the mode caption
+  // with the weapon state folded in.
+  const plateIsTarget = (mode === 'bossPrep' || mode === 'bossFight') && !!bossName;
+  const plateName = plateIsTarget ? (bossName as string) : area.name;
+  const ribbonLine = latestEvent
+    ? `${latestEvent.label} ${latestEvent.detail}`
+    : `${copy.caption} · ${weaponLabel}`;
+  const plateBlock = (
+    <div data-testid="diorama-stage-plate" className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 text-left shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>
+      <PxIcon name="pin" size={13} className="shrink-0 text-amber" />
+      <span className="min-w-0 break-words text-[12px] font-black leading-snug text-text-primary">
+        <span className="text-text-muted">{plateIsTarget ? 'Target · ' : 'Area · '}</span>
+        <span className={plateIsTarget ? 'text-red' : 'text-amber'}>{plateName}</span>
+      </span>
+      {onTitleClick && <PxIcon name="chevD" size={13} className="shrink-0 text-amber" />}
+    </div>
+  );
 
   // Enemy center position (where the archetype center is)
   const enemyX = 320;
@@ -1261,7 +1266,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           sprites or run under the count plate (Wave C alignment
           fix; the scene itself is untouched). */}
       <div className="absolute inset-x-2 top-2 z-20 flex items-start justify-between gap-2">
-        {onTitleClick ? <button type="button" onClick={onTitleClick} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{titleBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{titleBlock}</div>}
+        {onTitleClick ? <button type="button" onClick={onTitleClick} aria-label={plateIsTarget ? `Target: ${plateName}. Tap to change area.` : `Area: ${plateName}. Tap to change area.`} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{plateBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{plateBlock}</div>}
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
       </div>
       {!pixelBackgroundId && weapon ? (
@@ -1281,8 +1286,16 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           Unarmed
         </div>
       ) : null}
-      <div className="pointer-events-none absolute bottom-[82px] left-2 right-2 z-20 grid grid-cols-[1fr_auto] gap-2"><div className="min-w-0 border-2 border-border bg-bg/88 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="truncate text-[11px] font-black uppercase leading-snug tracking-wide text-text-primary">{weaponLabel}</div><div className="truncate text-[11px] leading-snug text-text-muted">{motionCaption}</div></div><div className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>{latestEvent ? <PxIcon name="star" size={13} className="text-amber" /> : <PxIcon name="rings" size={13} className="text-red" />}<div><div className="text-[11px] font-black uppercase tracking-wide text-text-muted">{targetMode}</div><div className="max-w-[92px] truncate text-[11px] font-black text-red">{latestEvent ? latestEvent.tone : enemyLabel(area, bossName)}</div></div></div></div>
-      <div className="absolute bottom-0 left-0 right-0 z-20 grid grid-cols-2 border-t-2 border-border bg-surface/95 text-[11px]"><button type="button" onClick={onFight} className="flex items-center justify-between gap-2 border-r border-border px-3 py-2 text-left active:bg-red/10"><span><span className="block font-black uppercase tracking-wide text-red">{primaryLabel}</span><span className="block leading-snug text-text-muted">{primaryDetail}</span></span><span className="inline-flex shrink-0 text-red"><PxIcon name="rings" size={13} className="text-red" /></span></button><button type="button" onClick={onSecondary} className="flex items-center justify-between gap-2 px-3 py-2 text-left active:bg-amber/10"><span><span className="block font-black uppercase tracking-wide text-amber">{secondaryLabel}</span><span className="block leading-snug text-text-muted">{secondaryDetail}</span></span>{secondaryActionLabel ? <ChevronDown size={14} className="shrink-0 text-amber" /> : <span className="inline-flex shrink-0 text-amber"><PxIcon name="grid" size={13} /></span>}</button></div>
+      {/* The ONE status ribbon (DESIGN.md §1) along the stage's
+          bottom edge — the mode prints here and nowhere else on
+          the stage. The in-stage action bar and the floating
+          weapon/event cards that used to cover the art are gone
+          (drift-fix F2): the mode's actions live in the workspace
+          directly under the stage, where the mode rail put them. */}
+      <div data-testid="diorama-status-ribbon" className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t-2 border-border bg-surface/95 px-2 py-1.5">
+        <span className="shrink-0 border border-border bg-bg px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">{copy.label}</span>
+        <span className="min-w-0 flex-1 break-words text-[11px] leading-snug text-text-muted">{ribbonLine}</span>
+      </div>
     </section>
   );
 };

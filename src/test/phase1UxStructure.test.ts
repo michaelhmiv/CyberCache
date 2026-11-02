@@ -122,9 +122,11 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
 
   it('both area entry points render the shared AreaPickerList', () => {
     // Wave C: there is ONE area picker sheet — the stage's. Its
-    // doors are the stage's area chip, the mode rail's Area stop,
-    // and the diorama; the deck's old second picker is gone (the
-    // anti-duplication intent: one picker implementation).
+    // doors are the stage's area plate (drift-fix F2; the chip
+    // before it), the mode rail's Area stop, and the workspace
+    // panels' Change Area buttons; the deck's old second picker
+    // is gone (the anti-duplication intent: one picker
+    // implementation).
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     expect(action).toContain('<AreaPickerList');
     const dashboard = readSource('src/components/dashboard/DashboardDeck.tsx');
@@ -133,12 +135,18 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
     expect(action).not.toContain('const RouteCard');
   });
 
-  it('the persistent current-area chip lives on the stage, exactly once', () => {
-    // Wave C (§4): the chip row sits beside the stage (area chip +
-    // research chip). The deck's duplicate chip is removed — one
-    // chip, on the stage surface.
-    expect(readSource('src/screens/ActionScreenContextual.tsx')).toContain('<CurrentAreaChip');
+  it('the persistent current-area read lives on the stage plate, exactly once', () => {
+    // Wave C (§4): the chip row sat beside the stage (area chip +
+    // research chip). Drift-fix F2: the area read folds into the
+    // stage's own slim plate — the diorama's stage plate, fed by
+    // onTitleClick — so the current-area door is ON the stage
+    // surface, exactly once, with no separate chip row. The deck
+    // never carried one.
+    const action = readSource('src/screens/ActionScreenContextual.tsx');
+    expect(action).toContain('onTitleClick={() => setShowAreaSelect(true)}');
+    expect(action).not.toContain('<CurrentAreaChip');
     expect(readSource('src/components/dashboard/DashboardDeck.tsx')).not.toContain('<CurrentAreaChip');
+    expect(readSource('src/components/dashboard/LiveTurfDiorama.tsx')).toContain('diorama-stage-plate');
   });
 });
 

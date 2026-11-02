@@ -90,6 +90,7 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
 }));
 
 import { HomeScreen } from '@/screens/HomeScreen';
+import { IDLE_ACTIVITY } from '@/types/activity';
 import { getStandingState, standingBuy } from '@/lib/chef/chefClient';
 import { usePlayerStore } from '@/store';
 import { useActivityStore } from '@/store/slices/activitySlice';
@@ -208,6 +209,58 @@ describe('Home composition — mode rail (§2/§4)', () => {
     // The lit workspace is the Craft panel (its Workshop door).
     expect(await screen.findByRole('button', { name: 'Open Workshop' })).toBeTruthy();
     expect(screen.getByTestId('mode-rail-craft').getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
+describe('Home composition — stage furniture + standby panel (drift-fix F2)', () => {
+  beforeEach(() => {
+    // The rail tests above leave the activity store in the Craft
+    // mode they last opened; F2's standby assertions start from a
+    // genuinely idle hunter.
+    useActivityStore.setState({ current: IDLE_ACTIVITY, hydrated: true, pending: false, error: null });
+  });
+
+  it('the stage carries the slim area plate + one status ribbon; the state prints once and no headline ellipsizes it', async () => {
+    render(<HomeScreen onNavigate={() => {}} />);
+    const plate = await screen.findByTestId('diorama-stage-plate');
+    expect(plate.textContent).toContain('Area · ');
+    expect(plate.textContent).toContain('Dustwaste Frontier');
+    const ribbon = screen.getByTestId('diorama-status-ribbon');
+    expect(ribbon.textContent).toContain('Standby');
+    expect(ribbon.textContent).toContain('No weapon equipped');
+    // The duplicated-STANDBY / truncated-headline defects, closed:
+    // the mode word prints exactly once on the whole screen, and
+    // the old poster headline ("No target selected") is gone.
+    expect(screen.getAllByText('Standby')).toHaveLength(1);
+    expect(screen.queryByText('No target selected')).toBeNull();
+  });
+
+  it('standby workspace is the Roam panel: facts, the one Start Roam bar, and the Change Area · Loadout ghost row', async () => {
+    const onNavigate = vi.fn();
+    render(<HomeScreen onNavigate={onNavigate} />);
+    const panel = await screen.findByTestId('home-standby-panel');
+    expect(panel.textContent).toContain('Roam — Dustwaste Frontier');
+    expect(panel.textContent).toContain('+15/min');
+    expect(panel.textContent).toContain('XP · gear');
+    // F2 fix pin: the fact band gives Hostiles the wide final
+    // track (fewer wrapped lines at the 11px floor) and centers
+    // every label/value group, so the shorter facts do not sit
+    // top-weighted in boxes stretched by the longest cell.
+    const facts = within(panel).getByTestId('home-standby-facts');
+    expect(facts.className).toContain('grid-cols-[minmax(0,0.74fr)_minmax(0,0.74fr)_minmax(0,0.92fr)_minmax(0,1.6fr)]');
+    expect(facts.children).toHaveLength(4);
+    for (const cell of facts.children) {
+      expect(cell.className).toContain('flex');
+      expect(cell.className).toContain('flex-col');
+      expect(cell.className).toContain('items-center');
+      expect(cell.className).toContain('justify-center');
+    }
+    expect(facts.textContent).toContain('Raiders, scrap drones, and scavengers');
+    // Exactly one Start Roam on the screen — the workspace bar
+    // (the stage no longer carries a duplicate over the art).
+    expect(screen.getAllByText('Start Roam')).toHaveLength(1);
+    fireEvent.click(within(panel).getByText('Loadout · 0/7'));
+    expect(onNavigate).toHaveBeenCalledWith('loadout');
   });
 });
 

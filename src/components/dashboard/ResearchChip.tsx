@@ -55,7 +55,7 @@ export const ResearchChip: React.FC = () => {
         <span className="block text-[11px] font-black uppercase tracking-wide text-text-primary">
           {active.courseName}
         </span>
-        <span className="block text-[9px] text-text-muted">
+        <span className="block text-[11px] text-text-muted">
           {formatResearchRemaining(active.remainingMs)} · studying
         </span>
       </span>

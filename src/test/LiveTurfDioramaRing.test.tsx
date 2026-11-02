@@ -15,10 +15,10 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
         weapon={weapon}
         playerLevel={5}
         equippedCount={3}
-        cacheKeys={0}
+       
         activityKind="roaming_loot"
-        onFight={() => {}}
-        onSecondary={() => {}}
+       
+       
       />
     );
     // The consumable ring and stat bar are now in DashboardScreen, not the diorama
@@ -26,8 +26,14 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
     expect(screen.queryByTestId('hunter-totals-bar')).not.toBeInTheDocument();
     // Diorama still renders its core SVG scene (at least one role="img")
     expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(1);
-    // Bottom action buttons still render
-    expect(screen.getAllByRole('button').length).toBeGreaterThanOrEqual(2);
+    // Drift-fix F2: the stage is visualization-only — the in-stage
+    // action bar is gone (the mode's actions live in the workspace
+    // under the stage). With no title-click opener wired, the
+    // stage renders no buttons at all; its furniture is the area
+    // plate + the status ribbon (DESIGN.md §1).
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.getByTestId('diorama-stage-plate')).toBeTruthy();
+    expect(screen.getByTestId('diorama-status-ribbon')).toBeTruthy();
   });
 
   it('renders the SVG scene cleanly with crafting activityKind (no stat bar inside)', () => {
@@ -37,17 +43,18 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
         weapon={weapon}
         playerLevel={5}
         equippedCount={3}
-        cacheKeys={0}
+       
         activityKind="crafting"
-        onFight={() => {}}
-        onSecondary={() => {}}
+       
+       
       />
     );
     // crafting metrics now live in DashboardScreen — not inside the diorama
     expect(screen.queryByTestId('hud-metric-craftingSpeed')).not.toBeInTheDocument();
     // Diorama still renders its core SVG scene
     expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(1);
-    // Bottom action buttons still render (2 buttons)
-    expect(screen.getAllByRole('button').length).toBeGreaterThanOrEqual(2);
+    // No in-stage action bar in any mode (drift-fix F2).
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.getByTestId('diorama-status-ribbon').textContent).toContain('Crafting');
   });
 });

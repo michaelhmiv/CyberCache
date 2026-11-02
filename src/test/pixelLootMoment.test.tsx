@@ -228,9 +228,9 @@ describe('LootMoment — diorama wiring (real tick drops)', () => {
         activityKind="roaming_loot"
         playerLevel={5}
         equippedCount={3}
-        cacheKeys={1}
-        onFight={() => {}}
-        onSecondary={() => {}}
+       
+       
+       
       />,
     );
 
