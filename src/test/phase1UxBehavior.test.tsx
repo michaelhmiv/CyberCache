@@ -189,8 +189,10 @@ describe('Phase 1 — one gear home', () => {
 
     render(<InventoryScreen onNavigate={vi.fn()} />);
 
-    // Open the shield's inspect sheet from the Gear tab.
-    fireEvent.click(screen.getByText('Aegis Plate'));
+    // Wave D: items live on the Grid rail stop — open it, then the
+    // shield's inspect sheet.
+    fireEvent.click(screen.getByTestId('gear-stop-grid'));
+    fireEvent.click(await screen.findByText('Aegis Plate'));
     const equipAction = await screen.findByRole('button', { name: /Equip/ });
     fireEvent.click(equipAction);
 

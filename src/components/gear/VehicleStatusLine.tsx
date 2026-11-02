@@ -43,7 +43,7 @@ export const VehicleStatusLine: React.FC<{ onOpenGarage?: () => void }> = ({ onO
   if (!equipped) {
     return (
       <div data-testid="vehicle-status" className="flex items-center justify-between gap-2 border border-border/60 bg-surface/80 px-2 py-1.5 text-[11px] text-text-muted">
-        <span className="inline-flex items-center gap-1"><PxIcon name="person" size={13} /> On foot — no vehicle equipped, roaming at ×1.00. Equip one in the Garage (Loadout tab).</span>
+        <span className="inline-flex items-center gap-1"><PxIcon name="person" size={13} /> On foot — no vehicle equipped, roaming at ×1.00. Equip one in the Garage (Gear tab, Garage stop).</span>
         {garageButton}
       </div>
     );

@@ -15,10 +15,15 @@
  *    line), never the tank.
  *  UX-06 — the Garage was an unlabeled-feeling section buried in
  *    the Loadout scroll while the banner directed players to "the
- *    Garage" by name. Fixed: the section carries the labeled
+ *    Garage" by name. Fixed then: the section carried the labeled
  *    #garage-panel anchor, and the banner's "Open Garage" door
- *    navigates through the shipped tab intent (App 'garage' →
+ *    navigated through the shipped tab intent (App 'garage' →
  *    Inventory loadout tab + anchor seq → scroll into view).
+ *    Superseded by redesign Wave D (DESIGN.md §11 F1): the Garage
+ *    is now a Gear rail stop in its own right, and the same door's
+ *    intent names the stop (App 'garage' → Inventory { tab:
+ *    'garage' } → Garage stop mounted, no scroll needed). The
+ *    tests below pin the new threading.
  *  UX-08 — refueling confirmed nothing, and "Load all" stayed
  *    disabled with exactly 1 cell owned. Fixed: a vendor-pattern
  *    notice ("Loaded N cell(s) — tank at X units.") read back from
@@ -36,7 +41,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DropSource, Rarity } from '@/types/game';
 import { useLoadoutStore, usePlayerStore } from '@/store';
@@ -45,7 +50,7 @@ import { verifiedOps } from '@/lib/api/verifiedOps';
 import type { ChefVehicleStatus } from '@/lib/chef/chefClient';
 import { VehicleStatusLine } from '@/components/gear/VehicleStatusLine';
 import { GaragePanel } from '@/components/gear/GaragePanel';
-import { SyncedLoadoutScreen } from '@/screens/SyncedLoadoutScreen';
+import { InventoryScreen } from '@/screens/InventoryScreen';
 
 vi.mock('@/lib/api/verifiedOps', () => ({
   verifiedOps: {
@@ -220,7 +225,7 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the banner
     expect(onOpenGarage).toHaveBeenCalledTimes(1);
   });
 
-  it('the Garage section is labeled and carries the scroll anchor', () => {
+  it('the Garage panel is labeled and carries its panel anchor', () => {
     render(<GaragePanel />);
     const section = document.getElementById('garage-panel');
     expect(section).toBeTruthy();
@@ -228,41 +233,29 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the banner
     expect(screen.getByText('Garage')).toBeTruthy();
   });
 
-  it('the Loadout tab scrolls the Garage into view on a garage intent seq', async () => {
-    const scrollSpy = vi.fn(function (this: Element) { return this; });
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollSpy as unknown as typeof Element.prototype.scrollIntoView;
-    try {
-      render(<SyncedLoadoutScreen focusGarageSeq={7} />);
-      await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
-      const target = (scrollSpy.mock.instances[0] as unknown as Element);
-      expect(target.id).toBe('garage-panel');
-    } finally {
-      Element.prototype.scrollIntoView = original;
-    }
+  it('a garage intent opens the gear home ON the Garage stop (Wave D: a stop, not a scroll)', async () => {
+    render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'garage', seq: 7 }} />);
+    // The Garage stop is mounted and lit — no Loadout, no scrolling.
+    expect(await screen.findByTestId('garage-panel')).toBeTruthy();
+    expect(screen.getByTestId('gear-stop-garage').getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByText(/Your seven gear slots/)).toBeNull();
   });
 
-  it('without a garage intent the Loadout tab does not scroll', async () => {
-    const scrollSpy = vi.fn();
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollSpy as unknown as typeof Element.prototype.scrollIntoView;
-    try {
-      render(<SyncedLoadoutScreen focusGarageSeq={null} />);
-      // Give any (buggy) effect a chance to fire.
-      await new Promise((r) => setTimeout(r, 50));
-      expect(scrollSpy).not.toHaveBeenCalled();
-    } finally {
-      Element.prototype.scrollIntoView = original;
-    }
+  it('without a garage intent the gear home opens on Loadout and the Garage is not mounted', async () => {
+    render(<InventoryScreen onNavigate={vi.fn()} />);
+    expect(await screen.findByText(/Your seven gear slots/)).toBeTruthy();
+    expect(screen.queryByTestId('garage-panel')).toBeNull();
+    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('the navigation threading is wired App → Inventory → Loadout (structural pin)', () => {
+  it('the navigation threading is wired App → Inventory → Garage stop (structural pin)', () => {
     const readSource = (rel: string) => readFileSync(resolve(__dirname, '../..', rel), 'utf8');
     const app = readSource('src/App.tsx');
     expect(app).toContain("screen === 'garage'");
-    expect(app).toContain("anchor: 'garage'");
+    expect(app).toContain("setInventoryTabIntent({ tab: 'garage'");
     const inventory = readSource('src/screens/InventoryScreen.tsx');
-    expect(inventory).toContain("tabIntent?.anchor === 'garage' ? tabIntent.seq : null");
+    expect(inventory).toContain("tabIntent?.tab ?? 'loadout'");
+    expect(inventory).toContain('setActiveStop(tabIntent.tab)');
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     expect(action).toContain("onOpenGarage={() => onNavigate?.('garage')}");
   });

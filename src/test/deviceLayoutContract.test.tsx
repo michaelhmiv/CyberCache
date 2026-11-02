@@ -207,10 +207,15 @@ describe('layout contract — swept surfaces (source shape)', () => {
     expect(market).not.toContain("{ id: 'history', label: 'History', px");
   });
 
-  it('Inventory summary tiles and the loadout resource row use the bounded formatter', () => {
+  it('the Gear tab prints the wallet once (the Strip); the loadout resource row uses the bounded formatter', () => {
     const inventory = read('src/screens/InventoryScreen.tsx');
-    expect(inventory).toContain('compactResourceValue(player.credits)');
-    expect(inventory).not.toContain('player.credits.toLocaleString()');
+    // Wave D removed the summary tiles: the Cash tile re-printed
+    // credits/scrap directly under the Strip (DESIGN.md §1 — the
+    // wallet prints exactly once anywhere in the app). The gear
+    // home's own chrome now formats no wallet values at all.
+    expect(inventory).toContain('<ResourceBar');
+    expect(inventory).not.toContain('compactResourceValue');
+    expect(inventory).not.toContain('player.credits');
     const loadout = read('src/components/action/ActionLoadout.tsx');
     expect(loadout).toContain('compactResourceValue(player.credits)');
     expect(loadout).toContain('compactResourceValue(player.scrap)');

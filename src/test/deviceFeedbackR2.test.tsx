@@ -250,9 +250,9 @@ describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
 
     render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'loadout', seq: 1 }} />);
 
-    // The Loadout tab mounted (not the Gear list).
+    // The Loadout stop mounted (not the item grid).
     await screen.findByText(/Your seven gear slots/);
-    expect(screen.queryByText('Cache Inventory')).toBeNull();
+    expect(screen.queryByText('Item Grid')).toBeNull();
 
     // Slots are visible and tappable on arrival; the picker opens.
     fireEvent.click(slotChip('Primary'));
@@ -271,11 +271,12 @@ describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
     expect(panel.contains(toast)).toBe(false);
   });
 
-  it('without an intent the gear home still opens on the Gear tab', async () => {
+  it('without an intent the gear home opens on the Loadout stop (Wave D: the rail’s first stop)', async () => {
     useInventoryStore.setState({ items: [makeWeapon('w-gear', 'Gear Pistol')] });
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    await screen.findByText('Cache Inventory');
-    expect(screen.queryByText(/Your seven gear slots/)).toBeNull();
+    await screen.findByText(/Your seven gear slots/);
+    expect(screen.queryByText('Item Grid')).toBeNull();
+    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
   });
 
   it('the doors themselves carry the loadout intent (wiring)', () => {
@@ -378,7 +379,10 @@ describe('device r2 — equipping through the Slot Picker, every slot kind', () 
     const relic = makeRelic('r-door', 'Door Relic');
     useInventoryStore.setState({ items: [relic] });
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByText('Door Relic'));
+    // Wave D: the grid is its own rail stop — the player path to an
+    // item card starts there (the gear home opens on Loadout).
+    fireEvent.click(screen.getByTestId('gear-stop-grid'));
+    fireEvent.click(await screen.findByText('Door Relic'));
     const equipAction = await screen.findByRole('button', { name: /Equip/ });
     fireEvent.click(equipAction);
     await screen.findByText(/Your seven gear slots/);
