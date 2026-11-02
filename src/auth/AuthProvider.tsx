@@ -7,6 +7,7 @@ import { ensureInitialBundle, isInitialBundleClaimed } from '../lib/api/initialB
 import { useInitialBundleRevealStore } from '../store/slices/initialBundleRevealSlice';
 import { usePushPrimerStore } from '../store/slices/pushPrimerSlice';
 import { useLoginStreakStore } from '../store/slices/loginStreakSlice';
+import { useCosmeticsStore } from '../store/slices/cosmeticsSlice';
 import { useContractsStore } from '../store/slices/contractsSlice';
 import { useStandingStore } from '../store/slices/standingSlice';
 import { syncRuntimeItemsForUser } from '../lib/api/runtimeStateService';
@@ -68,6 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // or contracts board (their loads are once-per-session).
     useLoginStreakStore.getState().reset();
     useContractsStore.getState().reset();
+    // The cosmetics view is account-scoped the same way (0053).
+    useCosmeticsStore.getState().reset();
     // Wave C: the standing mirror behind Home's weekly claimables
     // is account-scoped for the same reason.
     useStandingStore.getState().reset();

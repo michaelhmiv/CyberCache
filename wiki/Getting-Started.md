@@ -6,7 +6,7 @@ You can start playing **instantly as a guest** — no account, no sign-in wall, 
 
 When you're ready, sign in with **Google** from the sign-in screen. There is no password form anywhere in the app, and sign-in is never through Play Games Services.
 
-Signing in **upgrades your guest account in place**: you keep the same account, the same hunter, and every credit, item, and streak day you earned as a guest. Nothing restarts and nothing is transferred — the account simply gains a Google identity, which also lets you pick the hunter up on another device.
+Signing in **upgrades your guest account in place**: you keep the same account, the same hunter, and every credit, item, and streak day you earned as a guest. Nothing restarts and nothing is transferred — the account simply gains a Google identity, which also lets you pick the hunter up on another device. Everything account-shaped — including your [[Skins-and-Cosmetics|wardrobe]] of skin parts and the look you have equipped — belongs to the account and loads fresh for whoever is signed in.
 
 ## The starter bundle
 

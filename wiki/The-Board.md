@@ -38,6 +38,8 @@ The weapon in your hunter's hands is always the exact weapon you have equipped �
 
 Your equipped gear is worn the same way — mounted on the figure itself, moving as he moves. Your shield projects from his support arm as its own behavior glyph (the starburst, ward, and so on), tinted by its element; your relic hangs at his chest framed by its rarity; the pauldron on his shoulder wears your class mod's tree; and the consumables slotted for the fight ride his belt. Swap any piece and the figure on the stage is wearing the new one — unequip it and that read is simply gone.
 
+Under the gear, the figure itself is dressed by your [[Skins-and-Cosmetics|skin parts]]: wear a crafted part and it replaces the matching piece of the standard suit on the stage, in the boss arena, everywhere your hunter appears. Parts are pure looks — the stage hunter fights exactly as hard in a shaped Bulwark set as in the stock suit.
+
 At the stage's top edge sits the **area plate** — your current area's name (or your boss target's, while a target is live) — tap it to open the area picker and change where roaming happens. If you are enrolled in a [[Progression|Research]] course, its chip sits just above the stage, because research runs alongside your action rather than replacing it.
 
 ## The mode rail

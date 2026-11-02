@@ -26,7 +26,7 @@ Everything is server-authoritative: the game server resolves every tick, drop, a
 ## Systems
 
 - [[Combat]] · [[Bosses]] · [[Endless Mode]]
-- [[Gear]] · [[Legendary Effects]] · [[Vehicles and the Garage]] · [[Crafting]]
+- [[Gear]] · [[Legendary Effects]] · [[Vehicles and the Garage]] · [[Crafting]] · [[Skins and Cosmetics]]
 - [[The Market]] · [[Vendor]] · [[Repair Board]] · [[Shield-Tech]] · [[Manufacturer Standing]]
 - [[Slots]] · [[Caches]]
 - [[Progression]] · [[Collections]] · [[Leaderboards and Streaks]] · [[Economy]]

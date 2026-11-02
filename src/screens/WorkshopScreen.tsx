@@ -3,6 +3,7 @@ import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X, Lock } from 'lucide-react';
 import { useActivityStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
+import { TintPanel } from '@/components/workshop/TintPanel';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
 import { MaterialUsageSheet } from '@/components/common/MaterialUsageSheet';
@@ -62,10 +63,13 @@ const CATEGORIES: Array<{ key: CraftRecipe['category']; label: string }> = [
   { key: 'utility', label: 'Utility' },
   { key: 'refining', label: 'Refining' },
   { key: 'gear', label: 'Gear Frames' },
+  { key: 'cosmetics', label: 'Skin Parts' },
   { key: 'tools', label: 'Tools' },
 ];
 
 const MATERIAL_COLORS: Record<string, string> = {
+  Scrap: 'text-orange-400',
+  Chromaweave: 'text-pink-300',
   ScrapAlloy: 'text-gray-400',
   BallisticParts: 'text-red-400',
   ReactiveComponents: 'text-blue-400',
@@ -79,6 +83,8 @@ const MATERIAL_COLORS: Record<string, string> = {
 };
 
 const MATERIAL_ICONS: Record<string, PxIconName> = {
+  Scrap: 'scrap',
+  Chromaweave: 'swirl',
   ScrapAlloy: 'scrap',
   BallisticParts: 'gun',
   ReactiveComponents: 'bolt',
@@ -297,7 +303,9 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
     setSortKey,
     hasActiveFilters,
   } = useFilterSort({
-    items: ALL_CRAFT_RECIPES,
+    // The tint craft is enqueued only by the TintPanel (it targets
+    // an owned part) — never through the generic recipe list.
+    items: ALL_CRAFT_RECIPES.filter((r) => !r.tintCraft),
     searchFields: [(r: CraftRecipe) => r.name],
     facets: [
       {
@@ -576,6 +584,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
               recipe={recipe}
               playerLevel={player.level}
               credits={player.credits}
+              scrap={player.scrap}
               materials={player.materials}
               essences={player.essences}
               consumables={player.consumables}
@@ -588,6 +597,8 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           ))
         )}
       </div>
+
+      <TintPanel />
 
       <MaterialUsageSheet materialId={usageMaterialId} onClose={() => setUsageMaterialId(null)} />
     </div>
@@ -619,7 +630,7 @@ const JobCard: React.FC<{
     : null;
   const eats = recipe
     ? Object.entries(recipe.inputs)
-        .map(([key, per]) => `${per * remainingUnits} ${getVisualAsset('material', key).label}`)
+        .map(([key, per]) => `${per * remainingUnits} ${key === 'Scrap' ? 'Scrap' : getVisualAsset('material', key).label}`)
         .join(' + ')
     : '';
   const progressPct = Math.min(
@@ -754,6 +765,7 @@ const RecipeCard: React.FC<{
   recipe: CraftRecipe;
   playerLevel: number;
   credits: number;
+  scrap: number;
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
@@ -769,7 +781,7 @@ const RecipeCard: React.FC<{
     useCatalyst?: boolean;
     useRushTicket?: boolean;
   }) => Promise<boolean>;
-}> = ({ recipe, playerLevel, materials, essences, consumables, benchesOwned, masteries, jobsOnBench, standingRanks, onEnqueue }) => {
+}> = ({ recipe, playerLevel, scrap, materials, essences, consumables, benchesOwned, masteries, jobsOnBench, standingRanks, onEnqueue }) => {
   const isGear = recipe.kind === 'gear';
   const [rarity, setRarity] = useState<string>('Common');
   const requiredBenchForRarity = isGear ? gearRarityRequiresBench(rarity as Rarity) : 1;
@@ -805,7 +817,9 @@ const RecipeCard: React.FC<{
       : null;
 
   const inputRows = Object.entries(recipe.inputs).map(([key, per]) => {
-    const have = isMaterialInput(key) ? (materials[key] ?? 0) : (essences[key] ?? 0);
+    // 'Scrap' is the profile's scrap balance, not a material
+    // (0053: cosmetic recipes escrow it server-side).
+    const have = key === 'Scrap' ? scrap : isMaterialInput(key) ? (materials[key] ?? 0) : (essences[key] ?? 0);
     return { key, per, need: per * units, have, enough: have >= per * units };
   });
   const catalystHave = catalystId ? (materials[catalystId] ?? 0) : 0;
@@ -860,9 +874,11 @@ const RecipeCard: React.FC<{
             <div className="text-[9px] text-amber">
               {recipe.kind === 'refine'
                 ? `Refines to ${getVisualAsset('material', recipe.outputMaterial).label} ×${refineOut} per unit at your mastery`
-                : bounds
-                  ? `Your roll ${Math.round(bounds.min)}–${Math.round(bounds.max)}% · ${getConsumableQualityBand(Math.round(bounds.max))} ceiling`
-                  : ''}
+                : recipe.kind === 'cosmetic'
+                  ? 'Skin part — the finish (quality) rolls at completion; Cosmetic Crafting mastery raises the ceiling. Zero stats, pure look.'
+                  : bounds
+                    ? `Your roll ${Math.round(bounds.min)}–${Math.round(bounds.max)}% · ${getConsumableQualityBand(Math.round(bounds.max))} ceiling`
+                    : ''}
             </div>
           </div>
         </div>
@@ -880,7 +896,7 @@ const RecipeCard: React.FC<{
             <span key={key} className={`flex items-center gap-0.5 ${enough ? '' : 'text-red-400 line-through'}`}>
               <span className={`inline-flex ${colorClass}`}>{icon ? <PxIcon name={icon} size={13} /> : null}</span>
               <span className={enough ? 'text-text-primary' : undefined}>
-                {getVisualAsset('material', key).label} {have}/{need}
+                {key === 'Scrap' ? 'Scrap' : getVisualAsset('material', key).label} {have}/{need}
               </span>
             </span>
           );
@@ -930,9 +946,9 @@ const RecipeCard: React.FC<{
           <input
             type="number"
             min={1}
-            max={500}
+            max={recipe.maxUnits ?? 500}
             value={units}
-            onChange={(e) => setUnits(Math.max(1, Math.min(500, Math.floor(Number(e.target.value) || 1))))}
+            onChange={(e) => setUnits(Math.max(1, Math.min(recipe.maxUnits ?? 500, Math.floor(Number(e.target.value) || 1))))}
             className="w-14 text-[10px] font-bold border border-border bg-surface rounded px-1.5 py-1 text-text-primary"
           />
         </label>

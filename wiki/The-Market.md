@@ -22,7 +22,7 @@ the sign-in prompt at the button instead of a silent refusal.
 
 ## What you can list
 
-Four kinds of things trade on the Market:
+Five kinds of things trade on the Market:
 
 - **Gear** — individual items: weapons, shields, relics, class mods,
   ordnance, and vehicles. Each piece is listed on its own, with its own
@@ -37,6 +37,10 @@ Four kinds of things trade on the Market:
 - **Resources** — cache fragments, legendary cores, and essences, listed
   by quantity like materials. Fragments and cores each trade as a single
   commodity; each of the five essence types trades as its own commodity.
+- **Skin parts** — crafted [[Skins and Cosmetics]] pieces, listed one by
+  one like gear. The card shows the part worn, its finish, and its tint.
+  Listing a part you are wearing takes it off your hunter in the same
+  motion; locked parts and parts mid-tint can't be listed.
 
 One fragment rule worth knowing: fragments listed for sale sit in escrow
 and do **not** count toward the 5-fragments-to-1-key conversion while

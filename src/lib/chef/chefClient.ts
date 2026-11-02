@@ -1293,6 +1293,101 @@ export async function cancelResearch(request: {
 }
 
 /**
+ * Cosmetics (0053). The Wardrobe: skin parts are ordinary inventory
+ * items (kind 'cosmetic'); equip is a server selection record, and
+ * the head-variant pick lives server-side with it. The client sends
+ * intent only — an item id / slot / variant and a nonce; ownership
+ * and the Standing grandfather entitlement are validated from
+ * server records and the fresh state returns inside each op result.
+ */
+export interface ChefCosmeticsStateResult {
+  verified: true;
+  cosmetics: import('@/content/skins').CosmeticsStateView;
+}
+
+export interface ChefCosmeticsOpResult {
+  verified: true;
+  result: {
+    action_type: string;
+    cosmetics: import('@/content/skins').CosmeticsStateView;
+  };
+}
+
+export interface ChefHunterLooksResult {
+  verified: true;
+  looks: Record<string, import('@/content/skins').HunterLookView>;
+}
+
+function cosmeticsNonce(kind: string): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `cosmetic-${kind}:${random}`;
+}
+
+/** Idempotency nonce for one equip tap. */
+export function newCosmeticEquipNonce(): string {
+  return cosmeticsNonce('equip');
+}
+
+/** Idempotency nonce for one unequip tap. */
+export function newCosmeticUnequipNonce(): string {
+  return cosmeticsNonce('unequip');
+}
+
+/** Idempotency nonce for one head-variant tap. */
+export function newCosmeticHeadVariantNonce(): string {
+  return cosmeticsNonce('head-variant');
+}
+
+export async function getCosmeticsState(): Promise<ChefCosmeticsStateResult> {
+  return endlessFetch<ChefCosmeticsStateResult>(
+    '/cosmetics/me',
+    { method: 'GET' },
+    'Chef cosmetics state failed',
+  );
+}
+
+export async function equipCosmetic(request: {
+  nonce: string;
+  itemId: string;
+}): Promise<ChefCosmeticsOpResult> {
+  return endlessFetch<ChefCosmeticsOpResult>(
+    '/cosmetics/equip',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef cosmetic equip failed',
+  );
+}
+
+export async function unequipCosmetic(request: {
+  nonce: string;
+  slot: string;
+}): Promise<ChefCosmeticsOpResult> {
+  return endlessFetch<ChefCosmeticsOpResult>(
+    '/cosmetics/unequip',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef cosmetic unequip failed',
+  );
+}
+
+export async function setCosmeticHeadVariant(request: {
+  nonce: string;
+  variant: string;
+}): Promise<ChefCosmeticsOpResult> {
+  return endlessFetch<ChefCosmeticsOpResult>(
+    '/cosmetics/head-variant',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef head variant failed',
+  );
+}
+
+export async function getHunterLooks(ids: string[]): Promise<ChefHunterLooksResult> {
+  return endlessFetch<ChefHunterLooksResult>(
+    `/cosmetics/looks?ids=${ids.map(encodeURIComponent).join(',')}`,
+    { method: 'GET' },
+    'Chef hunter looks failed',
+  );
+}
+
+/**
  * Manufacturer Standing (0043). The Rep Desk: six independent
  * ladders, read as one view; the four ops send intent only (a nonce
  * plus an item id / manufacturer / offer key) — awards, thresholds,

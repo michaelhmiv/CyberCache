@@ -127,6 +127,9 @@ export const verifiedOps = {
   // settle. Accept carries NO item_key — the Calibration Core is the
   // one consumable, a server constant.
   enqueueShieldTechJob: (itemId: string, toBehavior: string) => op('/ops/shieldtech-enqueue', { nonce: requestId('shieldtech-enqueue'), item_id: itemId, to_behavior: toBehavior }),
+  // Tint jobs (0053): a timed cosmetic job against an OWNED part —
+  // the palette's Chromaweave + flat Scrap escrow server-side.
+  enqueueTintJob: (itemId: string, paletteId: string) => op('/ops/tint-enqueue', { nonce: requestId('tint-enqueue'), item_id: itemId, palette_id: paletteId }),
   postShieldTechJob: (itemId: string, toBehavior: string, priceCredits: number) => op('/ops/shieldtech-post', { nonce: requestId('shieldtech-post'), item_id: itemId, to_behavior: toBehavior, price_credits: priceCredits }),
   acceptShieldTechJob: (jobId: string) => op('/ops/shieldtech-accept', { nonce: requestId('shieldtech-accept'), job_id: jobId }),
   finishShieldTechJob: (jobId: string) => op('/ops/shieldtech-finish', { nonce: requestId('shieldtech-finish'), job_id: jobId }),

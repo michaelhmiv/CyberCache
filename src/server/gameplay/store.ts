@@ -22,8 +22,14 @@ import type { Pool } from 'pg';
 import type { Json } from '../writes/store';
 import type { GearItem, Vehicle } from '../../types/items';
 import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
-import { finalizePendingCraftedGear } from '../writes/craftFinalize';
+import { finalizePendingCraftedCosmetics, finalizePendingCraftedGear } from '../writes/craftFinalize';
 import type { DiscoveryRecord } from '../../content/collections';
+import {
+  FREE_HEAD_VARIANTS,
+  HEAD_VARIANT_MANUFACTURERS,
+  type CosmeticsStateView,
+  type HunterLookView,
+} from '../../content/skins';
 import { getRoamingArea } from '../../constants/roamingAreas';
 import {
   EXTRACTION_MASTERY_XP_PER_PASS,
@@ -715,6 +721,34 @@ export interface ChefGameplayStore {
    */
   cancelResearch(playerId: string, nonce: string): Promise<Json>;
   /**
+   * Cosmetics state (0053) for the /api/cosmetics routes: the
+   * selection record, the owned part items (the Wardrobe list), and
+   * the grandfathered Standing heads. Server records only — the
+   * read is cc_cosmetics_view on the Pg store.
+   */
+  getCosmeticsState(playerId: string): Promise<CosmeticsStateView | null>;
+  /**
+   * Equip a cosmetic part (cc_cosmetic_equip, 0053): possession is
+   * validated server-side; equip is a selection-record write only —
+   * the item stays an ordinary available inventory item.
+   * Nonce-idempotent via the ledger.
+   */
+  equipCosmetic(playerId: string, nonce: string, itemId: string): Promise<Json>;
+  /** Unequip one cosmetic slot (cc_cosmetic_unequip, 0053). */
+  unequipCosmetic(playerId: string, nonce: string, slot: string): Promise<Json>;
+  /**
+   * Set the head-variant pick (cc_cosmetic_set_head_variant, 0053):
+   * free variants for everyone; a manufacturer variant requires the
+   * grandfathered Standing rank-3 fact.
+   */
+  setCosmeticHeadVariant(playerId: string, nonce: string, variant: string): Promise<Json>;
+  /**
+   * Public hunter looks (cc_hunter_look_view, 0053) for social
+   * surfaces: slot → part id / tint / quality per player, no item
+   * ids. Missing players read as the stock look.
+   */
+  getHunterLooks(playerIds: string[]): Promise<Record<string, HunterLookView>>;
+  /**
    * Manufacturer Standing facts (0043) for the /api/standing routes:
    * profile credits / level / economy gate + the six ladder rows +
    * this ISO week's desk purchases. Facts only (collections-read
@@ -1310,6 +1344,77 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     };
   }
 
+  async getCosmeticsState(playerId: string): Promise<CosmeticsStateView | null> {
+    const profile = await this.one(
+      `select id from public.profiles where id = $1`,
+      [playerId],
+      (row) => ({ id: String(row.id) }),
+    );
+    if (!profile) return null;
+    const raw = (await this.callJson('select public.cc_cosmetics_view($1) as result', [playerId])) as unknown as {
+      selectionExists: boolean;
+      selection: { equipped: Record<string, string>; headVariant: string };
+      parts: CosmeticsStateView['parts'];
+      grandfatherHeads: string[];
+    };
+    // The SQL view reports grandfathered manufacturers (the 0043
+    // facts); the API contract carries wearable variant ids — the
+    // four free variants plus one per grandfathered manufacturer.
+    const wearableVariantIds = [...FREE_HEAD_VARIANTS];
+    for (const [variantId, manufacturer] of Object.entries(HEAD_VARIANT_MANUFACTURERS)) {
+      if (raw.grandfatherHeads.includes(manufacturer)) wearableVariantIds.push(variantId);
+    }
+    return {
+      selectionExists: raw.selectionExists,
+      selection: {
+        equipped: raw.selection.equipped as CosmeticsStateView['selection']['equipped'],
+        headVariant: raw.selection.headVariant,
+      },
+      parts: raw.parts,
+      wearableVariantIds,
+    };
+  }
+
+  equipCosmetic(playerId: string, nonce: string, itemId: string): Promise<Json> {
+    return this.callJson('select public.cc_cosmetic_equip($1, $2, $3) as result', [
+      playerId, nonce, itemId,
+    ]);
+  }
+
+  unequipCosmetic(playerId: string, nonce: string, slot: string): Promise<Json> {
+    return this.callJson('select public.cc_cosmetic_unequip($1, $2, $3) as result', [
+      playerId, nonce, slot,
+    ]);
+  }
+
+  setCosmeticHeadVariant(playerId: string, nonce: string, variant: string): Promise<Json> {
+    return this.callJson('select public.cc_cosmetic_set_head_variant($1, $2, $3) as result', [
+      playerId, nonce, variant,
+    ]);
+  }
+
+  async getHunterLooks(playerIds: string[]): Promise<Record<string, HunterLookView>> {
+    const looks: Record<string, HunterLookView> = {};
+    for (const id of [...new Set(playerIds)]) {
+      const view = (await this.callJson('select public.cc_hunter_look_view($1) as result', [id])) as unknown as {
+        headVariant: string;
+        parts: HunterLookView['parts'];
+      };
+      const profile = await this.one(
+        `select username from public.profiles where id = $1`,
+        [id],
+        (row) => ({ username: row.username == null ? null : String(row.username) }),
+      );
+      looks[id] = {
+        playerId: id,
+        username: profile?.username ?? null,
+        headVariant: view.headVariant,
+        parts: view.parts,
+      };
+    }
+    return looks;
+  }
+
   enrollResearch(playerId: string, nonce: string, courseId: string): Promise<Json> {
     return this.callJson('select public.cc_enroll_research($1, $2, $3) as result', [
       playerId, nonce, courseId,
@@ -1575,6 +1680,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       Math.max(0, Math.floor(capMs)),
     ]);
     await finalizePendingCraftedGear(this.pool, playerId);
+    await finalizePendingCraftedCosmetics(this.pool, playerId);
     return result;
   }
 

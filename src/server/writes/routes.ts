@@ -24,6 +24,7 @@
  *   POST /api/ops/repair-reclaim            verifiedOps.reclaimRepairJob        cc_repair_job_reclaim(...)
  *   GET  /api/repair/board                  verifiedOps.fetchRepairBoard        cc_settle_repair_jobs_for + board view
  *   POST /api/ops/shieldtech-enqueue        verifiedOps.enqueueShieldTechJob    cc_enqueue_shieldtech_job(...)
+ *   POST /api/ops/tint-enqueue              verifiedOps.enqueueTintJob          cc_enqueue_tint_job(...)
  *   POST /api/ops/shieldtech-post           verifiedOps.postShieldTechJob       cc_post_shieldtech_job(...)
  *   POST /api/ops/shieldtech-accept         verifiedOps.acceptShieldTechJob     cc_accept_shieldtech_job(...)
  *   POST /api/ops/shieldtech-finish         verifiedOps.finishShieldTechJob     cc_shieldtech_job_finish(...)
@@ -396,6 +397,17 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     return store.enqueueShieldTechJob(playerId, str(body(req).nonce), {
       itemId,
       toBehavior: str(body(req).to_behavior),
+    });
+  });
+  // Tint jobs (0053): a timed cosmetic job against an OWNED part —
+  // the body carries the part + palette only; cost (flat Scrap +
+  // the palette's Chromaweave) derives server-side.
+  op('/api/ops/tint-enqueue', async (playerId, req, res) => {
+    const itemId = uuidField(req, res, 'item_id', 'item id');
+    if (!itemId) return null;
+    return store.enqueueTintJob(playerId, str(body(req).nonce), {
+      itemId,
+      paletteId: str(body(req).palette_id),
     });
   });
   op('/api/ops/shieldtech-post', async (playerId, req, res) => {

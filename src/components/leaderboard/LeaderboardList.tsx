@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { useHunterLooks } from '@/lib/pixel/useHunterLooks';
 
 import { LeaderboardRow } from './LeaderboardRow';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -18,6 +19,12 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
   loading,
   onRowClick,
 }) => {
+  // Standings portraits (0053): looks for the visible rows + mine.
+  const lookIds = useMemo(
+    () => [...new Set([...entries.slice(0, 50).map((e) => e.player_id), ...(myPlayerId ? [myPlayerId] : [])])],
+    [entries, myPlayerId],
+  );
+  const looks = useHunterLooks(lookIds);
   if (loading) {
     return (
       <MobileCard className="space-y-2" rarityColor="#FF9000">
@@ -63,11 +70,12 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
             entry={entry}
             isMe={entry.player_id === myPlayerId}
             onClick={onRowClick}
+            look={looks[entry.player_id] ?? null}
           />
         ))}
         {!myInTop && myEntry && (
           <div className="border-t-2 border-amber/50 bg-amber/10">
-            <LeaderboardRow entry={myEntry} isMe compact />
+            <LeaderboardRow entry={myEntry} isMe compact look={looks[myEntry.player_id] ?? null} />
           </div>
         )}
       </div>

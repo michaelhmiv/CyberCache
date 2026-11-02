@@ -177,6 +177,14 @@ import {
 } from '../../content/research';
 import { isHotArea } from '../../content/hotArea';
 import {
+  FREE_HEAD_VARIANTS,
+  HEAD_VARIANT_MANUFACTURERS,
+  isCosmeticSlot,
+  type CosmeticPartItemView,
+  type CosmeticsStateView,
+  type HunterLookView,
+} from '../../content/skins';
+import {
   accrueExtractionTime,
   finalizeExtractionPasses,
   type ExtractionAdapter,
@@ -463,6 +471,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly contractExtractionLog: Array<{ playerId: string; units: number; atMs: number }> = [];
   /** Manufacturer Standing rows (0043): `${playerId}:${manufacturer}` → balance + granted rank. */
   readonly standingRows = new Map<string, { standing: number; rank: number }>();
+  /** Cosmetic selection records (0053): playerId → selection. */
+  readonly skinSelections = new Map<string, { equipped: Record<string, string>; headVariant: string }>();
   /** Manufacturer Standing drip counters (0043): `${playerId}:${manufacturer}:${utcDay}` → points. */
   readonly standingDaily = new Map<string, number>();
   /** Manufacturer Standing weekly desk purchases (0043): `${playerId}:${manufacturer}:${isoWeek}:${kind}`. */
@@ -1088,6 +1098,155 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     this.settleResearch(playerId);
     const completions = this.researchCompletions.get(playerId);
     return computeResearchBonuses(completions ? [...completions.keys()] : []);
+  }
+
+  // ─── Cosmetics (0053) ────────────────────────────────────────────
+  // The twin of cc_cosmetics_view / cc_cosmetic_equip /
+  // cc_cosmetic_unequip / cc_cosmetic_set_head_variant /
+  // cc_hunter_look_view — same gates, same messages.
+
+  private cosmeticsView(playerId: string): CosmeticsStateView {
+    const sel = this.skinSelections.get(playerId);
+    const parts: CosmeticPartItemView[] = [];
+    for (const item of this.items.values()) {
+      if (item.owner_user_id !== playerId || item.kind !== 'cosmetic') continue;
+      if (item.runtime_state !== 'available' && item.runtime_state !== 'locked') continue;
+      const payload = item.payload ?? {};
+      parts.push({
+        id: item.id,
+        name: String(payload.name ?? ''),
+        partId: String(payload.partId ?? ''),
+        slot: payload.slot as CosmeticPartItemView['slot'],
+        setId: String(payload.setId ?? ''),
+        tier: (payload.tier === 'repaint' || payload.tier === 'shaped'
+          ? payload.tier
+          : 'palette') as CosmeticPartItemView['tier'],
+        quality: Number(payload.quality ?? 0),
+        tintPaletteId: typeof payload.tintPaletteId === 'string' ? payload.tintPaletteId : null,
+        runtimeState: item.runtime_state,
+      });
+    }
+    const wearableVariantIds = [...FREE_HEAD_VARIANTS];
+    for (const [variantId, manufacturer] of Object.entries(HEAD_VARIANT_MANUFACTURERS)) {
+      if ((this.standingRows.get(`${playerId}:${manufacturer}`)?.rank ?? 0) >= 3) {
+        wearableVariantIds.push(variantId);
+      }
+    }
+    return {
+      selectionExists: !!sel,
+      selection: {
+        equipped: { ...(sel?.equipped ?? {}) } as CosmeticsStateView['selection']['equipped'],
+        headVariant: sel?.headVariant ?? 'visor',
+      },
+      parts,
+      wearableVariantIds,
+    };
+  }
+
+  async getCosmeticsState(playerId: string): Promise<CosmeticsStateView | null> {
+    if (!this.profiles.has(playerId)) return null;
+    return this.cosmeticsView(playerId);
+  }
+
+  async equipCosmetic(playerId: string, nonce: string, itemId: string): Promise<Json> {
+    if (!nonce) throw new GameplayStoreError('cc_cosmetic_equip requires a nonce');
+    const key = `cc_cosmetic_equip:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true } as Json;
+    this.requireProfile(playerId);
+    const item = this.items.get(itemId);
+    if (!item || item.owner_user_id !== playerId) throw new GameplayStoreError('Item not found');
+    if (item.kind !== 'cosmetic') throw new GameplayStoreError('Item is not a cosmetic part');
+    if (item.runtime_state !== 'available') {
+      throw new GameplayStoreError('Part is not available to equip');
+    }
+    const tintActive = this.craftJobs.some(
+      (j) => j.owner_user_id === playerId && j.status === 'active'
+        && j.kind === 'cosmetic' && j.snapshot.tint?.itemId === item.id,
+    );
+    if (tintActive) throw new GameplayStoreError('Part is being tinted');
+    const slot = (item.payload ?? {}).slot;
+    if (!isCosmeticSlot(slot)) throw new GameplayStoreError('Part has no wearable slot');
+    const sel = this.skinSelections.get(playerId) ?? { equipped: {}, headVariant: 'visor' };
+    sel.equipped[slot] = item.id;
+    this.skinSelections.set(playerId, sel);
+    const result = {
+      action_type: 'cc_cosmetic_equip',
+      cosmetics: this.cosmeticsView(playerId),
+    } as unknown as Json;
+    this.ledger.set(key, result);
+    return result;
+  }
+
+  async unequipCosmetic(playerId: string, nonce: string, slot: string): Promise<Json> {
+    if (!nonce) throw new GameplayStoreError('cc_cosmetic_unequip requires a nonce');
+    const key = `cc_cosmetic_unequip:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true } as Json;
+    if (!isCosmeticSlot(slot)) throw new GameplayStoreError('Unknown cosmetic slot');
+    this.requireProfile(playerId);
+    const sel = this.skinSelections.get(playerId) ?? { equipped: {}, headVariant: 'visor' };
+    delete sel.equipped[slot];
+    this.skinSelections.set(playerId, sel);
+    const result = {
+      action_type: 'cc_cosmetic_unequip',
+      cosmetics: this.cosmeticsView(playerId),
+    } as unknown as Json;
+    this.ledger.set(key, result);
+    return result;
+  }
+
+  async setCosmeticHeadVariant(playerId: string, nonce: string, variant: string): Promise<Json> {
+    if (!nonce) throw new GameplayStoreError('cc_cosmetic_set_head_variant requires a nonce');
+    const key = `cc_cosmetic_set_head_variant:${nonce}`;
+    const prior = this.ledger.get(key);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true } as Json;
+    const manufacturer = HEAD_VARIANT_MANUFACTURERS[variant];
+    if (!FREE_HEAD_VARIANTS.includes(variant) && !manufacturer) {
+      throw new GameplayStoreError('Unknown head variant');
+    }
+    this.requireProfile(playerId);
+    if (manufacturer && (this.standingRows.get(`${playerId}:${manufacturer}`)?.rank ?? 0) < 3) {
+      throw new GameplayStoreError(`That head is earned at ${manufacturer} rank 3`);
+    }
+    const sel = this.skinSelections.get(playerId) ?? { equipped: {}, headVariant: 'visor' };
+    sel.headVariant = variant;
+    this.skinSelections.set(playerId, sel);
+    const result = {
+      action_type: 'cc_cosmetic_set_head_variant',
+      cosmetics: this.cosmeticsView(playerId),
+    } as unknown as Json;
+    this.ledger.set(key, result);
+    return result;
+  }
+
+  async getHunterLooks(playerIds: string[]): Promise<Record<string, HunterLookView>> {
+    const looks: Record<string, HunterLookView> = {};
+    for (const id of [...new Set(playerIds)]) {
+      const sel = this.skinSelections.get(id);
+      const parts: HunterLookView['parts'] = {};
+      if (sel) {
+        for (const [slot, itemId] of Object.entries(sel.equipped)) {
+          const item = this.items.get(itemId);
+          if (!item || item.owner_user_id !== id || item.kind !== 'cosmetic') continue;
+          if (item.runtime_state !== 'available' && item.runtime_state !== 'locked') continue;
+          const payload = item.payload ?? {};
+          parts[slot as keyof HunterLookView['parts']] = {
+            partId: String(payload.partId ?? ''),
+            tintPaletteId: typeof payload.tintPaletteId === 'string' ? payload.tintPaletteId : null,
+            quality: Number(payload.quality ?? 0),
+          };
+        }
+      }
+      const profile = this.profiles.get(id);
+      looks[id] = {
+        playerId: id,
+        username: typeof profile?.username === 'string' ? profile.username : null,
+        headVariant: sel?.headVariant ?? 'visor',
+        parts,
+      };
+    }
+    return looks;
   }
 
   // ─── Manufacturer Standing (0043) ────────────────────────────────
@@ -1995,6 +2154,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       player_level: profile.player_level,
       player_xp: profile.player_xp,
       credits: profile.credits,
+      scrap: profile.scrap,
       materials: profile.materials,
       essences: profile.essences,
       consumables: profile.consumables,
@@ -2108,6 +2268,44 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
           payload,
         });
         return itemId;
+      },
+      insertCosmeticItem: (id, payload) => {
+        const itemId = randomUUID();
+        this.items.set(itemId, {
+          id: itemId,
+          owner_user_id: id,
+          kind: 'cosmetic',
+          runtime_state: 'available',
+          is_locked: false,
+          rarity: 'Common',
+          item_level: 1,
+          estimated_value: computeItemEstimatedValue(
+            payload as unknown as Record<string, unknown>,
+            'cosmetic',
+            'Common',
+            1,
+          ),
+          supply_mode: 'verified_action',
+          tradeable: true,
+          equipped_slot: null,
+          payload: { ...payload, id: itemId },
+        });
+        return itemId;
+      },
+      cosmeticInfo: (id, itemId) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== id) return null;
+        return {
+          kind: item.kind,
+          runtimeState: item.runtime_state,
+          isLocked: item.is_locked,
+          payload: item.payload ?? {},
+        };
+      },
+      applyCosmeticTint: (id, itemId, paletteId) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== id || item.kind !== 'cosmetic') return;
+        item.payload = { ...item.payload, tintPaletteId: paletteId };
       },
       vehicleInfo: (id, itemId) => {
         const item = this.items.get(itemId);
