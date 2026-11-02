@@ -1920,7 +1920,16 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         attempt.scrap,
         attempt.entryFee,
         attempt.actionSkillTree ?? null,
-        (attempt.items ?? []) as Json,
+        // JSON.stringify: a bare JS array would be sent as a Postgres
+        // array literal ('{}' for an empty roll), which the jsonb
+        // parameter reads as an OBJECT — cc_store_chef_items then
+        // raises 'items must be an array' inside the applier and every
+        // boss attempt fails with a 500. The 0040 restatement moved
+        // loot storage into this call and regressed exactly here;
+        // storeChefItems documents the same rule. A loot-bearing roll
+        // failed too (the literal is not valid JSON at all), so no
+        // boss attempt could apply while this param went in bare.
+        JSON.stringify(attempt.items ?? []),
       ],
     );
   }
