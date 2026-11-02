@@ -76,6 +76,7 @@ ALLOWED_TIMERS=(
   "$SRC/components/activity/SettlementDebugOverlay.tsx:debug overlay display clock"
   "$SRC/components/stats/ActiveBuffPills.tsx:buff countdown display clock (display-only)"
   "$SRC/components/activity/useLeaveSignals.ts:best-effort leave signal throttle reset"
+  "$SRC/components/activity/useActionHeartbeat.ts:live-action sync poll (1s owner cadence; fetches server-authoritative action state, computes and mutates nothing locally)"
   "$SRC/components/fight/BossPrepModal.tsx:fight animation delay (display-only)"
   "$SRC/components/pixelArt/LootMoment.tsx:loot celebration pacing (display-only; advances presentation state, drops already awarded)"
   "$SRC/components/profile/UsernameSetupModal.tsx:username availability debounce (form validation)"

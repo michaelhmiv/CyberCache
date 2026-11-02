@@ -30,6 +30,7 @@ import {
   type ActionFeedEntry,
 } from '@/components/action/ActionWorkspace';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
+import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { VehicleStatusLine } from '@/components/gear/VehicleStatusLine';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
 import { ActivityModifierPanel } from '@/components/action/ActivityModifierPanel';
@@ -448,11 +449,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     }
   }, [market]);
 
-  useEffect(() => {
-    if (!canTick) return undefined;
-    const iv = window.setInterval(() => { activity.heartbeat().catch((error) => console.warn('Action heartbeat skipped:', error)); }, 60000);
-    return () => window.clearInterval(iv);
-  }, [activity, canTick]);
+  // Live-action sync: 1s foreground heartbeat (owner cadence,
+  // 2026-11-02) — see useActionHeartbeat for the cadence constant
+  // and its in-flight / visibility / backoff guards.
+  const heartbeat = useCallback(() => activity.heartbeat(), [activity]);
+  useActionHeartbeat(canTick, heartbeat);
 
   const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => ({
     ...event,
