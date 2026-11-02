@@ -27,6 +27,7 @@ type MarketListingRow = {
   quality_percent?: number | null;
   consumable_type?: string | null;
   material_id?: string | null;
+  essence_id?: string | null;
   identity_key?: string | null;
   category?: string | null;
   display_name?: string | null;
@@ -46,6 +47,7 @@ function rowToListing(row: MarketListingRow): Listing | null {
   const embedded = row.item_instances;
   const itemRow = Array.isArray(embedded) ? embedded[0] : embedded;
   const kind: ListingKind = row.listing_kind === 'consumable' || row.listing_kind === 'material'
+    || row.listing_kind === 'fragment' || row.listing_kind === 'core' || row.listing_kind === 'essence'
     ? row.listing_kind
     : 'gear';
   const gear = itemRow
@@ -73,11 +75,12 @@ function rowToListing(row: MarketListingRow): Listing | null {
     itemId: gear ? gear.id : null,
     itemSnapshot: gear,
     category: (row.category as MarketCategory | null) ?? null,
-    displayName: row.display_name ?? gear?.name ?? row.consumable_type ?? row.material_id ?? 'Unknown',
+    displayName: row.display_name ?? gear?.name ?? row.consumable_type ?? row.material_id ?? row.essence_id ?? 'Unknown',
     quantity,
     qualityPercent: row.quality_percent === null || row.quality_percent === undefined ? null : Number(row.quality_percent),
     consumableType: row.consumable_type ?? null,
     materialId: row.material_id ?? null,
+    essenceId: row.essence_id ?? null,
     identityKey: row.identity_key ?? null,
     weaponType: row.weapon_type ?? null,
     element: row.element ?? null,

@@ -67,7 +67,7 @@ export interface MarketBrowseRow {
   id: string;
   sellerId: string;
   sellerType: 'player' | 'npc';
-  kind: 'gear' | 'consumable' | 'material' | 'vehicle';
+  kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence';
   category: MarketCategory;
   displayName: string;
   weaponType: string | null;
@@ -82,6 +82,8 @@ export interface MarketBrowseRow {
   qualityPercent: number | null;
   consumableType: string | null;
   materialId: string | null;
+  /** Essence listings (0050): the essence type id. Null otherwise. */
+  essenceId: string | null;
   identityKey: string | null;
   /** ms epoch. */
   listedAt: number;

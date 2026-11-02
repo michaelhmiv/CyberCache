@@ -73,6 +73,11 @@ Cores have exactly two sinks, both at the deep end of [[Gear]] and
   rarity: crafting still caps at Epic and never produces a legendary
   effect.
 
+Cores also **trade on [[The Market]]** by quantity. Trading moves cores
+between hunters; it never mints them — every core in circulation still
+cost one salvaged Legendary to create, which is what keeps the two
+sinks above tight.
+
 ## Why the scarcity matters
 
 Cores are why a Legendary is always in demand. Every Legendary you find

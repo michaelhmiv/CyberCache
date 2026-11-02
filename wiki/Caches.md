@@ -38,6 +38,8 @@ Keys and fragments reach you from play, for example:
 
 Every one of those sources feeds the same key stock, and every opening they fund spends from the same daily budget. A key from a leaderboard and a key from fragments are the same key.
 
+Fragments also **trade on [[The Market]]** by quantity. While fragments are listed for sale they sit in escrow and are **exempt from the 5-to-1 conversion** — the conversion only applies to fragments in your balance, so listing 4 fragments and earning a 5th will not mint a key out of the escrow. Cancel the listing and the fragments return to your balance as fragments; the conversion catches up the next time fragments arrive. Fragments you *buy* settle straight into your balance and convert as usual.
+
 ## Opening a cache, step by step
 
 1. **Go to the cache screen.** It shows your key stock, your fragment progress toward the next key (for example, 3 / 5), your openings used today out of the daily cap, and whether today's free box is still waiting.

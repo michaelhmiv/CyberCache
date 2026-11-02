@@ -12,8 +12,14 @@ import { WEAPON_TYPES } from '@/constants/weaponTypes';
 import { ELEMENTS } from '@/constants/elements';
 import { isFoundSource, marketFeeForPrice, marketFeeReduction } from '@/lib/market/marketFee';
 import {
+  CORE_DISPLAY_NAME,
+  CORE_IDENTITY_KEY,
+  FRAGMENT_DISPLAY_NAME,
+  FRAGMENT_IDENTITY_KEY,
   MARKET_CATEGORY_LABELS,
   consumableIdentityKey,
+  essenceDisplayName,
+  essenceIdentityKey,
   gearIdentityKeyForItem,
   materialIdentityKey,
   type MarketCategory,
@@ -135,14 +141,23 @@ function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem;
   );
 }
 
-/** Compact card for consumable/material stack listings (0019). */
+/** Compact card for consumable/material/resource stack listings (0019, 0050). */
 function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; right?: React.ReactNode; onShowUsage?: (materialId: string) => void }) {
   const glyph = listing.kind === 'consumable'
     ? (listing.consumableType ? CONSUMABLES[listing.consumableType]?.visual.glyph ?? '🧪' : '🧪')
+    : listing.kind === 'fragment' ? '◆'
+    : listing.kind === 'core' ? '⬢'
+    : listing.kind === 'essence' ? '✦'
     : '🧱';
   const meta = listing.kind === 'consumable'
     ? `Consumable · ${listing.quantity} × · ${Math.round(listing.qualityPercent ?? 100)}% quality`
-    : `Material · ${listing.quantity} ×`;
+    : listing.kind === 'fragment'
+      ? `Cache Fragments · ${listing.quantity} ×`
+      : listing.kind === 'core'
+        ? `Legendary Cores · ${listing.quantity} ×`
+        : listing.kind === 'essence'
+          ? `Essence · ${listing.quantity} ×`
+          : `Material · ${listing.quantity} ×`;
   return (
     <div className="flex items-center gap-3">
       <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg text-lg">{glyph}</div>
@@ -352,8 +367,15 @@ export const MarketScreen: React.FC = () => {
     for (const item of inventory.items) keys.add(gearIdentityKeyForItem(item));
     for (const batch of player.consumableBatches) keys.add(consumableIdentityKey(batch.consumable_type, batch.quality_percent));
     for (const key of Object.keys(player.materials)) keys.add(materialIdentityKey(key));
+    // Sellable resources (0050): price guidance for the stacks the
+    // player could list right now.
+    if (player.cacheKeyFragments > 0) keys.add(FRAGMENT_IDENTITY_KEY);
+    if (player.legendaryCores > 0) keys.add(CORE_IDENTITY_KEY);
+    for (const [essenceId, count] of Object.entries(player.essences)) {
+      if (count > 0) keys.add(essenceIdentityKey(essenceId));
+    }
     return [...keys].sort().join(',');
-  }, [buyListings, myListings, inventory.items, player.consumableBatches, player.materials]);
+  }, [buyListings, myListings, inventory.items, player.consumableBatches, player.materials, player.cacheKeyFragments, player.legendaryCores, player.essences]);
 
   useEffect(() => {
     if (!statsKeys) return;
@@ -421,6 +443,7 @@ export const MarketScreen: React.FC = () => {
 
   const sellableBatches = player.consumableBatches.filter((b) => b.quantity > 0);
   const sellableMaterials = Object.entries(player.materials).filter(([, count]) => count > 0);
+  const sellableEssences = Object.entries(player.essences).filter(([, count]) => count > 0);
 
   const handleList = async (itemId: string) => {
     const item = inventory.getById(itemId);
@@ -487,6 +510,80 @@ export const MarketScreen: React.FC = () => {
     }
   };
 
+  // Sellable resources (0050): fragment/core/essence stacks share the
+  // materials qty/price state, keyed by their price-history identity
+  // key ('frag:cache', 'core:legendary', 'ess:<id>') — collision-free
+  // against batch uuids and material ids. The per-unit fallbacks only
+  // seed the price field until real sales set a median.
+  const handleListFragment = async () => {
+    const owned = player.cacheKeyFragments;
+    if (owned <= 0) return;
+    const key = FRAGMENT_IDENTITY_KEY;
+    const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[key] ?? owned)));
+    const stats = priceStats[key];
+    const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 250);
+    if (price <= 0) {
+      setToastMessage('Price must be positive.');
+      return;
+    }
+    setPendingListId(key);
+    try {
+      await verifiedOps.marketCreateFragment(qty, price);
+      setToastMessage(`Listed ${qty} × ${FRAGMENT_DISPLAY_NAME} for ${price.toLocaleString()}cr.`);
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to list fragments.');
+    } finally {
+      setPendingListId(null);
+    }
+  };
+
+  const handleListCore = async () => {
+    const owned = player.legendaryCores;
+    if (owned <= 0) return;
+    const key = CORE_IDENTITY_KEY;
+    const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[key] ?? owned)));
+    const stats = priceStats[key];
+    const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 2500);
+    if (price <= 0) {
+      setToastMessage('Price must be positive.');
+      return;
+    }
+    setPendingListId(key);
+    try {
+      await verifiedOps.marketCreateCore(qty, price);
+      setToastMessage(`Listed ${qty} × ${CORE_DISPLAY_NAME} for ${price.toLocaleString()}cr.`);
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to list cores.');
+    } finally {
+      setPendingListId(null);
+    }
+  };
+
+  const handleListEssence = async (essenceId: string) => {
+    const owned = player.essences[essenceId] ?? 0;
+    if (owned <= 0) return;
+    const key = essenceIdentityKey(essenceId);
+    const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[key] ?? owned)));
+    const stats = priceStats[key];
+    const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 500);
+    if (price <= 0) {
+      setToastMessage('Price must be positive.');
+      return;
+    }
+    setPendingListId(key);
+    try {
+      await verifiedOps.marketCreateEssence(essenceId, qty, price);
+      setToastMessage(`Listed ${qty} × ${essenceDisplayName(essenceId)} for ${price.toLocaleString()}cr.`);
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to list essences.');
+    } finally {
+      setPendingListId(null);
+    }
+  };
+
   const handleBuy = async (listing: Listing) => {
     if (player.credits < listing.price) {
       setToastMessage('Not enough credits.');
@@ -495,7 +592,7 @@ export const MarketScreen: React.FC = () => {
     setPendingBuyId(listing.id);
     try {
       await verifiedOps.acceptListing(listing.id);
-      market.addHistory({ id: listing.id, type: 'buy', itemId: listing.itemId ?? listing.id, itemName: listing.displayName || 'Unknown', itemRarity: listing.rarity || (listing.kind === 'consumable' ? 'Consumable' : listing.kind === 'material' ? 'Material' : 'Common'), price: listing.price, fee: 0, otherPartyId: listing.sellerId, timestamp: getNow() });
+      market.addHistory({ id: listing.id, type: 'buy', itemId: listing.itemId ?? listing.id, itemName: listing.displayName || 'Unknown', itemRarity: listing.rarity || (listing.kind === 'consumable' ? 'Consumable' : listing.kind === 'material' ? 'Material' : listing.kind === 'fragment' ? 'Cache Fragment' : listing.kind === 'core' ? 'Legendary Core' : listing.kind === 'essence' ? 'Essence' : 'Common'), price: listing.price, fee: 0, otherPartyId: listing.sellerId, timestamp: getNow() });
       setToastMessage(`Bought "${listing.displayName}" for ${listing.price.toLocaleString()}cr.`);
       await refreshListings();
     } catch (err) {
@@ -743,7 +840,7 @@ export const MarketScreen: React.FC = () => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div key={batch.id} className="bl-card space-y-2">
-                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: batch.id, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'consumable', itemId: null, itemSnapshot: null, category: 'consumable', displayName: CONSUMABLES[batch.consumable_type]?.name ?? batch.consumable_type, quantity: batch.quantity, qualityPercent: batch.quality_percent, consumableType: batch.consumable_type, materialId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: batch.id, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'consumable', itemId: null, itemSnapshot: null, category: 'consumable', displayName: CONSUMABLES[batch.consumable_type]?.name ?? batch.consumable_type, quantity: batch.quantity, qualityPercent: batch.quality_percent, consumableType: batch.consumable_type, materialId: null, essenceId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={batch.quantity} onChange={(e) => setStackQty((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
@@ -770,12 +867,96 @@ export const MarketScreen: React.FC = () => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div key={materialId} className="bl-card space-y-2">
-                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: materialId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'material', itemId: null, itemSnapshot: null, category: 'material', displayName: materialId, quantity: owned, qualityPercent: null, consumableType: null, materialId, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: materialId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'material', itemId: null, itemSnapshot: null, category: 'material', displayName: materialId, quantity: owned, qualityPercent: null, consumableType: null, materialId, essenceId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
                       <button onClick={() => guardTransact('sell', () => void handleListMaterial(materialId))} disabled={pendingListId === materialId} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
                         {pendingListId === materialId ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
+                      </button>
+                    </div>
+                    <SalesGuidance stats={stats} perUnit />
+                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {player.cacheKeyFragments > 0 && (
+            <>
+              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Cache Fragments</div>
+              {(() => {
+                const key = FRAGMENT_IDENTITY_KEY;
+                const owned = player.cacheKeyFragments;
+                const stats = priceStats[key];
+                const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[key] ?? owned)));
+                const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 250);
+                const preview = feePreview(Math.max(0, price), skillBonuses);
+                return (
+                  <div className="bl-card space-y-2">
+                    <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'fragment', itemId: null, itemSnapshot: null, category: 'fragment', displayName: FRAGMENT_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
+                      <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [key]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
+                      <button onClick={() => guardTransact('sell', () => void handleListFragment())} disabled={pendingListId === key} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                        {pendingListId === key ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
+                      </button>
+                    </div>
+                    <SalesGuidance stats={stats} perUnit />
+                    <div className="text-[10px] text-text-muted">Listed fragments are held in escrow — they can't auto-convert into cache keys while listed.</div>
+                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {player.legendaryCores > 0 && (
+            <>
+              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Legendary Cores</div>
+              {(() => {
+                const key = CORE_IDENTITY_KEY;
+                const owned = player.legendaryCores;
+                const stats = priceStats[key];
+                const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[key] ?? owned)));
+                const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 2500);
+                const preview = feePreview(Math.max(0, price), skillBonuses);
+                return (
+                  <div className="bl-card space-y-2">
+                    <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'core', itemId: null, itemSnapshot: null, category: 'core', displayName: CORE_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
+                      <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [key]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
+                      <button onClick={() => guardTransact('sell', () => void handleListCore())} disabled={pendingListId === key} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                        {pendingListId === key ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
+                      </button>
+                    </div>
+                    <SalesGuidance stats={stats} perUnit />
+                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {sellableEssences.length > 0 && (
+            <>
+              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Essences</div>
+              {sellableEssences.map(([essenceId, owned]) => {
+                const key = essenceIdentityKey(essenceId);
+                const stats = priceStats[key];
+                const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[key] ?? owned)));
+                const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 500);
+                const preview = feePreview(Math.max(0, price), skillBonuses);
+                return (
+                  <div key={essenceId} className="bl-card space-y-2">
+                    <StackMiniCard listing={{ id: essenceId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'essence', itemId: null, itemSnapshot: null, category: 'essence', displayName: essenceDisplayName(essenceId), quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
+                      <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [key]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
+                      <button onClick={() => guardTransact('sell', () => void handleListEssence(essenceId))} disabled={pendingListId === key} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                        {pendingListId === key ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
                       </button>
                     </div>
                     <SalesGuidance stats={stats} perUnit />

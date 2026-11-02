@@ -45,6 +45,7 @@ import type { MarketCategory } from '../../lib/market/identityKey';
 
 const MARKET_CATEGORIES: readonly string[] = [
   'weapon', 'shield', 'relic', 'classMod', 'ordnance', 'consumable', 'material',
+  'fragment', 'core', 'essence',
 ];
 
 /** Parse the 0019 browse query from query params; unknown values are ignored, never trusted raw. */

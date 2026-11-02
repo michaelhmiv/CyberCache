@@ -18,7 +18,7 @@ the sign-in prompt at the button instead of a silent refusal.
 
 ## What you can list
 
-Three kinds of things trade on the Market:
+Four kinds of things trade on the Market:
 
 - **Gear** — individual items: weapons, shields, relics, class mods,
   ordnance, and vehicles. Each piece is listed on its own, with its own
@@ -30,16 +30,23 @@ Three kinds of things trade on the Market:
   consumable, and the listing says so.
 - **Materials** — units of a crafting material, listed by quantity at a
   total price.
+- **Resources** — cache fragments, legendary cores, and essences, listed
+  by quantity like materials. Fragments and cores each trade as a single
+  commodity; each of the five essence types trades as its own commodity.
 
-**Essences are not listable.** There is no essence category and no way to
-put essences up for sale — if you want to move essences, the [[Vendor]]
-buyback desk is the only counter that takes them.
+One fragment rule worth knowing: fragments listed for sale sit in escrow
+and do **not** count toward the 5-fragments-to-1-key conversion while
+they're listed — the conversion only ever applies to fragments actually
+in your balance. Cancel the listing and they come back as fragments;
+buying fragments settles them into your balance, where they convert as
+usual.
 
 ## Buying
 
 1. Open the **Buy** tab.
 2. Narrow the list with the category chips (Weapons, Shields, Relics, Class
-   Mods, Ordnance, Consumables, Materials, Vehicles), the rarity chips, and
+   Mods, Ordnance, Consumables, Materials, Cache Fragments, Legendary
+   Cores, Essences), the rarity chips, and
    the filters: weapon type and element on weapon searches, plus level
    range and price range.
 3. Sort by newest, cheapest, most expensive, highest level, or rarity.
@@ -49,7 +56,8 @@ buyback desk is the only counter that takes them.
 ## Selling
 
 1. Open the **Sell** tab. It shows everything you own that can be listed:
-   gear, consumable batches, and material stacks.
+   gear, consumable batches, material stacks, and resource stacks
+   (fragments, cores, and essences).
 2. Pick the item or stack, set the quantity (for stacks), and set your
    price.
 3. Before you confirm, the form shows recent-sales guidance for that exact

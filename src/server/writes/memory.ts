@@ -17,9 +17,16 @@ import {
   type MarketFeeBreakdown,
 } from '../../lib/market/marketFee.js';
 import {
+  CORE_DISPLAY_NAME,
+  CORE_IDENTITY_KEY,
+  FRAGMENT_DISPLAY_NAME,
+  FRAGMENT_IDENTITY_KEY,
+  MARKET_ESSENCE_IDS,
   consumableDisplayName,
   consumableIdentityKey,
   consumableListable,
+  essenceDisplayName,
+  essenceIdentityKey,
   gearCategoryFromPayload,
   gearIdentityFromPayload,
   materialIdentityKey,
@@ -3689,6 +3696,141 @@ export class InMemoryWriteStore implements WriteStore {
     return this.record(playerId, 'cc_market_create', key, result);
   }
 
+  /**
+   * cc_market_create_fragment (0050): escrow cache fragments (key
+   * shards) into a listing. The escrow LEAVES profiles.cache_token_parts
+   * at list time, so the 5→1 auto-conversion inside the reward appliers
+   * only ever sees the unescrowed balance — a listing's escrow can
+   * never be converted out from under it.
+   */
+  async marketCreateFragment(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const price = Math.floor(priceCredits);
+    if (!Number.isFinite(price) || price <= 0) throw writeError('price_credits must be positive');
+    const qty = Math.floor(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) throw writeError('quantity must be positive');
+    this.requireEconomy(playerId);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profileOrNull(playerId);
+    if (!p || (p.cache_token_parts ?? 0) < qty) throw writeError('Insufficient fragment quantity');
+    p.cache_token_parts -= qty;
+    this.touch(p);
+    const listing: WriteListingData = {
+      id: this.uuid(),
+      seller_user_id: playerId,
+      item_instance_id: null,
+      price_credits: price,
+      status: 'active',
+      listed_at: this.nowIso(),
+      sold_at: null,
+      listing_kind: 'fragment',
+      quantity: qty,
+      identity_key: FRAGMENT_IDENTITY_KEY,
+      category: 'fragment',
+      display_name: FRAGMENT_DISPLAY_NAME,
+      seller_type: 'player',
+    };
+    this.insertListing(listing);
+    this.recalcNetWorth(playerId);
+    const result: Json = {
+      action_type: 'cc_market_create',
+      profile: this.profileSnapshot(p),
+      listing: this.listingJson(listing),
+      item: null,
+      delivery: { kind: 'fragment', quantity: qty },
+    };
+    return this.record(playerId, 'cc_market_create', key, result);
+  }
+
+  /** cc_market_create_core (0050): escrow legendary cores into a listing. */
+  async marketCreateCore(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const price = Math.floor(priceCredits);
+    if (!Number.isFinite(price) || price <= 0) throw writeError('price_credits must be positive');
+    const qty = Math.floor(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) throw writeError('quantity must be positive');
+    this.requireEconomy(playerId);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profileOrNull(playerId);
+    if (!p || (p.legendary_cores ?? 0) < qty) throw writeError('Insufficient legendary core quantity');
+    p.legendary_cores = (p.legendary_cores ?? 0) - qty;
+    this.touch(p);
+    const listing: WriteListingData = {
+      id: this.uuid(),
+      seller_user_id: playerId,
+      item_instance_id: null,
+      price_credits: price,
+      status: 'active',
+      listed_at: this.nowIso(),
+      sold_at: null,
+      listing_kind: 'core',
+      quantity: qty,
+      identity_key: CORE_IDENTITY_KEY,
+      category: 'core',
+      display_name: CORE_DISPLAY_NAME,
+      seller_type: 'player',
+    };
+    this.insertListing(listing);
+    this.recalcNetWorth(playerId);
+    const result: Json = {
+      action_type: 'cc_market_create',
+      profile: this.profileSnapshot(p),
+      listing: this.listingJson(listing),
+      item: null,
+      delivery: { kind: 'core', quantity: qty },
+    };
+    return this.record(playerId, 'cc_market_create', key, result);
+  }
+
+  /** cc_market_create_essence (0050): escrow units of one profile essence. */
+  async marketCreateEssence(playerId: string, nonce: string, essenceId: string, quantity: number, priceCredits: number): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const price = Math.floor(priceCredits);
+    if (!Number.isFinite(price) || price <= 0) throw writeError('price_credits must be positive');
+    const qty = Math.floor(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) throw writeError('quantity must be positive');
+    if (!MARKET_ESSENCE_IDS.includes(essenceId)) throw writeError('Unknown essence');
+    this.requireEconomy(playerId);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profileOrNull(playerId);
+    const essences = asNumberMap(p?.essences);
+    if ((essences[essenceId] ?? 0) < qty) throw writeError('Insufficient essence quantity');
+    essences[essenceId] = (essences[essenceId] ?? 0) - qty;
+    if (p) {
+      p.essences = essences;
+      this.touch(p);
+    }
+    const listing: WriteListingData = {
+      id: this.uuid(),
+      seller_user_id: playerId,
+      item_instance_id: null,
+      price_credits: price,
+      status: 'active',
+      listed_at: this.nowIso(),
+      sold_at: null,
+      listing_kind: 'essence',
+      quantity: qty,
+      essence_id: essenceId,
+      identity_key: essenceIdentityKey(essenceId),
+      category: 'essence',
+      display_name: essenceDisplayName(essenceId),
+      seller_type: 'player',
+    };
+    this.insertListing(listing);
+    this.recalcNetWorth(playerId);
+    const result: Json = {
+      action_type: 'cc_market_create',
+      profile: p ? this.profileSnapshot(p) : null,
+      listing: this.listingJson(listing),
+      item: null,
+      delivery: { kind: 'essence', essence_id: essenceId, quantity: qty },
+    };
+    return this.record(playerId, 'cc_market_create', key, result);
+  }
+
   async marketCancel(playerId: string, nonce: string, listingId: string): Promise<Json> {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
@@ -3730,6 +3872,20 @@ export class InMemoryWriteStore implements WriteStore {
       const materials = asNumberMap(p.materials);
       materials[listing.material_id] = (materials[listing.material_id] ?? 0) + (listing.quantity ?? 1);
       p.materials = materials;
+      this.touch(p);
+    } else if (kind === 'fragment' && p) {
+      // Escrow return (0050): raw restore, NO conversion here — the
+      // balance may sit at 5+ until the next reward application runs
+      // the 5→1 conversion (the brief-pinned semantics).
+      p.cache_token_parts = (p.cache_token_parts ?? 0) + (listing.quantity ?? 1);
+      this.touch(p);
+    } else if (kind === 'core' && p) {
+      p.legendary_cores = (p.legendary_cores ?? 0) + (listing.quantity ?? 1);
+      this.touch(p);
+    } else if (kind === 'essence' && p && listing.essence_id) {
+      const essences = asNumberMap(p.essences);
+      essences[listing.essence_id] = (essences[listing.essence_id] ?? 0) + (listing.quantity ?? 1);
+      p.essences = essences;
       this.touch(p);
     }
     const result: Json = {
@@ -3860,6 +4016,28 @@ export class InMemoryWriteStore implements WriteStore {
       materials[listing.material_id] = (materials[listing.material_id] ?? 0) + (listing.quantity ?? 1);
       buyer.materials = materials;
       this.touch(buyer);
+    } else if (kind === 'fragment') {
+      // Fragment delivery (0050) settles like a reward application:
+      // delivered shards join the buyer's unescrowed balance and the
+      // 5→1 conversion runs immediately, so parts never sit above 4
+      // after a purchase (cancels, by contrast, restore raw).
+      let parts = (buyer.cache_token_parts ?? 0) + (listing.quantity ?? 1);
+      let tokens = buyer.cache_tokens ?? 0;
+      while (parts >= 5) {
+        parts -= 5;
+        tokens += 1;
+      }
+      buyer.cache_token_parts = parts;
+      buyer.cache_tokens = tokens;
+      this.touch(buyer);
+    } else if (kind === 'core') {
+      buyer.legendary_cores = (buyer.legendary_cores ?? 0) + (listing.quantity ?? 1);
+      this.touch(buyer);
+    } else if (kind === 'essence' && listing.essence_id) {
+      const essences = asNumberMap(buyer.essences);
+      essences[listing.essence_id] = (essences[listing.essence_id] ?? 0) + (listing.quantity ?? 1);
+      buyer.essences = essences;
+      this.touch(buyer);
     }
     const result: Json = {
       action_type: 'cc_accept_listing',
@@ -3872,6 +4050,7 @@ export class InMemoryWriteStore implements WriteStore {
         quality_percent: listing.quality_percent ?? null,
         consumable_type: listing.consumable_type ?? null,
         material_id: listing.material_id ?? null,
+        essence_id: listing.essence_id ?? null,
         batch_id: deliveredBatchId,
       },
       market_fee: {

@@ -147,7 +147,9 @@ export interface WriteListingData {
   sold_at: string | null;
   // Market depth (0019) — optional so pre-0019 seed rows stay valid;
   // stores normalize absent fields to the gear defaults at read time.
-  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle';
+  // Sellable resources (0050) add the fragment/core/essence kinds and
+  // the essence_id column (the essence type for essence listings).
+  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence';
   quantity?: number;
   quality_percent?: number | null;
   consumable_type?: string | null;
@@ -156,6 +158,7 @@ export interface WriteListingData {
   batch_creator_user_id?: string | null;
   batch_source_recipe_id?: string | null;
   material_id?: string | null;
+  essence_id?: string | null;
   identity_key?: string | null;
   category?: string | null;
   display_name?: string | null;
@@ -953,6 +956,9 @@ export interface WriteStore {
   marketCreate(playerId: string, nonce: string, itemId: string, priceCredits: number): Promise<Json>;
   marketCreateConsumable(playerId: string, nonce: string, batchId: string, quantity: number, priceCredits: number): Promise<Json>;
   marketCreateMaterial(playerId: string, nonce: string, materialId: string, quantity: number, priceCredits: number): Promise<Json>;
+  marketCreateFragment(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json>;
+  marketCreateCore(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json>;
+  marketCreateEssence(playerId: string, nonce: string, essenceId: string, quantity: number, priceCredits: number): Promise<Json>;
   marketCancel(playerId: string, nonce: string, listingId: string): Promise<Json>;
   acceptListing(playerId: string, nonce: string, listingId: string): Promise<Json>;
   resetProgress(playerId: string, nonce: string): Promise<Json>;
@@ -1588,6 +1594,15 @@ export class PgWriteStore implements WriteStore {
   }
   marketCreateMaterial(playerId: string, nonce: string, materialId: string, quantity: number, priceCredits: number): Promise<Json> {
     return this.callJson('select public.cc_market_create_material($1, $2, $3, $4, $5) as result', [playerId, nonce, materialId, quantity, priceCredits]);
+  }
+  marketCreateFragment(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
+    return this.callJson('select public.cc_market_create_fragment($1, $2, $3, $4) as result', [playerId, nonce, quantity, priceCredits]);
+  }
+  marketCreateCore(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
+    return this.callJson('select public.cc_market_create_core($1, $2, $3, $4) as result', [playerId, nonce, quantity, priceCredits]);
+  }
+  marketCreateEssence(playerId: string, nonce: string, essenceId: string, quantity: number, priceCredits: number): Promise<Json> {
+    return this.callJson('select public.cc_market_create_essence($1, $2, $3, $4, $5) as result', [playerId, nonce, essenceId, quantity, priceCredits]);
   }
   marketCancel(playerId: string, nonce: string, listingId: string): Promise<Json> {
     return this.callJson('select public.cc_market_cancel($1, $2, $3) as result', [playerId, nonce, listingId]);

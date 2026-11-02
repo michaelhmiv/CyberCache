@@ -23,8 +23,14 @@ import { isUsableWeaponPayload } from '../gameplay/serverLoadout';
 import type { GearItem } from '../../types/items';
 import { utcDayStartIso } from '../../lib/bossFees';
 import {
+  CORE_DISPLAY_NAME,
+  CORE_IDENTITY_KEY,
+  FRAGMENT_DISPLAY_NAME,
+  FRAGMENT_IDENTITY_KEY,
   consumableDisplayName,
   consumableIdentityKey,
+  essenceDisplayName,
+  essenceIdentityKey,
   gearCategoryFromPayload,
   gearIdentityFromPayload,
   materialIdentityKey,
@@ -571,11 +577,12 @@ export interface MarketListingData {
   seller_user_id: string;
   /** Market depth (0019): browse facts ride on the listing itself. */
   seller_type: 'player' | 'npc';
-  listing_kind: 'gear' | 'consumable' | 'material' | 'vehicle';
+  listing_kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence';
   quantity: number;
   quality_percent: number | null;
   consumable_type: string | null;
   material_id: string | null;
+  essence_id: string | null;
   identity_key: string | null;
   category: MarketCategory | null;
   display_name: string | null;
@@ -612,6 +619,7 @@ export interface RawListingFields {
   quality_percent?: number | null;
   consumable_type?: string | null;
   material_id?: string | null;
+  essence_id?: string | null;
   identity_key?: string | null;
   category?: string | null;
   display_name?: string | null;
@@ -632,6 +640,7 @@ export interface RawItemFields {
 
 export function browseRowFor(listing: RawListingFields, item: RawItemFields | null): MarketBrowseRow {
   const kind = listing.listing_kind === 'consumable' || listing.listing_kind === 'material' || listing.listing_kind === 'vehicle'
+    || listing.listing_kind === 'fragment' || listing.listing_kind === 'core' || listing.listing_kind === 'essence'
     ? listing.listing_kind
     : 'gear';
   const payload = item?.payload ?? {};
@@ -653,6 +662,21 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
     displayName = listing.display_name ?? listing.material_id ?? 'Material';
     identityKey = listing.identity_key
       ?? (listing.material_id ? materialIdentityKey(listing.material_id) : null);
+  } else if (kind === 'fragment') {
+    // Sellable resources (0050): single-commodity stacks.
+    category = 'fragment';
+    displayName = listing.display_name ?? FRAGMENT_DISPLAY_NAME;
+    identityKey = listing.identity_key ?? FRAGMENT_IDENTITY_KEY;
+  } else if (kind === 'core') {
+    category = 'core';
+    displayName = listing.display_name ?? CORE_DISPLAY_NAME;
+    identityKey = listing.identity_key ?? CORE_IDENTITY_KEY;
+  } else if (kind === 'essence') {
+    category = 'essence';
+    displayName = listing.display_name
+      ?? (listing.essence_id ? essenceDisplayName(listing.essence_id) : 'Essence');
+    identityKey = listing.identity_key
+      ?? (listing.essence_id ? essenceIdentityKey(listing.essence_id) : null);
   } else if (kind === 'vehicle') {
     // Vehicles (0021): browse like gear, bucketed by class + rarity.
     category = 'vehicle';
@@ -688,6 +712,7 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
     qualityPercent: listing.quality_percent ?? null,
     consumableType: listing.consumable_type ?? null,
     materialId: listing.material_id ?? null,
+    essenceId: listing.essence_id ?? null,
     identityKey,
     listedAt: Date.parse(listing.listed_at),
   };
@@ -711,6 +736,7 @@ export function marketListingData(
     quality_percent: browse.qualityPercent,
     consumable_type: browse.consumableType,
     material_id: browse.materialId,
+    essence_id: browse.essenceId,
     identity_key: browse.identityKey,
     category: browse.category,
     display_name: browse.displayName,
@@ -1335,11 +1361,13 @@ export interface MemListing {
   listed_at: string;
   sold_at?: string | null;
   // Market depth (0019) — optional; browseRowFor derives the rest.
-  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle';
+  // Sellable resources (0050) add fragment/core/essence + essence_id.
+  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence';
   quantity?: number;
   quality_percent?: number | null;
   consumable_type?: string | null;
   material_id?: string | null;
+  essence_id?: string | null;
   identity_key?: string | null;
   category?: string | null;
   display_name?: string | null;
@@ -2289,6 +2317,7 @@ export class PgReadStore implements ReadStore {
     const { rows } = await this.db.query(
       `select ml.id, ml.price_credits, ml.listed_at, ml.seller_user_id, ml.listing_kind,
               ml.quantity, ml.quality_percent, ml.consumable_type, ml.material_id,
+              ml.essence_id,
               ml.identity_key, ml.category, ml.display_name, ml.weapon_type, ml.element,
               ml.rarity, ml.item_level, ml.seller_type,
               ii.id as item_id, ii.item_level as item_item_level, ii.rarity as item_rarity,
@@ -2322,6 +2351,7 @@ export class PgReadStore implements ReadStore {
           quality_percent: numOrNull(r.quality_percent),
           consumable_type: (r.consumable_type as string | null) ?? null,
           material_id: (r.material_id as string | null) ?? null,
+          essence_id: (r.essence_id as string | null) ?? null,
           identity_key: (r.identity_key as string | null) ?? null,
           category: (r.category as string | null) ?? null,
           display_name: (r.display_name as string | null) ?? null,
@@ -2350,6 +2380,9 @@ export class PgReadStore implements ReadStore {
          select case
                   when ml.listing_kind = 'consumable' then coalesce(ml.identity_key, public.cc_market_consumable_identity(ml.consumable_type, ml.quality_percent))
                   when ml.listing_kind = 'material' then coalesce(ml.identity_key, 'mat:' || ml.material_id)
+                  when ml.listing_kind = 'fragment' then coalesce(ml.identity_key, 'frag:cache')
+                  when ml.listing_kind = 'core' then coalesce(ml.identity_key, 'core:legendary')
+                  when ml.listing_kind = 'essence' then coalesce(ml.identity_key, 'ess:' || ml.essence_id)
                   else coalesce(ml.identity_key, public.cc_market_gear_identity(ii.payload, ii.kind, coalesce(ii.rarity, ii.payload ->> 'rarity'), coalesce(ii.item_level, (ii.payload ->> 'level')::integer, 1)))
                 end as identity_key,
                 (ml.price_credits::numeric / greatest(ml.quantity, 1)) as unit_price,

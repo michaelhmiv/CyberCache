@@ -68,7 +68,10 @@ salvaging (and all tradable on [[The Market]]):
   forms** and **3 Lab composites**, which refining produces and gear
   frames consume.
 - **5 essences** — one per non-Kinetic element (Ignition Fluid, Conduit
-  Wire, Acid Compound, Cryo Gel, Void Essence).
+  Wire, Acid Compound, Cryo Gel, Void Essence). Each essence type
+  trades on [[The Market]] as its own quantity commodity, so a crafter
+  short on one element can buy exactly that essence instead of farming
+  for it.
 - **7 Tier-2 signature materials** — one sourced from each roaming
   area's home territory (Siltglass, Nitrocell Gel, Heartwood Resin,
   Forgeheart Ingots, Prism Shards, Magnetite Cores, Myco-Steel Fiber).
