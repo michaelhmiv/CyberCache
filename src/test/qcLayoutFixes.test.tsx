@@ -16,8 +16,10 @@
  *    bottom nav (66 + 14px gap), pointer-transparent, and the
  *    toast entry slide (6px) can never dip into the nav.
  *  - C1: "Switch Action" prints once in the stage zone — the
- *    controls-row button (and the sheet it opens). The diorama's
- *    secondary door to the same sheet is labeled "All Actions".
+ *    controls-row button (and the sheet it opens). (The diorama's
+ *    secondary door to the same sheet was labeled "All Actions"
+ *    under C1; drift-fix F2 retired that door with the in-stage
+ *    action bar, leaving the one named door C1 wanted.)
  *
  * jsdom has no layout engine, so these are DOM/source contracts in
  * the repo's established style; the 412×915 geometry proof is the
@@ -93,8 +95,14 @@ describe('QC A9 — gain toasts get their own lane above the bottom nav', () => 
 describe('QC C1 — "Switch Action" prints once in the stage zone', () => {
   const action = readSource('src/screens/ActionScreenContextual.tsx');
 
-  it('the diorama secondary door is labeled for the full menu, not a second "Switch Action"', () => {
-    expect(action).toContain(": 'All Actions'");
+  // Drift-fix F2 retired the diorama's duplicate door entirely:
+  // the stage carries no action bar, so the "All Actions" alias
+  // the C1 fix gave the second door is gone with it. The sheet
+  // now has exactly ONE door — the controls-row button — which
+  // is the end state C1 was protecting (one door, one name).
+  it('the retired diorama door and its "All Actions" alias are gone', () => {
+    expect(action).not.toContain('All Actions');
+    expect(action).not.toContain('secondaryActionLabel');
     expect(action).not.toContain(": 'Switch Action'");
   });
 

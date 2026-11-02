@@ -47,8 +47,12 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
     expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
     // The vector SVG scene is gone for this zone.
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
-    // Chrome is shared: title + moment buttons still render.
-    expect(screen.getAllByRole('button').length).toBeGreaterThanOrEqual(2);
+    // Chrome is shared: the stage plate + status ribbon render
+    // (drift-fix F2 — the in-stage action buttons are retired;
+    // actions live in the workspace under the stage).
+    expect(screen.getByTestId('diorama-stage-plate').textContent).toContain('Dustwaste Frontier');
+    expect(screen.getByTestId('diorama-status-ribbon').textContent).toContain('Roaming');
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 
   it('renders the pixel stage for redline too (P4 wave 1 converted every zone)', () => {

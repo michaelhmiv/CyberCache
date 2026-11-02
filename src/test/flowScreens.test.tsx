@@ -8,8 +8,10 @@
  *   visible (the old finally-block navigated away from the error;
  *   Wave B: the old Dashboard diorama start IS Home's stage
  *   control, and starts happen in place).
- * - F16: the stage's "Choose Boss" opens the boss picker callback
- *   instead of landing on a boss-less Fight tab.
+ * - F16: boss selection opens the boss picker in place instead
+ *   of landing on a boss-less Fight tab (drift-fix F2: the door
+ *   is the boss workspace's Change Boss; the stage's own action
+ *   bar is retired).
  * - F6: Leaderboards render for every session (guest-visibility
  *   law: the board is view-open, the fetch fires for guests) and
  *   surface fetch failures with Retry instead of an eternal spinner.
@@ -278,10 +280,11 @@ describe('F11 — dropped items are actionable from the loot feed', () => {
   });
 });
 
-describe('F7/F16 — Home stage errors stay put; Choose Boss opens the picker', () => {
+describe('F7/F16 — Home stage errors stay put; boss picker opens in place', () => {
   // Wave B successor of the Dashboard tests: Board and Action
-  // merged into Home — the diorama's Start Roam IS Home's stage
-  // control now. F7's protected behavior is unchanged (a failed
+  // merged into Home — Start Roam is Home's primary action
+  // (drift-fix F2: the standby workspace's action bar, under the
+  // stage). F7's protected behavior is unchanged (a failed
   // start surfaces the error in place; a successful start happens
   // in place — neither navigates anywhere).
   it('a failed roaming start shows the error in the feed and does NOT navigate', async () => {
@@ -319,7 +322,13 @@ describe('F7/F16 — Home stage errors stay put; Choose Boss opens the picker', 
     expect(start).not.toHaveBeenCalled();
   });
 
-  it('Choose Boss on the stage fires the picker callback, not a navigation', async () => {
+  it('Change Boss on the boss workspace opens the picker sheet, not a navigation', async () => {
+    // Drift-fix F2: the stage no longer carries a Choose Boss door
+    // (its in-stage action bar is retired) — the boss workspace
+    // panel that owns the encounter carries Change Boss, opening
+    // the same BossPickerList sheet in place. F16's contract —
+    // boss selection opens a picker without navigating — holds
+    // on the workspace door.
     const onNavigate = vi.fn();
     const onOpenBossSelect = vi.fn();
     useActivityStore.setState({
@@ -327,8 +336,8 @@ describe('F7/F16 — Home stage errors stay put; Choose Boss opens the picker', 
     });
     useBossStore.setState({ currentBossId: REGION_1_BOSSES[0].id });
     render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={onOpenBossSelect} />);
-    fireEvent.click(screen.getByText('Choose Boss'));
-    expect(onOpenBossSelect).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText('Change Boss'));
+    expect(await screen.findByText('Choose Boss Target')).toBeInTheDocument();
     expect(onNavigate).not.toHaveBeenCalled();
   });
 });
