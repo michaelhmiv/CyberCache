@@ -3,7 +3,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useAnimationControls } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
 import { PixelPartsActor } from './PixelPartsActor';
-import { PART_POSES, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
+import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
 import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
 import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
@@ -137,7 +137,7 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
   const bossSprite = getPixelSprite(pixelBossSpriteForBoss(bossId) ?? 'brute') ?? requirePixelSprite('brute');
   // The hunter is a part set (M2): FX points resolve from the parts
   // layout for the pose he is actually in — the grip/muzzle of the
-  // held weapon, the skeleton's chest for his mass. (The deleted
+  // held weapon, the torso span for his mass (M3). (The deleted
   // whole-hunter sprite's manifest anchors used to feed these.)
   const hunterPoseName: PartsPoseName = !weapon
     ? 'relaxed'
@@ -154,7 +154,10 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
   );
   const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
   const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
-  const hunterMass = partsAnchorPoint(SKELETON.chest, hunterPlacement);
+  // M3: the mass joint is layout-resolved from the posed torso
+  // (neckSeat→pelvisSeat) — the FX anchor chain's last hard-coded
+  // point (the skeleton's fixed chest design point) is gone.
+  const hunterMass = partsAnchorPoint(hunterLayout.joints.mass, hunterPlacement);
   const bossMass = actorAnchorPoint(bossSprite, 'centerMass', bossPlacement);
   const bossFeet = actorAnchorPoint(bossSprite, 'feet', bossPlacement);
 

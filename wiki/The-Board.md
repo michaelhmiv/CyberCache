@@ -36,6 +36,8 @@ Finds on the stage rise as what they actually are: a gear drop gets its rarity b
 
 The weapon in your hunter's hands is always the exact weapon you have equipped — its type, make, and rolled parts — held at the grip, with nothing else underneath it. The same hunter, with the same rule, steps into the boss arena: what you see on the Board is what you fight with. Equip nothing and the hands are empty.
 
+Your equipped gear is worn the same way — mounted on the figure itself, moving as he moves. Your shield projects from his support arm as its own behavior glyph (the starburst, ward, and so on), tinted by its element; your relic hangs at his chest framed by its rarity; the pauldron on his shoulder wears your class mod's tree; and the consumables slotted for the fight ride his belt. Swap any piece and the figure on the stage is wearing the new one — unequip it and that read is simply gone.
+
 At the stage's top edge sits your **current area chip** — tap it to open the area picker and change where roaming happens. If you are enrolled in a [[Progression|Research]] course, its chip sits beside the area chip, because research runs alongside your action rather than replacing it.
 
 ## The mode rail
