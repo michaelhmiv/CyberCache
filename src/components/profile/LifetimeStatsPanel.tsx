@@ -22,7 +22,7 @@ import { consumableDisplayName } from '@/lib/market/identityKey';
  * until the Chef answers.
  */
 
-const fmt = (n: number): string => n.toLocaleString('en-US');
+const fmt = (n: number): string => (n ?? 0).toLocaleString('en-US');
 
 const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="flex justify-between gap-3">
@@ -55,8 +55,60 @@ const AREA_NAMES = new Map(ROAMING_AREAS.map((a) => [a.id, a.name]));
 const WEAPON_TYPE_NAMES = new Map<string, string>(Object.values(WEAPON_TYPES).map((t) => [t.id as string, t.name]));
 const ELEMENT_NAMES = new Map<string, string>(Object.values(ELEMENTS).map((e) => [e.id as string, e.name]));
 
-function sortedEntries(map: Record<string, number>): Array<[string, number]> {
-  return Object.entries(map).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+function sortedEntries(map: Record<string, number> | null | undefined): Array<[string, number]> {
+  return Object.entries(map ?? {})
+    .map(([key, count]) => [key, count ?? 0] as [string, number])
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+/**
+ * A partial payload must render a partial record, never blank the
+ * screen: older Chef builds (and any read that predates a section)
+ * omit whole blocks — kills.by_element, deaths and credits arrived
+ * with 0051, and more sections will follow. Every section is filled
+ * with its empty shape before anything reads it, so a missing map
+ * or scalar degrades to that section's empty state.
+ */
+function withLifetimeDefaults(data: ProfileLifetimePayload): ProfileLifetimePayload {
+  return {
+    kills: {
+      roaming: 0, elites: 0, named_elites_downed: 0,
+      by_area: {}, by_weapon_type: {}, by_element: {},
+      ...(data.kills ?? {}),
+    },
+    deaths: data.deaths ?? 0,
+    credits: { earned: 0, spent: 0, since: null, ...(data.credits ?? {}) },
+    bosses: { attempts: 0, victories: 0, downed: 0, by_boss: {}, ...(data.bosses ?? {}) },
+    endless: { runs: 0, best_depth: 0, deaths: 0, banked: 0, abandoned: 0, ...(data.endless ?? {}) },
+    legendaries: {
+      salvaged: 0, cores_minted: 0, cores_spent: 0, cores_balance: 0,
+      discoveries_by_source: {}, ...(data.legendaries ?? {}),
+    },
+    caches: { opened: 0, rewarded_keys: 0, ...(data.caches ?? {}) },
+    crafting: { total_units: 0, units_by_kind: {}, ...(data.crafting ?? {}) },
+    consumables: {
+      used_total: 0, ...(data.consumables ?? {}),
+      top_used: data.consumables?.top_used ?? [],
+    },
+    repair: {
+      board_points_restored: 0, board_jobs_completed: 0, board_credits_earned: 0,
+      self_points_restored: 0, self_jobs: 0, ...(data.repair ?? {}),
+    },
+    dispatch: { completed: 0, foot: 0, courier: 0, credits_earned: 0, ...(data.dispatch ?? {}) },
+    extraction: { passes: 0, xp_awarded: 0, ...(data.extraction ?? {}) },
+    market: {
+      sales: 0, sales_volume: 0, fees_paid: 0, purchases: 0, purchases_volume: 0,
+      ...(data.market ?? {}),
+    },
+    salvage: { items: 0, scrap_earned: 0, ...(data.salvage ?? {}) },
+    reforges: data.reforges ?? 0,
+    resurrections: data.resurrections ?? 0,
+    collections: { discovered: 0, by_family: {}, ...(data.collections ?? {}) },
+    showcase: {
+      top_weapons: [], best_endless_depth: 0, cache_rank_tokens: 0,
+      cache_rank_total_ranks: 0, collections_discovered: 0, ...(data.showcase ?? {}),
+    },
+  };
 }
 
 export const LifetimeStatsPanel: React.FC = () => {
@@ -78,13 +130,15 @@ export const LifetimeStatsPanel: React.FC = () => {
 
   if (!data) return null;
 
-  const weaponKills = sortedEntries(data.kills.by_weapon_type);
-  const elementKills = sortedEntries(data.kills.by_element);
-  const areaKills = sortedEntries(data.kills.by_area).slice(0, 5);
-  const legendarySources = sortedEntries(data.legendaries.discoveries_by_source);
-  const craftKinds = sortedEntries(data.crafting.units_by_kind).slice(0, 4);
-  const creditsSince = data.credits.since
-    ? new Date(data.credits.since).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  const safe = withLifetimeDefaults(data);
+  const weaponKills = sortedEntries(safe.kills.by_weapon_type);
+  const elementKills = sortedEntries(safe.kills.by_element);
+  const areaKills = sortedEntries(safe.kills.by_area).slice(0, 5);
+  const legendarySources = sortedEntries(safe.legendaries.discoveries_by_source);
+  const craftKinds = sortedEntries(safe.crafting.units_by_kind).slice(0, 4);
+  const creditsSinceDate = safe.credits.since ? new Date(safe.credits.since) : null;
+  const creditsSince = creditsSinceDate && !Number.isNaN(creditsSinceDate.getTime())
+    ? creditsSinceDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : null;
 
   return (
@@ -97,15 +151,16 @@ export const LifetimeStatsPanel: React.FC = () => {
         </div>
 
         <Section icon="skull" title="Combat Record" tone="#FF4B5C">
-          <Row label="Roaming kills" value={fmt(data.kills.roaming)} />
-          <Row label="Elite kills" value={fmt(data.kills.elites)} />
-          <Row label="Named elites downed" value={`${data.kills.named_elites_downed} / ${NAMED_ELITES.length}`} />
-          <Row label="Boss victories" value={`${fmt(data.bosses.victories)} of ${fmt(data.bosses.attempts)} attempts`} />
-          <Row label="Bosses downed" value={`${data.bosses.downed} / ${REGION_1_BOSSES.length}`} />
-          <Row label="Endless best depth" value={fmt(data.endless.best_depth)} />
-          <Row label="Endless runs" value={`${fmt(data.endless.runs)} (${fmt(data.endless.banked)} banked · ${fmt(data.endless.deaths)} died)`} />
-          <Row label="Lifetime deaths" value={fmt(data.deaths)} />
-          <Row label="Resurrections" value={fmt(data.resurrections)} />
+          <Row label="Roaming kills" value={fmt(safe.kills.roaming)} />
+          <Row label="Elite kills" value={fmt(safe.kills.elites)} />
+          <Row label="Named elites downed" value={`${fmt(safe.kills.named_elites_downed)} / ${NAMED_ELITES.length}`} />
+          <Row label="Boss victories" value={`${fmt(safe.bosses.victories)} of ${fmt(safe.bosses.attempts)} attempts`} />
+          <Row label="Bosses downed" value={`${fmt(safe.bosses.downed)} / ${REGION_1_BOSSES.length}`} />
+          <Row label="Endless best depth" value={fmt(safe.endless.best_depth)} />
+          <Row label="Endless runs" value={`${fmt(safe.endless.runs)} (${fmt(safe.endless.banked)} banked · ${fmt(safe.endless.deaths)} died)`} />
+
+          <Row label="Lifetime deaths" value={fmt(safe.deaths)} />
+          <Row label="Resurrections" value={fmt(safe.resurrections)} />
         </Section>
 
         <Section icon="crosshair" title="Kills by Weapon" tone="#FF4B5C">
@@ -143,46 +198,46 @@ export const LifetimeStatsPanel: React.FC = () => {
         )}
 
         <Section icon="star" title="Loot & Legend" tone="#FFD166">
-          <Row label="Legendaries salvaged" value={fmt(data.legendaries.salvaged)} />
-          <Row label="Legendary cores minted" value={fmt(data.legendaries.cores_minted)} />
-          <Row label="Legendary cores spent" value={fmt(data.legendaries.cores_spent)} />
-          <Row label="Core balance" value={fmt(data.legendaries.cores_balance)} />
-          <Row label="Caches opened" value={fmt(data.caches.opened)} />
-          <Row label="Rewarded keys claimed" value={fmt(data.caches.rewarded_keys)} />
+          <Row label="Legendaries salvaged" value={fmt(safe.legendaries.salvaged)} />
+          <Row label="Legendary cores minted" value={fmt(safe.legendaries.cores_minted)} />
+          <Row label="Legendary cores spent" value={fmt(safe.legendaries.cores_spent)} />
+          <Row label="Core balance" value={fmt(safe.legendaries.cores_balance)} />
+          <Row label="Caches opened" value={fmt(safe.caches.opened)} />
+          <Row label="Rewarded keys claimed" value={fmt(safe.caches.rewarded_keys)} />
           {legendarySources.map(([source, count]) => (
             <Row key={source} label={`Legendary finds — ${SOURCE_LABELS[source] ?? source}`} value={fmt(count)} />
           ))}
         </Section>
 
         <Section icon="hammer" title="Trade & Work" tone="#7CFC00">
-          <Row label="Credits earned" value={`${fmt(data.credits.earned)} cr`} />
-          <Row label="Credits spent" value={`${fmt(data.credits.spent)} cr`} />
+          <Row label="Credits earned" value={`${fmt(safe.credits.earned)} cr`} />
+          <Row label="Credits spent" value={`${fmt(safe.credits.spent)} cr`} />
           <div className="text-[10px] text-text-muted">
             {creditsSince
               ? `Credit totals count every credit change since ${creditsSince}; earlier credit history was never recorded server-side.`
               : 'Credit totals start counting with your next credit change; earlier credit history was never recorded server-side.'}
           </div>
-          <Row label="Market sales" value={`${fmt(data.market.sales)} · ${fmt(data.market.sales_volume)} cr`} />
-          <Row label="Market fees paid" value={`${fmt(data.market.fees_paid)} cr`} />
-          <Row label="Market purchases" value={`${fmt(data.market.purchases)} · ${fmt(data.market.purchases_volume)} cr`} />
-          <Row label="Units crafted" value={fmt(data.crafting.total_units)} />
+          <Row label="Market sales" value={`${fmt(safe.market.sales)} · ${fmt(safe.market.sales_volume)} cr`} />
+          <Row label="Market fees paid" value={`${fmt(safe.market.fees_paid)} cr`} />
+          <Row label="Market purchases" value={`${fmt(safe.market.purchases)} · ${fmt(safe.market.purchases_volume)} cr`} />
+          <Row label="Units crafted" value={fmt(safe.crafting.total_units)} />
           {craftKinds.map(([kind, count]) => (
             <Row key={kind} label={`Crafted — ${kind}`} value={fmt(count)} />
           ))}
-          {data.consumables.top_used.map((entry) => (
+          {safe.consumables.top_used.map((entry) => (
             <Row key={entry.type} label={`Used — ${consumableDisplayName(entry.type)}`} value={fmt(entry.count)} />
           ))}
-          <Row label="Repair points (board)" value={`${fmt(data.repair.board_points_restored)} · ${fmt(data.repair.board_jobs_completed)} jobs`} />
-          <Row label="Repair points (self)" value={`${fmt(data.repair.self_points_restored)} · ${fmt(data.repair.self_jobs)} jobs`} />
-          <Row label="Dispatch completed" value={`${fmt(data.dispatch.completed)} (${fmt(data.dispatch.foot)} foot · ${fmt(data.dispatch.courier)} courier)`} />
-          <Row label="Dispatch earnings" value={`${fmt(data.dispatch.credits_earned)} cr`} />
-          <Row label="Extraction passes" value={fmt(data.extraction.passes)} />
+          <Row label="Repair points (board)" value={`${fmt(safe.repair.board_points_restored)} · ${fmt(safe.repair.board_jobs_completed)} jobs`} />
+          <Row label="Repair points (self)" value={`${fmt(safe.repair.self_points_restored)} · ${fmt(safe.repair.self_jobs)} jobs`} />
+          <Row label="Dispatch completed" value={`${fmt(safe.dispatch.completed)} (${fmt(safe.dispatch.foot)} foot · ${fmt(safe.dispatch.courier)} courier)`} />
+          <Row label="Dispatch earnings" value={`${fmt(safe.dispatch.credits_earned)} cr`} />
+          <Row label="Extraction passes" value={fmt(safe.extraction.passes)} />
         </Section>
 
         <Section icon="recycle" title="Salvage & Reforge" tone="#A855F7">
-          <Row label="Items salvaged" value={fmt(data.salvage.items)} />
-          <Row label="Scrap from salvage" value={fmt(data.salvage.scrap_earned)} />
-          <Row label="Reforges" value={fmt(data.reforges)} />
+          <Row label="Items salvaged" value={fmt(safe.salvage.items)} />
+          <Row label="Scrap from salvage" value={fmt(safe.salvage.scrap_earned)} />
+          <Row label="Reforges" value={fmt(safe.reforges)} />
         </Section>
       </MobileCard>
     </div>
