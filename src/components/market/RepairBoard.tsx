@@ -263,16 +263,15 @@ export const RepairBoard: React.FC = () => {
 
   return (
     <div className="space-y-3" data-testid="repair-board">
-      <div className="border border-border bg-surface/95 p-3 space-y-2">
+      <div className="border border-border bg-surface/95 p-2.5 space-y-1.5">
+        {/* Compressed header (drift-fix F3, mock m43): the title
+            and Refresh share one row and the explainer runs the
+            panel's full width in the mock's one-line form — every
+            fact survives (open market / no NPC, escrow, price =
+            kits + labor, expiry refund); the kits-supply term also
+            prints on every job card's requirements line. */}
         <div className="flex items-center justify-between gap-2">
-          <div>
-            <div className="text-base font-black text-text-primary">Repair Services</div>
-            <div className="text-[11px] text-text-muted">
-              Post a vehicle, escrow the price, and any mechanic can take the job — they supply
-              the patch kits; the price covers kits + labor. No NPC mechanic: unfilled jobs
-              expire and refund in full.
-            </div>
-          </div>
+          <div className="text-base font-black text-text-primary">Repair Services</div>
           <button
             type="button"
             disabled={loading}
@@ -284,6 +283,9 @@ export const RepairBoard: React.FC = () => {
           >
             Refresh
           </button>
+        </div>
+        <div className="text-[11px] text-text-muted">
+          Open market — no NPC mechanic · price = kits + labor, escrowed in full · unfilled jobs expire and refund.
         </div>
         {board && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
@@ -424,7 +426,7 @@ export const RepairBoard: React.FC = () => {
                 key={c.id}
                 type="button"
                 onClick={() => setBoardQuery({ vehicleClass: boardQuery.vehicleClass === c.id ? undefined : c.id })}
-                className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${boardQuery.vehicleClass === c.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
+                className={`flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-[11px] font-bold ${boardQuery.vehicleClass === c.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
               >
                 {c.displayName}
               </button>
@@ -609,7 +611,7 @@ export const RepairBoard: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <div className="flex justify-between text-[10px] text-text-muted">
+                  <div className="flex justify-between text-[11px] text-text-muted">
                     <span>Restored</span>
                     <span>
                       {Math.floor(job.pointsRestored)} / {job.targetPoints} points ·{' '}

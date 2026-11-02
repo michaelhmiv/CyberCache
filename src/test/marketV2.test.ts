@@ -96,7 +96,13 @@ describe('market v2 — rail of stops (source pins)', () => {
   });
 
   it('every chip row rides the one ChipRail geometry', () => {
-    expect(market.match(/<ChipRail>/g)?.length).toBeGreaterThanOrEqual(5);
+    // Drift-fix F3 successor contract: chip rows still ride
+    // ChipRail, but a rail that shares its row with the sort
+    // select or the count/refresh cluster carries a layout
+    // className (min-w-0 flex-1) — the pin counts ChipRail
+    // openings with or without attributes. The invariant is
+    // unchanged: no chip row hand-rolls its own scroller.
+    expect(market.match(/<ChipRail[\s>]/g)?.length).toBeGreaterThanOrEqual(5);
     expect(market).toContain('chipCls');
     // The old ragged per-row chip markup is gone.
     expect(market).not.toContain('overflow-x-auto pb-1');

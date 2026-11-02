@@ -284,17 +284,15 @@ export const ShieldTechBoard: React.FC = () => {
 
   return (
     <div className="space-y-3" data-testid="shieldtech-board">
-      <div className="border border-border bg-surface/95 p-3 space-y-2">
+      <div className="border border-border bg-surface/95 p-2.5 space-y-1.5">
+        {/* Compressed header (drift-fix F3, mock m43): title and
+            Refresh share one row; the explainer runs full width in
+            the mock's one-line form — every fact survives (open
+            market / no NPC, escrow, price = cores + labor, flip
+            only at 100%, expiry refund); the cores-supply term also
+            prints on every job card's requirements line. */}
         <div className="flex items-center justify-between gap-2">
-          <div>
-            <div className="text-base font-black text-text-primary">Shield Tech</div>
-            <div className="text-[11px] text-text-muted">
-              Post a shield, escrow the price, and any shield tech can take the job — they
-              supply the Calibration Cores; the price covers cores + labor. The behavior
-              flip lands only at 100% calibration. No NPC tech: unfilled jobs expire and
-              refund in full.
-            </div>
-          </div>
+          <div className="text-base font-black text-text-primary">Shield Tech</div>
           <button
             type="button"
             disabled={loading}
@@ -306,6 +304,9 @@ export const ShieldTechBoard: React.FC = () => {
           >
             Refresh
           </button>
+        </div>
+        <div className="text-[11px] text-text-muted">
+          Open market — no NPC tech · price = cores + labor, escrowed in full · the flip lands only at 100% · unfilled jobs expire and refund.
         </div>
         {board && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
@@ -458,7 +459,7 @@ export const ShieldTechBoard: React.FC = () => {
               value={boardQuery.fromBehavior ?? ''}
               onChange={(e) => setBoardQuery({ fromBehavior: e.target.value || undefined })}
               aria-label="Current behavior filter"
-              className="flex-1 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+              className="flex-1 text-[11px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1.5 text-text-primary"
             >
               <option value="">From: any behavior</option>
               {Object.entries(SHIELD_BEHAVIORS).map(([id, def]) => (
@@ -469,7 +470,7 @@ export const ShieldTechBoard: React.FC = () => {
               value={boardQuery.toBehavior ?? ''}
               onChange={(e) => setBoardQuery({ toBehavior: e.target.value || undefined })}
               aria-label="Target behavior filter"
-              className="flex-1 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+              className="flex-1 text-[11px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1.5 text-text-primary"
             >
               <option value="">To: any behavior</option>
               {Object.entries(SHIELD_BEHAVIORS).map(([id, def]) => (
@@ -639,7 +640,7 @@ export const ShieldTechBoard: React.FC = () => {
                   <div className="text-[11px] text-text-muted">{job.priceCredits} cr</div>
                 </div>
                 <div>
-                  <div className="flex justify-between text-[10px] text-text-muted">
+                  <div className="flex justify-between text-[11px] text-text-muted">
                     <span>Calibrated</span>
                     <span>
                       {Math.floor(job.pointsCalibrated)} / {job.targetPoints} points ·{' '}

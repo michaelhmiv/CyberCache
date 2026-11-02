@@ -29,6 +29,7 @@ import type { PriceStats } from '@/lib/market/priceStats';
 import type { MarketListingQuery, MarketSort } from '@/lib/market/listingQuery';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { ChipRail } from '@/components/common/ChipRail';
+import { PickerSheet } from '@/components/common/PickerSheet';
 import { listEntranceProps, stopTransitionProps } from '@/lib/animation/uiMotion';
 import { VendorScreen } from './VendorScreen';
 import { RepDeskPanel } from '@/components/vendor/RepDeskPanel';
@@ -99,6 +100,18 @@ const BUY_CATEGORIES: { id: MarketCategory | null; label: string }[] = [
   ...Object.entries(MARKET_CATEGORY_LABELS).map(([id, label]) => ({ id: id as MarketCategory, label })),
 ];
 
+/** Short sort names for the Filters door on the Buy lane (F3): the
+ *  door prints the CURRENT sort so the query state is visible
+ *  without opening the sheet. */
+const BUY_SORT_LABELS: Record<MarketSort, string> = {
+  newest: 'Newest',
+  price_asc: 'Cheapest',
+  price_desc: 'Priciest',
+  rarity: 'Rarity',
+  level: 'Level',
+  name: 'Name',
+};
+
 function rarityColor(rarity: string | undefined): string {
   if (!rarity) return '#9CA3AF';
   return (RARITIES as Record<string, { color: string }>)[rarity]?.color ?? '#9CA3AF';
@@ -152,11 +165,11 @@ function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem;
           <GearIllustration item={item} size={46} showBadges={false} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-black" style={{ color }}>{item.name}</div>
-          <div className="text-[10px] text-text-muted">{item.rarity} · Lv.{item.level ?? 1} · {itemKind(item)}</div>
+          <div className="text-xs font-black leading-snug" style={{ color }}>{item.name}</div>
+          <div className="text-[11px] text-text-muted">{item.rarity} · Lv.{item.level ?? 1} · {itemKind(item)}</div>
           <div className="flex flex-wrap gap-1 mt-1">
             {summary.primaryStats.slice(0, 3).map((stat) => (
-              <span key={stat.label} className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[9px]">
+              <span key={stat.label} className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
                 <span className="text-text-muted">{stat.label}</span>
                 <span className={`font-bold ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
               </span>
@@ -166,7 +179,7 @@ function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem;
             // QC A8: the badge line carries stat values (activity
             // module rates) — it wraps, never ellipsizes. Values on
             // a card print in full or not at all.
-            <div className="text-[9px] text-amber mt-0.5 leading-snug">{summary.badges[0]}</div>
+            <div className="text-[11px] text-amber mt-0.5 leading-snug">{summary.badges[0]}</div>
           )}
           {compareItem && (
             <GearCompare current={compareItem} candidate={item} compact />
@@ -199,14 +212,14 @@ function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; righ
     <div className="flex items-center gap-3">
       <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg"><PxIcon name={icon} size={26} /></div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-black text-text-primary">{listing.displayName}</div>
-        <div className="text-[10px] text-text-muted">{meta}</div>
-        {listing.unitPrice > 0 && <div className="text-[9px] text-text-muted">{Math.round(listing.unitPrice).toLocaleString()}cr each</div>}
+        <div className="text-xs font-black leading-snug text-text-primary">{listing.displayName}</div>
+        <div className="text-[11px] text-text-muted">{meta}</div>
+        {listing.unitPrice > 0 && <div className="text-[11px] text-text-muted">{Math.round(listing.unitPrice).toLocaleString()}cr each</div>}
         {listing.kind === 'material' && listing.materialId && onShowUsage && (
           <button
             type="button"
             onClick={() => onShowUsage(listing.materialId!)}
-            className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-amber"
+            className="mt-0.5 text-[11px] font-black uppercase tracking-wide text-amber"
           >
             <span className="inline-flex items-center gap-0.5">Used in <PxIcon name="triR" size={13} /></span>
           </button>
@@ -241,7 +254,7 @@ function PriceTrend({ stats }: { stats?: PriceStats }) {
   const arrow = stats.trend === 'up' ? '▲' : stats.trend === 'down' ? '▼' : stats.trend === 'flat' ? '→' : '';
   const tone = stats.trend === 'up' ? 'text-green-400' : stats.trend === 'down' ? 'text-red-400' : 'text-text-muted';
   return (
-    <div className={`flex items-center gap-1.5 text-[9px] ${tone}`}>
+    <div className={`flex items-center gap-1.5 text-[11px] ${tone}`}>
       <PriceSparkline points={stats.recentUnitPrices} />
       {stats.medianUnitPrice !== null && <span className="text-text-muted">median {Math.round(stats.medianUnitPrice).toLocaleString()}cr</span>}
       {arrow && stats.trendPct !== null && <span>{arrow} {Math.abs(Math.round(stats.trendPct * 100))}% / 7d</span>}
@@ -254,7 +267,7 @@ function SalesGuidance({ stats, perUnit }: { stats?: PriceStats; perUnit?: boole
   if (!stats || stats.salesCount === 0) return null;
   const unit = perUnit ? ' ea' : '';
   return (
-    <div className="text-[10px] text-text-muted">
+    <div className="text-[11px] text-text-muted">
       Recent sales: median {Math.round(stats.medianUnitPrice ?? 0).toLocaleString()}cr{unit}
       {stats.lastUnitPrice !== null && <> · last {Math.round(stats.lastUnitPrice).toLocaleString()}cr{unit}</>}
       {' '}· {stats.salesCount} sold
@@ -314,6 +327,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [priceStats, setPriceStats] = useState<Record<string, PriceStats>>({});
   const [usageMaterialId, setUsageMaterialId] = useState<string | null>(null);
+  const [showBuyFilters, setShowBuyFilters] = useState(false);
   const [pendingBuyId, setPendingBuyId] = useState<string | null>(null);
   const [pendingListId, setPendingListId] = useState<string | null>(null);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
@@ -687,6 +701,11 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
   const hasBuyFilters = Boolean(search || filterRarity || buyCategory || buyWeaponType || buyElement || buyLevelMin || buyLevelMax || buyPriceMin || buyPriceMax);
 
+  // The Filters door's badge count (F3): only the detailed filters
+  // that live inside the sheet — search, category and sort stay on
+  // the lane itself and are not counted here.
+  const activeBuyFilterCount = [filterRarity, buyWeaponType, buyElement, buyLevelMin, buyLevelMax, buyPriceMin, buyPriceMax].filter(Boolean).length;
+
   const clearSellFilters = () => {
     setSellSearch('');
     setSellFilterRarity(null);
@@ -745,14 +764,15 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
         <>
       {market.activeTab === 'buy' && (
         <div className="space-y-3">
-          <button
-            onClick={refreshListings}
-            disabled={loadingListings}
-            className="flex items-center gap-1.5 text-left text-[11px] font-bold text-text-secondary transition-colors hover:text-amber active:text-amber disabled:opacity-50"
-          >
-            <RefreshCw size={12} className={loadingListings ? 'animate-spin' : ''} />
-            {loadingListings ? 'Loading market…' : 'Player Market — refresh'}
-          </button>
+          {/* Listings-first chrome (drift-fix F3, mock m39;
+              DESIGN.md §3: "Buy — filters in one sheet"). The lane
+              itself keeps search, the category chips, the result
+              count and the refresh; the detailed filters (rarity,
+              weapon type, element, level/price ranges) and the sort
+              move into ONE sheet behind the Filters door — the same
+              state and handlers, so the query behavior is unchanged.
+              The door prints the active-filter count and the current
+              sort, so the query state is never hidden. */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -760,60 +780,31 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
             </div>
             <button
               type="button"
-              onClick={clearBuyFilters}
-              disabled={!hasBuyFilters}
-              aria-label="Clear market filters"
-              className="rounded-lg border border-border bg-surface-raised px-3 py-2 text-text-muted transition-colors active:text-amber disabled:opacity-40"
+              onClick={() => setShowBuyFilters(true)}
+              aria-label="Open market filters"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface-raised px-3 py-2 text-[11px] font-black text-text-primary transition-colors active:border-amber"
             >
               <Filter size={14} />
+              <span className="whitespace-nowrap">Filters{activeBuyFilterCount > 0 ? ` (${activeBuyFilterCount})` : ''} · Sort: {BUY_SORT_LABELS[buySort]}</span>
+              <PxIcon name="chevD" size={13} />
             </button>
           </div>
-          <ChipRail>
-            {BUY_CATEGORIES.map((c) => <button key={c.label} onClick={() => setBuyCategory(c.id)} className={chipCls(buyCategory === c.id)}>{c.label}</button>)}
-          </ChipRail>
-          <ChipRail>
-            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setFilterRarity(filterRarity === r ? null : r)} className={chipCls(filterRarity === r)}>{r}</button>)}
-          </ChipRail>
-          {(buyCategory === null || buyCategory === 'weapon') && (
-            <div className="flex gap-2">
-              <select
-                value={buyWeaponType ?? ''}
-                onChange={(e) => setBuyWeaponType(e.target.value || null)}
-                className="flex-1 border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
+          <div className="flex items-center gap-2">
+            <ChipRail className="min-w-0 flex-1">
+              {BUY_CATEGORIES.map((c) => <button key={c.label} onClick={() => setBuyCategory(c.id)} className={chipCls(buyCategory === c.id)}>{c.label}</button>)}
+            </ChipRail>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="whitespace-nowrap text-[11px] text-text-muted">{loadingListings ? 'Loading…' : `${buyTotal.toLocaleString()} listing${buyTotal === 1 ? '' : 's'}`}</span>
+              <button
+                type="button"
+                onClick={refreshListings}
+                disabled={loadingListings}
+                aria-label="Refresh listings"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface-raised text-text-secondary transition-colors hover:text-amber active:text-amber disabled:opacity-50"
               >
-                <option value="">Any weapon type</option>
-                {Object.values(WEAPON_TYPES).map((t) => <option key={t.id} value={t.id}>{t.id}</option>)}
-              </select>
-              <select
-                value={buyElement ?? ''}
-                onChange={(e) => setBuyElement(e.target.value || null)}
-                className="flex-1 border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
-              >
-                <option value="">Any element</option>
-                {Object.keys(ELEMENTS).map((el) => <option key={el} value={el}>{el}</option>)}
-              </select>
+                <RefreshCw size={13} className={loadingListings ? 'animate-spin' : ''} />
+              </button>
             </div>
-          )}
-          <div className="flex gap-2">
-            <input value={buyLevelMin} onChange={(e) => setBuyLevelMin(e.target.value)} inputMode="numeric" placeholder="Lv min" className={filterInputCls} />
-            <input value={buyLevelMax} onChange={(e) => setBuyLevelMax(e.target.value)} inputMode="numeric" placeholder="Lv max" className={filterInputCls} />
-            <input value={buyPriceMin} onChange={(e) => setBuyPriceMin(e.target.value)} inputMode="numeric" placeholder="Min cr" className={filterInputCls} />
-            <input value={buyPriceMax} onChange={(e) => setBuyPriceMax(e.target.value)} inputMode="numeric" placeholder="Max cr" className={filterInputCls} />
-          </div>
-          <div className="flex items-center justify-between">
-            <select
-              value={buySort}
-              onChange={(e) => setBuySort(e.target.value as MarketSort)}
-              className="border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
-            >
-              <option value="newest">Sort: Newest</option>
-              <option value="price_asc">Sort: Cheapest</option>
-              <option value="price_desc">Sort: Priciest</option>
-              <option value="rarity">Sort: Rarity ↓</option>
-              <option value="level">Sort: Level ↓</option>
-              <option value="name">Sort: Name A-Z</option>
-            </select>
-            {!loadingListings && <span className="text-[10px] text-text-muted">{buyTotal.toLocaleString()} listing{buyTotal === 1 ? '' : 's'}</span>}
           </div>
           <div className="space-y-2">
             {!loadingListings && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell stop.</div>}
@@ -821,19 +812,32 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
               const seller = sellerDisplayName(listing, currentUserId);
               const stats = listing.identityKey ? priceStats[listing.identityKey] : undefined;
               return (
-                <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card space-y-2">
-                  {listing.kind === 'gear' && listing.itemSnapshot ? (
-                    <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
-                  ) : (
-                    <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
-                  )}
-                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                    <span className="text-[10px] text-text-muted">Seller · {seller}</span>
-                    <PriceTrend stats={stats} />
+                <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card p-2.5">
+                  {/* Compact row (F3, mock m39): item + seller/trend
+                      in the flexible middle, price over a SMALL Buy
+                      button in a fixed right column — the full-width
+                      button band is gone, so rows run ~half the old
+                      height and listings start high. Same handler,
+                      same disabled rule, same lock-on-the-action. */}
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      {listing.kind === 'gear' && listing.itemSnapshot ? (
+                        <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} />
+                      ) : (
+                        <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} />
+                      )}
+                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                        <span className="text-[11px] text-text-muted">Seller · {seller}</span>
+                        <PriceTrend stats={stats} />
+                      </div>
+                    </div>
+                    <div className="flex w-[92px] shrink-0 flex-col items-end gap-1.5">
+                      <div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>
+                      <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id || (!marketLocked && player.credits < listing.price)} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber px-2 py-2 text-[11px] font-bold text-bg disabled:opacity-40">
+                        {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
+                      </button>
+                    </div>
                   </div>
-                  <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id || (!marketLocked && player.credits < listing.price)} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber py-2 text-xs font-bold text-bg disabled:opacity-40">
-                    {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
-                  </button>
                 </motion.div>
               );
             })}
@@ -883,25 +887,30 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
               <Filter size={14} />
             </button>
           </div>
-          <ChipRail>
-            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setSellFilterRarity(sellFilterRarity === r ? null : r)} className={chipCls(sellFilterRarity === r)}>{r}</button>)}
-          </ChipRail>
-          <select
-            value={sellSort}
-            onChange={(e) => setSellSort(e.target.value as SellSort)}
-            className="border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
-          >
-            <option value="power">Sort: Power ↓</option>
-            <option value="rarity">Sort: Rarity ↓</option>
-            <option value="name">Sort: Name A-Z</option>
-          </select>
+          {/* F3 chrome compression: the sort rides the rarity
+              rail's row instead of taking a row of its own — same
+              control, same options, one row higher for the items. */}
+          <div className="flex items-center gap-2">
+            <ChipRail className="min-w-0 flex-1">
+              {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setSellFilterRarity(sellFilterRarity === r ? null : r)} className={chipCls(sellFilterRarity === r)}>{r}</button>)}
+            </ChipRail>
+            <select
+              value={sellSort}
+              onChange={(e) => setSellSort(e.target.value as SellSort)}
+              className="shrink-0 border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
+            >
+              <option value="power">Sort: Power ↓</option>
+              <option value="rarity">Sort: Rarity ↓</option>
+              <option value="name">Sort: Name A-Z</option>
+            </select>
+          </div>
           {sortedTradeableItems.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No tradeable items match. Unlock items from your inventory to list them.</div>}
           {sortedTradeableItems.map((item) => {
             const price = listingPrice[item.id] || defaultPrice(item);
             const preview = feePreview(price, skillBonuses, item.sourceTag);
             const stats = priceStats[gearIdentityKeyForItem(item)];
             return (
-              <div key={item.id} className="bl-card space-y-2">
+              <div key={item.id} className="bl-card space-y-2 p-2.5">
                 <GearMiniCard item={item} onInspect={() => setInspectItem(item)} />
                 <div className="flex items-center gap-2">
                   <input type="number" value={price} onChange={(e) => setListingPrice((p) => ({ ...p, [item.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" />
@@ -910,14 +919,14 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                   </button>
                 </div>
                 <SalesGuidance stats={stats} />
-                <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
               </div>
             );
           })}
 
           {sellableBatches.length > 0 && (
             <>
-              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Consumables</div>
+              <div className="pt-2 text-[11px] font-black uppercase tracking-wider text-text-muted">Consumables</div>
               {sellableBatches.map((batch) => {
                 const key = consumableIdentityKey(batch.consumable_type, batch.quality_percent);
                 const stats = priceStats[key];
@@ -926,7 +935,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const price = stackPrice[batch.id] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : fallback);
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
-                  <div key={batch.id} className="bl-card space-y-2">
+                  <div key={batch.id} className="bl-card space-y-2 p-2.5">
                     <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: batch.id, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'consumable', itemId: null, itemSnapshot: null, category: 'consumable', displayName: CONSUMABLES[batch.consumable_type]?.name ?? batch.consumable_type, quantity: batch.quantity, qualityPercent: batch.quality_percent, consumableType: batch.consumable_type, materialId: null, essenceId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={batch.quantity} onChange={(e) => setStackQty((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
@@ -936,7 +945,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                       </button>
                     </div>
                     <SalesGuidance stats={stats} perUnit />
-                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
                   </div>
                 );
               })}
@@ -945,7 +954,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
           {sellableMaterials.length > 0 && (
             <>
-              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Materials</div>
+              <div className="pt-2 text-[11px] font-black uppercase tracking-wider text-text-muted">Materials</div>
               {sellableMaterials.map(([materialId, owned]) => {
                 const key = materialIdentityKey(materialId);
                 const stats = priceStats[key];
@@ -953,7 +962,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const price = stackPrice[materialId] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 100);
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
-                  <div key={materialId} className="bl-card space-y-2">
+                  <div key={materialId} className="bl-card space-y-2 p-2.5">
                     <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: materialId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'material', itemId: null, itemSnapshot: null, category: 'material', displayName: materialId, quantity: owned, qualityPercent: null, consumableType: null, materialId, essenceId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
@@ -963,7 +972,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                       </button>
                     </div>
                     <SalesGuidance stats={stats} perUnit />
-                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
                   </div>
                 );
               })}
@@ -972,7 +981,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
           {player.cacheKeyFragments > 0 && (
             <>
-              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Cache Fragments</div>
+              <div className="pt-2 text-[11px] font-black uppercase tracking-wider text-text-muted">Cache Fragments</div>
               {(() => {
                 const key = FRAGMENT_IDENTITY_KEY;
                 const owned = player.cacheKeyFragments;
@@ -981,7 +990,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 250);
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
-                  <div className="bl-card space-y-2">
+                  <div className="bl-card space-y-2 p-2.5">
                     <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'fragment', itemId: null, itemSnapshot: null, category: 'fragment', displayName: FRAGMENT_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
@@ -991,8 +1000,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                       </button>
                     </div>
                     <SalesGuidance stats={stats} perUnit />
-                    <div className="text-[10px] text-text-muted">Listed fragments are held in escrow — they can't auto-convert into cache keys while listed.</div>
-                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <div className="text-[11px] text-text-muted">Listed fragments are held in escrow — they can't auto-convert into cache keys while listed.</div>
+                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
                   </div>
                 );
               })()}
@@ -1001,7 +1010,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
           {player.legendaryCores > 0 && (
             <>
-              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Legendary Cores</div>
+              <div className="pt-2 text-[11px] font-black uppercase tracking-wider text-text-muted">Legendary Cores</div>
               {(() => {
                 const key = CORE_IDENTITY_KEY;
                 const owned = player.legendaryCores;
@@ -1010,7 +1019,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 2500);
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
-                  <div className="bl-card space-y-2">
+                  <div className="bl-card space-y-2 p-2.5">
                     <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'core', itemId: null, itemSnapshot: null, category: 'core', displayName: CORE_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
@@ -1020,7 +1029,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                       </button>
                     </div>
                     <SalesGuidance stats={stats} perUnit />
-                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
                   </div>
                 );
               })()}
@@ -1029,7 +1038,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
           {sellableEssences.length > 0 && (
             <>
-              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Essences</div>
+              <div className="pt-2 text-[11px] font-black uppercase tracking-wider text-text-muted">Essences</div>
               {sellableEssences.map(([essenceId, owned]) => {
                 const key = essenceIdentityKey(essenceId);
                 const stats = priceStats[key];
@@ -1037,7 +1046,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 500);
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
-                  <div key={essenceId} className="bl-card space-y-2">
+                  <div key={essenceId} className="bl-card space-y-2 p-2.5">
                     <StackMiniCard listing={{ id: essenceId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'essence', itemId: null, itemSnapshot: null, category: 'essence', displayName: essenceDisplayName(essenceId), quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
@@ -1047,7 +1056,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                       </button>
                     </div>
                     <SalesGuidance stats={stats} perUnit />
-                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
                   </div>
                 );
               })}
@@ -1058,14 +1067,10 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
       {market.activeTab === 'sell' && sellSegment === 'mine' && (
         <div className="space-y-3">
-          <button
-            onClick={refreshListings}
-            disabled={loadingListings}
-            className="flex items-center gap-1.5 text-left text-[11px] font-bold text-text-secondary transition-colors hover:text-amber active:text-amber disabled:opacity-50"
-          >
-            <RefreshCw size={12} className={loadingListings ? 'animate-spin' : ''} />
-            {loadingListings ? 'Loading…' : 'My Listings — refresh'}
-          </button>
+          {/* F3 chrome compression: the refresh joins the search
+              row as an icon button (spins while loading, same
+              handler) and the sort rides the rarity rail's row —
+              the listings start two rows higher; no control lost. */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -1080,33 +1085,55 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
             >
               <Filter size={14} />
             </button>
+            <button
+              type="button"
+              onClick={refreshListings}
+              disabled={loadingListings}
+              aria-label="Refresh my listings"
+              className="flex items-center justify-center rounded-lg border border-border bg-surface-raised px-3 py-2 text-text-secondary transition-colors hover:text-amber active:text-amber disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={loadingListings ? 'animate-spin' : ''} />
+            </button>
           </div>
-          <ChipRail>
-            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setMyListFilterRarity(myListFilterRarity === r ? null : r)} className={chipCls(myListFilterRarity === r)}>{r}</button>)}
-          </ChipRail>
-          <select
-            value={myListSort}
-            onChange={(e) => setMyListSort(e.target.value as MyListSort)}
-            className="border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
-          >
-            <option value="price">Sort: Price ↓</option>
-            <option value="rarity">Sort: Rarity ↓</option>
-            <option value="name">Sort: Name A-Z</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <ChipRail className="min-w-0 flex-1">
+              {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setMyListFilterRarity(myListFilterRarity === r ? null : r)} className={chipCls(myListFilterRarity === r)}>{r}</button>)}
+            </ChipRail>
+            <select
+              value={myListSort}
+              onChange={(e) => setMyListSort(e.target.value as MyListSort)}
+              className="shrink-0 border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
+            >
+              <option value="price">Sort: Price ↓</option>
+              <option value="rarity">Sort: Rarity ↓</option>
+              <option value="name">Sort: Name A-Z</option>
+            </select>
+          </div>
           {sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
           {sortedMyListings.map((listing, index) => {
             const preview = feePreview(listing.price, skillBonuses, listing.itemSnapshot?.sourceTag);
             return (
-            <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card space-y-2">
-              {listing.kind === 'gear' && listing.itemSnapshot ? (
-                <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
-              ) : (
-                <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
-              )}
-              <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
-              <button onClick={() => guardTransact('cancel a listing', () => void handleCancelListing(listing))} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 py-2 text-xs font-bold text-bg hover:bg-red-500 disabled:opacity-50">
-                {pendingCancelId === listing.id ? 'Cancelling…' : (<>Cancel Listing{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
-              </button>
+            <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card p-2.5">
+              {/* Compact row (F3, same anatomy as Buy): item + fee
+                  line in the middle, price over a SMALL Cancel in
+                  the right column — the full-width red band is
+                  gone. Same handler, same lock-on-the-action. */}
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {listing.kind === 'gear' && listing.itemSnapshot ? (
+                    <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} />
+                  ) : (
+                    <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} />
+                  )}
+                  <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                </div>
+                <div className="flex w-[92px] shrink-0 flex-col items-end gap-1.5">
+                  <div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>
+                  <button onClick={() => guardTransact('cancel a listing', () => void handleCancelListing(listing))} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 px-2 py-2 text-[11px] font-bold text-bg hover:bg-red-500 disabled:opacity-50">
+                    {pendingCancelId === listing.id ? 'Cancelling…' : (<>Cancel Listing{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
+                  </button>
+                </div>
+              </div>
             </motion.div>
             );
           })}
@@ -1119,7 +1146,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
       {market.activeTab === 'sell' && sellSegment === 'history' && (
         <div className="space-y-2">
           {market.history.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No transactions yet.</div>}
-          {market.history.map((h, index) => <motion.div key={h.id} {...listEntranceProps(index, reduceMotion)} className="bl-card space-y-1.5"><div className="flex items-center justify-between"><div className="text-xs font-bold text-text-primary">{h.itemName}</div><div className={`text-xs font-black ${h.type === 'buy' ? 'text-red-400' : 'text-green-400'}`}>{h.type === 'buy' ? '-' : '+'}{h.price.toLocaleString()}cr</div></div><div className="flex items-center justify-between text-[10px] text-text-muted"><span>{historyPartyLabel(h)}</span><span>{h.itemRarity}</span></div></motion.div>)}
+          {market.history.map((h, index) => <motion.div key={h.id} {...listEntranceProps(index, reduceMotion)} className="bl-card space-y-1.5 p-2.5"><div className="flex items-center justify-between"><div className="text-xs font-bold text-text-primary">{h.itemName}</div><div className={`text-xs font-black ${h.type === 'buy' ? 'text-red-400' : 'text-green-400'}`}>{h.type === 'buy' ? '-' : '+'}{h.price.toLocaleString()}cr</div></div><div className="flex items-center justify-between text-[11px] text-text-muted"><span>{historyPartyLabel(h)}</span><span>{h.itemRarity}</span></div></motion.div>)}
         </div>
       )}
 
@@ -1127,6 +1154,90 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
       )}
         </motion.div>
       </AnimatePresence>
+
+      {/* The Buy lane's ONE filters sheet (DESIGN.md §3; drift-fix
+          F3). Every control that used to stack above the listings
+          lives here on the same state: sort, rarity chips, weapon
+          type + element (weapon searches), level and price ranges,
+          and Clear all (the lane's old clear-filters handler,
+          unchanged). */}
+      {showBuyFilters && (
+        <PickerSheet
+          title="Market Filters"
+          subtitle="Player market — narrow the listings"
+          onClose={() => setShowBuyFilters(false)}
+        >
+          <div className="space-y-3 pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-black uppercase tracking-wide text-text-muted">Sort listings</span>
+              <select
+                value={buySort}
+                onChange={(e) => setBuySort(e.target.value as MarketSort)}
+                className="border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
+              >
+                <option value="newest">Sort: Newest</option>
+                <option value="price_asc">Sort: Cheapest</option>
+                <option value="price_desc">Sort: Priciest</option>
+                <option value="rarity">Sort: Rarity ↓</option>
+                <option value="level">Sort: Level ↓</option>
+                <option value="name">Sort: Name A-Z</option>
+              </select>
+            </div>
+            <div>
+              <div className="pb-1.5 text-[11px] font-black uppercase tracking-wide text-text-muted">Rarity</div>
+              <ChipRail>
+                {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setFilterRarity(filterRarity === r ? null : r)} className={chipCls(filterRarity === r)}>{r}</button>)}
+              </ChipRail>
+            </div>
+            {(buyCategory === null || buyCategory === 'weapon') && (
+              <div className="flex gap-2">
+                <select
+                  value={buyWeaponType ?? ''}
+                  onChange={(e) => setBuyWeaponType(e.target.value || null)}
+                  className="flex-1 border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
+                >
+                  <option value="">Any weapon type</option>
+                  {Object.values(WEAPON_TYPES).map((t) => <option key={t.id} value={t.id}>{t.id}</option>)}
+                </select>
+                <select
+                  value={buyElement ?? ''}
+                  onChange={(e) => setBuyElement(e.target.value || null)}
+                  className="flex-1 border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
+                >
+                  <option value="">Any element</option>
+                  {Object.keys(ELEMENTS).map((el) => <option key={el} value={el}>{el}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <div className="pb-1.5 text-[11px] font-black uppercase tracking-wide text-text-muted">Level &amp; price</div>
+              <div className="flex gap-2">
+                <input value={buyLevelMin} onChange={(e) => setBuyLevelMin(e.target.value)} inputMode="numeric" placeholder="Lv min" className={filterInputCls} />
+                <input value={buyLevelMax} onChange={(e) => setBuyLevelMax(e.target.value)} inputMode="numeric" placeholder="Lv max" className={filterInputCls} />
+                <input value={buyPriceMin} onChange={(e) => setBuyPriceMin(e.target.value)} inputMode="numeric" placeholder="Min cr" className={filterInputCls} />
+                <input value={buyPriceMax} onChange={(e) => setBuyPriceMax(e.target.value)} inputMode="numeric" placeholder="Max cr" className={filterInputCls} />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={clearBuyFilters}
+                disabled={!hasBuyFilters}
+                className="flex-1 rounded-lg border border-border bg-surface-raised py-2 text-[11px] font-bold text-text-secondary transition-colors active:text-amber disabled:opacity-40"
+              >
+                Clear all filters
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowBuyFilters(false)}
+                className="flex-1 rounded-lg bg-amber py-2 text-[11px] font-bold text-bg"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </PickerSheet>
+      )}
 
       <GearInspectSheet item={inspectItem} open={!!inspectItem} onClose={() => setInspectItem(null)} contextLabel="Market Inspect" />
 

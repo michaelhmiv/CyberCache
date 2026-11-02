@@ -105,7 +105,7 @@ export const ServiceBoardControls: React.FC<ServiceBoardControlsProps> = ({
             key={r}
             type="button"
             onClick={() => onChange({ rarity: query.rarity === r ? undefined : r })}
-            className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${query.rarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
+            className={`flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-[11px] font-bold ${query.rarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
           >
             {r}
           </button>
@@ -114,7 +114,7 @@ export const ServiceBoardControls: React.FC<ServiceBoardControlsProps> = ({
           type="button"
           onClick={() => onChange({ canTake: query.canTake ? undefined : true })}
           aria-pressed={query.canTake === true}
-          className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${query.canTake ? 'border-emerald-500 bg-emerald-500 text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
+          className={`flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-[11px] font-bold ${query.canTake ? 'border-emerald-500 bg-emerald-500 text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
         >
           Jobs I can take
         </button>
@@ -159,14 +159,14 @@ export const ServiceBoardControls: React.FC<ServiceBoardControlsProps> = ({
           value={query.sort ?? 'newest'}
           onChange={(e) => onChange({ sort: e.target.value as ServiceBoardSort })}
           aria-label="Sort open postings"
-          className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+          className="text-[11px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1.5 text-text-primary"
         >
           {sortOptions.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
         {total != null && (
-          <span className="text-[10px] text-text-muted">
+          <span className="text-[11px] text-text-muted">
             {total.toLocaleString()} {noun}{total === 1 ? '' : 's'}
           </span>
         )}
