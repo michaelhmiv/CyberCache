@@ -726,7 +726,19 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
   const filterInputCls = 'w-full rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-[11px] text-text-primary placeholder:text-text-muted';
 
   return (
-    <div className="space-y-3 p-4 pb-20">
+    // Horizontal page pad is px-2.5 (0.625rem), NOT p-4: every other
+    // Strip-bearing tab sits under .bl-page, whose density layer
+    // (index.css) normalizes the page pad to --cc-page-pad 0.625rem,
+    // giving the Strip a 386px column at the 412px reference width
+    // (F1's fit invariant: row scrollWidth == clientWidth at
+    // ordinary balances). Market's root is not a .bl-page, so a
+    // true 16px p-4 narrowed the column to 374px — and the same
+    // missing layer left the Strip row's gaps at 8px instead of
+    // the normalized 6px (that half is pinned in ResourceBar
+    // itself). Together they overflowed the row by ~13px and the
+    // level digit clipped at the bar's right edge (parent-verified
+    // on the F3 Buy capture; pinned in marketComposition.test.tsx).
+    <div className="space-y-3 px-2.5 pt-4 pb-20">
       <ResourceBar onOpenSettings={onNavigate ? () => onNavigate('settings') : undefined} />
 
       {/* The rail: stops are destinations, current state lit.

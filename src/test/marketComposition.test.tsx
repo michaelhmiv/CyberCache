@@ -275,6 +275,39 @@ describe('F3 — retired chrome stays retired (source pins)', () => {
     expect(slots.match(/<MobileCard/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('Strip fit: the Market root carries the shared 0.625rem page pad (px-2.5), never a true p-4', () => {
+    // Regression pin for the F3 fidelity-gate defect: the Strip's
+    // natural row width at ordinary balances is ~383px, and F1's
+    // fit invariant (row scrollWidth == clientWidth) holds on the
+    // other tabs because .bl-page's density layer (index.css)
+    // normalizes their page pad to --cc-page-pad (0.625rem → a
+    // 386px column at 412px). Market's root is not a .bl-page, so
+    // its original `p-4` computed to a true 16px, the column
+    // narrowed to 374px, the row overflowed ~13px, and the level
+    // digit clipped at the bar's right edge (live-measured:
+    // row scrollWidth 383 > clientWidth 370; level value right
+    // edge 395.7 > bar right edge 393). px-2.5 IS 0.625rem — the
+    // same pad, stated in the utility scale. If the root's
+    // horizontal pad ever widens again, this pin fails before a
+    // capture has to catch it.
+    expect(market).toContain('className="space-y-3 px-2.5 pt-4 pb-20"');
+    expect(market).not.toContain('className="space-y-3 p-4 pb-20"');
+    // Second half of the same root cause: the density layer also
+    // remaps gap-2 → --cc-gap-sm (0.375rem) under .bl-page, so the
+    // Strip row rendered 5 × 2px wider on Market than on the other
+    // tabs (live-measured: identical segment widths, gaps 8px on
+    // Market vs 6px on Home). The Strip now pins its row gap as
+    // gap-1.5 (0.375rem) in ResourceBar itself — the shared
+    // chrome's geometry no longer depends on the host page
+    // carrying .bl-page. If either half regresses, the digit
+    // clips again; both are pinned here.
+    const strip = read('components/layout/ResourceBar.tsx');
+    expect(strip).toContain('gap-1.5 overflow-x-auto');
+    expect(strip).toContain('gap-1.5 overflow-hidden');
+    expect(strip).not.toContain('gap-2 overflow-x-auto');
+    expect(strip).not.toContain('gap-2 overflow-hidden');
+  });
+
   it('movement.ts is not part of this slice (byte-identical law)', () => {
     // The motion law file is pinned by hash in animationPolish /
     // redesign suites; F3 asserts here only that its own sources

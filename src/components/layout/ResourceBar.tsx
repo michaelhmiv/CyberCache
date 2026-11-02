@@ -31,6 +31,19 @@
  * (the owner's scroll-don't-shrink law, DESIGN.md §6) — the type
  * never drops below the floor to force a fit.
  *
+ * Host-independence (F3 fix pass, 2026-11-02): the row's gap is
+ * pinned as gap-1.5 (0.375rem) in the component, never gap-2.
+ * The .bl-page density layer (index.css) remaps gap-2 to
+ * --cc-gap-sm (0.375rem) on pages that carry .bl-page — which is
+ * every Strip host except Market, whose root is not a .bl-page.
+ * With gap-2 the row silently rendered 2px wider per gap on
+ * Market (5 gaps = 10px), and together with Market's un-normalized
+ * 16px page pad the row overflowed ~13px and the level digit
+ * clipped at the bar's edge. The Strip is shared chrome: its
+ * geometry must not depend on the host page's density layer.
+ * 0.375rem is exactly what .bl-page renders today, so the
+ * bl-page hosts are pixel-unchanged by the pin.
+ *
  * Every segment carries an aria-label naming the resource and
  * its full state ("Keys — 15 keys, 3 of 5 fragments"), so the
  * resource names are always present even where the mock language
@@ -164,7 +177,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     // false zeros). Same one-row geometry as the loaded Strip.
     return (
       <div data-testid="resource-bar-loading" className={`relative border-2 border-border bg-bg ${className}`}>
-        <div data-testid="resource-bar-strip" className="flex items-center gap-2 overflow-hidden px-2 py-1">
+        <div data-testid="resource-bar-strip" className="flex items-center gap-1.5 overflow-hidden px-2 py-1">
           <SkeletonSegment resourceId="credits" />
           <SkeletonSegment resourceId="scrap" />
           <SkeletonSegment resourceId="cacheKey" />
@@ -180,7 +193,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     <div data-testid="resource-bar" className={`relative border-2 border-border bg-bg ${className}`}>
       <div
         data-testid="resource-bar-strip"
-        className="flex items-center gap-2 overflow-x-auto px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex items-center gap-1.5 overflow-x-auto px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <Segment
           resourceId="credits"
