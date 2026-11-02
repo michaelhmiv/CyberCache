@@ -39,7 +39,7 @@ they originally rolled; the rule governs new drops.
 | **Glass Sun** | +50% Fire damage, but -30% Shield effectiveness. | SMG | Boss Drop | 1 | Fully live |
 | **The Accountant** | Every 100 enemies defeated increases the rarity roll tier of your next drop by +1 stage. | Sniper | Boss Drop | 1 | Simulated proxy |
 | **Armor Eater** | Corrosive procs reduce boss repair/healing by 50% and grant +20% armor break contribution. | Sniper | Boss Drop | 1 | Partial |
-| **Thunder Receipt** | A Shock proc that breaks a shield refunds one Ordnance charge or 10% Action Skill charge. | SMG | Boss Drop | 1 | Simulated proxy |
+| **Thunder Receipt** | A Shock proc that breaks a shield refunds one Ordnance charge or 10% Action Skill charge. | Sniper | Boss Drop | 1 | Simulated proxy |
 | **Second Opinion** | On boss victory, the loot roll happens twice. You keep the stronger weapon; the other is auto-scrapped. | Pistol | Boss Drop | 4 | Fully live |
 | **Salvage Rights** | Kills with this weapon yield +50% scrap. | Launcher | Boss Drop | 4 | Fully live |
 | **Overclocked** | Attack speed ramps +5% every 5 seconds during a fight, but crit chance drops -2% per ramp. | SMG | Boss Drop | 4 | Simulated proxy |

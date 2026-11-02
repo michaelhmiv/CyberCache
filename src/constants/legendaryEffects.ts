@@ -64,7 +64,9 @@ export const LEGENDARY_EFFECTS: LegendaryEffectDef[] = [
     description: 'A Shock proc that breaks a shield refunds one Ordnance charge or 10% Action Skill charge.',
     eligibleSources: [DropSource.BossDrop],
     minBossTier: 1,
-    weaponType: WeaponType.SMG,
+    // Owner ruling 2026-11-02: Thunder Receipt is a Sniper — the
+    // owner's call over the sprite's carbine-like read (see PR #285).
+    weaponType: WeaponType.Sniper,
   },
   {
     id: 'second_opinion',
