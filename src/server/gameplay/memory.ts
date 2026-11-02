@@ -356,6 +356,25 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
    * exactly where the SQL cc_record_kill_stats calls sit.
    */
   readonly killStats = new Map<string, number>();
+  /**
+   * Lifetime kills by element (migration 0051 mirror of
+   * player_kill_element_stats): `${playerId}:${element}` → kills.
+   * Written by the same recordKillStats choke point as the weapon
+   * record — the SQL helper derives both from the one equipped
+   * weapon row.
+   */
+  readonly killElementStats = new Map<string, number>();
+  /**
+   * Lifetime deaths (migration 0051 mirror of
+   * player_lifetime_counters.deaths): playerId → deaths. Written
+   * ONLY by recordDeath on its recorded path — the twin of the
+   * counter increment inside cc_record_death; a re-report of a
+   * standing death never moves it. The 0051 deaths backfill
+   * (resurrect ledger rows + standing death) is a one-time SQL
+   * migration act with no twin; this map starts empty and accrues
+   * exactly like the post-migration counter.
+   */
+  readonly lifetimeDeaths = new Map<string, number>();
   /** player_masteries mirror — written by the 0014 mastery grants below. */
   readonly masteries: InMemoryMastery[] = [];
   /**
@@ -2417,16 +2436,18 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   }
 
   /**
-   * cc_record_kill_stats (0034): accumulate a settled claim's kills
-   * under the weapon the hunter currently holds — the equipped weapon
-   * instance's payload weaponType, or 'unarmed' with no weapon
-   * equipped (the SQL derives the same from item_instances). Callers
-   * invoke this ONLY on their pay paths, after the idempotency
-   * early-return, so a replayed claim never double-counts.
+   * cc_record_kill_stats (0034, element added 0051): accumulate a
+   * settled claim's kills under the weapon the hunter currently
+   * holds — the equipped weapon instance's payload weaponType and
+   * element, or 'unarmed' in both with no weapon equipped (the SQL
+   * derives the same from item_instances). Callers invoke this ONLY
+   * on their pay paths, after the idempotency early-return, so a
+   * replayed claim never double-counts.
    */
   private recordKillStats(playerId: string, kills: number): void {
     if (!Number.isFinite(kills) || kills <= 0) return;
     let weaponType = 'unarmed';
+    let element = 'unarmed';
     for (const item of this.items.values()) {
       if (
         item.owner_user_id === playerId
@@ -2435,17 +2456,34 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       ) {
         const fromPayload = item.payload?.weaponType;
         weaponType = typeof fromPayload === 'string' && fromPayload !== '' ? fromPayload : 'unarmed';
+        const fromElement = item.payload?.element;
+        element = typeof fromElement === 'string' && fromElement !== '' ? fromElement : 'unarmed';
         break;
       }
     }
     const key = `${playerId}:${weaponType}`;
     this.killStats.set(key, (this.killStats.get(key) ?? 0) + Math.trunc(kills));
+    const elementKey = `${playerId}:${element}`;
+    this.killElementStats.set(
+      elementKey,
+      (this.killElementStats.get(elementKey) ?? 0) + Math.trunc(kills),
+    );
   }
 
   /** Test-visible view of the 0034 kill record for one player. */
   killStatsFor(playerId: string): Record<string, number> {
     const out: Record<string, number> = {};
     for (const [key, kills] of this.killStats) {
+      const sep = key.indexOf(':');
+      if (key.slice(0, sep) === playerId) out[key.slice(sep + 1)] = kills;
+    }
+    return out;
+  }
+
+  /** Test-visible view of the 0051 element kill record for one player. */
+  killElementStatsFor(playerId: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const [key, kills] of this.killElementStats) {
       const sep = key.indexOf(':');
       if (key.slice(0, sep) === playerId) out[key.slice(sep + 1)] = kills;
     }
@@ -2996,7 +3034,15 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       { monsterId: record.monsterId, monsterName: record.monsterName, areaId: record.areaId, at: record.diedAtMs },
       ...p.death_log,
     ].slice(0, 20);
+    // 0051: the lifetime death counter moves with the record (the
+    // twin of the increment inside cc_record_death's recorded path).
+    this.lifetimeDeaths.set(playerId, (this.lifetimeDeaths.get(playerId) ?? 0) + 1);
     return { recorded: true, death: record };
+  }
+
+  /** Test-visible view of the 0051 lifetime death counter. */
+  lifetimeDeathsFor(playerId: string): number {
+    return this.lifetimeDeaths.get(playerId) ?? 0;
   }
 
   /**

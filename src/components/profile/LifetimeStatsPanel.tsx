@@ -6,17 +6,20 @@ import { NAMED_ELITES } from '@/content/collections';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
 import { WEAPON_TYPES } from '@/constants/weaponTypes';
+import { ELEMENTS } from '@/constants/elements';
 import { consumableDisplayName } from '@/lib/market/identityKey';
 
 /**
- * Lifetime Record (Profile, 0034) — the full brag set under the
- * trophy shelf. Every number comes from GET /api/profile/stats,
- * folded server-side from server records only (verified-action
- * ledger, discoveries, endless/dispatch/craft/service rows,
- * consumable events, the 0034 kill record). This panel formats; it
- * computes nothing and invents nothing — a stat with no server
- * record (lifetime deaths, lifetime credits) is not shown rather
- * than estimated. Renders nothing until the Chef answers.
+ * Lifetime Record (Profile, 0034; gaps closed 0051) — the full
+ * brag set under the trophy shelf. Every number comes from
+ * GET /api/profile/stats, folded server-side from server records
+ * only (verified-action ledger, discoveries, endless/dispatch/
+ * craft/service rows, consumable events, the kill records and the
+ * lifetime counters). This panel formats; it computes nothing and
+ * invents nothing — a stat with no server record is not shown
+ * rather than estimated, and a stat whose record starts later
+ * (credits, kills by element) says so on its face. Renders nothing
+ * until the Chef answers.
  */
 
 const fmt = (n: number): string => n.toLocaleString('en-US');
@@ -50,6 +53,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 const AREA_NAMES = new Map(ROAMING_AREAS.map((a) => [a.id, a.name]));
 const WEAPON_TYPE_NAMES = new Map<string, string>(Object.values(WEAPON_TYPES).map((t) => [t.id as string, t.name]));
+const ELEMENT_NAMES = new Map<string, string>(Object.values(ELEMENTS).map((e) => [e.id as string, e.name]));
 
 function sortedEntries(map: Record<string, number>): Array<[string, number]> {
   return Object.entries(map).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
@@ -75,9 +79,13 @@ export const LifetimeStatsPanel: React.FC = () => {
   if (!data) return null;
 
   const weaponKills = sortedEntries(data.kills.by_weapon_type);
+  const elementKills = sortedEntries(data.kills.by_element);
   const areaKills = sortedEntries(data.kills.by_area).slice(0, 5);
   const legendarySources = sortedEntries(data.legendaries.discoveries_by_source);
   const craftKinds = sortedEntries(data.crafting.units_by_kind).slice(0, 4);
+  const creditsSince = data.credits.since
+    ? new Date(data.credits.since).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : null;
 
   return (
     <div data-testid="lifetime-stats">
@@ -96,6 +104,7 @@ export const LifetimeStatsPanel: React.FC = () => {
           <Row label="Bosses downed" value={`${data.bosses.downed} / ${REGION_1_BOSSES.length}`} />
           <Row label="Endless best depth" value={fmt(data.endless.best_depth)} />
           <Row label="Endless runs" value={`${fmt(data.endless.runs)} (${fmt(data.endless.banked)} banked · ${fmt(data.endless.deaths)} died)`} />
+          <Row label="Lifetime deaths" value={fmt(data.deaths)} />
           <Row label="Resurrections" value={fmt(data.resurrections)} />
         </Section>
 
@@ -109,6 +118,19 @@ export const LifetimeStatsPanel: React.FC = () => {
           )}
           <div className="text-[10px] text-text-muted">
             Weapon-type kills come from your trophy record; the totals above count every claim ever settled.
+          </div>
+        </Section>
+
+        <Section icon="burst" title="Kills by Element" tone="#FF4B5C">
+          {elementKills.length === 0 ? (
+            <div className="text-[11px] text-text-muted">No element kills on record yet.</div>
+          ) : (
+            elementKills.map(([element, count]) => (
+              <Row key={element} label={element === 'unarmed' ? 'Unarmed' : (ELEMENT_NAMES.get(element) ?? element)} value={fmt(count)} />
+            ))
+          )}
+          <div className="text-[10px] text-text-muted">
+            Element kills are recorded from the current trophy record forward; earlier kills carry no element attribution.
           </div>
         </Section>
 
@@ -133,6 +155,13 @@ export const LifetimeStatsPanel: React.FC = () => {
         </Section>
 
         <Section icon="hammer" title="Trade & Work" tone="#7CFC00">
+          <Row label="Credits earned" value={`${fmt(data.credits.earned)} cr`} />
+          <Row label="Credits spent" value={`${fmt(data.credits.spent)} cr`} />
+          <div className="text-[10px] text-text-muted">
+            {creditsSince
+              ? `Credit totals count every credit change since ${creditsSince}; earlier credit history was never recorded server-side.`
+              : 'Credit totals start counting with your next credit change; earlier credit history was never recorded server-side.'}
+          </div>
           <Row label="Market sales" value={`${fmt(data.market.sales)} · ${fmt(data.market.sales_volume)} cr`} />
           <Row label="Market fees paid" value={`${fmt(data.market.fees_paid)} cr`} />
           <Row label="Market purchases" value={`${fmt(data.market.purchases)} · ${fmt(data.market.purchases_volume)} cr`} />
