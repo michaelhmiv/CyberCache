@@ -262,7 +262,12 @@ function SalesGuidance({ stats, perUnit }: { stats?: PriceStats; perUnit?: boole
   );
 }
 
-export const MarketScreen: React.FC = () => {
+interface MarketScreenProps {
+  /** App navigation (the Strip's settings resident, DESIGN.md §1). */
+  onNavigate?: (screen: string) => void;
+}
+
+export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
   const market = useMarketStore();
   const reduceMotion = useReducedMotion();
   const inventory = useInventoryStore();
@@ -703,7 +708,7 @@ export const MarketScreen: React.FC = () => {
 
   return (
     <div className="space-y-3 p-4 pb-20">
-      <ResourceBar />
+      <ResourceBar onOpenSettings={onNavigate ? () => onNavigate('settings') : undefined} />
 
       {/* The rail: stops are destinations, current state lit.
           Listings now start in the first viewport — the rail is

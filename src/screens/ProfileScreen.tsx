@@ -200,7 +200,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
   return (
     <div className="bl-page space-y-4 p-4 pb-20">
-      <ResourceBar />
+      <ResourceBar onOpenSettings={() => onNavigate?.('settings')} />
 
       <div
         className="flex gap-2 overflow-x-auto pb-1"

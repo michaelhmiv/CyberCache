@@ -10,18 +10,21 @@
  * ellipsized.
  *
  * The contract pinned here (logical widths 360dp / 412dp):
- *  - ResourceBar: 3-across grid at phone width (6-across only when
- *    the strip itself is 560px+ wide — a container query, QC A4;
- *    the app column caps at 480px so a viewport breakpoint clipped
- *    chips on wide browsers), stacked chips (icon + full label on
- *    line 1, the value on line 2 with the secondary count as a
- *    labeled stack beside it),
- *    values carry NO truncate/clip treatment, chips are ≥44dp tall,
- *    and the shared formatter bounds every value to ≤6 glyphs so it
- *    always fits. Until the first server profile lands the bar
- *    renders skeleton chips instead of placeholder numbers (audit
- *    UX-04), and fractional balances under 10,000 render with one
- *    decimal (audit UX-05).
+ *  - ResourceBar — THE STRIP (DESIGN.md §1; drift-fix F1 replaced
+ *    the 3-across chip grid the r2 round built): ONE row on every
+ *    tab — icon + value per resource, the fragment and equipped
+ *    counts as micros riding their values, LV + level at the
+ *    right, the settings gear as the row's one resident, and the
+ *    XP hairline fused to the bottom edge. Values carry NO
+ *    truncate/clip treatment and never render below the 11px
+ *    floor; segments are shrink-0 and the shared formatter bounds
+ *    every value to ≤6 glyphs, so the row fits at phone width —
+ *    and if an extreme balance set cannot fit honestly, the row
+ *    scrolls horizontally (scroll-don't-shrink) rather than
+ *    squeezing. Until the first server profile lands the bar
+ *    renders a skeleton strip instead of placeholder numbers
+ *    (audit UX-04), and fractional balances under 10,000 render
+ *    with one decimal (audit UX-05).
  *  - Hunter Totals (Board): metric values never truncate.
  *  - Market tabs: an even 3×2 grid with ≥44px targets (was a
  *    flex-wrap that broke 4+2 against a 60px floor).
@@ -37,8 +40,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { compactResourceValue } from '@/lib/ui/formatValue';
 import { ResourceBar } from '@/components/layout/ResourceBar';
@@ -106,21 +109,23 @@ describe('layout contract — ResourceBar at phone width', () => {
     useLoadoutStore.setState((s) => ({ slots: { ...s.slots, primary: 'it-0' } }));
   });
 
-  it('arranges the six chips 3-across on phones, 6-across only when wide', () => {
+  it('arranges the wallet as ONE row — the Strip, never a grid', () => {
     render(<ResourceBar />);
-    const bar = screen.getByTestId('resource-bar-grid');
-    expect(bar.className).toContain('grid');
-    expect(bar.className).toContain('grid-cols-3');
-    // QC A4: the wide layout keys off the STRIP's own width via
-    // container queries (@container wrapper + @min- variant) —
-    // never the viewport. The app column is capped at 480px, so
-    // the old viewport breakpoint fired 6-across inside a ≤480px
-    // column and clipped the LEVEL tile on Home (where the
-    // settings gear takes 44px of the same row).
-    expect(bar.className).toContain('@min-[560px]:grid-cols-6');
-    expect(bar.className.split(' ')).not.toContain('min-[560px]:grid-cols-6');
-    expect(bar.parentElement?.className).toContain('@container');
-    expect(bar.className).not.toContain('flex');
+    const bar = screen.getByTestId('resource-bar-strip');
+    expect(bar.className).toContain('flex');
+    expect(bar.className).not.toContain('grid');
+    // Scroll-don't-shrink (DESIGN.md §6): if an extreme balance
+    // set cannot fit at honest sizes, the row scrolls — the type
+    // never drops below the floor to force a fit.
+    expect(bar.className).toContain('overflow-x-auto');
+    // All six wallet segments ride the one row, in mock order.
+    const order = ['credits', 'scrap', 'cacheKey', 'legendaryCore', 'loot', 'level'];
+    const positions = order.map((id) => {
+      const el = screen.getByTestId(`resource-chip-${id}`);
+      expect(el.className).toContain('shrink-0');
+      return Array.from(bar.querySelectorAll('[data-testid^="resource-chip-"]')).indexOf(el);
+    });
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
   it('shows every resource value in full, with no truncation machinery', () => {
@@ -138,22 +143,42 @@ describe('layout contract — ResourceBar at phone width', () => {
       expect(valueEl.textContent).toBe(text);
       expect(valueEl.className).toContain('whitespace-nowrap');
       expect(valueEl.className).not.toContain('truncate');
+      // Strip values render at 13px — above the 11px floor.
+      expect(valueEl.className).toContain('text-[13px]');
     }
   });
 
-  it('shows full labels and the secondary counts (fragments, equipped)', () => {
+  it('shows the mock labels and the secondary counts (fragments, equipped)', () => {
     render(<ResourceBar />);
-    for (const label of ['Credits', 'Scrap', 'Keys', 'Cores', 'Loot', 'Level']) {
-      expect(screen.getByText(label)).toBeTruthy();
-    }
-    // The two counts Michael's screenshot truncated ("15 1/7 …").
+    // The mock language labels SCRAP visibly (its icon is the
+    // least distinct) and closes the row with LV + the level.
+    expect(screen.getByText('Scrap')).toBeTruthy();
+    expect(screen.getByText('LV')).toBeTruthy();
+    // The two counts Michael's screenshot truncated ("15 1/7 …")
+    // ride their values as micros on the same baseline.
     expect(screen.getByText('3/5')).toBeTruthy();
     expect(screen.getByText('1/7')).toBeTruthy();
-    // Audit DISP-01: each secondary count carries a micro-label
-    // naming what it counts — a bare "3/5" over the key count read
-    // as two unlabeled quantities stacked on one tile.
-    expect(screen.getByText('frag')).toBeTruthy();
-    expect(screen.getByText('equipped')).toBeTruthy();
+    // Audit DISP-01: every count is NAMED — each segment's
+    // aria-label states the resource and what its micro counts,
+    // in words, so no quantity on the bar is unlabeled.
+    expect(screen.getByTestId('resource-chip-cacheKey').getAttribute('aria-label'))
+      .toContain('3 of 5 fragments');
+    expect(screen.getByTestId('resource-chip-loot').getAttribute('aria-label'))
+      .toContain('1 of 7 gear slots equipped');
+    expect(screen.getByTestId('resource-chip-credits').getAttribute('aria-label'))
+      .toContain('Credits');
+    expect(screen.getByTestId('resource-chip-legendaryCore').getAttribute('aria-label'))
+      .toContain('legendary cores');
+  });
+
+  it('carries the settings gear as its one resident when a handler is given (DESIGN.md §1)', () => {
+    const onOpenSettings = vi.fn();
+    render(<ResourceBar onOpenSettings={onOpenSettings} />);
+    fireEvent.click(screen.getByTestId('strip-settings-button'));
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    cleanup();
+    render(<ResourceBar />);
+    expect(screen.queryByTestId('strip-settings-button')).toBeNull();
   });
 
   it('skeletons until the first server profile lands — never false zeros (audit UX-04)', () => {
@@ -168,12 +193,21 @@ describe('layout contract — ResourceBar at phone width', () => {
     expect(screen.queryByTestId('resource-value-scrap')).toBeNull();
   });
 
-  it('chips keep a ≥44dp tap height and the angled-chip language', () => {
-    render(<ResourceBar />);
+  it('the Strip is a display bar: no per-chip tap boxes, no slant clips', () => {
+    render(<ResourceBar onOpenSettings={() => {}} />);
+    // The wallet segments are readouts, not buttons — the only
+    // tap target in the bar is the settings gear resident, which
+    // keeps a real touch box.
     const chip = screen.getByTestId('resource-chip-credits');
-    expect(chip.className).toContain('min-h-[46px]');
-    expect(chip.className).toContain('border-2');
-    expect((chip as HTMLElement).style.clipPath).toContain('polygon');
+    expect(chip.className).not.toContain('min-h-[46px]');
+    expect((chip as HTMLElement).style.clipPath ?? '').not.toContain('polygon');
+    const gearButton = screen.getByTestId('strip-settings-button');
+    expect(gearButton.className).toContain('h-9');
+    expect(gearButton.className).toContain('w-9');
+    // The bar itself keeps the family border, and the XP hairline
+    // is fused to its bottom edge (DESIGN.md §1).
+    const bar = screen.getByTestId('resource-bar');
+    expect(bar.className).toContain('border-2');
   });
 });
 

@@ -323,7 +323,7 @@ export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps & { embedded?:
   }
   return (
     <div className="bl-page space-y-3 p-4 pb-20">
-      <ResourceBar />
+      <ResourceBar onOpenSettings={() => onNavigate?.('settings')} />
 
       <div className="flex items-center gap-2">
         <PxIcon name="crown" size={17} className="text-amber" />

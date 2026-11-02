@@ -37,28 +37,27 @@ describe('W1 — material display names, never raw ids', () => {
 });
 
 describe('render fixes (source shape)', () => {
-  it('X1/D3/X4 — resource bar: key fragments never truncate, scrap is "scrap", level is not duplicated', () => {
+  it('X1/D3/X4 — the Strip: key fragments never truncate, scrap is "scrap", level is not duplicated', () => {
     const bar = read('../components/layout/ResourceBar.tsx');
-    // Device feedback r2 superseded the audit-X1 "wide key chip" hack:
-    // the bar is now a 3-across grid at phone width (6-across from
-    // 560dp) with stacked chips, and the key chip's fragment count is
-    // a right-aligned micro — same intent (the fragment count is
-    // always fully visible), stronger contract. Audit DISP-01 moved
-    // that micro onto the value line as a labeled stack (fraction
-    // over its unit name), off the slanted top-right corner that
-    // clipped it; audit UX-04 added the profile-loaded skeleton.
+    // Drift-fix F1 superseded the r2 chip grid with DESIGN.md §1's
+    // Strip: ONE row, icon + value per resource. The X1 intent is
+    // unchanged and stronger here — the fragment count rides the
+    // key value as a micro on the same baseline (never on a slanted
+    // corner that can clip it, the original DISP-01 defect), every
+    // segment names its resource and its micro's meaning in its
+    // aria-label, values never truncate, and the row scrolls
+    // rather than shrinks (scroll-don't-shrink). Audit UX-04's
+    // profile-loaded skeleton carries the same one-row geometry.
     expect(bar).toContain('label="Scrap"');
     expect(bar).not.toContain('sub="bench"');
-    expect(bar).toContain('label="Level"');
     expect(bar).not.toContain('LV ${player.level}');
-    expect(bar).toContain('grid grid-cols-3');
-    // QC A4: 6-across keys off the strip's own width (container
-    // query), not the viewport — the column is capped at 480px.
-    expect(bar).toContain('@min-[560px]:grid-cols-6');
-    expect(bar).toContain('@container');
+    expect(bar).toContain('resource-bar-strip');
+    expect(bar).toContain('overflow-x-auto');
+    expect(bar).not.toContain('grid-cols-3');
     expect(bar).toContain('micro={`${player.cacheKeyFragments}/5`}');
-    expect(bar).toContain('microUnit="frag"');
-    expect(bar).toContain('microUnit="equipped"');
+    expect(bar).toContain('micro={`${equippedCount}/7`}');
+    expect(bar).toContain('of 5 fragments');
+    expect(bar).toContain('of 7 gear slots equipped');
     expect(bar).toContain('resource-bar-loading');
     expect(bar).not.toContain('flex-[1.35]');
   });

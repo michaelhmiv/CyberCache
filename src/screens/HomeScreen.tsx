@@ -1,5 +1,4 @@
 import React from 'react';
-import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { DashboardDeck } from '@/components/dashboard/DashboardDeck';
@@ -32,20 +31,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
         {/* The Strip — the wallet prints exactly once on Home, with
-            the settings gear at its right edge (DESIGN.md §1's one
-            allowed resident; Settings' canonical home stays
+            the settings gear as its right-edge resident (DESIGN.md
+            §1's one allowed resident, inside the Strip since
+            drift-fix F1; Settings' canonical home stays
             Hunter → Account). This is audit SET-01's home-screen
             Settings entry in its DESIGN form. */}
-        <div className="mb-2 flex items-stretch gap-2">
-          <ResourceBar className="min-w-0 flex-1" />
-          <button
-            type="button"
-            aria-label="Settings"
-            onClick={() => onNavigate('settings')}
-            className="flex w-[44px] shrink-0 items-center justify-center border-2 border-border bg-surface text-text-muted transition-transform active:scale-[0.96]"
-          >
-            <PxIcon name="cog" size={17} />
-          </button>
+        <div className="mb-2">
+          <ResourceBar onOpenSettings={() => onNavigate('settings')} />
         </div>
         {/* Claim row: level chip (the Return Sheet's door) +
             streak / contracts / weekly claim chips — first paint,
