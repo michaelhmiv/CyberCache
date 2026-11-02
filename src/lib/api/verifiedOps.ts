@@ -16,6 +16,7 @@ import { isNotFoundError } from './http';
 import { syncRuntimeItemsForUser } from './runtimeStateService';
 import { apiRequest } from './http';
 import { syncVerifiedResult } from './verifiedStateSync';
+import type { ServiceBoardQuery } from '@/lib/market/boardQuery';
 
 export type VerifiedResult = Record<string, unknown>;
 
@@ -157,21 +158,52 @@ export const fetchWorkshopState = async (): Promise<VerifiedResult> =>
  * The repair board read (GET /api/repair/board): the server settles
  * the caller's repair jobs (expiring stale listings), then returns
  * open postings, my postings, my workbench, and board/mechanic stats
- * in the one view shape (buildRepairBoardView). A read, not a
- * verified op.
+ * in the one view shape (buildRepairBoardView). The browse query
+ * (src/lib/market/boardQuery.ts) filters/sorts/searches/paginates
+ * the open postings server-side — the Buy lane's toolkit, on the
+ * board. A read, not a verified op.
  */
-export const fetchRepairBoard = async (): Promise<VerifiedResult> =>
-  apiRequest<VerifiedResult>('/repair/board', { method: 'GET' });
+export const fetchRepairBoard = async (query: ServiceBoardQuery = {}): Promise<VerifiedResult> =>
+  apiRequest<VerifiedResult>(`/repair/board${serviceBoardQueryString(query)}`, { method: 'GET' });
 
 /**
  * The shield-tech board read (GET /api/shieldtech/board): the server
  * settles the caller's shield-tech jobs (expiring stale listings),
  * then returns open postings, my postings, my workbench, per-rarity
  * price medians, and board/tech stats in the one view shape
- * (buildShieldTechBoardView). A read, not a verified op.
+ * (buildShieldTechBoardView). Takes the same browse query as the
+ * repair board (src/lib/market/boardQuery.ts — search / filters /
+ * sorts / pagination over the open postings). A read, not a
+ * verified op.
  */
-export const fetchShieldTechBoard = async (): Promise<VerifiedResult> =>
-  apiRequest<VerifiedResult>('/shieldtech/board', { method: 'GET' });
+export const fetchShieldTechBoard = async (query: ServiceBoardQuery = {}): Promise<VerifiedResult> =>
+  apiRequest<VerifiedResult>(`/shieldtech/board${serviceBoardQueryString(query)}`, { method: 'GET' });
+
+/** The boards' query string, in the market listings' param style. */
+function serviceBoardQueryString(query: ServiceBoardQuery): string {
+  const params = new URLSearchParams();
+  const set = (key: string, value: string | number | undefined) => {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  };
+  set('search', query.search);
+  set('status', query.status && query.status.length > 0 ? query.status.join(',') : undefined);
+  set('rarity', query.rarity);
+  set('vehicleClass', query.vehicleClass);
+  set('fromBehavior', query.fromBehavior);
+  set('toBehavior', query.toBehavior);
+  set('conditionMin', query.conditionMin);
+  set('conditionMax', query.conditionMax);
+  set('pointsMin', query.pointsMin);
+  set('pointsMax', query.pointsMax);
+  set('priceMin', query.priceMin);
+  set('priceMax', query.priceMax);
+  set('canTake', query.canTake ? '1' : undefined);
+  set('sort', query.sort);
+  set('limit', query.limit);
+  set('offset', query.offset);
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
 
 /** One collection_discoveries row as served by GET /api/collections/me (0026). */
 export interface CollectionDiscoveryPayload {

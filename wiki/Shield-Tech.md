@@ -36,6 +36,40 @@ so a well-crafted core is visibly worth more. Cores are burned
    Cores**, so your price is cores plus labor, all-in.
 5. Unaccepted postings expire after **7 days** and refund in full.
 
+## Browsing the board
+
+The open postings browse like the [[The Market|Buy tab]] — the search,
+filters, and sorts run on the server, in pages:
+
+- **Search** matches shield rarity, behavior names (the swap's from-
+  and to-behaviors), and the poster's name.
+- **Filters:** the swap's from-behavior and to-behavior, rarity, a
+  price band, and a work-size band (calibration points).
+- **Sorts:** newest, priciest, cheapest, smallest job first, and
+  expiring soonest.
+- **Jobs I can take** narrows the board to postings you could accept
+  right now.
+
+Your browse choices stay put when you switch tabs and come back.
+
+## What a job card tells you before you take it
+
+Every open posting shows its requirements on its face:
+
+- **Escrow held:** the full price the owner already put up.
+- **You supply the Calibration Cores.** The card estimates how many
+  cores *you* would burn to finish, counted from your actual batches
+  worst-quality first at your efficiency — plus roughly how long the
+  job runs at your pace, and how many cores you hold.
+- **Shortfalls are stated, not hidden.** If your cores can't cover the
+  whole job, the card says so. Taking it is still allowed: work stalls
+  when you run dry, and the points you banked are kept and paid
+  pro-rata.
+- **A job you cannot take says why** — no Calibration Cores on hand, or
+  (for guests) that taking jobs needs a signed-in account. Mastery is
+  never a requirement: it only changes the speed and efficiency numbers
+  the card quotes you.
+
 ## Lane 2: do it yourself
 
 Run the recalibration as a timed workshop job with your own cores. The

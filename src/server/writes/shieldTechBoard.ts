@@ -15,6 +15,7 @@
  * band (display-only price guidance, the market's median-price law).
  */
 import {
+  CALIBRATION_CORE_TYPE,
   SHIELD_TECH_ABANDON_WINDOW_HOURS_DEFAULT,
   SHIELD_TECH_ABANDON_WINDOW_HOURS_MAX,
   SHIELD_TECH_ABANDON_WINDOW_HOURS_MIN,
@@ -27,6 +28,18 @@ import {
   coresNeededForTarget,
   rebasedShieldPayload,
 } from '../../content/shieldTech.js';
+import {
+  applyServiceBoardQuery,
+  filterServiceBoardStatus,
+  hasServiceBoardFilters,
+  type ServiceBoardBrowseFacts,
+  type ServiceBoardQuery,
+} from '../../lib/market/boardQuery.js';
+import {
+  shieldTechJobRequirements,
+  type ServiceReaderFacts,
+  type ShieldTechJobRequirements,
+} from './boardRequirements.js';
 import {
   SHIELD_BEHAVIORS,
   describeShieldBehavior,
@@ -131,6 +144,9 @@ export interface ShieldTechJobView {
   reclaimable: boolean;
   /** Position among the provider's accepted, unfinished jobs (1-based). */
   queuePosition: number | null;
+  /** What taking this job demands of the READER (open postings
+   *  only; null on the caller's own lists). */
+  requirements: ShieldTechJobRequirements | null;
 }
 
 export interface ShieldTechBoardStats {
@@ -146,6 +162,9 @@ export interface ShieldTechBoardStats {
 
 export interface ShieldTechBoardView {
   open: ShieldTechJobView[];
+  /** Full count of open postings matching the browse query,
+   *  before pagination (equals open.length on an unfiltered read). */
+  openTotal: number;
   mine: ShieldTechJobView[];
   work: ShieldTechJobView[];
   /** Median credits per 1,000 calibration points per rarity band,
@@ -223,6 +242,7 @@ export function shieldTechJobView(
   abandonWindowHours: number,
   queuePosition: number | null,
   readerEfficiency: number,
+  requirements: ShieldTechJobRequirements | null = null,
 ): ShieldTechJobView {
   const target = job.target_points ?? 0;
   const calibrated = job.points_restored ?? 0;
@@ -272,6 +292,7 @@ export function shieldTechJobView(
       lastProgress !== null &&
       nowMs - lastProgress >= abandonWindowHours * 3600 * 1000,
     queuePosition,
+    requirements,
   };
 }
 
@@ -299,6 +320,11 @@ export function buildShieldTechBoardView(input: {
   myMastery: { level: number; xp: number };
   readerEfficiency: number;
   levers: ShieldTechBoardView['levers'];
+  /** Browse query for the open postings (market-lane parity);
+   *  absent/empty = the historic full board, oldest first. */
+  query?: ServiceBoardQuery;
+  /** The reader's supply/pace facts for the requirements block. */
+  reader?: ServiceReaderFacts;
 }): ShieldTechBoardView {
   const techJobs = input.jobs.filter((j) => j.profession_id === 'shield_tech');
   // Queue positions: each provider's accepted, unfinished jobs in
@@ -329,18 +355,80 @@ export function buildShieldTechBoardView(input: {
       input.readerEfficiency,
     );
 
-  const open = techJobs
+  // Open postings carry the reader's requirements and browse
+  // facts; the query fold runs over both. An unfiltered read keeps
+  // the historic shape — every open job, oldest first.
+  const openRows = techJobs
     .filter((j) => j.status === 'listed')
-    .sort((a, b) => (ms(a.created_at) ?? 0) - (ms(b.created_at) ?? 0))
-    .map(view);
-  const mine = techJobs
-    .filter((j) => j.owner_user_id === input.callerId)
-    .sort((a, b) => (ms(b.created_at) ?? 0) - (ms(a.created_at) ?? 0))
-    .map(view);
-  const work = techJobs
-    .filter((j) => j.provider_user_id === input.callerId)
-    .sort((a, b) => (ms(b.accepted_at) ?? 0) - (ms(a.accepted_at) ?? 0))
-    .map(view);
+    .map((job) => {
+      const jobView = shieldTechJobView(
+        job,
+        shieldTechShieldView(job.target_item_instance_id, input.shields.get(job.target_item_instance_id) ?? null),
+        input.names,
+        input.nowMs,
+        input.abandonWindowHours,
+        null,
+        input.readerEfficiency,
+        input.reader
+          ? shieldTechJobRequirements({
+            ownerUserId: job.owner_user_id,
+            callerId: input.callerId,
+            targetPoints: job.target_points ?? 0,
+            priceCredits: job.quoted_price_credits ?? 0,
+            coreType: CALIBRATION_CORE_TYPE,
+            coresNeeded: coresNeededForTarget,
+            reader: input.reader,
+          })
+          : null,
+      );
+      const facts: ServiceBoardBrowseFacts = {
+        searchText: [
+          jobView.shield?.rarity ?? '',
+          jobView.shield?.behaviorName ?? '',
+          jobView.fromBehaviorName ?? '',
+          jobView.toBehaviorName ?? '',
+          jobView.ownerName ?? '',
+        ].join(' '),
+        rarity: jobView.shield?.rarity ?? null,
+        vehicleClass: null,
+        fromBehavior: jobView.fromBehavior,
+        toBehavior: jobView.toBehavior,
+        conditionPct: null,
+        conditionKey: jobView.targetPoints,
+        targetPoints: jobView.targetPoints,
+        priceCredits: jobView.priceCredits,
+        createdAtMs: jobView.createdAtMs,
+        expiresAtMs: jobView.expiresAtMs,
+        canTake: jobView.requirements?.canTake ?? false,
+      };
+      return { job: jobView, facts };
+    });
+  let open: ShieldTechJobView[];
+  let openTotal: number;
+  if (hasServiceBoardFilters(input.query)) {
+    const page = applyServiceBoardQuery(openRows, input.query ?? {});
+    open = page.rows.map((row) => row.job);
+    openTotal = page.total;
+  } else {
+    open = openRows
+      .sort((a, b) => a.job.createdAtMs - b.job.createdAtMs)
+      .map((row) => row.job);
+    openTotal = open.length;
+  }
+  const mine = filterServiceBoardStatus(
+    techJobs
+      .filter((j) => j.owner_user_id === input.callerId)
+      .sort((a, b) => (ms(b.created_at) ?? 0) - (ms(a.created_at) ?? 0))
+      .map(view),
+    input.query,
+  );
+  const work = filterServiceBoardStatus(
+    techJobs
+      .filter((j) => j.provider_user_id === input.callerId)
+      .sort((a, b) => (ms(b.accepted_at) ?? 0) - (ms(a.accepted_at) ?? 0))
+      .map(view),
+    input.query,
+  );
 
   // Median price guidance per rarity band: credits per 1,000 points
   // across completed board jobs whose shield sits in that band.
@@ -360,6 +448,7 @@ export function buildShieldTechBoardView(input: {
   }
   return {
     open,
+    openTotal,
     mine,
     work,
     medianPerThousandByRarity,
