@@ -33,4 +33,10 @@
 
 **Reference**
 - [[Reference]]
+- [[Reference-Legendary-Effects]]
+- [[Reference-Consumables]]
+- [[Reference-Recipes]]
+- [[Reference-Bosses]]
+- [[Reference-Progression]]
+- [[Reference-Collections]]
 - [[Changelog]]
