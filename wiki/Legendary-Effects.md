@@ -43,8 +43,9 @@ does not hide that. When you judge an effect, know which kind it is:
   simply have no healing mechanic for an effect to eat, so that half of
   the text currently does nothing while the other half works in full.
 
-The generated table in [[Reference]] will list every effect with its
-status, so you can check any weapon before you build around it.
+The generated table in [[Reference-Legendary-Effects]] lists every
+effect with its status, so you can check any weapon before you build
+around it.
 
 ## Examples
 
@@ -94,7 +95,7 @@ power with a price.
 
 The full 25-effect table — name, exact trigger text, source, minimum
 boss tier, and implementation status — is a generated table and lives
-in [[Reference]].
+in [[Reference-Legendary-Effects]].
 
 ---
 

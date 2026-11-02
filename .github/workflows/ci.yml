@@ -8,9 +8,9 @@ on:
 
 jobs:
   wiki-map-check:
-    # WARN mode (Wiki Phase 1): annotates PRs that change a mapped gameplay
-    # source without touching its wiki page. Never fails the build; the
-    # fail gate arrives in Phase 3. See docs/WIKI.md.
+    # FAIL mode (Wiki Phase 3): a PR that changes a mapped gameplay
+    # source without touching its wiki page fails this job. The escape
+    # hatch is a `wiki-impact: none` line in the PR body. See docs/WIKI.md.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
@@ -20,11 +20,34 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Wiki map check (warn only)
+      - name: Wiki map check (fail mode)
         env:
           BASE_REF: origin/${{ github.base_ref }}
           WIKI_IMPACT_NONE: "${{ contains(github.event.pull_request.body, 'wiki-impact: none') && '1' || '' }}"
         run: node scripts/check-wiki-map.mjs
+
+  wiki-gen-check:
+    # Generated-table freshness gate (Wiki Phase 3): re-renders every
+    # generated block in wiki/ from the game's source constants and
+    # fails if a committed page differs. Runs on PRs and master pushes.
+    # See docs/WIKI.md.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wiki generated-table freshness check
+        run: npm run wiki:gen:check
 
   test-build-lint:
     runs-on: ubuntu-latest

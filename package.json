@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "golden:update": "tsx --tsconfig tsconfig.app.json scripts/render-overhaul-samples.ts --baselines",
+    "wiki:gen": "tsx --tsconfig tsconfig.app.json scripts/wiki-gen/generate-all.ts",
+    "wiki:gen:check": "tsx --tsconfig tsconfig.app.json scripts/wiki-gen/generate-all.ts --check",
     "test:watch": "vitest",
     "mechanics:validate": "vitest run src/test/mechanicsValidation.test.ts",
     "mechanics:report": "vitest run src/test/balanceReport.test.ts --reporter=verbose",

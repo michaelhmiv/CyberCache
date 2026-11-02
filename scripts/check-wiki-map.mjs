@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Wiki drift check (Wiki Phase 1 — WARN mode).
+ * Wiki drift check (Wiki Phase 3 — mode-driven, FAIL by default).
  *
  * Reads wiki/.page-map.json and a list of changed files, then reports every
  * mapped gameplay source that changed WITHOUT at least one of its wiki pages
- * also changing. This is the prose-drift tripwire described in docs/WIKI.md:
- * it annotates, it does not (yet) fail. Phase 3 flips `mode` in the map to
- * "fail", at which point unresolved hits exit non-zero.
+ * also changing. This is the prose-drift tripwire described in docs/WIKI.md.
+ * The `mode` field in the map decides the consequence: "fail" (the shipped
+ * Phase 3 setting) exits non-zero on unresolved hits; "warn" only annotates.
  *
  * Changed-file list sources, first match wins:
  *   1. Positional argv:   node scripts/check-wiki-map.mjs src/content/slots.ts
