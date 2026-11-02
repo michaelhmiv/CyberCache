@@ -252,6 +252,20 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
         return;
       }
       const levers = await endlessLevers(config);
+      // Drop luck (0035): the player's active weekly-leaderboard
+      // buff, read from the server's own buff rows — never the body.
+      // A read failure is a 500 like the other server-record reads
+      // on this route (the claim.ts pattern): resolving the run
+      // without the player's real buff state would silently drop a
+      // bonus they earned.
+      let dropLuckBonus = 0;
+      try {
+        dropLuckBonus = await store.getActiveDropBonus(playerId, new Date());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: 'Failed to read drop buff', detail: message });
+        return;
+      }
       const depth = run.depth_reached + 1;
       if (depth > levers.endlessMaxDepth) {
         res.status(409).json({ error: 'Endless depth cap reached', detail: 'The run should already have banked at the cap.' });
@@ -359,6 +373,7 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
         risk: resolveRisk(run.risk),
         pityCount: 0,
         economy: levers,
+        dropLuckBonus,
         actionSkillFire: actionSkillPlan,
         ...serverSlots,
         skillBonuses: simSkillBonuses,
@@ -442,6 +457,10 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
         victory: outcome.result.victory,
         rewards: outcome.rewards,
         milestone: outcome.milestone,
+        // The leaderboard drop-luck fraction the milestone weights
+        // were rolled under (0035) — reported only while a buff is
+        // active, so clients can show the buff covering the Chamber.
+        ...(dropLuckBonus > 0 ? { dropLuckBonus } : {}),
         capReached: outcome.capReached,
         telemetry: outcome.telemetry,
         items: droppedItems,

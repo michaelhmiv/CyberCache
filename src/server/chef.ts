@@ -2355,6 +2355,16 @@ export interface EndlessEncounterRequest extends Omit<BossSimulationInput, 'boss
    */
   actionSkillFire?: ActionSkillFirePlan | null;
   /**
+   * Weekly-leaderboard drop luck (0035): the player's active buff
+   * fraction, resolved by the endless route from leaderboard_drop_
+   * buffs — never from the client body. While > 0, the Epic and
+   * Legendary MILESTONE rarity weights multiply by (1 + bonus),
+   * the same treatment roaming and boss drops get. Cache Surge
+   * weights are deliberately untouched (a separate player-spent
+   * benefit). Absent/0 = the shipped weights, bit-identical.
+   */
+  dropLuckBonus?: number;
+  /**
    * Cache Rank bonuses (Cache Rank slice, 0031): resolved by the
    * endless route from profiles.cache_rank_spends — never from the
    * client body. Applied to the escrow deltas last; damage/max HP
@@ -2480,7 +2490,7 @@ export function processEndlessEncounter(request: EndlessEncounterRequest): Endle
   const items: GearItem[] = [];
   if (milestone) {
     const area = ROAMING_AREAS.find((entry) => entry.id === encounter.areaId) ?? ROAMING_AREAS[0];
-    const weights = endlessMilestoneRarityWeights(request.depth, levers);
+    const weights = endlessMilestoneRarityWeights(request.depth, levers, request.dropLuckBonus ?? 0);
     const kind = rollAreaDropKind(area, rng);
     let drop: GearItem | null = null;
     switch (kind) {

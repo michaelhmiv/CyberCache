@@ -9,6 +9,10 @@
  *  2. Engine sims (processEndlessEncounter): depth is BOUNDED at
  *     several player levels (escalation always wins eventually) and
  *     a level-appropriate build reaches a reasonable early depth.
+ *     The FIXED-LADDER pins live here too: encounter stats derive
+ *     from depth alone, and the per-band depth distributions
+ *     (n ≥ 40, real engine) stay in the tuned bands — the guard
+ *     against the ladder ever re-anchoring to the runner's level.
  *  3. Shipped-path HTTP (express + InMemoryChefGameplayStore): slot
  *     exclusivity, escrow integrity against forged bodies, death /
  *     bank settlement math incl. the fraction, best-depth records,
@@ -16,8 +20,9 @@
  *     death NEVER writes the roaming death record).
  *  4. Economy twin: the daily endless meters move, in lockstep with
  *     cc_compute_economy_metrics' attribution rules (0028).
- *  5. SQL parity pins: the migration's lever reads and the TS
- *     defaults can never drift apart silently.
+ *  5. SQL parity pins: the migrations' lever reads and the TS
+ *     defaults can never drift apart silently (0028's appliers,
+ *     0052's growth-default move).
  *
  * Encounter outcomes are deterministic: the route derives its engine
  * request from server records, so the tests precompute the exact
@@ -35,10 +40,12 @@ import { DropSource, Element, Manufacturer, Rarity, RiskSetting, WeaponType } fr
 import type { GearItem, Weapon } from '@/types/items';
 import {
   ENDLESS_BOSS_EVERY,
+  ENDLESS_HP_GROWTH_DEFAULT,
   endlessEncounterForDepth,
   endlessEntryFeeFor,
   endlessIntel,
   endlessMilestoneLegendaryShare,
+  endlessMilestoneRarityWeights,
   endlessRewardsForDepth,
   parBossForLevel,
 } from '@/content/endless';
@@ -100,8 +107,11 @@ describe('endless content rules', () => {
     expect(bossIds[13]).toBe(REGION_1_BOSSES[0].id); // rotation wraps
   });
 
-  it('escalates monotonically: depth 1 pack prices at 35% of the par kit, pools compound', () => {
-    const par = parBossForLevel(20);
+  it('escalates monotonically: depth 1 pack prices at 35% of the DEPTH par kit, pools compound', () => {
+    // FIXED LADDER: the par kit is the boss at-or-below the DEPTH,
+    // never the runner's level — depth 1 prices off par(1) even for
+    // a level-20 (or level-100) runner.
+    const par = parBossForLevel(1);
     const d1 = endlessEncounterForDepth(1, 20);
     expect(d1.health).toBe(Math.round(par.health * 0.35));
     let prev = d1;
@@ -118,22 +128,47 @@ describe('endless content rules', () => {
       }
       prev = enc;
     }
-    // Compounding is the lever curve: HP at depth 11 = base × 1.12^10 (boss kit at depth 10 aside).
+    // Compounding is the lever curve: HP at depth 11 = the depth-11
+    // par share × hpGrowth^10.
     const d11 = endlessEncounterForDepth(11, 20);
-    const expected = Math.round(par.health * 0.35 * Math.pow(1.12, 10));
+    const expected = Math.round(parBossForLevel(11).health * 0.35 * Math.pow(ENDLESS_HP_GROWTH_DEFAULT, 10));
     expect(Math.abs(d11.health - expected)).toBeLessThanOrEqual(1);
   });
 
-  it('boss depths floor the rotated kit at the par kit — always a spike over the packs', () => {
-    const par = parBossForLevel(20);
+  it('boss depths floor the rotated kit at the DEPTH par kit — always a spike over the packs', () => {
+    const par = parBossForLevel(5);
     const d4 = endlessEncounterForDepth(4, 20);
     const d5 = endlessEncounterForDepth(5, 20);
     expect(d5.kind).toBe('boss');
     expect(d5.id).toBe(REGION_1_BOSSES[0].id); // rotation starts at the first kit
-    // Dune Tyrant's own health is far below the L20 par kit; the floor
-    // prices the depth off the par kit so the spike is real.
-    expect(d5.health).toBe(Math.round(Math.max(REGION_1_BOSSES[0].health, par.health) * Math.pow(1.12, 4)));
+    // The floor prices the depth off the par kit FOR THE DEPTH
+    // (depth 5's par is the depth-5 boss itself), so the spike over
+    // the depth-4 pack is real at every start level.
+    expect(d5.health).toBe(Math.round(Math.max(REGION_1_BOSSES[0].health, par.health) * Math.pow(ENDLESS_HP_GROWTH_DEFAULT, 4)));
     expect(d5.health).toBeGreaterThan(d4.health);
+  });
+
+  it('FIXED LADDER: encounter stats are a function of depth alone — the runner level moves only the stakes', () => {
+    // The regression pin for the level-anchor defect: the same
+    // depth presents IDENTICAL combat stats to a level-10 runner
+    // and a level-100 runner, while the encounter LEVEL (rewards /
+    // milestone item levels) still differs by the anchor delta.
+    for (const d of [1, 2, 3, 4, 5, 9, 10, 15, 20, 25, 40, 75, 100, 150, 250]) {
+      const low = endlessEncounterForDepth(d, 10);
+      const high = endlessEncounterForDepth(d, 100);
+      expect(high.kind).toBe(low.kind);
+      expect(high.id).toBe(low.id);
+      expect(high.health).toBe(low.health);
+      expect(high.shield).toBe(low.shield);
+      expect(high.armor).toBe(low.armor);
+      expect(high.dps).toBe(low.dps);
+      expect(high.def.health).toBe(low.def.health);
+      expect(high.def.shield).toBe(low.def.shield);
+      expect(high.def.armor).toBe(low.def.armor);
+      expect(high.def.dps).toBe(low.def.dps);
+      expect(high.def.recommendedPower).toBe(low.def.recommendedPower);
+      expect(high.level - low.level).toBe(90);
+    }
   });
 
   it('par boss is the highest-level shipped boss at or below the anchor', () => {
@@ -174,6 +209,32 @@ describe('endless content rules', () => {
     expect(s25).toBeGreaterThan(s5);
     expect(s50).toBeGreaterThan(s25);
     expect(s50).toBeLessThan(0.1); // bosses' dedicated-drop rate (tuning #208)
+  });
+
+  it('drop luck (0035) scales the Epic and Legendary milestone weights by (1 + bonus) — nothing else', () => {
+    const base = endlessMilestoneRarityWeights(25);
+    const buffed = endlessMilestoneRarityWeights(25, undefined, 0.25);
+    expect(buffed[Rarity.Epic]).toBeCloseTo((base[Rarity.Epic] ?? 0) * 1.25, 10);
+    expect(buffed[Rarity.Legendary]).toBeCloseTo((base[Rarity.Legendary] ?? 0) * 1.25, 10);
+    expect(buffed[Rarity.Common]).toBe(base[Rarity.Common]);
+    expect(buffed[Rarity.Uncommon]).toBe(base[Rarity.Uncommon]);
+    expect(buffed[Rarity.Rare]).toBe(base[Rarity.Rare]);
+    // Zero/absent bonus is the shipped table, bit-identical.
+    expect(endlessMilestoneRarityWeights(25, undefined, 0)).toEqual(base);
+    // The resulting Legendary shares, computed from the weights
+    // themselves. The spec's §4.3 depth-25 row (the one its text
+    // singles out) reproduces EXACTLY: 3.26% → 3.95% at +25%. Its
+    // depth-5/50 rows were labelled analytic estimates and do not
+    // survive recomputation from the shipped weights (its no-buff
+    // depth-50 figure, 5.42%, already differs from the function's
+    // true 5.22%) — the §4.2 formula is the contract, so the pins
+    // below are the function's real values.
+    expect(endlessMilestoneLegendaryShare(5)).toBeCloseTo(0.01478, 4);
+    expect(endlessMilestoneLegendaryShare(5, undefined, 0.25)).toBeCloseTo(0.01818, 4);
+    expect(endlessMilestoneLegendaryShare(25)).toBeCloseTo(0.03256, 4);
+    expect(endlessMilestoneLegendaryShare(25, undefined, 0.25)).toBeCloseTo(0.03955, 4);
+    expect(endlessMilestoneLegendaryShare(50)).toBeCloseTo(0.05217, 4);
+    expect(endlessMilestoneLegendaryShare(50, undefined, 0.25)).toBeCloseTo(0.0625, 4);
   });
 
   it('INTEL LAW: the prep payload carries no readiness figure at any depth', () => {
@@ -247,21 +308,97 @@ function simulateRun(level: number, loadout: SimLoadout, runId: string): { depth
 }
 
 describe('endless engine boundedness', () => {
-  it('every run terminates: escalation kills any level-appropriate build', () => {
-    for (const level of [10, 30, 60, 100]) {
+  it('FIXED LADDER distributions: per-band depths stay in the tuned bands (n=120/band, real engine)', { timeout: 240_000 }, () => {
+    // The regression net against the ladder ever re-anchoring to
+    // the runner's level. On the level-anchored ladder the SAME
+    // sims read medians 8/4/9/4 and means 6.84/5.79/7.13/3.70 —
+    // non-monotone, with the strongest band WORST (stage-1 record).
+    // The fixed ladder must stay monotone in the runner's strength:
+    // a stronger hunter descends deeper into the SAME ladder.
+    // Bands are the spec's §3.2 table with tolerance (medians are
+    // bimodal — they quantize to boss-gate steps — so means and
+    // reach rates are the finer instruments). Runs are seeded and
+    // deterministic; the bands carry margin, the SHAPE is the pin.
+    const SPEC = {
+      10: { mean: 11.0, median: 12 },
+      30: { mean: 14.26, median: 14 },
+      60: { mean: 15.74, median: 14 },
+      100: { mean: 17.66, median: 19 },
+    } as const;
+    const bands: Array<{ level: number; mean: number; median: number; reach15: number }> = [];
+    for (const level of [10, 30, 60, 100] as const) {
       const depths: number[] = [];
-      for (let seed = 1; seed <= 5; seed++) {
+      for (let seed = 1; seed <= 120; seed++) {
         const loadout = levelAppropriateLoadout(level, level * 1000 + seed, Rarity.Epic);
         const run = simulateRun(level, loadout, `sim-${level}-${seed}`);
         depths.push(run.depth);
         // Terminated by defeat, never by the 250 anti-pathology cap.
         expect(run.depth).toBeLessThan(250);
       }
-      // A level-appropriate build reaches a reasonable early depth:
-      // the first milestone (depth 5) is a normal outcome, not a fluke.
-      const median = [...depths].sort((a, b) => a - b)[2];
-      expect(median, `level ${level} depths ${depths}`).toBeGreaterThanOrEqual(3);
+      const sorted = [...depths].sort((a, b) => a - b);
+      const mean = depths.reduce((sum, x) => sum + x, 0) / depths.length;
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const reach15 = depths.filter((d) => d >= 15).length / depths.length;
+      const spec = SPEC[level];
+      expect(Math.abs(median - spec.median), `L${level} median ${median}`).toBeLessThanOrEqual(5); // one boss-gate step
+      expect(mean, `L${level} mean ${mean}`).toBeGreaterThanOrEqual(spec.mean * 0.7);
+      expect(mean, `L${level} mean ${mean}`).toBeLessThanOrEqual(spec.mean * 1.3);
+      bands.push({ level, mean, median, reach15 });
     }
+    // Monotone in the runner's strength — the inversion IS the defect.
+    for (let i = 1; i < bands.length; i++) {
+      expect(bands[i].median).toBeGreaterThanOrEqual(bands[i - 1].median);
+      expect(bands[i].mean).toBeGreaterThan(bands[i - 1].mean);
+      expect(bands[i].reach15).toBeGreaterThanOrEqual(bands[i - 1].reach15);
+    }
+    expect(bands[0].median).toBeGreaterThanOrEqual(10); // L10 inside the spec's [10, 16]
+    expect(bands[0].median).toBeLessThanOrEqual(16);
+    expect(bands[0].reach15).toBeGreaterThanOrEqual(0.04); // anchored ladder: 0.000
+    expect(bands[0].reach15).toBeLessThanOrEqual(0.25);
+    expect(bands[1].reach15).toBeGreaterThanOrEqual(0.22);
+    expect(bands[2].reach15).toBeGreaterThanOrEqual(0.38);
+    expect(bands[3].reach15).toBeGreaterThanOrEqual(0.45); // spec §5 floor; anchored ladder: ~0
+  });
+
+  it('FIXED LADDER tear-through: a max-level build sits at the win-chance clamp through the early depths', { timeout: 120_000 }, () => {
+    // The owner's law made measurable: the ladder does not scale
+    // to the runner, so an L100 build's sim win chance stays at
+    // the 0.98 clamp through depths 1–12 — it tears through by
+    // being stronger. (On the anchored ladder the same build read
+    // ~0.16 at the depth-5 gate.) An on-level L10 build, by
+    // contrast, meets a REAL gate at depth 10.
+    const meanWinChance = (level: number, depth: number, n: number): number => {
+      let sum = 0;
+      for (let seed = 1; seed <= n; seed++) {
+        const loadout = levelAppropriateLoadout(level, level * 1000 + seed, Rarity.Epic);
+        const outcome = processEndlessEncounter({
+          playerId: A,
+          runId: `tear-${level}-${seed}`,
+          startLevel: level,
+          depth,
+          primary: loadout.primary,
+          secondary: loadout.secondary,
+          heavy: loadout.heavy,
+          ordnance: loadout.ordnance,
+          shield: loadout.shield,
+          classMod: loadout.classMod,
+          relic: loadout.relic,
+          consumables: {},
+          risk: RiskSetting.Balanced,
+          playerLevel: level,
+          skillBonuses: {},
+          pityCount: 0,
+          playerCredits: 100000,
+        });
+        sum += outcome.result.winChance;
+      }
+      return sum / n;
+    };
+    for (let d = 1; d <= 12; d++) {
+      expect(meanWinChance(100, d, 24), `L100 depth ${d}`).toBeGreaterThanOrEqual(0.95);
+    }
+    expect(meanWinChance(10, 9, 24)).toBeGreaterThanOrEqual(0.95);
+    expect(meanWinChance(10, 10, 24)).toBeLessThan(0.9); // the depth-10 gate is real at level
   });
 
   it('a stronger build descends strictly deeper than a weak one at the same level', () => {
@@ -408,11 +545,11 @@ function strongWeapon(id = 'server-owned-endless-gun'): Weapon {
   } as Weapon;
 }
 
-function seedStrongWeapon(store: InMemoryChefGameplayStore) {
+function seedStrongWeapon(store: InMemoryChefGameplayStore, owner: string = A) {
   const weapon = strongWeapon();
   store.seedItem({
     id: weapon.id,
-    owner_user_id: A,
+    owner_user_id: owner,
     kind: 'weapon',
     runtime_state: 'equipped',
     equipped_slot: 'primary',
@@ -868,6 +1005,58 @@ describe('endless shipped path (HTTP)', () => {
     expect(storedRun.milestone_drops[0].rarity).toBe(items[0].rarity);
   });
 
+  it('drop luck (0035): the encounter route reads the leaderboard buff from server rows — the body cannot forge it', async () => {
+    const h = await makeServer();
+    h.store.seedProfile({ id: A, player_level: 30, credits: 100000, consumables: {} });
+    h.store.seedDropBuff(A, 0.25, '2027-01-01T00:00:00.000Z');
+    seedStrongWeapon(h.store);
+    const start = await startWinningRun(h, 5);
+    const runId = (start.json.run as { id: string }).id;
+
+    let depth5: Json | null = null;
+    for (let guard = 0; guard < 5; guard++) {
+      const liveRun = h.store.endlessRuns.find((r) => r.id === runId)!;
+      const depth = liveRun.depth_reached + 1;
+      const expected = await precomputeNext(h.store, liveRun, h.store.profiles.get(A)!);
+      expect(expected.result.victory).toBe(true);
+      // Adversarial: a forged dropLuckBonus in the body must be ignored.
+      const res = await post(
+        h.base,
+        '/api/endless/encounter',
+        { nonce: nextNonce('encounter'), dropLuckBonus: 0.99 },
+        h.tokenA,
+      );
+      expect(res.status).toBe(200);
+      // The response reports the SERVER row's 0.25, never the body's 0.99.
+      expect(res.json.dropLuckBonus).toBe(0.25);
+      if (depth === 5) depth5 = res.json;
+    }
+    expect(depth5).not.toBeNull();
+    expect(depth5!.milestone).toBe(true);
+    expect(depth5!.items as GearItem[]).toHaveLength(1);
+
+    // A player with NO buff row gets no field at all — even with
+    // the same forged body.
+    const h2 = await makeServer();
+    h2.store.seedProfile({ id: B, player_level: 20, credits: 10000, consumables: {} });
+    seedStrongWeapon(h2.store, B);
+    const startedB = await post(
+      h2.base,
+      '/api/endless/start',
+      { nonce: nextNonce('start'), consumables: {}, risk: 'Balanced' },
+      h2.tokenB,
+    );
+    expect(startedB.status).toBe(200);
+    const resB = await post(
+      h2.base,
+      '/api/endless/encounter',
+      { nonce: nextNonce('encounter'), dropLuckBonus: 0.99 },
+      h2.tokenB,
+    );
+    expect(resB.status).toBe(200);
+    expect('dropLuckBonus' in resB.json).toBe(false);
+  });
+
   it('GET /api/endless/me: facts + intel obey the intel law over HTTP', async () => {
     const h = await makeServer();
     h.store.seedProfile({ id: A, player_level: 25, credits: 5000, consumables: {} });
@@ -980,9 +1169,21 @@ describe('endless SQL parity pins', () => {
     expect(migration).toContain('endless_runs');
   });
 
+  it('0052 moves stored growth rows off the OLD shipped defaults — and only those rows', () => {
+    const m0052 = readFileSync(join(process.cwd(), 'db/migrations/0052_endless_fixed_ladder_defaults.sql'), 'utf8');
+    // The move goes through the one write path (history included),
+    // carrying exactly the new TS defaults…
+    expect(m0052).toContain("cc_set_economy_config('endlessHpGrowth', '1.04'::jsonb");
+    expect(m0052).toContain("cc_set_economy_config('endlessDpsGrowth', '1.03'::jsonb");
+    // …and it is guarded on the row still holding the OLD shipped
+    // default, so an operator-tuned value is never stomped.
+    expect(m0052).toContain("value = '1.12'::jsonb");
+    expect(m0052).toContain("value = '1.1'::jsonb");
+  });
+
   it('economy config defaults equal the content defaults and validate in range', () => {
-    expect(ECONOMY_CONFIG_DEFAULTS.endlessHpGrowth).toBe(1.12);
-    expect(ECONOMY_CONFIG_DEFAULTS.endlessDpsGrowth).toBe(1.1);
+    expect(ECONOMY_CONFIG_DEFAULTS.endlessHpGrowth).toBe(1.04);
+    expect(ECONOMY_CONFIG_DEFAULTS.endlessDpsGrowth).toBe(1.03);
     expect(ECONOMY_CONFIG_DEFAULTS.endlessDeathPayoutFraction).toBe(0.5);
     expect(ECONOMY_CONFIG_DEFAULTS.endlessEntryFeePerLevel).toBe(10);
     expect(ECONOMY_CONFIG_DEFAULTS.endlessFeeEscalationCap).toBe(8);
