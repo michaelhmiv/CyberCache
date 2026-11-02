@@ -38,6 +38,14 @@ export interface LegendaryEffectDef {
   description: string;
   eligibleSources: DropSource[];
   minBossTier?: number;
+  /**
+   * The weapon type this effect's bespoke legendary art depicts.
+   * Generation pins a legendary carrying this effect to this type
+   * (owner's ruling 2026-11-02: legendary drops match their art),
+   * so the bespoke sprite, the loot card, and the item record can
+   * never disagree about what the weapon is.
+   */
+  weaponType: WeaponType;
 }
 
 export interface Weapon {

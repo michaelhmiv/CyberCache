@@ -63,12 +63,13 @@ function effectsBody(): string {
     return [
       `**${e.name}**`,
       e.description,
+      e.weaponType,
       e.eligibleSources.map((s) => SOURCE_LABELS[s] ?? s).join(' + '),
       e.minBossTier ?? 1,
       status,
     ];
   });
-  return table(['Effect', 'What it does', 'Source', 'Min boss tier', 'Status'], rows);
+  return table(['Effect', 'What it does', 'Weapon type', 'Source', 'Min boss tier', 'Status'], rows);
 }
 
 export const legendaryEffectsBlock: GenBlock = {

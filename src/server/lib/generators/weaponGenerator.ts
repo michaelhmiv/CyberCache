@@ -5,7 +5,7 @@ import {
   Manufacturer,
 } from '@/types/game';
 import type { GenerateWeaponOptions } from '@/types/generator';
-import { Weapon, WeaponPart, Affix } from '@/types/items';
+import { Weapon, WeaponPart, Affix, LegendaryEffectDef } from '@/types/items';
 import { WEAPON_TYPES } from '@/constants/weaponTypes';
 import { RARITIES } from '@/constants/rarities';
 import { MANUFACTURERS } from '@/constants/manufacturers';
@@ -55,10 +55,41 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
   const rarity = forcedRarity || rollRarityForDrop({ source, zoneWeights }, rng).id;
   const rarityDef = RARITIES[rarity];
 
-  // 4. Weapon type
+  // 3b. Legendary effect — resolved BEFORE the type roll (S5, owner's
+  // ruling 2026-11-02: legendary drops match their art). A legendary's
+  // bespoke sprite depicts one fixed weapon type (the def's
+  // `weaponType`), so when an effect is assigned, step 4 pins the
+  // weapon's type to the depicted type and the sprite, the loot card,
+  // and the item record agree. The pool/forced logic is the historical
+  // step-11 logic, moved earlier unchanged: a forced effect wins when
+  // it is actually eligible for this source/tier — an ineligible force
+  // falls back to the normal pool pick rather than minting an effect
+  // this source could never drop. Non-legendary rarities skip this
+  // block entirely and consume no RNG here, so their streams are
+  // bit-identical to before.
+  let legendaryEffect: LegendaryEffectDef | undefined;
+  if (rarity === Rarity.Legendary) {
+    const eligible = getEligibleLegendaryEffects(source, bossTier);
+    if (eligible.length > 0) {
+      const forced = forcedLegendaryEffectId
+        ? eligible.find((eff) => eff.id === forcedLegendaryEffectId)
+        : undefined;
+      legendaryEffect = forced ?? eligible[seededInt(0, eligible.length - 1, rng)];
+    }
+  }
+  const legendaryEffectId = legendaryEffect?.id;
+
+  // 4. Weapon type. An assigned legendary effect pins the type to the
+  // type its art depicts — the pin outranks even an explicit
+  // forcedType, because a forced type that contradicts the assigned
+  // effect would mint exactly the art/item mismatch this rule exists
+  // to prevent. (No live caller forces both: boss dedicated drops
+  // force effect only, roaming forces type only and its WorldDrop
+  // pool assigns no effects.) With no effect assigned, the historical
+  // forced-or-weighted roll runs untouched.
   const typeKeys = Object.values(WeaponType);
   const typeWeights = typeKeys.map(() => 1);
-  const weaponType = forcedType || pickWeighted(typeKeys, typeWeights, rng);
+  const weaponType = legendaryEffect?.weaponType ?? forcedType ?? pickWeighted(typeKeys, typeWeights, rng);
   const typeDef = WEAPON_TYPES[weaponType];
 
   // 5. Manufacturer
@@ -187,22 +218,8 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
   let rollQuality = seededInt(0 + rarityDef.rollQualityBias + helixBonus, 100, rng);
   rollQuality = Math.min(100, rollQuality);
 
-  // 11. Legendary effect
-  let legendaryEffectId: string | undefined;
-  if (rarity === Rarity.Legendary) {
-    const eligible = getEligibleLegendaryEffects(source, bossTier);
-    if (eligible.length > 0) {
-      // Dedicated drops (boss loot): a forced effect wins when it is
-      // actually eligible for this source/tier — an ineligible force
-      // falls back to the normal pool pick rather than minting an
-      // effect this source could never drop.
-      const forced = forcedLegendaryEffectId
-        ? eligible.find((eff) => eff.id === forcedLegendaryEffectId)
-        : undefined;
-      const eff = forced ?? eligible[seededInt(0, eligible.length - 1, rng)];
-      legendaryEffectId = eff.id;
-    }
-  }
+  // 11. Legendary effect — resolved at step 3b (it pins the type roll);
+  // `legendaryEffectId` above already carries the outcome.
 
   // 13. Source tag already set
   // 14. Calculate effective power.

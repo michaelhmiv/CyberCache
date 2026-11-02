@@ -4,8 +4,8 @@ A **legendary effect** is a named signature behavior that a Legendary
 weapon can carry on top of its affixes — one effect per weapon, rolled
 when the weapon is generated. Effects are build-defining: they change
 how a boss fight pays out, how your scrap flows, or how a defeat stings,
-and hunting a specific effect on a specific frame is a core endgame
-loop (the hunt is tracked in [[Collections]]).
+and hunting a specific effect is a core endgame loop (the hunt is
+tracked in [[Collections]]).
 
 ## Where effects come from
 
@@ -25,6 +25,23 @@ Workshop-[[Crafting|crafted]] weapons never carry an effect: crafting is
 capped at Epic, and no crafting process adds one. [[Gear|Reforge]] never
 adds, removes, or changes an effect either — it is part of the weapon's
 identity.
+
+## One effect, one weapon type
+
+Every legendary effect has fixed, bespoke art, and that art depicts
+one specific weapon type. A legendary carrying an effect therefore
+always drops **as** that type: a Thunder Receipt is always the
+weapon its art shows, never the same art stretched over a different
+frame. The [[Reference-Legendary-Effects]] table lists each effect's
+weapon type. What still rolls freely is everything else —
+manufacturer, element, parts, affixes, and roll quality — so two
+legendaries with the same effect are the same *kind* of weapon, not
+the same weapon.
+
+The rule governs new drops. Legendaries already sitting in
+inventories keep the weapon type they originally rolled with; their
+art and their record may disagree, and the game does not rewrite
+owned items to fix that.
 
 ## Read effects honestly: three kinds of "works"
 
