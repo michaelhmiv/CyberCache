@@ -331,10 +331,10 @@ describe('audit UX-07 + COPY-03 — Skill Trees board', () => {
     render(<SkillTreeScreen embedded />);
 
     // UX-07: 1 point per level (level − 1 total — 29 at level 30),
-    // tap-to-spend at the listed cost, respec refunds at 100cr/point.
+    // tap-to-spend at the listed cost, respec costs 100cr/point spent.
     expect(screen.getByText(/Skill points come from levels/)).toBeTruthy();
     expect(screen.getByText(/29 earned at level 30/)).toBeTruthy();
-    expect(screen.getByText(/Respec refunds every spent point for 100cr per point/)).toBeTruthy();
+    expect(screen.getByText(/Respec returns every spent point and costs 100cr per point spent/)).toBeTruthy();
 
     // COPY-03: the Gunslinger keystone tier is a single index-1 node;
     // it renders once, not once per matched grid slot.

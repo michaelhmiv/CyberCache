@@ -210,6 +210,19 @@ export const MATERIAL_VISUALS = {
   [MaterialType.PrismShards]: { id: MaterialType.PrismShards, kind: 'material', label: 'Prism Shards', shortLabel: 'PRI', mark: 'P', color: '#4DD0E1', accentColor: '#E0F7FA', description: 'Prismatek signature: reactor-grown prism crystal. Tier-2 input for beam parts, optics, class mods, and scanners.', texture: 'crystal' },
   [MaterialType.MagnetiteCores]: { id: MaterialType.MagnetiteCores, kind: 'material', label: 'Magnetite Cores', shortLabel: 'MAG', mark: 'M', color: '#90A4AE', accentColor: '#CFD8DC', description: 'ThrowTech signature: magnetic cores pulled from the dumpnet grid. Tier-2 input for cargo racks and salvage gear.', texture: 'metal' },
   [MaterialType.MycoSteelFiber]: { id: MaterialType.MycoSteelFiber, kind: 'material', label: 'Myco-Steel Fiber', shortLabel: 'MYC', mark: 'Y', color: '#26A69A', accentColor: '#B2DFDB', description: 'HelixWorks signature: fungal fiber with a steel weave. Tier-2 input for top survival consumables and relics.', texture: 'data' },
+  // Refined materials (crafting-as-occupation): the five refined forms
+  // of the base materials plus the three Lab composites. These were
+  // missing from this registry, so every Workshop/Rep Desk surface
+  // that resolves a material label through getVisualAsset printed the
+  // UNKNOWN fallback ("Unknown") for them (QC 2026-11-02, A3).
+  [MaterialType.RefinedAlloy]: { id: MaterialType.RefinedAlloy, kind: 'material', label: 'Refined Alloy', shortLabel: 'RAL', mark: 'A', color: '#C0C6D4', accentColor: '#F5F5F5', description: 'Scrap Alloy, refined: clean, even stock for gear frames.', texture: 'metal' },
+  [MaterialType.TemperedParts]: { id: MaterialType.TemperedParts, kind: 'material', label: 'Tempered Parts', shortLabel: 'TEM', mark: 'T', color: '#FF7A6B', accentColor: '#FFEA3A', description: 'Ballistic Parts, tempered: hardened barrels, chambers, and triggers.', texture: 'ordnance' },
+  [MaterialType.StabilizedCells]: { id: MaterialType.StabilizedCells, kind: 'material', label: 'Stabilized Cells', shortLabel: 'STA', mark: 'S', color: '#6FB7FF', accentColor: '#A5F3FC', description: 'Reactive Components, stabilized: cells that hold their charge.', texture: 'energy' },
+  [MaterialType.WovenCircuits]: { id: MaterialType.WovenCircuits, kind: 'material', label: 'Woven Circuits', shortLabel: 'WOV', mark: 'W', color: '#C39BFF', accentColor: '#FF9DF5', description: 'Tech Fragments, woven: logic looms for advanced work.', texture: 'data' },
+  [MaterialType.CondensedVoid]: { id: MaterialType.CondensedVoid, kind: 'material', label: 'Condensed Void', shortLabel: 'CON', mark: 'V', color: '#A678FF', accentColor: '#FF9DF5', description: 'Void Dust, condensed: anomaly charge in a denser, steadier form.', texture: 'energy' },
+  [MaterialType.CompositePlating]: { id: MaterialType.CompositePlating, kind: 'material', label: 'Composite Plating', shortLabel: 'CMP', mark: 'C', color: '#D8DEE9', accentColor: '#FFCCBC', description: 'Lab composite: layered plate for frames and armor work.', texture: 'metal' },
+  [MaterialType.CircuitLattice]: { id: MaterialType.CircuitLattice, kind: 'material', label: 'Circuit Lattice', shortLabel: 'LAT', mark: 'L', color: '#8FD8FF', accentColor: '#E0F7FA', description: 'Lab composite: a grown lattice of interlocked circuits.', texture: 'crystal' },
+  [MaterialType.Voidweave]: { id: MaterialType.Voidweave, kind: 'material', label: 'Voidweave', shortLabel: 'VDW', mark: 'V', color: '#B388FF', accentColor: '#FFD1F5', description: 'Lab composite: void-touched weave for exotic builds.', texture: 'crystal' },
 } satisfies Record<MaterialType, VisualAsset>;
 
 export const ESSENCE_VISUALS = {

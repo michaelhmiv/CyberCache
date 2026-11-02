@@ -23,6 +23,7 @@ import {
   type StandingStateView,
 } from '@/content/manufacturerStanding';
 import { salvageScrap } from '@/lib/skills/salvageBonuses';
+import { getMaterialVisual } from '@/constants/visualAssets';
 import { legendaryCoreYieldFor } from '@/content/collections';
 import type { GearItem } from '@/types/items';
 
@@ -385,7 +386,7 @@ export const RepDeskPanel: React.FC = () => {
             <div className="min-w-0 text-[11px] text-text-secondary">
               <span className="font-bold text-text-primary">{m.name} Parts Crate:</span>{' '}
               {Object.entries({ ...m.crate.materials, ...m.crate.essences })
-                .map(([k, v]) => `${k} ×${v}`)
+                .map(([k, v]) => `${getMaterialVisual(k).label} ×${v}`)
                 .join(', ')}
             </div>
             <button
@@ -415,7 +416,8 @@ export const RepDeskPanel: React.FC = () => {
           </div>
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 text-[11px] text-text-secondary">
-              <span className="font-bold text-text-primary">{m.name} Signature Order:</span> a {m.name} weapon
+              <span className="font-bold text-text-primary">{m.name} Signature Order:</span>{' '}
+              {/^[aeiou]/i.test(m.name) ? 'an' : 'a'} {m.name} weapon
               at your level, Rare–Epic
             </div>
             <button

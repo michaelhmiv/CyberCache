@@ -149,7 +149,7 @@ const EntryCard: React.FC<{ entry: CollectionEntry; found: boolean; source?: str
     <div className={`mt-2 truncate text-[11px] font-black leading-tight ${found ? 'text-text-primary' : 'text-text-muted'}`}>
       {found ? entry.name : 'Undiscovered'}
     </div>
-    <div className="mt-0.5 line-clamp-2 min-h-[28px] text-[11px] leading-snug text-text-muted">
+    <div className="mt-0.5 min-h-[28px] text-[11px] leading-snug text-text-muted">
       {found ? `Logged · ${source ?? 'server record'}` : UNDISCOVERED_TEASERS[entry.family]}
     </div>
   </motion.div>

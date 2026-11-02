@@ -12,7 +12,7 @@ import React from 'react';
 import { Clock } from 'lucide-react';
 import { PickerSheet } from '@/components/common/PickerSheet';
 import { getAllCraftRecipesUsingMaterial } from '@/content/crafting';
-import { getVisualAsset } from '@/constants/visualAssets';
+import { getVisualAsset, getConsumableVisual } from '@/constants/visualAssets';
 
 function formatCraftTime(ms: number): string {
   if (ms >= 60000) return `${Math.round(ms / 60000)}m`;
@@ -42,12 +42,12 @@ export const MaterialUsageSheet: React.FC<{
                 <div className="text-[9px] uppercase tracking-wide text-text-muted">
                   {recipe.category} · needs {recipe.inputs[materialId]} × {label} ·{' '}
                   {recipe.kind === 'refine'
-                    ? `refines to ${recipe.outputMaterial}`
+                    ? `refines to ${getVisualAsset('material', recipe.outputMaterial).label}`
                     : recipe.kind === 'gear'
                       ? 'gear frame'
                       : recipe.kind === 'tool'
                         ? 'workshop tool'
-                        : `makes ${recipe.consumableType}`}
+                        : `makes ${recipe.consumableType ? getConsumableVisual(recipe.consumableType).label : 'a consumable'}`}
                   {recipe.requiresLevel > 1 ? ` · Lv.${recipe.requiresLevel}` : ''}
                   {recipe.requiresBench > 1 ? ` · Bench ${recipe.requiresBench}+` : ''}
                 </div>

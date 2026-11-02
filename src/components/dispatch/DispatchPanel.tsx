@@ -12,6 +12,7 @@ import {
   type ChefDispatchOffer,
   type ChefDispatchState,
 } from '@/lib/chef/chefClient';
+import { getMaterialVisual } from '@/constants/visualAssets';
 
 /**
  * Dispatch panel (0032) — the contract board + bay.
@@ -41,7 +42,7 @@ function missionLine(m: ChefDispatchMission): string {
     : '';
   const broke = m.breakdown_fraction !== null && m.breakdown_fraction < 1
     && m.payout_fraction !== null && m.payout_fraction >= m.breakdown_fraction - 1e-9;
-  return `${m.contract_family === 'courier' ? 'Courier' : 'Foot'} · ${m.duration_hours}h · ${m.payout_credits} cr · ${m.payout_scrap} scrap${m.payout_material_id ? ` · ${m.payout_material_units} ${m.payout_material_id}` : ''}${paid ? ` · ${paid}` : ''}${broke ? ' · BROKE DOWN' : ''}`;
+  return `${m.contract_family === 'courier' ? 'Courier' : 'Foot'} · ${m.duration_hours}h · ${m.payout_credits} cr · ${m.payout_scrap} scrap${m.payout_material_id ? ` · ${m.payout_material_units} ${getMaterialVisual(m.payout_material_id).label}` : ''}${paid ? ` · ${paid}` : ''}${broke ? ' · BROKE DOWN' : ''}`;
 }
 
 export const DispatchPanel: React.FC = () => {

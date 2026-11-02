@@ -433,7 +433,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                     {quality !== null
                       ? `${quality}% quality · ${getConsumableQualityBand(quality)}`
                       : typeof c.outputMaterial === 'string'
-                        ? `${String(c.outputMaterial)} ×${String(c.outputQuantity ?? 0)}`
+                        ? `${getVisualAsset('material', c.outputMaterial).label} ×${String(c.outputQuantity ?? 0)}`
                         : typeof c.rarity === 'string'
                           ? `${String(c.rarity)} frame${c.tempered ? ' · tempered' : ''}`
                           : 'done'}
@@ -716,7 +716,7 @@ const BenchAndToolsCard: React.FC<{
                   className={`py-1 px-2.5 rounded-lg text-[10px] font-bold ${nextAffordable ? 'bg-amber text-bg' : 'bg-surface-raised text-text-muted border border-border'}`}
                 >
                   Unlock · {b.costCredits.toLocaleString()}cr
-                  {Object.entries(b.costInputs).map(([k, v]) => ` + ${v} ${k}`).join('')}
+                  {Object.entries(b.costInputs).map(([k, v]) => ` + ${v} ${getVisualAsset('material', k).label}`).join('')}
                 </motion.button>
               ) : (
                 <span className="text-[10px] text-text-muted">Lv.{b.unlockLevel}</span>
@@ -859,7 +859,7 @@ const RecipeCard: React.FC<{
             </div>
             <div className="text-[9px] text-amber">
               {recipe.kind === 'refine'
-                ? `Refines to ${recipe.outputMaterial} ×${refineOut} per unit at your mastery`
+                ? `Refines to ${getVisualAsset('material', recipe.outputMaterial).label} ×${refineOut} per unit at your mastery`
                 : bounds
                   ? `Your roll ${Math.round(bounds.min)}–${Math.round(bounds.max)}% · ${getConsumableQualityBand(Math.round(bounds.max))} ceiling`
                   : ''}
@@ -887,7 +887,7 @@ const RecipeCard: React.FC<{
         })}
         {useCatalyst && catalystId && (
           <span className={catalystHave >= units ? 'text-text-primary' : 'text-red-400 line-through'}>
-            <span className="inline-flex items-center gap-1"><PxIcon name="flask" size={13} /> {catalystId} {catalystHave}/{units}</span>
+            <span className="inline-flex items-center gap-1"><PxIcon name="flask" size={13} /> {getVisualAsset('material', catalystId).label} {catalystHave}/{units}</span>
           </span>
         )}
       </div>
@@ -943,9 +943,9 @@ const RecipeCard: React.FC<{
             disabled={benchSel < 2}
             className={`px-2 py-1 text-[9px] font-bold border ${useCatalyst ? 'bl-primary border-transparent' : 'border-border text-text-secondary'} disabled:opacity-40`}
             style={chipClip}
-            title={benchSel < 2 ? 'Catalysts need the Forge (bench 2)' : `+10/+15 quality bounds, 1 ${catalystId} per unit`}
+            title={benchSel < 2 ? 'Catalysts need the Forge (bench 2)' : `+10/+15 quality bounds, 1 ${getVisualAsset('material', catalystId).label} per unit`}
           >
-            <span className="inline-flex items-center gap-1"><PxIcon name="flask" size={13} /> Catalyst{catalystId ? ` (${catalystId})` : ''}</span>
+            <span className="inline-flex items-center gap-1"><PxIcon name="flask" size={13} /> Catalyst{catalystId ? ` (${getVisualAsset('material', catalystId).label})` : ''}</span>
           </button>
         )}
         <button

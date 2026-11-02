@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion } from 'framer-motion';
 import { Lock, RotateCcw } from 'lucide-react';
-import { getSkillTreeNodes } from '@/constants/skillTrees';
+import { getSkillTreeNodes, SKILL_NODES } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import { SkillNode } from '@/types/skill';
 import { usePlayerStore, useSkillStore } from '@/store';
@@ -249,7 +249,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     <div className="grid grid-cols-3 gap-2">
       <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Available</div><div className="text-xl font-black text-amber">{pointsAvailable}</div></div>
       <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Spent</div><div className="text-xl font-black text-text-primary">{pointsSpent}</div></div>
-      <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Respec</div><div className="text-xl font-black text-text-primary">{pointsSpent * 100}cr</div></div>
+      <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Respec cost</div><div className="text-xl font-black text-text-primary">{pointsSpent * 100}cr</div></div>
     </div>
   );
 
@@ -261,14 +261,14 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
           what spending costs before the tap. One explainer line in
           both render modes, matching the shipped math exactly:
           pointsEarned = level − 1 (1 per level), a node's cost is
-          spent from its inspect panel, and cc_retrain refunds every
-          spent point at pointsSpent × 100cr. */}
+          spent from its inspect panel, and cc_retrain returns every
+          spent point at a cost of pointsSpent × 100cr. */}
       <div className="text-[10px] leading-snug text-text-muted">
-        Skill points come from levels — 1 per level ({pointsEarned} earned at level {player.level}). Tap a node to inspect it and spend its listed cost. Respec refunds every spent point for 100cr per point.
+        Skill points come from levels — 1 per level ({pointsEarned} earned at level {player.level}). Tap a node to inspect it and spend its listed cost. Respec returns every spent point and costs 100cr per point spent.
       </div>
       {embedded && (
         <div className="flex items-center justify-between gap-3">
-          <div className="text-[10px] text-text-muted">Respec refunds every spent point for {pointsSpent * 100}cr.</div>
+          <div className="text-[10px] text-text-muted">Respec returns every spent point — cost {pointsSpent * 100}cr (100cr per point spent).</div>
           {respecButton}
         </div>
       )}
@@ -362,6 +362,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                                 tree={activeTree}
                                 nodeType={node.type}
                                 unlocked={prerequisitesMet || currentPoints > 0 || isMaxed}
+                                spentPoints={currentPoints}
                                 locked={!prerequisitesMet && currentPoints === 0 && !isMaxed}
                                 size={20}
                                 animate={node.type === 'keystone' && currentPoints > 0}
@@ -370,7 +371,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                             </div>
                             {isMaxed && <Lock size={11} className="shrink-0 text-green" />}
                           </div>
-                          <div className="mt-1 line-clamp-2 text-[9px] text-text-muted">{node.description}</div>
+                          <div className="mt-1 text-[9px] text-text-muted">{node.description}</div>
                           <div className="absolute bottom-1 right-2 text-[10px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
                             {isPending ? '…' : `${currentPoints}/${node.maxPoints}`}
                           </div>
@@ -396,7 +397,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
           </div>
           <div className="text-xs text-text-secondary">{selectedNode.description}</div>
           {selectedNode.requires && selectedNode.requires.length > 0 && (
-            <div className="text-[10px] text-text-muted">Requires: {selectedNode.requires.join(', ')}</div>
+            <div className="text-[10px] text-text-muted">Requires: {selectedNode.requires.map((reqId) => SKILL_NODES.find((n) => n.id === reqId)?.name ?? reqId).join(', ')}</div>
           )}
           {canSpend(selectedNode.id) ? (
             <button

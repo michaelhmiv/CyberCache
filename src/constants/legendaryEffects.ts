@@ -188,3 +188,14 @@ export function getEligibleLegendaryEffects(source: DropSource, bossTier?: numbe
     return true;
   });
 }
+
+/**
+ * Player-facing name for a legendary effect id — the ONE lookup every
+ * surface that prints an effect (boss drop lists, item inspect) uses,
+ * so a raw snake_case id never reaches the screen (QC 2026-11-02, A3).
+ * Unknown ids fall back to the id itself only so a future effect still
+ * renders something while its def is being added here.
+ */
+export function legendaryEffectName(effectId: string): string {
+  return LEGENDARY_EFFECTS.find((eff) => eff.id === effectId)?.name ?? effectId;
+}

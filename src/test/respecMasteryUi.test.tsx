@@ -59,7 +59,7 @@ describe('embedded Skill Trees (Profile) — respec reachable', () => {
     expect(screen.getByRole('button', { name: /respec/i })).toBeTruthy();
     // Cost = total spent x 100cr, the cc_retrain rule.
     expect(screen.getByText('300cr')).toBeTruthy();
-    expect(screen.getByText('Respec refunds every spent point for 300cr.')).toBeTruthy();
+    expect(screen.getByText('Respec returns every spent point — cost 300cr (100cr per point spent).')).toBeTruthy();
   });
 
   it('completing a respec refunds the points in the UI via the profile sync', async () => {
@@ -82,7 +82,7 @@ describe('embedded Skill Trees (Profile) — respec reachable', () => {
     });
     // All 5 earned points are available again, and respec is now free.
     expect(screen.getByText('Available').nextSibling?.textContent).toBe('5');
-    expect(screen.getByText('Respec refunds every spent point for 0cr.')).toBeTruthy();
+    expect(screen.getByText('Respec returns every spent point — cost 0cr (100cr per point spent).')).toBeTruthy();
   });
 });
 

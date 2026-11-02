@@ -232,7 +232,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
               typeof completion.quality === 'number'
                 ? `${completion.quality}% quality`
                 : typeof completion.outputMaterial === 'string'
-                  ? `${completion.outputMaterial} ×${String(completion.outputQuantity ?? 0)}`
+                  ? `${getVisualAsset('material', completion.outputMaterial).label} ×${String(completion.outputQuantity ?? 0)}`
                   : typeof completion.rarity === 'string'
                     ? `${completion.rarity} frame`
                     : 'completed';
