@@ -9,8 +9,8 @@ function readSource(relativePath: string): string {
 }
 
 describe('Reactivity and stat bug regression', () => {
-  it('DashboardScreen uses reactive useNow for activeBuffs filter, not frozen useState(Date.now)[0]', () => {
-    const source = readSource('src/screens/DashboardScreen.tsx');
+  it('the deck (DashboardScreen successor) uses reactive useNow for activeBuffs filter, not frozen useState(Date.now)[0]', () => {
+    const source = readSource('src/components/dashboard/DashboardDeck.tsx');
     expect(source).toContain('import { useNow }');
     expect(source).toContain('const activeBuffsNow = useNow();');
     expect(source).not.toContain('useState(Date.now)[0]');

@@ -203,16 +203,18 @@ describe('layout contract — swept surfaces (source shape)', () => {
     expect(loadout).toContain('compactResourceValue(player.scrap)');
   });
 
-  it('the BottomNav labels fit their cells (≤6 chars at 8px in ~52px cells)', () => {
+  it('the BottomNav labels fit their cells (≤6 chars at the 11px floor in quarter-width cells)', () => {
     const nav = read('src/components/layout/BottomNav.tsx');
     const sigils = read('src/constants/navSigils.ts');
-    // The six tab labels are short established forms rendered at
-    // 8px in ~52px cells; the bar itself was not part of the device
-    // complaint and stays unchanged.
-    for (const label of ['Board', 'Action', 'Gear', 'Market', 'Rank', 'Hunter']) {
+    // Four tabs now (DESIGN.md §2, Wave B): Home · Gear · Market ·
+    // Hunter. The wider cells carry the labels at the §5 type
+    // floor (11px) instead of the six-tab bar's 8px shrink —
+    // scroll-don't-shrink's sibling rule: honest sizes when the
+    // width exists.
+    for (const label of ['Home', 'Gear', 'Market', 'Hunter']) {
       expect(sigils).toContain(`label: '${label}'`);
     }
-    expect(nav).toContain('grid-cols-6');
-    expect(nav).toContain('text-[8px]');
+    expect(nav).toContain('grid-cols-4');
+    expect(nav).toContain('text-[11px]');
   });
 });

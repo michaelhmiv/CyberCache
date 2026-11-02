@@ -120,7 +120,9 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
   });
 
   it('both area entry points render the shared AreaPickerList', () => {
-    const dashboard = readSource('src/screens/DashboardScreen.tsx');
+    // Wave B merge: the Board's area panel + picker live in the
+    // DashboardDeck (Home's deck) now — the pin follows the surface.
+    const dashboard = readSource('src/components/dashboard/DashboardDeck.tsx');
     expect(dashboard).toContain('<AreaPickerList');
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     expect(action).toContain('<AreaPickerList');
@@ -129,7 +131,9 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
   });
 
   it('the persistent current-area chip is on both main play surfaces', () => {
-    expect(readSource('src/screens/DashboardScreen.tsx')).toContain('<CurrentAreaChip');
+    // Both surfaces are on Home now: the deck's chip row and the
+    // Action stage both carry the persistent area chip.
+    expect(readSource('src/components/dashboard/DashboardDeck.tsx')).toContain('<CurrentAreaChip');
     expect(readSource('src/screens/ActionScreenContextual.tsx')).toContain('<CurrentAreaChip');
   });
 });
@@ -169,7 +173,7 @@ describe('Phase 1 structure — transact locks on the actions + vocabulary', () 
   });
 
   it('areas are called Areas in UI copy (no Turf/Route split)', () => {
-    const dashboard = readSource('src/screens/DashboardScreen.tsx');
+    const dashboard = readSource('src/components/dashboard/DashboardDeck.tsx');
     expect(dashboard).not.toContain('Choose Turf');
     expect(dashboard).not.toContain('switch turf');
     expect(dashboard).toContain('Choose Area');
@@ -209,7 +213,7 @@ describe('Phase 1 structure — presets + offline summary + used-in', () => {
     expect(switcher).toContain('onContextMenu');
   });
 
-  it('the offline recap persists and can be re-opened from the Dashboard', () => {
+  it('the offline recap persists and can be re-opened from Home', () => {
     const slice = readSource('src/store/slices/offlineRecapSlice.ts');
     expect(slice).toContain('reopen');
     expect(slice).toContain('cybercache.offlineRecap.v1');
@@ -221,7 +225,9 @@ describe('Phase 1 structure — presets + offline summary + used-in', () => {
     const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
     expect(topBar).toContain('OfflineRecapCard');
     expect(topBar).toContain('top-level-button');
-    const dashboard = readSource('src/screens/DashboardScreen.tsx');
+    // Wave B: HomeScreen is the top bar's mount (DashboardScreen
+    // retired in the Board+Action merge) — the pin follows it.
+    const dashboard = readSource('src/screens/HomeScreen.tsx');
     expect(dashboard).toContain('DashboardTopBar');
     expect(dashboard).not.toContain('offline-recap-reopen');
   });

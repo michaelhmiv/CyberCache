@@ -3,8 +3,10 @@ import type { PxIconName } from '@/lib/pixel/icons';
 /**
  * Nav Sigil Registry — game-themed sigils for bottom navigation tabs.
  *
- * Replaces generic lucide-react icons (Backpack, Gauge, PlayCircle,
- * ShoppingCart, Trophy, User) with game-entity visuals.
+ * The four-tab structure (DESIGN.md §2, owner-decided 2026-11-01):
+ * Home · Gear · Market · Hunter. The retired six-tab ids (dashboard /
+ * fight / leaderboards / profile) are gone — Board + Action merged
+ * into Home, Rank folded into Hunter as the Standings door.
  */
 export interface NavSigilDef {
   id: string;
@@ -15,22 +17,15 @@ export interface NavSigilDef {
 }
 
 export const NAV_SIGILS: Record<string, NavSigilDef> = {
-  dashboard: {
-    id: 'dashboard',
-    icon: 'diamond',
+  home: {
+    id: 'home',
+    icon: 'home',
     color: '#FF9000',
     accentColor: '#FFEA3A',
-    label: 'Board',
+    label: 'Home',
   },
-  fight: {
-    id: 'fight',
-    icon: 'crosshair',
-    color: '#FF4B5C',
-    accentColor: '#FFEA3A',
-    label: 'Action',
-  },
-  inventory: {
-    id: 'inventory',
+  gear: {
+    id: 'gear',
     icon: 'pack',
     color: '#A855F7',
     accentColor: '#FF9DF5',
@@ -43,15 +38,8 @@ export const NAV_SIGILS: Record<string, NavSigilDef> = {
     accentColor: '#FF9000',
     label: 'Market',
   },
-  leaderboards: {
-    id: 'leaderboards',
-    icon: 'crown',
-    color: '#FFEA3A',
-    accentColor: '#FF9000',
-    label: 'Rank',
-  },
-  profile: {
-    id: 'profile',
+  hunter: {
+    id: 'hunter',
     icon: 'person',
     color: '#06B6D4',
     accentColor: '#A5F3FC',

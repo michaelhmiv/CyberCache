@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -25,9 +25,6 @@ import { MANUFACTURERS } from '@/constants/manufacturers';
 import type { Manufacturer } from '@/types/game';
 import { getRoamingArea } from '@/constants/roamingAreas';
 import { AreaPickerList, CurrentAreaChip } from '@/components/common/AreaPicker';
-import { ResourceBar } from '@/components/layout/ResourceBar';
-import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
-import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { ResearchChip, ResearchCompletionCard } from '@/components/dashboard/ResearchChip';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
@@ -37,9 +34,7 @@ import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import { useNow } from '@/hooks/useNow';
-import { buildBossFightActivity, buildRoamingLootActivity } from '@/lib/activity/activityBuilders';
 import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
-import { computeMedKitBuffer } from '@/lib/combat/damageContract';
 import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { getAreaVisual } from '@/constants/areaVisuals';
 import { AreaBackground } from '@/components/common/AreaBackground';
@@ -52,11 +47,25 @@ import type { Weapon } from '@/types/items';
 // fixed-position toasts at the bottom of the screen). The "Numbers Up"
 // panel used to render the same data as a static grid — gone now.
 
-interface DashboardScreenProps {
+/**
+ * DashboardDeck — the Board's below-the-stage panels, kept whole when
+ * the Board tab merged into Home (redesign Wave B, DESIGN.md §2/§4).
+ *
+ * What used to be DashboardScreen below its diorama lives here: the
+ * gain toasts, the area/research chip row, Hunter Totals, Consumables,
+ * the Action Board launcher grid, Hunter Notes, and the Choose Area
+ * panel. The stage itself (the diorama + start/prep handlers) is
+ * Home's Action workspace now — the deck's Roaming row therefore
+ * scrolls the stage into view instead of navigating to a Fight tab
+ * that no longer exists. Settings is NOT a deck row (DESIGN.md §3:
+ * its home is Hunter → Account; the Strip gear icon is the shortcut).
+ */
+interface DashboardDeckProps {
   onNavigate: (screen: string) => void;
-  /** Opens the App-level boss picker (flow-fix F16). Optional so
-   *  existing mounts keep working; falls back to the Action tab. */
-  onOpenBossSelect?: () => void;
+  /** Scrolls Home's stage (the Action workspace) into view — the
+   *  Action Board Roaming row's door now that Board and Action are
+   *  one screen. */
+  onShowStage?: () => void;
 }
 
 type Tone = 'amber' | 'green' | 'blue' | 'red' | 'purple' | 'cyan';
@@ -234,7 +243,7 @@ const InfoGauge: React.FC<{ label: string; value: string | number; detail: strin
   );
 };
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, onOpenBossSelect }) => {
+export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate, onShowStage }) => {
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const inventory = useInventoryStore();
@@ -245,7 +254,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
   const activity = useActivityStore();
   const tickEvents = useTickFeedStore((state) => state.events);
   const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.slice(0, 5), [tickEvents]);
-  const [activityError, setActivityError] = useState<string | null>(null);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
@@ -267,7 +275,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
   const [focusedSlot, setFocusedSlot] = useState<keyof LoadoutConsumables | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [turfPickerOpen, setTurfPickerOpen] = useState(false);
-  const cycleOverride = useCallback(() => {
+  const cycleOverride = React.useCallback(() => {
     setOverrideActivity((current) => {
       const idx = current ? HUD_ACTIVITY_CYCLE.indexOf(current) : -1;
       return HUD_ACTIVITY_CYCLE[(idx + 1) % HUD_ACTIVITY_CYCLE.length];
@@ -310,81 +318,31 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
   ).length;
   const activePayload = activity.current.publicPayload;
   const activityLabel = safeText(activePayload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
-  const activityTarget = activity.current.targetLabel ?? safeText(activePayload.target_label) ?? 'No target';
+  void activityLabel;
   const selectedRoamingActive = activity.current.kind === 'roaming_loot' && activity.current.targetType === 'roaming_area' && activity.current.targetId === selectedArea.id;
   const routeStat = selectedRoamingActive ? `active ${selectedArea.name}` : selectedArea.name;
-
-  // Navigation on these handlers happens ONLY on success (flow-fix
-  // F7): they used to navigate in a `finally`, so a failed start landed
-  // the player on the Action tab while the error sat on the Dashboard
-  // behind them, never seen. On failure the player now stays here,
-  // where the activityError panel renders.
-  const startSelectedRoaming = useCallback(async () => {
-    setActivityError(null);
-    try {
-      // Activate survival consumables proactively on roaming start.
-      const survivalStore = useSurvivalStore.getState();
-      const playerState = usePlayerStore.getState();
-      // Med Kit: set HP buffer (stacked from inventory count)
-      const medKitCount = playerState.consumables['MedKit'] ?? 0;
-      if (medKitCount > 0) {
-        const bufferAmount = computeMedKitBuffer('MedKit');
-        survivalStore.setMedKitBuffer(medKitCount * bufferAmount);
-      }
-      // Nano Swarm: start per-tick regen
-      if ((playerState.consumables['NanoSwarm'] ?? 0) > 0) {
-        survivalStore.startNanoSwarm(30); // 30 ticks × 10 HP = 300 HP
-      }
-      await activity.start(buildRoamingLootActivity(selectedArea, equippedWeapon));
-      idle.setFarming(true);
-      onNavigate('fight');
-    } catch (error) {
-      setActivityError(error instanceof Error ? error.message : 'Unable to start roaming activity.');
-    }
-  }, [activity, equippedWeapon, idle, onNavigate, selectedArea]);
-
-  const openBossPrep = useCallback(async () => {
-    if (!currentBoss) {
-      // "Choose Boss" must open a boss chooser (flow-fix F16): the
-      // App-level BossSelectModal, not a bare tab switch into the
-      // roaming workspace.
-      if (onOpenBossSelect) {
-        onOpenBossSelect();
-      } else {
-        onNavigate('fight');
-      }
-      return;
-    }
-    setActivityError(null);
-    try {
-      await activity.start(buildBossFightActivity(currentBoss, equippedWeapon, 'prep'));
-      idle.setFarming(false);
-      onNavigate('fight');
-    } catch (error) {
-      setActivityError(error instanceof Error ? error.message : 'Unable to start boss prep activity.');
-    }
-  }, [activity, currentBoss, equippedWeapon, idle, onNavigate, onOpenBossSelect]);
 
   const actions = [
     // Audit NAV-01: the Action Board row is status + navigation, not
     // a rival start button. Roaming starts under ONE verb — the
-    // diorama's "Start Roam" here and in the Action workspace — so
-    // this row reports the run's state and opens the workspace.
-    { id: 'fight', label: 'Roaming', desc: selectedRoamingActive ? 'Run live now — open the Action workspace to manage it.' : 'Open the Action workspace to start roaming.', icon: <PxIcon name="crosshair" size={17} className="text-red" />, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: () => onNavigate('fight') },
+    // stage's "Start Roam" on Home (and in the Action workspace
+    // before the merge) — so this row reports the run's state and
+    // brings the stage into view; Home IS the workspace now.
+    { id: 'roaming', label: 'Roaming', desc: selectedRoamingActive ? 'Run live now — the stage above manages it.' : 'The stage above starts and manages roaming.', icon: <PxIcon name="crosshair" size={17} className="text-red" />, tone: 'red' as Tone, stat: routeStat, primary: true, onClick: () => onShowStage?.() },
     { id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <PxIcon name="diamondIn" size={17} className="text-amber" />, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, primary: true, onClick: () => onNavigate('loadout') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, onClick: () => onNavigate('chest') },
     { id: 'skills', label: 'Skill Trees', desc: 'Spend points and build identity.', icon: <PxIcon name="crown" size={17} className="text-purple" />, tone: 'purple' as Tone, stat: `${availableSkillPoints} pts ready`, onClick: () => onNavigate('skills') },
     { id: 'workshop', label: 'Workshop', desc: 'Bench jobs run while Crafting holds the action slot.', icon: <PxIcon name="hammer" size={17} className="text-blue" />, tone: 'blue' as Tone, stat: `${openWorkshopJobs} jobs`, onClick: () => onNavigate('workshop') },
     { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', onClick: () => onNavigate('dispatch') },
     { id: 'market', label: 'Market', desc: 'Browse listings and economy systems.', icon: <PxIcon name="coin" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Trade hub', onClick: () => onNavigate('market') },
-    // Audit SET-01: Settings used to be reachable only via HUNTER →
-    // ACCOUNT TOOLS. Same row, same destination, on the Dashboard —
-    // the HUNTER path stays.
-    { id: 'settings', label: 'Settings', desc: 'Preferences, display, and local save controls.', icon: <PxIcon name="cog" size={17} className="text-text-secondary" />, tone: 'cyan' as Tone, stat: 'Account tools', onClick: () => onNavigate('settings') },
+    // Settings is deliberately NOT a deck row (DESIGN.md §3): its
+    // canonical home is Hunter → Account, and Home's settings door
+    // is the Strip's gear icon (audit SET-01's entry, moved to the
+    // one resident DESIGN allows beside the wallet).
   ];
 
   return (
-    <div className="bl-page relative overflow-hidden p-2 pb-16">
+    <div className="relative">
       <AnimatePresence>
         {gainFeed.length > 0 && (
           <motion.div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] left-0 right-0 z-50 mx-auto flex max-w-[440px] justify-center gap-1.5 px-3" initial={false}>
@@ -392,15 +350,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
-        <ResourceBar className="mb-2" />
-        {/* Dashboard top row (2026-11-01): level progress button +
-            streak/contracts icon pop-ups — first paint, no scroll.
-            The top bar's mount performs the streak check-in and
-            the contracts board read; the offline recap lives in
-            its level pop-up. */}
-        <DashboardTopBar />
         {/* Persistent current-area chip — tap opens the one area picker */}
         <div className="flex flex-wrap items-stretch gap-2">
           <CurrentAreaChip onClick={() => setTurfPickerOpen(true)} />
@@ -409,11 +359,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
               runs beside the action, so it sits beside the area). */}
           <ResearchChip />
         </div>
-        {activityError && <Panel label="Action Error"><div className="text-xs font-bold text-red">{activityError}</div></Panel>}
         {/* Research (0038): the one-time course-complete card —
             appears on the first open after a course settles. */}
         <ResearchCompletionCard />
-        <LiveTurfDiorama area={selectedArea} weapon={equippedWeapon} bossName={currentBoss?.name} bossWeaknessCount={currentBoss?.weaknesses.length} boss={currentBoss ?? undefined} playerLevel={player.level} equippedCount={equippedCount} cacheKeys={player.cacheKeys} activityKind={activity.current.kind} bossPhase={activity.current.bossPhase} activityLabel={activityLabel} activityTarget={activityTarget} statSummary={computedStats} onFight={startSelectedRoaming} onSecondary={openBossPrep} secondaryActionLabel={currentBoss ? 'Prep Boss' : 'Choose Boss'} secondaryActionDetail={currentBoss ? `${currentBoss.weaknesses.length} weakness tags` : 'Open Action target picker'} />
         <Panel
           label="Hunter Totals"
           headerActions={
@@ -475,7 +423,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
             detail={equippedWeapon ? `${equippedWeapon.combatPower} combat power` : 'Open loadout bench'}
             icon={<PxIcon name="star" size={13} className="text-red" />}
             tone="red"
-            onClick={() => onNavigate('inventory')}
+            onClick={() => onNavigate('gear')}
           /></div></Panel>
         <Panel
           label="Choose Area"

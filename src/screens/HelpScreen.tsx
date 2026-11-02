@@ -10,7 +10,7 @@ import {
 import { MobileCard } from '@/components/layout/MobileCard';
 import { getNavSigil } from '@/constants/navSigils';
 
-type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'profile';
+type TabId = 'home' | 'gear' | 'market' | 'hunter';
 
 interface HelpItem {
   term: string;
@@ -44,26 +44,26 @@ const TOUR_STEPS: TourStep[] = [
     id: 'pick-turf',
     title: '1. Pick an area',
     body:
-      'Open the Board. The Choose Area panel lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Start with Dustwaste Frontier at Level 1; the system gates higher areas behind your Hunter level.',
-    target: { tab: 'dashboard', label: 'Board', icon: 'diamond' },
+      'Open Home. The Choose Area panel lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Start with Dustwaste Frontier at Level 1; the system gates higher areas behind your Hunter level.',
+    target: { tab: 'home', label: 'Home', icon: 'home' },
     spotlight: 'Choose Area panel',
-    cta: 'Go to Board',
+    cta: 'Go to Home',
   },
   {
     id: 'start-roam',
     title: '2. Start a roam',
     body:
-      'Tap an area, then Action. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses and Mini-bosses are triggered by the Boss prep button on the Board, not by Action — Action is the passive roaming loop.',
-    target: { tab: 'fight', label: 'Action', icon: 'crosshair' },
+      'On Home, tap an area, then Start Roam on the stage. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses are triggered by the Boss prep door on the same stage — the stage is the passive roaming loop and the boss door in one place.',
+    target: { tab: 'home', label: 'Home', icon: 'crosshair' },
     spotlight: 'Roaming activity card',
-    cta: 'Open Action',
+    cta: 'Open Home',
   },
   {
     id: 'inspect-loot',
     title: '3. Inspect loot',
     body:
       'Open Gear and tap any item card to bring up the inspect sheet. The "vs standard target" DPS at the top is your baseline. The Matchup Chip at the bottom shows effective DPS against the boss you are prepping, factoring in element, manufacturer, and legendary effects.',
-    target: { tab: 'inventory', label: 'Gear', icon: 'grid' },
+    target: { tab: 'gear', label: 'Gear', icon: 'grid' },
     spotlight: 'Gear grid',
     cta: 'Open Gear',
   },
@@ -72,7 +72,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '4. Build a loadout',
     body:
       'Boss damage is computed from the seven equipped slots, not the full backpack. Equip your best weapon, shield, class mod, and relic before any boss attempt. Class Mods unlock Skill Tree keystones; Relics grant affixes. Both stack with weapon affixes in the DPS chain.',
-    target: { tab: 'inventory', label: 'Gear', icon: 'diamondIn' },
+    target: { tab: 'gear', label: 'Gear', icon: 'diamondIn' },
     spotlight: 'Loadout panel',
     cta: 'Open Gear',
   },
@@ -81,7 +81,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '5. Read your Build Identity',
     body:
       'The Hunter tab shows your Build Identity — the weapon type you actually rack kills with, pulled from combat stats. It is not based on what you own. If it shows "No data yet", patrol an area for a few minutes; the system needs a stable winner in killsByWeaponType.',
-    target: { tab: 'profile', label: 'Hunter', icon: 'person' },
+    target: { tab: 'hunter', label: 'Hunter', icon: 'person' },
     spotlight: 'Build Identity card',
     cta: 'Open Hunter',
   },
@@ -99,7 +99,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '7. Track Mastery',
     body:
       'The Mastery screen (Field Manual → Mastery) renders six orbits — Combat, Weapons, Inventory, Locations, Economy, Services. Each satellite dot is a track. The constellation is server-tracked; the local fallback only fires when the server is unreachable.',
-    target: { tab: 'profile', label: 'Hunter', icon: 'star' },
+    target: { tab: 'hunter', label: 'Hunter', icon: 'star' },
     spotlight: 'Mastery constellation',
     cta: 'Open Mastery',
   },
@@ -116,8 +116,8 @@ const SECTIONS: HelpSection[] = [
     icon: 'crosshair',
     color: '#F59E0B',
     items: [
-      { term: 'Pick an area', body: 'The Dashboard\'s Choose Area panel shows the seven roaming areas. Each one scales: later areas drop better loot and award more XP per tick.' },
-      { term: 'Tap an area, then Action', body: 'Selecting an area and hitting Action starts a roaming_loot activity. While it\'s active, the single 3-second tick awards credits, scrap, XP, and the occasional gear drop.' },
+      { term: 'Pick an area', body: 'Home\'s Choose Area panel shows the seven roaming areas. Each one scales: later areas drop better loot and award more XP per tick.' },
+      { term: 'Tap an area, then Start Roam', body: 'Selecting an area and hitting Start Roam on Home\'s stage starts a roaming_loot activity. While it\'s active, the single 3-second tick awards credits, scrap, XP, and the occasional gear drop.' },
       { term: 'Equip before you push bosses', body: 'The boss simulator uses your equipped loadout (7 slots), not your full backpack. Open Loadout and slot your best weapon, shield, class mod, and relic before any boss attempt.' },
     ],
   },
@@ -132,7 +132,7 @@ const SECTIONS: HelpSection[] = [
       { term: 'DPS modifier chain', body: 'A weapon\'s effective DPS is raw damage × signature × manufacturer × affixes × legendary effect × element matchup × boss resistance. The gear inspector shows "vs standard target"; the dashboard chip shows the dynamic DPS against the selected boss.' },
       { term: 'Lock before salvage', body: 'Use the lock badge on any gear card to protect it from auto-salvage. Locked items survive cleanup passes and are excluded from the vendor list.' },
       { term: 'Server-minted drops', body: 'Credits, scrap, XP, fragments, materials, and essences are all server-minted. Your client rolls gear drops for immediate visual feedback, and the server reconciles economy stats every 3s.' },
-      { term: 'Per-area XP', body: 'Each area has its own idle XP multiplier (1.0 → 2.4). The Board shows the multiplier on the area card; high-danger areas reward more XP per tick, not just better loot.' },
+      { term: 'Per-area XP', body: 'Each area has its own idle XP multiplier (1.0 → 2.4). Home shows the multiplier on the area card; high-danger areas reward more XP per tick, not just better loot.' },
     ],
   },
   {

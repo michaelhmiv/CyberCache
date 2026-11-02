@@ -3,8 +3,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BottomNav } from './components/layout/BottomNav';
 import { ScreenWrapper } from './components/layout/ScreenWrapper';
-import { DashboardScreen } from './screens/DashboardScreen';
-import { ActionScreenContextual } from './screens/ActionScreenContextual';
+import { HomeScreen } from './screens/HomeScreen';
 import { InventoryScreen } from './screens/InventoryScreen';
 import { MarketScreen } from './screens/MarketScreen';
 import { ChestScreen } from './screens/ChestScreen';
@@ -33,9 +32,16 @@ import { useLeaveSignals } from './components/activity/useLeaveSignals';
 import { SettlementDebugOverlay } from './components/activity/SettlementDebugOverlay';
 import { syncPushRegistration } from './lib/notifications/pushNotifications';
 
-type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'leaderboards' | 'profile';
-type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | null;
-const topLevelTabs: TabId[] = ['dashboard', 'fight', 'inventory', 'market', 'leaderboards', 'profile'];
+// Four tabs (DESIGN.md §2, owner-decided 2026-11-01): Home · Gear ·
+// Market · Hunter. Board + Action merged into Home; Rank folded
+// into Hunter as the Standings door.
+type TabId = 'home' | 'gear' | 'market' | 'hunter';
+// 'standings' is the leaderboards' route now that the Rank tab is
+// retired: the Hunter slice mounts its badged Standings door
+// against this sub-screen (handleNavigate('standings')). The
+// LeaderboardsScreen itself is unchanged.
+type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | 'standings' | null;
+const topLevelTabs: TabId[] = ['home', 'gear', 'market', 'hunter'];
 
 function VerificationReminderBanner() {
   const { account, markVerificationReminderSeen, actionLoading } = useAuth();
@@ -62,7 +68,7 @@ function VerificationReminderBanner() {
 
 function App() {
   const { user, account, loading, authError } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>('home');
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
   // Deep-link focus inside the Profile tab: 'skills' lands the player
@@ -121,7 +127,7 @@ function App() {
 
   const handleNavigate = (screen: string) => {
     if (screen === 'skills') {
-      setActiveTab('profile');
+      setActiveTab('hunter');
       setSubScreen(null);
       setProfileFocus('skills');
       return;
@@ -129,7 +135,7 @@ function App() {
     setProfileFocus(null);
     setInventoryTabIntent(null);
     if (screen === 'loadout' || screen === 'loot') {
-      setActiveTab('inventory');
+      setActiveTab('gear');
       setSubScreen(null);
       setInventoryTabIntent({ tab: 'loadout', seq: Date.now() });
       return;
@@ -138,7 +144,7 @@ function App() {
       // Garage door (audit UX-06): the Garage is the labeled section
       // below the slots on the Loadout tab — land there and scroll
       // it into view (anchor rides the same tab intent).
-      setActiveTab('inventory');
+      setActiveTab('gear');
       setSubScreen(null);
       setInventoryTabIntent({ tab: 'loadout', seq: Date.now(), anchor: 'garage' });
       return;
@@ -180,6 +186,7 @@ function App() {
       workshop: <WorkshopScreen onNavigate={handleNavigate} />,
       collections: <CollectionsScreen />,
       dispatch: <DispatchScreen />,
+      standings: <LeaderboardsScreen onNavigate={handleNavigate} />,
     };
     const title = subScreen === 'chest'
       ? 'Crack Cache'
@@ -189,6 +196,8 @@ function App() {
           ? 'Dispatch'
         : subScreen === 'collections'
           ? 'Collections'
+        : subScreen === 'standings'
+          ? 'Standings'
         : subScreen === 'help'
           ? 'Field Manual'
           : subScreen === 'settings'
@@ -242,9 +251,8 @@ function App() {
         renderSubScreen()
       ) : (
         <ScreenWrapper activeTab={activeTab}>
-          {activeTab === 'dashboard' && <TabErrorBoundary surface="Dashboard"><DashboardScreen onNavigate={handleNavigate} onOpenBossSelect={() => setBossSelectOpen(true)} /></TabErrorBoundary>}
-          {activeTab === 'fight' && <TabErrorBoundary surface="Action"><ActionScreenContextual onOpenBossSelect={() => setBossSelectOpen(true)} onNavigate={handleNavigate} /></TabErrorBoundary>}
-          {activeTab === 'inventory' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} tabIntent={inventoryTabIntent} /></TabErrorBoundary>}
+          {activeTab === 'home' && <TabErrorBoundary surface="Home"><HomeScreen onNavigate={handleNavigate} onOpenBossSelect={() => setBossSelectOpen(true)} /></TabErrorBoundary>}
+          {activeTab === 'gear' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} tabIntent={inventoryTabIntent} /></TabErrorBoundary>}
           {activeTab === 'market' && (
             <TabErrorBoundary surface="Market">
               {/* No whole-tab gate: the NPC vendor is open to guests.
@@ -252,8 +260,7 @@ function App() {
               <MarketScreen />
             </TabErrorBoundary>
           )}
-          {activeTab === 'leaderboards' && <TabErrorBoundary surface="Leaderboards"><LeaderboardsScreen onNavigate={handleNavigate} /></TabErrorBoundary>}
-          {activeTab === 'profile' && <TabErrorBoundary surface="Profile"><ProfileScreen onNavigate={handleNavigate} focusSection={profileFocus} /></TabErrorBoundary>}
+          {activeTab === 'hunter' && <TabErrorBoundary surface="Profile"><ProfileScreen onNavigate={handleNavigate} focusSection={profileFocus} /></TabErrorBoundary>}
         </ScreenWrapper>
       )}
 

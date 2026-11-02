@@ -4,9 +4,11 @@
  *   staging an activity nothing consumes; the action slot is untouched.
  * - F11: a dropped item in the loot feed opens an inspect sheet with
  *   working Equip / Salvage actions (previously Close only).
- * - F7: Dashboard start failures stay on the Dashboard with the error
- *   visible (the old finally-block navigated away from the error).
- * - F16: Dashboard "Choose Boss" opens the boss picker callback
+ * - F7: Home stage start failures stay on Home with the error
+ *   visible (the old finally-block navigated away from the error;
+ *   Wave B: the old Dashboard diorama start IS Home's stage
+ *   control, and starts happen in place).
+ * - F16: the stage's "Choose Boss" opens the boss picker callback
  *   instead of landing on a boss-less Fight tab.
  * - F6: Leaderboards render for every session (guest-visibility
  *   law: the board is view-open, the fetch fires for guests) and
@@ -84,7 +86,7 @@ vi.mock('@/lib/api/progressionService', async (importOriginal) => ({
 }));
 
 import { ActionScreenContextual } from '@/screens/ActionScreenContextual';
-import { DashboardScreen } from '@/screens/DashboardScreen';
+import { DashboardDeck } from '@/components/dashboard/DashboardDeck';
 import { LeaderboardsScreen } from '@/screens/LeaderboardsScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { verifiedOps } from '@/lib/api/verifiedOps';
@@ -100,6 +102,7 @@ import {
   useTickFeedStore,
 } from '@/store';
 import { IDLE_ACTIVITY } from '@/types/activity';
+import { REGION_1_BOSSES } from '@/constants/bosses';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
 import type { AccountState } from '@/auth/accountState';
@@ -275,47 +278,56 @@ describe('F11 — dropped items are actionable from the loot feed', () => {
   });
 });
 
-describe('F7/F16 — Dashboard errors stay put; Choose Boss opens the picker', () => {
-  it('a failed roaming start shows the error and does NOT navigate', async () => {
+describe('F7/F16 — Home stage errors stay put; Choose Boss opens the picker', () => {
+  // Wave B successor of the Dashboard tests: Board and Action
+  // merged into Home — the diorama's Start Roam IS Home's stage
+  // control now. F7's protected behavior is unchanged (a failed
+  // start surfaces the error in place; a successful start happens
+  // in place — neither navigates anywhere).
+  it('a failed roaming start shows the error in the feed and does NOT navigate', async () => {
     const onNavigate = vi.fn();
     useActivityStore.setState({
       start: vi.fn(async () => {
         throw new Error('Activity service unavailable');
       }) as never,
     });
-    render(<DashboardScreen onNavigate={onNavigate} />);
+    render(<ActionScreenContextual onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('Start Roam'));
     expect(await screen.findByText('Activity service unavailable')).toBeInTheDocument();
-    expect(onNavigate).not.toHaveBeenCalledWith('fight');
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 
-  it('a successful roaming start navigates to the Fight tab', async () => {
-    const onNavigate = vi.fn();
-    useActivityStore.setState({
-      start: vi.fn(async () => IDLE_ACTIVITY) as never,
-    });
-    render(<DashboardScreen onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Start Roam'));
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('fight'));
-  });
-
-  it('NAV-01: the Action Board Roaming row is navigation only — it never starts the run', async () => {
+  it('a successful roaming start runs in place — no tab navigation', async () => {
     const onNavigate = vi.fn();
     const start = vi.fn(async () => IDLE_ACTIVITY);
     useActivityStore.setState({ start: start as never });
-    render(<DashboardScreen onNavigate={onNavigate} />);
+    render(<ActionScreenContextual onNavigate={onNavigate} />);
+    fireEvent.click(screen.getByText('Start Roam'));
+    await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('NAV-01: the deck Roaming row is navigation only — it scrolls to the stage and never starts the run', async () => {
+    const onShowStage = vi.fn();
+    const start = vi.fn(async () => IDLE_ACTIVITY);
+    useActivityStore.setState({ start: start as never });
+    render(<DashboardDeck onNavigate={() => {}} onShowStage={onShowStage} />);
     fireEvent.click(screen.getByText('Roaming'));
-    expect(onNavigate).toHaveBeenCalledWith('fight');
+    expect(onShowStage).toHaveBeenCalledTimes(1);
     expect(start).not.toHaveBeenCalled();
   });
 
-  it('Choose Boss (no current boss) fires the picker callback, not a navigation', async () => {
+  it('Choose Boss on the stage fires the picker callback, not a navigation', async () => {
     const onNavigate = vi.fn();
     const onOpenBossSelect = vi.fn();
-    render(<DashboardScreen onNavigate={onNavigate} onOpenBossSelect={onOpenBossSelect} />);
+    useActivityStore.setState({
+      current: { ...IDLE_ACTIVITY, kind: 'boss_fight' as const, status: 'active' as const },
+    });
+    useBossStore.setState({ currentBossId: REGION_1_BOSSES[0].id });
+    render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={onOpenBossSelect} />);
     fireEvent.click(screen.getByText('Choose Boss'));
     expect(onOpenBossSelect).toHaveBeenCalledTimes(1);
-    expect(onNavigate).not.toHaveBeenCalledWith('fight');
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 });
 

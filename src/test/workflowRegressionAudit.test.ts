@@ -32,13 +32,14 @@ describe('workflow regression audit', () => {
     expect(source).toContain("if (myListSort === 'price') return b.price - a.price;");
   });
 
-  it('Dashboard secondary boss action opens boss targeting when no boss is selected instead of cracking caches', () => {
-    const source = read('screens/DashboardScreen.tsx');
-    // Flow-fix F16: "Choose Boss" opens the App-level boss chooser via
-    // the onOpenBossSelect callback (a bare tab switch into a boss-less
-    // Fight tab was the audited break); navigation is only the fallback
-    // when no chooser is wired.
-    expect(source).toContain('if (onOpenBossSelect) {\n        onOpenBossSelect();');
-    expect(source).toContain("secondaryActionLabel={currentBoss ? 'Prep Boss' : 'Choose Boss'}");
+  it('Home stage secondary boss action opens boss targeting when a boss fight is staged instead of cracking caches', () => {
+    // Flow-fix F16, Wave B form: the diorama lives on Home's stage
+    // (ActionScreenContextual) now. Its secondary action during a
+    // boss fight is "Choose Boss" and fires the App-level boss
+    // chooser via onOpenBossSelect — never a cache or tab switch.
+    // (Behavioral coverage: flowScreens F16 successor test.)
+    const source = read('screens/ActionScreenContextual.tsx');
+    expect(source).toContain("if (currentKind === 'boss_fight') {\n      onOpenBossSelect();");
+    expect(source).toContain("currentKind === 'boss_fight' ? 'Choose Boss'");
   });
 });
