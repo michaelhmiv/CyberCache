@@ -200,6 +200,17 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
     expect(badge.className).not.toContain('-right');
   });
 
+  it('the badge label renders at the 11px floor — badges got bigger, the floor never shrinks', async () => {
+    mockStreak.mockResolvedValue(streakResult(false));
+    render(<HomeScreen onNavigate={() => {}} />);
+
+    const button = await screen.findByTestId('top-streak-button');
+    await waitFor(() => expect(button.textContent).toContain('NEW'));
+    const badge = cornerBadgeIn(button);
+    expect(badge.className).toContain('text-[11px]');
+    expect(badge.className).not.toContain('text-[9px]');
+  });
+
   it('the contracts claim-count badge is inset the same way', async () => {
     mockContracts.mockResolvedValue(boardResult(true, [contractView('c1', true)]));
     render(<HomeScreen onNavigate={() => {}} />);
