@@ -64,7 +64,7 @@ Recipes consume three families of inputs, all earned by roaming and
 salvaging (and all tradable on [[The Market]]):
 
 - **5 base materials** — Scrap Alloy, Ballistic Parts, Reactive
-  Components, Tech Fragments, and Void Dust — plus their **5 refined
+  Components, Tech, and Void Dust — plus their **5 refined
   forms** (Refined Alloy, Tempered Parts, Stabilized Cells, Woven
   Circuits, Condensed Void) and **3 Lab composites** (Composite
   Plating, Circuit Lattice, Voidweave), which refining produces and

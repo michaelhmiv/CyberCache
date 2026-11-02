@@ -138,7 +138,7 @@ export const MATERIALS: MaterialDef[] = [
   { id: 'ballistic_parts', name: 'Ballistic Parts', tier: 'T2', sourceTags: ['weapon', 'roaming'], usedByProfessions: ['ammo_fabrication', 'gunsmithing'] },
   { id: 'reactive_components', name: 'Reactive Components', tier: 'T2', sourceTags: ['ordnance', 'blastforge'], usedByProfessions: ['ordnance_engineering', 'vehicle_mechanics'] },
   { id: 'refined_reagent', name: 'Refined Reagent', tier: 'T2', sourceTags: ['crafted', 'organic'], usedByProfessions: ['medtech'] },
-  { id: 'tech_fragments', name: 'Tech Fragments', tier: 'T3', sourceTags: ['tech', 'boss'], usedByProfessions: ['firmware_engineering', 'enhancement_tuning', 'shield_tech'] },
+  { id: 'tech_fragments', name: 'Tech', tier: 'T3', sourceTags: ['tech', 'boss'], usedByProfessions: ['firmware_engineering', 'enhancement_tuning', 'shield_tech'] },
   { id: 'armor_plating', name: 'Armor Plating', tier: 'T3', sourceTags: ['armor', 'mechanical'], usedByProfessions: ['armor_fabrication', 'vehicle_mechanics'] },
   { id: 'stabilized_chemicals', name: 'Stabilized Chemicals', tier: 'T3', sourceTags: ['crafted', 'medtech'], usedByProfessions: ['medtech', 'ammo_fabrication'] },
   { id: 'void_dust', name: 'Void Dust', tier: 'T4', sourceTags: ['void', 'boss'], usedByProfessions: ['firmware_engineering', 'enhancement_tuning', 'gunsmithing'] },

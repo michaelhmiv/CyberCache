@@ -54,7 +54,7 @@ the materials and essences, when they come up:
 | Ballistic Parts | 15 cr |
 | Reactive Components | 20 cr |
 | Ignition Fluid, Conduit Wire, Acid Compound, Cryo Gel | 30 cr each |
-| Tech Fragments | 35 cr |
+| Tech | 35 cr |
 | Void Dust | 75 cr |
 | Void Essence | 90 cr |
 

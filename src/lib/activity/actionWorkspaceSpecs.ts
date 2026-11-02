@@ -100,7 +100,7 @@ export const ACTION_WORKSPACE_SPECS: Record<ActivityKind, MechanicWorkspaceSpec>
     title: 'Salvaging',
     liveVerb: 'breaking gear down',
     coreDecision: 'Which item should be broken down without destroying protected gear?',
-    rewardIntel: ['selected item', 'rarity', 'expected alloy', 'expected parts', 'expected reactive components', 'expected tech fragments', 'void dust', 'lock safety'],
+    rewardIntel: ['selected item', 'rarity', 'expected alloy', 'expected parts', 'expected reactive components', 'expected tech', 'void dust', 'lock safety'],
     feedEvents: ['salvage target staged', 'salvage started', 'material output', 'essence output', 'safety warning'],
     selector: 'Salvage item sheet with safe candidates only.',
     visualLoop: ['item intake', 'shred sparks', 'material chunks', 'output flyout'],
