@@ -32,10 +32,11 @@ Settlement rides the game's daily heartbeat: once a week has closed, it settles 
 
 The **drop-luck buff** is a timed bonus that starts at settlement. While it is active:
 
-- Roaming drops roll Epic and Legendary rarity weights higher, and
-- Boss fights get the same multiplier on their dedicated-drop chance.
+- Roaming drops roll Epic and Legendary rarity weights higher,
+- Boss fights get the same multiplier on their dedicated-drop chance, and
+- [[Endless Mode]] milestone drops roll their Epic and Legendary weights higher too.
 
-Buffs **never stack** — if you hold more than one, only the strongest active one applies. Endless drops don't use the buff at all; it is a roaming-and-bosses reward.
+Buffs **never stack** — if you hold more than one, only the strongest active one applies. (One deliberate exception: Scavenger Cache Surge rolls inside an Endless run are a separate, player-spent benefit and do not take the buff.)
 
 ## Daily login streak
 

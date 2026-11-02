@@ -6,10 +6,12 @@ A run occupies your personal action slot for its entire duration — starting on
 
 ## How a run works
 
-A run is anchored at your level when you enter. Encounter levels rise by one per depth: depth 1 is fought at your entry level, depth 10 at entry level + 9, and so on.
+A run's **encounter levels** are anchored at your level when you enter: depth 1 is fought at your entry level, depth 10 at entry level + 9, and so on. Encounter level prices the rewards and the milestone gear's level — the stakes scale with you.
 
-- **Most depths are war packs** — roaming-elite encounters dressed in a rotating area, priced at a fraction of a boss's strength (35% of the par boss's health pool, 45% of its damage).
-- **Every 5th depth is a boss-tier encounter** wearing a shipped boss's kit — its mechanic, phases, weaknesses, and resistances — floored at the strength of the strongest boss at or below your anchor level, so a boss depth is always a genuine spike over the packs around it.
+The fights themselves do not. **The Chamber is a fixed ladder, the same for every hunter:** how strong a depth is depends only on the depth, never on who is climbing. A depth-1 fight is a depth-1 fight whether a level-10 hunter or a level-100 hunter walks in — the stronger hunter simply tears through the early depths by being stronger.
+
+- **Most depths are war packs** — roaming-elite encounters dressed in a rotating area, priced at a fraction of the par boss **for that depth** (35% of its health pool, 45% of its damage).
+- **Every 5th depth is a boss-tier encounter** wearing a shipped boss's kit — its mechanic, phases, weaknesses, and resistances — floored at the strength of the strongest boss at or below **that depth**, so a boss depth is always a genuine spike over the packs around it.
 - **You may swap gear between encounters.** Each encounter is priced against the loadout you currently hold, so adjusting your build mid-run for the next boss depth is legitimate play.
 - **Your prepared consumable belt is committed once, at entry**, and burned there. The run is one attempt; its encounters are phases. Unlike boss fights, you do not re-pay the belt per encounter — and the reward rates below are priced with that in mind.
 
@@ -17,19 +19,21 @@ Like [[Bosses|boss prep]], the Chamber's prep shows you the run's facts — scal
 
 ## The escalation
 
-Two compounding curves end every run eventually:
+Two compounding curves steepen the ladder as you descend, on top of the par kit itself stepping up each time the depths cross into a higher boss tier:
 
-- **Enemy health, shield, and armor: ×1.12 per depth** (compounding from depth 1).
-- **Enemy damage: ×1.10 per depth** (compounding from depth 1).
+- **Enemy health, shield, and armor: ×1.04 per depth** (compounding from depth 1).
+- **Enemy damage: ×1.03 per depth** (compounding from depth 1).
 
-Compounding is the point: depth 10 opposition has roughly 2.8× the health and 2.4× the damage of depth 1; by depth 25 the health multiplier is around 15×. No build out-scales that forever — the question is only where your wall is.
+Depth 10 opposition has roughly 1.4× the health and 1.3× the damage of depth 1 before the tier step; by depth 25 the health multiplier is around 2.6×, and it never stops growing. No build out-scales that forever — the question is only where your wall is.
+
+**A note on records:** best depths set before the Chamber became a fixed ladder were earned on ladders priced off the runner's own level, so they are not directly comparable to fixed-ladder depths — the same depth number did not mean the same fights.
 
 ## Rewards: the escrow
 
 Currency rewards do **not** pay out as you go. Credits, XP, and scrap from each cleared depth accrue into the run's **escrow**, and escrow is paid only when the run ends:
 
 - Per encounter cleared, escrow gains **encounter level × 6 XP**, **encounter level × 22 credits**, and **encounter level × 0.5 scrap** — each growing by an additional **+4% per depth** cleared.
-- **Milestone gear drops are the exception.** Boss-tier depths (every 5th) drop gear that is yours immediately, stored like boss loot at the encounter's level. Its Epic and Legendary weights grow the deeper you are when it drops — but even deep, a milestone Legendary stays rarer than a boss's dedicated-drop rate. The Chamber taxes the bank, never the trophies.
+- **Milestone gear drops are the exception.** Boss-tier depths (every 5th) drop gear that is yours immediately, stored like boss loot at the encounter's level. Its Epic and Legendary weights grow the deeper you are when it drops — but even deep, a milestone Legendary stays rarer than a boss's dedicated-drop rate. The Chamber taxes the bank, never the trophies. And if your weekly [[Leaderboards and Streaks|leaderboard]] drop-luck buff is active, it covers Chamber milestone drops too, exactly as it covers roaming and boss drops.
 
 ## Banking, death, and the tax
 

@@ -19,7 +19,7 @@ job before earning anything.
   when you return (subject to the offline cap on [[Progression]]).
 - **Boss victories** — a win pays credits on top of the loot; see
   [[Bosses]].
-- **[[Endless Mode]] payouts** — banked run rewards pay credits.
+- **[[Endless Mode]] payouts** — banked run rewards pay credits. The Chamber is a fixed ladder, the same for every hunter, so this faucet scales with how deep a build can climb rather than with the runner's level.
 - **Contracts** — completing contracts from [[The Board]] pays their
   credit rewards.
 - **Login streaks** — daily streak claims include small credit grants;

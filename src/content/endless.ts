@@ -77,8 +77,8 @@ export const ENDLESS_MILESTONE_EVERY = ENDLESS_BOSS_EVERY;
 export const ENDLESS_BAND_DEPTHS = 5;
 
 /** Lever defaults (registered in src/server/economy/config.ts). */
-export const ENDLESS_HP_GROWTH_DEFAULT = 1.12;
-export const ENDLESS_DPS_GROWTH_DEFAULT = 1.1;
+export const ENDLESS_HP_GROWTH_DEFAULT = 1.04;
+export const ENDLESS_DPS_GROWTH_DEFAULT = 1.03;
 export const ENDLESS_XP_PER_LEVEL_DEFAULT = 6;
 export const ENDLESS_CREDITS_PER_LEVEL_DEFAULT = 22;
 export const ENDLESS_SCRAP_PER_LEVEL_DEFAULT = 0.5;
@@ -204,14 +204,23 @@ export interface EndlessEncounterDef {
 /**
  * The encounter at `depth` of a run anchored at `startLevel`.
  * Pools compound from the kit's base stats: health/shield/armor by
- * hpGrowth^(depth−1), DPS by dpsGrowth^(depth−1). Packs price at a
- * share of the par kit (the boss at-or-below the anchor level);
- * boss-tier depths wear a shipped boss's own kit, mechanic, phases,
- * weaknesses, and dedicated-drop identity — with its stat block
- * FLOORED at the par kit's, so a boss depth is always a genuine
- * spike over the packs around it even when the rotation reaches an
- * early-game kit at a high anchor (an unfloored depth-5 Dune Tyrant
- * would be weaker than the depth-4 pack at L20+).
+ * hpGrowth^(depth−1), DPS by dpsGrowth^(depth−1).
+ *
+ * THE LADDER IS FIXED (owner law, 2026-11-02): combat stats are a
+ * function of DEPTH alone — packs price at a share of the par kit
+ * for the DEPTH (the boss at-or-below the depth), and boss-tier
+ * depths wear a shipped boss's own kit FLOORED at that same
+ * depth-par kit, so a boss depth is always a genuine spike over the
+ * packs around it and every runner faces identical stats at the
+ * same depth. A stronger hunter tears through early depths simply
+ * by being stronger; nothing about the fight scales with the
+ * runner. The encounter LEVEL (= startLevel + depth − 1) is not a
+ * combat stat: it prices rewards and milestone drop levels, so the
+ * stakes still scale with the runner while the ladder does not.
+ * (Before the fix, both branches priced off parBossForLevel(
+ * startLevel), which made depth 1 at L100 a tier-13 fight and
+ * collapsed high-level median depths below low-level ones — see
+ * design-briefs/endless-tuning-SPEC.md.)
  */
 export function endlessEncounterForDepth(
   depth: number,
@@ -228,7 +237,7 @@ export function endlessEncounterForDepth(
 
   if (isEndlessBossDepth(d)) {
     const kit = REGION_1_BOSSES[Math.floor(d / ENDLESS_BOSS_EVERY - 1) % REGION_1_BOSSES.length];
-    const par = parBossForLevel(anchor);
+    const par = parBossForLevel(d);
     const def: BossDef = {
       ...kit,
       level,
@@ -253,7 +262,7 @@ export function endlessEncounterForDepth(
     };
   }
 
-  const par = parBossForLevel(anchor);
+  const par = parBossForLevel(d);
   const health = Math.max(1, Math.round(par.health * ENDLESS_PACK_HEALTH_SHARE * hpMult));
   const shield = Math.round(par.shield * ENDLESS_PACK_POOL_SHARE * hpMult);
   const armor = Math.round(par.armor * ENDLESS_PACK_POOL_SHARE * hpMult);
@@ -357,10 +366,21 @@ export function endlessEntryFeeFor(
  * (1% of the base table) and only become meaningful deep in a run:
  * at depth 5 the Legendary share is ~1.5%, at depth 25 ~3.4%, at
  * depth 50 ~5.7% — always under the bosses' 10% dedicated rate.
+ *
+ * Drop luck (0035): while the runner's weekly-leaderboard buff is
+ * active, the Epic and Legendary weights multiply by (1 + bonus) —
+ * the same treatment roaming rarity weights get, so the buff covers
+ * Chamber milestone drops exactly like every other drop path. The
+ * route resolves the bonus from the buff rows; it never comes from
+ * the request body. Absent/0 = the shipped weights, bit-identical.
+ * (Scavenger Cache Surge rolls inside a run deliberately do NOT
+ * take this bonus — surge weights are a separate player-spent
+ * benefit; see the endless fixed-ladder slice record.)
  */
 export function endlessMilestoneRarityWeights(
   depth: number,
   leversInput?: Partial<EndlessLeverValues>,
+  dropLuckBonus = 0,
 ): Partial<Record<Rarity, number>> {
   const levers = resolveLevers(leversInput);
   const d = Math.max(1, Math.trunc(depth) || 1);
@@ -369,18 +389,23 @@ export function endlessMilestoneRarityWeights(
     1 + levers.endlessMilestoneLegendaryPerDepth * d,
   );
   const epicMult = Math.min(ENDLESS_MILESTONE_EPIC_MULT_CAP, 1 + levers.endlessMilestoneEpicPerDepth * d);
+  const luckMult = 1 + Math.max(0, dropLuckBonus || 0);
   return {
     [Rarity.Common]: RARITIES[Rarity.Common].dropWeight,
     [Rarity.Uncommon]: RARITIES[Rarity.Uncommon].dropWeight,
     [Rarity.Rare]: RARITIES[Rarity.Rare].dropWeight,
-    [Rarity.Epic]: RARITIES[Rarity.Epic].dropWeight * epicMult,
-    [Rarity.Legendary]: RARITIES[Rarity.Legendary].dropWeight * legendaryMult,
+    [Rarity.Epic]: RARITIES[Rarity.Epic].dropWeight * epicMult * luckMult,
+    [Rarity.Legendary]: RARITIES[Rarity.Legendary].dropWeight * legendaryMult * luckMult,
   };
 }
 
 /** The share of milestone rolls that land Legendary at `depth` (display/test math). */
-export function endlessMilestoneLegendaryShare(depth: number, leversInput?: Partial<EndlessLeverValues>): number {
-  const weights = endlessMilestoneRarityWeights(depth, leversInput);
+export function endlessMilestoneLegendaryShare(
+  depth: number,
+  leversInput?: Partial<EndlessLeverValues>,
+  dropLuckBonus = 0,
+): number {
+  const weights = endlessMilestoneRarityWeights(depth, leversInput, dropLuckBonus);
   const total = Object.values(weights).reduce((sum, w) => sum + (w ?? 0), 0);
   return total > 0 ? (weights[Rarity.Legendary] ?? 0) / total : 0;
 }
