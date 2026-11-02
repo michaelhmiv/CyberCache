@@ -277,7 +277,9 @@ describe('audit UX-02 — inspect sheet Unequip for equipped items', () => {
 
     render(<InventoryScreen onNavigate={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Equipped Pistol'));
+    // Wave D: items live on the Grid rail stop — open it first.
+    fireEvent.click(screen.getByTestId('gear-stop-grid'));
+    fireEvent.click(await screen.findByText('Equipped Pistol'));
     const unequipButton = await screen.findByRole('button', { name: /Unequip/ });
     expect(screen.queryByRole('button', { name: /Equip$/ })).toBeNull();
 

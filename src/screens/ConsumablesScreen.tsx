@@ -9,6 +9,7 @@ import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
 import { ConsumableInspectSheet } from '@/components/consumables/ConsumableInspectSheet';
 import { ConsumablePicker } from '@/components/consumables/ConsumablePicker';
+import { ItemStacks } from '@/components/consumables/ItemStacks';
 
 const SLOT_LABELS: Record<keyof LoadoutConsumables, string> = {
   PreFight: 'Slot 1',
@@ -117,28 +118,34 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
     <div className="space-y-3 p-3 pb-20">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-lg font-black text-text-primary">Consumables</div>
-          <div className="text-[10px] text-text-muted">Your belt — tap a slot to assign, swap, or inspect.</div>
+          <div className="text-lg font-black text-text-primary">Items</div>
+          <div className="text-[11px] text-text-muted">Your belt — tap a slot to assign, swap, or inspect — and every stack you carry.</div>
         </div>
-        <button type="button" onClick={openVendor} className="rounded-full border border-amber/40 bg-amber/10 px-2 py-1 text-[10px] font-black text-amber">
-          <span className="inline-flex items-center gap-1"><span style={{ fontSize: '11px' }}>$</span> Vendor</span>
+        <button type="button" onClick={openVendor} className="rounded-full border border-amber/40 bg-amber/10 px-2 py-1 text-[11px] font-black text-amber">
+          <span className="inline-flex items-center gap-1"><PxIcon name="vendor" size={13} /> Vendor</span>
         </button>
       </div>
 
       <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2">
-        <div className="text-[10px] text-text-muted">Total owned</div>
+        <div className="text-[11px] text-text-muted">Total owned</div>
         <div className="text-xs font-black text-amber">{totalOwned}</div>
       </div>
 
-      <div className="rounded-lg border border-border bg-surface px-3 py-2 text-[10px] text-text-muted">
-        These three slots are your belt. Boss fights start with your belt pre-loaded — one of
-        each belted type you own — and you set the exact counts on the boss screen before the
-        attempt; what the boss screen shows is what burns. While roaming, every roaming
-        consumable you own activates automatically — the belt doesn't turn roaming effects
-        on or off.
-      </div>
+      {/* Belt rules: a disclosure, not a lead paragraph (DESIGN.md
+          §1 — rules prose sits behind a disclosure after first
+          read). The rules themselves are unchanged. */}
+      <details className="rounded-lg border border-border bg-surface px-3 py-2 text-[11px] text-text-muted">
+        <summary className="cursor-pointer font-black text-text-secondary">How the belt works</summary>
+        <p className="mt-1">
+          These three slots are your belt. Boss fights start with your belt pre-loaded — one of
+          each belted type you own — and you set the exact counts on the boss screen before the
+          attempt; what the boss screen shows is what burns. While roaming, every roaming
+          consumable you own activates automatically — the belt doesn't turn roaming effects
+          on or off.
+        </p>
+      </details>
 
-      {notice && <div className="rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[10px] text-amber">{notice}</div>}
+      {notice && <div className="rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">{notice}</div>}
 
       {/* 3 slots */}
       <div className="space-y-2">
@@ -169,24 +176,24 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                 </div>
 
                 <div className="min-w-0 flex-1 text-left">
-                  <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">
+                  <div className="text-[11px] font-black uppercase tracking-wide text-text-muted">
                     {SLOT_LABELS[slot]}
                   </div>
                   {def ? (
                     <>
                       <div className="truncate text-sm font-black text-text-primary">{def.name}</div>
-                      <div className="truncate text-[10px] text-text-muted">{def.tacticalRole} · {def.trigger}</div>
+                      <div className="truncate text-[11px] text-text-muted">{def.tacticalRole} · {def.trigger}</div>
                       <div className="mt-0.5 flex items-center gap-2">
-                        <span className="text-[9px] font-black text-amber">{stockCount} in stock</span>
+                        <span className="text-[11px] font-black text-amber">{stockCount} in stock</span>
                         {CONSUMABLE_SLOTS.some((s) => s !== slot && loadout.consumables[s] === id) && (
-                          <span className="text-[8px] font-bold text-text-muted">also in another slot</span>
+                          <span className="text-[11px] font-bold text-text-muted">also in another slot</span>
                         )}
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="text-sm font-black text-text-muted">Empty</div>
-                      <div className="truncate text-[10px] text-text-muted">
+                      <div className="truncate text-[11px] text-text-muted">
                         Tap to assign a consumable
                       </div>
                     </>
@@ -208,13 +215,13 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                       <PxIcon name={def.visual.icon} size={13} style={{ color: def.visual.accent === 'green' ? '#7CFC00' : '#FFB300' }} />
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] font-black text-text-primary">Inspect {def.name}</div>
-                        <div className="text-[8px] text-text-muted">Effects, quality, crafting</div>
+                        <div className="text-[11px] text-text-muted">Effects, quality, crafting</div>
                       </div>
                       <ChevronRight size={12} className="text-text-muted" />
                     </button>
                   )}
 
-                  <div className="px-1 py-0.5 text-[8px] font-black uppercase tracking-wider text-text-muted">
+                  <div className="px-1 py-0.5 text-[11px] font-black uppercase tracking-wider text-text-muted">
                     {def ? 'Swap or clear' : 'Choose a consumable'}
                   </div>
 
@@ -222,16 +229,16 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                   <button
                     type="button"
                     onClick={() => setPickerSlot(slot as ConsumableSlot)}
-                    className="w-full px-2 py-2 text-left text-[10px] font-black text-amber hover:bg-amber/10"
+                    className="w-full px-2 py-2 text-left text-[11px] font-black text-amber hover:bg-amber/10"
                   >
-                    {def ? 'Open swap picker →' : 'Open consumable picker →'}
+                    {def ? 'Open swap picker' : 'Open consumable picker'} <PxIcon name="chevR" size={13} className="align-[-2px]" />
                   </button>
 
                   {def && (
                     <button
                       type="button"
                       onClick={() => handlePick(slot, null)}
-                      className="w-full px-2 py-2 text-left text-[10px] font-black uppercase text-red hover:bg-red/10"
+                      className="w-full px-2 py-2 text-left text-[11px] font-black uppercase text-red hover:bg-red/10"
                     >
                       Clear {SLOT_LABELS[slot]}
                     </button>
@@ -242,6 +249,10 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
           );
         })}
       </div>
+
+      {/* The stacks (DESIGN.md §3 — Gear → Items): consumable
+          batches with quality % printed, materials, essences. */}
+      <ItemStacks onInspectConsumable={(def) => setInspecting(def)} />
 
       {totalOwned === 0 && (
         <div className="py-8 text-center">

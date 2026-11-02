@@ -237,9 +237,9 @@ const VehicleCard: React.FC<{
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-black text-text-primary">
           {vehicle.name}
-          {equipped && <span className="ml-2 text-[10px] font-bold text-amber">EQUIPPED</span>}
+          {equipped && <span className="ml-2 text-[11px] font-bold text-amber">EQUIPPED</span>}
           {vehicle.runtimeState === 'in_service' && (
-            <span className="ml-2 text-[10px] font-bold text-cyan">ON CONTRACT</span>
+            <span className="ml-2 text-[11px] font-bold text-cyan">ON CONTRACT</span>
           )}
         </div>
         <div className="text-[11px] text-text-muted">{vehicle.rarity}</div>
@@ -253,7 +253,7 @@ const VehicleCard: React.FC<{
         {' '}(degrades with condition)
       </div>
       <div>
-        <div className="flex justify-between text-[10px] text-text-muted">
+        <div className="flex justify-between text-[11px] text-text-muted">
           <span>Condition</span>
           <span>{Math.floor(vehicle.conditionCurrent)} / {vehicle.conditionMax}</span>
         </div>

@@ -90,8 +90,10 @@ use one:
 
 ## The Garage
 
-Your Garage is the vehicle section of **Gear → Loadout**. There you can
-see every vehicle you own, equip one into the vehicle slot, check its
+Your Garage is its own stop on the Gear tab: **Gear → Garage**. (The
+Loadout stop still shows your vehicle slot's status — yield, fuel,
+condition — with a door straight to the Garage.) There you can see
+every vehicle you own, equip one into the vehicle slot, check its
 condition and your fuel, refuel, and start a repair. Vehicles are
 managed there, not in the [[Gear]] grid — and they cannot be
 [[Gear|reforged]]; a vehicle's affixes are its class tuning, not bench

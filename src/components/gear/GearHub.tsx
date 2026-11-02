@@ -263,8 +263,8 @@ function loadoutSlotFor(itemId: string, slots: Record<LoadoutSlot, string | null
 function StatPill({ stat }: { stat: CardStat }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1 rounded-md border border-border bg-bg/80 px-1.5 py-0.5">
-      <span className="text-[8px] font-black uppercase tracking-wide text-text-muted">{stat.label}</span>
-      <span className={`truncate text-[10px] font-black ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
+      <span className="text-[11px] font-black uppercase tracking-wide text-text-muted">{stat.label}</span>
+      <span className={`truncate text-[11px] font-black ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
     </span>
   );
 }
@@ -272,7 +272,7 @@ function StatPill({ stat }: { stat: CardStat }) {
 function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-1.5">
-      <div className="text-[9px] font-black uppercase tracking-[0.18em] text-text-muted">{title}</div>
+      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">{title}</div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </section>
   );
@@ -283,7 +283,7 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-2.5 py-1 text-[10px] font-black transition-colors ${
+      className={`rounded-full border px-2.5 py-1 text-[11px] font-black transition-colors ${
         active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
       }`}
     >
@@ -695,16 +695,16 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       {/* Compact header */}
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-base font-black leading-tight text-text-primary">Cache Inventory</div>
-          <div className="truncate text-[10px] text-text-muted">Mobile gear triage: compare, equip, salvage, sell.</div>
+          <div className="text-base font-black leading-tight text-text-primary">Item Grid</div>
+          <div className="truncate text-[11px] text-text-muted">Mobile gear triage: compare, equip, salvage, sell.</div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {hasAnyFilter && (
-            <button onClick={clearFilters} className="rounded-full border border-red/30 bg-red/10 px-2 py-1 text-[9px] font-black text-red">
+            <button onClick={clearFilters} className="rounded-full border border-red/30 bg-red/10 px-2 py-1 text-[11px] font-black text-red">
               Reset
             </button>
           )}
-          <div className="rounded-full border border-border bg-surface px-2 py-1 text-[10px] font-black text-amber">
+          <div className="rounded-full border border-border bg-surface px-2 py-1 text-[11px] font-black text-amber">
             {items.length}/{inventory.items.length}
           </div>
         </div>
@@ -721,14 +721,14 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                 key={id}
                 type="button"
                 onClick={() => setActiveKind(id)}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-black transition-colors ${
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-black transition-colors ${
                   active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
                 }`}
               >
                 <PxIcon name={icon} size={13} />
                 <span>{short}</span>
                 <span className={active ? 'text-amber/80' : 'text-text-muted/70'}>{counts.total}</span>
-                {counts.equipped > 0 && <span className="rounded-full bg-amber px-1 py-0 text-[7px] text-bg">{counts.equipped} EQ</span>}
+                {counts.equipped > 0 && <span className="rounded-full bg-amber px-1 py-0 text-[11px] text-bg">{counts.equipped} EQ</span>}
               </button>
             );
           })}
@@ -757,7 +757,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
           <button
             type="button"
             onClick={() => setShowSort((prev) => !prev)}
-            className="flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-[10px] font-black text-text-muted"
+            className="flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-[11px] font-black text-text-muted"
           >
             <ArrowUpDown size={12} />
             {activeSortLabel}
@@ -769,7 +769,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   key={option.key}
                   type="button"
                   onClick={() => { setSort(option.key); setShowSort(false); }}
-                  className={`w-full px-3 py-1.5 text-left text-[10px] font-black transition-colors ${
+                  className={`w-full px-3 py-1.5 text-left text-[11px] font-black transition-colors ${
                     effectiveSort === option.key ? 'bg-amber/15 text-amber' : 'text-text-muted hover:bg-surface-raised'
                   }`}
                 >
@@ -783,7 +783,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         <button
           type="button"
           onClick={() => setShowFilters(true)}
-          className={`flex h-8 items-center gap-1 rounded-lg border px-2 text-[10px] font-black transition-colors ${
+          className={`flex h-8 items-center gap-1 rounded-lg border px-2 text-[11px] font-black transition-colors ${
             filterCount > 0 ? 'border-amber bg-amber/10 text-amber' : 'border-border bg-surface text-text-muted'
           }`}
         >
@@ -803,7 +803,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         <button
           type="button"
           onClick={() => { setSelectMode((prev) => !prev); setSelectedIds(new Set()); }}
-          className={`h-8 rounded-lg border px-2 text-[10px] font-black transition-colors ${
+          className={`h-8 rounded-lg border px-2 text-[11px] font-black transition-colors ${
             selectMode ? 'border-amber bg-amber/10 text-amber' : 'border-border bg-surface text-text-muted'
           }`}
         >
@@ -816,7 +816,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
           <button
             type="button"
             onClick={salvageAllJunk}
-            className="flex h-8 items-center gap-1 rounded-lg border border-red/30 bg-red/10 px-2 text-[9px] font-black text-red"
+            className="flex h-8 items-center gap-1 rounded-lg border border-red/30 bg-red/10 px-2 text-[11px] font-black text-red"
           >
             <Trash2 size={11} />
             {junkItems.length}
@@ -829,12 +829,12 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         <div className="-mx-3 overflow-x-auto px-3">
           <div className="flex min-w-max gap-1.5">
             {activeFilterLabels.slice(0, 10).map((label) => (
-              <span key={label} className="rounded-full border border-amber/30 bg-amber/10 px-2 py-0.5 text-[9px] font-black text-amber">
+              <span key={label} className="rounded-full border border-amber/30 bg-amber/10 px-2 py-0.5 text-[11px] font-black text-amber">
                 {label}
               </span>
             ))}
             {activeFilterLabels.length > 10 && (
-              <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[9px] font-black text-text-muted">
+              <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-black text-text-muted">
                 +{activeFilterLabels.length - 10}
               </span>
             )}
@@ -844,7 +844,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
 
       {/* Bulk-action failure notice (F8) */}
       {hubNotice && (
-        <div className="flex items-start justify-between gap-2 border border-red/40 bg-red/10 p-2 text-[10px] font-bold text-red-light" role="alert">
+        <div className="flex items-start justify-between gap-2 border border-red/40 bg-red/10 p-2 text-[11px] font-bold text-red-light" role="alert">
           <span>{hubNotice}</span>
           <button type="button" onClick={() => setHubNotice(null)} className="shrink-0 text-red-light/70 hover:text-red-light" aria-label="Dismiss notice">
             <X size={12} />
@@ -861,17 +861,17 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             exit={{ opacity: 0, y: -6 }}
             className="flex items-center gap-2 rounded-xl border border-amber/40 bg-amber/10 p-2"
           >
-            <span className="text-[10px] font-black text-amber">{selectedIds.size} selected</span>
-            <button onClick={selectAll} className="text-[9px] text-text-muted">All</button>
-            <button onClick={deselectAll} className="text-[9px] text-text-muted">None</button>
+            <span className="text-[11px] font-black text-amber">{selectedIds.size} selected</span>
+            <button onClick={selectAll} className="text-[11px] text-text-muted">All</button>
+            <button onClick={deselectAll} className="text-[11px] text-text-muted">None</button>
             <div className="flex-1" />
-            <button onClick={bulkLock} aria-label="Lock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[9px] font-black text-text-muted">
+            <button onClick={bulkLock} aria-label="Lock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-black text-text-muted">
               <Lock size={12} />
             </button>
-            <button onClick={bulkUnlock} aria-label="Unlock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[9px] font-black text-text-muted">
+            <button onClick={bulkUnlock} aria-label="Unlock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-black text-text-muted">
               <Unlock size={12} />
             </button>
-            <button onClick={bulkScrap} aria-label="Scrap selected" className="rounded-lg border border-red/40 bg-red/10 px-2 py-1 text-[9px] font-black text-red">
+            <button onClick={bulkScrap} aria-label="Scrap selected" className="rounded-lg border border-red/40 bg-red/10 px-2 py-1 text-[11px] font-black text-red">
               <Trash2 size={12} />
             </button>
           </motion.div>
@@ -897,6 +897,11 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
           const equipped = !!equippedSlot;
           const color = colorOf(item);
           const summary = gearCardSummary(item);
+          // Real-item invariant on the card face (redesign Wave D,
+          // DESIGN.md §3): the card prints THIS instance's rolled
+          // affixes — the actual displayText lines from the item —
+          // not just counts and derived triage stats.
+          const affixTexts = affixesOf(item).map((affix) => affix.displayText);
 
           if (viewMode === 'grid') {
             return (
@@ -914,7 +919,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   {selectMode ? (
                     selected ? <CheckSquare size={14} className="text-amber" /> : <Square size={14} className="text-text-muted" />
                   ) : equippedSlot ? (
-                    <span className="rounded-full bg-amber px-1.5 py-0.5 text-[7px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>
+                    <span className="rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>
                   ) : <span />}
                   {item.isLocked && <Lock size={10} className="text-red" />}
                 </div>
@@ -922,13 +927,16 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   <GearIllustration item={item} size={50} showBadges={false} />
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-[10px] font-black" style={{ color }}>{item.name}</div>
-                  <div className="truncate text-[8px] text-text-muted">{summary.meta.join(' · ')}</div>
+                  <div className="truncate text-[11px] font-black" style={{ color }}>{item.name}</div>
+                  <div className="truncate text-[11px] text-text-muted">{summary.meta.join(' · ')}</div>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {summary.primaryStats.slice(0, 2).map((stat) => <StatPill key={stat.label} stat={stat} />)}
                 </div>
-                {summary.badges[0] && <div className="truncate text-[8px] font-bold text-amber">{summary.badges[0]}</div>}
+                {summary.badges[0] && <div className="truncate text-[11px] font-bold text-amber">{summary.badges[0]}</div>}
+                {affixTexts[0] && (
+                  <div className="text-[11px] font-bold leading-snug text-text-secondary [overflow-wrap:anywhere]">{affixTexts[0]}</div>
+                )}
               </motion.button>
             );
           }
@@ -962,11 +970,11 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <div className="truncate text-xs font-black leading-tight" style={{ color }}>{item.name}</div>
-                  {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[7px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
+                  {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
                   {item.isLocked && <Lock size={10} className="shrink-0 text-red" />}
                 </div>
 
-                <div className="truncate text-[9px] text-text-muted">{summary.meta.join(' · ')}</div>
+                <div className="truncate text-[11px] text-text-muted">{summary.meta.join(' · ')}</div>
 
                 <div className="flex flex-wrap gap-1">
                   {summary.primaryStats.map((stat) => <StatPill key={stat.label} stat={stat} />)}
@@ -977,7 +985,18 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                 </div>
 
                 {summary.badges[0] && (
-                  <div className="truncate text-[9px] font-bold text-amber">{summary.badges[0]}</div>
+                  <div className="truncate text-[11px] font-bold text-amber">{summary.badges[0]}</div>
+                )}
+
+                {affixTexts.length > 0 && (
+                  <div className="space-y-0.5">
+                    {affixTexts.slice(0, 2).map((text, i) => (
+                      <div key={i} className="text-[11px] font-bold leading-snug text-text-secondary [overflow-wrap:anywhere]">{text}</div>
+                    ))}
+                    {affixTexts.length > 2 && (
+                      <div className="text-[11px] font-bold text-text-muted">+{affixTexts.length - 2} more affixes — tap to inspect</div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -1017,10 +1036,10 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <div className="text-sm font-black text-text-primary">Filters</div>
-                  <div className="text-[10px] text-text-muted">Hidden by default so the Gear tab stays dense.</div>
+                  <div className="text-[11px] text-text-muted">Hidden by default so the Gear tab stays dense.</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {filterCount > 0 && <button type="button" onClick={clearFilters} className="text-[10px] font-black text-red">Reset</button>}
+                  {filterCount > 0 && <button type="button" onClick={clearFilters} className="text-[11px] font-black text-red">Reset</button>}
                   <button type="button" onClick={() => setShowFilters(false)} className="rounded-lg border border-border bg-surface p-2 text-text-muted">
                     <X size={14} />
                   </button>
@@ -1113,10 +1132,10 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   <div className="mb-2 flex justify-center">
                     <GearIllustration item={compareItemA} size={72} showBadges={false} />
                   </div>
-                  <div className="text-[10px] font-black" style={{ color: colorOf(compareItemA) }}>{compareItemA.name}</div>
-                  <div className="text-[9px] text-text-muted">{compareItemA.rarity} · Lv.{compareItemA.level}</div>
+                  <div className="text-[11px] font-black" style={{ color: colorOf(compareItemA) }}>{compareItemA.name}</div>
+                  <div className="text-[11px] text-text-muted">{compareItemA.rarity} · Lv.{compareItemA.level}</div>
                   {isWeapon(compareItemA) && (
-                    <div className="mt-1 space-y-0.5 text-[9px]">
+                    <div className="mt-1 space-y-0.5 text-[11px]">
                       <div className="text-text-muted">PWR: {compareItemA.combatPower}</div>
                       <div className="text-text-muted">DMG: {compareItemA.baseDamage}</div>
                       <div className="text-text-muted">Crit: {Math.round(compareItemA.critChance * 100)}%</div>
@@ -1127,10 +1146,10 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   <div className="mb-2 flex justify-center">
                     <GearIllustration item={compareItemB} size={72} showBadges={false} />
                   </div>
-                  <div className="text-[10px] font-black" style={{ color: colorOf(compareItemB) }}>{compareItemB.name}</div>
-                  <div className="text-[9px] text-text-muted">{compareItemB.rarity} · Lv.{compareItemB.level}</div>
+                  <div className="text-[11px] font-black" style={{ color: colorOf(compareItemB) }}>{compareItemB.name}</div>
+                  <div className="text-[11px] text-text-muted">{compareItemB.rarity} · Lv.{compareItemB.level}</div>
                   {isWeapon(compareItemB) && isWeapon(compareItemA) && (
-                    <div className="mt-1 space-y-0.5 text-[9px]">
+                    <div className="mt-1 space-y-0.5 text-[11px]">
                       <div className={compareItemB.combatPower > compareItemA.combatPower ? 'text-green' : compareItemB.combatPower < compareItemA.combatPower ? 'text-red' : 'text-text-muted'}>
                         PWR: {compareItemB.combatPower} ({compareDiff(compareItemA.combatPower, compareItemB.combatPower)})
                       </div>
@@ -1144,7 +1163,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   )}
                 </div>
               </div>
-              <div className="mt-3 text-center text-[10px] text-text-muted">
+              <div className="mt-3 text-center text-[11px] text-text-muted">
                 {compareItemA.name} vs {compareItemB.name}
               </div>
             </motion.div>
@@ -1162,28 +1181,28 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         actions={liveInspectItem ? (
           <div className="grid grid-cols-4 gap-2">
             {inspectNotice && (
-              <div className="col-span-4 border border-red/40 bg-red/10 p-2 text-[10px] font-bold text-red-light" role="alert">
+              <div className="col-span-4 border border-red/40 bg-red/10 p-2 text-[11px] font-bold text-red-light" role="alert">
                 {inspectNotice}
               </div>
             )}
             {inspectSlot ? (
-              <button type="button" disabled={unequipBusy} onClick={() => void unequip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[9px] font-black text-text-secondary disabled:opacity-50">
+              <button type="button" disabled={unequipBusy} onClick={() => void unequip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[11px] font-black text-text-secondary disabled:opacity-50">
                 <Undo2 size={15} />
                 {unequipBusy ? 'Working…' : 'Unequip'}
               </button>
             ) : (
-              <button type="button" onClick={() => equip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
+              <button type="button" onClick={() => equip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[11px] font-black text-amber">
                 <PxIcon name="crosshair" size={13} />Equip
               </button>
             )}
-            <button type="button" onClick={() => onNavigate?.('market')} className="flex flex-col items-center gap-1 border border-green/40 bg-green/10 py-2 text-[9px] font-black text-green">
+            <button type="button" onClick={() => onNavigate?.('market')} className="flex flex-col items-center gap-1 border border-green/40 bg-green/10 py-2 text-[11px] font-black text-green">
               <ArrowLeftRight size={15} />Market
             </button>
-            <button type="button" disabled={lockBusyId === liveInspectItem.id} onClick={() => void toggleLock(liveInspectItem)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[9px] font-black text-text-secondary disabled:opacity-50">
+            <button type="button" disabled={lockBusyId === liveInspectItem.id} onClick={() => void toggleLock(liveInspectItem)} className="flex flex-col items-center gap-1 border border-border bg-surface py-2 text-[11px] font-black text-text-secondary disabled:opacity-50">
               {liveInspectItem.isLocked ? <Unlock size={15} /> : <Lock size={15} />}
               {lockBusyId === liveInspectItem.id ? 'Working…' : liveInspectItem.isLocked ? 'Unlock' : 'Lock'}
             </button>
-            <button type="button" onClick={() => void scrap(liveInspectItem)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[9px] font-black text-red">
+            <button type="button" onClick={() => void scrap(liveInspectItem)} className="flex flex-col items-center gap-1 border border-red/40 bg-red/10 py-2 text-[11px] font-black text-red">
               <Trash2 size={15} />Salvage
             </button>
             {isShield(liveInspectItem) && !inspectSlot && !liveInspectItem.isLocked && (
@@ -1200,7 +1219,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   setInspectNotice(null);
                   onNavigate?.('market');
                 }}
-                className="col-span-4 flex items-center justify-center gap-2 border border-cyan/40 bg-cyan/10 py-2 text-[10px] font-black text-cyan"
+                className="col-span-4 flex items-center justify-center gap-2 border border-cyan/40 bg-cyan/10 py-2 text-[11px] font-black text-cyan"
               >
                 <PxIcon name="shield" size={13} />Recalibrate behavior…
               </button>

@@ -1,48 +1,70 @@
-import React, { useMemo, useState } from 'react';
-import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
+import React, { useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 
 import { ResourceBar } from '@/components/layout/ResourceBar';
-import { compactResourceValue } from '@/lib/ui/formatValue';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
 import { GearHub } from '@/components/gear/GearHub';
+import { GearRail, type GearStop } from '@/components/gear/GearRail';
+import { GaragePanel } from '@/components/gear/GaragePanel';
 import { ConsumablesScreen } from './ConsumablesScreen';
 import { WorkshopScreen } from './WorkshopScreen';
-import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useWorkshopStore } from '@/store';
-import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
+import { useMarketStore, useWorkshopStore } from '@/store';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
-
-type InventoryTab = 'gear' | 'loadout' | 'consumables' | 'workshop';
 
 interface InventoryScreenProps {
   onNavigate: (screen: string) => void;
   /**
-   * Tab intent from navigation (flow audit F2): loadout doors
-   * (Dashboard "Loadout Bench", the Fight tab's Manage door,
-   * onNavigate('loadout')) carry { tab: 'loadout' } so the gear home
-   * opens ON the Loadout tab — the one equip surface — instead of
-   * depositing the player on the Gear list. Absent intent (the Gear
-   * bottom tab) defaults to the Gear tab as before.
+   * Stop intent from navigation (flow audit F2 + redesign Wave D):
+   * loadout doors (Home deck "Loadout Bench", the Action stage's
+   * Manage door, onNavigate('loadout')) carry { tab: 'loadout' } so
+   * the gear home opens ON the Loadout stop — the one equip surface.
+   * Garage doors (the roaming banner's "Open Garage") carry
+   * { tab: 'garage' }: since Wave D the Garage is a rail stop in its
+   * own right (DESIGN.md §11 F1), so the intent names the stop
+   * directly instead of landing on Loadout and scrolling to a
+   * section. Absent intent (the Gear bottom tab) opens on Loadout —
+   * the rail's first stop, the doll leads (DESIGN.md §2 order).
    */
-  tabIntent?: { tab: InventoryTab; seq: number; anchor?: 'garage' } | null;
+  tabIntent?: { tab: 'loadout' | 'garage'; seq: number } | null;
 }
 
-const TAB_SIGILS: Record<InventoryTab, { icon: PxIconName; color: string }> = {
-  gear: { icon: 'grid', color: '#A855F7' },
-  loadout: { icon: 'crosshair', color: '#3B82F6' },
-  consumables: { icon: 'cross', color: '#7CFC00' },
-  workshop: { icon: 'cog', color: '#FF9000' },
-};
-
-const SummaryTile: React.FC<{ label: string; value: string | number; sub?: string }> = ({ label, value, sub }) => (
-  <div className="bl-card min-w-0 p-2">
-    <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">{label}</div>
-    <div className="whitespace-nowrap text-lg font-black leading-tight text-text-primary">{value}</div>
-    {sub && <div className="truncate text-[9px] text-text-muted">{sub}</div>}
+/**
+ * Bench-family doors on the Workshop stop. Crafting's bench lives
+ * here (the crafting home is labeled 'Workshop' everywhere); reforge and salvage/recycle keep their canonical doors per
+ * DESIGN.md §3 and the coverage audit (#21 Grid + salvage, #28
+ * reforge on the inspect sheet's action row) — these rows are the
+ * Workshop stop's signposts to them, so the bench family reads as
+ * one place without moving a canonical door.
+ */
+const BenchServiceDoors: React.FC<{ onGoGrid: () => void }> = ({ onGoGrid }) => (
+  <div className="mx-4 mt-3 border border-border bg-surface/80 p-3">
+    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">Also at the bench</div>
+    <div className="mt-2 space-y-1.5">
+      <button
+        type="button"
+        onClick={onGoGrid}
+        className="flex w-full items-center gap-2 text-left text-[11px] font-bold text-text-secondary transition-colors hover:text-amber"
+      >
+        <PxIcon name="hammer" size={13} className="shrink-0 text-amber" />
+        <span className="flex-1">Reforge an affix — pick the item in the Grid; the bench is on its inspect sheet.</span>
+        <PxIcon name="chevR" size={13} className="ml-auto shrink-0" />
+      </button>
+      <button
+        type="button"
+        onClick={onGoGrid}
+        className="flex w-full items-center gap-2 text-left text-[11px] font-bold text-text-secondary transition-colors hover:text-amber"
+      >
+        <PxIcon name="scrap" size={13} className="shrink-0 text-amber" />
+        <span className="flex-1">Salvage &amp; recycle — in the Grid, one item or a whole selection at once.</span>
+        <PxIcon name="chevR" size={13} className="ml-auto shrink-0" />
+      </button>
+    </div>
   </div>
 );
 
 export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, tabIntent = null }) => {
-  const [activeTab, setActiveTab] = useState<InventoryTab>(() => tabIntent?.tab ?? 'gear');
+  const [activeStop, setActiveStop] = useState<GearStop>(() => tabIntent?.tab ?? 'loadout');
   // A fresh intent (new seq) re-applies even if the home is already
   // mounted — e.g. a second loadout door tapped in the same session.
   // Render-phase adjustment (React's pattern for prop-driven state)
@@ -51,97 +73,75 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
   const [appliedIntentSeq, setAppliedIntentSeq] = useState<number | null>(tabIntent?.seq ?? null);
   if (tabIntent && tabIntent.seq !== appliedIntentSeq) {
     setAppliedIntentSeq(tabIntent.seq);
-    setActiveTab(tabIntent.tab);
+    setActiveStop(tabIntent.tab);
   }
-  // Gear-home equip door: GearHub's Equip action lands here; the Loadout
-  // tab opens the Slot Picker (the one equip surface) on the slot.
+  // Gear-home equip door: GearHub's Equip action lands here; the
+  // Loadout stop opens the Slot Picker (the one equip surface) on
+  // the slot.
   const [pendingPickerSlot, setPendingPickerSlot] = useState<LoadoutSlot | null>(null);
-  const inventory = useInventoryStore();
-  const loadout = useLoadoutStore();
-  const player = usePlayerStore();
   const workshop = useWorkshopStore();
+  const reduceMotion = useReducedMotion();
 
-  const loadoutRows = useMemo(() => buildLoadoutRows(loadout.slots, inventory.items), [loadout.slots, inventory.items]);
-  const equippedCount = countEquippedLoadoutSlots(loadoutRows);
-  const lockedCount = inventory.items.filter((item) => item.isLocked).length;
   const queueCount = (workshop.server?.jobs ?? []).filter(
     (j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused',
   ).length;
 
+  const goToStop = (stop: GearStop) => {
+    // Manual stop switches clear any pending equip deep link so it
+    // can't reopen the picker on a later visit.
+    setPendingPickerSlot(null);
+    setActiveStop(stop);
+  };
+
+  const requestService = () => {
+    useMarketStore.getState().setActiveTab('repair');
+    onNavigate('market');
+  };
+
   return (
     <div className="bl-page space-y-4 pb-20">
       <ResourceBar className="px-4 pt-3" />
-      <div className="space-y-3 px-4 pb-0">
+      <div className="px-4">
+        <GearRail activeStop={activeStop} onSelect={goToStop} workshopJobs={queueCount} />
+      </div>
 
-        <div className="grid grid-cols-4 gap-2">
-          <SummaryTile label="Items" value={inventory.items.length} sub={`${lockedCount} locked`} />
-          <SummaryTile label="Loadout" value={`${equippedCount}/7`} sub="resolved slots" />
-          <SummaryTile label="Cash" value={compactResourceValue(player.credits)} sub={`${compactResourceValue(player.scrap)} scrap`} />
-          <SummaryTile label="Jobs" value={queueCount} sub="workshop" />
-        </div>
-
-        <button
-          onClick={() => onNavigate('chest')}
-          className="bl-card flex w-full items-center justify-between p-3 text-left active:scale-[0.98] transition-transform"
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={activeStop}
+          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18 }}
         >
-          <div className="flex items-center gap-3 text-left">
-            <div className="bl-icon-plate flex h-10 w-10 items-center justify-center text-amber">
-              <PxIcon name="crate" size={17} />
-            </div>
+          {activeStop === 'loadout' && (
+            <SyncedLoadoutScreen
+              requestedPickerSlot={pendingPickerSlot}
+              onOpenGarage={() => setActiveStop('garage')}
+            />
+          )}
+          {activeStop === 'grid' && (
+            <GearHub
+              onNavigate={onNavigate}
+              onEquipRequest={(_item, slot) => {
+                setActiveStop('loadout');
+                setPendingPickerSlot(slot);
+              }}
+            />
+          )}
+          {activeStop === 'items' && <ConsumablesScreen onNavigate={onNavigate} />}
+          {activeStop === 'workshop' && (
             <div>
-              <div className="text-sm font-black text-text-primary">Open Data Cache</div>
-              <div className="text-[10px] text-text-muted">{player.cacheKeys} keys · {player.cacheKeyFragments}/5 fragments · {player.legendaryCores} cores</div>
+              <BenchServiceDoors onGoGrid={() => goToStop('grid')} />
+              <WorkshopScreen onNavigate={onNavigate} />
             </div>
-          </div>
-          <div className="bl-primary px-3 py-1 text-xs font-black">Open</div>
-        </button>
-
-        <div className="bl-tab-strip grid grid-cols-4 gap-1.5 p-1.5">
-          {(Object.keys(TAB_SIGILS) as InventoryTab[]).map((tabId) => {
-            const sigil = TAB_SIGILS[tabId];
-            const active = activeTab === tabId;
-            return (
-              <button
-                key={tabId}
-                onClick={() => {
-                  // Manual tab switches clear any pending equip deep link
-                  // so it can't reopen the picker on a later visit.
-                  setPendingPickerSlot(null);
-                  setActiveTab(tabId);
-                }}
-                className={`flex flex-col items-center gap-1 py-2 text-[10px] font-black transition-colors ${active ? 'bl-primary' : 'bl-secondary text-text-muted'}`}
-              >
-                <PxIcon name={sigil.icon} size={17} style={{ color: active ? undefined : sigil.color }} />
-                {tabId === 'gear' ? 'Gear' : tabId === 'loadout' ? 'Loadout' : tabId === 'consumables' ? 'Items' : 'Workshop'}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div>
-        {activeTab === 'gear' && (
-          <GearHub
-            onNavigate={onNavigate}
-            onEquipRequest={(_item, slot) => {
-              setActiveTab('loadout');
-              setPendingPickerSlot(slot);
-            }}
-          />
-        )}
-        {activeTab === 'loadout' && (
-          <SyncedLoadoutScreen
-            requestedPickerSlot={pendingPickerSlot}
-            focusGarageSeq={tabIntent?.anchor === 'garage' ? tabIntent.seq : null}
-            onRequestService={() => {
-              useMarketStore.getState().setActiveTab('repair');
-              onNavigate('market');
-            }}
-          />
-        )}
-        {activeTab === 'consumables' && <ConsumablesScreen onNavigate={onNavigate} />}
-        {activeTab === 'workshop' && <WorkshopScreen onNavigate={onNavigate} />}
-      </div>
+          )}
+          {activeStop === 'garage' && (
+            <div className="p-4 pb-20">
+              <GaragePanel onRequestService={requestService} />
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };

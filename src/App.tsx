@@ -76,12 +76,13 @@ function App() {
   // at the top of the Profile page (device feedback r2).
   const [profileFocus, setProfileFocus] = useState<'skills' | null>(null);
   // Tab intent for the gear home (flow audit F2): every "loadout"
-  // door must open Inventory ON its Loadout tab — the one equip
-  // surface — not on the Gear list. `seq` makes a repeat intent
-  // re-apply even while Inventory is already mounted. `anchor`
-  // (audit UX-06) deep-links a section of the tab — 'garage'
-  // scrolls the labeled Garage section into view on arrival.
-  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'gear' | 'loadout'; seq: number; anchor?: 'garage' } | null>(null);
+  // door must open Inventory ON its Loadout stop — the one equip
+  // surface — not on the item grid. `seq` makes a repeat intent
+  // re-apply even while Inventory is already mounted. The 'garage'
+  // door names the Garage stop directly: since redesign Wave D the
+  // Garage is a Gear rail stop in its own right (DESIGN.md §11 F1),
+  // not a section of the Loadout stop it used to anchor-scroll to.
+  const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'loadout' | 'garage'; seq: number } | null>(null);
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -141,12 +142,12 @@ function App() {
       return;
     }
     if (screen === 'garage') {
-      // Garage door (audit UX-06): the Garage is the labeled section
-      // below the slots on the Loadout tab — land there and scroll
-      // it into view (anchor rides the same tab intent).
+      // Garage door (audit UX-06, redesign Wave D): the Garage is
+      // a Gear rail stop — land on the stop itself; no section
+      // anchor or scroll is needed to reach it anymore.
       setActiveTab('gear');
       setSubScreen(null);
-      setInventoryTabIntent({ tab: 'loadout', seq: Date.now(), anchor: 'garage' });
+      setInventoryTabIntent({ tab: 'garage', seq: Date.now() });
       return;
     }
     if (screen === 'vendor') {

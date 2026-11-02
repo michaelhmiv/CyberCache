@@ -70,13 +70,17 @@ Legendary weapons can additionally carry one named
 
 ## The one gear home
 
-Everything gear lives on the **Gear screen**, in four tabs:
+Everything gear lives on the **Gear tab**, as a rail of five stops:
 
-- **Gear** — your full item grid.
-- **Loadout** — the equip surface: your slots, the slot picker, and the
-  Garage for your vehicle.
-- **Items** — your consumables.
+- **Loadout** — the equip surface: your seven slots and the slot
+  picker. Your vehicle slot shows here too — its status at a glance,
+  with a door straight to the Garage.
+- **Grid** — your full item grid, with salvage/recycle.
+- **Items** — your belt, plus every stack you carry: consumable
+  batches with their quality % printed, materials, and essences.
 - **Workshop** — the crafting bench (see [[Crafting]]).
+- **Garage** — your vehicles: equip, refuel, and repair (see
+  [[Vehicles and the Garage]]).
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
