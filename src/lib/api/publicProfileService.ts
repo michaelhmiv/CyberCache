@@ -16,7 +16,9 @@ export interface PlayerPublicProfile {
   net_worth: number;
   total_kills: number;
   total_deaths: number;
-  kill_death_ratio: number;
+  // The Chef projection (PublicProfileData) sends null whenever the
+  // hunter has zero recorded deaths — the ratio does not exist yet.
+  kill_death_ratio: number | null;
   highest_boss_tier: number;
   total_mastery_xp: number;
   highest_mastery_level: number;
