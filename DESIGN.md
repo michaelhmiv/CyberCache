@@ -29,6 +29,12 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   when a target exists), one count plate, and ONE status ribbon along the bottom
   edge. Per-mode art (vista / arena / bench / site). The loot feed never prints on
   the art; nothing overlays the stage except its plates and ribbon.
+  *Owner ruling 2026-11-02: one more resident — the action controls (Switch
+  Action · Stop) float on the stage itself as chips in the plates' language,
+  bottom-right above the ribbon, and no dedicated controls row exists under
+  the rail. The Switch Action door rides the stage in every state (it is the
+  Switch sheet's only door, and Salvage's path home); Stop joins it while an
+  action runs.*
 - **The Rail** — one compact chip rail for modes and sections (Home modes, Gear
   stops, Market stops, Hunter stops), current state lit. The rail is a screen's
   table of contents: every stop is a destination, not a scroll position.

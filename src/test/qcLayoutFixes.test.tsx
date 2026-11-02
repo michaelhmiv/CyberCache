@@ -16,10 +16,14 @@
  *    bottom nav (66 + 14px gap), pointer-transparent, and the
  *    toast entry slide (6px) can never dip into the nav.
  *  - C1: "Switch Action" prints once in the stage zone — the
- *    controls-row button (and the sheet it opens). (The diorama's
+ *    one button (and the sheet it opens). (The diorama's
  *    secondary door to the same sheet was labeled "All Actions"
  *    under C1; drift-fix F2 retired that door with the in-stage
- *    action bar, leaving the one named door C1 wanted.)
+ *    action bar. Owner ruling 2026-11-02 then moved the one
+ *    remaining door out of its controls row under the rail and
+ *    onto the stage itself as a floating chip — still the one
+ *    named door C1 wanted; actionControlsOnStage.test.tsx pins
+ *    its new home.)
  *
  * jsdom has no layout engine, so these are DOM/source contracts in
  * the repo's established style; the 412×915 geometry proof is the
@@ -98,15 +102,16 @@ describe('QC C1 — "Switch Action" prints once in the stage zone', () => {
   // Drift-fix F2 retired the diorama's duplicate door entirely:
   // the stage carries no action bar, so the "All Actions" alias
   // the C1 fix gave the second door is gone with it. The sheet
-  // now has exactly ONE door — the controls-row button — which
-  // is the end state C1 was protecting (one door, one name).
+  // has exactly ONE door — the Switch Action button, since the
+  // 2026-11-02 owner ruling a floating chip on the stage —
+  // which is the end state C1 was protecting (one door, one name).
   it('the retired diorama door and its "All Actions" alias are gone', () => {
     expect(action).not.toContain('All Actions');
     expect(action).not.toContain('secondaryActionLabel');
     expect(action).not.toContain(": 'Switch Action'");
   });
 
-  it('the controls-row button keeps the one "Switch Action" label', () => {
+  it('the stage-chip button keeps the one "Switch Action" label', () => {
     expect(action).toContain('>Switch Action</button>');
   });
 });
