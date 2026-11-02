@@ -45,6 +45,7 @@ import {
   repairWorkRatePointsPerHour,
 } from '../../content/repair.js';
 import type { ServiceBoardQuery } from '../../lib/market/boardQuery.js';
+import { gearCategoryFromPayload } from '../../lib/market/identityKey.js';
 import type { ServiceReaderFacts, SupplyBatch } from './boardRequirements.js';
 import { resolveEconomyConfigValues } from '../economy/config.js';
 import type { DiscoveryRecord } from '../../content/collections.js';
@@ -93,6 +94,27 @@ export function codeForWriteMessage(message: string): WriteErrorCode {
 
 export function writeError(message: string): WriteStoreError {
   return new WriteStoreError(codeForWriteMessage(message), message);
+}
+
+/**
+ * Pure player market (owner ruling, 2026-11-02): a weapon that came
+ * from the NPC vendor (supply_mode 'npc_market') can never be listed
+ * on the player market — it exits through vendor buyback or salvage.
+ * Both write stores refuse with this exact message. Non-weapon
+ * npc_market gear keeps the shipped behavior (it lists, stamped
+ * seller_type 'npc', as market depth).
+ */
+export const NPC_VENDOR_WEAPON_REFUSAL =
+  "Vendor weapons can't be listed on the player market — sell them back to the vendor or recycle them instead";
+
+/** True when an item is an NPC-vendor weapon (see the ruling above). */
+export function isNpcVendorWeapon(item: {
+  kind?: string | null;
+  supply_mode?: string | null;
+  payload?: Record<string, unknown> | null;
+}): boolean {
+  if (item.supply_mode !== 'npc_market') return false;
+  return gearCategoryFromPayload(item.payload ?? {}, item.kind) === 'weapon';
 }
 
 // ---------------------------------------------------------------------------
@@ -1728,7 +1750,44 @@ export class PgWriteStore implements WriteStore {
   battleResult(playerId: string, nonce: string, targetId: string, stance: string): Promise<Json> {
     return this.callJson('select public.cc_battle_result($1, $2, $3, $4) as result', [playerId, nonce, targetId, stance]);
   }
-  marketCreate(playerId: string, nonce: string, itemId: string, priceCredits: number): Promise<Json> {
+  async marketCreate(playerId: string, nonce: string, itemId: string, priceCredits: number): Promise<Json> {
+    // Pure player market (owner ruling, 2026-11-02): refuse vendor
+    // weapons before cc_market_create can stamp them 'npc' onto the
+    // player market — the twin of the InMemoryWriteStore refusal, in
+    // the reforge-style pre-check shape: a ledger replay still wins
+    // (mirroring the SQL function's own ordering), a missing item
+    // falls through to the SQL 'Item not found', and cc_market_create
+    // stays the single completion path for everything that passes.
+    // The guard lives at this seam rather than in a restated SQL
+    // function on purpose: migration 0053 (parts M4, ahead of this
+    // change in the merge queue) restates cc_market_create, and a
+    // second restatement from the older body would silently clobber
+    // its cosmetic branch.
+    const cleanNonce = (nonce ?? '').trim();
+    if (cleanNonce.length >= 8) {
+      try {
+        const { rows: priorRows } = await this.pool.query(
+          'select result_payload from public.verified_action_ledger where user_id = $1 and idempotency_key = $2',
+          [playerId, cleanNonce],
+        );
+        const prior = priorRows[0]?.result_payload as Json | undefined;
+        if (prior) return prior;
+        const { rows } = await this.pool.query(
+          'select kind, supply_mode, payload from public.item_instances where id = $1 and owner_user_id = $2',
+          [itemId, playerId],
+        );
+        const row = rows[0];
+        if (row && isNpcVendorWeapon({
+          kind: (row.kind as string | null) ?? null,
+          supply_mode: (row.supply_mode as string | null) ?? null,
+          payload: (row.payload as Record<string, unknown> | null) ?? null,
+        })) {
+          throw writeError(NPC_VENDOR_WEAPON_REFUSAL);
+        }
+      } catch (err) {
+        return translatePgError(err);
+      }
+    }
     return this.callJson('select public.cc_market_create($1, $2, $3, $4) as result', [playerId, nonce, itemId, priceCredits]);
   }
   marketCreateConsumable(playerId: string, nonce: string, batchId: string, quantity: number, priceCredits: number): Promise<Json> {

@@ -203,6 +203,8 @@ import {
   skillSpendTotal,
   validateUsername,
   writeError,
+  NPC_VENDOR_WEAPON_REFUSAL,
+  isNpcVendorWeapon,
   type ActiveActionData,
   type CombatStatsData,
   type ConsumableBatchData,
@@ -3733,6 +3735,10 @@ export class InMemoryWriteStore implements WriteStore {
     if (item.account_bound || !item.tradeable || ['listed', 'equipped', 'salvaged', 'consumed', 'in_service'].includes(item.runtime_state)) {
       throw writeError('Item not listable');
     }
+    // Pure player market (owner ruling, 2026-11-02): vendor weapons
+    // never list — they exit via vendor buyback / recycle. (Non-weapon
+    // npc_market gear still lists below, stamped 'npc' as before.)
+    if (isNpcVendorWeapon(item)) throw writeError(NPC_VENDOR_WEAPON_REFUSAL);
     const payload = (item.payload ?? {}) as Record<string, unknown>;
     if (item.kind === 'cosmetic') {
       // Cosmetic part listing (0053 twin of cc_market_create's

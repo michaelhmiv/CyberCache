@@ -2402,6 +2402,18 @@ export class PgReadStore implements ReadStore {
     // over the columns migration 0019 stamps at creation — a browse
     // never opens an item payload to filter.
     const where: string[] = [`ml.status = 'active'`];
+    // Pure player market (owner ruling, 2026-11-02): NPC vendor
+    // weapons NEVER browse — the twin of the exclusion in
+    // applyListingQuery's matches(). Seller/category are read the way
+    // browseRowFor derives them (stamped column first, item facts as
+    // the fallback), so legacy rows seeded before stamping are caught
+    // too. Both the count and the page query share this clause (and
+    // the item join), so totals always agree with the rows.
+    where.push(`not (
+      coalesce(ml.listing_kind, 'gear') = 'gear'
+      and coalesce(ml.category, public.cc_market_gear_category(coalesce(ii.payload, '{}'::jsonb), ii.kind)) = 'weapon'
+      and (ml.seller_type = 'npc' or ii.supply_mode = 'npc_market')
+    )`);
     const params: unknown[] = [];
     const push = (clause: (i: number) => string, value: unknown) => {
       params.push(value);
@@ -2431,7 +2443,9 @@ export class PgReadStore implements ReadStore {
     const limit = clampLimit(query.limit);
     const offset = clampOffset(query.offset);
     const { rows: countRows } = await this.db.query(
-      `select count(*)::int as total from public.market_listings ml where ${whereSql}`,
+      `select count(*)::int as total from public.market_listings ml
+       left join public.item_instances ii on ii.id = ml.item_instance_id
+       where ${whereSql}`,
       params,
     );
     const { rows } = await this.db.query(

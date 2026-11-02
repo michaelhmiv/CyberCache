@@ -49,6 +49,21 @@ in your balance. Cancel the listing and they come back as fragments;
 buying fragments settles them into your balance, where they convert as
 usual.
 
+## The player-market rule
+
+The Buy and Sell stops are a **pure player market**: every listing there
+was put up by a hunter. Weapons the NPC vendor sells never appear in
+Buy, and a weapon that came from vendor stock can't be listed in Sell —
+if you own one, it leaves your inventory the other ways: sell it back
+to the vendor at the [[Vendor]] stop (buyback) or recycle it for scrap.
+Vendor weapons live in the Vendor lane, full stop.
+
+The one NPC presence left in Buy is market depth in the other gear
+kinds — vendor-sourced shields, relics, class mods, and ordnance can
+still show up there, always labelled **NPC Vendor** as the seller. If a
+row's seller is a hunter name, it's a player's listing; weapons are
+always player listings.
+
 ## Buying
 
 1. Open the **Buy** stop. The listings start right under the search

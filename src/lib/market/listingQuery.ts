@@ -97,6 +97,15 @@ export const RARITY_RANK: Record<string, number> = {
 };
 
 function matches(row: MarketBrowseRow, q: MarketListingQuery): boolean {
+  // Pure player market (owner ruling, 2026-11-02): the Buy/Sell lanes
+  // are PLAYER listings only — an NPC vendor weapon never browses, no
+  // matter what filters (sellerType included) the client asks for.
+  // Vendor stock lives in the Vendor lane; NPC non-weapon depth
+  // (shields, mods, …) keeps its seats here. The Pg read store runs
+  // the SQL twin of this exclusion over the stamped columns, and the
+  // seed job no longer stocks NPC weapons at all — this fold is the
+  // guarantee for rows that already exist.
+  if (row.sellerType === 'npc' && row.category === 'weapon') return false;
   if (q.search && !row.displayName.toLowerCase().includes(q.search.toLowerCase())) return false;
   if (q.category && row.category !== q.category) return false;
   if (q.weaponType && row.weaponType !== q.weaponType) return false;
