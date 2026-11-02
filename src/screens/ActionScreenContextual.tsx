@@ -494,22 +494,27 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             </div>
             <div className="shrink-0 text-[11px] font-bold text-text-muted">Lv {selectedArea.unlockLevel}+ · {selectedArea.dangerRating} danger</div>
           </div>
-          <div className="relative mt-2 grid grid-cols-4 gap-1.5 text-[11px]">
-            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+          {/* F2 fix: Hostiles gets the wide final track so its list
+              wraps into fewer lines at the same 11px floor, and every
+              cell centers its label/value group — the shorter facts
+              no longer sit top-weighted in boxes stretched by the
+              longest cell. */}
+          <div data-testid="home-standby-facts" className="relative mt-2 grid grid-cols-[minmax(0,0.74fr)_minmax(0,0.74fr)_minmax(0,0.92fr)_minmax(0,1.6fr)] gap-1.5 text-[11px]">
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
               <div className="text-text-muted">Credits</div>
               <div className="font-black text-cyan">+{selectedArea.idleCreditsPerMinute}/min</div>
             </div>
-            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
               <div className="text-text-muted">Scrap</div>
               <div className="font-black text-green">+{selectedArea.idleScrapPerMinute}/min</div>
             </div>
-            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
               <div className="text-text-muted">Pays</div>
               <div className="font-black text-amber">XP · gear</div>
             </div>
-            <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
               <div className="text-text-muted">Hostiles</div>
-              <div className="font-black text-text-primary">{selectedArea.enemyType}</div>
+              <div className="font-black leading-[1.15] text-text-primary [text-wrap:balance]">{selectedArea.enemyType}</div>
             </div>
           </div>
           <button type="button" onClick={() => startRoam()} className="bl-primary relative mt-3 w-full py-3 text-sm font-black">

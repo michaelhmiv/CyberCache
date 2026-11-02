@@ -242,6 +242,20 @@ describe('Home composition — stage furniture + standby panel (drift-fix F2)', 
     expect(panel.textContent).toContain('Roam — Dustwaste Frontier');
     expect(panel.textContent).toContain('+15/min');
     expect(panel.textContent).toContain('XP · gear');
+    // F2 fix pin: the fact band gives Hostiles the wide final
+    // track (fewer wrapped lines at the 11px floor) and centers
+    // every label/value group, so the shorter facts do not sit
+    // top-weighted in boxes stretched by the longest cell.
+    const facts = within(panel).getByTestId('home-standby-facts');
+    expect(facts.className).toContain('grid-cols-[minmax(0,0.74fr)_minmax(0,0.74fr)_minmax(0,0.92fr)_minmax(0,1.6fr)]');
+    expect(facts.children).toHaveLength(4);
+    for (const cell of facts.children) {
+      expect(cell.className).toContain('flex');
+      expect(cell.className).toContain('flex-col');
+      expect(cell.className).toContain('items-center');
+      expect(cell.className).toContain('justify-center');
+    }
+    expect(facts.textContent).toContain('Raiders, scrap drones, and scavengers');
     // Exactly one Start Roam on the screen — the workspace bar
     // (the stage no longer carries a duplicate over the art).
     expect(screen.getAllByText('Start Roam')).toHaveLength(1);
