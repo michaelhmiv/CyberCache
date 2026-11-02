@@ -34,6 +34,8 @@ The centre of Home is **the stage**: your hunter, rendered with the weapon you a
 
 Finds on the stage rise as what they actually are: a gear drop gets its rarity beam and item card; a cache-key fragment rises as the blue key shard; materials and essences rise as their own icons; a kill pays out with a scrap rise. The big cache crate never celebrates an ordinary roaming tick — roaming grants fragments, materials, and the base payout, while cache boxes and completed keys come from the cache lane and fragment settlement (five fragments make a key). See [[Caches]].
 
+The weapon in your hunter's hands is always the exact weapon you have equipped — its type, make, and rolled parts — held at the grip, with nothing else underneath it. The same hunter, with the same rule, steps into the boss arena: what you see on the Board is what you fight with. Equip nothing and the hands are empty.
+
 At the stage's top edge sits your **current area chip** — tap it to open the area picker and change where roaming happens. If you are enrolled in a [[Progression|Research]] course, its chip sits beside the area chip, because research runs alongside your action rather than replacing it.
 
 ## The mode rail

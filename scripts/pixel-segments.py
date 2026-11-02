@@ -746,6 +746,99 @@ def build_unarmed() -> None:
     print("unarmed: 4 variant segments (gun-free torso + hands at sides)")
 
 
+# ----------------------------------------------------------------------
+# 10b. Holding hunter arm variants (loadout truth)
+# ----------------------------------------------------------------------
+# The unarmed pass (#230) freed the UNEQUIPPED hunter, but the armed
+# rig still wore the shipped art's rifle: HUNTER_RIG's arm crops ARE
+# the gun (see the unarmed note above), and every stage pasted the real
+# equipped weapon ON TOP of it — a pistol rendered as a colored block
+# stuck on a phantom rifle the hands never let go of. These three
+# segments paint the same hunter's arms in a HOLDING pose with empty
+# hands: the near glove curled at the manifest grip point (frame
+# 143,118 — where the held-weapon layer aligns every weapon's grip),
+# the far glove cupped just forward of it in the support position, and
+# nothing painted anywhere the barrel used to extend. Same boxes and
+# pivots as the armed crops, so every pose applies unchanged; the
+# torso is the unarmed variant (gun patch already erased), and the
+# compositor/bespoke render becomes the ONLY weapon on the hunter.
+
+def build_holding() -> None:
+    # --- near upper arm: shoulder pad + arm reaching to the elbow ---
+    # Box mirrors rig-hunter-arm-upper (84,88,152,140); elbow lands at
+    # frame ~(134,128), where the forearm segment takes over.
+    img = Image.new("RGBA", (68, 52), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    upper = [(10, 16), (30, 14), (50, 36), (36, 45), (14, 34)]
+    d.polygon(_grow(upper, 28, 29, 1), fill=UNARMED_OUTLINE)
+    d.polygon(upper, fill=UNARMED_BASE)
+    d.polygon([(10, 16), (18, 15), (26, 37), (16, 35)], fill=UNARMED_DARK)
+    d.polygon([(34, 19), (41, 18), (50, 33), (45, 37)], fill=UNARMED_MID)
+    d.ellipse((38, 31, 57, 47), fill=UNARMED_OUTLINE)
+    d.ellipse((39, 32, 56, 46), fill=UNARMED_MID)
+    d.polygon([(40, 41), (55, 41), (54, 46), (41, 46)], fill=UNARMED_DARK)
+    d.ellipse((0, -2, 34, 24), fill=UNARMED_OUTLINE)
+    d.ellipse((1, -1, 33, 23), fill=UNARMED_LIGHT)
+    d.ellipse((1, 3, 33, 23), fill=UNARMED_MID)
+    d.polygon([(5, 9), (31, 9), (30, 15), (7, 15)], fill=UNARMED_BASE)
+    d.rectangle((20, 6, 27, 8), fill=UNARMED_CYAN)
+    save_sprite("rig-hunter-arm-upper-holding", img, "character", {"pivot": {"x": 0.16, "y": 0.25}})
+
+    # --- near forearm + glove: the grip hand, curled at the grip ---
+    # Box mirrors rig-hunter-arm-fore (130,92,222,148). The grip
+    # anchor (frame 143,118) is local (13,26): the glove wraps it,
+    # fingers curl BELOW the weapon line (the held-weapon layer draws
+    # over the rig, so the gun sits in the hand), and the rest of the
+    # box stays empty — no barrel, no receiver, nothing to mistake
+    # for a second weapon.
+    img = Image.new("RGBA", (92, 56), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    sleeve = [(0, 27), (15, 23), (17, 43), (0, 47)]
+    d.polygon(_grow(sleeve, 8, 35, 1), fill=UNARMED_OUTLINE)
+    d.polygon(sleeve, fill=UNARMED_BASE)
+    d.polygon([(0, 39), (17, 37), (17, 43), (0, 47)], fill=UNARMED_DARK)
+    d.rectangle((3, 26, 5, 38), fill=UNARMED_MID)
+    # Glove mass around the grip point.
+    d.rounded_rectangle((4, 14, 32, 42), radius=6, fill=UNARMED_OUTLINE)
+    d.rounded_rectangle((5, 15, 31, 41), radius=5, fill=UNARMED_GLOVE)
+    d.ellipse((7, 15, 14, 22), fill=UNARMED_GLOVE_L)
+    d.ellipse((14, 14, 21, 21), fill=UNARMED_GLOVE_L)
+    d.ellipse((21, 15, 28, 22), fill=UNARMED_GLOVE_L)
+    d.rectangle((5, 24, 8, 27), fill=UNARMED_CYAN)
+    # Thumb over the top of the grip (partly covered by the weapon
+    # layer in the armed render — that occlusion is the depth cue).
+    d.ellipse((24, 10, 36, 20), fill=UNARMED_OUTLINE)
+    d.ellipse((25, 11, 35, 19), fill=UNARMED_GLOVE)
+    d.ellipse((27, 12, 32, 16), fill=UNARMED_GLOVE_L)
+    # Curled fingers hanging below the grip.
+    for fx0, fx1, fy1 in ((6, 13, 48), (14, 21, 49), (22, 29, 47)):
+        d.rounded_rectangle((fx0, 36, fx1, fy1), radius=3, fill=UNARMED_OUTLINE)
+        d.rounded_rectangle((fx0 + 1, 37, fx1 - 1, fy1 - 1), radius=2, fill=UNARMED_GLOVE)
+    save_sprite("rig-hunter-arm-fore-holding", img, "character", {"pivot": {"x": 0.08, "y": 0.35}})
+
+    # --- far forearm + cupped support glove (darker far palette) ---
+    # Box mirrors rig-hunter-arm-off (142,112,214,156). The support
+    # hand cups up at frame ~(163..192, 118..146): forward of the
+    # grip hand, under where every weapon's body passes — a rifle's
+    # forend rests in it, a pistol's two-hand wrap closes over it.
+    img = Image.new("RGBA", (72, 44), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    fore = [(0, 20), (24, 12), (30, 20), (6, 31)]
+    d.polygon(_grow(fore, 14, 21, 1), fill=UNARMED_OUTLINE)
+    d.polygon(fore, fill=UNARMED_FAR_BASE)
+    d.polygon([(1, 27), (27, 20), (29, 24), (4, 31)], fill=UNARMED_FAR_DARK)
+    # Cupped palm.
+    d.rounded_rectangle((24, 12, 50, 30), radius=6, fill=UNARMED_OUTLINE)
+    d.rounded_rectangle((25, 13, 49, 29), radius=5, fill=UNARMED_FAR_GLOVE)
+    d.line((31, 22, 44, 22), fill=UNARMED_OUTLINE)
+    # Fingertips curling up the far side of the weapon.
+    for fx0, fx1 in ((26, 33), (33, 40), (40, 47)):
+        d.ellipse((fx0, 5, fx1, 14), fill=UNARMED_OUTLINE)
+        d.ellipse((fx0 + 1, 6, fx1 - 1, 13), fill=UNARMED_FAR_GLOVE)
+    save_sprite("rig-hunter-arm-off-holding", img, "character", {"pivot": {"x": 0.1, "y": 0.3}})
+    print("holding: 3 variant segments (gun-free holding arms)")
+
+
 def write_manifest() -> None:
     data = json.loads(MANIFEST.read_text())
     data["sprites"].update(manifest_additions)
@@ -845,6 +938,7 @@ SECTIONS = {
     "vehicles": build_vehicles,
     "sets": build_sets,
     "unarmed": build_unarmed,
+    "holding": build_holding,
     "goldenbg": build_goldenbg,
     "shieldtech": build_shieldtech,
 }
