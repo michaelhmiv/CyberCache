@@ -303,6 +303,15 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       await activity.start(input);
       idle.setFarming(input.kind === 'roaming_loot');
       setShowSwitch(false);
+      // QC B2: starting any real activity supersedes the Endless /
+      // Extraction prep panels. Those panels render off local flags
+      // that outrank every activity in the workspace chain, so a
+      // stale flag left the panel pinned over the new mode (and the
+      // rail's lit stop disagreeing with it) — clear both here, the
+      // one funnel every mode start (rail, switch sheet, diorama)
+      // passes through.
+      setShowEndless(false);
+      setShowExtraction(false);
       setShowAreaSelect(false);
       setShowBossPicker(false);
       setShowSalvagePicker(false);
@@ -586,12 +595,17 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     return null; // fallback: no workspace panel needed
   })();
 
+  // The two prep panels are mutually exclusive (QC B2): opening one
+  // replaces the other, so the workspace and the rail's lit stop
+  // always agree on which mode is open.
   const openEndless = useCallback(() => {
+    setShowExtraction(false);
     setShowEndless(true);
     setShowSwitch(false);
   }, []);
 
   const openExtraction = useCallback(() => {
+    setShowEndless(false);
     setShowExtraction(true);
     setShowSwitch(false);
   }, []);

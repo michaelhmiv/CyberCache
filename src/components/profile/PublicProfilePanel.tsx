@@ -73,7 +73,7 @@ export const PublicProfilePanel: React.FC<PublicProfilePanelProps> = ({ open, on
                   <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Combat</div>
                   <Row label="Kills" value={profile.total_kills.toLocaleString()} />
                   <Row label="Deaths" value={profile.total_deaths.toLocaleString()} />
-                  <Row label="K/D" value={profile.kill_death_ratio.toFixed(2)} />
+                  <Row label="K/D" value={profile.kill_death_ratio == null ? '—' : profile.kill_death_ratio.toFixed(2)} />
                   <Row label="Highest Boss Tier" value={profile.highest_boss_tier} />
                 </MobileCard>
 
