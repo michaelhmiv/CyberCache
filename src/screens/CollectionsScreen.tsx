@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { listEntranceProps } from '@/lib/animation/uiMotion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { usePlayerStore } from '@/store';
 import { fetchCollections, type CollectionsPayload } from '@/lib/api/verifiedOps';
@@ -108,8 +110,11 @@ const EntryArt: React.FC<{ entry: CollectionEntry; found: boolean }> = ({ entry,
   );
 };
 
-const EntryCard: React.FC<{ entry: CollectionEntry; found: boolean; source?: string }> = ({ entry, found, source }) => (
-  <div
+const EntryCard: React.FC<{ entry: CollectionEntry; found: boolean; source?: string; index?: number }> = ({ entry, found, source, index = 0 }) => {
+  const reduceMotion = useReducedMotion();
+  return (
+  <motion.div
+    {...listEntranceProps(index, reduceMotion)}
     className={`border-2 p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] ${
       found ? 'border-amber/80 bg-surface' : 'border-border bg-bg'
     }`}
@@ -132,8 +137,9 @@ const EntryCard: React.FC<{ entry: CollectionEntry; found: boolean; source?: str
     <div className="mt-0.5 line-clamp-2 min-h-[28px] text-[11px] leading-snug text-text-muted">
       {found ? `Logged · ${source ?? 'server record'}` : entry.hint}
     </div>
-  </div>
-);
+  </motion.div>
+  );
+};
 
 export const CollectionsScreen: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const playerCores = usePlayerStore((s) => s.legendaryCores);
@@ -225,7 +231,7 @@ export const CollectionsScreen: React.FC<{ embedded?: boolean }> = ({ embedded =
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {entries.map((entry) => {
+              {entries.map((entry, index) => {
                 const source = discovered.get(`${family}:${entry.key}`);
                 return (
                   <EntryCard
@@ -233,6 +239,7 @@ export const CollectionsScreen: React.FC<{ embedded?: boolean }> = ({ embedded =
                     entry={entry}
                     found={source !== undefined}
                     source={source}
+                    index={index}
                   />
                 );
               })}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { ClaimPulse } from '@/components/common/ClaimPulse';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   claimContract,
@@ -141,9 +142,13 @@ export const ContractsPanel: React.FC = () => {
                   type="button"
                   disabled={busy}
                   onClick={() => void onClaim(contract)}
-                  className="min-h-[44px] rounded px-3 text-xs font-black uppercase disabled:opacity-50"
+                  className="relative min-h-[44px] rounded px-3 text-xs font-black uppercase disabled:opacity-50"
                   style={{ backgroundColor: CONTRACTS_ACCENT, color: '#1A1206' }}
                 >
+                  {/* §10: this button only exists while a reward is
+                      claimable — it pulses until claimed (static
+                      ring under reduced motion). */}
+                  <ClaimPulse color={CONTRACTS_ACCENT} testId="contract-claim-pulse" />
                   {busy ? 'Claiming…' : 'Claim'}
                 </button>
               ) : (

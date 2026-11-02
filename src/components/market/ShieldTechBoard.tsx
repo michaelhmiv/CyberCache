@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Lock } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { listEntranceProps } from '@/lib/animation/uiMotion';
 import { useAuth } from '@/auth/AuthProvider';
 import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
 import { useActivityStore, useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
@@ -142,6 +144,7 @@ function fmtTimeLeft(expiresAtMs: number | null): string {
 export const ShieldTechBoard: React.FC = () => {
   const { user } = useAuth();
   const myId = user?.id ?? null;
+  const reduceMotion = useReducedMotion();
   const consumables = usePlayerStore((s) => s.consumables);
   const inventory = useInventoryStore((s) => s.items);
   const loadout = useLoadoutStore();
@@ -482,12 +485,12 @@ export const ShieldTechBoard: React.FC = () => {
               : 'No open jobs. Post yours above — or check back after the next roam.'}
           </div>
         )}
-        {openJobs.map((job) => {
+        {openJobs.map((job, index) => {
           const mine = job.ownerUserId === myId;
           const median = job.shield?.rarity ? board?.medianPerThousandByRarity[job.shield.rarity] ?? null : null;
           const req = job.requirements;
           return (
-            <div key={job.id} className="border border-border bg-surface/95 p-3 space-y-2">
+            <motion.div key={job.id} {...listEntranceProps(index, reduceMotion)} className="border border-border bg-surface/95 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-bold text-text-primary">
                   {shieldLabel(job)}
@@ -548,7 +551,7 @@ export const ShieldTechBoard: React.FC = () => {
                   </span>
                 </div>
               )}
-            </div>
+            </motion.div>
           );
         })}
         {openJobs.length < openTotal && (

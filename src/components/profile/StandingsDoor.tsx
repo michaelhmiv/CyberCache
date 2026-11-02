@@ -1,5 +1,6 @@
 import React from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { ClaimPulse } from '@/components/common/ClaimPulse';
 import type { StandingsBadge } from './standingsBadge';
 
 /**
@@ -41,8 +42,11 @@ export const StandingsDoor: React.FC<{
           {badge.claimableCount > 0 && (
             <span
               data-testid="standings-claimable-pill"
-              className="inline-flex items-center gap-1 border border-amber/60 bg-amber/15 px-1.5 py-0.5 text-[11px] font-black text-amber"
+              className="relative inline-flex items-center gap-1 border border-amber/60 bg-amber/15 px-1.5 py-0.5 text-[11px] font-black text-amber"
             >
+              {/* §10: a claimable draws the eye — the pill pulses
+                  (static ring under reduced motion). */}
+              <ClaimPulse color="#FF9000" testId="standings-claim-pulse" />
               <PxIcon name="trophy" size={13} />
               {badge.claimableCount} {badge.claimableCount === 1 ? 'reward' : 'rewards'} waiting
             </span>

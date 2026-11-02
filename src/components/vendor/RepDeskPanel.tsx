@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { ClaimPulse } from '@/components/common/ClaimPulse';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { useInventoryStore, useLoadoutStore } from '@/store';
 import {
@@ -398,8 +399,13 @@ export const RepDeskPanel: React.FC = () => {
                     `${m.name} Parts Crate claimed for ${r.bought.totalPrice.toLocaleString()}cr.`,
                 )
               }
-              className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
+              className="relative shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
             >
+              {/* §10: a live weekly claim pulses (static ring under
+                  reduced motion); claimed / rank-gated states don't. */}
+              {!guest && m.crate.available && !m.crate.boughtThisWeek && m.rank >= 4 && (
+                <ClaimPulse color="#FF9000" testId="repdesk-crate-claim-pulse" />
+              )}
               {m.crate.boughtThisWeek
                 ? <span className="inline-flex items-center gap-1">Claimed <PxIcon name="check" size={13} /></span>
                 : m.rank >= 4
@@ -423,8 +429,11 @@ export const RepDeskPanel: React.FC = () => {
                     `Signature Order placed — ${r.ordered.totalPrice.toLocaleString()}cr. Your weapon is in your inventory.`,
                 )
               }
-              className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
+              className="relative shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
             >
+              {!guest && m.order.enabled && m.order.available && !m.order.orderedThisWeek && m.rank >= 5 && (
+                <ClaimPulse color="#FF9000" testId="repdesk-order-claim-pulse" />
+              )}
               {!m.order.enabled
                 ? 'Disabled'
                 : m.order.orderedThisWeek

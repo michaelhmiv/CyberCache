@@ -15,6 +15,7 @@ import { ResearchPanel } from '@/components/profile/ResearchPanel';
 import { TrophyShelfPanel } from '@/components/profile/TrophyShelfPanel';
 import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
 import { StandingsDoor } from '@/components/profile/StandingsDoor';
+import { ClaimPulse } from '@/components/common/ClaimPulse';
 import { useStandingsBadge } from '@/components/profile/standingsBadge';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { CollectionsScreen } from './CollectionsScreen';
@@ -224,8 +225,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
               {s.id === 'standings' && standingsBadge.claimableCount > 0 && (
                 <span
                   data-testid="hunter-standings-count"
-                  className="border border-amber/60 bg-amber/25 px-1 text-[11px] font-black leading-tight text-amber"
+                  className="relative border border-amber/60 bg-amber/25 px-1 text-[11px] font-black leading-tight text-amber"
                 >
+                  {/* §10: the rail badge pulses like the door's
+                      claimable pill (static ring, reduced motion). */}
+                  <ClaimPulse color="#FF9000" testId="hunter-standings-pulse" />
                   {standingsBadge.claimableCount}
                 </span>
               )}
