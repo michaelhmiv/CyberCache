@@ -145,6 +145,10 @@ export enum MaterialType {
   CompositePlating = 'CompositePlating',
   CircuitLattice = 'CircuitLattice',
   Voidweave = 'Voidweave',
+  // Cosmetic thread (skins slice, migration 0053): the refined
+  // material tint crafts consume. Crafted by the refine lane from
+  // fiber + essence; player-market tradable like every material.
+  Chromaweave = 'Chromaweave',
 }
 
 export enum EssenceType {

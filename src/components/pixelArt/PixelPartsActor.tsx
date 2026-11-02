@@ -41,6 +41,10 @@ interface PixelPartsActorProps {
   pose: PartsPoseName;
   /** Per-part palette swap (async data-URL swaps). */
   palette?: { paletteId: string; spec: PaletteSpec };
+  /** Per-SLOT palette swaps (M4): a worn skin part's tint/finish
+   *  applies to that part only. Takes precedence over `palette`
+   *  for the slots it names. */
+  partPalettes?: Partial<Record<import('@/lib/pixel/parts').PartSlot, { paletteId: string; spec: PaletteSpec }>>;
   /** The ACTUAL equipped weapon instance. When present it renders
    *  grip-to-grip between the near upper arm and the forearm (the
    *  compositor's paint order) — the hand wraps the grip. When
@@ -83,6 +87,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   reduced = false,
   pose,
   palette,
+  partPalettes,
   weapon,
   weaponInput,
   weaponTestId,
@@ -120,17 +125,29 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   // Preload palette swaps; when they land in the cache, re-render so
   // the parts pick up the swapped data URLs.
   useEffect(() => {
-    if (!palette) return;
+    if (!palette && !partPalettes) return;
     let cancelled = false;
-    const spriteIds = PART_SLOTS.map(({ slot }) => set.parts[slot]?.spriteId).filter(
-      (id): id is string => !!id,
-    );
-    let pending = spriteIds.length;
-    for (const spriteId of spriteIds) {
-      const sprite = requirePixelSprite(spriteId);
+    const jobs: { spriteId: string; paletteId: string; spec: PaletteSpec }[] = [];
+    if (palette) {
+      for (const { slot } of PART_SLOTS) {
+        const spriteId = set.parts[slot]?.spriteId;
+        if (spriteId) jobs.push({ spriteId, paletteId: palette.paletteId, spec: palette.spec });
+      }
+    }
+    if (partPalettes) {
+      for (const { slot } of PART_SLOTS) {
+        const pp = partPalettes[slot];
+        const spriteId = set.parts[slot]?.spriteId;
+        if (pp && spriteId) jobs.push({ spriteId, paletteId: pp.paletteId, spec: pp.spec });
+      }
+    }
+    let pending = jobs.length;
+    if (pending === 0) return;
+    for (const job of jobs) {
+      const sprite = requirePixelSprite(job.spriteId);
       const img = new Image();
       img.onload = () => {
-        paletteSpriteUrl(spriteId, sprite.url, palette.paletteId, palette.spec);
+        paletteSpriteUrl(job.spriteId, sprite.url, job.paletteId, job.spec);
         pending -= 1;
         if (!cancelled && pending <= 0) setSwapTick((t) => t + 1);
       };
@@ -142,7 +159,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [palette, set]);
+  }, [palette, partPalettes, set]);
 
   const heldInput = useMemo<PixelWeaponInput | undefined>(() => {
     if (weapon) return pixelWeaponInputFromWeapon(weapon);
@@ -166,9 +183,12 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
         if (!placement) return [];
         const { part, anchorStage, rotationDeg } = placement;
         const sprite = requirePixelSprite(part.spriteId);
-        const src = palette
-          ? paletteSpriteUrl(part.spriteId, sprite.url, palette.paletteId, palette.spec)
-          : sprite.url;
+        const slotPalette = partPalettes?.[slot];
+        const src = slotPalette
+          ? paletteSpriteUrl(part.spriteId, sprite.url, slotPalette.paletteId, slotPalette.spec)
+          : palette
+            ? paletteSpriteUrl(part.spriteId, sprite.url, palette.paletteId, palette.spec)
+            : sprite.url;
         const primaryLocal = part.anchors[PRIMARY_ANCHOR[slot]];
         const isArm = slot === 'armUpperN' || slot === 'armForeN' || slot === 'armFar';
         const duration = reduced
@@ -194,7 +214,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
           },
         ];
       }),
-    [layout, palette, reduced],
+    [layout, palette, partPalettes, reduced],
   );
 
   // Mounted gear (M3): every item resolves against THIS actor's

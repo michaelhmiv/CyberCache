@@ -232,6 +232,13 @@ describe('performance + payload budgets (§4.9)', () => {
     // Master shipped ~6.4MB; the overhaul adds ~3.5MB of rig segments,
     // layers, arenas, props, and vehicles. Ceiling pins the total so
     // future art lands deliberately, not by drift.
-    expect(total).toBeLessThan(11 * 1024 * 1024);
+    // M4 (0053) raises the ceiling DELIBERATELY for the first skin
+    // wave, with per-skin accounting (manifest-registered bytes):
+    // pre-M4 total 11,375,686 B; Bulwark (T3 shaped, 10 parts)
+    // +139,971 B; Dreadplate (T2 repaint, 10 parts) +87,194 B;
+    // wave-1 total 11,602,851 B. The new ceiling leaves ~17 KB of
+    // headroom — the next skin lands with its own accounting and
+    // its own deliberate raise, exactly like this one.
+    expect(total).toBeLessThan(11_620_000);
   });
 });

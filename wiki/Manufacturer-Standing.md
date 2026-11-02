@@ -67,7 +67,10 @@ maker:
   Coating, ThrowTech Decoy Kit, or Helix Calibration Kit. Crafted, so it
   quality-scales like anything from the bench (see [[Crafting]]).
 - **Rank 3 — Cosmetic.** A maker head variant and rig decal tint for your
-  hunter, chosen in Settings. Looks only — no stats, by law.
+  hunter, worn from the [[Skins and Cosmetics|Wardrobe]]. Looks only — no
+  stats, by law. The earned head stays wearable forever, and the same
+  heads are also craftable as parts in the Workshop's Skin Parts lane —
+  earning one is never the only way to wear it, and never revoked.
 - **Rank 4 — Weekly Parts Crate.** A bundle of that maker's workshop
   materials from the Rep Desk, once a week: 5,000 cr for most makers
   (Prismatek 6,000 cr, HelixWorks 5,500 cr). The conversion is

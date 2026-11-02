@@ -18,6 +18,7 @@ import { useSalvageFeedStore } from './slices/salvageFeedSlice';
 import { useOfflineRecapStore } from './slices/offlineRecapSlice';
 import { useLoginStreakStore } from './slices/loginStreakSlice';
 import { useContractsStore } from './slices/contractsSlice';
+import { useCosmeticsStore } from './slices/cosmeticsSlice';
 export { combatStatsSelectors };
 
 export {
@@ -43,4 +44,5 @@ export {
   useOfflineRecapStore,
   useLoginStreakStore,
   useContractsStore,
+  useCosmeticsStore,
 };

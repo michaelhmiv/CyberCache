@@ -29,6 +29,7 @@ import {
   FRAGMENT_IDENTITY_KEY,
   consumableDisplayName,
   consumableIdentityKey,
+  cosmeticIdentityKey,
   essenceDisplayName,
   essenceIdentityKey,
   gearCategoryFromPayload,
@@ -620,12 +621,15 @@ export interface MarketListingData {
   seller_name: string | null;
   /** Market depth (0019): browse facts ride on the listing itself. */
   seller_type: 'player' | 'npc';
-  listing_kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence';
+  listing_kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
   quantity: number;
   quality_percent: number | null;
   consumable_type: string | null;
   material_id: string | null;
   essence_id: string | null;
+  /** Cosmetic listings (0053): part design + worn tint, else null. */
+  part_id: string | null;
+  tint_palette_id: string | null;
   identity_key: string | null;
   category: MarketCategory | null;
   display_name: string | null;
@@ -674,6 +678,9 @@ export interface RawListingFields {
   rarity?: string | null;
   item_level?: number | null;
   seller_type?: string | null;
+  /** Cosmetic listings (0053): the part design + worn tint. */
+  part_id?: string | null;
+  tint_palette_id?: string | null;
 }
 
 export interface RawItemFields {
@@ -687,6 +694,7 @@ export interface RawItemFields {
 export function browseRowFor(listing: RawListingFields, item: RawItemFields | null): MarketBrowseRow {
   const kind = listing.listing_kind === 'consumable' || listing.listing_kind === 'material' || listing.listing_kind === 'vehicle'
     || listing.listing_kind === 'fragment' || listing.listing_kind === 'core' || listing.listing_kind === 'essence'
+    || listing.listing_kind === 'cosmetic'
     ? listing.listing_kind
     : 'gear';
   const payload = item?.payload ?? {};
@@ -723,6 +731,13 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
       ?? (listing.essence_id ? essenceDisplayName(listing.essence_id) : 'Essence');
     identityKey = listing.identity_key
       ?? (listing.essence_id ? essenceIdentityKey(listing.essence_id) : null);
+  } else if (kind === 'cosmetic') {
+    // Skin parts (0053): the part design is the commodity; finish
+    // rides quality_percent, the tint rides its own column.
+    category = 'cosmetic';
+    displayName = listing.display_name ?? (typeof payload.name === 'string' ? payload.name : 'Skin Part');
+    identityKey = listing.identity_key
+      ?? (typeof payload.partId === 'string' ? cosmeticIdentityKey(payload.partId) : null);
   } else if (kind === 'vehicle') {
     // Vehicles (0021): browse like gear, bucketed by class + rarity.
     category = 'vehicle';
@@ -759,6 +774,8 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
     consumableType: listing.consumable_type ?? null,
     materialId: listing.material_id ?? null,
     essenceId: listing.essence_id ?? null,
+    partId: listing.part_id ?? (typeof payload.partId === 'string' ? payload.partId : null),
+    tintPaletteId: listing.tint_palette_id ?? (typeof payload.tintPaletteId === 'string' ? payload.tintPaletteId : null),
     identityKey,
     listedAt: Date.parse(listing.listed_at),
   };
@@ -784,6 +801,8 @@ export function marketListingData(
     consumable_type: browse.consumableType,
     material_id: browse.materialId,
     essence_id: browse.essenceId,
+    part_id: browse.partId,
+    tint_palette_id: browse.tintPaletteId,
     identity_key: browse.identityKey,
     category: browse.category,
     display_name: browse.displayName,
@@ -1416,7 +1435,7 @@ export interface MemListing {
   sold_at?: string | null;
   // Market depth (0019) — optional; browseRowFor derives the rest.
   // Sellable resources (0050) add fragment/core/essence + essence_id.
-  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence';
+  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
   quantity?: number;
   quality_percent?: number | null;
   consumable_type?: string | null;
@@ -1430,6 +1449,8 @@ export interface MemListing {
   rarity?: string | null;
   item_level?: number | null;
   seller_type?: 'player' | 'npc';
+  part_id?: string | null;
+  tint_palette_id?: string | null;
 }
 
 /** Seedable in-memory dataset for the read surface. */
@@ -2416,7 +2437,7 @@ export class PgReadStore implements ReadStore {
     const { rows } = await this.db.query(
       `select ml.id, ml.price_credits, ml.listed_at, ml.seller_user_id, ml.listing_kind,
               ml.quantity, ml.quality_percent, ml.consumable_type, ml.material_id,
-              ml.essence_id,
+              ml.essence_id, ml.part_id, ml.tint_palette_id,
               ml.identity_key, ml.category, ml.display_name, ml.weapon_type, ml.element,
               ml.rarity, ml.item_level, ml.seller_type,
               sp.display_name as seller_display_name, sp.username as seller_username,
@@ -2454,6 +2475,8 @@ export class PgReadStore implements ReadStore {
           consumable_type: (r.consumable_type as string | null) ?? null,
           material_id: (r.material_id as string | null) ?? null,
           essence_id: (r.essence_id as string | null) ?? null,
+          part_id: (r.part_id as string | null) ?? null,
+          tint_palette_id: (r.tint_palette_id as string | null) ?? null,
           identity_key: (r.identity_key as string | null) ?? null,
           category: (r.category as string | null) ?? null,
           display_name: (r.display_name as string | null) ?? null,

@@ -25,9 +25,9 @@ demand is real.
 **Everyone can craft, guests included.** Crafting carries no
 verified-account gate.
 
-## The catalog: 59 recipes
+## The catalog: 87 recipes
 
-The unified Workshop catalog holds **59 recipes**:
+The unified Workshop catalog holds **87 recipes**:
 
 - **29 consumable recipes** — med kits, shield cells, ammo, ordnance,
   stims, scanners, and utility goods.
@@ -47,6 +47,11 @@ The unified Workshop catalog holds **59 recipes**:
   Charges made 3 at a time, gated behind the Production Systems course
   in [[Actions and Occupations|Research]]: cheaper in time than three
   singles, dearer in materials.
+- **26 skin-part recipes** — the [[Skins and Cosmetics]] catalog:
+  scrap-led cosmetic parts (no stats, ever) in the Skin Parts lane,
+  plus the item-targeted **tint craft** run from the Tinting lane.
+- **1 Chromaweave refine** — Myco-Steel Fiber + Void Essence woven
+  into Chromaweave, the tint material (see [[Skins and Cosmetics]]).
 
 ## Benches
 

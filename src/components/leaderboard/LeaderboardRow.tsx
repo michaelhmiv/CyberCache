@@ -1,15 +1,20 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { LeaderboardEntry } from '@/lib/api/leaderboardService';
+import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
+import { resolveLookView } from '@/lib/pixel/lookResolution';
+import type { HunterLookView } from '@/content/skins';
 
 interface LeaderboardRowProps {
   entry: LeaderboardEntry;
   isMe?: boolean;
   onClick?: (playerId: string) => void;
   compact?: boolean;
+  /** The hunter's worn look (0053) — rendered as a mini portrait. */
+  look?: HunterLookView | null;
 }
 
-export const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ entry, isMe, onClick, compact }) => {
+export const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ entry, isMe, onClick, compact, look }) => {
   const trend = entry.trend > 0 ? 'up' : entry.trend < 0 ? 'down' : 'flat';
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
 
@@ -21,6 +26,11 @@ export const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ entry, isMe, onC
       <div className={`w-8 text-center text-sm font-black ${entry.rank <= 3 ? 'text-amber' : 'text-text-muted'}`}>
         {entry.rank}
       </div>
+      {look && (
+        <div className="w-8 shrink-0" data-testid={`standings-portrait-${entry.player_id}`}>
+          <HunterPortrait look={resolveLookView(look)} className="h-10" />
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className={`truncate text-xs font-bold ${isMe ? 'text-amber' : 'text-text-primary'}`}>
           {/* No username yet: the game's generic hunter name ("Vault

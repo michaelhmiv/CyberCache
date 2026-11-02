@@ -485,7 +485,14 @@ export function composePartSet(
   set: PartSetDef,
   pose: PartPose,
   load: SpriteLoader,
-  opts: { weapon?: PartsWeapon; palette?: PaletteSpec; gear?: MountedGearItem[] } = {},
+  opts: {
+    weapon?: PartsWeapon;
+    palette?: PaletteSpec;
+    /** Per-slot palette swaps (M4): a worn part's tint/finish —
+     *  takes precedence over `palette` for the slots it names. */
+    partPalettes?: Partial<Record<PartSlot, PaletteSpec>>;
+    gear?: MountedGearItem[];
+  } = {},
 ): PartsRender {
   const W = SKELETON.frameWidth + PARTS_BUFFER_PAD * 2;
   const H = SKELETON.frameHeight + PARTS_BUFFER_PAD * 2;
@@ -514,9 +521,10 @@ export function composePartSet(
     const src = load(part.spriteId);
     if (!src) return;
     let pixels = src;
-    if (opts.palette) {
+    const slotPalette = opts.partPalettes?.[slot] ?? opts.palette;
+    if (slotPalette) {
       pixels = { width: src.width, height: src.height, data: new Uint8Array(src.data) };
-      remapPixelData(pixels.data as unknown as Uint8ClampedArray, opts.palette);
+      remapPixelData(pixels.data as unknown as Uint8ClampedArray, slotPalette);
     }
     const anchorLocal = part.anchors[PRIMARY_ANCHOR[slot]];
     const layer = blank(W, H);

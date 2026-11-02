@@ -308,7 +308,11 @@ describe('migration 0033: textual pins', () => {
   });
 
   it('the applier whitelist equals the TS material/essence id sets', () => {
-    const listMatch = sql.match(/v_material_ids text\[\] := array\[([\s\S]*?)\];/);
+    // 0053 restated the applier when Chromaweave joined the
+    // material set; the whitelist pin follows the LATEST
+    // restatement (the overhaulMechanics convention).
+    const latest = readFileSync(join(process.cwd(), 'db/migrations/0053_skins_cosmetics.sql'), 'utf8');
+    const listMatch = latest.match(/v_material_ids text\[\] := array\[([\s\S]*?)\];/);
     expect(listMatch).not.toBeNull();
     const sqlIds = [...listMatch![1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
     expect(sqlIds).toEqual([...Object.values(MaterialType)].sort());

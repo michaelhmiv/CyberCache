@@ -48,6 +48,8 @@ import {
   enqueueCraftJob as enqueueCraftJobCore,
   enqueueRepairJob as enqueueRepairJobCore,
   enqueueShieldTechJob as enqueueShieldTechJobCore,
+  enqueueTintJob as enqueueTintJobCore,
+  type EnqueueTintJobInput,
   fitCraftTool as fitCraftToolCore,
   overclockCompleteInProgressUnits,
   settleCraftJobs as settleCraftJobsCore,
@@ -234,7 +236,7 @@ const ACTIVE_KINDS = [
   'endless_run',
   'extraction',
 ] as const;
-const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave'] as const;
+const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave'] as const;
 
 export interface InMemoryWriteOptions {
   now?: () => Date;
@@ -1424,6 +1426,9 @@ export class InMemoryWriteStore implements WriteStore {
     item.tradeable = false;
     item.equipped_slot = null;
     this.touchItem(item);
+    // Cosmetics (0053): a part salvaged while worn leaves the
+    // selection record in the same operation.
+    this.unequipCosmeticIfWorn(playerId, item);
     this.recalcNetWorth(playerId);
     p.scrap += award;
     p.legendary_cores = (p.legendary_cores ?? 0) + cores;
@@ -1744,6 +1749,34 @@ export class InMemoryWriteStore implements WriteStore {
     this.standingRanks.set(`${playerId}:${manufacturer}`, rank);
   }
 
+  /**
+   * Cosmetic selection mirror (0053): playerId → the selection
+   * record (equipped slot → item id + head variant). The gameplay
+   * store owns the equip surface; this twin keeps the record the
+   * market/recycle ops consult — listing an equipped part
+   * auto-unequips it, and salvaging a worn part removes it, exactly
+   * like the SQL functions do inside their transactions.
+   */
+  readonly skinSelections = new Map<string, { equipped: Record<string, string>; headVariant: string }>();
+
+  /** Seed/replace a player's selection record (test seam + the
+   *  gameplay twin's equip writes in combined-store tests). */
+  seedSkinSelection(playerId: string, equipped: Record<string, string>, headVariant = 'visor'): void {
+    this.skinSelections.set(playerId, { equipped: { ...equipped }, headVariant });
+  }
+
+  /** Remove an item from its owner's selection if it is worn there
+   *  (the auto-unequip the market + salvage paths perform). */
+  private unequipCosmeticIfWorn(playerId: string, item: WriteItemData): void {
+    if (item.kind !== 'cosmetic') return;
+    const sel = this.skinSelections.get(playerId);
+    if (!sel) return;
+    const slot = (item.payload as Record<string, unknown> | null)?.slot;
+    if (typeof slot === 'string' && sel.equipped[slot] === item.id) {
+      delete sel.equipped[slot];
+    }
+  }
+
   /** The player's completion-derived research bonus record. */
   researchBonusesFor(playerId: string): ResearchBonuses {
     const set = this.researchCompletions.get(playerId);
@@ -1843,6 +1876,7 @@ export class InMemoryWriteStore implements WriteStore {
         player_level: p.player_level,
         player_xp: p.player_xp,
         credits: p.credits,
+        scrap: p.scrap ?? 0,
         materials: asNumberMap(p.materials),
         essences: asNumberMap(p.essences),
         consumables: asNumberMap(p.consumables),
@@ -1863,6 +1897,7 @@ export class InMemoryWriteStore implements WriteStore {
       view.player_level = p.player_level;
       view.player_xp = p.player_xp;
       view.credits = p.credits;
+      view.scrap = p.scrap ?? view.scrap;
       view.workshop_benches = p.workshop_benches ?? view.workshop_benches;
       view.legendary_cores = p.legendary_cores ?? view.legendary_cores;
       view.offline_cap_hours = p.offline_cap_hours ?? null;
@@ -1879,6 +1914,7 @@ export class InMemoryWriteStore implements WriteStore {
     p.player_xp = view.player_xp;
     this.applyCacheRankGrant(p);
     p.credits = view.credits;
+    p.scrap = view.scrap;
     p.legendary_cores = view.legendary_cores;
     p.workshop_benches = view.workshop_benches;
     p.workshop_tools = clone(view.workshop_tools) as unknown as Record<string, unknown>;
@@ -2037,6 +2073,59 @@ export class InMemoryWriteStore implements WriteStore {
         item.condition_current = Math.min(max, (item.condition_current ?? max) + points);
         item.updated_at = this.nowIso();
         return { conditionCurrent: item.condition_current, conditionMax: max };
+      },
+      insertCosmeticItem: (playerId, payload) => {
+        const now = this.nowIso();
+        const id = this.uuid();
+        const item: WriteItemData = {
+          id,
+          owner_user_id: playerId,
+          kind: 'cosmetic',
+          static_item_id: null,
+          item_level: 1,
+          rarity: 'Common',
+          quality: null,
+          material_tier: null,
+          condition_state: null,
+          condition_current: null,
+          condition_max: null,
+          supply_mode: 'verified_action',
+          source_id: null,
+          creator_user_id: playerId,
+          tradeable: true,
+          account_bound: false,
+          locked_until: null,
+          payload: { ...payload, id } as unknown as Json,
+          runtime_state: 'available',
+          is_locked: false,
+          equipped_slot: null,
+          estimated_value: computeItemEstimatedValue(
+            payload as unknown as Record<string, unknown>,
+            'cosmetic',
+            'Common',
+            1,
+          ),
+          created_at: now,
+          updated_at: now,
+        };
+        this.insertItem(item);
+        return id;
+      },
+      cosmeticInfo: (playerId, itemId) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== playerId) return null;
+        return {
+          kind: item.kind,
+          runtimeState: item.runtime_state,
+          isLocked: item.is_locked,
+          payload: (item.payload ?? {}) as Record<string, unknown>,
+        };
+      },
+      applyCosmeticTint: (playerId, itemId, paletteId) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== playerId || item.kind !== 'cosmetic') return;
+        item.payload = { ...(item.payload as Record<string, unknown>), tintPaletteId: paletteId } as Json;
+        item.updated_at = this.nowIso();
       },
       levers: () => this.craftLevers(),
     };
@@ -2264,6 +2353,30 @@ export class InMemoryWriteStore implements WriteStore {
     return this.record(playerId, 'cc_enqueue_craft_job', key, result);
   }
 
+  /** Tint enqueue (0053 twin of cc_enqueue_tint_job): no
+   *  verified-account gate — tinting your own part is consumption,
+   *  the self-repair treatment. */
+  async enqueueTintJob(playerId: string, nonce: string, input: EnqueueTintJobInput): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const { job } = this.craftCall(() =>
+      enqueueTintJobCore(this.craftAdapter(), playerId, {
+        itemId: input.itemId,
+        paletteId: input.paletteId,
+      }),
+    );
+    this.flushCraftView(playerId);
+    const jobs = this.seed.craftJobs.filter((j) => j.owner_user_id === playerId);
+    const result: Json = {
+      action_type: 'cc_enqueue_tint_job',
+      profile: this.profileSnapshot(p),
+      job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+    };
+    return this.record(playerId, 'cc_enqueue_tint_job', key, result);
+  }
+
   async cancelCraftJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
@@ -2387,6 +2500,7 @@ export class InMemoryWriteStore implements WriteStore {
       crafting_consumables: { level: 1, xp: 0 },
       'crafting.refining': { level: 1, xp: 0 },
       'crafting.gear': { level: 1, xp: 0 },
+      'crafting.cosmetics': { level: 1, xp: 0 },
       'services.repair': { level: 1, xp: 0 },
       'services.shield_tech': { level: 1, xp: 0 },
     };
@@ -3620,6 +3734,49 @@ export class InMemoryWriteStore implements WriteStore {
       throw writeError('Item not listable');
     }
     const payload = (item.payload ?? {}) as Record<string, unknown>;
+    if (item.kind === 'cosmetic') {
+      // Cosmetic part listing (0053 twin of cc_market_create's
+      // cosmetic branch): card columns from the part payload,
+      // listing an EQUIPPED part auto-unequips it, and a part under
+      // an active tint job cannot be listed mid-tint.
+      if (item.is_locked) throw writeError('Item is locked');
+      const tintActive = this.seed.craftJobs.some(
+        (j) => j.owner_user_id === playerId && j.status === 'active'
+          && j.kind === 'cosmetic' && j.snapshot.tint?.itemId === item.id,
+      );
+      if (tintActive) throw writeError('Part is being tinted');
+      this.unequipCosmeticIfWorn(playerId, item);
+      const partId = typeof payload.partId === 'string' ? payload.partId : '';
+      const cosmeticListing: WriteListingData = {
+        id: this.uuid(),
+        seller_user_id: playerId,
+        item_instance_id: item.id,
+        price_credits: price,
+        status: 'active',
+        listed_at: this.nowIso(),
+        sold_at: null,
+        listing_kind: 'cosmetic',
+        quantity: 1,
+        identity_key: `cosmetic:${partId}`,
+        category: 'cosmetic',
+        display_name: typeof payload.name === 'string' ? payload.name : null,
+        part_id: partId || null,
+        tint_palette_id: typeof payload.tintPaletteId === 'string' ? payload.tintPaletteId : null,
+        quality_percent: typeof payload.quality === 'number' ? payload.quality : null,
+        seller_type: 'player',
+      };
+      this.insertListing(cosmeticListing);
+      item.runtime_state = 'listed';
+      this.touchItem(item);
+      this.recalcNetWorth(playerId);
+      const cosmeticResult: Json = {
+        action_type: 'cc_market_create',
+        profile: p ? this.profileSnapshot(p) : null,
+        listing: this.listingJson(cosmeticListing),
+        item: this.itemJson(item),
+      };
+      return this.record(playerId, 'cc_market_create', key, cosmeticResult);
+    }
     const isVehicle = item.kind === 'vehicle';
     const listing: WriteListingData = {
       id: this.uuid(),
@@ -3917,7 +4074,7 @@ export class InMemoryWriteStore implements WriteStore {
     listing.status = 'cancelled';
     const kind = listing.listing_kind ?? 'gear';
     const item = listing.item_instance_id ? this.items.get(listing.item_instance_id) : undefined;
-    if (kind === 'gear' || kind === 'vehicle') {
+    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic') {
       if (item) {
         item.runtime_state = item.is_locked ? 'locked' : 'available';
         this.touchItem(item);
@@ -4004,7 +4161,7 @@ export class InMemoryWriteStore implements WriteStore {
     };
     let foundBySeller = false;
     let craftedBySeller = false;
-    if (kind === 'gear' || kind === 'vehicle') {
+    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic') {
       if (seller && soldItem && soldItem.supply_mode !== 'npc_market') {
         foundBySeller = this.sellerFoundItem(seller.id, soldItem);
         // House Brand gate (Fixer major, 0029): the item counts as

@@ -18,6 +18,9 @@ import {
 import { MobileCard } from '@/components/layout/MobileCard';
 import { getPublicProfile, type PlayerPublicProfile } from '@/lib/api/publicProfileService';
 import { PublicProfilePanel } from '@/components/profile/PublicProfilePanel';
+import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
+import { resolveLookView } from '@/lib/pixel/lookResolution';
+import { useHunterLooks } from '@/lib/pixel/useHunterLooks';
 
 interface LeaderboardsScreenProps {
   onNavigate?: (screen: string) => void;
@@ -45,6 +48,11 @@ const WeeklyRaceStandings: React.FC<{
   index?: number;
 }> = ({ race, myPlayerId, final, index = 0 }) => {
   const reduceMotion = useReducedMotion();
+  // Standings portraits (0053): every racer's worn look, batched.
+  const looks = useHunterLooks([
+    ...race.entries.map((e) => e.player_id),
+    ...(myPlayerId ? [myPlayerId] : []),
+  ]);
   const inTop = race.entries.some((e) => e.player_id === myPlayerId);
   const reward = final ? race.my_reward : null;
   return (
@@ -68,6 +76,11 @@ const WeeklyRaceStandings: React.FC<{
               className={`flex items-center gap-2 py-1 ${entry.player_id === myPlayerId ? 'bg-amber/10' : ''}`}
             >
               <span className="w-7 shrink-0 text-right text-xs font-black text-amber">#{entry.rank}</span>
+              {looks[entry.player_id] && (
+                <span className="w-7 shrink-0" data-testid={`standings-portrait-${entry.player_id}`}>
+                  <HunterPortrait look={resolveLookView(looks[entry.player_id])} className="h-9" />
+                </span>
+              )}
               <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">
                 {entry.username ?? 'Hunter'}
               </span>
@@ -82,6 +95,11 @@ const WeeklyRaceStandings: React.FC<{
       {race.me && !inTop && (
         <div className="flex items-center gap-2 border-t border-amber/40 bg-amber/10 px-1 py-1">
           <span className="w-7 shrink-0 text-right text-xs font-black text-amber">#{race.me.rank}</span>
+          {looks[myPlayerId ?? ''] && (
+            <span className="w-7 shrink-0" data-testid="standings-portrait-me">
+              <HunterPortrait look={resolveLookView(looks[myPlayerId ?? ''])} className="h-9" />
+            </span>
+          )}
           <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">You</span>
           <span className="whitespace-nowrap text-xs font-black tabular-nums text-text-primary">
             {race.me.value.toLocaleString('en-US')}

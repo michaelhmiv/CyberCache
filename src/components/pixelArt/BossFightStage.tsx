@@ -4,7 +4,7 @@ import { motion, useAnimationControls } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
 import { PixelPartsActor } from './PixelPartsActor';
 import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
-import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
+import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
 import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
@@ -146,7 +146,8 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
       : shotBeat
         ? 'recoil'
         : 'aim';
-  const hunterSet = hunterPartSet(headVariantPreference());
+  const look = useOwnLookWithLoad();
+  const hunterSet = look.set;
   const hunterLayout = layoutPartSet(
     hunterSet,
     PART_POSES[hunterPoseName],
@@ -320,6 +321,7 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
               on. */}
           <PixelPartsActor
             set={hunterSet}
+            partPalettes={look.partPalettes}
             {...hunterPlacement}
             reduced={reduced}
             pose={hunterPoseName}

@@ -21,7 +21,7 @@ import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { ENEMY_POSES, enemyRig } from '@/lib/pixel/rig';
 import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
-import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
+import { useCosmeticsStore, useOwnLook } from '@/store/slices/cosmeticsSlice';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
 import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
@@ -726,7 +726,10 @@ const PixelSceneLayer: React.FC<{
   // pose he is actually in: the held weapon's grip/muzzle, and (M3)
   // the layout's mass joint for his body. (The deleted whole-hunter
   // sprite's manifest anchors used to feed these.)
-  const hunterSet = hunterPartSet(headVariantPreference());
+  const look = useOwnLook();
+  const loadCosmetics = useCosmeticsStore((s) => s.load);
+  useEffect(() => { void loadCosmetics(); }, [loadCosmetics]);
+  const hunterSet = look.set;
   const hunterLayout = layoutPartSet(
     hunterSet,
     PART_POSES[hunterPoseName],
@@ -924,6 +927,7 @@ const PixelSceneLayer: React.FC<{
         {showEnemy ? (
           <PixelPartsActor
             set={hunterSet}
+            partPalettes={look.partPalettes}
             {...hunterPlacement}
             reduced={reduced}
             pose={hunterPoseName}
@@ -938,6 +942,7 @@ const PixelSceneLayer: React.FC<{
              seated grip-to-grip between the arm layers. */
           <PixelPartsActor
             set={hunterSet}
+            partPalettes={look.partPalettes}
             {...hunterPlacement}
             reduced={reduced}
             pose="idle"
@@ -951,6 +956,7 @@ const PixelSceneLayer: React.FC<{
              no phantom weapon, no aim stance holding air. */
           <PixelPartsActor
             set={hunterSet}
+            partPalettes={look.partPalettes}
             {...hunterPlacement}
             reduced={reduced}
             pose="relaxed"

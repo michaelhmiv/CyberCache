@@ -43,6 +43,13 @@ import {
   createGetResearchHandler,
 } from '../routes/research';
 import {
+  createEquipCosmeticHandler,
+  createGetCosmeticsHandler,
+  createGetHunterLooksHandler,
+  createSetHeadVariantHandler,
+  createUnequipCosmeticHandler,
+} from '../routes/cosmetics';
+import {
   createGetStandingHandler,
   createRankUpManufacturerHandler,
   createStandingBuyHandler,
@@ -192,6 +199,25 @@ export function mountResearchRoutes(
   app.post('/api/research/enroll', createEnrollResearchHandler(gameplayStore, config));
   app.post('/api/research/cancel', createCancelResearchHandler(gameplayStore, config));
   console.log('[chef] research routes mounted: GET /api/research/me, POST /api/research/enroll, POST /api/research/cancel (0038)');
+}
+
+/**
+ * Cosmetics routes (0053): the Wardrobe's state read + equip /
+ * unequip / head-variant ops + the public looks read on the
+ * gameplay store. Pure display surface — no ActivityKind, no
+ * mechanics path.
+ */
+export function mountCosmeticsRoutes(
+  app: Express,
+  gameplayStore: ChefGameplayStore,
+  config: GameplayRoutesConfig,
+): void {
+  app.get('/api/cosmetics/me', createGetCosmeticsHandler(gameplayStore, config));
+  app.post('/api/cosmetics/equip', createEquipCosmeticHandler(gameplayStore, config));
+  app.post('/api/cosmetics/unequip', createUnequipCosmeticHandler(gameplayStore, config));
+  app.post('/api/cosmetics/head-variant', createSetHeadVariantHandler(gameplayStore, config));
+  app.get('/api/cosmetics/looks', createGetHunterLooksHandler(gameplayStore, config));
+  console.log('[chef] cosmetics routes mounted: GET /api/cosmetics/me, POST /api/cosmetics/equip, POST /api/cosmetics/unequip, POST /api/cosmetics/head-variant, GET /api/cosmetics/looks (0053)');
 }
 
 /**

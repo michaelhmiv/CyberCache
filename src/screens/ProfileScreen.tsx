@@ -13,6 +13,7 @@ import { MasterySection } from '@/components/profile/MasterySection';
 import { CacheRankPanel } from '@/components/profile/CacheRankPanel';
 import { ResearchPanel } from '@/components/profile/ResearchPanel';
 import { TrophyShelfPanel } from '@/components/profile/TrophyShelfPanel';
+import { WardrobePanel } from '@/components/profile/WardrobePanel';
 import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
 import { StandingsDoor } from '@/components/profile/StandingsDoor';
 import { ClaimPulse } from '@/components/common/ClaimPulse';
@@ -285,6 +286,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           </div>
         </div>
       </MobileCard>
+
+      <WardrobePanel />
 
       <TrophyShelfPanel onOpenCollections={() => goToStop('collections')} />
 

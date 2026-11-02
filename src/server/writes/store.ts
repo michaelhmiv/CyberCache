@@ -20,7 +20,7 @@ import { mapProfile, type ProfileRowData } from '../reads/store.js';
 import { xpToNextLevel } from '../../content/simulation.js';
 import type { GearItem } from '../../types/items.js';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
-import { finalizePendingCraftedGear } from './craftFinalize.js';
+import { finalizePendingCraftedCosmetics, finalizePendingCraftedGear } from './craftFinalize.js';
 import {
   buildWorkshopStateView,
   type CraftJobRecord,
@@ -157,7 +157,7 @@ export interface WriteListingData {
   // stores normalize absent fields to the gear defaults at read time.
   // Sellable resources (0050) add the fragment/core/essence kinds and
   // the essence_id column (the essence type for essence listings).
-  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence';
+  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
   quantity?: number;
   quality_percent?: number | null;
   consumable_type?: string | null;
@@ -167,6 +167,11 @@ export interface WriteListingData {
   batch_source_recipe_id?: string | null;
   material_id?: string | null;
   essence_id?: string | null;
+  /** Cosmetic listings (0053): the part-catalog id + the part's
+   *  tint at listing time (card columns; quality rides
+   *  quality_percent). */
+  part_id?: string | null;
+  tint_palette_id?: string | null;
   identity_key?: string | null;
   category?: string | null;
   display_name?: string | null;
@@ -806,6 +811,13 @@ export interface EnqueueShieldTechJobInput {
   toBehavior: string;
 }
 
+/** Tint enqueue input (0053): the request body carries only the
+ *  part and the owner-chosen palette; cost derives server-side. */
+export interface EnqueueTintJobInput {
+  itemId: string;
+  paletteId: string;
+}
+
 export interface WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json>;
   makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json>;
@@ -933,6 +945,13 @@ export interface WriteStore {
    * `workshop_service` is the active action.
    */
   enqueueShieldTechJob(playerId: string, nonce: string, input: EnqueueShieldTechJobInput): Promise<Json>;
+  /**
+   * Enqueue a tint job on the craft machinery (cc_enqueue_tint_job,
+   * 0053): a single-unit cosmetic job against an OWNED part item;
+   * the palette's Chromaweave + the recipe's flat Scrap escrow at
+   * enqueue and the tint lands at completion.
+   */
+  enqueueTintJob(playerId: string, nonce: string, input: EnqueueTintJobInput): Promise<Json>;
   /**
    * Post a shield-tech job to the open board (cc_post_shieldtech_job):
    * the full price escrows at posting and the shield locks in
@@ -1300,6 +1319,7 @@ export class PgWriteStore implements WriteStore {
     // generators — finalize before returning so no surface can
     // observe a completed unit without its item.
     await finalizePendingCraftedGear(this.pool, playerId);
+    await finalizePendingCraftedCosmetics(this.pool, playerId);
     return result;
   }
   async cancelCraftJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
@@ -1307,6 +1327,7 @@ export class PgWriteStore implements WriteStore {
       playerId, nonce, jobId,
     ]);
     await finalizePendingCraftedGear(this.pool, playerId);
+    await finalizePendingCraftedCosmetics(this.pool, playerId);
     return result;
   }
   unlockCraftBench(playerId: string, nonce: string): Promise<Json> {
@@ -1322,6 +1343,7 @@ export class PgWriteStore implements WriteStore {
       playerId, maxAdvanceMs ?? null,
     ]);
     await finalizePendingCraftedGear(this.pool, playerId);
+    await finalizePendingCraftedCosmetics(this.pool, playerId);
     return result;
   }
   async fireOverclockWorkshop(playerId: string, nonce: string): Promise<Json> {
@@ -1331,11 +1353,13 @@ export class PgWriteStore implements WriteStore {
     // A fired unit can complete a gear job — finalize its pending
     // crafted gear exactly like a settle does.
     await finalizePendingCraftedGear(this.pool, playerId);
+    await finalizePendingCraftedCosmetics(this.pool, playerId);
     return result;
   }
   async getWorkshopState(playerId: string): Promise<Json> {
     await this.callJson('select public.cc_settle_craft_jobs($1, $2) as result', [playerId, null]);
     await finalizePendingCraftedGear(this.pool, playerId);
+    await finalizePendingCraftedCosmetics(this.pool, playerId);
     try {
       const { rows: profileRows } = await this.pool.query(
         'select workshop_benches, workshop_tools from public.profiles where id = $1',
@@ -1574,6 +1598,11 @@ export class PgWriteStore implements WriteStore {
   enqueueShieldTechJob(playerId: string, nonce: string, input: EnqueueShieldTechJobInput): Promise<Json> {
     return this.callJson('select public.cc_enqueue_shieldtech_job($1, $2, $3, $4) as result', [
       playerId, nonce, input.itemId, input.toBehavior,
+    ]);
+  }
+  enqueueTintJob(playerId: string, nonce: string, input: EnqueueTintJobInput): Promise<Json> {
+    return this.callJson('select public.cc_enqueue_tint_job($1, $2, $3, $4) as result', [
+      playerId, nonce, input.itemId, input.paletteId,
     ]);
   }
   postShieldTechJob(playerId: string, nonce: string, itemId: string, toBehavior: string, priceCredits: number): Promise<Json> {

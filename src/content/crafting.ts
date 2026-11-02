@@ -28,6 +28,7 @@ import { CRAFTING_RECIPES } from '../constants/craftingRecipes';
 import { CONSUMABLES } from '../constants/consumables';
 import { ROAMING_AREAS } from '../constants/roamingAreas';
 import { MaterialType, Rarity } from '../types/game';
+import { SKIN_PARTS, TINT_PALETTES } from './skins';
 
 // ─── Levers (§2.10; registered in src/server/economy/config.ts) ─────
 
@@ -113,7 +114,7 @@ export function benchDef(bench: number): CraftBenchDef {
 
 // ─── The unified craft catalog (§2.5) ────────────────────────────────
 
-export type CraftJobKind = 'consumable' | 'refine' | 'gear' | 'tool' | 'repair' | 'shieldtech';
+export type CraftJobKind = 'consumable' | 'refine' | 'gear' | 'tool' | 'repair' | 'shieldtech' | 'cosmetic';
 export type CraftStation = 'bench' | 'crusher' | 'furnace';
 
 export interface CraftRecipe {
@@ -121,7 +122,7 @@ export interface CraftRecipe {
   kind: CraftJobKind;
   name: string;
   /** Display grouping in the Workshop. */
-  category: 'survival' | 'offense' | 'utility' | 'refining' | 'gear' | 'tools';
+  category: 'survival' | 'offense' | 'utility' | 'refining' | 'gear' | 'tools' | 'cosmetics';
   /** Per-unit inputs: material ids resolve against profiles.materials,
    *  essence ids against profiles.essences (legacy recipe convention). */
   inputs: Record<string, number>;
@@ -159,6 +160,19 @@ export interface CraftRecipe {
   durationByRarityMs?: Partial<Record<Rarity, number>>;
   /** tool kind: the workshop tool asset this job produces. */
   toolId?: string;
+  /** cosmetic kind: the skin part this recipe produces (an id in
+   *  src/content/skins.ts SKIN_PARTS). Completion stamps a pending
+   *  output the craft finalizer turns into a cosmetic item. */
+  cosmeticPartId?: string;
+  /** Per-recipe unit cap at enqueue (prestige crafts: T3 parts and
+   *  manufacturer heads are single-unit jobs — brief §6.1). */
+  maxUnits?: number;
+  /** The tint craft (cosmetic kind): not enqueued directly — the
+   *  tint enqueue (cc_enqueue_tint_job) starts it against a target
+   *  part item, and tintPalettes prices the Chromaweave input per
+   *  palette (starter palettes are free). */
+  tintCraft?: boolean;
+  tintPalettes?: { id: string; chromaweave: number }[];
 }
 
 const MIN = 60 * 1000;
@@ -226,6 +240,7 @@ const REFINING_RECIPES: CraftRecipe[] = [
   { id: 'refine_composite_plating', kind: 'refine', name: 'Composite Plating', category: 'refining', inputs: { RefinedAlloy: 4, StabilizedCells: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 3, station: 'furnace', outputMaterial: 'CompositePlating', outputBase: 2 },
   { id: 'refine_circuit_lattice', kind: 'refine', name: 'Circuit Lattice', category: 'refining', inputs: { WovenCircuits: 4, TemperedParts: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 3, station: 'furnace', outputMaterial: 'CircuitLattice', outputBase: 2 },
   { id: 'refine_voidweave', kind: 'refine', name: 'Voidweave', category: 'refining', inputs: { CondensedVoid: 2, WovenCircuits: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 3, station: 'furnace', outputMaterial: 'Voidweave', outputBase: 2 },
+  { id: 'refine_chromaweave', kind: 'refine', name: 'Chromaweave', category: 'refining', inputs: { MycoSteelFiber: 2, VoidEssence: 1 }, unitDurationMs: 30 * MIN, requiresLevel: 1, requiresBench: 2, station: 'furnace', outputMaterial: 'Chromaweave', outputBase: 2 },
 ];
 
 /** Gear-frame durations by rarity (§2.5c): C/U 90min, Rare 150, Epic 240. */
@@ -432,6 +447,93 @@ const STANDING_RECIPES: CraftRecipe[] = [
   },
 ];
 
+/**
+ * Cosmetic part recipes (skins slice, migration 0053; brief §6).
+ * One recipe per skin part, listed in the Workshop cosmetic lane
+ * for everyone — no blueprints, no learn-gating. Inputs are
+ * SCRAP-LED (the `Scrap` key charges profiles.scrap, the game's
+ * bulk material currency — the enqueue/cancel paths special-case
+ * it beside materials and essences) with per-tier secondaries.
+ * T3 shaped parts and manufacturer heads are single-unit prestige
+ * jobs (maxUnits 1); T2 repaints batch to 10.
+ */
+interface CosmeticCost {
+  inputs: Record<string, number>;
+  minutes: number;
+  bench: number;
+  level: number;
+  maxUnits: number;
+}
+
+const COSMETIC_COSTS: Record<string, CosmeticCost> = {
+  // Bulwark (T3 shaped): bench 3, hours-long, scrap in the thousands.
+  'bulwark-head': { inputs: { Scrap: 3200, CompositePlating: 2, PrismShards: 2 }, minutes: 180, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-torso': { inputs: { Scrap: 3600, CompositePlating: 3, RefinedAlloy: 4 }, minutes: 210, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-arm-upper-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-arm-fore-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-arm-far': { inputs: { Scrap: 1800, TemperedParts: 2 }, minutes: 105, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-thigh-f': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-thigh-b': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-lower-leg-f': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-lower-leg-b': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-back': { inputs: { Scrap: 2600, CircuitLattice: 2, WovenCircuits: 2 }, minutes: 150, bench: 3, level: 10, maxUnits: 1 },
+  // Dreadplate (T2 repaint): bench 2, an afternoon's craft.
+  'dread-head': { inputs: { Scrap: 700, PrismShards: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-torso': { inputs: { Scrap: 600, RefinedAlloy: 2 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-arm-upper-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-arm-fore-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-arm-far': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-thigh-f': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-thigh-b': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-lower-leg-f': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-lower-leg-b': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-back': { inputs: { Scrap: 600, WovenCircuits: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  // Manufacturer heads: the normal scrap-crafting pool (brief §0.6).
+  'mfr-head-redline': { inputs: { Scrap: 1800, NitrocellGel: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
+  'mfr-head-ironwood': { inputs: { Scrap: 1800, HeartwoodResin: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
+  'mfr-head-blastforge': { inputs: { Scrap: 1800, ForgeheartIngots: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
+  'mfr-head-prismatek': { inputs: { Scrap: 1800, PrismShards: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
+  'mfr-head-throwtech': { inputs: { Scrap: 1800, MagnetiteCores: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
+  'mfr-head-helixworks': { inputs: { Scrap: 1800, Siltglass: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
+};
+
+export const COSMETIC_RECIPES: CraftRecipe[] = SKIN_PARTS.map((p) => {
+  const cost = COSMETIC_COSTS[p.id];
+  if (!cost) throw new Error(`Missing cosmetic craft cost for ${p.id}`);
+  return {
+    id: p.recipeId,
+    kind: 'cosmetic' as const,
+    name: p.name,
+    category: 'cosmetics' as const,
+    inputs: cost.inputs,
+    unitDurationMs: cost.minutes * MIN,
+    requiresLevel: cost.level,
+    requiresBench: cost.bench,
+    station: 'bench' as const,
+    cosmeticPartId: p.id,
+    maxUnits: cost.maxUnits,
+  };
+});
+
+/** The tint craft (brief §6.2): a short cosmetic job against an
+ *  OWNED part item — started by the tint enqueue, never the generic
+ *  one. Flat scrap in the recipe inputs; Chromaweave is priced per
+ *  palette in tintPalettes (starters are free). */
+export const TINT_RECIPE: CraftRecipe = {
+  id: 'tint_craft',
+  kind: 'cosmetic',
+  name: 'Tint a Part',
+  category: 'cosmetics',
+  inputs: { Scrap: 25 },
+  unitDurationMs: 5 * MIN,
+  requiresLevel: 1,
+  requiresBench: 1,
+  station: 'bench',
+  tintCraft: true,
+  tintPalettes: TINT_PALETTES.map((t) => ({ id: t.id, chromaweave: t.chromaweave })),
+  maxUnits: 1,
+};
+
 export const ALL_CRAFT_RECIPES: readonly CraftRecipe[] = [
   ...LEGACY_RECIPES,
   ...VEHICLE_CONSUMABLE_RECIPES,
@@ -440,6 +542,8 @@ export const ALL_CRAFT_RECIPES: readonly CraftRecipe[] = [
   ...TOOL_RECIPES,
   ...BATCH_RECIPES,
   ...STANDING_RECIPES,
+  ...COSMETIC_RECIPES,
+  TINT_RECIPE,
 ];
 
 const RECIPE_BY_ID = new Map(ALL_CRAFT_RECIPES.map((r) => [r.id, r]));
@@ -467,6 +571,7 @@ export const CRAFT_MASTERY_TRACKS = {
   consumable: 'crafting_consumables',
   refining: 'crafting.refining',
   gear: 'crafting.gear',
+  cosmetic: 'crafting.cosmetics',
 } as const;
 
 /** Mastery XP per completed unit, by job kind. */
@@ -477,15 +582,20 @@ export function craftMasteryForKind(kind: CraftJobKind): { track: string; xpPerU
     case 'gear':
     case 'tool':
       return { track: CRAFT_MASTERY_TRACKS.gear, xpPerUnit: 25 };
+    case 'cosmetic':
+      return { track: CRAFT_MASTERY_TRACKS.cosmetic, xpPerUnit: 15 };
     default:
       return { track: CRAFT_MASTERY_TRACKS.consumable, xpPerUnit: 10 };
   }
 }
 
 /** The mastery track whose level widens a job's quality bounds: the
- *  consumable track for consumables, the gear track for frames/tools. */
+ *  consumable track for consumables, the gear track for frames/tools,
+ *  the cosmetics track for cosmetic parts (their finish roll). */
 export function qualityMasteryTrackForKind(kind: CraftJobKind): string {
-  return kind === 'gear' || kind === 'tool' ? CRAFT_MASTERY_TRACKS.gear : CRAFT_MASTERY_TRACKS.consumable;
+  if (kind === 'gear' || kind === 'tool') return CRAFT_MASTERY_TRACKS.gear;
+  if (kind === 'cosmetic') return CRAFT_MASTERY_TRACKS.cosmetic;
+  return CRAFT_MASTERY_TRACKS.consumable;
 }
 
 // ─── XP formula (§2.3) ───────────────────────────────────────────────

@@ -192,7 +192,14 @@ describe('migration 0044 — catalog + consumable parity pins', () => {
     expect(parts.length).toBeGreaterThanOrEqual(3);
     const catalog = JSON.parse(parts[1]) as Array<Record<string, unknown>>;
     expect(catalog).toHaveLength(59);
-    expect(catalog.map((r) => r.id).sort()).toEqual(ALL_CRAFT_RECIPES.map((r) => r.id).sort());
+    // 0053's cosmetic recipes + the Chromaweave refine postdate
+    // 0044; their SQL parity is pinned against 0053 in
+    // skinsCosmetics.test.ts.
+    expect(catalog.map((r) => r.id).sort()).toEqual(
+      ALL_CRAFT_RECIPES.filter(
+        (r) => r.category !== 'cosmetics' && r.id !== 'refine_chromaweave',
+      ).map((r) => r.id).sort(),
+    );
     // The slice's own recipe matches the TS catalog field for field.
     const ts = ALL_CRAFT_RECIPES.find((r) => r.id === 'recipe_calibration_core')!;
     const entry = catalog.find((r) => r.id === 'recipe_calibration_core')!;

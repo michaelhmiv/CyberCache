@@ -223,6 +223,7 @@ export const MATERIAL_VISUALS = {
   [MaterialType.CompositePlating]: { id: MaterialType.CompositePlating, kind: 'material', label: 'Composite Plating', shortLabel: 'CMP', mark: 'C', color: '#D8DEE9', accentColor: '#FFCCBC', description: 'Lab composite: layered plate for frames and armor work.', texture: 'metal' },
   [MaterialType.CircuitLattice]: { id: MaterialType.CircuitLattice, kind: 'material', label: 'Circuit Lattice', shortLabel: 'LAT', mark: 'L', color: '#8FD8FF', accentColor: '#E0F7FA', description: 'Lab composite: a grown lattice of interlocked circuits.', texture: 'crystal' },
   [MaterialType.Voidweave]: { id: MaterialType.Voidweave, kind: 'material', label: 'Voidweave', shortLabel: 'VDW', mark: 'V', color: '#B388FF', accentColor: '#FFD1F5', description: 'Lab composite: void-touched weave for exotic builds.', texture: 'crystal' },
+  [MaterialType.Chromaweave]: { id: MaterialType.Chromaweave, kind: 'material', label: 'Chromaweave', shortLabel: 'CHR', mark: 'W', color: '#FF9DF5', accentColor: '#A5F3FC', description: 'Pigment-bearing weave refined from myco-steel fiber and void essence. Carries a tint craft into a worn part.', texture: 'crystal' },
 } satisfies Record<MaterialType, VisualAsset>;
 
 export const ESSENCE_VISUALS = {

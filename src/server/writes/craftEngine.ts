@@ -77,6 +77,12 @@ import {
   shieldTechWorkRatePointsPerHour,
 } from '../../content/shieldTech.js';
 import { shieldBehaviorOf, type ShieldBehaviorId } from '../../lib/combat/shieldBehaviors.js';
+import {
+  buildCosmeticPartPayload,
+  rollCosmeticQuality,
+  tintPaletteById,
+  type CosmeticPartPayload,
+} from '../../content/skins.js';
 import { Rarity } from '../../types/game.js';
 import { applyXp } from './store.js';
 import {
@@ -128,6 +134,16 @@ export interface CraftJobSnapshot {
    *  record per unit, in burn order), and the rate / efficiency
    *  snapshot priced from the owner's shield-tech mastery. */
   shieldtech?: CraftShieldTechSnapshot;
+  /** Tint jobs only (kind 'cosmetic' with the tint recipe, skins
+   *  slice 0053): the owned part item being re-tinted and the
+   *  palette the job will write at completion. */
+  tint?: CraftTintSnapshot;
+}
+
+export interface CraftTintSnapshot {
+  itemId: string;
+  paletteId: string;
+  fromPaletteId: string | null;
 }
 
 export interface CraftShieldTechSnapshot {
@@ -199,6 +215,14 @@ export interface CraftJobOutput {
    *  longer carried the enqueued behavior when this unit would have
    *  started; the job ends and this + later cores refund. */
   shieldUnavailable?: boolean;
+  /** Cosmetic units (0053): the skin part a part craft produced. */
+  cosmeticPartId?: string;
+  /** Tint units (0053): the palette written to the target part. */
+  paletteId?: string;
+  /** Tint units (0053): whether the tint actually landed (the
+   *  target is re-read at completion; a part that left the
+   *  workshop state records false instead of failing the job). */
+  tintApplied?: boolean;
 }
 
 export interface CraftJobRecord {
@@ -239,6 +263,8 @@ export interface CraftProfileView {
   player_level: number;
   player_xp: number;
   credits: number;
+  /** The scrap column (0053): cosmetic recipes escrow it directly. */
+  scrap: number;
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
@@ -339,6 +365,21 @@ export interface CraftAdapter {
     itemId: string,
     points: number,
   ): { conditionCurrent: number; conditionMax: number } | null;
+  /** Cosmetic crafts (0053): insert a finished skin part item;
+   *  returns the new item id (the gear insert's mirror). */
+  insertCosmeticItem(playerId: string, payload: CosmeticPartPayload): string;
+  /** Tint jobs (0053): read one owned item's cosmetic state. */
+  cosmeticInfo(
+    playerId: string,
+    itemId: string,
+  ): {
+    kind: string;
+    runtimeState: string;
+    isLocked: boolean;
+    payload: Record<string, unknown>;
+  } | null;
+  /** Tint jobs (0053): write a part's tint palette id. */
+  applyCosmeticTint(playerId: string, itemId: string, paletteId: string): void;
   levers(): CraftLeverValues;
 }
 
@@ -855,6 +896,46 @@ function completeCraftUnit(
     profile.workshop_tools.owned[recipe.toolId] = true;
     profile.workshop_tools.charges[recipe.toolId] = def?.durabilityJobs ?? 25;
     output.toolId = recipe.toolId;
+  } else if (job.kind === 'cosmetic' && recipe.tintCraft) {
+    // Tint job (0053): the craft lands on the TARGET part item,
+    // re-read at completion (the SQL branch's twin). A part that
+    // left the workshop state records tintApplied=false; the job
+    // still completes — the work happened.
+    const snap = job.snapshot.tint;
+    if (!snap) fail('Tint job snapshot missing');
+    const info = adapter.cosmeticInfo(playerId, snap.itemId);
+    const applied =
+      !!info &&
+      info.kind === 'cosmetic' &&
+      (info.runtimeState === 'available' || info.runtimeState === 'locked');
+    if (applied) adapter.applyCosmeticTint(playerId, snap.itemId, snap.paletteId);
+    output.itemId = snap.itemId;
+    output.cosmeticPartId =
+      typeof info?.payload.partId === 'string' ? info.payload.partId : undefined;
+    output.paletteId = snap.paletteId;
+    output.tintApplied = applied;
+  } else if (job.kind === 'cosmetic' && recipe.cosmeticPartId) {
+    // Skin part craft (0053): the finish roll prices the part's
+    // permanent quality (content/skins.ts rollCosmeticQuality —
+    // the one formula; migration 0053's SQL branch is its twin),
+    // then the part item is inserted like a gear completion.
+    const masteryLevel = adapter.masteryLevel(playerId, 'crafting.cosmetics');
+    const quality = rollCosmeticQuality({
+      random01: adapter.rng(),
+      bench: job.bench,
+      toolQualityMultiplier: job.snapshot.toolQualityMultiplier,
+      shift: composedCraftQualityShift(
+        levers.craftQualityShift,
+        adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+        adapter.researchBonus?.(playerId, 'craftQualityShift') ?? 0,
+      ),
+      masteryLevel,
+    });
+    const payload = buildCosmeticPartPayload(recipe.cosmeticPartId, quality, playerId);
+    if (!payload) fail('Unknown cosmetic part');
+    output.itemId = adapter.insertCosmeticItem(playerId, payload);
+    output.cosmeticPartId = recipe.cosmeticPartId;
+    output.quality = quality;
   }
 
   const mastery = craftMasteryForKind(job.kind);
@@ -912,6 +993,13 @@ export function enqueueCraftJob(
   const units = Math.floor(input.units);
   if (!Number.isFinite(units) || units < 1) fail('units must be a positive integer');
   if (units > MAX_UNITS_PER_JOB) fail(`units exceeds the per-job maximum of ${MAX_UNITS_PER_JOB}`);
+  // Cosmetics (0053): the tint craft is an item-target job and
+  // starts only through enqueueTintJob; per-recipe unit caps
+  // (prestige crafts) bind here.
+  if (r.tintCraft) fail('Tint crafts start from the Tinting action');
+  if (r.maxUnits !== undefined && units > r.maxUnits) {
+    fail(`This craft runs at most ${r.maxUnits} units at a time`);
+  }
 
   const bench = Math.floor(input.bench);
   if (!Number.isFinite(bench) || bench < 1 || bench > 3) fail('bench must be 1, 2 or 3');
@@ -990,12 +1078,15 @@ export function enqueueCraftJob(
   }
 
   // Verify the full escrow before taking any of it (atomicity).
+  // The `Scrap` key (0053, the cosmetic recipes' lead input) reads
+  // the scrap COLUMN, not a material/essence balance.
   const escrowInputs: Record<string, number> = {};
   for (const [key, perUnit] of Object.entries(r.inputs)) {
     escrowInputs[key] = perUnit * units;
-    const available = isMaterialInput(key) ? (p.materials[key] ?? 0) : (p.essences[key] ?? 0);
+    const available =
+      key === 'Scrap' ? (p.scrap ?? 0) : isMaterialInput(key) ? (p.materials[key] ?? 0) : (p.essences[key] ?? 0);
     if (available < escrowInputs[key]) {
-      fail(isMaterialInput(key) ? `Insufficient material ${key}` : `Insufficient essence ${key}`);
+      fail(key === 'Scrap' ? 'Insufficient scrap' : isMaterialInput(key) ? `Insufficient material ${key}` : `Insufficient essence ${key}`);
     }
   }
   const escrowCatalyst: Record<string, number> = {};
@@ -1032,7 +1123,8 @@ export function enqueueCraftJob(
 
   // Take the escrow.
   for (const [key, total] of Object.entries(escrowInputs)) {
-    if (isMaterialInput(key)) p.materials[key] = (p.materials[key] ?? 0) - total;
+    if (key === 'Scrap') p.scrap = (p.scrap ?? 0) - total;
+    else if (isMaterialInput(key)) p.materials[key] = (p.materials[key] ?? 0) - total;
     else p.essences[key] = (p.essences[key] ?? 0) - total;
   }
   for (const [key, total] of Object.entries(escrowCatalyst)) {
@@ -1396,6 +1488,120 @@ export function enqueueShieldTechJob(
   return { job };
 }
 
+// ─── Tint enqueue (0053; the shield-tech item-target pattern) ─────
+
+export interface EnqueueTintJobInput {
+  itemId: string;
+  paletteId: string;
+}
+
+/**
+ * Tint a cosmetic part: a single-unit cosmetic job against an OWNED
+ * part item. Escrow = the tint recipe's flat Scrap leg plus the
+ * palette's Chromaweave (starter palettes are free). The tint lands
+ * at completion (completeCraftUnit's tint branch), never at
+ * enqueue. Migration 0053's cc_enqueue_tint_job is the SQL twin —
+ * same gates, same messages.
+ */
+export function enqueueTintJob(
+  adapter: CraftAdapter,
+  playerId: string,
+  input: EnqueueTintJobInput,
+): { job: CraftJobRecord } {
+  settleCraftJobs(adapter, playerId);
+  const profile = adapter.profile(playerId);
+  if (!profile) fail('Profile not found');
+  const p = profile as CraftProfileView;
+
+  const recipe = getCraftRecipe('tint_craft');
+  if (!recipe || !recipe.tintCraft) fail('Unknown craft recipe');
+  const palette = tintPaletteById(input.paletteId);
+  if (!palette) fail('Unknown tint palette');
+  const chromaweave = palette.chromaweave;
+  const scrapCost = recipe.inputs['Scrap'] ?? 0;
+
+  const info = adapter.cosmeticInfo(playerId, input.itemId);
+  if (!info) fail('Item not found');
+  if (info.kind !== 'cosmetic') fail('Item is not a cosmetic part');
+  if (info.runtimeState !== 'available' || info.isLocked) {
+    fail('Part is not available for tinting');
+  }
+  const fromPaletteId = typeof info.payload.tintPaletteId === 'string' ? info.payload.tintPaletteId : null;
+  if (fromPaletteId === input.paletteId) fail('Part already carries that tint');
+  const tintJobs = adapter
+    .jobs(playerId)
+    .filter((j) => j.status === 'active' && j.kind === 'cosmetic' && j.snapshot.tint);
+  if (tintJobs.some((j) => j.snapshot.tint?.itemId === input.itemId)) {
+    fail('A tint job is already running for this part');
+  }
+
+  // Verify the full escrow before taking any of it (atomicity).
+  if ((p.scrap ?? 0) < scrapCost) fail('Insufficient scrap');
+  if (chromaweave > 0 && (p.materials['Chromaweave'] ?? 0) < chromaweave) {
+    fail('Insufficient material Chromaweave');
+  }
+
+  // First bench with queue room (the generic capacity rule).
+  let bench = 0;
+  for (let b = 1; b <= Math.max(1, p.workshop_benches); b += 1) {
+    const active = adapter.jobs(playerId).filter((j) => j.status === 'active' && j.bench === b).length;
+    if (active < 1 + QUEUED_JOBS_PER_BENCH) {
+      bench = b;
+      break;
+    }
+  }
+  if (bench === 0) fail('Bench queue is full');
+
+  const escrowInputs: Record<string, number> = {};
+  if (scrapCost > 0) {
+    escrowInputs['Scrap'] = scrapCost;
+    p.scrap = (p.scrap ?? 0) - scrapCost;
+  }
+  if (chromaweave > 0) {
+    escrowInputs['Chromaweave'] = chromaweave;
+    p.materials['Chromaweave'] = (p.materials['Chromaweave'] ?? 0) - chromaweave;
+  }
+
+  const now = adapter.nowMs();
+  const job: CraftJobRecord = {
+    id: adapter.uuid(),
+    owner_user_id: playerId,
+    bench,
+    kind: 'cosmetic',
+    recipe_id: 'tint_craft',
+    units_total: 1,
+    units_completed: 0,
+    unit_duration_ms: recipe.unitDurationMs,
+    accrued_ms: 0,
+    status: 'active',
+    escrow_inputs: escrowInputs,
+    escrow_catalyst: {},
+    rush_ticket_quality: null,
+    rush_ticket_origin: null,
+    snapshot: {
+      toolId: null,
+      toolQualityMultiplier: 1,
+      toolDurationMultiplier: 1,
+      toolRefineYieldBonus: 0,
+      toolBonusUnitChance: 0,
+      skillDurationMultiplier: 1,
+      rushReduction: 0,
+      craftTimeScalar: 1,
+      catalystMaterialId: null,
+      gearRarity: null,
+      tint: { itemId: input.itemId, paletteId: input.paletteId, fromPaletteId },
+    },
+    xp_awarded: 0,
+    outputs: [],
+    tool_charged: false,
+    created_at_ms: now,
+    last_settled_ms: now,
+    completed_at_ms: null,
+  };
+  adapter.addJob(job);
+  return { job };
+}
+
 // ─── Cancel (§2.1 refund table) ──────────────────────────────────────
 
 export interface CancelCraftJobResult {
@@ -1469,15 +1675,28 @@ export function cancelCraftJob(
   };
   // Recipe inputs split materials/essences by key space; the catalyst
   // is a per-unit material input and follows the same refund rule.
+  // The `Scrap` key (0053) refunds to the scrap column.
   const materialInputs: Record<string, number> = {};
   const essenceInputs: Record<string, number> = {};
+  const scrapInputs: Record<string, number> = {};
   for (const [key, total] of Object.entries(j.escrow_inputs)) {
     const perUnit = total / j.units_total;
-    if (isMaterialInput(key)) materialInputs[key] = perUnit;
+    if (key === 'Scrap') scrapInputs[key] = perUnit;
+    else if (isMaterialInput(key)) materialInputs[key] = perUnit;
     else essenceInputs[key] = perUnit;
   }
   refundMap(materialInputs, p.materials);
   refundMap(essenceInputs, p.essences);
+  // refundMap credits a key map; scrap lives on the profile column,
+  // so fold its refund in directly on the same schedule.
+  for (const [key, perUnit] of Object.entries(scrapInputs)) {
+    let amount = perUnit * unstarted;
+    if (inProgress) amount += Math.floor(perUnit * 0.5);
+    if (amount > 0) {
+      refunded[key] = (refunded[key] ?? 0) + amount;
+      p.scrap = (p.scrap ?? 0) + amount;
+    }
+  }
   const catalystPerUnit: Record<string, number> = {};
   for (const [key, total] of Object.entries(j.escrow_catalyst)) {
     catalystPerUnit[key] = total / j.units_total;
