@@ -44,7 +44,9 @@ At the stage's top edge sits the **area plate** — your current area's name (or
 
 ## The mode rail
 
-Under the stage runs the **mode rail** — six stops, one tap each: **Area · Roam · Boss · Endless · Extract · Craft**. The lit stop is the mode whose workspace is open below. Endless, Extraction, and Crafting are full stops on the rail; the **Switch Action** sheet (under the rail) still offers every mode it always did, Salvage included — the rail is the fast door, the sheet is the complete one.
+Under the stage runs the **mode rail** — six stops, one tap each: **Area · Roam · Boss · Endless · Extract · Craft**. The lit stop is the mode whose workspace is open below. Endless, Extraction, and Crafting are full stops on the rail; the **Switch Action** sheet still offers every mode it always did, Salvage included — the rail is the fast door, the sheet is the complete one.
+
+The action controls themselves float **on the stage**: the **Switch Action** chip sits at the stage's bottom-right corner in every state — it is the sheet's one door — and while an action is running, a **Stop** chip joins it. There is no separate controls row; the space under the rail belongs to the workspace.
 
 Below the rail sits the **lit workspace** for the current mode, then the **consumable belt**: your active consumable slots, above the fold. Tap a slot to open the ledger and manage what is loaded.
 

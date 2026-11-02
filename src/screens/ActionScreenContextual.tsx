@@ -649,6 +649,28 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
   ].slice(0, MAX_SWITCH_ROWS);
 
+  // Action controls (owner ruling 2026-11-02): Switch / Stop float
+  // ON the stage as chips in the plates' language — the stage
+  // places them bottom-right, above the status ribbon. The
+  // dedicated row under the rail that used to carry them is
+  // deleted and its height reclaimed. Switch rides the stage in
+  // EVERY state: it is the one door to the Switch sheet, and
+  // through it to Salvage, which has no rail stop — hiding it at
+  // standby would bury a feature. Stop joins it while an action
+  // runs; at standby Stop renders disabled today (a permanent
+  // no-op chip on the art), so nothing functional leaves the
+  // idle stage. Both keep their 44px touch height and one-tap
+  // behavior, unchanged.
+  const actionRunning = currentKind !== 'idle_standby' && currentKind !== 'none';
+  const stageControls = (
+    <>
+      <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[11px] font-black text-amber shadow-[4px_4px_0_rgba(0,0,0,0.62)]">Switch Action</button>
+      {actionRunning && (
+        <button type="button" onClick={stopAction} disabled={activity.pending} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[11px] font-black text-red shadow-[4px_4px_0_rgba(0,0,0,0.62)] disabled:opacity-50">Stop</button>
+      )}
+    </>
+  );
+
   return (
     <div className="bl-page relative overflow-hidden space-y-3 p-3 pb-20">
       {/* Ambient glow blobs — matching Dashboard */}
@@ -665,9 +687,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           renders once at the top of the Home screen, not per-stage. */}
 
       {/* §4: nothing but the Strip and claim chips sits above the
-          Stage. The Switch/Stop controls row that used to lead
-          this screen now sits under the mode rail (the workspace
-          header zone), and the claim-sync line moved down to the
+          Stage. The Switch/Stop controls float ON the stage now
+          (owner ruling 2026-11-02 — see stageControls below); the
+          dedicated controls row that used to sit under the mode
+          rail is gone, and the claim-sync line moved down to the
           session feed it describes. The one chip that remains in
           this zone is the research chip (#239: the education track
           runs beside the action) — the current-area bar that used
@@ -691,6 +714,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         equippedCount={equippedCount}
         activityKind={currentKind}
         onTitleClick={() => setShowAreaSelect(true)}
+        stageControls={stageControls}
       />
 
       {/* 1b. Mode rail (§2/§4) — the stage's six stops under the
@@ -700,16 +724,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           keeps every path it had, Salvage included. */}
       <div className="relative">
         <HomeModeRail activeStop={railActiveStop} onSelect={handleRailSelect} />
-      </div>
-
-      {/* Controls row — Switch / Stop, in the workspace header
-          zone under the rail (§4: above the Stage, only the Strip
-          and claim chips may sit). */}
-      <div className="relative flex items-start justify-end gap-3">
-        <div className="flex gap-2">
-          <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[11px] font-black text-amber">Switch Action</button>
-          <button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[11px] font-black text-red disabled:opacity-50">Stop</button>
-        </div>
       </div>
 
       {/* 2. Action-specific panel — the lit workspace */}

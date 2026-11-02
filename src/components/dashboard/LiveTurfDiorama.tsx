@@ -66,6 +66,11 @@ interface LiveTurfDioramaProps {
   bossPhase?: BossPhase;
   statSummary?: CharacterStatSummary;
   onTitleClick?: () => void;
+  /** Owner ruling 2026-11-02: the running action's controls
+   *  (Switch Action · Stop) float ON the stage as chips in the
+   *  plates' language, bottom-right above the status ribbon —
+   *  supplied by the screen, rendered by the stage. */
+  stageControls?: React.ReactNode;
 }
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
@@ -1165,7 +1170,7 @@ const PixelSceneLayer: React.FC<{
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, onTitleClick }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, onTitleClick, stageControls }) => {
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the SVG fight can react.
@@ -1187,7 +1192,9 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : 'No weapon equipped';
   // Stage furniture (DESIGN.md §1, drift-fix F2): the Stage carries
   // exactly three things — one area/target plate, one count plate,
-  // and ONE status ribbon along its bottom edge. The plate is the
+  // and ONE status ribbon along its bottom edge. (Owner ruling
+  // 2026-11-02 adds one more resident: the action-control chips,
+  // bottom-right above the ribbon — see stageControls below.) The plate is the
   // area plate (the area picker's stage opener); while a boss
   // target is live it becomes the target plate. There is no
   // headline title: the old plate printed the activity target at
@@ -1302,6 +1309,16 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <span className="shrink-0 border border-border bg-bg px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">{copy.label}</span>
         <span className="min-w-0 flex-1 break-words text-[11px] leading-snug text-text-muted">{ribbonLine}</span>
       </div>
+      {/* Action controls (owner ruling 2026-11-02): Switch / Stop
+          float on the scene, bottom-right above the ribbon, clear
+          of the hunter (left/center) and of the center-stage loot
+          moment. The screen owns the buttons; the stage owns the
+          placement. z-30 rides above every sprite layer. */}
+      {stageControls ? (
+        <div data-testid="diorama-stage-controls" className="absolute bottom-11 right-2 z-30 flex items-start gap-2">
+          {stageControls}
+        </div>
+      ) : null}
     </section>
   );
 };
