@@ -810,7 +810,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           )}
           <AreaPickerList onSelect={(area) => idle.setSelectedRoamingArea(area.id)} onStart={(area) => startRoam(area)} />
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showBossPicker} title="Choose Boss Target" detail="Boss selection no longer consumes the default action screen." onClose={() => setShowBossPicker(false)}>
+        <ContextualPickerSheet open={showBossPicker} title="Choose Boss Target" detail="Pick your mark — check its intel and weaknesses, then prep the fight." onClose={() => setShowBossPicker(false)}>
           <BossPickerList onSelect={(boss) => startPrep(boss)} />
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down — salvage settles instantly. Estimates are the base scrap award; the server adds skill bonuses." onClose={() => setShowSalvagePicker(false)}>

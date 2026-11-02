@@ -751,7 +751,7 @@ export const MarketScreen: React.FC = () => {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search caches…" className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search items…" className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted" />
             </div>
             <button
               type="button"

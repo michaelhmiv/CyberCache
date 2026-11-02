@@ -236,12 +236,12 @@ export const CollectionsScreen: React.FC<{ embedded?: boolean }> = ({ embedded =
         const found = entries.filter((e) => discovered.has(`${family}:${e.key}`)).length;
         return (
           <section key={family} className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <div>
-                <span className="bl-title text-xl leading-none text-text-primary">{FAMILY_LABELS[family]}</span>
-                <span className="ml-2 text-[11px] text-text-muted">{FAMILY_BLURBS[family]}</span>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="bl-title text-xl leading-none text-text-primary">{FAMILY_LABELS[family]}</div>
+                <div className="mt-1 text-[11px] leading-snug text-text-muted">{FAMILY_BLURBS[family]}</div>
               </div>
-              <span className="text-xs font-black text-text-secondary">
+              <span className="shrink-0 whitespace-nowrap text-xs font-black text-text-secondary">
                 {found}<span className="text-text-muted"> / {entries.length}</span>
               </span>
             </div>
