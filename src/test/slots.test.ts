@@ -743,9 +743,12 @@ describe('slots — printed odds and scenes', () => {
     const hook = readSource('src/auth/useEconomyTransactLock.tsx');
     expect(hook).toContain("canUseFeature(account, 'market')");
     expect(hook).toContain('SignInLockPrompt');
-    // The panel mounts at the foot of the vendor stall.
+    // The panel's canonical home is the Market rail's Slots stop
+    // (redesign v2) — it no longer mounts inside the Vendor screen.
+    const market = readSource('src/screens/MarketScreen.tsx');
+    expect(market).toContain("market.activeTab === 'slots' && <DataSlotsPanel />");
     const vendor = readSource('src/screens/VendorScreen.tsx');
-    expect(vendor).toContain('<DataSlotsPanel />');
+    expect(vendor).not.toContain('<DataSlotsPanel />');
   });
 
   it('ships the two golden scenes on the vendor grammar set', () => {

@@ -21,6 +21,9 @@ type MarketListingRow = {
   price_credits: number;
   listed_at: string;
   seller_user_id: string;
+  /** The seller's hunter name from their profile (display_name ??
+   *  username), joined server-side; null for the NPC seed account. */
+  seller_name?: string | null;
   seller_type?: string | null;
   listing_kind?: string | null;
   quantity?: number | null;
@@ -69,7 +72,7 @@ function rowToListing(row: MarketListingRow): Listing | null {
   return {
     id: row.id,
     sellerId: row.seller_user_id,
-    sellerName: row.seller_user_id,
+    sellerName: typeof row.seller_name === 'string' ? row.seller_name : '',
     sellerType: row.seller_type === 'npc' ? 'npc' : 'player',
     kind,
     itemId: gear ? gear.id : null,

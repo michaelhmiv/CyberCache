@@ -460,7 +460,11 @@ describe('market depth — write paths', () => {
 
 function readSeed(): ReadSeed {
   const s = emptyReadSeed();
-  s.profiles = [profile({ id: S }), profile({ id: B }), profile({ id: P3 })];
+  s.profiles = [
+    profile({ id: S, display_name: 'Dust Hawk', username: 'dusthawk' }),
+    profile({ id: B }),
+    profile({ id: P3, username: 'thirdseller' }),
+  ];
   const item = (over: Record<string, unknown>): ReadSeed['items'][number] => ({
     id: '', owner_user_id: S, kind: 'weapon', item_level: 1, rarity: 'Common', is_locked: false,
     runtime_state: 'listed', equipped_slot: null, payload: {}, created_at: '2026-10-01T00:00:00.000Z',
@@ -537,6 +541,25 @@ describe('market depth — read paths', () => {
     expect(ids(res.json)).toEqual(['rl-cons', 'rl-pistol', 'rl-sniper', 'rl-shield', 'rl-relic', 'rl-mat', 'rl-npc']);
     const cons = res.json.listings.find((l: { id: string }) => l.id === 'rl-cons');
     expect(cons).toMatchObject({ listing_kind: 'consumable', quantity: 4, quality_percent: 137.5, item_instances: null });
+  });
+
+  it('listings carry the seller hunter name from their profile, never the id', async () => {
+    const res = await get('/api/market/listings');
+    expect(res.status).toBe(200);
+    const byId = new Map<string, { seller_name: string | null; seller_user_id: string }>(
+      res.json.listings.map((l: { id: string; seller_name: string | null; seller_user_id: string }) => [l.id, l]),
+    );
+    // display_name wins over username (the profile's hunter name).
+    expect(byId.get('rl-pistol')?.seller_name).toBe('Dust Hawk');
+    // username is the fallback when no display name is set.
+    expect(byId.get('rl-shield')?.seller_name).toBe('thirdseller');
+    // The NPC seed account has no profile name: null on the wire,
+    // and the client labels it from seller_type — never the raw id
+    // (the old card printed the zero-padded "00000000").
+    expect(byId.get('rl-npc')?.seller_name).toBeNull();
+    for (const l of res.json.listings as { seller_name: string | null; seller_user_id: string }[]) {
+      expect(l.seller_name).not.toBe(l.seller_user_id);
+    }
   });
 
   it('each filter returns exactly the matching subset', async () => {

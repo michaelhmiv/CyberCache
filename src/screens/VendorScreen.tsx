@@ -3,7 +3,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { Search, X, ArrowUpDown } from 'lucide-react';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { CONSUMABLES, VENDOR_CONSUMABLES } from '@/constants/consumables';
-import { FAMILY_COLORS, FAMILY_LABELS } from '@/lib/consumables/families';
+import { FAMILY_COLORS, FAMILY_LABELS, TRIGGER_LABELS } from '@/lib/consumables/families';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
 import { verifiedOps } from '@/lib/api/verifiedOps';
@@ -12,8 +12,6 @@ import { useNow } from '@/hooks/useNow';
 import type { ConsumableDef } from '@/types/consumables';
 import type { GearItem } from '@/types/items';
 import { chipClip } from '@/lib/ui/clips';
-import { RepDeskPanel } from '@/components/vendor/RepDeskPanel';
-import { DataSlotsPanel } from '@/components/vendor/DataSlotsPanel';
 import { gearCategoryFromPayload } from '@/lib/market/identityKey';
 import {
   VENDOR_BUYBACK_RATE_DEFAULT,
@@ -27,13 +25,29 @@ import {
   type VendorOffer,
 } from '@/lib/vendor/catalog';
 
+/**
+ * The Vendor stop (Market rail). One storefront, no mode toggle:
+ * the stock view is the stop, and buyback is a named dashed ROW on
+ * its first viewport (DESIGN.md §3/§11 F2 — still 3 taps, the one
+ * justified depth). Manufacturer standing is NOT here: the Rep Desk
+ * is its own Market rail stop, and the slot machine's canonical
+ * home is the Slots stop.
+ *
+ * Every action button on this stop shares ONE rectangular geometry
+ * (vendorCtaCls): active/primary state is fill and color only —
+ * never the skewed-parallelogram clip, whose slanted tip broke the
+ * cards' right edges and made sibling controls read as misaligned
+ * (parent alignment audit, Market Vendor).
+ */
+const vendorCtaCls = 'border-2 border-black bg-amber text-bg shadow-[4px_4px_0_rgba(0,0,0,0.72)]';
+
 export const VendorScreen: React.FC = () => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
   const [notice, setNotice] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
-  const [mode, setMode] = React.useState<'buy' | 'sell' | 'rep'>('buy');
+  const [mode, setMode] = React.useState<'buy' | 'sell'>('buy');
 
   // Rotation + Item of the Day derive from the ONE vendor catalog by
   // UTC date — the same stock the server charges for today.
@@ -151,7 +165,7 @@ export const VendorScreen: React.FC = () => {
     const buying = busyId === `buy:${c.id}`;
     return (
       <MobileCard key={c.id} className="space-y-2">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
             <div className="bl-well w-10 h-10 flex items-center justify-center shrink-0">
               <span className={`text-[10px] font-black uppercase ${FAMILY_COLORS[c.family]}`}>
@@ -171,7 +185,7 @@ export const VendorScreen: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          <span className="text-[9px] px-1.5 py-0.5 rounded border border-border bg-surface text-text-muted">{c.trigger}</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded border border-border bg-surface text-text-muted">{TRIGGER_LABELS[c.trigger]}</span>
           {c.counterTags.map((tag) => (
             <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded border border-amber/30 bg-amber/10 text-amber font-bold">{tag}</span>
           ))}
@@ -183,7 +197,7 @@ export const VendorScreen: React.FC = () => {
         <button
           onClick={() => offer && handleBuy(offer, c.name)}
           disabled={!offer || player.credits < price || Boolean(busyId)}
-          className="w-full py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
+          className={`w-full py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
         >
           {buying ? 'Buying…' : `Buy 1 • ${price.toLocaleString()}cr`}
         </button>
@@ -198,7 +212,7 @@ export const VendorScreen: React.FC = () => {
     const buying = busyId === `buy:${entry.id}`;
     return (
       <MobileCard key={entry.id} className="space-y-2">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-bold text-text-primary truncate">{entry.name}</div>
             <div className="text-[10px] text-amber">{entry.kind === 'material' ? 'Material' : 'Essence'}</div>
@@ -212,7 +226,7 @@ export const VendorScreen: React.FC = () => {
         <button
           onClick={() => handleBuy(offer, entry.name)}
           disabled={player.credits < offer.unitPrice || Boolean(busyId)}
-          className="w-full py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
+          className={`w-full py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
         >
           {buying ? 'Buying…' : `Buy 1 • ${offer.unitPrice.toLocaleString()}cr`}
         </button>
@@ -221,46 +235,34 @@ export const VendorScreen: React.FC = () => {
   };
 
   return (
-    <div className="bl-page p-4 space-y-4 pb-20">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="bl-title text-3xl leading-none text-text-primary">Consumable Vendor</div>
-          <div className="text-xs text-text-muted">Buy common boss-prep tools. Advanced ammo and payloads are crafted in the Workshop.</div>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="text-[10px] text-text-muted uppercase">Credits</div>
-          <div className="text-sm font-black text-amber">{player.credits.toLocaleString()}</div>
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setMode('buy')}
-          className={`flex-1 py-2 rounded-xl text-xs font-black border ${mode === 'buy' ? 'bl-primary' : 'border-border bg-surface text-text-secondary'}`}
-        >
-          Buy
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('sell')}
-          className={`flex-1 py-2 rounded-xl text-xs font-black border ${mode === 'sell' ? 'bl-primary' : 'border-border bg-surface text-text-secondary'}`}
-        >
-          Sell to Vendor
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('rep')}
-          className={`flex-1 py-2 rounded-xl text-xs font-black border ${mode === 'rep' ? 'bl-primary' : 'border-border bg-surface text-text-secondary'}`}
-        >
-          Rep Desk
-        </button>
+    <div className="space-y-4">
+      <div>
+        <div className="bl-title text-3xl leading-none text-text-primary">Consumable Vendor</div>
+        <div className="text-xs text-text-muted">Buy common boss-prep tools. Advanced ammo and payloads are crafted in the Workshop.</div>
       </div>
 
       {notice && <div className="text-xs text-text-secondary">{notice}</div>}
 
       {mode === 'buy' && (
         <>
+          {/* Buyback (DESIGN.md §3 / §11 F2): a named dashed ROW on
+              this stop's first viewport — not a segment of a toggle.
+              It opens the sell-to-vendor view below; depth stays the
+              justified 3 taps (Market tab → Vendor stop → row). */}
+          <button
+            type="button"
+            onClick={() => setMode('sell')}
+            className="flex w-full items-center justify-between gap-3 border-2 border-dashed border-amber/60 bg-amber/5 px-3 py-2.5 text-left transition-colors hover:bg-amber/10"
+          >
+            <span className="min-w-0">
+              <span className="block text-xs font-black text-text-primary">Sell to Vendor — Buyback</span>
+              <span className="block text-[10px] text-text-muted">
+                The vendor buys back gear, consumables, materials and essences at {Math.round(VENDOR_BUYBACK_RATE_DEFAULT * 100)}% of value.
+              </span>
+            </span>
+            <PxIcon name="chevR" size={17} className="shrink-0 text-amber" />
+          </button>
+
           {itemOfTheDayDef && itemOfTheDayOffer && (
             <div className="space-y-2">
               <div className="flex items-center gap-1 text-[10px] font-black uppercase text-amber"><PxIcon name="star5" size={13} /> Item of the Day — 25% off</div>
@@ -351,10 +353,15 @@ export const VendorScreen: React.FC = () => {
         </>
       )}
 
-      {mode === 'rep' && <RepDeskPanel />}
-
       {mode === 'sell' && (
         <div className="space-y-4">
+          <button
+            type="button"
+            onClick={() => setMode('buy')}
+            className="flex items-center gap-2 border border-border bg-surface px-3 py-2 text-xs font-black text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <PxIcon name="vendor" size={17} /> Back to Vendor stock
+          </button>
           <div className="text-[10px] text-text-muted">
             The vendor pays {Math.round(VENDOR_BUYBACK_RATE_DEFAULT * 100)}% of vendor value at the standard rate.
             Equipped and locked gear can&apos;t be sold. The confirmed payout is shown after each sale.
@@ -376,7 +383,7 @@ export const VendorScreen: React.FC = () => {
                   <button
                     onClick={() => handleSell(`sell:gear:${item.id}`, () => verifiedOps.vendorSellGear(item.id), item.name)}
                     disabled={Boolean(busyId)}
-                    className="shrink-0 px-3 py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
+                    className={`shrink-0 px-3 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
                   >
                     {selling ? 'Selling…' : `Sell • ~${payout.toLocaleString()}cr`}
                   </button>
@@ -411,14 +418,14 @@ export const VendorScreen: React.FC = () => {
                     <button
                       onClick={() => handleSell(`sell:batch:${batch.id}:1`, () => verifiedOps.vendorSellConsumable(batch.id, 1), `${name} ×1`)}
                       disabled={Boolean(busyId)}
-                      className="flex-1 py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
+                      className={`flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
                     >
                       {selling ? 'Selling…' : `Sell 1 • ~${payoutOne.toLocaleString()}cr`}
                     </button>
                     <button
                       onClick={() => handleSell(`sell:batch:${batch.id}:all`, () => verifiedOps.vendorSellConsumable(batch.id, batch.quantity), `${name} ×${batch.quantity}`)}
                       disabled={Boolean(busyId)}
-                      className="flex-1 py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
+                      className={`flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
                     >
                       {selling ? 'Selling…' : `Sell all • ~${payoutAll.toLocaleString()}cr`}
                     </button>
@@ -452,14 +459,14 @@ export const VendorScreen: React.FC = () => {
                     <button
                       onClick={() => handleSell(`sell:mat:${entry.id}:1`, () => verifiedOps.vendorSellMaterial(entry.id, 1), `${entry.name} ×1`)}
                       disabled={Boolean(busyId)}
-                      className="flex-1 py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
+                      className={`flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
                     >
                       {selling ? 'Selling…' : `Sell 1 • ~${payoutOne.toLocaleString()}cr`}
                     </button>
                     <button
                       onClick={() => handleSell(`sell:mat:${entry.id}:all`, () => verifiedOps.vendorSellMaterial(entry.id, owned), `${entry.name} ×${owned}`)}
                       disabled={Boolean(busyId)}
-                      className="flex-1 py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
+                      className={`flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
                     >
                       {selling ? 'Selling…' : `Sell all • ~${payoutAll.toLocaleString()}cr`}
                     </button>
@@ -471,12 +478,6 @@ export const VendorScreen: React.FC = () => {
 
         </div>
       )}
-
-      {/* Data Slots (0049): the machine is a stall fixture at the
-          foot of the stall — below the rotation and staples, above
-          the buyback desk — visible in every mode, guests included
-          (the pull itself is verified-only, gated server-side). */}
-      <DataSlotsPanel />
     </div>
   );
 };

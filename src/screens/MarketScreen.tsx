@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, History, List, Lock, RefreshCw, Search, X } from 'lucide-react';
+import { Filter, Lock, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { GearCompare } from '@/components/gear/GearCompare';
@@ -28,7 +28,11 @@ import {
 import type { PriceStats } from '@/lib/market/priceStats';
 import type { MarketListingQuery, MarketSort } from '@/lib/market/listingQuery';
 import { ResourceBar } from '@/components/layout/ResourceBar';
+import { ChipRail } from '@/components/common/ChipRail';
 import { VendorScreen } from './VendorScreen';
+import { RepDeskPanel } from '@/components/vendor/RepDeskPanel';
+import { DataSlotsPanel } from '@/components/vendor/DataSlotsPanel';
+import { sellerDisplayName, historyPartyName } from '@/lib/market/sellerDisplay';
 import { RepairBoard } from '@/components/market/RepairBoard';
 import { ShieldTechBoard } from '@/components/market/ShieldTechBoard';
 import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
@@ -45,15 +49,31 @@ const getNow = () => Date.now();
 type SellSort = 'power' | 'rarity' | 'name';
 type MyListSort = 'price' | 'rarity' | 'name';
 
-const TABS: { id: string; label: string; px?: PxIconName; icon?: React.ElementType }[] = [
-  { id: 'buy', label: 'Buy', px: 'coin' },
+/**
+ * The Market rail (DESIGN.md §2/§6): one horizontally scrolling
+ * rail of stops at honest type size — it replaces the 3×2 tile
+ * grid that ate the whole first viewport (the alignment audit's
+ * #1 space tax). Every stop shares one height, one left edge, one
+ * gap (the ChipRail track); the rail scrolls, labels never shrink
+ * below the 11px floor. Rep Desk and Slots are first-class stops:
+ * standing's canonical door and the slot machine's canonical home.
+ */
+const STOPS: { id: string; label: string; px: PxIconName }[] = [
+  { id: 'buy', label: 'Buy', px: 'basket' },
   { id: 'vendor', label: 'Vendor', px: 'vendor' },
   { id: 'sell', label: 'Sell', px: 'tag' },
-  { id: 'mylistings', label: 'My Listings', icon: List },
-  { id: 'history', label: 'History', icon: History },
-  { id: 'repair', label: 'Repair Services', px: 'wrench' },
+  { id: 'mylistings', label: 'My Listings', px: 'grid' },
+  { id: 'history', label: 'History', px: 'orders' },
+  { id: 'repair', label: 'Repair', px: 'wrench' },
   { id: 'shieldTech', label: 'Shield Tech', px: 'shield' },
+  { id: 'repdesk', label: 'Rep Desk', px: 'badge' },
+  { id: 'slots', label: 'Slots', px: 'bolt' },
 ];
+
+/** One chip geometry for every chip row in the tab (§6: one left
+ *  edge, one height, one gap — rows ride the ChipRail track). */
+const chipCls = (active: boolean) =>
+  `flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[11px] font-bold ${active ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`;
 
 const BUY_CATEGORIES: { id: MarketCategory | null; label: string }[] = [
   { id: null, label: 'All' },
@@ -92,12 +112,6 @@ function feePreview(price: number, bonuses: Record<string, number>, sourceTag?: 
   const pct = breakdown.effectiveRate * 100;
   const pctLabel = Number.isInteger(pct) ? String(pct) : pct.toFixed(2).replace(/0$/, '');
   return { ...breakdown, pctLabel };
-}
-
-function formatSellerName(id: string, playerName: string, currentUserId?: string | null): string {
-  if (id === currentUserId) return 'You';
-  if (id === 'player_1') return playerName;
-  return id.slice(0, 8);
 }
 
 /** Returns the currently equipped item that is the same broad kind as the candidate. */
@@ -644,7 +658,7 @@ export const MarketScreen: React.FC = () => {
   };
 
   const historyPartyLabel = (h: MarketHistory): string => {
-    const name = formatSellerName(h.otherPartyId, player.name, currentUserId);
+    const name = historyPartyName(h.otherPartyId, player.name, currentUserId);
     return h.type === 'buy' ? `Bought from ${name}` : `Sold to ${name}`;
   };
 
@@ -654,41 +668,43 @@ export const MarketScreen: React.FC = () => {
     <div className="space-y-3 p-4 pb-20">
       <ResourceBar />
 
-      {/* Phone-width contract (device feedback r2): six tabs in an
-          even 3×2 grid — the old flex-wrap broke 4+2 with uneven tab
-          widths, and "Repair Services" squeezed against its 60px
-          floor. Grid cells give every label room and ≥44px targets. */}
-      <div className="grid grid-cols-3 gap-2">
-        {TABS.map((t) => (
+      {/* The rail: stops are destinations, current state lit.
+          Listings now start in the first viewport — the rail is
+          one row, not a tile grid. */}
+      <ChipRail>
+        {STOPS.map((t) => (
           <button
             key={t.id}
             onClick={() => market.setActiveTab(t.id)}
             aria-label={t.label}
-            className={`relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border py-2 text-[10px] font-bold transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
+            aria-pressed={market.activeTab === t.id}
+            className={`flex min-h-[44px] shrink-0 items-center gap-1.5 border px-3 text-[11px] font-black transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
           >
-            {t.icon ? <t.icon size={16} /> : t.px ? <PxIcon name={t.px} size={17} /> : null}
-            <span className="flex items-center gap-1 whitespace-nowrap">
-              {t.label}
-            </span>
+            <PxIcon name={t.px} size={17} />
+            <span className="whitespace-nowrap">{t.label}</span>
           </button>
         ))}
-      </div>
+      </ChipRail>
 
       {transactLockPrompt}
 
       {market.activeTab === 'vendor' && <VendorScreen />}
 
-      {market.activeTab !== 'vendor' && (
+      {market.activeTab === 'repdesk' && <RepDeskPanel />}
+
+      {market.activeTab === 'slots' && <DataSlotsPanel />}
+
+      {market.activeTab !== 'vendor' && market.activeTab !== 'repdesk' && market.activeTab !== 'slots' && (
         <>
       {market.activeTab === 'buy' && (
         <div className="space-y-3">
           <button
             onClick={refreshListings}
             disabled={loadingListings}
-            className="flex items-center justify-center gap-1 text-center text-[10px] italic text-text-muted hover:text-amber active:text-amber transition-colors mx-auto disabled:opacity-50"
+            className="flex items-center gap-1.5 text-left text-[11px] font-bold text-text-secondary transition-colors hover:text-amber active:text-amber disabled:opacity-50"
           >
             <RefreshCw size={12} className={loadingListings ? 'animate-spin' : ''} />
-            {loadingListings ? 'Loading market…' : 'Player Market — tap to refresh'}
+            {loadingListings ? 'Loading market…' : 'Player Market — refresh'}
           </button>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -705,18 +721,18 @@ export const MarketScreen: React.FC = () => {
               <Filter size={14} />
             </button>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {BUY_CATEGORIES.map((c) => <button key={c.label} onClick={() => setBuyCategory(c.id)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${buyCategory === c.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{c.label}</button>)}
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setFilterRarity(filterRarity === r ? null : r)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${filterRarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{r}</button>)}
-          </div>
+          <ChipRail>
+            {BUY_CATEGORIES.map((c) => <button key={c.label} onClick={() => setBuyCategory(c.id)} className={chipCls(buyCategory === c.id)}>{c.label}</button>)}
+          </ChipRail>
+          <ChipRail>
+            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setFilterRarity(filterRarity === r ? null : r)} className={chipCls(filterRarity === r)}>{r}</button>)}
+          </ChipRail>
           {(buyCategory === null || buyCategory === 'weapon') && (
             <div className="flex gap-2">
               <select
                 value={buyWeaponType ?? ''}
                 onChange={(e) => setBuyWeaponType(e.target.value || null)}
-                className="flex-1 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+                className="flex-1 border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
               >
                 <option value="">Any weapon type</option>
                 {Object.values(WEAPON_TYPES).map((t) => <option key={t.id} value={t.id}>{t.id}</option>)}
@@ -724,7 +740,7 @@ export const MarketScreen: React.FC = () => {
               <select
                 value={buyElement ?? ''}
                 onChange={(e) => setBuyElement(e.target.value || null)}
-                className="flex-1 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+                className="flex-1 border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
               >
                 <option value="">Any element</option>
                 {Object.keys(ELEMENTS).map((el) => <option key={el} value={el}>{el}</option>)}
@@ -741,7 +757,7 @@ export const MarketScreen: React.FC = () => {
             <select
               value={buySort}
               onChange={(e) => setBuySort(e.target.value as MarketSort)}
-              className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+              className="border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
             >
               <option value="newest">Sort: Newest</option>
               <option value="price_asc">Sort: Cheapest</option>
@@ -755,18 +771,21 @@ export const MarketScreen: React.FC = () => {
           <div className="space-y-2">
             {!loadingListings && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell tab.</div>}
             {filteredListings.map((listing) => {
-              const seller = formatSellerName(listing.sellerId, player.name, currentUserId);
+              const seller = sellerDisplayName(listing, currentUserId);
               const stats = listing.identityKey ? priceStats[listing.identityKey] : undefined;
               return (
                 <div key={listing.id} className="bl-card space-y-2">
                   {listing.kind === 'gear' && listing.itemSnapshot ? (
-                    <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
+                    <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
                   ) : (
-                    <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr<div className="text-[9px] text-text-muted">{seller}</div></div>} />
+                    <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} right={<div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>} />
                   )}
-                  <PriceTrend stats={stats} />
-                  <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id || (!marketLocked && player.credits < listing.price)} className="w-full rounded-lg bg-green py-2 text-xs font-bold text-bg disabled:opacity-40">
-                    {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-text-muted">Seller · {seller}</span>
+                    <PriceTrend stats={stats} />
+                  </div>
+                  <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id || (!marketLocked && player.credits < listing.price)} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber py-2 text-xs font-bold text-bg disabled:opacity-40">
+                    {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
                   </button>
                 </div>
               );
@@ -797,13 +816,13 @@ export const MarketScreen: React.FC = () => {
               <Filter size={14} />
             </button>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setSellFilterRarity(sellFilterRarity === r ? null : r)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${sellFilterRarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{r}</button>)}
-          </div>
+          <ChipRail>
+            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setSellFilterRarity(sellFilterRarity === r ? null : r)} className={chipCls(sellFilterRarity === r)}>{r}</button>)}
+          </ChipRail>
           <select
             value={sellSort}
             onChange={(e) => setSellSort(e.target.value as SellSort)}
-            className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+            className="border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
           >
             <option value="power">Sort: Power ↓</option>
             <option value="rarity">Sort: Rarity ↓</option>
@@ -975,10 +994,10 @@ export const MarketScreen: React.FC = () => {
           <button
             onClick={refreshListings}
             disabled={loadingListings}
-            className="flex items-center justify-center gap-1 text-center text-[10px] italic text-text-muted hover:text-amber active:text-amber transition-colors mx-auto disabled:opacity-50"
+            className="flex items-center gap-1.5 text-left text-[11px] font-bold text-text-secondary transition-colors hover:text-amber active:text-amber disabled:opacity-50"
           >
             <RefreshCw size={12} className={loadingListings ? 'animate-spin' : ''} />
-            {loadingListings ? 'Loading…' : 'Refresh my listings'}
+            {loadingListings ? 'Loading…' : 'My Listings — refresh'}
           </button>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -995,13 +1014,13 @@ export const MarketScreen: React.FC = () => {
               <Filter size={14} />
             </button>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setMyListFilterRarity(myListFilterRarity === r ? null : r)} className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${myListFilterRarity === r ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}>{r}</button>)}
-          </div>
+          <ChipRail>
+            {['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'].map((r) => <button key={r} onClick={() => setMyListFilterRarity(myListFilterRarity === r ? null : r)} className={chipCls(myListFilterRarity === r)}>{r}</button>)}
+          </ChipRail>
           <select
             value={myListSort}
             onChange={(e) => setMyListSort(e.target.value as MyListSort)}
-            className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+            className="border border-border bg-surface rounded-lg px-2 py-1.5 text-[11px] font-black uppercase text-text-primary"
           >
             <option value="price">Sort: Price ↓</option>
             <option value="rarity">Sort: Rarity ↓</option>
