@@ -437,7 +437,8 @@ describe('cache lane — authority pins', () => {
     expect(bar).not.toContain('claimRewardedCacheKey');
     // No other screen or component imports the ads module.
     for (const p of [
-      'src/screens/DashboardScreen.tsx',
+      'src/screens/HomeScreen.tsx',
+      'src/components/dashboard/DashboardDeck.tsx',
       'src/screens/ActionScreenContextual.tsx',
       'src/screens/MarketScreen.tsx',
       'src/screens/InventoryScreen.tsx',

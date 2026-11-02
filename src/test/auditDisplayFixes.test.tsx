@@ -17,7 +17,7 @@
  *  - UX-07: the Skill Trees board explains where points come from.
  *  - COPY-03: a single-node tier (every keystone tier) renders its
  *    node exactly once.
- *  - SET-01: the Dashboard carries a Settings action routing to the
+ *  - SET-01: Home carries a Settings action routing to the
  *    same 'settings' destination as HUNTER → ACCOUNT TOOLS.
  *  - A11Y-01 / DISP-02: source pins for the muted-token value and
  *    the diorama's removed mid-word truncation.
@@ -115,7 +115,7 @@ globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: Inter
 
 import { ActionScreenContextual } from '@/screens/ActionScreenContextual';
 import { ChestScreen } from '@/screens/ChestScreen';
-import { DashboardScreen } from '@/screens/DashboardScreen';
+import { HomeScreen } from '@/screens/HomeScreen';
 import { InventoryScreen } from '@/screens/InventoryScreen';
 import { SkillTreeScreen } from '@/screens/SkillTreeScreen';
 import { verifiedOps } from '@/lib/api/verifiedOps';
@@ -341,13 +341,19 @@ describe('audit UX-07 + COPY-03 — Skill Trees board', () => {
   }, 30_000);
 });
 
-describe('audit SET-01 — Dashboard Settings entry', () => {
+describe('audit SET-01 — Settings entry on Home (Wave B successor)', () => {
+  // SET-01 originally pinned the Dashboard Action Board's Settings
+  // row. DESIGN.md §3 retires that row: Settings is NOT on Home —
+  // its canonical home is Hunter → Account, and the one settings
+  // entry Home keeps is the Strip's gear icon (DESIGN.md §1's only
+  // allowed Strip resident). The protected behavior is unchanged:
+  // Settings is one tap from the home screen and routes to
+  // 'settings', the same destination as ACCOUNT TOOLS.
   it('routes to the settings screen, same destination as ACCOUNT TOOLS', async () => {
     const onNavigate = vi.fn();
-    render(<DashboardScreen onNavigate={onNavigate} />);
+    render(<HomeScreen onNavigate={onNavigate} />);
 
-    const settings = await screen.findByRole('button', { name: /Settings/ });
-    expect(settings.textContent).toContain('Preferences, display, and local save controls.');
+    const settings = await screen.findByRole('button', { name: 'Settings' });
     fireEvent.click(settings);
     expect(onNavigate).toHaveBeenCalledWith('settings');
   }, 30_000);

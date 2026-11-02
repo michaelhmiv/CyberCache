@@ -17,7 +17,8 @@ describe('ui surface audit', () => {
   });
 
   it('adds an explicit Dashboard area switch affordance', () => {
-    const dashboard = readSource('src/screens/DashboardScreen.tsx');
+    // Wave B: the Board's area panel lives in Home's deck now.
+    const dashboard = readSource('src/components/dashboard/DashboardDeck.tsx');
     expect(dashboard).toContain('data-testid="dashboard-turf-switch-button"');
     // Phase 1 vocabulary freeze: areas are "Areas", not "Turf".
     // Audit NAV-01: the one area-switch label is "Change area".
@@ -25,7 +26,7 @@ describe('ui surface audit', () => {
   });
 
   it('audit NAV-01: one start verb for roaming, one area-switch label', () => {
-    const dashboard = readSource('src/screens/DashboardScreen.tsx');
+    const dashboard = readSource('src/components/dashboard/DashboardDeck.tsx');
     const diorama = readSource('src/components/dashboard/LiveTurfDiorama.tsx');
     const areaPicker = readSource('src/components/common/AreaPicker.tsx');
     const actionScreen = readSource('src/screens/ActionScreenContextual.tsx');

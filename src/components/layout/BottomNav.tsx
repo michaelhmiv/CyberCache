@@ -3,19 +3,19 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion } from 'framer-motion';
 import { getNavSigil } from '@/constants/navSigils';
 
-type TabId = 'dashboard' | 'fight' | 'inventory' | 'market' | 'leaderboards' | 'profile';
+type TabId = 'home' | 'gear' | 'market' | 'hunter';
 
 interface BottomNavProps {
   activeTab: TabId;
   onChange: (tab: TabId) => void;
 }
 
-const TAB_IDS: TabId[] = ['dashboard', 'fight', 'inventory', 'market', 'leaderboards', 'profile'];
+const TAB_IDS: TabId[] = ['home', 'gear', 'market', 'hunter'];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => {
   return (
     <nav className="shrink-0 h-[66px] bg-bg border-t-[3px] border-border z-50 px-2 pt-1.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] shadow-[0_-8px_18px_rgba(0,0,0,0.65)]">
-      <div className="grid h-full grid-cols-6 gap-1.5">
+      <div className="grid h-full grid-cols-4 gap-1.5">
         {TAB_IDS.map((tabId) => {
           const isActive = activeTab === tabId;
           const sigil = getNavSigil(tabId);
@@ -44,7 +44,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => 
               >
                 <PxIcon name={sigil.icon} size={17} />
               </span>
-              <span className="relative z-10 truncate px-1 text-[8px] font-black uppercase tracking-wide">{sigil.label}</span>
+              {/* DESIGN.md §5 type floor: labels render at 11px — the
+                  four-tab bar has the width for honest sizes, so the
+                  old 8px six-tab shrink does not carry over. */}
+              <span className="relative z-10 truncate px-1 text-[11px] font-black uppercase tracking-wide">{sigil.label}</span>
               {isActive && <span className="absolute -top-1.5 left-1/2 z-20 h-2 w-2 -translate-x-1/2 rotate-45 border border-border bg-amber-glow" />}
             </button>
           );

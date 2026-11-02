@@ -9,6 +9,8 @@ Two systems deliberately run **in parallel** with your action, because they do n
 
 Everything else on this page competes for the one slot.
 
+You run your action from **the stage on the Home tab** — pick an area, tap Start Roam, and the rundown begins right there; the same stage carries the boss and endless doors, and switching actions settles the outgoing one first.
+
 ## Roaming
 
 Roaming is the core idle activity and the default state of the game. Your hunter works one of **7 areas**, resolved in **3-second ticks**, earning credits, XP, scrap, materials, and gear drops as the ticks land. Areas unlock by level, from the Dustwaste Frontier at level 1 to the HelixWorks Labyrinth at level 25, and higher areas pay better against tougher opposition.

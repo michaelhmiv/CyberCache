@@ -280,10 +280,11 @@ describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
 
   it('the doors themselves carry the loadout intent (wiring)', () => {
     const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
-    // Dashboard "Loadout Bench" and the Fight tab's Manage door both
-    // fire the 'loadout' target, and App turns it into a tab intent.
-    expect(read('src/screens/DashboardScreen.tsx')).toContain("label: 'Loadout Bench'");
-    expect(read('src/screens/DashboardScreen.tsx')).toContain("onClick: () => onNavigate('loadout')");
+    // The deck's "Loadout Bench" (Wave B: the Board's Action Board
+    // rides Home's deck) and the stage's Manage door both fire the
+    // 'loadout' target, and App turns it into a tab intent.
+    expect(read('src/components/dashboard/DashboardDeck.tsx')).toContain("label: 'Loadout Bench'");
+    expect(read('src/components/dashboard/DashboardDeck.tsx')).toContain("onClick: () => onNavigate('loadout')");
     expect(read('src/screens/ActionScreenContextual.tsx')).toContain("onManageLoadout={() => onNavigate?.('loadout')}");
     expect(read('src/App.tsx')).toContain("setInventoryTabIntent({ tab: 'loadout'");
     expect(read('src/screens/InventoryScreen.tsx')).toContain('tabIntent');

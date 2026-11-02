@@ -1,6 +1,6 @@
 # The Board
 
-The Board is your home screen — the first thing you see, and the screen every session passes through. It is arranged so the things you check most are visible on the first paint, without scrolling. From top to bottom:
+The Board is your home screen — the first thing you see, and the screen every session passes through. It lives on the **Home** tab: the app has four tabs — **Home, Gear, Market, Hunter** — and Home merges what used to be separate Board and Action tabs into one screen, with the action stage (below) at its centre. It is arranged so the things you check most are visible on the first paint, without scrolling. From top to bottom:
 
 ## The resource bar
 
@@ -15,23 +15,25 @@ Six chips, always on display:
 | **Loot** | How many items you hold, with your equipped count alongside (equipped out of 7 gear slots) |
 | **Level** | Your hunter level |
 
-The bar is display-only. There are no ads on this screen, ever.
+The bar is display-only. There are no ads on this screen, ever. At the bar's right edge sits a small **gear icon** — the shortcut to Settings (whose home is Hunter → Account).
 
 ## The top bar: level, streak, contracts
 
 Directly under the resource bar sit three controls:
 
 - **The level button** takes most of the row: an **LV badge** with your level and a live **XP progress bar** showing your XP into the level, how much the level needs, and how much remains. Tapping it opens the level sheet with the full breakdown — and the while-you-were-away recap, below.
-- **The streak flame** shows your current login-streak day. Tapping it opens the streak panel with the 7-day ladder. When today's check-in has just paid out, the flame pulses with a **NEW** badge. You never need to tap it to check in: loading the Board records the day by itself. See [[Leaderboards and Streaks]].
+- **The streak flame** shows your current login-streak day. Tapping it opens the streak panel with the 7-day ladder. When today's check-in has just paid out, the flame pulses with a **NEW** badge. You never need to tap it to check in: loading Home records the day by itself. See [[Leaderboards and Streaks]].
 - **The contracts icon** (the clipboard, labelled Orders) opens the contracts panel. When contracts are ready to claim, it pulses and carries a badge with the **claimable count** — visible without opening anything. Guests see a lock badge instead: guests can read the board, but claiming rewards requires signing in. See [[Getting Started]].
 
 Claimable state is designed to be glanceable: if something is waiting for you, the top bar says so before you scroll anywhere.
 
-## The area chip and the stage
+## The stage
 
-Under the top bar is your **current area chip** — tap it to open the area picker and change where roaming happens. If you are enrolled in a [[Progression|Research]] course, its chip sits beside the area chip, because research runs alongside your action rather than replacing it.
+The centre of Home is **the stage**: your hunter, rendered with the weapon you actually have equipped, your current activity, and the two doors that matter most in the moment — start (or manage) your roam, and prep or choose a boss. This is the Action workspace, living on Home itself: pick an area, tap Start Roam, and the rundown begins on the same screen.
 
-Below that is **the stage**: your hunter, rendered with the weapon you actually have equipped, your current activity, and the two doors that matter most in the moment — start (or manage) your roam, and prep or choose a boss.
+## The area chip
+
+Under the stage is your **current area chip** — tap it to open the area picker and change where roaming happens. If you are enrolled in a [[Progression|Research]] course, its chip sits beside the area chip, because research runs alongside your action rather than replacing it.
 
 ## Hunter Totals and consumables
 
@@ -43,14 +45,13 @@ The **Consumables** panel shows your active consumable slots. Tap a slot to open
 
 The Action Board is the Board's directory — status first, navigation second:
 
-- **Roaming** — whether your run is live, and the door to the Action workspace where roaming is started and managed
+- **Roaming** — whether your run is live; tapping it scrolls back up to the stage on the same screen, where roaming is started and managed
 - **Loadout Bench** — how many of your 7 gear slots are filled; equip, compare, and tune gear
 - **Crack Cache** — your key count and the door to [[Caches]]
 - **Skill Trees** — how many unspent points are ready; see [[Progression]]
 - **Workshop** — how many bench jobs are open; see [[Crafting]]
 - **Dispatch** — the dispatch contract board; see [[Actions and Occupations]]
 - **Market** — the trade hub; see [[The Market]]
-- **Settings** — preferences and account tools
 
 Underneath, **Hunter Notes** recaps your current area — its manufacturer influence, danger, and loot bias — and your equipped weapon.
 
@@ -64,4 +65,4 @@ The recap is also where the game asks about **notifications**: a single primer r
 
 ---
 
-_Source of truth: `src/screens/DashboardScreen.tsx`, `src/components/dashboard/`, `src/components/layout/ResourceBar.tsx`, `src/components/dashboard/DashboardTopBar.tsx`, `src/components/activity/OfflineRecap.tsx`, `src/store/slices/offlineRecapSlice.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._
+_Source of truth: `src/screens/HomeScreen.tsx`, `src/components/dashboard/`, `src/components/layout/ResourceBar.tsx`, `src/components/dashboard/DashboardTopBar.tsx`, `src/components/activity/OfflineRecap.tsx`, `src/store/slices/offlineRecapSlice.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DashboardScreen } from '@/screens/DashboardScreen';
+import { DashboardDeck } from '@/components/dashboard/DashboardDeck';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
@@ -13,7 +13,7 @@ describe('Dashboard Hunter Totals panel — Sources button', () => {
     // Reset relevant stores to a minimal valid state.
     // Shapes here mirror the real `PlayerProfile`, `LoadoutState`,
     // `InventoryState`, `ActiveActivity`, and `BossState` so that
-    // `DashboardScreen` can mount without throwing.
+    // `DashboardDeck` can mount without throwing.
     useLoadoutStore.setState({
       slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
@@ -46,18 +46,18 @@ describe('Dashboard Hunter Totals panel — Sources button', () => {
   });
 
   it('renders a Sources button in the Hunter Totals panel header', () => {
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<DashboardDeck onNavigate={() => {}} />);
     expect(screen.getByTestId('hunter-totals-sources-button')).toBeInTheDocument();
   });
 
   it('opens the source breakdown modal when the Sources button is tapped', () => {
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<DashboardDeck onNavigate={() => {}} />);
     fireEvent.click(screen.getByTestId('hunter-totals-sources-button'));
     expect(screen.getByTestId('hunter-totals-breakdown-modal')).toBeInTheDocument();
   });
 
   it('closes the modal when the X button is tapped', () => {
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<DashboardDeck onNavigate={() => {}} />);
     fireEvent.click(screen.getByTestId('hunter-totals-sources-button'));
     fireEvent.click(screen.getByLabelText('Close source breakdown'));
     expect(screen.queryByTestId('hunter-totals-breakdown-modal')).toBeNull();
@@ -69,7 +69,7 @@ describe('Dashboard Hunter Totals panel — Sources button', () => {
       consumables: { MedKit: 12 },
     }));
 
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<DashboardDeck onNavigate={() => {}} />);
     fireEvent.click(screen.getByTestId('hunter-totals-sources-button'));
 
     // MedKit contribution visible in the health card's composition bar legend.

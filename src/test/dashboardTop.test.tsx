@@ -56,7 +56,7 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
   syncPushRegistration: vi.fn(async () => {}),
 }));
 
-import { DashboardScreen } from '@/screens/DashboardScreen';
+import { HomeScreen } from '@/screens/HomeScreen';
 import {
   claimContract,
   getContractsState,
@@ -199,7 +199,7 @@ afterEach(() => {
 
 describe('Dashboard top — first paint', () => {
   it('shows the level progress button and both icons under the ResourceBar, before the scroll surfaces', async () => {
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
 
     const topBar = await screen.findByTestId('dashboard-top-bar');
     const levelButton = screen.getByTestId('top-level-button');
@@ -234,7 +234,7 @@ describe('Dashboard top — the check-in is not behind the tap', () => {
     mockStreak.mockResolvedValue(streakResult(true));
     mockContracts.mockResolvedValue(boardResult(true, [contractView('c-1', false)]));
 
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
 
     // Both reads fired from the mount alone…
     await waitFor(() => expect(mockStreak).toHaveBeenCalledTimes(1));
@@ -252,7 +252,7 @@ describe('Dashboard top — the check-in is not behind the tap', () => {
 
   it('a fresh grant pulses the streak icon with a NEW badge and a spoken label', async () => {
     mockStreak.mockResolvedValue(streakResult(false));
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
 
     await waitFor(() => expect(screen.getByTestId('streak-claim-pulse')).toBeTruthy());
     const button = screen.getByTestId('top-streak-button');
@@ -264,7 +264,7 @@ describe('Dashboard top — the check-in is not behind the tap', () => {
 describe('Dashboard top — pop-ups hold the real panels', () => {
   it('the streak icon opens the sheet with the working LoginStreakPanel', async () => {
     mockStreak.mockResolvedValue(streakResult(true));
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
     await waitFor(() => expect(mockStreak).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByTestId('top-streak-button'));
@@ -287,7 +287,7 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
       claimed: { instanceId: 'c-1', templateId: 'salvage_run', creditsAwarded: 220, fragmentsAwarded: 1, setBonus: null },
     } as never);
 
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
 
     // Claimable without scrolling: pulse + count badge + label.
     await waitFor(() => expect(screen.getByTestId('contracts-claim-pulse')).toBeTruthy());
@@ -312,7 +312,7 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
 
   it('guests get the lock badge (no pulse, no count) and the panel lock inside', async () => {
     mockContracts.mockResolvedValue(boardResult(false, [contractView('c-1', true)]));
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('top-contracts-button').getAttribute('aria-label'))
@@ -371,7 +371,7 @@ describe('Short-absence suppression — under 5 minutes never auto-presents (own
 
   it('a short absence shows NO beacon on Dashboard mount, and the summary stays reachable in the level pop-up', async () => {
     useOfflineRecapStore.getState().setSettlement(shortRoaming);
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
 
     // First paint settles with no auto-presentation of any kind.
     await screen.findByTestId('dashboard-top-bar');
@@ -389,7 +389,7 @@ describe('Short-absence suppression — under 5 minutes never auto-presents (own
 
 describe('Dashboard top — level pop-up holds specifics + the away recap', () => {
   it('opens level specifics from the same store numbers', async () => {
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
     fireEvent.click(screen.getByTestId('top-level-button'));
     expect(await screen.findByTestId('picker-sheet-overlay')).toBeTruthy();
     const needed = xpToNextLevel(5);
@@ -403,7 +403,7 @@ describe('Dashboard top — level pop-up holds specifics + the away recap', () =
 
   it('an unacknowledged settlement beacons the level button and renders the recap (primer included) inside the pop-up', async () => {
     useOfflineRecapStore.getState().setSettlement(recap);
-    render(<DashboardScreen onNavigate={() => {}} />);
+    render(<HomeScreen onNavigate={() => {}} />);
 
     // Beacon on first paint: pulse + AWAY badge + label — and the
     // recap is NOT in the Dashboard scroll.

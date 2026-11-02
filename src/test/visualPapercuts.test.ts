@@ -72,7 +72,8 @@ describe('render fixes (source shape)', () => {
   });
 
   it('X4 — dev copy is gone from player surfaces', () => {
-    expect(read('../screens/DashboardScreen.tsx')).not.toContain('XP Chalk Mark');
+    expect(read('../screens/HomeScreen.tsx')).not.toContain('XP Chalk Mark');
+    expect(read('../components/dashboard/DashboardDeck.tsx')).not.toContain('XP Chalk Mark');
     expect(read('../screens/WorkshopScreen.tsx')).not.toContain('Craft dispatch briefly claims');
     expect(read('../components/dashboard/LiveTurfDiorama.tsx')).not.toContain('runner parked at camp');
   });

@@ -57,7 +57,7 @@ import { getActivityVisual } from '@/constants/activityVisuals';
 import type { ActivityKind, StartActivityInput } from '@/types/activity';
 import type { GearItem, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
-import { ResourceBar } from '@/components/layout/ResourceBar';
+import { computeMedKitBuffer } from '@/lib/combat/damageContract';
 import { selectEquippedWeapons } from '@/lib/loadout/equippedWeaponTruth';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { ActionTickTimer } from '@/components/action/ActionTickTimer';
@@ -181,7 +181,7 @@ const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePi
   return (
     <div className="space-y-3">
       <RewardIntelPanel title="Breakdown estimate" eyebrow="salvage intel" stats={[{ label: 'Candidates', value: candidates.length }, { label: 'Base scrap', value: top ? salvageScrap(top.rarity, top.level) : 0, tone: 'green' }, { label: 'Settles', value: 'Instant', tone: 'amber' }]}>Top candidate: {top?.name ?? 'None'}. The estimate is the base scrap award from the shared salvage rules — the server adds your salvage skill bonuses (and legendary cores on Legendaries) when it settles, and the feed reports the real award. Salvage executes immediately and never occupies your action slot.</RewardIntelPanel>
-      <Section title="Salvage Control" eyebrow="item selector" icon={<ActivityGlyph kind="salvaging" />}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => { if (top) startSalvage(top); }} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Salvage Top Candidate Now</button><button type="button" onClick={() => onNavigate?.('inventory')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear</button></Section>
+      <Section title="Salvage Control" eyebrow="item selector" icon={<ActivityGlyph kind="salvaging" />}><button type="button" onClick={onSalvagePicker} className="bl-primary w-full py-2 text-xs font-black">Choose Item To Salvage</button><button type="button" onClick={() => { if (top) startSalvage(top); }} disabled={!top} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber disabled:opacity-50">Salvage Top Candidate Now</button><button type="button" onClick={() => onNavigate?.('gear')} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Open Gear</button></Section>
     </div>
   );
 };
@@ -312,6 +312,20 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const startRoam = useCallback((area?: RoamingAreaDef) => {
     const target = area ?? selectedArea;
     idle.setSelectedRoamingArea(target.id);
+    // Roaming start activates survival consumables proactively —
+    // this lived on the Board's diorama start before the merge
+    // (Wave B): Med Kit sets the HP buffer (stacked from inventory
+    // count), Nano Swarm starts its per-tick regen. Home's stage is
+    // the one start door now, so the behavior rides it.
+    const survivalStore = useSurvivalStore.getState();
+    const playerState = usePlayerStore.getState();
+    const medKitCount = playerState.consumables['MedKit'] ?? 0;
+    if (medKitCount > 0) {
+      survivalStore.setMedKitBuffer(medKitCount * computeMedKitBuffer('MedKit'));
+    }
+    if ((playerState.consumables['NanoSwarm'] ?? 0) > 0) {
+      survivalStore.startNanoSwarm(30); // 30 ticks × 10 HP = 300 HP
+    }
     startAction(buildRoamingLootActivity(target, activityWeapon), makeRunEvent('ROAMING AREA', `Hunter is roaming ${target.name}.`, 'patrol', 'run_started'));
   }, [activityWeapon, idle, selectedArea, startAction]);
 
@@ -564,7 +578,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
     if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} jobs={workshopJobs} />;
     if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} onSalvagePicker={() => setShowSalvagePicker(true)} />;
-    if (currentKind === 'workshop_service') return <Section title="Workshop relocated" eyebrow="inventory owns benches" icon={<ActivityGlyph kind="workshop_service" />}><div className="space-y-2 text-xs text-text-muted"><div>Workshop now lives on the Inventory tab.</div><button type="button" onClick={() => onNavigate?.('inventory')} className="bl-primary w-full py-2 text-xs font-black">Open Inventory</button></div></Section>;
+    if (currentKind === 'workshop_service') return <Section title="Workshop relocated" eyebrow="gear owns benches" icon={<ActivityGlyph kind="workshop_service" />}><div className="space-y-2 text-xs text-text-muted"><div>Workshop now lives on the Gear tab.</div><button type="button" onClick={() => onNavigate?.('gear')} className="bl-primary w-full py-2 text-xs font-black">Open Gear</button></div></Section>;
     if (currentKind === 'market_listing') return <Section title="Market relocated" eyebrow="market owns listings" icon={<ActivityGlyph kind="market_listing" />}><div className="space-y-2 text-xs text-text-muted"><div>Trading now lives on the Market tab.</div><button type="button" onClick={() => onNavigate?.('market')} className="bl-primary w-full py-2 text-xs font-black">Open Market</button></div></Section>;
     return null; // fallback: no workspace panel needed
   })();
@@ -601,15 +615,14 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           below (dim + gold pillar + risen weapon) — it supersedes the
           old LegendaryDropFlash overlay, which was retired in P3. */}
 
-      {/* Resource bar */}
-      <ResourceBar className="px-4 pt-1" />
+      {/* Home owns the Strip now (Wave B merge): the ResourceBar
+          renders once at the top of the Home screen, not per-stage. */}
 
-      {/* Title bar */}
-      <div className="relative flex items-start justify-between gap-3">
-        <div>
-          <div className="bl-title text-3xl leading-none text-text-primary">Action</div>
-          <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted">contextual command workspace</div>
-        </div>
+      {/* Controls row — Switch / Stop. The old "Action" page-title
+          header is gone: this workspace IS Home's stage now, and a
+          page-title header on the main page is wasted space
+          (DESIGN.md §1/§4). */}
+      <div className="relative flex items-start justify-end gap-3">
         <div className="flex gap-2">
           <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[10px] font-black text-amber">Switch Action</button>
           <button type="button" onClick={stopAction} disabled={activity.pending || currentKind === 'idle_standby' || currentKind === 'none'} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[10px] font-black text-red disabled:opacity-50">Stop</button>

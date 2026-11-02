@@ -12,7 +12,7 @@ describe('HelpScreen guided tour', () => {
   it('shows the first step by default', () => {
     render(<HelpScreen />);
     expect(screen.getByText('1. Pick an area')).toBeTruthy();
-    expect(screen.getByText('Go to Board')).toBeTruthy();
+    expect(screen.getByText('Go to Home')).toBeTruthy();
   });
 
   it('advances to the next step when Next is clicked', () => {
@@ -25,13 +25,15 @@ describe('HelpScreen guided tour', () => {
   it('calls onTourJump with the target tab when the CTA is pressed', () => {
     const jumps: string[] = [];
     render(<HelpScreen onTourJump={(tab) => jumps.push(tab)} />);
-    fireEvent.click(screen.getByText('Go to Board'));
-    expect(jumps).toEqual(['dashboard']);
+    fireEvent.click(screen.getByText('Go to Home'));
+    // Wave B (four tabs): the Board and Action tabs merged into
+    // Home — the tour's first step jumps to 'home' now.
+    expect(jumps).toEqual(['home']);
   });
 
   it('advances the tour cursor after a CTA press (so re-entry shows progress)', () => {
     render(<HelpScreen onTourJump={() => {}} />);
-    fireEvent.click(screen.getByText('Go to Board'));
+    fireEvent.click(screen.getByText('Go to Home'));
     expect(screen.getByText(/Step 2 of 7/)).toBeTruthy();
   });
 

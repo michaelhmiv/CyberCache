@@ -18,7 +18,7 @@
  * no chip — then open the level pop-up and read the variant's own
  * truth from the card.
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => ({
@@ -87,7 +87,7 @@ globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: Inter
   };
 }) as unknown as typeof IntersectionObserver;
 
-import { DashboardScreen } from '@/screens/DashboardScreen';
+import { HomeScreen } from '@/screens/HomeScreen';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import type { SettlementRecap } from '@/lib/activity/activitySettlement';
 
@@ -154,18 +154,21 @@ describe('Dashboard recap — settlement-shape discrimination (level pop-up)', (
 
   it('roaming settlement: no crash, no chip; the pop-up card shows the roaming recap', async () => {
     useOfflineRecapStore.setState({ lastSettlement: roaming, dismissed: true });
-    render(<DashboardScreen onNavigate={vi.fn()} />);
+    render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
     expect(screen.queryByTestId('offline-recap-reopen')).toBeNull();
     fireEvent.click(screen.getByTestId('top-level-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
-    expect(screen.getByText('Credits')).toBeTruthy();
-    expect(screen.getByText('Away for')).toBeTruthy();
+    // Scoped to the recap card: merged Home carries other "Credits"
+    // labels now (the Strip chip, Hunter Totals rows).
+    const card = screen.getByText('While You Were Away').closest('.bl-card') as HTMLElement;
+    expect(within(card).getByText('Credits')).toBeTruthy();
+    expect(within(card).getByText(/Away for/)).toBeTruthy();
   }, 30_000);
 
   it('crafting settlement: no crash; the pop-up card shows the crafting truth', async () => {
     useOfflineRecapStore.setState({ lastSettlement: crafting, dismissed: true });
-    render(<DashboardScreen onNavigate={vi.fn()} />);
+    render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
     fireEvent.click(screen.getByTestId('top-level-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
@@ -175,7 +178,7 @@ describe('Dashboard recap — settlement-shape discrimination (level pop-up)', (
 
   it('extraction settlement: no crash; the pop-up card shows the extraction truth', async () => {
     useOfflineRecapStore.setState({ lastSettlement: extraction, dismissed: true });
-    render(<DashboardScreen onNavigate={vi.fn()} />);
+    render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
     fireEvent.click(screen.getByTestId('top-level-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
