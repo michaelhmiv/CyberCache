@@ -702,7 +702,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         secondaryActionLabel={
           currentKind === 'boss_fight' ? 'Choose Boss'
           : currentKind === 'roaming_loot' ? 'Change Area'
-          : 'Switch Action'
+          // QC C1: this door opens the same sheet as the controls
+          // row's "Switch Action" button — two identical labels in
+          // one stage zone read as a duplicated header. The diorama
+          // door is named for what it shows (the full action menu);
+          // "Switch Action" prints once, on the controls-row button
+          // and the sheet it opens.
+          : 'All Actions'
         }
       />
 

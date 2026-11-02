@@ -4,14 +4,26 @@
  * Replaces the bl-title text-3xl heading + subtitle on every tab with a
  * dense 6-chip resource strip showing Credits, Scrap, Keys, Cores, Loot, Level.
  *
- * Phone-width contract (device feedback r2): at 360dp the six chips
- * lay out 3-across × 2 rows (6-across only from 560dp up). Six chips
- * in one row at phone width left ~27px for the number itself — the
- * value clipped and the label ellipsized ("85 cre…"). Each chip now
- * stacks: icon + full label on line 1, the numeric value on line 2 at
- * full size. A value NEVER truncates or clips: it carries no
- * truncate/overflow treatment and the formatter bounds every output
- * to ≤6 glyphs (src/lib/ui/formatValue.ts).
+ * Phone-width contract (device feedback r2): at phone width the six
+ * chips lay out 3-across × 2 rows (6-across only when the STRIP
+ * itself is 560px+ wide). Six chips in one row at phone width left
+ * ~27px for the number itself — the value clipped and the label
+ * ellipsized ("85 cre…"). Each chip now stacks: icon + full label
+ * on line 1, the numeric value on line 2 at full size. A value
+ * NEVER truncates or clips: it carries no truncate/overflow
+ * treatment and the formatter bounds every output to ≤6 glyphs
+ * (src/lib/ui/formatValue.ts).
+ *
+ * The wide breakpoint keys off the strip's OWN width (CSS
+ * container queries), never the viewport (QC A4): the app column
+ * is capped at 480px (index.css #root), so a viewport breakpoint
+ * fired 6-across inside a ≤480px column on every wide browser —
+ * and on Home the settings gear takes another 44px of the row,
+ * squeezing the strip to ~344px at the 412px reference width,
+ * where the 6 nowrap chips overflowed the column and clipped the
+ * LEVEL tile and the gear. Container-relative sizing makes Home
+ * and the other tabs lay out identically: 3-across until the
+ * strip itself can honestly hold six.
  *
  * Audit DISP-01: the secondary count (key fragments, equipped
  * fraction) used to sit unlabeled at the slanted top-right corner of
@@ -129,19 +141,22 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
   // placeholder numbers (which read as a new account's false zeros).
   if (!player.profileLoaded) {
     return (
-      <div data-testid="resource-bar-loading" className={`grid grid-cols-3 gap-1.5 min-[560px]:grid-cols-6 ${className}`}>
-        <SkeletonChip resourceId="credits" />
-        <SkeletonChip resourceId="scrap" />
-        <SkeletonChip resourceId="cacheKey" />
-        <SkeletonChip resourceId="legendaryCore" />
-        <SkeletonChip resourceId="loot" />
-        <SkeletonChip resourceId="level" />
+      <div data-testid="resource-bar-loading" className={`@container ${className}`}>
+        <div data-testid="resource-bar-grid" className="grid grid-cols-3 gap-1.5 @min-[560px]:grid-cols-6">
+          <SkeletonChip resourceId="credits" />
+          <SkeletonChip resourceId="scrap" />
+          <SkeletonChip resourceId="cacheKey" />
+          <SkeletonChip resourceId="legendaryCore" />
+          <SkeletonChip resourceId="loot" />
+          <SkeletonChip resourceId="level" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={`grid grid-cols-3 gap-1.5 min-[560px]:grid-cols-6 ${className}`}>
+    <div data-testid="resource-bar" className={`@container ${className}`}>
+      <div data-testid="resource-bar-grid" className="grid grid-cols-3 gap-1.5 @min-[560px]:grid-cols-6">
       <Chip
         resourceId="credits"
         value={compactResourceValue(player.credits)}
@@ -182,6 +197,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '' }) => {
         label="Level"
         seed={5}
       />
+      </div>
     </div>
   );
 };

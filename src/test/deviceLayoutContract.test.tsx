@@ -10,9 +10,12 @@
  * ellipsized.
  *
  * The contract pinned here (logical widths 360dp / 412dp):
- *  - ResourceBar: 3-across grid at phone width (6-across only from
- *    560dp), stacked chips (icon + full label on line 1, the value on
- *    line 2 with the secondary count as a labeled stack beside it),
+ *  - ResourceBar: 3-across grid at phone width (6-across only when
+ *    the strip itself is 560px+ wide — a container query, QC A4;
+ *    the app column caps at 480px so a viewport breakpoint clipped
+ *    chips on wide browsers), stacked chips (icon + full label on
+ *    line 1, the value on line 2 with the secondary count as a
+ *    labeled stack beside it),
  *    values carry NO truncate/clip treatment, chips are ≥44dp tall,
  *    and the shared formatter bounds every value to ≤6 glyphs so it
  *    always fits. Until the first server profile lands the bar
@@ -104,11 +107,19 @@ describe('layout contract — ResourceBar at phone width', () => {
   });
 
   it('arranges the six chips 3-across on phones, 6-across only when wide', () => {
-    const { container } = render(<ResourceBar />);
-    const bar = container.firstElementChild as HTMLElement;
+    render(<ResourceBar />);
+    const bar = screen.getByTestId('resource-bar-grid');
     expect(bar.className).toContain('grid');
     expect(bar.className).toContain('grid-cols-3');
-    expect(bar.className).toContain('min-[560px]:grid-cols-6');
+    // QC A4: the wide layout keys off the STRIP's own width via
+    // container queries (@container wrapper + @min- variant) —
+    // never the viewport. The app column is capped at 480px, so
+    // the old viewport breakpoint fired 6-across inside a ≤480px
+    // column and clipped the LEVEL tile on Home (where the
+    // settings gear takes 44px of the same row).
+    expect(bar.className).toContain('@min-[560px]:grid-cols-6');
+    expect(bar.className.split(' ')).not.toContain('min-[560px]:grid-cols-6');
+    expect(bar.parentElement?.className).toContain('@container');
     expect(bar.className).not.toContain('flex');
   });
 

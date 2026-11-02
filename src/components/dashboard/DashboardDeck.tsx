@@ -183,7 +183,7 @@ const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
       ? MANUFACTURERS[event.manufacturer as Manufacturer]?.color
       : undefined;
   return (
-    <motion.div layout initial={{ opacity: 0, y: 14, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 14, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}) }}>
+    <motion.div layout initial={{ opacity: 0, y: 6, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 6, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}) }}>
       <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} style={manufacturerColor ? { backgroundColor: manufacturerColor } : undefined} />
       <RewardIcon tone={event.tone} />
       <div className="min-w-0 leading-none">
@@ -319,7 +319,15 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
     <div className="relative">
       <AnimatePresence>
         {gainFeed.length > 0 && (
-          <motion.div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] left-0 right-0 z-50 mx-auto flex max-w-[440px] justify-center gap-1.5 px-3" initial={false}>
+          // The gain-toast lane (QC A9): its own fixed lane ABOVE
+          // the bottom nav, never over it. BottomNav is 66px tall
+          // (border-box; its safe-area padding lives inside that
+          // height), so the lane's bottom edge sits at 66px + a
+          // 14px clear gap. The old 70px offset left a 4px sliver —
+          // the toasts read as sitting ON the nav, and their entry
+          // slide (y:14) dipped into it. The slide is now 6px, so
+          // a toast never crosses the lane's bottom edge.
+          <motion.div className="pointer-events-none fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-0 right-0 z-50 mx-auto flex max-w-[440px] justify-center gap-1.5 px-3" initial={false}>
             {gainFeed.slice(0, 2).map((event) => <GainToast key={event.id} event={event} />)}
           </motion.div>
         )}
