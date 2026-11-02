@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { getResearchState } from '@/lib/chef/chefClient';
 import {
   formatResearchRemaining,
@@ -49,7 +50,7 @@ export const ResearchChip: React.FC = () => {
       className="flex items-center gap-2 border-2 border-border bg-surface/95 px-2.5 py-1.5"
       aria-label={`Research in progress: ${active.courseName}, ${formatResearchRemaining(active.remainingMs)}`}
     >
-      <span className="shrink-0 font-black" style={{ color: faculty.color, fontSize: '13px' }}>✎</span>
+      <PxIcon name="pencil" size={13} style={{ color: faculty.color }} />
       <span className="min-w-0">
         <span className="block text-[11px] font-black uppercase tracking-wide text-text-primary">
           {active.courseName}
@@ -110,7 +111,7 @@ export const ResearchCompletionCard: React.FC = () => {
       className="bl-card flex items-start gap-3 p-3"
       style={{ borderLeftColor: faculty.color, borderLeftWidth: 5 }}
     >
-      <span className="shrink-0 font-black" style={{ color: faculty.color, fontSize: '18px' }}>✎</span>
+      <PxIcon name="pencil" size={17} style={{ color: faculty.color }} />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">
           Course Complete — {course.name}

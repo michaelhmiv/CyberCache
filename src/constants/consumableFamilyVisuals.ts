@@ -1,3 +1,5 @@
+import type { PxIconName } from '@/lib/pixel/icons';
+
 /**
  * Consumable Family Visual Registry — visual identity per consumable family.
  *
@@ -8,7 +10,7 @@ import type { ConsumableFamily } from './consumables';
 
 export interface ConsumableFamilyVisual {
   family: ConsumableFamily;
-  glyph: string;
+  icon: PxIconName;
   color: string;
   accentColor: string;
   label: string;
@@ -19,7 +21,7 @@ export interface ConsumableFamilyVisual {
 export const CONSUMABLE_FAMILY_VISUALS: Record<ConsumableFamily, ConsumableFamilyVisual> = {
   survival: {
     family: 'survival',
-    glyph: '✚',
+    icon: 'cross',
     color: '#7CFC00',
     accentColor: '#F5F5F5',
     label: 'Survival',
@@ -28,7 +30,7 @@ export const CONSUMABLE_FAMILY_VISUALS: Record<ConsumableFamily, ConsumableFamil
   },
   ammo: {
     family: 'ammo',
-    glyph: '▣',
+    icon: 'grid',
     color: '#FF4B5C',
     accentColor: '#FFEA3A',
     label: 'Ammunition',
@@ -37,7 +39,7 @@ export const CONSUMABLE_FAMILY_VISUALS: Record<ConsumableFamily, ConsumableFamil
   },
   ordnance: {
     family: 'ordnance',
-    glyph: '●',
+    icon: 'dot',
     color: '#FF9000',
     accentColor: '#FFEA3A',
     label: 'Ordnance',
@@ -46,7 +48,7 @@ export const CONSUMABLE_FAMILY_VISUALS: Record<ConsumableFamily, ConsumableFamil
   },
   tactical: {
     family: 'tactical',
-    glyph: '📡',
+    icon: 'signal',
     color: '#00E5FF',
     accentColor: '#A5F3FC',
     label: 'Tactical',
@@ -55,7 +57,7 @@ export const CONSUMABLE_FAMILY_VISUALS: Record<ConsumableFamily, ConsumableFamil
   },
   economy: {
     family: 'economy',
-    glyph: '★',
+    icon: 'coin',
     color: '#FFB300',
     accentColor: '#FF9000',
     label: 'Economy',
@@ -64,7 +66,7 @@ export const CONSUMABLE_FAMILY_VISUALS: Record<ConsumableFamily, ConsumableFamil
   },
   corrupted: {
     family: 'corrupted',
-    glyph: '⚠',
+    icon: 'warn',
     color: '#B66BFF',
     accentColor: '#FF9DF5',
     label: 'Corrupted',
@@ -76,7 +78,7 @@ export const CONSUMABLE_FAMILY_VISUALS: Record<ConsumableFamily, ConsumableFamil
 export function getConsumableFamilyVisual(family: ConsumableFamily): ConsumableFamilyVisual {
   return CONSUMABLE_FAMILY_VISUALS[family] ?? {
     family,
-    glyph: '?',
+    icon: 'flask',
     color: '#B8B0A8',
     accentColor: '#34303A',
     label: String(family),

@@ -8,6 +8,7 @@
  * unlock hint — nothing is hidden, nothing is selectable early.
  */
 import React from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { CheckCircle, Lock } from 'lucide-react';
 import { useBossStore } from '@/store/slices/bossSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
@@ -107,9 +108,9 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
             {/* Stats Row */}
             <div className="flex items-center justify-between gap-2 text-[10px] text-text-secondary">
               <div className="flex min-w-0 flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>♥</span> HP {boss.health.toLocaleString()}</div>
-                {boss.shield > 0 && <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>⚡</span> Shield {boss.shield.toLocaleString()}</div>}
-                {boss.armor > 0 && <div className="flex items-center gap-1"><span style={{ fontSize: 10 }}>◈</span> Armor {boss.armor.toLocaleString()}</div>}
+                <div className="flex items-center gap-1"><PxIcon name="heart" size={13} /> HP {boss.health.toLocaleString()}</div>
+                {boss.shield > 0 && <div className="flex items-center gap-1"><PxIcon name="bolt" size={13} /> Shield {boss.shield.toLocaleString()}</div>}
+                {boss.armor > 0 && <div className="flex items-center gap-1"><PxIcon name="armor" size={13} /> Armor {boss.armor.toLocaleString()}</div>}
               </div>
               <div
                 className="shrink-0 border-2 border-border bg-bg/80 px-1.5 py-0.5"

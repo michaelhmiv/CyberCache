@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion } from 'framer-motion';
 import { Lock, RotateCcw } from 'lucide-react';
 import { getSkillTreeNodes } from '@/constants/skillTrees';
@@ -92,7 +93,7 @@ const ActionSkillPicker: React.FC = () => {
                   style={{ borderLeftColor: visual.color, borderLeftWidth: 5 }}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span style={{ color: visual.color, fontSize: 14 }}>{visual.sigil}</span>
+                    <PxIcon name={visual.sigil} size={13} style={{ color: visual.color }} />
                     <span className="text-[11px] font-black text-text-primary">{def.name}</span>
                   </div>
                   <div className="mt-0.5 text-[9px] leading-tight text-text-muted">{def.summary}</div>
@@ -272,7 +273,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
             <div className="text-xs font-black uppercase tracking-wide" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
             <div className="text-[10px] text-text-muted">Horizontal scroll is intentional on mobile. Tap a node to inspect or spend.</div>
           </div>
-          <span className="font-black" style={{ color: activeTreeDef.color, fontSize: '16px' }}>✦</span>
+          <PxIcon name="star" size={17} style={{ color: activeTreeDef.color }} />
         </div>
 
         {errorMessage && (

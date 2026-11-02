@@ -8,6 +8,7 @@ import {
   WeaponType,
   ConsumableType,
 } from '@/types/game';
+import type { PxIconName } from '@/lib/pixel/icons';
 import { CONSUMABLES, type ConsumableVisual } from './consumables';
 
 export type VisualAssetKind =
@@ -30,6 +31,8 @@ export interface VisualAsset {
   label: string;
   shortLabel: string;
   mark: string;
+  /** Pixel icon (PxIcon name) — set when the asset has a drawn icon; renderers prefer it over the letter mark. */
+  icon?: PxIconName;
   color: string;
   accentColor: string;
   description: string;
@@ -313,7 +316,8 @@ export function getConsumableVisual(id: ConsumableType | CraftedConsumableType |
       kind: 'consumable',
       label: def.name,
       shortLabel: def.name.slice(0, 3).toUpperCase(),
-      mark: def.visual.glyph,
+      mark: def.name.charAt(0).toUpperCase(),
+      icon: def.visual.icon,
       color,
       accentColor: color,
       description: def.shortDescription,

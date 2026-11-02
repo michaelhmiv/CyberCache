@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useAnimationControls } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
 import { PixelRigActor } from './PixelRigActor';
@@ -273,7 +274,7 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
               style={{ borderColor: getSkillTreeVisual(signatureFire).color, color: getSkillTreeVisual(signatureFire).color }}
               data-testid="boss-signature-fire"
             >
-              <span>{getSkillTreeVisual(signatureFire).sigil}</span>
+              <PxIcon name={getSkillTreeVisual(signatureFire).sigil} size={13} />
               {ACTION_SKILL_DEFS[signatureFire].name} fired
             </div>
           </>

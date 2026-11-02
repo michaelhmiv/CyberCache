@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Info, Lock, Play, Unlock } from 'lucide-react';
 import { usePlayerStore, useInventoryStore, useIdleStore, useLoadoutStore } from '@/store';
@@ -144,7 +145,7 @@ const GearItemCard: React.FC<{
             disabled={action === 'equipped'}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber/20 text-amber text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-60"
           >
-            <span style={{ fontSize: '12px' }}>⚔</span>
+            <PxIcon name="crosshair" size={13} />
             {action === 'equipped' ? 'Equipped' : 'Equip'}
           </button>
         )}
@@ -161,7 +162,7 @@ const GearItemCard: React.FC<{
           disabled={itemIsLocked || action === 'scrapped'}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
-          <span style={{ fontSize: 12 }}>♻</span>
+          <PxIcon name="recycle" size={13} />
           Salvage
         </button>
       </div>
@@ -518,7 +519,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
               transition={{ repeat: Infinity, duration: 0.4 }}
               className="text-amber"
             >
-              <span className="font-black text-amber" style={{ fontSize: '80px' }}>▤</span>
+              <PxIcon name="crate" size={40} />
             </motion.div>
             <div className="absolute bottom-20 text-amber font-bold text-sm animate-pulse">
               DECRYPTING CACHE...
@@ -563,7 +564,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
               transition={{ type: 'spring', delay: 0.1 }}
               className="text-amber mb-4"
             >
-              <span className="font-black text-amber" style={{ fontSize: '48px' }}>✦</span>
+              <PxIcon name="star" size={40} className="text-amber" />
             </motion.div>
             <div className="text-xl font-black text-amber mb-4">CACHE DECRYPTED</div>
             <div className="w-full max-w-[480px] space-y-3 max-h-[55vh] overflow-y-auto">

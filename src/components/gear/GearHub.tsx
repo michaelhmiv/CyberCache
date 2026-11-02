@@ -7,6 +7,7 @@
  *   - Show type-specific decision stats on every row; inspect is for the full poster, not basic triage.
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -163,13 +164,13 @@ const LOADOUT_LABELS: Record<LoadoutSlot, string> = {
   relic: 'Relic',
 };
 
-const KIND_DEFS: Array<{ id: GearKind; label: string; short: string; glyph: string }> = [
-  { id: 'all', label: 'All Gear', short: 'All', glyph: '◈' },
-  { id: 'weapon', label: 'Weapons', short: 'Weapons', glyph: '⚔' },
-  { id: 'shield', label: 'Shields', short: 'Shields', glyph: '⬡' },
-  { id: 'ordnance', label: 'Ordnance', short: 'Ordnance', glyph: '◉' },
-  { id: 'classMod', label: 'Class Mods', short: 'Mods', glyph: '✦' },
-  { id: 'relic', label: 'Relics', short: 'Relics', glyph: '◇' },
+const KIND_DEFS: Array<{ id: GearKind; label: string; short: string; icon: PxIconName }> = [
+  { id: 'all', label: 'All Gear', short: 'All', icon: 'diamondIn' },
+  { id: 'weapon', label: 'Weapons', short: 'Weapons', icon: 'crosshair' },
+  { id: 'shield', label: 'Shields', short: 'Shields', icon: 'shield' },
+  { id: 'ordnance', label: 'Ordnance', short: 'Ordnance', icon: 'bullseye' },
+  { id: 'classMod', label: 'Class Mods', short: 'Mods', icon: 'star' },
+  { id: 'relic', label: 'Relics', short: 'Relics', icon: 'diamond' },
 ];
 
 // ── Type Guards ──────────────────────────────────────────────────────────────
@@ -712,7 +713,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       {/* Gear-kind rail: first-class mobile navigation, one row only. */}
       <div className="-mx-3 overflow-x-auto px-3 pb-0.5">
         <div className="flex min-w-max gap-1.5">
-          {KIND_DEFS.map(({ id, short, glyph }) => {
+          {KIND_DEFS.map(({ id, short, icon }) => {
             const active = activeKind === id;
             const counts = kindCounts[id];
             return (
@@ -724,7 +725,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
                 }`}
               >
-                <span style={{ fontSize: 12 }}>{glyph}</span>
+                <PxIcon name={icon} size={13} />
                 <span>{short}</span>
                 <span className={active ? 'text-amber/80' : 'text-text-muted/70'}>{counts.total}</span>
                 {counts.equipped > 0 && <span className="rounded-full bg-amber px-1 py-0 text-[7px] text-bg">{counts.equipped} EQ</span>}
@@ -1172,7 +1173,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
               </button>
             ) : (
               <button type="button" onClick={() => equip(liveInspectItem)} className="flex flex-col items-center gap-1 border border-amber/40 bg-amber/10 py-2 text-[9px] font-black text-amber">
-                <span style={{ fontSize: 15 }}>⚔</span>Equip
+                <PxIcon name="crosshair" size={13} />Equip
               </button>
             )}
             <button type="button" onClick={() => onNavigate?.('market')} className="flex flex-col items-center gap-1 border border-green/40 bg-green/10 py-2 text-[9px] font-black text-green">
@@ -1201,7 +1202,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                 }}
                 className="col-span-4 flex items-center justify-center gap-2 border border-cyan/40 bg-cyan/10 py-2 text-[10px] font-black text-cyan"
               >
-                <span style={{ fontSize: 13 }}>🛡</span>Recalibrate behavior…
+                <PxIcon name="shield" size={13} />Recalibrate behavior…
               </button>
             )}
           </div>

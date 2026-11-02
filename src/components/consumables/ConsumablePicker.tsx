@@ -6,6 +6,7 @@
  * sort, and family-count chips.
  */
 import React, { useMemo } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { Search, ArrowUpDown, X } from 'lucide-react';
 import { usePlayerStore } from '@/store';
 import { CONSUMABLES } from '@/constants/consumables';
@@ -287,7 +288,7 @@ export const ConsumablePicker: React.FC<ConsumablePickerProps> = ({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="text-lg font-black shrink-0" style={{ color: `var(--${def.visual.accent})` }}>
-                        {def.visual.glyph}
+                        <PxIcon name={def.visual.icon} size={17} />
                       </span>
                       <span className={`text-xs font-black truncate ${familyTone}`}>{def.name}</span>
                       <span className="text-[9px] text-text-muted shrink-0">

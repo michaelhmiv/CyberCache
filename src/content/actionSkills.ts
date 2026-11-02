@@ -44,6 +44,7 @@
  *    slice (non-goal).
  */
 import { RARITIES } from '../constants/rarities';
+import type { PxIconName } from '@/lib/pixel/icons';
 import { SKILL_NODES } from '../constants/skillTrees';
 import { SKILL_TREE_VISUALS } from '../constants/skillTreeVisuals';
 import type { ActionSkillSimEffect } from '../lib/simulation/bossSimulator';
@@ -374,7 +375,7 @@ export interface ActionSkillSignatureView {
   keystoneNodeId: string;
   summary: string;
   description: string;
-  sigil: string;
+  sigil: PxIconName;
   color: string;
   accentColor: string;
   qualified: boolean;

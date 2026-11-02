@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
   getDispatchState,
@@ -168,7 +169,7 @@ export const DispatchPanel: React.FC = () => {
               onClick={() => { refresh().catch(() => { /* stale state stays */ }); }}
               className="bl-secondary px-2 py-0.5 text-[10px] font-black"
             >
-              ↻ Settle
+              <span className="inline-flex items-center gap-1"><PxIcon name="recycle" size={13} /> Settle</span>
             </button>
           </div>
         </div>
@@ -205,7 +206,7 @@ export const DispatchPanel: React.FC = () => {
             className={`flex w-full items-center justify-between gap-2 border px-2 py-2 text-left ${offerId === o.id ? 'border-amber bg-amber/10' : 'border-border/60'} disabled:opacity-50`}
           >
             <span className="text-xs font-bold text-text-primary">
-              {o.family === 'courier' ? '🚚 Courier' : '🥾 Foot'} — {o.areaName} · {o.durationHours}h
+              {o.family === 'courier' ? <span className="inline-flex items-center gap-1"><PxIcon name="truck" size={13} /> Courier</span> : <span className="inline-flex items-center gap-1"><PxIcon name="boot" size={13} /> Foot</span>} — {o.areaName} · {o.durationHours}h
             </span>
             <span className="text-[10px] font-bold text-text-muted">
               {o.areaLocked ? `Locked · Lv ${o.areaUnlockLevel}` : `${o.dangerRating} danger`}
@@ -230,7 +231,7 @@ export const DispatchPanel: React.FC = () => {
                       disabled={!spare}
                       className={`flex w-full items-center justify-between px-2 py-1 text-left text-xs ${picked ? 'bg-amber/15 font-black text-text-primary' : 'text-text-primary'} disabled:opacity-40`}
                     >
-                      <span>{picked ? '✓ ' : ''}{c.name}</span>
+                      <span className="inline-flex items-center gap-1">{picked ? <PxIcon name="check" size={13} /> : null}{c.name}</span>
                       <span className="text-[10px] text-text-muted">{spare ? `Lv ${c.itemLevel}` : c.equippedSlot ? 'equipped' : c.runtimeState}</span>
                     </button>
                   );
@@ -250,7 +251,7 @@ export const DispatchPanel: React.FC = () => {
                       disabled={!spare}
                       className={`flex w-full items-center justify-between px-2 py-1 text-left text-xs ${picked ? 'bg-amber/15 font-black text-text-primary' : 'text-text-primary'} disabled:opacity-40`}
                     >
-                      <span>{picked ? '✓ ' : ''}{c.name}</span>
+                      <span className="inline-flex items-center gap-1">{picked ? <PxIcon name="check" size={13} /> : null}{c.name}</span>
                       <span className="text-[10px] text-text-muted">
                         {spare ? `condition ${Math.round(c.conditionCurrent ?? 100)}` : c.equippedSlot ? 'equipped' : c.runtimeState}
                       </span>
@@ -271,7 +272,7 @@ export const DispatchPanel: React.FC = () => {
                     <div>Projected wear: {Number(preview.wearProjected ?? 0).toFixed(1)} condition</div>
                     {preview.breaksDown ? (
                       <div className="font-black text-red-400">
-                        ⚠ BREAKDOWN at {Math.round(Number(preview.breakdownFraction ?? 0) * 100)}% of the route — returns at 0 condition, payout pro-rata, unflown fuel refunded.
+                        <span className="inline-flex items-center gap-1"><PxIcon name="warn" size={13} /> BREAKDOWN</span> at {Math.round(Number(preview.breakdownFraction ?? 0) * 100)}% of the route — returns at 0 condition, payout pro-rata, unflown fuel refunded.
                       </div>
                     ) : (
                       <div>Projected return condition: {Number(preview.returnCondition ?? 0).toFixed(0)}</div>

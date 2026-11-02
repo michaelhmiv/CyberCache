@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Lock } from 'lucide-react';
 import type { BossDef, PhaseAnalysis } from '../../types/boss';
@@ -65,16 +66,16 @@ const legendaryName = (effectId: string) =>
 const BossVitals: React.FC<{ boss: BossDef }> = ({ boss }) => {
   const max = Math.max(1, boss.health, boss.shield, boss.armor);
   const rows = [
-    { label: 'HP', glyph: '♥', value: boss.health, color: 'bg-red', text: 'text-red' },
-    { label: 'Shield', glyph: '⚡', value: boss.shield, color: 'bg-cyan', text: 'text-cyan' },
-    { label: 'Armor', glyph: '◈', value: boss.armor, color: 'bg-purple', text: 'text-purple' },
+    { label: 'HP', icon: 'heart' as PxIconName, value: boss.health, color: 'bg-red', text: 'text-red' },
+    { label: 'Shield', icon: 'bolt' as PxIconName, value: boss.shield, color: 'bg-cyan', text: 'text-cyan' },
+    { label: 'Armor', icon: 'armor' as PxIconName, value: boss.armor, color: 'bg-purple', text: 'text-purple' },
   ];
   return (
     <div className="space-y-1.5" data-testid="boss-vitals">
       {rows.map((row) => (
         <div key={row.label} className="flex items-center gap-2">
           <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
-            <span className={row.text} style={{ fontSize: 11 }}>{row.glyph}</span>{row.label}
+            <span className={`inline-flex ${row.text}`}><PxIcon name={row.icon} size={13} /></span>{row.label}
           </div>
           <div className="relative h-2.5 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
             <motion.div
@@ -126,7 +127,7 @@ const FightCard: React.FC<{
   return (
     <MobileCard className="space-y-2 border-red/30 bg-red/5">
       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red">
-        <span style={{ fontSize: 14 }}>⚔</span>
+        <PxIcon name="crosshair" size={13} />
         Combat Resolution
       </div>
       <BossFightStage
@@ -160,7 +161,7 @@ const FightCard: React.FC<{
       )}
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
-          <span className="flex items-center gap-1"><span style={{ fontSize: 11 }} className="text-green">♥</span> Player</span>
+          <span className="flex items-center gap-1"><PxIcon name="heart" size={13} className="text-green" /> Player</span>
           <span className="font-black text-text-primary">{accountHp.toLocaleString()} / {accountHpMax.toLocaleString()}</span>
         </div>
         <GhostHpBar pct={playerPct} color="#4ADE80" reduced={reducedMotion === true} testId="fight-player-hp" />
@@ -558,7 +559,7 @@ export const BossEncounterPanel: React.FC<{
               const count = prepared[def.id] ?? 0;
               return (
                 <div key={def.id} className="flex items-center gap-2 border border-border bg-bg/70 p-2" style={slashClip}>
-                  <span style={{ fontSize: 14 }} className="shrink-0">{def.visual.glyph}</span>
+                  <span className="inline-flex shrink-0"><PxIcon name={def.visual.icon} size={13} /></span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[11px] font-black text-text-primary">{def.name}</div>
                     <div className="truncate text-[9px] text-text-muted">{def.shortDescription}</div>
@@ -691,7 +692,7 @@ export const BossEncounterPanel: React.FC<{
                 <div className="text-xs font-black text-cyan">Level {result.levelBefore} → {result.levelAfter}</div>
               )}
               {result.dedicatedDropAwarded && (
-                <div className="text-xs font-black text-amber">★ Dedicated drop — one of {boss.name}&apos;s signature legendaries</div>
+                <div className="flex items-center gap-1 text-xs font-black text-amber"><PxIcon name="star5" size={13} /> Dedicated drop — one of {boss.name}&apos;s signature legendaries</div>
               )}
               {result.bonusLootRolls > 0 && (
                 <div className="text-xs text-amber">+{result.bonusLootRolls} bonus loot roll{result.bonusLootRolls > 1 ? 's' : ''} from your prep</div>
@@ -715,7 +716,7 @@ export const BossEncounterPanel: React.FC<{
           )}
           {result.result.actionSkill?.fired && (
             <div className="text-xs font-black" style={{ color: getSkillTreeVisual(result.result.actionSkill.tree as SkillTreeType).color }} data-testid="boss-result-action-skill">
-              {getSkillTreeVisual(result.result.actionSkill.tree as SkillTreeType).sigil} {ACTION_SKILL_DEFS[result.result.actionSkill.tree as SkillTreeType].name} fired
+              <PxIcon name={getSkillTreeVisual(result.result.actionSkill.tree as SkillTreeType).sigil} size={13} /> {ACTION_SKILL_DEFS[result.result.actionSkill.tree as SkillTreeType].name} fired
             </div>
           )}
           {Object.keys(result.consumedConsumables).length > 0 && (

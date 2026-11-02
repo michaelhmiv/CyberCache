@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BottomNav } from './components/layout/BottomNav';
 import { ScreenWrapper } from './components/layout/ScreenWrapper';
@@ -203,7 +204,7 @@ function App() {
               onClick={handleBack}
               className="bl-secondary px-3 py-2 text-xs font-black text-amber active:text-amber/70"
             >
-              ← Back
+              <span className="inline-flex items-center gap-1"><PxIcon name="chevL" size={13} /> Back</span>
             </motion.button>
             <div>
               <div className="bl-title text-2xl leading-none text-text-primary capitalize">{title}</div>

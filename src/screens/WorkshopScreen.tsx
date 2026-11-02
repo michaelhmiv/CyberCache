@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X, Lock } from 'lucide-react';
 import { useActivityStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
@@ -77,17 +78,17 @@ const MATERIAL_COLORS: Record<string, string> = {
   VoidEssence: 'text-violet-400',
 };
 
-const MATERIAL_ICONS: Record<string, string> = {
-  ScrapAlloy: '🔩',
-  BallisticParts: '🔫',
-  ReactiveComponents: '⚡',
-  TechFragments: '💾',
-  VoidDust: '✨',
-  IgnitionFluid: '🔥',
-  ConduitWire: '🔌',
-  AcidCompound: '🧪',
-  CryoGel: '❄️',
-  VoidEssence: '🌀',
+const MATERIAL_ICONS: Record<string, PxIconName> = {
+  ScrapAlloy: 'scrap',
+  BallisticParts: 'gun',
+  ReactiveComponents: 'bolt',
+  TechFragments: 'chip',
+  VoidDust: 'star',
+  IgnitionFluid: 'flame',
+  ConduitWire: 'nodes',
+  AcidCompound: 'flask',
+  CryoGel: 'snow',
+  VoidEssence: 'swirl',
 };
 
 function formatDuration(ms: number): string {
@@ -143,7 +144,7 @@ const OverclockBar: React.FC = () => {
     if (!view.qualified.includes(SkillTreeType.Fixer)) return null;
     return (
       <div className="text-[11px] text-text-muted" data-testid="overclock-hint">
-        ⚒ Overclock is yours to select — make Fixer your active signature in the Skill Trees screen to charge it here.
+        <span className="inline-flex items-center gap-1"><PxIcon name="hammer" size={13} /> Overclock is yours to select — make Fixer your active signature in the Skill Trees screen to charge it here.</span>
       </div>
     );
   }
@@ -174,7 +175,7 @@ const OverclockBar: React.FC = () => {
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 16, color: '#2EC4B6' }}>⚒</span>
+          <PxIcon name="hammer" size={17} style={{ color: '#2EC4B6' }} />
           <div className="text-xs font-black text-text-primary">Overclock</div>
         </div>
         <div className="font-mono text-[11px] font-black text-text-primary" data-testid="overclock-charge-label">
@@ -188,8 +189,8 @@ const OverclockBar: React.FC = () => {
           style={{ width: `${pct}%`, backgroundColor: '#2EC4B6' }}
           data-testid="overclock-charge-fill"
         />
-        <span className="absolute inset-y-0 flex items-center" style={{ left: `calc(${pct}% - 8px)`, color: '#2EC4B6', fontSize: 10 }}>
-          ⚒
+        <span className="absolute inset-y-0 flex items-center" style={{ left: `calc(${pct}% - 8px)`, color: '#2EC4B6' }}>
+          <PxIcon name="hammer" size={13} />
         </span>
       </div>
       <div className="text-[10px] text-text-muted">
@@ -203,7 +204,7 @@ const OverclockBar: React.FC = () => {
         className="bl-primary w-full py-2 text-[11px] font-black uppercase tracking-wider disabled:opacity-50"
         style={view.charged ? { backgroundColor: '#2EC4B6', color: '#050608' } : undefined}
       >
-        {busy ? 'Firing…' : view.charged ? '⚒ Fire Overclock' : 'Overclock charging…'}
+        {busy ? 'Firing…' : view.charged ? <span className="inline-flex items-center gap-1"><PxIcon name="hammer" size={13} /> Fire Overclock</span> : 'Overclock charging…'}
       </button>
       {note && <div className="text-[10px] text-text-secondary" data-testid="overclock-note">{note}</div>}
     </div>
@@ -371,14 +372,14 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                 style={chipClip}
               >
                 {locked ? <Lock size={10} className="inline" /> : null} {b.name}
-                {running ? ' ●' : ''}
+                {running ? <span className="ml-1 inline-flex align-middle"><PxIcon name="dot" size={13} /></span> : ''}
               </button>
             );
           })}
         </div>
         {!isCrafting && activeJobs.length > 0 && (
           <div className="absolute right-2 top-2 bg-red/85 text-white text-[10px] font-black px-2 py-1" style={chipClip}>
-            ⛳ Paused — {pausedReason(activity.current.kind)}
+            <span className="inline-flex items-center gap-1"><PxIcon name="flag" size={13} /> Paused — {pausedReason(activity.current.kind)}</span>
           </div>
         )}
         {isCrafting && runningJob && (
@@ -394,7 +395,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
 
       <MobileCard className="space-y-1 border-amber/30 bg-amber/5">
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-amber">
-          <span style={{ fontSize: '13px' }}>⚙</span> Workshop Activity
+          <PxIcon name="cog" size={13} /> Workshop Activity
         </div>
         <div className="text-[10px] text-text-secondary leading-relaxed">
           {isCrafting
@@ -482,7 +483,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           <div className={`grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] overflow-hidden transition-all ${expandedMaterials ? 'max-h-[500px] opacity-100' : 'max-h-16 opacity-70'}`}>
             {sortedMaterials.slice(0, expandedMaterials ? sortedMaterials.length : 4).map(([type, count]) => {
               const colorClass = MATERIAL_COLORS[type] || 'text-text-secondary';
-              const icon = MATERIAL_ICONS[type] || '';
+              const icon: PxIconName | null = MATERIAL_ICONS[type] ?? null;
               return (
                 <button
                   key={type}
@@ -491,7 +492,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                   className="flex w-full items-center justify-between text-left"
                   aria-label={`${type}: show recipes that use it`}
                 >
-                  <span className={`truncate ${colorClass}`}>{icon} {type}</span>
+                  <span className={`inline-flex items-center gap-1 truncate ${colorClass}`}>{icon ? <PxIcon name={icon} size={13} /> : null} {type}</span>
                   <span className="font-bold ml-1 text-text-primary">{count}</span>
                 </button>
               );
@@ -701,7 +702,7 @@ const BenchAndToolsCard: React.FC<{
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-bold text-text-primary">
                 {b.bench}. {b.name}
-                {owned ? '' : ' 🔒'}
+                {owned ? '' : <span className="ml-1 inline-flex align-middle"><PxIcon name="lock" size={13} /></span>}
               </span>
               {owned ? (
                 <span className="text-[10px] text-text-muted">
@@ -842,7 +843,7 @@ const RecipeCard: React.FC<{
     <MobileCard className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          {def && <span className="grid h-8 w-8 shrink-0 place-items-center rounded border border-border bg-bg text-sm font-black">{def.visual.glyph}</span>}
+          {def && <span className="grid h-8 w-8 shrink-0 place-items-center rounded border border-border bg-bg"><PxIcon name={def.visual.icon} size={17} /></span>}
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="truncate text-xs font-bold text-text-primary">{recipe.name}</span>
@@ -874,10 +875,10 @@ const RecipeCard: React.FC<{
       <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px]">
         {inputRows.map(({ key, need, have, enough }) => {
           const colorClass = MATERIAL_COLORS[key] || 'text-text-muted';
-          const icon = MATERIAL_ICONS[key] || '';
+          const icon: PxIconName | null = MATERIAL_ICONS[key] ?? null;
           return (
             <span key={key} className={`flex items-center gap-0.5 ${enough ? '' : 'text-red-400 line-through'}`}>
-              <span className={colorClass}>{icon}</span>
+              <span className={`inline-flex ${colorClass}`}>{icon ? <PxIcon name={icon} size={13} /> : null}</span>
               <span className={enough ? 'text-text-primary' : undefined}>
                 {getVisualAsset('material', key).label} {have}/{need}
               </span>
@@ -886,7 +887,7 @@ const RecipeCard: React.FC<{
         })}
         {useCatalyst && catalystId && (
           <span className={catalystHave >= units ? 'text-text-primary' : 'text-red-400 line-through'}>
-            ⚗ {catalystId} {catalystHave}/{units}
+            <span className="inline-flex items-center gap-1"><PxIcon name="flask" size={13} /> {catalystId} {catalystHave}/{units}</span>
           </span>
         )}
       </div>
@@ -944,7 +945,7 @@ const RecipeCard: React.FC<{
             style={chipClip}
             title={benchSel < 2 ? 'Catalysts need the Forge (bench 2)' : `+10/+15 quality bounds, 1 ${catalystId} per unit`}
           >
-            ⚗ Catalyst{catalystId ? ` (${catalystId})` : ''}
+            <span className="inline-flex items-center gap-1"><PxIcon name="flask" size={13} /> Catalyst{catalystId ? ` (${catalystId})` : ''}</span>
           </button>
         )}
         <button
@@ -955,7 +956,7 @@ const RecipeCard: React.FC<{
           style={chipClip}
           title="Escrow one Workshop Rush Ticket: the job runs faster by the ticket's quality"
         >
-          🎟 Rush ticket ({ticketsOwned})
+          <span className="inline-flex items-center gap-1"><PxIcon name="tag" size={13} /> Rush ticket ({ticketsOwned})</span>
         </button>
       </div>
 
@@ -984,7 +985,7 @@ const RecipeCard: React.FC<{
             : 'bg-surface-raised text-text-muted border border-border cursor-not-allowed'
         }`}
       >
-        {canEnqueue ? (queuedFlash ? '✓ Queued!' : 'QUEUE JOB') : disabledReason}
+        {canEnqueue ? (queuedFlash ? <span className="inline-flex items-center gap-1"><PxIcon name="check" size={13} /> Queued!</span> : 'QUEUE JOB') : disabledReason}
       </motion.button>
     </MobileCard>
   );

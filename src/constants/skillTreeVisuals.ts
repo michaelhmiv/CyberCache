@@ -4,10 +4,11 @@
  * Used by SkillTreeScreen tab headers and DashboardScreen skill summary.
  */
 import { SkillTreeType } from '@/types/game';
+import type { PxIconName } from '@/lib/pixel/icons';
 
 export interface SkillTreeVisual {
   id: SkillTreeType;
-  sigil: string;
+  sigil: PxIconName;
   color: string;
   accentColor: string;
   label: string;
@@ -17,7 +18,7 @@ export interface SkillTreeVisual {
 export const SKILL_TREE_VISUALS: Record<SkillTreeType, SkillTreeVisual> = {
   [SkillTreeType.Gunslinger]: {
     id: SkillTreeType.Gunslinger,
-    sigil: '⊙',
+    sigil: 'bullseye',
     color: '#FF4B5C',
     accentColor: '#FFEA3A',
     label: 'Gunslinger',
@@ -25,7 +26,7 @@ export const SKILL_TREE_VISUALS: Record<SkillTreeType, SkillTreeVisual> = {
   },
   [SkillTreeType.Demolition]: {
     id: SkillTreeType.Demolition,
-    sigil: '◈',
+    sigil: 'diamondIn',
     color: '#FF9000',
     accentColor: '#FFEA3A',
     label: 'Demolition',
@@ -33,7 +34,7 @@ export const SKILL_TREE_VISUALS: Record<SkillTreeType, SkillTreeVisual> = {
   },
   [SkillTreeType.Scavenger]: {
     id: SkillTreeType.Scavenger,
-    sigil: '♻',
+    sigil: 'recycle',
     color: '#7CFC00',
     accentColor: '#B2FF59',
     label: 'Scavenger',
@@ -41,7 +42,7 @@ export const SKILL_TREE_VISUALS: Record<SkillTreeType, SkillTreeVisual> = {
   },
   [SkillTreeType.Fixer]: {
     id: SkillTreeType.Fixer,
-    sigil: '⚒',
+    sigil: 'hammer',
     color: '#2EC4B6',
     accentColor: '#FFD166',
     label: 'Fixer',
@@ -52,7 +53,7 @@ export const SKILL_TREE_VISUALS: Record<SkillTreeType, SkillTreeVisual> = {
 export function getSkillTreeVisual(tree: SkillTreeType): SkillTreeVisual {
   return SKILL_TREE_VISUALS[tree] ?? {
     id: tree,
-    sigil: '?',
+    sigil: 'bullseye',
     color: '#B8B0A8',
     accentColor: '#34303A',
     label: String(tree),

@@ -1,3 +1,4 @@
+import type { PxIconName } from '@/lib/pixel/icons';
 /**
  * Activity Visual Registry — visual identity for each activity kind.
  *
@@ -8,7 +9,7 @@ import type { ActivityKind } from '@/types/activity';
 
 export interface ActivityVisual {
   kind: ActivityKind;
-  glyph: string;
+  icon: PxIconName;
   color: string;
   accentColor: string;
   label: string;
@@ -19,7 +20,7 @@ export interface ActivityVisual {
 export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   none: {
     kind: 'none',
-    glyph: '○',
+    icon: 'ring',
     color: '#B8B0A8',
     accentColor: '#34303A',
     label: 'None',
@@ -28,7 +29,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   idle_standby: {
     kind: 'idle_standby',
-    glyph: '⏸',
+    icon: 'pause',
     color: '#B8B0A8',
     accentColor: '#FF9000',
     label: 'Idle Standby',
@@ -37,7 +38,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   roaming_loot: {
     kind: 'roaming_loot',
-    glyph: '📡',
+    icon: 'signal',
     color: '#A855F7',
     accentColor: '#FF9DF5',
     label: 'Roaming Loot',
@@ -46,7 +47,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   boss_fight: {
     kind: 'boss_fight',
-    glyph: '☠',
+    icon: 'skull',
     color: '#FF4B5C',
     accentColor: '#FFEA3A',
     label: 'Boss Fight',
@@ -55,7 +56,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   crafting: {
     kind: 'crafting',
-    glyph: '⚒',
+    icon: 'hammer',
     color: '#FF9000',
     accentColor: '#FFEA3A',
     label: 'Crafting',
@@ -64,7 +65,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   salvaging: {
     kind: 'salvaging',
-    glyph: '♻',
+    icon: 'recycle',
     color: '#7CFC00',
     accentColor: '#B2FF59',
     label: 'Salvaging',
@@ -73,7 +74,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   workshop_service: {
     kind: 'workshop_service',
-    glyph: '⚙',
+    icon: 'cog',
     color: '#3B82F6',
     accentColor: '#A5F3FC',
     label: 'Workshop Service',
@@ -82,7 +83,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   market_listing: {
     kind: 'market_listing',
-    glyph: '$',
+    icon: 'tag',
     color: '#F7D20B',
     accentColor: '#FF9000',
     label: 'Market Listing',
@@ -91,7 +92,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   endless_run: {
     kind: 'endless_run',
-    glyph: '∞',
+    icon: 'infinity',
     color: '#C026D3',
     accentColor: '#FF4B5C',
     label: 'Endless Run',
@@ -100,7 +101,7 @@ export const ACTIVITY_VISUALS: Record<ActivityKind, ActivityVisual> = {
   },
   extraction: {
     kind: 'extraction',
-    glyph: '⛏',
+    icon: 'pick',
     color: '#E8B33C',
     accentColor: '#57D0D8',
     label: 'Extraction',

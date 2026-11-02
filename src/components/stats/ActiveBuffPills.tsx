@@ -1,4 +1,5 @@
 import React, { memo, useState, useEffect, useMemo, useRef } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { CONSUMABLES, type ConsumableVisual, type ConsumableRuntimeEffects } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
@@ -142,7 +143,7 @@ const BuffPill = memo(function BuffPill({
 }) {
   const def = CONSUMABLES[buff.consumableId];
   const accent = def ? accentClass[def.visual.accent] : '#888';
-  const glyph = def?.visual.glyph;
+  const icon = def?.visual.icon;
   const name = def?.name ?? buff.consumableId;
   const tacticalRole = def?.tacticalRole ?? '';
   const isMedKit = buff.consumableId === 'MedKit' || buff.consumableId === 'MedKitRefined';
@@ -180,7 +181,7 @@ const BuffPill = memo(function BuffPill({
         className="shrink-0 text-[14px] font-black leading-none"
         style={{ color: accent }}
       >
-        {glyph}
+        {icon ? <PxIcon name={icon} size={13} /> : null}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-1">
@@ -221,7 +222,7 @@ const BuffPill = memo(function BuffPill({
             className="mt-0.5 truncate text-[7px] leading-tight"
             style={{ color: accent }}
           >
-            ★ {activePerk}
+            <span className="inline-flex items-center gap-1"><PxIcon name="star5" size={13} /> {activePerk}</span>
           </div>
         )}
       </div>
@@ -290,7 +291,7 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
               {/* Glyph or slot number */}
               <div className="flex h-7 w-7 items-center justify-center border-2 border-border bg-bg/80">
                 {def ? (
-                  <span className="text-[14px] font-black leading-none" style={{ color: accent }}>{def.visual.glyph}</span>
+                  <PxIcon name={def.visual.icon} size={13} style={{ color: accent }} />
                 ) : (
                   <span className="text-[11px] font-black text-text-muted">{slotNumber}</span>
                 )}

@@ -224,7 +224,7 @@ describe('action skill content', () => {
     expect(full.charged).toBe(true);
     expect(full.noKeystoneNote).toBeNull();
     const fixerSig = full.signatures.find((s) => s.tree === SkillTreeType.Fixer);
-    expect(fixerSig?.sigil).toBe('⚒');
+    expect(fixerSig?.sigil).toBe('hammer');
     expect(fixerSig?.color).toBe('#2EC4B6');
     expect(fixerSig?.selected).toBe(true);
   });

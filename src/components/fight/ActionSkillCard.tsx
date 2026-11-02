@@ -1,4 +1,5 @@
 import React from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import {
   ACTION_SKILL_DEFS,
   NO_KEYSTONE_NOTE,
@@ -63,7 +64,7 @@ export const ActionSkillCard: React.FC<{
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 16, color: visual.color }}>{visual.sigil}</span>
+          <PxIcon name={visual.sigil} size={17} style={{ color: visual.color }} />
           <div>
             <div className="text-xs font-black text-text-primary">{def.name}</div>
             <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: visual.color }}>
@@ -88,9 +89,9 @@ export const ActionSkillCard: React.FC<{
         />
         <span
           className="absolute inset-y-0 flex items-center"
-          style={{ left: `calc(${pct}% - 8px)`, color: visual.color, fontSize: 10 }}
+          style={{ left: `calc(${pct}% - 8px)`, color: visual.color }}
         >
-          {visual.sigil}
+          <PxIcon name={visual.sigil} size={13} />
         </span>
       </div>
       {state.charged ? (
@@ -101,7 +102,7 @@ export const ActionSkillCard: React.FC<{
           className={`w-full py-2 text-[11px] font-black uppercase tracking-wider ${armed ? 'bl-primary' : 'bl-secondary'}`}
           style={armed ? { backgroundColor: visual.color, color: '#050608' } : undefined}
         >
-          {armed ? `${visual.sigil} ${def.name} will fire` : `Arm ${def.name} for this fight`}
+          {armed ? <span className="inline-flex items-center gap-1"><PxIcon name={visual.sigil} size={13} /> {def.name} will fire</span> : `Arm ${def.name} for this fight`}
         </button>
       ) : (
         <div className="text-[10px] text-text-muted">{chargeSourceNote}</div>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import {
   ChevronDown,
   ChevronUp,
@@ -20,7 +21,7 @@ interface HelpSection {
   id: string;
   title: string;
   blurb: string;
-  glyph: string;
+  icon: PxIconName;
   color: string;
   items: HelpItem[];
 }
@@ -29,7 +30,7 @@ interface TourStep {
   id: string;
   title: string;
   body: string;
-  target: { tab: TabId; label: string; glyph: string };
+  target: { tab: TabId; label: string; icon: PxIconName };
   // The on-screen element to spotlight, used by the tour overlay when active.
   spotlight: string;
   cta: string;
@@ -44,7 +45,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '1. Pick an area',
     body:
       'Open the Board. The Choose Area panel lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Start with Dustwaste Frontier at Level 1; the system gates higher areas behind your Hunter level.',
-    target: { tab: 'dashboard', label: 'Board', glyph: '◇' },
+    target: { tab: 'dashboard', label: 'Board', icon: 'diamond' },
     spotlight: 'Choose Area panel',
     cta: 'Go to Board',
   },
@@ -53,7 +54,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '2. Start a roam',
     body:
       'Tap an area, then Action. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses and Mini-bosses are triggered by the Boss prep button on the Board, not by Action — Action is the passive roaming loop.',
-    target: { tab: 'fight', label: 'Action', glyph: '⚔' },
+    target: { tab: 'fight', label: 'Action', icon: 'crosshair' },
     spotlight: 'Roaming activity card',
     cta: 'Open Action',
   },
@@ -62,7 +63,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '3. Inspect loot',
     body:
       'Open Gear and tap any item card to bring up the inspect sheet. The "vs standard target" DPS at the top is your baseline. The Matchup Chip at the bottom shows effective DPS against the boss you are prepping, factoring in element, manufacturer, and legendary effects.',
-    target: { tab: 'inventory', label: 'Gear', glyph: '▣' },
+    target: { tab: 'inventory', label: 'Gear', icon: 'grid' },
     spotlight: 'Gear grid',
     cta: 'Open Gear',
   },
@@ -71,7 +72,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '4. Build a loadout',
     body:
       'Boss damage is computed from the seven equipped slots, not the full backpack. Equip your best weapon, shield, class mod, and relic before any boss attempt. Class Mods unlock Skill Tree keystones; Relics grant affixes. Both stack with weapon affixes in the DPS chain.',
-    target: { tab: 'inventory', label: 'Gear', glyph: '◈' },
+    target: { tab: 'inventory', label: 'Gear', icon: 'diamondIn' },
     spotlight: 'Loadout panel',
     cta: 'Open Gear',
   },
@@ -80,7 +81,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '5. Read your Build Identity',
     body:
       'The Hunter tab shows your Build Identity — the weapon type you actually rack kills with, pulled from combat stats. It is not based on what you own. If it shows "No data yet", patrol an area for a few minutes; the system needs a stable winner in killsByWeaponType.',
-    target: { tab: 'profile', label: 'Hunter', glyph: '☻' },
+    target: { tab: 'profile', label: 'Hunter', icon: 'person' },
     spotlight: 'Build Identity card',
     cta: 'Open Hunter',
   },
@@ -89,7 +90,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '6. Trade at the Market',
     body:
       'Sell duplicates for credits, and use the Vendor to roll for gear you can afford. Locked items never get sold or salvaged. The Market uses server-minted credits only, so a successful sale reflects in your balance on the next 3s tick.',
-    target: { tab: 'market', label: 'Market', glyph: getNavSigil('market').glyph },
+    target: { tab: 'market', label: 'Market', icon: getNavSigil('market').icon },
     spotlight: 'Market tabs',
     cta: 'Open Market',
   },
@@ -98,7 +99,7 @@ const TOUR_STEPS: TourStep[] = [
     title: '7. Track Mastery',
     body:
       'The Mastery screen (Field Manual → Mastery) renders six orbits — Combat, Weapons, Inventory, Locations, Economy, Services. Each satellite dot is a track. The constellation is server-tracked; the local fallback only fires when the server is unreachable.',
-    target: { tab: 'profile', label: 'Hunter', glyph: '✦' },
+    target: { tab: 'profile', label: 'Hunter', icon: 'star' },
     spotlight: 'Mastery constellation',
     cta: 'Open Mastery',
   },
@@ -112,7 +113,7 @@ const SECTIONS: HelpSection[] = [
     id: 'start',
     title: 'Getting Started',
     blurb: 'First 10 minutes on the Frontier.',
-    glyph: '⚔',
+    icon: 'crosshair',
     color: '#F59E0B',
     items: [
       { term: 'Pick an area', body: 'The Dashboard\'s Choose Area panel shows the seven roaming areas. Each one scales: later areas drop better loot and award more XP per tick.' },
@@ -124,7 +125,7 @@ const SECTIONS: HelpSection[] = [
     id: 'loot',
     title: 'Weapons & Loot',
     blurb: 'Rarities, roll quality, and the loot pipeline.',
-    glyph: '▣',
+    icon: 'grid',
     color: '#A855F7',
     items: [
       { term: 'Rarity & roll quality', body: 'Every weapon has a rarity (Common → Legendary) and a roll quality band. Higher bands boost base stats. God rolls start at 96+.' },
@@ -138,7 +139,7 @@ const SECTIONS: HelpSection[] = [
     id: 'loadout',
     title: 'Loadout',
     blurb: 'Seven slots define the loadout.',
-    glyph: '◈',
+    icon: 'diamondIn',
     color: '#3B82F6',
     items: [
       { term: 'Slots', body: 'Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic. Equipping is gated by item kind and unlock level.' },
@@ -150,7 +151,7 @@ const SECTIONS: HelpSection[] = [
     id: 'bosses',
     title: 'Boss Fights',
     blurb: 'Survival, break, DPS, and mechanics.',
-    glyph: '⚡',
+    icon: 'bolt',
     color: '#EF4444',
     items: [
       { term: 'Phases', body: 'Bosses run through survival, break, DPS, and mechanic checks. You can attempt a boss any number of times; failed attempts do not consume resources.' },
@@ -162,7 +163,7 @@ const SECTIONS: HelpSection[] = [
     id: 'economy',
     title: 'Economy',
     blurb: 'Credits, scrap, fragments, materials, essences.',
-    glyph: '📈',
+    icon: 'chart',
     color: '#22C55E',
     items: [
       { term: 'Credits', body: 'Earned passively while roaming, plus boss wins and vendor sales. Used for vendor purchases and some workshop recipes.' },
@@ -174,7 +175,7 @@ const SECTIONS: HelpSection[] = [
     id: 'skills',
     title: 'Skill Trees',
     blurb: 'Gunslinger, Demolition, Scavenger.',
-    glyph: '★',
+    icon: 'star5',
     color: '#06B6D4',
     items: [
       { term: 'Three trees', body: 'Gunslinger boosts weapons; Demolition boosts ordnance; Scavenger boosts materials and salvage yield. Each tree is gated by level and class mod.' },
@@ -186,7 +187,7 @@ const SECTIONS: HelpSection[] = [
     id: 'mastery',
     title: 'Mastery & Constellations',
     blurb: 'Server-tracked ranks across 6 categories.',
-    glyph: '✦',
+    icon: 'star',
     color: '#FF4B5C',
     items: [
       { term: '6 categories', body: 'Combat, Weapons, Inventory, Locations, Economy, Services. Each category has tracks that ascend through Dormant → Active → Pulsar → Nova.' },
@@ -198,7 +199,7 @@ const SECTIONS: HelpSection[] = [
     id: 'tips',
     title: 'Pro Tips',
     blurb: 'Things the dashboard won\'t tell you.',
-    glyph: '▤',
+    icon: 'grid',
     color: '#F59E0B',
     items: [
       { term: 'Element over rarity', body: 'A Common weapon with the right element is better than a Legendary with the wrong one. Match first, rarify later.' },
@@ -216,7 +217,7 @@ interface HelpScreenProps {
 }
 
 const SectionCard: React.FC<{ section: HelpSection; open: boolean; onToggle: () => void; query: string }> = ({ section, open, onToggle, query }) => {
-  const sectionGlyph = section.glyph;
+  const sectionIcon = section.icon;
   const lower = query.toLowerCase();
   const filtered = query.trim().length === 0
     ? section.items
@@ -230,7 +231,7 @@ const SectionCard: React.FC<{ section: HelpSection; open: boolean; onToggle: () 
         className="flex w-full items-center gap-2 text-left transition-transform active:scale-[0.98]"
       >
         <div className="bl-icon-plate flex h-9 w-9 shrink-0 items-center justify-center" style={{ backgroundColor: `${section.color}18` }}>
-          <span className="font-black" style={{ color: section.color, fontSize: '16px' }}>{sectionGlyph}</span>
+          <PxIcon name={sectionIcon} size={17} style={{ color: section.color }} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-black uppercase tracking-wide text-text-primary">{section.title}</div>
@@ -260,7 +261,7 @@ const TourStepCard: React.FC<{
   isCurrent: boolean;
   onJump: (tab: TabId) => void;
 }> = ({ step, index, isCurrent, onJump }) => {
-  const stepGlyph = step.target.glyph;
+  const stepIcon = step.target.icon;
   return (
     <div
       className={`relative border-2 p-3 transition-all ${
@@ -277,7 +278,7 @@ const TourStepCard: React.FC<{
           <div className="mt-1 text-[11px] leading-snug text-text-secondary">{step.body}</div>
           <div className="mt-2 flex items-center gap-2">
             <div className="flex items-center gap-1 border border-border bg-bg/70 px-1.5 py-0.5">
-              <span className="font-black text-amber" style={{ fontSize: '10px' }}>{stepGlyph}</span>
+              <PxIcon name={stepIcon} size={13} className="text-amber" />
               <span className="text-[9px] font-black uppercase tracking-widest text-text-secondary">{step.target.label}</span>
             </div>
             <span className="text-[9px] text-text-muted">·</span>
@@ -334,7 +335,7 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ onTourJump }) => {
           <div className="text-xs text-text-muted">Pinned notes for loot, combat, caches, and buildcraft.</div>
         </div>
         <div className="bl-icon-plate flex h-12 w-12 shrink-0 -rotate-2 items-center justify-center text-amber">
-          <span className="font-black text-amber" style={{ fontSize: '22px' }}>▤</span>
+          <PxIcon name="book" size={26} />
         </div>
       </div>
 
@@ -345,7 +346,7 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ onTourJump }) => {
           className="flex w-full items-center gap-2 text-left transition-transform active:scale-[0.98]"
         >
           <div className="bl-icon-plate flex h-9 w-9 shrink-0 items-center justify-center bg-[#FF4B5C]/15">
-            <span style={{ fontSize: 16 }} className="text-[#FF4B5C]">🧭</span>
+            <PxIcon name="pin" size={17} className="text-[#FF4B5C]" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-black uppercase tracking-wide text-text-primary">Guided Tour</div>

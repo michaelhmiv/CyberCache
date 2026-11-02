@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { SheetPortal } from '@/components/common/SheetPortal';
@@ -62,7 +63,7 @@ export const RewardIntelPanel: React.FC<{
 }> = ({ title = 'Reward Intel', eyebrow = 'drop logic', stats, children }) => (
   <section className="relative overflow-hidden border-2 border-border bg-surface/95 p-3" style={panelClip}>
     <div className="mb-3 flex items-center gap-2">
-      <span style={{ fontSize: 16 }} className="text-amber">✦</span>
+      <span className="inline-flex text-amber"><PxIcon name="star" size={17} /></span>
       <div>
         <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">{eyebrow}</div>
         <div className="text-sm font-black text-text-primary">{title}</div>
@@ -120,7 +121,7 @@ export const ActionFeed: React.FC<{
   return (
     <section className="relative overflow-hidden border-2 border-border bg-surface/95 p-3" style={panelClip}>
       <div className="mb-3 flex items-center gap-2">
-        <span style={{ fontSize: 16 }} className="text-amber">◈</span>
+        <PxIcon name="diamondIn" size={17} className="text-amber" />
         <div>
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">reward stream</div>
           <div className="text-sm font-black text-text-primary">{title}</div>

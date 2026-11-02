@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { useInventoryStore, useLoadoutStore } from '@/store';
 import {
@@ -199,8 +200,7 @@ export const RepDeskPanel: React.FC = () => {
             >
               <div className="min-w-0">
                 <div className="text-[11px] font-bold text-text-primary">
-                  {u.state === 'owned' ? '✓ ' : '🔒 '}
-                  {u.label}
+                  <span className="inline-flex items-center gap-1">{u.state === 'owned' ? <PxIcon name="check" size={13} /> : <PxIcon name="lock" size={13} />} {u.label}</span>
                 </div>
                 <div className="text-[10px] leading-snug text-text-muted">{u.detail}</div>
               </div>
@@ -318,7 +318,7 @@ export const RepDeskPanel: React.FC = () => {
               className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
             >
               {m.crate.boughtThisWeek
-                ? 'Claimed ✓'
+                ? <span className="inline-flex items-center gap-1">Claimed <PxIcon name="check" size={13} /></span>
                 : m.rank >= 4
                   ? `Claim • ${m.crate.priceCredits.toLocaleString()}cr`
                   : 'Rank 4'}
@@ -345,7 +345,7 @@ export const RepDeskPanel: React.FC = () => {
               {!m.order.enabled
                 ? 'Disabled'
                 : m.order.orderedThisWeek
-                  ? 'Ordered ✓'
+                  ? <span className="inline-flex items-center gap-1">Ordered <PxIcon name="check" size={13} /></span>
                   : m.rank >= 5
                     ? `Order • ${m.order.priceCredits.toLocaleString()}cr`
                     : 'Rank 5'}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AlertTriangle, CheckCircle, Lock, RefreshCw } from 'lucide-react';
 import {
   getExtractionState,
@@ -157,7 +158,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
     <div className="space-y-3" data-testid="extraction-panel">
       {onLeave && !active && (
         <button type="button" onClick={onLeave} className="bl-secondary px-2 py-1 text-[10px] font-black" data-testid="extraction-close">
-          ← Back to actions
+          <span className="inline-flex items-center gap-1"><PxIcon name="chevL" size={13} /> Back to actions</span>
         </button>
       )}
       <ExtractionScene

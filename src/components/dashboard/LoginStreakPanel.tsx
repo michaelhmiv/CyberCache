@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { formatLoginStreakReward, type LoginStreakReward } from '@/content/loginStreak';
 import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
@@ -54,7 +55,7 @@ export const LoginStreakPanel: React.FC = () => {
   return (
     <MobileCard className="space-y-3" rarityColor={STREAK_ACCENT} glow={view.currentStreak > 0}>
       <div className="flex items-center gap-2">
-        <span className="font-black" style={{ fontSize: '16px', color: STREAK_ACCENT }}>🔥</span>
+        <PxIcon name="flame" size={17} style={{ color: STREAK_ACCENT }} />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Login Streak</div>
         <div className="ml-auto flex items-baseline gap-1">
           <span className="text-lg font-black" style={{ color: STREAK_ACCENT }}>{view.currentStreak}</span>
@@ -121,7 +122,7 @@ export const LoginStreakPanel: React.FC = () => {
                 </div>
               ))}
               {day.state === 'earned' && (
-                <div className="text-[9px] font-black" style={{ color: STREAK_ACCENT }}>✓</div>
+                <div className="flex" style={{ color: STREAK_ACCENT }}><PxIcon name="check" size={13} /></div>
               )}
             </div>
           );

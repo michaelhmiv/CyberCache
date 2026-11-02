@@ -1,4 +1,5 @@
 import React from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion } from 'framer-motion';
 import { getNavSigil } from '@/constants/navSigils';
 
@@ -41,7 +42,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => 
                   color: isActive ? undefined : sigil.color,
                 }}
               >
-                {sigil.glyph}
+                <PxIcon name={sigil.icon} size={17} />
               </span>
               <span className="relative z-10 truncate px-1 text-[8px] font-black uppercase tracking-wide">{sigil.label}</span>
               {isActive && <span className="absolute -top-1.5 left-1/2 z-20 h-2 w-2 -translate-x-1/2 rotate-45 border border-border bg-amber-glow" />}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -44,7 +45,7 @@ export const PublicProfilePanel: React.FC<PublicProfilePanelProps> = ({ open, on
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center border-2 border-border bg-surface">
-                  <span className="font-black text-amber" style={{ fontSize: '20px' }}>☻</span>
+                  <PxIcon name="person" size={17} className="text-amber" />
                 </div>
                 <div>
                   <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">Public Profile</div>

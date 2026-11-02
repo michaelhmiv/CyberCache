@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -131,7 +132,7 @@ export const StatDetailPanel: React.FC<StatDetailPanelProps> = ({
             {leaderboardMetric && (
               <MobileCard className="space-y-2" rarityColor="#FFD700">
                 <div className="flex items-center gap-2">
-                  <span style={{ fontSize: 16 }} className="text-amber">♕</span>
+                  <PxIcon name="crown" size={17} className="text-amber" />
                   <div className="text-xs font-black uppercase tracking-wide text-text-primary">Global Rank</div>
                 </div>
                 <div className="flex items-end justify-between">

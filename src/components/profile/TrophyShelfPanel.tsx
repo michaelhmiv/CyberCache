@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import {
@@ -83,7 +84,7 @@ export const TrophyShelfPanel: React.FC = () => {
     <div data-testid="trophy-shelf">
     <MobileCard className="space-y-3" rarityColor="#FFD166">
       <div className="flex items-center gap-2">
-        <span className="font-black text-amber" style={{ fontSize: '16px' }}>🏆</span>
+        <PxIcon name="trophy" size={17} className="text-amber" />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Trophy Shelf</div>
         <div className="ml-auto text-[10px] text-text-muted">Best gear, server-ranked</div>
       </div>

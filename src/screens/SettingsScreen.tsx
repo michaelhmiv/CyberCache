@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { Clock, AlertTriangle, Info, Settings, ExternalLink } from 'lucide-react';
 import { usePlayerStore, useIdleStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -147,7 +148,7 @@ export const SettingsScreen: React.FC = () => {
                 className={`py-1.5 text-center text-xs font-black ${current ? 'bl-primary' : earned ? 'bl-secondary text-text-secondary' : 'bl-secondary text-text-muted opacity-50'}`}
               >
                 {tier.hours}h
-                <div className="text-[8px] font-bold uppercase tracking-wide">{earned ? `Lv ${tier.minLevel}` : `Lv ${tier.minLevel} 🔒`}</div>
+                <div className="text-[8px] font-bold uppercase tracking-wide">{earned ? `Lv ${tier.minLevel}` : <span className="inline-flex items-center justify-center gap-0.5">Lv {tier.minLevel} <PxIcon name="lock" size={13} /></span>}</div>
               </div>
             );
           })}
@@ -187,7 +188,7 @@ export const SettingsScreen: React.FC = () => {
 
       <MobileCard className="space-y-3" rarityColor="#39D0D8">
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 16 }} className="text-amber">⛑</span>
+          <PxIcon name="person" size={17} className="text-amber" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Hunter Appearance</div>
         </div>
         <div className="text-[10px] text-text-muted">
@@ -219,7 +220,7 @@ export const SettingsScreen: React.FC = () => {
 
       <MobileCard className="space-y-3" rarityColor="#FF9000">
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 16 }} className="text-amber">♻</span>
+          <PxIcon name="recycle" size={17} className="text-amber" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Auto-Salvage Rules</div>
         </div>
         <div className="space-y-2">

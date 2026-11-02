@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Lock } from 'lucide-react';
 import type { PhaseAnalysis } from '../../types/boss';
@@ -61,16 +62,16 @@ const fmtDate = (iso: string | null): string => {
 const EncounterVitals: React.FC<{ health: number; shield: number; armor: number; dps: number }> = ({ health, shield, armor, dps }) => {
   const max = Math.max(1, health, shield, armor);
   const rows = [
-    { label: 'HP', glyph: '♥', value: health, color: 'bg-red', text: 'text-red' },
-    { label: 'Shield', glyph: '⚡', value: shield, color: 'bg-cyan', text: 'text-cyan' },
-    { label: 'Armor', glyph: '◈', value: armor, color: 'bg-purple', text: 'text-purple' },
+    { label: 'HP', icon: 'heart' as PxIconName, value: health, color: 'bg-red', text: 'text-red' },
+    { label: 'Shield', icon: 'bolt' as PxIconName, value: shield, color: 'bg-cyan', text: 'text-cyan' },
+    { label: 'Armor', icon: 'armor' as PxIconName, value: armor, color: 'bg-purple', text: 'text-purple' },
   ];
   return (
     <div className="space-y-1.5" data-testid="endless-vitals">
       {rows.map((row) => (
         <div key={row.label} className="flex items-center gap-2">
           <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
-            <span className={row.text} style={{ fontSize: 11 }}>{row.glyph}</span>{row.label}
+            <span className={`inline-flex ${row.text}`}><PxIcon name={row.icon} size={13} /></span>{row.label}
           </div>
           <div className="relative h-2.5 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
             <motion.div
@@ -371,7 +372,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
       <div className="relative overflow-hidden border-2 border-fuchsia-500/40 bg-fuchsia-500/[0.06] p-3" style={panelClip}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span style={{ fontSize: 34 }} className="text-fuchsia-400">∞</span>
+            <PxIcon name="infinity" size={40} className="text-fuchsia-400" />
             <div>
               <div className="text-lg font-black leading-tight text-text-primary">Chaos Chamber</div>
               <div className="text-[10px] text-text-muted">
@@ -503,7 +504,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
               const count = prepared[def.id] ?? 0;
               return (
                 <div key={def.id} className="flex items-center gap-2 border border-border bg-bg/70 p-2" style={slashClip}>
-                  <span style={{ fontSize: 14 }} className="shrink-0">{def.visual.glyph}</span>
+                  <span className="inline-flex shrink-0"><PxIcon name={def.visual.icon} size={13} /></span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[11px] font-black text-text-primary">{def.name}</div>
                     <div className="truncate text-[9px] text-text-muted">{def.shortDescription}</div>
@@ -617,7 +618,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
           {stage === 'fighting' && fightTimeline ? (
             <MobileCard className="space-y-2 border-fuchsia-500/30 bg-fuchsia-500/5">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-fuchsia-300">
-                <span style={{ fontSize: 14 }}>⚔</span>
+                <PxIcon name="crosshair" size={13} />
                 Depth {nextDepth} — {nextEncounter.name}
               </div>
               <BossFightStage
@@ -632,7 +633,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
               />
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[10px] text-text-muted">
-                  <span className="flex items-center gap-1"><span style={{ fontSize: 11 }} className="text-green">♥</span> Player</span>
+                  <span className="flex items-center gap-1"><PxIcon name="heart" size={13} className="text-green" /> Player</span>
                   <span className="font-black text-text-primary">{fightTimeline.playerHp.toLocaleString()} / {fightTimeline.playerHpMax.toLocaleString()}</span>
                 </div>
                 <GhostHpBar pct={fightTimeline.playerHpMax > 0 ? (fightTimeline.playerHp / fightTimeline.playerHpMax) * 100 : 0} color="#4ADE80" reduced={reducedMotion === true} />
@@ -731,7 +732,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
             </>
           ) : (
             <>
-              <span style={{ fontSize: 34 }} className="text-red">☠</span>
+              <PxIcon name="skull" size={40} className="text-red" />
               <div className="text-xl font-black text-red">THE CHAMBER CLAIMS ANOTHER — DEPTH {endSummary.depth}</div>
               <div className="text-xs text-text-secondary">
                 Contained death: no roaming death record, no resurrection. The escrow paid at {Math.round((endSummary.payout?.fraction ?? 0) * 100)}%.

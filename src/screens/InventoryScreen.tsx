@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { compactResourceValue } from '@/lib/ui/formatValue';
@@ -25,11 +26,11 @@ interface InventoryScreenProps {
   tabIntent?: { tab: InventoryTab; seq: number; anchor?: 'garage' } | null;
 }
 
-const TAB_SIGILS: Record<InventoryTab, { glyph: string; color: string }> = {
-  gear: { glyph: '▣', color: '#A855F7' },
-  loadout: { glyph: '⚔', color: '#3B82F6' },
-  consumables: { glyph: '✚', color: '#7CFC00' },
-  workshop: { glyph: '⚙', color: '#FF9000' },
+const TAB_SIGILS: Record<InventoryTab, { icon: PxIconName; color: string }> = {
+  gear: { icon: 'grid', color: '#A855F7' },
+  loadout: { icon: 'crosshair', color: '#3B82F6' },
+  consumables: { icon: 'cross', color: '#7CFC00' },
+  workshop: { icon: 'cog', color: '#FF9000' },
 };
 
 const SummaryTile: React.FC<{ label: string; value: string | number; sub?: string }> = ({ label, value, sub }) => (
@@ -84,8 +85,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
           className="bl-card flex w-full items-center justify-between p-3 text-left active:scale-[0.98] transition-transform"
         >
           <div className="flex items-center gap-3 text-left">
-            <div className="bl-icon-plate flex h-10 w-10 items-center justify-center font-black text-amber" style={{ fontSize: '19px' }}>
-              ▤
+            <div className="bl-icon-plate flex h-10 w-10 items-center justify-center text-amber">
+              <PxIcon name="crate" size={17} />
             </div>
             <div>
               <div className="text-sm font-black text-text-primary">Open Data Cache</div>
@@ -110,7 +111,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
                 }}
                 className={`flex flex-col items-center gap-1 py-2 text-[10px] font-black transition-colors ${active ? 'bl-primary' : 'bl-secondary text-text-muted'}`}
               >
-                <span className="font-black leading-none" style={{ fontSize: '15px', color: active ? undefined : sigil.color }}>{sigil.glyph}</span>
+                <PxIcon name={sigil.icon} size={17} style={{ color: active ? undefined : sigil.color }} />
                 {tabId === 'gear' ? 'Gear' : tabId === 'loadout' ? 'Loadout' : tabId === 'consumables' ? 'Items' : 'Workshop'}
               </button>
             );

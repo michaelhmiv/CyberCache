@@ -18,6 +18,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { useActivityStore, useOfflineRecapStore, usePlayerStore } from '@/store';
 
 // Read debug flag at module level
@@ -75,7 +76,7 @@ export function SettlementDebugOverlay() {
       ((lastSettlement?.profile as Record<string, unknown> | undefined)
         ?.last_claimed_tick as number) ?? 0,
     lastSettlementResult: lastSettlement
-      ? `✅ ${lastSettlement.ticksSettled}t`
+      ? `settled ${lastSettlement.ticksSettled}t`
       : 'none',
     lastNoopReason: lastSettlement ? null : 'none',
     lastError: null,
@@ -89,7 +90,7 @@ export function SettlementDebugOverlay() {
 
   return (
     <div className="fixed bottom-20 right-2 z-[999] bg-black/85 border border-amber/30 rounded p-2 text-[9px] font-mono text-amber/70 max-w-[220px] backdrop-blur select-none pointer-events-none">
-      <div className="text-[10px] font-black text-amber mb-1">🔍 SETTLEMENT DIAG</div>
+      <div className="mb-1 flex items-center gap-1 text-[10px] font-black text-amber"><PxIcon name="search" size={13} /> SETTLEMENT DIAG</div>
       <div className="space-y-0.5">
         <Row label="Activity" value={diag.activeAction} />
         <Row label="Heartbeat" value={diag.lastHeartbeat ? fmtAgo(diag.lastHeartbeat, now) : 'none'} />
