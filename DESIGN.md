@@ -298,5 +298,236 @@ scroll what overflows, center what doesn't.**
 ## 7. The pixel icon system
 
 **The rule (owner's hard rule): NO EMOJIS AND NO UNICODE GLYPHS AS
-ICONOGRAPHY anywhere in the UI.** Not
-...[truncated 15100 chars]
+ICONOGRAPHY anywhere in the UI.** Not as decoration, not as shorthand,
+not in badges, locks, or chevrons — every icon is a drawing from the one
+sheet below. If a concept has no glyph on the sheet, the sheet grows a
+drawing; the UI never borrows one from the keyboard. Chevron, lock, and
+check are drawings too — the three glyphs UIs most often borrow from text
+fonts.
+
+**Why one sheet:** the rule only holds if drawing an icon is easier than
+typing one. One sheet, one drawing hand, one tint table — a new icon is a
+short drawing task, not a design meeting.
+
+**Construction.** Every icon is hard rects on a 16×16 grid in the game's
+duotone manner: the mass renders in the icon's tint (`currentColor`);
+shade is black at 35%, highlight is white at 45%, paper is white at 22%,
+and the knockout tone is near-black. A new icon that cannot be drawn in
+that hand does not ship.
+
+**The 52 icons** (canonical names — the registry key is the name):
+
+*Wallet — the Strip*
+
+| Icon | Primary use |
+|---|---|
+| `coin` | Credits |
+| `scrap` | Scrap |
+| `key` | Cache keys |
+| `frag` | Cache key fragment |
+| `core` | Legendary cores |
+| `loot` | Loot / cache count |
+| `cog` | Settings (the Strip's gear shortcut) |
+| `chevD` | Open / expand |
+
+*Home — modes, claims, launchers*
+
+| Icon | Primary use |
+|---|---|
+| `home` | Home tab |
+| `crosshair` | Roam |
+| `skull` | Boss |
+| `infinity` | Endless |
+| `pick` | Extract |
+| `hammer` | Craft |
+| `pin` | Area |
+| `flame` | Login streak |
+| `orders` | Contracts |
+| `crate` | Parts Crate |
+| `signal` | Dispatch |
+| `gift` | Free Box (daily cache) |
+
+*Gear & Market*
+
+| Icon | Primary use |
+|---|---|
+| `pack` | Gear tab |
+| `armor` | Loadout |
+| `grid` | Item Grid |
+| `vial` | Items (consumables / stacks) |
+| `anvil` | Workshop |
+| `wheel` | Garage |
+| `tag` | Market / Sell |
+| `basket` | Buy |
+| `vendor` | Vendor |
+| `wrench` | Repair |
+| `shield` | Shield Tech |
+| `badge` | Rep Desk (manufacturer standing) |
+| `bolt` | Slots |
+| `lock` | Locked (sign-in locks on transacting actions) |
+| `check` | Met / done |
+| `chevR` | Go (row navigation) |
+
+*Hunter & combat data*
+
+| Icon | Primary use |
+|---|---|
+| `person` | Hunter / Profile |
+| `trophy` | Standings |
+| `shelf` | Collections |
+| `chevs` | Cache Rank |
+| `flask` | Research |
+| `nodes` | Skill Trees |
+| `book` | Field Manual |
+| `heart` | HP |
+| `gun` | Weapon |
+| `cross` | Med |
+| `snow` | Cryo (effect family) |
+| `burst` | Burst (effect family) |
+| `drop` | Ripsteal (effect family) |
+| `blob` | Contagion (effect family) |
+| `star` | Elite / event |
+| `gem` | Gem Drop |
+
+**The size ramp.** Four sizes only: **13px** inline, **17px** on rails
+and tabs, **26px** on doors and rows, **40px** heroes. 64px and up is
+stage art, not an icon size. Pixel art blurs at in-between sizes; the
+ramp is the discipline that keeps it crisp — never render an icon
+off-ramp.
+
+**Tint is role, not decoration.** Wallet icons take the shipped resource
+tints (§5). Amber is the interactive tint. A rarity color tints an icon
+only when the thing it labels is that rarity (§5) — never as button
+paint. Count badges and pills are drawn elements in this same discipline,
+not text glyphs; any count that matters also prints at ≥ 11px at its
+destination (§5).
+
+**In code:** the sheet is the single registry at `src/lib/pixel/icons.ts`,
+rendered by `<PxIcon>` and tinted via `currentColor`;
+`src/test/noEmojiIcons.test.ts` fails CI if an emoji-range character
+re-enters shipped screen or component sources. Icons drawn after the v2
+sheet — for shipped glyphs it had no counterpart for — live in the same
+registry, in the same hand, after its additions marker; the 52 above are
+the canonical set the redesign approved.
+
+---
+
+## 9. Surfacing — one canonical door per feature
+
+The coverage audit's closing rule, and this system's: **every feature has
+exactly one canonical door.** Secondary doors exist (marked ◦ in §3's
+maps) and never replace the canonical one. Anything not reachable per
+this spec in a build is, by definition, buried.
+
+**Tap discipline.** Depths count from Home: a tab press, a door tap, a
+rail stop, or a sheet open costs 1; scrolling is free; 0 means the
+feature is already on Home. Every feature sits at ≤ 2 taps except one:
+**vendor buyback, at 3** — the model's single justified exception.
+Buyback is a low-frequency sell-side flow sharing the Vendor's stock
+screen, and it stays deep on purpose: a fat-finger sale of a legendary
+should never be two taps from anywhere.
+
+**Claimables announce themselves.** Everything claimable, weekly, or
+time-boxed — the login streak, contract offers, the weekly Parts Crate
+and Signature Orders, race rewards — carries a visible surface on Home
+itself at 0–1 taps: a claim chip under the Strip, the Weekly panel in
+the deck, or the live badge on Hunter's Standings door. Consolidation
+must never silently demote them; the chips and badges exist to prevent
+exactly that.
+
+**The two placements.** Slots' canonical door is the Market → Slots rail
+stop; Home carries exactly one secondary, the labeled launcher card in
+the deck. Manufacturer standing's canonical door is the Market → Rep Desk
+rail stop; the Vendor's hidden `rep` toggle is deleted and must not
+return (§3).
+
+The full checkable list — all 54 audit rows, each feature's door and
+depth — is the feature-coverage audit's surfacing spec §8; §3 of this
+document is its per-tab expression, and the v2 summary's coverage
+checklist verifies every row against it.
+
+---
+
+## 10. Motion — the mandate under Sample B
+
+Motion in this game has a constitution and a mandate, in that order.
+
+### The Sample-B law (do not touch)
+
+The loot moment and fight pacing are Sample B, approved from proof
+renders and owned in code by `src/lib/pixel/movement.ts` — every
+duration a pixel scene or fight card animates with comes from that
+module, and its values outrank any redesign instruction, including the
+mandate below:
+
+- Boss phase interval: **1150ms** (~1.15s between phase beats).
+- Hit reactions: **420ms**, inside the 350–500ms window.
+- Ghost HP drain: **480ms** behind the real bar.
+- The loot ladder, per drop: Common **900ms** · Uncommon **1000ms** ·
+  Rare **1100ms** · Epic **1400ms** · Legendary **2600ms** — with the
+  legendary treatment intact (beam grow-in 420ms, card spring-in 380ms,
+  weapon rise 950ms, world dimmed to ~40%, shockwave 900ms).
+
+Changing any of these is a tuning decision for the owner, not a design
+cleanup. Motion is presentation only: scenes and cards read decided
+state; they never produce gameplay outcomes.
+
+### The animation mandate
+
+Everywhere else, animate (owner's mandate): claim chips pulse and
+settle, cards and sheets enter with weight, feeds tick, tabs and rail
+stops transition, claimable badges draw the eye. Animation is how the
+game feels alive between loot moments; a static claimable is a missed
+hook. **Reduced motion is respected** by collapsing this UI motion —
+never by retiming the loot moment or the fight beats.
+
+### The Return Sheet
+
+The Return Sheet (§3, §4) presents in the loot language: a totals row,
+the absence's best drop as a poster card on the ladder's timings, one
+Collect button. Absences under 5 minutes settle silently — no sheet at
+all. The push-notification primer rides the sheet's footer once. The
+level chip reopens the sheet on demand; the level pop-up itself holds
+level specifics only.
+
+### Verification — scenes are golden, screens are walked
+
+The golden suite (`src/test/goldenImages.test.ts`) renders pixel
+**scenes** — arenas, dioramas, rigs, loot moments — through the pure-TS
+reference renderer. When a slice changes a scene's rendering, its golden
+diffs in CI and the baseline is re-struck under review. The suite
+renders **no React screens**: no golden can catch a misaligned filter
+bar, a shrunken rail label, or a broken deck order. React screens are
+therefore verified the standing way: **phone-width capture of the real
+flow plus a real flow tap-through**, with alignment audited against §6.
+A screen-level visual harness, if ever wanted, is its own slice with its
+own brief — it does not ride along in other work.
+
+---
+
+## 11. Known mock defects — correct, don't copy
+
+The v2 mocks are the language's presentation, not its law (this document
+wins — see the header). Three defects in them are recorded here so
+implementation corrects them instead of copying them:
+
+- **F1 · Garage's framing.** The audit's spec promotes the Garage to a
+  Gear **rail stop**, and that is its canonical door (§2, §3). The v1
+  Gear PDF framed the garage as an in-place expansion inside the
+  Loadout's vehicle slot; that framing is superseded, but the v1 garage
+  *content* design — sprite, fuel and condition gauges, patch-kit
+  repair — stands as what the stop opens. No new Garage mock was drawn
+  under v2's no-re-issue instruction for Gear.
+- **F2 · Buyback's form.** Buyback renders as a named dashed **row** on
+  the Vendor stop's first viewport (§3) — not the Sell segment the audit
+  counted it under, and never the deleted 3-mode toggle. The form differs
+  from the audit's assumption; the depth does not: still 3 taps, still
+  the justified exception (§9).
+- **F3 · Sub-floor rail labels.** The v2 mocks set the seven-stop rails'
+  labels at 9.5px — below the §5 floor — and shortened three labels on
+  the Hunter rail only (Collections → Collect, Cache Rank → Ranks, Skill
+  Trees → Trees). Both are mock cosmetics: builds render rails at honest
+  sizes and let them scroll (§6), and the full names print on the stops
+  themselves, as they do throughout the PDFs. Doors, order, and tap
+  counts in the mocks are exactly the spec's; only the type size is
+  wrong.
