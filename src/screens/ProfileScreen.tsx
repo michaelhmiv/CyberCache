@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
-import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
+import { useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
 import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/api/statsService';
 import { formatDuration, topBreakdown } from '@/lib/stats/statsHelpers';
 import { ResourceBar } from '@/components/layout/ResourceBar';
@@ -25,7 +25,6 @@ import { useAuth } from '@/auth/AuthProvider';
 import { isGuestAccount } from '@/auth/accountState';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
-import { PRODUCTIVE_ACTIVITY_LABELS } from '@/types/activity';
 import { resolveSceneLabel } from '@/lib/dashboard/sceneLabel';
 import { StatCard } from '@/components/profile/StatCard';
 import { StatDetailPanel } from '@/components/profile/StatDetailPanel';
@@ -85,12 +84,9 @@ const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; de
   </button>
 );
 
-const safeText = (value: unknown): string | null => typeof value === 'string' && value.trim().length > 0 ? value : null;
-
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusSection = null }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
-  const activity = useActivityStore();
   const skillStore = useSkillStore();
   const deathLog = useSurvivalStore((s) => s.deathLog);
   const { account, user, signOut, signInWithGoogle, actionLoading } = useAuth();
@@ -167,13 +163,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const typeCounts: Record<string, number> = {};
   weapons.forEach((w) => { typeCounts[w.weaponType] = (typeCounts[w.weaponType] || 0) + 1; });
   const favoriteType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
-  const payload = activity.current.publicPayload;
-  const activityLabel = safeText(payload.activity_label) ?? PRODUCTIVE_ACTIVITY_LABELS[activity.current.kind] ?? activity.current.kind;
-  const activityTarget = activity.current.targetLabel ?? safeText(payload.target_label) ?? 'No target';
-  // The Scene row prints the resolved player label ("Crafting Bench",
-  // "Dustwaste Frontier"), never the raw scene key (QC 2026-11-02, A3:
-  // 'workshop:crafting' / 'dustwaste_frontier' reached the screen).
-  const activityScene = resolveSceneLabel(activity.current.sceneKey, safeText(payload.scene_key));
+  // The current-activity data (label / target / scene) is read by
+  // the Now feed itself (WorldPulseFeed) since drift-fix F4 merged
+  // the Current Activity card into it — this screen no longer
+  // derives a second copy.
   const topAreas = topBreakdown(stats?.kills_by_area, 3);
   const topWeaponTypes = topBreakdown(stats?.kills_by_weapon_type, 3);
 
@@ -245,21 +238,25 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
       {stopSection('profile', (
         <>
+      {/* Identity + Trophy Shelf share ONE panel (drift-fix F4,
+          mock m36): compact identity line on top, the shelf section
+          below it. The XP bar is NOT repeated here — it lives in
+          the Strip (F1); this panel prints the XP numbers only. */}
       <MobileCard className="space-y-3" rarityColor="#FF9000">
         <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-[3px] border-border bg-amber/15 text-2xl font-black text-amber shadow-[5px_5px_0_rgba(0,0,0,0.75)]">
+          <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center border-2 border-amber bg-amber/15 text-xl font-black text-amber">
             {player.level}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-lg font-black uppercase tracking-wide text-text-primary">{player.name}</div>
-            <div className="flex items-center gap-2 text-xs text-text-muted">
+            <div className="break-words text-[19px] font-black uppercase leading-tight tracking-wide text-text-primary">{player.name}</div>
+            <div className="flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
               {account?.hasUsername ? (
                 <>
-                  <span className="text-amber">@{account.username ?? profileSummary?.username}</span>
+                  <span className="font-bold text-amber">@{account.username ?? profileSummary?.username}</span>
                   {account && !account.isAnonymous && (
                     <button
                       onClick={() => setRenameOpen(true)}
-                      className="text-[10px] underline hover:text-amber"
+                      className="text-[11px] underline hover:text-amber"
                     >
                       Rename
                     </button>
@@ -278,62 +275,67 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
                   )}
                 </>
               )}
+              <span aria-hidden="true">·</span>
+              <span>Level {player.level}</span>
             </div>
-            <div className="mt-1.5 h-2 overflow-hidden border-2 border-border bg-bg" style={{ clipPath: 'polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)' }}>
-              <div className="h-full bg-amber transition-all" style={{ width: `${Math.min(100, xpProgress)}%` }} />
-            </div>
-            <div className="mt-0.5 text-[10px] text-text-muted">{player.xp} / {xpToNext} XP ({xpProgress}%)</div>
+            <div className="mt-0.5 text-[11px] text-text-muted">{player.xp} / {xpToNext} XP ({xpProgress}%)</div>
           </div>
         </div>
+
+        <TrophyShelfPanel bare onOpenCollections={() => goToStop('collections')} />
       </MobileCard>
 
+      {/* Wardrobe (Parts M4) — the skin-part showcase + wear/remove
+          surface. M4 placed it directly after the identity block;
+          F4 folded the Trophy Shelf into that block, so the Wardrobe
+          stands as the next first-class panel, before Standings. */}
       <WardrobePanel />
-
-      <TrophyShelfPanel onOpenCollections={() => goToStop('collections')} />
 
       <StandingsDoor badge={standingsBadge} onOpen={() => goToStop('standings')} />
 
+      {/* Now — the single merged feed (drift-fix F4, mock m36;
+          DESIGN.md's Now law): current activity + World Pulse
+          one-liners + the Killed By record in ONE panel, replacing
+          the three stacked cards (Current Activity / World Pulse /
+          Killed By). Every datum from those cards survives: Status
+          is the feed's activity lead, Target and Scene ride its
+          detail line, and the death record is the feed's final
+          section. */}
       <MobileCard className="space-y-2" rarityColor="#5AA7FF">
-        <div className="flex items-center gap-2">
-          <PxIcon name="signal" size={17} className="text-blue" />
-          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Current Activity</div>
+        <div className="flex items-baseline gap-2">
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Now</div>
+          <div className="ml-auto text-right text-[11px] text-text-muted">One feed — activity, milestones, records</div>
         </div>
-        <div className="space-y-1 text-xs text-text-secondary">
-          <div className="flex justify-between gap-3"><span>Status</span><span className="text-right font-bold text-text-primary">{activityLabel}</span></div>
-          <div className="flex justify-between gap-3"><span>Target</span><span className="truncate text-right font-bold text-text-primary">{activityTarget}</span></div>
-          <div className="flex justify-between gap-3"><span>Scene</span><span className="truncate text-right text-text-muted">{activityScene}</span></div>
-        </div>
-      </MobileCard>
-
-      <WorldPulseFeed />
-
-      <MobileCard className="space-y-2" rarityColor="#FF4B5C">
-        <div className="flex items-center gap-2">
-          <PxIcon name="skull" size={17} className="text-red" />
-          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Killed By</div>
-          <div className="ml-auto text-[10px] text-text-muted">{deathLog.length} recorded</div>
-        </div>
-        {deathLog.length === 0 ? (
-          <div className="text-[10px] text-text-muted">No deaths on file. Stay sharp out there.</div>
-        ) : (
-          <ul data-testid="death-log" className="space-y-1 text-xs text-text-secondary">
-            {deathLog.slice(0, 10).map((entry, i) => (
-              <li
-                key={`${entry.at}-${i}`}
-                data-testid="death-log-entry"
-                data-monster-id={entry.monsterId}
-                data-area-id={entry.areaId}
-                className="flex items-center justify-between gap-3 border-b border-border/40 pb-1 last:border-b-0"
-              >
-                <div className="min-w-0 flex-1 truncate font-bold text-text-primary">{entry.monsterName}</div>
-                <div className="truncate text-[10px] text-text-muted">{resolveSceneLabel(entry.areaId)}</div>
-                <div className="shrink-0 text-[10px] text-text-muted">
-                  {new Date(entry.at).toLocaleDateString()}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <WorldPulseFeed>
+          <div className="border-t border-border/60 pt-2">
+            <div className="flex items-center gap-2">
+              <PxIcon name="skull" size={15} className="text-red" />
+              <div className="text-[11px] font-black uppercase tracking-wide text-text-primary">Killed By</div>
+              <div className="ml-auto text-[11px] text-text-muted">{deathLog.length} recorded</div>
+            </div>
+            {deathLog.length === 0 ? (
+              <div className="mt-1 text-[11px] text-text-muted">No deaths on file. Stay sharp out there.</div>
+            ) : (
+              <ul data-testid="death-log" className="mt-1 space-y-1 text-xs text-text-secondary">
+                {deathLog.slice(0, 10).map((entry, i) => (
+                  <li
+                    key={`${entry.at}-${i}`}
+                    data-testid="death-log-entry"
+                    data-monster-id={entry.monsterId}
+                    data-area-id={entry.areaId}
+                    className="flex items-center justify-between gap-3 border-b border-border/40 pb-1 last:border-b-0"
+                  >
+                    <div className="min-w-0 flex-1 break-words font-bold text-text-primary">{entry.monsterName}</div>
+                    <div className="break-words text-[11px] text-text-muted">{resolveSceneLabel(entry.areaId)}</div>
+                    <div className="shrink-0 text-[11px] text-text-muted">
+                      {new Date(entry.at).toLocaleDateString()}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </WorldPulseFeed>
       </MobileCard>
 
       <LifetimeStatsPanel />
