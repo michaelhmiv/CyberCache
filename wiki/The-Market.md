@@ -47,15 +47,20 @@ usual.
 
 ## Buying
 
-1. Open the **Buy** stop.
+1. Open the **Buy** stop. The listings start right under the search
+   box and the category chips — the lane is listings-first.
 2. Narrow the list with the category chips (Weapons, Shields, Relics, Class
    Mods, Ordnance, Consumables, Materials, Cache Fragments, Legendary
-   Cores, Essences), the rarity chips, and
-   the filters: weapon type and element on weapon searches, plus level
-   range and price range.
-3. Sort by newest, cheapest, most expensive, highest level, or rarity.
-4. Every card names its seller by their hunter name (NPC seed stock is
-   labelled NPC Vendor). Tap a listing and confirm. You pay exactly the
+   Cores, Essences), or open the **Filters** sheet: the Filters button
+   prints how many filters are active and the current sort, and the
+   sheet holds the rarity chips, the weapon type and element filters
+   (on weapon searches), the level range and price range, and the
+   sort — newest, cheapest, most expensive, highest level, rarity,
+   or name.
+3. Every row names its seller by their hunter name (NPC seed stock is
+   labelled NPC Vendor) and carries its price history under the name,
+   with the price and the Buy button at the row's right edge. Tap Buy
+   and confirm. You pay exactly the
    listed price — the fee
    (below) comes out of the seller's side, never added on top for you.
 

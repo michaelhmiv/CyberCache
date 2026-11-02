@@ -12,7 +12,9 @@ the buy counter; a dashed **Sell to Vendor — Buyback** row at the top of
 the stop opens the buyback desk. Standing with the makers has moved out
 of the stall entirely — the [[Manufacturer Standing|Rep Desk]] is its
 own stop on the same rail, and the [[Slots|slot machine]] has a stop of
-its own too.
+its own too. Every item on the counter is one compact row: its icon,
+its family and what it does, how many you already own, and the Buy
+button with its price.
 
 ## The staples — always in stock
 
@@ -65,7 +67,9 @@ just buying the staple.
 ## Item of the Day
 
 One item on sale each day — drawn from the staples plus that day's
-rotating consumables — is the **Item of the Day at 25% off**. The discount
+rotating consumables — is the **Item of the Day at 25% off**. It leads
+the counter as its own row, marked with an ITEM OF THE DAY −25% chip.
+The discount
 is applied per unit and rounded down. If you burn through a staple, the
 day it's featured is the day to stock up.
 

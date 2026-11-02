@@ -39,14 +39,19 @@ import { getConsumableVisual } from '@/constants/visualAssets';
  * prompt, and the server refuses the op regardless.
  */
 
-const GLYPH_ICONS: Record<SlotGlyph, React.ReactNode> = {
-  blank: <PxIcon name="x" size={26} className="text-text-muted" />,
-  credit_stack: <PxIcon name="coin" size={26} className="text-amber" />,
-  vial: <PxIcon name="crate" size={26} className="text-emerald-300" />,
-  fragment: <PxIcon name="frag" size={26} className="text-cyan-300" />,
-  key: <PxIcon name="key" size={26} className="text-amber" />,
-  jackpot_star: <PxIcon name="star5" size={26} className="text-amber" />,
-};
+const glyphIcons = (size: number): Record<SlotGlyph, React.ReactNode> => ({
+  blank: <PxIcon name="x" size={size} className="text-text-muted" />,
+  credit_stack: <PxIcon name="coin" size={size} className="text-amber" />,
+  vial: <PxIcon name="crate" size={size} className="text-emerald-300" />,
+  fragment: <PxIcon name="frag" size={size} className="text-cyan-300" />,
+  key: <PxIcon name="key" size={size} className="text-amber" />,
+  jackpot_star: <PxIcon name="star5" size={size} className="text-amber" />,
+});
+
+/** Payout-table glyphs (26px, row height). */
+const GLYPH_ICONS = glyphIcons(26);
+/** Reel glyphs (38px — the reels are the machine's stage, F3). */
+const REEL_GLYPH_ICONS = glyphIcons(38);
 
 const SPIN_GLYPHS: SlotGlyph[] = ['credit_stack', 'vial', 'fragment', 'key', 'jackpot_star', 'blank'];
 
@@ -186,6 +191,11 @@ export const DataSlotsPanel: React.FC = () => {
   const rtpPercent = (slotCreditRtp() * 100).toFixed(1);
 
   return (
+    // Two panels (drift-fix F3, mock m42): the machine is its own
+    // card — header, 72px reels, tiers — and the printed payout
+    // table is a separate panel below it, not the machine card's
+    // tail. Same state, same pull flow, same lock behavior.
+    <div className="space-y-3">
     <MobileCard className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
@@ -198,22 +208,22 @@ export const DataSlotsPanel: React.FC = () => {
           )}
           <div className="min-w-0">
             <div className="text-xs font-bold text-text-primary">Data Slots</div>
-            <div className="text-[10px] text-amber">The vendor&apos;s machine — credits in, prizes out</div>
-            <div className="text-[10px] text-text-muted">
+            <div className="text-[11px] text-amber">The vendor&apos;s machine — credits in, prizes out</div>
+            <div className="text-[11px] text-text-muted">
               Pulls left today: {pullsRemaining} / {view.cap} • Cache budget: {cacheBudget.openedToday} of {cacheBudget.cap} boxes opened
             </div>
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[10px] text-text-muted uppercase">Credits</div>
+          <div className="text-[11px] text-text-muted uppercase">Credits</div>
           <div className="text-sm font-black text-amber">{player.credits.toLocaleString()}</div>
         </div>
       </div>
 
       <div className="flex justify-center gap-2" aria-label="Slot reels">
         {reels.map((glyph, i) => (
-          <div key={i} className="bl-well w-14 h-14 flex items-center justify-center">
-            {GLYPH_ICONS[glyph]}
+          <div key={i} className="bl-well flex h-[72px] w-[72px] items-center justify-center">
+            {REEL_GLYPH_ICONS[glyph]}
           </div>
         ))}
       </div>
@@ -247,24 +257,26 @@ export const DataSlotsPanel: React.FC = () => {
         })}
       </div>
 
-      <div className="space-y-1">
-        <div className="text-[10px] font-black uppercase text-text-secondary">Payout table — the odds are printed on the machine</div>
-        {SLOT_OUTCOMES.map((outcome) => (
-          <div key={outcome.id} className="flex items-center justify-between gap-2 text-[11px]">
-            <span className="flex items-center gap-1.5 text-text-primary">
-              {GLYPH_ICONS[outcome.glyph]}
-              {outcome.label}
-            </span>
-            <span className="text-text-muted">{outcome.paysLabel}</span>
-            <span className="font-black text-text-primary w-14 text-right">{formatPercent(outcome)}</span>
-          </div>
-        ))}
-        <div className="text-[10px] text-text-muted leading-relaxed pt-1">
-          Credit return {rtpPercent}% — the machine keeps the rest as a credit sink. A cache key pays against your
-          daily cache budget; if the budget is full, a key result pays 5 cache fragments instead. The machine never
-          pays gear, cores, scrap, or essences.
+    </MobileCard>
+
+    <MobileCard className="space-y-1">
+      <div className="text-[11px] font-black uppercase text-text-secondary">Payout table — the odds are printed on the machine</div>
+      {SLOT_OUTCOMES.map((outcome) => (
+        <div key={outcome.id} className="flex items-center justify-between gap-2 text-[11px]">
+          <span className="flex items-center gap-1.5 text-text-primary">
+            {GLYPH_ICONS[outcome.glyph]}
+            {outcome.label}
+          </span>
+          <span className="text-text-muted">{outcome.paysLabel}</span>
+          <span className="font-black text-text-primary w-14 text-right">{formatPercent(outcome)}</span>
         </div>
+      ))}
+      <div className="text-[11px] text-text-muted leading-relaxed pt-1">
+        Credit return {rtpPercent}% — the machine keeps the rest as a credit sink. A cache key pays against your
+        daily cache budget; if the budget is full, a key result pays 5 cache fragments instead. The machine never
+        pays gear, cores, scrap, or essences.
       </div>
     </MobileCard>
+    </div>
   );
 };

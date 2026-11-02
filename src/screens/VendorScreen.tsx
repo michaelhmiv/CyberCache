@@ -164,43 +164,49 @@ export const VendorScreen: React.FC = () => {
     const price = offer?.unitPrice ?? c.basePrice;
     const buying = busyId === `buy:${c.id}`;
     return (
-      <MobileCard key={c.id} className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="bl-well w-10 h-10 flex items-center justify-center shrink-0">
-              <span className={`text-[10px] font-black uppercase ${FAMILY_COLORS[c.family]}`}>
-                {FAMILY_LABELS[c.family].slice(0, 3)}
-              </span>
+      // Compact storefront row (drift-fix F3, mock m40): the def's
+      // own pixel icon in the well (the 3-letter family abbrev is
+      // replaced by the full family label as the first chip — more
+      // legible, same datum), name/role/description/chips in the
+      // middle, Owned over a SMALL Buy in the right column. The
+      // full-width Buy band is gone; the handler, price and
+      // disabled rule are unchanged.
+      <MobileCard key={c.id}>
+        <div className="flex items-start gap-2.5">
+          <div className="bl-well flex h-10 w-10 shrink-0 items-center justify-center">
+            <PxIcon name={c.visual.icon} size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className={`text-xs font-bold leading-snug ${offer?.itemOfTheDay ? 'text-amber' : 'text-text-primary'}`}>{c.name}</span>
+              {offer?.itemOfTheDay && (
+                <span className="rounded border border-amber bg-amber/20 px-1.5 py-0.5 text-[11px] font-black text-amber">ITEM OF THE DAY −25%</span>
+              )}
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-text-primary truncate">{c.name}</div>
-              <div className="text-[10px] text-amber">{c.tacticalRole}</div>
-              <div className="text-[10px] text-text-muted">{c.shortDescription}</div>
+            <div className="text-[11px] text-amber">{c.tacticalRole}</div>
+            <div className="text-[11px] leading-snug text-text-muted">{c.shortDescription}</div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <span className={`rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-bold ${FAMILY_COLORS[c.family]}`}>{FAMILY_LABELS[c.family]}</span>
+              <span className="rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] text-text-muted">{TRIGGER_LABELS[c.trigger]}</span>
+              {c.counterTags.map((tag) => (
+                <span key={tag} className="rounded border border-amber/30 bg-amber/10 px-1.5 py-0.5 text-[11px] font-bold text-amber">{tag}</span>
+              ))}
             </div>
           </div>
-          <div className="text-right shrink-0">
-            <div className="text-[10px] text-text-muted">Owned</div>
-            <div className="text-sm font-black text-text-primary">{owned}</div>
+          <div className="flex w-[92px] shrink-0 flex-col items-end gap-1.5">
+            <div className="text-right">
+              <div className="text-[11px] text-text-muted">Owned</div>
+              <div className="text-sm font-black leading-none text-text-primary">{owned}</div>
+            </div>
+            <button
+              onClick={() => offer && handleBuy(offer, c.name)}
+              disabled={!offer || player.credits < price || Boolean(busyId)}
+              className={`w-full px-2 py-2 text-[11px] font-black disabled:opacity-40 ${vendorCtaCls}`}
+            >
+              {buying ? 'Buying…' : `Buy 1 • ${price.toLocaleString()}cr`}
+            </button>
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          <span className="text-[9px] px-1.5 py-0.5 rounded border border-border bg-surface text-text-muted">{TRIGGER_LABELS[c.trigger]}</span>
-          {c.counterTags.map((tag) => (
-            <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded border border-amber/30 bg-amber/10 text-amber font-bold">{tag}</span>
-          ))}
-          {offer?.itemOfTheDay && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded border border-amber bg-amber/20 text-amber font-black">ITEM OF THE DAY −25%</span>
-          )}
-        </div>
-
-        <button
-          onClick={() => offer && handleBuy(offer, c.name)}
-          disabled={!offer || player.credits < price || Boolean(busyId)}
-          className={`w-full py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
-        >
-          {buying ? 'Buying…' : `Buy 1 • ${price.toLocaleString()}cr`}
-        </button>
       </MobileCard>
     );
   };
@@ -211,34 +217,44 @@ export const VendorScreen: React.FC = () => {
     const owned = entry.kind === 'material' ? (player.materials[entry.id] ?? 0) : (player.essences[entry.id] ?? 0);
     const buying = busyId === `buy:${entry.id}`;
     return (
-      <MobileCard key={entry.id} className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs font-bold text-text-primary truncate">{entry.name}</div>
-            <div className="text-[10px] text-amber">{entry.kind === 'material' ? 'Material' : 'Essence'}</div>
-            <div className="text-[10px] text-text-muted">Rotating stock — back tomorrow, maybe.</div>
+      // Compact row, same anatomy as the consumable rows (F3):
+      // name/kind/note in the middle, Owned over a small Buy.
+      <MobileCard key={entry.id}>
+        <div className="flex items-start gap-2.5">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold leading-snug text-text-primary">{entry.name}</div>
+            <div className="text-[11px] text-amber">{entry.kind === 'material' ? 'Material' : 'Essence'}</div>
+            <div className="text-[11px] text-text-muted">Rotating stock — back tomorrow, maybe.</div>
           </div>
-          <div className="text-right shrink-0">
-            <div className="text-[10px] text-text-muted">Owned</div>
-            <div className="text-sm font-black text-text-primary">{owned}</div>
+          <div className="flex w-[92px] shrink-0 flex-col items-end gap-1.5">
+            <div className="text-right">
+              <div className="text-[11px] text-text-muted">Owned</div>
+              <div className="text-sm font-black leading-none text-text-primary">{owned}</div>
+            </div>
+            <button
+              onClick={() => handleBuy(offer, entry.name)}
+              disabled={player.credits < offer.unitPrice || Boolean(busyId)}
+              className={`w-full px-2 py-2 text-[11px] font-black disabled:opacity-40 ${vendorCtaCls}`}
+            >
+              {buying ? 'Buying…' : `Buy 1 • ${offer.unitPrice.toLocaleString()}cr`}
+            </button>
           </div>
         </div>
-        <button
-          onClick={() => handleBuy(offer, entry.name)}
-          disabled={player.credits < offer.unitPrice || Boolean(busyId)}
-          className={`w-full py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
-        >
-          {buying ? 'Buying…' : `Buy 1 • ${offer.unitPrice.toLocaleString()}cr`}
-        </button>
       </MobileCard>
     );
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* Compact storefront head (drift-fix F3, mock m40): the
+          giant 30px headline retires — the title sits at the app's
+          17px rail-headline size and the sub is the mock's one
+          line. The stock starts one headline-height higher; no
+          datum is lost (the old sub's Workshop pointer survives in
+          the shorter line). */}
       <div>
-        <div className="bl-title text-3xl leading-none text-text-primary">Consumable Vendor</div>
-        <div className="text-xs text-text-muted">Buy common boss-prep tools. Advanced ammo and payloads are crafted in the Workshop.</div>
+        <div className="bl-title text-[17px] leading-none text-text-primary">Consumable Vendor</div>
+        <div className="text-[11px] text-text-muted">Boss-prep staples · crafted goods live in the Workshop</div>
       </div>
 
       {notice && <div className="text-xs text-text-secondary">{notice}</div>}
@@ -256,24 +272,23 @@ export const VendorScreen: React.FC = () => {
           >
             <span className="min-w-0">
               <span className="block text-xs font-black text-text-primary">Sell to Vendor — Buyback</span>
-              <span className="block text-[10px] text-text-muted">
+              <span className="block text-[11px] text-text-muted">
                 The vendor buys back gear, consumables, materials and essences at {Math.round(VENDOR_BUYBACK_RATE_DEFAULT * 100)}% of value.
               </span>
             </span>
             <PxIcon name="chevR" size={17} className="shrink-0 text-amber" />
           </button>
 
-          {itemOfTheDayDef && itemOfTheDayOffer && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1 text-[10px] font-black uppercase text-amber"><PxIcon name="star5" size={13} /> Item of the Day — 25% off</div>
-              {consumableCard(itemOfTheDayDef, itemOfTheDayOffer)}
-            </div>
-          )}
+          {/* F3: the Item of the Day keeps its own card directly
+              under the buyback row; its label row is folded into
+              the card (amber name + ITEM OF THE DAY −25% chip on
+              the card's face — same datum, one row higher). */}
+          {itemOfTheDayDef && itemOfTheDayOffer && consumableCard(itemOfTheDayDef, itemOfTheDayOffer)}
 
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <div className="text-[10px] font-black uppercase text-text-secondary">Today&apos;s Rotation</div>
-              <div className="text-[10px] text-text-muted">New stock at 00:00 UTC</div>
+              <div className="text-[11px] font-black uppercase text-text-secondary">Today&apos;s Rotation</div>
+              <div className="text-[11px] text-text-muted">New stock at 00:00 UTC</div>
             </div>
             {rotation.consumables.map((id) => {
               const def = CONSUMABLES[id as keyof typeof CONSUMABLES];
@@ -285,7 +300,7 @@ export const VendorScreen: React.FC = () => {
             })}
           </div>
 
-          <div className="text-[10px] font-black uppercase text-text-secondary">Staples — always in stock</div>
+          <div className="text-[11px] font-black uppercase text-text-secondary">Staples — always in stock</div>
 
           <ChipRail>
             {(Object.keys(FAMILY_LABELS) as Array<keyof typeof FAMILY_LABELS>)
@@ -298,7 +313,7 @@ export const VendorScreen: React.FC = () => {
                     key={family}
                     type="button"
                     onClick={() => toggleFacet('family', family)}
-                    className={`shrink-0 flex items-center gap-1 px-2.5 py-1 text-[10px] font-black border transition-colors ${
+                    className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-black border transition-colors ${
                       active ? 'border-amber bg-amber/15' : 'border-border bg-surface opacity-70 hover:opacity-100'
                     } ${FAMILY_COLORS[family]}`}
                     style={chipClip}
@@ -325,11 +340,11 @@ export const VendorScreen: React.FC = () => {
               )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              <ArrowUpDown size={11} className="text-text-muted" />
+              <ArrowUpDown size={13} className="text-text-muted" />
               <select
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value)}
-                className="text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+                className="text-[11px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1.5 text-text-primary"
               >
                 {sortOptions.map((opt) => (
                   <option key={opt.key} value={opt.key}>{opt.label}</option>
@@ -337,7 +352,7 @@ export const VendorScreen: React.FC = () => {
               </select>
             </div>
             {hasActiveFilters && (
-              <button type="button" onClick={clearFacets} className="text-[10px] font-black text-red hover:text-red/80 shrink-0">
+              <button type="button" onClick={clearFacets} className="text-[11px] font-black text-red hover:text-red/80 shrink-0">
                 Clear
               </button>
             )}
@@ -354,7 +369,7 @@ export const VendorScreen: React.FC = () => {
       )}
 
       {mode === 'sell' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <button
             type="button"
             onClick={() => setMode('buy')}
@@ -362,13 +377,13 @@ export const VendorScreen: React.FC = () => {
           >
             <PxIcon name="vendor" size={17} /> Back to Vendor stock
           </button>
-          <div className="text-[10px] text-text-muted">
+          <div className="text-[11px] text-text-muted">
             The vendor pays {Math.round(VENDOR_BUYBACK_RATE_DEFAULT * 100)}% of vendor value at the standard rate.
             Equipped and locked gear can&apos;t be sold. The confirmed payout is shown after each sale.
           </div>
 
           <div className="space-y-2">
-            <div className="text-[10px] font-black uppercase text-text-secondary">Gear</div>
+            <div className="text-[11px] font-black uppercase text-text-secondary">Gear</div>
             {sellableGear.length === 0 ? (
               <div className="py-4 text-center text-xs text-text-muted">No sellable gear — equipped and locked items stay with you.</div>
             ) : sellableGear.map(({ item, value }) => {
@@ -377,8 +392,8 @@ export const VendorScreen: React.FC = () => {
               return (
                 <MobileCard key={item.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-xs font-bold text-text-primary truncate">{item.name}</div>
-                    <div className="text-[10px] text-text-muted">{item.rarity} • Lv {item.level} • value {value.toLocaleString()}cr</div>
+                    <div className="text-xs font-bold leading-snug text-text-primary">{item.name}</div>
+                    <div className="text-[11px] text-text-muted">{item.rarity} • Lv {item.level} • value {value.toLocaleString()}cr</div>
                   </div>
                   <button
                     onClick={() => handleSell(`sell:gear:${item.id}`, () => verifiedOps.vendorSellGear(item.id), item.name)}
@@ -393,7 +408,7 @@ export const VendorScreen: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <div className="text-[10px] font-black uppercase text-text-secondary">Consumables</div>
+            <div className="text-[11px] font-black uppercase text-text-secondary">Consumables</div>
             {sellableBatches.length === 0 ? (
               <div className="py-4 text-center text-xs text-text-muted">No consumable stacks to sell.</div>
             ) : sellableBatches.map((batch) => {
@@ -406,11 +421,11 @@ export const VendorScreen: React.FC = () => {
                 <MobileCard key={batch.id} className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-xs font-bold text-text-primary truncate">{name}</div>
-                      <div className="text-[10px] text-text-muted">Quality {batch.quality_percent}% • unit value {Math.round(unitValue).toLocaleString()}cr</div>
+                      <div className="text-xs font-bold leading-snug text-text-primary">{name}</div>
+                      <div className="text-[11px] text-text-muted">Quality {batch.quality_percent}% • unit value {Math.round(unitValue).toLocaleString()}cr</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-[10px] text-text-muted">Owned</div>
+                      <div className="text-[11px] text-text-muted">Owned</div>
                       <div className="text-sm font-black text-text-primary">{batch.quantity}</div>
                     </div>
                   </div>
@@ -436,7 +451,7 @@ export const VendorScreen: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <div className="text-[10px] font-black uppercase text-text-secondary">Materials & Essences</div>
+            <div className="text-[11px] font-black uppercase text-text-secondary">Materials & Essences</div>
             {sellableMaterials.length === 0 ? (
               <div className="py-4 text-center text-xs text-text-muted">No materials or essences to sell.</div>
             ) : sellableMaterials.map(({ entry, owned }) => {
@@ -447,11 +462,11 @@ export const VendorScreen: React.FC = () => {
                 <MobileCard key={entry.id} className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-xs font-bold text-text-primary truncate">{entry.name}</div>
-                      <div className="text-[10px] text-text-muted">{entry.kind === 'material' ? 'Material' : 'Essence'} • unit value {entry.unitPrice.toLocaleString()}cr</div>
+                      <div className="text-xs font-bold leading-snug text-text-primary">{entry.name}</div>
+                      <div className="text-[11px] text-text-muted">{entry.kind === 'material' ? 'Material' : 'Essence'} • unit value {entry.unitPrice.toLocaleString()}cr</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-[10px] text-text-muted">Owned</div>
+                      <div className="text-[11px] text-text-muted">Owned</div>
                       <div className="text-sm font-black text-text-primary">{owned}</div>
                     </div>
                   </div>
