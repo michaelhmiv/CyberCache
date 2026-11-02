@@ -3,6 +3,7 @@ import type { Weapon } from '@/types/items';
 import {
   composePixelWeaponCached,
   paintPixelWeapon,
+  pixelWeaponInputFromWeapon,
   type PixelWeaponInput,
 } from '@/lib/pixel/weaponCompositor';
 import { bespokeSpriteIdForWeapon, getPixelSprite } from '@/lib/pixel/manifest';
@@ -39,19 +40,7 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = ({ weapon, input, size = 
   const resolved: PixelWeaponInput | undefined = useMemo(() => {
     if (input) return input;
     if (!weapon) return undefined;
-    return {
-      weaponType: weapon.weaponType,
-      manufacturer: weapon.manufacturer,
-      rarity: weapon.rarity,
-      element: weapon.element,
-      parts: weapon.parts,
-      name: weapon.name,
-      id: weapon.id,
-      pixelSeed: weapon.pixelSeed,
-      affixes: weapon.affixes,
-      rollQuality: weapon.rollQuality,
-      legendaryEffectId: weapon.legendaryEffectId,
-    };
+    return pixelWeaponInputFromWeapon(weapon);
   }, [input, weapon]);
 
   const bespoke = resolved ? bespokeSpriteIdForWeapon(resolved) : undefined;

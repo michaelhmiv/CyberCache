@@ -4,9 +4,10 @@
 Produces the derived pixel assets the overhaul needs from the shipped
 art library — no new painting for anything the library already holds:
 
-  1. Segmented rigs: the hunter sprite and the five roaming enemy
-     sprites are cut into jointed segments (with overlap collars) that
-     src/lib/pixel/rig.ts assembles and animates by transform.
+  1. Segmented rigs: the five roaming enemy sprites are cut into
+     jointed segments (with overlap collars) that src/lib/pixel/rig.ts
+     assembles and animates by transform; the hunter contributes only
+     its back + head crops, which live on as parts (M2).
   2. Hunter head variants (Q6 ruling): visor recolors + hood/optic
      repaints of the head segment.
   3. Death key poses: two toppled stills per archetype (the rig blends
@@ -131,18 +132,14 @@ def crop_masked(img: Image.Image, box: tuple[int, int, int, int], keep: Image.Im
 # (collars) so joints never gap at the ±25° rotation envelope.
 HUNTER_SEGMENTS = {
     # id: (box, pivot-in-segment-normalized) — boxes measured from the
-    # shipped sprite's alpha profile (head x41-112, rifle band y96-143,
-    # leg split at the x~68 alpha valley, knee line y~245).
+    # shipped sprite's alpha profile (head x41-112, rifle band y96-143).
+    # Parts-system swap (M2): the segmented hunter rig is deleted.
+    # Only these two crops survive — both are complete standalone
+    # PARTS in the Standard Issue set (the back piece and the visor
+    # head, standardIssue.ts), cut from the keyed hunter.png (rebuild
+    # it with scripts/pixel-key.py when running this section).
     "rig-hunter-back": ((0, 44, 62, 152), (0.8, 0.4)),
     "rig-hunter-head": ((34, 0, 120, 88), (0.55, 0.9)),
-    "rig-hunter-torso": ((24, 76, 148, 198), (0.45, 0.1)),
-    "rig-hunter-arm-upper": ((84, 88, 152, 140), (0.16, 0.25)),
-    "rig-hunter-arm-fore": ((130, 92, 222, 148), (0.08, 0.35)),
-    "rig-hunter-arm-off": ((142, 112, 214, 156), (0.1, 0.3)),
-    "rig-hunter-thigh-b": ((20, 178, 74, 252), (0.5, 0.06)),
-    "rig-hunter-shin-b": ((16, 240, 74, 320), (0.5, 0.05)),
-    "rig-hunter-thigh-f": ((62, 178, 120, 252), (0.5, 0.06)),
-    "rig-hunter-shin-f": ((62, 240, 132, 320), (0.5, 0.05)),
 }
 
 # Enemy kits: band splits in normalized frame coords (x0, y0, x1, y1)
@@ -624,229 +621,11 @@ def build_goldenbg() -> None:
     print(f"goldenbg: {len(sources)} twins -> {out_dir}")
 
 
-# ----------------------------------------------------------------------
-# 10. Unarmed hunter rig variants (real-item invariant)
-# ----------------------------------------------------------------------
-# The shipped hunter art holds a rifle, and the segmented rig inherits
-# it: the arm-fore crop IS mostly the rifle, the arm-upper / arm-off
-# crops carry the receiver, and the torso crop keeps a gun patch at its
-# top-right. An unequipped hunter therefore rendered a phantom rifle in
-# every rig scene. These four variant segments paint the same hunter
-# WITHOUT the weapon: the torso with its gun patch erased + row-
-# inpainted from its own armor, and three hanging-arm segments ("hands
-# at sides") painted in the shipped armor palette / shading language
-# (navy ramp sampled from the shipped arm + shin segments). Existing
-# sprites are NEVER touched — the equipped path stays bit-identical;
-# the unarmed rig swaps only these four segments.
-
-UNARMED_OUTLINE = (9, 11, 18, 255)
-UNARMED_DARK = (13, 32, 64, 255)
-UNARMED_BASE = (23, 48, 92, 255)
-UNARMED_MID = (42, 76, 131, 255)
-UNARMED_LIGHT = (78, 116, 174, 255)
-UNARMED_CYAN = (64, 224, 255, 255)
-UNARMED_GLOVE = (15, 17, 25, 255)
-UNARMED_GLOVE_L = (40, 46, 62, 255)
-UNARMED_FAR_DARK = (10, 24, 48, 255)
-UNARMED_FAR_BASE = (17, 36, 69, 255)
-UNARMED_FAR_GLOVE = (11, 13, 19, 255)
-
-
-def _grow(pts, cx, cy, d):
-    return [(x + (-d if x < cx else d if x > cx else 0),
-             y + (-d if y < cy else d if y > cy else 0)) for x, y in pts]
-
-
-def build_unarmed() -> None:
-    hunter = Image.open(SPRITES / "hunter.png").convert("RGBA")
-
-    # --- torso: erase the gun patch, inpaint from the row's own armor ---
-    torso = hunter.crop((24, 76, 148, 198))
-    tp = torso.load()
-    # Gun patch in torso-local coords: the rifle receiver crosses the
-    # whole chest (frame x ~88..148, y ~96..138 -> local x 64..124,
-    # y 20..62), scope glow included — the blue-gray gunmetal is too
-    # close to the armor navy for a color test, so the measured rect is
-    # erased outright and each row is inpainted from the armor pixel at
-    # its left edge (cyan accents never seed the smear, so the chest
-    # light cannot streak).
-    GX0, GY0, GX1, GY1 = 64, 20, 124, 62
-    for y in range(GY0, GY1):
-        last = None
-        for x in range(GX0):
-            r, g, b, a = tp[x, y]
-            if a > 200 and not (g > 150 and b > 180):
-                last = (r, g, b, a)
-        # The gun WAS the silhouette out to the crop edge; the body
-        # underneath slopes from the neck (~x96) over the shoulder
-        # (~x112) and tapers to the waist (~x98) — the hanging arm
-        # (frame x>=103) covers the seam.
-        t = (y - GY0) / max(1, GY1 - GY0)
-        edge = int(96 + t * 64) if t < 0.25 else int(112 - (t - 0.25) * 18.7)
-        for x in range(GX0, GX1):
-            if tp[x, y][3] == 0:
-                continue
-            if last is None or x > edge:
-                tp[x, y] = (0, 0, 0, 0)
-            elif x == edge:
-                tp[x, y] = (last[0] // 2, last[1] // 2, last[2] // 2, 255)
-            else:
-                tp[x, y] = last
-    save_sprite("rig-hunter-torso-unarmed", torso, "character", {"pivot": {"x": 0.45, "y": 0.1}})
-
-    # --- near upper arm: shoulder pad + hanging sleeve (52x70) ---
-    img = Image.new("RGBA", (52, 70), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    arm = [(11, 18), (31, 18), (28, 58), (14, 58)]
-    d.polygon(_grow(arm, 21, 38, 1), fill=UNARMED_OUTLINE)
-    d.polygon(arm, fill=UNARMED_BASE)
-    d.polygon([(11, 18), (19, 18), (18, 58), (14, 58)], fill=UNARMED_DARK)
-    d.rectangle((24, 20, 26, 56), fill=UNARMED_MID)
-    d.polygon([(13, 52), (29, 52), (28, 58), (14, 58)], fill=UNARMED_DARK)
-    d.ellipse((3, 1, 33, 24), fill=UNARMED_OUTLINE)
-    d.ellipse((4, 2, 32, 23), fill=UNARMED_LIGHT)
-    d.ellipse((4, 6, 32, 23), fill=UNARMED_MID)
-    d.polygon([(8, 12), (28, 12), (27, 17), (10, 17)], fill=UNARMED_BASE)
-    d.rectangle((21, 9, 28, 11), fill=UNARMED_CYAN)
-    save_sprite("rig-hunter-arm-upper-unarmed", img, "character", {"pivot": {"x": 0.37, "y": 0.17}})
-
-    # --- near forearm + glove: hangs to mid-thigh (48x76) ---
-    img = Image.new("RGBA", (48, 76), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    fore = [(13, 4), (31, 4), (29, 44), (15, 44)]
-    d.polygon(_grow(fore, 22, 24, 1), fill=UNARMED_OUTLINE)
-    d.polygon(fore, fill=UNARMED_BASE)
-    d.polygon([(13, 4), (19, 4), (18, 44), (15, 44)], fill=UNARMED_DARK)
-    d.rectangle((24, 6, 26, 42), fill=UNARMED_MID)
-    d.rectangle((13, 38, 30, 46), fill=UNARMED_OUTLINE)
-    d.rectangle((14, 39, 29, 45), fill=UNARMED_MID)
-    d.rectangle((20, 41, 26, 43), fill=UNARMED_CYAN)
-    d.rounded_rectangle((10, 44, 33, 68), radius=6, fill=UNARMED_OUTLINE)
-    d.rounded_rectangle((11, 45, 32, 67), radius=5, fill=UNARMED_GLOVE)
-    d.ellipse((12, 44, 20, 53), fill=UNARMED_GLOVE_L)
-    d.ellipse((19, 43, 27, 52), fill=UNARMED_GLOVE_L)
-    d.ellipse((25, 44, 32, 52), fill=UNARMED_GLOVE_L)
-    d.ellipse((29, 52, 37, 61), fill=UNARMED_OUTLINE)
-    d.ellipse((30, 53, 36, 60), fill=UNARMED_GLOVE)
-    d.line((19, 54, 19, 63), fill=UNARMED_OUTLINE)
-    d.line((25, 54, 25, 63), fill=UNARMED_OUTLINE)
-    save_sprite("rig-hunter-arm-fore-unarmed", img, "character", {"pivot": {"x": 0.46, "y": 0.08}})
-
-    # --- far forearm + hand: peeks below the torso hem (36x74) ---
-    img = Image.new("RGBA", (36, 74), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    far = [(12, 2), (26, 2), (25, 52), (13, 52)]
-    d.polygon(_grow(far, 19, 27, 1), fill=UNARMED_OUTLINE)
-    d.polygon(far, fill=UNARMED_FAR_BASE)
-    d.polygon([(12, 2), (17, 2), (17, 52), (13, 52)], fill=UNARMED_FAR_DARK)
-    d.rounded_rectangle((10, 50, 28, 71), radius=5, fill=UNARMED_OUTLINE)
-    d.rounded_rectangle((11, 51, 27, 70), radius=4, fill=UNARMED_FAR_GLOVE)
-    d.line((19, 56, 19, 65), fill=UNARMED_OUTLINE)
-    save_sprite("rig-hunter-arm-off-unarmed", img, "character", {"pivot": {"x": 0.5, "y": 0.05}})
-    print("unarmed: 4 variant segments (gun-free torso + hands at sides)")
-
-
-# ----------------------------------------------------------------------
-# 10b. Holding hunter arm variants (loadout truth)
-# ----------------------------------------------------------------------
-# The unarmed pass (#230) freed the UNEQUIPPED hunter, but the armed
-# rig still wore the shipped art's rifle: HUNTER_RIG's arm crops ARE
-# the gun (see the unarmed note above), and every stage pasted the real
-# equipped weapon ON TOP of it — a pistol rendered as a colored block
-# stuck on a phantom rifle the hands never let go of. These three
-# segments paint the same hunter's arms in a HOLDING pose with empty
-# hands: the near glove curled at the manifest grip point (frame
-# 143,118 — where the held-weapon layer aligns every weapon's grip),
-# the far glove cupped just forward of it in the support position, and
-# nothing painted anywhere the barrel used to extend. Same boxes and
-# pivots as the armed crops, so every pose applies unchanged; the
-# torso is the unarmed variant (gun patch already erased), and the
-# compositor/bespoke render becomes the ONLY weapon on the hunter.
-
-def build_holding() -> None:
-    # --- near upper arm: shoulder pad + arm reaching to the elbow ---
-    # Box mirrors rig-hunter-arm-upper (84,88,152,140); elbow lands at
-    # frame ~(134,128), where the forearm segment takes over.
-    img = Image.new("RGBA", (68, 52), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    upper = [(10, 16), (30, 14), (50, 36), (36, 45), (14, 34)]
-    d.polygon(_grow(upper, 28, 29, 1), fill=UNARMED_OUTLINE)
-    d.polygon(upper, fill=UNARMED_BASE)
-    d.polygon([(10, 16), (18, 15), (26, 37), (16, 35)], fill=UNARMED_DARK)
-    d.polygon([(34, 19), (41, 18), (50, 33), (45, 37)], fill=UNARMED_MID)
-    d.ellipse((38, 31, 57, 47), fill=UNARMED_OUTLINE)
-    d.ellipse((39, 32, 56, 46), fill=UNARMED_MID)
-    d.polygon([(40, 41), (55, 41), (54, 46), (41, 46)], fill=UNARMED_DARK)
-    d.ellipse((0, -2, 34, 24), fill=UNARMED_OUTLINE)
-    d.ellipse((1, -1, 33, 23), fill=UNARMED_LIGHT)
-    d.ellipse((1, 3, 33, 23), fill=UNARMED_MID)
-    d.polygon([(5, 9), (31, 9), (30, 15), (7, 15)], fill=UNARMED_BASE)
-    d.rectangle((20, 6, 27, 8), fill=UNARMED_CYAN)
-    save_sprite("rig-hunter-arm-upper-holding", img, "character", {"pivot": {"x": 0.16, "y": 0.25}})
-
-    # --- near forearm + glove: the grip hand, curled at the grip ---
-    # Box mirrors rig-hunter-arm-fore (130,92,222,148). The grip
-    # anchor (frame 143,118) is local (13,26): the glove wraps it,
-    # fingers curl BELOW the weapon line (the held-weapon layer draws
-    # over the rig, so the gun sits in the hand), and the rest of the
-    # box stays empty — no barrel, no receiver, nothing to mistake
-    # for a second weapon.
-    img = Image.new("RGBA", (92, 56), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    sleeve = [(0, 27), (15, 23), (17, 43), (0, 47)]
-    d.polygon(_grow(sleeve, 8, 35, 1), fill=UNARMED_OUTLINE)
-    d.polygon(sleeve, fill=UNARMED_BASE)
-    d.polygon([(0, 39), (17, 37), (17, 43), (0, 47)], fill=UNARMED_DARK)
-    d.rectangle((3, 26, 5, 38), fill=UNARMED_MID)
-    # Glove mass around the grip point.
-    d.rounded_rectangle((4, 14, 32, 42), radius=6, fill=UNARMED_OUTLINE)
-    d.rounded_rectangle((5, 15, 31, 41), radius=5, fill=UNARMED_GLOVE)
-    d.ellipse((7, 15, 14, 22), fill=UNARMED_GLOVE_L)
-    d.ellipse((14, 14, 21, 21), fill=UNARMED_GLOVE_L)
-    d.ellipse((21, 15, 28, 22), fill=UNARMED_GLOVE_L)
-    d.rectangle((5, 24, 8, 27), fill=UNARMED_CYAN)
-    # Thumb over the top of the grip (partly covered by the weapon
-    # layer in the armed render — that occlusion is the depth cue).
-    d.ellipse((24, 10, 36, 20), fill=UNARMED_OUTLINE)
-    d.ellipse((25, 11, 35, 19), fill=UNARMED_GLOVE)
-    d.ellipse((27, 12, 32, 16), fill=UNARMED_GLOVE_L)
-    # Curled fingers hanging below the grip.
-    for fx0, fx1, fy1 in ((6, 13, 48), (14, 21, 49), (22, 29, 47)):
-        d.rounded_rectangle((fx0, 36, fx1, fy1), radius=3, fill=UNARMED_OUTLINE)
-        d.rounded_rectangle((fx0 + 1, 37, fx1 - 1, fy1 - 1), radius=2, fill=UNARMED_GLOVE)
-    save_sprite("rig-hunter-arm-fore-holding", img, "character", {"pivot": {"x": 0.08, "y": 0.35}})
-
-    # --- far forearm + cupped support glove (darker far palette) ---
-    # Box mirrors rig-hunter-arm-off (142,112,214,156). The support
-    # hand cups up at frame ~(163..192, 118..146): forward of the
-    # grip hand, under where every weapon's body passes — a rifle's
-    # forend rests in it, a pistol's two-hand wrap closes over it.
-    img = Image.new("RGBA", (72, 44), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    fore = [(0, 20), (24, 12), (30, 20), (6, 31)]
-    d.polygon(_grow(fore, 14, 21, 1), fill=UNARMED_OUTLINE)
-    d.polygon(fore, fill=UNARMED_FAR_BASE)
-    d.polygon([(1, 27), (27, 20), (29, 24), (4, 31)], fill=UNARMED_FAR_DARK)
-    # Cupped palm.
-    d.rounded_rectangle((24, 12, 50, 30), radius=6, fill=UNARMED_OUTLINE)
-    d.rounded_rectangle((25, 13, 49, 29), radius=5, fill=UNARMED_FAR_GLOVE)
-    d.line((31, 22, 44, 22), fill=UNARMED_OUTLINE)
-    # Fingertips curling up the far side of the weapon.
-    for fx0, fx1 in ((26, 33), (33, 40), (40, 47)):
-        d.ellipse((fx0, 5, fx1, 14), fill=UNARMED_OUTLINE)
-        d.ellipse((fx0 + 1, 6, fx1 - 1, 13), fill=UNARMED_FAR_GLOVE)
-    save_sprite("rig-hunter-arm-off-holding", img, "character", {"pivot": {"x": 0.1, "y": 0.3}})
-    print("holding: 3 variant segments (gun-free holding arms)")
 
 
 def write_manifest() -> None:
     data = json.loads(MANIFEST.read_text())
     data["sprites"].update(manifest_additions)
-    # The hunter's pixel-key grip heuristic lands on the backpack mass;
-    # the measured hand position on the rifle (alpha profile: hands at
-    # x~143/260, y~118/320) is the anchor the held weapon aligns to.
-    if "hunter" in data["sprites"]:
-        data["sprites"]["hunter"]["anchors"]["grip"] = {"x": 0.55, "y": 0.37}
     MANIFEST.write_text(json.dumps(data, separators=(",", ":"), sort_keys=True))
     print(f"manifest: {len(data['sprites'])} sprites total")
 
@@ -937,8 +716,6 @@ SECTIONS = {
     "glyphs": build_glyphs,
     "vehicles": build_vehicles,
     "sets": build_sets,
-    "unarmed": build_unarmed,
-    "holding": build_holding,
     "goldenbg": build_goldenbg,
     "shieldtech": build_shieldtech,
 }

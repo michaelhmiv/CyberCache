@@ -166,6 +166,19 @@ export const SKELETON = {
   backHighMount: { x: 38, y: 64 },
 } as const;
 
+/** Stage x of the parts actor's feet anchor — the midpoint of the
+ *  two soles — as a fraction of the frame width. Every stage places
+ *  the actor by this point; it is the successor to the deleted whole
+ *  hunter sprite's `feet` manifest anchor. */
+export const PARTS_FEET_X = (SKELETON.soleB.x + SKELETON.soleF.x) / 2 / SKELETON.frameWidth;
+
+/** Animated-node accounting for the perf gate (§4.9): one animated
+ *  node per part in the set (plus the weapon node when armed, which
+ *  the budget counts with the FX nodes). */
+export function countPartNodes(set: PartSetDef): number {
+  return Object.values(set.parts).filter(Boolean).length;
+}
+
 export interface PartPoseTransform {
   rotate?: number;
   x?: number;
@@ -174,11 +187,11 @@ export interface PartPoseTransform {
 
 export type PartPose = Partial<Record<PartSlot, PartPoseTransform>>;
 
-export type PartsPoseName = 'idle' | 'roam' | 'aim' | 'recoil' | 'hit' | 'celebrate' | 'work';
+export type PartsPoseName = 'idle' | 'roam' | 'aim' | 'recoil' | 'hit' | 'celebrate' | 'work' | 'relaxed';
 
 /**
  * The QC pose set (SPEC §7 reserves the enumeration to M1). Values
- * mirror HUNTER_POSES (rig.ts) for the shared slots — Sample-B
+ * carry the old rig poses' shapes for the shared slots — Sample-B
  * movement timings in movement.ts are untouched law; these are the
  * static pose shapes the beats interpolate between.
  *
@@ -230,9 +243,24 @@ export const PART_POSES: Record<PartsPoseName, PartPose> = {
     head: { rotate: 6, y: 1 },
     torso: { rotate: 3 },
   },
+  /**
+   * The unarmed stance (M2): the near arm chain swings DOWN off the
+   * shoulder seat — upper arm rotated to hang along the torso, the
+   * forearm near-straight with it, the (empty) hand ending beside
+   * the thigh. This replaces the old rig's separate hanging-arm
+   * segment set: same parts, a pose whose whole point is that the
+   * hands hold nothing. Any surface rendering an unequipped hunter
+   * at rest uses this pose (and renders no weapon layer).
+   */
+  relaxed: {
+    armUpperN: { rotate: 62 },
+    armForeN: { rotate: -6 },
+    armFar: { rotate: 6 },
+    head: { rotate: 2 },
+  },
 };
 
-export const QC_POSES: PartsPoseName[] = ['idle', 'roam', 'aim', 'recoil', 'hit', 'celebrate', 'work'];
+export const QC_POSES: PartsPoseName[] = ['idle', 'roam', 'aim', 'recoil', 'hit', 'celebrate', 'work', 'relaxed'];
 
 export interface PartLintResult {
   errors: string[];

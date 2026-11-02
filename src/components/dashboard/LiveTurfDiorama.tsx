@@ -4,7 +4,6 @@ import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
-import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import {
   CritFlash,
   DamageNumber,
@@ -13,7 +12,6 @@ import {
   GhostHpBar,
   ImpactSparks,
   MuzzleFlash,
-  PixelSway,
   ShellCasing,
   TelegraphGlow,
   Tracer,
@@ -21,11 +19,16 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
-import { ENEMY_POSES, HUNTER_POSES, enemyRig, headVariantPreference, hunterRigWithHead } from '@/lib/pixel/rig';
+import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
+import { ENEMY_POSES, enemyRig } from '@/lib/pixel/rig';
+import { PART_POSES, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
+import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
+import { layoutPartSet } from '@/lib/pixel/partsCompositor';
+import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
+import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import { areaVisuals } from '@/content/areaPalettes';
 import { isHotArea } from '@/content/hotArea';
 import { elementDialect, shotCadence } from '@/lib/pixel/elementFx';
-import { weaponGripFraction } from '@/lib/pixel/weaponCompositor';
 import { useLoadoutStore } from '@/store';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { CONSUMABLES } from '@/constants/consumables';
@@ -697,7 +700,6 @@ const PixelSceneLayer: React.FC<{
   const crate = getPixelSprite('crate');
   const [enemyLanded, setEnemyLanded] = useState(false);
 
-  const hunterSprite = requirePixelSprite('hunter');
   // ── Overhaul stage state ──────────────────────────────────────────
   const visuals = areaVisuals(areaId);
   const dialect = elementDialect(weapon?.element);
@@ -722,15 +724,21 @@ const PixelSceneLayer: React.FC<{
   const eventProp = event && (event.tone === 'event' || event.tone === 'event_major') && event.propId
     ? getPixelSprite(event.propId)
     : undefined;
-  const hunterPose = !showEnemy
-    ? HUNTER_POSES.idle
+  // Parts poses (M2): armed standby idles at the ready; an unarmed
+  // hunter stands 'relaxed' — hands at his sides, holding nothing.
+  const hunterPoseName: PartsPoseName = !showEnemy
+    ? weapon
+      ? 'idle'
+      : 'relaxed'
     : beat?.kind === 'shot' || beat?.kind === 'crit'
-      ? HUNTER_POSES.recoil
+      ? 'recoil'
       : beat?.kind === 'playerHit'
-        ? HUNTER_POSES.hit
+        ? 'hit'
         : beat?.kind === 'kill'
-          ? HUNTER_POSES.celebrate
-          : HUNTER_POSES.aim;
+          ? 'celebrate'
+          : weapon
+            ? 'aim'
+            : 'relaxed';
   const enemyPose = isEliteEvent
     ? ENEMY_POSES.idle
     : beat?.kind === 'playerHit'
@@ -740,13 +748,17 @@ const PixelSceneLayer: React.FC<{
         : beat?.kind === 'kill'
           ? ENEMY_POSES.death
           : ENEMY_POSES.idle;
-  // Held-weapon placement from anchors (§4.2): the weapon render's own
-  // grip fraction lands on the hunter's manifest grip anchor.
-  const weaponGrip = weapon ? weaponGripFraction(weapon.weaponType) : { x: 0.4, y: 0.65 };
-  const weaponBoxWidthPct = 78;
-  const weaponBoxHeightPct = weaponBoxWidthPct * (260 / 320) * (44 / 120);
-  const weaponLeftPct = (hunterSprite.anchors.grip?.x ?? 0.55) * 100 - weaponGrip.x * weaponBoxWidthPct;
-  const weaponTopPct = (hunterSprite.anchors.grip?.y ?? 0.37) * 100 - weaponGrip.y * weaponBoxHeightPct;
+  // The hunter's part set (M2) — Standard Issue wearing the player's
+  // head variant. FX points resolve from the parts layout for the
+  // pose he is actually in: the held weapon's grip/muzzle, the
+  // skeleton's chest for his mass. (The deleted whole-hunter
+  // sprite's manifest anchors used to feed these.)
+  const hunterSet = hunterPartSet(headVariantPreference());
+  const hunterLayout = layoutPartSet(
+    hunterSet,
+    PART_POSES[hunterPoseName],
+    weapon ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(weapon)) : undefined,
+  );
 
   // Enemy sprite from data: the boss's bespoke sprite in boss fights,
   // else the current target monster's archetype sprite, else the brute.
@@ -756,9 +768,9 @@ const PixelSceneLayer: React.FC<{
   const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
   const hunterPlacement: ActorPlacement = { xPct: 22, heightPct: 57, groundY };
   const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: bossMode && bossSpriteId ? 80 : 66, groundY };
-  const muzzle = actorAnchorPoint(hunterSprite, 'muzzle', hunterPlacement);
-  const grip = actorAnchorPoint(hunterSprite, 'grip', hunterPlacement);
-  const hunterMass = actorAnchorPoint(hunterSprite, 'centerMass', hunterPlacement);
+  const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
+  const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
+  const hunterMass = partsAnchorPoint(SKELETON.chest, hunterPlacement);
   const enemyMass = actorAnchorPoint(enemySprite, 'centerMass', enemyPlacement);
   const enemyFeet = actorAnchorPoint(enemySprite, 'feet', enemyPlacement);
   const enemyLoot = actorAnchorPoint(enemySprite, 'lootPoint', enemyPlacement);
@@ -937,24 +949,15 @@ const PixelSceneLayer: React.FC<{
         animate={reduced ? undefined : hunterControls}
       >
         {showEnemy ? (
-          <PixelRigActor
-            rig={hunterRigWithHead(headVariantPreference(), !weapon)}
+          <PixelPartsActor
+            set={hunterSet}
             {...hunterPlacement}
-            feetX={hunterSprite.anchors.feet?.x ?? 0.27}
             reduced={reduced}
-            pose={hunterPose}
+            pose={hunterPoseName}
+            weapon={weapon ?? undefined}
+            weaponTestId="pixel-held-weapon"
             testId="pixel-hunter"
           >
-            {weapon && (
-              <div
-                className="pointer-events-none absolute"
-                style={{ left: `${weaponLeftPct}%`, top: `${weaponTopPct}%`, width: `${weaponBoxWidthPct}%`, transform: 'rotate(-3deg)', zIndex: 7 }}
-              >
-                <PixelSway reduced={reduced}>
-                  <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
-                </PixelSway>
-              </div>
-            )}
             {/* Equipped gear reads (§4.7): shield emitter, relic sigil,
                 class-mod pauldron, and the loadout's belt consumables —
                 all from the actual equipped instances. */}
@@ -1003,40 +1006,29 @@ const PixelSceneLayer: React.FC<{
                 />
               );
             })}
-          </PixelRigActor>
+          </PixelPartsActor>
         ) : weapon ? (
-          /* Armed standby (loadout truth): the whole 'hunter' sprite
-             carries the same baked rifle as the old segment crops, so
-             the idle hunter wears the gun-free holding rig — hands at
-             the grip, the equipped weapon rendered over them — never
-             the static sprite with a second gun pasted on. */
-          <PixelRigActor
-            rig={hunterRigWithHead(headVariantPreference(), false)}
+          /* Armed standby (loadout truth): the part set idles at the
+             ready with the equipped weapon — the actual instance —
+             seated grip-to-grip between the arm layers. */
+          <PixelPartsActor
+            set={hunterSet}
             {...hunterPlacement}
-            feetX={hunterSprite.anchors.feet?.x ?? 0.27}
             reduced={reduced}
-            pose={HUNTER_POSES.idle}
+            pose="idle"
+            weapon={weapon}
+            weaponTestId="pixel-held-weapon"
             testId="pixel-hunter"
-          >
-            <div
-              className="pointer-events-none absolute"
-              style={{ left: `${weaponLeftPct}%`, top: `${weaponTopPct}%`, width: `${weaponBoxWidthPct}%`, transform: 'rotate(-3deg)', zIndex: 7 }}
-            >
-              <PixelSway reduced={reduced}>
-                <PixelWeapon weapon={weapon} fluid testId="pixel-held-weapon" />
-              </PixelSway>
-            </div>
-          </PixelRigActor>
+          />
         ) : (
-          /* Unarmed (real-item invariant): the whole 'hunter' sprite
-             has a rifle baked in, so the idle hunter swaps to the
-             gun-free rig — hands at sides, no phantom weapon. */
-          <PixelRigActor
-            rig={hunterRigWithHead(headVariantPreference(), true)}
+          /* Unarmed (real-item invariant): no weapon layer exists,
+             and the hunter stands 'relaxed' — hands at his sides,
+             no phantom weapon, no aim stance holding air. */
+          <PixelPartsActor
+            set={hunterSet}
             {...hunterPlacement}
-            feetX={hunterSprite.anchors.feet?.x ?? 0.27}
             reduced={reduced}
-            pose={HUNTER_POSES.idle}
+            pose="relaxed"
             testId="pixel-hunter"
           />
         )}

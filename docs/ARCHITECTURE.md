@@ -479,7 +479,8 @@ duplicates:
 | Hot area (date-seeded rotation) | `src/content/hotArea.ts` |
 | Offline cap law (earned tiers, limiter, 24h ceiling) | `src/content/offlineCap.ts` |
 | Per-area visual identity (palettes, weather, animated props, boss arenas) | `src/content/areaPalettes.ts` |
-| Segmented rigs + poses | `src/lib/pixel/rig.ts` (+ `PixelRigActor`) |
+| Segmented rigs + poses (enemies) | `src/lib/pixel/rig.ts` (+ `PixelRigActor`) |
+| Hunter part system (skeleton, poses, stock set, head variants, layout/raster, stage FX points) | `src/lib/pixel/parts.ts`, `standardIssue.ts`, `headParts.ts`, `partsCompositor.ts`, `partsStage.ts` (+ `PixelPartsActor`) |
 | Palette remap core | `src/lib/pixel/paletteSwap.ts` |
 | Element FX dialects + shot cadence | `src/lib/pixel/elementFx.ts` |
 | Shared visual grammar (G-1..G-6) + action set dressing | `src/lib/pixel/grammar.ts` |

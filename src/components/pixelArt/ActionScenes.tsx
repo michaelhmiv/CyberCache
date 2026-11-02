@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
-import { PixelRigActor } from './PixelRigActor';
-import { HUNTER_POSES, hunterRigWithHead } from '@/lib/pixel/rig';
+import { PixelPartsActor } from './PixelPartsActor';
+import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
 import { GRAMMAR } from '@/lib/pixel/grammar';
 import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
 
@@ -86,7 +86,7 @@ const SceneShell: React.FC<{
 export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: string; benchSpriteId?: string; unarmed?: boolean }> = ({
   backgroundId = 'zone-blastforge-bg',
   benchSpriteId = 'set-bench-forge',
-  unarmed = false,
+  unarmed: _unarmed = false, // retained prop (M2: bench scenes hold no weapon; no-op)
   reduced = false,
   ...rest
 }) => {
@@ -95,14 +95,13 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
     <SceneShell backgroundId={backgroundId} testId="crafting-bench-scene" reduced={reduced} {...rest}>
       <PixelActor spriteId={benchSpriteId} xPct={58} heightPct={36} groundY={groundY} reduced={reduced} breathe={false} testId="crafting-bench-set" />
       <PixelActor spriteId="set-refinery-crusher" xPct={86} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} />
-      <PixelRigActor
-        rig={hunterRigWithHead('visor', unarmed)}
+      <PixelPartsActor
+        set={hunterPartSet(headVariantPreference())}
         xPct={30}
         heightPct={57}
         groundY={groundY}
-        feetX={0.27}
         reduced={reduced}
-        pose={HUNTER_POSES.work}
+        pose="work"
         testId="crafting-bench-hunter"
       />
     </SceneShell>
@@ -116,7 +115,10 @@ export interface ExtractionSceneProps extends ActionSceneProps {
   /** Not the active action: the site sits idle-dark under a Paused pennant. */
   paused?: boolean;
   /** Real-item invariant (0030-era, #230): no weapon equipped
-   *  renders the unarmed rig — hands empty at the rig. */
+   *  renders hands empty at the rig. Since the parts swap (M2) the
+   *  bench scenes never render a held weapon at all — the hunter
+   *  works with his hands — so this flag is retained for call-site
+   *  compatibility and no longer changes the render. */
   unarmed?: boolean;
 }
 
@@ -133,7 +135,7 @@ export const ExtractionScene: React.FC<ExtractionSceneProps> = ({
   backgroundId = 'zone-dustwaste-bg',
   deep = false,
   paused = false,
-  unarmed = false,
+  unarmed: _unarmed = false, // retained prop (M2: bench scenes hold no weapon; no-op)
   reduced = false,
   ...rest
 }) => {
@@ -143,14 +145,13 @@ export const ExtractionScene: React.FC<ExtractionSceneProps> = ({
       <PixelActor spriteId="set-extract-stakes" xPct={14} heightPct={26} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-stakes" />
       <PixelActor spriteId="set-extract-rig" xPct={58} heightPct={deep ? 44 : 36} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-rig" />
       <PixelActor spriteId="set-extract-crates" xPct={86} heightPct={24} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-crates" />
-      <PixelRigActor
-        rig={hunterRigWithHead('visor', unarmed)}
+      <PixelPartsActor
+        set={hunterPartSet(headVariantPreference())}
         xPct={32}
         heightPct={57}
         groundY={groundY}
-        feetX={0.27}
         reduced={reduced}
-        pose={paused ? HUNTER_POSES.idle : HUNTER_POSES.work}
+        pose={paused ? 'relaxed' : 'work'}
         testId="extraction-hunter"
       />
       {deep && <div className="pointer-events-none absolute inset-0 z-10 bg-indigo-950/35" data-testid="extraction-deep-shade" />}
@@ -169,7 +170,7 @@ export const ExtractionScene: React.FC<ExtractionSceneProps> = ({
 export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string; vehicleSpriteId?: string | null; unarmed?: boolean }> = ({
   backgroundId = 'zone-throwtech-bg',
   vehicleSpriteId,
-  unarmed = false,
+  unarmed: _unarmed = false, // retained prop (M2: bench scenes hold no weapon; no-op)
   reduced = false,
   ...rest
 }) => {
@@ -192,14 +193,13 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
         />
       )}
       <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
-      <PixelRigActor
-        rig={hunterRigWithHead('visor', unarmed)}
+      <PixelPartsActor
+        set={hunterPartSet(headVariantPreference())}
         xPct={24}
         heightPct={57}
         groundY={groundY}
-        feetX={0.27}
         reduced={reduced}
-        pose={HUNTER_POSES.work}
+        pose="work"
         testId="repair-bay-hunter"
       />
     </SceneShell>
@@ -218,7 +218,7 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
 export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: string; behaviorGlyphId?: string | null; unarmed?: boolean }> = ({
   backgroundId = 'zone-throwtech-bg',
   behaviorGlyphId,
-  unarmed = false,
+  unarmed: _unarmed = false, // retained prop (M2: bench scenes hold no weapon; no-op)
   reduced = false,
   ...rest
 }) => {
@@ -239,14 +239,13 @@ export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: st
         />
       )}
       <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
-      <PixelRigActor
-        rig={hunterRigWithHead('visor', unarmed)}
+      <PixelPartsActor
+        set={hunterPartSet(headVariantPreference())}
         xPct={24}
         heightPct={57}
         groundY={groundY}
-        feetX={0.27}
         reduced={reduced}
-        pose={HUNTER_POSES.work}
+        pose="work"
         testId="shieldtech-bay-hunter"
       />
     </SceneShell>

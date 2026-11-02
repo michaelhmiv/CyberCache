@@ -7,7 +7,7 @@ import { verifiedOps } from '@/lib/api/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_LIMITER_OPTIONS, OFFLINE_CAP_TIERS, earnedOfflineCapHours, effectiveOfflineCapHours, nextOfflineCapTier } from '@/content/offlineCap';
 import { setOfflineCapLimiter } from '@/lib/api/offlineCapService';
-import { HUNTER_HEAD_VARIANTS, isHunterHeadVariantId, type HunterHeadVariantId } from '@/lib/pixel/rig';
+import { HUNTER_HEAD_VARIANTS, isHunterHeadVariantId, type HunterHeadVariantId } from '@/lib/pixel/headParts';
 import { getStandingState } from '@/lib/chef/chefClient';
 import { STANDING_COSMETICS } from '@/content/manufacturerStanding';
 import type { Manufacturer } from '@/types/game';
