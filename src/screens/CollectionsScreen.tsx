@@ -29,6 +29,11 @@ import { Manufacturer, Rarity, WeaponType } from '@/types/game';
  * Legendary cores (salvaged from Legendary gear) headline the shelf:
  * they are the sink-loop currency for core-catalyzed crafting today
  * and high-end rerolls next.
+ *
+ * Doors (redesign v2): the Hunter → Collections rail stop renders
+ * this screen embedded, and the Profile Trophy Shelf tile opens that
+ * stop — the tile was a dead readout before the redesign (audit B3).
+ * The App-level sub-screen mount remains as a secondary door.
  */
 
 const FAMILY_LABELS: Record<CollectionFamily, string> = {
@@ -124,13 +129,13 @@ const EntryCard: React.FC<{ entry: CollectionEntry; found: boolean; source?: str
     <div className={`mt-2 truncate text-[11px] font-black leading-tight ${found ? 'text-text-primary' : 'text-text-muted'}`}>
       {entry.name}
     </div>
-    <div className="mt-0.5 line-clamp-2 min-h-[22px] text-[9px] leading-snug text-text-muted">
+    <div className="mt-0.5 line-clamp-2 min-h-[28px] text-[11px] leading-snug text-text-muted">
       {found ? `Logged · ${source ?? 'server record'}` : entry.hint}
     </div>
   </div>
 );
 
-export const CollectionsScreen: React.FC = () => {
+export const CollectionsScreen: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const playerCores = usePlayerStore((s) => s.legendaryCores);
   const [payload, setPayload] = useState<CollectionsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -163,13 +168,13 @@ export const CollectionsScreen: React.FC = () => {
   const cores = payload?.legendary_cores ?? playerCores;
 
   return (
-    <div className="bl-page space-y-4 p-4 pb-20">
+    <div className={embedded ? 'space-y-4' : 'bl-page space-y-4 p-4 pb-20'}>
       <div className="flex items-center justify-between">
         <div className="bl-title text-3xl leading-none text-text-primary">Collections</div>
         <div className="flex items-center gap-2 border-2 border-border bg-surface-raised px-2.5 py-1">
           <ResourceIcon id="legendaryCore" size={18} seed={6} />
           <span className="text-sm font-black text-text-primary">{cores}</span>
-          <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-text-muted">cores</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">cores</span>
         </div>
       </div>
       <div className="text-xs text-text-muted">
@@ -179,7 +184,7 @@ export const CollectionsScreen: React.FC = () => {
 
       <div className="border-2 border-border bg-surface p-3">
         <div className="flex items-baseline justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted">Shelf progress</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">Shelf progress</span>
           <span className="text-sm font-black text-text-primary">
             {foundTotal}<span className="text-text-muted"> / {COLLECTION_TOTAL}</span>
           </span>
@@ -195,7 +200,7 @@ export const CollectionsScreen: React.FC = () => {
             <span>{error}</span>
             <button
               type="button"
-              className="bl-secondary px-2 py-1 text-[10px] font-black"
+              className="bl-secondary px-2 py-1 text-[11px] font-black"
               onClick={() => { setError(null); setReloadKey((k) => k + 1); }}
             >
               Retry
@@ -213,7 +218,7 @@ export const CollectionsScreen: React.FC = () => {
             <div className="flex items-baseline justify-between">
               <div>
                 <span className="bl-title text-xl leading-none text-text-primary">{FAMILY_LABELS[family]}</span>
-                <span className="ml-2 text-[10px] text-text-muted">{FAMILY_BLURBS[family]}</span>
+                <span className="ml-2 text-[11px] text-text-muted">{FAMILY_BLURBS[family]}</span>
               </div>
               <span className="text-xs font-black text-text-secondary">
                 {found}<span className="text-text-muted"> / {entries.length}</span>

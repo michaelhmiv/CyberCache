@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
 import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
@@ -13,7 +14,11 @@ import { CacheRankPanel } from '@/components/profile/CacheRankPanel';
 import { ResearchPanel } from '@/components/profile/ResearchPanel';
 import { TrophyShelfPanel } from '@/components/profile/TrophyShelfPanel';
 import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
+import { StandingsDoor } from '@/components/profile/StandingsDoor';
+import { useStandingsBadge } from '@/components/profile/standingsBadge';
 import { SkillTreeScreen } from './SkillTreeScreen';
+import { CollectionsScreen } from './CollectionsScreen';
+import { LeaderboardsScreen } from './LeaderboardsScreen';
 import { useAuth } from '@/auth/AuthProvider';
 import { isGuestAccount } from '@/auth/accountState';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
@@ -28,13 +33,35 @@ import type { LeaderboardMetric } from '@/lib/api/leaderboardService';
 interface ProfileScreenProps {
   onNavigate?: (screen: string) => void;
   /**
-   * Deep-link focus (device feedback r2): 'skills' scrolls the
-   * Profile-embedded SkillTreeScreen into view on arrival — the
-   * Dashboard "Skill Trees" action routes here, so the player lands
-   * on the trees themselves instead of the top of the Profile page.
+   * Deep-link focus (device feedback r2): 'skills' lands the player
+   * on the Hunter → Skill Trees rail stop — the Dashboard "Skill
+   * Trees" action routes here, so the player lands on the trees
+   * themselves instead of the top of the Profile stop.
    */
   focusSection?: 'skills' | null;
 }
+
+/**
+ * Hunter (redesign v2, DESIGN.md §2/§3) — the tab's rail stops.
+ * Every stop is a destination: Profile (identity, Trophy Shelf, the
+ * Standings door, lifetime record), Collections (the 81 proofs),
+ * Cache Rank, Research, Skill Trees (Mastery is its segment),
+ * Standings (the leaderboards behind the badged door), and Account
+ * (identity plate + tools: link, settings, field manual, sign-out).
+ * The rail scrolls horizontally rather than shrinking its labels
+ * (DESIGN.md §6); full stop names print here AND on the stops.
+ */
+type HunterStop = 'profile' | 'collections' | 'cacheRank' | 'research' | 'trees' | 'standings' | 'account';
+
+const HUNTER_STOPS: Array<{ id: HunterStop; label: string; icon: PxIconName }> = [
+  { id: 'profile', label: 'Profile', icon: 'person' },
+  { id: 'collections', label: 'Collections', icon: 'shelf' },
+  { id: 'cacheRank', label: 'Cache Rank', icon: 'chevs' },
+  { id: 'research', label: 'Research', icon: 'book' },
+  { id: 'trees', label: 'Skill Trees', icon: 'nodes' },
+  { id: 'standings', label: 'Standings', icon: 'flag' },
+  { id: 'account', label: 'Account', icon: 'cog' },
+];
 
 const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; desc: string; onClick: () => void; tone?: string }> = ({ glyph, icon, label, desc, onClick, tone = '#FF9000' }) => (
   <button
@@ -70,17 +97,39 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const [renameOpen, setRenameOpen] = useState(false);
   const [detailMetric, setDetailMetric] = useState<{ metric: ProgressionMetric; leaderboardMetric?: LeaderboardMetric; label: string; value: number; color: string } | null>(null);
   const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
+  const [stop, setStop] = useState<HunterStop>(() => (focusSection === 'skills' ? 'trees' : 'profile'));
+  // Stops whose content mounts lazily on first visit and stays
+  // mounted (the two full screens: Collections, Standings) — the
+  // always-resident stops are the panels that already lived here.
+  const [visitedStops, setVisitedStops] = useState<ReadonlySet<HunterStop>>(() => new Set<HunterStop>(['profile']));
+  const standingsBadge = useStandingsBadge();
+  const reduceMotion = useReducedMotion();
+
+  const goToStop = React.useCallback((next: HunterStop) => {
+    setStop(next);
+    setVisitedStops((prev) => (prev.has(next) ? prev : new Set(prev).add(next)));
+  }, []);
+
+  // Deep-link focus: 'skills' lands on the Skill Trees stop. The
+  // stop adjusts during render when the focus prop changes (the
+  // React-endorsed derived-state pattern — no effect needed).
+  const [prevFocusSection, setPrevFocusSection] = useState(focusSection);
+  if (focusSection !== prevFocusSection) {
+    setPrevFocusSection(focusSection);
+    if (focusSection === 'skills') goToStop('trees');
+  }
 
   // Deep-link focus: when the player arrives via the Dashboard
-  // "Skill Trees" action, bring the embedded SkillTreeScreen to them.
+  // "Skill Trees" action, bring the embedded SkillTreeScreen to them
+  // once its stop is the lit one.
   const skillTreesRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (focusSection !== 'skills') return;
+    if (focusSection !== 'skills' || stop !== 'trees') return;
     const el = skillTreesRef.current;
     if (el && typeof el.scrollIntoView === 'function') {
       el.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
-  }, [focusSection]);
+  }, [focusSection, stop]);
 
   useEffect(() => {
     if (!user) return;
@@ -130,10 +179,63 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     setDetailMetric(payload);
   };
 
+  const stopSection = (id: HunterStop, children: React.ReactNode) => (
+    <motion.section
+      key={id}
+      data-testid={`hunter-section-${id}`}
+      initial={false}
+      animate={{ opacity: stop === id ? 1 : 0, y: stop === id ? 0 : 6 }}
+      transition={{ duration: reduceMotion ? 0 : 0.18 }}
+      className={stop === id ? 'space-y-4' : 'hidden'}
+      aria-hidden={stop !== id}
+    >
+      {children}
+    </motion.section>
+  );
+
   return (
     <div className="bl-page space-y-4 p-4 pb-20">
       <ResourceBar />
 
+      <div
+        className="flex gap-2 overflow-x-auto pb-1"
+        role="tablist"
+        aria-label="Hunter sections"
+        data-testid="hunter-rail"
+      >
+        {HUNTER_STOPS.map((s) => {
+          const active = stop === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              data-testid={`hunter-stop-${s.id}`}
+              onClick={() => goToStop(s.id)}
+              className={`flex shrink-0 items-center gap-1.5 border-2 px-2.5 py-1.5 text-xs font-black uppercase tracking-wide transition-colors ${
+                active
+                  ? 'border-amber bg-amber/15 text-amber'
+                  : 'border-border bg-surface text-text-muted'
+              }`}
+            >
+              <PxIcon name={s.icon} size={13} />
+              {s.label}
+              {s.id === 'standings' && standingsBadge.claimableCount > 0 && (
+                <span
+                  data-testid="hunter-standings-count"
+                  className="border border-amber/60 bg-amber/25 px-1 text-[11px] font-black leading-tight text-amber"
+                >
+                  {standingsBadge.claimableCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {stopSection('profile', (
+        <>
       <MobileCard className="space-y-3" rarityColor="#FF9000">
         <div className="flex items-center gap-3">
           <div className="flex h-16 w-16 shrink-0 -rotate-2 items-center justify-center border-[3px] border-border bg-amber/15 text-2xl font-black text-amber shadow-[5px_5px_0_rgba(0,0,0,0.75)]">
@@ -176,7 +278,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         </div>
       </MobileCard>
 
-      <TrophyShelfPanel />
+      <TrophyShelfPanel onOpenCollections={() => goToStop('collections')} />
+
+      <StandingsDoor badge={standingsBadge} onOpen={() => goToStop('standings')} />
 
       <MobileCard className="space-y-2" rarityColor="#5AA7FF">
         <div className="flex items-center gap-2">
@@ -222,39 +326,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         )}
       </MobileCard>
 
-      <div
-        ref={skillTreesRef}
-        data-testid="profile-skill-trees"
-        className={focusSection === 'skills' ? 'scroll-mt-2 rounded-xl ring-2 ring-purple' : 'scroll-mt-2'}
-      >
-        <MobileCard className="space-y-3" rarityColor="#FF4B5C">
-          <div className="flex items-center gap-2">
-            <PxIcon name="bolt" size={17} className="text-red" />
-            <div className="text-xs font-black uppercase tracking-wide text-text-primary">Skill Trees</div>
-            <div className="ml-auto text-[10px] text-text-muted">{availableSkillPoints} pts available</div>
-          </div>
-          <SkillTreeScreen embedded />
-        </MobileCard>
-      </div>
-
-      <MasterySection />
-
-      <CacheRankPanel />
-      <ResearchPanel />
-
       <LifetimeStatsPanel />
-
-      <MobileCard className="space-y-2" rarityColor="#7CFC00">
-        <div className="flex items-center gap-2">
-          <PxIcon name="diamondIn" size={17} className="text-green" />
-          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Account Plate</div>
-        </div>
-        <div className="space-y-1 text-xs text-text-secondary">
-          <div className="flex justify-between gap-3"><span>Status</span><span className="text-right font-bold text-text-primary">{verifiedLabel}</span></div>
-          <div className="flex justify-between gap-3"><span>Email</span><span className="truncate text-right font-bold text-text-primary">{account?.email ?? user?.email ?? 'None'}</span></div>
-          <div className="flex justify-between gap-3"><span>User ID</span><span className="max-w-[170px] truncate text-right text-text-muted">{account?.userId ?? 'Not loaded'}</span></div>
-        </div>
-      </MobileCard>
 
       <div className="space-y-3">
         <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Progression</div>
@@ -375,6 +447,67 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           </div>
         </div>
       </MobileCard>
+        </>
+      ))}
+
+      {stopSection('collections', (
+        visitedStops.has('collections') ? <CollectionsScreen embedded /> : null
+      ))}
+
+      {stopSection('cacheRank', (
+        <CacheRankPanel />
+      ))}
+
+      {stopSection('research', (
+        <ResearchPanel />
+      ))}
+
+      {stopSection('trees', (
+        <>
+      <div
+        ref={skillTreesRef}
+        data-testid="profile-skill-trees"
+        className={focusSection === 'skills' ? 'scroll-mt-2 rounded-xl ring-2 ring-purple' : 'scroll-mt-2'}
+      >
+        <MobileCard className="space-y-3" rarityColor="#FF4B5C">
+          <div className="flex items-center gap-2">
+            <PxIcon name="bolt" size={17} className="text-red" />
+            <div className="text-xs font-black uppercase tracking-wide text-text-primary">Skill Trees</div>
+            <div className="ml-auto text-[10px] text-text-muted">{availableSkillPoints} pts available</div>
+          </div>
+          <SkillTreeScreen embedded />
+        </MobileCard>
+      </div>
+
+      <MasterySection />
+        </>
+      ))}
+
+      {stopSection('standings', (
+        visitedStops.has('standings') ? (
+          <>
+            <div className="flex items-center gap-2">
+              <PxIcon name="crown" size={17} className="text-amber" />
+              <div className="text-lg font-black uppercase tracking-wide text-text-primary">Standings</div>
+            </div>
+            <LeaderboardsScreen embedded />
+          </>
+        ) : null
+      ))}
+
+      {stopSection('account', (
+        <>
+      <MobileCard className="space-y-2" rarityColor="#7CFC00">
+        <div className="flex items-center gap-2">
+          <PxIcon name="diamondIn" size={17} className="text-green" />
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Account Plate</div>
+        </div>
+        <div className="space-y-1 text-xs text-text-secondary">
+          <div className="flex justify-between gap-3"><span>Status</span><span className="text-right font-bold text-text-primary">{verifiedLabel}</span></div>
+          <div className="flex justify-between gap-3"><span>Email</span><span className="truncate text-right font-bold text-text-primary">{account?.email ?? user?.email ?? 'None'}</span></div>
+          <div className="flex justify-between gap-3"><span>User ID</span><span className="max-w-[170px] truncate text-right text-text-muted">{account?.userId ?? 'Not loaded'}</span></div>
+        </div>
+      </MobileCard>
 
       <div className="space-y-2">
         <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Account Tools</div>
@@ -388,10 +521,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         )}
         <ActionRow icon="cog" label="Settings" desc="Preferences, display, and local save controls" onClick={() => onNavigate?.('settings')} tone="#9CA3AF" />
         <ActionRow glyph="?" label="Field Manual" desc="Mechanics, progression, caches, combat, and economy rules" onClick={() => onNavigate?.('help')} tone="#F7D20B" />
-        <ActionRow icon="star" label="Collections" desc="The trophy shelf — effects, bosses, frames, and named elites you've proven, plus your legendary cores" onClick={() => onNavigate?.('collections')} tone="#FF9800" />
+        <ActionRow icon="star" label="Collections" desc="The trophy shelf — effects, bosses, frames, and named elites you've proven, plus your legendary cores" onClick={() => goToStop('collections')} tone="#FF9800" />
         <ActionRow icon="person" label="Identity" desc="Manage your public hunter name and profile identity" onClick={() => (account?.username || profileSummary?.username ? setRenameOpen(true) : setSetupOpen(true))} tone="#5AA7FF" />
         <ActionRow icon="power" label={actionLoading ? 'Signing out…' : 'Sign Out'} desc="End this CyberCache session on this device" onClick={() => signOut()} tone="#FF4B5C" />
       </div>
+        </>
+      ))}
+
       {setupOpen && (
         <UsernameSetupModal
           force={false}

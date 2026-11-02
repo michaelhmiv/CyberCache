@@ -306,7 +306,16 @@ const LeaderboardBoard: React.FC = () => {
   );
 };
 
-export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps> = () => {
+export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps & { embedded?: boolean }> = ({ embedded = false }) => {
+  if (embedded) {
+    // Hunter → Standings stop: the Hunter screen owns the chrome
+    // (resource strip, rail, stop title), so the board mounts bare.
+    return (
+      <div className="space-y-3">
+        <LeaderboardBoard />
+      </div>
+    );
+  }
   return (
     <div className="bl-page space-y-3 p-4 pb-20">
       <ResourceBar />
