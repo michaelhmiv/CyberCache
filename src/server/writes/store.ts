@@ -37,7 +37,15 @@ import {
   resolveShieldTechLevers,
   type ShieldTechShieldInfo,
 } from './shieldTechBoard.js';
-import { shieldTechEfficiencyMultiplier } from '../../content/shieldTech.js';
+import { shieldTechEfficiencyMultiplier, shieldTechWorkRatePointsPerHour, CALIBRATION_CORE_TYPE } from '../../content/shieldTech.js';
+import {
+  REPAIR_KIT_TYPES,
+  repairEfficiencyWithSkill,
+  repairSpeedRateMultiplier,
+  repairWorkRatePointsPerHour,
+} from '../../content/repair.js';
+import type { ServiceBoardQuery } from '../../lib/market/boardQuery.js';
+import type { ServiceReaderFacts, SupplyBatch } from './boardRequirements.js';
 import { resolveEconomyConfigValues } from '../economy/config.js';
 import type { DiscoveryRecord } from '../../content/collections.js';
 import {
@@ -912,9 +920,12 @@ export interface WriteStore {
   /**
    * The repair board read: settles every job the caller owns or
    * provides (expiring stale listings), then returns open postings,
-   * my postings, my workbench, and board/mechanic stats.
+   * my postings, my workbench, and board/mechanic stats. The browse
+   * query (src/lib/market/boardQuery.ts) filters/sorts/searches/
+   * paginates the open postings server-side and status-filters the
+   * caller's own lists — the Buy lane's toolkit, on the board.
    */
-  getRepairBoard(playerId: string): Promise<Json>;
+  getRepairBoard(playerId: string, query?: ServiceBoardQuery): Promise<Json>;
   /**
    * Enqueue a TIMED self-lane recalibration on the craft job
    * machinery (cc_enqueue_shieldtech_job): the owner's own
@@ -946,9 +957,10 @@ export interface WriteStore {
    * The shield-tech board read: settles every job the caller owns
    * or provides (expiring stale listings), then returns open
    * postings, my postings, my workbench, per-rarity price medians,
-   * and board/tech stats.
+   * and board/tech stats. Takes the same browse query as the
+   * repair board (src/lib/market/boardQuery.ts).
    */
-  getShieldTechBoard(playerId: string): Promise<Json>;
+  getShieldTechBoard(playerId: string, query?: ServiceBoardQuery): Promise<Json>;
   idleClaim(playerId: string, nonce: string): Promise<Json>;
   retrain(playerId: string, nonce: string): Promise<Json>;
   trainSkill(playerId: string, nonce: string, nodeId: string): Promise<Json>;
@@ -1399,7 +1411,56 @@ export class PgWriteStore implements WriteStore {
   reclaimRepairJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
     return this.callJson('select public.cc_repair_job_reclaim($1, $2, $3) as result', [playerId, nonce, jobId]);
   }
-  async getRepairBoard(playerId: string): Promise<Json> {
+  /**
+   * The board requirements' reader facts (market-lane parity): the
+   * caller's verified predicate — the accept gate's own SQL
+   * function — plus their supply batches in the settlers' burn
+   * order (worst quality first, then oldest). A type with no batch
+   * rows falls back to the legacy profile count as one 100% batch,
+   * exactly the backfill cc_settle_* performs before its first
+   * burn, so estimates never count stock the settler cannot see
+   * (or miss stock it can).
+   */
+  private async serviceReaderSupply(
+    playerId: string,
+    supplyTypes: readonly string[],
+  ): Promise<{ verified: boolean; batchesByType: Map<string, SupplyBatch[]> }> {
+    const { rows: gateRows } = await this.pool.query(
+      'select public.can_use_player_economy($1) as ok',
+      [playerId],
+    );
+    const verified = gateRows[0]?.ok === true;
+    const batchesByType = new Map<string, SupplyBatch[]>();
+    const { rows: batchRows } = await this.pool.query(
+      `select consumable_type, quality_percent, quantity from public.consumable_batches
+        where owner_user_id = $1 and consumable_type = any($2::text[]) and quantity > 0
+        order by consumable_type, quality_percent asc, created_at asc`,
+      [playerId, [...supplyTypes]],
+    );
+    for (const row of batchRows) {
+      const type = String(row.consumable_type);
+      const list = batchesByType.get(type) ?? [];
+      list.push({ quality: Number(row.quality_percent ?? 100), quantity: Number(row.quantity ?? 0) });
+      batchesByType.set(type, list);
+    }
+    const missing = supplyTypes.filter((t) => !batchesByType.has(t));
+    if (missing.length > 0) {
+      const { rows: profileRows } = await this.pool.query(
+        'select consumables from public.profiles where id = $1',
+        [playerId],
+      );
+      const counts = (profileRows[0]?.consumables ?? {}) as Record<string, unknown>;
+      for (const type of missing) {
+        const count = Number(counts[type] ?? 0);
+        if (Number.isFinite(count) && count > 0) {
+          batchesByType.set(type, [{ quality: 100, quantity: Math.floor(count) }]);
+        }
+      }
+    }
+    return { verified, batchesByType };
+  }
+
+  async getRepairBoard(playerId: string, query?: ServiceBoardQuery): Promise<Json> {
     await this.callJson('select public.cc_settle_repair_jobs_for($1) as result', [playerId]);
     try {
       const { rows: jobRows } = await this.pool.query(
@@ -1457,6 +1518,39 @@ export class PgWriteStore implements WriteStore {
         repairAbandonWindowHours: config.repairAbandonWindowHours,
         repairListingExpiryDays: config.repairListingExpiryDays,
       });
+      const myLevel = Number(masteryRows[0]?.mastery_level ?? 1);
+      // Requirements facts: the reader's Fixer terms through the
+      // same derivation the accept snapshot uses (skillBonusesFrom
+      // Records over server records), plus their kit supply.
+      const { rows: spendRows } = await this.pool.query(
+        'select skill_spends from public.profiles where id = $1',
+        [playerId],
+      );
+      const spends = (spendRows[0]?.skill_spends ?? {}) as Record<string, number>;
+      const { rows: gearRows } = await this.pool.query(
+        "select payload from public.item_instances where owner_user_id = $1 and runtime_state = 'equipped'",
+        [playerId],
+      );
+      const bonuses = skillBonusesFromRecords(
+        gearRows.map((r) => r.payload as unknown as GearItem),
+        spends,
+      );
+      const supply = await this.serviceReaderSupply(playerId, REPAIR_KIT_TYPES);
+      const reader: ServiceReaderFacts = {
+        verified: supply.verified,
+        batchesByType: supply.batchesByType,
+        workRatePointsPerHour:
+          repairWorkRatePointsPerHour(
+            myLevel,
+            config.repairWorkRateBase,
+            config.repairMasterySpeedPerLevel,
+          ) * repairSpeedRateMultiplier(bonuses.repairSpeedBonus ?? 0),
+        efficiency: repairEfficiencyWithSkill(
+          myLevel,
+          config.repairMasteryEfficiencyPerLevel,
+          bonuses.repairEfficiencyBonus ?? 0,
+        ),
+      };
       return buildRepairBoardView({
         callerId: playerId,
         jobs,
@@ -1465,10 +1559,12 @@ export class PgWriteStore implements WriteStore {
         nowMs: Date.now(),
         abandonWindowHours: levers.repairAbandonWindowHours,
         myMastery: {
-          level: Number(masteryRows[0]?.mastery_level ?? 1),
+          level: myLevel,
           xp: Number(masteryRows[0]?.mastery_xp ?? 0),
         },
         levers: { ...levers, marketFeeRate: config.marketFeeRate },
+        query,
+        reader,
       }) as unknown as Json;
     } catch (err) {
       return translatePgError(err);
@@ -1499,7 +1595,7 @@ export class PgWriteStore implements WriteStore {
   reclaimShieldTechJob(playerId: string, nonce: string, jobId: string): Promise<Json> {
     return this.callJson('select public.cc_shieldtech_job_reclaim($1, $2, $3) as result', [playerId, nonce, jobId]);
   }
-  async getShieldTechBoard(playerId: string): Promise<Json> {
+  async getShieldTechBoard(playerId: string, query?: ServiceBoardQuery): Promise<Json> {
     await this.callJson('select public.cc_settle_shieldtech_jobs_for($1) as result', [playerId]);
     try {
       const { rows: jobRows } = await this.pool.query(
@@ -1556,6 +1652,21 @@ export class PgWriteStore implements WriteStore {
         shieldTechListingExpiryDays: config.shieldTechListingExpiryDays,
       });
       const myLevel = Number(masteryRows[0]?.mastery_level ?? 1);
+      const readerEfficiency = shieldTechEfficiencyMultiplier(
+        myLevel,
+        config.shieldTechMasteryEfficiencyPerLevel,
+      );
+      const supply = await this.serviceReaderSupply(playerId, [CALIBRATION_CORE_TYPE]);
+      const reader: ServiceReaderFacts = {
+        verified: supply.verified,
+        batchesByType: supply.batchesByType,
+        workRatePointsPerHour: shieldTechWorkRatePointsPerHour(
+          myLevel,
+          config.shieldTechWorkRateBase,
+          config.shieldTechMasterySpeedPerLevel,
+        ),
+        efficiency: readerEfficiency,
+      };
       return buildShieldTechBoardView({
         callerId: playerId,
         jobs,
@@ -1567,8 +1678,10 @@ export class PgWriteStore implements WriteStore {
           level: myLevel,
           xp: Number(masteryRows[0]?.mastery_xp ?? 0),
         },
-        readerEfficiency: shieldTechEfficiencyMultiplier(myLevel, config.shieldTechMasteryEfficiencyPerLevel),
+        readerEfficiency,
         levers: { ...levers, marketFeeRate: config.marketFeeRate },
+        query,
+        reader,
       }) as unknown as Json;
     } catch (err) {
       return translatePgError(err);

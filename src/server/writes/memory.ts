@@ -165,7 +165,10 @@ import {
   shieldTechMasteryXp,
   shieldTechServiceXp,
   shieldTechWorkRatePointsPerHour,
+  CALIBRATION_CORE_TYPE,
 } from '../../content/shieldTech.js';
+import type { ServiceBoardQuery } from '../../lib/market/boardQuery.js';
+import type { ServiceReaderFacts, SupplyBatch } from './boardRequirements.js';
 import { shieldBehaviorOf, type ShieldBehaviorId } from '../../lib/combat/shieldBehaviors.js';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
 import type { GearItem } from '../../types/items.js';
@@ -2858,7 +2861,36 @@ export class InMemoryWriteStore implements WriteStore {
     return this.record(playerId, 'cc_repair_job_reclaim', key, result);
   }
 
-  async getRepairBoard(playerId: string): Promise<Json> {
+  /** The Pg store's serviceReaderSupply twin: the caller's
+   *  verified predicate plus their supply batches in burn order
+   *  (worst quality first, then oldest), with the same legacy-count
+   *  fallback the settlers backfill before a first burn. */
+  private serviceReaderSupply(
+    playerId: string,
+    supplyTypes: readonly string[],
+  ): { verified: boolean; batchesByType: Map<string, SupplyBatch[]> } {
+    const p = this.profileOrNull(playerId);
+    const batchesByType = new Map<string, SupplyBatch[]>();
+    const ordered = this.seed.consumableBatches
+      .filter((b) => b.owner_user_id === playerId && supplyTypes.includes(b.consumable_type) && b.quantity > 0)
+      .sort((a, b) => a.quality_percent - b.quality_percent || a.created_at.localeCompare(b.created_at));
+    for (const batch of ordered) {
+      const list = batchesByType.get(batch.consumable_type) ?? [];
+      list.push({ quality: batch.quality_percent, quantity: batch.quantity });
+      batchesByType.set(batch.consumable_type, list);
+    }
+    if (p) {
+      const counts = asNumberMap(p.consumables);
+      for (const type of supplyTypes) {
+        if (!batchesByType.has(type) && (counts[type] ?? 0) > 0) {
+          batchesByType.set(type, [{ quality: 100, quantity: Math.floor(counts[type]) }]);
+        }
+      }
+    }
+    return { verified: p ? this.canUseEconomy(p) : false, batchesByType };
+  }
+
+  async getRepairBoard(playerId: string, query?: ServiceBoardQuery): Promise<Json> {
     if (!this.profileOrNull(playerId)) throw writeError('Profile not found');
     await this.settleRepairJobsFor(playerId);
     const vehicles = new Map<string, RepairVehicleInfo | null>();
@@ -2888,6 +2920,32 @@ export class InMemoryWriteStore implements WriteStore {
       (m) => m.user_id === playerId && m.mastery_id === REPAIR_MASTERY_TRACK,
     );
     const levers = this.repairLevers();
+    // Requirements facts, mirroring the accept snapshot's own
+    // derivation (mastery × Fixer terms; the research Wrench
+    // Basics term only ever makes the real job faster).
+    const p = this.profile(playerId);
+    const craft = this.craftLevers();
+    const myLevel = masteryRow ? Math.max(1, masteryRow.mastery_level) : 1;
+    const bonuses = computeSkillBonuses(
+      asNumberMap(p.skill_spends),
+      this.classModBoostsFor(playerId),
+    );
+    const supply = this.serviceReaderSupply(playerId, REPAIR_KIT_TYPES);
+    const reader: ServiceReaderFacts = {
+      verified: supply.verified,
+      batchesByType: supply.batchesByType,
+      workRatePointsPerHour:
+        repairWorkRatePointsPerHour(
+          myLevel,
+          craft.repairWorkRateBase,
+          craft.repairMasterySpeedPerLevel,
+        ) * repairSpeedRateMultiplier(bonuses.repairSpeedBonus ?? 0),
+      efficiency: repairEfficiencyWithSkill(
+        myLevel,
+        craft.repairMasteryEfficiencyPerLevel,
+        bonuses.repairEfficiencyBonus ?? 0,
+      ),
+    };
     return buildRepairBoardView({
       callerId: playerId,
       jobs: this.seed.serviceJobs,
@@ -2896,10 +2954,12 @@ export class InMemoryWriteStore implements WriteStore {
       nowMs: this.nowFn().getTime(),
       abandonWindowHours: levers.repairAbandonWindowHours,
       myMastery: {
-        level: masteryRow ? Math.max(1, masteryRow.mastery_level) : 1,
+        level: myLevel,
         xp: masteryRow?.mastery_xp ?? 0,
       },
       levers: { ...levers, marketFeeRate: await this.feeRateProvider() },
+      query,
+      reader,
     }) as unknown as Json;
   }
 
@@ -3367,7 +3427,7 @@ export class InMemoryWriteStore implements WriteStore {
     return this.record(playerId, 'cc_shieldtech_job_reclaim', key, result);
   }
 
-  async getShieldTechBoard(playerId: string): Promise<Json> {
+  async getShieldTechBoard(playerId: string, query?: ServiceBoardQuery): Promise<Json> {
     if (!this.profileOrNull(playerId)) throw writeError('Profile not found');
     await this.settleShieldTechJobsFor(playerId);
     const shields = new Map<string, ShieldTechShieldInfo | null>();
@@ -3396,6 +3456,22 @@ export class InMemoryWriteStore implements WriteStore {
     );
     const levers = this.shieldTechLevers();
     const myLevel = masteryRow ? Math.max(1, masteryRow.mastery_level) : 1;
+    const craft = this.craftLevers();
+    const readerEfficiency = shieldTechEfficiencyMultiplier(
+      myLevel,
+      craft.shieldTechMasteryEfficiencyPerLevel,
+    );
+    const supply = this.serviceReaderSupply(playerId, [CALIBRATION_CORE_TYPE]);
+    const reader: ServiceReaderFacts = {
+      verified: supply.verified,
+      batchesByType: supply.batchesByType,
+      workRatePointsPerHour: shieldTechWorkRatePointsPerHour(
+        myLevel,
+        craft.shieldTechWorkRateBase,
+        craft.shieldTechMasterySpeedPerLevel,
+      ),
+      efficiency: readerEfficiency,
+    };
     return buildShieldTechBoardView({
       callerId: playerId,
       jobs: this.seed.serviceJobs,
@@ -3407,11 +3483,10 @@ export class InMemoryWriteStore implements WriteStore {
         level: myLevel,
         xp: masteryRow?.mastery_xp ?? 0,
       },
-      readerEfficiency: shieldTechEfficiencyMultiplier(
-        myLevel,
-        this.craftLevers().shieldTechMasteryEfficiencyPerLevel,
-      ),
+      readerEfficiency,
       levers: { ...levers, marketFeeRate: await this.feeRateProvider() },
+      query,
+      reader,
     }) as unknown as Json;
   }
 

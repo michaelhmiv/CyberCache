@@ -7,16 +7,31 @@
  * state for display — it computes no outcomes.
  */
 import {
+  PATCH_KIT_BASES,
   REPAIR_ABANDON_WINDOW_HOURS_DEFAULT,
   REPAIR_ABANDON_WINDOW_HOURS_MAX,
   REPAIR_ABANDON_WINDOW_HOURS_MIN,
+  REPAIR_KIT_TYPES,
   REPAIR_LISTING_EXPIRY_DAYS_DEFAULT,
   REPAIR_LISTING_EXPIRY_DAYS_MAX,
   REPAIR_LISTING_EXPIRY_DAYS_MIN,
   SERVICE_XP_PER_POINT_DEFAULT,
   SERVICE_XP_PER_POINT_MAX,
   SERVICE_XP_PER_POINT_MIN,
+  repairKitRestorePoints,
 } from '../../content/repair.js';
+import {
+  applyServiceBoardQuery,
+  filterServiceBoardStatus,
+  hasServiceBoardFilters,
+  type ServiceBoardBrowseFacts,
+  type ServiceBoardQuery,
+} from '../../lib/market/boardQuery.js';
+import {
+  repairJobRequirements,
+  type RepairJobRequirements,
+  type ServiceReaderFacts,
+} from './boardRequirements.js';
 import { getVehicleClass } from '../../lib/vehicles/vehicles.js';
 import type { ServiceJobData } from './store.js';
 
@@ -100,6 +115,10 @@ export interface RepairJobView {
   reclaimable: boolean;
   /** Position among the provider's accepted, unfinished jobs (1-based). */
   queuePosition: number | null;
+  /** What taking this job demands of the READER (open postings
+   *  only; null on the caller's own lists, where the reader is a
+   *  party to the job already). */
+  requirements: RepairJobRequirements | null;
 }
 
 export interface RepairBoardStats {
@@ -115,6 +134,9 @@ export interface RepairBoardStats {
 
 export interface RepairBoardView {
   open: RepairJobView[];
+  /** Full count of open postings matching the browse query,
+   *  before pagination (equals open.length on an unfiltered read). */
+  openTotal: number;
   mine: RepairJobView[];
   work: RepairJobView[];
   stats: RepairBoardStats;
@@ -155,6 +177,7 @@ export function repairJobView(
   nowMs: number,
   abandonWindowHours: number,
   queuePosition: number | null,
+  requirements: RepairJobRequirements | null = null,
 ): RepairJobView {
   const target = job.target_points ?? 0;
   const restored = job.points_restored ?? 0;
@@ -192,6 +215,7 @@ export function repairJobView(
       lastProgress !== null &&
       nowMs - lastProgress >= abandonWindowHours * 3600 * 1000,
     queuePosition,
+    requirements,
   };
 }
 
@@ -216,6 +240,13 @@ export function buildRepairBoardView(input: {
   abandonWindowHours: number;
   myMastery: { level: number; xp: number };
   levers: RepairBoardView['levers'];
+  /** Browse query for the open postings (market-lane parity);
+   *  absent/empty = the historic full board, oldest first. */
+  query?: ServiceBoardQuery;
+  /** The reader's supply/pace facts for the requirements block;
+   *  absent = requirements unknown (cards render without them and
+   *  the requirements-met filter matches nothing). */
+  reader?: ServiceReaderFacts;
 }): RepairBoardView {
   const repairJobs = input.jobs.filter((j) => j.profession_id === 'repair');
   // Queue positions: each provider's accepted, unfinished jobs in
@@ -245,23 +276,89 @@ export function buildRepairBoardView(input: {
       queuePositions.get(job.id) ?? null,
     );
 
-  const open = repairJobs
+  // Open postings carry the reader's requirements (what taking the
+  // job demands of THEM) and browse facts; the query fold runs over
+  // both. An unfiltered read keeps the historic shape — every open
+  // job, oldest first — so existing callers see no change.
+  const openRows = repairJobs
     .filter((j) => j.status === 'listed')
-    .sort((a, b) => (ms(a.created_at) ?? 0) - (ms(b.created_at) ?? 0))
-    .map(view);
-  const mine = repairJobs
-    .filter((j) => j.owner_user_id === input.callerId)
-    .sort((a, b) => (ms(b.created_at) ?? 0) - (ms(a.created_at) ?? 0))
-    .map(view);
-  const work = repairJobs
-    .filter((j) => j.provider_user_id === input.callerId)
-    .sort((a, b) => (ms(b.accepted_at) ?? 0) - (ms(a.accepted_at) ?? 0))
-    .map(view);
+    .map((job) => {
+      const jobView = repairJobView(
+        job,
+        repairVehicleView(job.target_item_instance_id, input.vehicles.get(job.target_item_instance_id) ?? null),
+        input.names,
+        input.nowMs,
+        input.abandonWindowHours,
+        null,
+        input.reader
+          ? repairJobRequirements({
+            ownerUserId: job.owner_user_id,
+            callerId: input.callerId,
+            targetPoints: job.target_points ?? 0,
+            priceCredits: job.quoted_price_credits ?? 0,
+            kitTypes: REPAIR_KIT_TYPES,
+            kitBase: (kitType) => PATCH_KIT_BASES[kitType] ?? 0,
+            kitRestorePoints: repairKitRestorePoints,
+            reader: input.reader,
+          })
+          : null,
+      );
+      const conditionPct = jobView.vehicle && jobView.vehicle.conditionMax > 0
+        ? (jobView.vehicle.conditionCurrent / jobView.vehicle.conditionMax) * 100
+        : null;
+      const facts: ServiceBoardBrowseFacts = {
+        searchText: [
+          jobView.vehicle?.className ?? '',
+          jobView.vehicle?.classId ?? '',
+          jobView.vehicle?.rarity ?? '',
+          jobView.ownerName ?? '',
+        ].join(' '),
+        rarity: jobView.vehicle?.rarity ?? null,
+        vehicleClass: jobView.vehicle?.classId ?? null,
+        fromBehavior: null,
+        toBehavior: null,
+        conditionPct,
+        conditionKey: conditionPct,
+        targetPoints: jobView.targetPoints,
+        priceCredits: jobView.priceCredits,
+        createdAtMs: jobView.createdAtMs,
+        expiresAtMs: jobView.expiresAtMs,
+        canTake: jobView.requirements?.canTake ?? false,
+      };
+      return { job: jobView, facts };
+    });
+  let open: RepairJobView[];
+  let openTotal: number;
+  if (hasServiceBoardFilters(input.query)) {
+    const page = applyServiceBoardQuery(openRows, input.query ?? {});
+    open = page.rows.map((row) => row.job);
+    openTotal = page.total;
+  } else {
+    open = openRows
+      .sort((a, b) => a.job.createdAtMs - b.job.createdAtMs)
+      .map((row) => row.job);
+    openTotal = open.length;
+  }
+  const mine = filterServiceBoardStatus(
+    repairJobs
+      .filter((j) => j.owner_user_id === input.callerId)
+      .sort((a, b) => (ms(b.created_at) ?? 0) - (ms(a.created_at) ?? 0))
+      .map(view),
+    input.query,
+  );
+  const work = filterServiceBoardStatus(
+    repairJobs
+      .filter((j) => j.provider_user_id === input.callerId)
+      .sort((a, b) => (ms(b.accepted_at) ?? 0) - (ms(a.accepted_at) ?? 0))
+      .map(view),
+    input.query,
+  );
 
   const completed = repairJobs.filter((j) => j.status === 'completed' && (j.target_points ?? 0) > 0);
   const rates = completed.map((j) => (j.quoted_price_credits ?? 0) / (j.target_points as number));
   return {
     open,
+    openTotal,
     mine,
     work,
     stats: {

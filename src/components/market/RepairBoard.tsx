@@ -1,13 +1,30 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Lock } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
-import { useActivityStore, useLoadoutStore, usePlayerStore } from '@/store';
+import { useActivityStore, useLoadoutStore, useMarketStore, usePlayerStore } from '@/store';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { fetchRepairBoard, verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
 import { buildWorkshopServiceActivity } from '@/lib/activity/activityBuilders';
 import { PATCH_KIT_BASES, REPAIR_KIT_TYPES } from '@/content/repair';
+import { VEHICLE_CLASSES } from '@/lib/vehicles/vehicles';
+import {
+  hasServiceBoardBrowseTerms,
+  type ServiceBoardQuery,
+} from '@/lib/market/boardQuery';
+import { DEFAULT_LISTING_LIMIT } from '@/lib/market/listingQuery';
+
+const BOARD_PAGE_SIZE = DEFAULT_LISTING_LIMIT;
+
+const REPAIR_SORT_OPTIONS: ServiceBoardSortOption[] = [
+  { value: 'newest', label: 'Sort: Newest' },
+  { value: 'pay_desc', label: 'Sort: Priciest' },
+  { value: 'pay_asc', label: 'Sort: Cheapest' },
+  { value: 'condition', label: 'Sort: Most worn' },
+  { value: 'expiring', label: 'Sort: Expiring soon' },
+];
+import { ServiceBoardControls, type ServiceBoardSortOption } from '@/components/market/ServiceBoardControls';
 import { RepairBayScene } from '@/components/pixelArt/ActionScenes';
 
 /**
@@ -22,6 +39,13 @@ import { RepairBayScene } from '@/components/pixelArt/ActionScenes';
  * server's board view (GET /api/repair/board) and every action is a
  * verified op. There is no NPC mechanic and no private hire — worst
  * case, you walk.
+ *
+ * Market-lane parity: the open postings browse with the Buy lane's
+ * toolkit — server-side search / filters / sorts / pagination over
+ * src/lib/market/boardQuery.ts (controls: ServiceBoardControls) —
+ * and every open card carries the server's per-reader requirements
+ * (kits to finish at your efficiency, your pace, escrow held, and a
+ * named reason when you cannot take the job).
  */
 
 interface RepairVehicleViewT {
@@ -33,9 +57,25 @@ interface RepairVehicleViewT {
   conditionMax: number;
 }
 
+interface RepairKitOptionT {
+  kitType: string;
+  onHand: number;
+  estimatedKits: number | null;
+  coversTarget: boolean;
+}
+
+interface RepairJobRequirementsT {
+  escrowCredits: number;
+  canTake: boolean;
+  blockers: string[];
+  kitOptions: RepairKitOptionT[];
+  estimatedHours: number | null;
+}
+
 interface RepairJobViewT {
   id: string;
   ownerUserId: string;
+  ownerName: string | null;
   providerUserId: string | null;
   status: string;
   outcome: string | null;
@@ -57,10 +97,12 @@ interface RepairJobViewT {
   expiresAtMs: number | null;
   reclaimable: boolean;
   queuePosition: number | null;
+  requirements: RepairJobRequirementsT | null;
 }
 
 interface RepairBoardViewT {
   open: RepairJobViewT[];
+  openTotal: number;
   mine: RepairJobViewT[];
   work: RepairJobViewT[];
   stats: {
@@ -122,19 +164,63 @@ export const RepairBoard: React.FC = () => {
   const [postPrice, setPostPrice] = useState<string>('');
   const [postTarget, setPostTarget] = useState<string>('');
 
+  // Browse state (market-lane parity): the query lives in the
+  // market store so it survives tab switches; an untouched board
+  // fetches unqueried (the full board, oldest first), and any
+  // browse term switches fetches to paged queries of the Buy
+  // lane's page size, appended by Load more.
+  const boardQuery = useMarketStore((s) => s.repairBoardQuery);
+  const setBoardQuery = useMarketStore((s) => s.setRepairBoardQuery);
+  const browseActive = hasServiceBoardBrowseTerms(boardQuery);
+  const [extraOpen, setExtraOpen] = useState<RepairJobViewT[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageArgs = useCallback(
+    (offset: number): ServiceBoardQuery =>
+      (browseActive ? { ...boardQuery, limit: BOARD_PAGE_SIZE, offset } : {}),
+    [boardQuery, browseActive],
+  );
+
   const refresh = useCallback(() => {
-    void fetchRepairBoard()
+    void fetchRepairBoard(pageArgs(0))
       .then((result) => {
         setBoard(result as unknown as RepairBoardViewT);
+        setExtraOpen([]);
         setError(null);
       })
       .catch((err) => setError(formatRpcError(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [pageArgs]);
 
+  // Mount fetch is immediate; browse changes refetch debounced
+  // (the Buy lane's 200ms), restarting at page 1.
+  const firstFetch = useRef(true);
   useEffect(() => {
-    refresh();
+    if (firstFetch.current) {
+      firstFetch.current = false;
+      refresh();
+      return;
+    }
+    const timer = setTimeout(refresh, 200);
+    return () => clearTimeout(timer);
   }, [refresh]);
+
+  const openJobs = useMemo(
+    () => [...(board?.open ?? []), ...extraOpen],
+    [board, extraOpen],
+  );
+  const openTotal = board?.openTotal ?? 0;
+
+  const loadMore = useCallback(() => {
+    setLoadingMore(true);
+    void fetchRepairBoard(pageArgs(openJobs.length))
+      .then((result) => {
+        const page = result as unknown as RepairBoardViewT;
+        setExtraOpen((prev) => [...prev, ...page.open]);
+        setError(null);
+      })
+      .catch((err) => setError(formatRpcError(err)))
+      .finally(() => setLoadingMore(false));
+  }, [pageArgs, openJobs.length]);
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -321,13 +407,58 @@ export const RepairBoard: React.FC = () => {
       {/* Open postings */}
       <div className="space-y-2">
         <div className="text-sm font-black text-text-primary">Open postings</div>
-        {board && board.open.length === 0 && (
-          <div className="text-[11px] text-text-muted">No open jobs. Post yours above — or check back after the next roam.</div>
+        <ServiceBoardControls
+          query={boardQuery}
+          onChange={setBoardQuery}
+          total={board ? openTotal : null}
+          searchPlaceholder="Search vehicles, classes, owners…"
+          sortOptions={REPAIR_SORT_OPTIONS}
+          noun="job"
+        >
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {VEHICLE_CLASSES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setBoardQuery({ vehicleClass: boardQuery.vehicleClass === c.id ? undefined : c.id })}
+                className={`whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-bold ${boardQuery.vehicleClass === c.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
+              >
+                {c.displayName}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={boardQuery.conditionMin ?? ''}
+              onChange={(e) => setBoardQuery({ conditionMin: e.target.value === '' ? undefined : Number(e.target.value.replace(/[^0-9]/g, '')) || undefined })}
+              inputMode="numeric"
+              placeholder="Condition min %"
+              aria-label="Minimum vehicle condition percent"
+              className="w-full rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-[11px] text-text-primary placeholder:text-text-muted"
+            />
+            <input
+              value={boardQuery.conditionMax ?? ''}
+              onChange={(e) => setBoardQuery({ conditionMax: e.target.value === '' ? undefined : Number(e.target.value.replace(/[^0-9]/g, '')) || undefined })}
+              inputMode="numeric"
+              placeholder="Condition max %"
+              aria-label="Maximum vehicle condition percent"
+              className="w-full rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-[11px] text-text-primary placeholder:text-text-muted"
+            />
+          </div>
+        </ServiceBoardControls>
+        {board && openJobs.length === 0 && (
+          <div className="text-[11px] text-text-muted">
+            {browseActive
+              ? 'No jobs match those filters. Loosen a band or clear the search.'
+              : 'No open jobs. Post yours above — or check back after the next roam.'}
+          </div>
         )}
-        {(board?.open ?? []).map((job) => {
+        {openJobs.map((job) => {
           const mine = job.ownerUserId === myId;
           const kit = acceptKit[job.id] ?? 'PatchKit';
           const owned = consumables[kit] ?? 0;
+          const req = job.requirements;
+          const kitReq = req?.kitOptions.find((o) => o.kitType === kit) ?? null;
           return (
             <div key={job.id} className="border border-border bg-surface/95 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -343,8 +474,27 @@ export const RepairBoard: React.FC = () => {
                 Restore {job.targetPoints} points (now {Math.floor(job.vehicle?.conditionCurrent ?? 0)}/
                 {job.vehicle?.conditionMax ?? 100}) · {job.creditsPerPoint.toFixed(1)} cr/point ·{' '}
                 {fmtTimeLeft(job.expiresAtMs)}
+                {job.ownerName && ` · posted by ${job.ownerName}`}
                 {mine && ' · your posting'}
               </div>
+              {req && !mine && (
+                <div className="text-[11px] text-text-muted">
+                  <span className="font-bold text-text-primary">Escrow held: {req.escrowCredits} cr.</span>{' '}
+                  {req.blockers.includes('unverified') ? (
+                    <>Sign in with a verified account to take jobs.</>
+                  ) : req.blockers.includes('no_supply') ? (
+                    <>Needs patch kits to start — you have none. The mechanic supplies the kits; the price covers kits + labor.</>
+                  ) : kitReq ? (
+                    <>
+                      You supply the kits: ≈{kitReq.estimatedKits ?? '—'} {KIT_LABELS[kit]} to finish
+                      {req.estimatedHours != null && ` (~${req.estimatedHours}h at your pace)`} · you have {kitReq.onHand}.
+                      {!kitReq.coversTarget && (
+                        <> Your stock won&apos;t cover the full job — work stalls when you run dry, and banked points are kept.</>
+                      )}
+                    </>
+                  ) : null}
+                </div>
+              )}
               {!mine && (
                 <div className="flex flex-wrap items-center gap-2">
                   <select
@@ -375,6 +525,16 @@ export const RepairBoard: React.FC = () => {
             </div>
           );
         })}
+        {openJobs.length < openTotal && (
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="w-full rounded-lg border border-border bg-surface-raised py-2 text-xs font-bold text-text-secondary disabled:opacity-50"
+          >
+            {loadingMore ? 'Loading…' : `Load more (${(openTotal - openJobs.length).toLocaleString()} more)`}
+          </button>
+        )}
       </div>
 
       {/* My postings */}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Lock } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { useEconomyTransactLock } from '@/auth/useEconomyTransactLock';
@@ -8,6 +8,12 @@ import { formatRpcError } from '@/lib/api/rpcError';
 import { buildWorkshopServiceActivity } from '@/lib/activity/activityBuilders';
 import { legalShieldTechTargets, rebasedShieldPayload } from '@/content/shieldTech';
 import { SHIELD_BEHAVIORS, describeShieldBehavior, shieldBehaviorOf, type ShieldBehaviorId } from '@/lib/combat/shieldBehaviors';
+import {
+  hasServiceBoardBrowseTerms,
+  type ServiceBoardQuery,
+} from '@/lib/market/boardQuery';
+import { DEFAULT_LISTING_LIMIT } from '@/lib/market/listingQuery';
+import { ServiceBoardControls, type ServiceBoardSortOption } from '@/components/market/ServiceBoardControls';
 import type { GearItem, Shield } from '@/types/items';
 import type { Rarity } from '@/types/game';
 import { ShieldTechBayScene } from '@/components/pixelArt/ActionScenes';
@@ -35,6 +41,16 @@ interface ShieldTechShieldViewT {
   capacity: number | null;
   behavior: ShieldBehaviorId;
   behaviorName: string;
+}
+
+interface ShieldTechJobRequirementsT {
+  escrowCredits: number;
+  canTake: boolean;
+  blockers: string[];
+  coresOnHand: number;
+  estimatedCores: number | null;
+  coversTarget: boolean;
+  estimatedHours: number | null;
 }
 
 interface ShieldTechJobViewT {
@@ -71,10 +87,12 @@ interface ShieldTechJobViewT {
   lastProgressAtMs: number | null;
   reclaimable: boolean;
   queuePosition: number | null;
+  requirements: ShieldTechJobRequirementsT | null;
 }
 
 interface ShieldTechBoardViewT {
   open: ShieldTechJobViewT[];
+  openTotal: number;
   mine: ShieldTechJobViewT[];
   work: ShieldTechJobViewT[];
   medianPerThousandByRarity: Record<string, number | null>;
@@ -92,6 +110,16 @@ interface ShieldTechBoardViewT {
     marketFeeRate: number;
   };
 }
+
+const BOARD_PAGE_SIZE = DEFAULT_LISTING_LIMIT;
+
+const SHIELD_TECH_SORT_OPTIONS: ServiceBoardSortOption[] = [
+  { value: 'newest', label: 'Sort: Newest' },
+  { value: 'pay_desc', label: 'Sort: Priciest' },
+  { value: 'pay_asc', label: 'Sort: Cheapest' },
+  { value: 'condition', label: 'Sort: Smallest job' },
+  { value: 'expiring', label: 'Sort: Expiring soon' },
+];
 
 const isShieldItem = (item: GearItem): item is Shield => 'hp' in item && !('weaponType' in item);
 
@@ -137,19 +165,63 @@ export const ShieldTechBoard: React.FC = () => {
   const [postBehavior, setPostBehavior] = useState<string>('');
   const [postPrice, setPostPrice] = useState<string>('');
 
+  // Browse state (market-lane parity): the query lives in the
+  // market store so it survives tab switches; an untouched board
+  // fetches unqueried (the full board, oldest first), and any
+  // browse term switches fetches to paged queries of the Buy
+  // lane's page size, appended by Load more.
+  const boardQuery = useMarketStore((s) => s.shieldTechBoardQuery);
+  const setBoardQuery = useMarketStore((s) => s.setShieldTechBoardQuery);
+  const browseActive = hasServiceBoardBrowseTerms(boardQuery);
+  const [extraOpen, setExtraOpen] = useState<ShieldTechJobViewT[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageArgs = useCallback(
+    (offset: number): ServiceBoardQuery =>
+      (browseActive ? { ...boardQuery, limit: BOARD_PAGE_SIZE, offset } : {}),
+    [boardQuery, browseActive],
+  );
+
   const refresh = useCallback(() => {
-    void fetchShieldTechBoard()
+    void fetchShieldTechBoard(pageArgs(0))
       .then((result) => {
         setBoard(result as unknown as ShieldTechBoardViewT);
+        setExtraOpen([]);
         setError(null);
       })
       .catch((err) => setError(formatRpcError(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [pageArgs]);
 
+  // Mount fetch is immediate; browse changes refetch debounced
+  // (the Buy lane's 200ms), restarting at page 1.
+  const firstFetch = useRef(true);
   useEffect(() => {
-    refresh();
+    if (firstFetch.current) {
+      firstFetch.current = false;
+      refresh();
+      return;
+    }
+    const timer = setTimeout(refresh, 200);
+    return () => clearTimeout(timer);
   }, [refresh]);
+
+  const openJobs = useMemo(
+    () => [...(board?.open ?? []), ...extraOpen],
+    [board, extraOpen],
+  );
+  const openTotal = board?.openTotal ?? 0;
+
+  const loadMore = useCallback(() => {
+    setLoadingMore(true);
+    void fetchShieldTechBoard(pageArgs(openJobs.length))
+      .then((result) => {
+        const page = result as unknown as ShieldTechBoardViewT;
+        setExtraOpen((prev) => [...prev, ...page.open]);
+        setError(null);
+      })
+      .catch((err) => setError(formatRpcError(err)))
+      .finally(() => setLoadingMore(false));
+  }, [pageArgs, openJobs.length]);
 
   useEffect(() => () => {
     useMarketStore.getState().setShieldTechPreselect(null);
@@ -370,12 +442,50 @@ export const ShieldTechBoard: React.FC = () => {
       {/* Open postings */}
       <div className="space-y-2">
         <div className="text-sm font-black text-text-primary">Open postings</div>
-        {board && board.open.length === 0 && (
-          <div className="text-[11px] text-text-muted">No open jobs. Post yours above — or check back after the next roam.</div>
+        <ServiceBoardControls
+          query={boardQuery}
+          onChange={setBoardQuery}
+          total={board ? openTotal : null}
+          searchPlaceholder="Search shields, behaviors, owners…"
+          sortOptions={SHIELD_TECH_SORT_OPTIONS}
+          noun="job"
+        >
+          <div className="flex gap-2">
+            <select
+              value={boardQuery.fromBehavior ?? ''}
+              onChange={(e) => setBoardQuery({ fromBehavior: e.target.value || undefined })}
+              aria-label="Current behavior filter"
+              className="flex-1 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+            >
+              <option value="">From: any behavior</option>
+              {Object.entries(SHIELD_BEHAVIORS).map(([id, def]) => (
+                <option key={id} value={id}>From: {def.name}</option>
+              ))}
+            </select>
+            <select
+              value={boardQuery.toBehavior ?? ''}
+              onChange={(e) => setBoardQuery({ toBehavior: e.target.value || undefined })}
+              aria-label="Target behavior filter"
+              className="flex-1 text-[9px] font-black uppercase border border-border bg-surface rounded-lg px-2 py-1 text-text-primary"
+            >
+              <option value="">To: any behavior</option>
+              {Object.entries(SHIELD_BEHAVIORS).map(([id, def]) => (
+                <option key={id} value={id}>To: {def.name}</option>
+              ))}
+            </select>
+          </div>
+        </ServiceBoardControls>
+        {board && openJobs.length === 0 && (
+          <div className="text-[11px] text-text-muted">
+            {browseActive
+              ? 'No jobs match those filters. Loosen a band or clear the search.'
+              : 'No open jobs. Post yours above — or check back after the next roam.'}
+          </div>
         )}
-        {(board?.open ?? []).map((job) => {
+        {openJobs.map((job) => {
           const mine = job.ownerUserId === myId;
           const median = job.shield?.rarity ? board?.medianPerThousandByRarity[job.shield.rarity] ?? null : null;
+          const req = job.requirements;
           return (
             <div key={job.id} className="border border-border bg-surface/95 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -388,10 +498,29 @@ export const ShieldTechBoard: React.FC = () => {
               <div className="text-[11px] text-text-muted">
                 Calibrate {job.targetPoints} points · {job.creditsPerPoint.toFixed(2)} cr/point ·{' '}
                 {fmtTimeLeft(job.expiresAtMs)}
-                {job.estimatedCoresForReader != null && ` · ≈${job.estimatedCoresForReader} cores at your efficiency`}
+                {req == null && job.estimatedCoresForReader != null && ` · ≈${job.estimatedCoresForReader} cores at your efficiency`}
                 {median != null && ` · board median ${median.toFixed(0)} cr / 1,000 pts for ${job.shield?.rarity}`}
+                {job.ownerName && ` · posted by ${job.ownerName}`}
                 {mine && ' · your posting'}
               </div>
+              {req && !mine && (
+                <div className="text-[11px] text-text-muted">
+                  <span className="font-bold text-text-primary">Escrow held: {req.escrowCredits} cr.</span>{' '}
+                  {req.blockers.includes('unverified') ? (
+                    <>Sign in with a verified account to take jobs.</>
+                  ) : req.blockers.includes('no_supply') ? (
+                    <>Needs Calibration Cores to start — you have none. The tech supplies the cores; the price covers cores + labor.</>
+                  ) : (
+                    <>
+                      You supply the cores: ≈{req.estimatedCores ?? '—'} to finish
+                      {req.estimatedHours != null && ` (~${req.estimatedHours}h at your pace)`} · you have {req.coresOnHand}.
+                      {!req.coversTarget && (
+                        <> Your stock won&apos;t cover the full job — work stalls when you run dry, and banked points are kept.</>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               {job.fromBehaviorDescription && (
                 <div className="text-[11px] text-text-muted">
                   <span className="font-bold text-text-primary">{job.fromBehaviorName}:</span>{' '}
@@ -422,6 +551,16 @@ export const ShieldTechBoard: React.FC = () => {
             </div>
           );
         })}
+        {openJobs.length < openTotal && (
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="w-full rounded-lg border border-border bg-surface-raised py-2 text-xs font-bold text-text-secondary disabled:opacity-50"
+          >
+            {loadingMore ? 'Loading…' : `Load more (${(openTotal - openJobs.length).toLocaleString()} more)`}
+          </button>
+        )}
       </div>
 
       {/* My postings */}

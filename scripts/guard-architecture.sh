@@ -66,6 +66,8 @@ ALLOWED_TIMERS=(
   "$SRC/screens/ActionScreenContextual.tsx:display-only elapsed timer + heartbeat"
   "$SRC/screens/WorkshopScreen.tsx:display-only clock + craft toast"
   "$SRC/screens/MarketScreen.tsx:toast dismissal timer"
+  "$SRC/components/market/RepairBoard.tsx:browse-query debounce timer (200ms, display-only)"
+  "$SRC/components/market/ShieldTechBoard.tsx:browse-query debounce timer (200ms, display-only)"
   "$SRC/screens/DashboardScreen.tsx:no setInterval (uses tickFeed store)"
   "$SRC/components/action/DeathOverlay.tsx:resurrection countdown timer (display-only)"
   "$SRC/components/action/SalvageToast.tsx:toast dismissal timer"

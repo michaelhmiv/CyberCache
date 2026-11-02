@@ -65,6 +65,53 @@ import type { Express, Request, Response } from 'express';
 import { chefPlayerId, type AuthConfig } from '../auth/routes';
 import { WriteStoreError, type Json, type WriteStore } from './store';
 import { discoveryEntriesForItem, type DiscoveryItemLike } from '../../content/collections';
+import {
+  SERVICE_BOARD_SORTS,
+  SERVICE_BOARD_STATUSES,
+  type ServiceBoardQuery,
+  type ServiceBoardSort,
+} from '../../lib/market/boardQuery.js';
+
+/**
+ * The service-board browse query, parsed in the Buy lane's style
+ * (parseMarketQuery): whitelisted sorts and statuses, numbers that
+ * fail to parse drop out instead of erroring, and canTake as a
+ * truthy flag. Absent params = the historic full board read.
+ */
+function parseServiceBoardQuery(req: Request): ServiceBoardQuery {
+  const q = req.query;
+  const qstr = (v: unknown): string | undefined =>
+    (typeof v === 'string' && v.length > 0 ? v : undefined);
+  const qnum = (v: unknown): number | undefined => {
+    const n = typeof v === 'string' ? Number(v) : NaN;
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const sort = qstr(q.sort);
+  const statusRaw = qstr(q.status);
+  const status = statusRaw
+    ? statusRaw.split(',').map((s) => s.trim()).filter((s) => SERVICE_BOARD_STATUSES.includes(s))
+    : undefined;
+  return {
+    search: qstr(q.search),
+    status: status && status.length > 0 ? status : undefined,
+    rarity: qstr(q.rarity),
+    vehicleClass: qstr(q.vehicleClass),
+    fromBehavior: qstr(q.fromBehavior),
+    toBehavior: qstr(q.toBehavior),
+    conditionMin: qnum(q.conditionMin),
+    conditionMax: qnum(q.conditionMax),
+    pointsMin: qnum(q.pointsMin),
+    pointsMax: qnum(q.pointsMax),
+    priceMin: qnum(q.priceMin),
+    priceMax: qnum(q.priceMax),
+    canTake: q.canTake === '1' || q.canTake === 'true' ? true : undefined,
+    sort: sort && SERVICE_BOARD_SORTS.includes(sort as ServiceBoardSort)
+      ? (sort as ServiceBoardSort)
+      : undefined,
+    limit: qnum(q.limit),
+    offset: qnum(q.offset),
+  };
+}
 
 /**
  * Collection discovery (0026): after a write op settles, record what
@@ -331,7 +378,7 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     const playerId = caller(config, req, res);
     if (!playerId) return;
     try {
-      res.json(await store.getRepairBoard(playerId));
+      res.json(await store.getRepairBoard(playerId, parseServiceBoardQuery(req)));
     } catch (err) {
       fail(res, err);
     }
@@ -390,7 +437,7 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     const playerId = caller(config, req, res);
     if (!playerId) return;
     try {
-      res.json(await store.getShieldTechBoard(playerId));
+      res.json(await store.getShieldTechBoard(playerId, parseServiceBoardQuery(req)));
     } catch (err) {
       fail(res, err);
     }

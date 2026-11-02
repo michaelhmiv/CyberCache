@@ -105,6 +105,17 @@ real cost.
 - Standing with a weapon maker is a separate counter entirely — see
   [[Manufacturer Standing]].
 
+## The service boards browse the same way
+
+The [[Repair Board]] and [[Shield-Tech]] tabs are not bare lists: they
+carry the same discovery toolkit as the Buy tab — server-side search,
+filters, sorts, and paged results — pointed at jobs instead of items.
+Every open job also shows its requirements on the card itself: the
+escrow held, the supply the taker must bring (patch kits or Calibration
+Cores), an estimate of what finishing costs *you* at your own mastery
+and stock, and — when you can't take a job — the reason why, on the
+card's face.
+
 ---
 
 _Source of truth: `src/screens/MarketScreen.tsx`, `src/server/economy/config.ts` (`marketFeeRate`), `src/lib/market/marketFee.ts`, `src/lib/market/identityKey.ts`, `docs/ECONOMY.md`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._
