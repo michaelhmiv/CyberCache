@@ -15,6 +15,9 @@
  *   gear other:     gear:{category}:{rarity}:b{levelBand}
  *   consumable:     cons:{consumableType}:{qualityBand}
  *   material:       mat:{materialId}
+ *   fragment:       frag:cache            (0050 — one commodity)
+ *   core:           core:legendary        (0050 — one commodity)
+ *   essence:        ess:{essenceId}       (0050 — per essence type)
  *
  * Why these axes:
  *   - Gear price is driven by what the item IS (weapon type / gear
@@ -31,12 +34,13 @@
  *   - Materials are fungible — the material id IS the identity.
  */
 import { CONSUMABLES } from '../../constants/consumables';
-import { MaterialType } from '../../types/game';
+import { EssenceType, MaterialType } from '../../types/game';
 import type { GearItem } from '../../types/items';
 
 export type MarketCategory =
   | 'weapon' | 'shield' | 'relic' | 'classMod' | 'ordnance'
-  | 'consumable' | 'material' | 'vehicle';
+  | 'consumable' | 'material' | 'vehicle'
+  | 'fragment' | 'core' | 'essence';
 
 export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
   weapon: 'Weapons',
@@ -47,6 +51,9 @@ export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
   consumable: 'Consumables',
   material: 'Materials',
   vehicle: 'Vehicles',
+  fragment: 'Cache Fragments',
+  core: 'Legendary Cores',
+  essence: 'Essences',
 };
 
 /**
@@ -107,6 +114,37 @@ export function consumableIdentityKey(consumableType: string, qualityPercent: nu
 
 export function materialIdentityKey(materialId: string): string {
   return `mat:${materialId}`;
+}
+
+/**
+ * Sellable resources (0050): cache fragments, legendary cores, and
+ * essences join the market as quantity commodities. Fragments and
+ * cores are single fungible commodities (one identity each); each
+ * essence type is its own commodity, mirroring materials.
+ */
+export const FRAGMENT_IDENTITY_KEY = 'frag:cache';
+export const CORE_IDENTITY_KEY = 'core:legendary';
+export const FRAGMENT_DISPLAY_NAME = 'Cache Fragment';
+export const CORE_DISPLAY_NAME = 'Legendary Core';
+
+/** The five profile essence keys (EssenceType) — the listable essences. */
+export const MARKET_ESSENCE_IDS: readonly string[] = Object.values(EssenceType);
+
+/** Display names for essences — labels owned by src/constants/visualAssets.ts. */
+export const ESSENCE_DISPLAY_NAMES: Record<string, string> = {
+  [EssenceType.IgnitionFluid]: 'Ignition Fluid',
+  [EssenceType.ConduitWire]: 'Conduit Wire',
+  [EssenceType.AcidCompound]: 'Acid Compound',
+  [EssenceType.CryoGel]: 'Cryo Gel',
+  [EssenceType.VoidEssence]: 'Void Essence',
+};
+
+export function essenceIdentityKey(essenceId: string): string {
+  return `ess:${essenceId}`;
+}
+
+export function essenceDisplayName(essenceId: string): string {
+  return ESSENCE_DISPLAY_NAMES[essenceId] ?? essenceId;
 }
 
 /**

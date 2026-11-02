@@ -19,7 +19,7 @@ export interface MarketFilter {
   sortDir: 'asc' | 'desc';
 }
 
-export type ListingKind = 'gear' | 'consumable' | 'material';
+export type ListingKind = 'gear' | 'consumable' | 'material' | 'fragment' | 'core' | 'essence';
 
 export interface Listing {
   id: string;
@@ -41,6 +41,8 @@ export interface Listing {
   qualityPercent: number | null;
   consumableType: string | null;
   materialId: string | null;
+  /** Essence listings (0050): the essence type id. Null otherwise. */
+  essenceId: string | null;
   /** Price-history identity key (src/lib/market/identityKey.ts). */
   identityKey: string | null;
   weaponType: string | null;

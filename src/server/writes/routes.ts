@@ -37,6 +37,9 @@
  *   POST /api/ops/market-create             verifiedOps.createMarketListing     cc_market_create(...)
  *   POST /api/ops/market-create-consumable  verifiedOps.marketCreateConsumable  cc_market_create_consumable(...)
  *   POST /api/ops/market-create-material    verifiedOps.marketCreateMaterial    cc_market_create_material(...)
+ *   POST /api/ops/market-create-fragment    verifiedOps.marketCreateFragment    cc_market_create_fragment(...)
+ *   POST /api/ops/market-create-core        verifiedOps.marketCreateCore        cc_market_create_core(...)
+ *   POST /api/ops/market-create-essence     verifiedOps.marketCreateEssence     cc_market_create_essence(...)
  *   POST /api/ops/market-cancel             verifiedOps.cancelMarketListing     cc_market_cancel(...)
  *   POST /api/ops/market-accept             verifiedOps.acceptMarketListing     cc_accept_listing(...)
  *   POST /api/ops/reset-progress            verifiedOps.resetProgress           cc_reset_progress(nonce)
@@ -489,6 +492,27 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     const price = numField(req, res, 'price_credits', 'price_credits value');
     if (price === null) return null;
     return store.marketCreateMaterial(playerId, str(body(req).nonce), str(body(req).material_id), quantity, price);
+  });
+  op('/api/ops/market-create-fragment', async (playerId, req, res) => {
+    const quantity = numField(req, res, 'quantity', 'quantity value');
+    if (quantity === null) return null;
+    const price = numField(req, res, 'price_credits', 'price_credits value');
+    if (price === null) return null;
+    return store.marketCreateFragment(playerId, str(body(req).nonce), quantity, price);
+  });
+  op('/api/ops/market-create-core', async (playerId, req, res) => {
+    const quantity = numField(req, res, 'quantity', 'quantity value');
+    if (quantity === null) return null;
+    const price = numField(req, res, 'price_credits', 'price_credits value');
+    if (price === null) return null;
+    return store.marketCreateCore(playerId, str(body(req).nonce), quantity, price);
+  });
+  op('/api/ops/market-create-essence', async (playerId, req, res) => {
+    const quantity = numField(req, res, 'quantity', 'quantity value');
+    if (quantity === null) return null;
+    const price = numField(req, res, 'price_credits', 'price_credits value');
+    if (price === null) return null;
+    return store.marketCreateEssence(playerId, str(body(req).nonce), str(body(req).essence_id), quantity, price);
   });
   op('/api/ops/market-cancel', async (playerId, req, res) => {
     const listingId = uuidField(req, res, 'listing_id', 'listing id');
