@@ -65,6 +65,10 @@ Fuel Cell** loads **100 fuel units** into the tank.
 Fuel cells come from two places: the NPC [[Vendor]] sells the baseline
 Generic Fuel Cell, and [[Crafting]] makes the crafted Fuel Cell, which
 loads fuel in proportion to its quality — a 130% cell loads 130 units.
+Generic cells also trade on the player market. The Garage tells you
+this on the spot: with no Generic Fuel Cells in inventory, its greyed-out
+load buttons carry a note pointing at the Vendor and the player market,
+so an empty tank never reads as a dead end.
 **Run dry and nothing stops:** the
 bonus simply goes inactive and you keep roaming on foot at ×1.0 until
 you refuel. Out of fuel is a missed bonus, never a wall.

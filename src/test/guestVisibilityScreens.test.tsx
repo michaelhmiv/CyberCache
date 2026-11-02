@@ -285,7 +285,11 @@ describe('guest visibility — market journeys', () => {
     expect((buyButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(buyButton);
     expect(await screen.findByText('Sign in to buy — your guest progress carries over')).toBeInTheDocument();
-    expect(screen.getByText('Sign in with Google — keep your progress')).toBeInTheDocument();
+    // This suite runs as the WEB build (jsdom): QC B3 — the prompt
+    // names the app instead of offering a Google button the web
+    // build cannot honour. The app's button is pinned in
+    // qcNativeCopy.test.tsx.
+    expect(screen.getByText(/Sign-in happens in the CyberCache app/)).toBeInTheDocument();
     expect(verifiedOps.acceptListing).not.toHaveBeenCalled();
   }, 30_000);
 

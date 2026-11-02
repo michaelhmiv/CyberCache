@@ -1,4 +1,5 @@
 import React from 'react';
+import { Capacitor } from '@capacitor/core';
 import { motion } from 'framer-motion';
 import { useAuth } from '../auth/AuthProvider';
 import { AuthHero } from '@/components/common/AuthHero';
@@ -9,9 +10,18 @@ import { AuthHero } from '@/components/common/AuthHero';
  * there is deliberately no email form anywhere in the app UI. A guest
  * session links to Google in place (progress kept) from this screen or
  * from any feature gate.
+ *
+ * Platform honesty (QC B3): Google sign-in exists only in the app —
+ * the native flow has no web counterpart (nativeAuth refuses off-app).
+ * In the app this screen's copy promises sign-in unlocks, and it does.
+ * On the web the same promise sat above a button that can only fail,
+ * so the web build says what it is: a guest preview, with sign-in —
+ * and everything it unlocks — living in the app. The Google button
+ * and its app-only refusal stay untouched on both platforms.
  */
 export const AuthScreen: React.FC = () => {
   const auth = useAuth();
+  const isNative = Capacitor.isNativePlatform();
 
   const message = auth.authError;
   const diagnosticText = auth.authDiagnostic ? JSON.stringify(auth.authDiagnostic, null, 2) : null;
@@ -33,7 +43,15 @@ export const AuthScreen: React.FC = () => {
             Roam the wastes, loot gear, build your hunter, and take down bosses — the hunt keeps paying out while you&apos;re away.
           </div>
           <div className="text-xs leading-relaxed text-text-muted">
-            Jump in as a guest and play right away — the vendor yard is open to everyone. Sign in with Google to unlock the player market and services, and to keep your hunter on any device.
+            {isNative ? (
+              <>
+                Jump in as a guest and play right away — the vendor yard is open to everyone. Sign in with Google to unlock the player market and services, and to keep your hunter on any device.
+              </>
+            ) : (
+              <>
+                Jump in as a guest and look around — every screen is open to guests, with real data. Signing in lives in the CyberCache app: there, Google sign-in unlocks the player market and services, and keeps your hunter on any device. This web build is a guest preview.
+              </>
+            )}
           </div>
         </div>
 

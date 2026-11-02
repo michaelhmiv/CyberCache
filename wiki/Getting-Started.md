@@ -34,6 +34,8 @@ Only **transacting** requires signing in:
 
 When a guest taps a locked action, the game says so and offers the Google sign-in right there — with your progress carrying over, per the rule above.
 
+One platform note: sign-in exists **only in the CyberCache app**. The web build is a guest preview — browsing everything works exactly as described above, but its sign-in buttons and locked-action prompts will point you at the app instead of signing you in, because there is no web sign-in flow.
+
 Two things need **no account at all**:
 
 - **Crafting.** Guests craft freely — benches, recipes, and materials all work from your first session. See [[Crafting]].

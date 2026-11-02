@@ -26,7 +26,12 @@ import { Manufacturer, Rarity, WeaponType } from '@/types/game';
  * server-side record (collection_discoveries, written by the Chef at
  * the moment the fact settled) — this screen is a pure consumer of
  * GET /api/collections/me plus the content catalog. Missing entries
- * read as silhouettes with their source hint: intel, never odds.
+ * read as silhouettes with their names hidden: a short family note
+ * says how such an entry is earned, but the name itself — and, for
+ * bosses, the hint's dedicated-drop names — stays secret until the
+ * entry is logged (QC A11). The catalog itself is client content, so
+ * the masking lives here at the display layer; the server payload
+ * only ever carries discovery records and the core count.
  *
  * Legendary cores (salvaged from Legendary gear) headline the shelf:
  * they are the sink-loop currency for core-catalyzed crafting today
@@ -50,6 +55,16 @@ const FAMILY_BLURBS: Record<CollectionFamily, string> = {
   boss: 'Every boss in the wastes, beaten at least once.',
   weapon_frame: 'A Legendary of this frame has passed through your hands.',
   named_elite: 'The named elite of each roaming area, brought down.',
+};
+
+/** What an UNLOGGED entry may say about itself: how its family is
+ *  earned, never which entry it is. (The real hint is withheld too —
+ *  a boss's hint names its dedicated drops, which is the reward.) */
+const UNDISCOVERED_TEASERS: Record<CollectionFamily, string> = {
+  legendary_effect: 'An unlogged legendary effect — own a weapon carrying it to log this entry.',
+  boss: 'An undefeated boss — beat it to log this entry.',
+  weapon_frame: 'An unlogged Legendary frame — own one to log this entry.',
+  named_elite: 'An undowned named elite — fell it in its roaming area to log this entry.',
 };
 
 function seedFromKey(key: string): number {
@@ -132,10 +147,10 @@ const EntryCard: React.FC<{ entry: CollectionEntry; found: boolean; source?: str
       <EntryArt entry={entry} found={found} />
     </div>
     <div className={`mt-2 truncate text-[11px] font-black leading-tight ${found ? 'text-text-primary' : 'text-text-muted'}`}>
-      {entry.name}
+      {found ? entry.name : 'Undiscovered'}
     </div>
     <div className="mt-0.5 line-clamp-2 min-h-[28px] text-[11px] leading-snug text-text-muted">
-      {found ? `Logged · ${source ?? 'server record'}` : entry.hint}
+      {found ? `Logged · ${source ?? 'server record'}` : UNDISCOVERED_TEASERS[entry.family]}
     </div>
   </motion.div>
   );

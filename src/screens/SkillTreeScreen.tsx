@@ -163,6 +163,31 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     return true;
   };
 
+  // QC A7: the inspect panel used to render its Spend button ONLY when
+  // the spend was already possible — a player with no points (every
+  // level-1 guest) saw a node brief with no spend affordance at all
+  // and no way to learn how a point is spent. The button now always
+  // renders; when the spend is not possible this returns the plain
+  // reason printed under the disabled button.
+  const spendReason = (node: SkillNode): string | null => {
+    const current = skillStore.spent[node.id] || 0;
+    if (current >= node.maxPoints) return 'This node is maxed out.';
+    if (pendingNodeId !== null && pendingNodeId !== node.id) {
+      return 'Another node is training — one spend at a time.';
+    }
+    if (node.requires) {
+      const unmet = node.requires.filter((req) => (skillStore.spent[req] || 0) === 0);
+      if (unmet.length > 0) {
+        const names = unmet.map((req) => nodes.find((n) => n.id === req)?.name ?? req);
+        return `Spend a point in ${names.join(', ')} first.`;
+      }
+    }
+    if (pointsAvailable < node.cost) {
+      return `Needs ${node.cost} point${node.cost === 1 ? '' : 's'} — you have ${pointsAvailable}. Skill points come from levels: 1 per level.`;
+    }
+    return null;
+  };
+
   const spendPoint = async (nodeId: string) => {
     setSelectedNodeId(nodeId);
     setErrorMessage(null);
@@ -273,7 +298,17 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
             <div className="text-xs font-black uppercase tracking-wide" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
             <div className="text-[10px] text-text-muted">Horizontal scroll is intentional on mobile. Tap a node to inspect or spend.</div>
           </div>
-          <PxIcon name="star" size={17} style={{ color: activeTreeDef.color }} />
+          {/* The tree sigil is decorative (QC A7: an unexplained red
+              glyph at the board's top-right read as a button). It now
+              carries an accessible name saying what it is. */}
+          <span
+            role="img"
+            aria-label={`${activeTreeDef.label} tree sigil`}
+            title={`${activeTreeDef.label} tree sigil`}
+            className="inline-flex shrink-0"
+          >
+            <PxIcon name="star" size={17} style={{ color: activeTreeDef.color }} />
+          </span>
         </div>
 
         {errorMessage && (
@@ -363,7 +398,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
           {selectedNode.requires && selectedNode.requires.length > 0 && (
             <div className="text-[10px] text-text-muted">Requires: {selectedNode.requires.join(', ')}</div>
           )}
-          {canSpend(selectedNode.id) && (
+          {canSpend(selectedNode.id) ? (
             <button
               onClick={() => spendPoint(selectedNode.id)}
               disabled={pendingNodeId !== null}
@@ -371,6 +406,20 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
             >
               {pendingNodeId === selectedNode.id ? 'Training…' : `Spend ${selectedNode.cost} Point${selectedNode.cost === 1 ? '' : 's'}`}
             </button>
+          ) : (
+            <>
+              <button
+                disabled
+                aria-disabled="true"
+                data-testid="skill-spend-unavailable"
+                className="bl-primary w-full py-2 text-xs font-black disabled:opacity-50"
+              >
+                {pendingNodeId === selectedNode.id ? 'Training…' : `Spend ${selectedNode.cost} Point${selectedNode.cost === 1 ? '' : 's'}`}
+              </button>
+              <div className="text-[10px] leading-snug text-text-muted">
+                {spendReason(selectedNode) ?? 'Not spendable right now.'}
+              </div>
+            </>
           )}
         </div>
       )}
