@@ -7,6 +7,25 @@ on:
     branches: [master]
 
 jobs:
+  wiki-map-check:
+    # WARN mode (Wiki Phase 1): annotates PRs that change a mapped gameplay
+    # source without touching its wiki page. Never fails the build; the
+    # fail gate arrives in Phase 3. See docs/WIKI.md.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wiki map check (warn only)
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+          WIKI_IMPACT_NONE: "${{ contains(github.event.pull_request.body, 'wiki-impact: none') && '1' || '' }}"
+        run: node scripts/check-wiki-map.mjs
+
   test-build-lint:
     runs-on: ubuntu-latest
 

@@ -1,0 +1,62 @@
+name: Wiki Publish
+
+# Publishes the repo's wiki/ directory to the GitHub Wiki.
+# Source of truth is the markdown in wiki/ (edited via PRs like any code);
+# this job is a one-way sync. See docs/WIKI.md.
+#
+# FIRST RUN: GitHub does not create the wiki git repository until the
+# wiki's first page exists. If the clone below fails, create one page via
+# the repo's Wiki tab in the GitHub UI, then re-run this workflow.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'wiki/**'
+      - '.github/workflows/wiki-publish.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone the wiki repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki-repo; then
+            echo "::error::Could not clone ${{ github.repository }}.wiki.git — GitHub creates the wiki git repository only after the wiki's first page exists. Create one page via the repo's Wiki tab in the GitHub UI (any title; it will be overwritten by this sync), then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Sync wiki/ into the wiki repository
+        run: |
+          # Stamp the master commit these pages are published from, so a
+          # reader can always tell which build a page describes.
+          echo "${{ github.sha }}" > wiki/.sync-sha
+          # Mirror the source directory; delete files the source dropped.
+          # .page-map.json stays repo-side tooling and is never published;
+          # .git is excluded so --delete cannot eat the clone itself.
+          rsync -a --delete --exclude '.git' --exclude '.page-map.json' wiki/ wiki-repo/
+          cd wiki-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Wiki already in sync; nothing to publish."
+          else
+            git commit -m "Sync wiki from ${{ github.repository }}@${{ github.sha }}"
+            git push
+            echo "Wiki published from ${{ github.sha }}."
+          fi

@@ -24,6 +24,7 @@ Before making any change:
 - **Do not restore economy from runtime snapshots.** `runtimeSupabaseSync.ts` may hydrate display/runtime state only; profile rows, item_instances, Chef/RPC ledgers, and market tables own economy truth.
 - **User-id mutation RPCs are service-only unless they re-derive `auth.uid()`.** Any security-definer RPC that accepts a player/user UUID and mutates progression must revoke `authenticated`; browser-callable RPCs must derive the actor internally.
 - **Salvage is verified server state.** UI components submit recycle intent through `verifiedOps.recycleItem()` or Chef/API routes and sync the returned profile/item state. Do not call `inventory.scrapItem()` plus `player.addScrap()` from components.
+- **Wiki updates ride in the same PR.** Any change to a gameplay-visible fact — a system, screen, number, name, or rule — updates its wiki page under `wiki/` in the same PR. `wiki/.page-map.json` maps gameplay sources to their pages; `scripts/check-wiki-map.mjs` runs in CI (warn mode in Phase 1). If a change genuinely has no player-visible impact, say so with a `wiki-impact: none` line in the PR body. See `docs/WIKI.md`.
 
 ## Mandatory Repo Verification
 
@@ -87,6 +88,7 @@ Run from repo root when possible:
 3. `npm run lint`
 4. `bash scripts/guard-architecture.sh`
 5. `npx tsc --noEmit`
+6. Wiki check (when the change touches a mapped gameplay source): `node scripts/check-wiki-map.mjs` — its page must be updated in the same PR, or the PR body carries `wiki-impact: none`.
 
 If any command fails, report whether it appears pre-existing or introduced by the change.
 
