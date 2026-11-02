@@ -1,8 +1,10 @@
 # The Market
 
 The Market is where hunters trade with each other. It lives on the Market
-screen, alongside the [[Vendor]], the [[Repair Board]], and [[Shield-Tech]].
-Every trade is settled by the server: when you list something, the server
+tab, whose **rail of stops** — **Buy · Vendor · Sell · My Listings ·
+History · Repair · Shield Tech · Rep Desk · Slots** — runs across the
+top and scrolls sideways; everything below the rail is the stop you
+picked. Every trade is settled by the server: when you list something, the server
 holds it in escrow until it sells or you cancel, and when a sale completes
 the credits move buyer → seller through the verified ledger. Nothing about
 a trade is trusted to your device, so a listing you see is a listing that
@@ -10,7 +12,7 @@ really exists, at the price shown.
 
 ## Who can use it
 
-Guests can browse everything. Every tab renders with real listings and real
+Guests can browse everything. Every stop renders with real listings and real
 prices, so you can learn the economy before you ever sign in. Transacting —
 buying, listing, and cancelling your own listings — requires a signed-in
 (verified) account. If you tap a buy or list button as a guest, you'll get
@@ -43,19 +45,21 @@ usual.
 
 ## Buying
 
-1. Open the **Buy** tab.
+1. Open the **Buy** stop.
 2. Narrow the list with the category chips (Weapons, Shields, Relics, Class
    Mods, Ordnance, Consumables, Materials, Cache Fragments, Legendary
    Cores, Essences), the rarity chips, and
    the filters: weapon type and element on weapon searches, plus level
    range and price range.
 3. Sort by newest, cheapest, most expensive, highest level, or rarity.
-4. Tap a listing and confirm. You pay exactly the listed price — the fee
+4. Every card names its seller by their hunter name (NPC seed stock is
+   labelled NPC Vendor). Tap a listing and confirm. You pay exactly the
+   listed price — the fee
    (below) comes out of the seller's side, never added on top for you.
 
 ## Selling
 
-1. Open the **Sell** tab. It shows everything you own that can be listed:
+1. Open the **Sell** stop. It shows everything you own that can be listed:
    gear, consumable batches, material stacks, and resource stacks
    (fragments, cores, and essences).
 2. Pick the item or stack, set the quantity (for stacks), and set your
@@ -98,17 +102,19 @@ real cost.
 
 ## Good to know
 
-- The **History** tab keeps your own record of buys and sales.
+- The **History** stop keeps your own record of buys and sales, with the
+  other hunter named on every entry.
 - Service work doesn't trade here as items — hiring a mechanic or a shield
-  tech happens on the [[Repair Board]] and [[Shield-Tech]] tabs of this
-  same screen, under the same escrow-and-fee rules.
-- Standing with a weapon maker is a separate counter entirely — see
-  [[Manufacturer Standing]].
+  tech happens on the [[Repair Board]] and [[Shield-Tech]] stops of this
+  same rail, under the same escrow-and-fee rules.
+- Standing with a weapon maker lives at the **Rep Desk** stop on this
+  rail — see [[Manufacturer Standing]]. The [[Slots]] machine is a stop
+  here too.
 
 ## The service boards browse the same way
 
-The [[Repair Board]] and [[Shield-Tech]] tabs are not bare lists: they
-carry the same discovery toolkit as the Buy tab — server-side search,
+The [[Repair Board]] and [[Shield-Tech]] stops are not bare lists: they
+carry the same discovery toolkit as the Buy stop — server-side search,
 filters, sorts, and paged results — pointed at jobs instead of items.
 Every open job also shows its requirements on the card itself: the
 escrow held, the supply the taker must bring (patch kits or Calibration

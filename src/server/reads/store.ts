@@ -575,6 +575,10 @@ export interface MarketListingData {
   price_credits: number;
   listed_at: string;
   seller_user_id: string;
+  /** The seller's hunter name (profiles.display_name ?? username);
+   *  null when the profile carries neither (the NPC seed account) —
+   *  the client labels those from seller_type, never the raw id. */
+  seller_name: string | null;
   /** Market depth (0019): browse facts ride on the listing itself. */
   seller_type: 'player' | 'npc';
   listing_kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence';
@@ -611,6 +615,9 @@ export interface RuntimeItemData extends MarketItemData {
 export interface RawListingFields {
   id: string;
   seller_user_id: string;
+  /** Joined from the seller's profile by the Pg store (or the seed
+   *  profiles by the in-memory store); absent on legacy callers. */
+  seller_name?: string | null;
   price_credits: number;
   listed_at: string;
   sold_at?: string | null;
@@ -730,6 +737,7 @@ export function marketListingData(
     price_credits: Number(listing.price_credits),
     listed_at: listing.listed_at,
     seller_user_id: listing.seller_user_id,
+    seller_name: listing.seller_name ?? null,
     seller_type: browse.sellerType,
     listing_kind: browse.kind,
     quantity: browse.quantity,
@@ -1729,12 +1737,15 @@ export class InMemoryReadStore implements ReadStore {
     const itemFor = (l: MemListing) => (l.item_instance_id ? items.get(l.item_instance_id) ?? null : null);
     const browsed = applyListingQuery(active.map((l) => browseRowFor(l, itemFor(l))), query);
     const byId = new Map(active.map((l) => [l.id, l]));
+    const sellerNames = new Map(
+      this.seed.profiles.map((p) => [p.id, p.display_name ?? p.username ?? null]),
+    );
     return {
       total: browsed.total,
       listings: browsed.rows.map((row) => {
         const listing = byId.get(row.id) as MemListing;
         const item = itemFor(listing);
-        return marketListingData(listing, item ? {
+        return marketListingData({ ...listing, seller_name: sellerNames.get(listing.seller_user_id) ?? null }, item ? {
           id: item.id, item_level: item.item_level, rarity: item.rarity,
           is_locked: item.is_locked, runtime_state: item.runtime_state,
           equipped_slot: item.equipped_slot, payload: item.payload,
@@ -2320,12 +2331,14 @@ export class PgReadStore implements ReadStore {
               ml.essence_id,
               ml.identity_key, ml.category, ml.display_name, ml.weapon_type, ml.element,
               ml.rarity, ml.item_level, ml.seller_type,
+              sp.display_name as seller_display_name, sp.username as seller_username,
               ii.id as item_id, ii.item_level as item_item_level, ii.rarity as item_rarity,
               ii.is_locked as item_is_locked, ii.runtime_state as item_runtime_state,
               ii.equipped_slot as item_equipped_slot, ii.payload as item_payload,
               ii.kind as item_kind, ii.supply_mode as item_supply_mode
        from public.market_listings ml
        left join public.item_instances ii on ii.id = ml.item_instance_id
+       left join public.profiles sp on sp.id = ml.seller_user_id
        where ${whereSql}
        order by ${orderBy}
        limit ${limit} offset ${offset}`,
@@ -2344,6 +2357,7 @@ export class PgReadStore implements ReadStore {
         return marketListingData({
           id: r.id as string,
           seller_user_id: r.seller_user_id as string,
+          seller_name: (r.seller_display_name as string | null) ?? (r.seller_username as string | null) ?? null,
           price_credits: num(r.price_credits),
           listed_at: iso(r.listed_at),
           listing_kind: (r.listing_kind as string | null) ?? null,

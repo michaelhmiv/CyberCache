@@ -7,10 +7,12 @@ baseline — flat **100% quality**, no rarities, no surprises. Anything
 better (quality above 100%, crafter-only types, the good ammo) comes only
 from [[Crafting|crafters]] and [[The Market]].
 
-You'll find the vendor on its own tab of the Market screen. It has three
-modes — **Buy**, **Sell to Vendor**, and **Rep Desk** (the Rep Desk is
-[[Manufacturer Standing]]) — plus the [[Slots|slot machine]] at the foot
-of the stall.
+You'll find the vendor as a stop on the Market rail. The stop opens on
+the buy counter; a dashed **Sell to Vendor — Buyback** row at the top of
+the stop opens the buyback desk. Standing with the makers has moved out
+of the stall entirely — the [[Manufacturer Standing|Rep Desk]] is its
+own stop on the same rail, and the [[Slots|slot machine]] has a stop of
+its own too.
 
 ## The staples — always in stock
 
@@ -69,7 +71,8 @@ day it's featured is the day to stock up.
 
 ## Buyback: selling to the vendor
 
-The **Sell to Vendor** desk buys back almost anything, instantly, at
+The **Sell to Vendor** desk — the dashed row at the top of the Vendor
+stop — buys back almost anything, instantly, at
 **40% of the item's vendor value**:
 
 - **Gear** pays 40% of its estimated value (level, rarity, and stats set
@@ -91,8 +94,8 @@ more, but it makes you wait for a buyer.
 The vendor is the friendliest counter in the game: **guests can buy and
 sell here freely**. It's the one storefront whose transacting never
 required an account, which makes it the right first stop for a brand-new
-hunter. (The [[Slots|slot machine]] at the same stall is the exception —
-guests can look, but pulling takes a signed-in account.)
+hunter. (The [[Slots|slot machine]], one stop over on the rail, is the
+exception — guests can look, but pulling takes a signed-in account.)
 
 ---
 

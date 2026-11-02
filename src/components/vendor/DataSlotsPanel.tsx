@@ -19,9 +19,9 @@ import {
 } from '@/content/slots';
 
 /**
- * Data Slots — the vendor's slot machine (0049), a panel at the foot
- * of the stall (brief §2.8: below the rotation, above buyback — a
- * stall fixture, not a shop tab).
+ * Data Slots — the slot machine (0049), whose canonical home is
+ * the Market rail's Slots stop (redesign v2 — it used to sit at
+ * the foot of the Vendor screen, where nothing surfaced it).
  *
  * The panel only renders the Chef's state and sends intent (a tier +
  * nonce). The pull is decided SERVER-side by cc_slot_pull: the reels

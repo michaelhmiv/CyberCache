@@ -187,11 +187,20 @@ describe('layout contract — Hunter Totals values never truncate', () => {
 });
 
 describe('layout contract — swept surfaces (source shape)', () => {
-  it('Market tabs are an even 3×2 grid with ≥44px targets, no 60px floor', () => {
+  it('Market stops are one scrolling rail at honest type size (redesign v2), not a tile grid', () => {
     const market = read('src/screens/MarketScreen.tsx');
-    expect(market).toContain('grid grid-cols-3 gap-2');
-    expect(market).toContain('min-h-[52px]');
+    // One rail, ChipRail track, ≥44px targets, labels at the 11px
+    // floor — the 3×2 tile grid (and its 10px labels) is retired:
+    // listings start in the first viewport now.
+    expect(market).toContain('<ChipRail>');
+    expect(market).toContain('min-h-[44px]');
+    expect(market).toContain('text-[11px]');
+    expect(market).not.toContain('grid grid-cols-3 gap-2');
     expect(market).not.toContain('min-w-[60px]');
+    // The rail carries all nine stops, Rep Desk + Slots included.
+    for (const id of ['buy', 'vendor', 'sell', 'mylistings', 'history', 'repair', 'shieldTech', 'repdesk', 'slots']) {
+      expect(market).toContain(`{ id: '${id}'`);
+    }
   });
 
   it('Inventory summary tiles and the loadout resource row use the bounded formatter', () => {

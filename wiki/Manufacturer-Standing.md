@@ -6,9 +6,14 @@ keeps its **own independent standing ladder**. There is no opposed
 standing and no negative standing — raising one maker never lowers
 another, and standing never decays. It only moves up.
 
-You work the ladders at the **Rep Desk**, the third mode of the
-[[Vendor]] screen. Standing is reputation only: it grants access and
+You work the ladders at the **Rep Desk**, a stop on the Market rail.
+Standing is reputation only: it grants access and
 cosmetics — never stats, drop rates, or discounts.
+
+The weekly claims live at the top of the stop: **This Week at the Desk**
+lists every maker's Parts Crate and Signature Order with its claim state
+(claimable, already claimed, or the rank it needs), so the week's
+business is one tap from the rail.
 
 ## Earning standing
 

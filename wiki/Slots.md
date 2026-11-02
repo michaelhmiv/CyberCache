@@ -1,6 +1,6 @@
 # Slots
 
-At the foot of the [[Vendor]] stall sits the **Data Slots** machine — the
+The **Data Slots** machine has its own stop on the Market rail — the
 game's declared gambling lane. Its math is not vibes: the full paytable
 is printed on the machine, and the numbers on this page are the numbers
 in the game. Play it for the prizes and the swing, not as an income plan:

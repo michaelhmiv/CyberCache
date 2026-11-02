@@ -26,15 +26,20 @@ import { legendaryCoreYieldFor } from '@/content/collections';
 import type { GearItem } from '@/types/items';
 
 /**
- * Rep Desk (Vendor) — Manufacturer Standing (0043).
+ * Rep Desk — Manufacturer Standing (0043), a first-class stop on
+ * the Market rail (redesign v2; it used to hide behind a mode
+ * toggle inside the Vendor screen, which is deleted and must not
+ * return — DESIGN.md §3/§9).
  *
- * Six independent ladders, one card per manufacturer. The panel only
- * renders the Chef's state view and sends intent (a nonce + an item
- * id / manufacturer / offer key); awards, thresholds, tributes,
- * prices, and cadence are the server's records. It renders nothing
- * until the Chef answers, so an unreachable Chef simply omits the
- * desk. Guests see the desk read-only — every op refuses
- * server-side until the account is verified.
+ * Six independent ladders, one card per manufacturer, and — at the
+ * top of the stop — the Weekly claim surface for Parts Crates and
+ * Signature Orders: their first dedicated claim surface, one row
+ * per maker with the claim state on its face. The panel only
+ * renders the Chef's state view and sends intent (a nonce + an
+ * item id / manufacturer / offer key); awards, thresholds,
+ * tributes, prices, and cadence are the server's records. Guests
+ * see the desk read-only — every op refuses server-side until the
+ * account is verified.
  *
  * Standing is reputation only: the copy promises access and
  * cosmetics (shelf stock, an exclusive recipe, rig colors, parts
@@ -102,7 +107,9 @@ export const RepDeskPanel: React.FC = () => {
     [busy, refresh],
   );
 
-  if (!view) return null;
+  if (!view) {
+    return <div className="py-8 text-center text-xs text-text-muted">The Rep Desk is not answering right now.</div>;
+  }
   const levers = resolveStandingLevers();
   const guest = view.isGuest || !view.canUsePlayerEconomy;
 
@@ -273,7 +280,9 @@ export const RepDeskPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Rep Shelf + Parts Crate + Signature Order */}
+        {/* Rep Shelf (the weekly Parts Crate + Signature Order
+            claims live in the Weekly section at the top of the
+            stop — one claim surface, not a row per card). */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 text-[11px] text-text-secondary">
@@ -294,61 +303,6 @@ export const RepDeskPanel: React.FC = () => {
               className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
             >
               {m.shelf.available ? `Buy • ${m.shelf.priceCredits.toLocaleString()}cr` : 'Rank 1'}
-            </button>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 text-[11px] text-text-secondary">
-              <span className="font-bold text-text-primary">Parts Crate:</span>{' '}
-              {Object.entries({ ...m.crate.materials, ...m.crate.essences })
-                .map(([k, v]) => `${k} ×${v}`)
-                .join(', ')}{' '}
-              · weekly
-            </div>
-            <button
-              type="button"
-              disabled={guest || !m.crate.available || busy !== null}
-              onClick={() =>
-                void run(
-                  `buy:${m.crate.offerKey}`,
-                  () => standingBuy({ nonce: newStandingBuyNonce(), offerKey: m.crate.offerKey, quantity: 1 }),
-                  (r: { bought: { totalPrice: number } }) =>
-                    `${m.name} Parts Crate claimed for ${r.bought.totalPrice.toLocaleString()}cr.`,
-                )
-              }
-              className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
-            >
-              {m.crate.boughtThisWeek
-                ? <span className="inline-flex items-center gap-1">Claimed <PxIcon name="check" size={13} /></span>
-                : m.rank >= 4
-                  ? `Claim • ${m.crate.priceCredits.toLocaleString()}cr`
-                  : 'Rank 4'}
-            </button>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 text-[11px] text-text-secondary">
-              <span className="font-bold text-text-primary">Signature Order:</span> a {m.name} weapon at your
-              level, Rare–Epic · weekly
-            </div>
-            <button
-              type="button"
-              disabled={guest || !m.order.available || busy !== null}
-              onClick={() =>
-                void run(
-                  `order:${m.manufacturer}`,
-                  () => standingOrder({ nonce: newStandingOrderNonce(), manufacturer: m.manufacturer }),
-                  (r: { ordered: { totalPrice: number } }) =>
-                    `Signature Order placed — ${r.ordered.totalPrice.toLocaleString()}cr. Your weapon is in your inventory.`,
-                )
-              }
-              className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
-            >
-              {!m.order.enabled
-                ? 'Disabled'
-                : m.order.orderedThisWeek
-                  ? <span className="inline-flex items-center gap-1">Ordered <PxIcon name="check" size={13} /></span>
-                  : m.rank >= 5
-                    ? `Order • ${m.order.priceCredits.toLocaleString()}cr`
-                    : 'Rank 5'}
             </button>
           </div>
         </div>
@@ -408,6 +362,83 @@ export const RepDeskPanel: React.FC = () => {
     );
   };
 
+  /**
+   * The Weekly claim surface — Parts Crates + Signature Orders for
+   * every maker in one place at the top of the stop, each row
+   * carrying its claim state (claimable / claimed / rank gate) on
+   * its face. Claims ride the same wire as the desk's other ops
+   * (POST /api/standing/buy for crates, /api/standing/order for
+   * signature orders); the state is the same standing view.
+   */
+  const renderWeekly = () => (
+    <MobileCard className="space-y-2">
+      <div>
+        <div className="text-xs font-black uppercase tracking-wide text-text-primary">This Week at the Desk</div>
+        <div className="text-[10px] text-text-muted">
+          One Parts Crate per maker each week (Rank 4) · one Signature Order per maker each week (Rank 5).
+        </div>
+      </div>
+      {view.manufacturers.map((m) => (
+        <div key={m.manufacturer} className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 text-[11px] text-text-secondary">
+              <span className="font-bold text-text-primary">{m.name} Parts Crate:</span>{' '}
+              {Object.entries({ ...m.crate.materials, ...m.crate.essences })
+                .map(([k, v]) => `${k} ×${v}`)
+                .join(', ')}
+            </div>
+            <button
+              type="button"
+              disabled={guest || !m.crate.available || busy !== null}
+              onClick={() =>
+                void run(
+                  `buy:${m.crate.offerKey}`,
+                  () => standingBuy({ nonce: newStandingBuyNonce(), offerKey: m.crate.offerKey, quantity: 1 }),
+                  (r: { bought: { totalPrice: number } }) =>
+                    `${m.name} Parts Crate claimed for ${r.bought.totalPrice.toLocaleString()}cr.`,
+                )
+              }
+              className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
+            >
+              {m.crate.boughtThisWeek
+                ? <span className="inline-flex items-center gap-1">Claimed <PxIcon name="check" size={13} /></span>
+                : m.rank >= 4
+                  ? `Claim • ${m.crate.priceCredits.toLocaleString()}cr`
+                  : 'Rank 4'}
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 text-[11px] text-text-secondary">
+              <span className="font-bold text-text-primary">{m.name} Signature Order:</span> a {m.name} weapon
+              at your level, Rare–Epic
+            </div>
+            <button
+              type="button"
+              disabled={guest || !m.order.available || busy !== null}
+              onClick={() =>
+                void run(
+                  `order:${m.manufacturer}`,
+                  () => standingOrder({ nonce: newStandingOrderNonce(), manufacturer: m.manufacturer }),
+                  (r: { ordered: { totalPrice: number } }) =>
+                    `Signature Order placed — ${r.ordered.totalPrice.toLocaleString()}cr. Your weapon is in your inventory.`,
+                )
+              }
+              className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
+            >
+              {!m.order.enabled
+                ? 'Disabled'
+                : m.order.orderedThisWeek
+                  ? <span className="inline-flex items-center gap-1">Ordered <PxIcon name="check" size={13} /></span>
+                  : m.rank >= 5
+                    ? `Order • ${m.order.priceCredits.toLocaleString()}cr`
+                    : 'Rank 5'}
+            </button>
+          </div>
+        </div>
+      ))}
+    </MobileCard>
+  );
+
   return (
     <div className="space-y-3">
       <div className="text-[11px] leading-snug text-text-muted">
@@ -434,6 +465,7 @@ export const RepDeskPanel: React.FC = () => {
           {flash.text}
         </div>
       )}
+      {renderWeekly()}
       {view.manufacturers.map(renderManufacturer)}
     </div>
   );
