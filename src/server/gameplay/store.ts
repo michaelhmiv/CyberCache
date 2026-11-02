@@ -1887,7 +1887,11 @@ export class PgChefGameplayStore implements ChefGameplayStore {
   ): Promise<Json> {
     return this.callJson('select public.cc_record_roaming_events($1, $2, $3, $4, $5) as result', [
       playerId,
-      input.events.map((e) => ({ event_id: e.eventId, family: e.family })) as unknown as Json,
+      // JSON.stringify: a bare JS array would be sent as a Postgres
+      // array literal ('{}' for an empty set, invalid JSON for a
+      // non-empty one), which the jsonb parameter rejects or reads
+      // as an object — the same rule storeChefItems documents (#284).
+      JSON.stringify(input.events.map((e) => ({ event_id: e.eventId, family: e.family }))),
       Math.trunc(input.eliteKills),
       input.areaId,
       Math.trunc(input.tickCount),
