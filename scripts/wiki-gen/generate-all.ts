@@ -31,6 +31,7 @@ import { dirname, join } from 'node:path';
 import { type GenAsset, type GenBlock, WIKI_DIR } from './lib';
 import { weaponsBlock, affixesBlock } from './weapons';
 import { weaponFramesBlock, weaponElementsBlock, gearPlatesBlock, materialsBlock } from './images-w5';
+import { areasPicturedBlock, skinsPicturedBlock } from './images-w6';
 import { areasBlock } from './areas';
 import { vehiclesBlock } from './vehicles';
 import { slotsBlock } from './slots';
@@ -56,6 +57,8 @@ const PAGES: PageSpec[] = [
   { page: 'Reference-Consumables.md', blocks: [consumablesBlock] },
   { page: 'Reference-Recipes.md', blocks: [materialsBlock, recipesBlock] },
   { page: 'Reference-Bosses.md', blocks: [bossesBlock] },
+  { page: 'Reference-Areas.md', blocks: [areasPicturedBlock] },
+  { page: 'Skins-and-Cosmetics.md', blocks: [skinsPicturedBlock] },
   { page: 'Reference-Progression.md', blocks: [skillTreesBlock, cacheRankBlock] },
   { page: 'Reference-Collections.md', blocks: [collectionsBlock] },
   { page: 'Changelog.md', blocks: [changelogBlock] },

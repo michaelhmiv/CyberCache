@@ -43,6 +43,66 @@ Every slot is covered from day one: head, torso, both arms
 the boot is part of the lower leg), and back. Everything is
 permanently available; there are no limited-time windows yet.
 
+<!-- GENERATED from src/content/skins.ts, src/lib/pixel/skinParts.ts, src/lib/pixel/partsCompositor.ts, src/lib/pixel/standardIssue.ts — do not edit by hand -->
+<!-- wiki-gen:skins-pictured -->
+## The wave-1 sets, pictured
+
+Every part below is pictured twice over: the part itself, and — for the two full sets — the hunter wearing the whole set, rendered by the game's own parts compositor with the parts replacing the standard frame. Renders are untinted at Standard finish, the catalog look; your own finish roll and tint re-light the same shapes (see *The finish roll* and *Tinting and Chromaweave* below).
+
+### Bulwark
+
+Heavy plate, shaped new: an oversized helm, a siege torso, and Stomper legs. The silhouette is the statement.
+
+<img src="images/skins/sets/bulwark.png" alt="Bulwark — full set" width="200">
+
+| Plate | Part | Slot |
+| --- | --- | --- |
+| <img src="images/skins/parts/bulwark-head.png" alt="Bulwark Helm" width="109"> | **Bulwark Helm** | Head |
+| <img src="images/skins/parts/bulwark-torso.png" alt="Bulwark Siege Torso" width="94"> | **Bulwark Siege Torso** | Torso |
+| <img src="images/skins/parts/bulwark-arm-upper-n.png" alt="Bulwark Pauldron Arm" width="92"> | **Bulwark Pauldron Arm** | Upper arm (near) |
+| <img src="images/skins/parts/bulwark-arm-fore-n.png" alt="Bulwark Gauntlet" width="68"> | **Bulwark Gauntlet** | Forearm (near) |
+| <img src="images/skins/parts/bulwark-arm-far.png" alt="Bulwark Support Arm" width="33"> | **Bulwark Support Arm** | Far arm |
+| <img src="images/skins/parts/bulwark-thigh-f.png" alt="Bulwark Thigh (Near)" width="48"> | **Bulwark Thigh (Near)** | Thigh (near) |
+| <img src="images/skins/parts/bulwark-thigh-b.png" alt="Bulwark Thigh (Far)" width="46"> | **Bulwark Thigh (Far)** | Thigh (far) |
+| <img src="images/skins/parts/bulwark-lower-leg-f.png" alt="Stomper Leg (Near)" width="63"> | **Stomper Leg (Near)** | Lower leg + boot (near) |
+| <img src="images/skins/parts/bulwark-lower-leg-b.png" alt="Stomper Leg (Far)" width="62"> | **Stomper Leg (Far)** | Lower leg + boot (far) |
+| <img src="images/skins/parts/bulwark-back.png" alt="Packmaster Tank" width="63"> | **Packmaster Tank** | Back |
+
+### Dreadplate
+
+Standard Issue silhouettes repainted in bone plate and crimson trim, with a red visor glow.
+
+<img src="images/skins/sets/dreadplate.png" alt="Dreadplate — full set" width="200">
+
+| Plate | Part | Slot |
+| --- | --- | --- |
+| <img src="images/skins/parts/dread-head.png" alt="Dreadplate Helm" width="86"> | **Dreadplate Helm** | Head |
+| <img src="images/skins/parts/dread-torso.png" alt="Dreadplate Torso" width="88"> | **Dreadplate Torso** | Torso |
+| <img src="images/skins/parts/dread-arm-upper-n.png" alt="Dreadplate Upper Arm" width="76"> | **Dreadplate Upper Arm** | Upper arm (near) |
+| <img src="images/skins/parts/dread-arm-fore-n.png" alt="Dreadplate Forearm" width="84"> | **Dreadplate Forearm** | Forearm (near) |
+| <img src="images/skins/parts/dread-arm-far.png" alt="Dreadplate Support Arm" width="30"> | **Dreadplate Support Arm** | Far arm |
+| <img src="images/skins/parts/dread-thigh-f.png" alt="Dreadplate Thigh (Near)" width="38"> | **Dreadplate Thigh (Near)** | Thigh (near) |
+| <img src="images/skins/parts/dread-thigh-b.png" alt="Dreadplate Thigh (Far)" width="30"> | **Dreadplate Thigh (Far)** | Thigh (far) |
+| <img src="images/skins/parts/dread-lower-leg-f.png" alt="Dreadplate Lower Leg (Near)" width="51"> | **Dreadplate Lower Leg (Near)** | Lower leg + boot (near) |
+| <img src="images/skins/parts/dread-lower-leg-b.png" alt="Dreadplate Lower Leg (Far)" width="36"> | **Dreadplate Lower Leg (Far)** | Lower leg + boot (far) |
+| <img src="images/skins/parts/dread-back.png" alt="Dreadplate Back Rig" width="62"> | **Dreadplate Back Rig** | Back |
+
+### Manufacturer Heads
+
+The six manufacturer helmets, crafted like everything else. Standing-earned heads stay wearable.
+
+The heads are single parts, so each is shown worn on the standard frame — the second column is the first column on a hunter.
+
+| Plate | Worn | Helm | Maker |
+| --- | --- | --- | --- |
+| <img src="images/skins/parts/mfr-head-redline.png" alt="Redline Helm" width="86"> | <img src="images/skins/sets/head-redline.png" alt="Redline Helm — worn" width="160"> | **Redline Helm** | Redline |
+| <img src="images/skins/parts/mfr-head-ironwood.png" alt="Ironwood Helm" width="86"> | <img src="images/skins/sets/head-ironwood.png" alt="Ironwood Helm — worn" width="160"> | **Ironwood Helm** | Ironwood |
+| <img src="images/skins/parts/mfr-head-blastforge.png" alt="BlastForge Helm" width="86"> | <img src="images/skins/sets/head-blastforge.png" alt="BlastForge Helm — worn" width="160"> | **BlastForge Helm** | BlastForge |
+| <img src="images/skins/parts/mfr-head-prismatek.png" alt="Prismatek Helm" width="86"> | <img src="images/skins/sets/head-prismatek.png" alt="Prismatek Helm — worn" width="160"> | **Prismatek Helm** | Prismatek |
+| <img src="images/skins/parts/mfr-head-throwtech.png" alt="ThrowTech Helm" width="86"> | <img src="images/skins/sets/head-throwtech.png" alt="ThrowTech Helm — worn" width="160"> | **ThrowTech Helm** | ThrowTech |
+| <img src="images/skins/parts/mfr-head-helixworks.png" alt="HelixWorks Helm" width="86"> | <img src="images/skins/sets/head-helixworks.png" alt="HelixWorks Helm — worn" width="160"> | **HelixWorks Helm** | HelixWorks |
+<!-- /wiki-gen:skins-pictured -->
+
 ## The finish roll
 
 A crafted part carries a **quality %** — its *finish*. The roll

@@ -95,9 +95,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 72 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 74 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-03** — 20 merges
+**2026-11-03** — 22 merges
 
 - #310 — feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)
 - #315 — Foreground resume: land instantly back in the live action
@@ -119,6 +119,8 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #331 — Wiki W2: Changelog backfill (Nov 2–3) + Phase 4 automation — merge ledger & staleness tripwire
 - #332 — Wiki W4: image pipeline + legendary plates pilot
 - #333 — Wiki W3 — freshness fixes (areas law, Shield-Tech gate wording, Crafting recount, Economy ranks)
+- #334 — Gear marriage slice 0 — shared gear compositor core
+- #335 — Wiki W5: illustrated Reference — weapon frames, element reads, gear, consumables, materials
 
 **2026-11-02** — 44 merges
 

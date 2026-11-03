@@ -40,6 +40,7 @@
 - [[Reference-Consumables]]
 - [[Reference-Recipes]]
 - [[Reference-Bosses]]
+- [[Reference-Areas]]
 - [[Reference-Progression]]
 - [[Reference-Collections]]
 - [[Changelog]]

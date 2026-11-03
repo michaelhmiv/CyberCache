@@ -84,6 +84,14 @@
         {
           "number": 333,
           "title": "Wiki W3 — freshness fixes (areas law, Shield-Tech gate wording, Crafting recount, Economy ranks)"
+        },
+        {
+          "number": 334,
+          "title": "Gear marriage slice 0 — shared gear compositor core"
+        },
+        {
+          "number": 335,
+          "title": "Wiki W5: illustrated Reference — weapon frames, element reads, gear, consumables, materials"
         }
       ]
     },
