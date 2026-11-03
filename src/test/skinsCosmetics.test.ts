@@ -3,7 +3,7 @@
  *
  *   - 0053's restated SQL catalog deep-equals the TS catalog
  *     (87 recipes; cosmetics excepted — their requiresLevel was
- *     removed by 0055, whose restated catalog carries the full
+ *     removed by 0056, whose restated catalog carries the full
  *     deep-equal pin), the listing-kind check carries 'cosmetic',
  *     the material whitelist carries 'Chromaweave', and the
  *     mastery seed + cosmetic functions exist.
@@ -40,8 +40,8 @@ const MIGRATION = readFileSync(
   'utf8',
 );
 
-const MIGRATION_0055 = readFileSync(
-  join(process.cwd(), 'db', 'migrations', '0055_cosmetic_recipe_levels.sql'),
+const MIGRATION_0056 = readFileSync(
+  join(process.cwd(), 'db', 'migrations', '0056_cosmetic_recipe_levels.sql'),
   'utf8',
 );
 
@@ -59,9 +59,9 @@ describe('migration 0053 — catalog + schema pins', () => {
     const catalog = JSON.parse(parts[1]) as Array<Record<string, unknown>>;
     expect(catalog).toHaveLength(87);
     // Cosmetic requiresLevel postdates 0053: gate-removal step 1
-    // (0055) deleted the L5/L10/L12 recipe levels, so the cosmetics
-    // are excluded here and pinned against 0055's restated catalog
-    // in the 0055 describe below. Everything else in 0053's catalog
+    // (0056) deleted the L5/L10/L12 recipe levels, so the cosmetics
+    // are excluded here and pinned against 0056's restated catalog
+    // in the 0056 describe below. Everything else in 0053's catalog
     // still deep-equals the TS catalog.
     const withoutCosmetics = (rows: Array<Record<string, unknown>>) =>
       rows.filter((r) => r.category !== 'cosmetics');
@@ -102,11 +102,11 @@ describe('migration 0053 — catalog + schema pins', () => {
   });
 });
 
-// ─── 0055 textual pins (gate-removal step 1) ────────────────────
+// ─── 0056 textual pins (gate-removal step 1) ────────────────────
 
-describe('migration 0055 — cosmetic recipe levels removed', () => {
+describe('migration 0056 — cosmetic recipe levels removed', () => {
   it('the restated SQL catalog deep-equals the TS catalog (87 recipes)', () => {
-    const parts = MIGRATION_0055.split('$catalog$');
+    const parts = MIGRATION_0056.split('$catalog$');
     expect(parts.length).toBeGreaterThanOrEqual(3);
     const catalog = JSON.parse(parts[1]) as Array<Record<string, unknown>>;
     expect(catalog).toHaveLength(87);
@@ -114,7 +114,7 @@ describe('migration 0055 — cosmetic recipe levels removed', () => {
   });
 
   it('every cosmetic recipe sits at the no-gate level 1 in both catalogs; benches unchanged', () => {
-    const sqlCatalog = JSON.parse(MIGRATION_0055.split('$catalog$')[1]) as Array<Record<string, unknown>>;
+    const sqlCatalog = JSON.parse(MIGRATION_0056.split('$catalog$')[1]) as Array<Record<string, unknown>>;
     for (const recipe of ALL_CRAFT_RECIPES.filter((r) => r.kind === 'cosmetic')) {
       expect(recipe.requiresLevel, recipe.id).toBe(1);
     }
@@ -267,7 +267,7 @@ describe('cosmetic crafting — writes twin', () => {
 
 // ─── Gate-removal step 1: level 1 + bench + materials is enough ──
 
-describe('cosmetic crafting after gate-removal step 1 (0055)', () => {
+describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
   function levelOneSeed(benches: number): WriteSeed {
     const s = writesSeed();
     const a = s.profiles.find((p) => p.id === A)!;

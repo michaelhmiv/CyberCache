@@ -1,9 +1,9 @@
--- 0055: Cosmetic recipe level requirements removed (gate-removal step 1).
+-- 0056: Cosmetic recipe level requirements removed (gate-removal step 1).
 -- Numbering note: 0054 was claimed by the vehicles slice
--- (0054_vehicle_equip_no_level_gate, feat/vehicles-market-goods),
--- so this migration takes 0055. It restates the recipe catalog
--- function only, which the vehicles migration does not touch,
--- so the two apply cleanly in either order.
+-- (0054_vehicle_equip_no_level_gate) and 0055 by batch salvage
+-- (0055_batch_salvage), so this migration takes 0056. It restates
+-- the recipe catalog function only, which neither migration
+-- touches, so all three apply cleanly in any order.
 --
 -- Owner law (Michael, 2026-11-02): progression is gated by scarcity and
 -- difficulty, not level numbers. The level-gate audit (G4) found the
