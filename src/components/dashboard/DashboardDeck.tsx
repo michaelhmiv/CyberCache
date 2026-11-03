@@ -19,7 +19,8 @@ import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { MANUFACTURERS } from '@/constants/manufacturers';
-import type { Manufacturer } from '@/types/game';
+import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
+import { Rarity, type Manufacturer } from '@/types/game';
 import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
 import { WeeklyClaimablesPanel } from '@/components/dashboard/WeeklyClaimables';
@@ -73,7 +74,7 @@ interface DashboardDeckProps {
 type Tone = 'amber' | 'green' | 'blue' | 'red' | 'purple' | 'cyan';
 type DisplayGainTone = TickEventTone | 'unknown';
 
-type DisplayGainEvent = Pick<TickEvent, 'id' | 'label' | 'detail' | 'manufacturer'> & {
+type DisplayGainEvent = Pick<TickEvent, 'id' | 'label' | 'detail' | 'manufacturer' | 'gear'> & {
   tone?: string;
 };
 
@@ -142,7 +143,7 @@ const Panel: React.FC<React.PropsWithChildren<{
   </section>
 );
 
-const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
+const RewardIcon: React.FC<{ tone?: string; compact?: boolean }> = ({ tone, compact = false }) => {
   const color = getGainToneClass(tone);
   // Map reward tones to game-entity resource visuals. The glyph + color
   // from the registry replaces the old lucide icon set so every reward
@@ -158,22 +159,28 @@ const RewardIcon: React.FC<{ tone?: string }> = ({ tone }) => {
           : tone === 'cash'
             ? 'credits'
             : null;
+  const boxClass = compact ? 'h-6 w-6' : 'h-8 w-8';
   if (resourceId) {
     const visual = getResourceVisual(resourceId);
     return (
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
-        <span className="shrink-0 font-black" style={{ color: visual.color, fontSize: '15px' }}>{visual.mark}</span>
+      <div className={`flex ${boxClass} shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
+        <span className="shrink-0 font-black" style={{ color: visual.color, fontSize: compact ? '12px' : '15px' }}>{visual.mark}</span>
       </div>
     );
   }
   // Fallback: activity glyph for non-resource tones
   const actVisual = getActivityVisual('idle_standby');
   return (
-    <div className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
-      <PxIcon name={actVisual.icon} size={17} style={{ color: color.text.includes('text-text-secondary') ? '#B8B0A8' : '#FF9000' }} />
+    <div className={`flex ${boxClass} shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
+      <PxIcon name={actVisual.icon} size={compact ? 13 : 17} style={{ color: color.text.includes('text-text-secondary') ? '#B8B0A8' : '#FF9000' }} />
     </div>
   );
 };
+
+/** How long a gain toast stays on screen once the deck first sees
+ *  its event (owner ruling, 2026-11-02: pop-ups queue briefly, they
+ *  do not park over the lower screen). */
+const TOAST_WINDOW_MS = 7_000;
 
 const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
   const color = getGainToneClass(event.tone);
@@ -182,14 +189,77 @@ const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
     event.tone === 'standing' && event.manufacturer
       ? MANUFACTURERS[event.manufacturer as Manufacturer]?.color
       : undefined;
+  // Loot carve-out (owner ruling, 2026-11-02): Epic and Legendary drops
+  // keep their full two-line toast — the stage LootMoment is their
+  // amplified presentation and this card does not flatten for them.
+  // Every other event compacts to its headline: the label already
+  // carries the outcome ("+1 BallisticParts", "-12 HP", "+16 XP");
+  // the narrative detail line restated what the player is watching
+  // on the stage, so it no longer renders here. The full detail
+  // stays in the Now rows below and in the workspace reward stream.
+  const dropRarity = event.tone === 'loot' ? event.gear?.rarity : undefined;
+  if (dropRarity === Rarity.Epic || dropRarity === Rarity.Legendary) {
+    return (
+      <motion.div data-testid="gain-toast" data-toast-variant="amplified" layout initial={{ opacity: 0, y: 6, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 6, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}) }}>
+        <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} style={manufacturerColor ? { backgroundColor: manufacturerColor } : undefined} />
+        <RewardIcon tone={event.tone} />
+        <div className="min-w-0 leading-none">
+          <div className={`text-base font-black uppercase tracking-wide ${color.text}`} style={manufacturerColor ? { color: manufacturerColor } : undefined}>{event.label}</div>
+          <div className="mt-0.5 text-[11px] font-black uppercase leading-snug tracking-[0.14em] text-text-muted">{event.detail}</div>
+        </div>
+      </motion.div>
+    );
+  }
+  // Rare drops stay clearly visible inside the compact form: the
+  // rarity stamp rides in front of the name, framed in rarity color.
+  const rareStyle = dropRarity === Rarity.Rare ? RARITY_FRAME_STYLES[Rarity.Rare] : undefined;
+  // The number is the hero (owner's numbers philosophy, 2026-11-02):
+  // this is a numbers game, so in the compact headline each value
+  // prints full-strength — gains in the game's gain-green, damage
+  // taken in red — and the words beside it (unit, material name)
+  // sit quieter: secondary color, lighter weight, floor-size type.
+  // Emphasis comes from color and weight only; the card does not
+  // grow. A label with no number anywhere (an item name, a kill
+  // notice, Hunter Down) keeps the single full-strength headline.
+  const headlineSegments = event.label.split(' · ').map((segment) => {
+    const match = segment.match(/^([+-]?\d[\d.,]*)(.*)$/);
+    return { segment, head: match?.[1], rest: match?.[2] ?? '' };
+  });
+  const heroClass = (head: string) =>
+    head.startsWith('+')
+      ? 'text-green'
+      : event.tone === 'damage' || event.tone === 'death'
+        ? 'text-red'
+        : color.text;
+  const headline = headlineSegments.every(({ head }) => head === undefined) ? (
+    <div className={`min-w-0 text-sm font-black uppercase leading-tight tracking-wide ${color.text}`} style={manufacturerColor ? { color: manufacturerColor } : undefined}>{event.label}</div>
+  ) : (
+    <div className="min-w-0 text-sm uppercase leading-tight tracking-wide">
+      {headlineSegments.map(({ segment, head, rest }, index) => (
+        <React.Fragment key={index}>
+          {index > 0 && <span className="text-text-muted"> · </span>}
+          {head !== undefined ? (
+            <>
+              <span className={`font-black ${heroClass(head)}`}>{head}</span>
+              {rest.trim() && (
+                <span className="text-[11px] font-bold text-text-secondary" style={manufacturerColor ? { color: manufacturerColor } : undefined}>{rest.startsWith(' ') ? ' ' : ''}{rest.trim()}</span>
+              )}
+            </>
+          ) : (
+            <span className={`font-black ${color.text}`} style={manufacturerColor ? { color: manufacturerColor } : undefined}>{segment}</span>
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
   return (
-    <motion.div layout initial={{ opacity: 0, y: 6, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 6, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}) }}>
-      <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} style={manufacturerColor ? { backgroundColor: manufacturerColor } : undefined} />
-      <RewardIcon tone={event.tone} />
-      <div className="min-w-0 leading-none">
-        <div className={`text-base font-black uppercase tracking-wide ${color.text}`} style={manufacturerColor ? { color: manufacturerColor } : undefined}>{event.label}</div>
-        <div className="mt-0.5 text-[11px] font-black uppercase leading-snug tracking-[0.14em] text-text-muted">{event.detail}</div>
-      </div>
+    <motion.div data-testid="gain-toast" data-toast-variant="compact" layout initial={{ opacity: 0, y: 6, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 6, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex max-w-full items-center gap-1.5 border-2 ${color.border} bg-bg px-2 py-1 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}), ...(rareStyle ? { borderColor: rareStyle.color } : {}) }}>
+      <div className={`absolute left-0 top-0 h-full w-1 ${color.fill}`} style={manufacturerColor ? { backgroundColor: manufacturerColor } : undefined} />
+      <RewardIcon tone={event.tone} compact />
+      {rareStyle && (
+        <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: rareStyle.color }}>{rareStyle.stamp}</span>
+      )}
+      {headline}
     </motion.div>
   );
 };
@@ -281,6 +351,46 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
     () => buildConsumableInventoryMods(player.consumables),
     [player.consumables],
   );
+  // Pop-up transience (owner ruling, 2026-11-02): a gain toast is a
+  // pop-up, not a fixture — each event shows for TOAST_WINDOW_MS from
+  // when the deck first sees it, then clears; at most two are ever
+  // visible, newest first. First-sight is the clock, not the event's
+  // `at`: claim batches back-date `at` per tick, so an `at`-based
+  // window could hide a settle's newest events the moment they land.
+  // The stamps adjust during render (the React-docs replacement for
+  // a set-state effect), keyed on the gainFeed ref and stamped with
+  // the reactive useNow clock.
+  const [toastFirstSeen, setToastFirstSeen] = useState<ReadonlyMap<string, number>>(new Map());
+  const [toastStampedFeed, setToastStampedFeed] = useState<readonly DisplayGainEvent[] | null>(null);
+  if (toastStampedFeed !== gainFeed) {
+    setToastStampedFeed(gainFeed);
+    setToastFirstSeen((prev) => {
+      const liveIds = new Set(gainFeed.map((event) => event.id));
+      let next: Map<string, number> | null = null;
+      for (const event of gainFeed) {
+        if (!prev.has(event.id)) {
+          next ??= new Map(prev);
+          next.set(event.id, activeBuffsNow);
+        }
+      }
+      for (const id of prev.keys()) {
+        if (!liveIds.has(id)) {
+          next ??= new Map(prev);
+          next.delete(id);
+        }
+      }
+      return next ?? prev;
+    });
+  }
+  const visibleGains = useMemo(
+    () => gainFeed
+      .filter((event) => {
+        const seenAt = toastFirstSeen.get(event.id);
+        return seenAt !== undefined && activeBuffsNow - seenAt < TOAST_WINDOW_MS;
+      })
+      .slice(0, 2),
+    [gainFeed, toastFirstSeen, activeBuffsNow],
+  );
   const computedStats = useMemo(
     () => buildCharacterStatSummary({
       player,
@@ -318,7 +428,7 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
   return (
     <div className="relative">
       <AnimatePresence>
-        {gainFeed.length > 0 && (
+        {visibleGains.length > 0 && (
           // The gain-toast lane (QC A9): its own fixed lane ABOVE
           // the bottom nav, never over it. BottomNav is 66px tall
           // (border-box; its safe-area padding lives inside that
@@ -328,7 +438,7 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
           // slide (y:14) dipped into it. The slide is now 6px, so
           // a toast never crosses the lane's bottom edge.
           <motion.div className="pointer-events-none fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-0 right-0 z-50 mx-auto flex max-w-[440px] justify-center gap-1.5 px-3" initial={false}>
-            {gainFeed.slice(0, 2).map((event) => <GainToast key={event.id} event={event} />)}
+            {visibleGains.map((event) => <GainToast key={event.id} event={event} />)}
           </motion.div>
         )}
       </AnimatePresence>

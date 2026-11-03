@@ -50,6 +50,27 @@ The action controls themselves float **on the stage**: the **Switch Action** chi
 
 Below the rail sits the **lit workspace** for the current mode, then the **consumable belt**: your active consumable slots, above the fold. Tap a slot to open the ledger and manage what is loaded.
 
+## Event pop-ups
+
+Live tick events surface as small pop-up cards in a fixed lane above
+the bottom navigation. They are glance-only: each card is a single
+headline carrying the outcome — the gain or loss and its subject
+(`+1 BallisticParts`, `-12 HP`, `+12.5cr · +3 scrap · +16 XP`, a drop's
+name) — with no narrative line under it. Inside the headline the
+number is the hero: gain values print in bright gain-green at full
+weight, damage taken prints in red, and the words beside a value
+sit quieter. At most two cards show at
+once, newest first, and each clears a few seconds after it appears;
+newer events replace older ones rather than walling off the screen.
+Gear drops follow the rarity law inside the lane: Common and
+Uncommon drops use the compact card, Rare drops add their rarity
+stamp in rarity color, and Epic and Legendary drops keep the full
+two-line card (their moment on the stage itself is the separate,
+rarity-scaled loot celebration). The complete event — what happened,
+where, and from whom — is never lost: the same events print with
+their full detail in the Now rows in the deck below and in the Action
+screen's reward stream.
+
 ## The deck
 
 Everything below the fold is the **deck**, in a fixed order:
