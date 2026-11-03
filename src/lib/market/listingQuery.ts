@@ -97,15 +97,22 @@ export const RARITY_RANK: Record<string, number> = {
 };
 
 function matches(row: MarketBrowseRow, q: MarketListingQuery): boolean {
-  // Pure player market (owner ruling, 2026-11-02): the Buy/Sell lanes
-  // are PLAYER listings only — an NPC vendor weapon never browses, no
-  // matter what filters (sellerType included) the client asks for.
-  // Vendor stock lives in the Vendor lane; NPC non-weapon depth
-  // (shields, mods, …) keeps its seats here. The Pg read store runs
-  // the SQL twin of this exclusion over the stamped columns, and the
-  // seed job no longer stocks NPC weapons at all — this fold is the
-  // guarantee for rows that already exist.
-  if (row.sellerType === 'npc' && row.category === 'weapon') return false;
+  // NPC stock ceiling (owner ruling, 2026-11-03, widening the pure
+  // player market of 2026-11-02): above Common rarity, the Buy lane is
+  // PLAYER listings only — an NPC-sourced gear listing of Uncommon or
+  // better never browses, no matter what filters (sellerType included)
+  // the client asks for. NPC Common gear of EVERY kind (weapons
+  // included) keeps its seat: it is the beginner comfort stock. The
+  // Pg read store runs the SQL twin of this exclusion over the
+  // stamped columns, the seed job stocks Common-only across all
+  // kinds, and this fold is the guarantee for rows that already
+  // exist. (The listing-CREATE refusal for vendor weapons is a
+  // separate rule and is unchanged.)
+  if (
+    row.sellerType === 'npc'
+    && row.kind === 'gear'
+    && (RARITY_RANK[row.rarity ?? ''] ?? 0) > RARITY_RANK.Common
+  ) return false;
   if (q.search && !row.displayName.toLowerCase().includes(q.search.toLowerCase())) return false;
   if (q.category && row.category !== q.category) return false;
   if (q.weaponType && row.weaponType !== q.weaponType) return false;

@@ -6,6 +6,8 @@
  * of truth the Chef and client both import); pricing rules are unchanged.
  */
 import type { GearItem, Weapon } from '@/types/items';
+import { DropSource, Rarity } from '@/types/game';
+import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
 import { generateShield } from '@/server/lib/generators/shieldGenerator';
 import { generateClassMod } from '@/server/lib/generators/classModGenerator';
 import { generateRelic } from '@/server/lib/generators/relicGenerator';
@@ -21,18 +23,28 @@ export function npcPrice(item: GearItem): number {
   return Math.max(100, Math.round((item.level ?? 1) * 250));
 }
 
+/**
+ * Rarity weights that pin the non-weapon generators to Common: the
+ * NPC seed is beginner comfort stock only (see generateNpcItem).
+ */
+const NPC_COMMON_ONLY: Partial<Record<Rarity, number>> = {
+  Common: 1, Uncommon: 0, Rare: 0, Epic: 0, Legendary: 0,
+};
+
 export function generateNpcItem(level: number): GearItem {
   const roll = Math.random();
-  // Pure player market (owner ruling, 2026-11-02): the NPC seed no
-  // longer stocks weapons — vendor weapons live in the Vendor lane and
-  // the Buy lane is player listings only. The old weapon share (45%)
-  // is redistributed across the remaining kinds in their original
-  // proportions (shield 25 · classMod 15 · relic 10 · ordnance 5, of
-  // the non-weapon 55%), so the rest of the stock mix is unchanged.
-  if (roll < 25 / 55) return generateShield(level);
-  if (roll < 40 / 55) return generateClassMod(level);
-  if (roll < 50 / 55) return generateRelic(level);
-  return generateOrdnance(level);
+  // NPC stock ceiling (owner ruling, 2026-11-03): the seed stocks
+  // EVERY gear kind again — weapons included, restoring the original
+  // mix (weapon 45 · shield 25 · classMod 15 · relic 10 · ordnance
+  // 5) — but only at Common rarity. Basic stock is what beginners
+  // get comfortable with in the Buy lane; anything above Common
+  // there is a player listing (the browse fold enforces the same
+  // ceiling for rows that already exist).
+  if (roll < 0.45) return generateWeapon({ source: DropSource.Marketplace, level, forcedRarity: Rarity.Common });
+  if (roll < 0.70) return generateShield(level, undefined, NPC_COMMON_ONLY);
+  if (roll < 0.85) return generateClassMod(level, undefined, NPC_COMMON_ONLY);
+  if (roll < 0.95) return generateRelic(level, undefined, NPC_COMMON_ONLY);
+  return generateOrdnance(level, undefined, NPC_COMMON_ONLY);
 }
 
 function kindOf(item: GearItem): string {

@@ -205,19 +205,35 @@ describe('listingQuery — the browse fold', () => {
     expect(applyListingQuery(rows, { sort: 'level' }).rows.map((r) => r.id)).toEqual(['b', 'a', 'c']);
   });
 
-  it('pure player market: NPC weapons never match; NPC non-weapons still do', () => {
-    // Owner ruling, 2026-11-02: Buy/Sell are player listings only.
-    const npcWeapon = row({ id: 'nw', sellerType: 'npc', listedAt: 4000 });
-    const npcShield = row({ id: 'ns', sellerType: 'npc', category: 'shield', weaponType: null, listedAt: 5000 });
-    expect(applyListingQuery([npcWeapon], {}).total).toBe(0);
-    expect(applyListingQuery([npcWeapon], { sellerType: 'npc' }).total).toBe(0);
-    expect(applyListingQuery([npcWeapon], { category: 'weapon' }).total).toBe(0);
-    expect(applyListingQuery([npcWeapon], { search: 'item' }).total).toBe(0);
-    const npcOnly = applyListingQuery([npcWeapon, npcShield], { sellerType: 'npc' });
-    expect(npcOnly.total).toBe(1);
-    expect(npcOnly.rows.map((r) => r.id)).toEqual(['ns']);
-    // A player weapon is untouched by the rule.
+  it('NPC stock ceiling: NPC gear above Common never matches, any kind; NPC Common always does', () => {
+    // Owner ruling, 2026-11-03 (widening 2026-11-02): above Common the
+    // Buy lane is player listings only; NPC Common is beginner stock.
+    const npcRareWeapon = row({ id: 'nw', sellerType: 'npc', listedAt: 4000 });
+    const npcEpicShield = row({ id: 'nes', sellerType: 'npc', category: 'shield', weaponType: null, element: null, rarity: 'Epic', listedAt: 4500 });
+    for (const hidden of [npcRareWeapon, npcEpicShield]) {
+      expect(applyListingQuery([hidden], {}).total).toBe(0);
+      expect(applyListingQuery([hidden], { sellerType: 'npc' }).total).toBe(0);
+      expect(applyListingQuery([hidden], { search: 'item' }).total).toBe(0);
+    }
+    expect(applyListingQuery([npcRareWeapon], { category: 'weapon' }).total).toBe(0);
+    expect(applyListingQuery([npcEpicShield], { category: 'shield', rarity: 'Epic' }).total).toBe(0);
+    // The Common slice stays — weapons included (the #300 closure of
+    // NPC weapons is deliberately re-opened at Common only).
+    const npcCommonWeapon = row({ id: 'ncw', sellerType: 'npc', rarity: 'Common', listedAt: 6000 });
+    const npcCommonShield = row({ id: 'ncs', sellerType: 'npc', category: 'shield', weaponType: null, element: null, rarity: 'Common', listedAt: 5000 });
+    const npcOnly = applyListingQuery(
+      [npcRareWeapon, npcEpicShield, npcCommonWeapon, npcCommonShield],
+      { sellerType: 'npc' },
+    );
+    expect(npcOnly.total).toBe(2);
+    expect(npcOnly.rows.map((r) => r.id)).toEqual(['ncw', 'ncs']);
+    expect(applyListingQuery([npcCommonWeapon], { category: 'weapon', rarity: 'Common' }).total).toBe(1);
+    // A player listing is untouched by the rule at any rarity.
     expect(applyListingQuery([row({ id: 'pw' })], { category: 'weapon' }).total).toBe(1);
+    expect(applyListingQuery([row({ id: 'pe', category: 'shield', rarity: 'Epic' })], { rarity: 'Epic' }).total).toBe(1);
+    // Non-gear NPC rows are out of scope (the seed only stocks gear).
+    const npcMaterial = row({ id: 'nm', sellerType: 'npc', kind: 'material', category: 'material', rarity: null, weaponType: null, element: null });
+    expect(applyListingQuery([npcMaterial], {}).total).toBe(1);
   });
 });
 
@@ -543,6 +559,11 @@ function readSeed(): ReadSeed {
     item({ id: 'ri-relic', kind: 'relic', payload: { name: 'Old Relic', affixes: [], rarity: 'Epic', level: 25 }, item_level: 25, rarity: 'Epic' }),
     item({ id: 'ri-npc', payload: { name: 'Stock Pistol', weaponType: 'Pistol', element: 'Kinetic', rarity: 'Common', level: 3 }, item_level: 3, rarity: 'Common' }),
     item({ id: 'ri-npcshield', kind: 'shield', supply_mode: 'npc_market', payload: { name: 'Stock Aegis', mitigation: 0.15, hp: 200, rarity: 'Common', level: 8 }, item_level: 8, rarity: 'Common' }),
+    // NPC stock-ceiling canaries (owner ruling, 2026-11-03): NPC gear
+    // above Common — levels chosen so level/rarity filters would
+    // catch them if the ceiling ever leaked.
+    item({ id: 'ri-npcepic', kind: 'shield', supply_mode: 'npc_market', payload: { name: 'Vault Aegis', mitigation: 0.3, hp: 900, rarity: 'Epic', level: 30 }, item_level: 30, rarity: 'Epic' }),
+    item({ id: 'ri-npcrelic', kind: 'relic', supply_mode: 'npc_market', payload: { name: 'Vault Charm', affixes: [], rarity: 'Rare', level: 25 }, item_level: 25, rarity: 'Rare' }),
   ];
   const listing = (over: Partial<MemListing> & { id: string }): MemListing => ({
     seller_user_id: S, item_instance_id: null, price_credits: 1000, status: 'active',
@@ -563,11 +584,15 @@ function readSeed(): ReadSeed {
       listing_kind: 'material', quantity: 10, material_id: 'ScrapAlloy',
       identity_key: 'mat:ScrapAlloy', category: 'material', display_name: 'ScrapAlloy',
     }),
-    // Pure-player-market canary (owner ruling, 2026-11-02): an active
-    // NPC WEAPON listing — it must never appear in any browse result.
+    // NPC Common stock (owner ruling, 2026-11-03): active NPC listings
+    // at Common — a weapon and a shield — both keep their seats in the
+    // lane as beginner comfort stock.
     listing({ id: 'rl-npc', seller_user_id: NPC, item_instance_id: 'ri-npc', price_credits: 500, listed_at: '2026-10-24T10:00:00.000Z', seller_type: 'npc' }),
-    // Its non-weapon twin: NPC depth that keeps its seat in the lane.
     listing({ id: 'rl-npcshield', seller_user_id: NPC, item_instance_id: 'ri-npcshield', price_credits: 400, listed_at: '2026-10-23T10:00:00.000Z', seller_type: 'npc' }),
+    // NPC stock-ceiling canaries: active NPC listings above Common —
+    // they must never appear in any browse result or count.
+    listing({ id: 'rl-npcepic', seller_user_id: NPC, item_instance_id: 'ri-npcepic', price_credits: 8000, listed_at: '2026-10-22T10:00:00.000Z', seller_type: 'npc' }),
+    listing({ id: 'rl-npcrelic', seller_user_id: NPC, item_instance_id: 'ri-npcrelic', price_credits: 6000, listed_at: '2026-10-21T10:00:00.000Z', seller_type: 'npc' }),
     // Completed sales for price stats (gear:weapon:Pistol:Rare:b0).
     listing({ id: 'rs-1', status: 'sold', item_instance_id: 'ri-pistol', price_credits: 1000, sold_at: '2026-10-28T12:00:00.000Z' }),
     listing({ id: 'rs-2', status: 'sold', item_instance_id: 'ri-pistol', price_credits: 1200, sold_at: '2026-10-27T12:00:00.000Z' }),
@@ -608,32 +633,43 @@ describe('market depth — read paths', () => {
   it('unfiltered browse returns every VISIBLE active listing with the total, newest first', async () => {
     const res = await get('/api/market/listings');
     expect(res.status).toBe(200);
-    // 8 active listings are seeded; the NPC weapon (rl-npc) is
-    // excluded by the pure-player-market rule, total included.
-    expect(res.json.total).toBe(7);
-    expect(ids(res.json)).toEqual(['rl-cons', 'rl-pistol', 'rl-sniper', 'rl-shield', 'rl-relic', 'rl-mat', 'rl-npcshield']);
+    // 10 active listings are seeded; the two above-Common NPC
+    // canaries (rl-npcepic, rl-npcrelic) are excluded by the NPC stock
+    // ceiling, total included. The NPC Commons (rl-npc, rl-npcshield)
+    // browse.
+    expect(res.json.total).toBe(8);
+    expect(ids(res.json)).toEqual(['rl-cons', 'rl-pistol', 'rl-sniper', 'rl-shield', 'rl-relic', 'rl-mat', 'rl-npc', 'rl-npcshield']);
     const cons = res.json.listings.find((l: { id: string }) => l.id === 'rl-cons');
     expect(cons).toMatchObject({ listing_kind: 'consumable', quantity: 4, quality_percent: 137.5, item_instances: null });
   });
 
-  it('pure player market: the NPC weapon is invisible under every filter', async () => {
-    // Owner ruling, 2026-11-02 — even asking for it directly finds nothing.
+  it('NPC stock ceiling: above-Common NPC gear is invisible under every filter; Common browses', async () => {
+    // Owner ruling, 2026-11-03 — even asking for the canaries
+    // directly (by seller, by their own category/rarity/level) finds
+    // nothing, and counts agree.
     for (const path of [
-      '/api/market/listings?sellerType=npc&category=weapon',
-      '/api/market/listings?category=weapon&search=stock',
+      '/api/market/listings?sellerType=npc&category=shield&rarity=Epic',
+      '/api/market/listings?sellerType=npc&rarity=Rare',
+      '/api/market/listings?category=relic&search=vault',
+      '/api/market/listings?levelMin=20&sellerType=npc',
       '/api/market/listings?sellerId=' + NPC,
     ]) {
       const res = await get(path);
       expect(res.status).toBe(200);
-      expect(ids(res.json)).not.toContain('rl-npc');
+      expect(ids(res.json)).not.toContain('rl-npcepic');
+      expect(ids(res.json)).not.toContain('rl-npcrelic');
     }
-    const direct = await get('/api/market/listings?sellerType=npc&category=weapon');
+    const direct = await get('/api/market/listings?sellerType=npc&rarity=Epic');
     expect(direct.json.total).toBe(0);
     expect(direct.json.listings).toEqual([]);
-    // …while the NPC shield (non-weapon depth) still browses as npc.
+    // …while the NPC Common weapon — closed off entirely by #300 —
+    // browses again as beginner stock, labelled npc on the wire.
+    const npcWeapon = await get('/api/market/listings?sellerType=npc&category=weapon');
+    expect(npcWeapon.json.total).toBe(1);
+    expect(ids(npcWeapon.json)).toEqual(['rl-npc']);
+    expect(npcWeapon.json.listings[0].seller_type).toBe('npc');
     const npc = await get('/api/market/listings?sellerType=npc');
-    expect(ids(npc.json)).toEqual(['rl-npcshield']);
-    expect(npc.json.listings[0].seller_type).toBe('npc');
+    expect(ids(npc.json)).toEqual(['rl-npc', 'rl-npcshield']);
   });
 
   it('listings carry the seller hunter name from their profile, never the id', async () => {
@@ -649,42 +685,45 @@ describe('market depth — read paths', () => {
     // The NPC seed account has no profile name: null on the wire,
     // and the client labels it from seller_type — never the raw id
     // (the old card printed the zero-padded "00000000"). Pinned on the
-    // NPC shield — the NPC weapon no longer browses at all.
+    // NPC Common shield and weapon — both browse as beginner stock.
     expect(byId.get('rl-npcshield')?.seller_name).toBeNull();
+    expect(byId.get('rl-npc')?.seller_name).toBeNull();
     for (const l of res.json.listings as { seller_name: string | null; seller_user_id: string }[]) {
       expect(l.seller_name).not.toBe(l.seller_user_id);
     }
   });
 
   it('each filter returns exactly the matching subset', async () => {
-    expect(ids((await get('/api/market/listings?category=weapon')).json)).toEqual(['rl-pistol', 'rl-sniper']);
+    expect(ids((await get('/api/market/listings?category=weapon')).json)).toEqual(['rl-pistol', 'rl-sniper', 'rl-npc']);
     expect(ids((await get('/api/market/listings?category=consumable')).json)).toEqual(['rl-cons']);
     expect(ids((await get('/api/market/listings?category=material')).json)).toEqual(['rl-mat']);
     expect(ids((await get('/api/market/listings?category=shield')).json)).toEqual(['rl-shield', 'rl-npcshield']);
     expect(ids((await get('/api/market/listings?weaponType=Sniper')).json)).toEqual(['rl-sniper']);
     expect(ids((await get('/api/market/listings?element=Fire')).json)).toEqual(['rl-pistol']);
     expect(ids((await get('/api/market/listings?rarity=Epic')).json)).toEqual(['rl-sniper', 'rl-relic']);
+    expect(ids((await get('/api/market/listings?rarity=Rare')).json)).toEqual(['rl-pistol', 'rl-shield']);
+    expect(ids((await get('/api/market/listings?rarity=Common')).json)).toEqual(['rl-npc', 'rl-npcshield']);
     expect(ids((await get('/api/market/listings?levelMin=20')).json)).toEqual(['rl-sniper', 'rl-relic']);
-    expect(ids((await get('/api/market/listings?levelMax=10')).json)).toEqual(['rl-pistol', 'rl-npcshield']);
-    expect(ids((await get('/api/market/listings?priceMax=2500')).json)).toEqual(['rl-cons', 'rl-pistol', 'rl-shield', 'rl-npcshield']);
+    expect(ids((await get('/api/market/listings?levelMax=10')).json)).toEqual(['rl-pistol', 'rl-npc', 'rl-npcshield']);
+    expect(ids((await get('/api/market/listings?priceMax=2500')).json)).toEqual(['rl-cons', 'rl-pistol', 'rl-shield', 'rl-npc', 'rl-npcshield']);
     expect(ids((await get('/api/market/listings?priceMin=9000')).json)).toEqual(['rl-sniper']);
-    expect(ids((await get('/api/market/listings?sellerType=npc')).json)).toEqual(['rl-npcshield']);
+    expect(ids((await get('/api/market/listings?sellerType=npc')).json)).toEqual(['rl-npc', 'rl-npcshield']);
     expect(ids((await get(`/api/market/listings?sellerId=${P3}`)).json)).toEqual(['rl-shield', 'rl-relic', 'rl-mat']);
-    expect(ids((await get(`/api/market/listings?excludeSellerId=${S}`)).json)).toEqual(['rl-shield', 'rl-relic', 'rl-mat', 'rl-npcshield']);
-    expect(ids((await get('/api/market/listings?search=pistol')).json)).toEqual(['rl-pistol']);
+    expect(ids((await get(`/api/market/listings?excludeSellerId=${S}`)).json)).toEqual(['rl-shield', 'rl-relic', 'rl-mat', 'rl-npc', 'rl-npcshield']);
+    expect(ids((await get('/api/market/listings?search=pistol')).json)).toEqual(['rl-pistol', 'rl-npc']);
   });
 
   it('sorts and paginates server-side with stable totals', async () => {
     expect(ids((await get('/api/market/listings?sort=price_asc')).json))
-      .toEqual(['rl-npcshield', 'rl-pistol', 'rl-cons', 'rl-shield', 'rl-mat', 'rl-relic', 'rl-sniper']);
+      .toEqual(['rl-npcshield', 'rl-npc', 'rl-pistol', 'rl-cons', 'rl-shield', 'rl-mat', 'rl-relic', 'rl-sniper']);
     expect(ids((await get('/api/market/listings?sort=price_desc')).json))
-      .toEqual(['rl-sniper', 'rl-relic', 'rl-mat', 'rl-shield', 'rl-cons', 'rl-pistol', 'rl-npcshield']);
+      .toEqual(['rl-sniper', 'rl-relic', 'rl-mat', 'rl-shield', 'rl-cons', 'rl-pistol', 'rl-npc', 'rl-npcshield']);
     // Level desc; ties break on price asc (the documented comparator);
     // level-less stacks sort last.
     expect(ids((await get('/api/market/listings?sort=level')).json))
-      .toEqual(['rl-relic', 'rl-sniper', 'rl-shield', 'rl-npcshield', 'rl-pistol', 'rl-cons', 'rl-mat']);
+      .toEqual(['rl-relic', 'rl-sniper', 'rl-shield', 'rl-npcshield', 'rl-pistol', 'rl-npc', 'rl-cons', 'rl-mat']);
     const page = await get('/api/market/listings?limit=2&offset=2');
-    expect(page.json.total).toBe(7);
+    expect(page.json.total).toBe(8);
     expect(ids(page.json)).toEqual(['rl-sniper', 'rl-shield']);
   });
 
