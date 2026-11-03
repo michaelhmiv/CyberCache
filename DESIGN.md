@@ -330,9 +330,9 @@ again.
 |---|---|---|
 | Common | ink (neutral) | `#f5ecda` family |
 | Uncommon | `--uncom` | `#57d93d` |
-| Rare | `--rare` | `#57b6ff` |
-| Epic | `--epic` | `#f07df2` |
-| Legendary | `--leg` | `#ffd21f` |
+| Rare | `--rare` | `#5AA7FF` |
+| Epic | `--epic` | `#FF9DF5` |
+| Legendary | `--leg` | `#FFEA3A` |
 
 A rarity color is used only when the item/fact it labels is that rarity —
 including icon tints (§7). Rarity is never a button color (the pre-redesign
