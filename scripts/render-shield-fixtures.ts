@@ -129,6 +129,83 @@ const thumb = (behavior: ShieldBehaviorId, element: Element, rarity: Rarity) =>
   }
 }
 
+/* ---- in-situ surface sizes at 412 wide ----
+ * The three surfaces the parent gate checks, at the exact CSS
+ * widths GearIllustration hands PixelGear there: market rows
+ * (thumb 46), the Gear page strip (card 70), the inspect sheet
+ * (showcase 190 — the card plate painted larger). Rasterized at
+ * 2x so the texel scale reads like a DPR-2 phone capture. */
+{
+  const S = 2;
+  const sheet = blank(412 * S, 224 * S);
+  // Market row band: eight thumbs across a 412 row.
+  ELEMENTS.forEach((element, i) => {
+    const t = composeGear(input(BEHAVIORS[i % 5], element, Rarity.Rare, 500 + i, 2), shieldGrammar, 'thumb');
+    const targetW = 46 * S;
+    const scale = targetW / t.width;
+    // Nearest-texel paint of the thumb at the surface width.
+    for (let y = 0; y < t.height; y++) for (let x = 0; x < t.width; x++) {
+      const shade = t.rows[y][x];
+      if (shade === '.') continue;
+      const color = (t.colors as Record<string, string | undefined>)[shade];
+      if (!color) continue;
+      const [r, g, b] = hexToRgb(color);
+      const px0 = Math.round((8 + i * 51) * S + x * scale);
+      const py0 = Math.round(10 * S + y * scale);
+      const px1 = Math.round((8 + i * 51) * S + (x + 1) * scale);
+      const py1 = Math.round(10 * S + (y + 1) * scale);
+      for (let py = py0; py < py1; py++) for (let px = px0; px < px1; px++) {
+        if (px < 0 || py < 0 || px >= sheet.width || py >= sheet.height) continue;
+        const idx = (px + py * sheet.width) * 4;
+        sheet.data[idx] = r; sheet.data[idx + 1] = g; sheet.data[idx + 2] = b; sheet.data[idx + 3] = 255;
+      }
+    }
+  });
+  // Gear strip band: the five behaviors at card surface width 70.
+  BEHAVIORS.forEach((behavior, i) => {
+    const render = card(behavior, Element.Fire, Rarity.Epic, 600 + i, 3);
+    const scale = (70 * S) / render.width;
+    for (let y = 0; y < render.height; y++) for (let x = 0; x < render.width; x++) {
+      const shade = render.rows[y][x];
+      if (shade === '.') continue;
+      const color = (render.colors as Record<string, string | undefined>)[shade];
+      if (!color) continue;
+      const [r, g, b] = hexToRgb(color);
+      const px0 = Math.round((8 + i * 81) * S + x * scale);
+      const py0 = Math.round(52 * S + y * scale);
+      const px1 = Math.round((8 + i * 81) * S + (x + 1) * scale);
+      const py1 = Math.round(52 * S + (y + 1) * scale);
+      for (let py = py0; py < py1; py++) for (let px = px0; px < px1; px++) {
+        if (px < 0 || py < 0 || px >= sheet.width || py >= sheet.height) continue;
+        const idx = (px + py * sheet.width) * 4;
+        sheet.data[idx] = r; sheet.data[idx + 1] = g; sheet.data[idx + 2] = b; sheet.data[idx + 3] = 255;
+      }
+    }
+  });
+  // Inspect band: two showcase plates at surface width 190.
+  ([['nova', Element.Fire, Rarity.Epic], ['turtle', Element.Kinetic, Rarity.Rare]] as [ShieldBehaviorId, Element, Rarity][]).forEach(([behavior, element, rarity], i) => {
+    const render = card(behavior, element, rarity, 1101, 3);
+    const scale = (190 * S) / render.width;
+    for (let y = 0; y < render.height; y++) for (let x = 0; x < render.width; x++) {
+      const shade = render.rows[y][x];
+      if (shade === '.') continue;
+      const color = (render.colors as Record<string, string | undefined>)[shade];
+      if (!color) continue;
+      const [r, g, b] = hexToRgb(color);
+      const px0 = Math.round((8 + i * 202) * S + x * scale);
+      const py0 = Math.round(102 * S + y * scale);
+      const px1 = Math.round((8 + i * 202) * S + (x + 1) * scale);
+      const py1 = Math.round(102 * S + (y + 1) * scale);
+      for (let py = py0; py < py1; py++) for (let px = px0; px < px1; px++) {
+        if (px < 0 || py < 0 || px >= sheet.width || py >= sheet.height) continue;
+        const idx = (px + py * sheet.width) * 4;
+        sheet.data[idx] = r; sheet.data[idx + 1] = g; sheet.data[idx + 2] = b; sheet.data[idx + 3] = 255;
+      }
+    }
+  });
+  save('insitu-surface-sizes-412.png', sheet);
+}
+
 /* ---- rarity row: form constant, finish escalates ---- */
 {
   const gap = 8;
