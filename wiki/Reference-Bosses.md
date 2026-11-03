@@ -11,9 +11,11 @@ drop odds, no win chances, and no pity numbers. Each boss's
 because prep and [[Collections]] both name them; the general effect
 pool a boss draws from is not printed.
 
-<!-- GENERATED from src/constants/bosses.ts — do not edit by hand -->
+<!-- GENERATED from src/constants/bosses.ts, src/content/areaPalettes.ts, src/lib/pixel/manifest.ts — do not edit by hand -->
 <!-- wiki-gen:bosses -->
 ### Dune Tyrant — Tier 1
+
+<img src="images/bosses/dune-tyrant.png" alt="Dune Tyrant" width="388">
 
 - **Level gate:** 5 · **Recommended power:** 120
 - **Health / Shield / Armor:** 800 / 0 / 0 · **Boss DPS:** 30
@@ -26,7 +28,13 @@ pool a boss draws from is not printed.
 
 - **Basic Boss Read** (survival check) — A simple opening check that teaches boss attempts without a hard counter requirement. Counters: basic weapon damage, Med Kit, Shield Cell.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/dune-tyrant-arena.jpg" alt="Dune Tyrant — arena" width="480">
+
 ### The Siltstalker — Tier 2
+
+<img src="images/bosses/siltstalker.png" alt="The Siltstalker" width="395">
 
 - **Level gate:** 10 · **Recommended power:** 300
 - **Health / Shield / Armor:** 1500 / 500 / 0 · **Boss DPS:** 55
@@ -40,7 +48,13 @@ pool a boss draws from is not printed.
 - **Opening Burn** (dps check) — Build enough damage before the boss reaches the enrage window. Counters: Fire weapon, high DPS weapon, Target Painter, Void Ammo.
 - **50% Enrage Window** (dps check) — At half health, the boss spikes damage unless burst or control answers it. Counters: Cryo Ammo, Jammer, Target Painter, high crit/burst weapon.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/siltstalker-arena.jpg" alt="The Siltstalker — arena" width="480">
+
 ### Gromm, the Heap Guard — Tier 3
+
+<img src="images/bosses/heap-guard.png" alt="Gromm, the Heap Guard" width="306">
 
 - **Level gate:** 15 · **Recommended power:** 550
 - **Health / Shield / Armor:** 2000 / 1200 / 0 · **Boss DPS:** 70
@@ -53,7 +67,13 @@ pool a boss draws from is not printed.
 
 - **Shield Regen Loop** (shieldBreak check) — Break the shield quickly or the boss regenerates it and stalls the fight. Counters: Shock weapon, Shock Ammo, Ordnance Charge, Jammer.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/heap-guard-arena.jpg" alt="Gromm, the Heap Guard — arena" width="480">
+
 ### Ashgut — Tier 4
+
+<img src="images/bosses/ashgut.png" alt="Ashgut" width="295">
 
 - **Level gate:** 22 · **Recommended power:** 900
 - **Health / Shield / Armor:** 3500 / 0 / 800 · **Boss DPS:** 95
@@ -66,7 +86,13 @@ pool a boss draws from is not printed.
 
 - **Burning Ground Attrition** (survival check) — Damage-over-time pressure raises the survival requirement across the fight. Counters: Med Kit, Shield Cell, Nano Swarm, survival gear.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/ashgut-arena.jpg" alt="Ashgut — arena" width="480">
+
 ### The Mirage Duster — Tier 5
+
+<img src="images/bosses/mirage-duster.png" alt="The Mirage Duster" width="181">
 
 - **Level gate:** 28 · **Recommended power:** 1400
 - **Health / Shield / Armor:** 5000 / 1500 / 0 · **Boss DPS:** 110
@@ -80,7 +106,13 @@ pool a boss draws from is not printed.
 - **Pin the Mirage** (mechanic check) — The boss phases out unless scanner, control, or stagger effects keep it targetable. Counters: Boss Scanner, Cryo Ammo, Jammer, stagger effects.
 - **Mirage Shield** (shieldBreak check) — A lighter shield check still rewards Shock support. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/mirage-duster-arena.jpg" alt="The Mirage Duster — arena" width="480">
+
 ### The Rust Prophet — Tier 6
+
+<img src="images/bosses/rust-prophet.png" alt="The Rust Prophet" width="204">
 
 - **Level gate:** 35 · **Recommended power:** 2000
 - **Health / Shield / Armor:** 6000 / 0 / 2500 · **Boss DPS:** 130
@@ -93,7 +125,13 @@ pool a boss draws from is not printed.
 
 - **Armor Repair Phase** (armorBreak check) — The boss repairs armor faster than weak armor break can remove it. Counters: Corrosive weapon, Corrosive Ammo, Armor-Piercing Ammo, Phase Shift Grenade.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/rust-prophet-arena.jpg" alt="The Rust Prophet — arena" width="480">
+
 ### Scrap Bishop — Tier 7
+
+<img src="images/bosses/scrap-bishop.png" alt="Scrap Bishop" width="293">
 
 - **Level gate:** 45 · **Recommended power:** 3200
 - **Health / Shield / Armor:** 10000 / 3000 / 4000 · **Boss DPS:** 180
@@ -108,7 +146,13 @@ pool a boss draws from is not printed.
 - **Siege Armor Phase** (armorBreak check) — Corrosive or armor-break tools are needed after the shield drops. Counters: Corrosive weapon, Corrosive Ammo, BlastForge heavy weapon, Ordnance Charge.
 - **Final Enrage** (dps check) — The final phase rewards burst damage, survival margin, or control. Counters: high DPS weapon, Target Painter, Cryo Ammo, Shield Cell.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/scrap-bishop-arena.jpg" alt="Scrap Bishop — arena" width="480">
+
 ### Widow-9, the Spinneret — Tier 8
+
+<img src="images/bosses/spinneret-widow.png" alt="Widow-9, the Spinneret" width="425">
 
 - **Level gate:** 50 · **Recommended power:** 4600
 - **Health / Shield / Armor:** 14000 / 2500 / 1500 · **Boss DPS:** 215
@@ -123,7 +167,13 @@ pool a boss draws from is not printed.
 - **Overclock Window** (dps check) — Every second the fight drags, her strike tempo — and damage — climbs. Counters: burst weapon, Ironwood crit build, Adrenaline Shot.
 - **Web Snare** (survival check) — Filament snares tax your survival while the arms keep spinning. Counters: Med Kit, Shield Cell, Nano Swarm.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/spinneret-widow-arena.jpg" alt="Widow-9, the Spinneret — arena" width="480">
+
 ### The Mnemosyne Mirror — Tier 9
+
+<img src="images/bosses/mnemosyne-mirror.png" alt="The Mnemosyne Mirror" width="120">
 
 - **Level gate:** 55 · **Recommended power:** 6400
 - **Health / Shield / Armor:** 19000 / 6000 / 0 · **Boss DPS:** 255
@@ -138,7 +188,13 @@ pool a boss draws from is not printed.
 - **Attunement** (mechanic check) — She reads your primary and re-plates against it. Mixed elements keep a real answer live. Counters: mixed-element loadout, Hot Swapper secondary, Boss Scanner.
 - **Refraction Burst** (survival check) — Stored light returns as burst damage through the late fight. Counters: Shield Cell, Med Kit, Nano Swarm.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/mnemosyne-mirror-arena.jpg" alt="The Mnemosyne Mirror — arena" width="480">
+
 ### The Static Choir — Tier 10
+
+<img src="images/bosses/static-choir.png" alt="The Static Choir" width="175">
 
 - **Level gate:** 60 · **Recommended power:** 8800
 - **Health / Shield / Armor:** 26000 / 0 / 3000 · **Boss DPS:** 300
@@ -153,7 +209,13 @@ pool a boss draws from is not printed.
 - **Amplifier Armor** (armorBreak check) — Ribbed amplifier plating shrugs off weak armor break. Counters: Corrosive weapon, Armor-Piercing Ammo, Ordnance Charge.
 - **Feedback Wail** (survival check) — The full choir answers with a survival-taxing feedback wail. Counters: Med Kit, Shield Cell, Nano Swarm.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/static-choir-arena.jpg" alt="The Static Choir — arena" width="480">
+
 ### The Verdant Maw — Tier 11
+
+<img src="images/bosses/verdant-maw.png" alt="The Verdant Maw" width="187">
 
 - **Level gate:** 65 · **Recommended power:** 12000
 - **Health / Shield / Armor:** 35000 / 0 / 9000 · **Boss DPS:** 355
@@ -168,7 +230,13 @@ pool a boss draws from is not printed.
 - **Burning Sap** (survival check) — Cracked plating weeps burning sap — attrition pressure for the whole fight. Counters: Med Kit, Nano Swarm, Shield Cell.
 - **The Maw Opens** (dps check) — With the plating down, burn the furnace heart before it reseals. Counters: Fire weapon, Incendiary Ammo, Target Painter.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/verdant-maw-arena.jpg" alt="The Verdant Maw — arena" width="480">
+
 ### Sister Null, the Void Anchor — Tier 12
+
+<img src="images/bosses/sister-null.png" alt="Sister Null, the Void Anchor" width="121">
 
 - **Level gate:** 70 · **Recommended power:** 16500
 - **Health / Shield / Armor:** 47000 / 3500 / 0 · **Boss DPS:** 415
@@ -183,7 +251,13 @@ pool a boss draws from is not printed.
 - **Collapse the Rift** (mechanic check) — The rift swallows clean hits until status effects destabilize it. Counters: status effects, elemental ammo, Boss Scanner.
 - **Event Horizon** (survival check) — She drags the fight toward the horizon — the survival check of the deep ladder. Counters: Shield Cell, Med Kit, Nano Swarm, Turtle shield.
 
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/sister-null-arena.jpg" alt="Sister Null, the Void Anchor — arena" width="480">
+
 ### Vaultkeeper Omega — Tier 13
+
+<img src="images/bosses/vaultkeeper-omega.png" alt="Vaultkeeper Omega" width="130">
 
 - **Level gate:** 75 · **Recommended power:** 22500
 - **Health / Shield / Armor:** 64000 / 8000 / 10000 · **Boss DPS:** 485
@@ -197,6 +271,10 @@ pool a boss draws from is not printed.
 - **Vault Shield Phase** (shieldBreak check) — The vault's shield layer comes first — Shock or ordnance clears it. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
 - **Vault Plating Phase** (armorBreak check) — Combination-lock plating demands real armor break. Counters: Corrosive weapon, Corrosive Ammo, BlastForge heavy weapon, Ordnance Charge.
 - **Final Overclock** (dps check) — The core spins up: every second left on the clock is damage you will eat. Counters: high DPS weapon, Target Painter, Adrenaline Shot, Cryo Ammo.
+
+**The arena** — every boss fights on its own ground:
+
+<img src="images/bosses/vaultkeeper-omega-arena.jpg" alt="Vaultkeeper Omega — arena" width="480">
 <!-- /wiki-gen:bosses -->
 
 ---
