@@ -74,7 +74,6 @@ export const NextMoveCard: React.FC<{
   const lastSettlement = useOfflineRecapStore((s) => s.lastSettlement);
   const recapDismissed = useOfflineRecapStore((s) => s.dismissed);
   const workshopServer = useWorkshopStore((s) => s.server);
-  const refreshWorkshop = useWorkshopStore((s) => s.refresh);
   const contractsResult = useContractsStore((s) => s.result);
   const standingView = useStandingStore((s) => s.view);
 
@@ -85,10 +84,10 @@ export const NextMoveCard: React.FC<{
   const [researchAcked, setResearchAcked] = useState(false);
 
   // The card's own reads (nothing else on Home loads these):
-  // workshop state for craft completions, the cache lane for the
-  // free daily box, research state for course completions.
+  // the cache lane for the free daily box, research state for
+  // course completions. Workshop state rides the Action screen's
+  // own mount refresh; standing/contracts ride the TopBar's.
   useEffect(() => {
-    void refreshWorkshop();
     let cancelled = false;
     fetchCacheLane()
       .then((lane) => {
@@ -103,8 +102,6 @@ export const NextMoveCard: React.FC<{
     return () => {
       cancelled = true;
     };
-    // Mount-once reads; refreshWorkshop is a stable store action.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── The waits, in priority order ─────────────────────────────
