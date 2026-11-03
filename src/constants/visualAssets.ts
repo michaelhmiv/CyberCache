@@ -198,6 +198,10 @@ export const WEAPON_TYPE_VISUALS = {
 } satisfies Record<WeaponType, VisualAsset>;
 
 export const MATERIAL_VISUALS = {
+  // Scrap the currency-material (economy slice 5, migration 0068):
+  // colors match the long-standing `scrap` resource visual below so
+  // the wallet strip and the material stack read as one stock.
+  [MaterialType.Scrap]: { id: MaterialType.Scrap, kind: 'material', label: 'Scrap', shortLabel: 'SCR', mark: 'S', color: '#FF5722', accentColor: '#FF8A65', description: 'Salvaged metal and parts — the workbench currency every hunter earns and spends. Tradeable on the player market.', texture: 'metal' },
   [MaterialType.ScrapAlloy]: { id: MaterialType.ScrapAlloy, kind: 'material', label: 'Scrap Alloy', shortLabel: 'ALY', mark: 'A', color: '#A5A7B5', accentColor: '#F5F5F5', description: 'Bolts, plates, and rough salvage metal.', texture: 'metal' },
   [MaterialType.BallisticParts]: { id: MaterialType.BallisticParts, kind: 'material', label: 'Ballistic Parts', shortLabel: 'BAL', mark: 'B', color: '#FF4B5C', accentColor: '#FFEA3A', description: 'Barrels, chambers, triggers, and shell hardware.', texture: 'ordnance' },
   [MaterialType.ReactiveComponents]: { id: MaterialType.ReactiveComponents, kind: 'material', label: 'Reactive Components', shortLabel: 'REA', mark: 'R', color: '#3B82F6', accentColor: '#A5F3FC', description: 'Capacitors, shield nodes, and charged regulators.', texture: 'energy' },

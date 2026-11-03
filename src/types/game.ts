@@ -112,6 +112,15 @@ export enum ConsumableType {
 }
 
 export enum MaterialType {
+  // Scrap (economy slice 5, migration 0068): the game's bulk salvage
+  // currency is a MATERIAL now — the one tradeable stock lives in
+  // profiles.materials['Scrap']. The retired profiles.scrap column was
+  // converted into this stack by 0068; every faucet/sink that used the
+  // column (roaming, salvage, dispatch, endless, cosmetics, tint,
+  // reforge, contract rerolls) settles against this key, and the
+  // player market lists it like any other material. ScrapAlloy stays
+  // a DISTINCT material (the vendor's 10 cr line) — do not conflate.
+  Scrap = 'Scrap',
   ScrapAlloy = 'ScrapAlloy',
   BallisticParts = 'BallisticParts',
   ReactiveComponents = 'ReactiveComponents',
