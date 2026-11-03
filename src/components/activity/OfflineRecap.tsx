@@ -29,7 +29,7 @@ import React from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useReducedMotion } from 'framer-motion';
 import { X, Clock } from 'lucide-react';
-import { ResourceIcon } from '@/components/common/ResourceIcon';
+import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { MaterialBadge } from '@/components/common/MaterialBadge';
 import { getVisualAsset } from '@/constants/visualAssets';
 import { getCraftRecipe } from '@/content/crafting';
@@ -219,7 +219,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         <div className="px-5 py-3 space-y-1">
           {c.xpAwarded > 0 && (
             <RewardRow
-              icon={<ResourceIcon id="xp" size={16} />}
+              icon={<PixelWalletIcon id="xp" size={17} />}
               label="Crafting XP"
               value={`+${formatNumber(c.xpAwarded)}`}
               accent="text-purple-400"
@@ -239,7 +239,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
             return (
               <RewardRow
                 key={`craft-${i}`}
-                icon={<ResourceIcon id="loot" size={16} />}
+                icon={<PixelWalletIcon id="loot" size={17} />}
                 label={name}
                 value={detail}
                 accent="text-green-400"
@@ -315,7 +315,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         <div className="px-5 py-3 space-y-1">
           {x.xpAwarded > 0 && (
             <RewardRow
-              icon={<ResourceIcon id="xp" size={16} />}
+              icon={<PixelWalletIcon id="xp" size={17} />}
               label="Extraction XP"
               value={`+${formatNumber(x.xpAwarded)}`}
               accent="text-purple-400"
@@ -324,7 +324,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
           {findRows.slice(0, 8).map((find) => (
             <RewardRow
               key={`extract-${find.kind}-${find.id}`}
-              icon={<ResourceIcon id="loot" size={16} />}
+              icon={<PixelWalletIcon id="loot" size={17} />}
               label={find.id}
               value={`×${find.qty}`}
               accent="text-green-400"
@@ -433,7 +433,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         <div className="px-5 py-3 space-y-1">
           {s.rewards.creditsAwarded > 0 && (
             <RewardRow
-              icon={<ResourceIcon id="credits" size={16} />}
+              icon={<PixelWalletIcon id="credits" size={17} />}
               label="Credits"
               value={`+${formatNumber(s.rewards.creditsAwarded)}`}
               accent="text-amber"
@@ -441,7 +441,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
           )}
           {s.rewards.scrapAwarded > 0 && (
             <RewardRow
-              icon={<ResourceIcon id="scrap" size={16} />}
+              icon={<PixelWalletIcon id="scrap" size={17} />}
               label="Scrap"
               value={`+${formatNumber(s.rewards.scrapAwarded)}`}
               accent="text-zinc-300"
@@ -449,7 +449,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
           )}
           {s.rewards.xpAwarded > 0 && (
             <RewardRow
-              icon={<ResourceIcon id="xp" size={16} />}
+              icon={<PixelWalletIcon id="xp" size={17} />}
               label="XP"
               value={`+${formatNumber(s.rewards.xpAwarded)}`}
               accent="text-purple-400"
@@ -457,7 +457,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
           )}
           {s.rewards.cacheFragmentsAwarded > 0 && (
             <RewardRow
-              icon={<ResourceIcon id="cacheFragment" size={16} />}
+              icon={<PixelWalletIcon id="cacheFragment" size={17} />}
               label="Key Fragments"
               value={`+${s.rewards.cacheFragmentsAwarded}`}
               accent="text-cyan-400"
@@ -465,7 +465,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
           )}
           {s.standing && s.standing.points > 0 && (
             <RewardRow
-              icon={<ResourceIcon id="masteryPoint" size={16} />}
+              icon={<PixelWalletIcon id="masteryPoint" size={17} />}
               label={`${s.standing.manufacturer} Standing`}
               value={`+${s.standing.points}`}
               accent="text-emerald-400"

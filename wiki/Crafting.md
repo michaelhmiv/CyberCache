@@ -141,7 +141,12 @@ recipes and rotate through the vendor.
 
 Recipes consume three families of inputs, earned by roaming (and all
 tradable on [[The Market]]). Salvage is **not** a material supply
-line — see Getting started below for what it actually pays:
+line — see Getting started below for what it actually pays. In the
+Workshop's materials panel and on every recipe's input rows, each
+input draws as its formed object — the same render it wears in your
+inventory and on the Market — so goods are learned by shape and
+color, and a refined input visibly reads as its base material,
+aligned:
 
 - **5 base materials** — Scrap Alloy, Ballistic Parts, Reactive
   Components, Tech, and Void Dust — plus their **5 refined

@@ -4,7 +4,7 @@ import { listEntranceProps } from '@/lib/animation/uiMotion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { usePlayerStore } from '@/store';
 import { fetchCollections, type CollectionsPayload } from '@/lib/api/verifiedOps';
-import { ResourceIcon } from '@/components/common/ResourceIcon';
+import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import { bespokeSpriteIdForLegendaryEffect, getPixelSprite } from '@/lib/pixel/manifest';
 import {
@@ -199,7 +199,7 @@ export const CollectionsScreen: React.FC<{ embedded?: boolean }> = ({ embedded =
       <div className="flex items-center justify-between">
         <div className="bl-title text-3xl leading-none text-text-primary">Collections</div>
         <div className="flex items-center gap-2 border-2 border-border bg-surface-raised px-2.5 py-1">
-          <ResourceIcon id="legendaryCore" size={18} seed={6} />
+          <PixelWalletIcon id="legendaryCore" size={17} />
           <span className="text-sm font-black text-text-primary">{cores}</span>
           <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">cores</span>
         </div>

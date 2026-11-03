@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
+import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Filter, Lock, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
@@ -253,6 +254,11 @@ function VehicleMiniCard({ vehicle }: { vehicle: VehicleDisplay }) {
 
 /** Compact card for consumable/material/resource stack listings (0019, 0050). */
 function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; right?: React.ReactNode; onShowUsage?: (materialId: string) => void }) {
+  // Materials and essences render as their STUFF object (materialArt);
+  // every other stack kind keeps its §7 sheet glyph.
+  const stuffId = listing.kind === 'material' ? listing.materialId
+    : listing.kind === 'essence' ? listing.essenceId
+    : null;
   const icon: PxIconName = listing.kind === 'consumable'
     ? (listing.consumableType ? CONSUMABLES[listing.consumableType]?.visual.icon ?? 'flask' : 'flask')
     : listing.kind === 'fragment' ? 'frag'
@@ -270,7 +276,7 @@ function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; righ
           : `Material · ${listing.quantity} ×`;
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg"><PxIcon name={icon} size={26} /></div>
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg">{stuffId ? <PixelMaterial id={stuffId} size={26} /> : <PxIcon name={icon} size={26} />}</div>
       <div className="min-w-0 flex-1">
         <div className="text-xs font-black leading-snug text-text-primary">{listing.displayName}</div>
         <div className="text-[11px] text-text-muted">{meta}</div>
