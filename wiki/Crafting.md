@@ -84,8 +84,8 @@ The unified Workshop catalog holds **87 recipes**:
   Charges made 3 at a time, gated behind the Production Systems course
   in [[Actions and Occupations|Research]]: cheaper in time than three
   singles, dearer in materials.
-- **26 skin-part recipes** — the [[Skins and Cosmetics]] catalog:
-  scrap-led cosmetic parts (no stats, ever) in the Skin Parts lane,
+- **27 cosmetic recipes** — the [[Skins and Cosmetics]] catalog:
+  26 scrap-led skin parts (no stats, ever) in the Skin Parts lane,
   plus the item-targeted **tint craft** run from the Tinting lane.
 - **1 Chromaweave refine** — Myco-Steel Fiber + Void Essence woven
   into Chromaweave, the tint material (see [[Skins and Cosmetics]]).
