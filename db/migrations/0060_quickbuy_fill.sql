@@ -251,6 +251,8 @@ declare
   plan_total bigint := 0;
   take integer;
   leg_charge bigint;
+  leg record;
+  take_row jsonb;
   legs jsonb := '[]'::jsonb;
   leg_rows jsonb := '[]'::jsonb;
   -- per-leg fee state (cc_accept_listing's stack branch)
