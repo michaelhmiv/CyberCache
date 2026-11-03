@@ -15,7 +15,6 @@ import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/server
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
 import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
-import { ChestIllustration } from '@/components/common/ChestIllustration';
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { getPixelSprite, pixelBackgroundForArea } from '@/lib/pixel/manifest';
 
@@ -371,6 +370,12 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   // old hard-coded Dustwaste backdrop is gone.
   const currentAreaId = useIdleStore((state) => state.selectedRoamingAreaId);
   const zoneBg = getPixelSprite(pixelBackgroundForArea(currentAreaId) ?? 'zone-dustwaste-bg');
+  // The cache itself, as shipped pixel art (the in-game crate prop —
+  // the same sprite the app icon carries). The procedural SVG chest
+  // retired with the item-moment reveal (census C-5): the lane, the
+  // decrypt overlay, and the reveal prop all show THIS crate, and no
+  // surface colors it by a rarity the roll hasn't happened yet.
+  const cachePropSprite = getPixelSprite('prop-cache-crate');
   const canOpenAnother =
     !opening &&
     (lane ? lane.remaining > 0 && (lane.freeAvailable || keys > 0) : keys > 0);
@@ -435,8 +440,15 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
       )}
 
       <div className="bg-surface-raised border border-border rounded-2xl p-6 text-center space-y-3">
-        <div className="w-20 h-20 mx-auto flex items-center justify-center">
-          <ChestIllustration tier="rare" size={80} open={opening} animate={opening} />
+        <div className="mx-auto flex items-center justify-center">
+          {cachePropSprite && (
+            <img
+              src={cachePropSprite.url}
+              alt=""
+              draggable={false}
+              style={{ width: 150, imageRendering: 'pixelated' }}
+            />
+          )}
         </div>
         {capReached ? (
           <div className="rounded-xl border border-border bg-bg p-3 text-xs text-text-secondary">
@@ -519,7 +531,14 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
               transition={{ repeat: Infinity, duration: 0.4 }}
               className="text-amber"
             >
-              <PxIcon name="crate" size={40} />
+              {cachePropSprite && (
+                <img
+                  src={cachePropSprite.url}
+                  alt=""
+                  draggable={false}
+                  style={{ width: 150, imageRendering: 'pixelated' }}
+                />
+              )}
             </motion.div>
             <div className="absolute bottom-20 text-amber font-bold text-sm animate-pulse">
               DECRYPTING CACHE...
@@ -552,6 +571,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                   reduced={reducedMotion}
                   anchorXPct={50}
                   groundYPct={74}
+                  propCache
                   onDone={() => setMomentDone(true)}
                   testId="cache-loot-moment"
                 />
