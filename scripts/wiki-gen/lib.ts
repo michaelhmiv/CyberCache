@@ -33,6 +33,19 @@ export interface GenBlock {
   owners: string[];
   /** Render the block body (markdown between the wiki-gen markers). */
   render: () => string;
+  /**
+   * Binary assets this block owns (image plates, rendered by images.ts).
+   * Rendering is byte-deterministic, so the runner writes them beside the
+   * pages and --check byte-compares them like any generated block.
+   */
+  assets?: () => GenAsset[];
+}
+
+/** A generated binary file, addressed relative to the wiki root. */
+export interface GenAsset {
+  /** Posix path relative to wiki/, e.g. 'images/weapons/legendary/debt-collector.png'. */
+  path: string;
+  bytes: Uint8Array;
 }
 
 /** Escape a cell for a markdown table. */
