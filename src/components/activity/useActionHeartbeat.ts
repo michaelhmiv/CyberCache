@@ -19,6 +19,16 @@
  *  - Failure backoff: after a failed heartbeat, attempts wait
  *    ACTION_HEARTBEAT_RETRY_MS before the next try — a down server
  *    is never spun against. A success restores the tick cadence.
+ *
+ * Foreground resume (owner report, 2026-11-02: returning from an
+ * app switch left the stage sitting stale): mounting the surface
+ * and returning it to visibility both sync IMMEDIATELY instead of
+ * waiting out the interval phase — the stage must be live the
+ * moment the player is looking at it. A resume beat also bypasses
+ * an armed failure backoff: foregrounding is a fresh network
+ * context, so a stale failure must not hold the sync hostage for
+ * the rest of its window. If the resume beat itself fails, the
+ * backoff re-arms from that failure exactly as before.
  */
 
 import { useEffect } from 'react';
@@ -42,13 +52,18 @@ export function useActionHeartbeat(enabled: boolean, heartbeat: () => Promise<un
     if (!enabled) return undefined;
     let inFlight = false;
     let nextAttemptAt = 0;
-    const iv = window.setInterval(() => {
+
+    const attempt = (resume = false) => {
       // Visibility pause: a hidden app sends nothing.
       if (typeof document !== 'undefined' && document.hidden) return;
       // In-flight skip: never overlap or queue heartbeat requests.
       if (inFlight) return;
-      // Failure backoff gate.
-      if (Date.now() < nextAttemptAt) return;
+      // Failure backoff gate. A foreground resume is the one
+      // exception (see the header): it clears the gate up front;
+      // if the resume beat itself fails, the catch below re-arms
+      // the backoff from that failure.
+      if (!resume && Date.now() < nextAttemptAt) return;
+      if (resume) nextAttemptAt = 0;
       inFlight = true;
       heartbeat()
         .then(() => {
@@ -61,7 +76,26 @@ export function useActionHeartbeat(enabled: boolean, heartbeat: () => Promise<un
         .finally(() => {
           inFlight = false;
         });
-    }, ACTION_HEARTBEAT_INTERVAL_MS);
-    return () => window.clearInterval(iv);
+    };
+
+    // First sync is immediate — the surface never sits on a stale
+    // snapshot for a whole tick waiting for the interval's first
+    // fire. The interval then holds the 3s tick cadence.
+    attempt();
+    const iv = window.setInterval(() => attempt(), ACTION_HEARTBEAT_INTERVAL_MS);
+    // Foreground resume: the moment the app is visible again, sync.
+    // (pageshow covers bfcache restores, where visibilitychange may
+    // not fire; its initial-load fire lands while the mount beat is
+    // in flight and is skipped by the in-flight guard.)
+    const onForeground = () => {
+      if (typeof document === 'undefined' || !document.hidden) attempt(true);
+    };
+    document.addEventListener('visibilitychange', onForeground);
+    window.addEventListener('pageshow', onForeground);
+    return () => {
+      window.clearInterval(iv);
+      document.removeEventListener('visibilitychange', onForeground);
+      window.removeEventListener('pageshow', onForeground);
+    };
   }, [enabled, heartbeat]);
 }

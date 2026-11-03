@@ -25,6 +25,23 @@ import { syncRuntimeProfile } from '@/lib/api/verifiedStateSync';
 import type { OfflineCraftSettlementResult, OfflineExtractionSettlementResult, OfflineSettlementResult } from '@/lib/chef/chefClient';
 
 /**
+ * The one hidden-duration threshold that separates a brief app
+ * switch from a real absence (foreground-resume slice, 2026-11-02).
+ *
+ * Below it, returning to the app is a LIVE resume: the foreground
+ * sync loops restart the moment the app is visible again, and the
+ * away ticks' routine gains fold silently into the feed record —
+ * no catch-up pop-up burst. At or above it, this module's
+ * server-authoritative settlement is the catch-up lane and its
+ * "While You Were Away" recap is the only summary.
+ *
+ * Read by both the resume settlement hook
+ * (useOfflineResumeSettlement) and the idle ticker
+ * (idleTickerSlice) — retune it here, nowhere else.
+ */
+export const RESUME_SETTLEMENT_MIN_HIDDEN_MS = 15_000;
+
+/**
  * Result shape for downstream consumers (OfflineRecap component).
  * Derived from the server response — the client never computes these values.
  */
