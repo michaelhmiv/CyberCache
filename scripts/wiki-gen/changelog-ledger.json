@@ -92,6 +92,22 @@
         {
           "number": 335,
           "title": "Wiki W5: illustrated Reference — weapon frames, element reads, gear, consumables, materials"
+        },
+        {
+          "number": 336,
+          "title": "QB-1: Quick-Buy server fill + the Workshop pop-up (migration 0060)"
+        },
+        {
+          "number": 337,
+          "title": "Gear marriage slice 2: ordnance to pixel (form = effect class)"
+        },
+        {
+          "number": 340,
+          "title": "Gear marriage slice 1 — shields to pixel (behavior grammar)"
+        },
+        {
+          "number": 342,
+          "title": "feat(wiki): W6 — illustrated world (bosses, areas, vehicles, skins)"
         }
       ]
     },

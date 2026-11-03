@@ -1,7 +1,7 @@
 # Reference — Bosses
 
 The full boss roster, as **intel**: the same facts the boss prep
-screen shows you before an attempt — stats, gates, mechanics,
+screen shows you before an attempt — stats, mechanics,
 phases, and the counters the game itself recommends. See [[Bosses]]
 for how attempts, rematches, and resurrection work.
 
@@ -17,7 +17,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/dune-tyrant.png" alt="Dune Tyrant" width="388">
 
-- **Level gate:** 5 · **Recommended power:** 120
+- **Boss level:** 5 · **Recommended power:** 120
 - **Health / Shield / Armor:** 800 / 0 / 0 · **Boss DPS:** 30
 - **Weaknesses:** Kinetic · **Resistances:** —
 - **Mechanic — No Special Mechanic:** Tutorial boss. No special requirement.
@@ -36,7 +36,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/siltstalker.png" alt="The Siltstalker" width="395">
 
-- **Level gate:** 10 · **Recommended power:** 300
+- **Boss level:** 10 · **Recommended power:** 300
 - **Health / Shield / Armor:** 1500 / 500 / 0 · **Boss DPS:** 55
 - **Weaknesses:** Fire · **Resistances:** Cryo
 - **Mechanic — Enrage Protocol:** Boss enrages at 50% HP, doubling damage. Needs high DPS to finish fast.
@@ -56,7 +56,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/heap-guard.png" alt="Gromm, the Heap Guard" width="306">
 
-- **Level gate:** 15 · **Recommended power:** 550
+- **Boss level:** 15 · **Recommended power:** 550
 - **Health / Shield / Armor:** 2000 / 1200 / 0 · **Boss DPS:** 70
 - **Weaknesses:** Shock · **Resistances:** Fire
 - **Mechanic — Rapid Shield Regen:** Shield regenerates quickly if not broken within 15s.
@@ -75,7 +75,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/ashgut.png" alt="Ashgut" width="295">
 
-- **Level gate:** 22 · **Recommended power:** 900
+- **Boss level:** 22 · **Recommended power:** 900
 - **Health / Shield / Armor:** 3500 / 0 / 800 · **Boss DPS:** 95
 - **Weaknesses:** Corrosive · **Resistances:** Fire
 - **Mechanic — Burning Ground:** Leaves burning ground; survival check is harder.
@@ -94,7 +94,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/mirage-duster.png" alt="The Mirage Duster" width="181">
 
-- **Level gate:** 28 · **Recommended power:** 1400
+- **Boss level:** 28 · **Recommended power:** 1400
 - **Health / Shield / Armor:** 5000 / 1500 / 0 · **Boss DPS:** 110
 - **Weaknesses:** Shock · **Resistances:** Kinetic
 - **Mechanic — Phase Out:** Boss phases out periodically. Needs Stagger or Scanner to pin.
@@ -114,7 +114,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/rust-prophet.png" alt="The Rust Prophet" width="204">
 
-- **Level gate:** 35 · **Recommended power:** 2000
+- **Boss level:** 35 · **Recommended power:** 2000
 - **Health / Shield / Armor:** 6000 / 0 / 2500 · **Boss DPS:** 130
 - **Weaknesses:** Corrosive · **Resistances:** Shock
 - **Mechanic — Heavy Repair:** Heavy armor repair. Needs Anti-Heal or Armor Break.
@@ -133,7 +133,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/scrap-bishop.png" alt="Scrap Bishop" width="293">
 
-- **Level gate:** 45 · **Recommended power:** 3200
+- **Boss level:** 45 · **Recommended power:** 3200
 - **Health / Shield / Armor:** 10000 / 3000 / 4000 · **Boss DPS:** 180
 - **Weaknesses:** Corrosive · **Resistances:** Fire
 - **Mechanic — Three-Phase Siege:** Shield -> Armor -> Enrage. Must break each layer.
@@ -154,7 +154,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/spinneret-widow.png" alt="Widow-9, the Spinneret" width="425">
 
-- **Level gate:** 50 · **Recommended power:** 4600
+- **Boss level:** 50 · **Recommended power:** 4600
 - **Health / Shield / Armor:** 14000 / 2500 / 1500 · **Boss DPS:** 215
 - **Weaknesses:** Fire · **Resistances:** Shock
 - **Mechanic — Spinneret Overclock:** Her loom-arms spin faster the longer the fight runs: boss damage ramps up with time-to-kill. Burst her down — a slow fight is a losing fight.
@@ -175,7 +175,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/mnemosyne-mirror.png" alt="The Mnemosyne Mirror" width="120">
 
-- **Level gate:** 55 · **Recommended power:** 6400
+- **Boss level:** 55 · **Recommended power:** 6400
 - **Health / Shield / Armor:** 19000 / 6000 / 0 · **Boss DPS:** 255
 - **Weaknesses:** Kinetic · **Resistances:** Cryo
 - **Mechanic — Adaptive Plating:** The Mirror attunes to your primary weapon: its element is struck from her weaknesses and read as resisted. Carry a second answer — sidearms and heavies keep their bite.
@@ -196,7 +196,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/static-choir.png" alt="The Static Choir" width="175">
 
-- **Level gate:** 60 · **Recommended power:** 8800
+- **Boss level:** 60 · **Recommended power:** 8800
 - **Health / Shield / Armor:** 26000 / 0 / 3000 · **Boss DPS:** 300
 - **Weaknesses:** Cryo · **Resistances:** Fire
 - **Mechanic — Harmonic Shroud:** A chord of interference bends incoming fire off-beat. Stagger breaks the harmony — bring stagger chance (Demolition tree) or the fight drags at half effect.
@@ -217,7 +217,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/verdant-maw.png" alt="The Verdant Maw" width="187">
 
-- **Level gate:** 65 · **Recommended power:** 12000
+- **Boss level:** 65 · **Recommended power:** 12000
 - **Health / Shield / Armor:** 35000 / 0 / 9000 · **Boss DPS:** 355
 - **Weaknesses:** Fire · **Resistances:** Cryo
 - **Mechanic — Living Armor:** Heartwood plating regrows as fast as it cracks. Sustained armor break — Corrosive and Ordnance — or the Maw simply out-grows your damage.
@@ -238,7 +238,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/sister-null.png" alt="Sister Null, the Void Anchor" width="121">
 
-- **Level gate:** 70 · **Recommended power:** 16500
+- **Boss level:** 70 · **Recommended power:** 16500
 - **Health / Shield / Armor:** 47000 / 3500 / 0 · **Boss DPS:** 415
 - **Weaknesses:** Void · **Resistances:** Kinetic
 - **Mechanic — Rift Anchor:** She anchors the fight to a void rift that swallows clean hits. Status pressure collapses the rift — bring status chance (Procedural Loads) or fight at half effect.
@@ -259,7 +259,7 @@ pool a boss draws from is not printed.
 
 <img src="images/bosses/vaultkeeper-omega.png" alt="Vaultkeeper Omega" width="130">
 
-- **Level gate:** 75 · **Recommended power:** 22500
+- **Boss level:** 75 · **Recommended power:** 22500
 - **Health / Shield / Armor:** 64000 / 8000 / 10000 · **Boss DPS:** 485
 - **Weaknesses:** Void · **Resistances:** Fire, Shock
 - **Mechanic — Final Overclock:** The Vaultkeeper's core spins up the longer the vault is contested: damage ramps with time-to-kill on top of the siege layers. Break him fast, layer by layer.
