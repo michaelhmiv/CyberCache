@@ -702,6 +702,21 @@ const BenchAndToolsCard: React.FC<{
     playerLevel >= next.unlockLevel &&
     credits >= next.costCredits &&
     Object.entries(next.costInputs).every(([k, v]) => (materials[k] ?? 0) >= v);
+  // Assumption-gaps G5: the unlock button used to grey out with
+  // no delta — the player couldn't tell whether the block was
+  // level, credits, or materials, or by how much. Compute the
+  // shortfall from the same values the affordability gate reads
+  // and print the distance, so the locked button carries its
+  // remedy arithmetic on the same surface.
+  const nextShortfall: string[] = [];
+  if (next && !nextAffordable) {
+    if (playerLevel < next.unlockLevel) nextShortfall.push(`Need Lv.${next.unlockLevel}`);
+    if (credits < next.costCredits) nextShortfall.push(`short ${(next.costCredits - credits).toLocaleString()}cr`);
+    for (const [k, v] of Object.entries(next.costInputs)) {
+      const have = materials[k] ?? 0;
+      if (have < v) nextShortfall.push(`short ${v - have} ${getVisualAsset('material', k).label}`);
+    }
+  }
   return (
     <MobileCard className="space-y-2">
       <div className="text-xs font-bold text-amber uppercase">Benches & Tools</div>
@@ -730,10 +745,18 @@ const BenchAndToolsCard: React.FC<{
                   {Object.entries(b.costInputs).map(([k, v]) => ` + ${v} ${getVisualAsset('material', k).label}`).join('')}
                 </motion.button>
               ) : (
-                <span className="text-[10px] text-text-muted">Lv.{b.unlockLevel}</span>
+                <span className="text-[10px] text-text-muted">
+                  Lv.{b.unlockLevel} · {b.costCredits.toLocaleString()}cr
+                  {Object.entries(b.costInputs).map(([k, v]) => ` + ${v} ${getVisualAsset('material', k).label}`).join('')}
+                </span>
               )}
             </div>
             <div className="text-[10px] text-text-muted">{b.blurb}</div>
+            {b.bench === benchesOwned + 1 && nextShortfall.length > 0 && (
+              <div className="text-[10px] font-bold text-amber" data-testid="bench-unlock-shortfall">
+                {nextShortfall.join(' · ')}
+              </div>
+            )}
             {owned && (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {CRAFT_TOOLS.filter((t) => tools.owned[t.id]).map((t) => (
@@ -975,6 +998,23 @@ const RecipeCard: React.FC<{
           <span className="inline-flex items-center gap-1"><PxIcon name="tag" size={13} /> Rush ticket ({ticketsOwned})</span>
         </button>
       </div>
+
+      {/* Assumption-gaps G7: the catalyst requirement, the
+          catalyst's effect, the rush ticket's escrow terms, and
+          the no-tickets remedy used to live ONLY in title=
+          attributes — hover text that never renders on a phone,
+          so at bench 1 / 0 tickets the buttons just looked dead.
+          The same guidance now prints as visible text. */}
+      {(catalystId !== null || ticketsOwned < 1 || useRush) && (
+        <div className="space-y-0.5 text-[10px] leading-snug text-text-muted">
+          {catalystId && benchSel < 2 && <div>Catalysts need the Forge (bench 2).</div>}
+          {catalystId && benchSel >= 2 && useCatalyst && (
+            <div>{`Catalyst: +10/+15 quality bounds, 1 ${getVisualAsset('material', catalystId).label} per unit.`}</div>
+          )}
+          {ticketsOwned < 1 && <div>No rush tickets — they are crafted here (Utility recipes) and rotate through the vendor.</div>}
+          {useRush && ticketsOwned >= 1 && <div>One rush ticket is escrowed for this job — it runs faster by the ticket's quality.</div>}
+        </div>
+      )}
 
       <motion.button
         whileTap={canEnqueue ? { scale: 0.95 } : {}}

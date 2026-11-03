@@ -51,6 +51,7 @@ Dispatch sends what you are *not* using: a foot contract commits a spare, unequi
 - Foot contracts pay about **40% of the destination area's roaming rates** in credits and scrap, plus materials, scaled by the loadout's strength. They pay **no XP, no gear, no legendaries** — your hunter did not go.
 - Courier contracts pay a **1.6× premium** over the same-duration foot line, but the tiers gate on the **vehicle's class**, not your level: Local Runs (2h) take any class, Regional Hauls (8h) need a class unlocked at level 18 or higher, and Deep Hauls (24h) need level 42 or higher. Fuel and wear are exact arithmetic shown before departure — there is no random breakdown roll.
 - A contract recalled or broken down early settles pro-rata for the fraction covered.
+- The bay header's **Fuel** figure is your shared vehicle tank in units — one Generic Fuel Cell loads 100 units in the Garage, and courier contracts burn from the same tank roaming does. With nothing to send, the panel says where spares come from: roaming drops and the vendor for gear, the player market for vehicles.
 
 See [[Vehicles and the Garage]] for the vehicles themselves.
 

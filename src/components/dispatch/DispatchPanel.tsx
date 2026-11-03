@@ -174,6 +174,15 @@ export const DispatchPanel: React.FC = () => {
             </button>
           </div>
         </div>
+        {/* Assumption-gaps G6: the header's fuel figure used to
+            print with no unit basis — the player couldn't tell
+            what a "unit" was or where fuel comes from. Fuel is
+            the shared vehicle tank (profiles.vehicle_fuel): the
+            Garage loads it from Generic Fuel Cells at 100 units
+            per cell, the same tank roaming burns. */}
+        <div className="text-[10px] leading-snug text-text-muted">
+          Fuel is the shared vehicle tank, in units — one Generic Fuel Cell loads 100 units in the Garage. The vendor sells cells; the Workshop crafts them.
+        </div>
         {active.length === 0 && <div className="text-xs text-text-muted">No contracts out. Pick one from the board below.</div>}
         {active.map((m) => (
           <div key={m.id} className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
@@ -221,7 +230,7 @@ export const DispatchPanel: React.FC = () => {
             {offer.family === 'foot' ? (
               <>
                 <div className="text-[11px] font-bold text-text-muted">Assign a spare loadout (gear stays locked away until return):</div>
-                {spareGear.length === 0 && <div className="text-xs text-text-muted">No spare gear in inventory.</div>}
+                {spareGear.length === 0 && <div className="text-xs text-text-muted">No spare gear in inventory. Spares come from roaming drops and the vendor.</div>}
                 {spareGear.map((c) => {
                   const spare = c.runtimeState === 'available' && !c.equippedSlot;
                   const picked = pickedItems.includes(c.id);
@@ -241,7 +250,7 @@ export const DispatchPanel: React.FC = () => {
             ) : (
               <>
                 <div className="text-[11px] font-bold text-text-muted">Assign a spare vehicle (the equipped ride stays with you):</div>
-                {vehicles.length === 0 && <div className="text-xs text-text-muted">No vehicles owned.</div>}
+                {vehicles.length === 0 && <div className="text-xs text-text-muted">No vehicles owned. Vehicles trade on the player Market.</div>}
                 {vehicles.map((c) => {
                   const spare = c.runtimeState === 'available' && !c.equippedSlot;
                   const picked = pickedVehicle === c.id;

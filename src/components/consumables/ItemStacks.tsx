@@ -74,7 +74,7 @@ export const ItemStacks: React.FC<ItemStacksProps> = ({ onInspectConsumable }) =
     <div className="space-y-3">
       <div className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">Stacks</div>
 
-      {allEmpty && <div className="text-sm text-text-muted">Nothing stacked yet.</div>}
+      {allEmpty && <div className="text-sm text-text-muted">Nothing stacked yet. Roam for materials; craft or buy consumables — they stack here.</div>}
 
       {consumableStacks.length > 0 && (
         <div className="space-y-1.5">

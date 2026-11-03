@@ -78,6 +78,14 @@ export const ConsumablesChips: React.FC<ConsumablesChipsProps> = ({ className })
       {views.map((v) => (
         <ConsumableChip key={v.slot} view={v} />
       ))}
+      {/* Assumption-gaps G10: a dashed "Empty" chip used to leave
+          the player guessing where a belt slot gets loaded —
+          the remedy prints on the surface, under the chips. */}
+      {views.some((v) => v.consumableType === null) && (
+        <div className="w-full text-[11px] leading-snug text-text-muted">
+          Empty belt slots load at the Loadout Bench — Gear tab.
+        </div>
+      )}
     </div>
   );
 };

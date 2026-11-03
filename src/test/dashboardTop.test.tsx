@@ -325,9 +325,13 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
         .toBe('Contracts — sign in with Google to claim rewards');
     });
     const icon = screen.getByTestId('top-contracts-button');
-    // The lock badge is a pixel icon now (no emoji in the UI): the button
-    // carries two SVGs for a guest — the orders icon and the lock badge.
-    expect(icon.querySelectorAll('svg')).toHaveLength(2);
+    // Assumption-gaps G10: the guest badge prints its why as a
+    // word — GUEST — in the row's badge language (AWAY / NEW /
+    // counts), instead of a bare lock glyph that never said why
+    // the pill was locked. The button now carries one SVG (the
+    // orders icon) plus the badge text.
+    expect(icon.querySelectorAll('svg')).toHaveLength(1);
+    expect(icon.textContent).toContain('GUEST');
     expect(icon.textContent).not.toContain('🔒');
     expect(screen.queryByTestId('contracts-claim-pulse')).toBeNull();
 

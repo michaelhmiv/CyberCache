@@ -91,7 +91,7 @@ export const ActionFeed: React.FC<{
   onGearSalvage?: (item: GearItem) => Promise<boolean>;
   gearActionBusy?: boolean;
   gearActionError?: string | null;
-}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet.', onGearEquip, onGearSalvage, gearActionBusy = false, gearActionError = null }) => {
+}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet — start a roam and the stream fills in here.', onGearEquip, onGearSalvage, gearActionBusy = false, gearActionError = null }) => {
   const [selectedGear, setSelectedGear] = useState<GearItem | null>(null);
 
   const rarityBorder = (item?: GearItem): string => {

@@ -36,7 +36,7 @@ export const MasterySection: React.FC = () => {
         <div className="text-[10px] text-text-muted">Loading mastery…</div>
       ) : rows.length === 0 ? (
         <div className="text-[10px] text-text-muted">
-          No mastery earned yet. Roam, fight bosses, craft, and trade — verified play feeds these tracks.
+          No mastery earned yet. Roaming, boss fights, crafting, and trading each feed their own track as you play — mastery unlocks recipes and raises crafting quality.
         </div>
       ) : (
         <ul className="space-y-2">

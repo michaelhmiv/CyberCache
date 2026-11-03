@@ -158,6 +158,14 @@ describe('layout contract — ResourceBar at phone width', () => {
     // ride their values as micros on the same baseline.
     expect(screen.getByText('3/5')).toBeTruthy();
     expect(screen.getByText('1/7')).toBeTruthy();
+    // Assumption-gaps G4: the denominators are taught at the
+    // counters' destination surfaces, not on the Strip — the
+    // cache lane prints "5 fragments = 1 Cache Key" under its
+    // fragment bar, and the Loadout header prints "{n}/7 Gear
+    // slots". Visible labels on the Strip itself were measured
+    // NOT to fit at 412px (they pushed the LV segment off-screen
+    // at rest), so the micros stay bare here and the aria-labels
+    // below carry the names in words.
     // Audit DISP-01: every count is NAMED — each segment's
     // aria-label states the resource and what its micro counts,
     // in words, so no quantity on the bar is unlabeled.

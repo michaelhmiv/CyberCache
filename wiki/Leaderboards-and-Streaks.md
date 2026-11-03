@@ -19,6 +19,8 @@ Weeks run on ISO time: a week opens **Monday 00:00 UTC** and closes the next Mon
 
 Standings list everyone with a score above zero, but **rewards only pay at or above the qualifying minimum** — a quiet week doesn't hand a champion's prize to a token effort. Note the Endless rule: only runs that ended inside the week count. An unfinished run proves nothing.
 
+Before the first rankings settle, the standings show an empty board: rankings fill in from hunters' play, so the board populates after the next snapshot once anyone has scored.
+
 ### Settlement and rewards
 
 Settlement rides the game's daily heartbeat: once a week has closed, it settles exactly once and rewards are paid from the settled standings.
