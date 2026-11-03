@@ -12,7 +12,7 @@ import { getResourceVisual, type ResourceVisualId } from '@/constants/visualAsse
  * that already exist on the one icon sheet, exactly as DESIGN.md
  * §7 prescribes ("Wallet icons take the shipped resource tints").
  */
-export const WALLET_ICONS: Record<ResourceVisualId, PxIconName> = {
+const WALLET_ICONS: Record<ResourceVisualId, PxIconName> = {
   credits: 'coin',
   scrap: 'scrap',
   cacheKey: 'key',

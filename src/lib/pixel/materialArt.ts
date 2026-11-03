@@ -528,7 +528,7 @@ function paintVessel(cv: StuffPlate, R: R, A: A, variant: string, band: Material
   }
 }
 
-function paintCoil(cv: StuffPlate, R: R, A: A, variant: string, band: MaterialBandId, rng: Rng) {
+function paintCoil(cv: StuffPlate, R: R, A: A, variant: string, _band: MaterialBandId, _rng: Rng) {
   if (variant === 'wire') {
     for (const cy of [9, 13, 17]) cv.ellipseRing(12, cy, 7, 3, 2, 'P');
     cv.set(12, 6, A.hot); // charge flecks
