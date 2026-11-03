@@ -22,22 +22,32 @@ import {
 import { RELIC_NAMES } from '../server/lib/generators/relicGenerator';
 
 /**
- * Gear marriage, slice 4 — relics.
+ * Gear marriage, slice 4 — relics; SALVAGE adoption (grammar id
+ * `relic-salvage-v2`).
  *
  * The marriage under test: a relic's form is its NAME (one
  * silhouette row per name in the closed generator pool), and its
  * sourceTag — all the old SVG keyed on — survives only as the
- * base treatment it rests on. Pins:
+ * footprint it leaves in the rubble. The v1 adoption stood every
+ * form on a molded plinth with smooth banded planes; the salvage
+ * grammar digs the forms up instead: broken per-cell tone fields,
+ * seeded wear, no pedestals. Echo Stone, Void Prism and Glitched
+ * Token were RE-FORMED outright (irregular silhouettes), per the
+ * owner's note on the approval. Pins:
  *  - COVERAGE: the grammar rows and the generator's RELIC_NAMES
  *    are the same set. Grow the pool without a row and this suite
  *    goes red — there is no silent fallback (inputFromItem throws
  *    on an unmapped name, also pinned);
  *  - every name's silhouette is pairwise distinct;
- *  - rarity is the core's frame finish only (form mask identical
- *    Common vs Legendary), sourceTag moves the base and nothing
- *    above it;
+ *  - rarity is frame + WEAR BUDGET (a Common render is strictly
+ *    more chipped away than its Legendary; thumbs never wear),
+ *    sourceTag moves the footprint and nothing above it;
  *  - determinism, seed-in-signature, thumb detail-level-0;
- *  - golden signature pins per name row.
+ *  - golden signature pins per name row — re-recorded wholesale
+ *    at the salvage adoption and verified against the adoption
+ *    capture sheets (the nine machine rows pixel-identical to the
+ *    approved exploration renders outside the pip slab; the three
+ *    gems differ by design).
  */
 
 const affix = (id: string): Affix => ({
@@ -126,18 +136,34 @@ describe('relic grammar — form is the name', () => {
   });
 });
 
-describe('relic grammar — rarity is finish only; sourceTag is base only', () => {
-  it('Common and Legendary share the exact form mask; the frame escalates', () => {
-    const common = composeGear(inputFor('Void Prism', { rarity: Rarity.Common, seed: 99, pips: 2 }), relicGrammar, 'card');
-    const legendary = composeGear(inputFor('Void Prism', { rarity: Rarity.Legendary, seed: 99, pips: 2 }), relicGrammar, 'card');
-    expect(formMaskOf(legendary)).toBe(formMaskOf(common));
-    expect(legendary.signature).not.toBe(common.signature);
-    expect(countShade(legendary, 'F')).toBeGreaterThan(countShade(common, 'F'));
+describe('relic grammar — rarity is frame + wear budget; sourceTag is footprint only', () => {
+  it('Common is strictly more worn than Legendary; the frame escalates; thumbs never wear', () => {
+    // The salvage finish ladder, pinned for every name: the wear
+    // pass bites silhouette cells away on a rarity budget (and a
+    // Legendary carries more frame), so a Common render holds
+    // strictly fewer filled cells than its Legendary. The wear
+    // pass never runs at detail level 0 — the thumbs are identical,
+    // so the small-size read cannot depend on rarity wear.
+    for (const name of RELIC_NAMES) {
+      const common = composeGear(inputFor(name, { rarity: Rarity.Common }), relicGrammar, 'card');
+      const legendary = composeGear(inputFor(name, { rarity: Rarity.Legendary }), relicGrammar, 'card');
+      expect(filledCount(common), name).toBeLessThan(filledCount(legendary));
+      expect(legendary.rows.join('/'), name).not.toBe(common.rows.join('/'));
+      expect(legendary.signature, name).not.toBe(common.signature);
+      expect(countShade(legendary, 'F'), name).toBeGreaterThan(countShade(common, 'F'));
+      const commonThumb = composeGear(inputFor(name, { rarity: Rarity.Common }), relicGrammar, 'thumb');
+      const legendaryThumb = composeGear(inputFor(name, { rarity: Rarity.Legendary }), relicGrammar, 'thumb');
+      expect(legendaryThumb.rows, name).toEqual(commonThumb.rows);
+    }
   });
 
-  it('changing sourceTag changes the base and nothing above it', () => {
-    // Neural Key's form bottoms out well above the plinth zone, so
-    // rows above the base must be byte-identical across treatments.
+  it('changing sourceTag changes the footprint and nothing above it', () => {
+    // Neural Key's form bottoms out well above the ground zone, so
+    // rows above the rubble must be byte-identical across
+    // treatments. (The ground's highest marker tops out at row
+    // 116 and the outline pass reaches one row above it; the wear
+    // draws are treatment-independent — the ground consumes the
+    // same rolls under every marker.)
     const world = composeGear(
       relicInputFromItem(relic({ name: 'Neural Key', sourceTag: DropSource.WorldDrop })),
       relicGrammar, 'card',
@@ -181,35 +207,41 @@ describe('relic grammar — input derivation from the real record', () => {
     });
   });
 
-  it('affix pips land on the plinth: more affixes, more lit cores', () => {
+  it('affix pips ride the rubble: one lit core per affix, exactly', () => {
     const none = composeGear(relicInputFromItem(relic({ affixes: [] })), relicGrammar, 'card');
     const four = composeGear(
       relicInputFromItem(relic({ affixes: [affix('a1'), affix('a2'), affix('a3'), affix('a4')] })),
       relicGrammar, 'card',
     );
     // Lit socket cores burn the row's own base hue (E = ramp base
-    // for element-less kinds): count them in the plinth rows only.
-    const plinthE = (r: GearRender) => r.rows.slice(112).reduce((n, row) => n + [...row].filter((c) => c === 'E').length, 0);
-    expect(plinthE(four)).toBeGreaterThan(plinthE(none));
+    // for element-less kinds): count them in the ground rows only —
+    // the prism's form contributes no E down there. The cores sit
+    // in a rubble slab the grammar lays for them (the core socket
+    // kit only overpaints filled cells), and every socket seat is
+    // guaranteed purchase, so the count is exact, not a minimum.
+    const bandE = (r: GearRender) => r.rows.slice(112).reduce((n, row) => n + [...row].filter((c) => c === 'E').length, 0);
+    expect(bandE(none)).toBe(0);
+    expect(bandE(four)).toBe(4);
   });
 });
 
 describe('relic grammar — thumb is detail level 0', () => {
-  it('the detail kit cannot paint at thumb, for every name', () => {
+  it('silhouette, core light and frame survive at thumb, for every name', () => {
     for (const name of RELIC_NAMES) {
       const thumb = composeGear(inputFor(name), relicGrammar, 'thumb');
-      // In this grammar the silhouette layer never uses T (rivet /
-      // vent steel) or k (socket seats, seams) — those shades come
-      // only from the core detail kit, which is gated at thumb.
-      expect(countShade(thumb, 'T'), name).toBe(0);
-      expect(countShade(thumb, 'k'), name).toBe(0);
-      // Silhouette + core + frame survive.
-      expect(countShade(thumb, 'E'), name).toBeGreaterThan(0);
+      // The density law: silhouette + core + colorway. The core
+      // read is the light-tone pair (E/e) — the adopted socket
+      // geometry rounds both layers to the same radius at thumb
+      // scale, so the pair is the honest pin, not either alone.
+      // (The v1 pins "no T / no k at thumb" are void under salvage:
+      // the rubble ground is form-layer paint, not detail kit, and
+      // it renders at every size — glints and shadow included.)
+      expect(countShade(thumb, 'E') + countShade(thumb, 'e'), name).toBeGreaterThan(0);
       expect(countShade(thumb, 'F'), name).toBeGreaterThan(0);
     }
   });
 
-  it('the detail kit does paint at card (rivets/vents carry T)', () => {
+  it('the finish lives at card: wear steel (T) paints there', () => {
     const card = composeGear(inputFor('Ancient Module'), relicGrammar, 'card');
     expect(countShade(card, 'T')).toBeGreaterThan(0);
   });
@@ -231,28 +263,35 @@ describe('relic grammar — dispatch seam', () => {
 
 describe('relic grammar — golden signature pins', () => {
   // Regression tripwires: any intentional art change re-pins these
-  // deliberately (and the capture sheets get re-read).
+  // deliberately (and the capture sheets get re-read). Re-recorded
+  // wholesale at the SALVAGE adoption — every pin moved with the
+  // grammar id; see the suite header for the verification story.
   const GOLDENS: Record<string, string> = {
-    'vault-chip Epic card': '63f04f19',
-    'data-shard Epic card': '286fd402',
-    'neural-key Epic card': 'a3949855',
-    'cache-relic Epic card': '388567a2',
-    'echo-stone Epic card': '552d7c69',
-    'void-prism Epic card': '6e741b5d',
-    'circuit-totem Epic card': 'f04e90e5',
-    'ancient-module Epic card': '3e5bc22c',
-    'scrap-core Epic card': 'c6d28f35',
-    'glitched-token Epic card': '19af5d7c',
-    'ethereal-drive Epic card': '607fb28b',
-    'quantum-fragment Epic card': '1d31b575',
-    'vault-chip Epic thumb': '62283ead',
-    'neural-key Epic thumb': 'eacdc3e1',
-    'glitched-token Epic thumb': '45cc08a5',
-    'quantum-fragment Epic thumb': '63d7b634',
-    'cache-relic boss Rare card': 'a7ba6cf',
-    'cache-relic cache Rare card': '5c341f63',
-    'void-prism Common card': '32f42b1d',
-    'void-prism Legendary card': '89ac3ea5',
+    'vault-chip Epic card': 'e9c0d8d6',
+    'data-shard Epic card': '9fe65a52',
+    'neural-key Epic card': '7b812416',
+    'cache-relic Epic card': 'd067245e',
+    'echo-stone Epic card': 'd6114c01',
+    'void-prism Epic card': '85899f1d',
+    'circuit-totem Epic card': 'd2ee731e',
+    'ancient-module Epic card': 'fcd21704',
+    'scrap-core Epic card': '2639f7d9',
+    'glitched-token Epic card': 'f24a3315',
+    'ethereal-drive Epic card': '83edad7c',
+    'quantum-fragment Epic card': '17c1973b',
+    'vault-chip Epic thumb': '4ca48cd3',
+    'neural-key Epic thumb': '96ec728e',
+    'glitched-token Epic thumb': '516da663',
+    'quantum-fragment Epic thumb': 'a04d2302',
+    'cache-relic boss Rare card': '158f8aa2',
+    'cache-relic cache Rare card': '74f915a9',
+    'void-prism Common card': '9b455e0a',
+    'void-prism Legendary card': '73dbb0ed',
+    'echo-stone Common card': '25b4a54c',
+    'echo-stone Legendary card': 'c2d1a413',
+    'glitched-token Common card': '66946a29',
+    'echo-stone Epic thumb': 'f7f1a9e4',
+    'void-prism Epic thumb': 'a1dd28a9',
   };
   const byForm = (formId: string, over: Partial<GearComposeInput> = {}): GearComposeInput => {
     const row = RELIC_FORM_ROWS.find((r) => r.formId === formId)!;
@@ -282,6 +321,12 @@ describe('relic grammar — golden signature pins', () => {
     'cache-relic cache Rare card': { input: byForm('cache-relic', { rarity: Rarity.Rare, seed: 777, variant: 'cache-relic/cache' }), density: 'card' },
     'void-prism Common card': { input: byForm('void-prism', { rarity: Rarity.Common, seed: 99, pips: 2 }), density: 'card' },
     'void-prism Legendary card': { input: byForm('void-prism', { rarity: Rarity.Legendary, seed: 99, pips: 2 }), density: 'card' },
+    // The re-formed gems, pinned across the finish ladder too.
+    'echo-stone Common card': { input: byForm('echo-stone', { rarity: Rarity.Common, seed: 99, pips: 2 }), density: 'card' },
+    'echo-stone Legendary card': { input: byForm('echo-stone', { rarity: Rarity.Legendary, seed: 99, pips: 2 }), density: 'card' },
+    'glitched-token Common card': { input: byForm('glitched-token', { rarity: Rarity.Common, seed: 99, pips: 2 }), density: 'card' },
+    'echo-stone Epic thumb': { input: byForm('echo-stone'), density: 'thumb' },
+    'void-prism Epic thumb': { input: byForm('void-prism'), density: 'thumb' },
   };
   for (const [name, { input, density }] of Object.entries(CASES)) {
     it(`pins ${name}`, () => {
