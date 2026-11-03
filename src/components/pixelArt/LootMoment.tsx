@@ -308,8 +308,8 @@ const LootDeck: React.FC<{ step: LootMomentStep; reduced: boolean; staticIn: boo
       {(deck.quality || deck.flavor) && (
         <div className="mt-2.5 flex items-end justify-between gap-3">
           {deck.quality ? (
-            <DeckRow delayMs={schedule.qualityMs} instant={instant}>
-              <div className="inline-flex items-baseline gap-1.5 px-2.5 py-1" style={{ background: DECK.raised }}>
+            <DeckRow delayMs={schedule.qualityMs} instant={instant} className="shrink-0">
+              <div className="inline-flex items-baseline gap-1.5 whitespace-nowrap px-2.5 py-1" style={{ background: DECK.raised }}>
                 <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: DECK.dim }}>
                   Quality
                 </span>
