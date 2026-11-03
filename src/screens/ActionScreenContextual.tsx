@@ -650,9 +650,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
   ].slice(0, MAX_SWITCH_ROWS);
 
-  // Action controls (owner ruling 2026-11-02): Switch / Stop float
+  // Action controls (owner rulings 2026-11-02): Switch / Stop float
   // ON the stage as chips in the plates' language — the stage
-  // places them bottom-right, above the status ribbon. The
+  // places them top-left, in the corner the removed area plate
+  // vacated. The
   // dedicated row under the rail that used to carry them is
   // deleted and its height reclaimed. Switch rides the stage in
   // EVERY state: it is the one door to the Switch sheet, and
@@ -695,10 +696,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           session feed it describes. The one chip that remains in
           this zone is the research chip (#239: the education track
           runs beside the action) — the current-area bar that used
-          to share this row is gone (drift-fix F2): the area
-          affordance is the stage's own area plate now (DESIGN.md
-          §1), one slim plate on the art instead of a full-width
-          dropdown bar above it. */}
+          to share this row is gone (drift-fix F2), and the stage's
+          own area plate followed it (owner ruling 2026-11-02):
+          the area affordance is the mode rail's AREA stop plus
+          the workspace panels' Change Area buttons, and the
+          stage's top-left belongs to the Switch/Stop chips. */}
       <ResearchChip />
       {/* Research (0038): the one-time course-complete card —
           appears on the first open after a course settles
@@ -714,7 +716,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         playerLevel={player.level}
         equippedCount={equippedCount}
         activityKind={currentKind}
-        onTitleClick={() => setShowAreaSelect(true)}
         stageControls={stageControls}
       />
 

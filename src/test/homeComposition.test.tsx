@@ -220,11 +220,15 @@ describe('Home composition — stage furniture + standby panel (drift-fix F2)', 
     useActivityStore.setState({ current: IDLE_ACTIVITY, hydrated: true, pending: false, error: null });
   });
 
-  it('the stage carries the slim area plate + one status ribbon; the state prints once and no headline ellipsizes it', async () => {
+  it('the stage carries NO area plate (owner ruling) + one status ribbon; the state prints once', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
-    const plate = await screen.findByTestId('diorama-stage-plate');
-    expect(plate.textContent).toContain('Area · ');
-    expect(plate.textContent).toContain('Dustwaste Frontier');
+    // The "Area · …" banner is off the scene entirely (owner
+    // ruling 2026-11-02): no stage plate renders, and the area
+    // name reaches the player from the workspace panel below
+    // (pinned by the standby-panel test) — the stage's only text
+    // furniture is the count plate, the ribbon, and the chips.
+    await screen.findByTestId('diorama-status-ribbon');
+    expect(screen.queryByTestId('diorama-stage-plate')).toBeNull();
     const ribbon = screen.getByTestId('diorama-status-ribbon');
     expect(ribbon.textContent).toContain('Standby');
     expect(ribbon.textContent).toContain('No weapon equipped');

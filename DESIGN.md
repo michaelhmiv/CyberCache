@@ -35,6 +35,15 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   the rail. The Switch Action door rides the stage in every state (it is the
   Switch sheet's only door, and Salvage's path home); Stop joins it while an
   action runs.*
+  *Owner ruling 2026-11-02 (later, from the device): the area/target plate
+  is REMOVED from the stage — no banner rides the art; area switching lives
+  in the rail's AREA stop and the workspace panels' Change Area buttons,
+  and a boss's name rides its HP plate. The action controls move to the
+  top-left corner the plate vacated (the count plate keeps the top-right).
+  Combat HP plates anchor at the actors' bases, never across a face: the
+  enemy/boss HP plate sits under the enemy on the ground line, and the
+  hunter's HP plate rides at his lower body on his own column, thick and
+  backed, numbers whole.*
 - **The Rail** — one compact chip rail for modes and sections (Home modes, Gear
   stops, Market stops, Hunter stops), current state lit. The rail is a screen's
   table of contents: every stop is a destination, not a scroll position.

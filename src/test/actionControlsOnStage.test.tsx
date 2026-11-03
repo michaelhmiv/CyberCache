@@ -5,9 +5,10 @@
  * under the Home mode rail; the owner killed the row from his
  * device ("that row is pure overhead") and chose the scene-float
  * placement over the activity-line placement. The controls now
- * render as chips on the stage itself — bottom-right, above the
- * status ribbon, in the plates' overlay language — via the
- * diorama's `stageControls` slot.
+ * render as chips on the stage itself, in the plates' overlay
+ * language, via the diorama's `stageControls` slot — first
+ * bottom-right above the ribbon, then (owner ruling, same day)
+ * top-left, in the corner the removed area plate vacated.
  *
  * Pins:
  *  - No standalone controls row exists anymore (source + render).
@@ -212,10 +213,11 @@ describe('action controls on stage — the dedicated row is gone (source)', () =
     expect(source).toContain('stageControls={stageControls}');
   });
 
-  it('the diorama places the controls bottom-right above the ribbon, above the sprite layers', () => {
+  it('the diorama places the controls top-left (the vacated plate corner), above the sprite layers', () => {
     const diorama = readSource('src/components/dashboard/LiveTurfDiorama.tsx');
     expect(diorama).toContain('data-testid="diorama-stage-controls"');
-    expect(diorama).toContain('bottom-11 right-2 z-30');
+    expect(diorama).toContain('left-2 top-2 z-30');
+    expect(diorama).not.toContain('bottom-11 right-2 z-30');
   });
 });
 

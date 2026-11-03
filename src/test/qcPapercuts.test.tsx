@@ -294,14 +294,15 @@ describe('Papercut 3 — Collections family header owns its lines', () => {
 describe('Papercut 4 — diorama title prints whole; the mode prints once', () => {
   const diorama = readSource('src/components/dashboard/LiveTurfDiorama.tsx');
 
-  it('the stage title wraps instead of ellipsizing', () => {
-    // Drift-fix F2: the poster title plate (bl-title text-2xl) is
-    // deleted outright — the stage's only title read is the slim
-    // plate, whose name span wraps at full size, and the HP
-    // overlays' name spans wrap too. No truncate survives
-    // anywhere in the diorama.
-    expect(diorama).toContain('diorama-stage-plate');
-    expect(diorama).toContain('min-w-0 break-words text-[12px] font-black');
+  it('no ellipsizing stage title remains: the plate is gone and HP plate names wrap whole', () => {
+    // Drift-fix F2 deleted the poster title plate (bl-title
+    // text-2xl); the slim area plate that replaced it is now
+    // deleted too (owner ruling 2026-11-02 — no banner on the
+    // art). The stage's remaining name reads are the HP plates',
+    // whose name spans wrap at the 11px floor. No truncate
+    // survives anywhere in the diorama.
+    expect(diorama).not.toContain('diorama-stage-plate');
+    expect(diorama).toContain('min-w-0 break-words');
     expect(diorama).not.toContain('truncate');
     expect(diorama).not.toContain('bl-title');
   });

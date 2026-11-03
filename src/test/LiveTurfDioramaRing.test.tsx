@@ -28,11 +28,12 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
     expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(1);
     // Drift-fix F2: the stage is visualization-only — the in-stage
     // action bar is gone (the mode's actions live in the workspace
-    // under the stage). With no title-click opener wired, the
-    // stage renders no buttons at all; its furniture is the area
-    // plate + the status ribbon (DESIGN.md §1).
+    // under the stage). The stage renders no buttons at all; its
+    // furniture is the count plate + the status ribbon (DESIGN.md
+    // §1) — the area plate that once shared the top row was
+    // removed from the scene by owner ruling 2026-11-02.
     expect(screen.queryAllByRole('button')).toHaveLength(0);
-    expect(screen.getByTestId('diorama-stage-plate')).toBeTruthy();
+    expect(screen.queryByTestId('diorama-stage-plate')).toBeNull();
     expect(screen.getByTestId('diorama-status-ribbon')).toBeTruthy();
   });
 
