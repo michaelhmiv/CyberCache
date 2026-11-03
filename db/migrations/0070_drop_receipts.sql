@@ -1,0 +1,15 @@
+-- 0070_drop_receipts.sql — Activity Log slice AL-1 (drop receipts, recording only)
+--
+-- SKELETON CHECKPOINT — body lands in a later increment of this branch.
+--
+-- Intent (brief: ~/workspace/cybercache-prep/activity-log-samples/index.md, AL-1):
+--   * Roam drop receipts: stamp foundVia / foundContext / foundEnemy / dropOdds
+--     at item generation and write the existing source_id (today NULL on every
+--     item path; the computed odds are discarded).
+--   * Boss attempts: stamp the dedicated-drop chance actually computed
+--     (chef.ts dedicated-drop roll) plus hit/luck context on the attempt record.
+--   * Claim / offline settlement payloads: record area_id.
+--   * Cache draws: stamp the odds-table version on the draw record.
+-- Recording only: no payout, price, or drop-rate behavior changes.
+--
+-- NOT APPLIED TO PRODUCTION — the parent applies this live pre-merge.
