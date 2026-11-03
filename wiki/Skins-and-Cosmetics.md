@@ -61,7 +61,8 @@ the same item wearing different light.
 The **Wardrobe** lives on your Hunter profile: a showcase stage
 with your hunter wearing his current look (weapon included), your
 owned parts by slot, and the full craftable catalog with its
-costs. Tap **Wear** and the part replaces the stock piece for that
+costs. A shortcut door also sits on the figure stage of the Gear
+tab's Loadout page — it lands here, on the Wardrobe panel. Tap **Wear** and the part replaces the stock piece for that
 slot — parts replace, they never layer over the stock frame. One
 part per slot; equipping a second part for a slot swaps the first
 back to your inventory.

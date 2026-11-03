@@ -70,24 +70,41 @@ Legendary weapons can additionally carry one named
 
 ## The one gear home
 
-Everything gear lives on the **Gear tab**, as a rail of four stops:
+Everything gear lives on the **Gear tab**, as a rail of two stops:
+**Loadout** and **Workshop**. The Loadout stop is one merged page —
+everything below is on it, in one scroll:
 
-- **Loadout** — the equip surface: your hunter stands at the top of
-  the panel wearing your actual equipped gear — your primary weapon
-  in his hands, shield, relic, and belt mounted on the figure — over
-  the seven slot chips and the slot picker. Weapon chips draw the
-  rolled gun itself, and item names always print in full. Your
-  vehicle slot lives here too: its status line — equipped vehicle,
-  yield, fuel, condition — heads the **Garage section**, which
-  expands in place right under it with everything vehicle: equip,
-  refuel, and repair (see [[Vehicles and the Garage]]). (Your
-  credits, scrap, keys, and item count print once, in the strip at
-  the top of the tab — the loadout panel header carries your DPS
-  and HP instead.)
-- **Grid** — your full item grid, with salvage/recycle.
-- **Items** — your belt, plus every stack you carry: consumable
-  batches with their quality % printed, materials, and essences.
-- **Workshop** — the crafting bench (see [[Crafting]]).
+- **The doll zone** — the equip surface: your hunter stands on a
+  compact stage wearing your actual equipped gear — your primary
+  weapon in his hands, shield, relic, and belt mounted on the
+  figure. The stage carries a **Wardrobe** door (its home is on
+  your Hunter profile; the door here is a shortcut) and, at its
+  foot, your **DPS and HP** plate. Down the right side, the three
+  gun slots are full rows — Primary biggest, with the rolled gun
+  itself drawn wide — and the four accessories (Shield, Class Mod,
+  Relic, Ordnance) sit in a band beneath. Each slot block prints
+  the item's name in its rarity color and a **perk line**: the
+  headline stat (DPS for a weapon, HP for a shield, payload for
+  ordnance, node count for a class mod, the lead bonus for a
+  relic) followed by the item's next real perks — status chance
+  and crit on a weapon, mitigation and recharge on a shield, and
+  so on. Rarity and element are read by color — the name's color
+  is the rarity, the icon's tint is the element — never spelled
+  out in the line. Tap any block to open the **slot picker** for
+  that slot. Your vehicle slot lives here too: its status line —
+  equipped vehicle, yield, fuel, condition — heads the **Garage
+  section**, which expands in place right under the doll zone
+  with everything vehicle: equip, refuel, and repair (see
+  [[Vehicles and the Garage]]). (Your credits, scrap, keys, and
+  item count print once, in the strip at the top of the tab.)
+- **Inventory** — your full item grid, with salvage/recycle. Its
+  header and toolbar stick to the top while you scroll its rows.
+- **Belt & Stacks** — your belt, plus every stack you carry:
+  consumable batches with their quality % printed, materials,
+  and essences.
+- **The Workshop door** — at the page's foot, printing your bench
+  state (benches owned, jobs running); it opens the **Workshop**
+  stop, the crafting bench (see [[Crafting]]).
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
