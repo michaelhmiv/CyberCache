@@ -266,7 +266,9 @@ const ACTIVE_KINDS = [
   'endless_run',
   'extraction',
 ] as const;
-const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave'] as const;
+// Econ 5 (0068): 'Scrap' heads the list — the unified currency stock
+// is a material key everywhere (market escrow, recipe classification).
+const MATERIAL_KEYS = ['Scrap', 'ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave'] as const;
 
 export interface InMemoryWriteOptions {
   now?: () => Date;
@@ -396,7 +398,17 @@ export class InMemoryWriteStore implements WriteStore {
     this.cacheLaneLeverProvider = opts.cacheLaneLeverProvider ?? (() => ({}));
     this.slotLeverProvider = opts.slotLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
-    for (const p of this.seed.profiles) this.profiles.set(p.id, p);
+    for (const p of this.seed.profiles) {
+      // Econ 5 (0068): a seed's legacy `scrap` amount folds into the
+      // unified materials stock and the row's scrap field zeroes —
+      // mirroring the live conversion (column retired, stack holds it).
+      const legacyScrap = typeof p.scrap === 'number' ? p.scrap : 0;
+      if (legacyScrap !== 0) {
+        p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) + legacyScrap) };
+        p.scrap = 0;
+      }
+      this.profiles.set(p.id, p);
+    }
     for (const i of this.seed.items) this.items.set(i.id, i);
     for (const l of this.seed.listings) this.listings.set(l.id, l);
     for (const j of this.seed.serviceJobs) this.jobs.set(j.id, j);
@@ -514,7 +526,7 @@ export class InMemoryWriteStore implements WriteStore {
     for (const item of this.items.values()) {
       if (item.owner_user_id === userId) itemsValue += item.estimated_value;
     }
-    const total = Math.max(0, p.credits + p.scrap + itemsValue);
+    const total = Math.max(0, p.credits + (p.materials?.['Scrap'] ?? 0) + itemsValue);
     this.setStat(userId, 'account.net_worth', total);
     this.setMasteryXp(userId, 'account.net_worth', total);
   }
@@ -607,7 +619,7 @@ export class InMemoryWriteStore implements WriteStore {
       player_level: p.player_level,
       player_xp: p.player_xp,
       credits: p.credits,
-      scrap: p.scrap,
+      scrap: p.materials?.['Scrap'] ?? 0,
       cache_tokens: p.cache_tokens,
       cache_token_parts: p.cache_token_parts,
       legendary_cores: p.legendary_cores ?? 0,
@@ -790,7 +802,7 @@ export class InMemoryWriteStore implements WriteStore {
       throw writeError('Initial bundle already claimed');
     }
     p.credits += 5000;
-    p.scrap += 500;
+    p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) + 500) };
     p.cache_tokens += 3;
     p.boss_state = { ...p.boss_state, initial_bundle_claimed: true };
     this.touch(p);
@@ -1782,7 +1794,7 @@ export class InMemoryWriteStore implements WriteStore {
     // selection record in the same operation.
     this.unequipCosmeticIfWorn(playerId, item);
     this.recalcNetWorth(playerId);
-    p.scrap += award;
+    p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) + award) };
     p.legendary_cores = (p.legendary_cores ?? 0) + cores;
     this.touch(p);
     const result: Json = {
@@ -1885,7 +1897,7 @@ export class InMemoryWriteStore implements WriteStore {
       { rarity: item.rarity, level: item.item_level },
       this.reforgeLeverProvider(),
     );
-    if (p.scrap < cost.scrap) throw writeError('Insufficient scrap');
+    if ((p.materials?.['Scrap'] ?? 0) < cost.scrap) throw writeError('Insufficient scrap');
     if ((p.legendary_cores ?? 0) < cost.cores) throw writeError('Insufficient legendary cores');
     const rng = createRNG(hashString(`reforge:${playerId}:${itemId}:${key}`));
     const { item: nextPayload, oldAffix, newAffix } = applyReforgeToItem(kind, payload, affixIndex, rng);
@@ -1898,7 +1910,7 @@ export class InMemoryWriteStore implements WriteStore {
     );
     this.touchItem(item);
     this.recalcNetWorth(playerId);
-    p.scrap -= cost.scrap;
+    p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) - cost.scrap) };
     p.legendary_cores = (p.legendary_cores ?? 0) - cost.cores;
     this.touch(p);
     const result: Json = {
@@ -2291,7 +2303,6 @@ export class InMemoryWriteStore implements WriteStore {
         player_level: p.player_level,
         player_xp: p.player_xp,
         credits: p.credits,
-        scrap: p.scrap ?? 0,
         materials: asNumberMap(p.materials),
         essences: asNumberMap(p.essences),
         consumables: asNumberMap(p.consumables),
@@ -2312,7 +2323,6 @@ export class InMemoryWriteStore implements WriteStore {
       view.player_level = p.player_level;
       view.player_xp = p.player_xp;
       view.credits = p.credits;
-      view.scrap = p.scrap ?? view.scrap;
       view.workshop_benches = p.workshop_benches ?? view.workshop_benches;
       view.legendary_cores = p.legendary_cores ?? view.legendary_cores;
       view.offline_cap_hours = p.offline_cap_hours ?? null;
@@ -2329,7 +2339,6 @@ export class InMemoryWriteStore implements WriteStore {
     p.player_xp = view.player_xp;
     this.applyCacheRankGrant(p);
     p.credits = view.credits;
-    p.scrap = view.scrap;
     p.legendary_cores = view.legendary_cores;
     p.workshop_benches = view.workshop_benches;
     p.workshop_tools = clone(view.workshop_tools) as unknown as Record<string, unknown>;
@@ -4785,10 +4794,10 @@ export class InMemoryWriteStore implements WriteStore {
     p.player_level = 1;
     p.player_xp = 0;
     p.credits = 5000;
-    p.scrap = 500;
     p.cache_tokens = 3;
     p.cache_token_parts = 0;
-    p.materials = {};
+    // Econ 5 (0068): the reset's starting scrap is the materials stack.
+    p.materials = { Scrap: 500 };
     p.essences = {};
     p.consumables = {};
     p.skill_spends = {};

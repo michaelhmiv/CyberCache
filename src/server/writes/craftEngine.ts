@@ -263,8 +263,8 @@ export interface CraftProfileView {
   player_level: number;
   player_xp: number;
   credits: number;
-  /** The scrap column (0053): cosmetic recipes escrow it directly. */
-  scrap: number;
+  // Econ 5 (0068): no scrap balance on this view — Scrap is the
+  // materials['Scrap'] stock like every other material key.
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
@@ -1103,15 +1103,14 @@ export function enqueueCraftJob(
   }
 
   // Verify the full escrow before taking any of it (atomicity).
-  // The `Scrap` key (0053, the cosmetic recipes' lead input) reads
-  // the scrap COLUMN, not a material/essence balance.
+  // Econ 5 (0068): the `Scrap` key is an ordinary material key now —
+  // the 0053 scrap-column special case is deleted in both twins.
   const escrowInputs: Record<string, number> = {};
   for (const [key, perUnit] of Object.entries(r.inputs)) {
     escrowInputs[key] = perUnit * units;
-    const available =
-      key === 'Scrap' ? (p.scrap ?? 0) : isMaterialInput(key) ? (p.materials[key] ?? 0) : (p.essences[key] ?? 0);
+    const available = isMaterialInput(key) ? (p.materials[key] ?? 0) : (p.essences[key] ?? 0);
     if (available < escrowInputs[key]) {
-      fail(key === 'Scrap' ? 'Insufficient scrap' : isMaterialInput(key) ? `Insufficient material ${key}` : `Insufficient essence ${key}`);
+      fail(isMaterialInput(key) ? `Insufficient material ${key}` : `Insufficient essence ${key}`);
     }
   }
   const escrowCatalyst: Record<string, number> = {};
@@ -1150,8 +1149,7 @@ export function enqueueCraftJob(
 
   // Take the escrow.
   for (const [key, total] of Object.entries(escrowInputs)) {
-    if (key === 'Scrap') p.scrap = (p.scrap ?? 0) - total;
-    else if (isMaterialInput(key)) p.materials[key] = (p.materials[key] ?? 0) - total;
+    if (isMaterialInput(key)) p.materials[key] = (p.materials[key] ?? 0) - total;
     else p.essences[key] = (p.essences[key] ?? 0) - total;
   }
   for (const [key, total] of Object.entries(escrowCatalyst)) {
@@ -1563,7 +1561,7 @@ export function enqueueTintJob(
   }
 
   // Verify the full escrow before taking any of it (atomicity).
-  if ((p.scrap ?? 0) < scrapCost) fail('Insufficient scrap');
+  if ((p.materials['Scrap'] ?? 0) < scrapCost) fail('Insufficient scrap');
   if (chromaweave > 0 && (p.materials['Chromaweave'] ?? 0) < chromaweave) {
     fail('Insufficient material Chromaweave');
   }
@@ -1582,7 +1580,7 @@ export function enqueueTintJob(
   const escrowInputs: Record<string, number> = {};
   if (scrapCost > 0) {
     escrowInputs['Scrap'] = scrapCost;
-    p.scrap = (p.scrap ?? 0) - scrapCost;
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) - scrapCost;
   }
   if (chromaweave > 0) {
     escrowInputs['Chromaweave'] = chromaweave;
@@ -1702,28 +1700,18 @@ export function cancelCraftJob(
   };
   // Recipe inputs split materials/essences by key space; the catalyst
   // is a per-unit material input and follows the same refund rule.
-  // The `Scrap` key (0053) refunds to the scrap column.
+  // Econ 5 (0068): the `Scrap` key is a material key, so its refund
+  // rides the materials map on the standard schedule — the 0053
+  // scrap-column fold is deleted.
   const materialInputs: Record<string, number> = {};
   const essenceInputs: Record<string, number> = {};
-  const scrapInputs: Record<string, number> = {};
   for (const [key, total] of Object.entries(j.escrow_inputs)) {
     const perUnit = total / j.units_total;
-    if (key === 'Scrap') scrapInputs[key] = perUnit;
-    else if (isMaterialInput(key)) materialInputs[key] = perUnit;
+    if (isMaterialInput(key)) materialInputs[key] = perUnit;
     else essenceInputs[key] = perUnit;
   }
   refundMap(materialInputs, p.materials);
   refundMap(essenceInputs, p.essences);
-  // refundMap credits a key map; scrap lives on the profile column,
-  // so fold its refund in directly on the same schedule.
-  for (const [key, perUnit] of Object.entries(scrapInputs)) {
-    let amount = perUnit * unstarted;
-    if (inProgress) amount += Math.floor(perUnit * 0.5);
-    if (amount > 0) {
-      refunded[key] = (refunded[key] ?? 0) + amount;
-      p.scrap = (p.scrap ?? 0) + amount;
-    }
-  }
   const catalystPerUnit: Record<string, number> = {};
   for (const [key, total] of Object.entries(j.escrow_catalyst)) {
     catalystPerUnit[key] = total / j.units_total;
