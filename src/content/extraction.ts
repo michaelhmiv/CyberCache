@@ -55,8 +55,12 @@
  *    `extractMasteryYieldPerLevel` per level past 1 (cap +25%):
  *    specialization must be real.
  *  - GATES. Verified accounts only (guests are refused at start —
- *    extraction feeds the player economy), no starting while a
- *    death record stands, and the site must be unlocked.
+ *    extraction feeds the player economy), and no starting while a
+ *    death record stands. The site is NEVER level-gated: extraction
+ *    may run in any area at any hunter level, same as roaming (the
+ *    SQL start gate's leftover `roaming_areas.unlock_level` check —
+ *    a fossil of the pre-#316 area gates — was removed by migration
+ *    0063; the TS gate had never carried it).
  *
  * This module is the content owner: levers, pass math, the gear
  * factor, and the preview numbers the state route serves. The SQL

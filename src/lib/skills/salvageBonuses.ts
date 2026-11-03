@@ -32,11 +32,11 @@ export function salvageScrap(rarity: string, itemLevel: number): number {
   return Math.max(1, Math.round((10 + Math.max(1, itemLevel || 1) * 5) * mult));
 }
 
-/** Bonus crafting material by salvaged item kind — the same
- *  type→material convention as calculateSalvageYield in
- *  src/constants/salvageRules.ts (weapons yield BallisticParts,
- *  shields/ordnance ReactiveComponents, class mods/relics
- *  TechFragments). Kinds outside the map yield the generic material. */
+/** Bonus crafting material by salvaged item kind — the convention
+ *  cc_recycle_item itself applies (0022; restated 0053): weapons
+ *  yield BallisticParts, shields/ordnance ReactiveComponents, class
+ *  mods/relics TechFragments. Kinds outside the map yield the
+ *  generic material. */
 export const SALVAGE_MATERIAL_BY_KIND: Record<string, string> = {
   weapon: 'BallisticParts',
   shield: 'ReactiveComponents',

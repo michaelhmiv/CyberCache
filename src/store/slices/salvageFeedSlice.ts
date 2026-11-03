@@ -9,7 +9,7 @@
  * the source, never generated.
  */
 import { create } from 'zustand';
-import type { SalvageYield } from '@/constants/salvageRules';
+import type { SalvageYield } from '@/lib/gear/salvageAward';
 import type { GearItem } from '@/types/items';
 
 export interface SalvageFeedEvent {

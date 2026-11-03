@@ -331,21 +331,21 @@ describe('consumable functions (§2.6)', () => {
 
 describe('AFK cap limiter (§3.6)', () => {
   it('a limiter below the earned cap wins', () => {
-    expect(effectiveOfflineCapHours({ level: 80, bonusHours: 4, userCapHours: 1 })).toBe(1);
+    expect(effectiveOfflineCapHours({ researchCapHours: 10, bonusHours: 4, userCapHours: 1 })).toBe(1);
   });
 
   it('a limiter above the earned cap does not raise it', () => {
-    expect(effectiveOfflineCapHours({ level: 10, userCapHours: 24 })).toBe(earnedOfflineCapHours(10));
-    expect(earnedOfflineCapHours(10)).toBe(2);
+    expect(effectiveOfflineCapHours({ researchCapHours: 0, userCapHours: 24 })).toBe(earnedOfflineCapHours(0));
+    expect(earnedOfflineCapHours(0)).toBe(2);
   });
 
   it('no limiter: earned + keystone stands (16h at the top)', () => {
-    expect(effectiveOfflineCapHours({ level: 80, bonusHours: 4 })).toBe(16);
+    expect(effectiveOfflineCapHours({ researchCapHours: 10, bonusHours: 4 })).toBe(16);
   });
 
   it('the 24h ceiling binds any future cap source', () => {
-    expect(effectiveOfflineCapHours({ level: 80, bonusHours: 24, userCapHours: null, ceilingHours: 24 })).toBe(24);
-    expect(effectiveOfflineCapHours({ level: 80, bonusHours: 24, userCapHours: 20, ceilingHours: 24 })).toBe(20);
+    expect(effectiveOfflineCapHours({ researchCapHours: 10, bonusHours: 24, userCapHours: null, ceilingHours: 24 })).toBe(24);
+    expect(effectiveOfflineCapHours({ researchCapHours: 10, bonusHours: 24, userCapHours: 20, ceilingHours: 24 })).toBe(20);
   });
 });
 

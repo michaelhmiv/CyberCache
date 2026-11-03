@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
 import {
@@ -13,6 +13,9 @@ import {
   type ChefDispatchState,
 } from '@/lib/chef/chefClient';
 import { getMaterialVisual } from '@/constants/visualAssets';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
+import { FUEL_CELL_TYPE } from '@/lib/vehicles/vehicles';
+import { dispatchFuelShortfallCells } from '@/content/dispatch';
 
 /**
  * Dispatch panel (0032) — the contract board + bay.
@@ -85,25 +88,39 @@ export const DispatchPanel: React.FC = () => {
 
   // Re-price whenever the prep selection changes. (Clearing the old
   // preview happens in the offer-select handler, not here — no
-  // synchronous setState in effects.)
-  useEffect(() => {
+  // synchronous setState in effects.) The generation counter keeps
+  // last-write-wins when a re-price is triggered out of band (the
+  // fuel quick-buy's onFilled) as well as by selection changes.
+  const previewGen = useRef(0);
+  const runPreview = useCallback(() => {
     if (!offer) return;
-    let cancelled = false;
+    const gen = ++previewGen.current;
     previewDispatch({
       offerId: offer.id,
       itemIds: offer.family === 'foot' ? pickedItems : [],
       vehicleItemId: offer.family === 'courier' ? pickedVehicle : null,
     })
       .then((result) => {
-        if (cancelled) return;
+        if (previewGen.current !== gen) return;
         setPreview(result.preview);
         setReasons(result.reasons);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Preview failed');
+        if (previewGen.current !== gen) return;
+        setError(err instanceof Error ? err.message : 'Preview failed');
       });
-    return () => { cancelled = true; };
   }, [offer, pickedItems, pickedVehicle]);
+
+  useEffect(() => { runPreview(); }, [runPreview]);
+
+  // QB-3: a fuel fill lands cells in inventory — the tank (and so
+  // the shortfall) moves only when the Garage loads them — so a
+  // fill re-reads the board state and re-prices the preview; the
+  // panel never presents a purchase as a departure unblocked.
+  const handleFuelFilled = useCallback(() => {
+    refresh().catch(() => { /* stale state stays */ });
+    runPreview();
+  }, [refresh, runPreview]);
 
   const depart = useCallback(async () => {
     if (!offer || busy) return;
@@ -277,7 +294,21 @@ export const DispatchPanel: React.FC = () => {
                 )}
                 {offer.family === 'courier' && (
                   <>
-                    <div>Fuel cost: {Math.ceil(Number(preview.fuelUnits ?? 0))} units ({String(preview.fuelCells ?? 0)} cells)</div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Fuel cost: {Math.ceil(Number(preview.fuelUnits ?? 0))} units ({String(preview.fuelCells ?? 0)} cells)</span>
+                      {/* QB-3: the lone + beside the fuel line, keyed
+                          to the server's own shortfall — the preview's
+                          fuelAvailable is the tank the route priced
+                          against, and the helper restates the route's
+                          refusal count verbatim. */}
+                      <QuickBuyPlus
+                        good={{ kind: 'consumable', id: FUEL_CELL_TYPE }}
+                        goodName="Generic Fuel Cell"
+                        shortfall={dispatchFuelShortfallCells(Number(preview.fuelUnits ?? 0), Number(preview.fuelAvailable ?? state.vehicleFuel))}
+                        contextLabel={typeof preview.vehicleName === 'string' ? preview.vehicleName : offer.areaName}
+                        onFilled={handleFuelFilled}
+                      />
+                    </div>
                     <div>Projected wear: {Number(preview.wearProjected ?? 0).toFixed(1)} condition</div>
                     {preview.breaksDown ? (
                       <div className="font-black text-red-400">

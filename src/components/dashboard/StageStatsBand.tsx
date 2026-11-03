@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import {
   useActiveBuffsStore,
@@ -25,6 +25,7 @@ import {
   vehicleMaterialBonusChance,
 } from '@/lib/vehicles/vehicles';
 import { effectiveOfflineCapHours } from '@/content/offlineCap';
+import { getResearchState } from '@/lib/chef/chefClient';
 import {
   EXTRACTION_DEEP_GEAR_FACTOR,
   EXTRACTION_PASS_MS,
@@ -71,6 +72,25 @@ export const StageStatsBand: React.FC<{
   const kind = useActivityStore((s) => s.current.kind);
   const selectedAreaId = useIdleStore((s) => s.selectedRoamingAreaId);
   const now = useNow();
+
+  // The AFK cap's earned hours come from Research completions —
+  // Chef-owned state, read like the ResearchChip reads it. Until the
+  // read lands (or if the Chef is unreachable) the band shows the
+  // base-only cap; settlement itself is always server-derived.
+  const [researchCapHours, setResearchCapHours] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    getResearchState()
+      .then((result) => {
+        if (!cancelled) setResearchCapHours(result.research.bonuses.offlineCapBonus);
+      })
+      .catch(() => {
+        // Chef unreachable: base-only display.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const entries = useMemo(() => {
     const area = getRoamingArea(selectedAreaId);
@@ -171,7 +191,7 @@ export const StageStatsBand: React.FC<{
     // 1–24; anything else is no limiter).
     const storedLimiter = player.offlineCapHours >= 1 && player.offlineCapHours <= 24 ? Math.floor(player.offlineCapHours) : null;
     const offlineCapHours = effectiveOfflineCapHours({
-      level: player.level,
+      researchCapHours,
       bonusHours: Math.max(0, Math.floor(skillBonuses.offlineCapBonus ?? 0)),
       userCapHours: storedLimiter,
     });
@@ -199,7 +219,7 @@ export const StageStatsBand: React.FC<{
       extraction: extractionFacts,
       offlineCapHours,
     });
-  }, [player, loadout, skills, survival, workshop.server, activeBuffsStore.buffs, now, kind, selectedAreaId, boss]);
+  }, [player, loadout, skills, survival, workshop.server, activeBuffsStore.buffs, now, kind, selectedAreaId, boss, researchCapHours]);
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2" data-testid="stage-stats-band">
