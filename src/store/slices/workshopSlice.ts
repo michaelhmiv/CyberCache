@@ -14,6 +14,7 @@
  */
 import { create } from 'zustand';
 import { fetchWorkshopState, verifiedOps } from '@/lib/api/verifiedOps';
+import { trackCraftCompletions } from '@/lib/analytics/analytics';
 
 /** One job as the server presents it (craftJobView). */
 export interface WorkshopJobView {
@@ -96,6 +97,9 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
     try {
       const view = asView(await fetchWorkshopState());
       set({ server: view, loading: false, error: null });
+      // Analytics: this refresh is the one place new server views
+      // land, so it is where craft completions are observed.
+      trackCraftCompletions(view);
     } catch (err) {
       set({
         loading: false,

@@ -47,6 +47,7 @@ import {
   buildRoamingLootActivity,
 } from '@/lib/activity/activityBuilders';
 import { verifiedOps } from '@/lib/api/verifiedOps';
+import { trackScreen } from '@/lib/analytics/analytics';
 import { salvageScrap } from '@/lib/skills/salvageBonuses';
 import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '@/content/roamingRates';
 import { isClassMod, isOrdnance, isRelic, isShield, isWeapon } from '@/lib/gear/gearCardSummary';
@@ -218,6 +219,13 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   useEffect(() => {
     void refreshWorkshop();
   }, [refreshWorkshop, currentKind]);
+  // Analytics: the Endless Chamber owns the workspace while a run
+  // holds the slot or its prep is open from the switch grid — that
+  // is a screen of its own in the GA4 table.
+  const endlessVisible = currentKind === 'endless_run' || showEndless;
+  useEffect(() => {
+    if (endlessVisible) trackScreen('Endless');
+  }, [endlessVisible]);
   const bossPhase = activity.current.bossPhase;
   const isBossPrep = currentKind === 'boss_fight' && bossPhase === 'prep';
   const isBossFight = currentKind === 'boss_fight' && bossPhase === 'fight';

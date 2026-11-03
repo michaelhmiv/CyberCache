@@ -11,6 +11,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { trackBossAttempt, trackEndlessRunEnd } from '../analytics/analytics';
 import type { GearItem } from '@/types/items';
 import type { BossAttemptResult } from '@/types/boss';
 import type { RiskSetting } from '@/types/game';
@@ -366,7 +367,12 @@ export async function verifyBossFight(request: ChefVerifyBossRequest): Promise<C
     throw new Error(`Chef boss verification failed (${response.status}): ${detail}`);
   }
 
-  return response.json();
+  const result = (await response.json()) as ChefVerifyBossResult;
+  // A nonce replay settled nothing new — it is not another attempt.
+  if (!result.idempotentReplay) {
+    trackBossAttempt(request.bossId, result.victory ? 'victory' : 'defeat');
+  }
+  return result;
 }
 
 /** Idempotency nonce for one resurrection attempt (verifiedOps requestId pattern). */
@@ -752,11 +758,17 @@ export async function startEndlessRun(request: {
   consumables: Record<string, number>;
   risk: RiskSetting;
 }): Promise<ChefStartEndlessResult> {
-  return endlessFetch<ChefStartEndlessResult>(
+  const result = await endlessFetch<ChefStartEndlessResult>(
     '/endless/start',
     { method: 'POST', body: JSON.stringify(request) },
     'Chef endless start failed',
   );
+  // Starting over an active run settles that run as abandoned — an
+  // ending, reported with its depth like any other.
+  if (result.abandonedSettlement) {
+    trackEndlessRunEnd(result.abandonedSettlement.run_id, result.abandonedSettlement.depth_reached);
+  }
+  return result;
 }
 
 export async function advanceEndlessEncounter(request: {
@@ -764,19 +776,28 @@ export async function advanceEndlessEncounter(request: {
   /** Action skill fire INTENT (0030) — see ChefVerifyBossRequest. */
   fireActionSkill?: boolean;
 }): Promise<ChefEndlessEncounterResult> {
-  return endlessFetch<ChefEndlessEncounterResult>(
+  const result = await endlessFetch<ChefEndlessEncounterResult>(
     '/endless/encounter',
     { method: 'POST', body: JSON.stringify(request) },
     'Chef endless encounter failed',
   );
+  // Death and the depth cap both end the run inside an encounter.
+  if (result.runStatus !== 'active' && !result.idempotentReplay) {
+    trackEndlessRunEnd(result.run.id, result.run.depth_reached);
+  }
+  return result;
 }
 
 export async function bankEndlessRun(request: { nonce: string }): Promise<ChefBankEndlessResult> {
-  return endlessFetch<ChefBankEndlessResult>(
+  const result = await endlessFetch<ChefBankEndlessResult>(
     '/endless/bank',
     { method: 'POST', body: JSON.stringify(request) },
     'Chef endless bank failed',
   );
+  if (!result.idempotentReplay) {
+    trackEndlessRunEnd(result.runId, result.depthReached);
+  }
+  return result;
 }
 
 export async function getEndlessMe(): Promise<ChefEndlessMeResult> {

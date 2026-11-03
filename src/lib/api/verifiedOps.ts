@@ -12,6 +12,13 @@
  * with the fallback rather than left as a wrong-rate back door.
  */
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
+import {
+  trackCacheOpen,
+  trackCraftQueue,
+  trackEquip,
+  trackMarketList,
+  trackSalvage,
+} from '@/lib/analytics/analytics';
 import { isNotFoundError } from './http';
 import { syncRuntimeItemsForUser } from './runtimeStateService';
 import { apiRequest } from './http';
@@ -39,11 +46,15 @@ export const verifiedOps = {
   // (the day's first opening resolves free whatever is requested),
   // the daily cap, and the draw. 'ad' is a client attestation — the
   // ad unit id is the claim; there is no rewarded-key claim anymore.
-  makeItem: (input?: { payment?: 'free' | 'ad' | 'key'; adUnitId?: string }) => op('/ops/make-item', {
-    nonce: requestId('make'),
-    payment: input?.payment ?? 'key',
-    ad_unit_id: input?.adUnitId ?? null,
-  }),
+  makeItem: async (input?: { payment?: 'free' | 'ad' | 'key'; adUnitId?: string }) => {
+    const result = await op('/ops/make-item', {
+      nonce: requestId('make'),
+      payment: input?.payment ?? 'key',
+      ad_unit_id: input?.adUnitId ?? null,
+    });
+    trackCacheOpen(input?.payment ?? 'key');
+    return result;
+  },
   registerPushDevice: ({ token, platform, appVersion }: { token: string; platform?: string; appVersion?: string }) => op('/push/register', {
     token,
     platform: platform ?? 'android',
@@ -63,15 +74,19 @@ export const verifiedOps = {
   // Crafting-as-occupation (0024): the server job model. Intent only —
   // the server derives durations, bounds, XP and escrow from the
   // catalog + profile + skill records.
-  enqueueCraftJob: (input: { bench: number; recipeId: string; units: number; rarity?: string | null; useCatalyst?: boolean; useRushTicket?: boolean }) => op('/ops/craft-enqueue', {
-    nonce: requestId('craft-enqueue'),
-    bench: input.bench,
-    recipe_id: input.recipeId,
-    units: input.units,
-    rarity: input.rarity ?? null,
-    use_catalyst: input.useCatalyst ?? false,
-    use_rush_ticket: input.useRushTicket ?? false,
-  }),
+  enqueueCraftJob: async (input: { bench: number; recipeId: string; units: number; rarity?: string | null; useCatalyst?: boolean; useRushTicket?: boolean }) => {
+    const result = await op('/ops/craft-enqueue', {
+      nonce: requestId('craft-enqueue'),
+      bench: input.bench,
+      recipe_id: input.recipeId,
+      units: input.units,
+      rarity: input.rarity ?? null,
+      use_catalyst: input.useCatalyst ?? false,
+      use_rush_ticket: input.useRushTicket ?? false,
+    });
+    trackCraftQueue(input.recipeId);
+    return result;
+  },
   cancelCraftJob: (jobId: string) => op('/ops/craft-cancel', { nonce: requestId('craft-cancel'), job_id: jobId }),
   unlockCraftBench: () => op('/ops/craft-unlock-bench', { nonce: requestId('craft-bench') }),
   fitWorkshopTool: (bench: number, toolId: string | null) => op('/ops/craft-fit-tool', {
@@ -86,14 +101,22 @@ export const verifiedOps = {
     activity_type: input.activityType ?? null,
     reason: input.reason ?? null,
   }),
-  recycleItem: (itemId: string) => op('/ops/recycle-item', { nonce: requestId('recycle'), item_id: itemId }),
+  recycleItem: async (itemId: string) => {
+    const result = await op('/ops/recycle-item', { nonce: requestId('recycle'), item_id: itemId });
+    trackSalvage(1);
+    return result;
+  },
   // Batch salvage (0055): ONE call settles every eligible item at or
   // under the rarity ceiling ('Common' | 'Uncommon' | 'Rare' |
   // 'Epic' — Legendary is never a ceiling). Intent only: the server
   // resolves the set from the player's inventory; the result carries
   // aggregate yields (counts by rarity, total scrap/cores, bonus
   // materials) plus the consumed rows for state sync.
-  recycleBatch: (maxRarity: string) => op('/ops/recycle-batch', { nonce: requestId('recycle-batch'), max_rarity: maxRarity }),
+  recycleBatch: async (maxRarity: string) => {
+    const result = await op('/ops/recycle-batch', { nonce: requestId('recycle-batch'), max_rarity: maxRarity });
+    trackSalvage(Number(result.scrapped_count ?? 0));
+    return result;
+  },
   // Reforge (0027): reroll ONE affix. Intent only (item + affix id) —
   // the server prices from the economy levers, rolls from the shared
   // affix pools, and returns old_affix / new_affix for the reveal.
@@ -102,7 +125,9 @@ export const verifiedOps = {
   itemLock: (itemId: string, locked: boolean) => op('/ops/item-lock', { nonce: requestId('lock'), item_id: itemId, locked }),
   equipItem: async (itemId: string, slotName: string) => {
     try {
-      return await op('/ops/equip-item', { nonce: requestId('equip'), item_id: itemId, slot_name: slotName });
+      const result = await op('/ops/equip-item', { nonce: requestId('equip'), item_id: itemId, slot_name: slotName });
+      trackEquip(slotName);
+      return result;
     } catch (error) {
       if (isNotFoundError(error)) {
         // The displayed item is not in the server's inventory for
@@ -146,12 +171,36 @@ export const verifiedOps = {
   retrain: () => op('/ops/retrain', { nonce: requestId('retrain') }),
   trainSkill: (nodeId: string) => op('/ops/train-skill', { nonce: requestId(`train:${nodeId}`), node_id: nodeId }),
   battleResult: (targetId: string, stance = 'balanced') => op('/ops/battle-result', { nonce: requestId('battle'), target_id: targetId, stance }),
+  // NOTE: no market_list event here — this one op lists gear,
+  // cosmetic parts, and vehicles alike (the server stamps the kind
+  // from the item), so the kind-accurate event fires at the
+  // MarketScreen handlers that know what is being listed.
   marketCreate: (itemId: string, priceCredits: number) => op('/ops/market-create', { nonce: requestId('list'), item_id: itemId, price_credits: priceCredits }),
-  marketCreateConsumable: (batchId: string, quantity: number, priceCredits: number) => op('/ops/market-create-consumable', { nonce: requestId('list-cons'), batch_id: batchId, quantity, price_credits: priceCredits }),
-  marketCreateMaterial: (materialId: string, quantity: number, priceCredits: number) => op('/ops/market-create-material', { nonce: requestId('list-mat'), material_id: materialId, quantity, price_credits: priceCredits }),
-  marketCreateFragment: (quantity: number, priceCredits: number) => op('/ops/market-create-fragment', { nonce: requestId('list-frag'), quantity, price_credits: priceCredits }),
-  marketCreateCore: (quantity: number, priceCredits: number) => op('/ops/market-create-core', { nonce: requestId('list-core'), quantity, price_credits: priceCredits }),
-  marketCreateEssence: (essenceId: string, quantity: number, priceCredits: number) => op('/ops/market-create-essence', { nonce: requestId('list-ess'), essence_id: essenceId, quantity, price_credits: priceCredits }),
+  marketCreateConsumable: async (batchId: string, quantity: number, priceCredits: number) => {
+    const result = await op('/ops/market-create-consumable', { nonce: requestId('list-cons'), batch_id: batchId, quantity, price_credits: priceCredits });
+    trackMarketList('consumable');
+    return result;
+  },
+  marketCreateMaterial: async (materialId: string, quantity: number, priceCredits: number) => {
+    const result = await op('/ops/market-create-material', { nonce: requestId('list-mat'), material_id: materialId, quantity, price_credits: priceCredits });
+    trackMarketList('material');
+    return result;
+  },
+  marketCreateFragment: async (quantity: number, priceCredits: number) => {
+    const result = await op('/ops/market-create-fragment', { nonce: requestId('list-frag'), quantity, price_credits: priceCredits });
+    trackMarketList('fragment');
+    return result;
+  },
+  marketCreateCore: async (quantity: number, priceCredits: number) => {
+    const result = await op('/ops/market-create-core', { nonce: requestId('list-core'), quantity, price_credits: priceCredits });
+    trackMarketList('core');
+    return result;
+  },
+  marketCreateEssence: async (essenceId: string, quantity: number, priceCredits: number) => {
+    const result = await op('/ops/market-create-essence', { nonce: requestId('list-ess'), essence_id: essenceId, quantity, price_credits: priceCredits });
+    trackMarketList('essence');
+    return result;
+  },
   marketCancel: (listingId: string) => op('/ops/market-cancel', { nonce: requestId('cancel'), listing_id: listingId }),
   acceptListing: (listingId: string) => op('/ops/market-accept', { nonce: requestId('accept'), listing_id: listingId }),
   resetProgress: () => op('/ops/reset-progress', { nonce: requestId('reset') }),
