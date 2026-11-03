@@ -28,6 +28,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { applyXp, computeItemEstimatedValue, masteryLevelForXp, salvageScrap, type Json } from '../writes/store';
+import { sourceIdFromPayload } from '../dropReceipts';
 import {
   deathRecordFromJson,
   GameplayStoreError,
@@ -2759,6 +2760,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         // Vehicles are stored at full condition (0021 cc_store_chef_items).
         condition_current: kind === 'vehicle' ? VEHICLE_CONDITION_MAX : null,
         condition_max: kind === 'vehicle' ? VEHICLE_CONDITION_MAX : null,
+        // AL-1 (0070): the twin of the SQL store's source_id write —
+        // derived from the payload's drop receipt (identical string),
+        // NULL when the payload carries no stamp.
+        source_id: sourceIdFromPayload(payload),
         payload,
       });
       inserted += 1;

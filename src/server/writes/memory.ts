@@ -889,11 +889,22 @@ export class InMemoryWriteStore implements WriteStore {
     // cc_draw_odds call.
     const skillQuality = computeSkillBonuses(asNumberMap(p.skill_spends)).cacheQuality ?? 0;
     const cacheQuality = Math.max(0, skillQuality) + this.cacheRankBonusesFor(p).cacheQuality;
-    const draw = drawOdds(
+    const rawDraw = drawOdds(
       'cache_primary_rarity',
       cacheQualityAdjustedWeights(outcomes, cacheQuality),
       this.rng(),
     );
+    // AL-1 (0070): stamp the odds-table version on the draw record —
+    // the twin of cc_draw_odds' odds_table_version, stamped before
+    // the value computation so the record the ledger keeps is the
+    // record the item was priced from. The seed carries odds_tables
+    // rows sparsely; an unseeded table stamps null, exactly what the
+    // SQL select-into yields for a missing row.
+    const draw = {
+      ...rawDraw,
+      odds_table_version:
+        this.seed.oddsTables.find((t) => t.id === 'cache_primary_rarity')?.version ?? null,
+    };
     const rarity = draw.outcome;
     if (resolved === 'key') {
       p.cache_tokens -= 1;
