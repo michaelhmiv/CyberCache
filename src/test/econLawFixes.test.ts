@@ -28,7 +28,7 @@
  * (draft — applied live by the parent before merge); its shape is
  * pinned textually here, the same way the other migrations are pinned.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -269,6 +269,105 @@ describe('migration 0067 — SQL twin shape', () => {
     expect(sql).not.toContain('greatest(0, v_charges - 1)');
     expect(sql).toContain('§9.2');
   });
+
+  /* The settler's chain head moved after this slice was drafted:
+   * gate step 6 (0063) restated cc_settle_craft_jobs on the
+   * Research-carried cap and dropped cc_earned_offline_cap_hours
+   * (integer). 0067's restatement is re-based on the 0063 body —
+   * these pins bind it there, so a future chain-head move fails
+   * here instead of breaking craft settlement at runtime. */
+  const sql0063 = readFileSync(
+    path.join(__dirname, '../../db/migrations/0063_offline_cap_research_carrier.sql'), 'utf8',
+  );
+  const segment = (text: string, fname: string): string => {
+    const start = text.indexOf(`create or replace function public.${fname}`);
+    expect(start, fname).toBeGreaterThanOrEqual(0);
+    const rest = text.slice(start);
+    const m = rest.match(/\$\$;|\$func\$;|\$function\$;/);
+    expect(m, fname).toBeTruthy();
+    return rest.slice(0, m!.index + m![0].length);
+  };
+
+  it('the settler is re-based on 0063: Research-carried cap, dropped signature absent', () => {
+    const seg = segment(sql, 'cc_settle_craft_jobs');
+    expect(seg).toContain('public.cc_earned_offline_cap_hours_for(p.id)');
+    expect(seg).not.toContain('cc_earned_offline_cap_hours(');
+    expect(seg).toContain('set tool_charged = true');
+    expect(seg).not.toContain('v_charges');
+  });
+
+  it('the settler differs from its 0063 chain head by exactly the §9.2 delta', () => {
+    const head = segment(sql0063, 'cc_settle_craft_jobs');
+    const rebased = head
+      .replace(
+        [
+          '  v_output jsonb;',
+          '  v_tools jsonb;',
+          '  v_tool_id text;',
+          '  v_charges integer;',
+          '  v_fitted_key text;',
+          '  v_total_xp bigint := 0;',
+        ].join('\n'),
+        ['  v_output jsonb;', '  v_total_xp bigint := 0;'].join('\n'),
+      )
+      .replace(
+        [
+          '      -- A fitted tool\'s charge is spent when the job actually starts.',
+          '      if not v_job.tool_charged and (v_job.snapshot ->> \'toolId\') is not null then',
+          '        v_tool_id := v_job.snapshot ->> \'toolId\';',
+          '        update public.craft_jobs set tool_charged = true where id = v_job.id;',
+          '        select * into p from public.profiles where id = actor;',
+          '        v_tools := coalesce(p.workshop_tools, \'{}\'::jsonb);',
+          '        v_charges := coalesce((v_tools -> \'charges\' ->> v_tool_id)::integer, 0) - 1;',
+          '        v_tools := jsonb_set(v_tools, array[\'charges\', v_tool_id],',
+          '          to_jsonb(greatest(0, v_charges)), true);',
+          '        if v_charges <= 0 then',
+          '          v_tools := jsonb_set(v_tools, array[\'owned\', v_tool_id], \'false\'::jsonb, true);',
+          '          for v_fitted_key in',
+          '            select key from jsonb_each(coalesce(v_tools -> \'fitted\', \'{}\'::jsonb))',
+          '          loop',
+          '            if v_tools -> \'fitted\' ->> v_fitted_key = v_tool_id then',
+          '              v_tools := jsonb_set(v_tools, array[\'fitted\', v_fitted_key], \'null\'::jsonb, true);',
+          '            end if;',
+          '          end loop;',
+          '        end if;',
+          '        update public.profiles set workshop_tools = v_tools, updated_at = now()',
+          '         where id = actor;',
+          '      end if;',
+        ].join('\n'),
+        [
+          '      -- Tools are permanent (economy brief §9.2, 0067): the job is',
+          '      -- still marked tool_charged at its first unit for the record,',
+          '      -- but no charge is spent -- a fitted tool is never consumed,',
+          '      -- un-owned, or unfitted by use. Pre-0067 charges values stored',
+          '      -- in profiles.workshop_tools are inert.',
+          '      if not v_job.tool_charged and (v_job.snapshot ->> \'toolId\') is not null then',
+          '        update public.craft_jobs set tool_charged = true where id = v_job.id;',
+          '      end if;',
+        ].join('\n'),
+      );
+    expect(rebased).not.toBe(head); // the transform really landed
+    expect(segment(sql, 'cc_settle_craft_jobs')).toBe(rebased);
+  });
+
+  it('guard: no migration from 0067 onward references the dropped cap signature', () => {
+    const dir = path.join(__dirname, '../../db/migrations');
+    const files = readdirSync(dir)
+      .filter((f) => /^\d{4}_.*\.sql$/.test(f) && parseInt(f.slice(0, 4), 10) >= 67)
+      .sort();
+    expect(files.length).toBeGreaterThan(0);
+    for (const f of files) {
+      const text = readFileSync(path.join(dir, f), 'utf8');
+      // Comment lines stripped (the repo's pin convention): the ban
+      // binds executable SQL. cc_earned_offline_cap_hours( was the
+      // level-tier signature dropped by 0063; the live twin is
+      // cc_earned_offline_cap_hours_for(.
+      const executable = text.split('\n')
+        .filter((line) => !line.trimStart().startsWith('--'))
+        .join('\n');
+      expect(executable, f).not.toContain('cc_earned_offline_cap_hours(');
+    }
+  });
 });
 
 /* ── Wire contract: shipped routes + InMemoryWriteStore ───────────── */
@@ -363,7 +462,15 @@ const advance = (ms: number) => { clockMs += ms; };
 const MIN_MS = 60 * 1000;
 
 describe('§9.1 wire contract — catalyzed gear through the shipped routes', () => {
-  beforeAll(async () => { rngFn = () => 0.5; h = await makeServer(); });
+  beforeAll(async () => {
+    rngFn = () => 0.5;
+    h = await makeServer();
+    // Gate step 6 (0063) re-carried the offline cap onto Research:
+    // this scenario's 151 un-heartbeated minutes were sized against
+    // the old L25 tier's 4 h cap. Street Economics (+2 h over the
+    // 2 h base) restores exactly that earned cap for the tester.
+    h.store.completeResearchCourse(CAT, 'street_economics');
+  });
   afterAll(async () => { await h.close(); });
 
   it('cancelling a catalyzed job before completion refunds the ingot in full', async () => {
