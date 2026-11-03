@@ -1117,7 +1117,11 @@ describe('migration 0043 — textual pins', () => {
       expect(sql.consumableType).toBe(recipe.consumableType);
       expect(sql.inputs).toEqual(recipe.inputs);
       expect(sql.unitDurationMs).toBe(recipe.unitDurationMs);
-      expect(sql.requiresLevel).toBe(recipe.requiresLevel);
+      // requiresLevel postdates 0043: the tonics shipped at L12
+      // here, and gate-removal step 2 (0057) deleted the level in
+      // TS and SQL alike — the current value is pinned against
+      // 0057 in gateRemovalStep2.test.ts.
+      expect(sql.requiresLevel).toBe(12);
       expect(sql.requiresStanding).toEqual(recipe.requiresStanding);
     }
     // Nothing from 0038 was dropped: the batch recipe keeps its research gate.

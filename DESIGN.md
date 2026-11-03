@@ -114,7 +114,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 | Tab | Rail / composition | Holds |
 |---|---|---|
 | **Home** | Stage, then rail: `Area · Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The lit mode's workspace sits under the stage; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. |
-| **Gear** | Rail: `Loadout · Grid · Items · Workshop` | The doll, the inventory, consumables, the bench, vehicles (inside Loadout — §11 F1, owner ruling 2026-11-02). |
+| **Gear** | Rail: `Loadout · Workshop` | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop door row at its foot; the bench keeps its own stop. |
 | **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk · Slots` | Player market, NPC storefront, the two service boards as separate stops, manufacturer standing at its own desk, and the slot machine's canonical home. |
 | **Hunter** | Rail: `Profile · Collections · Cache Rank · Research · Skill Trees · Standings · Account` | The hunter's record: profile + Trophy Shelf, collections and cores, ranks, courses, trees, the weekly races behind the Standings door, and account/settings/manual. |
 
@@ -147,8 +147,9 @@ replace the canonical one. (Tap depths are governed by §9.)
   **Craft** here, the bench is **Workshop** there; never label both "Crafting").
 - **Under the stage, first viewport:** the lit mode's workspace (Session panel +
   Loot Feed while roaming; boss/endless/extract/craft workspaces in their modes),
-  belt consumable quick slots (use-in-loop; the full stacks live at Gear → Items —
-  do not consolidate them into Gear).
+  belt consumable quick slots (use-in-loop; the full stacks live at Gear →
+  Belt & Stacks, the Loadout page's belt section — do not consolidate them
+  into Gear).
 - **Resurrection** is an event-driven overlay on the Home stage (0 taps; it has no
   door and gets none). **Action skills** are contextual controls inside the active
   workspace.
@@ -171,17 +172,36 @@ replace the canonical one. (Tap depths are governed by §9.)
 
 ### Gear
 
-- **Loadout** — the 7 gear slots + vehicle slot; equip/unequip. (◦ Home keeps a
-  Loadout shortcut card while a loadout is incomplete.)
-- **Grid** — the item grid + salvage/recycle.
+- **Loadout (the merged page)** — ONE scroll (owner layout "Exec C, the
+  Split", 2026-11-03): the doll zone — a compact figure stage sized to the
+  hunter (◦ Wardrobe door on the stage, canonical home Hunter → Profile;
+  the DPS/HP hero plate at the stage's foot), the three gun slots as full
+  rows down the right column (Primary as a poster row), the four
+  accessories as a 2×2 band beneath — then the Garage section, § Inventory,
+  § Belt & Stacks, and the Workshop door row at the foot (◦, printing
+  bench state; the bench's canonical home is the Workshop stop). Slot
+  blocks print the item's name in its rarity color — in full, wrapping
+  when it needs the room (names never truncate on the gun rows) — and a
+  PERK line —
+  headline stat + the item's next real perks; rarity and element never
+  print as words (rarity rides the name's color, element the icon tint
+  and the item's own render — owner ruling 2026-11-03). The Slot Picker
+  is the one equip surface; the 7 gear slots + vehicle slot equip/
+  unequip there and in the Garage. (◦ Home keeps a Loadout shortcut card
+  while a loadout is incomplete.)
+- **§ Inventory** (section of the Loadout page; the Grid stop retired into
+  it, 2026-11-03) — the item grid + salvage/recycle, its header and
+  toolbar sticky at the page's scroll top.
 - **Inspect sheet** — tap any item card: stats, compare, equip, reforge/reroll
   action row, and the ◦ deep link to Market → Shield Tech.
-- **Items** — consumables/materials stacks, quality % printed.
+- **§ Belt & Stacks** (section of the Loadout page; the Items stop retired
+  into it, 2026-11-03) — the belt slots + consumables/materials stacks,
+  quality % printed.
 - **Workshop** — the bench: recipes + job queue.
-- **Garage (vehicle section of Loadout)** — the Loadout's vehicle slot expands
-  in place into the full Garage: vehicles, fuel cells + refuel, condition +
-  self-repair with patch kits. Not a rail stop (owner ruling 2026-11-02, §11
-  F1).
+- **Garage (vehicle section of the Loadout page)** — the page's vehicle
+  slot expands in place into the full Garage: vehicles, fuel cells +
+  refuel, condition + self-repair with patch kits. Not a rail stop (owner
+  ruling 2026-11-02, §11 F1).
 
 ### Market
 
@@ -609,6 +629,10 @@ implementation corrects them instead of copying them:
   lineage), and **the rail stop is retired** (the Gear rail carries
   four stops: Loadout · Grid · Items · Workshop). A split of vehicle
   maintenance to another tab was considered and rejected — no split.
+  (Follow-on, 2026-11-03: the owner's merged-page layout retired the
+  Grid and Items stops into the Loadout page as sections — the rail
+  now carries two stops, Loadout · Workshop; §2/§3 carry the current
+  state.)
   The v1 garage *content* design — sprite drawn from the actual
   vehicle instance, fuel and condition gauges, patch-kit repair —
   stands unchanged as what the in-Loadout vehicle section contains.

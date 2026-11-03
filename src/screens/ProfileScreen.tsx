@@ -39,7 +39,7 @@ interface ProfileScreenProps {
    * Trees" action routes here, so the player lands on the trees
    * themselves instead of the top of the Profile stop.
    */
-  focusSection?: 'skills' | 'research' | null;
+  focusSection?: 'skills' | 'research' | 'wardrobe' | null;
 }
 
 /**
@@ -120,6 +120,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     setPrevFocusSection(focusSection);
     if (focusSection === 'skills') goToStop('trees');
     if (focusSection === 'research') goToStop('research');
+    if (focusSection === 'wardrobe') goToStop('profile');
   }
 
   // Deep-link focus: when the player arrives via the Dashboard
@@ -129,6 +130,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   useEffect(() => {
     if (focusSection !== 'skills' || stop !== 'trees') return;
     const el = skillTreesRef.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, [focusSection, stop]);
+
+  // Deep-link focus: 'wardrobe' arrives from the Gear page's
+  // figure-stage door (Exec C) — the Wardrobe panel lives on the
+  // Profile stop; scroll it into view once that stop is lit.
+  const wardrobeRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (focusSection !== 'wardrobe' || stop !== 'profile') return;
+    const el = wardrobeRef.current;
     if (el && typeof el.scrollIntoView === 'function') {
       el.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
@@ -294,8 +307,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       {/* Wardrobe (Parts M4) — the skin-part showcase + wear/remove
           surface. M4 placed it directly after the identity block;
           F4 folded the Trophy Shelf into that block, so the Wardrobe
-          stands as the next first-class panel, before Standings. */}
-      <WardrobePanel />
+          stands as the next first-class panel, before Standings.
+          The wrapper is the deep-link anchor for the Gear page's
+          figure-stage Wardrobe door (Exec C): a 'wardrobe' focus
+          scrolls here and rings the panel. */}
+      <div
+        ref={wardrobeRef}
+        data-testid="profile-wardrobe-anchor"
+        className={focusSection === 'wardrobe' ? 'scroll-mt-2 rounded-xl ring-2 ring-amber' : 'scroll-mt-2'}
+      >
+        <WardrobePanel />
+      </div>
 
       <StandingsDoor
         badge={standingsBadge}

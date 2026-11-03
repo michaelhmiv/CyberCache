@@ -201,7 +201,7 @@ const VEHICLE_CONSUMABLE_RECIPES: CraftRecipe[] = [
   {
     id: 'recipe_field_patch_kit', kind: 'consumable', name: 'Field Patch Kit', category: 'utility',
     inputs: { ScrapAlloy: 6, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 },
-    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'FieldPatchKit',
   },
   {
@@ -214,7 +214,7 @@ const VEHICLE_CONSUMABLE_RECIPES: CraftRecipe[] = [
   {
     id: 'recipe_fuel_cell', kind: 'consumable', name: 'Fuel Cell', category: 'utility',
     inputs: { ScrapAlloy: 6, NitrocellGel: 1 }, unitDurationMs: 15 * MIN,
-    requiresLevel: 8, requiresBench: 1, station: 'bench', consumableType: 'FuelCell',
+    requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'FuelCell',
   },
   {
     // Shield-Tech services (0044, brief §2.4): the Calibration Core —
@@ -224,7 +224,7 @@ const VEHICLE_CONSUMABLE_RECIPES: CraftRecipe[] = [
     id: 'recipe_calibration_core', kind: 'consumable', name: 'Calibration Core', category: 'utility',
     inputs: { ReactiveComponents: 20, TechFragments: 15, PrismShards: 2, VoidDust: 2 },
     unitDurationMs: 40 * MIN,
-    requiresLevel: 15, requiresBench: 2, station: 'bench', consumableType: 'CalibrationCore',
+    requiresLevel: 1, requiresBench: 2, station: 'bench', consumableType: 'CalibrationCore',
   },
 ];
 
@@ -386,7 +386,7 @@ export const BATCH_RECIPES: CraftRecipe[] = [
   {
     id: 'recipe_shield_cell_batch', kind: 'consumable', name: 'Shield Cell ×3 (Batch)', category: 'survival',
     inputs: { ScrapAlloy: 50, ReactiveComponents: 30 }, unitDurationMs: 1980000,
-    requiresLevel: 3, requiresBench: 1, station: 'bench', consumableType: 'ShieldCell',
+    requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'ShieldCell',
     requiresResearch: 'production_systems', outputQuantity: 3,
   },
   {
@@ -412,37 +412,37 @@ const STANDING_RECIPES: CraftRecipe[] = [
   {
     id: 'recipe_redline_standing', kind: 'consumable', name: 'Redline Tonic', category: 'offense',
     inputs: { BallisticParts: 12, NitrocellGel: 2, ReactiveComponents: 6 },
-    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'RedlineTonic', requiresStanding: { manufacturer: 'Redline', rank: 2 },
   },
   {
     id: 'recipe_ironwood_standing', kind: 'consumable', name: 'Heartwood Sight Oil', category: 'offense',
     inputs: { HeartwoodResin: 2, TechFragments: 10, ReactiveComponents: 6 },
-    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'HeartwoodSightOil', requiresStanding: { manufacturer: 'Ironwood', rank: 2 },
   },
   {
     id: 'recipe_blastforge_standing', kind: 'consumable', name: 'Forgeheart Charge', category: 'offense',
     inputs: { ForgeheartIngots: 2, BallisticParts: 12, ReactiveComponents: 8 },
-    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'ForgeheartCharge', requiresStanding: { manufacturer: 'BlastForge', rank: 2 },
   },
   {
     id: 'recipe_prismatek_standing', kind: 'consumable', name: 'Prism Coating', category: 'offense',
     inputs: { PrismShards: 2, VoidEssence: 3, TechFragments: 8 },
-    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'PrismCoating', requiresStanding: { manufacturer: 'Prismatek', rank: 2 },
   },
   {
     id: 'recipe_throwtech_standing', kind: 'consumable', name: 'ThrowTech Decoy Kit', category: 'utility',
     inputs: { MagnetiteCores: 2, TechFragments: 12, ScrapAlloy: 20 },
-    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'ThrowTechDecoyKit', requiresStanding: { manufacturer: 'ThrowTech', rank: 2 },
   },
   {
     id: 'recipe_helixworks_standing', kind: 'consumable', name: 'Helix Calibration Kit', category: 'utility',
     inputs: { Siltglass: 2, TechFragments: 12, VoidDust: 2 },
-    unitDurationMs: 25 * MIN, requiresLevel: 12, requiresBench: 1, station: 'bench',
+    unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'HelixCalibrationKit', requiresStanding: { manufacturer: 'HelixWorks', rank: 2 },
   },
 ];

@@ -80,18 +80,24 @@ describe('readiness classification — the mock fixture, live derivation', () =>
     }
   });
 
-  it('the mock’s four locked cards classify locked with every family named', () => {
-    for (const id of ['recipe_master_patch_kit', 'recipe_calibration_core', 'tool_precision_calipers', 'recipe_skin_bulwark_head']) {
+  it('the mock’s locked cards classify locked with every family named', () => {
+    for (const id of ['recipe_master_patch_kit', 'tool_precision_calipers', 'recipe_skin_bulwark_head']) {
       expect(classify(id).classification, id).toBe('locked');
       expect(classify(id).blockerFamilies.length, id).toBeGreaterThanOrEqual(2);
     }
+    // Gate-removal step 2 (merged to master while this PR was in
+    // flight) dropped the Calibration Core's level requirement, so
+    // at this fixture it is one gate away now — materials only. The
+    // derivation follows the live defs; the mock predates step 2.
+    expect(classify('recipe_calibration_core').classification).toBe('one-gate');
+    expect(classify('recipe_calibration_core').blockerFamilies).toEqual(['materials']);
   });
 
   it('disabled summaries match the mock’s CTA words', () => {
     expect(classify('recipe_fuel_cell').disabledSummary).toBe('Missing materials');
     expect(classify('recipe_patch_kit_batch').disabledSummary).toBe('Locked — research');
     expect(classify('recipe_master_patch_kit').disabledSummary).toBe('Locked — mastery + 1 material');
-    expect(classify('recipe_calibration_core').disabledSummary).toBe('Locked — level + materials');
+    expect(classify('recipe_calibration_core').disabledSummary).toBe('Missing materials');
     expect(classify('recipe_skin_bulwark_head').disabledSummary).toBe('Locked — the Lab + materials');
     expect(classify('tool_precision_calipers').disabledSummary).toBe('Locked — the Lab + materials');
   });
@@ -105,7 +111,7 @@ describe('readiness classification — the mock fixture, live derivation', () =>
     expect(labels).toContain('Missing Void Dust ×1');
     const cal = classify('recipe_calibration_core');
     const calLabels = cal.gates.map((g) => g.label).join(' | ');
-    expect(calLabels).toContain('Level 15 — yours is 14');
+    expect(calLabels).toContain('Level 1 — met');
     expect(calLabels).toContain('Forge bench — owned');
   });
 
