@@ -173,7 +173,7 @@ function benchCostLine(bench: number): string {
   const inputs = Object.entries(def.costInputs)
     .map(([k, v]) => ` · ${v} ${inputLabel(k)}`)
     .join('');
-  return `Lv.${def.unlockLevel} · ${def.costCredits.toLocaleString('en-US')}cr${inputs}`;
+  return `${def.costCredits.toLocaleString('en-US')}cr${inputs}`;
 }
 
 /**
@@ -833,7 +833,6 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
       <div ref={benchesRef} id="workshop-benches-tools" className="scroll-mt-4">
         <BenchAndToolsCard
           benchesOwned={benchesOwned}
-          playerLevel={player.level}
           credits={player.credits}
           materials={player.materials}
           tools={server?.tools ?? { owned: {}, fitted: {}, charges: {} }}
@@ -996,28 +995,25 @@ const JobCard: React.FC<{
 
 const BenchAndToolsCard: React.FC<{
   benchesOwned: number;
-  playerLevel: number;
   credits: number;
   materials: Record<string, number>;
   tools: { owned: Record<string, boolean>; fitted: Record<string, string | null>; charges: Record<string, number> };
   onUnlock: () => void;
   onFit: (bench: number, toolId: string | null) => void;
-}> = ({ benchesOwned, playerLevel, credits, materials, tools, onUnlock, onFit }) => {
+}> = ({ benchesOwned, credits, materials, tools, onUnlock, onFit }) => {
   const next = CRAFT_BENCHES.find((b) => b.bench === benchesOwned + 1);
   const nextAffordable =
     next !== undefined &&
-    playerLevel >= next.unlockLevel &&
     credits >= next.costCredits &&
     Object.entries(next.costInputs).every(([k, v]) => (materials[k] ?? 0) >= v);
   // Assumption-gaps G5: the unlock button used to grey out with
   // no delta — the player couldn't tell whether the block was
-  // level, credits, or materials, or by how much. Compute the
+  // credits or materials, or by how much. Compute the
   // shortfall from the same values the affordability gate reads
   // and print the distance, so the locked button carries its
   // remedy arithmetic on the same surface.
   const nextShortfall: string[] = [];
   if (next && !nextAffordable) {
-    if (playerLevel < next.unlockLevel) nextShortfall.push(`Need Lv.${next.unlockLevel}`);
     if (credits < next.costCredits) nextShortfall.push(`short ${(next.costCredits - credits).toLocaleString()}cr`);
     for (const [k, v] of Object.entries(next.costInputs)) {
       const have = materials[k] ?? 0;
@@ -1053,7 +1049,7 @@ const BenchAndToolsCard: React.FC<{
                 </motion.button>
               ) : (
                 <span className="text-[11px] text-text-muted">
-                  Lv.{b.unlockLevel} · {b.costCredits.toLocaleString()}cr
+                  {b.costCredits.toLocaleString()}cr
                   {Object.entries(b.costInputs).map(([k, v]) => ` + ${v} ${getVisualAsset('material', k).label}`).join('')}
                 </span>
               )}
