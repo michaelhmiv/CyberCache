@@ -64,7 +64,17 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
   const resolved: GearComposeInput | undefined = useMemo(() => {
     if (input) return input;
     if (!item) return undefined;
-    return grammar.inputFromItem ? grammar.inputFromItem(item) : defaultGearInput(item, grammar);
+    try {
+      return grammar.inputFromItem ? grammar.inputFromItem(item) : defaultGearInput(item, grammar);
+    } catch {
+      // Art derivation must never take down a screen: a grammar may
+      // legitimately refuse a record it has no truthful art for
+      // (the relic grammar throws on a name outside the closed
+      // pool). Pool↔grammar drift is a SUITE failure — the coverage
+      // tests call the derivation directly — not a runtime outage;
+      // here the item simply renders no plate.
+      return undefined;
+    }
   }, [input, item, grammar]);
 
   const bespoke = resolved

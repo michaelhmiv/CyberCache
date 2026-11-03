@@ -26,7 +26,9 @@ Your loadout has eight slots. Seven are gear:
   nodes it boosts light up as pips on the device face — position is
   the node, brightness is how hard it boosts.
 - **Relic** — a pure affix piece: no base stats of its own, all rolled
-  bonuses.
+  bonuses. A relic's picture is the object its name names — a Neural
+  Key looks like a key, a Void Prism like a prism — and where it
+  dropped only changes the base it rests on, never its shape.
 
 The eighth slot is your **vehicle**, which works differently enough to
 have its own page: [[Vehicles and the Garage]].

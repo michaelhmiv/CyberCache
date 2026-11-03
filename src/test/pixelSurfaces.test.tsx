@@ -9,7 +9,7 @@ import { composeWeaponCard } from '@/lib/pixel/weaponCardCompositor';
 import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
 import { createRNG } from '@/lib/utils/rng';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { Relic, Shield as ShieldItem, Weapon } from '@/types/items';
+import type { ClassMod, Relic, Shield as ShieldItem, Weapon } from '@/types/items';
 
 /**
  * P5 — pixel weapons everywhere: the inventory (GearHub), market
@@ -67,6 +67,18 @@ const relic = {
   sourceTag: 'World Drop',
   isLocked: false,
 } as unknown as Relic;
+
+const classMod = {
+  id: 'p5-mod',
+  name: 'Gunslinger Charm',
+  rarity: Rarity.Rare,
+  level: 4,
+  treeBonus: 'Gunslinger',
+  nodeBoosts: {},
+  affixes: [],
+  sourceTag: 'World Drop',
+  isLocked: false,
+} as unknown as ClassMod;
 
 const sharedInput = (weapon: Weapon) => ({
   weaponType: weapon.weaponType,
@@ -126,11 +138,24 @@ describe('GearIllustration — weapon branch renders pixel (inventory/market/ins
     expect(container.querySelector('canvas')?.style.width).toBe('190px');
   });
 
-  it('leaves not-yet-married gear kinds on their existing illustration', () => {
+  it('renders a married class mod as its pixel plate (gear marriage, slice 3)', () => {
+    // This case began as slice 0's "not-yet-married kinds keep
+    // their illustration" pin and was retargeted kind by kind as
+    // the slices landed; with slice 3 every kind is married, so
+    // the pin now asserts the last flip instead.
+    const { container } = render(<GearIllustration item={classMod} size={46} showBadges={false} />);
+    expect(container.querySelector('svg')).toBeNull();
+    const canvas = container.querySelector('canvas');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.getAttribute('data-density')).toBe('thumb');
+  });
+
+  it('renders a married relic as its pixel plate (gear marriage, slice 4)', () => {
     const { container } = render(<GearIllustration item={relic} size={46} showBadges={false} />);
-    expect(container.querySelector('canvas')).toBeNull();
-    expect(container.querySelector('img')).toBeNull();
-    expect(container.querySelector('svg')).not.toBeNull();
+    expect(container.querySelector('svg')).toBeNull();
+    const canvas = container.querySelector('canvas');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.getAttribute('data-density')).toBe('thumb');
   });
 
   it('renders a married shield as its pixel plate (gear marriage, slice 1)', () => {
