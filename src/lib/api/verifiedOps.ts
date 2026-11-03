@@ -62,6 +62,24 @@ export const verifiedOps = {
   }),
   disablePushDevice: (token: string) => op('/push/disable', { token }),
   vendorBuy: (itemKey: string, quantity = 1) => op('/ops/vendor-buy', { nonce: requestId('vendor'), item_key: itemKey, quantity }),
+  // QuickBuy (QB-1): the quote is a pure read — real numbers for
+  // guests too (guest-visibility law), so it bypasses op()'s state
+  // sync. The fill goes through op() like every economy write; a
+  // drifted quote comes back as a 'requote' payload, not an error.
+  quickbuyQuote: (goodKind: string, goodId: string, quantity: number) =>
+    apiRequest<import('@/lib/market/quickBuy').QuickBuyQuote>('/ops/quickbuy-quote', {
+      method: 'POST',
+      body: { good_kind: goodKind, good_id: goodId, quantity },
+    }),
+  quickbuyFill: (input: { source: 'market' | 'vendor'; goodKind: string; goodId: string; quantity: number; quotedTotal: number }) =>
+    op('/ops/quickbuy-fill', {
+      nonce: requestId('quickbuy'),
+      source: input.source,
+      good_kind: input.goodKind,
+      good_id: input.goodId,
+      quantity: input.quantity,
+      quoted_total: input.quotedTotal,
+    }),
   vendorSellGear: (itemId: string) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'gear', item_id: itemId }),
   vendorSellConsumable: (batchId: string, quantity: number) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'consumable', batch_id: batchId, quantity }),
   vendorSellMaterial: (materialId: string, quantity: number) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'material', material_id: materialId, quantity }),
