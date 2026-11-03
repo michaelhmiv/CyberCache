@@ -1579,10 +1579,22 @@ export function emptyReadSeed(): ReadSeed {
 }
 
 export class InMemoryReadStore implements ReadStore {
-  constructor(private readonly seed: ReadSeed = emptyReadSeed(), private readonly now: () => Date = () => new Date()) {}
+  constructor(private readonly seed: ReadSeed = emptyReadSeed(), private readonly now: () => Date = () => new Date()) {
+    // Econ 5 (0068): fold any seed's legacy scrap balance into the
+    // unified materials stock; the row's `scrap` field from here on
+    // is a read projection of materials['Scrap'], never a balance.
+    for (const p of this.seed.profiles) {
+      const legacyScrap = typeof p.scrap === 'number' ? p.scrap : 0;
+      if (legacyScrap !== 0) {
+        p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) + legacyScrap) };
+        p.scrap = 0;
+      }
+    }
+  }
 
   async getProfile(playerId: string): Promise<ProfileRowData | null> {
-    return this.seed.profiles.find((p) => p.id === playerId) ?? null;
+    const row = this.seed.profiles.find((p) => p.id === playerId) ?? null;
+    return row ? { ...row, scrap: row.materials?.['Scrap'] ?? 0 } : null;
   }
 
   async getCollections(playerId: string): Promise<CollectionsData | null> {
@@ -1813,7 +1825,7 @@ export class InMemoryReadStore implements ReadStore {
       player_level: profile.player_level,
       player_xp: profile.player_xp,
       credits: profile.credits,
-      scrap: profile.scrap,
+      scrap: profile.materials?.['Scrap'] ?? 0,
       cache_tokens: profile.cache_tokens,
       cache_token_parts: profile.cache_token_parts,
       total_kills: kills,
@@ -1996,7 +2008,9 @@ export function mapProfile(row: Row): ProfileRowData {
     ...(row as unknown as ProfileRowData),
     player_xp: num(row.player_xp),
     credits: num(row.credits),
-    scrap: num(row.scrap),
+    // Econ 5 (0068): the profile's scrap is the materials stock; the
+    // retired profiles.scrap column (0 after conversion) never reads.
+    scrap: num((row.materials as Record<string, number> | undefined)?.['Scrap']),
     last_claimed_tick: num(row.last_claimed_tick),
     offline_cap_hours: num(row.offline_cap_hours),
     last_idle_claim_at: iso(row.last_idle_claim_at),

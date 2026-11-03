@@ -256,7 +256,7 @@ export const RecipeInspectSheet: React.FC<{
         <div className="space-y-1">
           <div className="text-[11px] font-black uppercase tracking-wider text-amber">What it takes — per unit</div>
           {Object.entries(recipe.inputs).map(([key, per]) => {
-            const have = key === 'Scrap' ? ctx.scrap : isMaterialInput(key) ? (ctx.materials[key] ?? 0) : (ctx.essences[key] ?? 0);
+            const have = isMaterialInput(key) ? (ctx.materials[key] ?? 0) : (ctx.essences[key] ?? 0);
             const short = have < per;
             return (
               <React.Fragment key={key}>

@@ -454,9 +454,10 @@ const STANDING_RECIPES: CraftRecipe[] = [
  * Cosmetic part recipes (skins slice, migration 0053; brief §6).
  * One recipe per skin part, listed in the Workshop cosmetic lane
  * for everyone — no blueprints, no learn-gating. Inputs are
- * SCRAP-LED (the `Scrap` key charges profiles.scrap, the game's
- * bulk material currency — the enqueue/cancel paths special-case
- * it beside materials and essences) with per-tier secondaries.
+ * SCRAP-LED (the `Scrap` key is the game's bulk currency, charged
+ * from the unified materials['Scrap'] stock since the 0068 merge —
+ * an ordinary material key in the enqueue/cancel paths) with
+ * per-tier secondaries.
  * T3 shaped parts and manufacturer heads are single-unit prestige
  * jobs (maxUnits 1); T2 repaints batch to 10.
  */
