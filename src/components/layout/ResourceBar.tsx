@@ -190,8 +190,11 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
   // Read through a ref: useReducedMotion resolves a beat after
   // first paint, and the tick effect must not re-run (cancelling
   // a tick mid-flight) when the preference lands.
+  const reduceMotion = useReducedMotion();
   const reduceMotionRef = useRef(false);
-  reduceMotionRef.current = Boolean(useReducedMotion());
+  useEffect(() => {
+    reduceMotionRef.current = Boolean(reduceMotion);
+  }, [reduceMotion]);
   const [tickDisplay, setTickDisplay] = useState<number | null>(null);
   const tickRaf = useRef<number | null>(null);
 
