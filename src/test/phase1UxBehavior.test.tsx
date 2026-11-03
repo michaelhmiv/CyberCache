@@ -320,20 +320,33 @@ describe('Phase 1 — material "Used in" + area picker', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('shared area list locks level-gated areas and selects unlocked ones', () => {
+  it('shared area list locks nothing: a hopeless area warns, and "Roam anyway" always proceeds', () => {
     usePlayerStore.setState({ level: 1 });
     useIdleStore.setState({ selectedRoamingAreaId: ROAMING_AREAS[0].id });
     const onSelect = vi.fn();
     render(<AreaPickerList onSelect={onSelect} />);
 
+    // No locks anywhere (owner ruling 2026-11-02 — warning, never a
+    // wall): every area button is enabled and no card says "Locked".
     const lastArea = ROAMING_AREAS[ROAMING_AREAS.length - 1];
-    const lockedButton = screen.getByRole('button', { name: `Select ${lastArea.name}` });
-    expect((lockedButton as HTMLButtonElement).disabled).toBe(true);
+    const lastButton = screen.getByRole('button', { name: `Select ${lastArea.name}` });
+    expect((lastButton as HTMLButtonElement).disabled).toBe(false);
+    expect(document.body.textContent).not.toContain('Locked');
 
-    fireEvent.click(screen.getByRole('button', { name: `Select ${ROAMING_AREAS[1].name}` }));
-    // Level 1 cannot select the Lv.4 area either — the click is disabled;
-    // select the starting area instead to prove the callback wiring.
+    // The unarmed level-1 hunter is lethally overmatched in the top
+    // area: the card carries the danger tag, and tapping it opens the
+    // warning instead of selecting.
+    expect(screen.getByTestId(`area-danger-tag-${lastArea.id}`)).toBeTruthy();
+    fireEvent.click(lastButton);
     expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.getByTestId(`area-danger-warning-${lastArea.id}`)).toBeTruthy();
+
+    // "Roam anyway" always proceeds.
+    fireEvent.click(screen.getByTestId(`area-danger-confirm-${lastArea.id}`));
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: lastArea.id }));
+
+    // The area you're already set to roam never warns — you're there.
+    onSelect.mockClear();
     fireEvent.click(screen.getByRole('button', { name: `Select ${ROAMING_AREAS[0].name}` }));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: ROAMING_AREAS[0].id }));
   });

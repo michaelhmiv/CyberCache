@@ -25,7 +25,7 @@ import { cacheRankBonuses } from '../../content/cacheRank';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { recordItemDiscoveries } from './roamingHandler';
 import { eliteDiscovery } from '../../content/collections';
-import { assessAreaDanger } from '../../lib/combat/areaDanger';
+import { IMMEDIATE_DEATH_TICKS, assessAreaDanger } from '../../lib/combat/areaDanger';
 import { computeHunterMaxHp } from '../../lib/combat/damageContract';
 import { computeEffectiveDpsFromGear } from '../../lib/combat/loadoutSurvival';
 import type { Shield, Weapon } from '../../types/items';
@@ -362,20 +362,25 @@ export function createSettleOfflineHandler(
       // half, owner ruling 2026-11-02). Settlement simulates the away
       // window with the roaming engine, which takes NO survival input
       // — offline, a hunter parked in an area whose baseline fodder
-      // kills them before they can kill it would otherwise accrue the
+      // kills them almost immediately would otherwise accrue the
       // full window's trickle + loot rolls for pure presence (the
       // audit's verified faucet: at HelixWorks rates that is 21
       // credits/min, 5 scrap/min, 2.4 XP/tick plus a 22%/tick gear
       // roll at player-level power, forever, at zero risk). The duel
       // is the warning module's own math (areaDanger) over
       // server-derived stats — the same DPS derivation the engine
-      // runs, HP from the one formula. Lethal pairing: the window is
-      // consumed through the atomic settler at zero rewards (nonce +
-      // watermark advance exactly as a paid settlement, so the time
-      // cannot be banked and re-settled later at strength) and the
-      // response says why. Caution/none pairings settle byte-
-      // identically to before. No death is recorded for offline time:
-      // death/respawn behavior is unchanged.
+      // runs, HP from the one formula. The trigger is a lethal duel
+      // AND an immediate death (baseline ticks-to-die within
+      // IMMEDIATE_DEATH_TICKS): a merely outmatched hunter — say an
+      // unarmed one in the starter area, who survives for hours —
+      // settles exactly as before; only the die-on-loop profile is
+      // zeroed. Overmatched pairing: the window is consumed through
+      // the atomic settler at zero rewards (nonce + watermark advance
+      // exactly as a paid settlement, so the time cannot be banked
+      // and re-settled later at strength) and the response says why.
+      // Every other pairing settles byte-identically to before. No
+      // death is recorded for offline time: death/respawn behavior
+      // is unchanged.
       const gateCacheRank = cacheRankBonuses(profile.cache_rank_spends, economyValues);
       const gateShield = equippedGear.find((g): g is Shield => 'mitigation' in g);
       const gateClassMod = equippedGear.find((g) => 'treeBonus' in g) ?? null;
@@ -407,7 +412,7 @@ export function createSettleOfflineHandler(
         mitigation: gateShield?.mitigation ?? 0,
         dodgeChance: 0,
       });
-      if (gateAssessment?.tier === 'lethal') {
+      if (gateAssessment?.tier === 'lethal' && gateAssessment.baseline.ticksToDie <= IMMEDIATE_DEATH_TICKS) {
         let zeroSettlement: Record<string, unknown> | null;
         try {
           zeroSettlement = (await store.settleOfflineRoaming(playerId, body.settlementNonce, {

@@ -270,26 +270,27 @@ describe('stats truth — roaming claim (HTTP)', () => {
     expect(takenMit).toBeLessThan(takenRaw * 0.5);
   });
 
-  it('(d) area gate: an under-level claim on a gated area is rejected and pays nothing', async () => {
+  it('(d) no area gate: an under-level claim on the top area is served — danger is a warning, not a wall', async () => {
     const { base, store, tokenA } = await makeServer();
     store.seedProfile({ id: A, player_level: 1, credits: 50 });
 
-    // HelixWorks Labyrinth unlocks at 25. The body even lies about the
-    // level (25) — the DB level (1) is what the gate reads.
+    // HelixWorks Labyrinth was the level-25 area. Owner ruling
+    // 2026-11-02 removed the lock: the level-1 hunter's claim is
+    // processed by the engine like any other (what the engine then
+    // does to an overmatched hunter — death, and the trickle guard —
+    // is pinned at engine level in areaDanger.test.ts).
     const res = await post(base, '/api/claim', {
       playerId: A, areaId: 'helixworks_labyrinth', ticks: 5, tickCount: 5, playerLevel: 25,
       survival: ALIVE,
     }, tokenA);
-    expect(res.status).toBe(403);
-    expect(res.json.error).toBe('Area locked for your level');
-    expect(res.json.requiredLevel).toBe(25);
+    expect(res.status).toBe(200);
+    expect(res.json.error).toBeUndefined();
     const profile = store.profiles.get(A)!;
-    expect(profile.credits).toBe(50);
-    expect(profile.last_claimed_tick).toBe(0);
+    expect(profile.last_claimed_tick).toBe(5);
 
-    // Control: the same player claims the level-1 area fine.
+    // Control: the same player claims the starting area fine.
     const ok = await post(base, '/api/claim', {
-      playerId: A, areaId: 'dustwaste_frontier', ticks: 5, tickCount: 5, playerLevel: 1,
+      playerId: A, areaId: 'dustwaste_frontier', ticks: 5, tickCount: 10, playerLevel: 1,
       survival: ALIVE,
     }, tokenA);
     expect(ok.status).toBe(200);
@@ -371,7 +372,7 @@ describe('stats truth — offline settlement parity (HTTP)', () => {
     expect(store.profiles.get(B)!.credits).toBe(450);
   });
 
-  it('(d) area gate: offline settlement into an above-gate area settles nothing', async () => {
+  it('(d) overmatched settlement: an under-strength hunter parked in the top area settles at zero — window consumed, nothing paid', async () => {
     const { base, store, tokenA } = await makeServer();
     const settleFromMs = Date.now() - (200 * 3000 + 1500);
     store.seedProfile({
@@ -391,9 +392,19 @@ describe('stats truth — offline settlement parity (HTTP)', () => {
     });
     const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'stats-truth-gate' }, tokenA);
     expect(res.status).toBe(200);
-    expect(res.json).toEqual({ settled: false, reason: 'area_locked' });
+    // No area gate anymore (owner ruling 2026-11-02) — but the bare
+    // level-1 hunter (no gear, ~5 DPS) is LETHAL-matched against
+    // HelixWorks fodder by the areaDanger duel, so presence alone
+    // cannot farm the top area offline: the window settles at zero
+    // rewards through the atomic settler (nonce + watermark advance,
+    // so the time cannot be banked and re-settled later at strength).
+    expect(res.json.settled).toBe(true);
+    expect(res.json.overmatched).toBe(true);
+    expect((res.json.rewards as { creditsAwarded: number }).creditsAwarded).toBe(0);
+    expect((res.json.rewards as { xpAwarded: number }).xpAwarded).toBe(0);
+    expect(res.json.items).toEqual([]);
     expect(store.profiles.get(A)!.credits).toBe(25);
-    expect(store.profiles.get(A)!.last_claimed_tick).toBe(0);
+    expect(store.profiles.get(A)!.last_claimed_tick).toBeGreaterThan(0);
   });
 });
 

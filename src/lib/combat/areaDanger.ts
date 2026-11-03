@@ -104,6 +104,20 @@ export interface AreaDangerAssessment {
  */
 export const EXTREME_KILL_TICKS = 20;
 
+/**
+ * A lethal pairing only counts as OVERMATCHED — the settlement
+ * gate's trigger — when death is also IMMEDIATE: the baseline fodder
+ * kills the hunter within this many ticks (20 ticks = 1 minute, the
+ * owner's own words for the warning: "you're about to enter an area
+ * where you're basically immediately going to die"). The duel alone
+ * calls an unarmed hunter "lethal" even in the starter area (they
+ * can never kill, but the fodder needs ~200+ ticks to kill THEM) —
+ * the warning may say so, but zeroing that player's settlement would
+ * punish a legitimate state. The death-loop faucet this gate exists
+ * to close is the near-instant death in a top area, and only that.
+ */
+export const IMMEDIATE_DEATH_TICKS = 20;
+
 function duelMonster(stats: AreaDangerStats, monster: MonsterDef): AreaDuel {
   const playerDamagePerTick = computePlayerDamageVsMonster(
     { effectiveDps: stats.effectiveDps },

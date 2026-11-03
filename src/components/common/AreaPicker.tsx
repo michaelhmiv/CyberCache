@@ -145,12 +145,12 @@ const AreaCard: React.FC<{
               </span>
             )}
             {tier === 'lethal' && (
-              <span className="ml-2 bg-red px-1.5 py-0.5 align-middle text-[9px] font-black uppercase tracking-wide text-white" data-testid={`area-danger-tag-${area.id}`}>
+              <span className="ml-2 bg-red px-1.5 py-0.5 align-middle text-[11px] font-black uppercase tracking-wide text-white" data-testid={`area-danger-tag-${area.id}`}>
                 Deadly for you
               </span>
             )}
             {tier === 'caution' && (
-              <span className="ml-2 bg-amber px-1.5 py-0.5 align-middle text-[9px] font-black uppercase tracking-wide text-black" data-testid={`area-danger-tag-${area.id}`}>
+              <span className="ml-2 bg-amber px-1.5 py-0.5 align-middle text-[11px] font-black uppercase tracking-wide text-black" data-testid={`area-danger-tag-${area.id}`}>
                 Risky for you
               </span>
             )}

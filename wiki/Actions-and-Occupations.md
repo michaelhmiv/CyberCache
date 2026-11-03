@@ -13,7 +13,9 @@ You run your action from **the stage on the Home tab** — pick an area, tap Sta
 
 ## Roaming
 
-Roaming is the core idle activity and the default state of the game. Your hunter works one of **7 areas**, resolved in **3-second ticks**, earning credits, XP, scrap, materials, and gear drops as the ticks land. Areas unlock by level, from the Dustwaste Frontier at level 1 to the HelixWorks Labyrinth at level 25, and higher areas pay better against tougher opposition.
+Roaming is the core idle activity and the default state of the game. Your hunter works one of **7 areas**, resolved in **3-second ticks**, earning credits, XP, scrap, materials, and gear drops as the ticks land. **Every area is open from the start** — there are no level locks. Higher areas pay better against tougher opposition, and the area picker tells you honestly when an area outmatches your build: it shows the duel in real numbers (their damage per tick against your HP + shield pool, your damage against their health) and warns you before you switch — but the warning never blocks you. **Roam anyway** is always there.
+
+One earning rule keeps an open world honest: roaming pays its per-tick earnings (credits, scrap, XP, and the drop rolls) only while you have **killed something since your last death**. Die in an area too strong for you and the earnings pause until your next kill — presence alone never pays. The same rule settles your time away: if an area's basic wildlife would kill you before you could kill it, the away window settles at zero instead of paying for standing there.
 
 While you are watching the stage in the foreground, the screen **syncs with the server on the game's 3-second tick**, so settled results show up as each tick lands; nothing syncs while the app is hidden, and earnings while you are away settle on your return (see [[Progression]]).
 
@@ -23,13 +25,13 @@ Roaming is also where the open world can kill you — death and resurrection are
 
 Crafting turns materials into gear frames, consumables, refining output, and vehicle supplies through timed jobs at your workshop benches — and it only progresses **while crafting is your active action**. A job left mid-progress waits for you; it does not finish in the background while you roam.
 
-Crafting pays player XP at **0.775× roaming's rate** — pegged to what an hour of roaming at your best unlocked area would pay, priced per completed unit. That is deliberately a little below roaming: a dedicated crafter trades a slice of XP rate for the value of what they make, and the good consumables in this game come from crafters, not shops.
+Crafting pays player XP at **0.775× roaming's rate** — pegged to what an hour of roaming at your strongest area would pay, priced per completed unit. That is deliberately a little below roaming: a dedicated crafter trades a slice of XP rate for the value of what they make, and the good consumables in this game come from crafters, not shops.
 
 The full system — benches, recipes, quality, mastery — lives on the [[Crafting]] page.
 
 ## Extraction
 
-Extraction is the gathering occupation: dedicated material work at a site in an unlocked area, and the supply lane the crafting economy eats from.
+Extraction is the gathering occupation: dedicated material work at a site in any area, and the supply lane the crafting economy eats from.
 
 - Work is priced in **10-minute passes** at one site and method. Passes run back-to-back while extraction is your active action; accrued time carries across pauses, and changing site or method takes effect at the next pass boundary.
 - A pass yields **materials and essences only** — no gear, no credits, no scrap, no legendaries. At full rate a pass performs draws at **192 draws per hour**, twice roaming's byproduct drip, because gathering is the whole job.

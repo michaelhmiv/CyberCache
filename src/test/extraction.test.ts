@@ -669,13 +669,17 @@ describe('extraction writes twin: slot transitions in all orders', () => {
     expect(state.pending_passes.length).toBe(2);
   });
 
-  it('start gates read server records: guest, death, level, mastery — forged payload fields change nothing', async () => {
+  it('start gates read server records: guest, death, mastery — no area level gate; forged payload fields change nothing', async () => {
     const { store, seed } = makeWriteStore();
     const GUEST = '22222222-2222-4222-8222-222222222222';
     const LOW = '33333333-3333-4333-8333-333333333333';
 
     await expect(startExtraction(store, GUEST)).rejects.toThrow('Verified account required');
-    await expect(startExtraction(store, LOW, 'blastforge_yards')).rejects.toThrow('Area locked for this hunter level');
+    // No area level gate (owner ruling 2026-11-02): the level-1 hunter
+    // starts extraction in Blastforge Yards (formerly unlock 12) —
+    // difficulty is the wall now, not a level check.
+    await expect(startExtraction(store, LOW, 'blastforge_yards')).resolves.toBeDefined();
+    expect(seed.extractionStates.find((s) => s.user_id === LOW)?.area_id).toBe('blastforge_yards');
     await expect(startExtraction(store, A, 'not_a_real_area')).rejects.toThrow('Unknown extraction area');
     await expect(startExtraction(store, A, 'dustwaste_frontier', { method: 'deep' }))
       .rejects.toThrow('Deep Delve requires Extraction mastery 5');
@@ -688,7 +692,8 @@ describe('extraction writes twin: slot transitions in all orders', () => {
     const dead = seed.profiles.find((p) => p.id === A)!;
     (dead as unknown as Record<string, unknown>).death_state = { cause: 'test' };
     await expect(startExtraction(store, A)).rejects.toThrow('dead');
-    expect(seed.extractionStates.length).toBe(0);
+    // A's refused starts created nothing (LOW's allowed start above did).
+    expect(seed.extractionStates.filter((s) => s.user_id === A).length).toBe(0);
   });
 
   it('a site/method switch settles the outgoing pass on its starting terms', async () => {
