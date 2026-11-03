@@ -89,7 +89,12 @@ function casing(ctx: RelicCtx, x0f: number, y0f: number, x1f: number, y1f: numbe
   ctx.c.poly(pts, banded(ctx, y0f, y1f));
 }
 
-/** The crystal part: a stepped core — deep seat, body, light, white heart. */
+/**
+ * The crystal part: a stepped core — deep seat, body, light, white
+ * heart. Keep rf ≥ ~0.085: below that the step layers collapse
+ * onto the same texels at thumb scale and the core loses its body
+ * tone (the thumb pins in relicGrammar.test enforce it).
+ */
 function steppedCore(ctx: RelicCtx, cxf: number, cyf: number, rf: number) {
   const cx = X(ctx, cxf); const cy = Y(ctx, cyf); const r = R(ctx, rf);
   ctx.c.disc(cx, cy, r, 'c');
@@ -221,7 +226,7 @@ export const RELIC_FORM_ROWS: RelicFormRow[] = [
       c.rect(X(ctx, 0.15), Y(ctx, 0.36), X(ctx, 0.85) - X(ctx, 0.15), Y(ctx, 0.415) - Y(ctx, 0.36), 'D');
       // The lock clasp and the glow inside it.
       c.rect(X(ctx, 0.445), Y(ctx, 0.33), X(ctx, 0.555) - X(ctx, 0.445), Y(ctx, 0.60) - Y(ctx, 0.33), 'D');
-      steppedCore(ctx, 0.50, 0.465, 0.068);
+      steppedCore(ctx, 0.50, 0.465, 0.085);
       // Corner brackets.
       for (const s of [-1, 1] as const) {
         const bx = s < 0 ? X(ctx, 0.165) : X(ctx, 0.805);
@@ -305,7 +310,7 @@ export const RELIC_FORM_ROWS: RelicFormRow[] = [
       // Three stacked segments, narrowing as they rise.
       c.rect(X(ctx, 0.375), Y(ctx, 0.20), X(ctx, 0.625) - X(ctx, 0.375), Y(ctx, 0.40) - Y(ctx, 0.20), 'P');
       c.rect(X(ctx, 0.375), Y(ctx, 0.20), X(ctx, 0.625) - X(ctx, 0.375), Math.max(1, Math.round(ctx.h * 0.025)), 'p');
-      steppedCore(ctx, 0.50, 0.30, 0.05);
+      steppedCore(ctx, 0.50, 0.30, 0.09);
       c.rect(X(ctx, 0.315), Y(ctx, 0.40), X(ctx, 0.685) - X(ctx, 0.315), Y(ctx, 0.615) - Y(ctx, 0.40), 'd');
       c.rect(X(ctx, 0.315), Y(ctx, 0.40), X(ctx, 0.685) - X(ctx, 0.315), Math.max(1, Math.round(ctx.h * 0.025)), 'P');
       // Arms.
@@ -403,7 +408,7 @@ export const RELIC_FORM_ROWS: RelicFormRow[] = [
       }
       // Rings struck into the face (silhouette layer).
       c.ring(cx, cy, R(ctx, 0.185), R(ctx, 0.20), 'c', true);
-      c.ring(cx, cy, R(ctx, 0.115), R(ctx, 0.135), 'e', true);
+      c.ring(cx, cy, R(ctx, 0.115), R(ctx, 0.135), 'E', true);
       // The glyph notch at its center.
       c.rect(X(ctx, 0.485), Y(ctx, 0.395), X(ctx, 0.515) - X(ctx, 0.485), Y(ctx, 0.525) - Y(ctx, 0.395), 'K');
       // THE GLITCH: two horizontal slices of the struck coin shear
@@ -446,8 +451,9 @@ export const RELIC_FORM_ROWS: RelicFormRow[] = [
       c.slope(X(ctx, 0.45), Y(ctx, 0.42), X(ctx, 0.56), Y(ctx, 0.50), 'e', true);
       c.slope(X(ctx, 0.56), Y(ctx, 0.50), X(ctx, 0.665), Y(ctx, 0.43), 'e', true);
       c.disc(X(ctx, 0.50), Y(ctx, 0.46), R(ctx, 0.018), 'W');
-      // Hover glow under the slab (silhouette layer).
-      c.rect(X(ctx, 0.30), Y(ctx, 0.685), X(ctx, 0.70) - X(ctx, 0.30), Y(ctx, 0.715) - Y(ctx, 0.685), 'e');
+      // Hover glow under the slab (silhouette layer) — the drive's
+      // core light, in the ramp's base tone.
+      c.rect(X(ctx, 0.30), Y(ctx, 0.685), X(ctx, 0.70) - X(ctx, 0.30), Y(ctx, 0.715) - Y(ctx, 0.685), 'E');
       // Wisps — the drive is not entirely here.
       c.disc(X(ctx, 0.30), Y(ctx, 0.79), R(ctx, 0.028), 'p');
       c.disc(X(ctx, 0.70), Y(ctx, 0.80), R(ctx, 0.02), 'p');
@@ -471,7 +477,7 @@ export const RELIC_FORM_ROWS: RelicFormRow[] = [
       c.poly(pts, banded(ctx, 0.13, 0.845));
       c.seam(X(ctx, 0.50), Y(ctx, 0.18), X(ctx, 0.47), Y(ctx, 0.80));
       c.seam(X(ctx, 0.42), Y(ctx, 0.45), X(ctx, 0.60), Y(ctx, 0.42));
-      steppedCore(ctx, 0.505, 0.50, 0.065);
+      steppedCore(ctx, 0.505, 0.50, 0.09);
       // Orbiting fragments, seeded jitter — same cluster, new roll.
       const j = (c.next() - 0.5) * 0.018;
       const frag = (ptsF: [number, number][], shade: GearShade) => {

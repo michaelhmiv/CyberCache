@@ -187,18 +187,15 @@ describe('gear core — bespoke resolves first (slot exists, registry empty)', (
 });
 
 describe('gear core — dispatch seam (kinds flip one slice at a time)', () => {
-  it('unflipped kinds route to svg; shield (slice 1), ordnance (slice 2) + classMod (slice 3) flipped', () => {
-    // Slice 0 shipped every kind on its SVG; slices 1–3 flipped
-    // shields, ordnance, and class mods (flag on + grammar
-    // registered → pixel). Relics keep the slice-0 default until
-    // their own slice lands.
-    expect(GEAR_PIXEL_KINDS.shield).toBe(true);
-    expect(GEAR_GRAMMARS.shield).toBeDefined();
-    expect(gearRenderRoute('shield')).toBe('pixel');
-    for (const kind of ['relic'] as const) {
-      expect(GEAR_PIXEL_KINDS[kind]).toBe(false);
-      expect(GEAR_GRAMMARS[kind]).toBeUndefined();
-      expect(gearRenderRoute(kind)).toBe('svg');
+  it('every kind has flipped: shield (1), ordnance (2), classMod (3), relic (4)', () => {
+    // Slice 0 shipped every kind on its SVG; the four kind slices
+    // flipped them one at a time. No kind keeps the slice-0
+    // default — the SVG route now exists only as the fail-safe
+    // for a flag without a grammar (pinned below).
+    for (const kind of ['shield', 'ordnance', 'classMod', 'relic'] as const) {
+      expect(GEAR_PIXEL_KINDS[kind]).toBe(true);
+      expect(GEAR_GRAMMARS[kind]).toBeDefined();
+      expect(gearRenderRoute(kind)).toBe('pixel');
     }
   });
 
@@ -212,6 +209,12 @@ describe('gear core — dispatch seam (kinds flip one slice at a time)', () => {
     expect(GEAR_PIXEL_KINDS.ordnance).toBe(true);
     expect(GEAR_GRAMMARS.ordnance?.id).toBe('ordnance');
     expect(gearRenderRoute('ordnance')).toBe('pixel');
+  });
+
+  it('relic flipped in slice 4: flag on, grammar registered, route pixel', () => {
+    expect(GEAR_PIXEL_KINDS.relic).toBe(true);
+    expect(GEAR_GRAMMARS.relic?.kind).toBe('relic');
+    expect(gearRenderRoute('relic')).toBe('pixel');
   });
 
   it('pixel requires flag AND grammar; a flag alone fails safe to svg', () => {
