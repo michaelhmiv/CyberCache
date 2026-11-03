@@ -95,9 +95,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 67 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 72 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-03** — 15 merges
+**2026-11-03** — 20 merges
 
 - #310 — feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)
 - #315 — Foreground resume: land instantly back in the live action
@@ -114,6 +114,11 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #326 — Workshop redesign Direction A — Make-now first
 - #327 — Weapon pixel slice 2: legendary parity audit + wiring (24 agree, 1 owner-ruled, 0 open)
 - #328 — Weapon marriage slice 3: retire the legacy SVG weapon renderer
+- #329 — Gate removal step 3: research courses drop hunter-level prerequisites (migration 0059)
+- #330 — Wiki wrap-up W1: Research, Dispatch, Contracts pages
+- #331 — Wiki W2: Changelog backfill (Nov 2–3) + Phase 4 automation — merge ledger & staleness tripwire
+- #332 — Wiki W4: image pipeline + legendary plates pilot
+- #333 — Wiki W3 — freshness fixes (areas law, Shield-Tech gate wording, Crafting recount, Economy ranks)
 
 **2026-11-02** — 44 merges
 

@@ -30,6 +30,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFile
 import { dirname, join } from 'node:path';
 import { type GenAsset, type GenBlock, WIKI_DIR } from './lib';
 import { weaponsBlock, affixesBlock } from './weapons';
+import { weaponFramesBlock, weaponElementsBlock, gearPlatesBlock, materialsBlock } from './images-w5';
 import { areasBlock } from './areas';
 import { vehiclesBlock } from './vehicles';
 import { slotsBlock } from './slots';
@@ -47,10 +48,13 @@ interface PageSpec {
 }
 
 const PAGES: PageSpec[] = [
-  { page: 'Reference.md', blocks: [weaponsBlock, affixesBlock, areasBlock, vehiclesBlock, slotsBlock] },
+  {
+    page: 'Reference.md',
+    blocks: [weaponsBlock, weaponFramesBlock, weaponElementsBlock, affixesBlock, gearPlatesBlock, areasBlock, vehiclesBlock, slotsBlock],
+  },
   { page: 'Reference-Legendary-Effects.md', blocks: [legendaryEffectsBlock] },
   { page: 'Reference-Consumables.md', blocks: [consumablesBlock] },
-  { page: 'Reference-Recipes.md', blocks: [recipesBlock] },
+  { page: 'Reference-Recipes.md', blocks: [materialsBlock, recipesBlock] },
   { page: 'Reference-Bosses.md', blocks: [bossesBlock] },
   { page: 'Reference-Progression.md', blocks: [skillTreesBlock, cacheRankBlock] },
   { page: 'Reference-Collections.md', blocks: [collectionsBlock] },

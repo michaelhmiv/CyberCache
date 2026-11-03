@@ -189,6 +189,9 @@ come back only as an occasional single bonus material for Common
 items once you hold the King of Scrap keystone, so treat salvage as
 your Scrap income, never as a way to stock a specific material.
 
+Every material and essence the bench consumes is pictured with its
+mark in [[Reference-Recipes]].
+
 ---
 
 _Source of truth: `src/content/crafting.ts`, `src/constants/craftingRecipes.ts`, `src/constants/consumables.ts`, `src/screens/WorkshopScreen.tsx`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._
