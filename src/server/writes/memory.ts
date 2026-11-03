@@ -2051,6 +2051,155 @@ export class InMemoryWriteStore implements WriteStore {
   }
 
   /**
+   * cc_apply_build (0066; Saved Builds SB-1) — the mirror of the SQL
+   * function, outcome for outcome. Applies a saved build's full slot
+   * map in one operation with equipItem's per-slot semantics (the
+   * vehicle slot resolves from item records — vehicles never enter
+   * the client's gear inventory store, which is why the old
+   * client-side fan-out silently dropped them). Partial application
+   * is allowed and fully reported: a slot that cannot apply leaves
+   * its current occupant equipped and names why; `applied` is true
+   * only when every slot outcome is 'equipped' or 'empty'.
+   */
+  async applyBuild(playerId: string, nonce: string, slots: Record<string, string | null>): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    if (!slots || typeof slots !== 'object' || Array.isArray(slots)) throw writeError('Invalid build');
+    for (const slotName of LOADOUT_SLOTS) {
+      const value = slots[slotName];
+      if (
+        value !== undefined &&
+        value !== null &&
+        (typeof value !== 'string' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))
+      ) {
+        throw writeError('Invalid build');
+      }
+    }
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+
+    const outcomes: Record<string, unknown>[] = [];
+    const changed: WriteItemData[] = [];
+    const seen = new Set<string>();
+    let equippedCount = 0;
+    let attentionCount = 0;
+
+    const clearSlot = (slotName: string, exceptId?: string) => {
+      for (const other of this.items.values()) {
+        if (other.owner_user_id === playerId && other.equipped_slot === slotName && other.id !== exceptId) {
+          other.equipped_slot = null;
+          other.runtime_state = other.is_locked ? 'locked' : 'available';
+          this.touchItem(other);
+          changed.push(other);
+        }
+      }
+    };
+
+    for (const slotName of LOADOUT_SLOTS) {
+      const targetId = slots[slotName] ?? null;
+      const base: Record<string, unknown> = {
+        slot: slotName,
+        item_id: targetId,
+        listing_id: null,
+        mission_id: null,
+        returns_at: null,
+        job_id: null,
+        job_kind: null,
+      };
+      if (targetId === null) {
+        clearSlot(slotName);
+        outcomes.push({ ...base, outcome: 'empty' });
+        continue;
+      }
+      if (seen.has(targetId)) {
+        // Malformed build (same item named twice): first slot won.
+        outcomes.push({ ...base, outcome: 'gone' });
+        attentionCount += 1;
+        continue;
+      }
+      seen.add(targetId);
+      const item = this.items.get(targetId);
+      if (!item || item.owner_user_id !== playerId || item.runtime_state === 'consumed' || item.runtime_state === 'salvaged') {
+        outcomes.push({ ...base, outcome: 'gone' });
+        attentionCount += 1;
+        continue;
+      }
+      if (item.runtime_state === 'listed') {
+        const listing = [...this.listings.values()]
+          .filter((l) => l.seller_user_id === playerId && l.item_instance_id === item.id && l.status === 'active')
+          .sort((a, b) => a.listed_at.localeCompare(b.listed_at))[0];
+        outcomes.push({ ...base, outcome: 'listed', listing_id: listing?.id ?? null });
+        attentionCount += 1;
+        continue;
+      }
+      const job = [...this.jobs.values()]
+        .filter(
+          (j) =>
+            j.owner_user_id === playerId &&
+            j.target_item_instance_id === item.id &&
+            !['completed', 'cancelled'].includes(j.status),
+        )
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
+      if (job) {
+        outcomes.push({ ...base, outcome: 'locked', job_id: job.id, job_kind: job.profession_id });
+        attentionCount += 1;
+        continue;
+      }
+      if (item.runtime_state === 'in_service') {
+        const mission = (this.seed.dispatchMissions ?? [])
+          .filter(
+            (m) =>
+              m.user_id === playerId &&
+              m.status === 'active' &&
+              (m.loadout_item_ids.includes(item.id) || m.vehicle_item_id === item.id),
+          )
+          .sort((a, b) => a.ends_at.localeCompare(b.ends_at))[0];
+        outcomes.push({
+          ...base,
+          outcome: 'in_service',
+          mission_id: mission?.id ?? null,
+          returns_at: mission?.ends_at ?? null,
+        });
+        attentionCount += 1;
+        continue;
+      }
+      if (!itemAcceptsSlot(item.payload, slotName)) {
+        outcomes.push({ ...base, outcome: 'incompatible' });
+        attentionCount += 1;
+        continue;
+      }
+      if (slotName === 'vehicle') {
+        const classId = (item.payload as Record<string, unknown>)?.vehicleClassId;
+        if (!getVehicleClass(typeof classId === 'string' ? classId : null)) {
+          outcomes.push({ ...base, outcome: 'incompatible' });
+          attentionCount += 1;
+          continue;
+        }
+      }
+      clearSlot(slotName, item.id);
+      item.equipped_slot = slotName;
+      item.runtime_state = 'equipped';
+      this.touchItem(item);
+      changed.push(item);
+      outcomes.push({ ...base, outcome: 'equipped' });
+      equippedCount += 1;
+    }
+
+    const result: Json = {
+      action_type: 'cc_apply_build',
+      profile: this.profileSnapshot(p),
+      loadout: this.loadoutSnapshot(playerId),
+      items: changed.map((i) => this.itemJson(i)),
+      outcomes,
+      applied: attentionCount === 0,
+      equipped_count: equippedCount,
+      attention_count: attentionCount,
+    };
+    return this.record(playerId, 'cc_apply_build', key, result);
+  }
+
+  /**
    * Shared batch consumption for the vehicle ops (0021): decrements
    * the count map and the FIFO batches together (the dual
    * maintenance cc_consume_consumable performs), synthesizing a
