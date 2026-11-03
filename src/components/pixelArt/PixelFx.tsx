@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MOVEMENT, particleField, tracerGeometry } from '@/lib/pixel/movement';
+import { fiveToneRamp, type FiveToneRamp } from '@/lib/pixel/gearCardCompositor';
 
 /**
  * Pixel combat FX kit (P2) — the reusable presentation effects of the
@@ -266,12 +267,21 @@ export const GhostHpBar: React.FC<{
   );
 };
 
-// ── Loot moment FX (P3, spec §5) ───────────────────────────────────────
+// ── Loot moment FX (P3, spec §5; item-moment reveal 2026-11-03) ───────
 // The celebration kit for drops: a rarity beam at the loot point, the
 // legendary treatment's god rays + shockwave, and twinkles for the risen
-// weapon. All positioned from manifest anchors by the caller (stage-%
-// coordinates), all timed from MOVEMENT. Reduced motion: the beam still
-// renders (static), the rays/shockwave/twinkles do not.
+// item. All positioned from manifest anchors by the caller (stage-%
+// coordinates), all timed from MOVEMENT.
+//
+// DESIGN.md §8 governs the light itself: glow is hard-edged texel
+// shapes, never gradients. The beam/rays/shockwave therefore paint on
+// quarter-resolution canvases (texel = 4 CSS px) upscaled with
+// image-rendering: pixelated — the construction the approved reveal
+// exploration used (five-tone ramp bands, concentric stepped ellipses,
+// texel fan rays). The pre-redesign DOM versions used linear/radial/
+// conic gradients — a smooth column the owner rejected on sight
+// ("looks like a dividing bar"): the beam now RADIATES, with stepped
+// rays fanning and pulsing outward from behind the rising item.
 
 interface LootPoint {
   /** Beam base X, % of the offset parent. */
@@ -280,113 +290,413 @@ interface LootPoint {
   groundYPct: number;
 }
 
+/** One game texel in CSS px (DESIGN.md §8). FX canvases are authored
+ *  at 1/4 CSS resolution and upscaled NEAREST, so every painted edge
+ *  lands on the texel grid. */
+const TEXEL_PX = 4;
+
+type SteppedDraw = (ctx: CanvasRenderingContext2D, wCells: number, hCells: number, tMs: number) => void;
+
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+const easeOutCubic = (p: number): number => 1 - Math.pow(1 - clamp01(p), 3);
+
+function paintEllipse(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  color: string,
+  alpha: number,
+): void {
+  if (rx <= 0 || ry <= 0 || alpha <= 0) return;
+  ctx.globalAlpha = Math.min(1, alpha);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 /**
- * A vertical rarity beam rising from a ground loot point: bright white
- * core, rarity-colored body, and a ground flare where it lands. Width
- * and flare scale with the celebration tier (lootCelebrationForRarity).
+ * Drives a quarter-resolution stepped canvas. The canvas fills its
+ * offset parent; `drawRef.current` paints one frame in CELL
+ * coordinates at tMs since mount. Animated on a rAF loop unless
+ * `reduced` (one settled frame at `staticMs`) or the loop's `runMs`
+ * budget is spent (one-shot effects). Silently inert where a 2d
+ * context is unavailable (jsdom) — the element and its testid render
+ * regardless.
  */
-export const LootBeam: React.FC<LootPoint & { color: string; widthPx: number; flareScale?: number; reduced?: boolean }> = ({
-  xPct,
-  groundYPct,
-  color,
-  widthPx,
-  flareScale = 2.6,
-  reduced = false,
-}) => {
-  const flareWidth = Math.round(widthPx * flareScale * 2.4);
+/** The canvas 2d context, or null where unavailable (jsdom, or a
+ *  context the browser refuses) — one try/catch so callers branch on
+ *  the value, not on assignment order. */
+function tryGet2dContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
+  try {
+    return canvas.getContext('2d');
+  } catch {
+    return null;
+  }
+}
+
+function useSteppedCanvas(
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  drawRef: React.RefObject<SteppedDraw>,
+  opts: { reduced: boolean; staticMs: number; runMs?: number },
+): void {
+  const { reduced, staticMs, runMs } = opts;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const context = tryGet2dContext(canvas);
+    if (!context) return undefined;
+    let raf = 0;
+    let stopped = false;
+    const startedAt = performance.now();
+    let lastT = reduced ? staticMs : 0;
+
+    const paint = (tMs: number) => {
+      const wCells = Math.max(1, Math.ceil(canvas.clientWidth / TEXEL_PX));
+      const hCells = Math.max(1, Math.ceil(canvas.clientHeight / TEXEL_PX));
+      if (canvas.width !== wCells) canvas.width = wCells;
+      if (canvas.height !== hCells) canvas.height = hCells;
+      context.clearRect(0, 0, wCells, hCells);
+      drawRef.current(context, wCells, hCells, tMs);
+      context.globalAlpha = 1;
+    };
+
+    paint(lastT);
+    if (reduced) return undefined;
+
+    const tick = () => {
+      if (stopped) return;
+      lastT = performance.now() - startedAt;
+      paint(lastT);
+      if (runMs !== undefined && lastT > runMs) {
+        paint(runMs + 1); // settle on the effect's empty final frame
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    const onResize = () => paint(lastT);
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
+      observer = new ResizeObserver(onResize);
+      observer.observe(canvas.parentElement);
+    } else if (typeof window !== 'undefined') {
+      window.addEventListener('resize', onResize);
+    }
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+      observer?.disconnect();
+      if (typeof window !== 'undefined') window.removeEventListener('resize', onResize);
+    };
+  }, [canvasRef, drawRef, reduced, staticMs, runMs]);
+}
+
+/** Texel fan-ray angles, degrees from straight up. The ±108° pair is
+ *  the low ground spill — shorter, so the fan reads as light bursting
+ *  upward off the ground point, not a halo. */
+const FAN_RAY_ANGLES: readonly { deg: number; lenF: number }[] = [
+  { deg: -108, lenF: 0.55 },
+  { deg: -78, lenF: 1 },
+  { deg: -52, lenF: 1 },
+  { deg: -26, lenF: 1 },
+  { deg: 0, lenF: 1 },
+  { deg: 26, lenF: 1 },
+  { deg: 52, lenF: 1 },
+  { deg: 78, lenF: 1 },
+  { deg: 108, lenF: 0.55 },
+];
+
+/**
+ * The radiating fan: stepped texel rays spreading outward from the
+ * glow center behind the risen item. Rays ignite staggered inside the
+ * beam-in window (each a few frames after its neighbour), then keep
+ * pulsing — length breathing on the twinkle period, tone chasing
+ * base → light → pale — for the rest of the step. This is the piece
+ * that makes the light read as light going off, not a partition.
+ */
+function paintFanRays(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  ramp: FiveToneRamp,
+  tMs: number,
+  baseLenCells: number,
+): void {
+  const tones = [ramp.base, ramp.light, ramp.pale];
+  FAN_RAY_ANGLES.forEach((ray, i) => {
+    const ignite = easeOutCubic((tMs - 60 - i * 28) / Math.max(1, MOVEMENT.LOOT_BEAM_IN_MS - 60));
+    if (ignite <= 0) return;
+    const pulse = 1 + 0.13 * Math.sin((tMs / MOVEMENT.LOOT_TWINKLE_MS) * Math.PI * 2 + i * 1.7);
+    const len = baseLenCells * ray.lenF * ignite * pulse;
+    const rad = ((ray.deg - 90) * Math.PI) / 180;
+    const dx = Math.cos(rad);
+    const dy = Math.sin(rad);
+    ctx.fillStyle = tones[(Math.floor(tMs / 280) + i) % tones.length];
+    ctx.globalAlpha = 0.5;
+    const steps = Math.floor(len);
+    for (let d = 2; d < steps; d += 1) {
+      const size = d < steps * 0.35 ? 2 : 1;
+      ctx.fillRect(Math.round(cx + dx * d) - (size - 1), Math.round(cy + dy * d) - (size - 1), size, size);
+    }
+  });
+  ctx.globalAlpha = 1;
+}
+
+interface LootBeamPaintOpts {
+  xPct: number;
+  groundYPct: number;
+  color: string;
+  widthPx: number;
+  flareScale: number;
+  durationMs: number;
+  /** Hover center of the risen item, % of host height — the glow
+   *  field's home once the rise completes. */
+  glowYPct?: number;
+  /** Full celebrations radiate (glow field + fan rays). Light mode
+   *  (ordinary feed drops) paints the stepped beam + flare only —
+   *  escalation stays scale, never a busier idle scene. */
+  radiant: boolean;
+}
+
+/** One frame of the stepped loot light: glow field (concentric stepped
+ *  ellipses travelling with the rise), the radiating fan, the beam's
+ *  three ramp bands with their hot ground junction, and the stepped
+ *  ground flare — the approved exploration's construction, live. */
+function paintLootBeamFrame(
+  ctx: CanvasRenderingContext2D,
+  wCells: number,
+  hCells: number,
+  tMs: number,
+  opts: LootBeamPaintOpts,
+): void {
+  const ramp = fiveToneRamp(opts.color);
+  const cx = (opts.xPct / 100) * wCells;
+  const ground = (opts.groundYPct / 100) * hCells;
+  const ignition = easeOutCubic(tMs / MOVEMENT.LOOT_BEAM_IN_MS);
+  const strength = 0.55 + 0.45 * easeOutCubic(tMs / 700);
+
+  // The glow center rides the rise: it starts at the ground junction
+  // and travels to the item's hover point on the rise's own budget.
+  const riseMs = Math.max(200, Math.min(MOVEMENT.LOOT_RISE_MS, opts.durationMs - 300));
+  const riseP = easeOutCubic((tMs - 120) / riseMs);
+  const glowHome = opts.glowYPct !== undefined ? (opts.glowYPct / 100) * hCells : ground - hCells * 0.24;
+  const glowY = ground - 2 + (glowHome - (ground - 2)) * riseP;
+  const glowStrength = tMs < 120 ? 0 : 0.7 + 0.3 * riseP;
+  const glowRx = opts.widthPx >= 68 ? 47 : opts.widthPx >= 34 ? 40 : opts.widthPx >= 22 ? 34 : 26;
+
+  if (opts.radiant && glowStrength > 0) {
+    const glowRy = glowRx * 0.52;
+    const bands: readonly (readonly [number, keyof FiveToneRamp, number])[] = [
+      [1, 'deep', 76],
+      [0.8, 'dark', 96],
+      [0.6, 'base', 116],
+      [0.4, 'light', 136],
+    ];
+    for (const [f, tone, a] of bands) {
+      paintEllipse(ctx, cx, glowY, glowRx * f, glowRy * f, ramp[tone], (a / 255) * glowStrength);
+    }
+    paintEllipse(ctx, cx, glowY, glowRx * 0.22, glowRy * 0.22, ramp.pale, (122 / 255) * glowStrength);
+  }
+
+  // The radiating fan — behind the item, over the backdrop.
+  if (opts.radiant && tMs > 60) paintFanRays(ctx, cx, glowY, ramp, tMs, glowRx * 1.9);
+
+  // Beam bands — brightest at the ground junction; the top grows from
+  // 45% of the span to the frame top inside the beam-in window.
+  const topMargin = hCells * 0.02;
+  const beamTop = ground - (ground - topMargin) * (0.45 + 0.55 * ignition);
+  const beamCells = Math.max(1.5, opts.widthPx / TEXEL_PX);
+  const beamBands: readonly (readonly [number, keyof FiveToneRamp | null, number])[] = [
+    [1, 'base', 165],
+    [0.55, 'light', 175],
+    [0.26, null, 215],
+  ];
+  for (const [wf, tone, a] of beamBands) {
+    const w = Math.max(0.5, beamCells * wf);
+    ctx.globalAlpha = (a / 255) * strength;
+    ctx.fillStyle = tone ? ramp[tone] : '#FFFFFF';
+    ctx.fillRect(cx - w / 2, beamTop, w, ground - beamTop);
+  }
+  // Hot junction where the beam meets the ground.
+  ctx.globalAlpha = (120 / 255) * strength;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(cx - beamCells / 2, ground - 3, beamCells, 3);
+  ctx.globalAlpha = 1;
+
+  // Ground flare — concentric stepped ellipses, white heart outward
+  // (the incumbent's own width formula, stepped).
+  const flareRx = (opts.widthPx * opts.flareScale * 2.4) / (TEXEL_PX * 2);
+  const flareRy = flareRx * 0.22;
+  const flareBands: readonly (readonly [number, keyof FiveToneRamp | null, number])[] = [
+    [1, 'dark', 60],
+    [0.78, 'base', 95],
+    [0.55, 'light', 130],
+    [0.32, null, 170],
+  ];
+  for (const [f, tone, a] of flareBands) {
+    paintEllipse(ctx, cx, ground, flareRx * f, flareRy * f, tone ? ramp[tone] : '#FFFFFF', (a / 255) * strength);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/**
+ * The rarity light at a ground loot point: stepped five-tone beam,
+ * radiating texel fan, glow field, and ground flare, all composited
+ * on one quarter-resolution canvas. Width and flare scale with the
+ * celebration tier (lootCelebrationForRarity).
+ */
+export const LootBeam: React.FC<
+  LootPoint & {
+    color: string;
+    widthPx: number;
+    flareScale?: number;
+    reduced?: boolean;
+    /** The owning step's duration — sizes the rise the glow rides. */
+    durationMs?: number;
+    /** Hover center of the risen item, % of host height. */
+    glowYPct?: number;
+    /** Glow field + radiating fan (full celebrations only). */
+    radiant?: boolean;
+  }
+> = ({ xPct, groundYPct, color, widthPx, flareScale = 2.6, reduced = false, durationMs, glowYPct, radiant = true }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawRef = useRef<SteppedDraw>(() => {});
+  // Latest-closure draw for the stepped-canvas loop: assigned in an
+  // effect (every render), never during render itself.
+  useEffect(() => {
+    drawRef.current = (ctx, wCells, hCells, tMs) =>
+      paintLootBeamFrame(ctx, wCells, hCells, tMs, {
+        xPct,
+        groundYPct,
+        color,
+        widthPx,
+        flareScale,
+        durationMs: durationMs ?? MOVEMENT.LOOT_LEGENDARY_MS,
+        glowYPct,
+        radiant,
+      });
+  });
+  useSteppedCanvas(canvasRef, drawRef, { reduced, staticMs: 1400 });
   return (
-    <div data-testid="fx-loot-beam" className="pointer-events-none absolute inset-0 z-20">
-      {/* Beam column — grows up out of the ground point */}
-      <motion.div
-        className="absolute"
-        style={{
-          left: `${xPct}%`,
-          bottom: `${100 - groundYPct}%`,
-          width: widthPx,
-          height: `${Math.min(97, groundYPct + 8)}%`,
-          marginLeft: -widthPx / 2,
-          transformOrigin: '50% 100%',
-          background: `linear-gradient(90deg, transparent 0%, ${color}59 22%, ${color} 42%, #FFFFFF 50%, ${color} 58%, ${color}59 78%, transparent 100%)`,
-          boxShadow: `0 0 ${Math.round(widthPx * 0.55)}px ${color}59`,
-        }}
-        initial={reduced ? { opacity: 0.9, scaleY: 1 } : { opacity: 0, scaleY: 0.06 }}
-        animate={{ opacity: [0, 1, 0.92], scaleY: 1 }}
-        transition={reduced ? { duration: 0 } : { duration: MOVEMENT.LOOT_BEAM_IN_MS / 1000, ease: 'easeOut', times: [0, 0.35, 1] }}
-      />
-      {/* Ground flare where the beam lands */}
-      <motion.div
-        className="absolute rounded-[50%]"
-        style={{
-          left: `${xPct}%`,
-          top: `${groundYPct}%`,
-          width: flareWidth,
-          height: Math.max(10, flareWidth * 0.22),
-          marginLeft: -flareWidth / 2,
-          marginTop: -Math.max(5, flareWidth * 0.11),
-          background: `radial-gradient(ellipse, #FFFFFF 0%, ${color}B3 42%, ${color}00 72%)`,
-        }}
-        initial={reduced ? { opacity: 0.85, scale: 1 } : { opacity: 0, scale: 0.3 }}
-        animate={{ opacity: [0, 0.95, 0.8], scale: 1 }}
-        transition={reduced ? { duration: 0 } : { duration: MOVEMENT.LOOT_BEAM_IN_MS / 1000, ease: 'easeOut', times: [0, 0.4, 1] }}
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      data-testid="fx-loot-beam"
+      className="pointer-events-none absolute inset-0 z-20 h-full w-full"
+      style={{ imageRendering: 'pixelated' }}
+    />
   );
 };
 
 /**
- * Rotating god-ray disc behind the risen legendary weapon. A conic fan
- * of gold wedges with a radial fade, turning one slow revolution per
- * LOOT_RAYS_SPIN_MS. Static (but present) under reduced motion.
+ * Rotating god-ray disc behind the risen legendary weapon — stepped
+ * wedges on the texel grid with a stepped radial falloff, turning one
+ * slow revolution per LOOT_RAYS_SPIN_MS. Static (but present) under
+ * reduced motion.
  */
-export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> = ({ xPct, yPct, size = 360, reduced = false }) => (
-  <motion.div
-    data-testid="fx-god-rays"
-    className="pointer-events-none absolute z-10 rounded-full"
-    style={{
-      left: `${xPct}%`,
-      top: `${yPct}%`,
-      width: size,
-      height: size,
-      marginLeft: -size / 2,
-      marginTop: -size / 2,
-      background:
-        'repeating-conic-gradient(from 0deg, rgba(255,234,58,0.12) 0deg 9deg, rgba(255,234,58,0) 9deg 24deg)',
-      maskImage: 'radial-gradient(circle, black 0%, transparent 68%)',
-      WebkitMaskImage: 'radial-gradient(circle, black 0%, transparent 68%)',
-    }}
-    initial={{ rotate: 0, opacity: 0 }}
-    animate={reduced ? { opacity: 0.9 } : { rotate: 360, opacity: [0, 1, 0.95] }}
-    transition={
-      reduced
-        ? { duration: 0 }
-        : {
-            rotate: { duration: MOVEMENT.LOOT_RAYS_SPIN_MS / 1000, repeat: Infinity, ease: 'linear' },
-            opacity: { duration: 0.5, ease: 'easeOut', times: [0, 0.3, 1] },
-          }
+export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> = ({ xPct, yPct, size = 360, reduced = false }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawRef = useRef<SteppedDraw>(() => {});
+  useEffect(() => {
+    drawRef.current = (ctx, wCells, hCells, tMs) => {
+    const ramp = fiveToneRamp('#FFEA3A');
+    const cx = wCells / 2;
+    const cy = hCells / 2;
+    const radius = Math.min(wCells, hCells) / 2;
+    const fadeIn = reduced ? 0.9 : Math.min(1, tMs / 500);
+    const rotDeg = ((tMs / MOVEMENT.LOOT_RAYS_SPIN_MS) * 360) % 360;
+    // Two stepped falloff bands: the inner disc of each wedge burns
+    // brighter than its rim (the exploration's masked-fan falloff,
+    // quantized to texel rings instead of a smooth mask).
+    const passes: readonly (readonly [number, number, string])[] = [
+      [1, 0.13, ramp.light],
+      [0.5, 0.2, ramp.pale],
+    ];
+    for (const [rF, alpha, tone] of passes) {
+      ctx.globalAlpha = alpha * fadeIn;
+      ctx.fillStyle = tone;
+      for (let i = 0; i < 9; i += 1) {
+        const a0 = ((rotDeg + i * 40) * Math.PI) / 180;
+        const a1 = ((rotDeg + i * 40 + 11) * Math.PI) / 180;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius * rF, a0, a1);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
-  />
-);
+    ctx.globalAlpha = 1;
+    };
+  });
+  useSteppedCanvas(canvasRef, drawRef, { reduced, staticMs: 1200 });
+  return (
+    <canvas
+      ref={canvasRef}
+      data-testid="fx-god-rays"
+      className="pointer-events-none absolute z-10"
+      style={{
+        left: `${xPct}%`,
+        top: `${yPct}%`,
+        width: size,
+        height: size,
+        marginLeft: -size / 2,
+        marginTop: -size / 2,
+        imageRendering: 'pixelated',
+      }}
+    />
+  );
+};
 
-/** A gold shockwave ring rolling across the ground from the loot point. */
-export const ShockwaveRing: React.FC<LootPoint & { color?: string }> = ({ xPct, groundYPct, color = '#FFEA3A' }) => (
-  <motion.div
-    data-testid="fx-shockwave-ring"
-    className="pointer-events-none absolute z-20 rounded-[50%]"
-    style={{
-      left: `${xPct}%`,
-      top: `${groundYPct}%`,
-      width: 380,
-      height: 56,
-      marginLeft: -190,
-      marginTop: -28,
-      border: `3px solid ${color}`,
-      boxShadow: `0 0 18px ${color}88, inset 0 0 18px ${color}55`,
-    }}
-    initial={{ opacity: 0, scale: 0.12 }}
-    animate={{ opacity: [0, 0.95, 0], scale: [0.12, 0.7, 1.12] }}
-    transition={{ duration: MOVEMENT.LOOT_SHOCKWAVE_MS / 1000, ease: 'easeOut', times: [0, 0.25, 1] }}
-  />
-);
+/** Stepped shockwave rings rolling across the ground from the loot
+ *  point — two concentric texel ellipse outlines (ramp base + pale)
+ *  expanding and fading over LOOT_SHOCKWAVE_MS. */
+export const ShockwaveRing: React.FC<LootPoint & { color?: string }> = ({ xPct, groundYPct, color = '#FFEA3A' }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawRef = useRef<SteppedDraw>(() => {});
+  useEffect(() => {
+    drawRef.current = (ctx, wCells, hCells, tMs) => {
+    const p = tMs / MOVEMENT.LOOT_SHOCKWAVE_MS;
+    if (p >= 1) return;
+    const ramp = fiveToneRamp(color);
+    const cx = wCells / 2;
+    const cy = hCells / 2;
+    const rx = 6 + (46 - 6) * easeOutCubic(p);
+    const rings: readonly (readonly [number, string, number])[] = [
+      [1, ramp.base, 190],
+      [0.82, ramp.pale, 120],
+    ];
+    for (const [f, tone, a] of rings) {
+      ctx.globalAlpha = (a / 255) * (1 - p);
+      ctx.strokeStyle = tone;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx * f, rx * f * (11 / 46), 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    };
+  });
+  useSteppedCanvas(canvasRef, drawRef, { reduced: false, staticMs: 0, runMs: MOVEMENT.LOOT_SHOCKWAVE_MS });
+  return (
+    <canvas
+      ref={canvasRef}
+      data-testid="fx-shockwave-ring"
+      className="pointer-events-none absolute z-20"
+      style={{
+        left: `${xPct}%`,
+        top: `${groundYPct}%`,
+        width: 380,
+        height: 96,
+        marginLeft: -190,
+        marginTop: -48,
+        imageRendering: 'pixelated',
+      }}
+    />
+  );
+};
 
 /** Twinkle sparkles hovering around the risen legendary weapon. */
 export const Twinkles: React.FC<FxPoint & { seed: string; width?: number }> = ({ xPct, yPct, seed, width = 210 }) => {

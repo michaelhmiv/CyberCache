@@ -5,7 +5,25 @@ import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { MOVEMENT } from '@/lib/pixel/movement';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { Weapon } from '@/types/items';
+import type { Shield, Weapon } from '@/types/items';
+
+const makeShield = (overrides: Partial<Shield> = {}): Shield =>
+  ({
+    id: 's-1',
+    name: 'Cryo Ironwood Shield',
+    level: 30,
+    rarity: Rarity.Epic,
+    hp: 1757,
+    rechargeRate: 40,
+    // Real item contract: mitigation is a fraction — this is an 8% shield.
+    mitigation: 0.08,
+    element: Element.Cryo,
+    affixes: [],
+    sourceTag: DropSource.BossDrop,
+    isLocked: false,
+    pixelSeed: 3,
+    ...overrides,
+  }) as Shield;
 import { getRoamingArea, DEFAULT_ROAMING_AREA_ID } from '@/constants/roamingAreas';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 import type { TickEvent } from '@/store/slices/tickSlice';
@@ -74,17 +92,28 @@ afterEach(() => {
 });
 
 describe('LootMoment — full mode (stage surface)', () => {
-  it('plays a beam + hero card with the drop’s real name, stamp, and stats', () => {
+  it('plays the item-moment reveal: the item rises and its deck lands staged', () => {
     render(<LootMoment items={[makeWeapon()]} surface="stage" testId="lm" />);
     expect(screen.getByTestId('lm').getAttribute('data-mode')).toBe('full');
     expect(screen.getByTestId('fx-loot-beam')).toBeTruthy();
+    // The item itself rises at every rarity now (it never appeared for
+    // a Rare before the reveal redesign).
+    expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
+    expect(screen.getByTestId('loot-risen-weapon')).toBeTruthy();
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Volt Carbine');
-    expect(hero.textContent).toContain('RARE SMG');
-    expect(hero.textContent).toContain('Dmg 2,847 · Spd 6.20 · Crit 15.0%');
-    // No legendary treatment for a Rare.
+    // Deck stamp: rarity · type · element · level.
+    expect(hero.textContent).toContain('RARE SMG · SHOCK · LV 7');
+    // Hero figure + supports + the honest quality read.
+    expect(hero.textContent).toContain('DAMAGE');
+    expect(hero.textContent).toContain('2,847');
+    expect(hero.textContent).toContain('6.20');
+    expect(hero.textContent).toContain('15.0%');
+    expect(hero.textContent).toContain('62');
+    expect(hero.textContent).toContain('STRONG');
+    // No legendary surplus for a Rare.
     expect(screen.queryByTestId('fx-god-rays')).toBeNull();
-    expect(screen.queryByTestId('loot-risen-item')).toBeNull();
+    expect(screen.queryByTestId('fx-shockwave-ring')).toBeNull();
   });
 
   it('gives a legendary the full treatment: dim, rays, risen weapon, gold card with flavor + stats', () => {
@@ -106,10 +135,34 @@ describe('LootMoment — full mode (stage surface)', () => {
     expect(screen.getByTestId('loot-risen-weapon').getAttribute('data-pixel-sprite')).toBe('legendary-emberfall');
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Emberfall');
-    expect(hero.textContent).toContain('★ LEGENDARY SNIPER');
+    // Deck anatomy: the effect banner carries the effect, the stamp
+    // line reads rarity · type · element · level.
+    expect(hero.textContent).toContain('Glass Sun');
+    expect(hero.textContent).toContain('LEGENDARY SNIPER · FIRE · LV 7');
     // P4 wave 2: the hand-written flavor override wins over the effect description.
     expect(hero.textContent).toContain('Sets the sky on fire. Literally.');
-    expect(hero.textContent).toContain('Dmg 2,847');
+    expect(hero.textContent).toContain('2,847');
+  });
+
+  it('rises gear as its real plate, with the shield deck at true values', () => {
+    render(<LootMoment items={[makeShield()]} surface="stage" propCache testId="lm" />);
+    // Gear rises as itself — the plate, not the old crate stand-in.
+    expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
+    expect(screen.getByTestId('loot-risen-gear')).toBeTruthy();
+    expect(screen.queryByTestId('loot-risen-crate')).toBeNull();
+    // The cache prop sits at the beam base for cache reveals.
+    expect(screen.getByTestId('loot-cache-prop')).toBeTruthy();
+    const hero = screen.getByTestId('loot-card-hero');
+    expect(hero.textContent).toContain('Cryo Ironwood Shield');
+    expect(hero.textContent).toContain('EPIC SHIELD · CRYO · LV 30');
+    expect(hero.textContent).toContain('SHIELD HP');
+    expect(hero.textContent).toContain('1,757');
+    // The rider: an 8% shield reads 8% in the deck (never "0.1%").
+    expect(hero.textContent).toContain('MITIGATION');
+    expect(hero.textContent).toContain('8%');
+    expect(hero.textContent).not.toContain('0.1%');
+    // Gear carries no rollQuality — no quality chip.
+    expect(hero.textContent).not.toContain('QUALITY');
   });
 
   it('climbs the ladder: earlier drops stack as plain cards under the current hero', () => {
@@ -201,7 +254,7 @@ describe('LootMoment — reduced motion', () => {
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Emberfall');
     expect(hero.textContent).toContain('Sets the sky on fire. Literally.');
-    expect(hero.textContent).toContain('Dmg 2,847');
+    expect(hero.textContent).toContain('2,847');
     expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
     expect(screen.queryByTestId('fx-shockwave-ring')).toBeNull();
     expect(screen.queryByTestId('fx-twinkles')).toBeNull();

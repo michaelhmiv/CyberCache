@@ -8,10 +8,14 @@ import {
   initialLootMomentState,
   lootCardData,
   lootCelebrationForRarity,
+  lootDeckData,
+  lootDeckSchedule,
   lootMomentMode,
   lootMomentReducer,
   orderLootLadder,
   planLootMoment,
+  shieldMitigationPct,
+  splitAffixFigure,
   type LootMomentState,
 } from '@/lib/pixel/lootMoment';
 import type { TickEvent } from '@/store/slices/tickSlice';
@@ -62,7 +66,11 @@ const makeShield = (overrides: Partial<Shield> = {}): Shield =>
     rarity: Rarity.Epic,
     hp: 1250,
     rechargeRate: 42,
-    mitigation: 18,
+    // Real item contract: mitigation is a FRACTION (the generator rolls
+    // 0.05–0.8; inspect/market surfaces print ×100). This fixture
+    // carried 18 — the percent-scale value the old buggy loot-card
+    // formatter was written against.
+    mitigation: 0.18,
     element: Element.Kinetic,
     affixes: [],
     sourceTag: DropSource.BossDrop,
@@ -93,21 +101,27 @@ describe('lootCelebrationForRarity — rarity → celebration tier mapping', () 
     }
   });
 
-  it('reserves the full treatment (dim, rays, shockwave, rise) for Legendary only', () => {
+  it('reserves the legendary surplus (dim, rays, shockwave) for Legendary only', () => {
     for (const rarity of [Rarity.Common, Rarity.Uncommon, Rarity.Rare, Rarity.Epic]) {
       const c = lootCelebrationForRarity(rarity);
       expect(c.dimWorld).toBe(false);
       expect(c.godRays).toBe(false);
       expect(c.shockwave).toBe(false);
-      expect(c.weaponRise).toBe(false);
     }
     const legendary = lootCelebrationForRarity(Rarity.Legendary);
     expect(legendary.tier).toBe('legendary');
     expect(legendary.dimWorld).toBe(true);
     expect(legendary.godRays).toBe(true);
     expect(legendary.shockwave).toBe(true);
-    expect(legendary.weaponRise).toBe(true);
     expect(MOVEMENT.LOOT_DIM_OPACITY).toBe(0.4); // spec: world dims ~40%
+  });
+
+  it('rises the item itself at every rarity (item-moment reveal, 2026-11-03)', () => {
+    // The item is the moment: before the reveal redesign the rise was
+    // legendary-only and 92% of cache opens never showed the item.
+    for (const rarity of [Rarity.Common, Rarity.Uncommon, Rarity.Rare, Rarity.Epic, Rarity.Legendary]) {
+      expect(lootCelebrationForRarity(rarity).weaponRise).toBe(true);
+    }
   });
 
   it('uses the shared rarity identity colors', () => {
@@ -180,6 +194,110 @@ describe('lootCardData — card derivation from real item data', () => {
     expect(card.stamp).toBe('EPIC SHIELD');
     expect(card.statLine).toBe('HP 1,250 · RECHARGE 42/s · MIT 18%');
     expect(card.isWeapon).toBe(false);
+  });
+
+  it('prints shield mitigation as the true percentage (reveal rider, 2026-11-03)', () => {
+    // The bug: mitigation is stored as a fraction, and the card printed
+    // the raw fraction — an 8% shield read "MIT 0.1%". Pin the fix.
+    const shield = makeShield({ mitigation: 0.08 });
+    expect(shieldMitigationPct(shield)).toBe('8');
+    expect(lootCardData(shield).statLine).toContain('MIT 8%');
+    expect(lootCardData(shield).statLine).not.toContain('0.1%');
+    // A fractional percent keeps one honest decimal.
+    expect(shieldMitigationPct(makeShield({ mitigation: 0.085 }))).toBe('8.5');
+  });
+});
+
+describe('lootDeckData — the reveal deck derivation', () => {
+  it('stages a weapon: hero damage, SPD/CRIT supports, quality read honestly', () => {
+    const deck = lootDeckData(makeWeapon());
+    expect(deck.stamp).toBe('RARE SMG · SHOCK · LV 7');
+    expect(deck.hero).toEqual({ label: 'DAMAGE', value: '2,847' });
+    expect(deck.supports).toEqual([
+      { label: 'SPD', value: '6.20' },
+      { label: 'CRIT', value: '15.0%' },
+    ]);
+    expect(deck.quality).toEqual({ value: 62, label: 'STRONG' });
+    expect(deck.effect).toBeNull();
+  });
+
+  it('gives a legendary its effect banner, and flavor stays the override line', () => {
+    const deck = lootDeckData(
+      makeWeapon({ name: 'Emberfall', rarity: Rarity.Legendary, weaponType: WeaponType.Sniper, legendaryEffectId: 'glass_sun' }),
+    );
+    expect(deck.effect?.name).toBe('Glass Sun');
+    expect(deck.effect?.description).toBeTruthy();
+    // Banner carries the description; the flavor line is the override,
+    // never the same text twice.
+    expect(deck.flavor).toBe('Sets the sky on fire. Literally.');
+    expect(deck.stamp).toBe('LEGENDARY SNIPER · SHOCK · LV 7');
+  });
+
+  it('stages a shield with mitigation at its true percentage', () => {
+    const deck = lootDeckData(makeShield({ mitigation: 0.08, hp: 1757, rechargeRate: 40 }));
+    expect(deck.hero).toEqual({ label: 'SHIELD HP', value: '1,757' });
+    expect(deck.supports).toContainEqual({ label: 'MITIGATION', value: '8%' });
+    expect(deck.supports).toContainEqual({ label: 'RECHARGE', value: '40/s' });
+    expect(deck.quality).toBeNull(); // gear carries no rollQuality
+    expect(deck.stamp).toBe('EPIC SHIELD · KINETIC · LV 4');
+  });
+
+  it('splits an activity module out of the affix rows', () => {
+    const deck = lootDeckData(
+      makeWeapon({
+        affixes: [
+          { id: 'a1', category: 'combat', stat: 'critChance', value: 0.09, displayText: '+9% Crit Chance' },
+          {
+            id: 'a2', category: 'activity', stat: 'salvage', value: 0.95,
+            subStats: { salvageYield: 0.335 },
+            displayText: 'Salvage Module [95%] · +33.5% Salvage Yield',
+          },
+        ] as Weapon['affixes'],
+      }),
+    );
+    expect(deck.affixes).toEqual([{ figure: '+9%', rest: ' Crit Chance' }]);
+    expect(deck.module?.title).toBe('Salvage Module [95%]');
+    expect(deck.module?.lines).toEqual([{ figure: '+33.5%', rest: ' Salvage Yield' }]);
+  });
+
+  it('a relic has no hero figure — its affixes are the read', () => {
+    const deck = lootDeckData({
+      id: 'r-1', name: 'Echo Stone', level: 12, rarity: Rarity.Epic,
+      affixes: [{ id: 'a1', category: 'idle', stat: 'offline', value: 0.12, displayText: '+12% Offline Earnings' }],
+      sourceTag: DropSource.WorldDrop, isLocked: false,
+    } as unknown as GearItem);
+    expect(deck.hero).toBeNull();
+    expect(deck.stamp).toBe('EPIC RELIC · LV 12');
+    expect(deck.affixes).toEqual([{ figure: '+12%', rest: ' Offline Earnings' }]);
+  });
+
+  it('splitAffixFigure only splits a leading signed percentage', () => {
+    expect(splitAffixFigure('+9% Shield Break')).toEqual({ figure: '+9%', rest: ' Shield Break' });
+    expect(splitAffixFigure('-4.5% Recoil')).toEqual({ figure: '-4.5%', rest: ' Recoil' });
+    expect(splitAffixFigure('Burns for 45 per second')).toEqual({ figure: '', rest: 'Burns for 45 per second' });
+  });
+
+  it('the deck schedule lands every row inside the existing step durations', () => {
+    // Realistic affix loads per rarity (affix counts by rarity band:
+    // Common 0–1, Uncommon 1, Rare 2, Epic 3, Legendary 4–5).
+    const affixCounts: Partial<Record<Rarity, number>> = {
+      [Rarity.Common]: 1, [Rarity.Uncommon]: 1, [Rarity.Rare]: 2, [Rarity.Epic]: 3, [Rarity.Legendary]: 5,
+    };
+    for (const rarity of [Rarity.Common, Rarity.Uncommon, Rarity.Rare, Rarity.Epic, Rarity.Legendary]) {
+      const step = lootCelebrationForRarity(rarity).durationMs;
+      const count = affixCounts[rarity]!;
+      const schedule = lootDeckSchedule(rarity, { affixCount: count, hasModule: true });
+      const lastLanding = Math.max(
+        schedule.nameMs, schedule.heroMs,
+        schedule.affixStartMs + schedule.affixStaggerMs * (count - 1),
+        schedule.moduleMs, schedule.qualityMs, schedule.flavorMs,
+      );
+      expect(lastLanding).toBeLessThan(step);
+    }
+    // Legendary withholds the deck so the rise gets its clean frame.
+    const legendary = lootDeckSchedule(Rarity.Legendary, { affixCount: 5, hasModule: false });
+    expect(legendary.nameMs).toBeGreaterThan(lootDeckSchedule(Rarity.Rare, { affixCount: 2, hasModule: false }).nameMs);
+    expect(legendary.heroMs).toBe(1100);
   });
 });
 
