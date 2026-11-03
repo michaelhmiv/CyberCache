@@ -217,7 +217,7 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
     name: 'Production Systems', durationHours: 48, costCredits: 15000,
     prerequisite: 'shop_fundamentals', requiresBench: 2,
     effects: {},
-    unlockText: 'Unlocks the three batch recipes — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units.',
+    unlockText: 'Unlocks the three batch recipes — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units: fewer materials and less time per unit than three singles.',
   },
   {
     id: 'master_fabricator', faculty: 'fabrication', tier: 3,

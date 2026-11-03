@@ -19,7 +19,7 @@ import {
   craftQualityBounds,
   gearTemperChance,
   isMaterialInput,
-  refineOutputCount,
+  refineOutputRange,
   toolDef,
   type CraftRecipe,
 } from '@/content/crafting';
@@ -190,10 +190,15 @@ export const RecipeInspectSheet: React.FC<{
     recipe.kind === 'gear'
       ? Math.round(gearTemperChance(masteryLevel(ctx, 'crafting.gear'), GEAR_TEMPER_BASE_CHANCE_DEFAULT) * 100)
       : null;
-  const refineOut =
+  const refineRange =
     recipe.kind === 'refine'
-      ? refineOutputCount(recipe, masteryLevel(ctx, 'crafting.refining'), REFINE_BASE_YIELD_DEFAULT)
+      ? refineOutputRange(recipe, masteryLevel(ctx, 'crafting.refining'), REFINE_BASE_YIELD_DEFAULT)
       : null;
+  const refineOut = refineRange
+    ? refineRange.max > refineRange.min
+      ? `${refineRange.min}–${refineRange.max}`
+      : `${refineRange.min}`
+    : null;
   const tool = recipe.kind === 'tool' && recipe.toolId ? toolDef(recipe.toolId) : undefined;
 
   return (
@@ -242,7 +247,7 @@ export const RecipeInspectSheet: React.FC<{
             </div>
           ) : tool ? (
             <div className="text-[11px] leading-relaxed text-text-secondary">
-              {tool.blurb} One fitted tool lasts {tool.durabilityJobs} jobs.
+              {tool.blurb}
             </div>
           ) : null}
         </div>
