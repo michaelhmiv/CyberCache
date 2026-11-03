@@ -5,7 +5,7 @@ import { DropSource, Rarity, SkillTreeType } from '@/types/game';
 import type { ClassMod, Relic } from '@/types/items';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { composeGear, type GearRender } from '@/lib/pixel/gearCardCompositor';
-import { GEAR_GRAMMARS, GEAR_PIXEL_KINDS, gearRenderRoute } from '@/lib/pixel/gearRenderFlags';
+import { GEAR_GRAMMARS } from '@/lib/pixel/gearDispatch';
 import {
   classModGrammar,
   classModInputFromItem,
@@ -129,15 +129,11 @@ const formMaskOf = (render: GearRender) =>
   render.rows.map((r) => [...r].map((c) => (c === '.' || c === 'F' || c === 'f' || c === 'K' || c === 'k' ? '0' : '1')).join('')).join('/');
 
 describe('class-mod marriage — registration + dispatch', () => {
-  it('the grammar is registered and the classMod flag is on; every kind routes pixel', () => {
+  it('the grammar is registered in the total dispatch table', () => {
+    // Slice 5 retired the flag + route seam: the registry is a
+    // total Record, so registration IS the route — there is no
+    // second path left to fall back to.
     expect(GEAR_GRAMMARS.classMod).toBe(classModGrammar);
-    expect(GEAR_PIXEL_KINDS.classMod).toBe(true);
-    expect(gearRenderRoute('classMod')).toBe('pixel');
-    // Shields (slice 1), ordnance (slice 2) and relics (slice 4)
-    // flipped too — no kind remains on the SVG route.
-    expect(gearRenderRoute('shield')).toBe('pixel');
-    expect(gearRenderRoute('ordnance')).toBe('pixel');
-    expect(gearRenderRoute('relic')).toBe('pixel');
   });
 
   it('GearIllustration renders a class mod as a canvas with the core signature', () => {
