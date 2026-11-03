@@ -31,7 +31,9 @@ function vehiclesBody(): string {
   return [
     '### Vehicle classes',
     '',
-    table(['Class', 'Unlock level', 'Yield', 'Fuel / tick', 'Wear rate', 'Material bonus', 'Role'], classRows),
+    table(['Class', 'Ladder tier', 'Yield', 'Fuel / tick', 'Wear rate', 'Material bonus', 'Role'], classRows),
+    '',
+    'The ladder tier is design data only (drop weighting, dispatch courier bands) — **no class has a level requirement**: vehicles are market goods, and if you can buy it, you can drive it.',
     '',
     '### The model in numbers',
     '',

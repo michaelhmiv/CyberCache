@@ -1,5 +1,6 @@
 import { GearItem } from './items';
 import type { MarketCategory } from '@/lib/market/identityKey';
+import type { VehicleDisplay } from '@/store/slices/vehicleSlice';
 
 export interface MarketFilter {
   rarity?: string[];
@@ -19,7 +20,7 @@ export interface MarketFilter {
   sortDir: 'asc' | 'desc';
 }
 
-export type ListingKind = 'gear' | 'consumable' | 'material' | 'fragment' | 'core' | 'essence' | 'cosmetic';
+export type ListingKind = 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
 
 export interface Listing {
   id: string;
@@ -33,6 +34,10 @@ export interface Listing {
   itemId: string | null;
   /** Gear listings: the serialized item. Null for stack listings. */
   itemSnapshot: GearItem | null;
+  /** Vehicle listings (0021): the serialized vehicle instance with
+   *  its live condition. Null for every other kind — vehicles are
+   *  not GearItem and never ride itemSnapshot. */
+  vehicleSnapshot: VehicleDisplay | null;
   category: MarketCategory | null;
   displayName: string;
   /** Stack size (1 for gear). */

@@ -34,6 +34,7 @@ export function serverItemRowToVehicle(row: ServerItemRow): VehicleDisplay | nul
     ...payload,
     id: row.id || String(raw.id),
     isLocked: Boolean(row.is_locked),
+    runtimeState: typeof row.runtime_state === 'string' ? row.runtime_state : undefined,
     conditionMax: Number.isFinite(max) && max > 0 ? max : 100,
     conditionCurrent: Number.isFinite(current) ? current : (Number.isFinite(max) && max > 0 ? max : 100),
   };

@@ -16,6 +16,11 @@ import type { ChefVehicleStatus } from '@/lib/chef/chefClient';
 export interface VehicleDisplay extends Vehicle {
   conditionCurrent: number;
   conditionMax: number;
+  /** The instance's runtime state ('available' | 'equipped' |
+   *  'listed' | 'in_service' | …) when the sync path carried it —
+   *  the Garage's ON CONTRACT tag and the market Sell lane's
+   *  listability filter read it. */
+  runtimeState?: string;
 }
 
 export interface VehicleState {

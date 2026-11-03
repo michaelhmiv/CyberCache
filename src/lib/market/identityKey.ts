@@ -59,8 +59,9 @@ export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
 
 /**
  * Vehicle identity (0021): class + rarity. A vehicle's price is
- * driven by what it is (class) and its rarity; level is the class
- * gate, not a roll axis, and affix rolls are too granular to bucket
+ * driven by what it is (class) and its rarity; the instance level
+ * is not a roll axis (vehicles equip at any player level — owner
+ * ruling 2026-11-02), and affix rolls are too granular to bucket
  * at this population — same reasoning as the gear key.
  */
 export function vehicleIdentityKey(vehicleClassId: string, rarity: string | null | undefined): string {

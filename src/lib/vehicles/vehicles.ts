@@ -6,9 +6,14 @@
  * equipped into the loadout's 'vehicle' slot. The design tables in
  * src/content/mechanicFramework.ts (VEHICLE_CLASSES_FIRST_ERA) were
  * the design source; this module is the shipped table — class stats
- * live here and ONLY here (the SQL twin of the unlock levels lives in
+ * live here and ONLY here (the SQL twin of the class ladder lives in
  * migration 0021, `cc_vehicle_unlock_level`, and parity is pinned by
- * tests the way the vendor catalog's twin is).
+ * tests the way the vendor catalog's twin is). The ladder is design
+ * data, NOT a player gate: vehicles are pure market goods (owner
+ * ruling 2026-11-02 — if you can buy it, you can drive it), equip
+ * checks ownership only, and the ladder's remaining readers are the
+ * roaming drop flavor weighting and the dispatch courier class
+ * bands, neither of which reads the player's level.
  *
  * YIELD MODEL, never cadence: ticks stay 3s and the claim RNG stream
  * is untouched. The equipped vehicle multiplies what each tick
@@ -42,7 +47,12 @@ import type { DangerRating } from '../../constants/roamingAreas';
 export interface VehicleClassDef {
   id: string;
   displayName: string;
-  /** Equip gate: the player's level must be >= this (enforced server-side at equip). */
+  /**
+   * Class ladder position (design data — NOT an equip gate; owner
+   * ruling 2026-11-02 removed the player-level equip gate). Read by
+   * the roaming drop flavor weighting and the dispatch courier class
+   * bands only.
+   */
   unlockLevel: number;
   /** Base yield multiplier at full condition with no affixes (the design table's travel speed). */
   baseYield: number;

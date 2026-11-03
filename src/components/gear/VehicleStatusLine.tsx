@@ -3,7 +3,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
-import { conditionFraction, effectiveVehicleYield, getVehicleClass } from '@/lib/vehicles/vehicles';
+import { FUEL_CELL_TYPE, PATCH_KIT_TYPE, conditionFraction, effectiveVehicleYield, getVehicleClass } from '@/lib/vehicles/vehicles';
 
 /**
  * Roaming vehicle status (0021) — every factor the claim engine
@@ -40,6 +40,12 @@ export const VehicleStatusLine: React.FC<{
   const vehicles = useVehicleStore((s) => s.vehicles);
   const equipped = equippedId ? vehicles.find((v) => v.id === equippedId) : undefined;
   const vehicleFuel = usePlayerStore((s) => s.vehicleFuel);
+  // Tank units and carried cells are DIFFERENT numbers (owner
+  // feedback 2026-11-02: a bare "fuel 0" read as either) — the line
+  // prints both, labeled, and its remedy pointer names the cure the
+  // player can actually use: load a carried cell, or go get some.
+  const fuelCells = usePlayerStore((s) => s.consumables[FUEL_CELL_TYPE] ?? 0);
+  const patchKits = usePlayerStore((s) => s.consumables[PATCH_KIT_TYPE] ?? 0);
   const lastClaim = useVehicleStore((s) => s.lastClaimStatus);
 
   const garageButton = onToggleExpand ? (
@@ -91,16 +97,25 @@ export const VehicleStatusLine: React.FC<{
           <span className="inline-flex items-center gap-1"><PxIcon name="wheel" size={13} /> <span className="font-bold text-text-primary">{equipped.name}</span></span>
           {classEcho} — yield bonus{' '}
           <span className="font-bold text-text-primary">×{outOfFuel || wornOut ? '1.00' : factor.toFixed(2)}</span>
-          {' '}· fuel <span className="font-bold text-text-primary">{Math.floor(fuel)} units</span>
+          {' '}· tank <span className="font-bold text-text-primary">{Math.floor(fuel)} units</span>
+          {' '}· <span className="font-bold text-text-primary">{fuelCells}</span> fuel cell{fuelCells === 1 ? '' : 's'} carried
           {' '}· condition <span className="font-bold text-text-primary">{Math.round(fraction * 100)}%</span>
         </div>
         {garageButton}
       </div>
       {outOfFuel && (
-        <div className="leading-snug text-amber [overflow-wrap:anywhere]">Out of fuel — vehicle bonus inactive, roaming on foot at ×1.00. Load Generic Fuel Cells in the Garage.</div>
+        <div className="leading-snug text-amber [overflow-wrap:anywhere]">
+          {fuelCells > 0
+            ? 'Out of fuel — vehicle bonus inactive, roaming on foot at ×1.00. Load a fuel cell in the Garage to bring the bonus back.'
+            : 'Out of fuel — vehicle bonus inactive, roaming on foot at ×1.00. No fuel cells carried — the Vendor in the Market sells Generic Fuel Cells, and Fuel Cells can be crafted in the Workshop.'}
+        </div>
       )}
       {!outOfFuel && wornOut && (
-        <div className="leading-snug text-amber [overflow-wrap:anywhere]">Vehicle worn out — bonus is ×1.00 until repaired. Use a Patch Kit in the Garage.</div>
+        <div className="leading-snug text-amber [overflow-wrap:anywhere]">
+          {patchKits > 0
+            ? 'Vehicle worn out — bonus is ×1.00 until repaired. Use a Patch Kit in the Garage.'
+            : 'Vehicle worn out — bonus is ×1.00 until repaired. No patch kits carried — the Vendor in the Market sells them, and they can be crafted in the Workshop.'}
+        </div>
       )}
       {!outOfFuel && !wornOut && lastClaim && lastClaim.activeTicks < lastClaim.ticks && (
         <div>Bonus active for {lastClaim.activeTicks} of the last {lastClaim.ticks} ticks (fuel ran dry mid-claim).</div>

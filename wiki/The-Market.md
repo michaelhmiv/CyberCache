@@ -25,9 +25,16 @@ the sign-in prompt at the button instead of a silent refusal.
 Five kinds of things trade on the Market:
 
 - **Gear** — individual items: weapons, shields, relics, class mods,
-  ordnance, and vehicles. Each piece is listed on its own, with its own
+  and ordnance. Each piece is listed on its own, with its own
   stats, rarity, and level. Locked gear can't be listed; unequip and unlock
   it first.
+- **Vehicles** — individual [[Vehicles and the Garage|vehicle]]
+  instances, under their own **Vehicles** category on the Buy lane. The
+  card draws the actual vehicle — class, rolled fittings, and its live
+  condition — because condition is part of what you're paying for.
+  Vehicles carry **no level requirement**: if you can buy it, you can
+  drive it. An equipped or on-contract vehicle can't be listed; park it
+  in the Garage first.
 - **Consumable batches** — a stack of one consumable type, listed with its
   quantity, its quality %, and its origin shown on the card. Quality matters
   here: a 140% batch is a different product from a 90% batch of the same

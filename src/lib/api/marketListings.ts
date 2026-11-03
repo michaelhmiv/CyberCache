@@ -11,7 +11,7 @@
  * could also arrive as an array — both are still handled).
  */
 import { apiRequest } from './http';
-import { serverItemRowToDisplayGear, type ServerItemRow } from './serverItemAdapter';
+import { serverItemRowToDisplayGear, serverItemRowToVehicle, type ServerItemRow } from './serverItemAdapter';
 import type { MarketListingQuery } from '@/lib/market/listingQuery';
 import type { MarketCategory } from '@/lib/market/identityKey';
 import type { Listing, ListingKind } from '@/types/market';
@@ -52,11 +52,12 @@ function rowToListing(row: MarketListingRow): Listing | null {
   const embedded = row.item_instances;
   const itemRow = Array.isArray(embedded) ? embedded[0] : embedded;
   const kind: ListingKind = row.listing_kind === 'consumable' || row.listing_kind === 'material'
+    || row.listing_kind === 'vehicle'
     || row.listing_kind === 'fragment' || row.listing_kind === 'core' || row.listing_kind === 'essence'
     || row.listing_kind === 'cosmetic'
     ? row.listing_kind
     : 'gear';
-  const gear = itemRow
+  const gear = itemRow && kind !== 'vehicle'
     ? serverItemRowToDisplayGear({
       id: itemRow.id ?? row.id,
       item_level: itemRow.item_level,
@@ -67,9 +68,15 @@ function rowToListing(row: MarketListingRow): Listing | null {
       payload: itemRow.payload,
     })
     : null;
-  // A gear listing whose item failed to adapt is unrenderable — drop
-  // it (the pre-0019 behavior). Stack listings never carry an item.
+  // Vehicle listings (0021) adapt through the vehicle adapter — the
+  // gear adapter refuses vehicle rows by design ("vehicles are not
+  // gear"), which used to drop every vehicle listing from the lane.
+  const vehicle = kind === 'vehicle' && itemRow ? serverItemRowToVehicle(itemRow) : null;
+  // A gear/vehicle listing whose item failed to adapt is
+  // unrenderable — drop it (the pre-0019 behavior). Stack listings
+  // never carry an item.
   if (kind === 'gear' && !gear) return null;
+  if (kind === 'vehicle' && !vehicle) return null;
   const quantity = Math.max(1, Math.floor(Number(row.quantity) || 1));
   const price = Number(row.price_credits);
   return {
@@ -78,8 +85,9 @@ function rowToListing(row: MarketListingRow): Listing | null {
     sellerName: typeof row.seller_name === 'string' ? row.seller_name : '',
     sellerType: row.seller_type === 'npc' ? 'npc' : 'player',
     kind,
-    itemId: gear ? gear.id : (kind === 'cosmetic' ? (itemRow?.id ?? null) : null),
+    itemId: gear ? gear.id : (vehicle ? vehicle.id : (kind === 'cosmetic' ? (itemRow?.id ?? null) : null)),
     itemSnapshot: gear,
+    vehicleSnapshot: vehicle,
     category: (row.category as MarketCategory | null) ?? null,
     displayName: row.display_name ?? gear?.name ?? row.consumable_type ?? row.material_id ?? row.essence_id ?? 'Unknown',
     quantity,
