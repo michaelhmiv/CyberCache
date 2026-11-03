@@ -212,14 +212,13 @@ export const DispatchPanel: React.FC = () => {
           <button
             key={o.id}
             onClick={() => { setOfferId(offerId === o.id ? null : o.id); setPickedItems([]); setPickedVehicle(null); setPreview(null); setReasons([]); }}
-            disabled={o.areaLocked}
-            className={`flex w-full items-center justify-between gap-2 border px-2 py-2 text-left ${offerId === o.id ? 'border-amber bg-amber/10' : 'border-border/60'} disabled:opacity-50`}
+            className={`flex w-full items-center justify-between gap-2 border px-2 py-2 text-left ${offerId === o.id ? 'border-amber bg-amber/10' : 'border-border/60'}`}
           >
             <span className="text-xs font-bold text-text-primary">
               {o.family === 'courier' ? <span className="inline-flex items-center gap-1"><PxIcon name="truck" size={13} /> Courier</span> : <span className="inline-flex items-center gap-1"><PxIcon name="boot" size={13} /> Foot</span>} — {o.areaName} · {o.durationHours}h
             </span>
             <span className="text-[10px] font-bold text-text-muted">
-              {o.areaLocked ? `Locked · Lv ${o.areaUnlockLevel}` : `${o.dangerRating} danger`}
+              {`${o.dangerRating} danger`}
             </span>
           </button>
         ))}
