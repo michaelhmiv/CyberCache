@@ -108,7 +108,31 @@ describe('plate type fitting — scrim text never leaves its panel', () => {
   it('splits a long name at a word boundary', () => {
     const fit = fitPlateName('The Mnemosyne Mirror', SCRIM_TEXT_MAX, measure06);
     expect(fit.lines).toEqual(['THE MNEMOSYNE', 'MIRROR']);
-    expect(fit.fontSize).toBe(18);
+    // Two-line forms cap at 16 (vertical budget — see the stack test
+    // below); at the old 18–20 cap this fit horizontally and still
+    // pushed the mechanic line under the plate's foot strip.
+    expect(fit.fontSize).toBe(16);
+  });
+
+  it('the full scrim stack fits the plate height for every roster boss', () => {
+    // Vertical model of BossArenaPlate's scrim (CSS px, plate height
+    // 118, foot strip 4): top padding 10 + name lines at 1.04 line
+    // height + tier margin 3 + tier 11px at 1.2 + chip margin 7 +
+    // chip (11px at 1.2 + 4 padding + 3 border) + mechanic margin 7 +
+    // mechanic 11px at 1.2. The mechanic line's box must end above
+    // the foot strip (118 - 4 = 114).
+    const stackHeight = (lines: number, fontSize: number) =>
+      10 + lines * fontSize * 1.04 + 3 + 11 * 1.2 + 7 + (11 * 1.2 + 4 + 3) + 7 + 11 * 1.2;
+    for (const boss of REGION_1_BOSSES) {
+      const fit = fitPlateName(boss.name, SCRIM_TEXT_MAX, measure06);
+      expect(
+        stackHeight(fit.lines.length, fit.fontSize),
+        `${boss.id} stack at ${fit.fontSize}px x${fit.lines.length}`,
+      ).toBeLessThanOrEqual(114);
+      if (fit.lines.length > 1) {
+        expect(fit.fontSize, `${boss.id} two-line cap`).toBeLessThanOrEqual(16);
+      }
+    }
   });
 
   it('every roster name fits the scrim under a realistic measure', () => {

@@ -205,6 +205,15 @@ export interface PlateNameFit {
  * DESIGN.md §5 floor for poster text (the last-resort split renders at
  * the smallest ladder size and the scrim clips nothing — every ladder
  * step is chosen only when the measured width fits).
+ *
+ * Two-line forms cap at 16px: the fit is a VERTICAL budget as well as
+ * a horizontal one. The scrim stack (two name lines + tier line +
+ * weakness chip + mechanic line, fixed margins) fills the 118px
+ * plate; at 18–20px name sizes the mechanic line slides under the
+ * foot strip and clips (seen on the first production sheet — Widow-9,
+ * Verdant Maw, Vaultkeeper Omega). 16px is the largest two-line size
+ * whose full stack stays inside the plate (Heap Guard's fitted form
+ * is the in-capture proof).
  */
 export function fitPlateName(
   name: string,
@@ -220,14 +229,14 @@ export function fitPlateName(
   if (upper.includes(', ')) {
     const idx = upper.indexOf(', ');
     const lines = [upper.slice(0, idx + 1), upper.slice(idx + 2)];
-    for (let size = 20; size >= 13; size -= 1) {
+    for (let size = 16; size >= 13; size -= 1) {
       if (fits(lines, size)) return { lines, fontSize: size };
     }
     return { lines, fontSize: 13 };
   }
   const words = upper.split(' ');
   if (words.length > 1) {
-    for (let size = 20; size >= 13; size -= 1) {
+    for (let size = 16; size >= 13; size -= 1) {
       let best: string[] | null = null;
       let bestMax = Infinity;
       for (let i = 1; i < words.length; i++) {
