@@ -312,10 +312,16 @@ export interface ChefVerifyBossResult {
  * can distinguish specific rejections — above all the tick guard's
  * 409 'tick_count already claimed', which proves an earlier attempt
  * at the same batch actually landed — without parsing the message.
+ * The guard's 409 body also carries the server's current tick
+ * watermark (`lastClaimedTick`): equal to the sent tickCount it is
+ * that proof; AHEAD of the sent tickCount it instead exposes a
+ * settle desync (the watermark moved past the client's counter), so
+ * it is attached verbatim for the caller to compare.
  */
 export interface ChefClaimError extends Error {
   status?: number;
   chefError?: string;
+  lastClaimedTick?: number;
 }
 
 /**
@@ -340,6 +346,10 @@ export async function submitClaim(request: ChefClaimRequest): Promise<ChefClaimR
     error.status = response.status;
     const chefError = (errorBody as { error?: string }).error;
     if (typeof chefError === 'string') error.chefError = chefError;
+    const lastClaimedTick = (errorBody as { lastClaimedTick?: unknown }).lastClaimedTick;
+    if (typeof lastClaimedTick === 'number' && Number.isFinite(lastClaimedTick)) {
+      error.lastClaimedTick = lastClaimedTick;
+    }
     throw error;
   }
 
