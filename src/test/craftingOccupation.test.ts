@@ -204,7 +204,7 @@ describe('crafting occupation — job model through the shipped routes', () => {
     expect(prof(P).consumables.WorkshopRushTicket).toBe(1); // refunded as a batch
   });
 
-  it('bench unlock charges atomically and refuses the broke / under-level', async () => {
+  it('bench unlock charges atomically and refuses the broke (level never speaks — step 4)', async () => {
     const creditsBefore = prof(P).credits;
     const res = await post('/api/ops/craft-unlock-bench', h.tokens[P], { nonce: nonce(), bench: 2 });
     expect(res.status).toBe(200);

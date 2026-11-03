@@ -71,10 +71,6 @@ export function humanizeWorkshopError(raw: unknown): string {
   const kit = text.match(/^Not enough (\w+) in inventory$/);
   if (kit) return `Not enough ${label(kit[1])} in inventory.`;
 
-  // "Bench 3 requires level 30"
-  const benchLevel = text.match(/^Bench (\d+) requires level (\d+)$/);
-  if (benchLevel) return `Bench ${benchLevel[1]} unlocks at level ${benchLevel[2]}.`;
-
   if (text === 'Profile not found') {
     return 'Your hunter profile could not be loaded — reconnect and try again.';
   }
