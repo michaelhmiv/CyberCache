@@ -49,6 +49,10 @@ Fragments also **trade on [[The Market]]** by quantity. While fragments are list
 
 A practical note on timing: because the forged weapon is made **at your current level**, opening caches right after a level-up gets you a weapon at the new level; opening them just before gets you one at the old. Keys keep — there is no penalty for holding them for a level that matters.
 
+## The reveal
+
+The opening itself is a moment: the cache sits at the base of a pillar of light in the drop's rarity color, and **the item rises out of it** — the crate is just packaging and fades as the item climbs. Under the risen item, a stat deck lands in stages: the item's name and kind, its headline number big (damage for a weapon, shield HP for a shield), its supporting numbers beside it, then every affix with its percentage picked out, and finally its **roll quality** — the same 0–100 quality the rest of the game shows, so the reveal never flatters a weak roll. A legendary weapon also shows its named effect up top and its flavor line last. The light scales with rarity — wider beam, brighter fan of rays, longer hold — and a legendary dims the world behind it. None of this changes what you got: the item was forged and in your inventory before the reveal played, and tapping (after your first-ever reveal) skips straight to the finished deck.
+
 ## What caches never do
 
 - Never sell or forge a legendary effect (above).
