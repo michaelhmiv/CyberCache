@@ -52,7 +52,10 @@ Five kinds of things trade on the Market:
 - **Materials** — units of a crafting material, listed by quantity at a
   total price. On the card, a material or essence draws as the actual
   stuff it is — its formed object, in its own colors — so a stack reads
-  by form and color, never a generic pack icon.
+  by form and color, never a generic pack icon. **Scrap** trades here
+  too: the salvage currency is a material, so the stock you earn from
+  roaming and salvage is the same stack you can list — or buy when a
+  build leaves you short.
 - **Resources** — cache fragments, legendary cores, and essences, listed
   by quantity like materials. Fragments and cores each trade as a single
   commodity; each of the five essence types trades as its own commodity.

@@ -229,6 +229,10 @@ essences their cards name. Salvage from the [[Gear]] tab pays **Scrap**
 come back only as an occasional single bonus material for Common
 items once you hold the King of Scrap keystone, so treat salvage as
 your Scrap income, never as a way to stock a specific material.
+There is only one Scrap stock: what salvage pays is exactly what
+skin parts, tints, reforge and rerolls draw from — and the same
+stack you can list on [[The Market]], so a short bench can be
+covered by buying Scrap instead of grinding for it.
 
 Every material and essence the bench consumes is pictured with its
 mark in [[Reference-Recipes]].

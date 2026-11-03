@@ -71,11 +71,20 @@ tax to plan around, not a cost on top of your price.
 
 ## The other economies
 
-Credits are only one ledger. These run on their own rules and don't
-convert freely into credits:
+Credits are only one ledger. These run on their own rules and mostly
+don't convert freely into credits — Scrap is the exception, because
+it trades on the player market:
 
-- **Scrap** — from salvage; spent on crafting and reforge. See
-  [[Collections]] and [[Crafting]].
+- **Scrap** — the workbench currency, and a material like any
+  other. It drops from roaming, salvage, dispatch, endless runs and
+  boss auto-scrap, and it is spent on crafting, skin parts, tints,
+  reforge and contract rerolls. The stock in your materials is the
+  one and only Scrap: what salvage pays is what the bench charges,
+  and you can list it on [[The Market]] — salvage-rich hunters sell
+  it, crafters buy it. There is no second scrap: what older hunters
+  knew as Scrap Alloy was the same stock all along, and the
+  [[Vendor]] sells Scrap itself at 10 credits. See [[Collections]]
+  and [[Crafting]].
 - **Cache fragments and keys** — 5 fragments make a key, and openings
   share a daily budget of 10. See [[Caches]].
 - **Legendary cores** — minted only by salvaging Legendary gear, spent

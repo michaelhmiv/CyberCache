@@ -15,6 +15,8 @@ There are no blueprints, no drops, and no cache-box tie-in. Every
 skin recipe simply **appears in [[Crafting]]** (Workshop → **Skin
 Parts** lane) and is paid for mostly in **Scrap** — the same salvage
 currency that drops everywhere — plus a few materials per part.
+Short on Scrap? It is a material like any other, so it trades on
+[[The Market]] — buy the stack instead of grinding for it.
 Skin recipes carry **no level requirement**: the bench tier and
 the scrap are the whole gate.
 Crafting a part is a normal timed Workshop job: it advances only
