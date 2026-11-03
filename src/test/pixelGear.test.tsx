@@ -60,20 +60,20 @@ describe('PixelGear — bespoke resolves first', () => {
   });
 });
 
-describe('GearIllustration — shield flipped (slice 1), relic still SVG', () => {
+describe('GearIllustration — shield flipped (slice 1), relic flipped (slice 4)', () => {
   it('a shield renders its pixel plate through the seam', () => {
     const { container } = render(<GearIllustration item={shield} size="card" showBadges={false} />);
     expect(container.querySelector('canvas')).not.toBeNull();
     expect(container.querySelector('svg')).toBeNull();
   });
 
-  it('a relic (not yet married) still renders its SVG illustration', () => {
+  it('a relic renders its pixel plate through the seam', () => {
     const relic = {
-      id: 'test_relic', name: 'Test Relic', level: 3, rarity: Rarity.Common,
+      id: 'test_relic', name: 'Echo Stone', level: 3, rarity: Rarity.Common,
       affixes: [], sourceTag: 'World Drop', isLocked: false,
     } as unknown as GearItem;
     const { container } = render(<GearIllustration item={relic} size="card" showBadges={false} />);
-    expect(container.querySelector('svg')).not.toBeNull();
-    expect(container.querySelector('canvas')).toBeNull();
+    expect(container.querySelector('canvas')).not.toBeNull();
+    expect(container.querySelector('svg')).toBeNull();
   });
 });
