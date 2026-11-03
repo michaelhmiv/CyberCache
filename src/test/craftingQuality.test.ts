@@ -268,10 +268,28 @@ describe('offline craft settlement honors the AFK cap (flag F5)', () => {
 describe('migration 0024 parity pins', () => {
   const sql = readFileSync(resolve(__dirname, '../../db/migrations/0024_crafting_occupation.sql'), 'utf8');
 
+  // The consumable levels 0024 shipped. Gate-removal step 2 (0057)
+  // deleted every one of them from the TS catalog (and step 1 took
+  // the cosmetics at 0056), so the projection below restores the
+  // historical values for this comparison; the current all-1 values
+  // are pinned against 0057 in gateRemovalStep2.test.ts.
+  const LEVELS_0024: Record<string, number> = {
+    recipe_medkit_refined: 10, recipe_shieldcell: 3, recipe_nanoswarm: 15,
+    recipe_adrenaline: 20, recipe_high_capacity_ammo_pack: 6, recipe_ap_ammo: 5,
+    recipe_fire_ammo: 8, recipe_shock_ammo: 8, recipe_corrosive_ammo: 8,
+    recipe_cryo_ammo: 8, recipe_void_ammo: 15, recipe_emp_charge: 9,
+    recipe_corrosive_charge: 9, recipe_overcharge: 12, recipe_targetpainter: 8,
+    recipe_phaseshift: 18, recipe_luck: 5, recipe_scanner: 10,
+    recipe_insurance: 15, recipe_dataskimmer: 18, recipe_jammer: 12,
+    recipe_magnetized: 10, recipe_signal_scrambler: 7, recipe_loot_beacon: 12,
+    recipe_salvage_contract: 5, recipe_workshop_rush_ticket: 10,
+    recipe_field_patch_kit: 12, recipe_fuel_cell: 8,
+  };
+
   function projectRecipe(r: CraftRecipe): Record<string, unknown> {
     const base: Record<string, unknown> = {
       id: r.id, kind: r.kind, name: r.name, category: r.category, inputs: r.inputs,
-      unitDurationMs: r.unitDurationMs, requiresLevel: r.requiresLevel,
+      unitDurationMs: r.unitDurationMs, requiresLevel: LEVELS_0024[r.id] ?? r.requiresLevel,
       requiresBench: r.requiresBench, station: r.station,
     };
     if (r.kind === 'consumable') base.consumableType = r.consumableType;

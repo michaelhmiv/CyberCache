@@ -4,51 +4,51 @@ Every recipe in the Workshop's unified catalog — consumables,
 refining, gear frames, and tools — with per-unit inputs, times, and
 gates. See [[Crafting]] for the occupation around the bench.
 
-**Gates** combine up to five requirements: player level, owned bench,
-crafting mastery, a completed [[Actions and Occupations|Research]]
-course, and a [[Manufacturer Standing]] rank. A recipe with "—" in
-the Gates column needs only level 1 and the first bench. Gear-frame
-times are per rarity, since a frame's duration depends on the rarity
-you choose when you queue it.
+**Gates** combine up to four requirements: owned bench, crafting
+mastery, a completed [[Actions and Occupations|Research]] course,
+and a [[Manufacturer Standing]] rank — never player level. A recipe
+with "—" in the Gates column needs only the first bench and its
+materials. Gear-frame times are per rarity, since a frame's duration
+depends on the rarity you choose when you queue it.
 
 <!-- GENERATED from src/content/crafting.ts, src/constants/craftingRecipes.ts, src/constants/visualAssets.ts — do not edit by hand -->
 <!-- wiki-gen:recipes -->
 | Recipe | Kind | Output (per unit) | Inputs (per unit) | Time | Gates | Station |
 | --- | --- | --- | --- | --- | --- | --- |
 | **Med Kit** | consumable | Med Kit | Scrap Alloy ×15, Reactive Components ×8 | 12 min | — | bench |
-| **Med Kit (Refined)** | consumable | Med Kit (Refined) | Scrap Alloy ×25, Reactive Components ×15, Void Dust ×1 | 25 min | Level 10 | bench |
-| **Shield Cell** | consumable | Shield Cell | Scrap Alloy ×20, Reactive Components ×12 | 15 min | Level 3 | bench |
-| **Nano-Swarm** | consumable | Nano Swarm | Scrap Alloy ×30, Reactive Components ×20, Void Dust ×2 | 40 min | Level 15 | bench |
-| **Adrenaline Shot** | consumable | Adrenaline Shot | Scrap Alloy ×40, Reactive Components ×25, Void Dust ×3 | 1 h | Level 20 | bench |
+| **Med Kit (Refined)** | consumable | Med Kit (Refined) | Scrap Alloy ×25, Reactive Components ×15, Void Dust ×1 | 25 min | — | bench |
+| **Shield Cell** | consumable | Shield Cell | Scrap Alloy ×20, Reactive Components ×12 | 15 min | — | bench |
+| **Nano-Swarm** | consumable | Nano Swarm | Scrap Alloy ×30, Reactive Components ×20, Void Dust ×2 | 40 min | — | bench |
+| **Adrenaline Shot** | consumable | Adrenaline Shot | Scrap Alloy ×40, Reactive Components ×25, Void Dust ×3 | 1 h | — | bench |
 | **Ammo Pack** | consumable | Ammo Pack | Scrap Alloy ×10, Ballistic Parts ×6 | 10 min | — | bench |
-| **High-Capacity Ammo Pack** | consumable | High-Capacity Ammo Pack | Scrap Alloy ×18, Ballistic Parts ×12, Tech ×2 | 18 min | Level 6 | bench |
-| **Armor-Piercing Ammo** | consumable | Armor-Piercing Ammo | Scrap Alloy ×15, Ballistic Parts ×10 | 15 min | Level 5 | bench |
-| **Incendiary Ammo** | consumable | Incendiary Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Ignition Fluid ×3 | 18 min | Level 8 | bench |
-| **Shock Ammo** | consumable | Shock Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Conduit Wire ×3 | 18 min | Level 8 | bench |
-| **Corrosive Ammo** | consumable | Corrosive Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Acid Compound ×3 | 18 min | Level 8 | bench |
-| **Cryo Ammo** | consumable | Cryo Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Cryo Gel ×3 | 18 min | Level 8 | bench |
-| **Void Ammo** | consumable | Void Ammo | Scrap Alloy ×20, Ballistic Parts ×10, Void Essence ×5 | 25 min | Level 15 | bench |
+| **High-Capacity Ammo Pack** | consumable | High-Capacity Ammo Pack | Scrap Alloy ×18, Ballistic Parts ×12, Tech ×2 | 18 min | — | bench |
+| **Armor-Piercing Ammo** | consumable | Armor-Piercing Ammo | Scrap Alloy ×15, Ballistic Parts ×10 | 15 min | — | bench |
+| **Incendiary Ammo** | consumable | Incendiary Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Ignition Fluid ×3 | 18 min | — | bench |
+| **Shock Ammo** | consumable | Shock Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Conduit Wire ×3 | 18 min | — | bench |
+| **Corrosive Ammo** | consumable | Corrosive Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Acid Compound ×3 | 18 min | — | bench |
+| **Cryo Ammo** | consumable | Cryo Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Cryo Gel ×3 | 18 min | — | bench |
+| **Void Ammo** | consumable | Void Ammo | Scrap Alloy ×20, Ballistic Parts ×10, Void Essence ×5 | 25 min | — | bench |
 | **Ordnance Charge** | consumable | Ordnance Charge | Scrap Alloy ×12, Ballistic Parts ×10 | 12 min | — | bench |
-| **EMP Charge** | consumable | EMP Charge | Scrap Alloy ×18, Ballistic Parts ×8, Conduit Wire ×4, Tech ×2 | 22 min | Level 9 | bench |
-| **Corrosive Charge** | consumable | Corrosive Charge | Scrap Alloy ×18, Ballistic Parts ×8, Acid Compound ×4, Tech ×2 | 22 min | Level 9 | bench |
-| **Overcharge Stim** | consumable | Overcharge Stim | Scrap Alloy ×25, Ballistic Parts ×15, Void Dust ×2 | 30 min | Level 12 | bench |
-| **Target Painter** | consumable | Target Painter | Scrap Alloy ×20, Ballistic Parts ×10, Tech ×2 | 20 min | Level 8 | bench |
-| **Phase Shift Grenade** | consumable | Phase Shift Grenade | Scrap Alloy ×30, Ballistic Parts ×15, Void Dust ×5 | 35 min | Level 18 | bench |
-| **Luck Booster** | consumable | Luck Booster | Scrap Alloy ×15, Tech ×8 | 15 min | Level 5 | bench |
-| **Boss Scanner** | consumable | Boss Scanner | Scrap Alloy ×20, Tech ×12 | 20 min | Level 10 | bench |
-| **Insurance Token** | consumable | Insurance Token | Scrap Alloy ×30, Tech ×15, Void Dust ×2 | 35 min | Level 15 | bench |
-| **Data Skimmer** | consumable | Data Skimmer | Scrap Alloy ×25, Tech ×15, Void Dust ×3 | 40 min | Level 18 | bench |
-| **Jammer** | consumable | Jammer | Scrap Alloy ×20, Tech ×10, Conduit Wire ×2 | 25 min | Level 12 | bench |
-| **Magnetized Payload** | consumable | Magnetized Payload | Scrap Alloy ×15, Ballistic Parts ×10, Tech ×5 | 22 min | Level 10 | bench |
-| **Signal Scrambler** | consumable | Signal Scrambler | Scrap Alloy ×15, Tech ×10, Conduit Wire ×2 | 20 min | Level 7 | bench |
-| **Loot Beacon** | consumable | Loot Beacon | Scrap Alloy ×20, Tech ×14, Void Dust ×2 | 30 min | Level 12 | bench |
-| **Salvage Contract** | consumable | Salvage Contract | Scrap Alloy ×12, Tech ×8 | 16 min | Level 5 | bench |
-| **Workshop Rush Ticket** | consumable | Workshop Rush Ticket | Scrap Alloy ×18, Tech ×12, Void Dust ×1 | 24 min | Level 10 | bench |
+| **EMP Charge** | consumable | EMP Charge | Scrap Alloy ×18, Ballistic Parts ×8, Conduit Wire ×4, Tech ×2 | 22 min | — | bench |
+| **Corrosive Charge** | consumable | Corrosive Charge | Scrap Alloy ×18, Ballistic Parts ×8, Acid Compound ×4, Tech ×2 | 22 min | — | bench |
+| **Overcharge Stim** | consumable | Overcharge Stim | Scrap Alloy ×25, Ballistic Parts ×15, Void Dust ×2 | 30 min | — | bench |
+| **Target Painter** | consumable | Target Painter | Scrap Alloy ×20, Ballistic Parts ×10, Tech ×2 | 20 min | — | bench |
+| **Phase Shift Grenade** | consumable | Phase Shift Grenade | Scrap Alloy ×30, Ballistic Parts ×15, Void Dust ×5 | 35 min | — | bench |
+| **Luck Booster** | consumable | Luck Booster | Scrap Alloy ×15, Tech ×8 | 15 min | — | bench |
+| **Boss Scanner** | consumable | Boss Scanner | Scrap Alloy ×20, Tech ×12 | 20 min | — | bench |
+| **Insurance Token** | consumable | Insurance Token | Scrap Alloy ×30, Tech ×15, Void Dust ×2 | 35 min | — | bench |
+| **Data Skimmer** | consumable | Data Skimmer | Scrap Alloy ×25, Tech ×15, Void Dust ×3 | 40 min | — | bench |
+| **Jammer** | consumable | Jammer | Scrap Alloy ×20, Tech ×10, Conduit Wire ×2 | 25 min | — | bench |
+| **Magnetized Payload** | consumable | Magnetized Payload | Scrap Alloy ×15, Ballistic Parts ×10, Tech ×5 | 22 min | — | bench |
+| **Signal Scrambler** | consumable | Signal Scrambler | Scrap Alloy ×15, Tech ×10, Conduit Wire ×2 | 20 min | — | bench |
+| **Loot Beacon** | consumable | Loot Beacon | Scrap Alloy ×20, Tech ×14, Void Dust ×2 | 30 min | — | bench |
+| **Salvage Contract** | consumable | Salvage Contract | Scrap Alloy ×12, Tech ×8 | 16 min | — | bench |
+| **Workshop Rush Ticket** | consumable | Workshop Rush Ticket | Scrap Alloy ×18, Tech ×12, Void Dust ×1 | 24 min | — | bench |
 | **Patch Kit** | consumable | Patch Kit | Scrap Alloy ×4, Reactive Components ×1 | 12 min | — | bench |
-| **Field Patch Kit** | consumable | Field Patch Kit | Scrap Alloy ×6, Reactive Components ×3, Tech ×1, Heartwood Resin ×1 | 25 min | Level 12 | bench |
+| **Field Patch Kit** | consumable | Field Patch Kit | Scrap Alloy ×6, Reactive Components ×3, Tech ×1, Heartwood Resin ×1 | 25 min | — | bench |
 | **Master Patch Kit** | consumable | Master Patch Kit | Scrap Alloy ×8, Reactive Components ×5, Tech ×3, Void Dust ×1 | 45 min | Mastery: crafting_consumables 15 | bench |
-| **Fuel Cell** | consumable | Fuel Cell | Scrap Alloy ×6, Nitrocell Gel ×1 | 15 min | Level 8 | bench |
-| **Calibration Core** | consumable | Calibration Core | Reactive Components ×20, Tech ×15, Prism Shards ×2, Void Dust ×2 | 40 min | Level 15 · Bench 2 | bench |
+| **Fuel Cell** | consumable | Fuel Cell | Scrap Alloy ×6, Nitrocell Gel ×1 | 15 min | — | bench |
+| **Calibration Core** | consumable | Calibration Core | Reactive Components ×20, Tech ×15, Prism Shards ×2, Void Dust ×2 | 40 min | Bench 2 | bench |
 | **Refined Alloy** | refine | Refined Alloy ×8 | Scrap Alloy ×10 | 20 min | — | crusher |
 | **Tempered Parts** | refine | Tempered Parts ×8 | Ballistic Parts ×10 | 20 min | — | crusher |
 | **Stabilized Cells** | refine | Stabilized Cells ×8 | Reactive Components ×10 | 20 min | — | crusher |
@@ -66,15 +66,15 @@ you choose when you queue it.
 | **Precision Calipers** | tool | Precision Calipers | Circuit Lattice ×2, Prism Shards ×2 | 1 h | — | bench |
 | **Servo Bench Rig** | tool | Servo Bench Rig | Composite Plating ×2, Magnetite Cores ×2 | 1 h | — | bench |
 | **Reclaimer Head** | tool | Reclaimer Head | Composite Plating ×1, Circuit Lattice ×1, Voidweave ×1 | 1 h | — | bench |
-| **Shield Cell ×3 (Batch)** | consumable | Shield Cell ×3 | Scrap Alloy ×50, Reactive Components ×30 | 33 min | Level 3 · Research: Production Systems | bench |
+| **Shield Cell ×3 (Batch)** | consumable | Shield Cell ×3 | Scrap Alloy ×50, Reactive Components ×30 | 33 min | Research: Production Systems | bench |
 | **Patch Kit ×3 (Batch)** | consumable | Patch Kit ×3 | Scrap Alloy ×10, Reactive Components ×3 | 26 min | Research: Production Systems | bench |
 | **Ordnance Charge ×3 (Batch)** | consumable | Ordnance Charge ×3 | Scrap Alloy ×30, Ballistic Parts ×25 | 26 min | Research: Production Systems | bench |
-| **Redline Tonic** | consumable | Redline Tonic | Ballistic Parts ×12, Nitrocell Gel ×2, Reactive Components ×6 | 25 min | Level 12 · Standing: Redline rank 2 | bench |
-| **Heartwood Sight Oil** | consumable | Heartwood Sight Oil | Heartwood Resin ×2, Tech ×10, Reactive Components ×6 | 25 min | Level 12 · Standing: Ironwood rank 2 | bench |
-| **Forgeheart Charge** | consumable | Forgeheart Charge | Forgeheart Ingots ×2, Ballistic Parts ×12, Reactive Components ×8 | 25 min | Level 12 · Standing: BlastForge rank 2 | bench |
-| **Prism Coating** | consumable | Prism Coating | Prism Shards ×2, Void Essence ×3, Tech ×8 | 25 min | Level 12 · Standing: Prismatek rank 2 | bench |
-| **ThrowTech Decoy Kit** | consumable | ThrowTech Decoy Kit | Magnetite Cores ×2, Tech ×12, Scrap Alloy ×20 | 25 min | Level 12 · Standing: ThrowTech rank 2 | bench |
-| **Helix Calibration Kit** | consumable | Helix Calibration Kit | Siltglass ×2, Tech ×12, Void Dust ×2 | 25 min | Level 12 · Standing: HelixWorks rank 2 | bench |
+| **Redline Tonic** | consumable | Redline Tonic | Ballistic Parts ×12, Nitrocell Gel ×2, Reactive Components ×6 | 25 min | Standing: Redline rank 2 | bench |
+| **Heartwood Sight Oil** | consumable | Heartwood Sight Oil | Heartwood Resin ×2, Tech ×10, Reactive Components ×6 | 25 min | Standing: Ironwood rank 2 | bench |
+| **Forgeheart Charge** | consumable | Forgeheart Charge | Forgeheart Ingots ×2, Ballistic Parts ×12, Reactive Components ×8 | 25 min | Standing: BlastForge rank 2 | bench |
+| **Prism Coating** | consumable | Prism Coating | Prism Shards ×2, Void Essence ×3, Tech ×8 | 25 min | Standing: Prismatek rank 2 | bench |
+| **ThrowTech Decoy Kit** | consumable | ThrowTech Decoy Kit | Magnetite Cores ×2, Tech ×12, Scrap Alloy ×20 | 25 min | Standing: ThrowTech rank 2 | bench |
+| **Helix Calibration Kit** | consumable | Helix Calibration Kit | Siltglass ×2, Tech ×12, Void Dust ×2 | 25 min | Standing: HelixWorks rank 2 | bench |
 | **Bulwark Helm** | cosmetic | Bulwark Helm | Scrap ×3200, Composite Plating ×2, Prism Shards ×2 | 3 h | Bench 3 | bench |
 | **Bulwark Siege Torso** | cosmetic | Bulwark Siege Torso | Scrap ×3600, Composite Plating ×3, Refined Alloy ×4 | 3 h 30 min | Bench 3 | bench |
 | **Bulwark Pauldron Arm** | cosmetic | Bulwark Pauldron Arm | Scrap ×2000, Tempered Parts ×3 | 2 h | Bench 3 | bench |

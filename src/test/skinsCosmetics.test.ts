@@ -3,8 +3,11 @@
  *
  *   - 0053's restated SQL catalog deep-equals the TS catalog
  *     (87 recipes; cosmetics excepted — their requiresLevel was
- *     removed by 0056, whose restated catalog carries the full
- *     deep-equal pin), the listing-kind check carries 'cosmetic',
+ *     removed by 0056, whose restated catalog pins them; the
+ *     consumables are excepted in turn at 0056 — their levels were
+ *     removed by 0057, which carries the full-catalog pin in
+ *     gateRemovalStep2.test.ts), the listing-kind check carries
+ *     'cosmetic',
  *     the material whitelist carries 'Chromaweave', and the
  *     mastery seed + cosmetic functions exist.
  *   - The wave-1 art gates: both skin sets lint clean under the
@@ -61,13 +64,17 @@ describe('migration 0053 — catalog + schema pins', () => {
     // Cosmetic requiresLevel postdates 0053: gate-removal step 1
     // (0056) deleted the L5/L10/L12 recipe levels, so the cosmetics
     // are excluded here and pinned against 0056's restated catalog
-    // in the 0056 describe below. Everything else in 0053's catalog
-    // still deep-equals the TS catalog.
-    const withoutCosmetics = (rows: Array<Record<string, unknown>>) =>
-      rows.filter((r) => r.category !== 'cosmetics');
+    // in the 0056 describe below. Consumable requiresLevel postdates
+    // it in turn: step 2 (0057) deleted the L3–L20 tiers, so the
+    // consumables are excluded here too and pinned against 0057's
+    // restated catalog in gateRemovalStep2.test.ts. Everything else
+    // in 0053's catalog still deep-equals the TS catalog.
+    const withoutSuperseded = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => r.category !== 'cosmetics' && r.kind !== 'consumable');
     expect(catalog.filter((r) => r.category === 'cosmetics')).toHaveLength(27);
-    expect(withoutCosmetics(catalog)).toEqual(
-      withoutCosmetics(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
+    expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(43);
+    expect(withoutSuperseded(catalog)).toEqual(
+      withoutSuperseded(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
     );
   });
 
@@ -105,12 +112,22 @@ describe('migration 0053 — catalog + schema pins', () => {
 // ─── 0056 textual pins (gate-removal step 1) ────────────────────
 
 describe('migration 0056 — cosmetic recipe levels removed', () => {
-  it('the restated SQL catalog deep-equals the TS catalog (87 recipes)', () => {
+  it('the restated SQL catalog deep-equals the TS catalog outside the consumables (87 recipes)', () => {
     const parts = MIGRATION_0056.split('$catalog$');
     expect(parts.length).toBeGreaterThanOrEqual(3);
     const catalog = JSON.parse(parts[1]) as Array<Record<string, unknown>>;
     expect(catalog).toHaveLength(87);
-    expect(catalog).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    // Consumable requiresLevel postdates 0056: gate-removal step 2
+    // (0057) deleted the consumable tiers (L3–L20), so the
+    // consumables are excluded here and pinned against 0057's
+    // restated catalog in gateRemovalStep2.test.ts. Everything else
+    // in 0056's catalog still deep-equals the TS catalog.
+    const withoutConsumables = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => r.kind !== 'consumable');
+    expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(43);
+    expect(withoutConsumables(catalog)).toEqual(
+      withoutConsumables(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
+    );
   });
 
   it('every cosmetic recipe sits at the no-gate level 1 in both catalogs; benches unchanged', () => {
@@ -126,8 +143,11 @@ describe('migration 0056 — cosmetic recipe levels removed', () => {
     expect(getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!.requiresBench).toBe(3);
     expect(getCraftRecipe(skinPartCatalog('mfr-head-redline')!.recipeId)!.requiresBench).toBe(2);
     expect(getCraftRecipe('tint_craft')!.requiresBench).toBe(1);
-    // Non-cosmetic levels are NOT this step: a standing tonic keeps L12.
-    expect(getCraftRecipe('recipe_helixworks_standing')!.requiresLevel).toBe(12);
+    // Step 1's boundary, pinned historically: in 0056's own catalog
+    // a standing tonic still carried L12 — gate-removal step 2
+    // (0057) removed the consumable levels in TS and SQL alike.
+    const tonicRow = sqlCatalog.find((r) => r.id === 'recipe_helixworks_standing');
+    expect(tonicRow?.requiresLevel).toBe(12);
   });
 });
 
