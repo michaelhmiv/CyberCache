@@ -135,6 +135,37 @@ npm run wiki:gen:check
    structured source and say so in the generator's header comment —
    a silent hand-copy defeats the entire mechanism.
 
+## Adding an image family (illustrated tables)
+
+1. Render the plates in `scripts/wiki-gen/images.ts` (or a family
+   module beside it) from the game's own art sources — the sprite
+   files, their manifests, and the game's own renderers and codecs
+   (`src/lib/pixel/`). Never hand-make or hand-copy art into the
+   wiki: if the game cannot produce the image, the wiki does not
+   show it. A module that only exists inside Vite (e.g.
+   `src/lib/pixel/manifest.ts`, which calls `import.meta.glob`) is
+   parsed from source text instead, and the generator says so in
+   its header — the same escape hatch as generated tables.
+2. Return the plates from the owning block's `assets` hook as
+   `GenAsset[]` (`{ path, bytes }`, path relative to `wiki/`).
+   `generate-all.ts` writes them under `wiki/images/<family>/`
+   with item-id (kebab-case) filenames, byte-compares them in
+   `--check` mode, and deletes orphans from managed directories —
+   so `npm run wiki:gen` / `wiki:gen:check` cover images with no
+   workflow change, and the publish rsync carries `wiki/images/`
+   to the published wiki automatically. Hard cap: **25 MB total**
+   for `wiki/images/`.
+3. Rendering must be byte-deterministic: fixed seeds, integer math,
+   no timestamps. Generate at plate size (downscale from the source
+   art; do not commit native-size art files). The acceptance test
+   is a double render from clean state with a zero byte diff.
+4. Embed with `<img src="images/…">` inside generated tables (it
+   carries an exact display width) or `[[images/…]]` on prose
+   pages. Plain relative `![](…)` embeds are flaky on the published
+   wiki — do not use them. Every illustrated page must still read
+   perfectly with images unloaded: names and numbers carry the
+   meaning, plates only illustrate.
+
 ## Adding a page
 
 1. Create `wiki/<Page-Name>.md` (hyphens for spaces; wiki links use the
