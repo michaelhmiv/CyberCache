@@ -9,7 +9,7 @@ import { composeWeaponCard } from '@/lib/pixel/weaponCardCompositor';
 import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
 import { createRNG } from '@/lib/utils/rng';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { Shield as ShieldItem, Weapon } from '@/types/items';
+import type { Relic, Shield as ShieldItem, Weapon } from '@/types/items';
 
 /**
  * P5 — pixel weapons everywhere: the inventory (GearHub), market
@@ -57,6 +57,16 @@ const shield = {
   mitigation: 0.12,
   pixelSeed: 7,
 } as unknown as ShieldItem;
+
+const relic = {
+  id: 'p5-relic',
+  name: 'Vault Chip',
+  rarity: Rarity.Common,
+  level: 3,
+  affixes: [],
+  sourceTag: 'World Drop',
+  isLocked: false,
+} as unknown as Relic;
 
 const sharedInput = (weapon: Weapon) => ({
   weaponType: weapon.weaponType,
@@ -116,11 +126,19 @@ describe('GearIllustration — weapon branch renders pixel (inventory/market/ins
     expect(container.querySelector('canvas')?.style.width).toBe('190px');
   });
 
-  it('leaves non-weapon gear on its existing illustration', () => {
-    const { container } = render(<GearIllustration item={shield} size={46} showBadges={false} />);
+  it('leaves not-yet-married gear kinds on their existing illustration', () => {
+    const { container } = render(<GearIllustration item={relic} size={46} showBadges={false} />);
     expect(container.querySelector('canvas')).toBeNull();
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('renders a married shield as its pixel plate (gear marriage, slice 1)', () => {
+    const { container } = render(<GearIllustration item={shield} size={46} showBadges={false} />);
+    expect(container.querySelector('svg')).toBeNull();
+    const canvas = container.querySelector('canvas');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.getAttribute('data-density')).toBe('thumb');
   });
 });
 

@@ -134,9 +134,13 @@ describe('gear grid perf — shared SVG defs are not duplicated per item', () =>
       'filter[id^="surface-"], filter[id^="bevel-"], filter#wear-scratches',
     );
     expect(sharedFilters.length).toBe(0);
-    // The illustrations themselves still render (their own gradients
-    // and the item art are per-instance and must survive).
-    expect(container.querySelectorAll('svg').length).toBeGreaterThan(0);
+    // The illustrations themselves still render. Since gear
+    // marriage slice 1, shields draw through the pixel plate
+    // engine (canvas) like weapons — no SVG item art remains in
+    // the grid at all, which is the defs problem gone entirely.
+    const grid = container.querySelector('.grid.grid-cols-2');
+    expect(grid?.querySelectorAll('canvas').length).toBeGreaterThan(0);
+    expect(grid?.querySelectorAll('svg').length).toBe(0);
   });
 });
 
