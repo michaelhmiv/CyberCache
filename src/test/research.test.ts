@@ -358,11 +358,11 @@ describe('batch recipes (Production Systems unlock)', () => {
     // lives only in the SQL catalog — a pre-existing divergence), so
     // pin its batch against the SQL base numbers (20/12, 900,000 ms).
     const shield = BATCH_RECIPES.find((r) => r.id === 'recipe_shield_cell_batch')!;
-    expect(shield.inputs).toEqual({ ScrapAlloy: 50, ReactiveComponents: 30 });
+    expect(shield.inputs).toEqual({ Scrap: 50, ReactiveComponents: 30 });
     expect(shield.unitDurationMs).toBe(1_980_000);
     // The one fractional case: Patch Kit ReactiveComponents 1 × 2.5 → 3.
     const patch = BATCH_RECIPES.find((r) => r.id === 'recipe_patch_kit_batch')!;
-    expect(patch.inputs).toEqual({ ScrapAlloy: 10, ReactiveComponents: 3 });
+    expect(patch.inputs).toEqual({ Scrap: 10, ReactiveComponents: 3 });
   });
 });
 
@@ -692,7 +692,7 @@ describe('batch recipe gate — writes store', () => {
     s.profiles = [{
       username: 'crafter', display_name: null, player_level: 25, player_xp: 0,
       credits: 100_000, scrap: 0, cache_tokens: 0, cache_token_parts: 0,
-      materials: { ScrapAlloy: 100, ReactiveComponents: 100 }, essences: {}, consumables: {}, skill_spends: {},
+      materials: { Scrap: 100, ReactiveComponents: 100 }, essences: {}, consumables: {}, skill_spends: {},
       boss_state: {}, last_idle_claim_at: '2026-10-31T00:00:00.000Z', last_claimed_tick: 0,
       created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z',
       account_type: 'verified', email: 'crafter@example.com',

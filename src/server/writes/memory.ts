@@ -268,7 +268,7 @@ const ACTIVE_KINDS = [
 ] as const;
 // Econ 5 (0069): 'Scrap' heads the list — the unified currency stock
 // is a material key everywhere (market escrow, recipe classification).
-const MATERIAL_KEYS = ['Scrap', 'ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave'] as const;
+const MATERIAL_KEYS = ['Scrap', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave'] as const;
 
 export interface InMemoryWriteOptions {
   now?: () => Date;

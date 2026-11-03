@@ -34,7 +34,7 @@ import { hexLerp } from './weaponCardCompositor';
  * refined alignment, the composite lamination seam, the essence
  * glow heart. Lineage survives refinement: the five refined forms
  * keep their base material's family, so Refined Alloy reads as
- * Scrap Alloy, cleaned, before the name is read.
+ * Scrap, cleaned, before the name is read.
  *
  * Runtime-composed: zero sprite payload, same as the gear
  * marriage. Compose-then-cache mirrors gearCardCompositor.
@@ -61,7 +61,7 @@ export interface MaterialArtRow {
  */
 export const MATERIAL_ART: Readonly<Record<string, MaterialArtRow>> = {
   // — raw base five —
-  [MaterialType.ScrapAlloy]: { family: 'plates', variant: 'junk', band: 'raw' },
+  [MaterialType.Scrap]: { family: 'plates', variant: 'junk', band: 'raw' },
   [MaterialType.BallisticParts]: { family: 'cluster', variant: 'parts', band: 'raw' },
   [MaterialType.ReactiveComponents]: { family: 'cluster', variant: 'cans', band: 'raw' },
   [MaterialType.TechFragments]: { family: 'chunk', variant: 'tech', band: 'raw' },

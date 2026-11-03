@@ -48,7 +48,7 @@ const GUEST: AccountState = {
 function quoteFixture(over: Partial<QuickBuyQuote> = {}): QuickBuyQuote {
   return {
     action_type: 'cc_quickbuy_quote',
-    good: { kind: 'material', id: 'ScrapAlloy' },
+    good: { kind: 'material', id: 'Scrap' },
     requested_qty: 5,
     balance: 1_000,
     market: {
@@ -74,7 +74,7 @@ function quoteFixture(over: Partial<QuickBuyQuote> = {}): QuickBuyQuote {
 function renderPlus(over: Partial<React.ComponentProps<typeof QuickBuyPlus>> = {}) {
   return render(
     <QuickBuyPlus
-      good={{ kind: 'material', id: 'ScrapAlloy' }}
+      good={{ kind: 'material', id: 'Scrap' }}
       goodName="Scrap Alloy"
       shortfall={5}
       onNavigate={vi.fn()}
@@ -99,7 +99,7 @@ describe('QuickBuyPlus — the render rule', () => {
 
   it('renders one icon-only button with an accessible name and no price text', () => {
     renderPlus();
-    const button = screen.getByTestId('quickbuy-plus-material-ScrapAlloy');
+    const button = screen.getByTestId('quickbuy-plus-material-Scrap');
     expect(button.getAttribute('aria-label')).toBe('Buy more Scrap Alloy');
     expect(button.textContent).toBe('');
     // Closed card: no quote is fetched until the tap.
@@ -110,7 +110,7 @@ describe('QuickBuyPlus — the render rule', () => {
 describe('QuickBuySheet — pricing inside the sheet', () => {
   it('defaults to the cheaper complete fill and shows both tab totals', async () => {
     renderPlus();
-    fireEvent.click(screen.getByTestId('quickbuy-plus-material-ScrapAlloy'));
+    fireEvent.click(screen.getByTestId('quickbuy-plus-material-Scrap'));
     await screen.findByTestId('quickbuy-sheet');
     // Vendor (50) undercuts market (55) at qty 5 → vendor is default.
     await waitFor(() => expect(screen.getByTestId('quickbuy-tab-vendor').getAttribute('aria-pressed')).toBe('true'));
@@ -121,7 +121,7 @@ describe('QuickBuySheet — pricing inside the sheet', () => {
 
   it('stepping past the shortfall re-prices both tabs from the same plan', async () => {
     renderPlus();
-    fireEvent.click(screen.getByTestId('quickbuy-plus-material-ScrapAlloy'));
+    fireEvent.click(screen.getByTestId('quickbuy-plus-material-Scrap'));
     await screen.findByTestId('quickbuy-tab-market');
     fireEvent.click(screen.getByTestId('quickbuy-step-up'));
     expect(screen.getByTestId('quickbuy-qty').textContent).toBe('6');
@@ -142,7 +142,7 @@ describe('QuickBuySheet — pricing inside the sheet', () => {
       },
     }));
     renderPlus();
-    fireEvent.click(screen.getByTestId('quickbuy-plus-material-ScrapAlloy'));
+    fireEvent.click(screen.getByTestId('quickbuy-plus-material-Scrap'));
     await screen.findByTestId('quickbuy-market-body');
     expect(screen.getByTestId('quickbuy-market-body').textContent).toContain('Fills 3 of your 5');
     expect(screen.getByTestId('quickbuy-buy').textContent).toContain('Buy 3 of 5');
@@ -154,7 +154,7 @@ describe('QuickBuySheet — pricing inside the sheet', () => {
       market: { supplyQty: 0, fillableQty: 0, partial: true, total: 0, worstUnitPrice: null, fills: [], listings: [] },
     }));
     renderPlus();
-    fireEvent.click(screen.getByTestId('quickbuy-plus-material-ScrapAlloy'));
+    fireEvent.click(screen.getByTestId('quickbuy-plus-material-Scrap'));
     const empty = await screen.findByTestId('quickbuy-no-supply');
     expect(empty.textContent).toContain('Nobody’s selling');
     expect(empty.textContent).toContain('Get it:');
@@ -164,7 +164,7 @@ describe('QuickBuySheet — pricing inside the sheet', () => {
   it('a short balance prints SHORT BY and blocks the buy', async () => {
     quoteMock.mockResolvedValue(quoteFixture({ balance: 10, vendor: null }));
     renderPlus();
-    fireEvent.click(screen.getByTestId('quickbuy-plus-material-ScrapAlloy'));
+    fireEvent.click(screen.getByTestId('quickbuy-plus-material-Scrap'));
     await screen.findByTestId('quickbuy-short-by');
     expect(screen.getByTestId('quickbuy-short-by').textContent).toContain('SHORT BY 45 cr');
     expect((screen.getByTestId('quickbuy-buy') as HTMLButtonElement).disabled).toBe(true);
@@ -177,7 +177,7 @@ describe('QuickBuySheet — buying', () => {
       status: 'filled', quantity: 5, total_charged: 50, profile: { credits: 950 },
     });
     renderPlus();
-    fireEvent.click(screen.getByTestId('quickbuy-plus-material-ScrapAlloy'));
+    fireEvent.click(screen.getByTestId('quickbuy-plus-material-Scrap'));
     await screen.findByTestId('quickbuy-tab-vendor');
     fireEvent.click(screen.getByTestId('quickbuy-buy'));
     const receipt = await screen.findByTestId('quickbuy-receipt');
@@ -186,7 +186,7 @@ describe('QuickBuySheet — buying', () => {
     expect(receipt.textContent).toContain('balance now 950 cr');
     // The default tab was vendor at 50 — the fill carries exactly that ceiling.
     expect(fillMock).toHaveBeenCalledWith(expect.objectContaining({
-      source: 'vendor', goodKind: 'material', goodId: 'ScrapAlloy', quantity: 5, quotedTotal: 50,
+      source: 'vendor', goodKind: 'material', goodId: 'Scrap', quantity: 5, quotedTotal: 50,
     }));
   });
 
@@ -197,7 +197,7 @@ describe('QuickBuySheet — buying', () => {
       quote: quoteFixture({ balance: 940 }),
     });
     renderPlus();
-    fireEvent.click(screen.getByTestId('quickbuy-plus-material-ScrapAlloy'));
+    fireEvent.click(screen.getByTestId('quickbuy-plus-material-Scrap'));
     await screen.findByTestId('quickbuy-buy');
     fireEvent.click(screen.getByTestId('quickbuy-buy'));
     const note = await screen.findByTestId('quickbuy-notice');
@@ -208,7 +208,7 @@ describe('QuickBuySheet — buying', () => {
   it('guest: full numbers on show, sign-in asked only at the Buy button', async () => {
     account = GUEST;
     renderPlus();
-    fireEvent.click(screen.getByTestId('quickbuy-plus-material-ScrapAlloy'));
+    fireEvent.click(screen.getByTestId('quickbuy-plus-material-Scrap'));
     await screen.findByTestId('quickbuy-tab-market');
     expect(screen.getByTestId('quickbuy-tab-market').textContent).toContain('55 cr');
     const buy = screen.getByTestId('quickbuy-buy');

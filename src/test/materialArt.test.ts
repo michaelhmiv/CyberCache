@@ -49,7 +49,7 @@ describe('materialArt — coverage', () => {
 
 describe('materialArt — lineage (refinement reads as alignment of the same stuff)', () => {
   const PAIRS: Array<[MaterialType, MaterialType]> = [
-    [MaterialType.ScrapAlloy, MaterialType.RefinedAlloy],
+    [MaterialType.Scrap, MaterialType.RefinedAlloy],
     [MaterialType.BallisticParts, MaterialType.TemperedParts],
     [MaterialType.ReactiveComponents, MaterialType.StabilizedCells],
     [MaterialType.TechFragments, MaterialType.WovenCircuits],

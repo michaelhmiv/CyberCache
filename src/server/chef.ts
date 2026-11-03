@@ -1063,12 +1063,12 @@ export function processRoamingClaim(
           });
         }
       } else if (bounty.payout === 'materials') {
-        materials[MaterialType.ScrapAlloy] = (materials[MaterialType.ScrapAlloy] || 0) + 6;
+        materials[MaterialType.Scrap] = (materials[MaterialType.Scrap] || 0) + 6;
         materials[MaterialType.BallisticParts] = (materials[MaterialType.BallisticParts] || 0) + 4;
         feedEvents.push({
           at,
           tone: 'material',
-          label: '+6 ScrapAlloy · +4 BallisticParts',
+          label: '+6 Scrap · +4 BallisticParts',
           detail: 'Turret nest stripped for parts.',
           areaId,
           value: 10,

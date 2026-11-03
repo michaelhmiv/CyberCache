@@ -106,7 +106,7 @@ describe('identityKey — the price-history identity scheme', () => {
     expect(qualityBand(140)).toBe('q3');
     expect(qualityBand(141)).toBe('q4');
     expect(consumableIdentityKey('MedKit', 137.5)).toBe('cons:MedKit:q3');
-    expect(materialIdentityKey('ScrapAlloy')).toBe('mat:ScrapAlloy');
+    expect(materialIdentityKey('Scrap')).toBe('mat:Scrap');
   });
 });
 
@@ -184,7 +184,7 @@ describe('listingQuery — the browse fold', () => {
   const rows = [
     row({ id: 'a', price: 500, listedAt: 3000 }),
     row({ id: 'b', price: 1500, category: 'shield', weaponType: null, element: null, rarity: 'Epic', itemLevel: 20, listedAt: 2000 }),
-    row({ id: 'c', price: 250, kind: 'material', category: 'material', displayName: 'ScrapAlloy', weaponType: null, element: null, rarity: null, itemLevel: null, quantity: 10, unitPrice: 25, listedAt: 1000 }),
+    row({ id: 'c', price: 250, kind: 'material', category: 'material', displayName: 'Scrap', weaponType: null, element: null, rarity: null, itemLevel: null, quantity: 10, unitPrice: 25, listedAt: 1000 }),
   ];
 
   it('filters and reports the full total alongside the page', () => {
@@ -267,7 +267,7 @@ function batch(overrides: Partial<ConsumableBatchData> & { id: string; owner_use
 function writeSeed(): WriteSeed {
   const s = emptyWriteSeed();
   s.profiles = [
-    profile({ id: S, username: 'seller', credits: 0, consumables: { MedKit: 10 }, materials: { ScrapAlloy: 40, VoidDust: 3 } }),
+    profile({ id: S, username: 'seller', credits: 0, consumables: { MedKit: 10 }, materials: { Scrap: 40, VoidDust: 3 } }),
     profile({ id: B, username: 'buyer', credits: 100_000 }),
     profile({ id: K, username: 'skilled', credits: 0, consumables: { ShieldCell: 2 }, skill_spends: { scav_fee_1: 5 } }),
     profile({ id: G, username: 'guest', account_type: 'guest', email_verified_at: null, consumables: { MedKit: 5 } }),
@@ -474,20 +474,20 @@ describe('market depth — write paths', () => {
 
   it('material: list by quantity, buy by quantity, fee applies', async () => {
     const created = await post(h, '/api/ops/market-create-material', h.tokens[S], {
-      nonce: nonce(), material_id: 'ScrapAlloy', quantity: 10, price_credits: 3000,
+      nonce: nonce(), material_id: 'Scrap', quantity: 10, price_credits: 3000,
     });
     expect(created.status).toBe(200);
     const listing = created.json.listing as Record<string, unknown>;
     expect(listing.listing_kind).toBe('material');
-    expect(listing.identity_key).toBe('mat:ScrapAlloy');
-    expect(profileOf(S)?.materials.ScrapAlloy).toBe(30);
+    expect(listing.identity_key).toBe('mat:Scrap');
+    expect(profileOf(S)?.materials.Scrap).toBe(30);
 
     const accepted = await post(h, '/api/ops/market-accept', h.tokens[B], {
       nonce: nonce(), listing_id: listing.id,
     });
     expect(accepted.status).toBe(200);
     expect(accepted.json.market_fee.fee_credits).toBe(150); // 5% of 3000
-    expect(profileOf(B)?.materials.ScrapAlloy).toBe(10);
+    expect(profileOf(B)?.materials.Scrap).toBe(10);
     expect(creditsOf(S)).toBe(1900 + 2850);
     expect(creditsOf(B)).toBe(98_000 - 3000);
   });
@@ -529,7 +529,7 @@ describe('market depth — write paths', () => {
   it('guest gating is unchanged: guests cannot create listings', async () => {
     const guestBatch = h.store.seed.consumableBatches.find((b) => b.owner_user_id === G);
     const res = await post(h, '/api/ops/market-create-material', h.tokens[G], {
-      nonce: nonce(), material_id: 'ScrapAlloy', quantity: 1, price_credits: 100,
+      nonce: nonce(), material_id: 'Scrap', quantity: 1, price_credits: 100,
     });
     expect(res.status).toBe(403);
     expect(guestBatch).toBeUndefined();
@@ -581,8 +581,8 @@ function readSeed(): ReadSeed {
     }),
     listing({
       id: 'rl-mat', seller_user_id: P3, price_credits: 3000, listed_at: '2026-10-25T10:00:00.000Z',
-      listing_kind: 'material', quantity: 10, material_id: 'ScrapAlloy',
-      identity_key: 'mat:ScrapAlloy', category: 'material', display_name: 'ScrapAlloy',
+      listing_kind: 'material', quantity: 10, material_id: 'Scrap',
+      identity_key: 'mat:Scrap', category: 'material', display_name: 'Scrap',
     }),
     // NPC Common stock (owner ruling, 2026-11-03): active NPC listings
     // at Common — a weapon and a shield — both keep their seats in the
@@ -768,7 +768,7 @@ describe('migration 0019 — SQL source pins', () => {
   it('backfills legacy rows and restates the def-owned exclusions', () => {
     expect(sql).toContain('ml.identity_key is null');
     expect(sql).toContain("'ElementalCoating'");
-    expect(sql).toContain("'ScrapAlloy','BallisticParts','ReactiveComponents','TechFragments','VoidDust'");
+    expect(sql).toContain("'Scrap','BallisticParts','ReactiveComponents','TechFragments','VoidDust'");
     expect(sql).toContain('cc_add_consumable_batch');
   });
 });

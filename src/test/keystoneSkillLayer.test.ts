@@ -633,7 +633,7 @@ describe('applySalvageSkillBonuses', () => {
       ['ordnance', 'ReactiveComponents'],
       ['classMod', 'TechFragments'],
       ['relic', 'TechFragments'],
-      ['vehicle', 'ScrapAlloy'],
+      ['vehicle', 'Scrap'],
     ];
     for (const [kind, expected] of cases) {
       expect(
@@ -817,7 +817,7 @@ describe('migration 0022 — salvage skill wiring pins', () => {
   });
 
   it('carries the kind → material map and the additive result field', () => {
-    for (const material of ['BallisticParts', 'ReactiveComponents', 'TechFragments', 'ScrapAlloy']) {
+    for (const material of ['BallisticParts', 'ReactiveComponents', 'TechFragments', 'Scrap']) {
       expect(sql).toContain(`'${material}'`);
     }
     expect(sql).toContain("'bonus_material', bonus_material");

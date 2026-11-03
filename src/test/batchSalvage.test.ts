@@ -94,7 +94,7 @@ function richSeed(): WriteSeed {
   s.profiles = [
     profile({
       id: A, username: 'alpha', player_level: 20, credits: 1000, scrap: 100,
-      materials: { ScrapAlloy: 20 },
+      materials: { Scrap: 20 },
       // Salvage skill tree spent: Hoarder's Instinct + King of Scrap
       // both live, so bonuses AND the Common material roll engage.
       skill_spends: { scav_major_1: 1, scav_keystone: 1 },

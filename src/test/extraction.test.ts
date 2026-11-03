@@ -239,7 +239,7 @@ describe('extraction content: the find pool is roaming\'s pool', () => {
       const total = Object.values(t).reduce((a, b) => a + b, 0);
       return (t[id] ?? 0) / Math.max(1, total);
     };
-    for (const id of ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents']) {
+    for (const id of ['Scrap', 'BallisticParts', 'ReactiveComponents']) {
       expect(Math.abs(share(extractTotals, id) - share(roamTotals, id)), id).toBeLessThan(0.05);
     }
   });

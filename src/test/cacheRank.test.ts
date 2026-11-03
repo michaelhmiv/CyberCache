@@ -938,7 +938,7 @@ describe('cache rank consumers — craft engine XP', () => {
   function engineHarness(cacheRankXpBonus?: (playerId: string) => number) {
     const profileView: CraftProfileView = {
       player_level: 25, player_xp: 0, credits: 0,
-      materials: { ScrapAlloy: 100_000, ReactiveComponents: 100_000 },
+      materials: { Scrap: 100_000, ReactiveComponents: 100_000 },
       essences: {}, consumables: {},
       workshop_benches: 2, legendary_cores: 0,
       workshop_tools: { owned: {}, fitted: {}, charges: {} },

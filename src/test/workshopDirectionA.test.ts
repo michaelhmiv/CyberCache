@@ -29,7 +29,7 @@ function fixtureCtx(over: Partial<WorkshopPlayerContext> = {}): WorkshopPlayerCo
     playerLevel: 14,
     scrap: 1240,
     materials: {
-      ScrapAlloy: 42,
+      Scrap: 42,
       ReactiveComponents: 17,
       BallisticParts: 9,
       TechFragments: 6,
@@ -181,7 +181,7 @@ describe('readiness classification — the mock fixture, live derivation', () =>
     expect(two.classification).toBe('craftable'); // 42/30 + 17/16 still holds
     const ten = deriveRecipeReadiness(recipe, fixtureCtx(), { units: 10 });
     expect(ten.blockerFamilies).toEqual(['materials']);
-    expect(ten.shortages.map((s) => s.key)).toContain('ScrapAlloy');
+    expect(ten.shortages.map((s) => s.key)).toContain('Scrap');
   });
 });
 
@@ -248,7 +248,7 @@ describe('material sources — live owners only', () => {
   });
 
   it('a base material roams in a biased area, rotates at the vendor, and lists on the market', () => {
-    const sources = sourcesForInput('ScrapAlloy');
+    const sources = sourcesForInput('Scrap');
     expect(sources.some((s) => s.kind === 'roam')).toBe(true);
     expect(sources.some((s) => s.kind === 'vendor')).toBe(true);
     expect(sources.some((s) => s.kind === 'market')).toBe(true);
@@ -285,7 +285,7 @@ describe('error humanizer — no Chef refusal renders raw', () => {
       'Requires crafting_consumables mastery 15',
       'Requires crafting.refining mastery 5',
       'Requires crafting.cosmetics mastery 5',
-      'Insufficient material ScrapAlloy',
+      'Insufficient material Scrap',
       'Insufficient material NitrocellGel',
       'Insufficient essence VoidEssence',
       'Insufficient material Chromaweave',

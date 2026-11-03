@@ -213,7 +213,7 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
     resolution: {
       kind: 'salvageFind',
       entries: [
-        { type: 'ScrapAlloy', kind: 'material', min: 1, max: 2 },
+        { type: 'Scrap', kind: 'material', min: 1, max: 2 },
         { type: 'BallisticParts', kind: 'material', min: 0, max: 1 },
       ],
       credits: [4, 8],
@@ -239,7 +239,7 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
     blurb: 'A fresh pileup — the crews have not stripped it yet.',
     resolution: {
       kind: 'salvageFind',
-      entries: [{ type: 'ScrapAlloy', kind: 'material', min: 1, max: 1 }],
+      entries: [{ type: 'Scrap', kind: 'material', min: 1, max: 1 }],
       credits: [3, 7],
     },
   }),

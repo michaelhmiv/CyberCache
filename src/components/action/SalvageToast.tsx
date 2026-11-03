@@ -32,11 +32,11 @@ const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
   }, [event.id, dismiss]);
 
   // Full display labels — a bonus material the server paid is named
-  // as itself (Scrap Alloy, Ballistic Parts…), never an abbreviation
+  // as itself (Scrap, Ballistic Parts…), never an abbreviation
   // the player has to decode, and legendary cores print as cores.
   const parts: string[] = [];
   if (scrapValue > 0) parts.push(`+${scrapValue} Scrap`);
-  if (scrapAlloy > 0) parts.push(`+${scrapAlloy} ${getVisualAsset('material', 'ScrapAlloy').label}`);
+  if (scrapAlloy > 0) parts.push(`+${scrapAlloy} ${getVisualAsset('material', 'Scrap').label}`);
   if (ballisticParts > 0) parts.push(`+${ballisticParts} ${getVisualAsset('material', 'BallisticParts').label}`);
   if (reactiveComponents > 0) parts.push(`+${reactiveComponents} ${getVisualAsset('material', 'ReactiveComponents').label}`);
   if (techFragments > 0) parts.push(`+${techFragments} ${getVisualAsset('material', 'TechFragments').label}`);

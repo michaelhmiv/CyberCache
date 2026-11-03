@@ -112,7 +112,7 @@ describe('lootRiseVisualForEvent — the grant drives the visual', () => {
   });
 
   it('material and essence finds map to their own icons', () => {
-    expect(lootRiseVisualForEvent(ev({ tone: 'material', label: '+2 ScrapAlloy', value: 2 }))).toBe('material');
+    expect(lootRiseVisualForEvent(ev({ tone: 'material', label: '+2 Scrap', value: 2 }))).toBe('material');
     expect(lootRiseVisualForEvent(ev({ tone: 'essence', label: '+1 Ember Essence', value: 1 }))).toBe('essence');
   });
 
@@ -154,7 +154,7 @@ describe('LiveTurfDiorama — honest loot rises on the pixel stage', () => {
   });
 
   it('a material tick rises the material icon and NOT the crate', () => {
-    pushEvent({ tone: 'material', label: '+2 ScrapAlloy', value: 2 });
+    pushEvent({ tone: 'material', label: '+2 Scrap', value: 2 });
     const { container } = renderDiorama();
     expect(screen.getByTestId('diorama-loot-rise').getAttribute('data-loot-visual')).toBe('material');
     expect(screen.queryByTestId('diorama-crate-rise')).toBeNull();

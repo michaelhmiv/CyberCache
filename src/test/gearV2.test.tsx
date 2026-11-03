@@ -192,7 +192,7 @@ describe('Gear v2 — Items stacks with quality printed', () => {
         { id: 'b1', consumable_type: 'MedKit', quality_percent: 100, quantity: 2, origin: 'vendor' },
         { id: 'b2', consumable_type: 'MedKit', quality_percent: 137, quantity: 3, origin: 'crafted' },
       ],
-      materials: { ScrapAlloy: 42 },
+      materials: { Scrap: 42 },
       essences: { VoidEssence: 3 },
     });
     render(<InventoryScreen onNavigate={vi.fn()} />);

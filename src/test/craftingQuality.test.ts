@@ -239,7 +239,7 @@ describe('offline craft settlement honors the AFK cap (flag F5)', () => {
       id: 'f5-job', owner_user_id: playerId, bench: 1, kind: 'consumable',
       recipe_id: 'recipe_medkit', units_total: 3, units_completed: 0,
       unit_duration_ms: 3600 * 1000, accrued_ms: 0, status: 'active',
-      escrow_inputs: { ScrapAlloy: 45, ReactiveComponents: 24 }, escrow_catalyst: {},
+      escrow_inputs: { Scrap: 45, ReactiveComponents: 24 }, escrow_catalyst: {},
       rush_ticket_quality: null, rush_ticket_origin: null,
       snapshot: {
         toolId: null, toolQualityMultiplier: null, toolDurationMultiplier: null,
@@ -330,7 +330,7 @@ describe('migration 0024 parity pins', () => {
 
   it('the market material whitelist is exactly the 20 tradeable material ids', () => {
     const expected = [
-      'ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust',
+      'Scrap', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust',
       'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards',
       'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells',
       'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave',

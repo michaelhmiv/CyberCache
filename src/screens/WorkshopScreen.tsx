@@ -1152,7 +1152,7 @@ const RecipeCard: React.FC<{
         : null;
 
   const inputRows = Object.entries(recipe.inputs).map(([key, per]) => {
-    // 'Scrap' is an ordinary material key since the 0068 merge —
+    // 'Scrap' is an ordinary material key since the 0069 merge —
     // its stock is ctx.materials['Scrap'].
     const have = isMaterialInput(key) ? (ctx.materials[key] ?? 0) : (ctx.essences[key] ?? 0);
     const need = per * units;

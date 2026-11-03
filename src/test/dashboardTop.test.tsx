@@ -175,7 +175,7 @@ const recap = {
     scrapAwarded: 87,
     xpAwarded: 640,
     cacheFragmentsAwarded: 2,
-    materials: { ScrapAlloy: 5 },
+    materials: { Scrap: 5 },
     essences: {},
   },
   items: [],

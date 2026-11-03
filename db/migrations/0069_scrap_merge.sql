@@ -2,22 +2,33 @@
 -- §3). DRAFT -- the parent applies this live before the slice's PR
 -- merges.
 --
--- THE RULING: ONE tradeable Scrap. The profile scrap CURRENCY
--- (profiles.scrap) unifies into the material stack
--- profiles.materials['Scrap']; every faucet, sink, display and the
--- player market run on the single stock afterward. There is no
--- conversion back and no second scrap anywhere. ScrapAlloy remains
--- a DISTINCT material (the vendor's 10 cr line is untouched); the
--- merge is profile-Scrap <-> item-Scrap only.
+-- THE RULING (brief §0.1 / §3.1): ONE tradeable Scrap, merged INTO
+-- the item. THREE stocks existed: the profile scrap CURRENCY
+-- (profiles.scrap), the materials['Scrap'] stack, and the
+-- ScrapAlloy MATERIAL (38 recipe inputs, the roaming material
+-- drop, the salvage bonus fallback, the vendor's 10 cr line). The
+-- ruling renames ScrapAlloy INTO Scrap and converts the currency:
+-- afterward every faucet, sink, recipe, display and the player
+-- market runs on the single materials['Scrap'] stack. There is no
+-- conversion back and no second scrap anywhere -- the ScrapAlloy
+-- key ceases to exist in profile data, the recipe catalog, the
+-- vendor catalog, and the material whitelists. The vendor keeps
+-- selling the (renamed) stock at the old 10 cr anchor for exactly
+-- one slice; brief §6 removes that line in slice 6, not here.
 --
 -- WHAT THIS FILE DOES, in order:
 --   §1 The one-time, total conversion: every profile's column scrap
---      folds into materials['Scrap'] and the column zeroes, with a
---      per-profile audit row in public.scrap_merge_audit. A
---      self-check raises if any column balance survives.
+--      AND ScrapAlloy stack fold into materials['Scrap'], the
+--      ScrapAlloy key is removed, and the column zeroes, with a
+--      per-profile audit row in public.scrap_merge_audit (the
+--      conversion's own ledger -- economy_metrics is a credits-only
+--      daily aggregate with no scrap columns until slice 6's §4.4
+--      breakouts). A self-check raises if any column balance or any
+--      ScrapAlloy key survives.
 --   §2 The key space: cc_is_material_key and the
---      cc_market_create_material whitelist learn 'Scrap' (22 ids),
---      which is what makes the unified stock listable end-to-end.
+--      cc_market_create_material whitelist swap 'ScrapAlloy' for
+--      'Scrap' (21 ids), which is what makes the unified stock
+--      listable end-to-end -- and the retired key unlistable.
 --   §3 Faucets restated onto the stack: cc_apply_chef_rewards
 --      (roaming claim), cc_settle_offline_roaming (offline settle;
 --      the fractional scrap_remainder accounting is unchanged),
@@ -35,12 +46,21 @@
 --      project `scrap` from the stack (wire shape unchanged);
 --      cc_recalculate_net_worth counts the stack; cc_reset_progress
 --      reseeds the stack and zeroes the column.
+--   §6 The rename's stored-data rewrites (brief §3.3 steps 2-4):
+--      cc_craft_recipe_catalog restated from 0057 with every input
+--      key ScrapAlloy -> Scrap (amounts untouched);
+--      cc_vendor_catalog restated from 0021 with its material row
+--      renamed (price 10 unchanged -- slice 6 removes the line);
+--      in-flight craft_jobs escrow snapshots rekeyed; open market
+--      listings relabeled; unsettled dispatch missions' payout
+--      material rekeyed.
 --
 -- The profiles.scrap COLUMN stays in place as a tombstone for one
 -- release (a later cleanup migration drops it); after this file no
 -- live function reads or writes it. In-flight craft_jobs escrow
 -- snapshots keyed 'Scrap' need NO rewrite: the key is unchanged --
--- only the ledger it settles against moved.
+-- only the ledger it settles against moved. Escrows keyed
+-- 'ScrapAlloy' DO get rewritten (§6).
 --
 -- CONVERSION RACE (stated plainly): awards settling in the minutes
 -- between this file's live apply and the merged code deploy would
@@ -59,38 +79,50 @@
 create table if not exists public.scrap_merge_audit (
   profile_id uuid primary key,
   column_scrap bigint not null,
+  alloy_scrap bigint not null,
   existing_stack bigint not null,
   converted_total bigint not null,
   applied_at timestamptz not null default now()
 );
 
 comment on table public.scrap_merge_audit is
-  '0069: one row per profile whose profiles.scrap column balance was converted into materials[''Scrap'']. The merge''s audit ledger; never written again after the conversion.';
+  '0069: one row per profile whose scrap holdings were converted into the unified materials[''Scrap''] stack: the profiles.scrap column balance plus the renamed ScrapAlloy stack. The merge''s audit ledger; never written again after the conversion.';
 
-insert into public.scrap_merge_audit (profile_id, column_scrap, existing_stack, converted_total)
+insert into public.scrap_merge_audit (profile_id, column_scrap, alloy_scrap, existing_stack, converted_total)
 select id,
        scrap::bigint,
+       coalesce((materials ->> 'ScrapAlloy')::bigint, 0),
        coalesce((materials ->> 'Scrap')::bigint, 0),
-       scrap::bigint + coalesce((materials ->> 'Scrap')::bigint, 0)
+       scrap::bigint
+         + coalesce((materials ->> 'ScrapAlloy')::bigint, 0)
+         + coalesce((materials ->> 'Scrap')::bigint, 0)
   from public.profiles
  where scrap > 0
+    or coalesce((materials ->> 'ScrapAlloy')::bigint, 0) > 0
 on conflict (profile_id) do nothing;
 
 update public.profiles
-   set materials = jsonb_set(coalesce(materials, '{}'::jsonb), '{Scrap}',
-                     to_jsonb(coalesce((materials ->> 'Scrap')::bigint, 0) + scrap::bigint), true),
+   set materials = (jsonb_set(coalesce(materials, '{}'::jsonb), '{Scrap}',
+                      to_jsonb(coalesce((materials ->> 'Scrap')::bigint, 0)
+                               + scrap::bigint
+                               + coalesce((materials ->> 'ScrapAlloy')::bigint, 0)), true)
+                    - 'ScrapAlloy'),
        scrap = 0,
        updated_at = now()
- where scrap > 0;
+ where scrap > 0
+    or (materials ? 'ScrapAlloy');
 
 do $$
 begin
   if exists (select 1 from public.profiles where scrap <> 0) then
     raise exception '0069 self-check failed: a profiles.scrap balance survived the conversion';
   end if;
+  if exists (select 1 from public.profiles where materials ? 'ScrapAlloy') then
+    raise exception '0069 self-check failed: a ScrapAlloy stack survived the conversion';
+  end if;
 end $$;
 
--- §2a. cc_is_material_key (restated from 0053): + 'Scrap'.
+-- §2a. cc_is_material_key (restated from 0053): 'ScrapAlloy' -> 'Scrap'.
 create or replace function public.cc_is_material_key(p_key text)
 returns boolean
 language sql
@@ -98,15 +130,16 @@ immutable
 set search_path = public
 as $$
   select p_key = any (array[
-    'Scrap','ScrapAlloy','BallisticParts','ReactiveComponents','TechFragments','VoidDust',
+    'Scrap','BallisticParts','ReactiveComponents','TechFragments','VoidDust',
     'Siltglass','NitrocellGel','HeartwoodResin','ForgeheartIngots','PrismShards',
     'MagnetiteCores','MycoSteelFiber','RefinedAlloy','TemperedParts','StabilizedCells',
     'WovenCircuits','CondensedVoid','CompositePlating','CircuitLattice','Voidweave','Chromaweave'])
 $$;
 
 -- §2b. cc_market_create_material (restated from 0053): the whitelist
--- gains 'Scrap' -- the unified stock becomes listable. The escrow and
--- delivery legs were already generic material paths.
+-- swaps 'ScrapAlloy' for 'Scrap' -- the unified stock becomes
+-- listable and the retired key unlistable. The escrow and delivery
+-- legs were already generic material paths.
 create or replace function public.cc_market_create_material(p_player_id uuid, nonce text, material_id text, quantity integer, price_credits bigint)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -126,7 +159,7 @@ begin
   if nonce is null or length(trim(nonce)) < 8 then raise exception 'nonce is required'; end if;
   if price_credits <= 0 then raise exception 'price_credits must be positive'; end if;
   if qty <= 0 then raise exception 'quantity must be positive'; end if;
-  if material_id not in ('Scrap','ScrapAlloy','BallisticParts','ReactiveComponents','TechFragments','VoidDust','Siltglass','NitrocellGel','HeartwoodResin','ForgeheartIngots','PrismShards','MagnetiteCores','MycoSteelFiber','RefinedAlloy','TemperedParts','StabilizedCells','WovenCircuits','CondensedVoid','CompositePlating','CircuitLattice','Voidweave','Chromaweave') then
+  if material_id not in ('Scrap','BallisticParts','ReactiveComponents','TechFragments','VoidDust','Siltglass','NitrocellGel','HeartwoodResin','ForgeheartIngots','PrismShards','MagnetiteCores','MycoSteelFiber','RefinedAlloy','TemperedParts','StabilizedCells','WovenCircuits','CondensedVoid','CompositePlating','CircuitLattice','Voidweave','Chromaweave') then
     raise exception 'Unknown material';
   end if;
   if not public.can_use_player_economy(actor) then raise exception 'Verified account required'; end if;
@@ -604,7 +637,7 @@ begin
       when 'ordnance' then 'ReactiveComponents'
       when 'classMod' then 'TechFragments'
       when 'relic' then 'TechFragments'
-      else 'ScrapAlloy'
+      else 'Scrap'
     end;
   end if;
 
@@ -2684,3 +2717,1585 @@ begin
   return result;
 end;
 $function$;
+
+-- =====================================================================
+-- §6. The rename's stored-data rewrites (brief §3.3 steps 2-4)
+-- =====================================================================
+
+-- In-flight craft_jobs (step 3): escrow snapshots keyed 'ScrapAlloy'
+-- are rekeyed to 'Scrap', folding into an existing 'Scrap' leg if a
+-- job somehow carries both, so a job enqueued before the merge
+-- settles and refunds against the merged stack.
+update public.craft_jobs
+   set escrow_inputs = (escrow_inputs - 'ScrapAlloy')
+         || jsonb_build_object('Scrap',
+              coalesce((escrow_inputs ->> 'Scrap')::bigint, 0)
+              + (escrow_inputs ->> 'ScrapAlloy')::bigint)
+ where status = 'active' and escrow_inputs ? 'ScrapAlloy';
+
+update public.craft_jobs
+   set escrow_catalyst = (escrow_catalyst - 'ScrapAlloy')
+         || jsonb_build_object('Scrap',
+              coalesce((escrow_catalyst ->> 'Scrap')::bigint, 0)
+              + (escrow_catalyst ->> 'ScrapAlloy')::bigint)
+ where status = 'active' and coalesce(escrow_catalyst, '{}'::jsonb) ? 'ScrapAlloy';
+
+-- Open market listings (step 4): the good is the same good renamed;
+-- price, quantity, and seller are untouched.
+update public.market_listings
+   set material_id = 'Scrap', identity_key = 'mat:Scrap'
+ where material_id = 'ScrapAlloy' and status = 'active';
+
+-- Unsettled dispatch missions: a mission that departed before the
+-- merge with a ScrapAlloy payout line settles into the merged stack.
+update public.dispatch_missions
+   set payout_material_id = 'Scrap'
+ where payout_material_id = 'ScrapAlloy' and status = 'active';
+
+-- §6. cc_vendor_catalog (restated from 0021): the material row is
+-- renamed with the good; the 10 cr price is unchanged (brief §3.3
+-- step 5 -- slice 6 removes the vendor's scrap line outright).
+create or replace function public.cc_vendor_catalog()
+returns table(item_key text, base_price integer, pool text)
+language sql
+immutable
+set search_path = public
+as $$
+  values
+    -- Staples (consumable defs with market.vendorStocked)
+    ('MedKit', 250, 'staple'),
+    ('ShieldCell', 300, 'staple'),
+    ('AmmoPack', 150, 'staple'),
+    ('Grenade', 400, 'staple'),
+    ('BossScanner', 600, 'staple'),
+    ('InsuranceToken', 800, 'staple'),
+    ('LuckBooster', 350, 'staple'),
+    ('GenericFuelCell', 40, 'staple'),
+    ('PatchKit', 150, 'staple'),
+    -- Rotation consumables (priced, player-marketable, not staples)
+    ('MedKitRefined', 600, 'rotation'),
+    ('NanoSwarm', 800, 'rotation'),
+    ('AdrenalineShot', 1200, 'rotation'),
+    ('HighCapacityAmmoPack', 375, 'rotation'),
+    ('ArmorPiercingAmmo', 400, 'rotation'),
+    ('IncendiaryAmmo', 450, 'rotation'),
+    ('ShockAmmo', 450, 'rotation'),
+    ('CorrosiveAmmo', 450, 'rotation'),
+    ('CryoAmmo', 450, 'rotation'),
+    ('VoidAmmo', 700, 'rotation'),
+    ('OrdnanceCharge', 400, 'rotation'),
+    ('EMPCharge', 650, 'rotation'),
+    ('CorrosiveCharge', 650, 'rotation'),
+    ('PhaseShiftGrenade', 1000, 'rotation'),
+    ('MagnetizedPayload', 650, 'rotation'),
+    ('OverchargeStim', 800, 'rotation'),
+    ('TargetPainter', 600, 'rotation'),
+    ('Jammer', 750, 'rotation'),
+    ('SignalScrambler', 500, 'rotation'),
+    ('LootBeacon', 900, 'rotation'),
+    ('DataSkimmer', 900, 'rotation'),
+    ('SalvageContract', 700, 'rotation'),
+    ('WorkshopRushTicket', 1000, 'rotation'),
+    -- Materials (profile counters; rotation pool + buyback values)
+    ('Scrap', 10, 'material'),
+    ('BallisticParts', 15, 'material'),
+    ('ReactiveComponents', 20, 'material'),
+    ('TechFragments', 35, 'material'),
+    ('VoidDust', 75, 'material'),
+    -- Essences (profile counters; rotation pool + buyback values)
+    ('IgnitionFluid', 30, 'essence'),
+    ('ConduitWire', 30, 'essence'),
+    ('AcidCompound', 30, 'essence'),
+    ('CryoGel', 30, 'essence'),
+    ('VoidEssence', 90, 'essence')
+$$;
+-- §6. cc_craft_recipe_catalog (restated from 0057): every recipe
+-- input key ScrapAlloy -> Scrap at the SAME literal amount (brief
+-- §3.3 step 2) -- the merge is behavior-preserving per recipe. No
+-- other catalog field changes.
+create or replace function public.cc_craft_recipe_catalog()
+returns jsonb
+language sql
+immutable
+set search_path = public
+as $$
+  select $catalog$
+[
+  {
+    "id": "recipe_medkit",
+    "kind": "consumable",
+    "name": "Med Kit",
+    "category": "survival",
+    "inputs": {
+      "Scrap": 15,
+      "ReactiveComponents": 8
+    },
+    "unitDurationMs": 720000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "MedKit"
+  },
+  {
+    "id": "recipe_medkit_refined",
+    "kind": "consumable",
+    "name": "Med Kit (Refined)",
+    "category": "survival",
+    "inputs": {
+      "Scrap": 25,
+      "ReactiveComponents": 15,
+      "VoidDust": 1
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "MedKitRefined"
+  },
+  {
+    "id": "recipe_shieldcell",
+    "kind": "consumable",
+    "name": "Shield Cell",
+    "category": "survival",
+    "inputs": {
+      "Scrap": 20,
+      "ReactiveComponents": 12
+    },
+    "unitDurationMs": 900000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "ShieldCell"
+  },
+  {
+    "id": "recipe_nanoswarm",
+    "kind": "consumable",
+    "name": "Nano-Swarm",
+    "category": "survival",
+    "inputs": {
+      "Scrap": 30,
+      "ReactiveComponents": 20,
+      "VoidDust": 2
+    },
+    "unitDurationMs": 2400000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "NanoSwarm"
+  },
+  {
+    "id": "recipe_adrenaline",
+    "kind": "consumable",
+    "name": "Adrenaline Shot",
+    "category": "survival",
+    "inputs": {
+      "Scrap": 40,
+      "ReactiveComponents": 25,
+      "VoidDust": 3
+    },
+    "unitDurationMs": 3600000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "AdrenalineShot"
+  },
+  {
+    "id": "recipe_ammo_pack",
+    "kind": "consumable",
+    "name": "Ammo Pack",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 10,
+      "BallisticParts": 6
+    },
+    "unitDurationMs": 600000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "AmmoPack"
+  },
+  {
+    "id": "recipe_high_capacity_ammo_pack",
+    "kind": "consumable",
+    "name": "High-Capacity Ammo Pack",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 18,
+      "BallisticParts": 12,
+      "TechFragments": 2
+    },
+    "unitDurationMs": 1080000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "HighCapacityAmmoPack"
+  },
+  {
+    "id": "recipe_ap_ammo",
+    "kind": "consumable",
+    "name": "Armor-Piercing Ammo",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 15,
+      "BallisticParts": 10
+    },
+    "unitDurationMs": 900000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "ArmorPiercingAmmo"
+  },
+  {
+    "id": "recipe_fire_ammo",
+    "kind": "consumable",
+    "name": "Incendiary Ammo",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 15,
+      "BallisticParts": 8,
+      "IgnitionFluid": 3
+    },
+    "unitDurationMs": 1080000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "IncendiaryAmmo"
+  },
+  {
+    "id": "recipe_shock_ammo",
+    "kind": "consumable",
+    "name": "Shock Ammo",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 15,
+      "BallisticParts": 8,
+      "ConduitWire": 3
+    },
+    "unitDurationMs": 1080000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "ShockAmmo"
+  },
+  {
+    "id": "recipe_corrosive_ammo",
+    "kind": "consumable",
+    "name": "Corrosive Ammo",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 15,
+      "BallisticParts": 8,
+      "AcidCompound": 3
+    },
+    "unitDurationMs": 1080000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "CorrosiveAmmo"
+  },
+  {
+    "id": "recipe_cryo_ammo",
+    "kind": "consumable",
+    "name": "Cryo Ammo",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 15,
+      "BallisticParts": 8,
+      "CryoGel": 3
+    },
+    "unitDurationMs": 1080000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "CryoAmmo"
+  },
+  {
+    "id": "recipe_void_ammo",
+    "kind": "consumable",
+    "name": "Void Ammo",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 20,
+      "BallisticParts": 10,
+      "VoidEssence": 5
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "VoidAmmo"
+  },
+  {
+    "id": "recipe_ordnance",
+    "kind": "consumable",
+    "name": "Ordnance Charge",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 12,
+      "BallisticParts": 10
+    },
+    "unitDurationMs": 720000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "OrdnanceCharge"
+  },
+  {
+    "id": "recipe_emp_charge",
+    "kind": "consumable",
+    "name": "EMP Charge",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 18,
+      "BallisticParts": 8,
+      "ConduitWire": 4,
+      "TechFragments": 2
+    },
+    "unitDurationMs": 1320000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "EMPCharge"
+  },
+  {
+    "id": "recipe_corrosive_charge",
+    "kind": "consumable",
+    "name": "Corrosive Charge",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 18,
+      "BallisticParts": 8,
+      "AcidCompound": 4,
+      "TechFragments": 2
+    },
+    "unitDurationMs": 1320000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "CorrosiveCharge"
+  },
+  {
+    "id": "recipe_overcharge",
+    "kind": "consumable",
+    "name": "Overcharge Stim",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 25,
+      "BallisticParts": 15,
+      "VoidDust": 2
+    },
+    "unitDurationMs": 1800000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "OverchargeStim"
+  },
+  {
+    "id": "recipe_targetpainter",
+    "kind": "consumable",
+    "name": "Target Painter",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 20,
+      "BallisticParts": 10,
+      "TechFragments": 2
+    },
+    "unitDurationMs": 1200000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "TargetPainter"
+  },
+  {
+    "id": "recipe_phaseshift",
+    "kind": "consumable",
+    "name": "Phase Shift Grenade",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 30,
+      "BallisticParts": 15,
+      "VoidDust": 5
+    },
+    "unitDurationMs": 2100000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "PhaseShiftGrenade"
+  },
+  {
+    "id": "recipe_luck",
+    "kind": "consumable",
+    "name": "Luck Booster",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 15,
+      "TechFragments": 8
+    },
+    "unitDurationMs": 900000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "LuckBooster"
+  },
+  {
+    "id": "recipe_scanner",
+    "kind": "consumable",
+    "name": "Boss Scanner",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 20,
+      "TechFragments": 12
+    },
+    "unitDurationMs": 1200000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "BossScanner"
+  },
+  {
+    "id": "recipe_insurance",
+    "kind": "consumable",
+    "name": "Insurance Token",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 30,
+      "TechFragments": 15,
+      "VoidDust": 2
+    },
+    "unitDurationMs": 2100000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "InsuranceToken"
+  },
+  {
+    "id": "recipe_dataskimmer",
+    "kind": "consumable",
+    "name": "Data Skimmer",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 25,
+      "TechFragments": 15,
+      "VoidDust": 3
+    },
+    "unitDurationMs": 2400000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "DataSkimmer"
+  },
+  {
+    "id": "recipe_jammer",
+    "kind": "consumable",
+    "name": "Jammer",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 20,
+      "TechFragments": 10,
+      "ConduitWire": 2
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "Jammer"
+  },
+  {
+    "id": "recipe_magnetized",
+    "kind": "consumable",
+    "name": "Magnetized Payload",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 15,
+      "BallisticParts": 10,
+      "TechFragments": 5
+    },
+    "unitDurationMs": 1320000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "MagnetizedPayload"
+  },
+  {
+    "id": "recipe_signal_scrambler",
+    "kind": "consumable",
+    "name": "Signal Scrambler",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 15,
+      "TechFragments": 10,
+      "ConduitWire": 2
+    },
+    "unitDurationMs": 1200000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "SignalScrambler"
+  },
+  {
+    "id": "recipe_loot_beacon",
+    "kind": "consumable",
+    "name": "Loot Beacon",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 20,
+      "TechFragments": 14,
+      "VoidDust": 2
+    },
+    "unitDurationMs": 1800000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "LootBeacon"
+  },
+  {
+    "id": "recipe_salvage_contract",
+    "kind": "consumable",
+    "name": "Salvage Contract",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 12,
+      "TechFragments": 8
+    },
+    "unitDurationMs": 960000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "SalvageContract"
+  },
+  {
+    "id": "recipe_workshop_rush_ticket",
+    "kind": "consumable",
+    "name": "Workshop Rush Ticket",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 18,
+      "TechFragments": 12,
+      "VoidDust": 1
+    },
+    "unitDurationMs": 1440000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "WorkshopRushTicket"
+  },
+  {
+    "id": "recipe_patch_kit",
+    "kind": "consumable",
+    "name": "Patch Kit",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 4,
+      "ReactiveComponents": 1
+    },
+    "unitDurationMs": 720000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "PatchKit"
+  },
+  {
+    "id": "recipe_field_patch_kit",
+    "kind": "consumable",
+    "name": "Field Patch Kit",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 6,
+      "ReactiveComponents": 3,
+      "TechFragments": 1,
+      "HeartwoodResin": 1
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "FieldPatchKit"
+  },
+  {
+    "id": "recipe_master_patch_kit",
+    "kind": "consumable",
+    "name": "Master Patch Kit",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 8,
+      "ReactiveComponents": 5,
+      "TechFragments": 3,
+      "VoidDust": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "MasterPatchKit",
+    "requiresMastery": {
+      "track": "crafting_consumables",
+      "level": 15
+    }
+  },
+  {
+    "id": "recipe_fuel_cell",
+    "kind": "consumable",
+    "name": "Fuel Cell",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 6,
+      "NitrocellGel": 1
+    },
+    "unitDurationMs": 900000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "FuelCell"
+  },
+  {
+    "id": "recipe_calibration_core",
+    "kind": "consumable",
+    "name": "Calibration Core",
+    "category": "utility",
+    "inputs": {
+      "ReactiveComponents": 20,
+      "TechFragments": 15,
+      "PrismShards": 2,
+      "VoidDust": 2
+    },
+    "unitDurationMs": 2400000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "consumableType": "CalibrationCore"
+  },
+  {
+    "id": "refine_refined_alloy",
+    "kind": "refine",
+    "name": "Refined Alloy",
+    "category": "refining",
+    "inputs": {
+      "Scrap": 10
+    },
+    "unitDurationMs": 1200000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "crusher",
+    "outputMaterial": "RefinedAlloy",
+    "outputBase": 8
+  },
+  {
+    "id": "refine_tempered_parts",
+    "kind": "refine",
+    "name": "Tempered Parts",
+    "category": "refining",
+    "inputs": {
+      "BallisticParts": 10
+    },
+    "unitDurationMs": 1200000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "crusher",
+    "outputMaterial": "TemperedParts",
+    "outputBase": 8
+  },
+  {
+    "id": "refine_stabilized_cells",
+    "kind": "refine",
+    "name": "Stabilized Cells",
+    "category": "refining",
+    "inputs": {
+      "ReactiveComponents": 10
+    },
+    "unitDurationMs": 1200000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "crusher",
+    "outputMaterial": "StabilizedCells",
+    "outputBase": 8
+  },
+  {
+    "id": "refine_woven_circuits",
+    "kind": "refine",
+    "name": "Woven Circuits",
+    "category": "refining",
+    "inputs": {
+      "TechFragments": 10
+    },
+    "unitDurationMs": 1200000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "crusher",
+    "outputMaterial": "WovenCircuits",
+    "outputBase": 8
+  },
+  {
+    "id": "refine_condensed_void",
+    "kind": "refine",
+    "name": "Condensed Void",
+    "category": "refining",
+    "inputs": {
+      "VoidDust": 10
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "crusher",
+    "outputMaterial": "CondensedVoid",
+    "outputBase": 8
+  },
+  {
+    "id": "refine_composite_plating",
+    "kind": "refine",
+    "name": "Composite Plating",
+    "category": "refining",
+    "inputs": {
+      "RefinedAlloy": 4,
+      "StabilizedCells": 2
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "furnace",
+    "outputMaterial": "CompositePlating",
+    "outputBase": 2
+  },
+  {
+    "id": "refine_circuit_lattice",
+    "kind": "refine",
+    "name": "Circuit Lattice",
+    "category": "refining",
+    "inputs": {
+      "WovenCircuits": 4,
+      "TemperedParts": 2
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "furnace",
+    "outputMaterial": "CircuitLattice",
+    "outputBase": 2
+  },
+  {
+    "id": "refine_voidweave",
+    "kind": "refine",
+    "name": "Voidweave",
+    "category": "refining",
+    "inputs": {
+      "CondensedVoid": 2,
+      "WovenCircuits": 2
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "furnace",
+    "outputMaterial": "Voidweave",
+    "outputBase": 2
+  },
+  {
+    "id": "refine_chromaweave",
+    "kind": "refine",
+    "name": "Chromaweave",
+    "category": "refining",
+    "inputs": {
+      "MycoSteelFiber": 2,
+      "VoidEssence": 1
+    },
+    "unitDurationMs": 1800000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "furnace",
+    "outputMaterial": "Chromaweave",
+    "outputBase": 2
+  },
+  {
+    "id": "frame_weapon",
+    "kind": "gear",
+    "name": "Weapon Frame",
+    "category": "gear",
+    "inputs": {
+      "RefinedAlloy": 6,
+      "TemperedParts": 4,
+      "ForgeheartIngots": 2
+    },
+    "unitDurationMs": 0,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "gearSlot": "weapon",
+    "durationByRarityMs": {
+      "Common": 5400000,
+      "Uncommon": 5400000,
+      "Rare": 9000000,
+      "Epic": 14400000
+    }
+  },
+  {
+    "id": "frame_shield",
+    "kind": "gear",
+    "name": "Shield Frame",
+    "category": "gear",
+    "inputs": {
+      "StabilizedCells": 6,
+      "RefinedAlloy": 4,
+      "HeartwoodResin": 2
+    },
+    "unitDurationMs": 0,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "gearSlot": "shield",
+    "durationByRarityMs": {
+      "Common": 5400000,
+      "Uncommon": 5400000,
+      "Rare": 9000000,
+      "Epic": 14400000
+    }
+  },
+  {
+    "id": "frame_class_mod",
+    "kind": "gear",
+    "name": "Class Mod Frame",
+    "category": "gear",
+    "inputs": {
+      "WovenCircuits": 5,
+      "CircuitLattice": 2,
+      "PrismShards": 2
+    },
+    "unitDurationMs": 0,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "gearSlot": "classMod",
+    "durationByRarityMs": {
+      "Common": 5400000,
+      "Uncommon": 5400000,
+      "Rare": 9000000,
+      "Epic": 14400000
+    }
+  },
+  {
+    "id": "frame_relic",
+    "kind": "gear",
+    "name": "Relic Frame",
+    "category": "gear",
+    "inputs": {
+      "CondensedVoid": 4,
+      "Voidweave": 2,
+      "MycoSteelFiber": 2
+    },
+    "unitDurationMs": 0,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "gearSlot": "relic",
+    "durationByRarityMs": {
+      "Common": 5400000,
+      "Uncommon": 5400000,
+      "Rare": 9000000,
+      "Epic": 14400000
+    }
+  },
+  {
+    "id": "frame_ordnance",
+    "kind": "gear",
+    "name": "Ordnance Frame",
+    "category": "gear",
+    "inputs": {
+      "TemperedParts": 6,
+      "StabilizedCells": 3,
+      "ForgeheartIngots": 2
+    },
+    "unitDurationMs": 0,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "gearSlot": "ordnance",
+    "durationByRarityMs": {
+      "Common": 5400000,
+      "Uncommon": 5400000,
+      "Rare": 9000000,
+      "Epic": 14400000
+    }
+  },
+  {
+    "id": "tool_precision_calipers",
+    "kind": "tool",
+    "name": "Precision Calipers",
+    "category": "tools",
+    "inputs": {
+      "CircuitLattice": 2,
+      "PrismShards": 2
+    },
+    "unitDurationMs": 3600000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "toolId": "tool_precision_calipers"
+  },
+  {
+    "id": "tool_servo_bench_rig",
+    "kind": "tool",
+    "name": "Servo Bench Rig",
+    "category": "tools",
+    "inputs": {
+      "CompositePlating": 2,
+      "MagnetiteCores": 2
+    },
+    "unitDurationMs": 3600000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "toolId": "tool_servo_bench_rig"
+  },
+  {
+    "id": "tool_reclaimer_head",
+    "kind": "tool",
+    "name": "Reclaimer Head",
+    "category": "tools",
+    "inputs": {
+      "CompositePlating": 1,
+      "CircuitLattice": 1,
+      "Voidweave": 1
+    },
+    "unitDurationMs": 3600000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "toolId": "tool_reclaimer_head"
+  },
+  {
+    "id": "recipe_shield_cell_batch",
+    "kind": "consumable",
+    "name": "Shield Cell ×3 (Batch)",
+    "category": "survival",
+    "inputs": {
+      "Scrap": 50,
+      "ReactiveComponents": 30
+    },
+    "unitDurationMs": 1980000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "ShieldCell",
+    "outputQuantity": 3,
+    "requiresResearch": "production_systems"
+  },
+  {
+    "id": "recipe_patch_kit_batch",
+    "kind": "consumable",
+    "name": "Patch Kit ×3 (Batch)",
+    "category": "utility",
+    "inputs": {
+      "Scrap": 10,
+      "ReactiveComponents": 3
+    },
+    "unitDurationMs": 1584000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "PatchKit",
+    "outputQuantity": 3,
+    "requiresResearch": "production_systems"
+  },
+  {
+    "id": "recipe_ordnance_batch",
+    "kind": "consumable",
+    "name": "Ordnance Charge ×3 (Batch)",
+    "category": "offense",
+    "inputs": {
+      "Scrap": 30,
+      "BallisticParts": 25
+    },
+    "unitDurationMs": 1584000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "OrdnanceCharge",
+    "outputQuantity": 3,
+    "requiresResearch": "production_systems"
+  },
+  {
+    "id": "recipe_redline_standing",
+    "kind": "consumable",
+    "name": "Redline Tonic",
+    "category": "offense",
+    "inputs": {
+      "BallisticParts": 12,
+      "NitrocellGel": 2,
+      "ReactiveComponents": 6
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "RedlineTonic",
+    "requiresStanding": {
+      "manufacturer": "Redline",
+      "rank": 2
+    }
+  },
+  {
+    "id": "recipe_ironwood_standing",
+    "kind": "consumable",
+    "name": "Heartwood Sight Oil",
+    "category": "offense",
+    "inputs": {
+      "HeartwoodResin": 2,
+      "TechFragments": 10,
+      "ReactiveComponents": 6
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "HeartwoodSightOil",
+    "requiresStanding": {
+      "manufacturer": "Ironwood",
+      "rank": 2
+    }
+  },
+  {
+    "id": "recipe_blastforge_standing",
+    "kind": "consumable",
+    "name": "Forgeheart Charge",
+    "category": "offense",
+    "inputs": {
+      "ForgeheartIngots": 2,
+      "BallisticParts": 12,
+      "ReactiveComponents": 8
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "ForgeheartCharge",
+    "requiresStanding": {
+      "manufacturer": "BlastForge",
+      "rank": 2
+    }
+  },
+  {
+    "id": "recipe_prismatek_standing",
+    "kind": "consumable",
+    "name": "Prism Coating",
+    "category": "offense",
+    "inputs": {
+      "PrismShards": 2,
+      "VoidEssence": 3,
+      "TechFragments": 8
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "PrismCoating",
+    "requiresStanding": {
+      "manufacturer": "Prismatek",
+      "rank": 2
+    }
+  },
+  {
+    "id": "recipe_throwtech_standing",
+    "kind": "consumable",
+    "name": "ThrowTech Decoy Kit",
+    "category": "utility",
+    "inputs": {
+      "MagnetiteCores": 2,
+      "TechFragments": 12,
+      "Scrap": 20
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "ThrowTechDecoyKit",
+    "requiresStanding": {
+      "manufacturer": "ThrowTech",
+      "rank": 2
+    }
+  },
+  {
+    "id": "recipe_helixworks_standing",
+    "kind": "consumable",
+    "name": "Helix Calibration Kit",
+    "category": "utility",
+    "inputs": {
+      "Siltglass": 2,
+      "TechFragments": 12,
+      "VoidDust": 2
+    },
+    "unitDurationMs": 1500000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "consumableType": "HelixCalibrationKit",
+    "requiresStanding": {
+      "manufacturer": "HelixWorks",
+      "rank": 2
+    }
+  },
+  {
+    "id": "recipe_skin_bulwark_head",
+    "kind": "cosmetic",
+    "name": "Bulwark Helm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 3200,
+      "CompositePlating": 2,
+      "PrismShards": 2
+    },
+    "unitDurationMs": 10800000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-head",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_torso",
+    "kind": "cosmetic",
+    "name": "Bulwark Siege Torso",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 3600,
+      "CompositePlating": 3,
+      "RefinedAlloy": 4
+    },
+    "unitDurationMs": 12600000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-torso",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_arm_upper_n",
+    "kind": "cosmetic",
+    "name": "Bulwark Pauldron Arm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 2000,
+      "TemperedParts": 3
+    },
+    "unitDurationMs": 7200000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-arm-upper-n",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_arm_fore_n",
+    "kind": "cosmetic",
+    "name": "Bulwark Gauntlet",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 2000,
+      "TemperedParts": 3
+    },
+    "unitDurationMs": 7200000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-arm-fore-n",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_arm_far",
+    "kind": "cosmetic",
+    "name": "Bulwark Support Arm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 1800,
+      "TemperedParts": 2
+    },
+    "unitDurationMs": 6300000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-arm-far",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_thigh_f",
+    "kind": "cosmetic",
+    "name": "Bulwark Thigh (Near)",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 2200,
+      "RefinedAlloy": 3
+    },
+    "unitDurationMs": 7200000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-thigh-f",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_thigh_b",
+    "kind": "cosmetic",
+    "name": "Bulwark Thigh (Far)",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 2200,
+      "RefinedAlloy": 3
+    },
+    "unitDurationMs": 7200000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-thigh-b",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_lower_leg_f",
+    "kind": "cosmetic",
+    "name": "Stomper Leg (Near)",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 2800,
+      "CompositePlating": 1,
+      "TemperedParts": 2
+    },
+    "unitDurationMs": 9000000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-lower-leg-f",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_lower_leg_b",
+    "kind": "cosmetic",
+    "name": "Stomper Leg (Far)",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 2800,
+      "CompositePlating": 1,
+      "TemperedParts": 2
+    },
+    "unitDurationMs": 9000000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-lower-leg-b",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_bulwark_back",
+    "kind": "cosmetic",
+    "name": "Packmaster Tank",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 2600,
+      "CircuitLattice": 2,
+      "WovenCircuits": 2
+    },
+    "unitDurationMs": 9000000,
+    "requiresLevel": 1,
+    "requiresBench": 3,
+    "station": "bench",
+    "cosmeticPartId": "bulwark-back",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_dread_head",
+    "kind": "cosmetic",
+    "name": "Dreadplate Helm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 700,
+      "PrismShards": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-head",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_torso",
+    "kind": "cosmetic",
+    "name": "Dreadplate Torso",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "RefinedAlloy": 2
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-torso",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_arm_upper_n",
+    "kind": "cosmetic",
+    "name": "Dreadplate Upper Arm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "TemperedParts": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-arm-upper-n",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_arm_fore_n",
+    "kind": "cosmetic",
+    "name": "Dreadplate Forearm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "TemperedParts": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-arm-fore-n",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_arm_far",
+    "kind": "cosmetic",
+    "name": "Dreadplate Support Arm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "TemperedParts": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-arm-far",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_thigh_f",
+    "kind": "cosmetic",
+    "name": "Dreadplate Thigh (Near)",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "RefinedAlloy": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-thigh-f",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_thigh_b",
+    "kind": "cosmetic",
+    "name": "Dreadplate Thigh (Far)",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "RefinedAlloy": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-thigh-b",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_lower_leg_f",
+    "kind": "cosmetic",
+    "name": "Dreadplate Lower Leg (Near)",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "TemperedParts": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-lower-leg-f",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_lower_leg_b",
+    "kind": "cosmetic",
+    "name": "Dreadplate Lower Leg (Far)",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "TemperedParts": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-lower-leg-b",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_dread_back",
+    "kind": "cosmetic",
+    "name": "Dreadplate Back Rig",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 600,
+      "WovenCircuits": 1
+    },
+    "unitDurationMs": 2700000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "dread-back",
+    "maxUnits": 10
+  },
+  {
+    "id": "recipe_skin_mfr_head_redline",
+    "kind": "cosmetic",
+    "name": "Redline Helm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 1800,
+      "NitrocellGel": 2
+    },
+    "unitDurationMs": 5400000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "mfr-head-redline",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_mfr_head_ironwood",
+    "kind": "cosmetic",
+    "name": "Ironwood Helm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 1800,
+      "HeartwoodResin": 2
+    },
+    "unitDurationMs": 5400000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "mfr-head-ironwood",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_mfr_head_blastforge",
+    "kind": "cosmetic",
+    "name": "BlastForge Helm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 1800,
+      "ForgeheartIngots": 2
+    },
+    "unitDurationMs": 5400000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "mfr-head-blastforge",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_mfr_head_prismatek",
+    "kind": "cosmetic",
+    "name": "Prismatek Helm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 1800,
+      "PrismShards": 2
+    },
+    "unitDurationMs": 5400000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "mfr-head-prismatek",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_mfr_head_throwtech",
+    "kind": "cosmetic",
+    "name": "ThrowTech Helm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 1800,
+      "MagnetiteCores": 2
+    },
+    "unitDurationMs": 5400000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "mfr-head-throwtech",
+    "maxUnits": 1
+  },
+  {
+    "id": "recipe_skin_mfr_head_helixworks",
+    "kind": "cosmetic",
+    "name": "HelixWorks Helm",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 1800,
+      "Siltglass": 2
+    },
+    "unitDurationMs": 5400000,
+    "requiresLevel": 1,
+    "requiresBench": 2,
+    "station": "bench",
+    "cosmeticPartId": "mfr-head-helixworks",
+    "maxUnits": 1
+  },
+  {
+    "id": "tint_craft",
+    "kind": "cosmetic",
+    "name": "Tint a Part",
+    "category": "cosmetics",
+    "inputs": {
+      "Scrap": 25
+    },
+    "unitDurationMs": 300000,
+    "requiresLevel": 1,
+    "requiresBench": 1,
+    "station": "bench",
+    "tintCraft": true,
+    "tintPalettes": [
+      {
+        "id": "arctic",
+        "chromaweave": 0
+      },
+      {
+        "id": "void",
+        "chromaweave": 0
+      },
+      {
+        "id": "crimson",
+        "chromaweave": 1
+      },
+      {
+        "id": "verdant",
+        "chromaweave": 1
+      },
+      {
+        "id": "solar",
+        "chromaweave": 1
+      },
+      {
+        "id": "abyss",
+        "chromaweave": 1
+      },
+      {
+        "id": "royal",
+        "chromaweave": 1
+      }
+    ],
+    "maxUnits": 1
+  }
+]
+$catalog$::jsonb
+$$;

@@ -32,7 +32,7 @@ describe('W1 — material display names, never raw ids', () => {
     const check = canStartCraft('recipe_medkit', {}, {}, 10);
     expect(check.can).toBe(false);
     expect(check.missing.join(' ')).toContain('Scrap Alloy: 0/15');
-    expect(check.missing.join(' ')).not.toContain('ScrapAlloy');
+    expect(check.missing.join(' ')).not.toContain('Scrap');
   });
 });
 
