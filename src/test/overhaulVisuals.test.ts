@@ -20,8 +20,7 @@ import { HUNTER_HEAD_VARIANTS } from '@/lib/pixel/headParts';
 import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import { countPartNodes } from '@/lib/pixel/parts';
 import { remapPixelData, type PaletteSpec } from '@/lib/pixel/paletteSwap';
-import { composePixelWeapon, partVariant, type PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
-import { buildWeaponVisualSpec } from '@/lib/weaponArt/buildWeaponVisualSpec';
+import { composePixelWeapon, type PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 
 const sprites = (manifestData as { sprites: Record<string, { src: string }> }).sprites;
@@ -136,6 +135,13 @@ describe('palette swaps (§4.4)', () => {
 });
 
 describe('compositor instance fidelity (§4.2)', () => {
+  // Note: the old "spec part variants and compositor part variants
+  // agree per slot" case pinned buildWeaponVisualSpec against the
+  // compositor. Gear slice 5 deleted buildWeaponVisualSpec (its
+  // only live consumers were the retired gear SVG spec builders),
+  // leaving the compositor's partVariant as the single source —
+  // the two-source agreement the case guarded no longer exists
+  // to drift.
   const parts = [
     { slot: 'Barrel' as const, modifier: { baseDamage: 12, statusChance: 5 } },
     { slot: 'Grip' as const, modifier: { attackSpeed: 8 } },
@@ -155,29 +161,6 @@ describe('compositor instance fidelity (§4.2)', () => {
     ],
     rollQuality: 88,
   };
-
-  it('spec part variants and compositor part variants agree per slot', () => {
-    const spec = buildWeaponVisualSpec({
-      weaponType: WeaponType.SMG,
-      manufacturer: Manufacturer.Redline,
-      rarity: Rarity.Epic,
-      element: Element.Fire,
-      parts,
-      name: 'Fidelity Test SMG',
-    } as never);
-    // The spec builds its compositor input from exactly these fields.
-    const specInput: PixelWeaponInput = {
-      weaponType: WeaponType.SMG,
-      manufacturer: Manufacturer.Redline,
-      rarity: Rarity.Epic,
-      element: Element.Fire,
-      parts,
-      name: 'Fidelity Test SMG',
-    };
-    for (const slot of ['Barrel', 'Grip', 'Core', 'Magazine', 'Sight', 'Chamber'] as const) {
-      expect(spec.partVariants[slot]).toBe(partVariant(specInput, slot, 4));
-    }
-  });
 
   it('the full modifier map steers the variants (not just the first entry)', () => {
     const base = composePixelWeapon(input).signature;

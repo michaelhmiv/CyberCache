@@ -34,7 +34,7 @@ import { SKILL_TREE_VISUALS } from '../constants/skillTreeVisuals';
 import { SkillTreeType, Rarity, DropSource } from '../types/game';
 import { computeSkillBonuses } from '../lib/skills/skillBonuses';
 import { generateClassMod, SKILL_NODE_IDS } from '../server/lib/generators/classModGenerator';
-import { buildClassModVisualSpec } from '../lib/gearArt/buildClassModVisualSpec';
+import { classModInputFromItem } from '../lib/pixel/classModGrammar';
 import { createRNG } from '../lib/utils/rng';
 import {
   effectiveVehicleYield,
@@ -258,9 +258,12 @@ describe('class mods — derived SKILL_NODE_IDS', () => {
       if (mod.treeBonus === SkillTreeType.Fixer) {
         sawFixerTree = true;
         expect(mod.name).toContain('Fixer Class Mod');
-        const spec = buildClassModVisualSpec(mod);
-        expect(spec.treeBonus).toBe('Fixer');
-        expect(spec.silhouette).toBeDefined();
+        // Pixel-era form of the old SVG-spec assertion: the
+        // class-mod grammar derives the mod's tree from its own
+        // record, and Fixer resolves to the Fixer family — never
+        // to the 'unknown' fallthrough.
+        const input = classModInputFromItem(mod);
+        expect(input.variant).toBe('Fixer');
       }
       if (Object.keys(mod.nodeBoosts).some((id) => id.startsWith('fix_'))) sawFixerBoost = true;
       for (const id of Object.keys(mod.nodeBoosts)) {

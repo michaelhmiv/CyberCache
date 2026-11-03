@@ -61,9 +61,8 @@ export function weekKeyOffset(date: Date, offset: number): string {
 //                     with attempt.victory
 //   elite_kills       verified_action_ledger: roaming.elite_kill →
 //                     elite_kills (0023 telemetry)
-//   caches_opened     verified_action_ledger: cc_make_item +
-//                     cc_draw_item (the economy meter's cache_opens
-//                     definition — both cache-open paths)
+//   caches_opened     verified_action_ledger: cc_make_item (the
+//                     economy meter's cache_opens definition)
 //   items_salvaged    verified_action_ledger: cc_recycle_item rows
 //   endless_depth     endless_runs: best depth_reached among runs
 //                     ENDED in the window (0028 law: an active run

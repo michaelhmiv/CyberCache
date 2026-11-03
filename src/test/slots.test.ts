@@ -711,7 +711,7 @@ describe('slots — migration 0049 pins', () => {
     // the same restatement-shaped filter for cc_add_consumable_batch.
     const restatements = files.filter((f) =>
       readSource(`db/migrations/${f}`).includes('function public.cc_compute_economy_metrics'));
-    expect(restatements[restatements.length - 1]).toBe('0049_slot_machine.sql');
+    expect(restatements[restatements.length - 1]).toBe('0065_cache_scaffolding_deletion.sql');
   });
 });
 

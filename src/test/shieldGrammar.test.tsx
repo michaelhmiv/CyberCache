@@ -13,11 +13,7 @@ import {
   type GearComposeInput,
   type GearRender,
 } from '@/lib/pixel/gearCardCompositor';
-import {
-  GEAR_GRAMMARS,
-  GEAR_PIXEL_KINDS,
-  gearRenderRoute,
-} from '@/lib/pixel/gearRenderFlags';
+import { GEAR_GRAMMARS } from '@/lib/pixel/gearDispatch';
 import { SHIELD_FAMILY_ROWS, shieldGrammar } from '@/lib/pixel/shieldGrammar';
 
 /**
@@ -78,15 +74,11 @@ const cellDistance = (a: GearRender, b: GearRender) => {
 };
 
 describe('shield grammar — registration + dispatch', () => {
-  it('the shield flag is on and the grammar is registered; every kind routes pixel', () => {
-    expect(GEAR_PIXEL_KINDS.shield).toBe(true);
+  it('the shield grammar is registered in the total dispatch table', () => {
+    // Slice 5 retired the flag + route seam: the registry is a
+    // total Record, so registration IS the route — there is no
+    // second path left to fall back to.
     expect(GEAR_GRAMMARS.shield).toBe(shieldGrammar);
-    expect(gearRenderRoute('shield')).toBe('pixel');
-    // Every other kind has flipped too — ordnance (slice 2),
-    // class mods (slice 3), relic (slice 4).
-    expect(gearRenderRoute('ordnance')).toBe('pixel');
-    expect(gearRenderRoute('classMod')).toBe('pixel');
-    expect(gearRenderRoute('relic')).toBe('pixel');
     expect(Object.keys(SHIELD_FAMILY_ROWS).sort()).toEqual([...BEHAVIORS].sort());
   });
 

@@ -95,9 +95,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 78 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 85 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-03** — 26 merges
+**2026-11-03** — 33 merges
 
 - #310 — feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)
 - #315 — Foreground resume: land instantly back in the live action
@@ -123,8 +123,15 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #335 — Wiki W5: illustrated Reference — weapon frames, element reads, gear, consumables, materials
 - #336 — QB-1: Quick-Buy server fill + the Workshop pop-up (migration 0060)
 - #337 — Gear marriage slice 2: ordnance to pixel (form = effect class)
+- #338 — Gate-removal step 4: bench unlocks drop hunter level — price + materials are the gate (migration 0061)
+- #339 — Gear marriage slice 3: class mods to pixel (4 tree grammars, Fixer family, nodeBoost pips)
 - #340 — Gear marriage slice 1 — shields to pixel (behavior grammar)
+- #341 — Gear marriage slice 4 — relics to pixel (name-form grammar)
 - #342 — feat(wiki): W6 — illustrated world (bosses, areas, vehicles, skins)
+- #343 — Gate-removal step 5: dispatch courier tiers read the class tier index (G7, migration 0062)
+- #344 — Wiki W7 — UI plates + Getting-Started depth pass (wrap-up complete)
+- #345 — Quick-Buy QB-2: + sheet on Repair Board, Shield-Tech Board, and Garage
+- #346 — Gear marriage slice 5 — retire the SVG island (final gear slice)
 
 **2026-11-02** — 44 merges
 
