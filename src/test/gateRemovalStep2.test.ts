@@ -44,7 +44,21 @@ describe('migration 0057 — consumable recipe levels removed', () => {
     const parts = MIGRATION_0057.split('$catalog$');
     expect(parts.length).toBeGreaterThanOrEqual(3);
     expect(sqlCatalog).toHaveLength(87);
-    expect(sqlCatalog).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    // Econ 5 (0069) renamed the ScrapAlloy input key to Scrap in 38
+    // recipes; those rows are pinned against 0069's restated catalog
+    // in scrapMerge.test.ts. Everything else in 0057's catalog still
+    // deep-equals the TS catalog.
+    const renamedBy0069 = new Set(
+      sqlCatalog
+        .filter((r) => JSON.stringify(r.inputs ?? {}).includes('ScrapAlloy'))
+        .map((r) => String(r.id)),
+    );
+    expect(renamedBy0069.size).toBe(38);
+    const withoutRenamed = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => !renamedBy0069.has(String(r.id)));
+    expect(withoutRenamed(sqlCatalog)).toEqual(
+      withoutRenamed(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
+    );
   });
 
   it('every consumable sits at the no-gate level 1 in both catalogs — and so does every recipe', () => {

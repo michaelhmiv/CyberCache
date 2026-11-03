@@ -33,7 +33,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { MATERIAL_VISUALS } from '../constants/visualAssets';
-import { getCraftRecipe, isMaterialInput } from '../content/crafting';
+import { ALL_CRAFT_RECIPES, getCraftRecipe, isMaterialInput } from '../content/crafting';
 import { skinPartCatalog } from '../content/skins';
 import { MARKET_MATERIAL_IDS } from '../lib/market/identityKey';
 import { VENDOR_MATERIALS } from '../lib/vendor/catalog';
@@ -137,6 +137,17 @@ describe('scrap merge — migration 0069 pins', () => {
     // The only column writes left are the two tombstone zeroings
     // (conversion + reset reseed).
     expect(MIGRATION.match(/scrap = 0/g)).toHaveLength(2);
+  });
+
+  it('restates the full recipe catalog with renamed keys — the merge’s primary proof (§3.4)', () => {
+    const parts = MIGRATION.split('$catalog$');
+    expect(parts.length).toBeGreaterThanOrEqual(3);
+    const catalog = JSON.parse(parts[1]) as Array<Record<string, unknown>>;
+    expect(catalog).toHaveLength(87);
+    expect(catalog).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    // 65 recipes price in Scrap after the rename; none keys the old id.
+    expect(catalog.filter((r) => JSON.stringify(r.inputs ?? {}).includes('"Scrap"'))).toHaveLength(65);
+    expect(JSON.stringify(catalog)).not.toContain('ScrapAlloy');
   });
 
   it('restates the full faucet/sink/reader surface', () => {
@@ -257,19 +268,28 @@ describe('scrap merge — writes twin settles on the stack', () => {
     expect(store.seed.profiles.find((p) => p.id === A)!.credits).toBeGreaterThan(100_000);
   });
 
-  it('a cosmetic enqueue escrows Scrap from the stack; cancel refunds it', async () => {
-    const store = new InMemoryWriteStore(writesSeed());
+  it('a cosmetic enqueue escrows Scrap from the stack; cancelling a queued job refunds it in full', async () => {
+    const store = new InMemoryWriteStore(writesSeed(), {
+      now: () => new Date('2026-10-29T12:00:00.000Z'),
+    });
     const recipe = getCraftRecipe(skinPartCatalog('dread-arm-upper-n')!.recipeId)!;
     const cost = recipe.inputs.Scrap ?? 0;
     expect(cost).toBeGreaterThan(0);
-    const job = (await store.enqueueCraftJob(A, nonce(), {
+    // The first job starts on the bench; the second queues behind it
+    // (unstarted — a cancel refunds unstarted units in full, the
+    // generic material schedule Scrap now rides like any input).
+    await store.enqueueCraftJob(A, nonce(), {
+      bench: 2, recipeId: recipe.id, units: 1, consumableEfficiencyBonus: 0,
+    });
+    expect(stackOf(store, A)).toBe(100_000 - cost);
+    const queued = (await store.enqueueCraftJob(A, nonce(), {
       bench: 2, recipeId: recipe.id, units: 1, consumableEfficiencyBonus: 0,
     })) as { job?: { id?: string } };
+    expect(stackOf(store, A)).toBe(100_000 - 2 * cost);
+    const queuedId = queued.job?.id;
+    expect(queuedId).toBeTruthy();
+    await store.cancelCraftJob(A, nonce(), queuedId!);
     expect(stackOf(store, A)).toBe(100_000 - cost);
-    const jobId = job.job?.id;
-    expect(jobId).toBeTruthy();
-    await store.cancelCraftJob(A, nonce(), jobId!);
-    expect(stackOf(store, A)).toBe(100_000);
   });
 
   it('an unaffordable Scrap leg refuses with the generic material error', async () => {
