@@ -57,10 +57,24 @@ export const BossCell: React.FC<BossCellProps> = ({ bossId, size = 48, className
               filter: 'brightness(0.5) saturate(0.85)',
             }}
           />
-          <div
-            className="absolute inset-0"
+          {/* The sprite as a positioned img, not a background crop:
+              the window rule can run past the sprite's edge for tall,
+              narrow sprites (the Mirror: 268px window in a 239px-wide
+              sprite) — the exploration renderer pads that region
+              transparent and the arena shows through, and so does an
+              img clipped by the frame. Scale = cell px per file px. */}
+          <img
+            src={art.spriteUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="absolute"
             style={{
-              ...bgCropStyle(art.spriteUrl, art.spriteWidth, art.spriteHeight, { x: wx, y: wy, w: side, h: side }),
+              width: art.spriteWidth * (size / side),
+              height: art.spriteHeight * (size / side),
+              left: -wx * (size / side),
+              top: -wy * (size / side),
+              maxWidth: 'none',
               imageRendering: 'pixelated',
             }}
           />

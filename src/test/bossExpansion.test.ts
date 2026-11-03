@@ -177,7 +177,11 @@ describe('boss roster expansion — ladder integrity', () => {
       expect(side, `${boss.id} window side`).toBeGreaterThan(0);
       expect(wx, `${boss.id} window x`).toBeGreaterThanOrEqual(0);
       expect(wy, `${boss.id} window y`).toBeGreaterThanOrEqual(0);
-      expect(wx + side, `${boss.id} window right`).toBeLessThanOrEqual(spriteEntry!.width);
+      // The window originates inside the sprite and its bottom stays
+      // in frame; for tall, narrow sprites (the Mirror) the square
+      // window may run past the right edge — the renderer pads that
+      // region transparent over the arena, as the exploration did.
+      expect(wx, `${boss.id} window origin inside`).toBeLessThan(spriteEntry!.width);
       expect(wy + side, `${boss.id} window bottom`).toBeLessThanOrEqual(spriteEntry!.height);
       expect(identity.stamp.cells, `${boss.id} stamp rows`).toHaveLength(identity.stamp.rows);
       expect(identity.stamp.cells.join(''), `${boss.id} stamp has body cells`).toContain('B');
