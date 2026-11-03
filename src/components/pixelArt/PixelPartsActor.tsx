@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT } from '@/lib/pixel/movement';
@@ -14,7 +14,12 @@ import {
 } from '@/lib/pixel/parts';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
 import { GEAR_PAINT_ORDER, resolveGearMount, type MountedGearItem } from '@/lib/pixel/gearMounts';
-import { partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
+import {
+  armedActorExtents,
+  fitArmedActorHeight,
+  partsWeaponFractionsFor,
+  type ArmedActorFit,
+} from '@/lib/pixel/partsStage';
 import {
   pixelWeaponInputFromWeapon,
   type PixelWeaponInput,
@@ -176,6 +181,57 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     [set, pose, weaponFractions],
   );
 
+  // Loadout truth, the width law: an ARMED actor is height-sized
+  // and feet-anchored, and the held weapon overhangs the frame's
+  // right edge by design — on a stage narrower than the height
+  // implies (the Gear-C Loadout column is 152px wide for a ~219px
+  // figure) the whole weapon fell outside the stage's clip box and
+  // the hunter read as unarmed with a full weapon layer rendered
+  // off-stage. When armed, measure the stage box (the actor's
+  // parent — every surface mounts the actor directly in its stage)
+  // and shrink to fitArmedActorHeight: feet anchor and ground line
+  // unmoved, the full frame + weapon inside the width. Unarmed
+  // actors never engage the fit (their behavior is byte-identical),
+  // and at unconstrained geometries the fit returns the nominal
+  // height and nothing changes.
+  const frameExtents = useMemo(
+    () => (heldInput ? armedActorExtents(layout) : undefined),
+    [heldInput, layout],
+  );
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [widthFit, setWidthFit] = useState<ArmedActorFit | null>(null);
+  useLayoutEffect(() => {
+    const parent = rootRef.current?.parentElement;
+    if (!parent || !frameExtents) {
+      setWidthFit(null);
+      return;
+    }
+    const measure = () => {
+      const w = parent.clientWidth;
+      const h = parent.clientHeight;
+      if (!w || !h) {
+        setWidthFit(null);
+        return;
+      }
+      const fit = fitArmedActorHeight({
+        containerW: w,
+        containerH: h,
+        heightPct,
+        xPct,
+        groundY,
+        feetX,
+        flip,
+        extents: frameExtents,
+      });
+      setWidthFit(fit.constrained ? fit : null);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [frameExtents, heightPct, xPct, groundY, feetX, flip]);
+
   const parts = useMemo(
     () =>
       PART_SLOTS.flatMap(({ slot, paintOrder }) => {
@@ -277,17 +333,29 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
 
   return (
     <div
+      ref={rootRef}
       className="absolute"
       data-testid={testId}
       data-rig={set.id}
       data-armed={heldInput ? 'true' : 'false'}
-      style={{
-        height: `${heightPct}%`,
-        aspectRatio: `${SKELETON.frameWidth} / ${SKELETON.frameHeight}`,
-        left: `${xPct}%`,
-        top: `calc(${groundY * 100}% - ${heightPct}%)`,
-        zIndex,
-      }}
+      data-fit={widthFit ? 'width' : undefined}
+      style={
+        widthFit
+          ? {
+              height: `${widthFit.heightPx}px`,
+              aspectRatio: `${SKELETON.frameWidth} / ${SKELETON.frameHeight}`,
+              left: `${xPct}%`,
+              top: `${widthFit.topPx}px`,
+              zIndex,
+            }
+          : {
+              height: `${heightPct}%`,
+              aspectRatio: `${SKELETON.frameWidth} / ${SKELETON.frameHeight}`,
+              left: `${xPct}%`,
+              top: `calc(${groundY * 100}% - ${heightPct}%)`,
+              zIndex,
+            }
+      }
     >
       <div
         className="relative h-full w-full"
