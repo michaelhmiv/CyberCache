@@ -31,6 +31,12 @@ Crafting pays player XP at **0.775× roaming's rate** — pegged to what an hour
 
 The full system — benches, recipes, quality, mastery — lives on the [[Crafting]] page.
 
+Salvaging from the action sheet settles instantly through the same
+verified recycle path as the Gear tab, and the feed names exactly
+what the server paid: the Scrap, any legendary cores from a
+Legendary, and the occasional King of Scrap bonus material — never
+a broader yield than the one that landed.
+
 ## Extraction
 
 Extraction is the gathering occupation: dedicated material work at a site in any area, and the supply lane the crafting economy eats from.

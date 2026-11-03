@@ -93,12 +93,16 @@ Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
 protected from salvage), or salvage it.
 
-**Salvage** breaks an item down into scrap plus crafting materials and
-essences — weapons lean toward ballistic parts, shields and ordnance
-toward reactive components, and elemental gear returns its element's
-essence. Salvaging a Legendary also pays out **legendary cores** — see
-[[Collections]] for the exact yield, because cores are the scarcest
-currency in the game.
+**Salvage** breaks an item down into **Scrap** — that is the guaranteed
+payout, and the salvage result names exactly what you got. Salvaging a
+Legendary also pays out **legendary cores** — see [[Collections]] for
+the exact yield, because cores are the scarcest currency in the game.
+Crafting materials come back only one way: with the **King of Scrap**
+keystone, breaking down a **Common** item can pay one bonus material
+matched to the item's kind (weapons lean toward Ballistic Parts,
+shields and ordnance toward Reactive Components, class mods and
+relics toward Tech, everything else toward Scrap Alloy). Essences
+never come from salvage — roam for those, or buy them.
 
 **Bulk salvage** clears space in one move. The salvage button on the
 Gear tab opens a rarity sheet — **Commons only**, **Uncommon & under**,

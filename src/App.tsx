@@ -76,7 +76,7 @@ function App() {
   // Deep-link focus inside the Profile tab: 'skills' lands the player
   // ON the Profile-embedded SkillTreeScreen (scrolled into view), not
   // at the top of the Profile page (device feedback r2).
-  const [profileFocus, setProfileFocus] = useState<'skills' | null>(null);
+  const [profileFocus, setProfileFocus] = useState<'skills' | 'research' | null>(null);
   // Tab intent for the gear home (flow audit F2): every "loadout"
   // door must open Inventory ON its Loadout stop — the one equip
   // surface — not on the item grid. `seq` makes a repeat intent
@@ -133,6 +133,15 @@ function App() {
       setActiveTab('hunter');
       setSubScreen(null);
       setProfileFocus('skills');
+      return;
+    }
+    if (screen === 'research') {
+      // Research door (Workshop Direction A): the batch recipes'
+      // gate names the Production Systems course — the door lands
+      // ON the Research stop, not the Hunter tab's front door.
+      setActiveTab('hunter');
+      setSubScreen(null);
+      setProfileFocus('research');
       return;
     }
     setProfileFocus(null);
