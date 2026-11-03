@@ -30,6 +30,7 @@ import {
   type ActionFeedEntry,
 } from '@/components/action/ActionWorkspace';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
+import { StageStatsBand } from '@/components/dashboard/StageStatsBand';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { VehicleStatusLine } from '@/components/gear/VehicleStatusLine';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
@@ -717,6 +718,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         equippedCount={equippedCount}
         activityKind={currentKind}
         stageControls={stageControls}
+        statsBand={(
+          <StageStatsBand
+            boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null}
+            onOpenLoadout={() => onNavigate?.('loadout')}
+          />
+        )}
       />
 
       {/* 1b. Mode rail (§2/§4) — the stage's six stops under the

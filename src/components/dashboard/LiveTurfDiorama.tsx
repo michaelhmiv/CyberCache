@@ -71,6 +71,14 @@ interface LiveTurfDioramaProps {
    *  ruling removed the area plate from that corner — supplied
    *  by the screen, rendered by the stage. */
   stageControls?: React.ReactNode;
+  /** Owner direction 2026-11-02: the ribbon's content is the
+   *  player's effective-stats band (StageStatsBand), supplied by
+   *  the screen — the stage owns the ribbon's placement, the
+   *  screen owns its numbers. When supplied, the band replaces
+   *  the ribbon's latest-event line (events live in the feed
+   *  cards now); the mode chip stays the stage's. Absent, the
+   *  ribbon keeps its legacy event/caption line. */
+  statsBand?: React.ReactNode;
 }
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
@@ -1218,7 +1226,7 @@ const PixelSceneLayer: React.FC<{
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls, statsBand }) => {
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the SVG fight can react.
@@ -1250,8 +1258,11 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // headline title either: the old plate printed the activity
   // target at poster size, ellipsized long names, and repeated
   // the mode word the ribbon also carried. The state prints
-  // ONCE, in the ribbon: the mode label + the latest event line,
-  // or the mode caption with the weapon state folded in.
+  // ONCE, in the ribbon: the mode chip + the effective-stats
+  // band the screen supplies (owner direction 2026-11-02). The
+  // ribbonLine below remains only as the fallback for renders
+  // that supply no band: the latest event line, or the mode
+  // caption with the weapon state folded in.
   const ribbonLine = latestEvent
     ? `${latestEvent.label} ${latestEvent.detail}`
     : `${copy.caption} · ${weaponLabel}`;
@@ -1355,7 +1366,15 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           directly under the stage, where the mode rail put them. */}
       <div data-testid="diorama-status-ribbon" className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t-2 border-border bg-surface/95 px-2 py-1.5">
         <span className="shrink-0 border border-border bg-bg px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">{copy.label}</span>
-        <span className="min-w-0 flex-1 break-words text-[11px] leading-snug text-text-muted">{ribbonLine}</span>
+        {statsBand ? (
+          // The stats band (owner direction 2026-11-02): effective
+          // stats for the current action + the Loadout door. It
+          // needs pointer events (scroll + the door) inside the
+          // ribbon's pointer-events-none shell.
+          <div className="pointer-events-auto flex min-w-0 flex-1 items-center">{statsBand}</div>
+        ) : (
+          <span className="min-w-0 flex-1 break-words text-[11px] leading-snug text-text-muted">{ribbonLine}</span>
+        )}
       </div>
       {/* Action controls (owner rulings 2026-11-02): Switch /
           Stop float on the scene — first bottom-right above the
