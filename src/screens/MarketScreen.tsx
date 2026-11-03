@@ -803,7 +803,12 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
   const handleBuy = async (listing: Listing) => {
     if (player.credits < listing.price) {
-      setToastMessage('Not enough credits.');
+      // G3 (remedy law): this toast is reachable now — the
+      // can't-afford Buy button is tappable and prints the
+      // shortfall (see the listing row) — so the message carries
+      // the shortfall and where credits come from, not a bare
+      // refusal.
+      setToastMessage(`Not enough credits — short by ${(listing.price - player.credits).toLocaleString()} cr. Earn credits roaming, running contracts, or selling loot.`);
       return;
     }
     setPendingBuyId(listing.id);
@@ -971,6 +976,16 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
             {filteredListings.map((listing, index) => {
               const seller = sellerDisplayName(listing, currentUserId);
               const stats = listing.identityKey ? priceStats[listing.identityKey] : undefined;
+              // G3 (remedy law — every "no" carries its remedy): a
+              // signed-in player short on credits gets a TAPPABLE
+              // button that prints the shortfall. The old rule
+              // disabled the button at 40% opacity — visually
+              // identical to the guest lock's dim, and it made
+              // handleBuy's not-enough-credits toast unreachable.
+              // Guests are untouched (marketLocked branch below):
+              // Buy Now + lock glyph, the tap raises the prompt.
+              const shortfall = listing.price - player.credits;
+              const cantAfford = !marketLocked && pendingBuyId !== listing.id && shortfall > 0;
               return (
                 <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card p-2.5">
                   {/* Compact row (F3, mock m39; M4 adds the cosmetic
@@ -979,7 +994,9 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                       button in a fixed right column — the full-width
                       button band is gone, so rows run ~half the old
                       height and listings start high. Same handler,
-                      same disabled rule, same lock-on-the-action. */}
+                      same lock-on-the-action; the disabled rule is
+                      G3's now — only a pending buy disables, and
+                      can't-afford renders its own tappable button. */}
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1 space-y-1.5">
                       {listing.kind === 'gear' && listing.itemSnapshot ? (
@@ -998,9 +1015,15 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                     </div>
                     <div className="flex w-[92px] shrink-0 flex-col items-end gap-1.5">
                       <div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>
-                      <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id || (!marketLocked && player.credits < listing.price)} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber px-2 py-2 text-[11px] font-bold text-bg disabled:opacity-40">
-                        {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
-                      </button>
+                      {cantAfford ? (
+                        <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} aria-label={`Not enough credits — short by ${shortfall.toLocaleString()} cr`} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-400/50 bg-red-400/10 px-2 py-2 text-center text-[11px] font-bold leading-tight text-red-300">
+                          Short by {shortfall.toLocaleString()} cr
+                        </button>
+                      ) : (
+                        <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber px-2 py-2 text-[11px] font-bold text-bg disabled:opacity-40">
+                          {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </motion.div>

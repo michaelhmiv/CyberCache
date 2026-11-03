@@ -99,7 +99,9 @@ The vendor is the friendliest counter in the game: **guests can buy and
 sell here freely**. It's the one storefront whose transacting never
 required an account, which makes it the right first stop for a brand-new
 hunter. (The [[Slots|slot machine]], one stop over on the rail, is the
-exception — guests can look, but pulling takes a signed-in account.)
+exception — guests can look, but pulling takes a signed-in account, and a
+signed-in hunter who can't pull a tier sees the reason printed under its
+button: machine closed, out of pulls for the day, or short on credits.)
 
 ---
 
