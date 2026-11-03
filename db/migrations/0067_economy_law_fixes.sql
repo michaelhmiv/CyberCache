@@ -43,10 +43,20 @@
 --
 -- Restatements are verbatim from their latest bodies
 -- (cc_enqueue_craft_job / cc_complete_craft_unit: 0053;
--- cc_settle_craft_jobs: 0044; cc_fire_overclock_workshop: 0030;
+-- cc_settle_craft_jobs: 0063; cc_fire_overclock_workshop: 0030;
 -- cc_pending_crafted_gear / cc_finalize_crafted_gear: 0024) with
 -- only the deltas above. Parity is pinned by
 -- src/test/econLawFixes.test.ts.
+--
+-- cc_settle_craft_jobs is restated from 0063, NOT from its 0044
+-- ancestor this slice was first drafted against: gate step 6
+-- (0063, applied live before this migration) re-carried the
+-- settler's internal away cap onto Research
+-- (cc_earned_offline_cap_hours_for(uuid)) and dropped
+-- cc_earned_offline_cap_hours(integer). The 0044-based draft
+-- still called the dropped function and would have broken every
+-- craft settlement; the body below is 0063's with only this
+-- slice's §9.2 charge-burn removal applied to it.
 
 
 -- ── 1+2. cc_enqueue_craft_job (0053 body; fitted-tool rule) ──────
@@ -859,7 +869,7 @@ begin
   return v_output;
 end;$$;
 
--- ── 2. cc_settle_craft_jobs (0044 body; charge burn removed) ────
+-- ── 2. cc_settle_craft_jobs (0063 body; charge burn removed) ────
 
 create or replace function public.cc_settle_craft_jobs(
   p_player_id uuid,
@@ -918,13 +928,11 @@ begin
     into v_action, v_heartbeat_ms
     from public.active_actions where user_id = actor;
 
-  -- Internal away cap: min(earned tier, limiter when set), [1h, 24h].
+  -- Internal away cap: min(earned cap, limiter when set), [1h, 24h].
   v_away_cap_ms := (greatest(1, least(
-      public.cc_earned_offline_cap_hours(p.player_level)
-        + public.cc_research_offline_cap_bonus(p.id),
+      public.cc_earned_offline_cap_hours_for(p.id),
       coalesce(nullif(p.offline_cap_hours, 0)::numeric,
-               public.cc_earned_offline_cap_hours(p.player_level)
-        + public.cc_research_offline_cap_bonus(p.id))
+               public.cc_earned_offline_cap_hours_for(p.id))
     )) * 3600000)::bigint;
 
   -- Pass 1: rebase every active job and price its advance.
