@@ -51,6 +51,12 @@ There is no single best vehicle. The Skimmer wins a short, fueled
 sprint; the Rover and the Rig win the long haul; the Hauler wins when
 what you want is materials, not credits.
 
+A class's place on the ladder is also what [[Dispatch]] reads: the
+longer courier tiers ask for capability, not seniority — a
+**Regional Haul** takes a Utility Rover-class vehicle or stronger,
+and a **Deep Haul** takes an Armored Crawler-class vehicle or
+stronger. A spare vehicle of any class can always run a Local Run.
+
 ## Getting vehicles
 
 Your **starter Scrap Bike arrives in your initial account bundle**,
