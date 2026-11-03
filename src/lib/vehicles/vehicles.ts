@@ -11,9 +11,12 @@
  * tests the way the vendor catalog's twin is). The ladder is design
  * data, NOT a player gate: vehicles are pure market goods (owner
  * ruling 2026-11-02 — if you can buy it, you can drive it), equip
- * checks ownership only, and the ladder's remaining readers are the
- * roaming drop flavor weighting and the dispatch courier class
- * bands, neither of which reads the player's level.
+ * checks ownership only, and the ladder value's remaining reader is
+ * the roaming drop flavor weighting, which reads it against the
+ * AREA's ladder, never the player's level. The dispatch courier
+ * bands read the ladder's other axis — the class tier index
+ * (`vehicleClassTierIndex`, SQL twin `cc_vehicle_class_tier` in
+ * migration 0062) — since gate-removal step 5.
  *
  * YIELD MODEL, never cadence: ticks stay 3s and the claim RNG stream
  * is untouched. The equipped vehicle multiplies what each tick
@@ -49,9 +52,10 @@ export interface VehicleClassDef {
   displayName: string;
   /**
    * Class ladder position (design data — NOT an equip gate; owner
-   * ruling 2026-11-02 removed the player-level equip gate). Read by
-   * the roaming drop flavor weighting and the dispatch courier class
-   * bands only.
+   * ruling 2026-11-02 removed the player-level equip gate). Its one
+   * remaining reader is the roaming drop flavor weighting, which
+   * compares it to the destination AREA's ladder. The dispatch
+   * courier bands read the class tier index instead (step 5).
    */
   unlockLevel: number;
   /** Base yield multiplier at full condition with no affixes (the design table's travel speed). */
@@ -87,6 +91,23 @@ const CLASS_BY_ID = new Map(VEHICLE_CLASSES.map((c) => [c.id, c]));
 export function getVehicleClass(classId: string | null | undefined): VehicleClassDef | null {
   if (!classId) return null;
   return CLASS_BY_ID.get(classId) ?? null;
+}
+
+const CLASS_TIER_BY_ID = new Map(VEHICLE_CLASSES.map((c, index) => [c.id, index]));
+
+/**
+ * A class's capability tier: its index in the VEHICLE_CLASSES ladder
+ * (Scrap Bike 0 → Leviathan Rig 6), or −1 for an unknown class. This
+ * is the carrier the dispatch courier bands gate on (gate-removal
+ * step 5): a tier's anchor is a class, and every class at its tier
+ * or higher qualifies — the same real vehicles the old ladder-value
+ * bands admitted, expressed without a level-shaped number. The SQL
+ * twin is `cc_vehicle_class_tier` (migration 0062); parity is
+ * pinned by tests.
+ */
+export function vehicleClassTierIndex(classId: string | null | undefined): number {
+  if (!classId) return -1;
+  return CLASS_TIER_BY_ID.get(classId) ?? -1;
 }
 
 /** Fuel units one Generic Fuel Cell loads into the tank. */

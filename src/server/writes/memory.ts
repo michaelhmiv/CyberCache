@@ -1975,8 +1975,10 @@ export class InMemoryWriteStore implements WriteStore {
     // vehicles are pure market goods — if you can buy it, you can
     // drive it. Ownership (ownItem above) is the only gate; the
     // class must still resolve, as payload integrity. The class
-    // ladder (def.unlockLevel) is design data read by drop flavor
-    // and the dispatch courier bands — never by equip.
+    // ladder (def.unlockLevel) is design data read by the roaming
+    // drop flavor weighting — never by equip, and since gate-removal
+    // step 5 the dispatch courier bands read the class tier index
+    // instead.
     if (slotName === 'vehicle') {
       const classId = (item.payload as Record<string, unknown>)?.vehicleClassId;
       const def = getVehicleClass(typeof classId === 'string' ? classId : null);

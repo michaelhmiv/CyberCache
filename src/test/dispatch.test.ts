@@ -19,7 +19,9 @@
  *    duration and are refused by re-dispatch; settlement releases
  *    them. The personal action slot is never touched.
  *  - COURIER (brief §2.3-§2.5, R10/R11): tiers gate on the VEHICLE's
- *    class unlock (2h>=1, 8h>=18, 24h>=42), never player level.
+ *    class tier (2h any class, 8h Utility Rover tier or higher, 24h
+ *    Armored Crawler tier or higher — gate-removal step 5), never
+ *    player level.
  *    Fuel = routeTicks x shipped burn, debited in full at departure.
  *    Wear = routeTicks x shipped decay; breakdown iff wear reaches
  *    departure condition — deterministic, priced, and shown in prep
@@ -223,10 +225,10 @@ describe('courier arithmetic: brief §2.3 worked cases', () => {
     expect(skimmer.cargoBonusUnits).toBe(0);
   });
 
-  it('tier gates read the vehicle class unlock, by duration', () => {
-    expect(courierTierGate(2)).toBe(1);
-    expect(courierTierGate(8)).toBe(18);
-    expect(courierTierGate(24)).toBe(42);
+  it('tier gates read the vehicle class tier index, by duration', () => {
+    expect(courierTierGate(2)).toBe(0);
+    expect(courierTierGate(8)).toBe(2);
+    expect(courierTierGate(24)).toBe(4);
   });
 });
 
@@ -647,10 +649,10 @@ describe('dispatch routes', () => {
 });
 
 describe('courier routes: gating, fuel, breakdown', () => {
-  it('class band gates the tier — player level is irrelevant both ways', async () => {
+  it('class tier gates the tier — player level is irrelevant both ways', async () => {
     const { day, offerId } = findDeepHaulDay();
     const h = await makeRouteServer(day);
-    // Player level 100 with a Rover (class unlock 18 < 42): refused.
+    // Player level 100 with a Rover (tier 2 < Deep Haul's tier 4): refused.
     h.store.seedProfile({ id: A, player_level: 100, vehicle_fuel: 100000 });
     seedVehicle(h.store, 'rover-1', 'utility_rover');
     const roverPreview = await post(h, '/api/dispatch/preview', { offerId, vehicleItemId: 'rover-1' }, h.tokenA);
@@ -661,7 +663,7 @@ describe('courier routes: gating, fuel, breakdown', () => {
       offerId, vehicleItemId: 'rover-1', nonce: 'gate-nonce-0001',
     }, h.tokenA);
     expect(roverStart.status).toBe(400);
-    // Player level 25 (the area's own unlock) with a Crawler (42):
+    // Player level 25 with a Crawler (tier 4, the Deep Haul anchor):
     // eligible — the gate read the vehicle, not the player.
     h.store.seedProfile({ id: B, player_level: 25, vehicle_fuel: 100000 });
     h.store.seedItem({

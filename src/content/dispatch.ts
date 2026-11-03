@@ -57,10 +57,11 @@
  */
 import { ROAMING_AREAS, type RoamingAreaDef } from '../constants/roamingAreas';
 import {
+  VEHICLE_CLASSES,
   vehicleBurnPerTick,
   vehicleDecayPerTick,
   vehicleMaterialBonusChance,
-  getVehicleClass,
+  vehicleClassTierIndex,
 } from '../lib/vehicles/vehicles';
 import type { Vehicle } from '../types/items';
 
@@ -128,24 +129,39 @@ export function isDispatchDurationHours(value: unknown): value is DispatchDurati
   return value === 2 || value === 8 || value === 24;
 }
 
-/** Courier tier names by duration (courier brief §2.1). */
-export const COURIER_TIER_BY_DURATION: Record<DispatchDurationHours, { name: string; minClassUnlockLevel: number }> = {
-  2: { name: 'Local Run', minClassUnlockLevel: 1 },
-  8: { name: 'Regional Haul', minClassUnlockLevel: 18 },
-  24: { name: 'Deep Haul', minClassUnlockLevel: 42 },
+/** Courier tiers by duration (courier brief §2.1). The gate is a
+ *  CAPABILITY band, not a level: `minClassTier` is the tier index
+ *  (position in VEHICLE_CLASSES) of the tier's anchor class — a
+ *  vehicle qualifies when its own class sits at that tier or
+ *  higher. Gate-removal step 5 retargeted the bands from the class
+ *  ladder's unlockLevel values (1 / 18 / 42) to tier indices
+ *  (0 / 2 / 4): the qualifying class sets are identical — Regional
+ *  takes Utility Rover (tier 2) and up, Deep takes Armored Crawler
+ *  (tier 4) and up — and no level-shaped number is read anywhere in
+ *  the eligibility path. The gate reads the VEHICLE's class, never
+ *  the player's level (§2.1). */
+export const COURIER_TIER_BY_DURATION: Record<DispatchDurationHours, { name: string; minClassTier: number }> = {
+  2: { name: 'Local Run', minClassTier: 0 },
+  8: { name: 'Regional Haul', minClassTier: 2 },
+  24: { name: 'Deep Haul', minClassTier: 4 },
 };
 
-/** Minimum vehicle class unlock level for a courier tier — the gate
+/** Minimum vehicle class tier index for a courier tier — the gate
  *  reads the VEHICLE's class, never the player's level (§2.1). */
 export function courierTierGate(durationHours: DispatchDurationHours): number {
-  return COURIER_TIER_BY_DURATION[durationHours].minClassUnlockLevel;
+  return COURIER_TIER_BY_DURATION[durationHours].minClassTier;
+}
+
+/** The anchor class of a courier tier: the weakest class that may
+ *  run it. Refusal copy names it as the remedy ("assign an Armored
+ *  Crawler-class vehicle or stronger"). */
+export function courierTierAnchorClass(durationHours: DispatchDurationHours) {
+  return VEHICLE_CLASSES[courierTierGate(durationHours)] ?? null;
 }
 
 /** Whether a vehicle class may run a courier tier. */
 export function vehicleClassEligibleForTier(vehicleClassId: string | null | undefined, durationHours: DispatchDurationHours): boolean {
-  const def = getVehicleClass(vehicleClassId);
-  if (!def) return false;
-  return def.unlockLevel >= courierTierGate(durationHours);
+  return vehicleClassTierIndex(vehicleClassId) >= courierTierGate(durationHours);
 }
 
 // ─── The daily offer board ───────────────────────────────────────────

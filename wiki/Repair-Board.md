@@ -83,7 +83,10 @@ hidden behind the accept button:
 - **Shortfalls are stated, not hidden.** If your kits can't cover the
   whole job, the card says so. Taking it is still allowed: work stalls
   when you run dry, and the points you banked are kept and paid
-  pro-rata.
+  pro-rata. When you are short, the line also carries the small
+  quick-buy **+** for the selected kit type — it opens the
+  [[Crafting|quick-buy sheet]] priced for exactly the kits you are
+  missing, and the card's numbers refresh once the fill lands.
 - **A job you cannot take says why** — no patch kits on hand, or (for
   guests) that taking jobs needs a signed-in account. The no-kits
   reason also names where kits come from and doors to them in the same

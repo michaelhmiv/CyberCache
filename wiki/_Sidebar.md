@@ -18,6 +18,7 @@
 - [[Legendary Effects]]
 - [[Vehicles and the Garage]]
 - [[Crafting]]
+- [[Skins and Cosmetics]]
 
 **Economy**
 - [[The Market]]

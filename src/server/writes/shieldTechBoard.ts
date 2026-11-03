@@ -25,6 +25,7 @@ import {
   SHIELD_TECH_XP_PER_POINT_DEFAULT,
   SHIELD_TECH_XP_PER_POINT_MAX,
   SHIELD_TECH_XP_PER_POINT_MIN,
+  calibrationCoreCapacityPoints,
   coresNeededForTarget,
   rebasedShieldPayload,
 } from '../../content/shieldTech.js';
@@ -377,6 +378,7 @@ export function buildShieldTechBoardView(input: {
             priceCredits: job.quoted_price_credits ?? 0,
             coreType: CALIBRATION_CORE_TYPE,
             coresNeeded: coresNeededForTarget,
+            coreCapacityPoints: calibrationCoreCapacityPoints,
             reader: input.reader,
           })
           : null,

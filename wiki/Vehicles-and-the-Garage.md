@@ -51,6 +51,12 @@ There is no single best vehicle. The Skimmer wins a short, fueled
 sprint; the Rover and the Rig win the long haul; the Hauler wins when
 what you want is materials, not credits.
 
+A class's place on the ladder is also what [[Dispatch]] reads: the
+longer courier tiers ask for capability, not seniority — a
+**Regional Haul** takes a Utility Rover-class vehicle or stronger,
+and a **Deep Haul** takes an Armored Crawler-class vehicle or
+stronger. A spare vehicle of any class can always run a Local Run.
+
 ## Getting vehicles
 
 Your **starter Scrap Bike arrives in your initial account bundle**,
@@ -96,7 +102,11 @@ restores **30 points**, a Field Patch Kit **45**, and a Master Patch Kit
 restores, so a 130% kit restores 130% of its base. A vehicle at zero
 condition says so in the Garage — Wrecked — and names patch kits as
 the fix right beside the repair controls; if you own no kits, the
-Vendor and Workshop doors stand there instead. You have two ways to
+Vendor and Workshop doors stand there instead. When the kit type you
+have selected can't fully restore the vehicle, the repair controls
+also carry the small quick-buy **+**: it opens the [[Crafting|quick-buy
+sheet]] for the kits a full restore still needs, counted after the
+kits you hold are spent. You have two ways to
 use one:
 
 - **Self-repair** — do it yourself in the Workshop: untrained and slow,

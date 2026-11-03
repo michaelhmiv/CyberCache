@@ -59,7 +59,13 @@ export const QuickBuySheet: React.FC<{
   onClose: () => void;
   onNavigate?: (screen: string) => void;
   onRefineFocus?: (recipeId: string) => void;
-}> = ({ good, goodName, shortfall, contextLabel, onClose, onNavigate, onRefineFocus }) => {
+  /** Fired once when a fill settles (QB-2): surfaces whose lines
+   *  come from a server view (the service boards) re-read it so
+   *  their requirements stop showing the pre-fill stock. Store-
+   *  driven surfaces (Workshop, Garage) need nothing — the fill's
+   *  own sync already updated their lines. */
+  onFilled?: () => void;
+}> = ({ good, goodName, shortfall, contextLabel, onClose, onNavigate, onRefineFocus, onFilled }) => {
   const [quote, setQuote] = useState<QuickBuyQuote | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [qty, setQty] = useState(shortfall);
@@ -151,6 +157,7 @@ export const QuickBuySheet: React.FC<{
           total: typeof result.total_charged === 'number' ? result.total_charged : activeTotal,
           balance: typeof profile?.credits === 'number' ? profile.credits : null,
         });
+        onFilled?.();
       } else if (result.status === 'requote') {
         const fresh = result.quote as unknown as QuickBuyQuote;
         applyQuote(fresh);

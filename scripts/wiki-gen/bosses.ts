@@ -1,6 +1,6 @@
 /**
  * Boss roster — INTEL ONLY, following the line the Bosses page and
- * the boss-intel law draw: stats, gates, mechanics, phases, and the
+ * the boss-intel law draw: stats, mechanics, phases, and the
  * counters the prep screen itself recommends. Nothing here prints
  * drop odds, win chance, or pity numbers — the generic drop table is
  * deliberately omitted; only each boss's dedicated drops (which the
@@ -26,7 +26,7 @@ function bossSection(b: BossDef): string {
     '',
     bossSpriteImgTag(b),
     '',
-    `- **Level gate:** ${b.level} · **Recommended power:** ${b.recommendedPower}`,
+    `- **Boss level:** ${b.level} · **Recommended power:** ${b.recommendedPower}`,
     `- **Health / Shield / Armor:** ${b.health} / ${b.shield} / ${b.armor} · **Boss DPS:** ${b.dps}`,
     `- **Weaknesses:** ${listOrDash([...b.weaknesses])} · **Resistances:** ${listOrDash([...b.resistances])}`,
     `- **Mechanic — ${b.mechanic.name}:** ${b.mechanic.description}`,

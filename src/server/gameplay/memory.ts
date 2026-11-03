@@ -86,11 +86,10 @@ import {
   type CacheRankLeverValues,
 } from '../../content/cacheRank';
 import {
-  courierTierGate,
   resolveDispatchLevers,
+  vehicleClassEligibleForTier,
   type DispatchLeverValues,
 } from '../../content/dispatch';
-import { getVehicleClass } from '../../lib/vehicles/vehicles';
 import { SkillTreeType } from '../../types/game';
 import type { ConsumableBatchRow } from '../../lib/consumables/batchProfile';
 import {
@@ -1944,8 +1943,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       }
       const classId = typeof vehicle.payload.vehicleClassId === 'string' ? vehicle.payload.vehicleClassId : null;
       if (classId !== (t.vehicle_class_id ?? null)) throw new GameplayStoreError('Courier vehicle class mismatch');
-      const unlock = getVehicleClass(classId)?.unlockLevel ?? -1;
-      if (unlock < courierTierGate(duration as 2 | 8 | 24)) {
+      if (!vehicleClassEligibleForTier(classId, duration as 2 | 8 | 24)) {
         throw new GameplayStoreError('Vehicle class cannot run this courier tier');
       }
       const fuelCharged = Number(t.fuel_charged_units ?? 0);

@@ -25,8 +25,8 @@ A courier contract sends a vehicle instead of a loadout, on one of three tiers. 
 | Tier | Duration | Vehicle class required | Pays |
 |---|---|---|---|
 | Local Run | 2 h | Any class | Credit line ×1.6 |
-| Regional Haul | 8 h | A class unlocked at level 18 or higher | Credit line ×1.6 |
-| Deep Haul | 24 h | A class unlocked at level 42 or higher | Credit line ×1.6 |
+| Regional Haul | 8 h | Utility Rover class or stronger | Credit line ×1.6 |
+| Deep Haul | 24 h | Armored Crawler class or stronger | Credit line ×1.6 |
 
 - **Credits** pay a **1.6× premium** over the same-duration foot line to the same destination (priced at full strength — no loadout rides). **Scrap** pays the plain foot line, unpremiated.
 - **Materials** pay the foot amount **plus a cargo bonus** from the vehicle's hauling bonuses — hauling rigs earn their keep here.
