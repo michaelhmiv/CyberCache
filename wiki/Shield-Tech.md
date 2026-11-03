@@ -68,8 +68,10 @@ Every open posting shows its requirements on its face:
 - **A job you cannot take says why** — no Calibration Cores on hand, or
   (for guests) that taking jobs needs a signed-in account. The
   no-cores reason also names where cores come from and doors to them
-  in the same line: cores craft in the Workshop at level 15 on the
-  Forge bench, and player listings trade on the [[The Market|Market]]
+  in the same line: cores craft in the Workshop on the Forge
+  bench — the recipe itself carries no level gate; the level 15
+  in the chain is the Forge bench's own unlock — and player
+  listings trade on the [[The Market|Market]]
   — the Market door lands on the Consumables category already
   searched for Calibration Cores. Mastery is
   never a requirement: it only changes the speed and efficiency numbers
