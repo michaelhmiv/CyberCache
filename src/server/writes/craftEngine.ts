@@ -399,14 +399,16 @@ export interface CraftSettleResult {
   completions: Array<CraftJobOutput & { jobId: string; recipeId: string }>;
 }
 
-/** The internal away-cap when no caller passes one: the earned tier +
- *  limiter + 24h ceiling, WITHOUT the Scavenger keystone bonus (the
- *  settle-offline route passes the exact cap including the bonus).
- *  Conservative by construction — it can only under-pay the rare
- *  direct-to-Workshop login path, never over-pay. */
-function internalAwayCapMs(profile: CraftProfileView): number {
+/** The internal away-cap when no caller passes one: the earned cap
+ *  (2h base + the Research Logistics track's grants, read live
+ *  through the adapter's research accessor) + limiter + 24h
+ *  ceiling, WITHOUT the Scavenger keystone bonus (the settle-offline
+ *  route passes the exact cap including the bonus). Conservative by
+ *  construction — it can only under-pay the rare direct-to-Workshop
+ *  login path, never over-pay. */
+function internalAwayCapMs(adapter: CraftAdapter, playerId: string, profile: CraftProfileView): number {
   const hours = effectiveOfflineCapHours({
-    level: profile.player_level,
+    researchCapHours: adapter.researchBonus?.(playerId, 'offlineCapBonus') ?? 0,
     bonusHours: 0,
     userCapHours: profile.offline_cap_hours,
     ceilingHours: 24,
@@ -460,7 +462,7 @@ export function settleCraftJobs(
         Math.max(0, (heartbeatMs ?? startMs) + CRAFT_HEARTBEAT_GRACE_MS - startMs),
       );
       const awayMs = rawDelta - attendedMs;
-      advance = attendedMs + Math.min(awayMs, internalAwayCapMs(profile));
+      advance = attendedMs + Math.min(awayMs, internalAwayCapMs(adapter, playerId, profile));
     }
     perJobAdvance.set(job.id, advance);
     maxAdvance = Math.max(maxAdvance, advance);

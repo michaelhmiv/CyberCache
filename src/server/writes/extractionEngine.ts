@@ -90,6 +90,10 @@ export interface ExtractionProfileFacts {
   /** {} (or empty) = alive; a non-empty record blocks extraction starts. */
   deathState: Record<string, unknown>;
   offlineCapHours: number | null;
+  /** Offline-cap hours granted by the player's completed Research
+   *  (the Logistics track's offlineCapBonus total), derived by the
+   *  store from the player's own completion records. */
+  researchOfflineCapHours: number;
   /** can_use_player_economy: verified, non-guest account. */
   verified: boolean;
 }
@@ -136,11 +140,13 @@ export function extractionShieldFromItems(items: EquippedItemEntry[]): Extractio
 }
 
 /** The away cap the lazy settler applies (0024's internal formula,
- *  verbatim): min(earned tier, limiter when set), floored at 1h —
+ *  verbatim): min(earned cap, limiter when set), floored at 1h —
  *  WITHOUT the Scavenger keystone bonus (explicit offline settlement
- *  passes its cap in as maxAdvanceMs instead). */
-export function extractionAwayCapMs(level: number, limiterHours: number | null): number {
-  const earned = earnedOfflineCapHours(level);
+ *  passes its cap in as maxAdvanceMs instead). The earned cap is the
+ *  2h base + the Research Logistics track's grants (gate-removal
+ *  step 6 — level no longer carries it). */
+export function extractionAwayCapMs(researchCapHours: number, limiterHours: number | null): number {
+  const earned = earnedOfflineCapHours(researchCapHours);
   const limiter = limiterHours != null && limiterHours > 0 ? limiterHours : earned;
   return Math.max(1, Math.min(earned, limiter)) * 3_600_000;
 }
@@ -175,7 +181,7 @@ export function accrueExtractionTime(
       const profile = adapter.profile(playerId);
       const heartbeatMs = action.lastHeartbeatMs ?? action.startedMs ?? startMs;
       const attended = Math.min(raw, Math.max(0, heartbeatMs + 300_000 - startMs));
-      const awayCap = extractionAwayCapMs(profile?.level ?? 1, profile?.offlineCapHours ?? null);
+      const awayCap = extractionAwayCapMs(profile?.researchOfflineCapHours ?? 0, profile?.offlineCapHours ?? null);
       advance = attended + Math.min(raw - attended, awayCap);
     }
   }

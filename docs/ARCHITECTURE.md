@@ -477,7 +477,7 @@ duplicates:
 |---|---|
 | Roaming event tables, elite law, essence homes, signature materials, event EV model | `src/content/roamingEvents.ts` |
 | Hot area (date-seeded rotation) | `src/content/hotArea.ts` |
-| Offline cap law (earned tiers, limiter, 24h ceiling) | `src/content/offlineCap.ts` |
+| Offline cap law (Research-earned hours, limiter, 24h ceiling) | `src/content/offlineCap.ts` |
 | Per-area visual identity (palettes, weather, animated props, boss arenas) | `src/content/areaPalettes.ts` |
 | Segmented rigs + poses (enemies) | `src/lib/pixel/rig.ts` (+ `PixelRigActor`) |
 | Hunter part system (skeleton, poses, stock set, head variants, layout/raster, stage FX points) | `src/lib/pixel/parts.ts`, `standardIssue.ts`, `headParts.ts`, `partsCompositor.ts`, `partsStage.ts` (+ `PixelPartsActor`) |
