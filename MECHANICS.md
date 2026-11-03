@@ -313,9 +313,9 @@ PartBonus = parts.length * floor(level/5) extra ScrapAlloy
 ## 8. Crafting System (Workshop)
 
 ### Benches
-- **Bench 1**: Unlock at Lv.5, free
-- **Bench 2**: Unlock at Lv.15, 5,000cr
-- **Bench 3**: Unlock at Lv.30, 25,000cr + 10 VoidDust
+- **Bench 1**: Starting bench, free
+- **Bench 2**: 5,000cr (price is the whole gate — no level requirement)
+- **Bench 3**: 25,000cr + 10 VoidDust
 - Max 3 active queues (one per bench)
 
 ### Time Reduction (Scavenger Tree)
