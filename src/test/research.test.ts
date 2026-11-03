@@ -164,7 +164,15 @@ describe('research catalog — faculties, tiers, sizing', () => {
       gearDrawBonus: 1,
     });
     expect(researchCourse('void_theory')?.effects).toEqual({ bossDedicatedChanceBonus: 0.01 });
-    expect(researchCourse('syndicate_ledger')?.effects).toEqual({ marketFeeReduction: 0.05 });
+    expect(researchCourse('street_economics')?.effects).toEqual({
+      vendorBuybackBonus: 0.02,
+      offlineCapBonus: 2,
+    });
+    expect(researchCourse('supply_chains')?.effects).toEqual({ offlineCapBonus: 4 });
+    expect(researchCourse('syndicate_ledger')?.effects).toEqual({
+      marketFeeReduction: 0.05,
+      offlineCapBonus: 4,
+    });
   });
 });
 
@@ -196,7 +204,7 @@ describe('research bonus derivation', () => {
     expect(bonuses.vehicleDecayReduction).toBeCloseTo(0.1, 10);
     expect(bonuses.repairServiceXpBonus).toBe(1);
     expect(bonuses.vendorBuybackBonus).toBeCloseTo(0.02, 10);
-    expect(bonuses.offlineCapBonus).toBe(1);
+    expect(bonuses.offlineCapBonus).toBe(10);
     expect(bonuses.marketFeeReduction).toBeCloseTo(0.05, 10);
     expect(bonuses.weaponDamage).toBeCloseTo(0.01, 10);
     expect(bonuses.shieldCapacity).toBeCloseTo(0.02, 10);
