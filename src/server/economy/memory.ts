@@ -443,9 +443,7 @@ export class InMemoryEconomyStore implements EconomyStore {
       marketMedianPrice: median(salePrices),
       marketMedianByRarity,
       cacheKeysFromAds: rows.filter((r) => r.action_type === 'cc_claim_rewarded_cache_key').length,
-      cacheOpens: rows.filter(
-        (r) => r.action_type === 'cc_make_item' || r.action_type === 'cc_draw_item',
-      ).length,
+      cacheOpens: rows.filter((r) => r.action_type === 'cc_make_item').length,
       // Cache box lane (0037): issuance by resolved payment, folded
       // from cc_make_item rows. Rows written before 0037 carry no
       // 'payment' and count as key — every pre-lane opening was

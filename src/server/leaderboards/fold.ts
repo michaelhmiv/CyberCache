@@ -30,7 +30,7 @@ import {
 /** Ledger action types the weekly fold reads (fetches filter on this). */
 export const WEEKLY_FOLD_ACTION_TYPES: readonly string[] = [
   'cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'roaming.elite_kill',
-  'cc_apply_boss_attempt', 'cc_make_item', 'cc_draw_item',
+  'cc_apply_boss_attempt', 'cc_make_item',
   'cc_recycle_item', 'cc_accept_listing', 'cc_apply_extraction',
 ];
 
@@ -129,7 +129,7 @@ function ledgerContribution(
       }
       return null;
     case 'caches_opened':
-      if (row.action_type === 'cc_make_item' || row.action_type === 'cc_draw_item') {
+      if (row.action_type === 'cc_make_item') {
         return { playerId: row.user_id, delta: 1 };
       }
       return null;

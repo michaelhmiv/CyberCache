@@ -181,7 +181,7 @@ describe('weekly leaderboards — fold', () => {
       row(B, 'roaming.elite_kill', { elite_kills: 2 }, '2026-10-19T10:00:00.000Z'),
       row(B, 'roaming.elite_kill', { elite_kills: 3 }, '2026-10-19T11:00:00.000Z'),
       row(C, 'cc_make_item', {}, '2026-10-19T10:00:00.000Z'),
-      row(C, 'cc_draw_item', {}, '2026-10-19T11:00:00.000Z'),
+      row(C, 'cc_make_item', {}, '2026-10-19T11:00:00.000Z'),
       row(C, 'cc_recycle_item', { item: { rarity: 'Epic' } }, '2026-10-19T12:00:00.000Z'),
       row(C, 'cc_apply_extraction', { passes_completed: 2 }, '2026-10-19T13:00:00.000Z'),
     ];
