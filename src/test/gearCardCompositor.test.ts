@@ -187,12 +187,18 @@ describe('gear core — bespoke resolves first (slot exists, registry empty)', (
 });
 
 describe('gear core — dispatch seam (slice 0 changes no output)', () => {
-  it('every kind routes to svg by default: flags off, no grammars', () => {
-    for (const kind of ['shield', 'relic', 'classMod', 'ordnance'] as const) {
+  it('unflipped kinds route to svg: flags off, no grammars', () => {
+    for (const kind of ['shield', 'relic', 'classMod'] as const) {
       expect(GEAR_PIXEL_KINDS[kind]).toBe(false);
       expect(GEAR_GRAMMARS[kind]).toBeUndefined();
       expect(gearRenderRoute(kind)).toBe('svg');
     }
+  });
+
+  it('ordnance flipped in slice 2: flag on, grammar registered, route pixel', () => {
+    expect(GEAR_PIXEL_KINDS.ordnance).toBe(true);
+    expect(GEAR_GRAMMARS.ordnance?.id).toBe('ordnance');
+    expect(gearRenderRoute('ordnance')).toBe('pixel');
   });
 
   it('pixel requires flag AND grammar; a flag alone fails safe to svg', () => {
