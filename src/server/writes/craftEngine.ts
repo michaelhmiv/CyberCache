@@ -263,7 +263,7 @@ export interface CraftProfileView {
   player_level: number;
   player_xp: number;
   credits: number;
-  // Econ 5 (0068): no scrap balance on this view — Scrap is the
+  // Econ 5 (0069): no scrap balance on this view — Scrap is the
   // materials['Scrap'] stock like every other material key.
   materials: Record<string, number>;
   essences: Record<string, number>;
@@ -1103,7 +1103,7 @@ export function enqueueCraftJob(
   }
 
   // Verify the full escrow before taking any of it (atomicity).
-  // Econ 5 (0068): the `Scrap` key is an ordinary material key now —
+  // Econ 5 (0069): the `Scrap` key is an ordinary material key now —
   // the 0053 scrap-column special case is deleted in both twins.
   const escrowInputs: Record<string, number> = {};
   for (const [key, perUnit] of Object.entries(r.inputs)) {
@@ -1700,7 +1700,7 @@ export function cancelCraftJob(
   };
   // Recipe inputs split materials/essences by key space; the catalyst
   // is a per-unit material input and follows the same refund rule.
-  // Econ 5 (0068): the `Scrap` key is a material key, so its refund
+  // Econ 5 (0069): the `Scrap` key is a material key, so its refund
   // rides the materials map on the standard schedule — the 0053
   // scrap-column fold is deleted.
   const materialInputs: Record<string, number> = {};

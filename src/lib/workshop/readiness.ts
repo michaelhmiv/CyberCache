@@ -161,7 +161,7 @@ export function masteryLevel(ctx: WorkshopPlayerContext, track: string): number 
 }
 
 function haveFor(ctx: WorkshopPlayerContext, key: string): number {
-  // Econ 5 (0068): 'Scrap' is a material key — the one stock is
+  // Econ 5 (0069): 'Scrap' is a material key — the one stock is
   // ctx.materials['Scrap'] (ctx.scrap mirrors it from the profile).
   return isMaterialInput(key) ? (ctx.materials[key] ?? 0) : (ctx.essences[key] ?? 0);
 }

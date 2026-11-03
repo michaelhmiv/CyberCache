@@ -1580,7 +1580,7 @@ export function emptyReadSeed(): ReadSeed {
 
 export class InMemoryReadStore implements ReadStore {
   constructor(private readonly seed: ReadSeed = emptyReadSeed(), private readonly now: () => Date = () => new Date()) {
-    // Econ 5 (0068): fold any seed's legacy scrap balance into the
+    // Econ 5 (0069): fold any seed's legacy scrap balance into the
     // unified materials stock; the row's `scrap` field from here on
     // is a read projection of materials['Scrap'], never a balance.
     for (const p of this.seed.profiles) {
@@ -2008,7 +2008,7 @@ export function mapProfile(row: Row): ProfileRowData {
     ...(row as unknown as ProfileRowData),
     player_xp: num(row.player_xp),
     credits: num(row.credits),
-    // Econ 5 (0068): the profile's scrap is the materials stock; the
+    // Econ 5 (0069): the profile's scrap is the materials stock; the
     // retired profiles.scrap column (0 after conversion) never reads.
     scrap: num((row.materials as Record<string, number> | undefined)?.['Scrap']),
     last_claimed_tick: num(row.last_claimed_tick),

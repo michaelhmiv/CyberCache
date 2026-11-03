@@ -206,7 +206,7 @@ export interface InMemoryProfile {
   player_level: number;
   player_xp: number;
   credits: number;
-  // Econ 5 (migration 0068): there is NO scrap column balance on this
+  // Econ 5 (migration 0069): there is NO scrap column balance on this
   // record — the one Scrap stock lives in materials['Scrap'] and every
   // read/write goes through it. Views project `scrap` from the stack.
   /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
@@ -2918,7 +2918,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     p.boss_state = bossState;
 
     p.credits = Math.max(0, p.credits + Math.trunc(attempt.creditsDelta));
-    // 0008: Second Opinion auto-scrap credit (0068: lands in the
+    // 0008: Second Opinion auto-scrap credit (0069: lands in the
     // unified materials['Scrap'] stack).
     p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + Math.trunc(attempt.scrap);
 

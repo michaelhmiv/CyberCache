@@ -266,7 +266,7 @@ const ACTIVE_KINDS = [
   'endless_run',
   'extraction',
 ] as const;
-// Econ 5 (0068): 'Scrap' heads the list — the unified currency stock
+// Econ 5 (0069): 'Scrap' heads the list — the unified currency stock
 // is a material key everywhere (market escrow, recipe classification).
 const MATERIAL_KEYS = ['Scrap', 'ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave'] as const;
 
@@ -399,7 +399,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.slotLeverProvider = opts.slotLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) {
-      // Econ 5 (0068): a seed's legacy `scrap` amount folds into the
+      // Econ 5 (0069): a seed's legacy `scrap` amount folds into the
       // unified materials stock and the row's scrap field zeroes —
       // mirroring the live conversion (column retired, stack holds it).
       const legacyScrap = typeof p.scrap === 'number' ? p.scrap : 0;
@@ -4796,7 +4796,7 @@ export class InMemoryWriteStore implements WriteStore {
     p.credits = 5000;
     p.cache_tokens = 3;
     p.cache_token_parts = 0;
-    // Econ 5 (0068): the reset's starting scrap is the materials stack.
+    // Econ 5 (0069): the reset's starting scrap is the materials stack.
     p.materials = { Scrap: 500 };
     p.essences = {};
     p.consumables = {};

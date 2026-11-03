@@ -198,7 +198,7 @@ export const WEAPON_TYPE_VISUALS = {
 } satisfies Record<WeaponType, VisualAsset>;
 
 export const MATERIAL_VISUALS = {
-  // Scrap the currency-material (economy slice 5, migration 0068):
+  // Scrap the currency-material (economy slice 5, migration 0069):
   // colors match the long-standing `scrap` resource visual below so
   // the wallet strip and the material stack read as one stock.
   [MaterialType.Scrap]: { id: MaterialType.Scrap, kind: 'material', label: 'Scrap', shortLabel: 'SCR', mark: 'S', color: '#FF5722', accentColor: '#FF8A65', description: 'Salvaged metal and parts — the workbench currency every hunter earns and spends. Tradeable on the player market.', texture: 'metal' },

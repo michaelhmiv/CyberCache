@@ -1530,7 +1530,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   async getDispatchFacts(playerId: string): Promise<{ profile: DispatchProfileFacts; items: DispatchCandidateItem[] } | null> {
     const profile = await this.one(
-      // Econ 5 (0068): the Scrap stock is materials['Scrap']; the
+      // Econ 5 (0069): the Scrap stock is materials['Scrap']; the
       // retired profiles.scrap column is never read.
       'select player_level, vehicle_fuel, credits, coalesce((materials ->> \'Scrap\')::bigint, 0) as scrap from public.profiles where id = $1',
       [playerId],
