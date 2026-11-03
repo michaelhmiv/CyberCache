@@ -19,6 +19,7 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { WeeklyEarningsPanel } from '@/components/leaderboard/WeeklyEarningsPanel';
 import { getPublicProfile, type PlayerPublicProfile } from '@/lib/api/publicProfileService';
 import { PublicProfilePanel } from '@/components/profile/PublicProfilePanel';
+import { PlayerProfileSheet } from '@/components/profile/PlayerProfileSheet';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
 import { resolveLookView } from '@/lib/pixel/lookResolution';
 import { useHunterLooks } from '@/lib/pixel/useHunterLooks';
@@ -47,7 +48,9 @@ const WeeklyRaceStandings: React.FC<{
   final?: boolean;
   /** Entrance stagger slot (§10 list entrances). */
   index?: number;
-}> = ({ race, myPlayerId, final, index = 0 }) => {
+  /** Every racer row is a door to that hunter's profile (0058). */
+  onSelectPlayer?: (playerId: string) => void;
+}> = ({ race, myPlayerId, final, index = 0, onSelectPlayer }) => {
   const reduceMotion = useReducedMotion();
   // Standings portraits (0053): every racer's worn look, batched.
   const looks = useHunterLooks([
@@ -72,9 +75,13 @@ const WeeklyRaceStandings: React.FC<{
       ) : (
         <div>
           {race.entries.map((entry) => (
-            <div
+            <button
               key={entry.player_id}
-              className={`flex items-center gap-2 py-1 ${entry.player_id === myPlayerId ? 'bg-amber/10' : ''}`}
+              type="button"
+              data-testid={`standings-row-${entry.player_id}`}
+              aria-label={`Open ${entry.username ?? 'Hunter'}'s profile`}
+              onClick={() => onSelectPlayer?.(entry.player_id)}
+              className={`flex w-full items-center gap-2 py-1 text-left ${entry.player_id === myPlayerId ? 'bg-amber/10' : ''}`}
             >
               <span className="w-7 shrink-0 text-right text-xs font-black text-amber">#{entry.rank}</span>
               {looks[entry.player_id] && (
@@ -89,16 +96,22 @@ const WeeklyRaceStandings: React.FC<{
                 {entry.value.toLocaleString('en-US')}
               </span>
               <span className="whitespace-nowrap text-[10px] text-text-muted">{race.unit}</span>
-            </div>
+            </button>
           ))}
         </div>
       )}
-      {race.me && !inTop && (
-        <div className="flex items-center gap-2 border-t border-amber/40 bg-amber/10 px-1 py-1">
+      {race.me && !inTop && myPlayerId && (
+        <button
+          type="button"
+          data-testid="standings-row-me"
+          aria-label="Open your public profile"
+          onClick={() => onSelectPlayer?.(myPlayerId)}
+          className="flex w-full items-center gap-2 border-t border-amber/40 bg-amber/10 px-1 py-1 text-left"
+        >
           <span className="w-7 shrink-0 text-right text-xs font-black text-amber">#{race.me.rank}</span>
-          {looks[myPlayerId ?? ''] && (
+          {looks[myPlayerId] && (
             <span className="w-7 shrink-0" data-testid="standings-portrait-me">
-              <HunterPortrait look={resolveLookView(looks[myPlayerId ?? ''])} className="h-9" />
+              <HunterPortrait look={resolveLookView(looks[myPlayerId])} className="h-9" />
             </span>
           )}
           <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">You</span>
@@ -106,7 +119,7 @@ const WeeklyRaceStandings: React.FC<{
             {race.me.value.toLocaleString('en-US')}
           </span>
           <span className="whitespace-nowrap text-[10px] text-text-muted">{race.unit}</span>
-        </div>
+        </button>
       )}
       {reward && (
         <div className="border border-amber/50 bg-amber/10 px-2 py-1 text-[11px] font-bold text-text-primary">
@@ -134,7 +147,8 @@ const WeeklyRacesPanel: React.FC<{
   error: string | null;
   onRetry: () => void;
   myPlayerId?: string | null;
-}> = ({ data, loading, error, onRetry, myPlayerId }) => {
+  onSelectPlayer?: (playerId: string) => void;
+}> = ({ data, loading, error, onRetry, myPlayerId, onSelectPlayer }) => {
   if (loading) {
     return (
       <MobileCard className="space-y-2" rarityColor="#FF9000">
@@ -186,7 +200,7 @@ const WeeklyRacesPanel: React.FC<{
       </div>
 
       {data.races.map((race, index) => (
-        <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} index={index} />
+        <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} index={index} onSelectPlayer={onSelectPlayer} />
       ))}
 
       <div className="border-t border-border pt-3">
@@ -201,7 +215,7 @@ const WeeklyRacesPanel: React.FC<{
         )}
         <div className="mt-2 space-y-4">
           {prev.races.map((race, index) => (
-            <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} final index={index} />
+            <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} final index={index} onSelectPlayer={onSelectPlayer} />
           ))}
         </div>
         {prev.settled && !prevPlaced && (
@@ -223,7 +237,8 @@ const WeeklyRacesPanel: React.FC<{
 const WeeklySection: React.FC<{
   myPlayerId?: string | null;
   focusEarningsNonce?: number;
-}> = ({ myPlayerId, focusEarningsNonce = 0 }) => {
+  onSelectPlayer?: (playerId: string) => void;
+}> = ({ myPlayerId, focusEarningsNonce = 0, onSelectPlayer }) => {
   const [data, setData] = useState<WeeklyLeaderboards | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -264,6 +279,7 @@ const WeeklySection: React.FC<{
           error={error}
           onRetry={retry}
           myPlayerId={myPlayerId}
+          onSelectPlayer={onSelectPlayer}
         />
       </div>
     </>
@@ -288,6 +304,13 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<PlayerPublicProfile | null>(null);
+  const [fullProfileOpen, setFullProfileOpen] = useState(false);
+
+  const openPlayer = useCallback((playerId: string) => {
+    setFullProfileOpen(false);
+    setSelectedProfile(null);
+    setSelectedPlayerId(playerId);
+  }, []);
 
   // All state writes happen inside the promise callbacks (never
   // synchronously in the effect body): first load shows the spinner
@@ -332,7 +355,7 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
 
   return (
     <>
-      <WeeklySection myPlayerId={user?.id} focusEarningsNonce={focusEarningsNonce} />
+      <WeeklySection myPlayerId={user?.id} focusEarningsNonce={focusEarningsNonce} onSelectPlayer={openPlayer} />
 
       <LeaderboardMetricPicker
         metric={metric}
@@ -352,10 +375,7 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
           entries={entries}
           myPlayerId={user?.id}
           loading={loading}
-          onRowClick={(playerId) => {
-            setSelectedProfile(null);
-            setSelectedPlayerId(playerId);
-          }}
+          onRowClick={openPlayer}
         />
       )}
 
@@ -363,12 +383,20 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
         <PublicProfilePanel
           open={!!selectedPlayerId}
           onClose={() => {
+            setFullProfileOpen(false);
             setSelectedPlayerId(null);
             setSelectedProfile(null);
           }}
           profile={selectedProfile}
+          onViewFull={() => setFullProfileOpen(true)}
         />
       )}
+
+      <PlayerProfileSheet
+        open={fullProfileOpen}
+        profile={selectedProfile}
+        onClose={() => setFullProfileOpen(false)}
+      />
     </>
   );
 };

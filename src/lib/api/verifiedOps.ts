@@ -323,6 +323,12 @@ export interface ProfileLifetimePayload {
   collections: { discovered: number; by_family: Record<string, number> };
   showcase: {
     top_weapons: ShowcaseItemPayload[];
+    /**
+     * The player's hand-pinned shelf items in pin order (0058) —
+     * the subset of top_weapons the owner chose. Absent from an
+     * older Chef's payload; surfaces treat missing as no pins.
+     */
+    pinned_item_ids?: string[];
     best_endless_depth: number;
     cache_rank_tokens: number;
     cache_rank_total_ranks: number;
@@ -332,3 +338,14 @@ export interface ProfileLifetimePayload {
 
 export const fetchProfileLifetime = async (): Promise<ProfileLifetimePayload> =>
   apiRequest<ProfileLifetimePayload>('/profile/stats', { method: 'GET' });
+
+/**
+ * Replace the caller's Trophy Shelf pins (POST
+ * /api/profile/showcase-pins, 0058): the full desired list in pin
+ * order; an empty list clears the pins. Validation returns as data
+ * ({ok:false, error}) — the shelf panel shows the reason in place.
+ */
+export const setShowcasePins = async (
+  itemIds: string[],
+): Promise<{ ok: boolean; error?: string; pinned_item_ids?: string[] }> =>
+  apiRequest('/profile/showcase-pins', { method: 'POST', body: { item_ids: itemIds } });

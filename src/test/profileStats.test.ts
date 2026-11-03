@@ -20,7 +20,8 @@
  *    first).
  *  - The trophy shelf is the SERVER's top-3 weapons (rarity → level
  *    → newest) as full runtime-item rows — the real instances the
- *    compositor renders. No pin choice exists in v1.
+ *    compositor renders. (Hand-pinning arrived with 0058 and is
+ *    pinned down in showcasePins.test.ts.)
  *  - GET /api/profile/stats resolves identity from the JWT only; a
  *    query/body playerId can never name another player's record.
  */

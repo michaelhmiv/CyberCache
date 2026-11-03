@@ -6,6 +6,24 @@
  * `| null` contract.
  */
 import { apiRequest } from './http';
+import type { ShowcaseItemPayload } from './verifiedOps';
+
+/**
+ * The public shelf (0058): the same showcase block the owner's own
+ * Trophy Shelf renders — top weapons (hand-pinned first, in pin
+ * order), best depth, Cache Rank standing, collection count. All
+ * of it is brag data the game already shows on leaderboards.
+ * Optional on the type because an older Chef (pre-0058 rollout)
+ * omits it; surfaces fall back to no shelf rather than failing.
+ */
+export interface PlayerShowcaseData {
+  top_weapons: ShowcaseItemPayload[];
+  pinned_item_ids: string[];
+  best_endless_depth: number;
+  cache_rank_tokens: number;
+  cache_rank_total_ranks: number;
+  collections_discovered: number;
+}
 
 export interface PlayerPublicProfile {
   player_id: string;
@@ -28,6 +46,7 @@ export interface PlayerPublicProfile {
   highest_item_level: number;
   joined_at: string;
   last_active_at: string;
+  showcase?: PlayerShowcaseData;
 }
 
 export async function getPublicProfile(playerId: string): Promise<PlayerPublicProfile | null> {

@@ -1,55 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
-import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import {
   fetchProfileLifetime,
+  setShowcasePins,
   type ProfileLifetimePayload,
   type ShowcaseItemPayload,
 } from '@/lib/api/verifiedOps';
+import { ShowcaseWeaponRow } from './ShowcaseRows';
 import { COLLECTION_TOTAL } from '@/content/collections';
 import { RARITIES } from '@/constants/rarities';
-import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
+import { RARITY_RANK } from '@/lib/pixel/lootMoment';
+import { Rarity } from '@/types/game';
+import type { Weapon } from '@/types/items';
+import { useInventoryStore } from '@/store';
 
 /**
- * Trophy Shelf (Profile showcase, 0034) — the player's brag surface.
+ * Trophy Shelf (Profile showcase, 0034; hand-pinning 0058) — the
+ * player's brag surface.
  *
- * The shelf is the SERVER's top-3 weapons (rarity → level → newest)
- * from GET /api/profile/stats, rendered as the real item instances
- * through the shipped compositor (real-item invariant: the payload
- * IS the instance the generators minted — seed, parts, affixes and
- * roll quality all ride it). Alongside: best endless depth, Cache
- * Rank standing, and collection completion — all folded server-side
- * from server records; this panel computes nothing. There is no pin
- * choice in v1: the shelf is the server's top-N (see the slice PR).
- * Renders nothing until the Chef answers, so an unreachable Chef
- * simply omits the panel (the CacheRankPanel pattern).
+ * The shelf is the SERVER's top-3 weapons from GET
+ * /api/profile/stats, rendered as the real item instances through
+ * the shipped compositor (real-item invariant: the payload IS the
+ * instance the generators minted — seed, parts, affixes and roll
+ * quality all ride it). Since 0058 the owner can PIN favorites:
+ * pinned weapons headline the shelf in pin order and the server
+ * rank (rarity → level → newest) fills the remaining slots. Pins
+ * are server state (POST /api/profile/showcase-pins, full-list
+ * replace) — they survive devices; this panel computes nothing but
+ * the candidate list, and the server validates ownership/kind/
+ * showability regardless of what the picker offered. Alongside:
+ * best endless depth, Cache Rank standing, and collection
+ * completion — all folded server-side. Renders nothing until the
+ * Chef answers, so an unreachable Chef simply omits the panel (the
+ * CacheRankPanel pattern).
  */
 
-function weaponInput(item: ShowcaseItemPayload): PixelWeaponInput {
-  const payload = item.payload ?? {};
-  const str = (value: unknown): string | undefined =>
-    typeof value === 'string' && value !== '' ? value : undefined;
-  const num = (value: unknown): number | undefined =>
-    typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-  return {
-    id: item.id,
-    name: str(payload.name),
-    weaponType: (str(payload.weaponType) ?? WeaponType.Pistol) as WeaponType,
-    manufacturer: (str(payload.manufacturer) ?? Manufacturer.HelixWorks) as Manufacturer,
-    element: str(payload.element) as Element | undefined,
-    rarity: (item.rarity ?? str(payload.rarity) ?? Rarity.Common) as Rarity,
-    pixelSeed: num(payload.pixelSeed),
-    rollQuality: num(payload.rollQuality),
-    affixes: Array.isArray(payload.affixes) ? (payload.affixes as PixelWeaponInput['affixes']) : undefined,
-    parts: Array.isArray(payload.parts) ? (payload.parts as PixelWeaponInput['parts']) : undefined,
-  };
-}
-
-function rarityColor(rarity: string | null): string {
-  return RARITIES[rarity as Rarity]?.color ?? '#A5A7B5';
-}
+const SHELF_SIZE = 3;
 
 const FactChip: React.FC<{ label: string; value: string; tone: string }> = ({ label, value, tone }) => (
   <div className="bl-card min-w-0 flex-1 px-2 py-2 text-center" style={{ borderTopColor: tone, borderTopWidth: 3 }}>
@@ -103,6 +90,23 @@ const CollectionsTile: React.FC<{
   );
 };
 
+const PinButton: React.FC<{
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  testId: string;
+}> = ({ label, onClick, disabled = false, testId }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    data-testid={testId}
+    className="bl-secondary shrink-0 px-2 py-2 text-[11px] font-black uppercase tracking-wide text-text-primary disabled:opacity-40"
+  >
+    {label}
+  </button>
+);
+
 export const TrophyShelfPanel: React.FC<{
   onOpenCollections?: () => void;
   /**
@@ -116,6 +120,10 @@ export const TrophyShelfPanel: React.FC<{
   bare?: boolean;
 }> = ({ onOpenCollections, bare = false }) => {
   const [data, setData] = useState<ProfileLifetimePayload | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const inventoryItems = useInventoryStore((s) => s.items);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,16 +140,105 @@ export const TrophyShelfPanel: React.FC<{
     };
   }, []);
 
+  const pins = useMemo(() => data?.showcase.pinned_item_ids ?? [], [data]);
+
+  /** The picker's candidates: owned, showable weapons not already
+   * pinned — strongest first. The server re-validates everything;
+   * this filter only keeps the list honest at a glance (a sparse
+   * starter with no rolled damage can never headline the shelf). */
+  const candidates = useMemo(() => {
+    const owned = inventoryItems.filter(
+      (item): item is Weapon =>
+        'weaponType' in item && typeof (item as Weapon).baseDamage === 'number' && (item as Weapon).baseDamage > 0,
+    );
+    return owned
+      .filter((w) => !pins.includes(w.id))
+      .sort(
+        (a, b) =>
+          (RARITY_RANK[b.rarity] ?? 0) - (RARITY_RANK[a.rarity] ?? 0) || b.level - a.level,
+      );
+  }, [inventoryItems, pins]);
+
   if (!data) return null;
   const { showcase } = data;
   const weapons = showcase.top_weapons;
+
+  const savePins = async (next: string[]) => {
+    setSaving(true);
+    setPinError(null);
+    try {
+      const result = await setShowcasePins(next);
+      if (!result.ok) {
+        setPinError(result.error ?? 'Those pins could not be saved.');
+        return;
+      }
+      const fresh = await fetchProfileLifetime();
+      setData(fresh);
+    } catch {
+      setPinError('Could not reach the Chef — your pins are unchanged.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const movePin = (id: string, delta: number) => {
+    const at = pins.indexOf(id);
+    const to = at + delta;
+    if (at < 0 || to < 0 || to >= pins.length) return;
+    const next = [...pins];
+    [next[at], next[to]] = [next[to], next[at]];
+    void savePins(next);
+  };
+
+  const rowActions = (item: ShowcaseItemPayload): React.ReactNode => {
+    const pinIndex = pins.indexOf(item.id);
+    if (pinIndex >= 0) {
+      return (
+        <div className="flex shrink-0 flex-col gap-1">
+          <div className="flex gap-1">
+            <PinButton
+              label="Up"
+              testId={`trophy-pin-up-${item.id}`}
+              disabled={saving || pinIndex === 0}
+              onClick={() => movePin(item.id, -1)}
+            />
+            <PinButton
+              label="Down"
+              testId={`trophy-pin-down-${item.id}`}
+              disabled={saving || pinIndex === pins.length - 1}
+              onClick={() => movePin(item.id, 1)}
+            />
+          </div>
+          <PinButton
+            label="Unpin"
+            testId={`trophy-unpin-${item.id}`}
+            disabled={saving}
+            onClick={() => void savePins(pins.filter((id) => id !== item.id))}
+          />
+        </div>
+      );
+    }
+    if (pins.length < SHELF_SIZE) {
+      return (
+        <PinButton
+          label="Pin"
+          testId={`trophy-pin-${item.id}`}
+          disabled={saving}
+          onClick={() => void savePins([...pins, item.id])}
+        />
+      );
+    }
+    return null;
+  };
 
   const shelfBody = (
     <>
       <div className="flex items-center gap-2">
         <PxIcon name="trophy" size={17} className="text-amber" />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Trophy Shelf</div>
-        <div className="ml-auto text-[11px] text-text-muted">Best gear, server-ranked</div>
+        <div className="ml-auto text-[11px] text-text-muted">
+          {pins.length > 0 ? `${pins.length} pinned · ranked after` : 'Best gear, server-ranked'}
+        </div>
       </div>
 
       {weapons.length === 0 ? (
@@ -150,42 +247,68 @@ export const TrophyShelfPanel: React.FC<{
         </div>
       ) : (
         <div className="space-y-2">
-          {weapons.map((item, index) => {
-            const payload = item.payload ?? {};
-            const name = typeof payload.name === 'string' && payload.name !== '' ? payload.name : 'Weapon';
-            const rarity = item.rarity ?? (typeof payload.rarity === 'string' ? payload.rarity : 'Common');
-            const level = item.item_level ?? (typeof payload.level === 'number' ? payload.level : 1);
-            const color = rarityColor(rarity);
-            return (
-              <div
-                key={item.id}
-                data-testid="trophy-weapon"
-                className="flex items-center gap-3 border-2 bg-bg px-2 py-1.5"
-                style={{
-                  borderColor: `${color}90`,
-                  clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)',
-                }}
-              >
-                <div className="flex h-9 w-6 shrink-0 items-center justify-center text-base font-black" style={{ color }}>
-                  {index + 1}
-                </div>
-                <div className="flex w-[104px] shrink-0 items-center justify-center">
-                  <PixelWeapon input={weaponInput(item)} size={104} density="card" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  {/* The trophy's name prints whole — a shelved
-                      legendary never ellipsizes (values-wrap law). */}
-                  <div className="break-words text-xs font-black leading-snug text-text-primary">{name}</div>
-                  <div className="break-words text-[11px] font-bold leading-snug" style={{ color }}>
-                    {rarity} · Lv {level}
-                    {item.equipped_slot === 'weapon' ? ' · Equipped' : ''}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {weapons.map((item, index) => (
+            <ShowcaseWeaponRow
+              key={item.id}
+              item={item}
+              index={index}
+              pinned={pins.includes(item.id)}
+              actions={rowActions(item)}
+              testId="trophy-weapon"
+            />
+          ))}
         </div>
       )}
+
+      {pinError && (
+        <div role="alert" className="border border-red/50 bg-red/10 px-2 py-1.5 text-[11px] font-bold text-text-primary">
+          {pinError}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <button
+          type="button"
+          data-testid="trophy-pin-picker-toggle"
+          onClick={() => setPickerOpen((open) => !open)}
+          disabled={saving}
+          className="bl-secondary w-full px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-text-primary disabled:opacity-40"
+        >
+          {pickerOpen ? 'Done picking' : pins.length >= SHELF_SIZE ? 'Shelf full — unpin to swap' : 'Pin a favorite'}
+        </button>
+        {pickerOpen && (
+          <div data-testid="trophy-pin-picker" className="space-y-1">
+            {candidates.length === 0 ? (
+              <div className="text-[11px] text-text-muted">
+                No other weapons to pin yet — every showable weapon you own is already on the shelf or pinned.
+              </div>
+            ) : (
+              candidates.slice(0, 20).map((weapon) => {
+                const color = RARITIES[weapon.rarity as Rarity]?.color ?? '#A5A7B5';
+                return (
+                  <div key={weapon.id} className="flex items-center gap-2 border border-border bg-bg px-2 py-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="break-words text-xs font-black leading-snug text-text-primary">{weapon.name}</div>
+                      <div className="text-[11px] font-bold leading-snug" style={{ color }}>
+                        {weapon.rarity} · Lv {weapon.level}
+                      </div>
+                    </div>
+                    <PinButton
+                      label="Pin"
+                      testId={`trophy-pin-add-${weapon.id}`}
+                      disabled={saving || pins.length >= SHELF_SIZE}
+                      onClick={() => void savePins([...pins, weapon.id])}
+                    />
+                  </div>
+                );
+              })
+            )}
+            {candidates.length > 20 && (
+              <div className="text-[11px] text-text-muted">Showing your strongest 20 — the rest wait their turn.</div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="flex gap-2">
         <FactChip label="Best Depth" value={String(showcase.best_endless_depth)} tone="#FF4B5C" />
