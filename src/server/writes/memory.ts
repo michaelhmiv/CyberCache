@@ -523,7 +523,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.addStat(userId, 'actions.total', 1);
     this.addStat(userId, `actions.${action}`, 1);
     const profilePayload = (result.profile ?? null) as Json | null;
-    if (action === 'cc_make_item' || action === 'cc_draw_item') {
+    if (action === 'cc_make_item') {
       this.addStat(userId, 'inventory.cache_draws', 1);
       this.addMasteryXp(userId, 'inventory.cache_draws', 30);
     } else if (action === 'cc_recycle_item' || action === 'cc_salvage_item') {
@@ -2652,6 +2652,7 @@ export class InMemoryWriteStore implements WriteStore {
           cacheRankSpends: (p.cache_rank_spends ?? {}) as Record<string, number>,
           deathState: ((p as unknown as Record<string, unknown>).death_state ?? {}) as Record<string, unknown>,
           offlineCapHours: p.offline_cap_hours ? p.offline_cap_hours : null,
+          researchOfflineCapHours: this.researchBonusesFor(id).offlineCapBonus,
           verified: this.canUseEconomy(p),
         };
       },
@@ -2714,8 +2715,10 @@ export class InMemoryWriteStore implements WriteStore {
 
   /** Extraction start gates + selection sync (0033's hook in
    *  cc_set_active_action): verified account, no standing death
-   *  record, unlocked area, Deep Delve needs mastery 5. Throws the
-   *  SQL twin's messages BEFORE the activity row changes. */
+   *  record, a real area (never a level check — areas carry no
+   *  hunter-level gate on any path since gate-removal step 6
+   *  retired the SQL twin's leftover), Deep Delve needs mastery 5.
+   *  Throws the SQL twin's messages BEFORE the activity row changes. */
   private gateExtractionStart(playerId: string, input: SetActiveActionInput): void {
     const adapter = this.extractionAdapter();
     const areaId = input.target_id ?? '';
@@ -3058,7 +3061,7 @@ export class InMemoryWriteStore implements WriteStore {
     );
     const awayCapMs =
       effectiveOfflineCapHours({
-        level: provider.player_level,
+        researchCapHours: this.researchBonusesFor(providerId).offlineCapBonus,
         bonusHours: 0,
         userCapHours: provider.offline_cap_hours ?? null,
         ceilingHours: 24,
@@ -3631,7 +3634,7 @@ export class InMemoryWriteStore implements WriteStore {
     );
     const awayCapMs =
       effectiveOfflineCapHours({
-        level: provider.player_level,
+        researchCapHours: this.researchBonusesFor(providerId).offlineCapBonus,
         bonusHours: 0,
         userCapHours: provider.offline_cap_hours ?? null,
         ceilingHours: 24,

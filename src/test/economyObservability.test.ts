@@ -250,7 +250,6 @@ function seededDay(): EconomySeed {
     row('cc_initial_bundle', {}), // flat 5000-credit grant, literal in the function
     row('cc_claim_rewarded_cache_key', {}),
     row('cc_make_item', {}),
-    row('cc_draw_item', {}),
     // Yesterday's roaming row must NOT leak into today's metrics.
     row('cc_apply_chef_rewards', { rewards: { credits_awarded: 99999 } }, '2026-10-28T23:59:59.000Z'),
   ];
@@ -292,7 +291,7 @@ describe('daily economy metrics — attribution', () => {
     expect(m.marketMedianPrice).toBe(5000);
     expect(m.marketMedianByRarity).toEqual({ Rare: 7500, Epic: 3000 });
     expect(m.cacheKeysFromAds).toBe(1);
-    expect(m.cacheOpens).toBe(2);
+    expect(m.cacheOpens).toBe(1);
     // Cache lane (0037): the legacy cc_make_item row carries no
     // payment and counts as key-paid; no free/ad openings today.
     expect(m.cacheBoxesOpenedFree).toBe(0);

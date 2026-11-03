@@ -8,7 +8,7 @@
  *  2. BOSS_DEDICATED_DROP_CHANCE 0.25 → 0.10.
  *  3. Dedicated drops generate at max(boss.level, playerLevel).
  *  4. FRAGMENT_CHANCE 0.03 → 0.008 per tick.
- *  5. Offline cap earned by level (+ Scavenger keystone offlineCapBonus).
+ *  5. Offline cap earned by Research (+ Scavenger keystone offlineCapBonus).
  *  6. Rematch fee escalation ×2 per victory today (UTC), capped ×8.
  *  7. Boss XP multiplier ×20 → ×50.
  *  8. XP curve stretch — applyXp mirror parity (curve values pinned in
@@ -37,7 +37,7 @@ import {
 import { mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/routes';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { issueAccessToken } from '../server/auth/tokens';
-import { earnedOfflineCapHours, nextOfflineCapTier, OFFLINE_CAP_TIERS } from '@/content/offlineCap';
+import { earnedOfflineCapHours, nextOfflineCapMilestone, OFFLINE_CAP_MILESTONES, RESEARCH_OFFLINE_CAP_HOURS_TOTAL } from '@/content/offlineCap';
 import { bossFeeMultiplier, escalatedBossFee, utcDayStartIso } from '@/lib/bossFees';
 import { xpToNextLevel } from '@/content/simulation';
 import { applyXp } from '../server/writes/store';
@@ -299,26 +299,31 @@ describe('tuning item 4 — fragment faucet 0.03 → 0.008 per tick', () => {
 // ---------------------------------------------------------------------
 // Item 5 — offline cap, earned
 // ---------------------------------------------------------------------
-describe('tuning item 5 — offline cap earned by level', () => {
-  it('pins the tier table and the earned-cap derivation', () => {
-    expect(OFFLINE_CAP_TIERS).toEqual([
-      { minLevel: 20, hours: 4 },
-      { minLevel: 40, hours: 6 },
-      { minLevel: 60, hours: 8 },
-      { minLevel: 80, hours: 12 },
+describe('tuning item 5 — offline cap earned by Research (gate-removal step 6)', () => {
+  it('pins the milestone ladder and the earned-cap derivation', () => {
+    // The Logistics & Markets chain carries the growth the retired
+    // level tiers (L20/40/60/80 → 4/6/8/12h) used to: same 2h floor,
+    // same 12h earned ceiling, granted by study instead of level.
+    expect(OFFLINE_CAP_MILESTONES).toEqual([
+      { courseId: 'street_economics', courseName: 'Street Economics', grantHours: 2, capHours: 4 },
+      { courseId: 'supply_chains', courseName: 'Supply Chains', grantHours: 4, capHours: 8 },
+      { courseId: 'syndicate_ledger', courseName: 'Syndicate Ledger', grantHours: 4, capHours: 12 },
     ]);
-    expect(earnedOfflineCapHours(1)).toBe(2);
-    expect(earnedOfflineCapHours(19)).toBe(2);
-    expect(earnedOfflineCapHours(20)).toBe(4);
-    expect(earnedOfflineCapHours(39)).toBe(4);
-    expect(earnedOfflineCapHours(40)).toBe(6);
-    expect(earnedOfflineCapHours(60)).toBe(8);
-    expect(earnedOfflineCapHours(79)).toBe(8);
-    expect(earnedOfflineCapHours(80)).toBe(12);
-    expect(earnedOfflineCapHours(100)).toBe(12);
-    expect(nextOfflineCapTier(1)).toEqual({ minLevel: 20, hours: 4 });
-    expect(nextOfflineCapTier(79)).toEqual({ minLevel: 80, hours: 12 });
-    expect(nextOfflineCapTier(80)).toBeNull();
+    expect(RESEARCH_OFFLINE_CAP_HOURS_TOTAL).toBe(10);
+    expect(earnedOfflineCapHours(0)).toBe(2);
+    expect(earnedOfflineCapHours(2)).toBe(4);
+    expect(earnedOfflineCapHours(6)).toBe(8);
+    expect(earnedOfflineCapHours(10)).toBe(12);
+    expect(nextOfflineCapMilestone(0)).toEqual({
+      courseId: 'street_economics', courseName: 'Street Economics', grantHours: 2, capHours: 4,
+    });
+    expect(nextOfflineCapMilestone(2)).toEqual({
+      courseId: 'supply_chains', courseName: 'Supply Chains', grantHours: 4, capHours: 8,
+    });
+    expect(nextOfflineCapMilestone(6)).toEqual({
+      courseId: 'syndicate_ledger', courseName: 'Syndicate Ledger', grantHours: 4, capHours: 12,
+    });
+    expect(nextOfflineCapMilestone(10)).toBeNull();
   });
 
   function seedOfflinePlayer(
@@ -345,31 +350,61 @@ describe('tuning item 5 — offline cap earned by level', () => {
     });
   }
 
+  function seedResearch(store: InMemoryChefGameplayStore, courseIds: string[]) {
+    store.researchCompletions.set(
+      A,
+      new Map(courseIds.map((id) => [id, new Date().toISOString()])),
+    );
+  }
+
   it('settlement truncates at the EARNED cap and ignores a larger stored preference', async () => {
     const { base, store, tokenA } = await makeServer();
-    // Level 10 earns 2h. The stored preference says 12h — pre-tuning it
-    // would have settled all 10 away-hours; now it must not.
-    seedOfflinePlayer(store, { player_level: 10, offline_cap_hours: 12 }, 10);
-    const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'tuning-cap-l10' }, tokenA);
+    // A level-100 hunter with NO Research earns the 2h base — level
+    // no longer carries the cap. The stored preference says 12h; it
+    // must not raise the settlement past what was earned.
+    seedOfflinePlayer(store, { player_level: 100, offline_cap_hours: 12 }, 10);
+    const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'tuning-cap-noresearch' }, tokenA);
     expect(res.status).toBe(200);
     expect(res.json.settled).toBe(true);
     expect(res.json.capHours).toBe(2);
     expect(res.json.ticksSettled).toBe(2400); // 2h × 3600s / 3s ticks
   });
 
-  it('a level-25 player settles at the 4h tier', async () => {
+  it('a brand-new account settles at the 2h base regardless of level', async () => {
     const { base, store, tokenA } = await makeServer();
-    seedOfflinePlayer(store, { player_level: 25 }, 10);
-    const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'tuning-cap-l25' }, tokenA);
+    seedOfflinePlayer(store, { player_level: 1 }, 10);
+    const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'tuning-cap-new' }, tokenA);
+    expect(res.status).toBe(200);
+    expect(res.json.settled).toBe(true);
+    expect(res.json.capHours).toBe(2);
+    expect(res.json.ticksSettled).toBe(2400);
+  });
+
+  it('a level-1 hunter with Street Economics settles at the 4h milestone', async () => {
+    const { base, store, tokenA } = await makeServer();
+    seedOfflinePlayer(store, { player_level: 1 }, 10);
+    seedResearch(store, ['street_economics']);
+    const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'tuning-cap-street' }, tokenA);
     expect(res.status).toBe(200);
     expect(res.json.settled).toBe(true);
     expect(res.json.capHours).toBe(4);
     expect(res.json.ticksSettled).toBe(4800);
   });
 
+  it('a level-1 hunter with the Logistics chain complete settles at the full 12h', async () => {
+    const { base, store, tokenA } = await makeServer();
+    seedOfflinePlayer(store, { player_level: 1 }, 13);
+    seedResearch(store, ['street_economics', 'supply_chains', 'syndicate_ledger']);
+    const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'tuning-cap-full' }, tokenA);
+    expect(res.status).toBe(200);
+    expect(res.json.settled).toBe(true);
+    expect(res.json.capHours).toBe(12);
+    expect(res.json.ticksSettled).toBe(14400);
+  });
+
   it('the Scavenger keystone’s offlineCapBonus extends the earned cap (first consumer of the key)', async () => {
     const { base, store, tokenA } = await makeServer();
-    // Level 10 earns 2h; King of Scrap (scav_keystone) adds +4h → 6h.
+    // No Research: the 2h base; King of Scrap (scav_keystone) adds +4h → 6h.
     seedOfflinePlayer(store, { player_level: 10, skill_spends: { scav_keystone: 1 } }, 10);
     const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'tuning-cap-keystone' }, tokenA);
     expect(res.status).toBe(200);

@@ -164,7 +164,15 @@ describe('research catalog — faculties, tiers, sizing', () => {
       gearDrawBonus: 1,
     });
     expect(researchCourse('void_theory')?.effects).toEqual({ bossDedicatedChanceBonus: 0.01 });
-    expect(researchCourse('syndicate_ledger')?.effects).toEqual({ marketFeeReduction: 0.05 });
+    expect(researchCourse('street_economics')?.effects).toEqual({
+      vendorBuybackBonus: 0.02,
+      offlineCapBonus: 2,
+    });
+    expect(researchCourse('supply_chains')?.effects).toEqual({ offlineCapBonus: 4 });
+    expect(researchCourse('syndicate_ledger')?.effects).toEqual({
+      marketFeeReduction: 0.05,
+      offlineCapBonus: 4,
+    });
   });
 });
 
@@ -196,7 +204,7 @@ describe('research bonus derivation', () => {
     expect(bonuses.vehicleDecayReduction).toBeCloseTo(0.1, 10);
     expect(bonuses.repairServiceXpBonus).toBe(1);
     expect(bonuses.vendorBuybackBonus).toBeCloseTo(0.02, 10);
-    expect(bonuses.offlineCapBonus).toBe(1);
+    expect(bonuses.offlineCapBonus).toBe(10);
     expect(bonuses.marketFeeReduction).toBeCloseTo(0.05, 10);
     expect(bonuses.weaponDamage).toBeCloseTo(0.01, 10);
     expect(bonuses.shieldCapacity).toBeCloseTo(0.02, 10);
@@ -273,10 +281,14 @@ describe('migration 0038 textual pins', () => {
   const sql = readFileSync(join(process.cwd(), 'db/migrations/0038_research.sql'), 'utf8');
 
   it('the embedded SQL catalog parses to the TS catalog (ids, hours, costs, effects)', () => {
-    const start = sql.indexOf('select $catalog$[');
+    // The LIVE catalog restatement is 0063 (gate-removal step 6
+    // re-granted the Logistics offlineCapBonus values); 0038's
+    // original literal is historical. Parity binds the live twin.
+    const liveSql = readFileSync(join(process.cwd(), 'db/migrations/0063_offline_cap_research_carrier.sql'), 'utf8');
+    const start = liveSql.indexOf('select $catalog$[');
     expect(start).toBeGreaterThan(-1);
-    const end = sql.indexOf(']$catalog$', start);
-    const parsed = JSON.parse(sql.slice(start + 'select $catalog$'.length, end + 1)) as Array<Json>;
+    const end = liveSql.indexOf(']$catalog$', start);
+    const parsed = JSON.parse(liveSql.slice(start + 'select $catalog$'.length, end + 1)) as Array<Json>;
     expect(parsed).toHaveLength(12);
     for (const course of RESEARCH_COURSES) {
       const twin = parsed.find((c) => c.id === course.id);

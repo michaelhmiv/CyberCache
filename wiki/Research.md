@@ -43,9 +43,9 @@ Supply-chain theory that pays in buyback, offline hours, and thinner fees.
 
 | Course | Tier | Duration | Fee | Requires | Unlocks |
 |---|---|---|---|---|---|
-| Street Economics | 1 | 6 h | 2,500 | — | NPC **vendor buyback rate +0.02** on everything you sell (under the 0.90 ceiling — see [[Vendor]]) |
-| Supply Chains | 2 | 48 h | 15,000 | Street Economics | **Offline earnings cap +1 hour** (the 24-hour absolute ceiling still binds — see [[Progression]]) |
-| Syndicate Ledger | 3 | 168 h | 60,000 | Supply Chains | **Market fee reduction +0.05** on all your sales (see [[The Market]]) |
+| Street Economics | 1 | 6 h | 2,500 | — | NPC **vendor buyback rate +0.02** on everything you sell (under the 0.90 ceiling — see [[Vendor]]), and **offline earnings cap +2 hours** |
+| Supply Chains | 2 | 48 h | 15,000 | Street Economics | **Offline earnings cap +4 hours** (the 24-hour absolute ceiling still binds — see [[Progression]]) |
+| Syndicate Ledger | 3 | 168 h | 60,000 | Supply Chains | **Market fee reduction +0.05** on all your sales (see [[The Market]]), and **offline earnings cap +4 hours** |
 
 ### Xenotech — home: theory
 

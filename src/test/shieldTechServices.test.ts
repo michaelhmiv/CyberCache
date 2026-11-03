@@ -146,6 +146,12 @@ async function makeServer(): Promise<Harness> {
     rng: () => 0.5,
     uuid: (() => { let n = 0; return () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`; })(),
   });
+  // Gate-removal step 6 (0063): the away cap is Research-carried,
+  // not level-carried. These scenarios were written against the old
+  // L25 tier's 4h earned cap (the 4h advance chunks below); Street
+  // Economics (+2h on the 2h base) restores exactly that for the tech.
+  store.completeResearchCourse(TECH, 'street_economics');
+  store.completeResearchCourse(OWNER, 'street_economics'); // self-lane provider
   const app = express();
   app.use(express.json());
   mountWriteRoutes(app, store, { jwtSecret: SECRET });

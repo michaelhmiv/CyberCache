@@ -625,7 +625,7 @@ describe('applySalvageSkillBonuses', () => {
     expect(uncommon).toEqual({ award: 180, bonusMaterial: null });
   });
 
-  it('material kind map follows the salvageRules convention', () => {
+  it('material kind map follows the cc_recycle_item convention', () => {
     const bonuses = { commonMaterialChance: 1 };
     const cases: Array<[string, string]> = [
       ['weapon', 'BallisticParts'],
