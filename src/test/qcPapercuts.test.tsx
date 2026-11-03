@@ -263,8 +263,10 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
     const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
     // Level: the progress block reserves the AWAY badge's corner.
     expect(topBar).toContain("awayPending ? 'pr-12' : ''");
-    // Contracts: count / lock badges reserve via pr-9.
-    expect(topBar).toContain("contractsPulsing || contractsGuestLocked ? 'pr-9' : ''");
+    // Contracts: the claim-count badge reserves via pr-9; the
+    // GUEST word badge (assumption-gaps G10 — a word in the badge
+    // language, not a bare lock glyph) is wider and reserves pr-16.
+    expect(topBar).toContain("contractsPulsing ? 'pr-9' : contractsGuestLocked ? 'pr-16' : ''");
     // Weekly: the count badge's corner is reserved outright.
     expect(topBar).toContain('pl-2.5 pr-9');
   });
