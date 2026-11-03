@@ -25,6 +25,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
+import { SalvageThresholdSheet } from '@/components/gear/SalvageThresholdSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
@@ -489,6 +490,10 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingScrapIds, setPendingScrapIds] = useState<Set<string>>(new Set());
+  // Bulk salvage (0054): the threshold sheet is the one bulk door —
+  // both the toolbar salvage button and the select-bar scrap button
+  // open it. There is no per-item bulk loop anymore.
+  const [showSalvageSheet, setShowSalvageSheet] = useState(false);
 
   // Compare
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -754,19 +759,8 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     }
   };
 
-  const bulkScrap = () => {
-    void (async () => {
-      for (const id of selectedIds) {
-        const item = invItems.find((i) => i.id === id);
-        if (item) await scrap(item);
-      }
-      setSelectedIds(new Set());
-      setSelectMode(false);
-    })();
-  };
-
   // Bulk lock/unlock (F8): same verified path as the single toggle,
-  // sequential like bulk scrap; failures are named, never swallowed.
+  // sequential per item; failures are named, never swallowed.
   const bulkSetLocked = (locked: boolean) => {
     void (async () => {
       const failures: string[] = [];
@@ -825,14 +819,6 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     setCompareA(id);
     setCompareB(null);
   }, []);
-
-  const salvageAllJunk = () => {
-    void (async () => {
-      for (const item of junkItems) {
-        await scrap(item);
-      }
-    })();
-  };
 
   const activeFilterLabels = [
     activeKind !== 'all' ? KIND_DEFS.find((kind) => kind.id === activeKind)?.short ?? 'Kind' : null,
@@ -971,7 +957,8 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         {junkItems.length > 0 && (
           <button
             type="button"
-            onClick={salvageAllJunk}
+            onClick={() => setShowSalvageSheet(true)}
+            aria-label="Salvage by rarity"
             className="flex h-8 items-center gap-1 rounded-lg border border-red/30 bg-red/10 px-2 text-[11px] font-black text-red"
           >
             <Trash2 size={11} />
@@ -1027,7 +1014,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             <button onClick={bulkUnlock} aria-label="Unlock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-black text-text-muted">
               <Unlock size={12} />
             </button>
-            <button onClick={bulkScrap} aria-label="Scrap selected" className="rounded-lg border border-red/40 bg-red/10 px-2 py-1 text-[11px] font-black text-red">
+            <button onClick={() => setShowSalvageSheet(true)} aria-label="Scrap by rarity" className="rounded-lg border border-red/40 bg-red/10 px-2 py-1 text-[11px] font-black text-red">
               <Trash2 size={12} />
             </button>
           </motion.div>
@@ -1216,6 +1203,18 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Bulk salvage threshold sheet (0054) */}
+      {showSalvageSheet && (
+        <SalvageThresholdSheet
+          eligibleItems={junkItems}
+          onClose={() => setShowSalvageSheet(false)}
+          onSettled={() => {
+            setSelectedIds(new Set());
+            setSelectMode(false);
+          }}
+        />
+      )}
 
       {/* Inspect sheet */}
       <GearInspectSheet

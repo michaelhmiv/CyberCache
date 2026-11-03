@@ -87,6 +87,13 @@ export const verifiedOps = {
     reason: input.reason ?? null,
   }),
   recycleItem: (itemId: string) => op('/ops/recycle-item', { nonce: requestId('recycle'), item_id: itemId }),
+  // Batch salvage (0054): ONE call settles every eligible item at or
+  // under the rarity ceiling ('Common' | 'Uncommon' | 'Rare' |
+  // 'Epic' — Legendary is never a ceiling). Intent only: the server
+  // resolves the set from the player's inventory; the result carries
+  // aggregate yields (counts by rarity, total scrap/cores, bonus
+  // materials) plus the consumed rows for state sync.
+  recycleBatch: (maxRarity: string) => op('/ops/recycle-batch', { nonce: requestId('recycle-batch'), max_rarity: maxRarity }),
   // Reforge (0027): reroll ONE affix. Intent only (item + affix id) —
   // the server prices from the economy levers, rolls from the shared
   // affix pools, and returns old_affix / new_affix for the reveal.

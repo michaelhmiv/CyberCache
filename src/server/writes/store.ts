@@ -868,6 +868,19 @@ export interface WriteStore {
   ): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
   /**
+   * Batch salvage (0054): settle EVERY eligible item at or under a
+   * rarity ceiling in one atomic call. The ceiling is one of
+   * 'Common' | 'Uncommon' | 'Rare' | 'Epic' — 'Legendary' is never a
+   * valid ceiling (legendaries recycle individually only). The set is
+   * resolved server-side from the player's inventory (owned,
+   * available, unlocked, gear kinds); each item runs the existing
+   * per-item recycle, and the result carries aggregates only:
+   * counts_by_rarity, total scrap_award, total cores_award,
+   * bonus_materials, plus the consumed item rows + final profile /
+   * loadout snapshots for client sync.
+   */
+  recycleBatch(playerId: string, nonce: string, maxRarity: string): Promise<Json>;
+  /**
    * Reforge one rolled affix on a gear item (cc_reforge_item, 0027):
    * the roll is computed in TypeScript from the shared affix pools
    * (src/lib/gear/affixPools.ts) on a dedicated stream seeded from
@@ -1235,6 +1248,9 @@ export class PgWriteStore implements WriteStore {
   }
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json> {
     return this.callJson('select public.cc_recycle_item($1, $2, $3) as result', [playerId, nonce, itemId]);
+  }
+  recycleBatch(playerId: string, nonce: string, maxRarity: string): Promise<Json> {
+    return this.callJson('select public.cc_recycle_batch($1, $2, $3) as result', [playerId, nonce, maxRarity]);
   }
   /**
    * Reforge (0027): replay → read the server item row → roll on the

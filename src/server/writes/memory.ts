@@ -224,6 +224,23 @@ import {
 } from './store.js';
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+// Batch salvage (0054): the rarity ladder, the valid ceilings
+// (Legendary deliberately absent — never bulk-scrapped), and the
+// gear kinds the Gear inventory owns. Mirrors cc_recycle_batch.
+const SALVAGE_RARITY_RANK: Record<string, number> = {
+  Common: 1,
+  Uncommon: 2,
+  Rare: 3,
+  Epic: 4,
+  Legendary: 5,
+};
+const SALVAGE_CEILING_RANK: Record<string, number> = {
+  Common: 1,
+  Uncommon: 2,
+  Rare: 3,
+  Epic: 4,
+};
+const SALVAGE_BATCH_KINDS = new Set(['weapon', 'shield', 'ordnance', 'classMod', 'relic']);
 const LOADOUT_SLOTS = ['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic', 'vehicle'] as const;
 const ACTIVE_KINDS = [
   'none',
@@ -1445,6 +1462,66 @@ export class InMemoryWriteStore implements WriteStore {
       loadout: this.loadoutSnapshot(playerId),
     };
     return this.record(playerId, 'cc_recycle_item', key, result);
+  }
+
+  /**
+   * Batch salvage (0054): the in-memory twin of cc_recycle_batch.
+   * One ceiling settles every eligible item atomically from the
+   * caller's perspective: the set is resolved HERE from the player's
+   * records (owned, 'available', unlocked, gear kinds — vehicles and
+   * cosmetic parts keep their own lanes; equipped items are never
+   * bulk-scrapped), in id order for determinism, and each item runs
+   * the full per-item recycleItem above under a derived nonce, so
+   * yields, skill bonuses, material rolls, ledger rows, and mastery
+   * side effects are the per-item path summed — never a second
+   * formula. The aggregate is recorded under the batch nonce; a
+   * replay returns it untouched. 'Legendary' is rejected as a
+   * ceiling: legendaries recycle individually only.
+   */
+  async recycleBatch(playerId: string, nonce: string, maxRarity: string): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const ceiling = SALVAGE_CEILING_RANK[maxRarity];
+    if (!ceiling) throw writeError('Invalid salvage ceiling');
+    const eligible = [...this.items.values()]
+      .filter(
+        (item) =>
+          item.owner_user_id === playerId &&
+          item.runtime_state === 'available' &&
+          !item.is_locked &&
+          SALVAGE_BATCH_KINDS.has(item.kind) &&
+          (SALVAGE_RARITY_RANK[item.rarity] ?? 99) <= ceiling,
+      )
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    let scrapTotal = 0;
+    let coresTotal = 0;
+    const countsByRarity: Record<string, number> = {};
+    const bonusMaterials: Record<string, number> = {};
+    const items: Json[] = [];
+    for (const item of eligible) {
+      const r = (await this.recycleItem(playerId, `${key}:${item.id}`, item.id)) as Record<string, unknown>;
+      scrapTotal += Number(r.scrap_award ?? 0);
+      coresTotal += Number(r.cores_award ?? 0);
+      countsByRarity[item.rarity] = (countsByRarity[item.rarity] ?? 0) + 1;
+      if (typeof r.bonus_material === 'string') {
+        bonusMaterials[r.bonus_material] = (bonusMaterials[r.bonus_material] ?? 0) + 1;
+      }
+      items.push(r.item as Json);
+    }
+    const result: Json = {
+      action_type: 'cc_recycle_batch',
+      max_rarity: maxRarity,
+      scrapped_count: eligible.length,
+      counts_by_rarity: countsByRarity,
+      scrap_award: scrapTotal,
+      cores_award: coresTotal,
+      bonus_materials: bonusMaterials,
+      items,
+      profile: this.profileSnapshot(this.profile(playerId)),
+      loadout: this.loadoutSnapshot(playerId),
+    };
+    return this.record(playerId, 'cc_recycle_batch', key, result);
   }
 
   /**
