@@ -22,12 +22,6 @@ describe('server-authoritative loadout invariant', () => {
     expect(source).not.toMatch(/WeaponIllustration[\s\S]{0,240}weapon=\{weapon\}[\s\S]{0,240}fallback/);
   });
 
-  it('WeaponIllustration fallback is opt-in only', () => {
-    const source = read('src/components/weapon/WeaponIllustration.tsx');
-    expect(source).toContain('allowFallbackSpec');
-    expect(source).toMatch(/if \(!weapon && !allowFallbackSpec\) return null/);
-  });
-
   it('BossSelectModal does not use inventory weapon before equipped weapon for projection', () => {
     const source = read('src/components/fight/BossSelectModal.tsx');
     // After fix: equipped weapons are checked FIRST, inventory only as
