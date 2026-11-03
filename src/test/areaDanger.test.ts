@@ -177,8 +177,15 @@ describe('death-loop trickle guard — presence pays only after a kill since the
   });
 
   it('entering a claim already dead pays exactly zero, even armed with a strong weapon', () => {
+    // eventChanceBase 0 isolates the trickle contract: roaming EVENTS
+    // are a separate, deliberately ungated faucet (the engine's own
+    // documented call — death gates the kill cycle, not the event
+    // roll, and offline settlement has no survival input to gate
+    // with). What the death-loop guard owns is the per-tick trickle
+    // and loot roll, and those pay exactly zero here.
     const result = processRoamingClaim(claimRequest({
       equippedGear: [makeWeapon()],
+      economy: { eventChanceBase: 0 },
       survival: { currentHp: 0, maxHp: 100_000, shieldHp: 0, mitigation: 0 },
     }));
     expect(result.survival.isDead).toBe(true);
@@ -193,9 +200,11 @@ describe('death-loop trickle guard — presence pays only after a kill since the
 
   it('a disarmed hunter who cannot kill earns nothing until a kill re-arms', () => {
     // Alive, disarmed (died last claim), unarmed: no kill is possible
-    // at 0 DPS, so 50 ticks of pure presence pay zero.
+    // at 0 DPS, so 50 ticks of pure presence pay zero (event faucet
+    // zeroed via the lever, per the dead-entry test's note).
     const result = processRoamingClaim(claimRequest({
       equippedGear: [],
+      economy: { eventChanceBase: 0 },
       survival: { currentHp: 100_000, maxHp: 100_000, shieldHp: 0, mitigation: 0, trickleArmed: false },
     }));
     expect(result.survival.isDead).toBe(false);
