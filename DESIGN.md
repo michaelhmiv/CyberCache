@@ -81,6 +81,28 @@ denominator the player hasn't been taught. One line is enough room for a
 remedy and a door — this law extends the one-line empty-state rule above,
 it does not repeal it.
 
+### No redundant state; detail behind inspect (owner, 2026-11-03)
+
+Two corollaries, ruled on the Workshop's recipe cards and binding
+everywhere:
+
+- **No redundant state banners.** A fact stated on its own line is never
+  re-narrated in a summary banner below it. A material shortage prints
+  once — on its material line, with its count and its source — and no
+  "Missing X and Y" banner repeats it, and the disabled primary button
+  does not narrate either: it keeps its action label (QUEUE JOB),
+  disabled; the lines above it are the reason. Non-material blockers
+  (bench, level, mastery, research, standing) still print their own
+  lock lines, because those facts live nowhere else on the card.
+- **Detail behind inspect.** A card's face is identity (icon, name,
+  category, time) + numbers (have/need, totals) + actions. Per-item
+  prose — the description/purpose paragraph, the quality-range line,
+  effect detail — lives one tap away in the item's inspect sheet,
+  opened by the info button beside its name, carrying the full text
+  and the full gate/material detail. A single page-level explainer
+  (e.g. the Workshop's quality band key) may stay in flow: it teaches
+  once per page, it is not per-item prose.
+
 ---
 
 ## 2. Navigation — four tabs

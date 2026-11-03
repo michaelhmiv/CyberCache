@@ -14,10 +14,10 @@ Queue a job, switch to roaming or a boss, and the job sits **paused** —
 it keeps its place and its escrowed inputs, but no progress is made
 until you come back to the bench. One job runs per bench, with up to
 **5 more queued** behind it on that bench. A full bench says so on the
-job button itself — and names the way out: jobs finish while Crafting
-is your action, or cancel one from the job list above the recipes. A
-locked bench in the bench picker likewise points at the Benches &
-Tools card above, where benches are unlocked.
+recipe card — and names the way out: jobs finish while Crafting is
+your action, or cancel one from the job list. A locked bench in the
+bench picker likewise points at the Benches & Tools card, where
+benches are unlocked.
 
 Crafting pays **XP at about 77.5% of roaming's rate** for the same time
 (the exact rate is pegged to the best roaming area unlocked at your
@@ -28,6 +28,39 @@ demand is real.
 
 **Everyone can craft, guests included.** Crafting carries no
 verified-account gate.
+
+## Finding what you can make
+
+The Workshop opens on the catalog, sorted by **readiness**:
+
+- **Craftable now** — materials in hand, every gate met. The
+  **Craftable now** chip at the top of the page carries the live
+  count and filters to just these recipes; **All 87** shows the
+  whole catalog, and search covers recipe **names, jobs, and
+  materials**.
+- **One gate away** — exactly one kind of blocker stands between you
+  and the bench, and the card names it.
+- **Locked** — two or more kinds of blockers; the card prints every
+  one of them.
+
+Above the list, two strips print the numbers the gates read: your
+**standing** (Mastery per lane, and your Production Systems research
+state) and your **benches** (green = ready, amber = working, grey =
+locked — one job runs per bench, 5 more may queue).
+
+A recipe card's face is lean: the item, its lane, its time, its
+materials with have/need counts, the totals for the job you are
+about to queue, and the queue controls. Anything short prints
+**where it comes from** right on its line — the roaming area that
+drops it, the recipe that refines it, the Vendor rotation, or the
+[[The Market]] — each one a door. Non-material blockers (level,
+bench, mastery, research, standing) print as lock lines on the card;
+a shortage is never repeated in a banner, and the queue button
+simply reads **QUEUE JOB**, greyed when the lines above it say no.
+The **info button** beside a recipe's name opens its detail sheet:
+what the item is for, its quality range and what the percentage
+means for that item, its effects, and the full gate and material
+detail.
 
 ## The catalog: 87 recipes
 
@@ -78,8 +111,9 @@ recipes and rotate through the vendor.
 
 ## Inputs: materials, essences, signatures
 
-Recipes consume three families of inputs, all earned by roaming and
-salvaging (and all tradable on [[The Market]]):
+Recipes consume three families of inputs, earned by roaming (and all
+tradable on [[The Market]]). Salvage is **not** a material supply
+line — see Getting started below for what it actually pays:
 
 - **5 base materials** — Scrap Alloy, Ballistic Parts, Reactive
   Components, Tech, and Void Dust — plus their **5 refined
@@ -107,10 +141,13 @@ the job finishes or you cancel it.
 A crafted consumable carries a **quality percentage**, rolled per batch
 from a range set by the consumable type, widened by your crafting
 mastery, your bench, and any catalyst. Quality is capped at **175%**,
-with 125% counting as high quality and 150% as perfect. And quality is
-not a label: the engines read it. A 130% Med Kit heals 130% of base, a
-130% Patch Kit restores 130% of its base condition, a 130% Fuel Cell
-loads 130 fuel units.
+with 125% counting as high quality and 150% as perfect. The Workshop
+prints the band key in the recipe list — Crude under 85, Rough 85+,
+Standard 95+, Refined 106+, Superior 120+, Prototype 140+, Anomalous
+160+ — and 100% is the Vendor's flat baseline: anything over it beats
+store-bought. And quality is not a label: the engines read it. A 130%
+Med Kit heals 130% of base, a 130% Patch Kit restores 130% of its base
+condition, a 130% Fuel Cell loads 130 fuel units.
 
 This is the crafter's whole edge over the NPC [[Vendor]]:
 
@@ -144,10 +181,13 @@ cores come from.
 ## Getting started
 
 Open **Gear → Workshop**, pick a recipe you have the inputs for, set
-crafting as your active action, and let the bench work. Salvage from
-the [[Gear]] tab is the beginner's supply line: break down drops you
-don't want, and the materials and essences come back as your first
-crafting stock.
+crafting as your active action, and let the bench work. Roaming is
+the beginner's supply line: areas drop the base materials and
+essences their cards name. Salvage from the [[Gear]] tab pays **Scrap**
+(and legendary cores when you break down a Legendary) — materials
+come back only as an occasional single bonus material for Common
+items once you hold the King of Scrap keystone, so treat salvage as
+your Scrap income, never as a way to stock a specific material.
 
 ---
 

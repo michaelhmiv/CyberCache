@@ -60,10 +60,17 @@ export function useFilterSort<T>({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
+    // Token-AND search: every word of the query must appear in at
+    // least one search field (different words may match different
+    // fields). Single-word queries behave exactly as the old
+    // substring match; natural multi-word queries like "patch kit
+    // batch" find "Patch Kit ×3 (Batch)" instead of nothing.
+    const tokens = q.split(/\s+/).filter(Boolean);
     return items
       .filter((item) => {
-        if (!q) return true;
-        return searchFields.some((field) => field(item).toLowerCase().includes(q));
+        if (tokens.length === 0) return true;
+        const fields = searchFields.map((field) => field(item).toLowerCase());
+        return tokens.every((token) => fields.some((text) => text.includes(token)));
       })
       .filter((item) => {
         for (const [facetKey, selected] of Object.entries(activeFacets)) {

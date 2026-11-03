@@ -294,7 +294,12 @@ describe('remedy-law source pins — G8 queue remedy + the standing rule', () =>
 
   it('Workshop: the bench-queue-full reason names its remedy, and a locked bench points at its unlock card', () => {
     const workshop = read('screens/WorkshopScreen.tsx');
-    expect(workshop).toContain(
+    // Direction A (2026-11-03): the queue-full gate copy moved with
+    // the readiness derivation into lib/workshop/readiness.ts — the
+    // pin follows the surface to its new home (the gate line renders
+    // on the recipe card from that module).
+    const readiness = read('lib/workshop/readiness.ts');
+    expect(workshop + readiness).toContain(
       'Bench queue full — jobs finish while Crafting is your action, or cancel one above',
     );
     expect(workshop).toContain('(locked — unlock at Benches & Tools above)');

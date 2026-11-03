@@ -69,7 +69,9 @@ Three figures carry their history on their face:
 Cache Rank lives on the **Hunter tab**, on its own rail stop — the
 same rail carries Research and the Skill Trees (mastery rides with
 the trees), so every ladder in this chapter sits one tap from your
-profile and Trophy Shelf.
+profile and Trophy Shelf. The Workshop's research lock lines door
+straight to the Research stop: when a recipe names the Production
+Systems course, one tap lands you on it.
 
 Cache Rank is the permanent-bonus ladder that sits on top of levels. Its rules are strict:
 

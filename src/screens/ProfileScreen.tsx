@@ -39,7 +39,7 @@ interface ProfileScreenProps {
    * Trees" action routes here, so the player lands on the trees
    * themselves instead of the top of the Profile stop.
    */
-  focusSection?: 'skills' | 'wardrobe' | null;
+  focusSection?: 'skills' | 'research' | 'wardrobe' | null;
 }
 
 /**
@@ -95,7 +95,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const [renameOpen, setRenameOpen] = useState(false);
   const [detailMetric, setDetailMetric] = useState<{ metric: ProgressionMetric; leaderboardMetric?: LeaderboardMetric; label: string; value: number; color: string } | null>(null);
   const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
-  const [stop, setStop] = useState<HunterStop>(() => (focusSection === 'skills' ? 'trees' : 'profile'));
+  const [stop, setStop] = useState<HunterStop>(() => (focusSection === 'skills' ? 'trees' : focusSection === 'research' ? 'research' : 'profile'));
   // Stops whose content mounts lazily on first visit and stays
   // mounted (the two full screens: Collections, Standings) — the
   // always-resident stops are the panels that already lived here.
@@ -119,6 +119,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   if (focusSection !== prevFocusSection) {
     setPrevFocusSection(focusSection);
     if (focusSection === 'skills') goToStop('trees');
+    if (focusSection === 'research') goToStop('research');
     if (focusSection === 'wardrobe') goToStop('profile');
   }
 

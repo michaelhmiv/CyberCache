@@ -30,6 +30,7 @@ import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { verifiedOps } from '@/lib/api/verifiedOps';
+import { salvageYieldFromRecycleResult } from '@/lib/gear/salvageAward';
 import { formatRpcError } from '@/lib/api/rpcError';
 import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 import type { GearItem } from '@/types/items';
@@ -737,16 +738,10 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     setPendingScrapIds((prev) => new Set(prev).add(item.id));
     try {
       const result = await verifiedOps.recycleItem(item.id);
-      const scrapAward = Number(result.scrap_award ?? 0);
-      useSalvageFeedStore.getState().push(item, {
-        scrapValue: scrapAward,
-        scrapAlloy: 0,
-        ballisticParts: 0,
-        reactiveComponents: 0,
-        techFragments: 0,
-        voidDust: 0,
-        essences: {},
-      });
+      // Feedback names what the server actually paid — Scrap, any
+      // legendary cores, and the narrow King-of-Scrap bonus material
+      // (salvageYieldFromRecycleResult is the one mapper).
+      useSalvageFeedStore.getState().push(item, salvageYieldFromRecycleResult(result));
       setSelectedIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     } catch (error) {
       console.warn('[GearHub] verified salvage failed:', error instanceof Error ? error.message : error);
