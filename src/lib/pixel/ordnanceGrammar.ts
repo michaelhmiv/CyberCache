@@ -70,6 +70,7 @@ export function ordnanceEffectName(effect: string): string {
  */
 export function ordnanceFormForEffect(effect: string): OrdnanceFormId {
   const name = ordnanceEffectName(effect);
+  if (!name) return 'canister';
   const exact = ORDNANCE_EFFECT_FORMS[name];
   if (exact) return exact;
   for (const [known, form] of Object.entries(ORDNANCE_EFFECT_FORMS)) {
