@@ -461,9 +461,9 @@ begin
 
   -- Internal away cap: min(earned cap, limiter when set), [1h, 24h].
   v_away_cap_ms := (greatest(1, least(
-      public.cc_earned_offline_cap_hours_for(p.id)
+      public.cc_earned_offline_cap_hours_for(p.id),
       coalesce(nullif(p.offline_cap_hours, 0)::numeric,
-               public.cc_earned_offline_cap_hours_for(p.id)
+               public.cc_earned_offline_cap_hours_for(p.id))
     )) * 3600000)::bigint;
 
   -- Pass 1: rebase every active job and price its advance.
@@ -696,9 +696,9 @@ begin
   v_attended := least(v_raw, greatest(0,
     coalesce(v_heartbeat_ms, v_last_ms) + 300000 - v_last_ms));
   v_away_cap_ms := (greatest(1, least(
-      public.cc_earned_offline_cap_hours_for(provider.id)
+      public.cc_earned_offline_cap_hours_for(provider.id),
       coalesce(nullif(provider.offline_cap_hours, 0)::numeric,
-               public.cc_earned_offline_cap_hours_for(provider.id)
+               public.cc_earned_offline_cap_hours_for(provider.id))
     )) * 3600000)::bigint;
   v_advance := v_attended + least(v_raw - v_attended, v_away_cap_ms);
   if v_advance <= 0 then return jsonb_build_object('settled', true, 'advanced_ms', 0); end if;
@@ -840,9 +840,9 @@ begin
 
   -- Internal away cap: min(earned cap, limiter when set), [1h, 24h].
   v_away_cap_ms := (greatest(1, least(
-      public.cc_earned_offline_cap_hours_for(p.id)
+      public.cc_earned_offline_cap_hours_for(p.id),
       coalesce(nullif(p.offline_cap_hours, 0)::numeric,
-               public.cc_earned_offline_cap_hours_for(p.id)
+               public.cc_earned_offline_cap_hours_for(p.id))
     )) * 3600000)::bigint;
 
   v_start_ms := (extract(epoch from s.last_settled_at) * 1000)::bigint;
