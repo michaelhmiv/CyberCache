@@ -283,8 +283,12 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
     expect((await screen.findAllByText('Login Streak')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTestId('streak-panel')).toBeTruthy();
     expect(screen.getByText('Banked today')).toBeTruthy();
-    expect(screen.getByText('Banked +200 credits · +1 fragment')).toBeTruthy();
-    expect(screen.getByText('Day 4 — +250 credits · +1 fragment')).toBeTruthy();
+    const panelText = screen.getByTestId('streak-panel').textContent ?? '';
+    expect(panelText).toContain('Banked +200 credits · +1 fragment');
+    expect(panelText).toContain('Day 4 — +250 credits · +1 fragment');
+    // Fact-line amounts print in the gain green (the mock's
+    // language), not the fact white.
+    expect(screen.getByText('+200').className).toContain('text-green');
     expect(screen.getByLabelText('Seven day streak ladder')).toBeTruthy();
     // Opening the pop-up did NOT re-fire the check-in read.
     expect(mockStreak).toHaveBeenCalledTimes(1);

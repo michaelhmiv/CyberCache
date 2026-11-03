@@ -79,13 +79,20 @@ function rewardRows(reward: { credits: number; fragments: number; cacheKeys: num
 }
 
 /** "+500 credits · +3 fragments · +1 cache key" — past-tense
- *  amounts for the claimed state's fact lines. */
-function plusReward(reward: LoginStreakReward): string {
-  const parts: string[] = [];
-  if (reward.credits > 0) parts.push(`+${reward.credits} ${reward.credits === 1 ? 'credit' : 'credits'}`);
-  if (reward.fragments > 0) parts.push(`+${reward.fragments} ${reward.fragments === 1 ? 'fragment' : 'fragments'}`);
-  if (reward.cacheKeys > 0) parts.push(reward.cacheKeys === 1 ? '+1 cache key' : `+${reward.cacheKeys} cache keys`);
-  return parts.join(' · ');
+ *  amounts for the claimed state's fact lines, each amount in
+ *  the gain green (the mock's fact-line language). */
+function plusReward(reward: LoginStreakReward): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  const push = (amount: number, unit: string) =>
+    parts.push(
+      <span key={unit}>
+        <span className="text-green">+{amount}</span> {unit}
+      </span>,
+    );
+  if (reward.credits > 0) push(reward.credits, reward.credits === 1 ? 'credit' : 'credits');
+  if (reward.fragments > 0) push(reward.fragments, reward.fragments === 1 ? 'fragment' : 'fragments');
+  if (reward.cacheKeys > 0) push(reward.cacheKeys, reward.cacheKeys === 1 ? 'cache key' : 'cache keys');
+  return parts.flatMap((part, i) => (i === 0 ? [part] : [' · ', part]));
 }
 
 /** Ladder cell reward lines in the track's short stacked form

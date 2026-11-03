@@ -276,12 +276,12 @@ describe('Streak poster plate — acknowledgement (D1/D2)', () => {
 
     // Reopening shows the quiet claimed presentation — no rows,
     // no glow, the Banked fact lines instead.
-    await openStreakSheet();
+    const reopened = await openStreakSheet();
     expect(screen.queryByTestId('streak-reward-rows')).toBeNull();
     expect(screen.queryByTestId('streak-medal-glow')).toBeNull();
     expect(screen.getByText('Banked today')).toBeTruthy();
-    expect(screen.getByText('Banked +200 credits · +1 fragment')).toBeTruthy();
-    expect(screen.getByText('Day 4 — +250 credits · +1 fragment')).toBeTruthy();
+    expect(reopened.textContent).toContain('Banked +200 credits · +1 fragment');
+    expect(reopened.textContent).toContain('Day 4 — +250 credits · +1 fragment');
     fireEvent.click(screen.getByTestId('streak-done-button'));
     await waitFor(() => expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull());
 
@@ -307,10 +307,11 @@ describe('Streak poster plate — already claimed is silent', () => {
     expect(screen.queryByTestId('streak-announce-pulse')).toBeNull();
     expect(screen.getByTestId('top-streak-button').textContent).not.toContain('NEW');
 
-    await openStreakSheet();
+    const panel = await openStreakSheet();
     expect(screen.queryByTestId('streak-reward-rows')).toBeNull();
     expect(screen.queryByTestId('streak-medal-glow')).toBeNull();
-    expect(screen.getByText('Banked +200 credits · +1 fragment')).toBeTruthy();
+    expect(panel.textContent).toContain('Banked +200 credits · +1 fragment');
+    expect(screen.getByText('+200').className).toContain('text-green');
     expect(screen.getByText(/Daily check-in · Day 3 claimed today/)).toBeTruthy();
   }, 20000);
 });
