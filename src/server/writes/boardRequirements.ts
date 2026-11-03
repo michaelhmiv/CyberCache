@@ -70,6 +70,13 @@ export interface RepairKitOption {
    *  target (they would run dry partway; legal, but flagged). */
   estimatedKits: number | null;
   coversTarget: boolean;
+  /** Units of this type the reader still needs to finish, after
+   *  their whole stock is spent — the remaining points priced in
+   *  whole units at STANDARD quality (100%), the basis a fresh unit
+   *  is quoted at everywhere else (vendor stock is flat 100%).
+   *  This is the quick-buy shortfall for the line (QB-2): the card
+   *  mounts the + exactly when it is > 0. 0 when covered. */
+  shortfallKits: number;
 }
 
 /** Requirements on an open shield-tech posting, for the reader. */
@@ -84,6 +91,12 @@ export interface ShieldTechJobRequirements {
    *  stock cannot cover the target. */
   estimatedCores: number | null;
   coversTarget: boolean;
+  /** Cores the reader still needs to finish, after their whole
+   *  stock is spent — remaining points priced in whole cores at
+   *  STANDARD quality (100%). The quick-buy shortfall for the line
+   *  (QB-2), mirroring RepairKitOption.shortfallKits. 0 when
+   *  covered. */
+  shortfallCores: number;
   estimatedHours: number | null;
 }
 
@@ -115,6 +128,41 @@ export function totalOnHand(batches: readonly SupplyBatch[] | undefined): number
   return (batches ?? []).reduce((sum, b) => sum + Math.max(0, b.quantity), 0);
 }
 
+/**
+ * Total points the reader's whole stock of one supply covers,
+ * walking every batch at the caller's per-unit yield. Order-free:
+ * this is a sum, unlike the burn-order walk that estimates units
+ * consumed. The quick-buy shortfalls (QB-2) derive from it.
+ */
+export function coveredPoints(
+  batches: readonly SupplyBatch[],
+  pointsPerUnit: (qualityPercent: number) => number,
+): number {
+  return batches.reduce(
+    (sum, batch) => sum + pointsPerUnit(batch.quality) * Math.max(0, batch.quantity),
+    0,
+  );
+}
+
+/**
+ * Units still needed once the reader's stock is spent: the
+ * remaining points expressed in whole units at STANDARD quality
+ * (100%) — the planning basis a fresh unit is quoted at everywhere
+ * in the game (vendor stock is flat 100%, and a burn-order estimate
+ * at mixed qualities can overshoot the true need). 0 when the
+ * stock covers the target, and 0 when a standard unit yields
+ * nothing (no sane shortfall exists).
+ */
+export function shortfallUnits(
+  targetPoints: number,
+  covered: number,
+  standardUnitPoints: number,
+): number {
+  if (targetPoints <= 0 || covered >= targetPoints) return 0;
+  if (!(standardUnitPoints > 0)) return 0;
+  return Math.ceil((targetPoints - covered) / standardUnitPoints);
+}
+
 function estimatedHours(targetPoints: number, rate: number): number | null {
   if (!(rate > 0) || targetPoints <= 0) return null;
   return Math.round((targetPoints / rate) * 10) / 10;
@@ -136,9 +184,15 @@ export function repairJobRequirements(input: {
   const kitOptions = input.kitTypes.map((kitType) => {
     const batches = input.reader.batchesByType.get(kitType) ?? [];
     const onHand = totalOnHand(batches);
-    const estimatedKits = unitsNeededForTarget(batches, input.targetPoints, (quality) =>
-      input.kitRestorePoints(input.kitBase(kitType), quality, input.reader.efficiency));
-    return { kitType, onHand, estimatedKits, coversTarget: estimatedKits !== null };
+    const perUnit = (quality: number) =>
+      input.kitRestorePoints(input.kitBase(kitType), quality, input.reader.efficiency);
+    const estimatedKits = unitsNeededForTarget(batches, input.targetPoints, perUnit);
+    const shortfallKits = shortfallUnits(
+      input.targetPoints,
+      coveredPoints(batches, perUnit),
+      perUnit(100),
+    );
+    return { kitType, onHand, estimatedKits, coversTarget: estimatedKits !== null, shortfallKits };
   });
   if (!kitOptions.some((o) => o.onHand >= 1)) blockers.push('no_supply');
   return {
@@ -161,6 +215,11 @@ export function shieldTechJobRequirements(input: {
     targetPoints: number,
     efficiency: number,
   ) => number | null;
+  /** Points one core of the given quality yields at the given
+   *  efficiency (content's calibrationCoreCapacityPoints) — the
+   *  same yield the burn walk prices from, injected so the
+   *  builder stays content-free. QB-2's shortfall derives from it. */
+  coreCapacityPoints: (qualityPct: number, efficiency: number) => number;
   reader: ServiceReaderFacts;
 }): ShieldTechJobRequirements {
   const blockers: ServiceJobBlocker[] = [];
@@ -174,6 +233,13 @@ export function shieldTechJobRequirements(input: {
     input.targetPoints,
     input.reader.efficiency,
   );
+  const perCore = (quality: number) =>
+    input.coreCapacityPoints(quality, input.reader.efficiency);
+  const shortfallCores = shortfallUnits(
+    input.targetPoints,
+    coveredPoints(batches, perCore),
+    perCore(100),
+  );
   return {
     escrowCredits: input.priceCredits,
     canTake: blockers.length === 0,
@@ -181,6 +247,7 @@ export function shieldTechJobRequirements(input: {
     coresOnHand,
     estimatedCores,
     coversTarget: estimatedCores !== null,
+    shortfallCores,
     estimatedHours: estimatedHours(input.targetPoints, input.reader.workRatePointsPerHour),
   };
 }

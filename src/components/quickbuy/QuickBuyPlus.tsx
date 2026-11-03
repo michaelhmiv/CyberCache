@@ -24,7 +24,10 @@ export const QuickBuyPlus: React.FC<{
   contextLabel?: string;
   onNavigate?: (screen: string) => void;
   onRefineFocus?: (recipeId: string) => void;
-}> = ({ good, goodName, shortfall, contextLabel, onNavigate, onRefineFocus }) => {
+  /** Threaded to the sheet (QB-2): fires when a fill settles, for
+   *  surfaces that must re-read a server view afterwards. */
+  onFilled?: () => void;
+}> = ({ good, goodName, shortfall, contextLabel, onNavigate, onRefineFocus, onFilled }) => {
   const [open, setOpen] = useState(false);
   if (shortfall <= 0) return null;
   return (
@@ -50,6 +53,7 @@ export const QuickBuyPlus: React.FC<{
           onClose={() => setOpen(false)}
           onNavigate={onNavigate}
           onRefineFocus={onRefineFocus}
+          onFilled={onFilled}
         />
       )}
     </>

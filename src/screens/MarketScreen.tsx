@@ -1389,8 +1389,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
         </div>
       )}
 
-      {market.activeTab === 'repair' && <RepairBoard />}
-      {market.activeTab === 'shieldTech' && <ShieldTechBoard />}
+      {market.activeTab === 'repair' && <RepairBoard onNavigate={onNavigate} />}
+      {market.activeTab === 'shieldTech' && <ShieldTechBoard onNavigate={onNavigate} />}
 
       {market.activeTab === 'sell' && sellSegment === 'history' && (
         <div className="space-y-2">
