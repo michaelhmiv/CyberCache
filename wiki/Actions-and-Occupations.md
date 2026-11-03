@@ -19,7 +19,7 @@ Roaming is the core idle activity and the default state of the game. Your hunter
 
 One earning rule keeps an open world honest: roaming pays its per-tick earnings (credits, scrap, XP, and the drop rolls) only while you have **killed something since your last death**. Die in an area too strong for you and the earnings pause until your next kill — presence alone never pays. The same rule settles your time away: if an area's basic wildlife would kill you before you could kill it, the away window settles at zero instead of paying for standing there.
 
-While you are watching the stage in the foreground, the screen **syncs with the server on the game's 3-second tick**, so settled results show up as each tick lands; nothing syncs while the app is hidden, and earnings while you are away settle on your return (see [[Progression]]).
+While you are watching the stage in the foreground, the screen **syncs with the server on the game's 3-second tick**, so settled results show up as each tick lands; nothing syncs while the app is hidden. The moment you come back, the sync restarts immediately — a brief app switch (under 15 seconds) picks the action back up mid-stride, and the gains from those few ticks fold quietly into your feed record instead of bursting in as catch-up pop-ups. A longer absence settles on your return through the **While You Were Away** recap (see [[Progression]]).
 
 Roaming is also where the open world can kill you — death and resurrection are covered under [[Bosses]]. Pacing, XP rates, and offline earnings (including the 24-hour absolute offline cap) are covered in [[Progression]].
 

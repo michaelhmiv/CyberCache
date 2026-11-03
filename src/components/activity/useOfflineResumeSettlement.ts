@@ -45,11 +45,16 @@ import type { PluginListenerHandle } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { useAuth } from '@/auth/AuthProvider';
 import { useActivityStore } from '@/store';
-import { settleActiveActivityRewards } from '@/lib/activity/activitySettlement';
+import { settleActiveActivityRewards, RESUME_SETTLEMENT_MIN_HIDDEN_MS } from '@/lib/activity/activitySettlement';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 
-/** Minimum hidden duration (ms) to trigger settlement. */
-const MIN_HIDDEN_MS = 15_000;
+/**
+ * Minimum hidden duration (ms) to trigger settlement — the shared
+ * threshold owned by activitySettlement (RESUME_SETTLEMENT_MIN_HIDDEN_MS):
+ * below it a return is a live resume owned by the foreground sync
+ * loops, at or above it this hook's settlement lane owns catch-up.
+ */
+const MIN_HIDDEN_MS = RESUME_SETTLEMENT_MIN_HIDDEN_MS;
 
 /** Debounce window (ms) — coalesce rapid focus/visibility events. */
 const DEBOUNCE_MS = 2_000;

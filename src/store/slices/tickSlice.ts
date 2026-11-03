@@ -30,6 +30,17 @@ export type TickEvent = {
   propId?: string;
   /** True for Data Skimmer foreshadow hints (a signal, not a fired event). */
   hint?: boolean;
+  /**
+   * Earned during a brief app backgrounding and folded into the
+   * record silently on return (foreground-resume slice, 2026-11-02):
+   * the event stays in the Now/record feeds and still drives the
+   * stage, but the gain-toast lane does not pop it — a short app
+   * switch resumes without a catch-up pop-up burst. Gear drops are
+   * never folded (loot keeps its moment); stamped by the ticker for
+   * the one catch-up batch that spans a sub-settlement-threshold
+   * hidden span.
+   */
+  folded?: boolean;
 };
 
 const MAX_EVENTS = 50;

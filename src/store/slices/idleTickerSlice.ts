@@ -30,6 +30,7 @@ import {
   useSurvivalStore,
 } from '@/store';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
+import { RESUME_SETTLEMENT_MIN_HIDDEN_MS } from '@/lib/activity/activitySettlement';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import type { GearItem } from '@/types/items';
@@ -56,6 +57,36 @@ let lastTickAt = 0;
 let ticking = false;
 let totalTickCount = 0;
 let roamingConsumableState: unknown = undefined;
+
+// ── Foreground resume (owner report, 2026-11-02) ─────────────────
+// Returning from an app switch left the stage frozen until the
+// interval happened to fire: neither loop listened for visibility.
+// The ticker now tracks hidden spans itself. A span SHORTER than
+// the shared settlement threshold (RESUME_SETTLEMENT_MIN_HIDDEN_MS)
+// is a brief app switch: tick immediately on return and fold the
+// catch-up batch's routine gains silently into the feed record. A
+// span at or above it is a real absence — the resume-settlement
+// hook's server settle + "While You Were Away" recap own catch-up,
+// and the ticker deliberately does not race them with a claim burst
+// (the plain interval cadence converges from server truth via the
+// tick guard).
+let visibilityListenerAttached = false;
+let hiddenSinceAt: number | null = null;
+/** Set for the one catch-up batch that spans a brief hidden span. */
+let resumeFoldPending = false;
+/** Wall time of the last claim submission attempt (recheck gate). */
+let lastClaimAttemptAt = 0;
+let resumeRecheckId: ReturnType<typeof setTimeout> | null = null;
+/** Spacing of the deferred re-checks of a busy resume tick. */
+const RESUME_RECHECK_MS = 1500;
+/**
+ * How many re-checks a busy resume gets (≈6s of grace): a claim
+ * left in flight across the backgrounding can take seconds to
+ * settle on a cold network, and the catch-up tick must still fire
+ * promptly once it does — but never at the cost of doubling a
+ * claim that was already attempted since the return.
+ */
+const RESUME_RECHECK_MAX = 4;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -232,6 +263,13 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
   tickNow: async () => {
     if (ticking) return;
     ticking = true;
+    // Consume the resume-fold flag even if this call turns out not
+    // to claim (dead, boss fight, signed out): the fold belongs to
+    // the batch that spans the return, never to a later batch. A
+    // busy-skip above returns before this point, so the flag
+    // survives for the deferred re-check's tick.
+    const foldThisBatch = resumeFoldPending;
+    resumeFoldPending = false;
     try {
       // Hard stop when the hunter is dead. The resurrection flow
       // restarts the ticker after the player recovers.
@@ -309,6 +347,8 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
         },
         roamingConsumableState,
       };
+
+      lastClaimAttemptAt = Date.now();
 
       let chefResult: ChefClaimResult | undefined;
       let alreadyLanded = false;
@@ -398,7 +438,16 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           // animations in progress don't snap back.
           const keeperTones = new Set(['kill', 'damage', 'death', 'hit', 'heal']);
           const keepers = feedStore.events.filter((e) => keeperTones.has(e.tone));
-          const merged = [...(chefResult.feedEvents as TickEvent[]), ...keepers];
+          // Silent fold: the catch-up batch for a brief app switch
+          // stamps its routine events folded — they join the record
+          // and drive the stage, but the gain-toast lane skips them
+          // (no pop-up burst on return). A single-tick batch is just
+          // the normal flow and is never folded; gear drops keep
+          // their moment at any batch size.
+          const batchEvents = foldThisBatch && ticks >= 2
+            ? (chefResult.feedEvents as TickEvent[]).map((event) => (event.gear ? event : { ...event, folded: true }))
+            : (chefResult.feedEvents as TickEvent[]);
+          const merged = [...batchEvents, ...keepers];
           if (feedStore.clear) {
             feedStore.clear();
           }
@@ -421,17 +470,90 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
   },
 }));
 
+/**
+ * Visibility driver for the resume behavior described above. On
+ * hidden it only stamps the span start (the interval keeps its own
+ * behavior; a backgrounded WebView pauses timers itself). On
+ * visible it classifies the span that just ended:
+ *
+ *  - Brief switch (< RESUME_SETTLEMENT_MIN_HIDDEN_MS): fire a tick
+ *    NOW — the stage resumes mid-action instead of waiting out the
+ *    interval phase — and arm the silent fold for its batch. If
+ *    that tick is skipped because a pre-hide claim is still in
+ *    flight (a frozen WebView can leave one hanging), bounded
+ *    deferred re-checks fire the catch-up tick once the in-flight
+ *    claim has settled — but only if no claim was attempted since
+ *    the return, so a landed resume claim is never doubled up
+ *    off-cadence.
+ *  - Real absence (>= threshold): do nothing. The resume
+ *    settlement hook owns this return (server settle-offline +
+ *    recap); the interval cadence converges the ticker from server
+ *    truth without a competing claim burst.
+ */
+const handleTickerVisibility = (): void => {
+  if (typeof document === 'undefined') return;
+  if (document.hidden) {
+    if (hiddenSinceAt === null) hiddenSinceAt = Date.now();
+    return;
+  }
+  if (hiddenSinceAt === null) return;
+  const spanMs = Date.now() - hiddenSinceAt;
+  hiddenSinceAt = null;
+  if (spanMs >= RESUME_SETTLEMENT_MIN_HIDDEN_MS) return;
+  resumeFoldPending = true;
+  const visibleAt = Date.now();
+  void useIdleTickerStore.getState().tickNow();
+  if (resumeRecheckId) clearTimeout(resumeRecheckId);
+  let rechecksLeft = RESUME_RECHECK_MAX;
+  const recheck = () => {
+    resumeRecheckId = null;
+    if (lastClaimAttemptAt >= visibleAt) return; // the resume claim landed — done
+    if (!ticking) {
+      resumeFoldPending = true;
+      void useIdleTickerStore.getState().tickNow();
+      return;
+    }
+    // Still busy with the pre-hide claim: check again shortly,
+    // a bounded number of times, then let the interval cadence
+    // own it (the claim in flight IS a sync when it lands).
+    rechecksLeft -= 1;
+    if (rechecksLeft > 0) resumeRecheckId = setTimeout(recheck, RESUME_RECHECK_MS);
+  };
+  resumeRecheckId = setTimeout(recheck, RESUME_RECHECK_MS);
+};
+
 /** Mount the singleton ticker interval. Call from App.tsx once. */
 export const mountIdleTicker = (): void => {
+  if (typeof document !== 'undefined' && !visibilityListenerAttached) {
+    document.addEventListener('visibilitychange', handleTickerVisibility);
+    visibilityListenerAttached = true;
+  }
   if (intervalId) return;
   intervalId = setInterval(() => {
     void useIdleTickerStore.getState().tickNow();
   }, TICK_MS);
   useIdleTickerStore.setState({ running: true, lastTickAt: Date.now() });
+  // Come alive immediately: on a cold start the first claim lands
+  // one network round-trip after mount instead of up to a full
+  // tick later, so the stage shows the live action as soon as the
+  // boot snapshot paints. (lastTickAt is still unset here, so this
+  // tick claims exactly one tick — the boot settlement already
+  // owned the away time.)
+  void useIdleTickerStore.getState().tickNow();
 };
 
 /** Unmount the singleton ticker interval. Call on logout / unmount. */
 export const unmountIdleTicker = (): void => {
+  if (visibilityListenerAttached && typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handleTickerVisibility);
+    visibilityListenerAttached = false;
+  }
+  if (resumeRecheckId) {
+    clearTimeout(resumeRecheckId);
+    resumeRecheckId = null;
+  }
+  hiddenSinceAt = null;
+  resumeFoldPending = false;
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;

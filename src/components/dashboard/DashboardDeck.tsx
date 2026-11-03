@@ -314,7 +314,10 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
   const boss = useBossStore();
   const activity = useActivityStore();
   const tickEvents = useTickFeedStore((state) => state.events);
-  const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.slice(0, 5), [tickEvents]);
+  // The toast lane skips folded events (foreground-resume slice):
+  // gains earned during a brief app switch stay in the Now record
+  // below but never pop as catch-up toasts on return.
+  const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.filter((event) => !event.folded).slice(0, 5), [tickEvents]);
   const nowEvents = useMemo(() => tickEvents.slice(0, 3), [tickEvents]);
 
   const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;

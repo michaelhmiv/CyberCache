@@ -75,6 +75,13 @@ where, and from whom — is never lost: the same events print with
 their full detail in the Now rows in the deck below and in the Action
 screen's reward stream.
 
+One exception to the popping: gains earned during a brief app
+switch (under 15 seconds away) never pop on your return. The
+action resumes the moment you are back, and those few ticks fold
+straight into the Now rows and the reward stream below — the
+record is complete, the return is quiet. Drops still pop and
+still take their stage moment; only the routine gain cards fold.
+
 ## The deck
 
 Everything below the fold is the **deck**, in a fixed order:
