@@ -36,10 +36,10 @@
  *    kept in this store (not component state), it cannot
  *    resurrect on a remount. It is keyed per grant: a later
  *    day's grant carries a different key and announces again.
- *    No localStorage copy exists on purpose: after an app
- *    restart the Chef replays the day's claim with
- *    `alreadyClaimed = true`, so a stale local flag could only
- *    ever suppress a grant the server says is fresh.
+ *    No persisted copy exists on purpose: after an app restart
+ *    the Chef replays the day's claim with
+ *    `alreadyClaimed = true`, so a stale on-device flag could
+ *    only ever suppress a grant the server says is fresh.
  *  - DAY-BOUNDARY REVALIDATION (D3). `revalidate()` re-reads
  *    when the client UTC day has rolled since the held result
  *    landed, so a session kept alive across 00:00 UTC records
