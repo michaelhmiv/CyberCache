@@ -16,7 +16,6 @@ import type { AuthConfig } from '../auth/routes';
 import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, DeathRecord, Json } from '../gameplay/store';
 import { equippedWeaponManufacturer, skillBonusesFromRecords } from '../gameplay/serverLoadout';
-import { getRoamingArea } from '../../constants/roamingAreas';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
 import { isHotArea } from '../../content/hotArea';
 import { cacheRankBonuses } from '../../content/cacheRank';
@@ -92,7 +91,6 @@ export function createClaimHandler(
       // engine + the settlement duel gate are what keep a hopeless
       // area from paying — difficulty and death are the walls now,
       // not a level check.
-      const area = getRoamingArea(body.areaId);
 
       if (body.tickCount <= profile.last_claimed_tick) {
         res.status(409).json({ error: 'tick_count already claimed', lastClaimedTick: profile.last_claimed_tick });
@@ -191,8 +189,8 @@ export function createClaimHandler(
       const claimWithConsumables: ClaimRequest = {
         ...claim,
         // The DB level is authoritative (same precedent as the
-        // verify-boss route): it drives the area gate above and item
-        // generation levels, never the client body's playerLevel.
+        // verify-boss route): it drives item generation levels,
+        // never the client body's playerLevel.
         playerLevel: profile.player_level,
         // Server-derived loadout + skills (trust hardening, above).
         equippedGear,
