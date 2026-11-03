@@ -281,10 +281,14 @@ describe('migration 0038 textual pins', () => {
   const sql = readFileSync(join(process.cwd(), 'db/migrations/0038_research.sql'), 'utf8');
 
   it('the embedded SQL catalog parses to the TS catalog (ids, hours, costs, effects)', () => {
-    const start = sql.indexOf('select $catalog$[');
+    // The LIVE catalog restatement is 0063 (gate-removal step 6
+    // re-granted the Logistics offlineCapBonus values); 0038's
+    // original literal is historical. Parity binds the live twin.
+    const liveSql = readFileSync(join(process.cwd(), 'db/migrations/0063_offline_cap_research_carrier.sql'), 'utf8');
+    const start = liveSql.indexOf('select $catalog$[');
     expect(start).toBeGreaterThan(-1);
-    const end = sql.indexOf(']$catalog$', start);
-    const parsed = JSON.parse(sql.slice(start + 'select $catalog$'.length, end + 1)) as Array<Json>;
+    const end = liveSql.indexOf(']$catalog$', start);
+    const parsed = JSON.parse(liveSql.slice(start + 'select $catalog$'.length, end + 1)) as Array<Json>;
     expect(parsed).toHaveLength(12);
     for (const course of RESEARCH_COURSES) {
       const twin = parsed.find((c) => c.id === course.id);

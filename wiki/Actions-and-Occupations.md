@@ -46,7 +46,7 @@ Extraction is the gathering occupation: dedicated material work at a site in any
 - Yield scales with a **gear factor**: how safely your current loadout can work that site, priced from your real HP pool against the damage the site would deal over a pass. Under-geared gathering is slower, never impossible — the factor has a floor of 0.4.
 - Extraction pays player XP at **0.75× roaming's rate** (the same peg machinery as crafting), and each completed pass grants **20 XP to the `gathering.extraction` mastery track**. Mastery widens yield by 0.5% per level past 1, up to +25%.
 - **Deep Delve** is the second method: it needs extraction mastery **level 5 or higher** to select, and at settlement the pass must price at a gear factor of **0.80 or better** — then it pays at **1.5× the draw rate** (288 draws per hour). A deep pass that settles below the gear gate pays as a normal surface pass.
-- Extraction requires a **signed-in account** — guests are refused at the start gate, because extraction feeds the player economy — and you cannot start while a death record stands. Crafted goods need materials; materials, at scale, come from here and from [[The Market]].
+- Extraction requires a **signed-in account** — guests are refused at the start gate, because extraction feeds the player economy — and you cannot start while a death record stands. The site itself is never locked: extraction runs in **any area at any hunter level**, exactly like roaming. Crafted goods need materials; materials, at scale, come from here and from [[The Market]].
 
 ## Boss fights and endless runs
 
