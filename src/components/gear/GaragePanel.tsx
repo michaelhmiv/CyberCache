@@ -33,7 +33,7 @@ import { getPixelSprite } from '@/lib/pixel/manifest';
  * (LiveTurfDiorama): cargo rack / scanner array / reinforced frame
  * by affix stat, the scuff layer under 35% condition.
  */
-const VehicleSprite: React.FC<{ vehicle: VehicleDisplay }> = ({ vehicle }) => {
+export const VehicleSprite: React.FC<{ vehicle: VehicleDisplay; widthClass?: string }> = ({ vehicle, widthClass = 'w-[92px]' }) => {
   const fraction = conditionFraction(vehicle.conditionCurrent, vehicle.conditionMax);
   const overlay = (id: string) => (
     <img
@@ -45,7 +45,7 @@ const VehicleSprite: React.FC<{ vehicle: VehicleDisplay }> = ({ vehicle }) => {
     />
   );
   return (
-    <div className="relative w-[92px] shrink-0 self-start" data-testid="garage-vehicle-sprite">
+    <div className={`relative ${widthClass} shrink-0 self-start`} data-testid="garage-vehicle-sprite">
       <img
         src={getPixelSprite(`vehicle-${vehicle.vehicleClassId.replace(/_/g, '-')}`)?.url}
         alt=""
@@ -62,14 +62,32 @@ const VehicleSprite: React.FC<{ vehicle: VehicleDisplay }> = ({ vehicle }) => {
 };
 
 /**
+ * A remedy door: the tappable way OUT of an empty-handed state
+ * (fuel/condition clarity, owner feedback 2026-11-02 — the fix sits
+ * next to the problem, and when the player owns none of the cure,
+ * the door to get it is part of the same block).
+ */
+const RemedyDoor: React.FC<{ title: string; detail: string; onClick: () => void }> = ({ title, detail, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="min-w-[120px] flex-1 border border-amber/70 bg-background/60 px-2 py-2 text-left"
+  >
+    <span className="block text-xs font-black text-amber">{title}</span>
+    <span className="block text-[11px] leading-snug text-text-muted">{detail}</span>
+  </button>
+);
+
+/**
  * Garage (0021) — the vehicle home inside the Loadout. It renders
  * expanded under the vehicle status line in the Loadout stop's
  * VehicleGarageSection (owner ruling 2026-11-02 folded it here
  * from its short-lived rail stop; DESIGN.md §11 F1 as amended).
  *
  * Vehicles are real gear in their own slot: equip/unequip go through
- * the same verified ops as gear slots (the server enforces the class
- * level gate) and fuel loads through cc_refuel_vehicle. Condition
+ * the same verified ops as gear slots (equip checks ownership only —
+ * vehicles are pure market goods, owner ruling 2026-11-02) and fuel
+ * loads through cc_refuel_vehicle. Condition
  * repair (0025) is WORK, not an instant consumable: self-repair is a
  * timed job on the Workshop's job machinery — your patch kits escrow
  * when the job starts and apply one at a time while Workshop Service
@@ -78,10 +96,13 @@ const VehicleSprite: React.FC<{ vehicle: VehicleDisplay }> = ({ vehicle }) => {
  * pay another player's mechanic. Every factor the claim engine
  * reads is shown here: class yield, fuel burn, condition, affixes.
  */
-export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onRequestService }) => {
+export const GaragePanel: React.FC<{
+  onRequestService?: () => void;
+  /** App navigation for the remedy doors (Vendor / Workshop / Buy lane). */
+  onNavigate?: (screen: string) => void;
+}> = ({ onRequestService, onNavigate }) => {
   const vehicles = useVehicleStore((s) => s.vehicles);
   const equippedId = useLoadoutStore((s) => s.slots.vehicle);
-  const playerLevel = usePlayerStore((s) => s.level);
   const vehicleFuel = usePlayerStore((s) => s.vehicleFuel);
   const fuelCells = usePlayerStore((s) => s.consumables[FUEL_CELL_TYPE] ?? 0);
   const consumables = usePlayerStore((s) => s.consumables);
@@ -140,6 +161,35 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
     }
   };
 
+  // Fuel clarity (owner feedback 2026-11-02): the tank (units) and
+  // the cells carried (count) are different numbers and print as
+  // such; when the tank is dry the remedy renders WITH the problem —
+  // the Load buttons move into the out-of-fuel block (rendered
+  // exactly once either way), and an empty-handed player gets
+  // tappable doors to the Vendor / Workshop / player market instead
+  // of a hint they have to act on from memory.
+  const outOfFuel = vehicleFuel <= 0;
+  const loadButtons = (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        disabled={busy || fuelCells < 1}
+        onClick={() => void handleRefuel(1)}
+        className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
+      >
+        Load 1 cell (+100 units)
+      </button>
+      <button
+        type="button"
+        disabled={busy || fuelCells < 1}
+        onClick={() => void handleRefuel(fuelCells)}
+        className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
+      >
+        Load all
+      </button>
+    </div>
+  );
+
   return (
     <section
       id="garage-panel"
@@ -163,42 +213,66 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
           <span className="text-text-muted">Generic Fuel Cells in inventory</span>
           <span className="font-bold text-text-primary">{fuelCells}</span>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={busy || fuelCells < 1}
-            onClick={() => void handleRefuel(1)}
-            className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
-          >
-            Load 1 cell (+100 units)
-          </button>
-          <button
-            type="button"
-            disabled={busy || fuelCells < 1}
-            onClick={() => void handleRefuel(fuelCells)}
-            className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
-          >
-            Load all
-          </button>
-        </div>
-        {fuelCells < 1 && (
-          <div className="text-[11px] text-text-muted" data-testid="garage-fuel-hint">
-            No Generic Fuel Cells in inventory — the Vendor in the Market sells them, and they
-            trade on the player market. Buy a few, then load them here: each cell adds 100 fuel
-            units. Out of fuel never stops roaming; the vehicle bonus just turns off until you
-            refuel.
-          </div>
-        )}
+        {/* The buttons render exactly once: here in the tank panel,
+            except when the tank is dry AND cells are on hand — then
+            they move into the out-of-fuel block below, beside the
+            problem they fix. Cell-less, they stay here, disabled,
+            with the doors in the block (QC C1). */}
+        {!(outOfFuel && fuelCells > 0) && loadButtons}
         {notice && <div className="text-xs text-text-secondary">{notice}</div>}
         <div className="text-[11px] text-text-muted">
           Patch Kits owned: {patchKits} — buy fuel cells and patch kits from the vendor.
         </div>
       </div>
 
+      {outOfFuel && (
+        <div className="space-y-2 border border-amber/60 bg-amber/10 p-2" data-testid="garage-out-of-fuel">
+          <div className="text-xs font-bold text-amber">
+            Out of fuel — your vehicle pays no yield bonus and you roam on foot at ×1.00 until the tank has fuel in it.
+          </div>
+          {fuelCells > 0 ? (
+            <>
+              <div className="text-[11px] text-text-muted">
+                Load a cell to bring the bonus back — each cell adds 100 fuel units:
+              </div>
+              {loadButtons}
+            </>
+          ) : (
+            <>
+              <div className="text-[11px] text-text-muted" data-testid="garage-fuel-hint">
+                No Generic Fuel Cells in inventory — the Vendor in the Market sells them, and they
+                trade on the player market. Buy a few, then load them here: each cell adds 100 fuel
+                units. Out of fuel never stops roaming; the vehicle bonus just turns off until you
+                refuel.
+              </div>
+              {onNavigate && (
+                <div className="flex flex-wrap gap-2">
+                  <RemedyDoor
+                    title="Vendor"
+                    detail="Generic Fuel Cells — 40cr each at the Market vendor"
+                    onClick={() => onNavigate('market:vendor')}
+                  />
+                  <RemedyDoor
+                    title="Workshop"
+                    detail="Craft Fuel Cells at the bench"
+                    onClick={() => onNavigate('workshop')}
+                  />
+                  <RemedyDoor
+                    title="Player Market"
+                    detail="Fuel cells trade on the Buy lane"
+                    onClick={() => onNavigate('market:buy')}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {error && <div className="text-xs text-red-400">{error}</div>}
 
       {vehicles.length === 0 && (
-        <div className="text-xs text-text-muted">No vehicles yet. Your starter Scrap Bike arrives with the initial bundle; more drop while roaming.</div>
+        <div className="text-xs text-text-muted">No vehicles yet — your starter Scrap Bike is in your initial bundle; more vehicles trade on the player market.</div>
       )}
 
       <div className="space-y-2">
@@ -207,7 +281,7 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
             key={vehicle.id}
             vehicle={vehicle}
             equipped={vehicle.id === equippedId}
-            playerLevel={playerLevel}
+            onNavigate={onNavigate}
             kitCounts={{
               PatchKit: consumables.PatchKit ?? 0,
               FieldPatchKit: consumables.FieldPatchKit ?? 0,
@@ -249,7 +323,6 @@ export const GaragePanel: React.FC<{ onRequestService?: () => void }> = ({ onReq
 const VehicleCard: React.FC<{
   vehicle: VehicleDisplay;
   equipped: boolean;
-  playerLevel: number;
   kitCounts: Record<string, number>;
   repairJob?: WorkshopJobView;
   repairMasteryLevel: number;
@@ -260,15 +333,35 @@ const VehicleCard: React.FC<{
   onWorkRepair: (job: WorkshopJobView) => void;
   onCancelRepair: (job: WorkshopJobView) => void;
   onRequestService?: () => void;
+  onNavigate?: (screen: string) => void;
 }> = ({
-  vehicle, equipped, playerLevel, kitCounts, repairJob, repairMasteryLevel,
+  vehicle, equipped, kitCounts, repairJob, repairMasteryLevel,
   busy, onEquip, onUnequip, onStartRepair, onWorkRepair, onCancelRepair, onRequestService,
+  onNavigate,
 }) => {
   const def = getVehicleClass(vehicle.vehicleClassId);
   const fraction = conditionFraction(vehicle.conditionCurrent, vehicle.conditionMax);
   const effective = effectiveVehicleYield(vehicle, fraction, 1);
-  const locked = def ? playerLevel < def.unlockLevel : false;
   const worn = vehicle.conditionCurrent < vehicle.conditionMax;
+  const wrecked = vehicle.conditionCurrent <= 0;
+  const totalKits = (kitCounts.PatchKit ?? 0) + (kitCounts.FieldPatchKit ?? 0) + (kitCounts.MasterPatchKit ?? 0);
+  // Empty-handed repair doors (fuel/condition clarity, 2026-11-02):
+  // when the player owns no patch kits at all, the way to GET kits
+  // renders beside the repair controls, not in another tab's copy.
+  const kitDoors = onNavigate ? (
+    <div className="flex flex-wrap gap-2" data-testid="garage-kit-doors">
+      <RemedyDoor
+        title="Vendor"
+        detail="Patch Kits — 150cr each at the Market vendor"
+        onClick={() => onNavigate('market:vendor')}
+      />
+      <RemedyDoor
+        title="Workshop"
+        detail="Craft Patch Kits at the bench"
+        onClick={() => onNavigate('workshop')}
+      />
+    </div>
+  ) : null;
   const [kitType, setKitType] = useState<string>('PatchKit');
   const [units, setUnits] = useState(1);
   const ownedOfSelected = kitCounts[kitType] ?? 0;
@@ -298,7 +391,7 @@ const VehicleCard: React.FC<{
             <div className="shrink-0 text-[11px] text-text-muted">{vehicle.rarity}</div>
           </div>
           <div className="text-[11px] text-text-muted">
-            {def ? `${def.displayName} · requires level ${def.unlockLevel}` : vehicle.vehicleClassId}
+            {def ? def.displayName : vehicle.vehicleClassId}
             {def ? ` · base yield ×${def.baseYield.toFixed(2)} · burns ${def.fuelBurnPerTick.toFixed(1)} fuel/tick` : ''}
           </div>
           <div className="text-[11px] text-text-muted">
@@ -336,14 +429,24 @@ const VehicleCard: React.FC<{
         ) : (
           <button
             type="button"
-            disabled={busy || locked}
+            disabled={busy}
             onClick={onEquip}
             className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
           >
-            {locked ? `Requires level ${def?.unlockLevel}` : 'Equip'}
+            Equip
           </button>
         )}
       </div>
+
+      {wrecked && (
+        <div className="space-y-2 border border-red-400/50 bg-red-400/10 p-2" data-testid="garage-worn-out">
+          <div className="text-[11px] font-bold leading-snug text-red-300">
+            Wrecked — condition is 0, so this vehicle pays no yield bonus. Patch kits are the fix:
+            start a repair job below{totalKits > 0 ? ' with the kits you own' : ''}.
+          </div>
+          {totalKits === 0 && kitDoors}
+        </div>
+      )}
 
       {worn && !repairJob && (
         <div className="border-t border-border pt-2 space-y-2">
@@ -353,6 +456,12 @@ const VehicleCard: React.FC<{
             action (repair mastery {repairMasteryLevel} sets the pace ≈ {unitHours.toFixed(1)}h
             per {kitType}).
           </div>
+          {totalKits === 0 && (
+            <>
+              <div className="text-[11px] font-bold text-text-primary">You own no patch kits — get them here:</div>
+              {kitDoors}
+            </>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={kitType}

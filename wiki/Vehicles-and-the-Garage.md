@@ -25,22 +25,25 @@ stop.
 
 ## The seven classes
 
-Each class unlocks at a player level (the gate is enforced when you
-equip) and trades raw yield against fuel burn and durability:
+The classes form a design ladder — later classes specialize harder —
+but **no class has a level requirement**. Vehicles are pure market
+goods: you get them by buying them (or by drop), and if you can buy
+it, you can drive it. Equipping checks only that the vehicle is
+yours. Each class trades raw yield against fuel burn and durability:
 
-- **Scrap Bike** — level 1, **×1.15** yield. Your starter: modest bonus,
+- **Scrap Bike** — **×1.15** yield. Your starter: modest bonus,
   light fuel burn, wears a little fast.
-- **Dune Buggy** — level 8, **×1.35** yield. The general-purpose roaming
+- **Dune Buggy** — **×1.35** yield. The general-purpose roaming
   upgrade.
-- **Utility Rover** — level 18, **×1.25** yield. The long-haul farmer:
+- **Utility Rover** — **×1.25** yield. The long-haul farmer:
   the lowest fuel burn and slow wear beat the Buggy over a long session.
-- **Cargo Hauler** — level 28, **×1.10** yield. Low raw yield, but a
+- **Cargo Hauler** — **×1.10** yield. Low raw yield, but a
   **+30% material quantity** bonus — the material farmer's pick.
-- **Armored Crawler** — level 42, **×1.05** yield. Barely a bonus, but
+- **Armored Crawler** — **×1.05** yield. Barely a bonus, but
   near-negligible wear — the dangerous-zone reliability pick.
-- **Relay Skimmer** — level 60, **×1.60** yield. The highest yield in
+- **Relay Skimmer** — **×1.60** yield. The highest yield in
   the game, with the highest fuel burn and fragile condition to match.
-- **Leviathan Rig** — level 75, **×1.50** yield. The endgame flagship:
+- **Leviathan Rig** — **×1.50** yield. The endgame flagship:
   near-Skimmer yield that holds up far longer, about half the Skimmer's
   wear rate, lower fuel burn, and a **+15% material quantity** bonus.
 
@@ -53,8 +56,11 @@ what you want is materials, not credits.
 Your **starter Scrap Bike arrives in your initial account bundle**,
 auto-equipped if your vehicle slot is empty. After that, vehicles drop
 while roaming — a small share of gear drops (4%) arrive as a vehicle
-drop instead — and they trade on the [[The Market|player market]] like
-any other item.
+drop instead — and they trade on the [[The Market|player market]]:
+the **Vehicles** category on the Buy lane is how you choose your ride,
+and any vehicle you own can be listed from the Sell lane like any
+other item. Drops are the market's supply; the market is how a
+specific vehicle reaches a specific hunter.
 
 ## Fuel: crafted, and never a hard block
 
@@ -65,10 +71,13 @@ Fuel Cell** loads **100 fuel units** into the tank.
 Fuel cells come from two places: the NPC [[Vendor]] sells the baseline
 Generic Fuel Cell, and [[Crafting]] makes the crafted Fuel Cell, which
 loads fuel in proportion to its quality — a 130% cell loads 130 units.
-Generic cells also trade on the player market. The Garage tells you
-this on the spot: with no Generic Fuel Cells in inventory, its greyed-out
-load buttons carry a note pointing at the Vendor and the player market,
-so an empty tank never reads as a dead end.
+Generic cells also trade on the player market. Two numbers, always
+printed separately: the **tank** (fuel units, what the vehicle burns)
+and the **cells you carry** (a count, what you can load). When the
+tank runs dry, the Garage's out-of-fuel block carries the remedy with
+the problem: the Load buttons sit inside it when you have cells, and
+when you have none it shows tappable doors — Vendor, Workshop, and
+the player market — so an empty tank never reads as a dead end.
 **Run dry and nothing stops:** the
 bonus simply goes inactive and you keep roaming on foot at ×1.0 until
 you refuel. Out of fuel is a missed bonus, never a wall.
@@ -84,7 +93,10 @@ roaming** — a wrecked vehicle is just a vehicle paying no bonus.
 **Patch kits restore condition.** At 100% quality, a basic Patch Kit
 restores **30 points**, a Field Patch Kit **45**, and a Master Patch Kit
 **80** — and a crafted kit's quality percentage scales what it actually
-restores, so a 130% kit restores 130% of its base. You have two ways to
+restores, so a 130% kit restores 130% of its base. A vehicle at zero
+condition says so in the Garage — Wrecked — and names patch kits as
+the fix right beside the repair controls; if you own no kits, the
+Vendor and Workshop doors stand there instead. You have two ways to
 use one:
 
 - **Self-repair** — do it yourself in the Workshop: untrained and slow,

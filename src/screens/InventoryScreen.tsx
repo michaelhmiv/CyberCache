@@ -130,6 +130,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
               requestedPickerSlot={pendingPickerSlot}
               vehicleExpandSignal={vehicleExpandSeq}
               onRequestService={requestService}
+              onNavigate={onNavigate}
             />
           )}
           {activeStop === 'grid' && (

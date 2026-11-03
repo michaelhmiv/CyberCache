@@ -20,7 +20,9 @@ import { GaragePanel } from './GaragePanel';
 export const VehicleGarageSection: React.FC<{
   expandSignal?: number | null;
   onRequestService?: () => void;
-}> = ({ expandSignal = null, onRequestService }) => {
+  /** App navigation, threaded to the Garage's remedy doors. */
+  onNavigate?: (screen: string) => void;
+}> = ({ expandSignal = null, onRequestService, onNavigate }) => {
   const [expanded, setExpanded] = useState(false);
   const [appliedSignal, setAppliedSignal] = useState<number | null>(null);
   if (expandSignal !== null && expandSignal !== appliedSignal) {
@@ -31,7 +33,7 @@ export const VehicleGarageSection: React.FC<{
   return (
     <div className="space-y-3">
       <VehicleStatusLine expanded={expanded} onToggleExpand={() => setExpanded((v) => !v)} />
-      {expanded && <GaragePanel onRequestService={onRequestService} />}
+      {expanded && <GaragePanel onRequestService={onRequestService} onNavigate={onNavigate} />}
     </div>
   );
 };

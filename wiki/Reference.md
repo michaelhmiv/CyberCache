@@ -173,7 +173,7 @@ Baseline rates are the area design rates before gear, skills, vehicles, and the 
 <!-- wiki-gen:vehicles -->
 ### Vehicle classes
 
-| Class | Unlock level | Yield | Fuel / tick | Wear rate | Material bonus | Role |
+| Class | Ladder tier | Yield | Fuel / tick | Wear rate | Material bonus | Role |
 | --- | --- | --- | --- | --- | --- | --- |
 | **Scrap Bike** | 1 | ×1.15 | 0.9 | ×1.1 | — | Starter mobility. |
 | **Dune Buggy** | 8 | ×1.35 | 1.1 | ×1 | — | General roaming travel. |
@@ -182,6 +182,8 @@ Baseline rates are the area design rates before gear, skills, vehicles, and the 
 | **Armored Crawler** | 42 | ×1.05 | 1.5 | ×0.25 | — | Dangerous-zone reliability: near-negligible wear. |
 | **Relay Skimmer** | 60 | ×1.6 | 2 | ×1.25 | — | Fastest yield, highest fuel burn, fragile. |
 | **Leviathan Rig** | 75 | ×1.5 | 1.6 | ×0.5 | +15% | Endgame flagship: near-Skimmer yield, Crawler-grade endurance, a working cargo rack. |
+
+The ladder tier is design data only (drop weighting, dispatch courier bands) — **no class has a level requirement**: vehicles are market goods, and if you can buy it, you can drive it.
 
 ### The model in numbers
 

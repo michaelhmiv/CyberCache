@@ -12,6 +12,8 @@ type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'> 
   vehicleExpandSignal?: number | null;
   /** The Garage's "post it to the Repair Services board" door. */
   onRequestService?: () => void;
+  /** App navigation, threaded to the Garage's remedy doors. */
+  onNavigate?: (screen: string) => void;
 };
 
 /**
@@ -33,12 +35,13 @@ type SyncedLoadoutScreenProps = Pick<ActionLoadoutProps, 'requestedPickerSlot'> 
 export const SyncedLoadoutScreen: React.FC<SyncedLoadoutScreenProps> = ({
   vehicleExpandSignal = null,
   onRequestService,
+  onNavigate,
   ...loadoutProps
 }) => {
   return (
     <div className="p-4 space-y-4 pb-20">
       <ActionLoadout {...loadoutProps} />
-      <VehicleGarageSection expandSignal={vehicleExpandSignal} onRequestService={onRequestService} />
+      <VehicleGarageSection expandSignal={vehicleExpandSignal} onRequestService={onRequestService} onNavigate={onNavigate} />
     </div>
   );
 };

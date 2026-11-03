@@ -1561,15 +1561,16 @@ export class InMemoryWriteStore implements WriteStore {
     const item = this.ownItem(playerId, itemId);
     if (!['available', 'locked', 'equipped'].includes(item.runtime_state)) throw writeError('Item state invalid');
     if (!itemAcceptsSlot(item.payload, slotName)) throw writeError('Item type does not match loadout slot');
-    // Vehicle equip gate (0021): class unlock level vs the profile's
-    // level, enforced here (server-side), never in the client.
+    // Vehicle equip (0021; gate removed by owner ruling 2026-11-02):
+    // vehicles are pure market goods — if you can buy it, you can
+    // drive it. Ownership (ownItem above) is the only gate; the
+    // class must still resolve, as payload integrity. The class
+    // ladder (def.unlockLevel) is design data read by drop flavor
+    // and the dispatch courier bands — never by equip.
     if (slotName === 'vehicle') {
       const classId = (item.payload as Record<string, unknown>)?.vehicleClassId;
       const def = getVehicleClass(typeof classId === 'string' ? classId : null);
       if (!def) throw writeError('Unknown vehicle class');
-      if (p.player_level < def.unlockLevel) {
-        throw writeError(`Vehicle requires hunter level ${def.unlockLevel}`);
-      }
     }
     const changed: WriteItemData[] = [];
     for (const other of this.items.values()) {

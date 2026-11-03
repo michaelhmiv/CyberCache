@@ -21,16 +21,18 @@
  *      identical seeded state produce identical rewards, identical
  *      vehicle blocks, and identical persisted fuel/condition.
  *   4. The writes mirror (InMemoryWriteStore): starter grant
- *      idempotency, the equip level gate, refuel, patch kit, and a
- *      market sale that delivers the vehicle intact with the fee
- *      destroyed.
+ *      idempotency, equip with NO level gate (owner ruling
+ *      2026-11-02 — ownership is the only gate), refuel, patch kit,
+ *      and a market sale that delivers the vehicle intact with the
+ *      fee destroyed.
  *   5. Boss isolation: the boss loadout derivation excludes the
  *      vehicle, and a verify-boss attempt pays identically with and
  *      without a vehicle equipped.
  *   6. The generator: class weighting by area (Skimmer is high-area
  *      only), affix rolls from the one pool.
  *   7. Source pins on migration 0021 (slot list, kind constraint,
- *      vendor staples, SQL unlock-level twin vs the TS class table).
+ *      vendor staples, SQL class-ladder twin vs the TS class table)
+ *      and on migration 0054 (the equip gate's removal).
  */
 import express from 'express';
 import type { AddressInfo } from 'node:net';
@@ -497,23 +499,43 @@ describe('starter grant (writes mirror)', () => {
   });
 });
 
-describe('equip level gate (writes mirror)', () => {
-  it('a level-5 hunter cannot equip a Dune Buggy (L8); a level-8 hunter can', async () => {
+describe('equip has no level gate (writes mirror)', () => {
+  it('a level-5 hunter equips a Dune Buggy (the old L8 gate is gone)', async () => {
     const seed = emptyWriteSeed();
     seed.profiles = [profile({ id: S, player_level: 5 })];
     seed.items = [vehicleWriteItem()];
     const store = makeWriteStore(seed);
 
-    await expect(store.equipItem(S, 'equip-nonce-0001', VEH_ITEM, 'vehicle')).rejects.toThrow(
-      'Vehicle requires hunter level 8',
-    );
-    expect(store.seed.items.find((i) => i.id === VEH_ITEM)?.equipped_slot).toBeNull();
-
-    // The store clones the seed at construction — level up ITS copy.
-    store.seed.profiles[0].player_level = 8;
-    const equipped = rec(await store.equipItem(S, 'equip-nonce-0002', VEH_ITEM, 'vehicle'));
+    const equipped = rec(await store.equipItem(S, 'equip-nonce-0001', VEH_ITEM, 'vehicle'));
     expect(rec(equipped.loadout).vehicle).toBe(VEH_ITEM);
     expect(store.seed.items.find((i) => i.id === VEH_ITEM)?.runtime_state).toBe('equipped');
+  });
+
+  it('a level-1 hunter equips a Leviathan Rig they own (owner ruling 2026-11-02: if you can buy it, you can drive it)', async () => {
+    const seed = emptyWriteSeed();
+    seed.profiles = [profile({ id: S, player_level: 1 })];
+    seed.items = [vehicleWriteItem({
+      rarity: 'Legendary',
+      item_level: 1,
+      payload: {
+        ...makeVehicle({ id: VEH_ITEM, vehicleClassId: 'leviathan_rig', name: 'Leviathan Rig', rarity: Rarity.Legendary, level: 1 }),
+      } as unknown as WriteItemData['payload'],
+    })];
+    const store = makeWriteStore(seed);
+
+    const equipped = rec(await store.equipItem(S, 'equip-nonce-0002', VEH_ITEM, 'vehicle'));
+    expect(rec(equipped.loadout).vehicle).toBe(VEH_ITEM);
+    expect(store.seed.items.find((i) => i.id === VEH_ITEM)?.equipped_slot).toBe('vehicle');
+  });
+
+  it("another hunter's vehicle still cannot be equipped — ownership is the gate that remains", async () => {
+    const seed = emptyWriteSeed();
+    seed.profiles = [profile({ id: S, player_level: 1 }), profile({ id: B, player_level: 1 })];
+    seed.items = [vehicleWriteItem()];
+    const store = makeWriteStore(seed);
+
+    await expect(store.equipItem(B, 'equip-nonce-0007', VEH_ITEM, 'vehicle')).rejects.toThrow('Item not found');
+    expect(store.seed.items.find((i) => i.id === VEH_ITEM)?.equipped_slot).toBeNull();
   });
 
   it('gear payloads cannot enter the vehicle slot and vehicles cannot enter gear slots', async () => {
@@ -762,19 +784,43 @@ describe('migration 0021 source pins', () => {
     expect(sql).toContain("('PatchKit', 150, 'staple')");
   });
 
-  it('the SQL unlock-level twin matches the TS class table for every class', () => {
+  it('the SQL class-ladder twin matches the TS class table for every class', () => {
     // The twin's current body lives in 0032 (the Leviathan restate);
-    // 0021 carries the original six rows.
+    // 0021 carries the original six rows. Since 0054 the ladder is
+    // read by the dispatch courier class bands only — equip no
+    // longer reads it — but the twin itself is unchanged.
     const sql0032 = readFileSync(resolve(__dirname, '../../db/migrations/0032_dispatch.sql'), 'utf8');
     for (const def of VEHICLE_CLASSES) {
       expect(sql + sql0032).toContain(`when '${def.id}' then ${def.unlockLevel}`);
     }
-    expect(sql).toContain("'Vehicle requires hunter level %'");
   });
 
-  it('the starter grant and the equip gate live in the SQL bundle/equip functions', () => {
+  it('the starter grant lives in the SQL bundle function and the ladder helper exists', () => {
     expect(sql).toContain("'grantSource', 'initial_bundle'");
     expect(sql).toContain('cc_vehicle_unlock_level');
     expect(sql).toContain("payload ? 'vehicleClassId'");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. Migration 0054 source pins — the equip gate dies
+// ---------------------------------------------------------------------------
+
+describe('migration 0054 source pins', () => {
+  const sql0054 = readFileSync(resolve(__dirname, '../../db/migrations/0054_vehicle_equip_no_level_gate.sql'), 'utf8');
+
+  it('restates cc_equip_item without the player-level refusal', () => {
+    expect(sql0054).toContain('CREATE OR REPLACE FUNCTION public.cc_equip_item');
+    expect(sql0054).not.toContain('Vehicle requires hunter level');
+    expect(sql0054).not.toContain('p.player_level');
+    // Class integrity survives: an unresolvable class still refuses.
+    expect(sql0054).toContain("raise exception 'Unknown vehicle class'");
+    // The 0032 refusal list rides along verbatim.
+    expect(sql0054).toContain("'listed','consumed','salvaged','in_service'");
+  });
+
+  it('does not drop cc_vehicle_unlock_level — the dispatch courier bands read it', () => {
+    expect(sql0054.toLowerCase()).not.toContain('drop function');
+    expect(sql0054).toContain('cc_vehicle_unlock_level');
   });
 });

@@ -25,8 +25,12 @@ import {
   essenceIdentityKey,
   gearIdentityKeyForItem,
   materialIdentityKey,
+  vehicleIdentityKey,
   type MarketCategory,
 } from '@/lib/market/identityKey';
+import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
+import { conditionFraction, getVehicleClass } from '@/lib/vehicles/vehicles';
+import { VehicleSprite } from '@/components/gear/GaragePanel';
 import type { PriceStats } from '@/lib/market/priceStats';
 import type { MarketListingQuery, MarketSort } from '@/lib/market/listingQuery';
 import { ResourceBar } from '@/components/layout/ResourceBar';
@@ -193,6 +197,59 @@ function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem;
   );
 }
 
+/**
+ * Card for vehicle listings and sell candidates (0021): the ACTUAL
+ * instance's sprite — class profile with its rolled affix overlays
+ * and condition wear, the same derivation the Garage draws — plus
+ * the class stats a buyer compares (yield, fuel burn) and the
+ * instance's live condition. Vehicles are pure market goods (owner
+ * ruling 2026-11-02): no level requirement appears here because
+ * there is none — if you can buy it, you can drive it.
+ */
+function VehicleMiniCard({ vehicle }: { vehicle: VehicleDisplay }) {
+  const def = getVehicleClass(vehicle.vehicleClassId);
+  const color = rarityColor(vehicle.rarity);
+  const conditionPct = Math.round(conditionFraction(vehicle.conditionCurrent, vehicle.conditionMax) * 100);
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex w-[88px] shrink-0 items-center justify-center border border-border bg-bg p-1">
+        <VehicleSprite vehicle={vehicle} widthClass="w-[80px]" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-black leading-snug" style={{ color }}>{vehicle.name}</div>
+        <div className="text-[11px] text-text-muted">{vehicle.rarity} · Lv.{vehicle.level ?? 1} · {def?.displayName ?? vehicle.vehicleClassId}</div>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {def && (
+            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
+              <span className="text-text-muted">Yield</span>
+              <span className="font-bold text-text-primary">×{def.baseYield.toFixed(2)}</span>
+            </span>
+          )}
+          {def && (
+            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
+              <span className="text-text-muted">Burn</span>
+              <span className="font-bold text-text-primary">{def.fuelBurnPerTick.toFixed(1)}/tick</span>
+            </span>
+          )}
+          <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
+            <span className="text-text-muted">Condition</span>
+            <span className="font-bold text-text-primary">{conditionPct}%</span>
+          </span>
+          {def && def.materialYieldBonus > 0 && (
+            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
+              <span className="text-text-muted">Materials</span>
+              <span className="font-bold text-text-primary">+{Math.round(def.materialYieldBonus * 100)}%</span>
+            </span>
+          )}
+        </div>
+        {vehicle.affixes.length > 0 && (
+          <div className="text-[11px] text-amber mt-0.5 leading-snug">{vehicle.affixes[0].displayText}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Compact card for consumable/material/resource stack listings (0019, 0050). */
 function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; right?: React.ReactNode; onShowUsage?: (materialId: string) => void }) {
   const icon: PxIconName = listing.kind === 'consumable'
@@ -290,6 +347,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
   const inventory = useInventoryStore();
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
+  const vehicles = useVehicleStore((s) => s.vehicles);
+  const equippedVehicleId = useLoadoutStore((s) => s.slots.vehicle);
   const skillBonuses = useSkillStore().getBonuses();
   const { user } = useAuth();
   // Guest-visibility law (2026-11-01): every tab renders for every
@@ -464,6 +523,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     for (const l of buyListings) if (l.identityKey) keys.add(l.identityKey);
     for (const l of myListings) if (l.identityKey) keys.add(l.identityKey);
     for (const item of inventory.items) keys.add(gearIdentityKeyForItem(item));
+    for (const vehicle of vehicles) keys.add(vehicleIdentityKey(vehicle.vehicleClassId, vehicle.rarity));
     for (const batch of player.consumableBatches) keys.add(consumableIdentityKey(batch.consumable_type, batch.quality_percent));
     for (const key of Object.keys(player.materials)) keys.add(materialIdentityKey(key));
     // Sellable resources (0050): price guidance for the stacks the
@@ -474,7 +534,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
       if (count > 0) keys.add(essenceIdentityKey(essenceId));
     }
     return [...keys].sort().join(',');
-  }, [buyListings, myListings, inventory.items, player.consumableBatches, player.materials, player.cacheKeyFragments, player.legendaryCores, player.essences]);
+  }, [buyListings, myListings, inventory.items, vehicles, player.consumableBatches, player.materials, player.cacheKeyFragments, player.legendaryCores, player.essences]);
 
   useEffect(() => {
     if (!statsKeys) return;
@@ -540,6 +600,17 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
       });
   }, [myListings, myListSearch, myListFilterRarity, myListSort]);
 
+  // Vehicles list from their own store (they are not GearItem): an
+  // owned, unlocked, spare vehicle can be listed like any other
+  // instance — the server refuses equipped/in-service items, so
+  // those never reach the button. The equip gate is ownership only
+  // (owner ruling 2026-11-02), so no level filter applies here.
+  const listableVehicles = vehicles
+    .filter((v) => !v.isLocked && v.id !== equippedVehicleId && (!v.runtimeState || v.runtimeState === 'available'))
+    .filter((v) => !sellSearch || v.name.toLowerCase().includes(sellSearch.toLowerCase())
+      || (getVehicleClass(v.vehicleClassId)?.displayName ?? '').toLowerCase().includes(sellSearch.toLowerCase()))
+    .filter((v) => !sellFilterRarity || v.rarity === sellFilterRarity);
+
   const sellableBatches = player.consumableBatches.filter((b) => b.quantity > 0);
   const sellableMaterials = Object.entries(player.materials).filter(([, count]) => count > 0);
   const sellableEssences = Object.entries(player.essences).filter(([, count]) => count > 0);
@@ -584,6 +655,28 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
       await Promise.all([refreshListings(), refreshCosmetics()]);
     } catch (err) {
       setToastMessage(err instanceof Error ? err.message : 'Unable to list part.');
+    } finally {
+      setPendingListId(null);
+    }
+  };
+
+  // Vehicles list through the same market-create op as gear (the
+  // server stamps kind/category/identity from the item itself).
+  // Default price: the class+rarity median when stats know it, else
+  // the gear-style level fallback with a floor — a Leviathan should
+  // never prefill at pocket change.
+  const handleListVehicle = async (vehicle: VehicleDisplay, price: number) => {
+    if (price <= 0) {
+      setToastMessage('Price must be positive.');
+      return;
+    }
+    setPendingListId(vehicle.id);
+    try {
+      await verifiedOps.marketCreate(vehicle.id, price);
+      setToastMessage(`Listed "${vehicle.name}" for ${price.toLocaleString()}cr.`);
+      await refreshListings();
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Unable to list vehicle.');
     } finally {
       setPendingListId(null);
     }
@@ -731,7 +824,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     setPendingCancelId(listing.id);
     try {
       await verifiedOps.marketCancel(listing.id);
-      setToastMessage(listing.kind === 'gear' || listing.kind === 'cosmetic' ? 'Listing cancelled. Item returned to inventory.' : 'Listing cancelled. Stack returned.');
+      setToastMessage(listing.kind === 'gear' || listing.kind === 'cosmetic' || listing.kind === 'vehicle' ? 'Listing cancelled. Item returned to inventory.' : 'Listing cancelled. Stack returned.');
       await refreshListings();
       if (listing.kind === 'cosmetic') void refreshCosmetics();
     } catch (err) {
@@ -891,6 +984,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                     <div className="min-w-0 flex-1 space-y-1.5">
                       {listing.kind === 'gear' && listing.itemSnapshot ? (
                         <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} />
+                      ) : listing.kind === 'vehicle' && listing.vehicleSnapshot ? (
+                        <VehicleMiniCard vehicle={listing.vehicleSnapshot} />
                       ) : listing.kind === 'cosmetic' ? (
                         <CosmeticMiniCard partId={listing.partId} name={listing.displayName} qualityPercent={listing.qualityPercent} tintPaletteId={listing.tintPaletteId} />
                       ) : (
@@ -994,6 +1089,30 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
             );
           })}
 
+          {listableVehicles.length > 0 && (
+            <>
+              <div className="pt-2 text-[11px] font-black uppercase tracking-wider text-text-muted">Vehicles</div>
+              {listableVehicles.map((vehicle) => {
+                const stats = priceStats[vehicleIdentityKey(vehicle.vehicleClassId, vehicle.rarity)];
+                const price = listingPrice[vehicle.id] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice) : Math.max(500, (vehicle.level ?? 1) * 200));
+                const preview = feePreview(Math.max(0, price), skillBonuses, vehicle.sourceTag);
+                return (
+                  <div key={vehicle.id} className="bl-card space-y-2 p-2.5" data-testid={`sell-vehicle-${vehicle.id}`}>
+                    <VehicleMiniCard vehicle={vehicle} />
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={price} onChange={(e) => setListingPrice((p) => ({ ...p, [vehicle.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Price" />
+                      <button onClick={() => guardTransact('sell', () => void handleListVehicle(vehicle, price))} disabled={pendingListId === vehicle.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
+                        {pendingListId === vehicle.id ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
+                      </button>
+                    </div>
+                    <SalesGuidance stats={stats} />
+                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
           {cosmeticParts.length > 0 && (
             <>
               <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Skin Parts</div>
@@ -1033,7 +1152,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div key={batch.id} className="bl-card space-y-2 p-2.5">
-                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: batch.id, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'consumable', itemId: null, itemSnapshot: null, category: 'consumable', displayName: CONSUMABLES[batch.consumable_type]?.name ?? batch.consumable_type, quantity: batch.quantity, qualityPercent: batch.quality_percent, consumableType: batch.consumable_type, materialId: null, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: batch.id, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'consumable', itemId: null, itemSnapshot: null, vehicleSnapshot: null, category: 'consumable', displayName: CONSUMABLES[batch.consumable_type]?.name ?? batch.consumable_type, quantity: batch.quantity, qualityPercent: batch.quality_percent, consumableType: batch.consumable_type, materialId: null, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={batch.quantity} onChange={(e) => setStackQty((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [batch.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
@@ -1060,7 +1179,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div key={materialId} className="bl-card space-y-2 p-2.5">
-                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: materialId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'material', itemId: null, itemSnapshot: null, category: 'material', displayName: materialId, quantity: owned, qualityPercent: null, consumableType: null, materialId, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard onShowUsage={setUsageMaterialId} listing={{ id: materialId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'material', itemId: null, itemSnapshot: null, vehicleSnapshot: null, category: 'material', displayName: materialId, quantity: owned, qualityPercent: null, consumableType: null, materialId, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [materialId]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
@@ -1088,7 +1207,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div className="bl-card space-y-2 p-2.5">
-                    <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'fragment', itemId: null, itemSnapshot: null, category: 'fragment', displayName: FRAGMENT_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'fragment', itemId: null, itemSnapshot: null, vehicleSnapshot: null, category: 'fragment', displayName: FRAGMENT_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [key]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
@@ -1117,7 +1236,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div className="bl-card space-y-2 p-2.5">
-                    <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'core', itemId: null, itemSnapshot: null, category: 'core', displayName: CORE_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'core', itemId: null, itemSnapshot: null, vehicleSnapshot: null, category: 'core', displayName: CORE_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [key]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
@@ -1144,7 +1263,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const preview = feePreview(Math.max(0, price), skillBonuses);
                 return (
                   <div key={essenceId} className="bl-card space-y-2 p-2.5">
-                    <StackMiniCard listing={{ id: essenceId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'essence', itemId: null, itemSnapshot: null, category: 'essence', displayName: essenceDisplayName(essenceId), quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
+                    <StackMiniCard listing={{ id: essenceId, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'essence', itemId: null, itemSnapshot: null, vehicleSnapshot: null, category: 'essence', displayName: essenceDisplayName(essenceId), quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
                       <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [key]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
@@ -1220,6 +1339,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 <div className="min-w-0 flex-1 space-y-1.5">
                   {listing.kind === 'gear' && listing.itemSnapshot ? (
                     <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} />
+                  ) : listing.kind === 'vehicle' && listing.vehicleSnapshot ? (
+                    <VehicleMiniCard vehicle={listing.vehicleSnapshot} />
                   ) : listing.kind === 'cosmetic' ? (
                     <CosmeticMiniCard partId={listing.partId} name={listing.displayName} qualityPercent={listing.qualityPercent} tintPaletteId={listing.tintPaletteId} />
                   ) : (

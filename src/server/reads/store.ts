@@ -1835,6 +1835,9 @@ export class InMemoryReadStore implements ReadStore {
           id: item.id, item_level: item.item_level, rarity: item.rarity,
           is_locked: item.is_locked, runtime_state: item.runtime_state,
           equipped_slot: item.equipped_slot, payload: item.payload,
+          kind: item.kind,
+          condition_current: item.condition_current ?? null,
+          condition_max: item.condition_max ?? null,
         } : null, item);
       }),
     };
@@ -2458,7 +2461,8 @@ export class PgReadStore implements ReadStore {
               ii.id as item_id, ii.item_level as item_item_level, ii.rarity as item_rarity,
               ii.is_locked as item_is_locked, ii.runtime_state as item_runtime_state,
               ii.equipped_slot as item_equipped_slot, ii.payload as item_payload,
-              ii.kind as item_kind, ii.supply_mode as item_supply_mode
+              ii.kind as item_kind, ii.supply_mode as item_supply_mode,
+              ii.condition_current as item_condition_current, ii.condition_max as item_condition_max
        from public.market_listings ml
        left join public.item_instances ii on ii.id = ml.item_instance_id
        left join public.profiles sp on sp.id = ml.seller_user_id
@@ -2503,6 +2507,8 @@ export class PgReadStore implements ReadStore {
           id: r.item_id, item_level: r.item_item_level, rarity: r.item_rarity,
           is_locked: r.item_is_locked, runtime_state: r.item_runtime_state,
           equipped_slot: r.item_equipped_slot, payload: r.item_payload,
+          kind: r.item_kind,
+          condition_current: r.item_condition_current, condition_max: r.item_condition_max,
         }) : null, rawItem);
       }),
     };
@@ -2522,6 +2528,7 @@ export class PgReadStore implements ReadStore {
                   when ml.listing_kind = 'fragment' then coalesce(ml.identity_key, 'frag:cache')
                   when ml.listing_kind = 'core' then coalesce(ml.identity_key, 'core:legendary')
                   when ml.listing_kind = 'essence' then coalesce(ml.identity_key, 'ess:' || ml.essence_id)
+                  when ml.listing_kind = 'vehicle' then coalesce(ml.identity_key, 'vehicle:' || coalesce(ii.payload ->> 'vehicleClassId', '') || ':' || coalesce(ii.rarity, ii.payload ->> 'rarity', 'Common'))
                   else coalesce(ml.identity_key, public.cc_market_gear_identity(ii.payload, ii.kind, coalesce(ii.rarity, ii.payload ->> 'rarity'), coalesce(ii.item_level, (ii.payload ->> 'level')::integer, 1)))
                 end as identity_key,
                 (ml.price_credits::numeric / greatest(ml.quantity, 1)) as unit_price,
