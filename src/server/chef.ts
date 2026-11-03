@@ -95,6 +95,11 @@ import {
   hasSecondOpinion,
 } from '../lib/legendaryEffects';
 import { salvageScrap } from './writes/store';
+import {
+  stampDropReceipt,
+  type DropEnemyRelation,
+  type DropFoundVia,
+} from './dropReceipts';
 import type { BossAttemptResult } from '../types/boss';
 import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterSelector';
 import { pickNextTarget } from '../lib/combat/killCycleHelpers';
@@ -287,6 +292,14 @@ export interface ClaimRequest {
     /** Fuel units in the tank at claim start (profiles.vehicle_fuel). */
     fuelUnits: number;
   } | null;
+  /**
+   * Which claim surface is running (AL-1, 0070): the foreground claim
+   * route leaves this unset ('roam'); the offline settlement route
+   * sets 'offline'. Set by the ROUTES from their own identity — never
+   * read from the client body. Used only to stamp drop receipts
+   * (foundVia) on generated items; it changes no outcome.
+   */
+  source?: 'roam' | 'offline';
 }
 
 export interface ClaimResult {
@@ -851,6 +864,20 @@ export function processRoamingClaim(
     return out;
   };
 
+  // AL-1 (0070): the shape of the most recent rollGearDrop roll — the
+  // drop kind and the rarity weights it drew from, as shaped — kept so
+  // the caller can stamp the drop's receipt onto the generated item
+  // (see dropReceipts.ts). Recording only: reads no RNG, changes no
+  // outcome.
+  let lastRollShape: {
+    kind: string;
+    rarityWeights: Record<string, number>;
+    luck: number;
+    boost: boolean;
+    floor?: string;
+    scalar: number;
+  } | null = null;
+
   // Generate one area gear drop (drop-kind roll + shared generators).
   // Used by the primary loot roll and by Data Skimmer's extra roll.
   // Overhaul options: rarityFloor (elite kills — the whole drop,
@@ -868,6 +895,20 @@ export function processRoamingClaim(
     // joins the shape ONLY when active, so an unbuffed claim's
     // weights — and every determinism pin — stay bit-identical.
     const luck = request.economy?.dropLuckBonus ?? 0;
+    // AL-1 (0070): record this roll's shape for the caller's receipt
+    // stamp. `scalar` is the Legendary scalar actually applied to
+    // this kind's weights (weapons only; every other kind rolls at 1).
+    lastRollShape = null;
+    const recordShape = (kindName: string, rarityWeights: Record<string, number>, scalar = 1): void => {
+      lastRollShape = {
+        kind: kindName,
+        rarityWeights,
+        luck,
+        boost,
+        ...(opts?.rarityFloor ? { floor: opts.rarityFloor as string } : {}),
+        scalar,
+      };
+    };
     if (evNextDropQualityBoost) evNextDropQualityBoost = false;
     if (!opts?.rarityFloor) {
       // Vehicle drops (Phase 2b): a share of gear drops are vehicles
@@ -877,6 +918,7 @@ export function processRoamingClaim(
       // claims when the roll misses.
       const vehicleRng = createTickRng(playerId, `${areaId}:vehicle`, tickNumber);
       if (vehicleRng() < VEHICLE_DROP_SHARE) {
+        recordShape('vehicle', { ...area.dropPoolRarityWeights });
         return generateVehicle(
           { level: playerLevel, areaUnlockLevel: area.unlockLevel, rarityWeights: area.dropPoolRarityWeights },
           vehicleRng,
@@ -917,19 +959,72 @@ export function processRoamingClaim(
         if (shape && options.zoneWeights) {
           options.zoneWeights = shapedZoneWeights(options.zoneWeights, shape);
         }
+        recordShape('weapon', { ...(options.zoneWeights ?? {}) }, scalar);
         return generateWeapon(options, dropRng);
       }
-      case 'shield':
-        return generateShield(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
-      case 'classMod':
-        return generateClassMod(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
-      case 'relic':
-        return generateRelic(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
-      case 'ordnance':
-        return generateOrdnance(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
+      case 'shield': {
+        const weights = shapedRarityWeights(shape);
+        recordShape('shield', weights);
+        return generateShield(playerLevel, dropRng, shape ? weights : undefined);
+      }
+      case 'classMod': {
+        const weights = shapedRarityWeights(shape);
+        recordShape('classMod', weights);
+        return generateClassMod(playerLevel, dropRng, shape ? weights : undefined);
+      }
+      case 'relic': {
+        const weights = shapedRarityWeights(shape);
+        recordShape('relic', weights);
+        return generateRelic(playerLevel, dropRng, shape ? weights : undefined);
+      }
+      case 'ordnance': {
+        const weights = shapedRarityWeights(shape);
+        recordShape('ordnance', weights);
+        return generateOrdnance(playerLevel, dropRng, shape ? weights : undefined);
+      }
       default:
         return undefined;
     }
+  };
+
+  // AL-1 (0070): stamp the drop receipt for the roll rollGearDrop
+  // just made onto the generated item. The defaults describe an
+  // ambient claim drop (this claim's surface, this area, the target
+  // engaged on the tick); kill-caused and event drops override via /
+  // context / relation at their call sites. Recording only.
+  const stampClaimDropReceipt = (
+    item: GearItem | Vehicle,
+    opts: {
+      via?: DropFoundVia;
+      context?: string | number;
+      enemy?: { id: string; name: string } | null;
+      relation?: DropEnemyRelation;
+      gearChance?: number;
+    },
+  ): void => {
+    if (!lastRollShape) return;
+    stampDropReceipt(item, {
+      foundVia: opts.via ?? (request.source === 'offline' ? 'offline' : 'roam'),
+      foundContext: opts.context ?? areaId,
+      ...(opts.enemy
+        ? {
+            foundEnemy: {
+              id: opts.enemy.id,
+              name: opts.enemy.name,
+              relation: opts.relation ?? 'engaged',
+            },
+          }
+        : {}),
+      dropOdds: {
+        ...(opts.gearChance !== undefined ? { gearChance: opts.gearChance } : {}),
+        kind: lastRollShape.kind,
+        rarityWeights: lastRollShape.rarityWeights,
+        luck: lastRollShape.luck,
+        boost: lastRollShape.boost,
+        ...(lastRollShape.floor ? { floor: lastRollShape.floor } : {}),
+        scalar: lastRollShape.scalar,
+      },
+    });
   };
 
   // Rich detail line for a gear drop: rarity, type, power, element, manufacturer.
@@ -1024,6 +1119,8 @@ export function processRoamingClaim(
       fragmentsAwarded += ELITE_FRAGMENT_BONUS;
       const drop = rollGearDrop(dropRng, tickNumber, { rarityFloor: ELITE_RARITY_FLOOR });
       if (drop) {
+        // AL-1 (0070): the kill caused this drop — 'killed' is literal here.
+        stampClaimDropReceipt(drop, { enemy: killed, relation: 'killed' });
         generatedItems.push(drop);
         feedEvents.push({
           at,
@@ -1052,6 +1149,8 @@ export function processRoamingClaim(
           qualityBoost: bounty.payout === 'gearQuality',
         });
         if (drop) {
+          // AL-1 (0070): the bounty kill caused this drop.
+          stampClaimDropReceipt(drop, { enemy: killed, relation: 'killed' });
           generatedItems.push(drop);
           feedEvents.push({
             at,
@@ -1189,6 +1288,8 @@ export function processRoamingClaim(
         pushEventFeed(def.blurb);
         const gear = rollGearDrop(eventRng, tickNumber);
         if (gear) {
+          // AL-1 (0070): an event find — the event is the provenance.
+          stampClaimDropReceipt(gear, { via: 'event', context: def.id });
           generatedItems.push(gear);
           pushGearFeed(gear, def.name);
         }
@@ -1231,6 +1332,8 @@ export function processRoamingClaim(
         pushEventFeed(def.blurb);
         const gear = rollGearDrop(eventRng, tickNumber, { qualityBoost: true });
         if (gear) {
+          // AL-1 (0070): an event find — the event is the provenance.
+          stampClaimDropReceipt(gear, { via: 'event', context: def.id });
           generatedItems.push(gear);
           pushGearFeed(gear, def.name);
         }
@@ -1251,6 +1354,8 @@ export function processRoamingClaim(
         if (eventRng() < 0.35) {
           const gear = rollGearDrop(eventRng, tickNumber);
           if (gear) {
+            // AL-1 (0070): an event find — the event is the provenance.
+            stampClaimDropReceipt(gear, { via: 'event', context: def.id });
             generatedItems.push(gear);
             pushGearFeed(gear, 'grateful scavenger');
           }
@@ -1348,6 +1453,8 @@ export function processRoamingClaim(
         if (consumableMods.eventFindWeightBonus > 0 || consumableMods.eventChanceBonus > 0) {
           const gear = rollGearDrop(eventRng, tickNumber);
           if (gear) {
+            // AL-1 (0070): an event find — the event is the provenance.
+            stampClaimDropReceipt(gear, { via: 'event', context: def.id });
             generatedItems.push(gear);
             pushGearFeed(gear, 'signal trap spoils');
           }
@@ -1365,6 +1472,8 @@ export function processRoamingClaim(
         if (primaryWeapon && (area.elementBias ?? []).includes(primaryWeapon.element)) {
           const gear = rollGearDrop(eventRng, tickNumber);
           if (gear) {
+            // AL-1 (0070): an event find — the event is the provenance.
+            stampClaimDropReceipt(gear, { via: 'event', context: def.id });
             generatedItems.push(gear);
             pushGearFeed(gear, 'resonance attuned');
           }
@@ -1534,6 +1643,15 @@ export function processRoamingClaim(
       const gear = rollGearDrop(rng, tickCount - ticks + tickIdx + 1);
 
       if (gear) {
+        // AL-1 (0070): an ambient tick roll — the enemy is the target
+        // engaged on this tick ('engaged', never 'killed': the roll,
+        // not the kill, produced the drop), and the odds are the
+        // shaped chances computed for this tick above.
+        stampClaimDropReceipt(gear, {
+          enemy: kcTargetId ? roster.find((m) => m.id === kcTargetId) ?? null : null,
+          relation: 'engaged',
+          gearChance,
+        });
         generatedItems.push(gear);
         feedEvents.push({
           at: now - (ticks - 1 - tickIdx) * TICK_MS,
@@ -1552,6 +1670,13 @@ export function processRoamingClaim(
         if (consumableMods.extraLootRollChance > 0 && rng() < consumableMods.extraLootRollChance) {
           const bonusGear = rollGearDrop(rng, tickCount - ticks + tickIdx + 1);
           if (bonusGear) {
+            // AL-1 (0070): the Data Skimmer's extra roll — same tick,
+            // same engaged target; no gearChance (the Skimmer's own
+            // roll, not the gear threshold, produced this one).
+            stampClaimDropReceipt(bonusGear, {
+              enemy: kcTargetId ? roster.find((m) => m.id === kcTargetId) ?? null : null,
+              relation: 'engaged',
+            });
             generatedItems.push(bonusGear);
             feedEvents.push({
               at: now - (ticks - 1 - tickIdx) * TICK_MS,

@@ -523,6 +523,9 @@ export function createSettleOfflineHandler(
             ? { dropLuckBonus }
             : undefined,
         hotArea: isHotArea(area.id, config.now?.() ?? new Date()),
+        // AL-1 (0070): offline settlement surface — drop receipts on
+        // items generated here stamp 'offline', not 'roam'.
+        source: 'offline' as const,
       };
 
       const result = processRoamingClaim(claim);
