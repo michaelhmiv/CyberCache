@@ -54,37 +54,21 @@ Discrete fights use the slot differently: a [[Bosses|boss attempt]] takes the sl
 
 ## Dispatch
 
-Dispatch sends what you are *not* using: a foot contract commits a spare, unequipped loadout; a courier contract commits a spare, unequipped vehicle. Committed gear is locked for the duration — it cannot be equipped, sold, salvaged, or repaired mid-contract.
+Dispatch sends what you are *not* using: a foot contract commits a spare, unequipped loadout; a courier contract commits a spare, unequipped vehicle. Committed gear is locked for the duration, and the missions run on their own clock — never touching your personal action, never paused by it, and never truncated by the offline cap. Foot and courier contracts share **one queue, 2 slots**, at durations of **2, 8, or 24 hours** with terms fixed at departure.
 
-- Dispatch never touches your personal action. Contracts run while you roam, craft, boss, or descend, and are never paused by them.
-- Foot and courier contracts share **one queue, 2 slots by default**. Contract durations are **2, 8, or 24 hours**, with terms fixed at departure and settled in full at term — the offline cap does not truncate a dispatch contract.
-- Foot contracts pay about **40% of the destination area's roaming rates** in credits and scrap, plus materials, scaled by the loadout's strength. They pay **no XP, no gear, no legendaries** — your hunter did not go.
-- Courier contracts pay a **1.6× premium** over the same-duration foot line, but the tiers gate on the **vehicle's class**, not your level: Local Runs (2h) take any class, Regional Hauls (8h) need a class unlocked at level 18 or higher, and Deep Hauls (24h) need level 42 or higher. Fuel and wear are exact arithmetic shown before departure — there is no random breakdown roll.
-- A contract recalled or broken down early settles pro-rata for the fraction covered.
-- The bay header's **Fuel** figure is your shared vehicle tank in units — one Generic Fuel Cell loads 100 units in the Garage, and courier contracts burn from the same tank roaming does. With nothing to send, the panel says where spares come from: roaming drops and the vendor for gear, the player market for vehicles.
-
-See [[Vehicles and the Garage]] for the vehicles themselves.
+The full system — the daily board, foot payout and strength rules, the courier tiers and their vehicle-class gates, fuel and breakdown arithmetic, pro-rata settlement — lives on the [[Dispatch]] page. See [[Vehicles and the Garage]] for the vehicles themselves.
 
 ## Research
 
-Research is schooling: enroll in one course at a time and it progresses on **pure wall-clock time** — offline, while you roam, while you craft, even while you are dead. Nothing caps or pauses it, because it pays out nothing farmable.
+Research is schooling: enroll in one course at a time and it progresses on **pure wall-clock time** — offline, while you roam, while you craft, even while you are dead. Nothing caps or pauses it, because it pays out nothing farmable. The catalog is **12 courses in 4 faculties**, totalling **888 hours and 310,000 credits** taken sequentially; completion grants no player XP, only scholarship mastery and the course's permanent unlock.
 
-- The catalog is **12 courses in 4 faculties** (Fabrication, Field Mechanics, Logistics & Markets, Xenotech), three tiers each, chained by prerequisites within a faculty. No course gates on your hunter level — the prerequisite chain, the wall-clock duration, and the fee are the whole price (Fabrication's upper courses also ask for the workshop benches they teach on).
-- The whole catalog totals **888 hours and 310,000 credits** if you take everything sequentially. Fees are charged at enrollment and are gone — cancelling forfeits the fee and the accrued time.
-- Completion grants **no player XP**. It grants mastery XP to the `research.scholarship` track — **10 XP per course hour** — and, more importantly, the course's unlock: batch recipes, permanent passives, and bonuses that real engines read.
-- One enrollment at a time is the scarcity: the calendar, not your hands, is the cost.
-- **Tap any course** in the Research panel to open its full brief before you commit: its gates (bench, prerequisite course), the fee and duration as they stand right now, what it unlocks, and — when a gate is unmet — exactly what is still needed. Enrolling happens from that brief or from the course card itself.
+Every course — duration, fee, prerequisites, and exactly what it unlocks — is catalogued on the [[Research]] page. No course gates on your hunter level: the prerequisite chain, the wall-clock duration, and the fee are the whole price (Fabrication's upper courses also ask for the workshop benches they teach on).
 
 ## Contracts board
 
-Separate from Dispatch (the names are close; the systems are not), the **Contracts Board** posts rotating work orders — kills, boss victories, crafts, sales, extractions, and more — that progress from what you actually do while you play. Contracts are never an action and never occupy the slot.
+Separate from Dispatch (the names are close; the systems are not), the **Contracts Board** posts rotating work orders — kills, boss victories, crafts, sales, extractions, and more — that progress from what you actually do while you play. Contracts are never an action and never occupy the slot: a **daily set of 3** (the same for every player in your level band) and a **weekly set of 5** (seeded per player), each paying credits and cache-key fragments on claim — and never XP, gear, or legendary cores.
 
-- The **daily set is 3 contracts, global per level band**: every player in your band sees the same three that day.
-- The **weekly set is seeded per player**, so the week's work differs from hunter to hunter.
-- Contracts pay credits, scrap, and cache fragments — never XP, gear, or legendary cores. You must **claim before the window closes**; an unclaimed completed contract expires unpaid.
-- Each set allows **one free reroll**; further rerolls cost scrap (100 daily / 400 weekly) and the replacement starts fresh.
-- Clearing all dailies pays a bonus of **+2 cache-key fragments**; clearing all weeklies pays **1 cache key** (see [[Caches]]) plus one weekly contract's credits.
-- Guests can view the board; claiming requires an account.
+The full board — bands, every contract type and its targets, reward and reroll rules — lives on the [[Contracts]] page.
 
 ---
 
