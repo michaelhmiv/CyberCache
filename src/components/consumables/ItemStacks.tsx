@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { CONSUMABLES, type ConsumableDef } from '@/constants/consumables';
 import { getVisualAsset } from '@/constants/visualAssets';
 import { essenceDisplayName } from '@/lib/market/identityKey';
@@ -17,19 +18,6 @@ import { usePlayerStore } from '@/store';
  * consumable row taps through to the same inspect sheet the belt
  * uses.
  */
-
-const STACK_ICONS: Record<string, PxIconName> = {
-  ScrapAlloy: 'scrap',
-  BallisticParts: 'gun',
-  ReactiveComponents: 'bolt',
-  TechFragments: 'chip',
-  VoidDust: 'star',
-  IgnitionFluid: 'flame',
-  ConduitWire: 'nodes',
-  AcidCompound: 'flask',
-  CryoGel: 'snow',
-  VoidEssence: 'swirl',
-};
 
 interface ItemStacksProps {
   onInspectConsumable?: (def: ConsumableDef) => void;
@@ -104,7 +92,7 @@ export const ItemStacks: React.FC<ItemStacksProps> = ({ onInspectConsumable }) =
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">Materials</div>
           {materialRows.map(([id, count]) => (
             <div key={id} className="flex items-center gap-3 border border-border bg-surface px-3 py-2">
-              <PxIcon name={STACK_ICONS[id] ?? 'pack'} size={26} className="shrink-0" />
+              <PixelMaterial id={id} size={26} className="shrink-0" />
               <div className="min-w-0 flex-1 text-sm font-black text-text-primary">{getVisualAsset('material', id).label}</div>
               <div className="shrink-0 text-sm font-black text-amber">×{count}</div>
             </div>
@@ -117,7 +105,7 @@ export const ItemStacks: React.FC<ItemStacksProps> = ({ onInspectConsumable }) =
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">Essences</div>
           {essenceRows.map(([id, count]) => (
             <div key={id} className="flex items-center gap-3 border border-border bg-surface px-3 py-2">
-              <PxIcon name={STACK_ICONS[id] ?? 'gem'} size={26} className="shrink-0" />
+              <PixelMaterial id={id} size={26} className="shrink-0" />
               <div className="min-w-0 flex-1 text-sm font-black text-text-primary">{essenceDisplayName(id)}</div>
               <div className="shrink-0 text-sm font-black text-amber">×{count}</div>
             </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { getMaterialVisual } from '@/constants/visualAssets';
+import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 
 interface MaterialBadgeProps {
   id: string;
@@ -18,9 +19,7 @@ export const MaterialBadge: React.FC<MaterialBadgeProps> = ({ id, count, require
       style={{ borderLeftColor: visual.color, borderLeftWidth: 4, clipPath: 'polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)' }}
       title={visual.label}
     >
-      <span className="inline-flex h-4 min-w-4 items-center justify-center border border-border leading-none" style={{ color: visual.color, backgroundColor: `${visual.color}18` }}>
-        {visual.mark}
-      </span>
+      <PixelMaterial id={id} density="thumb" size={16} />
       {!compact && <span className="text-text-secondary">{visual.shortLabel}</span>}
       {value !== undefined && <span className="text-text-primary">{value}</span>}
     </span>
