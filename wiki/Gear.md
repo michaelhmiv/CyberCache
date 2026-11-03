@@ -100,6 +100,16 @@ essence. Salvaging a Legendary also pays out **legendary cores** — see
 [[Collections]] for the exact yield, because cores are the scarcest
 currency in the game.
 
+**Bulk salvage** clears space in one move. The salvage button on the
+Gear tab opens a rarity sheet — **Commons only**, **Uncommon & under**,
+**Rare & under**, or **Epic & under** — with the live count each level
+would take. Pick one and everything eligible at or under that rarity
+is scrapped in a single instant settlement, followed by one summary
+card showing the totals you gained. **Epic & under** asks you to
+confirm first, with the epic count stated. Locked and equipped items
+are always left alone, and **Legendaries are never bulk-scrapped** —
+they are salvaged one at a time from the item's inspect sheet.
+
 ## Reforge: fix one affix
 
 The **reforge bench** rerolls **one** rolled affix on a weapon, shield,

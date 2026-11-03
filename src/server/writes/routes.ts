@@ -474,6 +474,20 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     await recordResultItemDiscoveries(store, playerId, result, 'salvage');
     return result;
   });
+  // Batch salvage (0055): one ceiling settles the whole eligible set
+  // server-side. The body carries intent only (the ceiling) — never
+  // an item list. Discoveries record per consumed item, same as the
+  // one-at-a-time path.
+  op('/api/ops/recycle-batch', async (playerId, req) => {
+    const result = await store.recycleBatch(playerId, str(body(req).nonce), str(body(req).max_rarity));
+    const rows = (result as Record<string, unknown>).items;
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        await recordResultItemDiscoveries(store, playerId, { item: row } as Json, 'salvage');
+      }
+    }
+    return result;
+  });
   // Reforge (0027): intent only — item + affix id. The store derives
   // the roll from the server item record through the shared affix
   // pools; the SQL applier prices, charges, and persists. No
