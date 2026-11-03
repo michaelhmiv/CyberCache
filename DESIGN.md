@@ -103,6 +103,15 @@ everywhere:
   (e.g. the Workshop's quality band key) may stay in flow: it teaches
   once per page, it is not per-item prose.
 
+### Quotes are hard ceilings (QB-1, 2026-11-03)
+
+Quick-buy pattern: a shortfall goods line carries one small **+**; everything
+else — pricing on Market · Vendor tabs, the quantity stepper, the buy — lives
+in the pop-up sheet the + opens. The reusable rule: **a displayed quote is a
+hard ceiling** — the purchase re-quotes atomically at tap time and charges
+min(quote, current), never more; if the fresh total exceeds the quote, nothing
+is charged and the sheet re-renders from the fresh quote saying so.
+
 ---
 
 ## 2. Navigation — four tabs
