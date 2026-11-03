@@ -15,6 +15,8 @@ There are no blueprints, no drops, and no cache-box tie-in. Every
 skin recipe simply **appears in [[Crafting]]** (Workshop → **Skin
 Parts** lane) and is paid for mostly in **Scrap** — the same salvage
 currency that drops everywhere — plus a few materials per part.
+Skin recipes carry **no level requirement**: the bench tier and
+the scrap are the whole gate.
 Crafting a part is a normal timed Workshop job: it advances only
 while crafting is your active action, and it pays into its own
 **Cosmetic Crafting** mastery (15 XP per part), which widens the
@@ -24,16 +26,16 @@ Wave 1 ships **26 parts** in three tiers:
 
 - **Bulwark (shaped, tier 3)** — a full 10-part set with its own
   silhouette: oversized helm, siege torso, Stomper legs. Bench 3,
-  level 10, one part per job, 105–210 minutes each. Scrap runs
+  one part per job, 105–210 minutes each. Scrap runs
   1,800–3,600 per part (25,200 for the whole set) plus refined
   materials and composites.
 - **Dreadplate (repaint, tier 2)** — the standard frame re-forged
-  in dread colors, all 10 parts. Bench 2, level 5, up to 10 per
+  in dread colors, all 10 parts. Bench 2, up to 10 per
   job, 45 minutes each, 600–700 Scrap per part (6,100 the set)
   plus one or two materials.
 - **Manufacturer heads** — the six makers' heads (Redline,
   Ironwood, BlastForge, Prismatek, ThrowTech, HelixWorks) are in
-  the normal pool like everything else: bench 2, level 12, 1,800
+  the normal pool like everything else: bench 2, 1,800
   Scrap + 2 of the maker's signature material, 90 minutes.
 
 Every slot is covered from day one: head, torso, both arms
