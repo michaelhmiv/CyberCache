@@ -108,6 +108,23 @@ export const isAlreadyClaimedError = (error: unknown): boolean => {
   return false;
 };
 
+/**
+ * The server tick watermark carried by a claim response or rejection
+ * (the guard's 409 body names it `lastClaimedTick`; submitClaim
+ * attaches it to the thrown error). Compared against the tickCount a
+ * batch was sent with, it separates the guard's two meanings:
+ * EQUAL — this batch landed and only its response was lost (the
+ * idempotent-replay case); AHEAD — an offline settle advanced the
+ * watermark past the client's counter, so this batch never landed
+ * (the desync case). Null when the shape carries no watermark
+ * (legacy/message-only errors), where the replay reading stands.
+ */
+export const claimedTickWatermark = (error: unknown): number | null => {
+  if (!error || typeof error !== 'object') return null;
+  const value = (error as { lastClaimedTick?: unknown }).lastClaimedTick;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+};
+
 export interface IdleTickerState {
   running: boolean;
   lastTickAt: number;
@@ -116,7 +133,10 @@ export interface IdleTickerState {
   /**
    * Claim cycles in a row whose batch never landed (initial attempt +
    * the same-batch retry both failed). Reset by any landed claim,
-   * including one proven landed by the tick guard's 409.
+   * including one proven landed by the tick guard's 409. A guard 409
+   * whose returned watermark is AHEAD of the sent tickCount proves
+   * the opposite — a settle consumed the batch's tick space and it
+   * never landed — and counts as a failure here.
    */
   consecutiveClaimFailures: number;
   /**
@@ -293,13 +313,21 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       const areaId = activity.targetId || useIdleStore.getState().selectedRoamingAreaId || DEFAULT_AREA_ID;
       if (!areaId) return;
 
-      // Seed totalTickCount from the server-authoritative lastClaimedTick
-      // on first tick after page load.
-      if (totalTickCount === 0) {
-        const serverTick = usePlayerStore.getState().lastClaimedTick;
-        if (serverTick > 0) {
-          totalTickCount = serverTick;
-        }
+      // Adopt the server-authoritative lastClaimedTick EVERY cycle,
+      // not only as a first-tick seed. The watermark moves behind
+      // the client's back: an offline settle advances it by the
+      // settled ticks (a full-cap settle is +2,400) while no claim
+      // is in flight, and the player store already carries the
+      // post-settle value (syncVerifiedResult). A private counter
+      // that never re-read it sent claims the tick guard refused
+      // (409) for roughly the settled duration — the stage kept
+      // painting the stale encounter while every cycle silently
+      // "converged" on a guard rejection. The invariant: after this
+      // adoption the counter never sits behind the watermark, so
+      // the increment below always claims fresh tick space.
+      const serverTick = usePlayerStore.getState().lastClaimedTick;
+      if (serverTick > totalTickCount) {
+        totalTickCount = serverTick;
       }
       totalTickCount += 1;
 
@@ -362,9 +390,35 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
             break;
           } catch (error) {
             if (isAlreadyClaimedError(error)) {
-              // The guard's 409: this batch is already paid server-
-              // side. NOT a failure and NOT a payload to apply — the
-              // outcome handling below converges from server truth.
+              const watermark = claimedTickWatermark(error);
+              if (watermark !== null && watermark > claimRequest.tickCount) {
+                // Ahead-of-you 409: the server's watermark is PAST
+                // this batch — an offline settle consumed those
+                // ticks, so this batch never landed and never can
+                // (retrying the identical payload would meet the
+                // same guard). Scoring it as landed, as the plain
+                // replay case below is scored, was the desync's
+                // silencer: failure counters reset while every
+                // subsequent claim kept 409ing. Instead adopt the
+                // watermark from the 409 body itself (belt-and-
+                // braces for when the player store has not yet
+                // synced the settle) so the NEXT cycle claims past
+                // it, and score THIS cycle as failed so a recurrence
+                // surfaces through the stall machinery.
+                totalTickCount = watermark;
+                console.warn(
+                  `[idleTicker] Tick desync: server watermark ${watermark} is ahead of claim tickCount ${claimRequest.tickCount}; adopted the watermark — this batch never landed.`,
+                );
+                claimFailure = error;
+                break;
+              }
+              // The guard's 409 at (or, in legacy error shapes,
+              // without evidence past) this batch's tickCount: the
+              // batch is already paid server-side — the same-batch
+              // retry met the guard because the first attempt DID
+              // commit and only its response was lost. NOT a failure
+              // and NOT a payload to apply — the outcome handling
+              // below converges from server truth.
               alreadyLanded = true;
               claimFailure = null;
               break;
