@@ -290,3 +290,25 @@ export const SharedDefs: React.FC = () => (
     </filter>
   </>
 );
+
+/**
+ * SharedDefsMount — the ONE document-level home for the shared
+ * surface/bevel filters.
+ *
+ * SVG filter references (`filter="url(#surface-metal)"`) resolve
+ * document-wide by ID, so the defs never needed to live inside every
+ * illustration. They used to: a 132-item inventory rendered 76 copies
+ * of this block (836 <filter> elements), and that duplicated-defs DOM
+ * was a measured share of the Gear grid's switch freeze (2026-11-02
+ * gear-grid perf audit). Mount this once at the app root; every gear
+ * illustration references the single copy. The zero-size, absolutely
+ * positioned shell (not display:none) is the cross-browser-safe way
+ * to park an SVG defs block.
+ */
+export const SharedDefsMount: React.FC = () => (
+  <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" focusable="false">
+    <defs>
+      <SharedDefs />
+    </defs>
+  </svg>
+);

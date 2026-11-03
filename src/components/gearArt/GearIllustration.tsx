@@ -46,13 +46,13 @@ interface GearIllustrationProps {
  * renders (surfaces animate the wrapper if they want motion — e.g. the
  * inspect sheet's float).
  */
-export const GearIllustration: React.FC<GearIllustrationProps> = ({
+export const GearIllustration: React.FC<GearIllustrationProps> = React.memo(({
   item,
   size = 'card',
   className = '',
   showBadges = true,
   animate = false,
-}) => {
+}: GearIllustrationProps) => {
   if (isWeapon(item)) {
     const pixelSize = typeof size === 'number' ? size : PIXEL_WEAPON_SIZE_PX[size];
     return <PixelWeapon weapon={item} size={pixelSize} className={className} />;
@@ -72,4 +72,4 @@ export const GearIllustration: React.FC<GearIllustrationProps> = ({
 
   // Never reached — all GearItem types are covered
   return null;
-};
+});

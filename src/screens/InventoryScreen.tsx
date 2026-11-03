@@ -85,10 +85,14 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
   // Loadout stop opens the Slot Picker (the one equip surface) on
   // the slot.
   const [pendingPickerSlot, setPendingPickerSlot] = useState<LoadoutSlot | null>(null);
-  const workshop = useWorkshopStore();
+  // Narrow selector (gear-grid perf audit, 2026-11-02): only the
+  // queued-job count is read here — a whole-store subscription
+  // re-rendered the entire gear home (and its 132-card grid) on any
+  // workshop store write.
+  const workshopJobs = useWorkshopStore((s) => s.server?.jobs);
   const reduceMotion = useReducedMotion();
 
-  const queueCount = (workshop.server?.jobs ?? []).filter(
+  const queueCount = (workshopJobs ?? []).filter(
     (j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused',
   ).length;
 

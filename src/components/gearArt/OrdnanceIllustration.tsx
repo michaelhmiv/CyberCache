@@ -2,7 +2,6 @@ import React from 'react';
 import type { Ordnance } from '@/types/items';
 import { Element, Rarity } from '@/types/game';
 import { buildOrdnanceVisualSpec, type OrdnanceVisualSpec } from '@/lib/gearArt/buildOrdnanceVisualSpec';
-import { SharedDefs } from '@/components/gearArt/SharedDefs';
 import { surfaceFilterId } from '@/lib/gearArt/surfaceFilter';
 import { Decal } from './Decal';
 
@@ -41,7 +40,7 @@ const innerStroke = {
   strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const,
 };
 
-export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = ({
+export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = React.memo(({
   ordnance, element, rarity, size = 'card', className = '', showBadges = true, animate = false,
 }) => {
   const sizing = toSize(size);
@@ -59,7 +58,7 @@ export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = ({
       title={`${spec.rarity} ${spec.element} Ordnance`}>
       <svg viewBox="0 0 240 120" width="100%" height="100%" role="img">
         <defs>
-          <SharedDefs />
+          {/* Shared surface/bevel filters live in the single document-level <SharedDefsMount /> (App root) — referenced by ID, never duplicated per item. */}
           <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor={frame.color} floodOpacity="0.55" />
           </filter>
@@ -125,4 +124,4 @@ export const OrdnanceIllustration: React.FC<OrdnanceIllustrationProps> = ({
       </svg>
     </div>
   );
-};
+});

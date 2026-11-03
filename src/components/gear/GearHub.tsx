@@ -6,7 +6,7 @@
  *   - Move high-cardinality filters into a bottom sheet so the inventory stays readable.
  *   - Show type-specific decision stats on every row; inspect is for the full poster, not basic triage.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -292,6 +292,158 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
   );
 }
 
+// ── Inventory Card ───────────────────────────────────────────────────────────
+
+interface GearCardProps {
+  item: GearItem;
+  viewMode: ViewMode;
+  selected: boolean;
+  equippedSlot: LoadoutSlot | null;
+  selectMode: boolean;
+  onTap: (item: GearItem) => void;
+  onCompareStart: (id: string) => void;
+}
+
+/**
+ * One inventory card — grid tile or list row. Two measured rules from
+ * the gear-grid perf audit (2026-11-02; 132-item veteran fixture,
+ * 4x CPU throttle):
+ *   - MEMOIZED on item identity + chrome flags. Unmemoized, every hub
+ *     state change (search keystroke, sheet open, lock busy flag)
+ *     re-ran gearCardSummary and the whole illustration subtree for
+ *     all 132 items.
+ *   - NO framer-motion `layout` prop. On a 132-card tree the layout
+ *     projection pass was half the List→Grid switch freeze and made
+ *     every re-render rewrite attributes across the tree (1,260
+ *     mutation records for one filter change vs 84 without). The
+ *     cards never needed layout animation — they remount on a view
+ *     switch anyway; `whileTap` keeps the press feedback.
+ */
+const GearCard = memo(({
+  item,
+  viewMode,
+  selected,
+  equippedSlot,
+  selectMode,
+  onTap,
+  onCompareStart,
+}: GearCardProps) => {
+  const equipped = !!equippedSlot;
+  const color = colorOf(item);
+  const summary = gearCardSummary(item);
+  // Real-item invariant on the card face (redesign Wave D,
+  // DESIGN.md §3): the card prints THIS instance's rolled
+  // affixes — the actual displayText lines from the item —
+  // not just counts and derived triage stats.
+  const affixTexts = affixesOf(item).map((affix) => affix.displayText);
+
+  if (viewMode === 'grid') {
+    return (
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        onClick={() => onTap(item)}
+        className={`relative flex min-h-[132px] flex-col gap-1.5 rounded-xl border bg-surface p-2 text-left ${
+          selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
+        }`}
+        style={{ borderLeftColor: color, borderLeftWidth: 3 }}
+      >
+        <div className="flex items-start justify-between gap-1">
+          {selectMode ? (
+            selected ? <CheckSquare size={14} className="text-amber" /> : <Square size={14} className="text-text-muted" />
+          ) : equippedSlot ? (
+            <span className="rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>
+          ) : <span />}
+          {item.isLocked && <Lock size={10} className="text-red" />}
+        </div>
+        <div className="flex h-14 items-center justify-center">
+          <GearIllustration item={item} size={50} showBadges={false} />
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-[11px] font-black" style={{ color }}>{item.name}</div>
+          <div className="truncate text-[11px] text-text-muted">{summary.meta.join(' · ')}</div>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {summary.primaryStats.slice(0, 2).map((stat) => <StatPill key={stat.label} stat={stat} />)}
+        </div>
+        {summary.badges[0] && <div className="truncate text-[11px] font-bold text-amber">{summary.badges[0]}</div>}
+        {affixTexts[0] && (
+          <div className="text-[11px] font-bold leading-snug text-text-secondary [overflow-wrap:anywhere]">{affixTexts[0]}</div>
+        )}
+      </motion.button>
+    );
+  }
+
+  return (
+    <motion.div
+      whileTap={{ scale: 0.99 }}
+      onClick={() => onTap(item)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') onTap(item);
+      }}
+      className={`relative flex w-full items-start gap-2.5 rounded-xl border bg-surface p-2.5 text-left ${
+        selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
+      }`}
+      style={{ borderLeftColor: color, borderLeftWidth: 4 }}
+    >
+      {selectMode && (
+        <div className="mt-4 shrink-0">
+          {selected ? <CheckSquare size={16} className="text-amber" /> : <Square size={16} className="text-text-muted" />}
+        </div>
+      )}
+
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-bg">
+        <GearIllustration item={item} size={44} showBadges={false} />
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div className="truncate text-xs font-black leading-tight" style={{ color }}>{item.name}</div>
+          {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
+          {item.isLocked && <Lock size={10} className="shrink-0 text-red" />}
+        </div>
+
+        <div className="truncate text-[11px] text-text-muted">{summary.meta.join(' · ')}</div>
+
+        <div className="flex flex-wrap gap-1">
+          {summary.primaryStats.map((stat) => <StatPill key={stat.label} stat={stat} />)}
+        </div>
+
+        <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+          {summary.secondaryStats.slice(0, 3).map((stat) => <StatPill key={stat.label} stat={stat} />)}
+        </div>
+
+        {summary.badges[0] && (
+          <div className="truncate text-[11px] font-bold text-amber">{summary.badges[0]}</div>
+        )}
+
+        {affixTexts.length > 0 && (
+          <div className="space-y-0.5">
+            {affixTexts.slice(0, 2).map((text, i) => (
+              <div key={i} className="text-[11px] font-bold leading-snug text-text-secondary [overflow-wrap:anywhere]">{text}</div>
+            ))}
+            {affixTexts.length > 2 && (
+              <div className="text-[11px] font-bold text-text-muted">+{affixTexts.length - 2} more affixes — tap to inspect</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {!selectMode && (
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); onCompareStart(item.id); }}
+          className="mt-3 shrink-0 rounded-lg border border-border bg-surface p-1.5 text-text-muted"
+          aria-label={`Compare ${item.name}`}
+        >
+          <ArrowLeftRight size={13} />
+        </button>
+      )}
+    </motion.div>
+  );
+});
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 interface GearHubProps {
@@ -306,8 +458,12 @@ interface GearHubProps {
 }
 
 export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) => {
-  const inventory = useInventoryStore();
-  const loadout = useLoadoutStore();
+  // Narrow store slices (gear-grid perf audit, 2026-11-02): the hub
+  // re-renders when ITEMS or SLOTS change — a whole-store subscription
+  // re-rendered all 132 cards on any write to either store. Actions
+  // are stable singletons, read through getState() at call time.
+  const invItems = useInventoryStore((s) => s.items);
+  const slots = useLoadoutStore((s) => s.slots);
   const setMarketTab = useMarketStore((s) => s.setActiveTab);
   const setShieldTechPreselect = useMarketStore((s) => s.setShieldTechPreselect);
 
@@ -349,20 +505,20 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   const [unequipBusy, setUnequipBusy] = useState(false);
 
   const equippedIds = useMemo(
-    () => new Set(Object.values(loadout.slots).filter(Boolean) as string[]),
-    [loadout.slots],
+    () => new Set(Object.values(slots).filter(Boolean) as string[]),
+    [slots],
   );
 
   const kindCounts = useMemo(() => {
     const counts: Record<GearKind, { total: number; equipped: number }> = {
-      all: { total: inventory.items.length, equipped: 0 },
+      all: { total: invItems.length, equipped: 0 },
       weapon: { total: 0, equipped: 0 },
       shield: { total: 0, equipped: 0 },
       ordnance: { total: 0, equipped: 0 },
       classMod: { total: 0, equipped: 0 },
       relic: { total: 0, equipped: 0 },
     };
-    for (const item of inventory.items) {
+    for (const item of invItems) {
       const kind = kindOf(item);
       counts[kind].total += 1;
       if (equippedIds.has(item.id)) {
@@ -371,12 +527,12 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       }
     }
     return counts;
-  }, [inventory.items, equippedIds]);
+  }, [invItems, equippedIds]);
 
   const sourceOptions = useMemo(() => {
-    const fromInventory = inventory.items.map((item) => item.sourceTag);
+    const fromInventory = invItems.map((item) => item.sourceTag);
     return Array.from(new Set([...SOURCE_ORDER, ...fromInventory]));
-  }, [inventory.items]);
+  }, [invItems]);
 
   const activeSortOptions = SORTS_BY_KIND[activeKind];
   const effectiveSort = activeSortOptions.some((option) => option.key === sort)
@@ -405,7 +561,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   }, []);
 
   const items = useMemo(() => {
-    let result = [...inventory.items];
+    let result = [...invItems];
 
     if (activeKind !== 'all') result = result.filter((item) => kindOf(item) === activeKind);
     if (search) result = result.filter((item) => itemNameSearch(item, search));
@@ -453,7 +609,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
 
     return result;
   }, [
-    inventory.items,
+    invItems,
     activeKind,
     search,
     filterRarity,
@@ -469,20 +625,20 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   ]);
 
   const junkItems = useMemo(
-    () => inventory.items.filter((item) => !item.isLocked && !equippedIds.has(item.id)),
-    [inventory.items, equippedIds],
+    () => invItems.filter((item) => !item.isLocked && !equippedIds.has(item.id)),
+    [invItems, equippedIds],
   );
 
-  const compareItemA = compareA ? inventory.getById(compareA) : null;
-  const compareItemB = compareB ? inventory.getById(compareB) : null;
+  const compareItemA = compareA ? (invItems.find((i) => i.id === compareA) ?? null) : null;
+  const compareItemB = compareB ? (invItems.find((i) => i.id === compareB) ?? null) : null;
   // The inspect sheet reads the LIVE store row, not the tap-time
   // snapshot: a verified lock/equip replaces the row, and the
   // sheet's actions (Lock ↔ Unlock, Equip) must key off the current
   // state, not the state when the sheet opened.
-  const liveInspectItem = inspectItem ? (inventory.getById(inspectItem.id) ?? inspectItem) : null;
+  const liveInspectItem = inspectItem ? (invItems.find((i) => i.id === inspectItem.id) ?? inspectItem) : null;
   // Audit UX-02: the slot the inspected item currently occupies, if
   // any — drives the Unequip action in the inspect sheet below.
-  const inspectSlot = liveInspectItem ? loadoutSlotFor(liveInspectItem.id, loadout.slots) : null;
+  const inspectSlot = liveInspectItem ? loadoutSlotFor(liveInspectItem.id, slots) : null;
 
   const toggleFilter = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
     setter((prev) => {
@@ -512,7 +668,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     else if (isRelic(item)) { slot = 'relic'; }
     else if (isWeapon(item)) {
       const weaponSlots: Array<'primary' | 'secondary' | 'heavy'> = ['primary', 'secondary', 'heavy'];
-      slot = weaponSlots.find((s) => !loadout.slots[s]) ?? 'primary';
+      slot = weaponSlots.find((s) => !slots[s]) ?? 'primary';
     }
 
     if (!slot || !isItemCompatibleWithSlot(item, slot)) {
@@ -537,7 +693,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     setInspectNotice(null);
     try {
       await verifiedOps.itemLock(item.id, !item.isLocked);
-      if (item.isLocked) inventory.unlockItem(item.id); else inventory.lockItem(item.id);
+      if (item.isLocked) useInventoryStore.getState().unlockItem(item.id); else useInventoryStore.getState().lockItem(item.id);
     } catch (err) {
       setInspectNotice(`Couldn't ${item.isLocked ? 'unlock' : 'lock'} "${item.name}" — ${formatRpcError(err)}`);
     } finally {
@@ -555,7 +711,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   // the notice instead of failing silently.
   const unequip = async (item: GearItem) => {
     if (unequipBusy) return;
-    const slot = loadoutSlotFor(item.id, loadout.slots);
+    const slot = loadoutSlotFor(item.id, slots);
     if (!slot) {
       setInspectNotice(`"${item.name}" is not in any loadout slot.`);
       return;
@@ -601,7 +757,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   const bulkScrap = () => {
     void (async () => {
       for (const id of selectedIds) {
-        const item = inventory.getById(id);
+        const item = invItems.find((i) => i.id === id);
         if (item) await scrap(item);
       }
       setSelectedIds(new Set());
@@ -615,11 +771,11 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     void (async () => {
       const failures: string[] = [];
       for (const id of selectedIds) {
-        const item = inventory.getById(id);
+        const item = invItems.find((i) => i.id === id);
         if (!item || item.isLocked === locked) continue;
         try {
           await verifiedOps.itemLock(id, locked);
-          if (locked) inventory.lockItem(id); else inventory.unlockItem(id);
+          if (locked) useInventoryStore.getState().lockItem(id); else useInventoryStore.getState().unlockItem(id);
         } catch {
           failures.push(item.name);
         }
@@ -636,13 +792,13 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
 
   const bulkUnlock = () => bulkSetLocked(false);
 
-  const toggleSelect = (id: string) => {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  };
+  }, []);
 
   const selectAll = () => {
     setSelectedIds(new Set(items.map((item) => item.id)));
@@ -652,7 +808,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     setSelectedIds(new Set());
   };
 
-  const handleItemTap = (item: GearItem) => {
+  const handleItemTap = useCallback((item: GearItem) => {
     if (selectMode) {
       toggleSelect(item.id);
       return;
@@ -663,12 +819,12 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     }
     setInspectNotice(null);
     setInspectItem(item);
-  };
+  }, [selectMode, compareA, toggleSelect]);
 
-  const startCompare = (id: string) => {
+  const startCompare = useCallback((id: string) => {
     setCompareA(id);
     setCompareB(null);
-  };
+  }, []);
 
   const salvageAllJunk = () => {
     void (async () => {
@@ -705,7 +861,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             </button>
           )}
           <div className="rounded-full border border-border bg-surface px-2 py-1 text-[11px] font-black text-amber">
-            {items.length}/{inventory.items.length}
+            {items.length}/{invItems.length}
           </div>
         </div>
       </div>
@@ -891,128 +1047,18 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       )}
 
       <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-2' : 'space-y-1.5'}>
-        {items.map((item) => {
-          const selected = selectedIds.has(item.id);
-          const equippedSlot = loadoutSlotFor(item.id, loadout.slots);
-          const equipped = !!equippedSlot;
-          const color = colorOf(item);
-          const summary = gearCardSummary(item);
-          // Real-item invariant on the card face (redesign Wave D,
-          // DESIGN.md §3): the card prints THIS instance's rolled
-          // affixes — the actual displayText lines from the item —
-          // not just counts and derived triage stats.
-          const affixTexts = affixesOf(item).map((affix) => affix.displayText);
-
-          if (viewMode === 'grid') {
-            return (
-              <motion.button
-                key={item.id}
-                layout
-                whileTap={{ scale: 0.97 }}
-                onClick={() => handleItemTap(item)}
-                className={`relative flex min-h-[132px] flex-col gap-1.5 rounded-xl border bg-surface p-2 text-left ${
-                  selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
-                }`}
-                style={{ borderLeftColor: color, borderLeftWidth: 3 }}
-              >
-                <div className="flex items-start justify-between gap-1">
-                  {selectMode ? (
-                    selected ? <CheckSquare size={14} className="text-amber" /> : <Square size={14} className="text-text-muted" />
-                  ) : equippedSlot ? (
-                    <span className="rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>
-                  ) : <span />}
-                  {item.isLocked && <Lock size={10} className="text-red" />}
-                </div>
-                <div className="flex h-14 items-center justify-center">
-                  <GearIllustration item={item} size={50} showBadges={false} />
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-[11px] font-black" style={{ color }}>{item.name}</div>
-                  <div className="truncate text-[11px] text-text-muted">{summary.meta.join(' · ')}</div>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {summary.primaryStats.slice(0, 2).map((stat) => <StatPill key={stat.label} stat={stat} />)}
-                </div>
-                {summary.badges[0] && <div className="truncate text-[11px] font-bold text-amber">{summary.badges[0]}</div>}
-                {affixTexts[0] && (
-                  <div className="text-[11px] font-bold leading-snug text-text-secondary [overflow-wrap:anywhere]">{affixTexts[0]}</div>
-                )}
-              </motion.button>
-            );
-          }
-
-          return (
-            <motion.div
-              key={item.id}
-              layout
-              whileTap={{ scale: 0.99 }}
-              onClick={() => handleItemTap(item)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') handleItemTap(item);
-              }}
-              className={`relative flex w-full items-start gap-2.5 rounded-xl border bg-surface p-2.5 text-left ${
-                selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
-              }`}
-              style={{ borderLeftColor: color, borderLeftWidth: 4 }}
-            >
-              {selectMode && (
-                <div className="mt-4 shrink-0">
-                  {selected ? <CheckSquare size={16} className="text-amber" /> : <Square size={16} className="text-text-muted" />}
-                </div>
-              )}
-
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-bg">
-                <GearIllustration item={item} size={44} showBadges={false} />
-              </div>
-
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <div className="truncate text-xs font-black leading-tight" style={{ color }}>{item.name}</div>
-                  {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
-                  {item.isLocked && <Lock size={10} className="shrink-0 text-red" />}
-                </div>
-
-                <div className="truncate text-[11px] text-text-muted">{summary.meta.join(' · ')}</div>
-
-                <div className="flex flex-wrap gap-1">
-                  {summary.primaryStats.map((stat) => <StatPill key={stat.label} stat={stat} />)}
-                </div>
-
-                <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-                  {summary.secondaryStats.slice(0, 3).map((stat) => <StatPill key={stat.label} stat={stat} />)}
-                </div>
-
-                {summary.badges[0] && (
-                  <div className="truncate text-[11px] font-bold text-amber">{summary.badges[0]}</div>
-                )}
-
-                {affixTexts.length > 0 && (
-                  <div className="space-y-0.5">
-                    {affixTexts.slice(0, 2).map((text, i) => (
-                      <div key={i} className="text-[11px] font-bold leading-snug text-text-secondary [overflow-wrap:anywhere]">{text}</div>
-                    ))}
-                    {affixTexts.length > 2 && (
-                      <div className="text-[11px] font-bold text-text-muted">+{affixTexts.length - 2} more affixes — tap to inspect</div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {!selectMode && (
-                <button
-                  type="button"
-                  onClick={(event) => { event.stopPropagation(); startCompare(item.id); }}
-                  className="mt-3 shrink-0 rounded-lg border border-border bg-surface p-1.5 text-text-muted"
-                  aria-label={`Compare ${item.name}`}
-                >
-                  <ArrowLeftRight size={13} />
-                </button>
-              )}
-            </motion.div>
-          );
-        })}
+        {items.map((item) => (
+          <GearCard
+            key={item.id}
+            item={item}
+            viewMode={viewMode}
+            selected={selectedIds.has(item.id)}
+            equippedSlot={loadoutSlotFor(item.id, slots)}
+            selectMode={selectMode}
+            onTap={handleItemTap}
+            onCompareStart={startCompare}
+          />
+        ))}
       </div>
 
       {/* Filter sheet */}
