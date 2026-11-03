@@ -19,6 +19,18 @@
  * follow the latest choice. Harness mirrors homeComposition's —
  * the activity service mock echoes StartActivityInput the way the
  * shipped service contract does.
+ *
+ * The double is STATEFUL about the held activity (start records
+ * the echoed activity; clear resets it; get/heartbeat return what
+ * is held), because the foreground-resume slice (2026-11-02) made
+ * the Action heartbeat sync IMMEDIATELY when the surface can tick
+ * — including the moment a local start flips canTick on. The
+ * shipped service answers that beat with the activity it just
+ * accepted, never with a stale idle snapshot; a fixed-idle
+ * heartbeat double models a server that forgot the start it had
+ * just taken, and the beat's answer then reverts the just-started
+ * roaming activity before these assertions read the workspace.
+ * See PR #315 for the full diagnosis.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,6 +46,9 @@ const hoisted = vi.hoisted(() => ({
     loading: false,
     refreshAccount: vi.fn(async () => {}),
   },
+  // The activity the service double currently holds (see header):
+  // null means "nothing started yet" — the idle standby snapshot.
+  heldActivity: null as Record<string, unknown> | null,
 }));
 
 vi.mock('@/auth/AuthProvider', () => ({ useAuth: () => hoisted.auth }));
@@ -57,23 +72,31 @@ vi.mock('@/lib/api/activityService', () => {
     activityPayload: {}, publicPayload: {}, lastHeartbeatAt: null,
     publicVisible: true, schemaVersion: 1, updatedAt: null,
   };
+  const held = () => hoisted.heldActivity ?? idle;
   return {
-    startActiveActivity: vi.fn(async (input: Record<string, unknown>) => ({
-      ...idle,
-      kind: input.kind,
-      bossPhase: input.bossPhase ?? 'prep',
-      targetType: input.targetType ?? null,
-      targetId: input.targetId ?? null,
-      targetLabel: input.targetLabel ?? null,
-      sceneKey: input.sceneKey ?? null,
-      notes: input.notes ?? null,
-      activityPayload: input.activityPayload ?? {},
-      publicPayload: input.publicPayload ?? {},
-      publicVisible: input.publicVisible ?? true,
-    })),
-    getMyActiveActivity: vi.fn(async () => idle),
-    clearActiveActivity: vi.fn(async () => idle),
-    heartbeatActiveActivity: vi.fn(async () => idle),
+    startActiveActivity: vi.fn(async (input: Record<string, unknown>) => {
+      const started = {
+        ...idle,
+        kind: input.kind,
+        bossPhase: input.bossPhase ?? 'prep',
+        targetType: input.targetType ?? null,
+        targetId: input.targetId ?? null,
+        targetLabel: input.targetLabel ?? null,
+        sceneKey: input.sceneKey ?? null,
+        notes: input.notes ?? null,
+        activityPayload: input.activityPayload ?? {},
+        publicPayload: input.publicPayload ?? {},
+        publicVisible: input.publicVisible ?? true,
+      };
+      hoisted.heldActivity = started;
+      return started;
+    }),
+    getMyActiveActivity: vi.fn(async () => held()),
+    clearActiveActivity: vi.fn(async () => {
+      hoisted.heldActivity = idle;
+      return idle;
+    }),
+    heartbeatActiveActivity: vi.fn(async () => held()),
   };
 });
 
@@ -95,6 +118,7 @@ import { useStandingStore } from '@/store/slices/standingSlice';
 beforeEach(() => {
   cleanup();
   localStorage.clear();
+  hoisted.heldActivity = null;
   useLoginStreakStore.getState().reset();
   useContractsStore.getState().reset();
   useOfflineRecapStore.getState().reset();

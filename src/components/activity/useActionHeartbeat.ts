@@ -29,9 +29,20 @@
  * context, so a stale failure must not hold the sync hostage for
  * the rest of its window. If the resume beat itself fails, the
  * backoff re-arms from that failure exactly as before.
+ *
+ * The loop is armed by the ENABLED edge and the resume signals
+ * only — never by the heartbeat callback's identity. The Action
+ * screen derives its callback from the whole activity-store
+ * object, whose identity changes on every store write, including
+ * the write each beat itself lands; keying this effect on the
+ * callback would turn every beat into an immediate successor — a
+ * back-to-back sync/render loop for as long as the surface can
+ * tick — and would reset the in-flight/backoff state each time.
+ * The effect therefore always calls the LATEST callback through
+ * a ref while its own lifecycle depends on `enabled` alone.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Foreground heartbeat cadence — the single re-tune point.
@@ -48,6 +59,11 @@ export const ACTION_HEARTBEAT_INTERVAL_MS = 3_000;
 export const ACTION_HEARTBEAT_RETRY_MS = 5000;
 
 export function useActionHeartbeat(enabled: boolean, heartbeat: () => Promise<unknown>): void {
+  const heartbeatRef = useRef(heartbeat);
+  useEffect(() => {
+    heartbeatRef.current = heartbeat;
+  });
+
   useEffect(() => {
     if (!enabled) return undefined;
     let inFlight = false;
@@ -65,7 +81,7 @@ export function useActionHeartbeat(enabled: boolean, heartbeat: () => Promise<un
       if (!resume && Date.now() < nextAttemptAt) return;
       if (resume) nextAttemptAt = 0;
       inFlight = true;
-      heartbeat()
+      heartbeatRef.current()
         .then(() => {
           nextAttemptAt = 0;
         })
@@ -97,5 +113,5 @@ export function useActionHeartbeat(enabled: boolean, heartbeat: () => Promise<un
       document.removeEventListener('visibilitychange', onForeground);
       window.removeEventListener('pageshow', onForeground);
     };
-  }, [enabled, heartbeat]);
+  }, [enabled]);
 }
