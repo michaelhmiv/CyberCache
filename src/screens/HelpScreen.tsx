@@ -142,7 +142,7 @@ const SECTIONS: HelpSection[] = [
     icon: 'diamondIn',
     color: '#3B82F6',
     items: [
-      { term: 'Slots', body: 'Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic. Equipping is gated by item kind and unlock level.' },
+      { term: 'Slots', body: 'Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic. Equipping is gated only by item kind — if you own it and it fits the slot, you can equip it at any level.' },
       { term: 'Build identity', body: 'Your Hunter tab\'s "Build Identity" is the weapon type you actually rack kills with, pulled from combat stats. It\'s not based on what you own — it reflects what you *use*.' },
       { term: 'Class Mods & Relics', body: 'These are build identity pieces, not filler stats. Class Mods grant skill-tree nodes; Relics grant affixes. Both stack with weapon affixes for the DPS chain.' },
     ],

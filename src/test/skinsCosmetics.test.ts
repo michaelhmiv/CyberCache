@@ -2,7 +2,9 @@
  * Skins / cosmetics (migration 0053) — the M4 slice pins:
  *
  *   - 0053's restated SQL catalog deep-equals the TS catalog
- *     (87 recipes), the listing-kind check carries 'cosmetic',
+ *     (87 recipes; cosmetics excepted — their requiresLevel was
+ *     removed by 0056, whose restated catalog carries the full
+ *     deep-equal pin), the listing-kind check carries 'cosmetic',
  *     the material whitelist carries 'Chromaweave', and the
  *     mastery seed + cosmetic functions exist.
  *   - The wave-1 art gates: both skin sets lint clean under the
@@ -38,6 +40,11 @@ const MIGRATION = readFileSync(
   'utf8',
 );
 
+const MIGRATION_0056 = readFileSync(
+  join(process.cwd(), 'db', 'migrations', '0056_cosmetic_recipe_levels.sql'),
+  'utf8',
+);
+
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
 let nonceCounter = 0;
@@ -51,7 +58,17 @@ describe('migration 0053 — catalog + schema pins', () => {
     expect(parts.length).toBeGreaterThanOrEqual(3);
     const catalog = JSON.parse(parts[1]) as Array<Record<string, unknown>>;
     expect(catalog).toHaveLength(87);
-    expect(catalog).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    // Cosmetic requiresLevel postdates 0053: gate-removal step 1
+    // (0056) deleted the L5/L10/L12 recipe levels, so the cosmetics
+    // are excluded here and pinned against 0056's restated catalog
+    // in the 0056 describe below. Everything else in 0053's catalog
+    // still deep-equals the TS catalog.
+    const withoutCosmetics = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => r.category !== 'cosmetics');
+    expect(catalog.filter((r) => r.category === 'cosmetics')).toHaveLength(27);
+    expect(withoutCosmetics(catalog)).toEqual(
+      withoutCosmetics(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
+    );
   });
 
   it('widens the listing-kind check and stamps the cosmetic card columns', () => {
@@ -82,6 +99,35 @@ describe('migration 0053 — catalog + schema pins', () => {
     ]) {
       expect(MIGRATION, fn).toContain(`public.${fn}`);
     }
+  });
+});
+
+// ─── 0056 textual pins (gate-removal step 1) ────────────────────
+
+describe('migration 0056 — cosmetic recipe levels removed', () => {
+  it('the restated SQL catalog deep-equals the TS catalog (87 recipes)', () => {
+    const parts = MIGRATION_0056.split('$catalog$');
+    expect(parts.length).toBeGreaterThanOrEqual(3);
+    const catalog = JSON.parse(parts[1]) as Array<Record<string, unknown>>;
+    expect(catalog).toHaveLength(87);
+    expect(catalog).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+  });
+
+  it('every cosmetic recipe sits at the no-gate level 1 in both catalogs; benches unchanged', () => {
+    const sqlCatalog = JSON.parse(MIGRATION_0056.split('$catalog$')[1]) as Array<Record<string, unknown>>;
+    for (const recipe of ALL_CRAFT_RECIPES.filter((r) => r.kind === 'cosmetic')) {
+      expect(recipe.requiresLevel, recipe.id).toBe(1);
+    }
+    for (const row of sqlCatalog.filter((r) => r.kind === 'cosmetic')) {
+      expect(row.requiresLevel, String(row.id)).toBe(1);
+    }
+    // The bench gates are a later program step and stand untouched.
+    expect(getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!.requiresBench).toBe(2);
+    expect(getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!.requiresBench).toBe(3);
+    expect(getCraftRecipe(skinPartCatalog('mfr-head-redline')!.recipeId)!.requiresBench).toBe(2);
+    expect(getCraftRecipe('tint_craft')!.requiresBench).toBe(1);
+    // Non-cosmetic levels are NOT this step: a standing tonic keeps L12.
+    expect(getCraftRecipe('recipe_helixworks_standing')!.requiresLevel).toBe(12);
   });
 });
 
@@ -216,6 +262,51 @@ describe('cosmetic crafting — writes twin', () => {
     await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 3, recipeId: recipe.id, units: 2, consumableEfficiencyBonus: 0,
     })).rejects.toThrow(/at most|units/i);
+  });
+});
+
+// ─── Gate-removal step 1: level 1 + bench + materials is enough ──
+
+describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
+  function levelOneSeed(benches: number): WriteSeed {
+    const s = writesSeed();
+    const a = s.profiles.find((p) => p.id === A)!;
+    a.player_level = 1;
+    a.workshop_benches = benches;
+    a.materials = { ...a.materials, PrismShards: 10, NitrocellGel: 5 };
+    return s;
+  }
+  const now = () => new Date('2026-10-29T12:00:00.000Z');
+
+  it('a level-1 player enqueues Dreadplate (bench 2, was L5) and Bulwark (bench 3, was L10)', async () => {
+    const store = new InMemoryWriteStore(levelOneSeed(3), { now });
+    const dread = getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!;
+    const bulwark = getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!;
+    await store.enqueueCraftJob(A, nonce(), {
+      bench: 2, recipeId: dread.id, units: 1, consumableEfficiencyBonus: 0,
+    });
+    await store.enqueueCraftJob(A, nonce(), {
+      bench: 3, recipeId: bulwark.id, units: 1, consumableEfficiencyBonus: 0,
+    });
+  });
+
+  it('a level-1 player enqueues a manufacturer head (bench 2, was L12)', async () => {
+    const store = new InMemoryWriteStore(levelOneSeed(3), { now });
+    const head = getCraftRecipe(skinPartCatalog('mfr-head-redline')!.recipeId)!;
+    await store.enqueueCraftJob(A, nonce(), {
+      bench: 2, recipeId: head.id, units: 1, consumableEfficiencyBonus: 0,
+    });
+  });
+
+  it('the bench gate still binds: bench 1 refuses a bench-2 cosmetic at level 1', async () => {
+    const store = new InMemoryWriteStore(levelOneSeed(1), { now });
+    const dread = getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!;
+    await expect(store.enqueueCraftJob(A, nonce(), {
+      bench: 2, recipeId: dread.id, units: 1, consumableEfficiencyBonus: 0,
+    })).rejects.toThrow(/Bench not unlocked/);
+    await expect(store.enqueueCraftJob(A, nonce(), {
+      bench: 1, recipeId: dread.id, units: 1, consumableEfficiencyBonus: 0,
+    })).rejects.toThrow(/requires bench 2 or higher/);
   });
 });
 

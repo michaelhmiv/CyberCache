@@ -461,40 +461,39 @@ interface CosmeticCost {
   inputs: Record<string, number>;
   minutes: number;
   bench: number;
-  level: number;
   maxUnits: number;
 }
 
 const COSMETIC_COSTS: Record<string, CosmeticCost> = {
   // Bulwark (T3 shaped): bench 3, hours-long, scrap in the thousands.
-  'bulwark-head': { inputs: { Scrap: 3200, CompositePlating: 2, PrismShards: 2 }, minutes: 180, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-torso': { inputs: { Scrap: 3600, CompositePlating: 3, RefinedAlloy: 4 }, minutes: 210, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-arm-upper-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-arm-fore-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-arm-far': { inputs: { Scrap: 1800, TemperedParts: 2 }, minutes: 105, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-thigh-f': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-thigh-b': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-lower-leg-f': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-lower-leg-b': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 3, level: 10, maxUnits: 1 },
-  'bulwark-back': { inputs: { Scrap: 2600, CircuitLattice: 2, WovenCircuits: 2 }, minutes: 150, bench: 3, level: 10, maxUnits: 1 },
+  'bulwark-head': { inputs: { Scrap: 3200, CompositePlating: 2, PrismShards: 2 }, minutes: 180, bench: 3, maxUnits: 1 },
+  'bulwark-torso': { inputs: { Scrap: 3600, CompositePlating: 3, RefinedAlloy: 4 }, minutes: 210, bench: 3, maxUnits: 1 },
+  'bulwark-arm-upper-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 3, maxUnits: 1 },
+  'bulwark-arm-fore-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 3, maxUnits: 1 },
+  'bulwark-arm-far': { inputs: { Scrap: 1800, TemperedParts: 2 }, minutes: 105, bench: 3, maxUnits: 1 },
+  'bulwark-thigh-f': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 3, maxUnits: 1 },
+  'bulwark-thigh-b': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 3, maxUnits: 1 },
+  'bulwark-lower-leg-f': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 3, maxUnits: 1 },
+  'bulwark-lower-leg-b': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 3, maxUnits: 1 },
+  'bulwark-back': { inputs: { Scrap: 2600, CircuitLattice: 2, WovenCircuits: 2 }, minutes: 150, bench: 3, maxUnits: 1 },
   // Dreadplate (T2 repaint): bench 2, an afternoon's craft.
-  'dread-head': { inputs: { Scrap: 700, PrismShards: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-torso': { inputs: { Scrap: 600, RefinedAlloy: 2 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-arm-upper-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-arm-fore-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-arm-far': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-thigh-f': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-thigh-b': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-lower-leg-f': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-lower-leg-b': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
-  'dread-back': { inputs: { Scrap: 600, WovenCircuits: 1 }, minutes: 45, bench: 2, level: 5, maxUnits: 10 },
+  'dread-head': { inputs: { Scrap: 700, PrismShards: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-torso': { inputs: { Scrap: 600, RefinedAlloy: 2 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-arm-upper-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-arm-fore-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-arm-far': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-thigh-f': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-thigh-b': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-lower-leg-f': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-lower-leg-b': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-back': { inputs: { Scrap: 600, WovenCircuits: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
   // Manufacturer heads: the normal scrap-crafting pool (brief §0.6).
-  'mfr-head-redline': { inputs: { Scrap: 1800, NitrocellGel: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
-  'mfr-head-ironwood': { inputs: { Scrap: 1800, HeartwoodResin: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
-  'mfr-head-blastforge': { inputs: { Scrap: 1800, ForgeheartIngots: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
-  'mfr-head-prismatek': { inputs: { Scrap: 1800, PrismShards: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
-  'mfr-head-throwtech': { inputs: { Scrap: 1800, MagnetiteCores: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
-  'mfr-head-helixworks': { inputs: { Scrap: 1800, Siltglass: 2 }, minutes: 90, bench: 2, level: 12, maxUnits: 1 },
+  'mfr-head-redline': { inputs: { Scrap: 1800, NitrocellGel: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
+  'mfr-head-ironwood': { inputs: { Scrap: 1800, HeartwoodResin: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
+  'mfr-head-blastforge': { inputs: { Scrap: 1800, ForgeheartIngots: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
+  'mfr-head-prismatek': { inputs: { Scrap: 1800, PrismShards: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
+  'mfr-head-throwtech': { inputs: { Scrap: 1800, MagnetiteCores: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
+  'mfr-head-helixworks': { inputs: { Scrap: 1800, Siltglass: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
 };
 
 export const COSMETIC_RECIPES: CraftRecipe[] = SKIN_PARTS.map((p) => {
@@ -507,7 +506,11 @@ export const COSMETIC_RECIPES: CraftRecipe[] = SKIN_PARTS.map((p) => {
     category: 'cosmetics' as const,
     inputs: cost.inputs,
     unitDurationMs: cost.minutes * MIN,
-    requiresLevel: cost.level,
+    // No player-level requirement (owner ruling 2026-11-02, gate-removal
+    // step 1): the old L5/L10/L12 recipe levels were entirely shadowed by
+    // the bench gates, so cosmetic crafting is gated by bench access +
+    // materials, full stop. requiresLevel stays at the no-gate value 1.
+    requiresLevel: 1,
     requiresBench: cost.bench,
     station: 'bench' as const,
     cosmeticPartId: p.id,
