@@ -359,7 +359,12 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
           <PxIcon name="rings" size={17} className="shrink-0 text-amber" />
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.22em] text-amber">Loadout</div>
-            <div className="text-sm font-black text-text-primary">{equippedCount}/7 Gear</div>
+            {/* Assumption-gaps G4: the /7 denominator is taught
+                here, at the counter's destination surface — the
+                header names what the 7 counts (gear slots) over
+                the seven-slot constellation below. The Strip's
+                one-line law leaves no room to teach it there. */}
+            <div className="text-sm font-black text-text-primary">{equippedCount}/7 Gear slots</div>
             {!readOnly && <div className="text-[11px] font-bold text-text-muted">Tap a slot to equip</div>}
           </div>
         </button>

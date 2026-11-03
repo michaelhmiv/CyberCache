@@ -45,7 +45,7 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
       <MobileCard className="space-y-2 py-6 text-center" rarityColor="#9CA3AF">
         <PxIcon name="crown" size={26} className="mx-auto text-text-muted" />
         <div className="text-sm font-bold text-text-muted">No leaderboard data yet.</div>
-        <div className="text-[10px] text-text-muted">Check back after the next daily snapshot.</div>
+        <div className="text-[10px] text-text-muted">Rankings fill in from hunters' play — check back after the next snapshot.</div>
       </MobileCard>
     );
   }

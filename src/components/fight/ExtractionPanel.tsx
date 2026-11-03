@@ -247,7 +247,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
         {degraded && (
           <div className="mt-2 flex items-start gap-2 border-2 border-amber/60 bg-amber/10 p-2 text-[11px] font-bold text-text-primary" data-testid="extraction-degraded">
             <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber" />
-            Deep Delve is paying as Surface: the gear factor at this site is below ×0.80 with your current loadout. The delve resumes full rate when a settling pass prices at ×0.80 or better.
+            Deep Delve is paying as Surface: the gear factor at this site is below ×0.80 with your current loadout. The factor tracks your survival pool — level HP plus shield capacity — against the site's damage, so a higher-capacity shield raises it. The delve resumes full rate when a settling pass prices at ×0.80 or better.
           </div>
         )}
 
@@ -269,7 +269,6 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
               className={`px-2.5 py-1.5 text-[10px] font-black disabled:opacity-50 ${methodChoice === 'deep' ? 'bl-primary' : 'bl-secondary'}`}
               style={slashClip}
               data-testid="extraction-method-deep"
-              title={deepUnlocked ? 'Deep Delve: 1.5× draws while the gear factor holds ×0.80' : 'Deep Delve unlocks at Extraction mastery 5'}
             >
               {deepUnlocked ? 'Deep Delve ×1.5' : <><Lock size={10} className="mr-1 inline" /> Deep Delve</>}
             </button>
@@ -295,11 +294,15 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
             <span className="text-[10px] font-bold text-red">Locked until level {selectedArea.unlockLevel}</span>
           )}
         </div>
-        {!deepUnlocked && (
-          <p className="mt-1.5 text-[10px] text-text-muted">
-            Deep Delve unlocks at Extraction mastery 5 (currently Lv.{state?.mastery.level ?? 1}) and pays 1.5× draws while your gear factor at the site holds ×0.80.
-          </p>
-        )}
+        {/* Assumption-gaps G7: the Deep Delve lock reason and
+            terms used to live only in the button's title=
+            attribute — hover text that never renders on a phone.
+            The explainer prints as visible text in both states. */}
+        <p className="mt-1.5 text-[10px] text-text-muted">
+          {deepUnlocked
+            ? 'Deep Delve pays 1.5× draws while your gear factor at the site holds ×0.80.'
+            : `Deep Delve unlocks at Extraction mastery 5 (currently Lv.${state?.mastery.level ?? 1}) and pays 1.5× draws while your gear factor at the site holds ×0.80.`}
+        </p>
         {startError && (
           <div className="mt-2 flex items-start gap-2 border-2 border-red/60 bg-red/10 p-2 text-[11px] font-bold text-text-primary" data-testid="extraction-start-error">
             <AlertTriangle size={13} className="mt-0.5 shrink-0 text-red" /> {startError}

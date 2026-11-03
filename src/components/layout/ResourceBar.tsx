@@ -51,6 +51,20 @@
  * is honored in that pairing: each micro sits directly after the
  * value it qualifies, on the same baseline, named in its label.
  *
+ * Assumption-gaps G4 (2026-11-02): the two fraction micros'
+ * denominators are taught at the counters' destination
+ * surfaces, NOT on the Strip. Visible FRAGS / SLOTS labels were
+ * measured in this slice (fresh-guest fixture, 412×915): the
+ * row's scrollWidth grew 384 → 455 against a 382 clientWidth,
+ * pushing the LV segment — the row's closer — off-screen at
+ * rest, the exact failure the F3 pass fixed. The one-line law
+ * (§5/§6) leaves no honest room, so the teaching lives where
+ * the counts are spent: the cache lane prints "5 fragments =
+ * 1 Cache Key" under its {n} / 5 bar (ChestScreen), and the
+ * Loadout header prints "{n}/7 Gear slots" over the seven-slot
+ * constellation (ActionLoadout). The aria-labels above carry
+ * the same names for non-sighted players.
+ *
  * Audit UX-04: until the first server profile lands
  * (playerSlice.profileLoaded), the bar renders a skeleton strip
  * with the same geometry — never the store's placeholder numbers,

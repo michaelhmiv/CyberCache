@@ -87,6 +87,8 @@ Mastery is XP earned **per activity track** by actually doing the work: roaming 
 
 Mastery is not decorative. Mastery levels feed real mechanics — crafting mastery widens the quality bounds of what you make, extraction mastery widens gathering yield, and some advanced recipes require a minimum mastery before they unlock at all. Where levels measure how far you've come overall, mastery measures what you've actually spent your time doing.
 
+The Profile's Mastery section starts empty for a new hunter, and its empty state says exactly that in plain words: roaming, boss fights, crafting, and trading each feed their own track as you play — and mastery unlocks recipes and raises crafting quality.
+
 ---
 
 _Source of truth: `src/content/simulation.ts`, `src/content/xpResolver.ts`, `src/content/offlineCap.ts`, `src/content/cacheRank.ts`, `src/constants/skillTrees.ts`, `db/migrations/0004_write_apis.sql`, `db/migrations/0051_profile_lifetime_counters.sql`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

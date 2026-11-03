@@ -261,11 +261,15 @@ export const DashboardTopBar: React.FC = () => {
           data-testid="top-contracts-button"
           aria-label={contractsLabel}
           onClick={() => setSheet('contracts')}
-          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${contractsPulsing || contractsGuestLocked ? 'pr-9' : ''}`}
+          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${contractsPulsing ? 'pr-9' : contractsGuestLocked ? 'pr-16' : ''}`}
         >
           {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
-          {contractsGuestLocked && <CornerBadge icon="lock" color="#8A847C" />}
+          {/* Assumption-gaps G10: the guest lock used to be a
+              bare lock glyph — a badge with no visible why. In
+              the badge language this row already speaks (AWAY,
+              NEW, counts), the why prints as a word: GUEST. */}
+          {contractsGuestLocked && <CornerBadge text="GUEST" color="#8A847C" />}
           <PxIcon name="orders" size={15} />
           <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
             Orders
