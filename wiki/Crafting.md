@@ -62,6 +62,21 @@ what the item is for, its quality range and what the percentage
 means for that item, its effects, and the full gate and material
 detail.
 
+**Quick buy.** A material or essence line that is short carries one
+small **+** button (the bench-unlock shortfall line has one too).
+Tapping it opens the quick-buy sheet: pick how many you need — it
+opens at exactly your shortfall — and the sheet prices the fill on
+two tabs, **Market** (the cheapest player listings first) and
+**Vendor** (only when the vendor stocks that good today), each tab
+showing its total. The price you see is a **hard ceiling**: when
+you tap Buy, the fill re-prices and charges that total or less,
+never more — if prices moved, you get the fresh quote before
+anything is charged. Short on credits, or nobody is selling? The
+sheet says so and points at the doors (sell loot, roam, refine,
+research) instead of failing silently. Guests can open the sheet
+and see the real prices; signing in is only asked at the Buy
+button.
+
 ## The catalog: 87 recipes
 
 The unified Workshop catalog holds **87 recipes**:
