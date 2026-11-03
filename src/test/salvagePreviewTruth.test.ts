@@ -2,7 +2,7 @@
  * Salvage preview truth (economy slice 3) — the client projection
  * must equal the settlement, to the unit.
  *
- * The retired salvage formula (deleted src/constants/salvageRules.ts)
+ * The retired salvage formula (its file is deleted in this slice)
  * promised material/essence/VoidDust yields cc_recycle_item never
  * paid, and two previews quoted it. The replacement —
  * projectSalvageYield (src/lib/gear/salvageAward.ts) — composes the
