@@ -678,7 +678,7 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
           only in the gear home (hidden in read-only display mode). */}
       {collapsed && !readOnly && (
         <div className="mt-2">
-          <PresetSwitcher />
+          <PresetSwitcher onPickReplacement={handleSlotTap} />
         </div>
       )}
       {collapsed && readOnly && (
@@ -747,7 +747,7 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
             ) : (
             <>
             <div className="mt-2">
-              <PresetSwitcher />
+              <PresetSwitcher onPickReplacement={handleSlotTap} />
             </div>
 
             {/* The Split (Exec C — owner layout): figure stage left,

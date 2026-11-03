@@ -179,6 +179,8 @@ const EMPTY_BUILD: Record<string, string | null> = {
   shield: null, classMod: null, relic: null, vehicle: null,
 };
 
+type Wire = Record<string, unknown>;
+
 async function applyBuild(h: Harness, token: string | null, slots: unknown, n: string = nonce()) {
   const res = await fetch(`${h.base}/api/ops/apply-build`, {
     method: 'POST',
@@ -189,13 +191,17 @@ async function applyBuild(h: Harness, token: string | null, slots: unknown, n: s
     body: JSON.stringify({ nonce: n, slots }),
   });
   const text = await res.text();
-  return { status: res.status, json: (text ? JSON.parse(text) : {}) as Record<string, any> };
+  return { status: res.status, json: (text ? JSON.parse(text) : {}) as Wire };
 }
 
-function outcomeOf(res: { json: Record<string, any> }, slot: string): Record<string, any> {
-  const found = (res.json.outcomes as Array<Record<string, any>>).find((o) => o.slot === slot);
+function outcomeOf(res: { json: Wire }, slot: string): Wire {
+  const found = (res.json.outcomes as Wire[]).find((o) => o.slot === slot);
   if (!found) throw new Error(`no outcome for slot ${slot}`);
   return found;
+}
+
+function loadoutOf(res: { json: Wire }): Wire {
+  return res.json.loadout as Wire;
 }
 
 function seedItem(h: Harness, id: string): WriteItemData {
@@ -225,7 +231,7 @@ describe('cc_apply_build — clean apply', () => {
     // A second build swaps the vehicle — the ride actually changes.
     const swap = await applyBuild(h, h.tokenA, { ...EMPTY_BUILD, vehicle: V2 });
     expect(swap.json.applied).toBe(true);
-    expect(swap.json.loadout.vehicle).toBe(V2);
+    expect(loadoutOf(swap).vehicle).toBe(V2);
     expect(seedItem(h, V1)).toMatchObject({ equipped_slot: null, runtime_state: 'available' });
     expect(seedItem(h, V2)).toMatchObject({ equipped_slot: 'vehicle', runtime_state: 'equipped' });
   });
@@ -271,9 +277,9 @@ describe('cc_apply_build — truthful failures', () => {
     // snapshot says so (the old code kept them silently under an
     // "applied" claim; here the report and the snapshot agree).
     expect(seedItem(h, OCC2)).toMatchObject({ equipped_slot: 'secondary', runtime_state: 'equipped' });
-    expect(res.json.loadout.secondary).toBe(OCC2);
+    expect(loadoutOf(res).secondary).toBe(OCC2);
     expect(seedItem(h, OCC)).toMatchObject({ equipped_slot: 'primary', runtime_state: 'equipped' });
-    expect(res.json.loadout.primary).toBe(OCC);
+    expect(loadoutOf(res).primary).toBe(OCC);
   });
 
   it('a listed item reports listed with its listing id; the listing is untouched', async () => {
@@ -342,9 +348,9 @@ describe('cc_apply_build — truthful failures', () => {
     const res = await applyBuild(h, h.tokenA, { ...EMPTY_BUILD, primary: W1, secondary: W1 });
     expect(outcomeOf(res, 'primary').outcome).toBe('equipped');
     expect(outcomeOf(res, 'secondary').outcome).toBe('gone');
-    expect(res.json.loadout.primary).toBe(W1);
+    expect(loadoutOf(res).primary).toBe(W1);
     // OCC2 (secondary's old occupant) stays — the duplicate slot failed.
-    expect(res.json.loadout.secondary).toBe(OCC2);
+    expect(loadoutOf(res).secondary).toBe(OCC2);
   });
 });
 
