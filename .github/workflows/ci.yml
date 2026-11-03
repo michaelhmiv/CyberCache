@@ -36,6 +36,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history: the changelog tripwire inside wiki:gen:check
+          # reads master's first-parent merges (Wiki Phase 4). Same
+          # fetch-depth the wiki-map-check job above already uses.
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4

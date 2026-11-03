@@ -17,6 +17,15 @@ import {
   type MarketFeeBreakdown,
 } from '../../lib/market/marketFee.js';
 import {
+  compareQuickBuyRows,
+  isQuickBuyGoodKind,
+  planMarketSweep,
+  splitStackCharge,
+  type QuickBuyGoodRef,
+  type QuickBuyListingRow,
+  type QuickBuyQuote,
+} from '../../lib/market/quickBuy.js';
+import {
   CORE_DISPLAY_NAME,
   CORE_IDENTITY_KEY,
   FRAGMENT_DISPLAY_NAME,
@@ -217,6 +226,7 @@ import {
   type ServiceJobData,
   type SetActiveActionInput,
   type SkillNodeData,
+  type QuickBuyFillInput,
   type VendorSellInput,
   type WriteItemData,
   type WriteListingData,
@@ -1171,6 +1181,321 @@ export class InMemoryWriteStore implements WriteStore {
       total_price: total,
     };
     return this.record(playerId, 'cc_vendor_buy', key, result);
+  }
+
+  // ── QuickBuy (QB-1, migration 0060) ─────────────────────────────
+  // The twin of cc_quickbuy_quote / cc_quickbuy_fill. The sweep
+  // planning is the shared module (src/lib/market/quickBuy.ts);
+  // the fee and delivery semantics mirror acceptListing's stack
+  // branch per leg, and the vendor leg settles through vendorBuy
+  // itself under a derived nonce, exactly as the SQL fill calls
+  // cc_vendor_buy.
+
+  private quickBuyRow(listing: WriteListingData): QuickBuyListingRow {
+    return {
+      id: listing.id,
+      sellerUserId: listing.seller_user_id,
+      sellerKind: listing.seller_type === 'npc' ? 'npc' : 'player',
+      quantity: listing.quantity ?? 1,
+      priceCredits: listing.price_credits,
+      qualityPercent: listing.quality_percent ?? null,
+      listedAt: listing.listed_at,
+    };
+  }
+
+  private quickBuyListingMatches(listing: WriteListingData, good: QuickBuyGoodRef): boolean {
+    switch (good.kind) {
+      case 'material':
+        return listing.material_id === good.id;
+      case 'essence':
+        return listing.essence_id === good.id;
+      case 'consumable':
+        return listing.consumable_type === good.id;
+      case 'fragment':
+      case 'core':
+        return true; // the listing kind IS the commodity
+    }
+  }
+
+  private buildQuickBuyQuote(playerId: string, good: QuickBuyGoodRef, quantity: number): QuickBuyQuote {
+    const p = this.profile(playerId);
+    const qty = Math.max(1, Math.floor(quantity) || 1);
+    const rows: QuickBuyListingRow[] = [];
+    for (const listing of this.listings.values()) {
+      if (listing.status !== 'active') continue;
+      if ((listing.listing_kind ?? 'gear') !== good.kind) continue;
+      if (!this.quickBuyListingMatches(listing, good)) continue;
+      rows.push(this.quickBuyRow(listing));
+    }
+    const plan = planMarketSweep(rows, qty, playerId);
+    const listings = rows
+      .filter((row) => row.sellerUserId !== playerId)
+      .sort(compareQuickBuyRows)
+      .slice(0, 100);
+    let vendor: QuickBuyQuote['vendor'] = null;
+    if (good.kind === 'consumable' || good.kind === 'material' || good.kind === 'essence') {
+      const offer = vendorOfferFor(good.id, vendorDateKey(this.nowFn()));
+      if (offer) {
+        vendor = {
+          unitPrice: offer.unitPrice,
+          basePrice: offer.basePrice,
+          itemOfTheDay: offer.itemOfTheDay,
+          staple: offer.staple,
+          total: offer.unitPrice * qty,
+        };
+      }
+    }
+    return {
+      action_type: 'cc_quickbuy_quote',
+      good,
+      requested_qty: qty,
+      balance: p.credits,
+      market: { ...plan, listings },
+      vendor,
+    };
+  }
+
+  async quickbuyQuote(playerId: string, goodKind: string, goodId: string, quantity: number): Promise<Json> {
+    if (!isQuickBuyGoodKind(goodKind)) throw writeError('Unknown quick-buy good');
+    return this.buildQuickBuyQuote(playerId, { kind: goodKind, id: goodId }, quantity) as unknown as Json;
+  }
+
+  /** The fill's abort: record the attempt, embed a FRESH quote, move nothing. */
+  private quickBuyRequote(
+    playerId: string,
+    key: string,
+    reason: string,
+    good: QuickBuyGoodRef,
+    qty: number,
+    buyer: ProfileRowData,
+  ): Json {
+    const result: Json = {
+      action_type: 'cc_quickbuy_fill',
+      status: 'requote',
+      reason,
+      quote: this.buildQuickBuyQuote(playerId, good, qty) as unknown as Json,
+      profile: this.profileSnapshot(buyer),
+    };
+    return this.record(playerId, 'cc_quickbuy_fill', key, result);
+  }
+
+  async quickbuyFill(playerId: string, nonce: string, input: QuickBuyFillInput): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    if (input.source !== 'market' && input.source !== 'vendor') throw writeError('Unknown quick-buy source');
+    if (!isQuickBuyGoodKind(input.goodKind)) throw writeError('Unknown quick-buy good');
+    this.requireEconomy(playerId);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const good: QuickBuyGoodRef = { kind: input.goodKind, id: input.goodId };
+    const qty = Math.max(1, Math.floor(input.quantity) || 1);
+    const ceiling = Math.floor(input.quotedTotal);
+    const buyer = this.profile(playerId);
+
+    if (input.source === 'vendor') {
+      const offer = vendorOfferFor(good.id, vendorDateKey(this.nowFn()));
+      if (!offer) return this.quickBuyRequote(playerId, key, 'vendor_unavailable', good, qty, buyer);
+      const total = offer.unitPrice * qty;
+      if (total > ceiling) return this.quickBuyRequote(playerId, key, 'price_moved', good, qty, buyer);
+      if (buyer.credits < total) return this.quickBuyRequote(playerId, key, 'insufficient_credits', good, qty, buyer);
+      const vendorResult = (await this.vendorBuy(playerId, `${key}:vendor`, good.id, qty)) as unknown as Record<
+        string,
+        unknown
+      >;
+      const result: Json = {
+        action_type: 'cc_quickbuy_fill',
+        status: 'filled',
+        source: 'vendor',
+        good,
+        quantity: qty,
+        total_charged: vendorResult.total_price,
+        vendor: {
+          unit_price: vendorResult.unit_price,
+          item_of_the_day: vendorResult.item_of_the_day,
+          kind: vendorResult.kind,
+          batch_id: vendorResult.batch_id,
+        },
+        profile: vendorResult.profile as Json,
+      };
+      return this.record(playerId, 'cc_quickbuy_fill', key, result);
+    }
+
+    // Market leg: plan over the good's open stacks, cheapest unit
+    // first, own listings excluded (the shared sweep order).
+    const candidates = [...this.listings.values()]
+      .filter(
+        (listing) =>
+          listing.status === 'active' &&
+          (listing.listing_kind ?? 'gear') === good.kind &&
+          listing.seller_user_id !== playerId &&
+          this.quickBuyListingMatches(listing, good),
+      )
+      .sort((a, b) => compareQuickBuyRows(this.quickBuyRow(a), this.quickBuyRow(b)));
+    let remaining = qty;
+    let supply = 0;
+    let planTotal = 0;
+    const legs: Array<{ listing: WriteListingData; takeQty: number; charge: number }> = [];
+    for (const listing of candidates) {
+      const stackQty = listing.quantity ?? 1;
+      supply += stackQty;
+      if (remaining > 0) {
+        const takeQty = Math.min(remaining, stackQty);
+        const charge = splitStackCharge(listing.price_credits, takeQty, stackQty);
+        legs.push({ listing, takeQty, charge });
+        planTotal += charge;
+        remaining -= takeQty;
+      }
+    }
+    if (supply < qty) return this.quickBuyRequote(playerId, key, 'supply_changed', good, qty, buyer);
+    if (planTotal > ceiling) return this.quickBuyRequote(playerId, key, 'price_moved', good, qty, buyer);
+    if (buyer.credits < planTotal) return this.quickBuyRequote(playerId, key, 'insufficient_credits', good, qty, buyer);
+
+    buyer.credits -= planTotal;
+    this.touch(buyer);
+    const legRecords: Array<{ legNonce: string; payload: Json }> = [];
+    const fills: Json[] = [];
+    for (const { listing, takeQty, charge } of legs) {
+      const seller = this.profileOrNull(listing.seller_user_id);
+      const kind = listing.listing_kind ?? 'gear';
+      // Fee: acceptListing's stack branch applied to the leg charge.
+      let feeBreakdown: MarketFeeBreakdown = {
+        price: charge,
+        feeRate: MARKET_FEE_RATE,
+        feeReduction: 0,
+        effectiveRate: 0,
+        fee: 0,
+        proceedsBonusRate: 0,
+        proceedsBonus: 0,
+        sellerProceeds: charge,
+      };
+      let craftedBySeller = false;
+      if (seller && listing.seller_type !== 'npc') {
+        craftedBySeller = listing.batch_origin === 'crafted';
+        feeBreakdown = marketFeeForSeller({
+          price: charge,
+          skillSpends: seller.skill_spends ?? {},
+          classModBoosts: this.classModBoostsFor(seller.id),
+          foundBySeller: false,
+          craftedBySeller,
+          feeRate: await this.feeRateProvider(),
+          cacheRankProceedsBonus: this.cacheRankBonusesFor(seller).marketProceeds,
+          researchFeeReduction: this.researchBonusesFor(seller.id).marketFeeReduction,
+        });
+      }
+      if (seller) {
+        seller.credits += feeBreakdown.sellerProceeds;
+        this.touch(seller);
+      }
+      // The leg's ledger listing is the TAKEN portion, sold — the
+      // folds read it exactly like a manual accept of that portion.
+      const legListingJson = {
+        ...this.listingJson(listing),
+        quantity: takeQty,
+        price_credits: charge,
+        status: 'sold',
+        sold_at: this.nowIso(),
+      } as unknown as Json;
+      const stackQty = listing.quantity ?? 1;
+      if (takeQty >= stackQty) {
+        listing.status = 'sold';
+        listing.sold_at = this.nowIso();
+      } else {
+        listing.quantity = stackQty - takeQty;
+        listing.price_credits -= charge;
+      }
+      // Delivery, mirroring acceptListing per kind.
+      let deliveredBatchId: string | null = null;
+      if (kind === 'consumable' && listing.consumable_type) {
+        deliveredBatchId = this.addConsumableBatch(
+          playerId,
+          listing.consumable_type,
+          takeQty,
+          listing.quality_percent ?? 100,
+          listing.batch_origin ?? 'market',
+          listing.batch_creator_user_id ?? null,
+          listing.batch_source_recipe_id ?? null,
+          { listing_id: listing.id },
+        );
+        const consumables = asNumberMap(buyer.consumables);
+        consumables[listing.consumable_type] = (consumables[listing.consumable_type] ?? 0) + takeQty;
+        buyer.consumables = consumables;
+        this.touch(buyer);
+      } else if (kind === 'material' && listing.material_id) {
+        const materials = asNumberMap(buyer.materials);
+        materials[listing.material_id] = (materials[listing.material_id] ?? 0) + takeQty;
+        buyer.materials = materials;
+        this.touch(buyer);
+      } else if (kind === 'essence' && listing.essence_id) {
+        const essences = asNumberMap(buyer.essences);
+        essences[listing.essence_id] = (essences[listing.essence_id] ?? 0) + takeQty;
+        buyer.essences = essences;
+        this.touch(buyer);
+      } else if (kind === 'fragment') {
+        let parts = (buyer.cache_token_parts ?? 0) + takeQty;
+        let tokens = buyer.cache_tokens ?? 0;
+        while (parts >= 5) {
+          parts -= 5;
+          tokens += 1;
+        }
+        buyer.cache_token_parts = parts;
+        buyer.cache_tokens = tokens;
+        this.touch(buyer);
+      } else if (kind === 'core') {
+        buyer.legendary_cores = (buyer.legendary_cores ?? 0) + takeQty;
+        this.touch(buyer);
+      }
+      legRecords.push({
+        legNonce: `${key}:leg:${listing.id}`,
+        payload: {
+          action_type: 'cc_accept_listing',
+          profile: null,
+          listing: legListingJson,
+          item: null,
+          delivery: {
+            kind,
+            quantity: takeQty,
+            quality_percent: listing.quality_percent ?? null,
+            consumable_type: listing.consumable_type ?? null,
+            material_id: listing.material_id ?? null,
+            essence_id: listing.essence_id ?? null,
+            batch_id: deliveredBatchId,
+          },
+          market_fee: {
+            fee_credits: feeBreakdown.fee,
+            seller_proceeds: feeBreakdown.sellerProceeds,
+            cache_rank_proceeds_bonus: feeBreakdown.proceedsBonus,
+            fee_rate: feeBreakdown.feeRate,
+            fee_reduction: feeBreakdown.feeReduction,
+            found_item: false,
+            crafted_item: craftedBySeller,
+          },
+        } as unknown as Json,
+      });
+      fills.push({
+        listing_id: listing.id,
+        take_qty: takeQty,
+        charge,
+        fee_credits: feeBreakdown.fee,
+        seller_proceeds: feeBreakdown.sellerProceeds,
+        quality_percent: listing.quality_percent ?? null,
+        seller_kind: listing.seller_type === 'npc' ? 'npc' : 'player',
+      });
+    }
+    const snapshot = this.profileSnapshot(buyer);
+    for (const { legNonce, payload } of legRecords) {
+      (payload as Record<string, unknown>).profile = snapshot;
+      this.record(playerId, 'cc_accept_listing', legNonce, payload);
+    }
+    const result: Json = {
+      action_type: 'cc_quickbuy_fill',
+      status: 'filled',
+      source: 'market',
+      good,
+      quantity: qty,
+      total_charged: planTotal,
+      fills,
+      profile: snapshot,
+    };
+    return this.record(playerId, 'cc_quickbuy_fill', key, result);
   }
 
   async vendorSell(playerId: string, nonce: string, input: VendorSellInput): Promise<Json> {

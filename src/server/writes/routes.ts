@@ -6,6 +6,8 @@
  *   POST /api/ops/initial-bundle            verifiedOps.ensureInitialBundle     cc_initial_bundle(nonce)
  *   POST /api/ops/make-item                 verifiedOps.makeItem                cc_make_item(nonce, payment, ad_unit_id) — cache box lane (0037): daily budget, free-first payment (free / key / client-attested ad); the retired cc_claim_rewarded_cache_key route is gone
  *   POST /api/ops/vendor-buy                verifiedOps.vendorBuy               cc_vendor_buy(...)
+ *   POST /api/ops/quickbuy-quote            verifiedOps.quickbuyQuote           cc_quickbuy_quote(...) — advisory read, no nonce/gate
+ *   POST /api/ops/quickbuy-fill             verifiedOps.quickbuyFill            cc_quickbuy_fill(...)
  *   POST /api/ops/vendor-sell               verifiedOps.vendorSell*             cc_vendor_sell(...)
  *   POST /api/ops/claim-crafted-consumable  verifiedOps.claimCraftedConsumable  cc_claim_crafted_consumable(...)
  *   POST /api/ops/consume-consumable        verifiedOps.consumeConsumableItem   cc_consume_consumable(...)
@@ -73,6 +75,7 @@ import {
   type ServiceBoardQuery,
   type ServiceBoardSort,
 } from '../../lib/market/boardQuery.js';
+import { isQuickBuyGoodKind } from '../../lib/market/quickBuy.js';
 
 /**
  * The service-board browse query, parsed in the Buy lane's style
@@ -240,6 +243,37 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   op('/api/ops/vendor-buy', async (playerId, req) =>
     store.vendorBuy(playerId, str(body(req).nonce), str(body(req).item_key), num(body(req).quantity) ?? 1),
   );
+  op('/api/ops/quickbuy-quote', async (playerId, req, res) => {
+    const goodKind = str(body(req).good_kind);
+    const goodId = str(body(req).good_id);
+    if (!isQuickBuyGoodKind(goodKind) || !goodId) {
+      validation(res, 'A valid good is required');
+      return null;
+    }
+    const quantity = numField(req, res, 'quantity', 'quantity value');
+    if (quantity === null) return null;
+    return store.quickbuyQuote(playerId, goodKind, goodId, quantity);
+  });
+  op('/api/ops/quickbuy-fill', async (playerId, req, res) => {
+    const goodKind = str(body(req).good_kind);
+    const goodId = str(body(req).good_id);
+    const source = str(body(req).source);
+    if (!isQuickBuyGoodKind(goodKind) || !goodId || (source !== 'market' && source !== 'vendor')) {
+      validation(res, 'A valid good and source are required');
+      return null;
+    }
+    const quantity = numField(req, res, 'quantity', 'quantity value');
+    if (quantity === null) return null;
+    const quotedTotal = numField(req, res, 'quoted_total', 'quoted total value');
+    if (quotedTotal === null) return null;
+    return store.quickbuyFill(playerId, str(body(req).nonce), {
+      source,
+      goodKind,
+      goodId,
+      quantity,
+      quotedTotal,
+    });
+  });
   op('/api/ops/vendor-sell', async (playerId, req, res) => {
     const kind = str(body(req).kind);
     if (kind === 'gear') {

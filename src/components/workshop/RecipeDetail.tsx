@@ -32,6 +32,7 @@ import {
   type WorkshopPlayerContext,
 } from '@/lib/workshop/readiness';
 import { sourcesForInput, type MaterialSource } from '@/lib/workshop/sources';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 
 // ─── Shortfall source line: sources with working doors ─────────────
 
@@ -256,10 +257,23 @@ export const RecipeInspectSheet: React.FC<{
               <React.Fragment key={key}>
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-text-secondary">{inputLabel(key)}</span>
-                  <span className={short ? 'font-bold text-red' : 'font-bold text-text-primary'}>
-                    {have.toLocaleString('en-US')}
-                    <span className="text-text-muted"> / {per}</span>
-                    {short ? <span> · short {per - have}</span> : null}
+                  <span className="inline-flex items-center">
+                    <span className={short ? 'font-bold text-red' : 'font-bold text-text-primary'}>
+                      {have.toLocaleString('en-US')}
+                      <span className="text-text-muted"> / {per}</span>
+                      {short ? <span> · short {per - have}</span> : null}
+                    </span>
+                    {/* QB-1: the same lone + as the card face. */}
+                    {short && key !== 'Scrap' && (
+                      <QuickBuyPlus
+                        good={{ kind: isMaterialInput(key) ? 'material' : 'essence', id: key }}
+                        goodName={inputLabel(key)}
+                        shortfall={per - have}
+                        contextLabel={recipe.name}
+                        onNavigate={onNavigate}
+                        onRefineFocus={onRefineFocus}
+                      />
+                    )}
                   </span>
                 </div>
                 {short && <SourceLine inputId={key} onNavigate={onNavigate} onRefineFocus={onRefineFocus} />}

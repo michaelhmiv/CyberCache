@@ -54,8 +54,8 @@ Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|
 5. **Prep your first boss when a weapon feels strong.** Boss prep shows you the boss's own effects, mechanics, and stats — read them, match your loadout to them, and take the fight. See [[Bosses]].
 6. **Spend your first skill point.** Level 2 earns your first point in the four skill trees. See [[Progression]].
 
-From there, the game opens outward: new areas as you level, the [[The Market|market]] once you sign in, occupations beyond roaming, and eventually bosses, [[Endless Mode]], and [[Collections]].
+From there, the game opens outward: all seven areas are open from the start — the area picker warns you in real numbers when one outmatches your build, but it never locks you out — the [[The Market|market]] once you sign in, occupations beyond roaming, and eventually bosses, [[Endless Mode]], and [[Collections]].
 
 ---
 
-_Source of truth: `src/auth/`, `db/migrations` (`cc_initial_bundle`), `src/server/routes/roamingHandler.ts`, `src/lib/api/authService.ts`, `src/screens/AuthScreen.tsx`, `db/migrations/0021_vehicles.sql`, `src/content/cacheLane.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._
+_Source of truth: `src/auth/`, `db/migrations` (`cc_initial_bundle`), `src/server/routes/roamingHandler.ts`, `src/constants/roamingAreas.ts`, `src/lib/api/authService.ts`, `src/screens/AuthScreen.tsx`, `db/migrations/0021_vehicles.sql`, `src/content/cacheLane.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

@@ -103,6 +103,15 @@ everywhere:
   (e.g. the Workshop's quality band key) may stay in flow: it teaches
   once per page, it is not per-item prose.
 
+### Quotes are hard ceilings (QB-1, 2026-11-03)
+
+Quick-buy pattern: a shortfall goods line carries one small **+**; everything
+else — pricing on Market · Vendor tabs, the quantity stepper, the buy — lives
+in the pop-up sheet the + opens. The reusable rule: **a displayed quote is a
+hard ceiling** — the purchase re-quotes atomically at tap time and charges
+min(quote, current), never more; if the fresh total exceeds the quote, nothing
+is charged and the sheet re-renders from the fresh quote saying so.
+
 ---
 
 ## 2. Navigation — four tabs
@@ -494,6 +503,39 @@ re-enters shipped screen or component sources. Icons drawn after the v2
 sheet — for shipped glyphs it had no counterpart for — live in the same
 registry, in the same hand, after its additions marker; the 52 above are
 the canonical set the redesign approved.
+
+---
+
+## 8. Pixel density law — item art (owner-ruled 2026-11-03)
+
+**The game has ONE established pixel density. Every renderer
+matches it; none exceeds it.** Two directions are equally
+rejected: plates so flat they read as rasterized SVG, and plates
+so fine they miss the aesthetic of everything else. If a choice
+trades register-match for richness, register wins.
+
+- **texel = 4** — the manifest law for every sprite, and the grid
+  every compositor authors on. Fixed texel grids per density:
+  weapons 120×44 (stage) / 240×88 (card); gear plates 240×140
+  (shield, relic) / 240×120 (class mod, ordnance) at card, with a
+  quarter-grid thumb.
+- **Author AT the grid.** No oversampling, no sub-texel features;
+  the minimum feature is 1 texel.
+- **Five-tone ramp per hue** — shade toward black, highlight
+  toward white, warm near-black outline (the duotone manner of §7
+  applied to item bodies).
+- **Identity comes from silhouette + saturated colorway.** Detail
+  is silhouette breaks, panel blocks, and single-texel rivets,
+  vents, and stripes; wear happens at texel scale; glow is
+  hard-edged texel shapes, never gradients.
+- **Thumb is detail level 0** — a composed bold silhouette +
+  core + colorway on its own small grid, never a raw downscale
+  of the card render.
+
+In code: weapons compose through `weaponCompositor.ts` /
+`weaponCardCompositor.ts`; the other gear kinds compose through
+the shared plate engine `gearCardCompositor.ts` (+ `PixelGear`),
+whose detail kit enforces the thumb discipline structurally.
 
 ---
 

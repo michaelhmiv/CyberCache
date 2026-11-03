@@ -9,6 +9,9 @@
 - [[Combat]]
 - [[Bosses]]
 - [[Endless Mode]]
+- [[Dispatch]]
+- [[Research]]
+- [[Contracts]]
 
 **Gear & Making**
 - [[Gear]]

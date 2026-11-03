@@ -182,7 +182,9 @@ Workshop gear is capped at Epic — Legendaries are found, not made. Boss
 prep shows you the boss's mechanics and your own numbers, never a
 computed win chance; choosing which gear to bring is the game. See
 [[Combat]] for how these stats meet an enemy, and [[Reference]] for the
-full data tables.
+full data tables. The Reference pictures all of it, too: every weapon
+frame by type and maker, every element read on the frame, and every
+shield, ordnance, class mod, and relic form the game renders.
 
 ---
 

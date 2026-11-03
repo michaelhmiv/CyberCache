@@ -1,5 +1,6 @@
 /**
- * Legendary effects — all 25, with the honest implementation status.
+ * Legendary effects — all 25, with the honest implementation status,
+ * plus the Emberfall art row (26 plates total; see below).
  *
  * Names, descriptions, sources, and tier gates come from the defs in
  * src/constants/legendaryEffects.ts. The STATUS column is derived
@@ -13,10 +14,24 @@
  * label, the rendered status changes with it and the freshness gate
  * surfaces the diff for review — the status can never silently drift
  * from the file that owns the honesty call.
+ *
+ * The PLATE column and the block's binary assets come from images.ts:
+ * each row illustrates the weapon's bespoke sprite, rendered from the
+ * game's own art by the game's own resolution order. Emberfall is the
+ * 26th row — the one named legendary with bespoke art but no effect
+ * (its sprite is keyed by the weapon's literal name), so it is rendered
+ * as an explicitly-labelled art row, never as a fake effect.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { LEGENDARY_EFFECTS } from '../../src/constants/legendaryEffects';
+import { LEGENDARY_ART_PARITY } from '../../src/test/legendaryParityTable';
+import {
+  legendaryPlateImgTag,
+  legendaryPlates,
+  legendarySpriteIdForEffect,
+  legendarySpriteIdForName,
+} from './images';
 import { type GenBlock, REPO_ROOT, table } from './lib';
 
 type Status = 'Fully live' | 'Simulated proxy' | 'Partial';
@@ -61,6 +76,7 @@ function effectsBody(): string {
     const status = statuses.get(e.id);
     if (!status) throw new Error(`legendaryEffects: no applyLegendaryEffects case found for '${e.id}'`);
     return [
+      legendaryPlateImgTag(e.name, legendarySpriteIdForEffect(e.id)),
       `**${e.name}**`,
       e.description,
       e.weaponType,
@@ -69,11 +85,31 @@ function effectsBody(): string {
       status,
     ];
   });
-  return table(['Effect', 'What it does', 'Weapon type', 'Source', 'Min boss tier', 'Status'], rows);
+  // Emberfall: bespoke art keyed by the weapon's literal name, claimed by
+  // no effect. It closes the table as an art row so the plate set is
+  // complete without inventing an effect for it.
+  const emberfall = LEGENDARY_ART_PARITY.find((row) => row.effectId === null);
+  if (!emberfall) throw new Error('legendaryEffects: parity fixture has no name-keyed (Emberfall) row');
+  rows.push([
+    legendaryPlateImgTag(emberfall.name, legendarySpriteIdForName(emberfall.name)),
+    `**${emberfall.name}**`,
+    'Name-keyed proof art — no legendary effect carries this sprite. A weapon literally named Emberfall renders this art; it never rolls from an effect.',
+    `${emberfall.depictedType} (as depicted)`,
+    '—',
+    '—',
+    'Name-keyed art only',
+  ]);
+  return table(['Plate', 'Effect', 'What it does', 'Weapon type', 'Source', 'Min boss tier', 'Status'], rows);
 }
 
 export const legendaryEffectsBlock: GenBlock = {
   id: 'legendary-effects',
-  owners: ['src/constants/legendaryEffects.ts', 'src/lib/legendaryEffects.ts'],
+  owners: [
+    'src/constants/legendaryEffects.ts',
+    'src/lib/legendaryEffects.ts',
+    'src/lib/pixel/manifest.ts',
+    'src/test/legendaryParityTable.ts',
+  ],
   render: effectsBody,
+  assets: legendaryPlates,
 };

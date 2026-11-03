@@ -54,7 +54,7 @@ entirely.
   the moment you enroll, never refunded: **310,000 cr across the full
   12-course catalog**, the game's largest structured sink.
 - **[[Manufacturer Standing]] tributes and desk prices** — a full
-  six-rank ladder with one maker destroys **410,000 cr in tributes**,
+  five-rank ladder with one maker destroys **410,000 cr in tributes**,
   and Parts Crates and the 150,000 cr Signature Order are destroyed on
   purchase too.
 - **The [[Slots]] machine** — every wager is destroyed at the pull, and

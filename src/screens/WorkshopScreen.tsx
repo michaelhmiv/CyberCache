@@ -55,6 +55,7 @@ import {
   type WorkshopPlayerContext,
 } from '@/lib/workshop/readiness';
 import { GateLines, RecipeInspectSheet, SourceLine } from '@/components/workshop/RecipeDetail';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
 
 /**
@@ -838,6 +839,8 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           tools={server?.tools ?? { owned: {}, fitted: {}, charges: {} }}
           onUnlock={() => void workshop.unlockBench()}
           onFit={(bench, toolId) => void workshop.fitTool(bench, toolId)}
+          onNavigate={onNavigate}
+          onRefineFocus={focusRefineRecipe}
         />
       </div>
 
@@ -1000,7 +1003,9 @@ const BenchAndToolsCard: React.FC<{
   tools: { owned: Record<string, boolean>; fitted: Record<string, string | null>; charges: Record<string, number> };
   onUnlock: () => void;
   onFit: (bench: number, toolId: string | null) => void;
-}> = ({ benchesOwned, credits, materials, tools, onUnlock, onFit }) => {
+  onNavigate?: (screen: string) => void;
+  onRefineFocus?: (recipeId: string) => void;
+}> = ({ benchesOwned, credits, materials, tools, onUnlock, onFit, onNavigate, onRefineFocus }) => {
   const next = CRAFT_BENCHES.find((b) => b.bench === benchesOwned + 1);
   const nextAffordable =
     next !== undefined &&
@@ -1013,11 +1018,18 @@ const BenchAndToolsCard: React.FC<{
   // and print the distance, so the locked button carries its
   // remedy arithmetic on the same surface.
   const nextShortfall: string[] = [];
+  // QB-1: goods segments carry their material id + shortfall so the
+  // line can offer the lone + beside them; level/credit segments
+  // stay plain text (profile numbers never get a +).
+  const nextShortfallGoods = new Map<number, { materialId: string; short: number }>();
   if (next && !nextAffordable) {
     if (credits < next.costCredits) nextShortfall.push(`short ${(next.costCredits - credits).toLocaleString()}cr`);
     for (const [k, v] of Object.entries(next.costInputs)) {
       const have = materials[k] ?? 0;
-      if (have < v) nextShortfall.push(`short ${v - have} ${getVisualAsset('material', k).label}`);
+      if (have < v) {
+        nextShortfallGoods.set(nextShortfall.length, { materialId: k, short: v - have });
+        nextShortfall.push(`short ${v - have} ${getVisualAsset('material', k).label}`);
+      }
     }
   }
   return (
@@ -1057,7 +1069,25 @@ const BenchAndToolsCard: React.FC<{
             <div className="text-[11px] text-text-muted">{b.blurb}</div>
             {b.bench === benchesOwned + 1 && nextShortfall.length > 0 && (
               <div className="text-[11px] font-bold text-amber" data-testid="bench-unlock-shortfall">
-                {nextShortfall.join(' · ')}
+                {nextShortfall.map((segment, i) => {
+                  const goods = nextShortfallGoods.get(i);
+                  return (
+                    <span key={i} className="inline-flex items-center">
+                      {i > 0 && <span> · </span>}
+                      {segment}
+                      {goods && (
+                        <QuickBuyPlus
+                          good={{ kind: 'material', id: goods.materialId }}
+                          goodName={getVisualAsset('material', goods.materialId).label}
+                          shortfall={goods.short}
+                          contextLabel={`${b.name} unlock`}
+                          onNavigate={onNavigate}
+                          onRefineFocus={onRefineFocus}
+                        />
+                      )}
+                    </span>
+                  );
+                })}
               </div>
             )}
             {owned && (
@@ -1221,10 +1251,25 @@ const RecipeCard: React.FC<{
                     {icon ? <PxIcon name={icon} size={13} /> : null}
                     <span className="text-text-secondary">{inputLabel(key)}</span>
                   </span>
-                  <span className={enough ? 'font-bold text-text-primary' : 'font-bold text-red'}>
-                    {have.toLocaleString('en-US')}
-                    <span className="text-text-muted"> / {need.toLocaleString('en-US')}</span>
-                    {!enough ? <span> · short {short.toLocaleString('en-US')}</span> : null}
+                  <span className="inline-flex items-center">
+                    <span className={enough ? 'font-bold text-text-primary' : 'font-bold text-red'}>
+                      {have.toLocaleString('en-US')}
+                      <span className="text-text-muted"> / {need.toLocaleString('en-US')}</span>
+                      {!enough ? <span> · short {short.toLocaleString('en-US')}</span> : null}
+                    </span>
+                    {/* QB-1: the lone + beside a shortfall goods line —
+                        the card's only quick-buy trace. Scrap is a
+                        profile balance, never a buyable good. */}
+                    {!enough && key !== 'Scrap' && (
+                      <QuickBuyPlus
+                        good={{ kind: isMaterialInput(key) ? 'material' : 'essence', id: key }}
+                        goodName={inputLabel(key)}
+                        shortfall={short}
+                        contextLabel={recipe.name}
+                        onNavigate={onNavigate}
+                        onRefineFocus={onRefineFocus}
+                      />
+                    )}
                   </span>
                 </div>
                 {!enough && <SourceLine inputId={key} onNavigate={onNavigate} onRefineFocus={onRefineFocus} />}
@@ -1237,10 +1282,22 @@ const RecipeCard: React.FC<{
                 <span className="inline-flex items-center gap-1 text-text-secondary">
                   <PxIcon name="flask" size={13} /> Catalyst · {inputLabel(catalystId)}
                 </span>
-                <span className={catalystHave >= units ? 'font-bold text-text-primary' : 'font-bold text-red'}>
-                  {catalystHave}
-                  <span className="text-text-muted"> / {units}</span>
-                  {catalystHave < units ? <span> · short {units - catalystHave}</span> : null}
+                <span className="inline-flex items-center">
+                  <span className={catalystHave >= units ? 'font-bold text-text-primary' : 'font-bold text-red'}>
+                    {catalystHave}
+                    <span className="text-text-muted"> / {units}</span>
+                    {catalystHave < units ? <span> · short {units - catalystHave}</span> : null}
+                  </span>
+                  {catalystHave < units && (
+                    <QuickBuyPlus
+                      good={{ kind: 'material', id: catalystId }}
+                      goodName={inputLabel(catalystId)}
+                      shortfall={units - catalystHave}
+                      contextLabel={recipe.name}
+                      onNavigate={onNavigate}
+                      onRefineFocus={onRefineFocus}
+                    />
+                  )}
                 </span>
               </div>
               {catalystHave < units && <SourceLine inputId={catalystId} onNavigate={onNavigate} onRefineFocus={onRefineFocus} />}
