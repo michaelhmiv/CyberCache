@@ -1,0 +1,289 @@
+{
+  "startPr": 262,
+  "startDate": "2026-11-01",
+  "days": [
+    {
+      "date": "2026-11-03",
+      "merges": [
+        {
+          "number": 310,
+          "title": "feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)"
+        },
+        {
+          "number": 315,
+          "title": "Foreground resume: land instantly back in the live action"
+        },
+        {
+          "number": 316,
+          "title": "Areas: remove level locks — duel-based danger warning instead of a wall"
+        },
+        {
+          "number": 317,
+          "title": "Market scope: NPC Buy presence is basic/Common-only across all gear kinds"
+        },
+        {
+          "number": 318,
+          "title": "Profiles: hand-pinned Trophy Shelf, reachable hunter profiles, redesigned pop-up (migration 0058)"
+        },
+        {
+          "number": 319,
+          "title": "feat(gear): the merged Gear page — Exec C, the Split"
+        },
+        {
+          "number": 320,
+          "title": "Weapon pixel program slice 1 — the marriage: card-density compositor with FORGE grammars, all card surfaces wired"
+        },
+        {
+          "number": 321,
+          "title": "Streak poster plate: celebration rebuild (direction A + wallet tick) — audit D1–D7"
+        },
+        {
+          "number": 322,
+          "title": "Analytics: GA4 via Firebase Analytics — screens, core-loop events, retention plumbing"
+        },
+        {
+          "number": 323,
+          "title": "Sign-in banner: pixel-art wasteland landscape replaces the procedural SVG hero"
+        },
+        {
+          "number": 324,
+          "title": "Gate-removal step 2: consumable recipes lose their player-level requirements (0057)"
+        },
+        {
+          "number": 325,
+          "title": "Loadout truth: the hunter holds the equipped weapon — armed actor fits its stage width"
+        },
+        {
+          "number": 326,
+          "title": "Workshop redesign Direction A — Make-now first"
+        },
+        {
+          "number": 327,
+          "title": "Weapon pixel slice 2: legendary parity audit + wiring (24 agree, 1 owner-ruled, 0 open)"
+        },
+        {
+          "number": 328,
+          "title": "Weapon marriage slice 3: retire the legacy SVG weapon renderer"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-02",
+      "merges": [
+        {
+          "number": 270,
+          "title": "feat(market): Market v2 — rail of stops, Rep Desk weekly claim surface, seller hunter names"
+        },
+        {
+          "number": 271,
+          "title": "feat(home): Home composition — §4 order, mode rail, Weekly claimables, Return Sheet"
+        },
+        {
+          "number": 272,
+          "title": "fix(market): rail conforms to DESIGN §2 (7 stops, Sell segments) + tab→stop deep-link for Slots"
+        },
+        {
+          "number": 273,
+          "title": "feat(gear): Gear v2 — rail of stops, Garage as a stop (F1), real affixes on cards"
+        },
+        {
+          "number": 274,
+          "title": "feat(motion): animation polish — ClaimPulse on claimables, Market stop transitions, list entrances; Sample-B untouched"
+        },
+        {
+          "number": 275,
+          "title": "fix(qc): Standings profile crash (null K/D) + Home mode rail switching/dismissal"
+        },
+        {
+          "number": 276,
+          "title": "fix(qc): string hygiene — human labels everywhere, respec copy truth, wrap-not-clip"
+        },
+        {
+          "number": 277,
+          "title": "fix(qc): layout — strip container-fit, sheet content height, ticker lane, Buy card wrap"
+        },
+        {
+          "number": 278,
+          "title": "fix(qc): affordances — Research briefs, visible Spend, Collections masking, honest web sign-in copy"
+        },
+        {
+          "number": 279,
+          "title": "fix(qc): papercuts — badge clipping, header collisions, diorama title, dev copy, search noun"
+        },
+        {
+          "number": 280,
+          "title": "fix(pixels): loadout truth — the hunter carries only the equipped weapon"
+        },
+        {
+          "number": 281,
+          "title": "Loot-visual honesty: the cache crate rises only for real cache grants"
+        },
+        {
+          "number": 282,
+          "title": "art: replace 122 placeholder sprites with finished pixel art"
+        },
+        {
+          "number": 283,
+          "title": "feat(profile): close the lifetime stat gaps — deaths, credits earned/spent, kills by element (0051)"
+        },
+        {
+          "number": 284,
+          "title": "fix(chef): JSON-encode boss attempt loot for the applier — every boss start 500'd"
+        },
+        {
+          "number": 285,
+          "title": "fix(legendary): S5 — legendary drops pin to the weapon type their art depicts"
+        },
+        {
+          "number": 286,
+          "title": "chore(rename): TechFragments display name is now 'Tech' — internal id unchanged"
+        },
+        {
+          "number": 287,
+          "title": "fix(ui): corner badges meet the 11px floor — badges bigger, floor unmoved"
+        },
+        {
+          "number": 288,
+          "title": "feat(pixel): parts system M1 — parts model, anchor compositor, Standard Issue set"
+        },
+        {
+          "number": 289,
+          "title": "fix(chef): JSON-encode roaming events for cc_record_roaming_events — Pg ledger writes silently failed"
+        },
+        {
+          "number": 290,
+          "title": "fix(endless): the fixed ladder — depth-anchored encounters, growth retune, drop luck on milestone drops (0052)"
+        },
+        {
+          "number": 291,
+          "title": "feat(parts): M2 — atomic surface swap to the parts compositor, old rig deleted"
+        },
+        {
+          "number": 292,
+          "title": "Parts System M3: gear mounts on the parts actor + completed FX anchor chain"
+        },
+        {
+          "number": 293,
+          "title": "Drift-fix F1 — the Strip: one-row resource bar replaces the six-card header"
+        },
+        {
+          "number": 294,
+          "title": "Drift-fix F2: stage-first Home composition — slim plates + status ribbon, standby Roam panel"
+        },
+        {
+          "number": 295,
+          "title": "New app icon: the cache, cracked open (owner-picked 2026-11-02)"
+        },
+        {
+          "number": 296,
+          "title": "Drift-fix F3: Market composition — listings-first Buy, compact Vendor, compressed board/Slots chrome"
+        },
+        {
+          "number": 297,
+          "title": "Parts M4: skin parts as craftables + wave-1 social renders"
+        },
+        {
+          "number": 298,
+          "title": "Drift-fix F4: Hunter composition — trophy in the identity panel, one Now feed"
+        },
+        {
+          "number": 299,
+          "title": "Drift-fix F5: Gear composition — loadout doll, tight constellation, wallet de-duplicated, Garage vehicle sprites"
+        },
+        {
+          "number": 300,
+          "title": "Pure player market: NPC vendor weapons leave the Buy/Sell lanes"
+        },
+        {
+          "number": 301,
+          "title": "Action controls float on the stage — controls row deleted (owner ruling)"
+        },
+        {
+          "number": 302,
+          "title": "Action heartbeat 60s -> 1s foreground sync (owner cadence)"
+        },
+        {
+          "number": 303,
+          "title": "Heartbeat cadence: align the Action sync to the 3s game tick"
+        },
+        {
+          "number": 304,
+          "title": "Service boards: every blocker carries its remedy (assumption-gaps S2 + G8)"
+        },
+        {
+          "number": 305,
+          "title": "Compact Home event pop-ups: headline-only cards, hero numbers"
+        },
+        {
+          "number": 306,
+          "title": "Gear grid perf: fix the List→Grid switch freeze (memoized cards, no layout projection, shared defs once)"
+        },
+        {
+          "number": 307,
+          "title": "Vehicles are pure market goods — no equip level gate, Garage owned-only, fuel/condition remedy clarity"
+        },
+        {
+          "number": 308,
+          "title": "Stage overlay rebalance: area plate off the scene, controls top-left, HP plates at the actors' bases"
+        },
+        {
+          "number": 309,
+          "title": "Standings earnings panel: fix the badge's dead-end (race rewards auto-pay; the record now exists)"
+        },
+        {
+          "number": 311,
+          "title": "Remedy slice C: counters, buried guidance, dead-end empties (assumption-gaps G4/G5/G6/G7/G9/G10)"
+        },
+        {
+          "number": 312,
+          "title": "Batch salvage: rarity-threshold sheet, one settlement, one summary (0054)"
+        },
+        {
+          "number": 313,
+          "title": "Remedy slice B (G3): can't-afford Buy prints its shortfall; slots tiers print their reason"
+        },
+        {
+          "number": 314,
+          "title": "Gate-removal step 1: cosmetic recipe level requirements removed (migration 0055)"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-01",
+      "merges": [
+        {
+          "number": 262,
+          "title": "docs: design lock-in — DESIGN.md + PRODUCT.md + AGENTS.md conformance rule"
+        },
+        {
+          "number": 263,
+          "title": "feat(wiki): Phase 3 — generated reference tables, freshness gate, page-map check to fail mode"
+        },
+        {
+          "number": 264,
+          "title": "feat(market): fragments, legendary cores, and essences become sellable (migration 0050)"
+        },
+        {
+          "number": 265,
+          "title": "feat(ui): pixel icon foundation — 52-icon set productionized, emoji/glyph purge app-wide"
+        },
+        {
+          "number": 266,
+          "title": "feat(market): service-board parity — filters, sorting, search, requirements on repair + shield-tech boards"
+        },
+        {
+          "number": 267,
+          "title": "feat(hunter): Hunter v2 — Standings door with live badge, real Collections screen, rail arrangement"
+        },
+        {
+          "number": 268,
+          "title": "docs(design): restore truncated DESIGN.md tail — §§7–11 (icon table, surfacing, motion, mock defects)"
+        },
+        {
+          "number": 269,
+          "title": "feat(nav): four tabs — Home/Gear/Market/Hunter; Home merges Board+Action; Rank folds to Hunter standings"
+        }
+      ]
+    }
+  ]
+}
