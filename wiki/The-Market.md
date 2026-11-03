@@ -12,6 +12,10 @@ the credits move buyer → seller through the verified ledger. Nothing about
 a trade is trusted to your device, so a listing you see is a listing that
 really exists, at the price shown.
 
+[[images/ui/market-buy.png]]
+
+*The Buy stop: the rail across the top, search and filters, then the listings — each with its art, its stats, its price, and its seller.*
+
 ## Who can use it
 
 Guests can browse everything. Every stop renders with real listings and real
@@ -97,6 +101,10 @@ listing; anything above Common is always a player's listing.
    and confirm. You pay exactly the
    listed price — the fee
    (below) comes out of the seller's side, never added on top for you.
+
+   [[images/ui/market-row.png]]
+
+   *One Buy row up close: a Common launcher from NPC Vendor stock, its damage readouts, and its price. A hunter's listing names the hunter instead.*
 
 ## Selling
 

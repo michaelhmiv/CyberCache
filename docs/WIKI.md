@@ -166,6 +166,29 @@ npm run wiki:gen:check
    perfectly with images unloaded: names and numbers carry the
    meaning, plates only illustrate.
 
+## UI orientation plates (`wiki/images/ui/`, W7)
+
+One deliberate exception to the generated-image rules above: the
+**UI plates** are 412-px screenshots of the shipped game, embedded
+as orientation art in Getting-Started / The-Board / Gear /
+The-Market. A screenshot cannot be byte-deterministic (live market
+data, tick state), so these are **not** produced or checked by
+`wiki:gen` — do not wire them into a generator. They are committed
+as static images and kept honest two ways:
+
+- **Freshness coverage:** the page-map entries for the screens they
+  depict (HomeScreen, InventoryScreen, MarketScreen, WorkshopScreen,
+  ProfileScreen, `src/components/fight/`) list the pages that embed
+  the plates, so a PR that changes one of those screens is flagged
+  to revisit the page — and its plate.
+- **Recapture path:** `scripts/wiki-gen/capture-ui-plates.mjs`
+  rebuilds the set end to end (client build from current master,
+  same-origin relay to the real Chef, guest session, real UI
+  driving, PIL downscale to 412 px). Its header documents the
+  prerequisites and the exact post-processing. Recapture after any
+  redesign of a depicted screen and commit the new plates with the
+  page edits.
+
 ## Adding a page
 
 1. Create `wiki/<Page-Name>.md` (hyphens for spaces; wiki links use the
