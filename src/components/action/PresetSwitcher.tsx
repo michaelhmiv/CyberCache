@@ -57,12 +57,33 @@ const ApplyReport: React.FC<{
   const inventoryItems = useInventoryStore((s) => s.items);
   const vehicleItems = useVehicleStore((s) => s.vehicles);
 
-  const itemName = (outcome: BuildSlotOutcome): string => {
-    if (!outcome.itemId) return SLOT_LABELS[outcome.slot];
+  /** The item's display name when the local stores still carry it
+   *  (gone/listed items are excluded from the sync set — those read
+   *  as "The saved item"). */
+  const itemName = (outcome: BuildSlotOutcome): string | null => {
+    if (!outcome.itemId) return null;
     const found =
       inventoryItems.find((i) => i.id === outcome.itemId) ??
       vehicleItems.find((i) => i.id === outcome.itemId);
-    return found?.name ?? SLOT_LABELS[outcome.slot];
+    return found?.name ?? null;
+  };
+
+  const reasonText = (outcome: BuildSlotOutcome): string => {
+    const subject = itemName(outcome) ?? 'The saved item';
+    switch (outcome.outcome) {
+      case 'gone':
+        return `${subject} is gone (sold, salvaged, or traded away).`;
+      case 'listed':
+        return `${subject} is listed on the market.`;
+      case 'in_service':
+        return `${subject} is out on dispatch — back ${outcome.returnsAt ? formatReturnTime(outcome.returnsAt) : 'when the mission ends'}.`;
+      case 'locked':
+        return `${subject} is committed to a ${outcome.jobKind === 'shield_tech' ? 'shield-tech' : 'repair'} job — it frees up when the job finishes.`;
+      case 'incompatible':
+        return `${subject} no longer fits this slot.`;
+      default:
+        return '';
+    }
   };
 
   if (report.applied) {
@@ -107,14 +128,7 @@ const ApplyReport: React.FC<{
             <span className="min-w-0 flex-1 text-[11px] font-bold text-text-primary">
               <span className="uppercase tracking-wide text-text-muted">{SLOT_LABELS[outcome.slot]}</span>
               {' — '}
-              {itemName(outcome)}:{' '}
-              {outcome.outcome === 'gone' && 'that item is gone (sold, salvaged, or traded away).'}
-              {outcome.outcome === 'listed' && 'that item is listed on the market.'}
-              {outcome.outcome === 'in_service' &&
-                `that item is out on dispatch — back ${outcome.returnsAt ? formatReturnTime(outcome.returnsAt) : 'when the mission ends'}.`}
-              {outcome.outcome === 'locked' &&
-                `that item is committed to a ${outcome.jobKind === 'shield_tech' ? 'shield-tech' : 'repair'} job — it frees up when the job finishes.`}
-              {outcome.outcome === 'incompatible' && 'that item no longer fits this slot.'}
+              {reasonText(outcome)}
             </span>
             {outcome.outcome === 'listed' && outcome.listingId && (
               <button
