@@ -1032,6 +1032,17 @@ export interface ChefDispatchState {
   slotsUsed: number;
   playerLevel: number;
   vehicleFuel: number;
+  credits: number;
+  /** Board reroll state (0068): the current board index for today,
+   *  rerolls used/remaining, and the next reroll's price in credits
+   *  (null at the daily cap). Departed offers are already filtered
+   *  out of `offers`; their ids ride along for transparency. */
+  boardIndex: number;
+  boardDay: string;
+  rerollsUsed: number;
+  rerollsRemaining: number;
+  rerollPrice: number | null;
+  departedOfferIds: string[];
   offers: ChefDispatchOffer[];
   missions: ChefDispatchMission[];
   candidates: ChefDispatchCandidate[];
@@ -1061,8 +1072,14 @@ export interface ChefDispatchRecallResult {
   dispatch: ChefDispatchState | null;
 }
 
+export interface ChefDispatchRerollResult {
+  verified: true;
+  rerolled: Record<string, unknown>;
+  dispatch: ChefDispatchState | null;
+}
+
 /** Idempotency nonce for one dispatch call — unique per tap, stable per send. */
-export function newDispatchNonce(kind: 'start' | 'recall'): string {
+export function newDispatchNonce(kind: 'start' | 'recall' | 'reroll'): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return `dispatch-${kind}:${random}`;
 }
@@ -1108,6 +1125,16 @@ export async function recallDispatch(request: {
     '/dispatch/recall',
     { method: 'POST', body: JSON.stringify(request) },
     'Chef dispatch recall failed',
+  );
+}
+
+export async function rerollDispatch(request: {
+  nonce: string;
+}): Promise<ChefDispatchRerollResult> {
+  return endlessFetch<ChefDispatchRerollResult>(
+    '/dispatch/reroll',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef dispatch reroll failed',
   );
 }
 
