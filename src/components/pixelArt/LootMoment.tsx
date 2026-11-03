@@ -457,22 +457,24 @@ const CacheProp: React.FC<{ xPct: number; groundYPct: number; riseBudgetMs: numb
   const sprite = getPixelSprite('prop-cache-crate');
   if (!sprite) return null;
   return (
-    <div
+    <motion.div
       className="absolute z-20"
       style={{ left: `${xPct}%`, bottom: `${100 - groundYPct}%`, width: CACHE_PROP_PX, marginLeft: -CACHE_PROP_PX / 2 }}
+      initial={{ opacity: 0, scale: 0.92, y: 6 }}
+      animate={{ opacity: [0, 1, 1, 0], scale: [0.92, 1, 1, 0.95], y: [6, 0, 0, -4] }}
+      transition={{ duration: (riseBudgetMs + 350) / 1000, times: [0, 0.1, 0.55, 1], ease: 'easeOut' }}
     >
+      {/* The ground shadow ghosts WITH the prop — a leftover dark
+          ellipse under the deck reads as a hole in the flare. */}
       <div aria-hidden className="absolute rounded-[50%] bg-black/50" style={{ left: 6, right: 6, bottom: -7, height: 15 }} />
-      <motion.img
+      <img
         src={sprite.url}
         alt=""
         draggable={false}
         data-testid="loot-cache-prop"
         style={{ width: CACHE_PROP_PX, imageRendering: 'pixelated' }}
-        initial={{ opacity: 0, scale: 0.92, y: 6 }}
-        animate={{ opacity: [0, 1, 1, 0], scale: [0.92, 1, 1, 0.95], y: [6, 0, 0, -4] }}
-        transition={{ duration: (riseBudgetMs + 350) / 1000, times: [0, 0.1, 0.55, 1], ease: 'easeOut' }}
       />
-    </div>
+    </motion.div>
   );
 };
 
