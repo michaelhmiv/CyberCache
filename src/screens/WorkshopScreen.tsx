@@ -347,7 +347,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
     () => jobs.filter((j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused'),
     [jobs],
   );
-  const masteries = server?.masteries ?? {};
+  const masteries = useMemo(() => server?.masteries ?? {}, [server]);
   const isCrafting = activity.current.kind === 'crafting';
 
   // The server settles jobs on every state read; refresh on mount,
@@ -467,7 +467,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
     [player.materials, player.essences],
   );
 
-  const activeCategories = activeFacets.category ?? new Set<string>();
+  const activeCategories = useMemo(() => activeFacets.category ?? new Set<string>(), [activeFacets.category]);
   const stageBench = benchDef(selectedBench);
   const runningJob = activeJobs.find((j) => j.state === 'running');
 
