@@ -52,6 +52,7 @@
  *   POST /api/activity/heartbeat            activityService.heartbeat           cc_active_action_heartbeat()
  *   POST /api/profile/set-username          usernameService.setUsername         cc_set_username(name)
  *   POST /api/profile/offline-cap           offlineCapService.setLimiter        cc_set_offline_cap_limiter(cap)
+ *   POST /api/profile/showcase-pins         profile showcase pins (0058)        profile_showcase_pins (own rows, replace)
  *   POST /api/profile/mark-reminder-seen    verificationReminderService         cc_mark_reminder_seen()
  *   GET/PUT/DELETE /api/runtime/snapshot    runtimeStoreService                 player_runtime_snapshots (own row)
  *   GET/PUT /api/stats/combat               combatStatsService (B4)             combat_stats (own row; was a direct PostgREST table sync)
@@ -657,6 +658,25 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       const raw = body(req).cap_hours;
       const capHours = raw === null || raw === undefined ? null : num(raw);
       res.json(await store.setOfflineCapLimiter(playerId, capHours));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Trophy Shelf pins (0058): the body carries the desired pin list
+  // — item ids in pin order, full replace; an empty list clears the
+  // pins. Validation comes back as data ({ok:false, error}) like the
+  // other profile writes; identity is the JWT's, never a body id.
+  app.post('/api/profile/showcase-pins', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    try {
+      const raw = body(req).item_ids;
+      if (!Array.isArray(raw) || raw.some((v) => typeof v !== 'string' || !UUID_RE.test(v))) {
+        validation(res, 'A valid item id list is required');
+        return;
+      }
+      res.json(await store.setShowcasePins(playerId, raw));
     } catch (err) {
       fail(res, err);
     }
