@@ -29,7 +29,11 @@
  *  6. Truncation family: the gain-toast detail line and the
  *     Trophy Shelf fact chips ellipsized values ("WRAITH
  *     SCAVENG…", "0 ranks · 0 t…"). They wrap, per the
- *     device-done rule that values print whole.
+ *     device-done rule that values print whole. (2026-11-02:
+ *     routine gain toasts went headline-only under the compact
+ *     pop-ups ruling; the wrapping detail line now lives only
+ *     on the amplified Epic/Legendary drop toast — see the
+ *     successor pin in the Papercut 6 block below.)
  *
  * jsdom has no layout engine, so geometry items are pinned as
  * DOM/source contracts in the repo's established style (see
@@ -331,10 +335,16 @@ describe('Papercut 5 — player copy, not dev copy', () => {
 });
 
 describe('Papercut 6 — values wrap whole (toast detail, Trophy Shelf chips)', () => {
-  it('the gain-toast detail line wraps — no truncate', () => {
+  it('the gain-toast detail line survives only on the amplified (Epic/Legendary) toast — wrapping, no truncate', () => {
+    // Successor pin (2026-11-02 compact pop-ups ruling): routine
+    // toasts are headline-only now, so the wrapping detail line this
+    // papercut protected lives on in exactly one place — the
+    // Epic/Legendary drop toast, which keeps its full presentation.
     const deck = readSource('src/components/dashboard/DashboardDeck.tsx');
     expect(deck).toContain('mt-0.5 text-[11px] font-black uppercase leading-snug tracking-[0.14em] text-text-muted');
     expect(deck).not.toContain('mt-0.5 truncate text-[11px] font-black uppercase');
+    expect(deck).toContain('data-toast-variant="amplified"');
+    expect(deck).toContain('data-toast-variant="compact"');
   });
 
   it('Trophy Shelf fact chips print their values whole', () => {
