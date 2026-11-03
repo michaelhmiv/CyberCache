@@ -38,7 +38,7 @@ While a fight runs, each fighter's health sits at their feet, never across their
 
 Finds on the stage rise as what they actually are: a gear drop gets its rarity beam and item card; a cache-key fragment rises as the blue key shard; materials and essences rise as their own icons; a kill pays out with a scrap rise. The big cache crate never celebrates an ordinary roaming tick — roaming grants fragments, materials, and the base payout, while cache boxes and completed keys come from the cache lane and fragment settlement (five fragments make a key). See [[Caches]].
 
-The weapon in your hunter's hands is always the exact weapon you have equipped — its type, make, and rolled parts — held at the grip, with nothing else underneath it. The same hunter, with the same rule, steps into the boss arena: what you see on the Board is what you fight with. Equip nothing and the hands are empty.
+The weapon in your hunter's hands is always the exact weapon you have equipped — its type, make, and rolled parts, drawn by the same renderer that draws its card — held at the grip, with nothing else underneath it. The same hunter, with the same rule, steps into the boss arena: what you see on the Board is what you fight with. Equip nothing and the hands are empty.
 
 Your equipped gear is worn the same way — mounted on the figure itself, moving as he moves. Your shield projects from his support arm as its own behavior glyph (the starburst, ward, and so on), tinted by its element; your relic hangs at his chest framed by its rarity; the pauldron on his shoulder wears your class mod's tree; and the consumables slotted for the fight ride his belt. Swap any piece and the figure on the stage is wearing the new one — unequip it and that read is simply gone.
 
