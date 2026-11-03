@@ -223,8 +223,6 @@ function stockAndGrip(ctx: Ctx) {
   const { g, input, L } = ctx;
   const mfr = input.manufacturer;
   const shapes = ctx.shapes;
-  const main = mainShade(mfr);
-  const dark = darkShade(mfr);
   const v = ctx.variant('Stock');
 
   if (L.stockLen > 0) {
@@ -241,7 +239,7 @@ function stockAndGrip(ctx: Ctx) {
       g.thickLine(x0 + 4, SPINE + 3, L.bodyX - 6, SPINE - 4, 0, 'D');
     } else if (tpl.kind === 'twinTube') {
       // HelixWorks: twin round rails + collars (the Coil, extended).
-      for (const [rx0, ry0, rx1, ry1] of STOCK_RAILS[shapes.stock]) {
+      for (const [rx0, ry0, rx1] of STOCK_RAILS[shapes.stock]) {
         g.tube(Math.round(x0 + (rx0 / 1000) * L.stockLen), Math.round(x0 + (rx1 / 1000) * L.stockLen), SPINE + ry0,
           [[0, 1.6], [1, 1.6]], (x, y) => (y <= SPINE + ry0 ? 'P' : 'D'));
       }
