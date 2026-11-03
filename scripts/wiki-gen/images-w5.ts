@@ -8,14 +8,14 @@
  *     (src/lib/pixel/weaponCardCompositor.ts via showcaseWeaponInput,
  *     exactly as W4) over representative instances built from
  *     src/constants/{weaponTypes,manufacturers,elements}.ts.
- *   - Gear: the game's CURRENT illustrations — the React SVG components
- *     in src/components/gearArt/ fed representative items whose visual
- *     specs are asserted through the game's own builders
- *     (src/lib/gearArt/build*VisualSpec.ts + the silhouette registries
- *     in src/constants/*Silhouettes.ts). The components render to static
- *     markup via react-dom/server and the markup is rasterized by
- *     svgRaster.ts. These plates document the renderers as they ship
- *     today — SVG island included — they are not redesigns.
+ *   - Gear: the game's pixel plate engine — representative items run
+ *     through each kind's grammar derivation in src/lib/pixel/
+ *     (shieldGrammar / ordnanceGrammar / classModGrammar /
+ *     relicGrammar) and composed by gearCardCompositor.ts, rasterized
+ *     by images.ts' rasterizeGearRender. W5 originally exported the
+ *     procedural SVG illustrations; gear marriage slice 5 retired
+ *     that island and re-pointed these plates at the compositor, the
+ *     same generator approach as the weapon plates above.
  *   - Consumables: src/lib/pixel/icons.ts (PX_ICONS rect lists +
  *     PX_ICON_TONE_FILLS), painted exactly as PxIcon.tsx paints them
  *     (list order, source-over, currentColor = the consumable's accent
@@ -37,24 +37,22 @@
  *     fixed seed for the whole row) re-rolled with each element. Only
  *     the element changes across a row; Kinetic is the honest unlit
  *     base the other five light up from.
- *   - Gear: one Rare, affix-free instance per silhouette family, built
- *     so the game's own picker lands on that family (element/seed,
- *     source tag, tree keyword, effect hash) — the generator ASSERTS
- *     the built spec's family, so a picker change fails the build
- *     instead of mislabeling a plate.
+ *   - Gear: one Rare, affix-free instance per family, built so the
+ *     grammar's own derivation lands on that family (the shield's
+ *     rolled behavior, the ordnance's effect, the class mod's tree,
+ *     the relic's name) — the generator ASSERTS the derived variant,
+ *     so a derivation change fails the build instead of mislabeling
+ *     a plate. Relic plates all rest on the plain world plinth; the
+ *     source-chosen treatments are listed in the prose instead.
  *
  * Disclosed rasterization deltas (the plates are exports, with the
- * limits of a headless export): gear plates render with showBadges off
- * (the element/rarity badge text is data the tables already carry) and
- * without the procedural surface/bevel filters (feTurbulence + specular
- * lighting) or the card wrapper's CSS glow — geometry, gradients, and
- * colors are the components' own. Material marks are HTML text in game;
- * the plate digitizes the badge tile with a built-in 5x7 pixel font —
- * the mark character and both colors are the registry's own.
+ * limits of a headless export): gear plates are the compositor's
+ * card-density render at 2x nearest — the same pixels the game
+ * paints, without the card wrapper's CSS chrome. Material marks are
+ * HTML text in game; the plate digitizes the badge tile with a
+ * built-in 5x7 pixel font — the mark character and both colors are
+ * the registry's own.
  */
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-
 import { ELEMENTS } from '../../src/constants/elements';
 import { MANUFACTURERS } from '../../src/constants/manufacturers';
 import { WEAPON_TYPES } from '../../src/constants/weaponTypes';
@@ -66,27 +64,25 @@ import {
   type VisualAsset,
 } from '../../src/constants/visualAssets';
 import { PX_ICONS, PX_ICON_TONE_FILLS } from '../../src/lib/pixel/icons';
-import { SHIELD_BEHAVIORS } from '../../src/lib/combat/shieldBehaviors';
-import { SHIELD_SILHOUETTES } from '../../src/constants/shieldSilhouettes';
-import { RELIC_SILHOUETTES } from '../../src/constants/relicSilhouettes';
-import { CLASS_MOD_SILHOUETTES } from '../../src/constants/classModSilhouettes';
-import { ORDNANCE_SILHOUETTES } from '../../src/constants/ordnanceSilhouettes';
-import { buildShieldVisualSpec } from '../../src/lib/gearArt/buildShieldVisualSpec';
-import { buildRelicVisualSpec } from '../../src/lib/gearArt/buildRelicVisualSpec';
-import { buildClassModVisualSpec } from '../../src/lib/gearArt/buildClassModVisualSpec';
-import { buildOrdnanceVisualSpec } from '../../src/lib/gearArt/buildOrdnanceVisualSpec';
-import { ShieldIllustration } from '../../src/components/gearArt/ShieldIllustration';
-import { RelicIllustration } from '../../src/components/gearArt/RelicIllustration';
-import { ClassModIllustration } from '../../src/components/gearArt/ClassModIllustration';
-import { OrdnanceIllustration } from '../../src/components/gearArt/OrdnanceIllustration';
+import { SHIELD_BEHAVIORS, type ShieldBehaviorId } from '../../src/lib/combat/shieldBehaviors';
+import { SKILL_NODES } from '../../src/constants/skillTrees';
+import { composeGear, type GearComposeInput, type GearGrammar } from '../../src/lib/pixel/gearCardCompositor';
+import { SHIELD_FAMILY_ROWS, shieldGrammar } from '../../src/lib/pixel/shieldGrammar';
+import {
+  ORDNANCE_EFFECT_FORMS,
+  ORDNANCE_FORM_ROWS,
+  ordnanceGrammar,
+  type OrdnanceFormId,
+} from '../../src/lib/pixel/ordnanceGrammar';
+import { CLASS_MOD_TREE_ORDER, classModGrammar } from '../../src/lib/pixel/classModGrammar';
+import { RELIC_FORM_ROWS, relicGrammar } from '../../src/lib/pixel/relicGrammar';
 import type { ShowcaseItemPayload } from '../../src/lib/api/verifiedOps';
 import { showcaseWeaponInput } from '../../src/lib/pixel/showcaseWeaponInput';
 import { encodePng, type RgbaImage } from '../../src/lib/pixel/pngCodec';
 import { DropSource, Element, Rarity } from '../../src/types/game';
 import type { ClassMod, Ordnance, Relic, Shield } from '../../src/types/items';
 import { hashString } from '../../src/lib/utils/rng';
-import { PLATE_DISPLAY_WIDTH, rasterizeWeaponCard } from './images';
-import { rasterizeSvg } from './svgRaster';
+import { PLATE_DISPLAY_WIDTH, rasterizeGearRender, rasterizeWeaponCard } from './images';
 import { type GenAsset, type GenBlock, table } from './lib';
 
 export const FRAME_PLATE_DIR = 'images/weapons/frames';
@@ -257,191 +253,148 @@ export const weaponElementsBlock: GenBlock = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Gear plates (the current SVG illustrations, exported)               */
+/* Gear plates (the pixel plate engine, via the kind grammars)         */
 /* ------------------------------------------------------------------ */
 
-function illustrationPng(markup: string): Uint8Array {
-  const svg = /<svg[\s\S]*?<\/svg>/.exec(markup);
-  if (!svg) throw new Error('images-w5: illustration component rendered no <svg>');
-  return encodePng(rasterizeSvg(svg[0]));
+/**
+ * One representative item in, one plate PNG out: the kind's grammar
+ * derives the compose input from the item record (the same
+ * derivation the game runs), the compositor paints the card
+ * density, and the rows rasterize at 2x — the game's own pixels,
+ * exported. Every builder ASSERTS the derived variant is the
+ * family the plate claims to show.
+ */
+function gearPlatePng(input: GearComposeInput, grammar: GearGrammar): Uint8Array {
+  return encodePng(rasterizeGearRender(composeGear(input, grammar, 'card')));
 }
 
-/** (family, element, pixelSeed) picks the game's picker genuinely lands on. */
-const SHIELD_PICKS: { family: keyof typeof SHIELD_SILHOUETTES; element: Element; seed: number; rolledFor: string }[] = [
-  { family: 'rounded', element: Element.Fire, seed: 0, rolledFor: 'Fire or Corrosive on an even seed; Void on an odd seed' },
-  { family: 'buckler', element: Element.Shock, seed: 1, rolledFor: 'Fire or Shock on an odd seed' },
-  { family: 'bulwark', element: Element.Cryo, seed: 1, rolledFor: 'Corrosive or Cryo on an odd seed' },
-  { family: 'hexPlate', element: Element.Kinetic, seed: 0, rolledFor: 'Shock or Kinetic on an even seed' },
-  { family: 'splitPanel', element: Element.Void, seed: 0, rolledFor: 'Kinetic or Void on an odd seed; Cryo on an even seed' },
-];
+/** Plate colorways: one element per behavior, so the body paint varies across the row. */
+const SHIELD_PLATE_ELEMENTS: Record<ShieldBehaviorId, Element> = {
+  standard: Element.Kinetic,
+  nova: Element.Fire,
+  absorb: Element.Cryo,
+  amp: Element.Shock,
+  turtle: Element.Corrosive,
+};
 
-function shieldItem(pick: (typeof SHIELD_PICKS)[number]): Shield {
+function shieldPlateItem(behavior: ShieldBehaviorId): Shield {
   return {
-    id: `wiki-shield-${pick.family}`,
-    name: SHIELD_SILHOUETTES[pick.family].label,
+    id: `wiki-shield-${behavior}`,
+    name: `${SHIELD_BEHAVIORS[behavior].name} Shield`,
     level: 1,
     rarity: Rarity.Rare,
     hp: 100,
     rechargeRate: 10,
     mitigation: 0,
-    element: pick.element,
+    element: SHIELD_PLATE_ELEMENTS[behavior],
+    behavior,
     affixes: [],
     sourceTag: DropSource.WorldDrop,
     isLocked: false,
-    pixelSeed: pick.seed,
+    pixelSeed: hashString(`wiki-gear-shield-${behavior}`),
   };
 }
 
-const RELIC_PICKS: { family: keyof typeof RELIC_SILHOUETTES; sourceTag: DropSource; dropsFrom: string }[] = [
-  { family: 'shard', sourceTag: DropSource.WorldDrop, dropsFrom: 'World drops, on an even seed' },
-  { family: 'prism', sourceTag: DropSource.Event, dropsFrom: 'Event drops; world drops on an odd seed' },
-  { family: 'totem', sourceTag: DropSource.BossDrop, dropsFrom: 'Boss drops' },
-  { family: 'chip', sourceTag: DropSource.CacheForged, dropsFrom: 'Cache-forged items' },
-];
+/** One real effect string per form — the effect text is what rolls the form. */
+const ORDNANCE_PLATE_EFFECTS: Record<OrdnanceFormId, string> = {
+  spike: 'Fragmentation: +15% area damage',
+  disc: 'EMP Payload: +25% shield break',
+  dart: 'Seeker: Homes on weakpoints (+15% crit)',
+  canister: 'Cluster: Splits into 3 bomblets',
+};
 
-/** World-drop relics pick shard vs prism by seed parity; find a fixed name whose hash lands on shard. */
-function shardRelicItem(): Relic {
-  const candidates = ['Shard Relic', 'Found Relic', 'Trail Relic', 'Dust Relic', 'Old Relic', 'Field Relic', 'World Relic', 'Roamer Relic', 'Cache Relic', 'Dropped Relic'];
-  for (const name of candidates) {
-    const item: Relic = {
-      id: `wiki-relic-${kebab(name)}`,
-      name,
-      level: 1,
-      rarity: Rarity.Rare,
-      affixes: [],
-      sourceTag: DropSource.WorldDrop,
-      isLocked: false,
-    };
-    if (buildRelicVisualSpec(item).silhouette.id === 'shard') return item;
-  }
-  throw new Error('images-w5: no candidate name lands a world-drop relic on the shard form');
-}
+const ORDNANCE_PLATE_ELEMENTS: Record<OrdnanceFormId, Element> = {
+  spike: Element.Fire,
+  disc: Element.Shock,
+  dart: Element.Void,
+  canister: Element.Corrosive,
+};
 
-function relicItem(pick: (typeof RELIC_PICKS)[number]): Relic {
-  if (pick.family === 'shard') return shardRelicItem();
+function ordnancePlateItem(form: OrdnanceFormId): Ordnance {
   return {
-    id: `wiki-relic-${pick.family}`,
-    name: RELIC_SILHOUETTES[pick.family].label,
+    id: `wiki-ordnance-${form}`,
+    name: `${ORDNANCE_FORM_ROWS[form].label} Ordnance`,
     level: 1,
     rarity: Rarity.Rare,
+    damage: 50,
+    shieldDamage: 25,
+    armorDamage: 25,
+    element: ORDNANCE_PLATE_ELEMENTS[form],
+    effect: ORDNANCE_PLATE_EFFECTS[form],
     affixes: [],
-    sourceTag: pick.sourceTag,
+    sourceTag: DropSource.WorldDrop,
     isLocked: false,
+    pixelSeed: hashString(`wiki-gear-ordnance-${form}`),
   };
 }
 
-const CLASSMOD_PICKS: { family: keyof typeof CLASS_MOD_SILHOUETTES; treeBonus: string; trees: string }[] = [
-  { family: 'core', treeBonus: 'Gunslinger', trees: 'Gunslinger trees' },
-  { family: 'drive', treeBonus: 'Demolition', trees: 'Demolition trees' },
-  { family: 'chip', treeBonus: 'Scavenger', trees: 'Scavenger trees — and any tree the keyword picker doesn\'t match, Fixer included' },
-];
-
-function classModItem(pick: (typeof CLASSMOD_PICKS)[number]): ClassMod {
+/** A mod wears its first two small nodes as boosts, so the socket marks paint. */
+function classModPlateItem(tree: (typeof CLASS_MOD_TREE_ORDER)[number]): ClassMod {
+  const nodeBoosts: Record<string, number> = {};
+  for (const node of SKILL_NODES) {
+    if (node.tree !== tree || node.type !== 'small') continue;
+    nodeBoosts[node.id] = 1;
+    if (Object.keys(nodeBoosts).length >= 2) break;
+  }
   return {
-    id: `wiki-classmod-${pick.family}`,
-    name: CLASS_MOD_SILHOUETTES[pick.family].label,
+    id: `wiki-classmod-${kebab(tree)}`,
+    name: `${tree} Class Mod`,
     level: 1,
     rarity: Rarity.Rare,
-    treeBonus: pick.treeBonus,
-    nodeBoosts: { nodeA: 1, nodeB: 1 },
+    treeBonus: tree,
+    nodeBoosts,
     affixes: [],
     sourceTag: DropSource.WorldDrop,
     isLocked: false,
   };
 }
 
-/**
- * Ordnance form is a hash of the effect text and the item seed, so one
- * representative effect string serves all four plates; the seed is
- * solved per family through the game's own builder.
- */
-const ORDNANCE_EFFECT = 'Fragmentation: +15% area damage';
-const ORDNANCE_PICKS: { family: keyof typeof ORDNANCE_SILHOUETTES; element: Element }[] = [
-  { family: 'spike', element: Element.Fire },
-  { family: 'cylinder', element: Element.Kinetic },
-  { family: 'disc', element: Element.Shock },
-  { family: 'canister', element: Element.Corrosive },
-];
-
-function ordnanceItem(pick: (typeof ORDNANCE_PICKS)[number]): Ordnance {
-  for (let seed = 0; seed < 64; seed++) {
-    const item: Ordnance = {
-      id: `wiki-ordnance-${pick.family}`,
-      name: ORDNANCE_SILHOUETTES[pick.family].label,
-      level: 1,
-      rarity: Rarity.Rare,
-      damage: 50,
-      shieldDamage: 25,
-      armorDamage: 25,
-      element: pick.element,
-      effect: ORDNANCE_EFFECT,
-      affixes: [],
-      sourceTag: DropSource.WorldDrop,
-      isLocked: false,
-      pixelSeed: seed,
-    };
-    if (buildOrdnanceVisualSpec(item).silhouette.id === pick.family) return item;
-  }
-  throw new Error(`images-w5: no seed in 0..63 lands an ordnance on the ${pick.family} form`);
+/** World drops uniformly, so every relic plate rests on the plain world plinth. */
+function relicPlateItem(row: (typeof RELIC_FORM_ROWS)[number]): Relic {
+  return {
+    id: `wiki-relic-${row.formId}`,
+    name: row.name,
+    level: 1,
+    rarity: Rarity.Rare,
+    affixes: [],
+    sourceTag: DropSource.WorldDrop,
+    isLocked: false,
+  };
 }
 
 export function gearPlates(): GenAsset[] {
   const plates: GenAsset[] = [];
-  for (const pick of SHIELD_PICKS) {
-    const item = shieldItem(pick);
-    const spec = buildShieldVisualSpec(item);
-    if (spec.silhouette.id !== pick.family) {
-      throw new Error(`images-w5: shield pick (${pick.element}, seed ${pick.seed}) landed on ${spec.silhouette.id}, not ${pick.family}`);
+  for (const behavior of Object.keys(SHIELD_FAMILY_ROWS) as ShieldBehaviorId[]) {
+    const item = shieldPlateItem(behavior);
+    const input = shieldGrammar.inputFromItem!(item);
+    if (input.variant !== behavior) {
+      throw new Error(`images-w5: shield plate item derived variant ${input.variant}, not ${behavior}`);
     }
-    plates.push({
-      path: `${GEAR_PLATE_DIR}/shield-${kebab(pick.family)}.png`,
-      bytes: illustrationPng(
-        renderToStaticMarkup(
-          createElement(ShieldIllustration, { shield: item, size: 'showcase', showBadges: false, animate: false }),
-        ),
-      ),
-    });
+    plates.push({ path: `${GEAR_PLATE_DIR}/shield-${behavior}.png`, bytes: gearPlatePng(input, shieldGrammar) });
   }
-  for (const pick of RELIC_PICKS) {
-    const item = relicItem(pick);
-    const spec = buildRelicVisualSpec(item);
-    if (spec.silhouette.id !== pick.family) {
-      throw new Error(`images-w5: relic pick (${pick.sourceTag}) landed on ${spec.silhouette.id}, not ${pick.family}`);
+  for (const form of Object.keys(ORDNANCE_FORM_ROWS) as OrdnanceFormId[]) {
+    const item = ordnancePlateItem(form);
+    const input = ordnanceGrammar.inputFromItem!(item);
+    if (input.variant !== form) {
+      throw new Error(`images-w5: ordnance plate item (${item.effect}) derived variant ${input.variant}, not ${form}`);
     }
-    plates.push({
-      path: `${GEAR_PLATE_DIR}/relic-${kebab(pick.family)}.png`,
-      bytes: illustrationPng(
-        renderToStaticMarkup(
-          createElement(RelicIllustration, { relic: item, size: 'showcase', showBadges: false, animate: false }),
-        ),
-      ),
-    });
+    plates.push({ path: `${GEAR_PLATE_DIR}/ordnance-${form}.png`, bytes: gearPlatePng(input, ordnanceGrammar) });
   }
-  for (const pick of CLASSMOD_PICKS) {
-    const item = classModItem(pick);
-    const spec = buildClassModVisualSpec(item);
-    if (spec.silhouette.id !== pick.family) {
-      throw new Error(`images-w5: class mod pick (${pick.treeBonus}) landed on ${spec.silhouette.id}, not ${pick.family}`);
+  for (const tree of CLASS_MOD_TREE_ORDER) {
+    const item = classModPlateItem(tree);
+    const input = classModGrammar.inputFromItem!(item);
+    if (input.variant !== tree) {
+      throw new Error(`images-w5: class mod plate item derived variant ${input.variant}, not ${tree}`);
     }
-    plates.push({
-      path: `${GEAR_PLATE_DIR}/class-mod-${kebab(pick.family)}.png`,
-      bytes: illustrationPng(
-        renderToStaticMarkup(
-          createElement(ClassModIllustration, { mod: item, size: 'showcase', showBadges: false, animate: false }),
-        ),
-      ),
-    });
+    plates.push({ path: `${GEAR_PLATE_DIR}/class-mod-${kebab(tree)}.png`, bytes: gearPlatePng(input, classModGrammar) });
   }
-  for (const pick of ORDNANCE_PICKS) {
-    const item = ordnanceItem(pick);
-    plates.push({
-      path: `${GEAR_PLATE_DIR}/ordnance-${kebab(pick.family)}.png`,
-      bytes: illustrationPng(
-        renderToStaticMarkup(
-          createElement(OrdnanceIllustration, { ordnance: item, size: 'showcase', showBadges: false, animate: false }),
-        ),
-      ),
-    });
+  for (const row of RELIC_FORM_ROWS) {
+    const item = relicPlateItem(row);
+    const input = relicGrammar.inputFromItem!(item);
+    if (input.variant !== `${row.formId}/world`) {
+      throw new Error(`images-w5: relic plate item (${row.name}) derived variant ${input.variant}, not ${row.formId}/world`);
+    }
+    plates.push({ path: `${GEAR_PLATE_DIR}/relic-${row.formId}.png`, bytes: gearPlatePng(input, relicGrammar) });
   }
   return sortAssets(plates);
 }
@@ -451,68 +404,66 @@ function gearImgTag(kind: string, family: string, label: string): string {
 }
 
 function gearBody(): string {
-  const shieldRows = SHIELD_PICKS.map((pick) => [
-    gearImgTag('shield', pick.family, SHIELD_SILHOUETTES[pick.family].label),
-    `**${SHIELD_SILHOUETTES[pick.family].label}**`,
-    pick.rolledFor,
+  const shieldRows = (Object.keys(SHIELD_FAMILY_ROWS) as ShieldBehaviorId[]).map((behavior) => [
+    gearImgTag('shield', behavior, `${SHIELD_BEHAVIORS[behavior].name} shield`),
+    `**${SHIELD_BEHAVIORS[behavior].name}**`,
+    SHIELD_FAMILY_ROWS[behavior].form,
+    SHIELD_BEHAVIORS[behavior].blurb,
   ]);
-  const behaviorRows = Object.values(SHIELD_BEHAVIORS).map((b) => [`**${b.name}**`, b.blurb]);
-  const ordnanceRows = ORDNANCE_PICKS.map((pick) => [
-    gearImgTag('ordnance', pick.family, ORDNANCE_SILHOUETTES[pick.family].label),
-    `**${ORDNANCE_SILHOUETTES[pick.family].label}**`,
+  const ordnanceRows = (Object.keys(ORDNANCE_FORM_ROWS) as OrdnanceFormId[]).map((form) => {
+    const effects = Object.entries(ORDNANCE_EFFECT_FORMS)
+      .filter(([, f]) => f === form)
+      .map(([name]) => name)
+      .join(', ');
+    return [
+      gearImgTag('ordnance', form, ORDNANCE_FORM_ROWS[form].label),
+      `**${ORDNANCE_FORM_ROWS[form].label}**`,
+      effects,
+    ];
+  });
+  const classModRows = CLASS_MOD_TREE_ORDER.map((tree) => [
+    gearImgTag('class-mod', tree, `${tree} class mod`),
+    `**${tree}**`,
   ]);
-  const classModRows = CLASSMOD_PICKS.map((pick) => [
-    gearImgTag('class-mod', pick.family, CLASS_MOD_SILHOUETTES[pick.family].label),
-    `**${CLASS_MOD_SILHOUETTES[pick.family].label}**`,
-    pick.trees,
-  ]);
-  const relicRows = RELIC_PICKS.map((pick) => [
-    gearImgTag('relic', pick.family, RELIC_SILHOUETTES[pick.family].label),
-    `**${RELIC_SILHOUETTES[pick.family].label}**`,
-    pick.dropsFrom,
+  const relicRows = RELIC_FORM_ROWS.map((row) => [
+    `<img src="${GEAR_PLATE_DIR}/relic-${row.formId}.png" alt="${row.name}" width="${PLATE_DISPLAY_WIDTH}">`,
+    `**${row.name}**`,
   ]);
   return [
     '### Shields',
     '',
-    'A shield\'s form is picked by its element and its seed — the illustration draws the device. Behavior is a separate stats axis (rolled by rarity when the shield drops; see [[Shield-Tech]]), and the current illustration does not draw it: any behavior can wear any form. Plates are Rare shields with no affixes, rendered by the game\'s own ShieldIllustration.',
+    'A shield\'s form IS its rolled behavior — the plate draws the device the behavior describes (see [[Shield-Tech]] for how behaviors roll). The body wears the shield\'s element colorway and the frame its rarity, so two shields with the same behavior share a silhouette and differ in color and trim. Plates are Rare shields with no affixes, composed by the game\'s own shield grammar.',
     '',
-    table(['Plate', 'Form', 'Rolled for'], shieldRows),
-    '',
-    '**Shield behaviors** — what the stats axis rolls:',
-    '',
-    table(['Behavior', 'What it does'], behaviorRows),
+    table(['Plate', 'Behavior', 'Form', 'What it does'], shieldRows),
     '',
     '### Ordnance',
     '',
-    'Form is a hash of the item\'s effect text and its seed — any ordnance can wear any form.',
+    'Form follows the ordnance\'s rolled effect — the effect decides which device the item is. Plates are Rare ordnance with no affixes, composed by the game\'s own ordnance grammar.',
     '',
-    table(['Plate', 'Form'], ordnanceRows),
+    table(['Plate', 'Form', 'Effects that wear it'], ordnanceRows),
     '',
     '### Class mods',
     '',
-    'Form follows the boosted tree\'s keyword.',
+    'Every tree gets its own plate: the device draws the tree\'s socket field, with the mod\'s boosted nodes lit in their sockets. Plates are Rare mods with their first two small nodes boosted, composed by the game\'s own class-mod grammar.',
     '',
-    table(['Plate', 'Form', 'Trees'], classModRows),
+    table(['Plate', 'Tree'], classModRows),
     '',
     '### Relics',
     '',
-    'Form follows where the relic came from.',
+    'A relic\'s form follows its name — every named relic is its own device. The plinth under it is chosen by where the relic came from: a boss drop stands on a heavy totem foot, a cache-forged relic sits in a forge cradle, an event relic on a display stand, and a world drop on a plain field plinth. The plates all rest on the world plinth so the forms compare cleanly. Plates are Rare relics with no affixes, composed by the game\'s own relic grammar.',
     '',
-    table(['Plate', 'Form', 'Drops from'], relicRows),
+    table(['Plate', 'Relic'], relicRows),
   ].join('\n');
 }
 
 export const gearPlatesBlock: GenBlock = {
   id: 'gear-plates',
   owners: [
-    'src/components/gearArt/ShieldIllustration.tsx',
-    'src/components/gearArt/RelicIllustration.tsx',
-    'src/components/gearArt/ClassModIllustration.tsx',
-    'src/components/gearArt/OrdnanceIllustration.tsx',
-    'src/constants/shieldSilhouettes.ts',
-    'src/constants/relicSilhouettes.ts',
-    'src/constants/classModSilhouettes.ts',
-    'src/constants/ordnanceSilhouettes.ts',
+    'src/lib/pixel/gearCardCompositor.ts',
+    'src/lib/pixel/shieldGrammar.ts',
+    'src/lib/pixel/ordnanceGrammar.ts',
+    'src/lib/pixel/classModGrammar.ts',
+    'src/lib/pixel/relicGrammar.ts',
     'src/lib/combat/shieldBehaviors.ts',
   ],
   render: gearBody,
