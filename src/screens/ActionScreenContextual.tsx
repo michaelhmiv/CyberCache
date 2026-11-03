@@ -449,9 +449,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     }
   }, [market]);
 
-  // Live-action sync: 1s foreground heartbeat (owner cadence,
-  // 2026-11-02) — see useActionHeartbeat for the cadence constant
-  // and its in-flight / visibility / backoff guards.
+  // Live-action sync: foreground heartbeat on the 3s game tick
+  // (owner cadence, 2026-11-02) — see useActionHeartbeat for the
+  // cadence constant and its in-flight / visibility / backoff guards.
   const heartbeat = useCallback(() => activity.heartbeat(), [activity]);
   useActionHeartbeat(canTick, heartbeat);
 

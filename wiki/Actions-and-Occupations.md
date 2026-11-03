@@ -15,7 +15,7 @@ You run your action from **the stage on the Home tab** — pick an area, tap Sta
 
 Roaming is the core idle activity and the default state of the game. Your hunter works one of **7 areas**, resolved in **3-second ticks**, earning credits, XP, scrap, materials, and gear drops as the ticks land. Areas unlock by level, from the Dustwaste Frontier at level 1 to the HelixWorks Labyrinth at level 25, and higher areas pay better against tougher opposition.
 
-While you are watching the stage in the foreground, the screen **syncs with the server every second**, so settled results show up almost as they land; nothing syncs while the app is hidden, and earnings while you are away settle on your return (see [[Progression]]).
+While you are watching the stage in the foreground, the screen **syncs with the server on the game's 3-second tick**, so settled results show up as each tick lands; nothing syncs while the app is hidden, and earnings while you are away settle on your return (see [[Progression]]).
 
 Roaming is also where the open world can kill you — death and resurrection are covered under [[Bosses]]. Pacing, XP rates, and offline earnings (including the 24-hour absolute offline cap) are covered in [[Progression]].
 
