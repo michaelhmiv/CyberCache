@@ -1,6 +1,6 @@
 # Leaderboards & Streaks
 
-Two rhythms keep CyberCache ticking between sessions: **weekly leaderboard races** that settle every week, and a **daily login streak** that rewards simply showing up. Both surface in plain sight — the streak as the flame in [[The Board]]'s top bar, and the standings behind the **Standings door on the Hunter tab**. The door wears a live badge: a pill when last week's rewards are waiting for you, a warning when the current week is about to close, and your active drop-luck bonus while one runs.
+Two rhythms keep CyberCache ticking between sessions: **weekly leaderboard races** that settle every week, and a **daily login streak** that rewards simply showing up. Both surface in plain sight — the streak as the flame in [[The Board]]'s top bar, and the standings behind the **Standings door on the Hunter tab**. The door wears a live badge: a pill when last week's race rewards have landed, a warning when the current week is about to close, and your active drop-luck bonus while one runs. Race rewards **pay out automatically** — the pill is a notice that earnings arrived, not a claim prompt, and it clears once you've viewed the earnings panel it points to.
 
 ## Weekly leaderboards
 
@@ -22,6 +22,8 @@ Standings list everyone with a score above zero, but **rewards only pay at or ab
 ### Settlement and rewards
 
 Settlement rides the game's daily heartbeat: once a week has closed, it settles exactly once and rewards are paid from the settled standings.
+
+**There is nothing to claim.** Paid rewards land in your account at settlement — cache keys are credited and the drop-luck buff starts on its own. Your record lives in the **Your Weekly Earnings** panel at the very top of the Standings page: per settled week it lists each race, your finish, and exactly what it paid. (Don't confuse these with the Rep Desk's weekly Parts Crate and Signature Orders on [[The Board]] — those are separate offers you buy with credits, and those ones really do have a Claim button.)
 
 | Finish | Cache keys | Drop-luck buff |
 | --- | --- | --- |

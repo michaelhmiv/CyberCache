@@ -185,6 +185,9 @@ function seedStores() {
 }
 
 beforeEach(() => {
+  // The standings seen marker is per-device storage; each test
+  // starts with earnings unseen.
+  window.localStorage.clear();
   seedStores();
   vi.mocked(fetchProfileLifetime).mockReset();
   vi.mocked(fetchCollections).mockReset();
@@ -205,7 +208,10 @@ describe('deriveStandingsBadge — badge truth from the real weekly payload', ()
         races: [race('kills', REWARD), race('bosses', REWARD), race('loot', null)],
       },
     });
-    expect(deriveStandingsBadge(data, NOW).claimableCount).toBe(2);
+    const badge = deriveStandingsBadge(data, NOW);
+    expect(badge.earningsCount).toBe(2);
+    expect(badge.earningsWeekKey).toBe('2026-10-19');
+    expect(badge.unseenEarningsCount).toBe(2);
   });
 
   it('counts nothing while last week is unsettled, even with rewards recorded', () => {
@@ -217,7 +223,23 @@ describe('deriveStandingsBadge — badge truth from the real weekly payload', ()
         races: [race('kills', REWARD)],
       },
     });
-    expect(deriveStandingsBadge(data, NOW).claimableCount).toBe(0);
+    const badge = deriveStandingsBadge(data, NOW);
+    expect(badge.earningsCount).toBe(0);
+    expect(badge.unseenEarningsCount).toBe(0);
+  });
+
+  it('seen week: earnings stay counted but the unseen notice clears', () => {
+    const data = weeklyPayload({
+      previous_week: {
+        ...weeklyPayload().previous_week,
+        races: [race('kills', REWARD), race('bosses', REWARD)],
+      },
+    });
+    const badge = deriveStandingsBadge(data, NOW, '2026-10-19');
+    expect(badge.earningsCount).toBe(2);
+    expect(badge.unseenEarningsCount).toBe(0);
+    // A marker for any OTHER week does not clear this week's notice.
+    expect(deriveStandingsBadge(data, NOW, '2026-10-12').unseenEarningsCount).toBe(2);
   });
 
   it('ends-soon fires inside the final 24h, not before, and not after the close', () => {
@@ -240,20 +262,27 @@ describe('StandingsDoor — pills render only with real badge data', () => {
   it('unbadged door: no pills when nothing is waiting', () => {
     render(<StandingsDoor badge={EMPTY_STANDINGS_BADGE} onOpen={() => {}} />);
     expect(screen.getByTestId('standings-door')).toBeTruthy();
-    expect(screen.queryByTestId('standings-claimable-pill')).toBeNull();
+    expect(screen.queryByTestId('standings-earnings-pill')).toBeNull();
     expect(screen.queryByTestId('standings-ends-soon-pill')).toBeNull();
     expect(screen.queryByTestId('standings-buff-pill')).toBeNull();
   });
 
-  it('badged door: claimable + ends-soon pills print, click opens', () => {
+  it('badged door: earnings + ends-soon pills print, click opens', () => {
     const onOpen = vi.fn();
     render(
       <StandingsDoor
-        badge={{ claimableCount: 2, endsAt: '2026-11-02T00:00:00.000Z', endsSoon: true, buff: null }}
+        badge={{
+          earningsCount: 2,
+          earningsWeekKey: '2026-10-19',
+          unseenEarningsCount: 2,
+          endsAt: '2026-11-02T00:00:00.000Z',
+          endsSoon: true,
+          buff: null,
+        }}
         onOpen={onOpen}
       />,
     );
-    expect(screen.getByTestId('standings-claimable-pill').textContent).toContain('2 rewards waiting');
+    expect(screen.getByTestId('standings-earnings-pill').textContent).toContain('2 race rewards earned');
     expect(screen.getByTestId('standings-ends-soon-pill')).toBeTruthy();
     fireEvent.click(screen.getByTestId('standings-door'));
     expect(onOpen).toHaveBeenCalledTimes(1);
@@ -346,8 +375,8 @@ describe('Hunter arrangement — Standings door badge + stop', () => {
 
     render(<ProfileScreen onNavigate={() => {}} />);
 
-    const pill = await screen.findByTestId('standings-claimable-pill');
-    expect(pill.textContent).toContain('2 rewards waiting');
+    const pill = await screen.findByTestId('standings-earnings-pill');
+    expect(pill.textContent).toContain('2 race rewards earned');
     expect(screen.getByTestId('standings-ends-soon-pill')).toBeTruthy();
     expect(screen.getByTestId('hunter-standings-count').textContent).toBe('2');
 
@@ -355,6 +384,15 @@ describe('Hunter arrangement — Standings door badge + stop', () => {
     // The leaderboards board mounts behind the door (weekly races panel).
     expect(await screen.findByText('Weekly Races')).toBeTruthy();
     await waitFor(() => expect(getWeeklyLeaderboards).toHaveBeenCalled());
+    // The earnings panel is the badge's destination: it renders the
+    // settled record at the top of Standings, and viewing it marks
+    // the week seen — the notice clears instead of crying "claim"
+    // over money already paid.
+    expect(await screen.findByTestId('weekly-earnings-autopay-note')).toBeTruthy();
+    expect(screen.getByTestId('weekly-earnings-row-kills')).toBeTruthy();
+    expect(screen.getByTestId('weekly-earnings-row-bosses')).toBeTruthy();
+    await waitFor(() => expect(screen.queryByTestId('standings-earnings-pill')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('hunter-standings-count')).toBeNull());
   });
 
   it('quiet week: the door renders with NO badge pills and no rail count', async () => {
@@ -362,7 +400,7 @@ describe('Hunter arrangement — Standings door badge + stop', () => {
     expect(await screen.findByTestId('standings-door')).toBeTruthy();
     // Let the badge fetch settle.
     await waitFor(() => expect(getWeeklyLeaderboards).toHaveBeenCalled());
-    expect(screen.queryByTestId('standings-claimable-pill')).toBeNull();
+    expect(screen.queryByTestId('standings-earnings-pill')).toBeNull();
     expect(screen.queryByTestId('standings-ends-soon-pill')).toBeNull();
     expect(screen.queryByTestId('hunter-standings-count')).toBeNull();
   });

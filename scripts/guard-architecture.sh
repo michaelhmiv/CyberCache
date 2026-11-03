@@ -67,6 +67,7 @@ ALLOWED_TIMERS=(
   "$SRC/screens/WorkshopScreen.tsx:display-only clock + craft toast"
   "$SRC/components/workshop/TintPanel.tsx:queued-flash dismissal timer (display-only)"
   "$SRC/screens/MarketScreen.tsx:toast dismissal timer"
+  "$SRC/components/leaderboard/WeeklyEarningsPanel.tsx:badge-landing highlight dismissal timer (display-only)"
   "$SRC/components/market/RepairBoard.tsx:browse-query debounce timer (200ms, display-only)"
   "$SRC/components/market/ShieldTechBoard.tsx:browse-query debounce timer (200ms, display-only)"
   "$SRC/screens/DashboardScreen.tsx:no setInterval (uses tickFeed store)"
@@ -223,6 +224,7 @@ ALLOWED_STORAGE=(
   "$SRC/store/slices/offlineRecapSlice.ts:display-only copy of already-settled offline rewards so the summary can be re-opened after dismissal (not progression; server settlement stays the only economy truth)"
   "$SRC/lib/pixel/headParts.ts:reads the device-local hunter head-variant cosmetic preference (not progression)"
   "$SRC/components/dashboard/ResearchChip.tsx:one-time Course Complete card dismissal keyed to the server completion (UI preference only; completions are server records, never stored here)"
+  "$SRC/components/profile/standingsBadge.ts:device-local seen-week marker for the standings earnings notice (UI state only; earnings are server-settled facts read from the weekly payload, never stored here)"
   "$SRC/screens/SettingsScreen.tsx:writes the device-local hunter head-variant cosmetic preference (not progression)"
   "$SRC/test/:test files"
 )

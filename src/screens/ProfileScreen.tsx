@@ -16,7 +16,6 @@ import { TrophyShelfPanel } from '@/components/profile/TrophyShelfPanel';
 import { WardrobePanel } from '@/components/profile/WardrobePanel';
 import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
 import { StandingsDoor } from '@/components/profile/StandingsDoor';
-import { ClaimPulse } from '@/components/common/ClaimPulse';
 import { useStandingsBadge } from '@/components/profile/standingsBadge';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { CollectionsScreen } from './CollectionsScreen';
@@ -102,6 +101,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   // always-resident stops are the panels that already lived here.
   const [visitedStops, setVisitedStops] = useState<ReadonlySet<HunterStop>>(() => new Set<HunterStop>(['profile']));
   const standingsBadge = useStandingsBadge();
+  // Door taps ask the Standings earnings panel to scroll itself
+  // into view + highlight: the badge's destination is the panel,
+  // not just the page.
+  const [earningsFocusNonce, setEarningsFocusNonce] = useState(0);
   const reduceMotion = useReducedMotion();
 
   const goToStop = React.useCallback((next: HunterStop) => {
@@ -220,15 +223,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
             >
               <PxIcon name={s.icon} size={13} />
               {s.label}
-              {s.id === 'standings' && standingsBadge.claimableCount > 0 && (
+              {s.id === 'standings' && standingsBadge.unseenEarningsCount > 0 && (
                 <span
                   data-testid="hunter-standings-count"
                   className="relative border border-amber/60 bg-amber/25 px-1 text-[11px] font-black leading-tight text-amber"
                 >
-                  {/* §10: the rail badge pulses like the door's
-                      claimable pill (static ring, reduced motion). */}
-                  <ClaimPulse color="#FF9000" testId="hunter-standings-pulse" />
-                  {standingsBadge.claimableCount}
+                  {/* Unseen settled earnings — a notice count, not a
+                      claim: race rewards auto-pay at settlement, so
+                      no claim pulse (§10 reserves the pulse for real
+                      claim actions). Viewing the Standings earnings
+                      panel clears it. */}
+                  {standingsBadge.unseenEarningsCount}
                 </span>
               )}
             </button>
@@ -291,7 +296,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           stands as the next first-class panel, before Standings. */}
       <WardrobePanel />
 
-      <StandingsDoor badge={standingsBadge} onOpen={() => goToStop('standings')} />
+      <StandingsDoor
+        badge={standingsBadge}
+        onOpen={() => {
+          goToStop('standings');
+          setEarningsFocusNonce((n) => n + 1);
+        }}
+      />
 
       {/* Now — the single merged feed (drift-fix F4, mock m36;
           DESIGN.md's Now law): current activity + World Pulse
@@ -502,7 +513,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
               <PxIcon name="crown" size={17} className="text-amber" />
               <div className="text-lg font-black uppercase tracking-wide text-text-primary">Standings</div>
             </div>
-            <LeaderboardsScreen embedded />
+            <LeaderboardsScreen embedded focusEarningsNonce={earningsFocusNonce} />
           </>
         ) : null
       ))}

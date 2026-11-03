@@ -16,6 +16,7 @@ import {
   type WeeklyRaceBoard,
 } from '@/lib/api/leaderboardService';
 import { MobileCard } from '@/components/layout/MobileCard';
+import { WeeklyEarningsPanel } from '@/components/leaderboard/WeeklyEarningsPanel';
 import { getPublicProfile, type PlayerPublicProfile } from '@/lib/api/publicProfileService';
 import { PublicProfilePanel } from '@/components/profile/PublicProfilePanel';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
@@ -123,32 +124,17 @@ const WeeklyRaceStandings: React.FC<{
 /**
  * Weekly races (0035): the current week's live standings, the
  * caller's pinned rank, last week's finals + rewards, and the
- * caller's active drop-luck buff. Own fetch + error/retry state —
- * a weekly failure never takes the all-time board down with it.
+ * caller's active drop-luck buff. Presentational — the fetch is
+ * owned by WeeklySection below and shared with the earnings panel,
+ * so the payload lands once for both.
  */
-const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId }) => {
-  const [data, setData] = useState<WeeklyLeaderboards | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    getWeeklyLeaderboards()
-      .then((boards) => {
-        if (cancelled) return;
-        setData(boards);
-        setError(null);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Weekly races could not be loaded.');
-        setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [reloadKey]);
-
+const WeeklyRacesPanel: React.FC<{
+  data: WeeklyLeaderboards | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  myPlayerId?: string | null;
+}> = ({ data, loading, error, onRetry, myPlayerId }) => {
   if (loading) {
     return (
       <MobileCard className="space-y-2" rarityColor="#FF9000">
@@ -167,7 +153,7 @@ const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId
         <div className="mt-1 text-xs text-text-muted">{error ?? 'Weekly races could not be loaded.'}</div>
         <button
           type="button"
-          onClick={() => setReloadKey((k) => k + 1)}
+          onClick={onRetry}
           className="bl-primary mt-3 px-4 py-2 text-xs font-black"
         >
           Retry
@@ -227,6 +213,64 @@ const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId
 };
 
 /**
+ * The weekly section: ONE fetch of the weekly payload feeding both
+ * the "Your Weekly Earnings" panel (the Standings badge's
+ * destination — the settled record sits at the very top of the
+ * page, where the signal that brought the player here resolves)
+ * and the races panel below it. Own error/retry state — a weekly
+ * failure never takes the all-time board down with it.
+ */
+const WeeklySection: React.FC<{
+  myPlayerId?: string | null;
+  focusEarningsNonce?: number;
+}> = ({ myPlayerId, focusEarningsNonce = 0 }) => {
+  const [data, setData] = useState<WeeklyLeaderboards | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getWeeklyLeaderboards()
+      .then((boards) => {
+        if (cancelled) return;
+        setData(boards);
+        setError(null);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Weekly races could not be loaded.');
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [reloadKey]);
+
+  const retry = useCallback(() => setReloadKey((k) => k + 1), []);
+
+  return (
+    <>
+      <WeeklyEarningsPanel
+        data={data}
+        loading={loading}
+        error={error}
+        onRetry={retry}
+        focusNonce={focusEarningsNonce}
+      />
+      <div id="weekly-races-card" className="scroll-mt-2">
+        <WeeklyRacesPanel
+          data={data}
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          myPlayerId={myPlayerId}
+        />
+      </div>
+    </>
+  );
+};
+
+/**
  * The board itself. Under the guest-visibility law (2026-11-01) it
  * renders for every session: the read routes accept any Chef JWT
  * (guests included), so a guest sees the real standings — the fetch
@@ -234,7 +278,7 @@ const WeeklyRacesPanel: React.FC<{ myPlayerId?: string | null }> = ({ myPlayerId
  * with a retry; the pre-gate version chained `.then()` with no
  * `.catch`, so any failure left an eternal spinner.
  */
-const LeaderboardBoard: React.FC = () => {
+const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarningsNonce = 0 }) => {
   const { user } = useAuth();
   const [metric, setMetric] = useState<LeaderboardMetric>('level');
   const [period, setPeriod] = useState<LeaderboardPeriod>('all_time');
@@ -288,7 +332,7 @@ const LeaderboardBoard: React.FC = () => {
 
   return (
     <>
-      <WeeklyRacesPanel myPlayerId={user?.id} />
+      <WeeklySection myPlayerId={user?.id} focusEarningsNonce={focusEarningsNonce} />
 
       <LeaderboardMetricPicker
         metric={metric}
@@ -329,13 +373,15 @@ const LeaderboardBoard: React.FC = () => {
   );
 };
 
-export const LeaderboardsScreen: React.FC<LeaderboardsScreenProps & { embedded?: boolean }> = ({ embedded = false }) => {
+export const LeaderboardsScreen: React.FC<
+  LeaderboardsScreenProps & { embedded?: boolean; focusEarningsNonce?: number }
+> = ({ embedded = false, focusEarningsNonce = 0 }) => {
   if (embedded) {
     // Hunter → Standings stop: the Hunter screen owns the chrome
     // (resource strip, rail, stop title), so the board mounts bare.
     return (
       <div className="space-y-3">
-        <LeaderboardBoard />
+        <LeaderboardBoard focusEarningsNonce={focusEarningsNonce} />
       </div>
     );
   }

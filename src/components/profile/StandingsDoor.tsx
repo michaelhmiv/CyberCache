@@ -1,15 +1,22 @@
 import React from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { ClaimPulse } from '@/components/common/ClaimPulse';
 import type { StandingsBadge } from './standingsBadge';
 
 /**
  * Standings door (redesign v2, DESIGN.md §3 Hunter) — the badged
  * door on the Hunter Profile stop that replaces the retired Rank
- * tab's ambient visibility. The badge itself (claimable rewards,
- * ends-soon, active drop-luck buff) derives from the real weekly
- * payload in standingsBadge.ts; this component only prints what it
- * is given — no pills without data behind them.
+ * tab's ambient visibility. The badge itself (settled race
+ * earnings, ends-soon, active drop-luck buff) derives from the real
+ * weekly payload in standingsBadge.ts; this component only prints
+ * what it is given — no pills without data behind them.
+ *
+ * The earnings pill is a NOTICE, not a claim prompt: weekly race
+ * rewards pay out automatically at settlement, so the pill speaks
+ * in the past tense ("race rewards earned") and carries NO claim
+ * pulse — the pulse is reserved for actions the player can actually
+ * take (§10). It prints only while the earnings are unseen; the
+ * "Your Weekly Earnings" panel at the top of Standings is its
+ * destination, and viewing the panel clears it.
  */
 
 const shortDay = (iso: string): string =>
@@ -37,18 +44,15 @@ export const StandingsDoor: React.FC<{
         Weekly races · all-time leaderboards
         {badge.endsAt && !badge.endsSoon && <> · week closes {shortDay(badge.endsAt)}</>}
       </div>
-      {(badge.claimableCount > 0 || badge.endsSoon || badge.buff) && (
+      {(badge.unseenEarningsCount > 0 || badge.endsSoon || badge.buff) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {badge.claimableCount > 0 && (
+          {badge.unseenEarningsCount > 0 && (
             <span
-              data-testid="standings-claimable-pill"
+              data-testid="standings-earnings-pill"
               className="relative inline-flex items-center gap-1 border border-amber/60 bg-amber/15 px-1.5 py-0.5 text-[11px] font-black text-amber"
             >
-              {/* §10: a claimable draws the eye — the pill pulses
-                  (static ring under reduced motion). */}
-              <ClaimPulse color="#FF9000" testId="standings-claim-pulse" />
               <PxIcon name="trophy" size={13} />
-              {badge.claimableCount} {badge.claimableCount === 1 ? 'reward' : 'rewards'} waiting
+              {badge.unseenEarningsCount} race {badge.unseenEarningsCount === 1 ? 'reward' : 'rewards'} earned
             </span>
           )}
           {badge.endsSoon && badge.endsAt && (
