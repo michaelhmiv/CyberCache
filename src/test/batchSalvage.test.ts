@@ -243,6 +243,12 @@ describe('batch salvage — yield parity with the per-item path', () => {
 });
 
 describe('batch salvage — 1,500-item settlement', () => {
+  // Explicit long timeout: the subject is settlement CORRECTNESS at
+  // the owner's scale, and the InMemory twin's shared record() path
+  // deep-clones the ledger on every per-item record (O(N^2) in the
+  // test double) — 1,500 honest settlements take well over the 5s
+  // default even on CI hardware. The Postgres path settles the same
+  // batch in a single SQL function call.
   it('settles 1,500 items in ONE call with formula-exact totals', async () => {
     const s = emptyWriteSeed();
     s.profiles = [profile({ id: A, username: 'hoarder', player_level: 50, scrap: 0 })];
@@ -261,7 +267,7 @@ describe('batch salvage — 1,500-item settlement', () => {
     expect(profileOf(store, A).scrap).toBe(expectedScrap);
     const storeItems = (store as unknown as { seed: WriteSeed }).seed.items;
     expect(storeItems.every((i) => i.runtime_state === 'consumed')).toBe(true);
-  });
+  }, 240_000);
 });
 
 describe('batch salvage — HTTP route', () => {
