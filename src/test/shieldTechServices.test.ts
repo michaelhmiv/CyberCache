@@ -200,10 +200,14 @@ describe('migration 0044 — catalog + consumable parity pins', () => {
         (r) => r.category !== 'cosmetics' && r.id !== 'refine_chromaweave',
       ).map((r) => r.id).sort(),
     );
-    // The slice's own recipe matches the TS catalog field for field.
+    // The slice's own recipe matches the TS catalog field for field
+    // — except requiresLevel: the Core shipped at L15 here, and
+    // gate-removal step 2 (0057) deleted the level in TS and SQL
+    // alike (pinned against 0057 in gateRemovalStep2.test.ts), so
+    // the historical value is restored for this comparison.
     const ts = ALL_CRAFT_RECIPES.find((r) => r.id === 'recipe_calibration_core')!;
     const entry = catalog.find((r) => r.id === 'recipe_calibration_core')!;
-    expect(entry).toEqual(JSON.parse(JSON.stringify(ts)));
+    expect(entry).toEqual({ ...JSON.parse(JSON.stringify(ts)), requiresLevel: 15 });
     // Nothing from 0038/0043 was dropped by the restatement.
     expect(catalog.find((r) => r.id === 'recipe_patch_kit_batch')?.requiresResearch)
       .toBe('production_systems');
