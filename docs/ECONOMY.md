@@ -72,7 +72,7 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `slot_fragment_fallbacks` | Key outcomes that paid 5 fragments instead because the winner's daily cache budget was exhausted (count of `cc_slot_pull` rows with `payout.key_fallback`, migration 0049). A rising count means the machine is out-pulling the cache budget — the consolation working as designed, not a leak |
 | `credits_minted_slots` | Slot credit payouts (Σ `payout.credits_paid` over `cc_slot_pull` rows, migration 0049). A real faucet — it folds into `credits_minted_total`, never into `_other`. Design shape (R9 strict table): credit RTP exactly 50.5%, derived from the seeded `slot_machine` odds table — at 1,000 cr wagered, ~505 cr returns as credits |
 | `credits_destroyed_slots` | The NET slot sink memo: `slot_credits_wagered − slot_credits_paid`, floored at 0 per day (migration 0049). A breakout only — it does NOT fold into `credits_destroyed_total` separately: the totals take the gross flows (`slot_credits_wagered` destroyed, `credits_minted_slots` minted), so `net_credit_change` stays the true credit delta. Expected ≈ 495 cr destroyed per 1,000 wagered |
-| `cache_opens` | Cache opens (`cc_make_item` + `cc_draw_item`) |
+| `cache_opens` | Cache opens (`cc_make_item`) |
 | `cache_fragments_awarded` | Σ `rewards.cache_fragments_awarded` over claim/settle/legacy-roaming rows. **Gap:** keys issued by fragment conversion are not separately attributable in ledger payloads — watch fragments awarded vs. opens instead |
 | `craft_jobs_completed` | Craft jobs whose last unit completed that day (`craft_jobs.completed_at`, migration 0024) |
 | `craft_units_completed` | Individual units settled that day (job outputs stamped with their completion instant) |
