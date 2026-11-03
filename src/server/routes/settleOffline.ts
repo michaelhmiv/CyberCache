@@ -66,7 +66,7 @@ export function createSettleOfflineHandler(
       // recorded action was crafting, so the away window advances the
       // player's craft jobs through the settler instead of the
       // roaming engine. The AFK cap governs craft progress exactly as
-      // it governs roaming (effective = min(earned tier + keystone
+      // it governs roaming (effective = min(earned cap + keystone
       // bonus, the player's limiter, the levered ceiling)), and the
       // whole computed cap bounds the settler's advance. The settler
       // is itself idempotent — it rebases its settle watermark on
@@ -98,17 +98,17 @@ export function createSettleOfflineHandler(
           craftGear,
           (craftProfile.skill_spends ?? {}) as Record<string, number>,
         );
-        // Research (0038): Supply Chains' +1h joins the cap's bonus
-        // hours (settle-first derivation from completion rows).
+        // Research: the Logistics track's offline-cap grants ARE
+        // the cap's earned growth (gate-removal step 6 — settle-first
+        // derivation from completion rows); the keystone stays a
+        // skill bonus on top.
         const craftResearchBonuses = await store.getResearchBonuses(playerId);
         const craftEconomy = config.economyConfig
           ? await config.economyConfig.snapshot()
           : undefined;
         const craftCapHours = effectiveOfflineCapHours({
-          level: craftProfile.player_level || 1,
-          bonusHours:
-            Math.max(0, Math.floor(craftSkillBonuses.offlineCapBonus ?? 0))
-            + craftResearchBonuses.offlineCapBonus,
+          researchCapHours: craftResearchBonuses.offlineCapBonus,
+          bonusHours: Math.max(0, Math.floor(craftSkillBonuses.offlineCapBonus ?? 0)),
           userCapHours: craftProfile.offline_cap_hours,
           ceilingHours: craftEconomy?.absoluteOfflineCapHours ?? ABSOLUTE_OFFLINE_CAP_HOURS,
         });
@@ -141,7 +141,7 @@ export function createSettleOfflineHandler(
       // was extraction, so the away window advances the player's
       // extraction passes through the same settler family — the AFK
       // cap governs extraction exactly as it governs crafting
-      // (effective = min(earned tier + keystone bonus, the player's
+      // (effective = min(earned cap + keystone bonus, the player's
       // limiter, the levered ceiling)), passed in whole as the
       // settler's max advance. Lazier settles (transitions, reads)
       // use the internal no-keystone cap inside the settler itself;
@@ -178,10 +178,8 @@ export function createSettleOfflineHandler(
           ? await config.economyConfig.snapshot()
           : undefined;
         const extractCapHours = effectiveOfflineCapHours({
-          level: extractProfile.player_level || 1,
-          bonusHours:
-            Math.max(0, Math.floor(extractSkillBonuses.offlineCapBonus ?? 0))
-            + extractResearchBonuses.offlineCapBonus,
+          researchCapHours: extractResearchBonuses.offlineCapBonus,
+          bonusHours: Math.max(0, Math.floor(extractSkillBonuses.offlineCapBonus ?? 0)),
           userCapHours: extractProfile.offline_cap_hours,
           ceilingHours: extractEconomy?.absoluteOfflineCapHours ?? ABSOLUTE_OFFLINE_CAP_HOURS,
         });
@@ -274,7 +272,8 @@ export function createSettleOfflineHandler(
       }
       // Research (0038): completion-derived bonuses merge onto the
       // one bonus record (Xenotech terms + Powertrain decay), and
-      // Supply Chains' +1h joins the cap's bonus hours below.
+      // the Logistics track's offline-cap grants carry the cap's
+      // earned hours below (gate-removal step 6).
       const researchBonuses = await store.getResearchBonuses(playerId);
       const skillBonuses = mergeResearchBonuses(
         skillBonusesFromRecords(
@@ -300,16 +299,18 @@ export function createSettleOfflineHandler(
 
       // Offline cap — the AFK limiter law (Michael's 2026-10-30
       // ruling, roaming-variance brief §2.6):
-      //   effective = min(earned tier + keystone bonus,
+      //   effective = min(earned + keystone bonus,
       //                   the player's own limiter (if set),
       //                   the absolute ceiling — 24h, economy-levered)
-      // Earned stays server-derived: earnedOfflineCapHours(player
-      // level) + the Scavenger keystone's offlineCapBonus from the
-      // server-rebuilt skill bonuses above. The stored
-      // profiles.offline_cap_hours is the player's LIMITER (set in
-      // Settings): it can only shorten a settlement, never extend it
-      // past what was earned — effectiveOfflineCapHours enforces the
-      // min() and the [1, 24] clamp. The same value is passed into
+      // Earned stays server-derived: the 2h base + the Research
+      // Logistics track's offline-cap grants (gate-removal step 6 —
+      // level no longer carries the cap), plus the Scavenger
+      // keystone's offlineCapBonus from the server-rebuilt skill
+      // bonuses above. The stored profiles.offline_cap_hours is the
+      // player's LIMITER (set in Settings): it can only shorten a
+      // settlement, never extend it past what was earned —
+      // effectiveOfflineCapHours enforces the min() and the [1, 24]
+      // clamp. The same value is passed into
       // cc_settle_offline_roaming (0015's _cap_hours) so the atomic
       // settlement caps its own window identically.
       const economyValues = config.economyConfig
@@ -327,12 +328,10 @@ export function createSettleOfflineHandler(
         res.status(500).json({ error: 'Failed to read drop buff', detail: message });
         return;
       }
-      const offlineCapBonus =
-        Math.max(0, Math.floor(skillBonuses.offlineCapBonus ?? 0))
-        + researchBonuses.offlineCapBonus;
+      const keystoneCapBonus = Math.max(0, Math.floor(skillBonuses.offlineCapBonus ?? 0));
       const capHours = effectiveOfflineCapHours({
-        level: profile.player_level || 1,
-        bonusHours: offlineCapBonus,
+        researchCapHours: researchBonuses.offlineCapBonus,
+        bonusHours: keystoneCapBonus,
         userCapHours: profile.offline_cap_hours,
         ceilingHours: economyValues?.absoluteOfflineCapHours ?? ABSOLUTE_OFFLINE_CAP_HOURS,
       });

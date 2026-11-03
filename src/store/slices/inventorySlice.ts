@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { GearItem, Weapon } from '../../types/items';
-import { calculateSalvageYield } from '../../constants/salvageRules';
+import { projectSalvageYield } from '../../lib/gear/salvageAward';
+import { useSkillStore } from './skillSlice';
 
 export interface InventoryState {
   items: GearItem[];
@@ -36,16 +37,17 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
   removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
 
   scrapItem: (id) => {
+    // RETIRED local path (AGENTS.md: UI salvage goes through
+    // verifiedOps.recycleItem, never this). Its quote is the LIVE
+    // projection — projectSalvageYield over the server's own salvage
+    // composition with the player's skill bonuses — so even this
+    // path names what cc_recycle_item actually pays: Scrap, and no
+    // guaranteed materials or essences.
     const item = get().items.find((i) => i.id === id);
     if (!item) return { scrapValue: 0, materials: {}, essences: {} };
-    let scrapValue = 10;
-    if ('rarity' in item) {
-      const rarityMulti = item.rarity === 'Common' ? 1 : item.rarity === 'Uncommon' ? 1.5 : item.rarity === 'Rare' ? 2.5 : item.rarity === 'Epic' ? 4 : 8;
-      scrapValue = Math.round((10 + (item.level || 1) * 5) * rarityMulti * (((item as unknown as { rollQuality?: number }).rollQuality ?? 100) / 100));
-    }
-    const salvage = calculateSalvageYield(item);
+    const salvage = projectSalvageYield(item, useSkillStore.getState().getBonuses());
     set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
-    return { scrapValue, materials: { ScrapAlloy: salvage.scrapAlloy, BallisticParts: salvage.ballisticParts, ReactiveComponents: salvage.reactiveComponents, TechFragments: salvage.techFragments, VoidDust: salvage.voidDust }, essences: salvage.essences };
+    return { scrapValue: salvage.scrapValue, materials: {}, essences: {} };
   },
 
   lockItem: (id) =>

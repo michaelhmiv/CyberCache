@@ -133,8 +133,12 @@ export interface ResearchBonuses {
   /** Logistics T1: vendor buyback rate addition, under the shared
    *  0.90 ceiling. */
   vendorBuybackBonus: number;
-  /** Logistics T2: +1 hour on the earned offline cap composition
-   *  (the 24 h absolute ceiling still binds). */
+  /** Logistics track: the earned offline cap's growth — Street
+   *  Economics (T1) +2h, Supply Chains (T2) +4h, Syndicate Ledger
+   *  (T3) +4h over the 2h base every hunter holds (gate-removal
+   *  step 6: Research carries the cap growth the retired level
+   *  tiers used to; src/content/offlineCap.ts owns the
+   *  composition, and the 24 h absolute ceiling still binds). */
   offlineCapBonus: number;
   /** Logistics T3: market fee reduction addition on all own sales,
    *  additive with Darknet under the existing ≤ 1 clamp; origin
@@ -251,22 +255,22 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
   {
     id: 'street_economics', faculty: 'logistics_markets', tier: 1,
     name: 'Street Economics', durationHours: 6, costCredits: 2500,
-    effects: { vendorBuybackBonus: 0.02 },
-    unlockText: 'NPC vendor buyback rate +0.02 on everything you sell (under the 0.90 ceiling).',
+    effects: { vendorBuybackBonus: 0.02, offlineCapBonus: 2 },
+    unlockText: 'NPC vendor buyback rate +0.02 on everything you sell (under the 0.90 ceiling), and +2 hours on your offline earnings cap.',
   },
   {
     id: 'supply_chains', faculty: 'logistics_markets', tier: 2,
     name: 'Supply Chains', durationHours: 48, costCredits: 15000,
     prerequisite: 'street_economics',
-    effects: { offlineCapBonus: 1 },
-    unlockText: 'Offline earnings cap +1 hour (the 24-hour absolute ceiling still binds).',
+    effects: { offlineCapBonus: 4 },
+    unlockText: 'Offline earnings cap +4 hours (the 24-hour absolute ceiling still binds).',
   },
   {
     id: 'syndicate_ledger', faculty: 'logistics_markets', tier: 3,
     name: 'Syndicate Ledger', durationHours: 168, costCredits: 60000,
     prerequisite: 'supply_chains',
-    effects: { marketFeeReduction: 0.05 },
-    unlockText: 'Market fee reduction +0.05 on all your sales (additive with Darknet Broker, under the ≤1 clamp).',
+    effects: { marketFeeReduction: 0.05, offlineCapBonus: 4 },
+    unlockText: 'Market fee reduction +0.05 on all your sales (additive with Darknet Broker, under the ≤1 clamp), and +4 hours on your offline earnings cap.',
   },
   // Faculty 4 — Xenotech (theory; Torn's Biology/Combat mold)
   {

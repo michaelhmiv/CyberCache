@@ -37,15 +37,16 @@ Each tree also carries a signature [[Actions and Occupations|action skill]]. Bec
 
 ## Offline earnings
 
-While you're away, your hunter keeps earning up to a cap that is **earned by level**:
+While you're away, your hunter keeps earning up to a cap that is **earned through [[Research]]** — every hunter starts at **2 hours**, and the Logistics & Markets track grows it:
 
-| Your level | Offline cap |
+| Research completed | Offline cap |
 | --- | --- |
-| 1–19 | 2 hours |
-| 20–39 | 4 hours |
-| 40–59 | 6 hours |
-| 60–79 | 8 hours |
-| 80+ | 12 hours |
+| — (every hunter) | 2 hours |
+| Street Economics | 4 hours |
+| Supply Chains | 8 hours |
+| Syndicate Ledger | 12 hours |
+
+Your hunter level plays no part in it: a new hunter who finishes the chain earns the full 12 hours, and a veteran who never studies stays at 2.
 
 Bonuses add on top — the Scavenger keystone's +4 hours is the big one — but two rules bind everything:
 
