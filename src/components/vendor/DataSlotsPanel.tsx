@@ -243,16 +243,34 @@ export const DataSlotsPanel: React.FC = () => {
         {view.tiers.map((bet, idx) => {
           const tier = idx + 1;
           const disabled = busy || (!locked && (!view.machineOpen || pullsRemaining <= 0 || player.credits < bet));
+          // G3 tail (remedy law): a signed-in player whose tier is
+          // unusable gets the reason printed under the button — the
+          // bare 40% dim taught nothing. Precedence follows the
+          // disable rule: a closed machine explains every tier,
+          // then the daily cap, then the per-tier shortfall.
+          // Guests keep the verified-only line above (locked →
+          // no per-tier reasons) and busy is transient.
+          const tierReason = locked || busy
+            ? null
+            : !view.machineOpen
+              ? 'Machine closed'
+              : pullsRemaining <= 0
+                ? 'Out of pulls today — resets 00:00 UTC'
+                : player.credits < bet
+                  ? `Short by ${(bet - player.credits).toLocaleString()} cr`
+                  : null;
           return (
-            <button
-              key={tier}
-              type="button"
-              onClick={() => guardTransact('pull the lever', () => void handlePull(tier))}
-              disabled={disabled}
-              className="flex-1 py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
-            >
-              {busy ? 'Pulling…' : `${SLOT_TIER_NAMES[tier]} • ${bet.toLocaleString()}cr`}
-            </button>
+            <div key={tier} className="flex flex-1 flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => guardTransact('pull the lever', () => void handlePull(tier))}
+                disabled={disabled}
+                className="py-2 rounded-xl bl-primary text-xs font-black disabled:opacity-40"
+              >
+                {busy ? 'Pulling…' : `${SLOT_TIER_NAMES[tier]} • ${bet.toLocaleString()}cr`}
+              </button>
+              {tierReason && <div className="text-center text-[11px] leading-tight text-text-muted">{tierReason}</div>}
+            </div>
           );
         })}
       </div>

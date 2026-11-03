@@ -71,6 +71,11 @@ Anyone can see the machine — cabinet, reels, printed odds, and counters.
 Pulling the lever moves real economy, so **pulls require a signed-in
 (verified) account**; guests get the sign-in lock at the lever.
 
+For signed-in hunters, a tier that can't be pulled says why, printed under
+its button: **Machine closed** when the operator lever has the cap at
+zero, **Out of pulls today — resets 00:00 UTC** when the daily cap is
+spent, or **Short by X cr** when the bet is beyond your balance.
+
 ---
 
 _Source of truth: `src/content/slots.ts`, `src/server/economy/config.ts` (slot levers). Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

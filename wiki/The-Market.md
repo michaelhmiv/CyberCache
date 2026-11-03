@@ -20,6 +20,12 @@ buying, listing, and cancelling your own listings — requires a signed-in
 (verified) account. If you tap a buy or list button as a guest, you'll get
 the sign-in prompt at the button instead of a silent refusal.
 
+If you're signed in but short on credits, the Buy button says so instead of
+going quiet: it prints **Short by X cr** — the exact gap between the price
+and your balance — in its own style, distinct from the guest lock. Tapping
+it repeats the shortfall and names where credits come from: roaming,
+running contracts, and selling loot.
+
 ## What you can list
 
 Five kinds of things trade on the Market:
