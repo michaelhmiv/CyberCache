@@ -29,6 +29,7 @@ const REPAIR_SORT_OPTIONS: ServiceBoardSortOption[] = [
 import { ServiceBoardControls, type ServiceBoardSortOption } from '@/components/market/ServiceBoardControls';
 import { MarketSupplyDoor, VendorSupplyDoor } from '@/components/market/SupplyDoors';
 import { RepairBayScene } from '@/components/pixelArt/ActionScenes';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 
 /**
  * Repair Services board (mechanics & repair, migration 0025).
@@ -65,6 +66,10 @@ interface RepairKitOptionT {
   onHand: number;
   estimatedKits: number | null;
   coversTarget: boolean;
+  /** Quick-buy shortfall for this kit line (QB-2), computed by the
+   *  server builder: units still needed at standard quality after
+   *  the reader's stock is spent. The + mounts exactly when > 0. */
+  shortfallKits: number;
 }
 
 interface RepairJobRequirementsT {
@@ -147,7 +152,10 @@ function fmtTimeLeft(expiresAtMs: number | null): string {
   return h >= 24 ? `${Math.floor(h / 24)}d left` : `${h}h left`;
 }
 
-export const RepairBoard: React.FC = () => {
+export const RepairBoard: React.FC<{
+  /** App navigation for the quick-buy sheet's remedy doors. */
+  onNavigate?: (screen: string) => void;
+}> = ({ onNavigate }) => {
   const { user } = useAuth();
   const myId = user?.id ?? null;
   const reduceMotion = useReducedMotion();
@@ -505,6 +513,21 @@ export const RepairBoard: React.FC = () => {
                       )}
                     </>
                   ) : null}
+                  {/* QB-2: the lone + beside the shortfall — the
+                      server prices the reader's gap per selected
+                      kit; the sheet carries all pricing/states.
+                      onFilled re-reads the board view so the
+                      requirements stop showing pre-fill stock. */}
+                  {kitReq && (
+                    <QuickBuyPlus
+                      good={{ kind: 'consumable', id: kit }}
+                      goodName={KIT_LABELS[kit] ?? kit}
+                      shortfall={kitReq.shortfallKits}
+                      contextLabel={vehicleLabel(job)}
+                      onNavigate={onNavigate}
+                      onFilled={refresh}
+                    />
+                  )}
                 </div>
               )}
               {!mine && (

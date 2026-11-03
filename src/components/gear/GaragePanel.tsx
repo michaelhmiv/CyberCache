@@ -9,8 +9,11 @@ import { buildWorkshopServiceActivity } from '@/lib/activity/activityBuilders';
 import {
   PATCH_KIT_BASES,
   REPAIR_KIT_TYPES,
+  REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
   REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
   REPAIR_WORK_RATE_BASE_DEFAULT,
+  repairEfficiencyWithSkill,
+  repairKitRestorePoints,
   repairKitUnitDurationMs,
   repairWorkRatePointsPerHour,
 } from '@/content/repair';
@@ -22,6 +25,13 @@ import {
   getVehicleClass,
 } from '@/lib/vehicles/vehicles';
 import { getPixelSprite } from '@/lib/pixel/manifest';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
+
+const KIT_LABELS: Record<string, string> = {
+  PatchKit: 'Patch Kit',
+  FieldPatchKit: 'Field Patch Kit',
+  MasterPatchKit: 'Master Patch Kit',
+};
 
 /**
  * The vehicle's face (the v1 garage content design DESIGN.md §11
@@ -374,6 +384,32 @@ const VehicleCard: React.FC<{
     ),
   );
   const unitHours = unitMs / 3600000;
+  // QB-2 quick-buy shortfall for the selected kit: what a FULL
+  // restore of this vehicle's deficit still needs once the kits on
+  // hand are spent. The estimate walks the player's REAL batches
+  // at the mastery-only efficiency — the guaranteed pace (Fixer
+  // and research terms only ever improve the true coverage, the
+  // same conservative basis the service boards quote on) — and
+  // prices fresh units at standard quality (100%), the basis
+  // vendor stock is sold at. The sheet re-quotes exactly, and its
+  // stepper steps down freely, so an estimate can never oversell.
+  const consumableBatches = usePlayerStore((s) => s.consumableBatches);
+  const kitBase = PATCH_KIT_BASES[kitType] ?? 30;
+  const kitEfficiency = repairEfficiencyWithSkill(
+    repairMasteryLevel,
+    REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
+    0,
+  );
+  const pointsPerKit = (quality: number) => repairKitRestorePoints(kitBase, quality, kitEfficiency);
+  const deficitPoints = Math.max(0, vehicle.conditionMax - vehicle.conditionCurrent);
+  const coveredPoints = consumableBatches
+    .filter((b) => b.consumable_type === kitType)
+    .reduce((sum, b) => sum + pointsPerKit(b.quality_percent) * Math.max(0, b.quantity), 0);
+  const standardKitPoints = pointsPerKit(100);
+  const kitShortfall =
+    deficitPoints > 0 && coveredPoints < deficitPoints && standardKitPoints > 0
+      ? Math.ceil((deficitPoints - coveredPoints) / standardKitPoints)
+      : 0;
 
   return (
     <div className={`border p-2 space-y-1 ${equipped ? 'border-amber' : 'border-border'} bg-background/60`}>
@@ -505,6 +541,15 @@ const VehicleCard: React.FC<{
             >
               Start repair job
             </button>
+            {/* QB-2: the lone + beside the kit shortfall for a full
+                restore — pricing and states live in the sheet. */}
+            <QuickBuyPlus
+              good={{ kind: 'consumable', id: kitType }}
+              goodName={KIT_LABELS[kitType] ?? kitType}
+              shortfall={kitShortfall}
+              contextLabel={vehicle.name}
+              onNavigate={onNavigate}
+            />
             {onRequestService && (
               <button
                 type="button"

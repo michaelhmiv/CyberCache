@@ -8,7 +8,7 @@ import { useActivityStore, useInventoryStore, useLoadoutStore, useMarketStore, u
 import { fetchShieldTechBoard, verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
 import { buildWorkshopServiceActivity } from '@/lib/activity/activityBuilders';
-import { legalShieldTechTargets, rebasedShieldPayload } from '@/content/shieldTech';
+import { CALIBRATION_CORE_TYPE, legalShieldTechTargets, rebasedShieldPayload } from '@/content/shieldTech';
 import { SHIELD_BEHAVIORS, describeShieldBehavior, shieldBehaviorOf, type ShieldBehaviorId } from '@/lib/combat/shieldBehaviors';
 import {
   hasServiceBoardBrowseTerms,
@@ -20,6 +20,7 @@ import { MarketSupplyDoor } from '@/components/market/SupplyDoors';
 import type { GearItem, Shield } from '@/types/items';
 import type { Rarity } from '@/types/game';
 import { ShieldTechBayScene } from '@/components/pixelArt/ActionScenes';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 
 /**
  * Shield-Tech Services board (migration 0044).
@@ -53,6 +54,10 @@ interface ShieldTechJobRequirementsT {
   coresOnHand: number;
   estimatedCores: number | null;
   coversTarget: boolean;
+  /** Quick-buy shortfall for the core line (QB-2), computed by the
+   *  server builder: cores still needed at standard quality after
+   *  the reader's stock is spent. The + mounts exactly when > 0. */
+  shortfallCores: number;
   estimatedHours: number | null;
 }
 
@@ -142,7 +147,10 @@ function fmtTimeLeft(expiresAtMs: number | null): string {
   return hrs >= 24 ? `${Math.floor(hrs / 24)}d left` : `${hrs}h left`;
 }
 
-export const ShieldTechBoard: React.FC = () => {
+export const ShieldTechBoard: React.FC<{
+  /** App navigation for the quick-buy sheet's remedy doors. */
+  onNavigate?: (screen: string) => void;
+}> = ({ onNavigate }) => {
   const { user } = useAuth();
   const myId = user?.id ?? null;
   const reduceMotion = useReducedMotion();
@@ -530,6 +538,19 @@ export const ShieldTechBoard: React.FC = () => {
                       )}
                     </>
                   )}
+                  {/* QB-2: the lone + beside the core shortfall —
+                      the server prices the reader's gap; the sheet
+                      carries all pricing/states. onFilled re-reads
+                      the board view so the requirements stop
+                      showing pre-fill stock. */}
+                  <QuickBuyPlus
+                    good={{ kind: 'consumable', id: CALIBRATION_CORE_TYPE }}
+                    goodName="Calibration Core"
+                    shortfall={req.shortfallCores}
+                    contextLabel={`${shieldLabel(job)} — ${swapLabel(job)}`}
+                    onNavigate={onNavigate}
+                    onFilled={refresh}
+                  />
                 </div>
               )}
               {job.fromBehaviorDescription && (
