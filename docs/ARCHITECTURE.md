@@ -30,7 +30,7 @@ in screens or components is forbidden.
 | **Tick feed events** | `src/store/slices/tickSlice.ts` | `TickEvent` / `TickEventTone`. Capped at 50, FIFO. |
 | **Inventory mutation** | `src/store/slices/inventorySlice.ts` | `receiveServerItems` (Chef path) or `addItem`/`removeItem` (user actions) |
 | **Player resources** (credits, XP, scrap, materials, essences, cache keys/fragments) | `src/store/slices/playerSlice.ts` | Mutated ONLY via `syncVerifiedResult` from server response |
-| **Loadout** | `src/store/slices/loadoutSlice.ts` | 7 gear slots + the vehicle slot (0021), with consumable slots |
+| **Loadout** | `src/store/slices/loadoutSlice.ts` | 7 gear slots + the vehicle slot (0021), with consumable slots; saved builds apply via the single server op `cc_apply_build` (0066) with per-slot outcomes |
 | **Survival HP / death / medkit** | `src/store/slices/survivalSlice.ts` (display) + Chef (authority) | Death is Chef-recorded (`profiles.death_state` / `death_log`, migration 0013); resurrection is `POST /api/resurrect` only — the slice's `resurrect()` applies the server's confirmed result and charges nothing. Runtime snapshot persists display state only |
 | **Kill cycle / enemy HP** | `src/store/slices/killCycleSlice.ts` | Persisted via Chef runtime snapshot |
 | **Boss prep analysis** | `src/lib/simulation/bossSimulator.ts` | Pure sim, no side effects |

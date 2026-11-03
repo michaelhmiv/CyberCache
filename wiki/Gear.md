@@ -33,6 +33,30 @@ Your loadout has eight slots. Seven are gear:
 The eighth slot is your **vehicle**, which works differently enough to
 have its own page: [[Vehicles and the Garage]].
 
+## Saved builds
+
+You can save up to **5 builds** — free, no unlocks. A build captures
+all eight slots (vehicle included) plus your belt assignments, so one
+tap swaps your whole kit: boss build, farming build, market-day
+build.
+
+Applying a build is one checked operation, not a best-effort shuffle.
+Every slot either equips or tells you exactly why it didn't:
+
+- **Gone** — the saved item was sold, salvaged, or traded away. Pick
+  a replacement for that slot right from the report.
+- **Listed** — the item is up on the market. One tap delists it and
+  finishes the apply.
+- **Out on dispatch** — the item is away on a mission; the report
+  shows when it returns, or you can recall the mission and apply.
+- **Committed to a job** — the item is in a repair or shield-tech
+  job; it frees up when the job finishes.
+
+Whatever can equip, equips — a partial apply still lands the rest of
+the build and names the slots that need attention. A build only
+shows as your active build once every slot actually landed, so the
+label never claims a kit you aren't wearing.
+
 ## Weapons: type × manufacturer × element
 
 Every weapon is built from three choices the roll makes for you:
