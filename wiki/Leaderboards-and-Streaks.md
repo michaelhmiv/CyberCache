@@ -67,7 +67,7 @@ Finishing day 7 doesn't end the streak — the next 7 days repeat the ladder at 
 - Tier 1 pays ×1, tier 2 ×1.5, tier 3 ×2, tier 4 ×2.5, and **tier 5 caps the ladder at ×3**. A streak longer than 35 days keeps cycling at tier 5.
 - The **cache key never scales**: every completed cycle pays exactly one key, at every tier.
 
-The flame icon in the Board's top bar shows your current streak day at a glance, pulses with a NEW badge when a check-in has just paid, and opens the full ladder panel when tapped — so you can always see what tomorrow is worth before you decide to come back for it.
+The flame icon in the top bar shows your current streak day at a glance and opens the streak sheet when tapped. When a check-in has just paid, the flame pulses with a NEW badge — that pulse is an announcement, not a claim: the reward is already in your account. The sheet tags every reward **Banked**, and you can watch your credits tick up to the new balance in the top bar. Opening the sheet and tapping **Back to the hunt** acknowledges the grant and clears the badge; a day that has already banked shows no pulse at all. The sheet prints the full ladder and what tomorrow pays, so you can always see what tomorrow is worth before you decide to come back for it — and a new streak day starts at 00:00 UTC.
 
 ---
 

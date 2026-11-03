@@ -133,6 +133,14 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **Return Sheet:** the level chip reopens it (§10 covers its motion). The level
   pop-up holds level specifics only — the recap lives on the Return Sheet, nowhere
   else.
+- **Login streak:** the flame chip in the claim row opens the streak sheet. The
+  check-in is the day's first state read — the reward banks server-side on
+  arrival, so there is nothing to claim and the sheet's only action is the
+  acknowledgement ("Back to the hunt"). A fresh grant announces — pulse + NEW
+  on the chip, the poster-plate celebration in the sheet (§10), the Strip's
+  credits ticking up to the new balance — and the announcement lives only
+  until acknowledged; the already-banked state carries no pulse and no badge
+  (§9).
 - **The deck** (below the fold, fixed order — §4): launcher cards (Dispatch ·
   Crack Cache · Slots ◦ · Loadout shortcut ◦ while a loadout is incomplete),
   Weekly claimables panel, Now feed, Hunter Totals.
@@ -207,9 +215,11 @@ player needs each block.
 **Above the fold, always, in this order:**
 
 1. **The Strip** (wallet + fused XP hairline + level chip + settings gear).
-2. **Claim chips row** — every claimable: login streak, new contract offers,
-   the weekly Parts Crate / Signature Orders when ready. (Absences under
-   5 minutes still settle silently; the Return Sheet is §10.)
+2. **Claim chips row** — every claimable, plus the one announcement: new
+   contract offers, the weekly Parts Crate / Signature Orders when ready,
+   and the login streak — an announcement, not a claimable: its reward
+   banks on arrival and its chip pulses only until acknowledged (§9).
+   (Absences under 5 minutes still settle silently; the Return Sheet is §10.)
 3. **The Stage** — area plate, count plate, status ribbon.
 4. **The mode rail** — `Area · Roam · Boss · Endless · Extract · Craft`.
 5. **The lit mode's workspace** — session/loot panels and the mode's primary
@@ -461,12 +471,19 @@ screen, and it stays deep on purpose: a fat-finger sale of a legendary
 should never be two taps from anywhere.
 
 **Claimables announce themselves.** Everything claimable, weekly, or
-time-boxed — the login streak, contract offers, the weekly Parts Crate
-and Signature Orders — carries a visible surface on Home itself at 0–1
-taps: a claim chip under the Strip, the Weekly panel in the deck.
+time-boxed — contract offers, the weekly Parts Crate and Signature
+Orders, and the login streak's announcement — carries a visible surface
+on Home itself at 0–1 taps: a claim chip under the Strip, the Weekly
+panel in the deck.
 Settled race rewards are not claimables (settlement pays them
 automatically); they announce through the live badge on Hunter's
 Standings door and resolve on the Standings earnings panel (§3).
+The login streak is the same kind of fact: its reward banks
+server-side at the day's first check-in read — there is no claim
+action and there never was one — so its pulse is an **announcement**,
+not a claim signal. It lives only until the player acknowledges it in
+the streak sheet, its rewards are named in the past tense with
+**Banked** tags, and the already-banked state carries no pulse at all.
 Consolidation must never silently demote any of them; the chips and
 badges exist to prevent exactly that, and their languages stay
 distinct — a pulse and the word "claim" belong only to rewards the
@@ -517,6 +534,19 @@ stops transition, claimable badges draw the eye. Animation is how the
 game feels alive between loot moments; a static claimable is a missed
 hook. **Reduced motion is respected** by collapsing this UI motion —
 never by retiming the loot moment or the fight beats.
+
+### The streak grant moment
+
+A fresh daily grant gets a small ceremony of its own — deliberately a
+tier below the loot moment (no beam, no world dim). In the streak
+sheet the poster plate stamps the day, the reward rows land one at a
+time (~120ms apart) with the cache-key row flaring once, and in the
+Strip the credits count up to the new balance — the whole beat runs
+about 1.2 seconds and settles. It plays once per grant: acknowledging
+the sheet, remounting, or re-reading the same day never replays it,
+and an already-banked day opens the quiet sheet with no motion at
+all. **Reduced motion** collapses the moment to its settled frame —
+rows simply present, balance already final.
 
 ### The Return Sheet
 
