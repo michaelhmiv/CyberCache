@@ -1,9 +1,7 @@
 import React from 'react';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import type { ShowcaseItemPayload } from '@/lib/api/verifiedOps';
-import { RARITIES } from '@/constants/rarities';
-import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
+import { showcaseRarityColor, showcaseWeaponInput } from '@/lib/pixel/showcaseWeaponInput';
 
 /**
  * Showcase rows (0034 shelf; shared since 0058) — one shelved
@@ -13,30 +11,6 @@ import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
  * pop-up, and the full player profile all render the shelf through
  * this one row so a hunter's trophies read identically everywhere.
  */
-
-export function showcaseWeaponInput(item: ShowcaseItemPayload): PixelWeaponInput {
-  const payload = item.payload ?? {};
-  const str = (value: unknown): string | undefined =>
-    typeof value === 'string' && value !== '' ? value : undefined;
-  const num = (value: unknown): number | undefined =>
-    typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-  return {
-    id: item.id,
-    name: str(payload.name),
-    weaponType: (str(payload.weaponType) ?? WeaponType.Pistol) as WeaponType,
-    manufacturer: (str(payload.manufacturer) ?? Manufacturer.HelixWorks) as Manufacturer,
-    element: str(payload.element) as Element | undefined,
-    rarity: (item.rarity ?? str(payload.rarity) ?? Rarity.Common) as Rarity,
-    pixelSeed: num(payload.pixelSeed),
-    rollQuality: num(payload.rollQuality),
-    affixes: Array.isArray(payload.affixes) ? (payload.affixes as PixelWeaponInput['affixes']) : undefined,
-    parts: Array.isArray(payload.parts) ? (payload.parts as PixelWeaponInput['parts']) : undefined,
-  };
-}
-
-export function showcaseRarityColor(rarity: string | null): string {
-  return RARITIES[rarity as Rarity]?.color ?? '#A5A7B5';
-}
 
 export const ShowcaseWeaponRow: React.FC<{
   item: ShowcaseItemPayload;
