@@ -458,7 +458,7 @@ const CacheProp: React.FC<{ xPct: number; groundYPct: number; riseBudgetMs: numb
   if (!sprite) return null;
   return (
     <motion.div
-      className="absolute z-20"
+      className="absolute z-50"
       style={{ left: `${xPct}%`, bottom: `${100 - groundYPct}%`, width: CACHE_PROP_PX, marginLeft: -CACHE_PROP_PX / 2 }}
       initial={{ opacity: 0, scale: 0.92, y: 6 }}
       animate={{ opacity: [0, 1, 1, 0], scale: [0.92, 1, 1, 0.95], y: [6, 0, 0, -4] }}
