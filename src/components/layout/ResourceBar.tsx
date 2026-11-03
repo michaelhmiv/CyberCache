@@ -187,7 +187,11 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
   const streakResultDay = useLoginStreakStore((s) => s.resultDay);
   const streakSeenGrantKey = useLoginStreakStore((s) => s.seenGrantKey);
   const markWalletTicked = useLoginStreakStore((s) => s.markWalletTicked);
-  const reduceMotion = useReducedMotion();
+  // Read through a ref: useReducedMotion resolves a beat after
+  // first paint, and the tick effect must not re-run (cancelling
+  // a tick mid-flight) when the preference lands.
+  const reduceMotionRef = useRef(false);
+  reduceMotionRef.current = Boolean(useReducedMotion());
   const [tickDisplay, setTickDisplay] = useState<number | null>(null);
   const tickRaf = useRef<number | null>(null);
 
@@ -209,11 +213,16 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     markWalletTicked(key);
     const target = usePlayerStore.getState().credits;
     const from = target - awarded;
-    if (reduceMotion || from < 0 || target <= from) return;
+    if (reduceMotionRef.current || from < 0 || target <= from) return;
     const durationMs = 700;
-    const startedAt = performance.now();
+    // Elapsed time is measured on the frame clock itself (the
+    // first frame's timestamp is the start) — mixing in
+    // performance.now() assumes the two share an origin, which
+    // is not guaranteed outside a real browser frame loop.
+    let startedAt: number | null = null;
     const step = (now: number) => {
-      const t = Math.min(1, (now - startedAt) / durationMs);
+      if (startedAt === null) startedAt = now;
+      const t = Math.min(1, Math.max(0, (now - startedAt) / durationMs));
       const eased = 1 - Math.pow(1 - t, 3);
       setTickDisplay(Math.round(from + (target - from) * eased));
       if (t < 1) {
@@ -229,7 +238,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
       tickRaf.current = null;
       setTickDisplay(null);
     };
-  }, [streakResult, streakResultDay, streakSeenGrantKey, markWalletTicked, reduceMotion, player.profileLoaded]);
+  }, [streakResult, streakResultDay, streakSeenGrantKey, markWalletTicked, player.profileLoaded]);
 
   const gear = onOpenSettings ? (
     <button
