@@ -147,20 +147,39 @@ describe('F5 — the doll leads the constellation', () => {
   });
 });
 
-describe('F5 — slot chips at the floor, names whole', () => {
-  it('a long item name prints in full, unwrapped by no truncate class', () => {
+describe('F5 successor — merged blocks: names whole in the tree, at the sanctioned sizes', () => {
+  it('a long item name rides the poster block complete, at poster size', async () => {
     const longName = 'Prismatek Velocity Beam Cannon of the Endless Wastes Mk. VII';
     const weapon = makeWeapon('w-long', longName);
     useInventoryStore.setState({ items: [weapon] });
     useLoadoutStore.setState((s) => ({ slots: { ...s.slots, primary: 'w-long' } }));
     render(<ActionLoadout />);
-    const nameEl = screen.getByText(longName);
+    const block = screen.getByTestId('slot-block-primary');
+    // The approved Exec C mock's measured property is FULL names:
+    // the name WRAPS (the row grows) — truncation never, and no
+    // shrink below the floor. The §6 bargain is that nothing
+    // abbreviates or re-titles the item — the COMPLETE name is
+    // what the block carries, and the same complete name prints
+    // at the destination (asserted below). This supersedes the
+    // F5 chip-era assertion, which governed the retired
+    // constellation chips; the wrap-not-truncate half of F5 is
+    // restored by the class assertion here (parent capture
+    // review of PR #319 caught ellipsized names in the rows).
+    const nameEl = within(block).getByText(longName);
+    expect(nameEl.className).toContain('text-[13px]');
     expect(nameEl.className).not.toContain('truncate');
-    // The chip renders the actual instance's compositor art.
+    // The block renders the actual instance's compositor art.
     expect(screen.getByTestId('slot-weapon-primary')).toBeTruthy();
-    // Slot label rides at the §5 floor size.
-    const labelEl = screen.getByText('Primary', { exact: true });
-    expect(labelEl.closest('div')?.className).toContain('text-[11px]');
+    // The slot rides the block's accessible name; the printed line
+    // is perks only (owner ruling 2026-11-03 — no rarity/element
+    // words; the headline DPS leads).
+    expect(block.getAttribute('aria-label')).toContain('Primary');
+    expect(block.textContent).toContain('DPS');
+    // Destination: the picker's Currently Equipped card carries the
+    // same complete name.
+    fireEvent.click(block);
+    expect(await screen.findByText('Currently Equipped')).toBeTruthy();
+    expect(screen.getAllByText(longName).length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -209,7 +228,9 @@ describe('F5 successor — the Garage folds into Loadout (owner ruling 2026-11-0
     render(<GearRail activeStop="loadout" onSelect={() => undefined} />);
     const rail = screen.getByTestId('gear-rail');
     const stops = [...rail.querySelectorAll('[data-testid^="gear-stop-"]')].map((el) => el.getAttribute('data-testid'));
-    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-grid', 'gear-stop-items', 'gear-stop-workshop']);
+    // Merged page (Exec C, 2026-11-03): Loadout · Workshop only —
+    // and still no Garage stop (the §11 F1 fold stands).
+    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-workshop']);
     expect(screen.queryByTestId('gear-stop-garage')).toBeNull();
   });
 

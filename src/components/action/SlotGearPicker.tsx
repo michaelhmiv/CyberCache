@@ -245,7 +245,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
 
   const renderChipRow = (facet: Facet<GearItem>) => (
     <ChipRail key={facet.key} className="py-0.5">
-      <span className="text-[8px] font-black uppercase tracking-wider text-text-muted shrink-0">{facet.label}</span>
+      <span className="text-[11px] font-black uppercase tracking-wider text-text-muted shrink-0">{facet.label}</span>
       {facet.values(compatibleItems).map((value) => {
         const active = activeFacets[facet.key]?.has(value) ?? false;
         return (
@@ -253,7 +253,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
             key={value}
             type="button"
             onClick={() => toggleFacet(facet.key, value)}
-            className={`shrink-0 px-2 py-0.5 text-[9px] font-black border transition-colors ${
+            className={`shrink-0 px-2 py-0.5 text-[11px] font-black border transition-colors ${
               active
                 ? 'border-amber/60 bg-amber/10 text-amber'
                 : 'border-border/50 bg-bg/50 text-text-muted hover:border-amber/30'
@@ -297,7 +297,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value)}
-            className="text-[9px] font-black uppercase border border-border/50 bg-bg/50 text-text-primary px-1.5 py-0.5 focus:outline-none"
+            className="text-[11px] font-black uppercase border border-border/50 bg-bg/50 text-text-primary px-1.5 py-0.5 focus:outline-none"
             style={chipClip}
           >
             {sortOptions.map((opt) => (
@@ -307,7 +307,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
         </div>
         <div className="flex items-center gap-2">
           {hasActiveFilters && (
-            <button type="button" onClick={clearFacets} className="text-[9px] font-black text-red hover:text-red/80">
+            <button type="button" onClick={clearFacets} className="text-[11px] font-black text-red hover:text-red/80">
               Clear all
             </button>
           )}
@@ -345,13 +345,13 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
       {/* Currently equipped */}
       {currentItem && (
         <div className="mb-2">
-          <div className="text-[8px] font-black uppercase tracking-[0.18em] text-amber mb-1">Currently Equipped</div>
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-amber mb-1">Currently Equipped</div>
           <div className="border-2 border-amber/50 bg-amber/5 p-2.5 flex items-center justify-between gap-2" style={signClip}>
             <div className="min-w-0">
               <div className="text-sm font-black text-text-primary truncate">{currentItem.name}</div>
-              <div className="text-[10px] text-text-muted">{currentItem.rarity} · Lv.{currentItem.level}</div>
+              <div className="text-[11px] text-text-muted">{currentItem.rarity} · Lv.{currentItem.level}</div>
             </div>
-            <button type="button" onClick={onUnequip} disabled={busy} className="bl-secondary px-2 py-1 text-[9px] font-black text-red shrink-0 disabled:opacity-50">
+            <button type="button" onClick={onUnequip} disabled={busy} className="bl-secondary px-2 py-1 text-[11px] font-black text-red shrink-0 disabled:opacity-50">
               {busy ? 'Working…' : 'Unequip'}
             </button>
           </div>
@@ -380,9 +380,9 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
               >
                 <div className="min-w-0">
                   <div className="text-xs font-black truncate" style={{ color: accent }}>{item.name}</div>
-                  <div className="text-[9px] text-text-muted">{item.rarity} · Lv.{item.level}</div>
+                  <div className="text-[11px] text-text-muted">{item.rarity} · Lv.{item.level}</div>
                   {topStat && (
-                    <div className="mt-1 text-[9px]">
+                    <div className="mt-1 text-[11px]">
                       <span className="text-text-muted">{topStat.label}</span>
                       <span className={`font-bold ml-1 ${topStat.tone ?? 'text-text-primary'}`}>{topStat.value}</span>
                     </div>
@@ -391,7 +391,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                     <GearCompare current={currentItem} candidate={item} compact />
                   )}
                 </div>
-                <div className="mt-2 bl-primary px-3 py-1 text-[9px] font-black w-fit">
+                <div className="mt-2 bl-primary px-3 py-1 text-[11px] font-black w-fit">
                   {busy ? 'Equipping…' : 'Equip'}
                 </div>
               </button>
@@ -416,24 +416,24 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-black truncate" style={{ color: accent }}>{item.name}</span>
-                      <span className="text-[9px] text-text-muted shrink-0">{item.rarity} · Lv.{item.level}</span>
+                      <span className="text-[11px] text-text-muted shrink-0">{item.rarity} · Lv.{item.level}</span>
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {summary.primaryStats.map((stat) => (
-                        <span key={stat.label} className="inline-flex items-center gap-0.5 rounded border border-border bg-bg px-1 py-0.5 text-[9px]">
+                        <span key={stat.label} className="inline-flex items-center gap-0.5 rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
                           <span className="text-text-muted">{stat.label}</span>
                           <span className={`font-bold ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
                         </span>
                       ))}
                     </div>
                     {summary.badges[0] && (
-                      <div className="text-[9px] text-amber mt-0.5 truncate">{summary.badges[0]}</div>
+                      <div className="text-[11px] text-amber mt-0.5 truncate">{summary.badges[0]}</div>
                     )}
                     {currentItem && (
                       <GearCompare current={currentItem} candidate={item} compact />
                     )}
                   </div>
-                  <div className="bl-primary px-3 py-1 text-[9px] font-black shrink-0">
+                  <div className="bl-primary px-3 py-1 text-[11px] font-black shrink-0">
                     {busy ? 'Equipping…' : 'Equip'}
                   </div>
                 </div>

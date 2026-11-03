@@ -833,11 +833,19 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   ].filter(Boolean) as string[];
 
   return (
-    <div className="space-y-2.5 px-3 pb-20">
-      {/* Compact header */}
+    <div className="space-y-2.5 px-4">
+      {/* Section header + controls, sticky (merged Gear page,
+          2026-11-03): on the one-scroll page the section keeps its
+          name, count, kind rail, search, and toolbar in reach while
+          its rows scroll beneath — the mock's .sec-h pattern. The
+          bordered bar is the rail's own language over the page
+          gradient. */}
+      <div className="sticky top-0 z-20 -mx-4 space-y-2.5 border-b border-border/60 bg-bg/95 px-4 pb-2 pt-2 backdrop-blur-sm">
+      {/* Compact header — the section is "Inventory" on the merged
+          page (the Grid retired as a place; this is its content). */}
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-base font-black leading-tight text-text-primary">Item Grid</div>
+          <div className="text-base font-black leading-tight text-text-primary">Inventory</div>
           <div className="truncate text-[11px] text-text-muted">Mobile gear triage: compare, equip, salvage, sell.</div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -853,7 +861,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       </div>
 
       {/* Gear-kind rail: first-class mobile navigation, one row only. */}
-      <div className="-mx-3 overflow-x-auto px-3 pb-0.5">
+      <div className="-mx-4 overflow-x-auto px-4 pb-0.5">
         <div className="flex min-w-max gap-1.5">
           {KIND_DEFS.map(({ id, short, icon }) => {
             const active = activeKind === id;
@@ -966,10 +974,11 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
           </button>
         )}
       </div>
+      </div>
 
       {/* Active filters: one horizontal row, never a wrapped wall. */}
       {activeFilterLabels.length > 0 && (
-        <div className="-mx-3 overflow-x-auto px-3">
+        <div className="-mx-4 overflow-x-auto px-4">
           <div className="flex min-w-max gap-1.5">
             {activeFilterLabels.slice(0, 10).map((label) => (
               <span key={label} className="rounded-full border border-amber/30 bg-amber/10 px-2 py-0.5 text-[11px] font-black text-amber">

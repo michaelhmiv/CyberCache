@@ -15,7 +15,7 @@
  *  - The current-area chip shows the selected area and opens the
  *    picker; the shared area list enforces unlock levels.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Shield, Weapon } from '@/types/items';
@@ -183,30 +183,30 @@ describe('Phase 1 — one gear home', () => {
     expect(mockEquipItem).not.toHaveBeenCalled();
   });
 
-  it("GearHub's Equip lands in the home's Loadout tab with the Slot Picker open on the item's slot", async () => {
+  it("GearHub's Equip opens the Slot Picker on the item's slot, on the same merged page", async () => {
     const shield = makeShield('sh-1', 'Aegis Plate');
     useInventoryStore.setState({ items: [shield] });
 
     render(<InventoryScreen onNavigate={vi.fn()} />);
 
-    // Wave D: items live on the Grid rail stop — open it, then the
-    // shield's inspect sheet.
-    fireEvent.click(screen.getByTestId('gear-stop-grid'));
+    // Merged page (Exec C): items live in the page's Inventory
+    // section — open the shield's inspect sheet right here.
     fireEvent.click(await screen.findByText('Aegis Plate'));
     const equipAction = await screen.findByRole('button', { name: /Equip/ });
     fireEvent.click(equipAction);
 
-    // The home switched to Loadout and the Slot Picker is open on Shield.
+    // The page never left the Loadout stop; the Slot Picker is open
+    // on Shield (the seq'd picker request, no remount).
     // F5 successor landmark: the Loadout stop's old intro sentence
     // ("Your seven gear slots…") was removed per the fidelity audit;
     // the panel header's "Tap a slot to equip" hint is its marker now.
     await screen.findByText('Tap a slot to equip');
     expect(await screen.findByText('Shield', { selector: '.bl-title' })).toBeTruthy();
 
-    // Equipping through the picker performs the one equip path. (The
-    // Gear tab has unmounted by now, so the only Aegis Plate button is
-    // the picker's candidate row.)
-    const pickerEquip = await screen.findByRole('button', { name: /Aegis Plate/ });
+    // Equipping through the picker performs the one equip path.
+    // (The Inventory section stays mounted below, so the candidate
+    // row is scoped to the picker sheet's body.)
+    const pickerEquip = await within(screen.getByTestId('picker-sheet-body')).findByRole('button', { name: /Aegis Plate/ });
     fireEvent.click(pickerEquip);
     await waitFor(() => {
       expect(useLoadoutStore.getState().slots.shield).toBe('sh-1');
