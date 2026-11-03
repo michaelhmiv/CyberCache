@@ -235,11 +235,18 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
   inventory,
   onSlotClick,
   size: _size,
+  trailingCell,
 }: {
   consumables: LoadoutConsumables;
   inventory: Record<string, number>;
   onSlotClick: (slot: keyof LoadoutConsumables) => void;
   size?: number;
+  /**
+   * A fourth cell in the slots row, in the slots' grammar (Home
+   * consolidation: the vehicle chip rides the belt row). Renders
+   * nothing when the cell itself renders nothing.
+   */
+  trailingCell?: React.ReactNode;
 }) {
   const storeBuffs = useActiveBuffsStore((state) => state.buffs);
   const [now, setNow] = useState(Date.now);
@@ -314,6 +321,7 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
             </button>
           );
         })}
+        {trailingCell}
       </div>
       {/* Active buff pills with timers (only when roaming/fight is live) */}
       {activeBuffs.length > 0 && (
