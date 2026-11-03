@@ -138,7 +138,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
   {
     id: 'marketProceeds',
     name: 'Silver Tongue',
-    summary: 'Market sale proceeds, paid on top of the post-fee amount',
+    summary: 'Rebates the market fee on your sales, up to the full fee',
     leverKey: 'cacheRankMarketProceedsPerRank',
     maxRanks: 10,
     icon: 'tag',

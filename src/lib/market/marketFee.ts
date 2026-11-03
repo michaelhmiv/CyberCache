@@ -33,11 +33,12 @@
  * NPC-seeded listings (item supply_mode 'npc_market') are exempt: the
  * fee does not apply and the NPC payout is unchanged.
  *
- * Cache Rank Silver Tongue (0031): a seller with Silver Tongue ranks
- * is minted an uplift of floor(post-fee proceeds × bonus) on top of
- * their proceeds — the fee itself is computed exactly as above and
- * destroyed in full; the uplift never reduces it. NPC sales are
- * exempt from the uplift as well (no fee branch runs for them).
+ * Cache Rank Silver Tongue (0031; fee floor 0064): a seller with
+ * Silver Tongue ranks is paid an uplift of floor(post-fee proceeds
+ * × bonus) on top of their proceeds, CLAMPED to the fee itself —
+ * the uplift rebates the burned fee and can zero it, but the seller
+ * never receives more than the buyer paid. NPC sales are exempt
+ * from the uplift as well (no fee branch runs for them).
  */
 import { computeSkillBonuses, type ClassModBoosts } from '../skills/skillBonuses';
 import { DropSource } from '../../types/game';
@@ -73,11 +74,15 @@ export interface MarketFeeBreakdown {
   fee: number;
   /**
    * Cache Rank Silver Tongue rate (0031): the fraction of the
-   * POST-FEE proceeds minted to the seller on top. 0 when the
-   * seller has no Silver Tongue ranks (or for display callers).
+   * POST-FEE proceeds paid to the seller on top, before the fee
+   * clamp. 0 when the seller has no Silver Tongue ranks (or for
+   * display callers).
    */
   proceedsBonusRate: number;
-  /** Whole credits minted by the Silver Tongue uplift (0031). */
+  /**
+   * Whole credits paid by the Silver Tongue uplift (0031; fee
+   * floor 0064): floor(post-fee proceeds × rate), clamped to ≤ fee.
+   */
   proceedsBonus: number;
   /** Credits the seller is credited: price − fee + proceedsBonus. */
   sellerProceeds: number;
@@ -134,12 +139,15 @@ export function marketFeeForPrice(
   // (e.g. 10000 × 0.0375) so the TS mirror floors exactly where the
   // SQL numeric computation in cc_accept_listing does.
   const fee = Math.floor(price * effectiveRate + 1e-9);
-  // Cache Rank Silver Tongue (0031): composition order is FIXED —
-  // the fee is computed first (rate × (1 − reductions), destroyed),
-  // then the uplift is floor(post-fee proceeds × bonus rate) and
-  // MINTED to the seller. The SQL twin is cc_accept_listing (0031).
+  // Cache Rank Silver Tongue (0031; fee floor 0064): composition
+  // order is FIXED — the fee is computed first (rate × (1 −
+  // reductions), destroyed), then the uplift is floor(post-fee
+  // proceeds × bonus rate) CLAMPED to the fee itself. Silver Tongue
+  // is a rebate of the burned fee, never a mint: sellerProceeds can
+  // reach the full price but never exceed it. The SQL twins are
+  // cc_accept_listing and cc_quickbuy_fill (restated in 0064).
   const bonusRate = Math.min(1, Math.max(0, proceedsBonusRate));
-  const proceedsBonus = Math.floor((price - fee) * bonusRate + 1e-9);
+  const proceedsBonus = Math.min(fee, Math.floor((price - fee) * bonusRate + 1e-9));
   return {
     price,
     feeRate: rate,
