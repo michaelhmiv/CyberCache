@@ -21,7 +21,6 @@ import {
   isQuickBuyGoodKind,
   planMarketSweep,
   splitStackCharge,
-  type QuickBuyGoodKind,
   type QuickBuyGoodRef,
   type QuickBuyListingRow,
   type QuickBuyQuote,

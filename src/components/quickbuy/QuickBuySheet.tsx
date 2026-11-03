@@ -75,20 +75,34 @@ export const QuickBuySheet: React.FC<{
     setTab(defaultQuickBuyTab(next) ?? 'market');
   }, []);
 
+  const fetchQuote = useCallback(
+    () => verifiedOps.quickbuyQuote(good.kind, good.id, shortfall),
+    [good.kind, good.id, shortfall],
+  );
+
   const load = useCallback(async () => {
     setLoadError(null);
     setQuote(null);
     try {
-      const next = await verifiedOps.quickbuyQuote(good.kind, good.id, shortfall);
-      applyQuote(next);
+      applyQuote(await fetchQuote());
     } catch (err) {
       setLoadError(humanizeWorkshopError(err));
     }
-  }, [applyQuote, good.kind, good.id, shortfall]);
+  }, [applyQuote, fetchQuote]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    fetchQuote()
+      .then((next) => {
+        if (!cancelled) applyQuote(next);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLoadError(humanizeWorkshopError(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyQuote, fetchQuote]);
 
   const nav = useCallback(
     (screen: string) => {
