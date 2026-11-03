@@ -82,9 +82,11 @@ describe('shield grammar — registration + dispatch', () => {
     expect(GEAR_PIXEL_KINDS.shield).toBe(true);
     expect(GEAR_GRAMMARS.shield).toBe(shieldGrammar);
     expect(gearRenderRoute('shield')).toBe('pixel');
-    // Ordnance flipped in slice 2; relic + class mods await theirs.
+    // Ordnance flipped in slice 2 and class mods in slice 3; only
+    // relics still await theirs.
     expect(gearRenderRoute('ordnance')).toBe('pixel');
-    for (const kind of ['relic', 'classMod'] as const) {
+    expect(gearRenderRoute('classMod')).toBe('pixel');
+    for (const kind of ['relic'] as const) {
       expect(gearRenderRoute(kind)).toBe('svg');
     }
     expect(Object.keys(SHIELD_FAMILY_ROWS).sort()).toEqual([...BEHAVIORS].sort());
