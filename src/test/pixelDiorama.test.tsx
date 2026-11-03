@@ -4,6 +4,8 @@ import { render, screen } from '@testing-library/react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
+import { useKillCycleStore } from '@/store';
+import { useSurvivalStore } from '@/store/slices/survivalSlice';
 // The diorama's area prop is required in practice (its siblings always pass one).
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
@@ -47,10 +49,12 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
     expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
     // The vector SVG scene is gone for this zone.
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
-    // Chrome is shared: the stage plate + status ribbon render
-    // (drift-fix F2 — the in-stage action buttons are retired;
-    // actions live in the workspace under the stage).
-    expect(screen.getByTestId('diorama-stage-plate').textContent).toContain('Dustwaste Frontier');
+    // Chrome is shared: the status ribbon renders and NO area
+    // plate rides the art (owner ruling 2026-11-02 removed the
+    // "Area · …" banner from the scene; drift-fix F2 had already
+    // retired the in-stage action buttons — actions live in the
+    // workspace under the stage).
+    expect(screen.queryByTestId('diorama-stage-plate')).toBeNull();
     expect(screen.getByTestId('diorama-status-ribbon').textContent).toContain('Roaming');
     expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
@@ -71,6 +75,64 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
     );
     expect(screen.queryByTestId('pixel-diorama-stage')).toBeNull();
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeTruthy();
+  });
+});
+
+describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', () => {
+  it('enemy HP plate anchors UNDER the enemy on the ground line, name + % whole', () => {
+    useKillCycleStore.setState({ currentTargetId: 'dustwaste_raider', currentTargetHp: 30, currentTargetHpMax: 45 });
+    render(
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="roaming_loot" reducedMotion />,
+    );
+    const plate = screen.getByTestId('primary-diorama-target-hp');
+    // Anchored to the scene's ground line (0.86 for every zone
+    // background) on the enemy's column — NOT the old top-right
+    // perch across the enemy's face.
+    expect(plate.style.top).toMatch(/^calc\(86(\.0+)?% \+ 2px\)$/);
+    expect(plate.style.left).toBe('74%');
+    expect(plate.className).not.toContain('top-[68px]');
+    expect(plate.textContent).toContain('Wraith Scavenger');
+    expect(plate.textContent).toContain('67%');
+    // The count plate keeps the top-right corner.
+    expect(screen.getByText('4/7 gear')).toBeTruthy();
+    useKillCycleStore.setState({ currentTargetId: null, currentTargetHp: 0, currentTargetHpMax: 0 });
+  });
+
+  it('hunter HP plate rides raised on the hunter column in combat, numbers whole; absent at camp', () => {
+    useSurvivalStore.setState({ currentHp: 66, maxHp: 100 });
+    const { unmount } = render(
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="roaming_loot" reducedMotion />,
+    );
+    const plate = screen.getByTestId('diorama-hunter-hp');
+    expect(plate.textContent).toContain('66/100');
+    // Anchored to the hunter's placement (xPct 22), raised off the
+    // ground line to lower-body height (groundY − 18.5 points).
+    expect(plate.style.left).toBe('22%');
+    expect(parseFloat(plate.style.top)).toBeCloseTo(67.5, 5);
+    unmount();
+    // Non-combat modes keep the art unobstructed.
+    render(
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="crafting" reducedMotion />,
+    );
+    expect(screen.queryByTestId('diorama-hunter-hp')).toBeNull();
+  });
+
+  it('stage controls sit top-left; the standby stage carries the Switch chip and no Stop slot content of its own', () => {
+    render(
+      <LiveTurfDiorama
+        area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)}
+        weapon={DIORAMA_WEAPON}
+        equippedCount={4}
+        activityKind="idle_standby"
+        reducedMotion
+        stageControls={<button type="button">Switch Action</button>}
+      />,
+    );
+    const controls = screen.getByTestId('diorama-stage-controls');
+    expect(controls.className).toContain('left-2');
+    expect(controls.className).toContain('top-2');
+    expect(controls.className).not.toContain('bottom-11');
+    expect(controls.textContent).toContain('Switch Action');
   });
 });
 

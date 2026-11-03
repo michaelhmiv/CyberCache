@@ -650,9 +650,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
   ].slice(0, MAX_SWITCH_ROWS);
 
-  // Action controls (owner ruling 2026-11-02): Switch / Stop float
+  // Action controls (owner rulings 2026-11-02): Switch / Stop float
   // ON the stage as chips in the plates' language — the stage
-  // places them bottom-right, above the status ribbon. The
+  // places them top-left, in the corner the removed area plate
+  // vacated. The
   // dedicated row under the rail that used to carry them is
   // deleted and its height reclaimed. Switch rides the stage in
   // EVERY state: it is the one door to the Switch sheet, and
@@ -695,10 +696,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           session feed it describes. The one chip that remains in
           this zone is the research chip (#239: the education track
           runs beside the action) — the current-area bar that used
-          to share this row is gone (drift-fix F2): the area
-          affordance is the stage's own area plate now (DESIGN.md
-          §1), one slim plate on the art instead of a full-width
-          dropdown bar above it. */}
+          to share this row is gone (drift-fix F2), and the stage's
+          own area plate followed it (owner ruling 2026-11-02):
+          the area affordance is the mode rail's AREA stop plus
+          the workspace panels' Change Area buttons, and the
+          stage's top-left belongs to the Switch/Stop chips. */}
       <ResearchChip />
       {/* Research (0038): the one-time course-complete card —
           appears on the first open after a course settles
@@ -714,7 +716,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         playerLevel={player.level}
         equippedCount={equippedCount}
         activityKind={currentKind}
-        onTitleClick={() => setShowAreaSelect(true)}
         stageControls={stageControls}
       />
 
@@ -792,7 +793,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer instead of crowding the Action tab." onClose={() => setShowSwitch(false)}>
           {switchActions.map(({ label, detail: rowDetail, icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber">{icon}</div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showAreaSelect} title="Choose Area" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Tap the scene title to switch areas.'} onClose={() => setShowAreaSelect(false)}>
+        <ContextualPickerSheet open={showAreaSelect} title="Choose Area" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Pick where roaming happens — the stage follows the area you choose.'} onClose={() => setShowAreaSelect(false)}>
           {/* Compact area stats strip — replaces the removed Roaming Intel card */}
           {isRoaming && (
             <div className="mb-3 grid grid-cols-3 gap-1.5 text-[9px]">

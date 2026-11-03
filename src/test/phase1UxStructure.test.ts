@@ -121,11 +121,12 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
   });
 
   it('both area entry points render the shared AreaPickerList', () => {
-    // Wave C: there is ONE area picker sheet — the stage's. Its
-    // doors are the stage's area plate (drift-fix F2; the chip
-    // before it), the mode rail's Area stop, and the workspace
-    // panels' Change Area buttons; the deck's old second picker
-    // is gone (the anti-duplication intent: one picker
+    // Wave C: there is ONE area picker sheet — the Action
+    // screen's. Its doors are the mode rail's Area stop and the
+    // workspace panels' Change Area buttons (the stage's area
+    // plate was a third door until the owner removed it from
+    // the stage, ruling 2026-11-02); the deck's old second
+    // picker is gone (the anti-duplication intent: one picker
     // implementation).
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     expect(action).toContain('<AreaPickerList');
@@ -135,18 +136,22 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
     expect(action).not.toContain('const RouteCard');
   });
 
-  it('the persistent current-area read lives on the stage plate, exactly once', () => {
+  it('the area doors are the rail stop + workspace buttons; the stage carries no area plate', () => {
     // Wave C (§4): the chip row sat beside the stage (area chip +
-    // research chip). Drift-fix F2: the area read folds into the
-    // stage's own slim plate — the diorama's stage plate, fed by
-    // onTitleClick — so the current-area door is ON the stage
-    // surface, exactly once, with no separate chip row. The deck
-    // never carried one.
+    // research chip). Drift-fix F2 folded the area read into the
+    // stage's own slim plate; the owner then removed that plate
+    // from the stage outright (ruling 2026-11-02 — no banner on
+    // the art). The picker sheet's doors are now the mode rail's
+    // AREA stop and the workspace panels' Change Area buttons —
+    // both one tap from the stage, both opening the same sheet.
+    // The deck never carried a door.
     const action = readSource('src/screens/ActionScreenContextual.tsx');
-    expect(action).toContain('onTitleClick={() => setShowAreaSelect(true)}');
+    expect(action).toContain("case 'area': setShowAreaSelect(true);");
+    expect(action).toContain('Change Area');
+    expect(action).not.toContain('onTitleClick');
     expect(action).not.toContain('<CurrentAreaChip');
     expect(readSource('src/components/dashboard/DashboardDeck.tsx')).not.toContain('<CurrentAreaChip');
-    expect(readSource('src/components/dashboard/LiveTurfDiorama.tsx')).toContain('diorama-stage-plate');
+    expect(readSource('src/components/dashboard/LiveTurfDiorama.tsx')).not.toContain('diorama-stage-plate');
   });
 });
 

@@ -9,7 +9,7 @@ Two systems deliberately run **in parallel** with your action, because they do n
 
 Everything else on this page competes for the one slot.
 
-You run your action from **the stage on the Home tab** — pick an area, tap Start Roam in the standby workspace directly under the stage, and the rundown begins right there. Under the stage runs the **mode rail** — Area · Roam · Boss · Endless · Extract · Craft, one tap per stop — so every occupation on this page is a single tap from Home, and the Switch Action sheet remains as the complete list (Salvage rides the sheet, not the rail). Switching actions settles the outgoing one first. The controls live **on the stage itself**: the **Switch Action** chip floats at the stage's bottom-right corner in every state, and while an action runs, a **Stop** chip joins it — there is no separate controls row.
+You run your action from **the stage on the Home tab** — pick an area, tap Start Roam in the standby workspace directly under the stage, and the rundown begins right there. Under the stage runs the **mode rail** — Area · Roam · Boss · Endless · Extract · Craft, one tap per stop — so every occupation on this page is a single tap from Home, and the Switch Action sheet remains as the complete list (Salvage rides the sheet, not the rail). Switching actions settles the outgoing one first. The controls live **on the stage itself**: the **Switch Action** chip floats at the stage's top-left corner in every state, and while an action runs, a **Stop** chip joins it — there is no separate controls row.
 
 ## Roaming
 

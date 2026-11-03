@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
@@ -29,6 +28,7 @@ import { areaVisuals } from '@/content/areaPalettes';
 import { isHotArea } from '@/content/hotArea';
 import { elementDialect, shotCadence } from '@/lib/pixel/elementFx';
 import { useLoadoutStore } from '@/store';
+import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
 import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadoutReadModel';
@@ -65,11 +65,11 @@ interface LiveTurfDioramaProps {
   activityKind?: ActivityKind;
   bossPhase?: BossPhase;
   statSummary?: CharacterStatSummary;
-  onTitleClick?: () => void;
   /** Owner ruling 2026-11-02: the running action's controls
    *  (Switch Action · Stop) float ON the stage as chips in the
-   *  plates' language, bottom-right above the status ribbon —
-   *  supplied by the screen, rendered by the stage. */
+   *  plates' language — top-left since the same day's follow-up
+   *  ruling removed the area plate from that corner — supplied
+   *  by the screen, rendered by the stage. */
   stageControls?: React.ReactNode;
 }
 
@@ -191,7 +191,10 @@ const RunnerSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfF
   );
 };
 
-// ── Integrated Enemy HP Bar (SVG, above enemy) ───────────────────────────────────
+// ── Integrated Enemy HP Bar (SVG, below the enemy) ─────────────────────────────
+// Owner ruling 2026-11-02: the bar rides UNDER the enemy's feet,
+// never across its face — the feet shadow sits at y≈151 in this
+// viewBox, so the bar anchors below it.
 
 const EnemyHpBarSvg: React.FC<{ active: boolean; accentColor: string; enemyX: number; enemyY: number }> = ({ active, accentColor, enemyX, enemyY }) => {
   const currentHp = useKillCycleStore((state) => state.currentTargetHp);
@@ -204,7 +207,7 @@ const EnemyHpBarSvg: React.FC<{ active: boolean; accentColor: string; enemyX: nu
   const barWidth = 80;
   const barHeight = 8;
   const x = enemyX - barWidth / 2;
-  const y = enemyY - 28;
+  const y = enemyY + 62;
 
   return (
     <motion.g initial={false} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -552,7 +555,17 @@ const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; we
 
 // ── Target HP Overlay (HTML, kept for accessibility but SVG version is primary) ──
 
-const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ active, accentColor }) => {
+/**
+ * Target HP plate (owner ruling 2026-11-02): the plate used to
+ * hang at the stage's top-right, across the enemy's face. It now
+ * anchors UNDER the enemy — centered on the enemy's feet column
+ * (xPct 74, the shared enemy placement), its top edge on the
+ * scene's ground line, spanning the enemy's stance. The enemy's
+ * face and body stay completely uncovered; the ground line comes
+ * from the same anchor the scene renders by (the background's
+ * groundLine, or the vector scene's feet line as fallback).
+ */
+const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYPct: number; reduced?: boolean }> = ({ active, accentColor, groundYPct, reduced = false }) => {
   const currentHp = useKillCycleStore((state) => state.currentTargetHp);
   const maxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const targetId = useKillCycleStore((state) => state.currentTargetId);
@@ -563,27 +576,28 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string }> = ({ a
   const targetName = MONSTERS.find((monster) => monster.id === targetId)?.name ?? 'Target';
 
   return (
-    <div className="pointer-events-none absolute right-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="primary-diorama-target-hp">
-      <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
+    <div
+      className="pointer-events-none absolute z-30 w-[176px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]"
+      style={{ ...signClip, left: '74%', top: `calc(${groundYPct * 100}% + 2px)`, transform: 'translateX(-50%)' }}
+      data-testid="primary-diorama-target-hp"
+    >
+      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-black uppercase leading-tight tracking-wide text-text-muted">
         <span className="min-w-0 break-words">{targetName}</span>
         <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
       </div>
-      <div className="h-2 w-full overflow-hidden border border-border bg-surface">
-        <motion.div
-          className="h-full"
-          style={{ background: accentColor }}
-          initial={false}
-          animate={{ width: `${ratio * 100}%` }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-        />
-      </div>
+      <GhostHpBar pct={ratio * 100} color={accentColor} reduced={reduced} barClassName="h-[10px]" testId="diorama-target-hp-bar" />
     </div>
   );
 };
 
-/** Boss HP overlay for live boss fights. The fill carries a ghost trail
- *  (P2 movement system): lost HP drains behind the real bar over ~480 ms. */
-const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; reduced?: boolean }> = ({ active, accentColor, reduced = false }) => {
+/** Boss HP plate for live boss fights — same under-the-enemy
+ *  anchoring as the roaming target plate (owner ruling
+ *  2026-11-02: no HP plate across a face, boss included). The
+ *  fill carries a ghost trail (P2 movement system): lost HP
+ *  drains behind the real bar over ~480 ms. The end-of-fight
+ *  status prints as a chip ABOVE the plate, so the plate never
+ *  grows down past the stage's edge. */
+const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYPct: number; reduced?: boolean }> = ({ active, accentColor, groundYPct, reduced = false }) => {
   const bossHp = useBossStore((state) => state.activeBossHp);
   const bossMaxHp = useBossStore((state) => state.activeBossMaxHp);
   const bossId = useBossStore((state) => state.activeBossId);
@@ -596,18 +610,22 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; reduced?: 
   const bossName = bossDef?.name ?? 'Boss';
 
   return (
-    <div className="pointer-events-none absolute right-[36px] top-[68px] z-20 w-[126px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]" style={signClip} data-testid="primary-diorama-boss-hp">
-      <div className="mb-1 flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-wide text-text-muted">
+    <div
+      className="pointer-events-none absolute z-30 w-[176px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]"
+      style={{ ...signClip, left: '74%', top: `calc(${groundYPct * 100}% + 2px)`, transform: 'translateX(-50%)' }}
+      data-testid="primary-diorama-boss-hp"
+    >
+      {status === 'victory' && (
+        <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap border-2 border-border bg-bg px-2 py-0.5 text-[11px] font-black text-green shadow-[4px_4px_0_rgba(0,0,0,0.72)] animate-pulse" style={signClip}>VICTORY</div>
+      )}
+      {status === 'defeat' && (
+        <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap border-2 border-border bg-bg px-2 py-0.5 text-[11px] font-black text-red shadow-[4px_4px_0_rgba(0,0,0,0.72)] animate-pulse" style={signClip}>DEFEATED</div>
+      )}
+      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-black uppercase leading-tight tracking-wide text-text-muted">
         <span className="min-w-0 break-words">{bossName}</span>
         <span className="shrink-0 text-red">{Math.round(ratio * 100)}%</span>
       </div>
-      <GhostHpBar pct={ratio * 100} color={accentColor} reduced={reduced} barClassName="h-2" testId="diorama-boss-hp-bar" />
-      {status === 'victory' && (
-        <div className="mt-1 text-center text-[8px] font-black text-green animate-pulse">VICTORY</div>
-      )}
-      {status === 'defeat' && (
-        <div className="mt-1 text-center text-[8px] font-black text-red animate-pulse">DEFEATED</div>
-      )}
+      <GhostHpBar pct={ratio * 100} color={accentColor} reduced={reduced} barClassName="h-[10px]" testId="diorama-boss-hp-bar" />
     </div>
   );
 };
@@ -686,6 +704,13 @@ const PixelSceneLayer: React.FC<{
   );
   const vehicle = useLoadoutStore((state) => state.getVehicle());
   const vehicleStatus = useVehicleStore((state) => state.lastClaimStatus);
+  // Hunter HP for the on-stage HP plate (owner ruling 2026-11-02:
+  // his HP used to read as a hairline at the hunter's feet — the
+  // survival store is the source, the plate renders it raised).
+  const hunterHp = useSurvivalStore((state) => state.currentHp);
+  const hunterMaxHp = useSurvivalStore((state) => state.maxHp);
+  const hunterHpRatio = hunterMaxHp > 0 ? Math.max(0, Math.min(1, hunterHp / hunterMaxHp)) : 1;
+  const hunterHpColor = hunterHpRatio >= 0.6 ? '#4ADE80' : hunterHpRatio >= 0.3 ? '#FF9000' : '#F87171';
   // Equipped gear, MOUNTED on the parts actor (M3): the mounted
   // reads derive from the ACTUAL equipped instances (gearMounts.ts
   // keys the shield by its behavior + element, the relic by its
@@ -970,6 +995,29 @@ const PixelSceneLayer: React.FC<{
         )}
       </motion.div>
 
+      {/* Hunter HP plate (owner ruling 2026-11-02): his HP, raised
+          off the floor to lower-body height on the hunter's own
+          column — a backed plate with the numbers whole and a
+          thick bar, readable at a glance. It is a SIBLING of the
+          hunter's animated wrapper, anchored to his placement
+          (xPct · ground line), so beat reactions (dodge, recoil)
+          never drag it around; face, torso, gun and arms stay
+          clear above it. Combat modes only — at camp the art
+          stays unobstructed and the strip below carries HP. */}
+      {showEnemy && (
+        <div
+          data-testid="diorama-hunter-hp"
+          className="pointer-events-none absolute z-20 w-[104px] border-2 border-border bg-bg/85 px-1.5 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
+          style={{ ...signClip, left: `${hunterPlacement.xPct}%`, top: `${(groundY - 0.185) * 100}%`, transform: 'translateX(-50%)' }}
+        >
+          <div className="mb-0.5 flex items-baseline justify-between gap-1 text-[11px] font-black leading-none">
+            <span className="text-text-muted">HP</span>
+            <span style={{ color: hunterHpColor }}>{Math.round(hunterHp)}/{Math.round(hunterMaxHp)}</span>
+          </div>
+          <GhostHpBar pct={hunterHpRatio * 100} color={hunterHpColor} reduced={reduced} barClassName="h-[9px]" testId="diorama-hunter-hp-bar" />
+        </div>
+      )}
+
       {/* Enemy — drops in for boss fights (dust + shake on landing),
           walks in roaming; lunges on damage beats; hit/kill reactions */}
       {showEnemy && (
@@ -1170,7 +1218,7 @@ const PixelSceneLayer: React.FC<{
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, onTitleClick, stageControls }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls }) => {
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the SVG fight can react.
@@ -1190,33 +1238,30 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const eventActive = isImpact(latestEvent);
   const dropItem = gearDropFromEvent(latestEvent);
   const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : 'No weapon equipped';
-  // Stage furniture (DESIGN.md §1, drift-fix F2): the Stage carries
-  // exactly three things — one area/target plate, one count plate,
-  // and ONE status ribbon along its bottom edge. (Owner ruling
-  // 2026-11-02 adds one more resident: the action-control chips,
-  // bottom-right above the ribbon — see stageControls below.) The plate is the
-  // area plate (the area picker's stage opener); while a boss
-  // target is live it becomes the target plate. There is no
-  // headline title: the old plate printed the activity target at
-  // poster size, ellipsized long names, and repeated the mode word
-  // the ribbon also carried. The state prints ONCE, in the ribbon:
-  // the mode label + the latest event line, or the mode caption
-  // with the weapon state folded in.
-  const plateIsTarget = (mode === 'bossPrep' || mode === 'bossFight') && !!bossName;
-  const plateName = plateIsTarget ? (bossName as string) : area.name;
+  // Stage furniture (DESIGN.md §1, drift-fix F2; owner rulings
+  // 2026-11-02): the Stage carries the count plate (top-right),
+  // ONE status ribbon along its bottom edge, the action-control
+  // chips (top-left — see stageControls below), and the combat HP
+  // plates at the actors' bases. There is NO area/target plate
+  // anymore: the owner removed the "Area · …" banner from the
+  // scene outright — area switching lives one tap away in the
+  // rail's AREA stop and the workspace panels' Change Area
+  // buttons, and the boss's name rides its HP plate. There is no
+  // headline title either: the old plate printed the activity
+  // target at poster size, ellipsized long names, and repeated
+  // the mode word the ribbon also carried. The state prints
+  // ONCE, in the ribbon: the mode label + the latest event line,
+  // or the mode caption with the weapon state folded in.
   const ribbonLine = latestEvent
     ? `${latestEvent.label} ${latestEvent.detail}`
     : `${copy.caption} · ${weaponLabel}`;
-  const plateBlock = (
-    <div data-testid="diorama-stage-plate" className="flex items-center gap-1.5 border-2 border-border bg-surface/90 px-2 py-1.5 text-left shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}>
-      <PxIcon name="pin" size={13} className="shrink-0 text-amber" />
-      <span className="min-w-0 break-words text-[12px] font-black leading-snug text-text-primary">
-        <span className="text-text-muted">{plateIsTarget ? 'Target · ' : 'Area · '}</span>
-        <span className={plateIsTarget ? 'text-red' : 'text-amber'}>{plateName}</span>
-      </span>
-      {onTitleClick && <PxIcon name="chevD" size={13} className="shrink-0 text-amber" />}
-    </div>
-  );
+  // The ground line the HP plates anchor to: the same anchor the
+  // rendered scene uses — the pixel background's groundLine for
+  // converted zones, the vector scene's feet line (y≈151 of 286)
+  // as fallback.
+  const stageGroundYPct = pixelBackgroundId
+    ? (getPixelSprite(pixelBackgroundId)?.anchors.groundLine?.y ?? 0.86)
+    : 151 / 286;
 
   // Enemy center position (where the archetype center is)
   const enemyX = 320;
@@ -1239,7 +1284,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <ScrapSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
         <RunnerSvg accent={scene.accent} mode={mode} event={latestEvent} reduced={reduced} />
         <EnemySvg color={scene.enemyColor} glow={scene.enemyGlow} archetype="runner" boss={!!bossName || mode === 'bossFight'} mode={mode} event={latestEvent} reduced={reduced} />
-        {/* SVG HP bar integrated above enemy */}
+        {/* SVG HP bar under the enemy's feet (owner ruling 2026-11-02) */}
         <EnemyHpBarSvg active={activityKind === 'roaming_loot'} accentColor={scene.accent} enemyX={enemyX} enemyY={enemyY} />
         {/* Hit flash + damage numbers on enemy */}
         <EnemyHitEffects event={latestEvent} enemyX={enemyX} enemyY={enemyY} reduced={reduced} />
@@ -1270,16 +1315,19 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           testId="diorama-loot-moment"
         />
       )}
-      {/* Target HP overlay */}
-      <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} />
-      <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} reduced={reduced} />
-      {/* Overlay plates ride at z-20 — above every sprite layer
-          (the weapon illustration paints at z-10) — with bounded
-          single-line text, so plate text is never clipped by
-          sprites or run under the count plate (Wave C alignment
-          fix; the scene itself is untouched). */}
-      <div className="absolute inset-x-2 top-2 z-20 flex items-start justify-between gap-2">
-        {onTitleClick ? <button type="button" onClick={onTitleClick} aria-label={plateIsTarget ? `Target: ${plateName}. Tap to change area.` : `Area: ${plateName}. Tap to change area.`} className="pointer-events-auto min-w-0 flex-1 active:scale-[0.99]">{plateBlock}</button> : <div className="pointer-events-none min-w-0 flex-1">{plateBlock}</div>}
+      {/* Target / boss HP plates — anchored under the enemy on
+          the ground line (owner ruling 2026-11-02), never across
+          its face. */}
+      <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
+      <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
+      {/* The count plate is the top row's only resident now
+          (owner ruling 2026-11-02 removed the area/target plate
+          from the top-left; the action controls took that
+          corner). It rides at z-20 — above every sprite layer
+          (the weapon illustration paints at z-10) — so its text
+          is never clipped by sprites (Wave C alignment fix; the
+          scene itself is untouched). */}
+      <div className="absolute inset-x-2 top-2 z-20 flex items-start justify-end gap-2">
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
       </div>
       {!pixelBackgroundId && weapon ? (
@@ -1309,13 +1357,16 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         <span className="shrink-0 border border-border bg-bg px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">{copy.label}</span>
         <span className="min-w-0 flex-1 break-words text-[11px] leading-snug text-text-muted">{ribbonLine}</span>
       </div>
-      {/* Action controls (owner ruling 2026-11-02): Switch / Stop
-          float on the scene, bottom-right above the ribbon, clear
-          of the hunter (left/center) and of the center-stage loot
-          moment. The screen owns the buttons; the stage owns the
-          placement. z-30 rides above every sprite layer. */}
+      {/* Action controls (owner rulings 2026-11-02): Switch /
+          Stop float on the scene — first bottom-right above the
+          ribbon, then moved the same day to the TOP-LEFT corner
+          the removed area plate vacated, so the scene's lower
+          half (hunter, enemy, loot moment) carries no controls
+          at all. The screen owns the buttons; the stage owns
+          the placement. z-30 rides above every sprite layer; the
+          count plate keeps the top-right. */}
       {stageControls ? (
-        <div data-testid="diorama-stage-controls" className="absolute bottom-11 right-2 z-30 flex items-start gap-2">
+        <div data-testid="diorama-stage-controls" className="absolute left-2 top-2 z-30 flex items-start gap-2">
           {stageControls}
         </div>
       ) : null}

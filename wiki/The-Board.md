@@ -30,7 +30,9 @@ Claimable state is designed to be glanceable: if something is waiting for you, t
 
 ## The stage
 
-The centre of Home is **the stage**: your hunter, rendered with the weapon you actually have equipped, under a slim **area plate** at the top edge and a **status ribbon** along the bottom edge that names the current activity and its latest event. The stage itself carries no buttons over the art — the doors that matter in the moment live in the workspace directly under it: in standby that is the Roam panel (the area's rates, one **Start Roam** bar, and **Change Area · Loadout** beneath it); while a boss encounter is open, the encounter panel carries its own fight and Change Boss controls. This is the Action workspace, living on Home itself: pick an area, tap Start Roam, and the rundown begins on the same screen.
+The centre of Home is **the stage**: your hunter, rendered with the weapon you actually have equipped, with a **gear count plate** at the top-right corner and a **status ribbon** along the bottom edge that names the current activity and its latest event. No banner rides the art — the stage does not print the area's name; the doors that matter in the moment live in the workspace directly under it: in standby that is the Roam panel (the area's rates, one **Start Roam** bar, and **Change Area · Loadout** beneath it); while a boss encounter is open, the encounter panel carries its own fight and Change Boss controls. This is the Action workspace, living on Home itself: pick an area, tap Start Roam, and the rundown begins on the same screen.
+
+While a fight runs, each fighter's health sits at their feet, never across their face: your hunter's **HP plate** rides at his lower body on his side of the stage — his current and maximum health, with the bar — and the enemy's **HP plate** (its name and health bar) anchors under the enemy on the ground line. A boss's name rides its HP plate the same way.
 
 Finds on the stage rise as what they actually are: a gear drop gets its rarity beam and item card; a cache-key fragment rises as the blue key shard; materials and essences rise as their own icons; a kill pays out with a scrap rise. The big cache crate never celebrates an ordinary roaming tick — roaming grants fragments, materials, and the base payout, while cache boxes and completed keys come from the cache lane and fragment settlement (five fragments make a key). See [[Caches]].
 
@@ -40,13 +42,13 @@ Your equipped gear is worn the same way — mounted on the figure itself, moving
 
 Under the gear, the figure itself is dressed by your [[Skins-and-Cosmetics|skin parts]]: wear a crafted part and it replaces the matching piece of the standard suit on the stage, in the boss arena, everywhere your hunter appears. Parts are pure looks — the stage hunter fights exactly as hard in a shaped Bulwark set as in the stock suit.
 
-At the stage's top edge sits the **area plate** — your current area's name (or your boss target's, while a target is live) — tap it to open the area picker and change where roaming happens. If you are enrolled in a [[Progression|Research]] course, its chip sits just above the stage, because research runs alongside your action rather than replacing it.
+Changing area lives one tap from the stage: the mode rail's **Area** stop and the workspace panels' **Change Area** buttons both open the area picker. If you are enrolled in a [[Progression|Research]] course, its chip sits just above the stage, because research runs alongside your action rather than replacing it.
 
 ## The mode rail
 
 Under the stage runs the **mode rail** — six stops, one tap each: **Area · Roam · Boss · Endless · Extract · Craft**. The lit stop is the mode whose workspace is open below. Endless, Extraction, and Crafting are full stops on the rail; the **Switch Action** sheet still offers every mode it always did, Salvage included — the rail is the fast door, the sheet is the complete one.
 
-The action controls themselves float **on the stage**: the **Switch Action** chip sits at the stage's bottom-right corner in every state — it is the sheet's one door — and while an action is running, a **Stop** chip joins it. There is no separate controls row; the space under the rail belongs to the workspace.
+The action controls themselves float **on the stage**: the **Switch Action** chip sits at the stage's top-left corner in every state — it is the sheet's one door — and while an action is running, a **Stop** chip joins it. There is no separate controls row; the space under the rail belongs to the workspace.
 
 Below the rail sits the **lit workspace** for the current mode, then the **consumable belt**: your active consumable slots, above the fold. Tap a slot to open the ledger and manage what is loaded.
 
