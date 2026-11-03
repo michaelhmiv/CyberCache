@@ -32,6 +32,7 @@ import {
   createGetDispatchHandler,
   createPreviewDispatchHandler,
   createRecallDispatchHandler,
+  createRerollDispatchHandler,
   createStartDispatchHandler,
 } from '../routes/dispatch';
 import { createGetExtractionHandler, type ExtractionConfig } from '../routes/extraction';
@@ -135,7 +136,8 @@ export function mountDispatchRoutes(
   app.post('/api/dispatch/preview', createPreviewDispatchHandler(gameplayStore, config));
   app.post('/api/dispatch/start', createStartDispatchHandler(gameplayStore, config));
   app.post('/api/dispatch/recall', createRecallDispatchHandler(gameplayStore, config));
-  console.log('[chef] dispatch routes mounted: GET /api/dispatch/me, POST /api/dispatch/preview, /api/dispatch/start, /api/dispatch/recall (0032)');
+  app.post('/api/dispatch/reroll', createRerollDispatchHandler(gameplayStore, config));
+  console.log('[chef] dispatch routes mounted: GET /api/dispatch/me, POST /api/dispatch/preview, /api/dispatch/start, /api/dispatch/recall, /api/dispatch/reroll (0032, 0068)');
 }
 
 /**

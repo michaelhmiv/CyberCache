@@ -54,6 +54,15 @@
  *    Settlement happens server-side from server timestamps, lazily
  *    on the next dispatch read/departure — the offline-settlement
  *    pattern, never the client's clock.
+ *  - THE BOARD IS SET; RE-DEALS COST CREDITS (economy brief §7.3,
+ *    migration 0068). Six offers a day is the slate; a player may
+ *    re-deal it for credits at an escalating price (base × 2^(k−1),
+ *    capped per UTC day, both live levers). A reroll deals board
+ *    n+1 under fresh seeds with the same six-slot composition;
+ *    departed offer ids stay departed (the id is the consumption
+ *    unit — identical terms under a NEW id are a new offer), and
+ *    running contracts are never repriced: a reroll touches only
+ *    un-departed offers on boards not yet dealt.
  */
 import { ROAMING_AREAS, type RoamingAreaDef } from '../constants/roamingAreas';
 import {
@@ -80,6 +89,11 @@ export interface DispatchLeverValues {
   courierPremiumMultiplier: number;
   /** Route ticks per contract hour (courier cost accounting unit). */
   courierRouteTicksPerHour: number;
+  /** Base price (credits) of the day's first dispatch board reroll;
+   *  reroll k costs base × 2^(k−1) (economy brief §7.3). */
+  dispatchRerollBaseCredits: number;
+  /** Max paid board rerolls per UTC day (economy brief §7.3). */
+  dispatchRerollDailyCap: number;
 }
 
 export const DISPATCH_LEVER_DEFAULTS: DispatchLeverValues = {
@@ -89,6 +103,8 @@ export const DISPATCH_LEVER_DEFAULTS: DispatchLeverValues = {
   dispatchMaterialRate: 1,
   courierPremiumMultiplier: 1.6,
   courierRouteTicksPerHour: 120,
+  dispatchRerollBaseCredits: 250,
+  dispatchRerollDailyCap: 5,
 };
 
 export const DISPATCH_LEVER_CLAMPS: Record<keyof DispatchLeverValues, { min: number; max: number; integer: boolean }> = {
@@ -98,6 +114,8 @@ export const DISPATCH_LEVER_CLAMPS: Record<keyof DispatchLeverValues, { min: num
   dispatchMaterialRate: { min: 0, max: 3, integer: false },
   courierPremiumMultiplier: { min: 1, max: 3, integer: false },
   courierRouteTicksPerHour: { min: 60, max: 240, integer: true },
+  dispatchRerollBaseCredits: { min: 0, max: 10000, integer: true },
+  dispatchRerollDailyCap: { min: 0, max: 20, integer: true },
 };
 
 /** Resolve lever values from a raw economy-config snapshot: stored
@@ -181,7 +199,10 @@ export function utcDayKey(date: Date): string {
 }
 
 export interface DispatchOffer {
-  /** Stable within the UTC day: `d<YYYYMMDD>-<index>`. */
+  /** Stable within the UTC day and board: board 0 is
+   *  `d<YYYYMMDD>-<index>`; board n ≥ 1 (a paid reroll, §7.3) is
+   *  `d<YYYYMMDD>-r<n>-<index>`. The consumption unit is this id:
+   *  an offer id, once departed, stays departed for the day. */
   id: string;
   family: DispatchFamily;
   areaId: string;
@@ -190,29 +211,106 @@ export interface DispatchOffer {
 
 /** Board composition: six offers, courier at indices 1 and 4 — a
  *  guaranteed mix every day (courier brief §2.1: each refresh offers
- *  a mix of foot and courier contracts). */
+ *  a mix of foot and courier contracts). Every rerolled board keeps
+ *  this exact composition (economy brief §7.3). */
 const OFFER_FAMILIES: DispatchFamily[] = ['foot', 'courier', 'foot', 'foot', 'courier', 'foot'];
 
 /**
- * The day's contract board — system-issued, date-seeded, computed on
- * read (the vendor-rotation / hot-area pattern; no cron, no table).
- * Deterministic for a UTC day: the server recomputes the same board
- * at departure and matches the claimed offer id, so a forged offer
- * (invented area/duration/family) never validates.
+ * One of the day's contract boards — system-issued, date-seeded,
+ * computed on read (the vendor-rotation / hot-area pattern; no cron,
+ * no table). Deterministic for a UTC day + board index: the server
+ * recomputes the player's CURRENT board at departure and matches the
+ * claimed offer id, so a forged offer (invented area/duration/
+ * family) — or an offer from any other board, purchased or not —
+ * never validates (economy brief §7.3).
+ *
+ * Board 0 is the free daily board and is BYTE-IDENTICAL to the
+ * shipped formula: hash inputs `dispatch:<day>:<i>:area|duration`,
+ * ids `d<day>-<i>`. Board n ≥ 1 hashes
+ * `dispatch:<day>:r<n>:<i>:area|duration` and ids `d<day>-r<n>-<i>`,
+ * so a reroll re-deals areas/durations under fresh seeds while the
+ * running players' board 0 never moves under them.
  */
-export function dispatchOffersForDate(date: Date): DispatchOffer[] {
+export function dispatchOffersForBoard(date: Date, boardIndex: number): DispatchOffer[] {
   const day = utcDayKey(date);
+  const board = Math.max(0, Math.trunc(boardIndex) || 0);
   return OFFER_FAMILIES.map((family, index) => {
-    const areaHash = dispatchHash(`dispatch:${day}:${index}:area`);
-    const durationHash = dispatchHash(`dispatch:${day}:${index}:duration`);
+    const seedBase = board === 0
+      ? `dispatch:${day}:${index}`
+      : `dispatch:${day}:r${board}:${index}`;
+    const areaHash = dispatchHash(`${seedBase}:area`);
+    const durationHash = dispatchHash(`${seedBase}:duration`);
     const area = ROAMING_AREAS[areaHash % ROAMING_AREAS.length];
     const durationHours = DISPATCH_DURATIONS_HOURS[durationHash % DISPATCH_DURATIONS_HOURS.length];
-    return { id: `d${day.replace(/-/g, '')}-${index}`, family, areaId: area.id, durationHours };
+    return {
+      id: board === 0 ? `d${day.replace(/-/g, '')}-${index}` : `d${day.replace(/-/g, '')}-r${board}-${index}`,
+      family,
+      areaId: area.id,
+      durationHours,
+    };
   });
 }
 
+/** The day's free board (board 0) — the shipped daily board. */
+export function dispatchOffersForDate(date: Date): DispatchOffer[] {
+  return dispatchOffersForBoard(date, 0);
+}
+
+export function findDispatchOfferForBoard(date: Date, boardIndex: number, offerId: string): DispatchOffer | null {
+  return dispatchOffersForBoard(date, boardIndex).find((o) => o.id === offerId) ?? null;
+}
+
 export function findDispatchOffer(date: Date, offerId: string): DispatchOffer | null {
-  return dispatchOffersForDate(date).find((o) => o.id === offerId) ?? null;
+  return findDispatchOfferForBoard(date, 0, offerId);
+}
+
+// ─── Board reroll (economy brief §7.3) ───────────────────────────────
+
+/** The stored per-player board state (profile columns, migration
+ *  0068): which board the player is on, how many paid rerolls they
+ *  have used, and the UTC day key those numbers belong to. */
+export interface DispatchBoardState {
+  boardIndex: number;
+  rerollsUsed: number;
+  /** UTC day key (`YYYY-MM-DD`) the state belongs to. */
+  day: string;
+}
+
+/**
+ * Resolve the EFFECTIVE board state for `date` from the stored row:
+ * state stored under any other day key is stale and reads as the
+ * fresh day (board 0, no rerolls used) — the lazy reset on read; no
+ * cron ever rewrites it, the next reroll persists the new day.
+ */
+export function resolveDispatchBoardState(
+  stored: { boardIndex?: number | null; rerollsUsed?: number | null; day?: string | null } | null | undefined,
+  date: Date,
+): DispatchBoardState {
+  const day = utcDayKey(date);
+  if (!stored || stored.day !== day) return { boardIndex: 0, rerollsUsed: 0, day };
+  return {
+    boardIndex: Math.max(0, Math.trunc(Number(stored.boardIndex) || 0)),
+    rerollsUsed: Math.max(0, Math.trunc(Number(stored.rerollsUsed) || 0)),
+    day,
+  };
+}
+
+/**
+ * The price of the NEXT reroll after `rerollsUsed` rerolls today:
+ * reroll k (1-based) costs `dispatchRerollBaseCredits × 2^(k−1)` —
+ * 250 / 500 / 1,000 / 2,000 / 4,000 at the shipped defaults.
+ * Escalation is the design (brief §7.3): a flat price low enough to
+ * feel fair would make cherry-picking boards a pure arbitrage.
+ */
+export function dispatchRerollPrice(rerollsUsed: number, levers: DispatchLeverValues): number {
+  const used = Math.max(0, Math.trunc(rerollsUsed) || 0);
+  return Math.trunc(levers.dispatchRerollBaseCredits) * 2 ** used;
+}
+
+/** Paid rerolls left today (0 at the `dispatchRerollDailyCap`). */
+export function dispatchRerollsRemaining(rerollsUsed: number, levers: DispatchLeverValues): number {
+  const used = Math.max(0, Math.trunc(rerollsUsed) || 0);
+  return Math.max(0, Math.trunc(levers.dispatchRerollDailyCap) - used);
 }
 
 export function roamingAreaById(areaId: string): RoamingAreaDef | null {
