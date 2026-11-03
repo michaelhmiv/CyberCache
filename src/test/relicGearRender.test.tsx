@@ -49,4 +49,15 @@ describe('GearIllustration — relics render pixel (slice 4 flip)', () => {
     expect(canvas!.dataset.signature).toBe(expected.signature);
     expect(canvas!.dataset.density).toBe('thumb');
   });
+
+  it('an off-pool relic name renders no plate instead of crashing the surface', () => {
+    // The derivation itself throws (pinned in relicGrammar.test.ts —
+    // pool drift is a suite failure), but the render seam degrades:
+    // no canvas, no SVG, no exception. A cosmetic layer never takes
+    // down a screen over a record it has no truthful art for.
+    const alien: Relic = { ...token, id: 'rec-alien', name: 'Odd Relic' };
+    const { container } = render(<GearIllustration item={alien} size="card" showBadges={false} />);
+    expect(container.querySelector('canvas')).toBeNull();
+    expect(container.querySelector('svg')).toBeNull();
+  });
 });

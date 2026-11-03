@@ -350,7 +350,7 @@ describe('device r2 — equipping through the Slot Picker, every slot kind', () 
     { label: 'Heavy', slot: 'heavy', item: () => makeWeapon('it-heavy', 'Case Cannon') },
     { label: 'Shield', slot: 'shield', item: () => makeShield('it-shield', 'Case Aegis') },
     { label: 'Mod', slot: 'classMod', item: () => makeClassMod('it-mod', 'Case Mod') },
-    { label: 'Relic', slot: 'relic', item: () => makeRelic('it-relic', 'Case Relic') },
+    { label: 'Relic', slot: 'relic', item: () => makeRelic('it-relic', 'Cache Relic') },
     { label: 'Ordnance', slot: 'ordnance', item: () => makeOrdnance('it-ord', 'Case Ordnance') },
   ];
 
@@ -393,18 +393,18 @@ describe('device r2 — equipping through the Slot Picker, every slot kind', () 
   });
 
   it('GearHub’s Equip door lands in the picker for a relic too', async () => {
-    const relic = makeRelic('r-door', 'Door Relic');
+    const relic = makeRelic('r-door', 'Echo Stone');
     useInventoryStore.setState({ items: [relic] });
     render(<InventoryScreen onNavigate={vi.fn()} />);
     // Merged page (Exec C): the item grid is the page's Inventory
     // section — the player path to an item card starts right here,
     // no rail stop stands in between.
-    fireEvent.click(await screen.findByText('Door Relic'));
+    fireEvent.click(await screen.findByText('Echo Stone'));
     const equipAction = await screen.findByRole('button', { name: /Equip/ });
     fireEvent.click(equipAction);
     await screen.findByText('Tap a slot to equip');
     expect(await screen.findByText('Relic', { selector: '.bl-title' })).toBeTruthy();
-    await equipFromPicker('r-door', 'Door Relic', 'relic');
+    await equipFromPicker('r-door', 'Echo Stone', 'relic');
   });
 
   it('the vehicle slot equips from the Garage through the same verified op', async () => {
