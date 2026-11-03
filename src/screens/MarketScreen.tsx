@@ -6,6 +6,7 @@ import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { GearCompare } from '@/components/gear/GearCompare';
 import { useAuth } from '@/auth/AuthProvider';
+import { trackMarketBuy, trackMarketList } from '@/lib/analytics/analytics';
 import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useSkillStore } from '@/store';
 import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
 import { CosmeticMiniCard } from '@/components/market/CosmeticMiniCard';
@@ -626,6 +627,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     setPendingListId(itemId);
     try {
       await verifiedOps.marketCreate(itemId, price);
+      trackMarketList('gear');
       setToastMessage(`Listed "${item.name}" for ${price.toLocaleString()}cr.`);
       await refreshListings();
     } catch (err) {
@@ -651,6 +653,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     setPendingListId(partItemId);
     try {
       await verifiedOps.marketCreate(partItemId, price);
+      trackMarketList('cosmetic');
       setToastMessage(`Listed "${displayName}" for ${price.toLocaleString()}cr.`);
       await Promise.all([refreshListings(), refreshCosmetics()]);
     } catch (err) {
@@ -673,6 +676,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     setPendingListId(vehicle.id);
     try {
       await verifiedOps.marketCreate(vehicle.id, price);
+      trackMarketList('vehicle');
       setToastMessage(`Listed "${vehicle.name}" for ${price.toLocaleString()}cr.`);
       await refreshListings();
     } catch (err) {
@@ -814,6 +818,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     setPendingBuyId(listing.id);
     try {
       await verifiedOps.acceptListing(listing.id);
+      trackMarketBuy(listing.kind);
       void refreshCosmetics();
       market.addHistory({ id: listing.id, type: 'buy', itemId: listing.itemId ?? listing.id, itemName: listing.displayName || 'Unknown', itemRarity: listing.rarity || (listing.kind === 'consumable' ? 'Consumable' : listing.kind === 'material' ? 'Material' : listing.kind === 'fragment' ? 'Cache Fragment' : listing.kind === 'core' ? 'Legendary Core' : listing.kind === 'essence' ? 'Essence' : listing.kind === 'cosmetic' ? 'Skin Part' : 'Common'), price: listing.price, fee: 0, otherPartyId: listing.sellerId, timestamp: getNow() });
       setToastMessage(`Bought "${listing.displayName}" for ${listing.price.toLocaleString()}cr.`);

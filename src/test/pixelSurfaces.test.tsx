@@ -5,6 +5,7 @@ import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { WeaponCard } from '@/components/common/WeaponCard';
 import { ActionFeed } from '@/components/action/ActionWorkspace';
 import { composePixelWeapon, type PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
+import { composeWeaponCard } from '@/lib/pixel/weaponCardCompositor';
 import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
 import { createRNG } from '@/lib/utils/rng';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -16,8 +17,13 @@ import type { Shield as ShieldItem, Weapon } from '@/types/items';
  * weapons through GearIllustration; WeaponCard and the ActionFeed loot
  * log draw them directly. All of them must resolve to the ONE pixel
  * renderer: bespoke sprite for named legendaries, the deterministic
- * parts-kit compositor for everything else — the same signature the
- * diorama/loot surfaces produce for the same weapon.
+ * parts-kit compositor for everything else.
+ *
+ * Weapon marriage (slice 1): CARD surfaces (GearIllustration,
+ * WeaponCard) render at card density (240×88 card compositor) and
+ * share the CARD signature; the ActionFeed loot log keeps the stage
+ * density (120×44) and the stage signature. Within each density,
+ * every surface agrees exactly.
  */
 
 const proceduralWeapon = generateWeapon(
@@ -52,31 +58,36 @@ const shield = {
   pixelSeed: 7,
 } as unknown as ShieldItem;
 
-const compositorSignature = (weapon: Weapon) =>
-  composePixelWeapon({
-    weaponType: weapon.weaponType,
-    manufacturer: weapon.manufacturer,
-    rarity: weapon.rarity,
-    element: weapon.element,
-    parts: weapon.parts,
-    name: weapon.name,
-    // Overhaul §4.2 real-item invariant: PixelWeapon resolves the FULL
-    // instance identity (id/seed/affixes/roll quality drive decals and
-    // condition), so the shared-signature reference must compose the
-    // same input — the surfaces still agree with each other exactly.
-    id: weapon.id,
-    pixelSeed: weapon.pixelSeed,
-    affixes: weapon.affixes,
-    rollQuality: weapon.rollQuality,
-    legendaryEffectId: weapon.legendaryEffectId,
-  } satisfies PixelWeaponInput).signature;
+const sharedInput = (weapon: Weapon) => ({
+  weaponType: weapon.weaponType,
+  manufacturer: weapon.manufacturer,
+  rarity: weapon.rarity,
+  element: weapon.element,
+  parts: weapon.parts,
+  name: weapon.name,
+  // Overhaul §4.2 real-item invariant: PixelWeapon resolves the FULL
+  // instance identity (id/seed/affixes/roll quality drive decals and
+  // condition), so the shared-signature reference must compose the
+  // same input — the surfaces still agree with each other exactly.
+  id: weapon.id,
+  pixelSeed: weapon.pixelSeed,
+  affixes: weapon.affixes,
+  rollQuality: weapon.rollQuality,
+  legendaryEffectId: weapon.legendaryEffectId,
+} satisfies PixelWeaponInput);
+
+/** Stage-density signature (ActionFeed loot log). */
+const compositorSignature = (weapon: Weapon) => composePixelWeapon(sharedInput(weapon)).signature;
+/** Card-density signature (GearIllustration / WeaponCard surfaces). */
+const cardCompositorSignature = (weapon: Weapon) => composeWeaponCard(sharedInput(weapon)).signature;
 
 describe('GearIllustration — weapon branch renders pixel (inventory/market/inspect/chest path)', () => {
   it('renders a procedural weapon as the compositor canvas with the shared signature', () => {
     const { container } = render(<GearIllustration item={proceduralWeapon} size={50} showBadges={false} />);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-signature')).toBe(compositorSignature(proceduralWeapon));
+    expect(canvas?.getAttribute('data-signature')).toBe(cardCompositorSignature(proceduralWeapon));
+    expect(canvas?.getAttribute('data-density')).toBe('card');
     // The old vector weapon SVG (aria-label "Rarity Element Type") is gone.
     expect(container.querySelector('svg')).toBeNull();
   });
@@ -93,7 +104,7 @@ describe('GearIllustration — weapon branch renders pixel (inventory/market/ins
     const { container } = render(<GearIllustration item={plainLegendary} size={46} showBadges={false} />);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-signature')).toBe(compositorSignature(plainLegendary));
+    expect(canvas?.getAttribute('data-signature')).toBe(cardCompositorSignature(plainLegendary));
   });
 
   it('maps named sizes to the shared pixel widths (thumb/card/showcase)', () => {

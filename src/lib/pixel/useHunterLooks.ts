@@ -5,6 +5,13 @@
  * session so re-renders and board switches don't refetch. A failed
  * read leaves the map empty — rows render without portraits
  * rather than failing the board.
+ *
+ * The returned map is derived from the session cache at render
+ * time: a surface that mounts before its ids are known (the
+ * profile pop-up opens empty, then receives a profile) picks up
+ * already-cached looks on its next render instead of missing them
+ * forever — the fetch effect only ever fetches, and its completion
+ * bumps a tick that re-renders subscribers.
  */
 import { useEffect, useState } from 'react';
 import { getHunterLooks } from '@/lib/chef/chefClient';
@@ -14,14 +21,7 @@ const cache = new Map<string, HunterLookView>();
 const inFlight = new Set<string>();
 
 export function useHunterLooks(ids: string[]): Record<string, HunterLookView> {
-  const [looks, setLooks] = useState<Record<string, HunterLookView>>(() => {
-    const out: Record<string, HunterLookView> = {};
-    for (const id of ids) {
-      const hit = cache.get(id);
-      if (hit) out[id] = hit;
-    }
-    return out;
-  });
+  const [, setFetchTick] = useState(0);
 
   const key = [...new Set(ids)].sort().join(',');
   useEffect(() => {
@@ -33,16 +33,7 @@ export function useHunterLooks(ids: string[]): Record<string, HunterLookView> {
     getHunterLooks(wanted.slice(0, 50))
       .then((result) => {
         for (const [id, look] of Object.entries(result.looks)) cache.set(id, look);
-        if (!cancelled) {
-          setLooks((prev) => {
-            const next = { ...prev };
-            for (const id of key.split(',')) {
-              const hit = cache.get(id);
-              if (hit) next[id] = hit;
-            }
-            return next;
-          });
-        }
+        if (!cancelled) setFetchTick((tick) => tick + 1);
       })
       .catch(() => undefined)
       .finally(() => {
@@ -53,6 +44,11 @@ export function useHunterLooks(ids: string[]): Record<string, HunterLookView> {
     };
   }, [key]);
 
+  const looks: Record<string, HunterLookView> = {};
+  for (const id of ids) {
+    const hit = cache.get(id);
+    if (hit) looks[id] = hit;
+  }
   return looks;
 }
 

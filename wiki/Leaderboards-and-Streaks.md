@@ -21,6 +21,10 @@ Standings list everyone with a score above zero, but **rewards only pay at or ab
 
 Before the first rankings settle, the standings show an empty board: rankings fill in from hunters' play, so the board populates after the next snapshot once anyone has scored.
 
+### Visiting another hunter
+
+Every name on the standings — weekly races and the all-time boards alike — is a door. Tap a hunter and a pop-up introduces them: the look they wear, their Trophy Shelf (hand-pinned trophies marked), their best depth, Cache Rank, and collection progress, and their headline stats. **View Full Profile** opens the whole public record: the hunter at stage size in the look they wear, the full shelf, and every public stat — level, kills, boss tiers, mastery, collection. Profiles are read-only and open to everyone, guests included: a hunter's public record is the brag surface — what they pinned, what they wear, and what the game itself keeps score of. Nothing private travels with it: no balances beyond net worth, no account details, no history folds.
+
 ### Settlement and rewards
 
 Settlement rides the game's daily heartbeat: once a week has closed, it settles exactly once and rewards are paid from the settled standings.
@@ -67,7 +71,7 @@ Finishing day 7 doesn't end the streak — the next 7 days repeat the ladder at 
 - Tier 1 pays ×1, tier 2 ×1.5, tier 3 ×2, tier 4 ×2.5, and **tier 5 caps the ladder at ×3**. A streak longer than 35 days keeps cycling at tier 5.
 - The **cache key never scales**: every completed cycle pays exactly one key, at every tier.
 
-The flame icon in the Board's top bar shows your current streak day at a glance, pulses with a NEW badge when a check-in has just paid, and opens the full ladder panel when tapped — so you can always see what tomorrow is worth before you decide to come back for it.
+The flame icon in the top bar shows your current streak day at a glance and opens the streak sheet when tapped. When a check-in has just paid, the flame pulses with a NEW badge — that pulse is an announcement, not a claim: the reward is already in your account. The sheet tags every reward **Banked**, and you can watch your credits tick up to the new balance in the top bar. Opening the sheet and tapping **Back to the hunt** acknowledges the grant and clears the badge; a day that has already banked shows no pulse at all. The sheet prints the full ladder and what tomorrow pays, so you can always see what tomorrow is worth before you decide to come back for it — and a new streak day starts at 00:00 UTC.
 
 ---
 

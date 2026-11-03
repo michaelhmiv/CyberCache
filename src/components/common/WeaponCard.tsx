@@ -36,7 +36,7 @@ export const WeaponCard: React.FC<WeaponCardProps> = ({ weapon, onClick, showDet
         {/* Pixel path (P5): bespoke legendary sprite or parts-kit composite —
             the same render every other surface shows for this weapon.
             ('card' in the shared size table is 70px wide.) */}
-        <PixelWeapon weapon={weapon} size={70} />
+        <PixelWeapon weapon={weapon} size={70} density="card" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-0.5 flex items-center gap-1.5">

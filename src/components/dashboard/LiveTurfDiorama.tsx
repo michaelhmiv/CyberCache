@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { WeaponIllustration } from '@/components/weapon/WeaponIllustration';
+import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
 import {
   CritFlash,
@@ -1348,7 +1348,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined}
           transition={eventActive && !reduced ? { duration: 0.44 } : undefined}
         >
-          <WeaponIllustration weapon={weapon} size={106} showBadges={false} animate={false} />
+          <PixelWeapon weapon={weapon} size={106} />
         </motion.div>
       ) : !weapon ? (
         <div

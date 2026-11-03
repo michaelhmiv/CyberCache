@@ -10,8 +10,13 @@
  *    store — the same numbers the old in-scroll Level Strip
  *    showed; no second XP truth), tappable → the level pop-up.
  *  - STREAK icon button: opens the login-streak pop-up (the real
- *    LoginStreakPanel). Pulses with a "NEW" badge when today's
- *    check-in just granted a reward.
+ *    LoginStreakPanel). While a fresh grant is unacknowledged it
+ *    carries the announcement — pulse + "NEW" badge — that the
+ *    grant BANKED on arrival (streak audit D1: the pulse is news,
+ *    not a claim signal; the reward is never claimed, it lands
+ *    at the check-in read). The sheet's "Back to the hunt"
+ *    acknowledges it and the announcement dies for the session;
+ *    the already-claimed state carries no pulse and no badge.
  *  - CONTRACTS icon button: opens the contracts pop-up (the real
  *    ContractsPanel). Pulses with a claimable-count badge when
  *    contracts are ready to claim; guests get the lock badge the
@@ -62,7 +67,7 @@ import { ContractsPanel } from './ContractsPanel';
 import { WeeklyClaimablesList } from './WeeklyClaimables';
 import { usePlayerStore } from '@/store';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
-import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
+import { loginStreakAnnouncement, useLoginStreakStore } from '@/store/slices/loginStreakSlice';
 import { countClaimableContracts, useContractsStore } from '@/store/slices/contractsSlice';
 import { useStandingStore, weeklyClaimables } from '@/store/slices/standingSlice';
 import { xpToNextLevel } from '@/content/simulation';
@@ -126,7 +131,10 @@ export const DashboardTopBar: React.FC = () => {
   const level = usePlayerStore((s) => s.level);
   const xp = usePlayerStore((s) => s.xp);
   const streakResult = useLoginStreakStore((s) => s.result);
+  const streakResultDay = useLoginStreakStore((s) => s.resultDay);
+  const streakSeenGrantKey = useLoginStreakStore((s) => s.seenGrantKey);
   const loadStreak = useLoginStreakStore((s) => s.load);
+  const revalidateStreak = useLoginStreakStore((s) => s.revalidate);
   const contractsResult = useContractsStore((s) => s.result);
   const loadContracts = useContractsStore((s) => s.load);
   const standingView = useStandingStore((s) => s.view);
@@ -144,6 +152,18 @@ export const DashboardTopBar: React.FC = () => {
     void loadStanding();
   }, [loadStreak, loadContracts, loadStanding]);
 
+  // Day-boundary revalidation (streak audit D3): a session kept
+  // alive across 00:00 UTC re-reads the streak when it returns
+  // to the foreground, so the new day's check-in records
+  // without an app restart. Same-day returns no-op in the store.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void revalidateStreak();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [revalidateStreak]);
+
   const xpNeeded = xpToNextLevel(level);
   const xpProgress = xpNeeded > 0 ? Math.min(100, Math.round((xp / xpNeeded) * 100)) : 100;
   const xpRemaining = Math.max(0, xpNeeded - xp);
@@ -151,8 +171,13 @@ export const DashboardTopBar: React.FC = () => {
   const awayPending = Boolean(lastSettlement) && !recapDismissed;
 
   const granted = streakResult?.granted;
-  const streakJustClaimed = Boolean(
-    granted && !granted.alreadyClaimed && granted.streakLength !== null,
+  // The announcement (D1/D2): a fresh grant pulses only while
+  // unacknowledged. This replaces the old just-claimed
+  // derivation, which no interaction could ever clear.
+  const streakAnnouncement = loginStreakAnnouncement(
+    streakResult,
+    streakResultDay,
+    streakSeenGrantKey,
   );
   const streakDay = streakResult?.loginStreak.currentStreak ?? null;
 
@@ -174,8 +199,16 @@ export const DashboardTopBar: React.FC = () => {
     (awayPending ? '. While you were away rewards are waiting.' : '');
   const streakLabel = streakResult
     ? `Daily streak — day ${streakDay ?? 0}` +
-      (streakJustClaimed ? `, day ${granted?.streakLength} reward claimed` : ', today checked in')
+      (streakAnnouncement ? `, new grant banked for day ${granted?.streakLength}` : ', today checked in')
     : 'Daily streak';
+  // The sheet's subtitle speaks the same past tense as the
+  // panel: a fresh grant was granted on arrival; a replayed
+  // day was claimed (banked) today.
+  const streakSubtitle = !streakResult
+    ? 'Daily check-in rewards'
+    : granted && !granted.alreadyClaimed
+      ? `Daily check-in · Day ${granted.cycleDay ?? streakResult.loginStreak.cycleDay} granted on arrival`
+      : `Daily check-in · Day ${streakResult.loginStreak.cycleDay} claimed today`;
   const contractsLabel = !board
     ? 'Contracts'
     : contractsGuestLocked
@@ -245,10 +278,10 @@ export const DashboardTopBar: React.FC = () => {
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakJustClaimed ? 'pr-12' : ''}`}
+          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakAnnouncement ? 'pr-12' : ''}`}
         >
-          {streakJustClaimed && <PulseGlow color={STREAK_ACCENT} testId="streak-claim-pulse" />}
-          {streakJustClaimed && <CornerBadge text="NEW" color={STREAK_ACCENT} />}
+          {streakAnnouncement && <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />}
+          {streakAnnouncement && <CornerBadge text="NEW" color={STREAK_ACCENT} />}
           <PxIcon name="flame" size={15} />
           <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
             {streakDay !== null ? `Day ${streakDay}` : 'Streak'}
@@ -393,11 +426,16 @@ export const DashboardTopBar: React.FC = () => {
       {sheet === 'streak' && (
         <PickerSheet
           title="Login Streak"
-          subtitle="Daily check-in rewards"
+          subtitle={streakSubtitle}
           onClose={() => setSheet(null)}
         >
           <div className="p-3">
-            <LoginStreakPanel />
+            {/* The panel's "Back to the hunt" acknowledges the
+                grant (killing the pill's announcement) and closes
+                the sheet through here. Closing via the sheet's
+                own chrome leaves the announcement standing — the
+                news stays announced until it is acknowledged. */}
+            <LoginStreakPanel onDone={() => setSheet(null)} />
           </div>
         </PickerSheet>
       )}

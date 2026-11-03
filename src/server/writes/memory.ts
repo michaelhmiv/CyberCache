@@ -201,6 +201,7 @@ import {
   recipeQualityBounds,
   salvageScrap,
   skillSpendTotal,
+  validateShowcasePins,
   validateUsername,
   writeError,
   NPC_VENDOR_WEAPON_REFUSAL,
@@ -364,6 +365,8 @@ export class InMemoryWriteStore implements WriteStore {
   private activities = new Map<string, ActiveActionData>();
   private snapshots = new Map<string, RuntimeSnapshotData>();
   private combatStats = new Map<string, CombatStatsData>();
+  /** Trophy Shelf pins (0058): player id → pinned item ids, in pin order. */
+  private showcasePins = new Map<string, string[]>();
   private discoveries = new Map<string, DiscoveryRecord & { discovered_at: string }>();
   private devices = new Map<string, PushDeviceData>();
   private ledger = new Map<string, LedgerEntryData>();
@@ -392,6 +395,11 @@ export class InMemoryWriteStore implements WriteStore {
     for (const s of this.seed.combatStats) this.combatStats.set(s.user_id, s);
     for (const d of this.seed.pushDevices) this.devices.set(d.token, d);
     for (const e of this.seed.ledger) this.ledger.set(`${e.user_id}:${e.idempotency_key}`, e);
+    for (const p of [...this.seed.showcasePins].sort((a, b) => a.pin_order - b.pin_order)) {
+      const list = this.showcasePins.get(p.user_id) ?? [];
+      list.push(p.item_id);
+      this.showcasePins.set(p.user_id, list);
+    }
   }
 
   // -- shared internals -----------------------------------------------------
@@ -4630,6 +4638,24 @@ export class InMemoryWriteStore implements WriteStore {
     p.verification_reminder_last_seen_at = this.nowIso();
     this.touch(p);
     return clone(p);
+  }
+
+  /**
+   * Trophy Shelf pins (0058): validation as data via the shared
+   * rule (validateShowcasePins against this store's item map);
+   * the stored list lives in the showcasePins map, in pin order.
+   */
+  async setShowcasePins(playerId: string, itemIds: string[]): Promise<{ ok: boolean; error?: string; pinned_item_ids?: string[] }> {
+    const p = this.profileOrNull(playerId);
+    if (!p) return { ok: false, error: 'Profile not found.' };
+    const verdict = validateShowcasePins(playerId, itemIds, this.items);
+    if (!verdict.ok) return verdict;
+    this.showcasePins.set(playerId, [...verdict.pinned_item_ids]);
+    this.seed.showcasePins = [...this.showcasePins.entries()].flatMap(([user_id, ids]) =>
+      ids.map((item_id, pin_order) => ({ user_id, item_id, pin_order })),
+    );
+    this.touch(p);
+    return { ok: true, pinned_item_ids: verdict.pinned_item_ids };
   }
 
   // -- runtime snapshots --------------------------------------------------------

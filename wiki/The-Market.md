@@ -64,18 +64,20 @@ usual.
 
 ## The player-market rule
 
-The Buy and Sell stops are a **pure player market**: every listing there
-was put up by a hunter. Weapons the NPC vendor sells never appear in
-Buy, and a weapon that came from vendor stock can't be listed in Sell —
-if you own one, it leaves your inventory the other ways: sell it back
-to the vendor at the [[Vendor]] stop (buyback) or recycle it for scrap.
-Vendor weapons live in the Vendor lane, full stop.
+Above **Common** rarity, the Buy stop is a **pure player market**:
+every Uncommon-or-better listing there was put up by a hunter, in
+every gear kind — weapons, shields, relics, class mods, and ordnance
+alike. And a weapon that came from vendor stock can't be listed in
+Sell — if you own one, it leaves your inventory the other ways: sell
+it back to the vendor at the [[Vendor]] stop (buyback) or recycle it
+for scrap.
 
-The one NPC presence left in Buy is market depth in the other gear
-kinds — vendor-sourced shields, relics, class mods, and ordnance can
-still show up there, always labelled **NPC Vendor** as the seller. If a
-row's seller is a hunter name, it's a player's listing; weapons are
-always player listings.
+The one NPC presence in Buy is **basic Common stock in every gear
+kind** — vendor-sourced Common weapons, shields, relics, class mods,
+and ordnance, always labelled **NPC Vendor** as the seller. That
+basic stock is there on purpose: it's gear a new hunter can get
+comfortable with. If a row's seller is a hunter name, it's a player's
+listing; anything above Common is always a player's listing.
 
 ## Buying
 

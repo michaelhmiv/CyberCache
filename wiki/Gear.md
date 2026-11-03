@@ -48,6 +48,29 @@ enraging enemies. Void is high-variance power aimed at elites and
 bosses. Matching an element to a target's weakness pays a ×1.3
 multiplier; hitting a resistance pays ×0.7.
 
+### How a weapon looks
+
+Every weapon picture in the game is drawn from the actual item — its
+type, manufacturer, element, rarity, rolled parts, affixes, and roll
+quality — never a generic icon. The same drawing appears at two
+sizes: compact in your hunter's hands on the stage, and at double
+resolution on cards (inventory, market, loot, inspect, collections).
+
+Each manufacturer owns a signature silhouette, readable by shape
+before color: Redline is a swept **wedge** with a skeleton stock,
+Ironwood a wooden **longbow**, BlastForge a bolted **anvil** slab,
+Prismatek a faceted **prism**, ThrowTech a bolted-together **kit**,
+and HelixWorks a rounded **coil** wrapped in brass rings. Within a
+maker and type, the rolled parts still vary the gun — chambers,
+magazines, sights, and barrels differ from item to item.
+
+The element shows as a lit current that runs from the chamber along
+the barrel to the muzzle, in the element's color. Kinetic has no
+current at all — plain machined metal, honestly unlit. Rarity
+changes the finish, never the shape: trim lines on Uncommon and
+Rare, an edge glow on Epic, and a gold halo on Legendary. Named
+legendaries keep their own bespoke art on every surface.
+
 ## Rarity and affixes
 
 Gear rolls in **5 rarities**, and rarity sets how many affixes (rolled

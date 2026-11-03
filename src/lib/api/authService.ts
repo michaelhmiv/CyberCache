@@ -19,6 +19,7 @@
  * error instead of pretending to work.
  */
 import { getGoogleIdTokenNative } from '../nativeAuth';
+import { trackGuestStart, trackSignIn } from '../analytics/analytics';
 import { apiRequest } from './http';
 import {
   getSessionSync,
@@ -72,7 +73,9 @@ export function onAuthStateChange(callback: AuthStateCallback): { unsubscribe: (
 
 export async function signInAsGuest(): Promise<ApiUser> {
   const body = await apiRequest<AuthSessionBody>('/auth/guest', { method: 'POST', auth: false });
-  return adoptSession(body);
+  const user = await adoptSession(body);
+  trackGuestStart();
+  return user;
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<ApiUser> {
@@ -81,7 +84,9 @@ export async function signInWithEmail(email: string, password: string): Promise<
     auth: false,
     body: { email, password },
   });
-  return adoptSession(body);
+  const user = await adoptSession(body);
+  trackSignIn('email');
+  return user;
 }
 
 export async function registerWithEmail(email: string, password: string, username: string): Promise<ApiUser> {
@@ -93,6 +98,7 @@ export async function registerWithEmail(email: string, password: string, usernam
     body: { email, password },
   });
   const user = await adoptSession(body);
+  trackSignIn('email');
   // The Supabase flow carried the chosen username in signup metadata
   // and the profile bootstrap applied it when valid. The Chef register
   // body has no username field, so apply it through the same validated
@@ -126,7 +132,9 @@ export async function signInWithGoogle(): Promise<ApiUser> {
     method: 'POST',
     body: { idToken },
   });
-  return adoptSession(body);
+  const user = await adoptSession(body);
+  trackSignIn('google');
+  return user;
 }
 
 export async function signOut(): Promise<void> {

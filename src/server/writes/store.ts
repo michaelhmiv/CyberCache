@@ -16,10 +16,10 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
-import { mapProfile, type ProfileRowData } from '../reads/store.js';
+import { mapProfile, SHOWCASE_LIMIT, type ProfileRowData } from '../reads/store.js';
 import { xpToNextLevel } from '../../content/simulation.js';
 import type { GearItem } from '../../types/items.js';
-import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
+import { isUsableWeaponPayload, skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
 import { finalizePendingCraftedCosmetics, finalizePendingCraftedGear } from './craftFinalize.js';
 import {
   buildWorkshopStateView,
@@ -412,6 +412,8 @@ export interface WriteSeed {
   craftJobs: CraftJobRecord[];
   /** Extraction state rows (migration 0033), the accrual twin's state. */
   extractionStates: ExtractionStateRecord[];
+  /** Trophy Shelf pins (migration 0058), in pin order per player. */
+  showcasePins: { user_id: string; item_id: string; pin_order: number }[];
 }
 
 export function emptyWriteSeed(): WriteSeed {
@@ -438,6 +440,7 @@ export function emptyWriteSeed(): WriteSeed {
     usernameReservations: [],
     craftJobs: [],
     extractionStates: [],
+    showcasePins: [],
   };
 }
 
@@ -1040,6 +1043,16 @@ export interface WriteStore {
    * takes min(earned, limiter, 24h).
    */
   setOfflineCapLimiter(playerId: string, capHours: number | null): Promise<{ ok: boolean; error?: string; offlineCapHours?: number | null }>;
+  /**
+   * Replace the player's Trophy Shelf pins (migration 0058,
+   * profile_showcase_pins) — the whole list, in pin order; an
+   * empty list clears the pins and the shelf returns to the pure
+   * auto-rank. Validation as data, like the other profile writes:
+   * every id must name an item the caller owns, of kind 'weapon',
+   * carrying a usable weapon payload (the shelf's showable rule),
+   * and the list holds at most SHOWCASE_LIMIT ids.
+   */
+  setShowcasePins(playerId: string, itemIds: string[]): Promise<{ ok: boolean; error?: string; pinned_item_ids?: string[] }>;
   markReminderSeen(playerId: string): Promise<ProfileRowData>;
   getRuntimeSnapshot(playerId: string): Promise<Json | null>;
   saveRuntimeSnapshot(playerId: string, snapshot: Json): Promise<void>;
@@ -1049,6 +1062,50 @@ export interface WriteStore {
 }
 
 type Row = Record<string, unknown>;
+
+/** The item facts the showcase-pin validation reads (0058). */
+export interface ShowcasePinCandidate {
+  id: string;
+  owner_user_id: string;
+  kind: string;
+  payload: unknown;
+}
+
+export type ShowcasePinsVerdict =
+  | { ok: true; pinned_item_ids: string[] }
+  | { ok: false; error: string };
+
+/**
+ * The one pin-validation rule, shared by both write stores: the
+ * list is deduped in order, capped at the shelf size, and every id
+ * must resolve — against the CALLER's own items only — to a
+ * showable weapon (kind 'weapon' + a usable payload, the 0034
+ * shelf rule). A caller can never pin another player's item: the
+ * lookup map is keyed by id but the ownership check is the gate.
+ */
+export function validateShowcasePins(
+  playerId: string,
+  itemIds: readonly string[],
+  itemsById: ReadonlyMap<string, ShowcasePinCandidate>,
+): ShowcasePinsVerdict {
+  const unique = [...new Set(itemIds)];
+  if (unique.length > SHOWCASE_LIMIT) {
+    return { ok: false, error: `You can pin up to ${SHOWCASE_LIMIT} weapons — unpin one to swap.` };
+  }
+  for (const id of unique) {
+    const item = itemsById.get(id);
+    if (!item || item.owner_user_id !== playerId) {
+      return { ok: false, error: 'A pinned weapon must be one of your own items.' };
+    }
+    if (item.kind !== 'weapon') {
+      return { ok: false, error: 'Only weapons can be pinned to the Trophy Shelf.' };
+    }
+    if (!isUsableWeaponPayload(item.payload as GearItem)) {
+      return { ok: false, error: "That weapon can't headline the shelf — it has no combat record yet." };
+    }
+  }
+  return { ok: true, pinned_item_ids: unique };
+}
 
 function iso(value: unknown): string {
   return value instanceof Date ? value.toISOString() : String(value);
@@ -1887,6 +1944,61 @@ export class PgWriteStore implements WriteStore {
     try {
       const { rows } = await this.pool.query('select * from public.cc_mark_reminder_seen($1)', [playerId]);
       return mapProfile(rows[0] as Row);
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
+
+  /**
+   * Trophy Shelf pins (0058): direct table writes — the table is a
+   * plain preference record (no economy facts), so no cc_* function
+   * carries it. Validation runs first (shared rule in
+   * validateShowcasePins, against the caller's own item rows); the
+   * replace itself is one transaction: clear, then insert in order.
+   */
+  async setShowcasePins(playerId: string, itemIds: string[]): Promise<{ ok: boolean; error?: string; pinned_item_ids?: string[] }> {
+    try {
+      const { rows: profileRows } = await this.pool.query(
+        'select 1 from public.profiles where id = $1',
+        [playerId],
+      );
+      if (!profileRows.length) return { ok: false, error: 'Profile not found.' };
+      const unique = [...new Set(itemIds)];
+      const itemsById = new Map<string, ShowcasePinCandidate>();
+      if (unique.length) {
+        const { rows } = await this.pool.query(
+          'select id, owner_user_id, kind, payload from public.item_instances where id = any($1::uuid[])',
+          [unique],
+        );
+        for (const row of rows as Row[]) {
+          itemsById.set(String(row.id), {
+            id: String(row.id),
+            owner_user_id: String(row.owner_user_id),
+            kind: String(row.kind),
+            payload: row.payload,
+          });
+        }
+      }
+      const verdict = validateShowcasePins(playerId, itemIds, itemsById);
+      if (!verdict.ok) return verdict;
+      const client = await this.pool.connect();
+      try {
+        await client.query('begin');
+        await client.query('delete from public.profile_showcase_pins where user_id = $1', [playerId]);
+        for (let i = 0; i < verdict.pinned_item_ids.length; i += 1) {
+          await client.query(
+            'insert into public.profile_showcase_pins (user_id, item_id, pin_order) values ($1, $2, $3)',
+            [playerId, verdict.pinned_item_ids[i], i],
+          );
+        }
+        await client.query('commit');
+      } catch (err) {
+        await client.query('rollback');
+        throw err;
+      } finally {
+        client.release();
+      }
+      return { ok: true, pinned_item_ids: verdict.pinned_item_ids };
     } catch (err) {
       return translatePgError(err);
     }

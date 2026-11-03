@@ -278,6 +278,12 @@ export interface ProfileLifetimeInput {
   };
   /** The player's own runtime items (showcase ranking input). */
   items: RuntimeItemData[];
+  /**
+   * Hand-pinned showcase item ids in pin order (0058,
+   * profile_showcase_pins). Optional: folds seeded before pins
+   * existed read as an unpinned shelf — the pure auto-rank.
+   */
+  showcasePins?: string[];
 }
 
 export interface ProfileLifetimeData {
@@ -373,8 +379,14 @@ export interface ProfileLifetimeData {
     by_family: Record<string, number>;
   };
   showcase: {
-    /** Server-ranked top weapons (rarity → level → newest), full runtime-item rows for the compositor. */
+    /**
+     * The shelf rows: hand-pinned weapons first in pin order
+     * (0058), the server rank (rarity → level → newest) filling the
+     * rest — full runtime-item rows for the compositor.
+     */
     top_weapons: RuntimeItemData[];
+    /** The subset of top_weapons the player pinned, in pin order. */
+    pinned_item_ids: string[];
     best_endless_depth: number;
     cache_rank_tokens: number;
     cache_rank_total_ranks: number;
@@ -533,6 +545,24 @@ export interface MyLeaderboardRankData {
   total_players: number;
 }
 
+/**
+ * The public shelf (0058): exactly the showcase block of the
+ * lifetime fold — the same rows the player's own Trophy Shelf
+ * renders, pins included. Every fact here is already public by
+ * design: these are the brag facts the game shows on Standings,
+ * folded from the same server records. Nothing from the private
+ * lifetime record (credits earned/spent, market volume, salvage
+ * history) rides this projection.
+ */
+export interface PlayerShowcaseData {
+  top_weapons: RuntimeItemData[];
+  pinned_item_ids: string[];
+  best_endless_depth: number;
+  cache_rank_tokens: number;
+  cache_rank_total_ranks: number;
+  collections_discovered: number;
+}
+
 export interface PublicProfileData {
   player_id: string;
   username: string | null;
@@ -552,6 +582,8 @@ export interface PublicProfileData {
   highest_item_level: number;
   joined_at: string;
   last_active_at: string;
+  /** The player's Trophy Shelf, composed exactly as their own Profile shows it. */
+  showcase: PlayerShowcaseData;
 }
 
 export interface PublicStatsData {
@@ -1047,6 +1079,45 @@ export function rankShowcaseWeapons(items: readonly RuntimeItemData[], limit = 3
     .slice(0, limit);
 }
 
+/** The shelf size: three weapons headline, pinned or ranked (0034/0058). */
+export const SHOWCASE_LIMIT = 3;
+
+/**
+ * The shelf composition (0058): the player's hand-pinned weapons
+ * lead, in pin order; the auto-rank fills the remaining slots.
+ * Pins resolve against the player's CURRENT items under the same
+ * showable rule the rank applies — a pin naming an item that was
+ * sold, salvaged, or never existed resolves to nothing, and a pin
+ * can never surface an item the caller does not own, because this
+ * list is built only from the owner's own item rows. At most
+ * SHOWCASE_LIMIT pins are honored, however the storage was seeded.
+ * Returns the shelf rows plus the ids that actually pinned (the
+ * client marks exactly those rows — a stored pin that no longer
+ * resolves does not print as pinned).
+ */
+export function composeShowcaseWeapons(
+  items: readonly RuntimeItemData[],
+  pinnedItemIds: readonly string[],
+  limit = SHOWCASE_LIMIT,
+): { top_weapons: RuntimeItemData[]; pinned_item_ids: string[] } {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const pinned: RuntimeItemData[] = [];
+  const honored: string[] = [];
+  for (const id of pinnedItemIds) {
+    if (pinned.length >= limit) break;
+    const item = byId.get(id);
+    if (!item) continue;
+    if (item.kind !== 'weapon' || !isUsableWeaponPayload(item.payload as unknown as GearItem)) continue;
+    if (honored.includes(id)) continue;
+    pinned.push(item);
+    honored.push(id);
+  }
+  const fill = rankShowcaseWeapons(items, limit)
+    .filter((item) => !honored.includes(item.id))
+    .slice(0, limit - pinned.length);
+  return { top_weapons: [...pinned, ...fill], pinned_item_ids: honored };
+}
+
 export function computeProfileLifetime(input: ProfileLifetimeInput): ProfileLifetimeData {
   const killsByArea: Record<string, number> = {};
   let roamingKills = 0;
@@ -1285,7 +1356,7 @@ export function computeProfileLifetime(input: ProfileLifetimeInput): ProfileLife
       by_family: collectionsByFamily,
     },
     showcase: {
-      top_weapons: rankShowcaseWeapons(input.items),
+      ...composeShowcaseWeapons(input.items, input.showcasePins ?? []),
       best_endless_depth: bestDepth,
       cache_rank_tokens: input.profile.cache_rank_tokens,
       cache_rank_total_ranks: cacheRankTotalRanks,
@@ -1496,6 +1567,8 @@ export interface ReadSeed {
   dropBuffs?: Array<{ player_id: string; bonus: number; expires_at: string }>;
   /** Cache box opening rows (0037). Optional: older seeds omit it. */
   cacheBoxOpenings?: Array<{ user_id: string; open_day: string; payment: string }>;
+  /** Trophy Shelf pin rows (0058). Optional: older seeds omit it. */
+  showcasePins?: Array<{ user_id: string; item_id: string; pin_order: number }>;
 }
 
 export function emptyReadSeed(): ReadSeed {
@@ -1621,6 +1694,10 @@ export class InMemoryReadStore implements ReadStore {
         credits_since: lifetimeRow?.tracking_started_at ?? null,
       },
       items: await this.getMyRuntimeItems(playerId),
+      showcasePins: (this.seed.showcasePins ?? [])
+        .filter((pin) => pin.user_id === playerId)
+        .sort((a, b) => a.pin_order - b.pin_order)
+        .map((pin) => pin.item_id),
     });
   }
 
@@ -1764,6 +1841,19 @@ export class InMemoryReadStore implements ReadStore {
   async getPublicProfile(playerId: string): Promise<PublicProfileData | null> {
     const s = this.statsFor(playerId);
     if (!s) return null;
+    // The public shelf is the lifetime fold's showcase block — the
+    // one composition path (pins + rank), projected on its own.
+    const stats = await this.getProfileStats(playerId);
+    const showcase: PlayerShowcaseData = stats
+      ? stats.showcase
+      : {
+          top_weapons: [],
+          pinned_item_ids: [],
+          best_endless_depth: 0,
+          cache_rank_tokens: 0,
+          cache_rank_total_ranks: 0,
+          collections_discovered: 0,
+        };
     return {
       player_id: s.user_id,
       username: s.username,
@@ -1783,6 +1873,7 @@ export class InMemoryReadStore implements ReadStore {
       highest_item_level: s.highest_item_level,
       joined_at: s.joined_at,
       last_active_at: s.last_active_at,
+      showcase,
     };
   }
 
@@ -1978,7 +2069,11 @@ function mapStats(row: Row): PublicStatsData {
   };
 }
 
-function mapPublicProfile(row: Row): PublicProfileData {
+/** The cc_get_public_profile row: the flat projection only — the
+ * showcase is composed by the fold and attached by getPublicProfile. */
+type PublicProfileBase = Omit<PublicProfileData, 'showcase'>;
+
+function mapPublicProfile(row: Row): PublicProfileBase {
   return {
     player_id: row.player_id as string,
     username: (row.username as string | null) ?? null,
@@ -2305,7 +2400,17 @@ export class PgReadStore implements ReadStore {
           : null,
       },
       items: await this.getMyRuntimeItems(playerId),
+      showcasePins: await this.getShowcasePinIds(playerId),
     });
+  }
+
+  /** The player's stored Trophy Shelf pins in pin order (0058). */
+  private async getShowcasePinIds(playerId: string): Promise<string[]> {
+    const { rows } = await this.db.query(
+      'select item_id from public.profile_showcase_pins where user_id = $1 order by pin_order asc',
+      [playerId],
+    );
+    return (rows as Row[]).map((row) => String(row.item_id));
   }
 
   async getMyProgressionSnapshots(playerId: string, query: SnapshotQuery): Promise<ProgressionSnapshotData[]> {
@@ -2374,7 +2479,23 @@ export class PgReadStore implements ReadStore {
 
   async getPublicProfile(playerId: string): Promise<PublicProfileData | null> {
     const { rows } = await this.db.query('select * from public.cc_get_public_profile($1)', [playerId]);
-    return rows.length ? mapPublicProfile(rows[0]) : null;
+    if (!rows.length) return null;
+    const base = mapPublicProfile(rows[0]);
+    // The public shelf is the lifetime fold's showcase block — the
+    // one composition path (pins + rank), projected on its own, so
+    // another player's shelf renders exactly as their Profile does.
+    const stats = await this.getProfileStats(playerId);
+    const showcase: PlayerShowcaseData = stats
+      ? stats.showcase
+      : {
+          top_weapons: [],
+          pinned_item_ids: [],
+          best_endless_depth: 0,
+          cache_rank_tokens: 0,
+          cache_rank_total_ranks: 0,
+          collections_discovered: 0,
+        };
+    return { ...base, showcase };
   }
 
   async getMyStats(playerId: string): Promise<PublicStatsData | null> {
@@ -2405,17 +2526,20 @@ export class PgReadStore implements ReadStore {
     // over the columns migration 0019 stamps at creation — a browse
     // never opens an item payload to filter.
     const where: string[] = [`ml.status = 'active'`];
-    // Pure player market (owner ruling, 2026-11-02): NPC vendor
-    // weapons NEVER browse — the twin of the exclusion in
-    // applyListingQuery's matches(). Seller/category are read the way
-    // browseRowFor derives them (stamped column first, item facts as
-    // the fallback), so legacy rows seeded before stamping are caught
-    // too. Both the count and the page query share this clause (and
-    // the item join), so totals always agree with the rows.
+    // NPC stock ceiling (owner ruling, 2026-11-03, widening the pure
+    // player market of 2026-11-02): NPC-sourced gear above Common
+    // rarity NEVER browses — the twin of the exclusion in
+    // applyListingQuery's matches(). Seller and rarity are read the
+    // way browseRowFor derives them (stamped column first, item facts
+    // as the fallback), so legacy rows seeded before stamping are
+    // caught too. NPC Common gear of every kind keeps its seat — it
+    // is the beginner comfort stock. Both the count and the page
+    // query share this clause (and the item join), so totals always
+    // agree with the rows.
     where.push(`not (
       coalesce(ml.listing_kind, 'gear') = 'gear'
-      and coalesce(ml.category, public.cc_market_gear_category(coalesce(ii.payload, '{}'::jsonb), ii.kind)) = 'weapon'
       and (ml.seller_type = 'npc' or ii.supply_mode = 'npc_market')
+      and coalesce(ml.rarity, ii.rarity, ii.payload ->> 'rarity') in ('Uncommon', 'Rare', 'Epic', 'Legendary')
     )`);
     const params: unknown[] = [];
     const push = (clause: (i: number) => string, value: unknown) => {

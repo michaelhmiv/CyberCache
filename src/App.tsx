@@ -20,11 +20,18 @@ import { DispatchScreen } from './screens/DispatchScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
-import { isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
+import { isGuestAccount, isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
 
 import { useAuth } from './auth/AuthProvider';
 import { useEffect } from 'react';
-import { mountIdleTicker, unmountIdleTicker } from './store';
+import { mountIdleTicker, unmountIdleTicker, usePlayerStore } from './store';
+import {
+  initAnalytics,
+  observePlayerLevel,
+  setAccountTypeProperty,
+  trackScreen,
+  type ScreenName,
+} from './lib/analytics/analytics';
 import { isMarketStopId, useMarketStore } from './store/slices/marketSlice';
 import { SalvageToastContainer } from './components/action/SalvageToast';
 import { StarterBundleReveal } from './components/activity/StarterBundleReveal';
@@ -44,6 +51,24 @@ type TabId = 'home' | 'gear' | 'market' | 'hunter';
 // LeaderboardsScreen itself is unchanged.
 type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | 'standings' | null;
 const topLevelTabs: TabId[] = ['home', 'gear', 'market', 'hunter'];
+
+// Analytics screen names (the analytics module's documented table):
+// the four tabs by their DESIGN.md names, sub-screens by theirs.
+const TAB_SCREEN_NAMES: Record<TabId, ScreenName> = {
+  home: 'Home',
+  gear: 'Gear',
+  market: 'Market',
+  hunter: 'Hunter',
+};
+const SUB_SCREEN_NAMES: Record<NonNullable<SubScreen>, ScreenName> = {
+  chest: 'Cache',
+  settings: 'Settings',
+  help: 'Help',
+  workshop: 'Workshop',
+  collections: 'Collections',
+  dispatch: 'Dispatch',
+  standings: 'Standings',
+};
 
 function VerificationReminderBanner() {
   const { account, markVerificationReminderSeen, actionLoading } = useAuth();
@@ -112,6 +137,38 @@ function App() {
       unmountIdleTicker();
     };
   }, [user, loading]);
+
+  // Product analytics (GA4 via Firebase Analytics): init once at
+  // shell mount. The wrapper is a silent no-op until the Firebase
+  // web config lands in the build env, and it never gates anything.
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  // The current surface as a GA4 screen_view: a sub-screen outranks
+  // the tab beneath it; the boss door and the Garage (the Loadout
+  // stop with its vehicle section expanded) report their own names.
+  useEffect(() => {
+    trackScreen(subScreen ? SUB_SCREEN_NAMES[subScreen] : TAB_SCREEN_NAMES[activeTab]);
+  }, [activeTab, subScreen]);
+
+  useEffect(() => {
+    if (bossSelectOpen) trackScreen('Boss');
+  }, [bossSelectOpen]);
+
+  useEffect(() => {
+    if (inventoryTabIntent?.expandVehicle) trackScreen('Garage');
+  }, [inventoryTabIntent]);
+
+  // account_type user property follows the loaded account (guests
+  // and linked accounts alike — analytics is not a gate).
+  useEffect(() => {
+    if (account) setAccountTypeProperty(isGuestAccount(account) ? 'guest' : 'linked');
+  }, [account]);
+
+  // Level: level_up events + the level_band property ride the
+  // player store's level wherever the server syncs it from.
+  useEffect(() => usePlayerStore.subscribe((s) => observePlayerLevel(s.level)), []);
 
   if (loading) {
     return (

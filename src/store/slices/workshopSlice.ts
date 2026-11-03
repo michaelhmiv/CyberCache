@@ -14,6 +14,7 @@
  */
 import { create } from 'zustand';
 import { fetchWorkshopState, verifiedOps } from '@/lib/api/verifiedOps';
+import { trackCraftCompletions } from '@/lib/analytics/analytics';
 import { humanizeWorkshopError, WORKSHOP_ERROR_FALLBACK } from '@/lib/workshop/errors';
 
 /** One job as the server presents it (craftJobView). */
@@ -97,6 +98,9 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
     try {
       const view = asView(await fetchWorkshopState());
       set({ server: view, loading: false, error: null });
+      // Analytics: this refresh is the one place new server views
+      // land, so it is where craft completions are observed.
+      trackCraftCompletions(view);
     } catch (err) {
       // A state READ failure is a load problem, not a refusal: the
       // humanizer's generic fallback would mislabel it, so it maps

@@ -192,6 +192,8 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
   // Lifetime stats + trophy showcase (0034): every figure folds from
   // server records (ledger, discoveries, run/mission/job rows) — the
   // read carries only the caller's proven facts, never catalog data.
+  // Since 0058 the showcase leads with the player's hand-pinned
+  // weapons in pin order, the server rank filling the rest.
   app.get('/api/profile/stats', async (req, res) => {
     const id = caller(config, req, res);
     if (!id) return;
@@ -297,6 +299,11 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
     } catch (err) { fail(res, err); }
   });
 
+  // Another player's public profile (0058): the flat public facts
+  // plus their Trophy Shelf showcase block — the brag facts a
+  // profile exists to show. No balances, no email, no lifetime
+  // credit/market folds: the PublicProfileData projection is the
+  // exposure contract (pinned in tests).
   app.get('/api/players/:playerId/public-profile', async (req, res) => {
     const id = caller(config, req, res);
     if (!id) return;

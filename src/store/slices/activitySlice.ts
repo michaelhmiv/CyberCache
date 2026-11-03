@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ActiveActivity, BossPhase, StartActivityInput } from '@/types/activity';
 import { IDLE_ACTIVITY } from '@/types/activity';
+import { trackRoamStart, trackRoamStop } from '@/lib/analytics/analytics';
 import { migrateActivityForBossCollapse } from '@/lib/activity/activityMigration';
 import {
   clearActiveActivity,
@@ -27,7 +28,7 @@ const toMessage = (error: unknown): string => (
   error instanceof Error ? error.message : 'Activity request failed.'
 );
 
-export const useActivityStore = create<ActivityState>()((set) => ({
+export const useActivityStore = create<ActivityState>()((set, get) => ({
   current: IDLE_ACTIVITY,
   hydrated: false,
   pending: false,
@@ -62,10 +63,20 @@ export const useActivityStore = create<ActivityState>()((set) => ({
   },
 
   start: async (input) => {
+    const previous = get().current;
     set({ pending: true, error: null });
     try {
       const activity = await startActiveActivity(input);
       set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, pending: false, error: null });
+      // Analytics: a roam ends when the slot is cleared OR handed to
+      // anything else (another area counts as a new roam, not a
+      // continuation); a roam begins on every fresh roaming start.
+      const leavingRoam = previous.kind === 'roaming_loot'
+        && (input.kind !== 'roaming_loot' || input.targetId !== previous.targetId);
+      if (leavingRoam) trackRoamStop();
+      if (input.kind === 'roaming_loot' && (previous.kind !== 'roaming_loot' || input.targetId !== previous.targetId)) {
+        trackRoamStart(input.targetId ?? 'unknown');
+      }
       return activity;
     } catch (error) {
       set({ pending: false, error: toMessage(error) });
@@ -74,10 +85,12 @@ export const useActivityStore = create<ActivityState>()((set) => ({
   },
 
   clear: async () => {
+    const previous = get().current;
     set({ pending: true, error: null });
     try {
       const activity = await clearActiveActivity();
       set({ current: migrateActivityForBossCollapse(activity) as ActiveActivity, hydrated: true, pending: false, error: null });
+      if (previous.kind === 'roaming_loot') trackRoamStop();
       return activity;
     } catch (error) {
       set({ pending: false, error: toMessage(error) });

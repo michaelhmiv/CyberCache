@@ -101,6 +101,7 @@ const EntryArt: React.FC<{ entry: CollectionEntry; found: boolean }> = ({ entry,
             id: `collection-${entry.key}`,
           }}
           size={104}
+          density="card"
         />
       </div>
     );
