@@ -52,7 +52,6 @@ export interface CraftBenchDef {
   name: string;
   /** Grammar ACTION_SETS sprite for this bench's station. */
   spriteId: string;
-  unlockLevel: number;
   costCredits: number;
   /** Charged atomically by cc_unlock_bench (the credit sink + VoidDust). */
   costInputs: Record<string, number>;
@@ -69,7 +68,6 @@ export const CRAFT_BENCHES: readonly CraftBenchDef[] = [
     id: 'basic',
     name: 'Basic Bench',
     spriteId: 'set-bench-basic',
-    unlockLevel: 1,
     costCredits: 0,
     costInputs: {},
     qualityFactor: 1.0,
@@ -81,7 +79,6 @@ export const CRAFT_BENCHES: readonly CraftBenchDef[] = [
     id: 'forge',
     name: 'Forge',
     spriteId: 'set-bench-forge',
-    unlockLevel: 15,
     costCredits: 5000,
     costInputs: {},
     qualityFactor: 1.05,
@@ -93,7 +90,6 @@ export const CRAFT_BENCHES: readonly CraftBenchDef[] = [
     id: 'lab',
     name: 'Lab',
     spriteId: 'set-bench-lab',
-    unlockLevel: 30,
     costCredits: 25000,
     costInputs: { VoidDust: 10 },
     qualityFactor: 1.1,

@@ -1745,7 +1745,6 @@ export function unlockCraftBench(adapter: CraftAdapter, playerId: string): { ben
   const next = p.workshop_benches + 1;
   if (next > 3) fail('All benches already unlocked');
   const def = benchDef(next);
-  if (p.player_level < def.unlockLevel) fail(`Bench ${next} requires level ${def.unlockLevel}`);
   if (p.credits < def.costCredits) fail('Insufficient credits');
   for (const [key, amount] of Object.entries(def.costInputs)) {
     if ((p.materials[key] ?? 0) < amount) fail(`Insufficient material ${key}`);
