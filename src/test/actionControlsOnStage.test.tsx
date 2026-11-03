@@ -218,6 +218,18 @@ describe('action controls on stage — the dedicated row is gone (source)', () =
     expect(diorama).toContain('data-testid="diorama-stage-controls"');
     expect(diorama).toContain('left-2 top-2 z-30');
     expect(diorama).not.toContain('bottom-11 right-2 z-30');
+    // The stats band (PR #310) does not move the chips: with the
+    // stage-overlay layout merged, the controls stay top-left
+    // whether or not the band is in the ribbon — the band-era
+    // bottom-offset conditional must not come back.
+    expect(diorama).not.toContain('bottom-16');
+    expect(diorama).not.toContain("statsBand ? 'bottom-16'");
+    // …and the band itself is in the ribbon: the screen supplies
+    // it and the stage renders it in place of the legacy line.
+    expect(diorama).toContain('statsBand');
+    const screen = readSource('src/screens/ActionScreenContextual.tsx');
+    expect(screen).toContain('statsBand={');
+    expect(screen).toContain('StageStatsBand');
   });
 });
 
