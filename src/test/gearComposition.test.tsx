@@ -155,15 +155,19 @@ describe('F5 successor — merged blocks: names whole in the tree, at the sancti
     useLoadoutStore.setState((s) => ({ slots: { ...s.slots, primary: 'w-long' } }));
     render(<ActionLoadout />);
     const block = screen.getByTestId('slot-block-primary');
-    // The approved Exec C layout puts block names on ONE line
-    // (measured to fit real name lengths at the floor); the §6
-    // bargain is that nothing abbreviates or re-titles the item —
-    // the COMPLETE name is what the block carries, and the same
-    // complete name prints at the destination (asserted below).
-    // This supersedes the F5 chip-era no-truncate assertion, which
-    // governed the retired constellation chips.
+    // The approved Exec C mock's measured property is FULL names:
+    // the name WRAPS (the row grows) — truncation never, and no
+    // shrink below the floor. The §6 bargain is that nothing
+    // abbreviates or re-titles the item — the COMPLETE name is
+    // what the block carries, and the same complete name prints
+    // at the destination (asserted below). This supersedes the
+    // F5 chip-era assertion, which governed the retired
+    // constellation chips; the wrap-not-truncate half of F5 is
+    // restored by the class assertion here (parent capture
+    // review of PR #319 caught ellipsized names in the rows).
     const nameEl = within(block).getByText(longName);
     expect(nameEl.className).toContain('text-[13px]');
+    expect(nameEl.className).not.toContain('truncate');
     // The block renders the actual instance's compositor art.
     expect(screen.getByTestId('slot-weapon-primary')).toBeTruthy();
     // The slot rides the block's accessible name; the printed line

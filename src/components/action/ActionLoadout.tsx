@@ -253,7 +253,10 @@ const PerkLine: React.FC<{ block: SlotBlockSummary }> = ({ block }) => {
 };
 
 /** Primary — the poster row: name at poster-chip size, the weapon's
- *  own wide render beneath it, the full stat line under that. */
+ *  own wide render beneath it, the full stat line under that. The
+ *  name prints IN FULL, wrapping to a second line when it needs it
+ *  (the approved mock's measured property: full names, wrapping
+ *  allowed, truncation never, no shrink below the floor). */
 const GunPosterRow: React.FC<{
   block: SlotBlockSummary;
   item: BlockItem;
@@ -274,18 +277,18 @@ const GunPosterRow: React.FC<{
         background: 'linear-gradient(90deg, rgba(255,160,31,0.10), transparent 72%)',
       }}
     >
-      <span className="flex items-center gap-1.5">
+      <span className="flex items-start gap-1.5">
         {/* The icon carries the ELEMENT's color (owner ruling
             2026-11-03: element reads by color, never by word);
             the name beside it carries the rarity's. */}
-        <PxIcon name={BLOCK_ICONS[block.slot]} size={15} className="shrink-0" style={{ color: elementTintOf(item) ?? accent }} />
+        <PxIcon name={BLOCK_ICONS[block.slot]} size={15} className="mt-[1px] shrink-0" style={{ color: elementTintOf(item) ?? accent }} />
         <span
-          className="min-w-0 flex-1 truncate text-[13px] font-black"
+          className="min-w-0 flex-1 break-words text-[13px] font-black leading-tight"
           style={{ color: block.filled ? accent : '#8A847C' }}
         >
           {block.name}
         </span>
-        <PxIcon name="chevR" size={13} className="shrink-0 text-text-muted" />
+        <PxIcon name="chevR" size={13} className="mt-[2px] shrink-0 text-text-muted" />
       </span>
       {weapon && (
         <PixelWeapon weapon={weapon} size={164} className="my-1 max-w-full" testId="slot-weapon-primary" />
@@ -324,7 +327,7 @@ const GunRow: React.FC<{
       </span>
       <span className="min-w-0 flex-1">
         <span
-          className="block truncate text-[11px] font-black"
+          className="block break-words text-[11px] font-black leading-tight"
           style={{ color: block.filled ? accent : '#8A847C' }}
         >
           {block.name}

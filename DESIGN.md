@@ -150,7 +150,9 @@ replace the canonical one. (Tap depths are governed by §9.)
   accessories as a 2×2 band beneath — then the Garage section, § Inventory,
   § Belt & Stacks, and the Workshop door row at the foot (◦, printing
   bench state; the bench's canonical home is the Workshop stop). Slot
-  blocks print the item's name in its rarity color and a PERK line —
+  blocks print the item's name in its rarity color — in full, wrapping
+  when it needs the room (names never truncate on the gun rows) — and a
+  PERK line —
   headline stat + the item's next real perks; rarity and element never
   print as words (rarity rides the name's color, element the icon tint
   and the item's own render — owner ruling 2026-11-03). The Slot Picker
