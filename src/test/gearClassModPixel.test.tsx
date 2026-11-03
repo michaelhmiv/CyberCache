@@ -129,11 +129,14 @@ const formMaskOf = (render: GearRender) =>
   render.rows.map((r) => [...r].map((c) => (c === '.' || c === 'F' || c === 'f' || c === 'K' || c === 'k' ? '0' : '1')).join('')).join('/');
 
 describe('class-mod marriage — registration + dispatch', () => {
-  it('the grammar is registered and the classMod flag is on; other kinds stay svg', () => {
+  it('the grammar is registered and the classMod flag is on; unflipped kinds stay svg', () => {
     expect(GEAR_GRAMMARS.classMod).toBe(classModGrammar);
     expect(GEAR_PIXEL_KINDS.classMod).toBe(true);
     expect(gearRenderRoute('classMod')).toBe('pixel');
-    for (const kind of ['shield', 'relic', 'ordnance'] as const) {
+    // ordnance flipped in slice 2 (#337) and routes pixel too; only the
+    // kinds no slice has flipped yet stay on the SVG route.
+    expect(gearRenderRoute('ordnance')).toBe('pixel');
+    for (const kind of ['shield', 'relic'] as const) {
       expect(gearRenderRoute(kind)).toBe('svg');
     }
   });

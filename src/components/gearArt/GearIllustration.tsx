@@ -86,8 +86,8 @@ export const GearIllustration: React.FC<GearIllustrationProps> = React.memo(({
   // Gear-marriage seam: a kind renders through the pixel plate
   // engine only when its flag is on AND its grammar is registered
   // (gearRenderFlags). Each kind slice flips its own kind in its
-  // own PR — classMod flipped in slice 3; the kinds still flagged
-  // off below take their SVG branches.
+  // own PR — ordnance flipped in slice 2, classMod in slice 3; the
+  // kinds still flagged off take their SVG branches.
   const kind = gearKindOf(item);
   if (kind !== 'weapon' && gearRenderRoute(kind) === 'pixel') {
     const grammar = GEAR_GRAMMARS[kind]!;

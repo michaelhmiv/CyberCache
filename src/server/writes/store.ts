@@ -782,6 +782,16 @@ export interface VendorSellInput {
   quantity?: number;
 }
 
+/** QuickBuy fill intent (QB-1): one good, one source leg, the quoted ceiling. */
+export interface QuickBuyFillInput {
+  source: 'market' | 'vendor';
+  goodKind: string;
+  goodId: string;
+  quantity: number;
+  /** The total the sheet quoted for this quantity from this source — the fill's hard ceiling. */
+  quotedTotal: number;
+}
+
 export interface SetActiveActionInput {
   activity_kind: string;
   target_type?: string | null;
@@ -859,6 +869,20 @@ export interface WriteStore {
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json>;
   disablePushDevice(playerId: string, token: string): Promise<Json>;
   vendorBuy(playerId: string, nonce: string, itemKey: string, quantity: number): Promise<Json>;
+  /**
+   * QuickBuy (QB-1, migration 0060): the advisory quote read —
+   * market sweep plan + today's vendor offer + balance for one
+   * shortfall good. A read: no nonce, no economy gate (guests see
+   * the full sheet; the lock sits on the fill).
+   */
+  quickbuyQuote(playerId: string, goodKind: string, goodId: string, quantity: number): Promise<Json>;
+  /**
+   * QuickBuy fill: ONE source leg (the confirmed tab) settled
+   * atomically under the quote-as-ceiling rule. Drift, vanished
+   * supply and a short balance return a 'requote' payload with a
+   * fresh quote embedded — they never throw and never move money.
+   */
+  quickbuyFill(playerId: string, nonce: string, input: QuickBuyFillInput): Promise<Json>;
   vendorSell(playerId: string, nonce: string, input: VendorSellInput): Promise<Json>;
   claimCraftedConsumable(playerId: string, nonce: string, recipeId: string, itemKey: string, quantity: number): Promise<Json>;
   consumeConsumable(
@@ -1265,6 +1289,25 @@ export class PgWriteStore implements WriteStore {
   }
   vendorBuy(playerId: string, nonce: string, itemKey: string, quantity: number): Promise<Json> {
     return this.callJson('select public.cc_vendor_buy($1, $2, $3, $4) as result', [playerId, nonce, itemKey, quantity]);
+  }
+  quickbuyQuote(playerId: string, goodKind: string, goodId: string, quantity: number): Promise<Json> {
+    return this.callJson('select public.cc_quickbuy_quote($1, $2, $3, $4) as result', [
+      playerId,
+      goodKind,
+      goodId,
+      quantity,
+    ]);
+  }
+  quickbuyFill(playerId: string, nonce: string, input: QuickBuyFillInput): Promise<Json> {
+    return this.callJson('select public.cc_quickbuy_fill($1, $2, $3, $4, $5, $6, $7) as result', [
+      playerId,
+      nonce,
+      input.source,
+      input.goodKind,
+      input.goodId,
+      input.quantity,
+      input.quotedTotal,
+    ]);
   }
   vendorSell(playerId: string, nonce: string, input: VendorSellInput): Promise<Json> {
     return this.callJson('select public.cc_vendor_sell($1, $2, $3, $4, $5, $6, $7) as result', [

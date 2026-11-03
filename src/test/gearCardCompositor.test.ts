@@ -188,7 +188,7 @@ describe('gear core — bespoke resolves first (slot exists, registry empty)', (
 
 describe('gear core — dispatch seam (kinds flip one slice at a time)', () => {
   it('unflipped kinds route to svg: flags off, no grammars', () => {
-    for (const kind of ['shield', 'relic', 'ordnance'] as const) {
+    for (const kind of ['shield', 'relic'] as const) {
       expect(GEAR_PIXEL_KINDS[kind]).toBe(false);
       expect(GEAR_GRAMMARS[kind]).toBeUndefined();
       expect(gearRenderRoute(kind)).toBe('svg');
@@ -199,6 +199,12 @@ describe('gear core — dispatch seam (kinds flip one slice at a time)', () => {
     expect(GEAR_PIXEL_KINDS.classMod).toBe(true);
     expect(GEAR_GRAMMARS.classMod).toBeDefined();
     expect(gearRenderRoute('classMod')).toBe('pixel');
+  });
+
+  it('ordnance flipped in slice 2: flag on, grammar registered, route pixel', () => {
+    expect(GEAR_PIXEL_KINDS.ordnance).toBe(true);
+    expect(GEAR_GRAMMARS.ordnance?.id).toBe('ordnance');
+    expect(gearRenderRoute('ordnance')).toBe('pixel');
   });
 
   it('pixel requires flag AND grammar; a flag alone fails safe to svg', () => {
