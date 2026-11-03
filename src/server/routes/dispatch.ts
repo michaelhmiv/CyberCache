@@ -116,9 +116,10 @@ async function priceContract(
   if (!facts) return { notFound: 'Profile not found' };
   const levers = await dispatchLevers(config);
   const reasons: string[] = [];
-  if (facts.profile.player_level < area.unlockLevel) {
-    reasons.push(`Destination locked — requires hunter level ${area.unlockLevel}`);
-  }
+  // No destination level gate (owner ruling 2026-11-02): contracts
+  // may run to any area at any hunter level. The courier-tier gate
+  // keyed on the VEHICLE's class further down is a different gate
+  // (vehicle progression) and stays.
   const seed = `${playerId}:${offer.id}`;
   const byId = new Map(facts.items.map((i) => [i.id, i]));
 
@@ -290,8 +291,6 @@ async function dispatchStateView(store: ChefGameplayStore, config: DispatchConfi
       ...offer,
       areaName: area?.name ?? offer.areaId,
       dangerRating: area?.dangerRating ?? 'Medium',
-      areaUnlockLevel: area?.unlockLevel ?? 1,
-      areaLocked: (area?.unlockLevel ?? 1) > facts.profile.player_level,
     };
   });
   const candidates = facts.items.map((item) => ({

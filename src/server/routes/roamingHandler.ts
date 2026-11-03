@@ -86,19 +86,13 @@ export function createClaimHandler(
         return;
       }
 
-      // Area level gate, enforced server-side against the DB level.
-      // unlockLevel used to be UI-only (disabled picker buttons), so a
-      // stale or forged area selection farmed the top area at level 1.
+      // No area level gate (owner ruling 2026-11-02): any hunter may
+      // roam any area. The client's danger warning (areaDanger) is the
+      // advisory replacement, and the death-loop trickle guard in the
+      // engine + the settlement duel gate are what keep a hopeless
+      // area from paying — difficulty and death are the walls now,
+      // not a level check.
       const area = getRoamingArea(body.areaId);
-      if (profile.player_level < area.unlockLevel) {
-        res.status(403).json({
-          error: 'Area locked for your level',
-          areaId: area.id,
-          requiredLevel: area.unlockLevel,
-          playerLevel: profile.player_level,
-        });
-        return;
-      }
 
       if (body.tickCount <= profile.last_claimed_tick) {
         res.status(409).json({ error: 'tick_count already claimed', lastClaimedTick: profile.last_claimed_tick });

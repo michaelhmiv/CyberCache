@@ -190,6 +190,16 @@ export interface ClaimRequest {
      */
     shieldNovaArmed?: boolean;
     /**
+     * Death-loop trickle guard (owner ruling 2026-11-02): whether the
+     * presence trickle (per-tick credit/scrap/XP accrual + the
+     * per-tick loot roll) is armed for this life. The engine arms it
+     * on any kill and disarms it on death; the result round-trips the
+     * end state. Absent = armed when entering alive (a fresh life has
+     * no death to answer for); it only ever turns false through an
+     * in-sim death, so existing mid-life players never hiccup.
+     */
+    trickleArmed?: boolean;
+    /**
      * @deprecated Ignored by the engine: mitigation is re-derived
      * server-side from the equipped shield in equippedGear (the
      * ticker never sent this field, which is why roaming mitigation
@@ -328,6 +338,8 @@ export interface ClaimResult {
     diedAt: number | null;
     /** Nova arm state at claim end (Phase 2c) — the client round-trips it. */
     shieldNovaArmed: boolean;
+    /** Trickle arm state at claim end (death-loop guard) — the client round-trips it. */
+    trickleArmed: boolean;
     medKitBuffer: number;
     nanoSwarmTicksRemaining: number;
     adrenalineActive: boolean;
@@ -720,6 +732,17 @@ export function processRoamingClaim(
     (shieldCapacity > 0 &&
       survShield >= SHIELD_BEHAVIOR_TUNING.novaRearmThreshold * shieldCapacity);
 
+  // Death-loop trickle guard (owner ruling 2026-11-02): the presence
+  // trickle — per-tick credit/scrap/XP accrual and the per-tick loot
+  // roll (gear / fragments / field-sweep materials) — pays only while
+  // the hunter has killed at least one hostile since their last
+  // death. Entering a claim already dead starts disarmed; entering
+  // alive with no flag starts armed (fresh life). Kills re-arm (see
+  // the kill sites); deaths disarm (see the death sites). Without
+  // this, a hunter dying on loop in a top area accrued its trickle
+  // at full rate — death gated the kill cycle, not the reward roll.
+  let trickleArmed = !survDead && (request.survival?.trickleArmed ?? true);
+
   // --- Consumable engine initialization ---
   // Local copy: the Wounded Scavenger event can spend a carried
   // survival consumable mid-claim, and the request object is not ours
@@ -1101,6 +1124,7 @@ export function processRoamingClaim(
       survHp = Math.max(0, survHp - remaining);
       if (survHp <= 0) {
         survDead = true;
+        trickleArmed = false;
         survKilledBy = { monsterId: sourceId, monsterName: sourceName, areaId };
         survDiedAt = at;
         feedEvents.push({
@@ -1273,6 +1297,9 @@ export function processRoamingClaim(
             });
             if (kcTargetHp <= 0) {
               kcMonstersKilled += 1;
+              // A kill re-arms the presence trickle (death-loop
+              // guard) — a kill scored while dead does not.
+              if (!survDead) trickleArmed = true;
               kcTotalKills += 1;
               kcLastKilledId = kcTargetId;
               feedEvents.push({
@@ -1472,6 +1499,25 @@ export function processRoamingClaim(
     const gearThreshold = gearChance;
     const fragmentThreshold = Math.min(0.99, gearThreshold + fragmentChance);
     const materialThreshold = Math.min(0.99, fragmentThreshold + materialChance);
+
+    // Death-loop trickle guard: this tick's presence rewards — the
+    // loot roll below and the base accrual after it — pay only while
+    // the trickle is armed and the hunter is alive at tick start. A
+    // death later in the tick does not retro-stop this tick (the
+    // hunter was alive for it); it stops the NEXT tick. The roll
+    // still runs in full while disarmed — every RNG draw and
+    // generation step happens exactly as for a live tick, so the
+    // deterministic streams stay bit-identical; only the AWARDS are
+    // discarded, via the snapshot/restore around the roll.
+    const trickleLive = trickleArmed && !survDead;
+    const trickleSnapshot = {
+      generatedItems: generatedItems.length,
+      feedEvents: feedEvents.length,
+      fragmentsAwarded,
+      killsRecorded,
+      materials: { ...materials },
+      essences: { ...essences },
+    };
     const roll = rng();
 
     if (roll < gearThreshold) {
@@ -1583,10 +1629,28 @@ export function processRoamingClaim(
       });
     }
 
-    // Every tick awards base resources (with idle mods + skill bonuses + activity mods + consumable mods + vehicle yield)
-    creditsFraction += tickCredits;
-    scrapFraction += tickScrap * consumableMods.scrapYieldMultiplier;
-    xpFraction += tickXp * consumableMods.xpMultiplier;
+    // Discard a dead trickle's roll awards (see the snapshot above):
+    // the roll happened, the finds did not.
+    if (!trickleLive) {
+      generatedItems.length = trickleSnapshot.generatedItems;
+      feedEvents.length = trickleSnapshot.feedEvents;
+      fragmentsAwarded = trickleSnapshot.fragmentsAwarded;
+      killsRecorded = trickleSnapshot.killsRecorded;
+      for (const key of Object.keys(materials)) delete materials[key];
+      Object.assign(materials, trickleSnapshot.materials);
+      for (const key of Object.keys(essences)) delete essences[key];
+      Object.assign(essences, trickleSnapshot.essences);
+    }
+
+    // Base resources award every tick the trickle is live (idle mods
+    // + skill bonuses + activity mods + consumable mods + vehicle
+    // yield all folded into the tick rates above). While the hunter
+    // is dead-and-disarmed, presence alone pays nothing.
+    if (trickleLive) {
+      creditsFraction += tickCredits;
+      scrapFraction += tickScrap * consumableMods.scrapYieldMultiplier;
+      xpFraction += tickXp * consumableMods.xpMultiplier;
+    }
 
     // --- Kill cycle simulation (player → monster damage) ---
     // Amp behavior (Phase 2c): outgoing damage is multiplied while
@@ -1626,6 +1690,8 @@ export function processRoamingClaim(
           if (kcTargetHp <= 0) {
             // Kill! Advance the cycle
             kcMonstersKilled += 1;
+            // A kill re-arms the presence trickle (death-loop guard).
+            if (!survDead) trickleArmed = true;
             kcTotalKills += 1;
             kcLastKilledId = kcTargetId;
 
@@ -1764,6 +1830,7 @@ export function processRoamingClaim(
           survHp = Math.max(0, survHp - remainingHpDamage);
           if (survHp <= 0) {
             survDead = true;
+            trickleArmed = false;
             survKilledBy = { monsterId: modifiedAttacker.id, monsterName: modifiedAttacker.name, areaId };
             survDiedAt = now - (ticks - 1 - tickIdx) * TICK_MS;
             // Feed event: hunter died
@@ -1798,6 +1865,11 @@ export function processRoamingClaim(
                 kcTargetHp -= hit.novaDamage;
                 if (kcTargetHp <= 0) {
                   kcMonstersKilled += 1;
+                  // A kill re-arms the presence trickle (death-loop
+                  // guard) — unless the same hit downed the hunter:
+                  // a simultaneous nova kill is AT the death, not
+                  // since it, so the death keeps the trickle disarmed.
+                  if (!survDead) trickleArmed = true;
                   kcTotalKills += 1;
                   kcLastKilledId = kcTargetId;
                   feedEvents.push({
@@ -2001,6 +2073,7 @@ export function processRoamingClaim(
         killedBy: survKilledBy,
         diedAt: survDiedAt,
         shieldNovaArmed,
+        trickleArmed,
         medKitBuffer: ss?.medKitBuffer ?? 0,
         nanoSwarmTicksRemaining: ss?.nanoSwarmTicksRemaining ?? 0,
         adrenalineActive: ss?.adrenalineActive ?? false,
