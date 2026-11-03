@@ -47,6 +47,7 @@ import { formatRpcError } from '@/lib/api/rpcError';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import {
   ACCESSORY_SLOTS,
+  elementTintOf,
   GUN_SLOTS,
   slotBlockSummary,
   type SlotBlockSummary,
@@ -217,25 +218,30 @@ const blockAccent = (item: BlockItem): string =>
 const weaponOf = (item: BlockItem): Weapon | null =>
   item && 'weaponType' in item ? (item as Weapon) : null;
 
-/** The gun stat line: muted segments, the headline value in ink. */
-const GunStatLine: React.FC<{ block: SlotBlockSummary }> = ({ block }) => {
+/** The block's perk line: muted segments, the headline's value in
+ *  ink. Rarity and element never print here (owner ruling
+ *  2026-11-03) — the name carries rarity's color, the icon and the
+ *  item's own render carry the element's. */
+const PerkLine: React.FC<{ block: SlotBlockSummary }> = ({ block }) => {
   const segments = block.statSegments;
-  if (!segments || segments.length === 0) {
-    return <span className="block text-[11px] font-bold leading-snug text-text-muted">{block.statLine}</span>;
-  }
   return (
     <span className="block text-[11px] font-bold leading-snug text-text-muted">
       {segments.map((segment, i) => {
-        const isLast = i === segments.length - 1;
-        const split = isLast ? segment.lastIndexOf(' ') : -1;
+        // Bold the headline segment's trailing value when it is one
+        // ("DPS 486" → 486 in ink; a free-text headline like a
+        // relic's affix bolds whole).
+        const split = i === 0 ? segment.lastIndexOf(' ') : -1;
+        const valueLike = split > 0 && /[0-9+]/.test(segment.charAt(split + 1));
         return (
-          <React.Fragment key={segment}>
+          <React.Fragment key={`${segment}-${i}`}>
             {i > 0 && ' · '}
-            {isLast && split > 0 ? (
+            {i === 0 && valueLike ? (
               <>
                 {segment.slice(0, split)}{' '}
                 <span className="font-black text-text-primary">{segment.slice(split + 1)}</span>
               </>
+            ) : i === 0 ? (
+              <span className="font-black text-text-primary">{segment}</span>
             ) : (
               segment
             )}
@@ -269,7 +275,10 @@ const GunPosterRow: React.FC<{
       }}
     >
       <span className="flex items-center gap-1.5">
-        <PxIcon name={BLOCK_ICONS[block.slot]} size={15} className="shrink-0" style={{ color: accent }} />
+        {/* The icon carries the ELEMENT's color (owner ruling
+            2026-11-03: element reads by color, never by word);
+            the name beside it carries the rarity's. */}
+        <PxIcon name={BLOCK_ICONS[block.slot]} size={15} className="shrink-0" style={{ color: elementTintOf(item) ?? accent }} />
         <span
           className="min-w-0 flex-1 truncate text-[13px] font-black"
           style={{ color: block.filled ? accent : '#8A847C' }}
@@ -281,7 +290,7 @@ const GunPosterRow: React.FC<{
       {weapon && (
         <PixelWeapon weapon={weapon} size={164} className="my-1 max-w-full" testId="slot-weapon-primary" />
       )}
-      <GunStatLine block={block} />
+      <PerkLine block={block} />
     </button>
   );
 };
@@ -320,7 +329,7 @@ const GunRow: React.FC<{
         >
           {block.name}
         </span>
-        <GunStatLine block={block} />
+        <PerkLine block={block} />
       </span>
       <PxIcon name="chevR" size={13} className="shrink-0 text-text-muted" />
     </button>
@@ -364,7 +373,7 @@ const AccessoryCard: React.FC<{
         >
           {block.name}
         </span>
-        <span className="block text-[11px] font-bold text-text-secondary">{block.headline}</span>
+        <PerkLine block={block} />
       </span>
     </button>
   );

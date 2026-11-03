@@ -3,23 +3,28 @@ import { motion } from 'framer-motion';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
 /**
- * Gear rail (redesign Wave D, DESIGN.md §2/§3/§6).
+ * Gear rail (redesign Wave D, DESIGN.md §2/§3/§6; merged page
+ * amendment, Exec C, 2026-11-03).
  *
- * The Gear tab's table of contents: exactly the four stops the
- * language specifies — Loadout · Grid · Items · Workshop — in the
- * §2 order. The Garage is NOT a stop: DESIGN.md §11 F1 originally
- * promoted it to one, but the owner overruled that decision
- * (2026-11-02) — the Garage folds back into the Loadout stop as
- * its expanding vehicle section, per the approved mock.
+ * The Gear tab's table of contents: exactly two stops — Loadout ·
+ * Workshop — in the §2 order. The Loadout stop is now ONE merged
+ * page (the Split doll zone, the vehicle/Garage section, the
+ * Inventory grid, and Belt & Stacks as its scroll sections): the
+ * Grid and Items stops retired into it (INVENTORY.md P2 — their
+ * content moved onto the page, nothing was removed). The Garage
+ * was never a stop: DESIGN.md §11 F1 originally promoted it to
+ * one, but the owner overruled that decision (2026-11-02) — the
+ * Garage folds into the Loadout page as its expanding vehicle
+ * section, per the approved mock.
  *
  * Geometry follows the Home mode rail (Wave C): one bordered bar,
  * one stop height (48px — a real tap target), icons on the §7 rail
  * size (17px), labels at the §5 floor (11px). The bar scrolls
  * horizontally rather than shrinking its stops (§6
- * scroll-don't-shrink); at the reference width the four stops fit,
- * and narrower viewports get the edge fade.
+ * scroll-don't-shrink); at the reference width the stops fit, and
+ * narrower viewports get the edge fade.
  */
-export type GearStop = 'loadout' | 'grid' | 'items' | 'workshop';
+export type GearStop = 'loadout' | 'workshop';
 
 interface GearStopDef {
   stop: GearStop;
@@ -29,9 +34,7 @@ interface GearStopDef {
 }
 
 const GEAR_STOPS: GearStopDef[] = [
-  { stop: 'loadout', label: 'Loadout', icon: 'armor', ariaLabel: 'Loadout — your seven gear slots and the slot picker' },
-  { stop: 'grid', label: 'Grid', icon: 'grid', ariaLabel: 'Item Grid — browse, compare, and salvage your items' },
-  { stop: 'items', label: 'Items', icon: 'vial', ariaLabel: 'Items — your belt, consumable stacks, materials, and essences' },
+  { stop: 'loadout', label: 'Loadout', icon: 'armor', ariaLabel: 'Loadout — the merged gear page: your seven gear slots and the slot picker, the Garage, your Inventory, and your belt and stacks' },
   { stop: 'workshop', label: 'Workshop', icon: 'anvil', ariaLabel: 'Workshop — the crafting bench: recipes and the job queue' },
 ];
 

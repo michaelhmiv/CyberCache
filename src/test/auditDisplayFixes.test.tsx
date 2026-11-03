@@ -24,7 +24,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => ({
@@ -277,9 +277,13 @@ describe('audit UX-02 — inspect sheet Unequip for equipped items', () => {
 
     render(<InventoryScreen onNavigate={vi.fn()} />);
 
-    // Wave D: items live on the Grid rail stop — open it first.
-    fireEvent.click(screen.getByTestId('gear-stop-grid'));
-    fireEvent.click(await screen.findByText('Equipped Pistol'));
+    // Merged page (Exec C): items live in the page's Inventory
+    // section — the card is right here, no rail stop to open first.
+    // (Scoped to the section: the equipped weapon's name also
+    // prints on its doll-zone poster block above.)
+    const inventorySection = document.getElementById('gear-inventory-section');
+    if (!inventorySection) throw new Error('inventory section missing');
+    fireEvent.click(await within(inventorySection).findByText('Equipped Pistol'));
     const unequipButton = await screen.findByRole('button', { name: /Unequip/ });
     expect(screen.queryByRole('button', { name: /Equip$/ })).toBeNull();
 

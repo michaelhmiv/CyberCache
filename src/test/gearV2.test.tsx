@@ -70,15 +70,20 @@ describe('Gear v2 — the rail of stops', () => {
     usePlayerStore.setState({ consumables: {}, consumableBatches: [], materials: {}, essences: {} });
   });
 
-  it('renders exactly the four §2 stops in order, at floor size with real tap targets', () => {
+  it('renders exactly the two §2 stops in order, at floor size with real tap targets', () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
     const rail = screen.getByTestId('gear-rail');
     const stops = [...rail.querySelectorAll('[data-testid^="gear-stop-"]')].map((el) => el.getAttribute('data-testid'));
-    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-grid', 'gear-stop-items', 'gear-stop-workshop']);
+    // Merged page (Exec C, 2026-11-03): the rail is Loadout ·
+    // Workshop — the Grid and Items stops retired into the merged
+    // Loadout page as its Inventory and Belt & Stacks sections.
+    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-workshop']);
     // Owner ruling 2026-11-02: there is no Garage stop — the
     // Garage folded into Loadout (§11 F1 as amended).
     expect(screen.queryByTestId('gear-stop-garage')).toBeNull();
-    for (const label of ['Loadout', 'Grid', 'Items', 'Workshop']) {
+    expect(screen.queryByTestId('gear-stop-grid')).toBeNull();
+    expect(screen.queryByTestId('gear-stop-items')).toBeNull();
+    for (const label of ['Loadout', 'Workshop']) {
       expect(screen.getByTestId(`gear-stop-${label.toLowerCase()}`)).toBeTruthy();
       expect(rail.textContent).toContain(label);
     }
@@ -113,23 +118,28 @@ describe('Gear v2 — the rail of stops', () => {
     expect(screen.getByRole('button', { name: 'Close Garage' })).toBeTruthy();
   });
 
-  it('the Grid stop mounts the item grid; the Items stop mounts the belt', async () => {
+  it('the merged Loadout page mounts the doll, the Inventory grid, and the belt as sections', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByTestId('gear-stop-grid'));
-    expect(await screen.findByText('Item Grid')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('gear-stop-items'));
-    expect(await screen.findByText('Items', { selector: '.text-lg' })).toBeTruthy();
+    // No stop-hopping: the whole page is here on arrival — the
+    // former Grid as § Inventory, the former Items stop as
+    // § Belt & Stacks.
+    expect(await screen.findByText('Inventory', { selector: '.text-base' })).toBeTruthy();
+    expect(screen.getByText('Belt & Stacks')).toBeTruthy();
     expect(screen.getByText('How the belt works')).toBeTruthy();
+    // And the Workshop door row rides at the page foot (W12).
+    expect(screen.getByTestId('gear-workshop-door')).toBeTruthy();
   });
 
-  it('the Workshop stop carries the bench-family doors to the Grid', async () => {
+  it('the Workshop stop carries the bench-family doors to Inventory', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
     fireEvent.click(screen.getByTestId('gear-stop-workshop'));
     expect(await screen.findByText('Also at the bench', undefined, { timeout: 10_000 })).toBeTruthy();
     expect(screen.getByText(/Reforge an affix/)).toBeTruthy();
     expect(screen.getByText(/Salvage & recycle/)).toBeTruthy();
+    // The signpost lands on the merged page's Inventory section.
     fireEvent.click(screen.getByText(/Salvage & recycle/));
-    expect(await screen.findByText('Item Grid', undefined, { timeout: 10_000 })).toBeTruthy();
+    expect(await screen.findByText('Inventory', { selector: '.text-base' }, { timeout: 10_000 })).toBeTruthy();
+    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
   }, 30_000);
 
   it('badges the Workshop stop with the active job count', () => {
@@ -161,7 +171,8 @@ describe('Gear v2 — real data on the card face', () => {
     const weapon = makeWeapon('w-aff', 'Affix Pistol', ['+12% Weapon Damage', '+8% Crit Chance', '+5% Boss Damage']);
     useInventoryStore.setState({ items: [weapon] });
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByTestId('gear-stop-grid'));
+    // The grid is the merged page's Inventory section — no stop
+    // switch stands between the player and the card.
     expect(await screen.findByText('+12% Weapon Damage')).toBeTruthy();
     expect(screen.getByText('+8% Crit Chance')).toBeTruthy();
     expect(screen.getByText('+1 more affixes — tap to inspect')).toBeTruthy();
@@ -185,7 +196,7 @@ describe('Gear v2 — Items stacks with quality printed', () => {
       essences: { VoidEssence: 3 },
     });
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByTestId('gear-stop-items'));
+    // Belt & Stacks is a section of the merged page — mounted with it.
     expect(await screen.findByText(/×3 at 137% quality/)).toBeTruthy();
     expect(screen.getByText(/×2 at 100% quality/)).toBeTruthy();
     expect(screen.getByText('Scrap Alloy')).toBeTruthy();

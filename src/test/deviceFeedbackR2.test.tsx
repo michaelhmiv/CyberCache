@@ -31,7 +31,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
@@ -223,17 +223,27 @@ beforeEach(() => {
   seedStores();
 });
 
-/** The slot chip button for a label (chips render label text in a span). */
+/** The slot surface button for a label. Since the merged Gear page
+ *  (Exec C), the manage-mode slot surfaces are the Split's blocks —
+ *  gun rows and accessory cards — addressed by their slot testid. */
+const SLOT_BY_LABEL: Record<string, string> = {
+  Primary: 'primary',
+  Secondary: 'secondary',
+  Heavy: 'heavy',
+  Shield: 'shield',
+  Mod: 'classMod',
+  Relic: 'relic',
+  Ordnance: 'ordnance',
+};
 function slotChip(label: string): HTMLElement {
-  const el = screen.getByText(label, { exact: true });
-  const btn = el.closest('button');
-  if (!btn) throw new Error(`no chip button for label ${label}`);
-  return btn;
+  return screen.getByTestId(`slot-block-${SLOT_BY_LABEL[label]}`);
 }
 
-/** Click the picker's candidate row for an item and await the equip. */
+/** Click the picker's candidate row for an item and await the equip.
+ *  Scoped to the picker sheet's body: on the merged page the item's
+ *  Inventory card stays mounted below with the same accessible name. */
 async function equipFromPicker(itemId: string, itemName: string, slot: string) {
-  const row = await screen.findByRole('button', { name: new RegExp(itemName) });
+  const row = await within(screen.getByTestId('picker-sheet-body')).findByRole('button', { name: new RegExp(itemName) });
   fireEvent.click(row);
   await waitFor(() => {
     expect(useLoadoutStore.getState().slots[slot as keyof typeof EMPTY_SLOTS]).toBe(itemId);
@@ -250,12 +260,13 @@ describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
 
     render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'loadout', seq: 1 }} />);
 
-    // The Loadout stop mounted (not the item grid).
+    // The gear home opens ON the Loadout stop — the merged page,
+    // whose first zone is the doll and its equip surface.
     // F5 successor landmark: the Loadout stop's old intro sentence
     // ("Your seven gear slots…") was removed per the fidelity audit;
     // the panel header's "Tap a slot to equip" hint is its marker now.
     await screen.findByText('Tap a slot to equip');
-    expect(screen.queryByText('Item Grid')).toBeNull();
+    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
 
     // Slots are visible and tappable on arrival; the picker opens.
     fireEvent.click(slotChip('Primary'));
@@ -306,9 +317,12 @@ describe('device r2 — F3: the equip grid is reachable on arrival', () => {
 
     render(<ActionLoadout />);
 
-    // The slot chips are on screen immediately — no hidden grid.
-    expect(screen.getByText('Primary', { exact: true })).toBeTruthy();
-    expect(screen.getByText('Secondary', { exact: true })).toBeTruthy();
+    // The slot blocks are on screen immediately — no hidden grid,
+    // and manage mode carries no collapse toggle at all (the
+    // merged page retired it, INVENTORY L4).
+    expect(screen.getByTestId('slot-block-primary')).toBeTruthy();
+    expect(screen.getByTestId('slot-block-secondary')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Collapse loadout' })).toBeNull();
     // And the picker still opens from here.
     fireEvent.click(slotChip('Shield'));
     expect(await screen.findByText('Shield', { selector: '.bl-title' })).toBeTruthy();
@@ -382,9 +396,9 @@ describe('device r2 — equipping through the Slot Picker, every slot kind', () 
     const relic = makeRelic('r-door', 'Door Relic');
     useInventoryStore.setState({ items: [relic] });
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    // Wave D: the grid is its own rail stop — the player path to an
-    // item card starts there (the gear home opens on Loadout).
-    fireEvent.click(screen.getByTestId('gear-stop-grid'));
+    // Merged page (Exec C): the item grid is the page's Inventory
+    // section — the player path to an item card starts right here,
+    // no rail stop stands in between.
     fireEvent.click(await screen.findByText('Door Relic'));
     const equipAction = await screen.findByRole('button', { name: /Equip/ });
     fireEvent.click(equipAction);

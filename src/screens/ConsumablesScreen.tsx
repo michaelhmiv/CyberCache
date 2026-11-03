@@ -115,10 +115,13 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
   };
 
   return (
-    <div className="space-y-3 p-3 pb-20">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-3 px-4">
+      {/* Section header, sticky like § Inventory's (merged Gear
+          page, 2026-11-03): the Items stop retired into this
+          section — "Belt & Stacks" is its name on the page. */}
+      <div className="sticky top-0 z-20 -mx-4 flex items-center justify-between gap-3 border-b border-border/60 bg-bg/95 px-4 pb-2 pt-2 backdrop-blur-sm">
         <div>
-          <div className="text-lg font-black text-text-primary">Items</div>
+          <div className="text-lg font-black text-text-primary">Belt &amp; Stacks</div>
           <div className="text-[11px] text-text-muted">Your belt — tap a slot to assign, swap, or inspect — and every stack you carry.</div>
         </div>
         <button type="button" onClick={openVendor} className="rounded-full border border-amber/40 bg-amber/10 px-2 py-1 text-[11px] font-black text-amber">

@@ -76,7 +76,7 @@ function App() {
   // Deep-link focus inside the Profile tab: 'skills' lands the player
   // ON the Profile-embedded SkillTreeScreen (scrolled into view), not
   // at the top of the Profile page (device feedback r2).
-  const [profileFocus, setProfileFocus] = useState<'skills' | null>(null);
+  const [profileFocus, setProfileFocus] = useState<'skills' | 'wardrobe' | null>(null);
   // Tab intent for the gear home (flow audit F2): every "loadout"
   // door must open Inventory ON its Loadout stop — the one equip
   // surface — not on the item grid. `seq` makes a repeat intent
@@ -133,6 +133,16 @@ function App() {
       setActiveTab('hunter');
       setSubScreen(null);
       setProfileFocus('skills');
+      return;
+    }
+    if (screen === 'wardrobe') {
+      // The Wardrobe door on the Gear page's figure stage (Exec C,
+      // 2026-11-03): the Wardrobe's canonical home stays Hunter →
+      // Profile — this is the DESIGN §9 secondary door, landing on
+      // the Profile stop scrolled to the Wardrobe panel.
+      setActiveTab('hunter');
+      setSubScreen(null);
+      setProfileFocus('wardrobe');
       return;
     }
     setProfileFocus(null);

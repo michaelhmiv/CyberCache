@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACCESSORY_SLOTS,
+  elementTintOf,
   GUN_SLOTS,
   SLOT_BLOCK_LABELS,
   slotBlockSummary,
@@ -73,37 +74,60 @@ const ordnance: Ordnance = {
   isLocked: false, pixelSeed: 0,
 };
 
-describe('slotBlockSummary — the merged Gear page block content', () => {
-  it('gun slots carry the four-term stat line from the real item', () => {
+describe('slotBlockSummary — the merged Gear page perk lines (owner ruling 2026-11-03)', () => {
+  it('a gun line is headline DPS, then the real proc/crit perks', () => {
     const block = slotBlockSummary('primary', makeWeapon());
     expect(block.kind).toBe('gun');
     expect(block.filled).toBe(true);
     expect(block.name).toBe('Volt Carbine');
-    expect(block.statLine).toBe('Primary · Epic · Shock · DPS 486');
-    expect(block.headline).toBeNull();
+    expect(block.statSegments).toEqual(['DPS 486', 'Status 10%', 'Crit 18%']);
+    expect(block.statLine).toBe('DPS 486 · Status 10% · Crit 18%');
   });
 
-  it('secondary and heavy are guns too, with their own slot labels', () => {
-    expect(slotBlockSummary('secondary', makeWeapon()).statLine).toContain('Secondary ·');
-    expect(slotBlockSummary('heavy', makeWeapon()).statLine).toContain('Heavy ·');
+  it('rarity and element never print as words — they read by color', () => {
+    const blocks = [
+      slotBlockSummary('primary', makeWeapon()),
+      slotBlockSummary('shield', shield),
+      slotBlockSummary('classMod', classMod),
+      slotBlockSummary('relic', relic),
+      slotBlockSummary('ordnance', ordnance),
+    ];
+    for (const block of blocks) {
+      expect(block.statLine).not.toMatch(/Epic|Rare|Uncommon|Shock|Kinetic/);
+    }
+    // The element's color is available for the block's icon tint.
+    expect(elementTintOf(makeWeapon())).toBe('#3B82F6');
+    expect(elementTintOf(shield)).toBe('#9CA3AF');
+    expect(elementTintOf(classMod)).toBeNull();
+    expect(elementTintOf(null)).toBeNull();
+  });
+
+  it('secondary and heavy are guns too; a perkless roll falls back to Roll', () => {
+    expect(slotBlockSummary('secondary', makeWeapon()).kind).toBe('gun');
+    const plain = makeWeapon({ statusChance: 0, critChance: 0 });
+    expect(slotBlockSummary('heavy', plain).statSegments).toEqual(['DPS 486', 'Roll 92']);
     expect(GUN_SLOTS).toEqual(['primary', 'secondary', 'heavy']);
   });
 
-  it('accessories carry the headline stat alone', () => {
-    expect(slotBlockSummary('shield', shield).headline).toBe('HP 640');
-    expect(slotBlockSummary('classMod', classMod).headline).toBe('4 nodes');
-    expect(slotBlockSummary('relic', relic).headline).toBe('+6% rare drop');
-    expect(slotBlockSummary('ordnance', ordnance).headline).toBe('Payload 310');
+  it('accessories carry headline + next perks', () => {
+    expect(slotBlockSummary('shield', shield).statSegments).toEqual(['HP 640', 'Mit 20%', 'Rech 12/s']);
+    expect(slotBlockSummary('classMod', classMod).statSegments).toEqual(['4 nodes', 'Boost +5', 'Gunslinger']);
+    expect(slotBlockSummary('relic', relic).statSegments).toEqual(['+6% rare drop']);
+    expect(slotBlockSummary('ordnance', ordnance).statSegments).toEqual(['Payload 310', 'Shield 40', 'Armor 20']);
     expect(ACCESSORY_SLOTS).toEqual(['shield', 'classMod', 'relic', 'ordnance']);
-    for (const slot of ACCESSORY_SLOTS) {
-      expect(slotBlockSummary(slot, null).kind).toBe('accessory');
-      expect(slotBlockSummary(slot, null).statLine).toBeNull();
-    }
   });
 
-  it('a one-node class mod singularizes', () => {
+  it('a one-node class mod singularizes; a second relic affix joins the line', () => {
     const oneNode = { ...classMod, nodeBoosts: { gs_dmg_1: 2 } };
-    expect(slotBlockSummary('classMod', oneNode).headline).toBe('1 node');
+    expect(slotBlockSummary('classMod', oneNode).statSegments[0]).toBe('1 node');
+    const twoAffix = {
+      ...relic,
+      affixes: [
+        ...relic.affixes,
+        { id: 'a2', stat: 'scrapYieldMod', value: 0.1, tier: 1, displayText: '+10% scrap', category: 'economy' } as Relic['affixes'][number],
+      ],
+    };
+    expect(slotBlockSummary('relic', twoAffix).statSegments).toEqual(['+6% rare drop', '+10% scrap']);
   });
 
   it('empty slots print the fill prompt, primary as "No weapon"', () => {
@@ -113,7 +137,7 @@ describe('slotBlockSummary — the merged Gear page block content', () => {
     expect(primary.statLine).toBe('Tap to fill');
     const relicBlock = slotBlockSummary('relic', null);
     expect(relicBlock.name).toBe('Open');
-    expect(relicBlock.headline).toBe('Tap to fill');
+    expect(relicBlock.statLine).toBe('Tap to fill');
   });
 
   it('every loadout slot has a block label', () => {
