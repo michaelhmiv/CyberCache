@@ -25,6 +25,7 @@ import {
   gearRarityRequiresBench,
   isMaterialInput,
   refineOutputCount,
+  refineOutputRange,
   type CraftRecipe,
 } from '@/content/crafting';
 import { GRAMMAR } from '@/lib/pixel/grammar';
@@ -1136,7 +1137,19 @@ const RecipeCard: React.FC<{
     recipe.kind === 'refine'
       ? refineOutputCount(recipe, ctx.masteries['crafting.refining']?.level ?? 1, REFINE_BASE_YIELD_DEFAULT)
       : null;
+  // Stochastic rounding (economy brief §9.3): a fractional refine
+  // expectation labels as its honest range, not the floored count.
+  const refineRange =
+    recipe.kind === 'refine'
+      ? refineOutputRange(recipe, ctx.masteries['crafting.refining']?.level ?? 1, REFINE_BASE_YIELD_DEFAULT)
+      : null;
   const makesPerUnit = recipe.kind === 'refine' ? refineOut : (recipe.outputQuantity ?? 1);
+  const makesLabel =
+    refineRange && refineRange.max > refineRange.min
+      ? `Makes ×${refineRange.min}–${refineRange.max} per unit`
+      : makesPerUnit && makesPerUnit > 1
+        ? `Makes ×${makesPerUnit} per unit`
+        : null;
 
   const inputRows = Object.entries(recipe.inputs).map(([key, per]) => {
     // 'Scrap' is the profile's scrap balance, not a material
@@ -1371,7 +1384,7 @@ const RecipeCard: React.FC<{
         <div className="text-[11px] text-text-secondary">
           Total for <span className="font-black text-text-primary">{units} unit{units === 1 ? '' : 's'}</span>:{' '}
           <span className="font-black text-text-primary">{formatDurationShort(baseDurationMs * units)}</span> · ≈{xpPerUnit * units} XP · inputs held when you queue
-          {makesPerUnit && makesPerUnit > 1 ? ` · Makes ×${makesPerUnit} per unit` : ''}
+          {makesLabel ? ` · ${makesLabel}` : ''}
         </div>
         {isGear && recipe.durationByRarityMs && (
           <div className="text-[11px] text-text-muted">

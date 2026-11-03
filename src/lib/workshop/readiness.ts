@@ -38,7 +38,7 @@ import {
   craftQualityBounds,
   gearRarityRequiresBench,
   isMaterialInput,
-  refineOutputCount,
+  refineOutputRange,
   toolDef,
   REFINE_BASE_YIELD_DEFAULT,
   type CraftRecipe,
@@ -456,7 +456,11 @@ export function recipePurpose(
     if (def) return { text: def.shortDescription, hint: def.uiHints?.[0] ?? null };
   }
   if (recipe.kind === 'refine' && recipe.outputMaterial) {
-    const out = refineOutputCount(recipe, masteryLevel(ctx, 'crafting.refining'), REFINE_BASE_YIELD_DEFAULT);
+    // Stochastic rounding (economy brief §9.3): a fractional
+    // expectation prints as its honest range ("2–3 out"), never as
+    // a single count that would be wrong half the time.
+    const range = refineOutputRange(recipe, masteryLevel(ctx, 'crafting.refining'), REFINE_BASE_YIELD_DEFAULT);
+    const out = range.max > range.min ? `${range.min}–${range.max}` : `${range.min}`;
     const inputs = Object.entries(recipe.inputs)
       .map(([k, v]) => `${v} ${inputLabel(k)}`)
       .join(' + ');
@@ -479,7 +483,7 @@ export function recipePurpose(
   }
   if (recipe.kind === 'tool' && recipe.toolId) {
     const def = toolDef(recipe.toolId);
-    if (def) return { text: def.blurb, hint: `Lasts ${def.durabilityJobs} jobs once fitted.` };
+    if (def) return { text: def.blurb, hint: 'Permanent once crafted — a fitted tool never wears out.' };
   }
   if (recipe.kind === 'cosmetic') {
     const part = SKIN_PARTS.find((p) => p.id === recipe.cosmeticPartId);

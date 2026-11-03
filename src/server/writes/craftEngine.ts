@@ -42,7 +42,7 @@ import {
   MAX_UNITS_PER_JOB,
   qualityMasteryTrackForKind,
   QUEUED_JOBS_PER_BENCH,
-  refineOutputCount,
+  rollRefineOutputCount,
   rollCraftQuality,
   rushTicketTimeReduction,
   toolDef,
@@ -492,10 +492,12 @@ export function settleCraftJobs(
     for (const job of benchJobs) {
       if (budget <= 0) break;
       if (job.status !== 'active') continue;
-      // A fitted tool's charge is spent when the job actually starts.
+      // Tools are permanent (economy brief §9.2, 0067): a job's first
+      // unit still marks the job tool-charged for record parity with
+      // the SQL twin, but no charge is ever spent — a fitted tool is
+      // never consumed, unfitted, or treated as absent.
       if (!job.tool_charged && job.snapshot.toolId) {
         job.tool_charged = true;
-        consumeToolCharge(profile, job.snapshot.toolId);
       }
       while (budget > 0 && job.units_completed < job.units_total) {
         const need = job.unit_duration_ms - job.accrued_ms;
@@ -567,8 +569,7 @@ export interface OverclockFireResult {
  * §3.7): instantly complete the IN-PROGRESS unit on every active
  * bench — the head job of each bench — through the very same
  * completeCraftUnit the settler uses (same outputs, same quality
- * roll, same pegged XP, same tool-charge spend on a job's first
- * unit). It buys time, never output: exactly one unit per bench,
+ * roll, same pegged XP). It buys time, never output: exactly one unit per bench,
  * regardless of how much time that unit still had left. The SQL twin
  * is cc_fire_overclock_workshop looping cc_complete_craft_unit.
  * Action-lane and offline-cap rules do NOT apply — the fire is an
@@ -591,11 +592,10 @@ export function overclockCompleteInProgressUnits(
   for (const job of jobs) {
     if (benchesSeen.has(job.bench)) continue;
     benchesSeen.add(job.bench);
-    // A fitted tool's charge is spent when the job actually starts —
-    // the settler's rule, mirrored for a fire that starts the unit.
+    // Tools are permanent (economy brief §9.2, 0067): the fire marks
+    // the job tool-charged like the settler does, and spends nothing.
     if (!job.tool_charged && job.snapshot.toolId) {
       job.tool_charged = true;
-      consumeToolCharge(profile, job.snapshot.toolId);
     }
     job.accrued_ms = 0;
     const output = completeCraftUnit(adapter, profile, job, levers);
@@ -633,18 +633,6 @@ export function overclockCompleteInProgressUnits(
     }
   }
   return result;
-}
-
-function consumeToolCharge(profile: CraftProfileView, toolId: string): void {
-  const tools = profile.workshop_tools;
-  const charges = (tools.charges[toolId] ?? 0) - 1;
-  tools.charges[toolId] = Math.max(0, charges);
-  if (charges <= 0) {
-    tools.owned[toolId] = false;
-    for (const bench of Object.keys(tools.fitted)) {
-      if (tools.fitted[bench] === toolId) tools.fitted[bench] = null;
-    }
-  }
 }
 
 /** Refund every kit a repair job escrowed but never applied (early
@@ -863,7 +851,10 @@ function completeCraftUnit(
     output.bonusUnit = bonusUnit;
   } else if (job.kind === 'refine' && recipe.outputMaterial) {
     const masteryLevel = adapter.masteryLevel(playerId, 'crafting.refining');
-    const count = refineOutputCount(recipe, masteryLevel, levers.refineBaseYield, job.snapshot.toolRefineYieldBonus);
+    // Stochastic rounding (economy brief §9.3, 0067): floor(x) plus
+    // one extra unit with probability frac(x) — mastery and the
+    // Reclaimer Head move furnace yields for the first time.
+    const count = rollRefineOutputCount(recipe, masteryLevel, levers.refineBaseYield, job.snapshot.toolRefineYieldBonus, adapter.rng);
     profile.materials[recipe.outputMaterial] = (profile.materials[recipe.outputMaterial] ?? 0) + count;
     output.outputMaterial = recipe.outputMaterial;
     output.outputQuantity = count;
@@ -876,6 +867,28 @@ function completeCraftUnit(
       (adapter.skillBonus?.(playerId, 'craftTemperBonus') ?? 0)
         + (adapter.researchBonus?.(playerId, 'gearTemperBonus') ?? 0),
     );
+    // Material catalyst (economy brief §9.1, 0067): a gear job that
+    // escrowed a material catalyst (ForgeheartIngots) gets the same
+    // bounds shift the consumable branch applies — the shared bounds
+    // function with the catalyst flag set (+10 min / +15 max on the
+    // frame bounds), composed with the same quality shift. Each
+    // candidate draw rolls inside the shifted bounds and the draw
+    // selection keeps the best bounds roll (see craftGear.ts). The
+    // core catalyst is mutually exclusive at enqueue, so the two
+    // never compose on one unit.
+    const catalystBounds = job.snapshot.catalystMaterialId
+      ? craftQualityBounds({
+          consumableType: null,
+          masteryLevel: gearLevel,
+          bench: job.bench,
+          catalyst: true,
+          qualityShift: composedCraftQualityShift(
+            levers.craftQualityShift,
+            adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+            adapter.researchBonus?.(playerId, 'craftQualityShift') ?? 0,
+          ),
+        })
+      : null;
     const candidate = generateCraftedGearItem({
       slot: recipe.gearSlot as CraftGearSlot,
       rarity,
@@ -889,14 +902,24 @@ function completeCraftUnit(
           : 0)
         + (adapter.researchBonus?.(playerId, 'gearDrawBonus') ?? 0),
       rng: adapter.rng,
+      ...(catalystBounds
+        ? {
+            qualityRoll: {
+              bounds: catalystBounds,
+              bench: job.bench,
+              toolQualityMultiplier: job.snapshot.toolQualityMultiplier,
+            },
+          }
+        : {}),
     });
     output.itemId = adapter.insertGearItem(playerId, candidate);
     output.rarity = candidate.rarity;
     output.tempered = tempered;
+    if (candidate.craftQuality !== undefined) output.quality = candidate.craftQuality;
   } else if (job.kind === 'tool' && recipe.toolId) {
-    const def = toolDef(recipe.toolId);
+    // Permanent (economy brief §9.2, 0067): completion grants
+    // ownership, full stop — no charge count is stamped.
     profile.workshop_tools.owned[recipe.toolId] = true;
-    profile.workshop_tools.charges[recipe.toolId] = def?.durabilityJobs ?? 25;
     output.toolId = recipe.toolId;
   } else if (job.kind === 'cosmetic' && recipe.tintCraft) {
     // Tint job (0053): the craft lands on the TARGET part item,
@@ -1103,9 +1126,11 @@ export function enqueueCraftJob(
     fail('No Workshop Rush Ticket available');
   }
 
-  // Fitted tool snapshot for this bench.
+  // Fitted tool snapshot for this bench. Tools are permanent
+  // (economy brief §9.2, 0067): a fitted tool applies on every job —
+  // the stored charges from before 0067 are inert and never read.
   const fittedToolId = p.workshop_tools.fitted[String(bench)] ?? null;
-  const fittedDef = fittedToolId && (p.workshop_tools.charges[fittedToolId] ?? 0) > 0 ? toolDef(fittedToolId) : undefined;
+  const fittedDef = fittedToolId ? toolDef(fittedToolId) : undefined;
 
   // Rush ticket: escrowed at enqueue, burned when the job starts —
   // the escrow takes it out of inventory now (FIFO, lowest quality

@@ -102,15 +102,16 @@ The unified Workshop catalog holds **87 recipes**:
   on the crusher, and combine refined forms into Lab composites in the
   furnace.
 - **5 gear frames** — Weapon, Shield, Class Mod, Relic, and Ordnance.
-- **3 workshop tools** — fitted upgrades that improve your bench for a
-  set number of jobs: better quality, faster jobs, or better refining.
+- **3 workshop tools** — fitted upgrades that permanently improve
+  your bench: better quality, faster jobs, or better refining. A
+  crafted tool is yours for good — fitted tools never wear out.
 - **6 Manufacturer Standing exclusives** — one consumable per
   manufacturer, unlocked at rank 2 on that maker's ladder (see
   [[Manufacturer Standing]]).
 - **3 Research batch recipes** — Shield Cells, Patch Kits, and Ordnance
   Charges made 3 at a time, gated behind the Production Systems course
-  in [[Actions and Occupations|Research]]: cheaper in time than three
-  singles, dearer in materials.
+  in [[Actions and Occupations|Research]]: fewer materials and less
+  time per unit than three singles.
 - **27 cosmetic recipes** — the [[Skins and Cosmetics]] catalog:
   26 scrap-led skin parts (no stats, ever) in the Skin Parts lane,
   plus the item-targeted **tint craft** run from the Tinting lane.
@@ -210,6 +211,13 @@ the Forge or better may escrow **1 legendary core per unit** as a
 Legendary Core Catalyst, buying extra generation draws toward a better
 roll. The core buys luck, never rarity — see [[Collections]] for where
 cores come from.
+
+A gear frame may instead escrow its **material catalyst** —
+Forgeheart Ingots, 1 per unit — which raises the frame's quality
+roll by the same +10 to the minimum and +15 to the maximum the
+consumable catalysts give: every generation draw rolls inside the
+raised bounds and the best roll is kept. The two catalysts are
+mutually exclusive — a unit takes the core or the ingots, never both.
 
 ## Getting started
 
