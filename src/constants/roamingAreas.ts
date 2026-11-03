@@ -14,6 +14,16 @@ export interface RoamingAreaDef {
   gameplayIdentity: string;
   enemyType: string;
   dangerRating: DangerRating;
+  /**
+   * Tier / pacing index — NOT an access gate. Owner ruling 2026-11-02
+   * removed every area level lock: any hunter may roam any area, and a
+   * hopeless matchup earns the danger warning (lib/combat/areaDanger)
+   * instead of a wall. This number survives because pacing math reads
+   * it as the area's tier: monster-tier derivation fallback, dispatch
+   * payout baselines, crafting XP pegs, resurrection cost
+   * (tier × 100 cr), and generator weights. Never enforce it as a
+   * level requirement again.
+   */
   unlockLevel: number;
   idleCreditsPerMinute: number;
   idleScrapPerMinute: number;
@@ -278,10 +288,6 @@ export const ROAMING_AREA_BY_ID = Object.fromEntries(
 
 export function getRoamingArea(areaId?: string): RoamingAreaDef {
   return ROAMING_AREA_BY_ID[areaId || DEFAULT_ROAMING_AREA_ID] || ROAMING_AREA_BY_ID[DEFAULT_ROAMING_AREA_ID];
-}
-
-export function isRoamingAreaUnlocked(area: RoamingAreaDef, playerLevel: number): boolean {
-  return playerLevel >= area.unlockLevel;
 }
 
 function pickWeightedValue<T extends string>(weights: Record<T, number>, rng?: () => number): T {

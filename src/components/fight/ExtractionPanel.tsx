@@ -8,10 +8,10 @@ import {
 } from '../../lib/chef/chefClient';
 import { startActiveActivity } from '../../lib/api/activityService';
 import { buildExtractionActivity } from '../../lib/activity/activityBuilders';
-import { ROAMING_AREAS, getRoamingArea, isRoamingAreaUnlocked } from '../../constants/roamingAreas';
+import { ROAMING_AREAS, getRoamingArea } from '../../constants/roamingAreas';
 import { signatureMaterialForArea } from '../../content/roamingEvents';
 import { pixelBackgroundForArea } from '../../lib/pixel/manifest';
-import { useIdleStore, useLoadoutStore, usePlayerStore } from '../../store';
+import { useIdleStore, useLoadoutStore } from '../../store';
 import { useNow } from '../../hooks/useNow';
 import { ExtractionScene } from '../pixelArt/ActionScenes';
 import { AreaPickerList, CurrentAreaChip } from '../common/AreaPicker';
@@ -49,7 +49,6 @@ function formatFinds(finds: Record<string, number>): string {
 }
 
 export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave }) => {
-  const playerLevel = usePlayerStore((s) => s.level);
   const loadout = useLoadoutStore();
   const hunterWeapon = loadout.getWeapon('primary');
   const selectedAreaId = useIdleStore((s) => s.selectedRoamingAreaId);
@@ -107,7 +106,6 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
   }, [refresh]);
 
   const selectedArea = getRoamingArea(selectedAreaId);
-  const selectedUnlocked = isRoamingAreaUnlocked(selectedArea, playerLevel);
   const preview = state?.preview ?? null;
   const active = state?.active ?? false;
   const deepUnlocked = preview?.deepUnlocked ?? (state?.mastery.level ?? 1) >= 5;
@@ -276,7 +274,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
           <button
             type="button"
             onClick={() => void startExtraction()}
-            disabled={starting || !selectedUnlocked}
+            disabled={starting}
             className="bl-primary px-3 py-1.5 text-[11px] font-black disabled:opacity-50"
             data-testid="extraction-start"
           >
@@ -290,9 +288,6 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
                     ? 'Resume extraction here'
                     : 'Start extraction'}
           </button>
-          {!selectedUnlocked && (
-            <span className="text-[10px] font-bold text-red">Locked until level {selectedArea.unlockLevel}</span>
-          )}
         </div>
         {/* Assumption-gaps G7: the Deep Delve lock reason and
             terms used to live only in the button's title=

@@ -25,6 +25,10 @@ import { cacheRankBonuses } from '../../content/cacheRank';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { recordItemDiscoveries } from './roamingHandler';
 import { eliteDiscovery } from '../../content/collections';
+import { IMMEDIATE_DEATH_TICKS, assessAreaDanger } from '../../lib/combat/areaDanger';
+import { computeHunterMaxHp } from '../../lib/combat/damageContract';
+import { computeEffectiveDpsFromGear } from '../../lib/combat/loadoutSurvival';
+import type { Shield, Weapon } from '../../types/items';
 
 function formatTimeAway(ms: number): string {
   const totalMinutes = Math.floor(ms / 60000);
@@ -242,12 +246,12 @@ export function createSettleOfflineHandler(
 
       const area = await import('../../constants/roamingAreas').then((m) => m.getRoamingArea(activeAction.target_id));
 
-      // Area level gate (same rule as the foreground claim route): a
-      // stale above-gate selection settles nothing.
-      if ((profile.player_level || 1) < area.unlockLevel) {
-        res.json({ settled: false, reason: 'area_locked' });
-        return;
-      }
+      // No area level gate (owner ruling 2026-11-02): a hunter parked
+      // in any area settles. What replaced the gate is the overmatched
+      // duel check further down — settlement runs the roaming engine,
+      // which carries no survival input, so a hunter who would die
+      // before killing the area's baseline fodder cannot be paid for
+      // presence alone; their window is consumed at zero instead.
 
       // Offline parity: settle with the SAME claim inputs a foreground
       // claim carries. The loadout comes from the server's own records
@@ -354,6 +358,121 @@ export function createSettleOfflineHandler(
         return;
       }
 
+      // Overmatched settlement gate (the death-loop guard's offline
+      // half, owner ruling 2026-11-02). Settlement simulates the away
+      // window with the roaming engine, which takes NO survival input
+      // — offline, a hunter parked in an area whose baseline fodder
+      // kills them almost immediately would otherwise accrue the
+      // full window's trickle + loot rolls for pure presence (the
+      // audit's verified faucet: at HelixWorks rates that is 21
+      // credits/min, 5 scrap/min, 2.4 XP/tick plus a 22%/tick gear
+      // roll at player-level power, forever, at zero risk). The duel
+      // is the warning module's own math (areaDanger) over
+      // server-derived stats — the same DPS derivation the engine
+      // runs, HP from the one formula. The trigger is a lethal duel
+      // AND an immediate death (baseline ticks-to-die within
+      // IMMEDIATE_DEATH_TICKS): a merely outmatched hunter — say an
+      // unarmed one in the starter area, who survives for hours —
+      // settles exactly as before; only the die-on-loop profile is
+      // zeroed. Overmatched pairing: the window is consumed through
+      // the atomic settler at zero rewards (nonce + watermark advance
+      // exactly as a paid settlement, so the time cannot be banked
+      // and re-settled later at strength) and the response says why.
+      // Every other pairing settles byte-identically to before. No
+      // death is recorded for offline time: death/respawn behavior
+      // is unchanged.
+      const gateCacheRank = cacheRankBonuses(profile.cache_rank_spends, economyValues);
+      const gateShield = equippedGear.find((g): g is Shield => 'mitigation' in g);
+      const gateClassMod = equippedGear.find((g) => 'treeBonus' in g) ?? null;
+      const gateRelic =
+        equippedGear.find(
+          (g) =>
+            'affixes' in g &&
+            !('weaponType' in g) &&
+            !('damage' in g) &&
+            !('hp' in g) &&
+            !('treeBonus' in g) &&
+            !('vehicleClassId' in g),
+        ) ?? null;
+      const gateShieldCapacity = gateShield?.hp ?? 0;
+      const gateAssessment = assessAreaDanger(area, {
+        effectiveDps: computeEffectiveDpsFromGear({
+          weapons: equippedGear.filter((g): g is Weapon => 'weaponType' in g),
+          ordnance: equippedGear.find((g) => 'damage' in g && !('weaponType' in g)) ?? null,
+          relic: gateRelic,
+          classMod: gateClassMod,
+          skillDpsMult: 1 + (skillBonuses.dps ?? 0) + (gateCacheRank.damage ?? 0),
+          skillStatusChance: skillBonuses.statusChance ?? 0,
+        }),
+        maxHp: Math.round(
+          computeHunterMaxHp(profile.player_level || 1, gateShieldCapacity) *
+            (1 + (skillBonuses.survival ?? 0)),
+        ),
+        shieldCapacity: gateShieldCapacity,
+        mitigation: gateShield?.mitigation ?? 0,
+        dodgeChance: 0,
+      });
+      if (gateAssessment?.tier === 'lethal' && gateAssessment.baseline.ticksToDie <= IMMEDIATE_DEATH_TICKS) {
+        let zeroSettlement: Record<string, unknown> | null;
+        try {
+          zeroSettlement = (await store.settleOfflineRoaming(playerId, body.settlementNonce, {
+            credits: 0,
+            scrap: 0,
+            scrapRemainder: profile.scrap_remainder,
+            creditsRemainder: profile.credits_remainder,
+            xpRemainder: profile.xp_remainder,
+            xp: 0,
+            fragments: 0,
+            materials: {},
+            essences: {},
+            kills: 0,
+          }, {}, capHours)) as Record<string, unknown> | null;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.status(500).json({ error: 'Atomic settlement failed', detail: message });
+          return;
+        }
+        if (!zeroSettlement || !zeroSettlement.settled) {
+          res.json({ settled: false, reason: (zeroSettlement?.reason as string) || 'error', detail: zeroSettlement?.detail });
+          return;
+        }
+        const zeroElapsedMs = Number(zeroSettlement.elapsed_ms ?? elapsedMs);
+        const zeroCappedMs = Number(zeroSettlement.capped_ms ?? capMs);
+        res.json({
+          settled: true,
+          overmatched: true,
+          areaId: area.id,
+          areaName: area.name,
+          timeAway: formatTimeAway(zeroElapsedMs),
+          elapsedMs: zeroElapsedMs,
+          cappedMs: zeroCappedMs,
+          capReached: Boolean(zeroSettlement.cap_reached ?? rawElapsedMs > capMs),
+          capHours: Number(zeroSettlement.cap_hours ?? capHours),
+          ticksSettled: Number(zeroSettlement.ticks_settled ?? 0),
+          startTick: Number(zeroSettlement.start_tick ?? profile.last_claimed_tick ?? 0),
+          endTick: Number(zeroSettlement.end_tick ?? 0),
+          profile: zeroSettlement.profile ?? {},
+          rewards: {
+            ticks: Number(zeroSettlement.ticks_settled ?? 0),
+            creditsAwarded: 0,
+            creditsRemainder: profile.credits_remainder,
+            scrapAwarded: 0,
+            scrapRemainder: profile.scrap_remainder,
+            xpAwarded: 0,
+            xpRemainder: profile.xp_remainder,
+            cacheFragmentsAwarded: 0,
+            materials: {},
+            essences: {},
+            killsRecorded: 0,
+          },
+          items: [],
+          feedEvents: [],
+          consumedConsumables: {},
+          idempotent: false,
+        });
+        return;
+      }
+
       const claim: ClaimRequest = {
         playerId,
         areaId: area.id,
@@ -367,7 +486,7 @@ export function createSettleOfflineHandler(
         // Cache Rank bonuses (0031): from the profile's own
         // cache_rank_spends + live levers — settlement simulates the
         // same ticks a foreground claim would (engine parity).
-        cacheRankBonuses: cacheRankBonuses(profile.cache_rank_spends, economyValues),
+        cacheRankBonuses: gateCacheRank,
         consumableInventory: (profile.consumables ?? {}) as Record<string, number>,
         consumableQualityProfile: buildConsumableQualityProfile(
           settlementBatches,

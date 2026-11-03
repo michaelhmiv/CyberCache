@@ -239,7 +239,9 @@ export function assertExtractionStartAllowed(
   }
   const area = getRoamingArea(areaId);
   if (area.id !== areaId) throw new Error('Unknown extraction area');
-  if (profile.level < area.unlockLevel) throw new Error('Area locked for this hunter level');
+  // No area level gate (owner ruling 2026-11-02): extraction may run
+  // in any area at any level, same as roaming. The mastery gate below
+  // is a different system (earned practice, not a level wall) and stays.
   if (method === 'deep' && adapter.masteryLevel(playerId, EXTRACTION_MASTERY_TRACK) < 5) {
     throw new Error('Deep Delve requires Extraction mastery 5');
   }

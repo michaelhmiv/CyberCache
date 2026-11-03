@@ -396,7 +396,7 @@ type DispatchState = {
   slots: number;
   slotsUsed: number;
   vehicleFuel: number;
-  offers: Array<{ id: string; family: string; areaId: string; durationHours: number; areaLocked: boolean }>;
+  offers: Array<{ id: string; family: string; areaId: string; durationHours: number }>;
   missions: Array<Json>;
   candidates: Array<Json>;
 };
@@ -463,7 +463,7 @@ describe('dispatch routes', () => {
     h.store.seedProfile({ id: A, player_level: 50, credits: 0, scrap: 0 });
     const itemIds = seedSpareWeapons(h.store, 'gun', 7, HIGH_AREA.unlockLevel);
     const state = await stateOf(h);
-    const offer = state.offers.find((o) => o.family === 'foot' && !o.areaLocked)!;
+    const offer = state.offers.find((o) => o.family === 'foot')!;
     const area = roamingAreaById(offer.areaId)!;
 
     const preview = await post(h, '/api/dispatch/preview', { offerId: offer.id, itemIds }, h.tokenA);
@@ -521,7 +521,7 @@ describe('dispatch routes', () => {
     h.store.seedProfile({ id: A, player_level: 50 });
     const ids = seedSpareWeapons(h.store, 'slot-gun', 24);
     const state = await stateOf(h);
-    const footOffers = state.offers.filter((o) => o.family === 'foot' && !o.areaLocked);
+    const footOffers = state.offers.filter((o) => o.family === 'foot');
     let cursor = 0;
     const departOne = async (nonce: string) => {
       const offer = footOffers[cursor % footOffers.length];
@@ -544,7 +544,7 @@ describe('dispatch routes', () => {
     seedSpareWeapons(h2.store, 'slot-gun', 24);
     const state2 = await stateOf(h2);
     expect(state2.slots).toBe(4);
-    const foot2 = state2.offers.filter((o) => o.family === 'foot' && !o.areaLocked);
+    const foot2 = state2.offers.filter((o) => o.family === 'foot');
     for (let i = 0; i < 4; i += 1) {
       const res = await post(h2, '/api/dispatch/start', {
         offerId: foot2[i % foot2.length].id,
@@ -561,7 +561,7 @@ describe('dispatch routes', () => {
     h.store.seedProfile({ id: A, player_level: 50, credits: 0 });
     const itemIds = seedSpareWeapons(h.store, 'recall-gun', 7, HIGH_AREA.unlockLevel);
     const state = await stateOf(h);
-    const offer = state.offers.find((o) => o.family === 'foot' && !o.areaLocked)!;
+    const offer = state.offers.find((o) => o.family === 'foot')!;
     const area = roamingAreaById(offer.areaId)!;
     const strength = dispatchStrengthFactor(
       itemIds.map(() => ({ itemLevel: HIGH_AREA.unlockLevel, rarity: 'Uncommon' })), area);
@@ -595,7 +595,7 @@ describe('dispatch routes', () => {
     } as never);
     const itemIds = seedSpareWeapons(h.store, 'parallel-gun', 3);
     const state = await stateOf(h);
-    const offer = state.offers.find((o) => o.family === 'foot' && !o.areaLocked)!;
+    const offer = state.offers.find((o) => o.family === 'foot')!;
     const started = await post(h, '/api/dispatch/start', {
       offerId: offer.id, itemIds, nonce: 'parallel-nonce-01',
     }, h.tokenA);
@@ -609,7 +609,7 @@ describe('dispatch routes', () => {
     h.store.seedProfile({ id: B, player_level: 50, credits: 0 });
     const itemIds = seedSpareWeapons(h.store, 'forge-gun', 7, HIGH_AREA.unlockLevel);
     const state = await stateOf(h);
-    const offer = state.offers.find((o) => o.family === 'foot' && !o.areaLocked)!;
+    const offer = state.offers.find((o) => o.family === 'foot')!;
     const area = roamingAreaById(offer.areaId)!;
     const strength = dispatchStrengthFactor(
       itemIds.map(() => ({ itemLevel: HIGH_AREA.unlockLevel, rarity: 'Uncommon' })), area);
