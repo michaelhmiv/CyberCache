@@ -69,6 +69,15 @@ export interface DropReceipt {
   dropOdds?: DropOddsStamp;
 }
 
+/** Copy a partial rarity-weight map into a plain numeric record (stamp shape). */
+export function weightRecord(weights: Partial<Record<string, number>>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(weights)) {
+    if (typeof value === 'number') out[key] = value;
+  }
+  return out;
+}
+
 /** Stamp a receipt onto a generated item payload (mutates and returns it). */
 export function stampDropReceipt<T extends object>(item: T, receipt: DropReceipt): T {
   const target = item as Record<string, unknown>;
