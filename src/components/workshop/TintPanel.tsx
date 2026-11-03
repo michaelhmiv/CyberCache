@@ -16,11 +16,15 @@ import { usePlayerStore, useWorkshopStore } from '@/store';
 import { TINT_PALETTES } from '@/content/skins';
 import { TINT_RECIPE } from '@/content/crafting';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 
 /** The tint craft's flat Scrap escrow (the recipe's own input). */
 const TINT_FLAT_SCRAP = TINT_RECIPE.inputs['Scrap'] ?? 25;
 
-export const TintPanel: React.FC = () => {
+export const TintPanel: React.FC<{
+  onNavigate?: (screen: string) => void;
+  onRefineFocus?: (recipeId: string) => void;
+}> = ({ onNavigate, onRefineFocus }) => {
   const view = useCosmeticsStore((s) => s.view);
   const load = useCosmeticsStore((s) => s.load);
   const materials = usePlayerStore((s) => s.materials);
@@ -112,10 +116,26 @@ export const TintPanel: React.FC = () => {
               </button>
             ))}
           </div>
-          <div className="text-[11px] text-text-muted">
+          <div className="flex items-center gap-1 text-[11px] text-text-muted">
+            <span>
             You hold {chromaweaveHave} Chromaweave · {scrap.toLocaleString('en-US')} Scrap.
             {alreadyTinted ? ' This part already wears that tint.' : ''}
             {!canAfford && !alreadyTinted ? ' Not enough for this palette yet.' : ''}
+            </span>
+            {/* QB-4: the Chromaweave line's lone + — the palette's
+                weave is a market-tradable material, so a shortfall
+                fills in place through the quick-buy sheet. The
+                Scrap half is a profile number and never gets one. */}
+            {palette && palette.chromaweave > 0 && (
+              <QuickBuyPlus
+                good={{ kind: 'material', id: 'Chromaweave' }}
+                goodName="Chromaweave"
+                shortfall={palette.chromaweave - chromaweaveHave}
+                contextLabel={`${palette.name} tint`}
+                onNavigate={onNavigate}
+                onRefineFocus={onRefineFocus}
+              />
+            )}
           </div>
           {error && (
             <div className="border border-red/50 bg-red/10 px-2 py-1 text-[11px] font-bold text-text-primary" role="alert">

@@ -27,7 +27,11 @@ export const QuickBuyPlus: React.FC<{
   /** Threaded to the sheet (QB-2): fires when a fill settles, for
    *  surfaces that must re-read a server view afterwards. */
   onFilled?: () => void;
-}> = ({ good, goodName, shortfall, contextLabel, onNavigate, onRefineFocus, onFilled }) => {
+  /** Threaded to the sheet (QB-4): overlay stacking class for
+   *  mounts that live inside another sheet (the gear inspect
+   *  sheet), so the buy sheet opens above its host. */
+  overlayZClass?: string;
+}> = ({ good, goodName, shortfall, contextLabel, onNavigate, onRefineFocus, onFilled, overlayZClass }) => {
   const [open, setOpen] = useState(false);
   if (shortfall <= 0) return null;
   return (
@@ -54,6 +58,7 @@ export const QuickBuyPlus: React.FC<{
           onNavigate={onNavigate}
           onRefineFocus={onRefineFocus}
           onFilled={onFilled}
+          overlayZClass={overlayZClass}
         />
       )}
     </>
