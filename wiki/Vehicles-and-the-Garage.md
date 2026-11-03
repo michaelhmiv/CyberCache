@@ -120,9 +120,13 @@ Your Garage is the vehicle section of the Loadout stop: **Gear →
 Loadout**, directly under your gear slots. Your vehicle slot's status
 line — the equipped vehicle, its yield, fuel, and condition — heads
 the section, and one tap on **Open Garage** expands the whole Garage
-in place right there. (Garage doors elsewhere — the one on the
-roaming banner, for instance — land you on Loadout with the section
-already expanded.) Expanded, you can see
+in place right there. (Garage doors elsewhere land you on Loadout
+with the section already expanded.) On Home, your vehicle's status
+rides the **consumable belt** as a chip in the belt row: while it is
+fueled it reads quietly — vehicle, fuel units, yield — and when it
+runs out of fuel or wears out, the chip itself becomes the door:
+Garage when you are carrying a fuel cell, the Vendor when you are
+not. Expanded, you can see
 every vehicle you own — each card draws the vehicle itself, with its
 rolled affix fittings (cargo rack, scanner array, reinforced frame)
 fitted on the sprite and its wear showing once condition drops —
