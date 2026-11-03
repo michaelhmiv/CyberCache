@@ -187,6 +187,37 @@ describe('idleTickerSlice — foreground resume', () => {
     expect(feedById().get('ev-cash')?.folded).toBe(true);
   });
 
+  it('an in-flight claim that outlasts the first re-check still gets its catch-up at the next one', async () => {
+    let release: ((value: unknown) => void) | undefined;
+    mockSubmitClaim.mockImplementationOnce(
+      () => new Promise((resolve) => { release = resolve; }),
+    );
+    mountIdleTicker();
+    await flush();
+    expect(mockSubmitClaim).toHaveBeenCalledTimes(1);
+
+    setHidden(true);
+    vi.setSystemTime(Date.now() + 9000);
+    setHidden(false);
+    await flush();
+
+    // First re-check at +1.5s: the pre-hide claim is STILL in
+    // flight, so nothing fires yet — and nothing is lost.
+    await vi.advanceTimersByTimeAsync(1500);
+    await flush();
+    expect(mockSubmitClaim).toHaveBeenCalledTimes(1);
+
+    release?.(landedWithEvents());
+    await flush();
+
+    // Second re-check: the way is clear and no claim was attempted
+    // since the return, so the catch-up tick fires, folded.
+    await vi.advanceTimersByTimeAsync(1500);
+    await flush();
+    expect(mockSubmitClaim).toHaveBeenCalledTimes(2);
+    expect(feedById().get('ev-cash')?.folded).toBe(true);
+  });
+
   it('a real absence (>= 15s) gets no immediate claim and no fold — the settlement lane owns it', async () => {
     mountIdleTicker();
     await flush();

@@ -77,8 +77,16 @@ let resumeFoldPending = false;
 /** Wall time of the last claim submission attempt (recheck gate). */
 let lastClaimAttemptAt = 0;
 let resumeRecheckId: ReturnType<typeof setTimeout> | null = null;
-/** Delay before the one deferred re-check of a busy resume tick. */
+/** Spacing of the deferred re-checks of a busy resume tick. */
 const RESUME_RECHECK_MS = 1500;
+/**
+ * How many re-checks a busy resume gets (≈6s of grace): a claim
+ * left in flight across the backgrounding can take seconds to
+ * settle on a cold network, and the catch-up tick must still fire
+ * promptly once it does — but never at the cost of doubling a
+ * claim that was already attempted since the return.
+ */
+const RESUME_RECHECK_MAX = 4;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -470,10 +478,11 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
  *    NOW — the stage resumes mid-action instead of waiting out the
  *    interval phase — and arm the silent fold for its batch. If
  *    that tick is skipped because a pre-hide claim is still in
- *    flight (a frozen WebView can leave one hanging), one deferred
- *    re-check fires the catch-up tick once the in-flight claim has
- *    settled — but only if no claim was attempted since the return,
- *    so a landed resume claim is never doubled up off-cadence.
+ *    flight (a frozen WebView can leave one hanging), bounded
+ *    deferred re-checks fire the catch-up tick once the in-flight
+ *    claim has settled — but only if no claim was attempted since
+ *    the return, so a landed resume claim is never doubled up
+ *    off-cadence.
  *  - Real absence (>= threshold): do nothing. The resume
  *    settlement hook owns this return (server settle-offline +
  *    recap); the interval cadence converges the ticker from server
@@ -493,13 +502,22 @@ const handleTickerVisibility = (): void => {
   const visibleAt = Date.now();
   void useIdleTickerStore.getState().tickNow();
   if (resumeRecheckId) clearTimeout(resumeRecheckId);
-  resumeRecheckId = setTimeout(() => {
+  let rechecksLeft = RESUME_RECHECK_MAX;
+  const recheck = () => {
     resumeRecheckId = null;
-    if (!ticking && lastClaimAttemptAt < visibleAt) {
+    if (lastClaimAttemptAt >= visibleAt) return; // the resume claim landed — done
+    if (!ticking) {
       resumeFoldPending = true;
       void useIdleTickerStore.getState().tickNow();
+      return;
     }
-  }, RESUME_RECHECK_MS);
+    // Still busy with the pre-hide claim: check again shortly,
+    // a bounded number of times, then let the interval cadence
+    // own it (the claim in flight IS a sync when it lands).
+    rechecksLeft -= 1;
+    if (rechecksLeft > 0) resumeRecheckId = setTimeout(recheck, RESUME_RECHECK_MS);
+  };
+  resumeRecheckId = setTimeout(recheck, RESUME_RECHECK_MS);
 };
 
 /** Mount the singleton ticker interval. Call from App.tsx once. */
