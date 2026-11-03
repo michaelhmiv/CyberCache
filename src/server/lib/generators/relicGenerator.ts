@@ -19,6 +19,21 @@ const RELIC_MANUFACTURERS: Manufacturer[] = [
   Manufacturer.BlastForge,
 ];
 
+/**
+ * The closed relic name pool — every relic ever minted carries one
+ * of these twelve names (chef drops, NPC stock, and crafting all
+ * route through generateRelic below). The relic pixel grammar
+ * (src/lib/pixel/relicGrammar.ts) keys a relic's form to its name;
+ * its coverage test reads THIS list, so growing the pool without
+ * adding a grammar row fails the suite. Order is load-bearing:
+ * generation indexes into it with a seeded roll.
+ */
+export const RELIC_NAMES = [
+  'Vault Chip', 'Data Shard', 'Neural Key', 'Cache Relic',
+  'Echo Stone', 'Void Prism', 'Circuit Totem', 'Ancient Module',
+  'Scrap Core', 'Glitched Token', 'Ethereal Drive', 'Quantum Fragment',
+] as const;
+
 export function generateRelic(level: number = 1, externalRng?: () => number, rarityWeights?: Partial<Record<Rarity, number>>): Relic {
   const rng = externalRng ?? createRNG(hashString(`relic_${level}_${Date.now()}_${Math.random()}`));
 
@@ -65,12 +80,7 @@ export function generateRelic(level: number = 1, externalRng?: () => number, rar
     }
   }
 
-  const relicNames = [
-    'Vault Chip', 'Data Shard', 'Neural Key', 'Cache Relic',
-    'Echo Stone', 'Void Prism', 'Circuit Totem', 'Ancient Module',
-    'Scrap Core', 'Glitched Token', 'Ethereal Drive', 'Quantum Fragment',
-  ];
-  const name = relicNames[seededInt(0, relicNames.length - 1, rng)];
+  const name = RELIC_NAMES[seededInt(0, RELIC_NAMES.length - 1, rng)];
 
   return {
     id: generateItemId(),

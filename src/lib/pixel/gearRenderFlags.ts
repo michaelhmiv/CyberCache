@@ -3,6 +3,7 @@ import type { GearGrammar, GearKindId } from './gearCardCompositor';
 import { classModGrammar } from './classModGrammar';
 import { ordnanceGrammar } from './ordnanceGrammar';
 import { shieldGrammar } from './shieldGrammar';
+import { relicGrammar } from './relicGrammar';
 
 /**
  * The gear-marriage dispatch seam. `GearIllustration` is the only
@@ -15,7 +16,7 @@ import { shieldGrammar } from './shieldGrammar';
  */
 export const GEAR_PIXEL_KINDS: Record<GearKindId, boolean> = {
   shield: true, // gear marriage slice 1 — behavior grammar
-  relic: false,
+  relic: true, // slice 4 — relics compose through relicGrammar
   classMod: true, // gear marriage slice 3 — class mods render as pixel plates
   ordnance: true, // gear marriage slice 2
 };
@@ -25,6 +26,7 @@ export const GEAR_GRAMMARS: Partial<Record<GearKindId, GearGrammar>> = {
   shield: shieldGrammar,
   classMod: classModGrammar,
   ordnance: ordnanceGrammar,
+  relic: relicGrammar,
 };
 
 export type GearRenderRoute = 'pixel' | 'svg';
