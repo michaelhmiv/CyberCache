@@ -87,7 +87,7 @@ export const verifiedOps = {
     reason: input.reason ?? null,
   }),
   recycleItem: (itemId: string) => op('/ops/recycle-item', { nonce: requestId('recycle'), item_id: itemId }),
-  // Batch salvage (0054): ONE call settles every eligible item at or
+  // Batch salvage (0055): ONE call settles every eligible item at or
   // under the rarity ceiling ('Common' | 'Uncommon' | 'Rare' |
   // 'Epic' — Legendary is never a ceiling). Intent only: the server
   // resolves the set from the player's inventory; the result carries

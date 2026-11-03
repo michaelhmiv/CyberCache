@@ -224,7 +224,7 @@ import {
 } from './store.js';
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
-// Batch salvage (0054): the rarity ladder, the valid ceilings
+// Batch salvage (0055): the rarity ladder, the valid ceilings
 // (Legendary deliberately absent — never bulk-scrapped), and the
 // gear kinds the Gear inventory owns. Mirrors cc_recycle_batch.
 const SALVAGE_RARITY_RANK: Record<string, number> = {
@@ -1465,7 +1465,7 @@ export class InMemoryWriteStore implements WriteStore {
   }
 
   /**
-   * Batch salvage (0054): the in-memory twin of cc_recycle_batch.
+   * Batch salvage (0055): the in-memory twin of cc_recycle_batch.
    * One ceiling settles every eligible item atomically from the
    * caller's perspective: the set is resolved HERE from the player's
    * records (owned, 'available', unlocked, gear kinds — vehicles and

@@ -868,7 +868,7 @@ export interface WriteStore {
   ): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
   /**
-   * Batch salvage (0054): settle EVERY eligible item at or under a
+   * Batch salvage (0055): settle EVERY eligible item at or under a
    * rarity ceiling in one atomic call. The ceiling is one of
    * 'Common' | 'Uncommon' | 'Rare' | 'Epic' — 'Legendary' is never a
    * valid ceiling (legendaries recycle individually only). The set is

@@ -490,7 +490,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingScrapIds, setPendingScrapIds] = useState<Set<string>>(new Set());
-  // Bulk salvage (0054): the threshold sheet is the one bulk door —
+  // Bulk salvage (0055): the threshold sheet is the one bulk door —
   // both the toolbar salvage button and the select-bar scrap button
   // open it. There is no per-item bulk loop anymore.
   const [showSalvageSheet, setShowSalvageSheet] = useState(false);
@@ -1204,7 +1204,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         )}
       </AnimatePresence>
 
-      {/* Bulk salvage threshold sheet (0054) */}
+      {/* Bulk salvage threshold sheet (0055) */}
       {showSalvageSheet && (
         <SalvageThresholdSheet
           eligibleItems={junkItems}

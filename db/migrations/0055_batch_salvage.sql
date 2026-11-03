@@ -1,4 +1,4 @@
--- 0054: Batch salvage — one ceiling-based settlement (owner ruling,
+-- 0055: Batch salvage — one ceiling-based settlement (owner ruling,
 -- 2026-11-02).
 --
 -- The client bulk-scrap flow used to loop cc_recycle_item once per

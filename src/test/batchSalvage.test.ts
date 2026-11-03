@@ -1,5 +1,5 @@
 /**
- * Batch salvage (0054) — one ceiling settles the whole eligible set.
+ * Batch salvage (0055) — one ceiling settles the whole eligible set.
  *
  * The owner froze his game scrapping 1,000+ items through the old
  * per-item loop (1,000 requests, 1,000 pop-ups). These tests pin the

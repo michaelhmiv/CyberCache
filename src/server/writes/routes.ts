@@ -474,7 +474,7 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     await recordResultItemDiscoveries(store, playerId, result, 'salvage');
     return result;
   });
-  // Batch salvage (0054): one ceiling settles the whole eligible set
+  // Batch salvage (0055): one ceiling settles the whole eligible set
   // server-side. The body carries intent only (the ceiling) — never
   // an item list. Discoveries record per consumed item, same as the
   // one-at-a-time path.

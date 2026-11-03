@@ -3,7 +3,7 @@
  * Salvage call sites push events here; the SalvageToast component reads them.
  *
  * Two event kinds: 'item' (one item scrapped through the per-item op)
- * and 'batch' (ONE summary for a whole ceiling settlement, 0054).
+ * and 'batch' (ONE summary for a whole ceiling settlement, 0055).
  * Batch salvage pushes exactly one 'batch' event no matter how many
  * items it settled — per-item events for a batch are suppressed at
  * the source, never generated.

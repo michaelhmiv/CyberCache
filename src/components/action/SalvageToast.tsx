@@ -91,7 +91,7 @@ const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
 };
 
 /**
- * The ONE summary card for a batch settlement (0054): how many of
+ * The ONE summary card for a batch settlement (0055): how many of
  * each rarity went in, and everything gained — totals only, with the
  * gains as the hero numbers (numbers law: big, bright, green). A
  * batch of 1,500 items produces exactly this one card.
