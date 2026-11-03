@@ -272,7 +272,16 @@ export interface LoginStreakStateView {
   tier: number;
   /** Cycle day the next claim lands on within the displayed cycle. */
   cycleDay: number;
-  /** 'earned' once today's claim is recorded, else 'pending'. */
+  /**
+   * 'earned' once today's claim is recorded, else 'pending'.
+   * NOTE (audit D6): 'pending' is UNREACHABLE through the shipped
+   * flow — the one route (GET /api/login-streak/me) records the
+   * check-in before it derives this view, so every result a
+   * client can hold is 'earned', and the panel designs no
+   * pending state. The branch survives here only because this
+   * pure derivation also describes pre-record facts for the
+   * in-memory twin's tests; do not design UI against it.
+   */
   todayState: 'earned' | 'pending';
   /** What today's claim paid (null until recorded). */
   todayReward: LoginStreakReward | null;

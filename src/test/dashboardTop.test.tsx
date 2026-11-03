@@ -256,14 +256,14 @@ describe('Dashboard top — the check-in is not behind the tap', () => {
       .toBe('Daily streak — day 3, today checked in');
   });
 
-  it('a fresh grant pulses the streak icon with a NEW badge and a spoken label', async () => {
+  it('a fresh grant announces on the streak icon with a NEW badge and a spoken label', async () => {
     mockStreak.mockResolvedValue(streakResult(false));
     render(<HomeScreen onNavigate={() => {}} />);
 
-    await waitFor(() => expect(screen.getByTestId('streak-claim-pulse')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('streak-announce-pulse')).toBeTruthy());
     const button = screen.getByTestId('top-streak-button');
     expect(button.textContent).toContain('NEW');
-    expect(button.getAttribute('aria-label')).toBe('Daily streak — day 3, day 3 reward claimed');
+    expect(button.getAttribute('aria-label')).toBe('Daily streak — day 3, new grant banked for day 3');
   });
 });
 
@@ -275,10 +275,20 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
 
     fireEvent.click(screen.getByTestId('top-streak-button'));
     expect(await screen.findByTestId('picker-sheet-overlay')).toBeTruthy();
-    // The real panel: sheet title + panel heading, its status line
-    // and the seven-day ladder all render inside.
-    expect((await screen.findAllByText('Login Streak')).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText('Day 3 of claimed today')).toBeTruthy();
+    // The real panel: the sheet title, the poster plate, the
+    // claimed state's Banked fact lines and the seven-day ladder
+    // all render inside. (The audit's broken status string —
+    // "Day 3 of claimed today" — is gone with the rebuild; the
+    // copy scan in streakCelebration.test.tsx pins its absence.)
+    expect((await screen.findAllByText('Login Streak')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByTestId('streak-panel')).toBeTruthy();
+    expect(screen.getByText('Banked today')).toBeTruthy();
+    const panelText = screen.getByTestId('streak-panel').textContent ?? '';
+    expect(panelText).toContain('Banked +200 credits · +1 fragment');
+    expect(panelText).toContain('Day 4 — +250 credits · +1 fragment');
+    // Fact-line amounts print in the gain green (the mock's
+    // language), not the fact white.
+    expect(screen.getByText('+200').className).toContain('text-green');
     expect(screen.getByLabelText('Seven day streak ladder')).toBeTruthy();
     // Opening the pop-up did NOT re-fire the check-in read.
     expect(mockStreak).toHaveBeenCalledTimes(1);
