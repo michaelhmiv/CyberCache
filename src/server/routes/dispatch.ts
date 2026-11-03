@@ -23,8 +23,10 @@ import type { AuthConfig } from '../auth/routes';
 import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, DispatchCandidateItem, Json } from '../gameplay/store';
 import {
+  COURIER_TIER_BY_DURATION,
   courierPayoutLines,
   courierProjection,
+  courierTierAnchorClass,
   dispatchOffersForDate,
   dispatchStrengthFactor,
   findDispatchOffer,
@@ -193,8 +195,11 @@ async function priceContract(
     const classId = vehicleClassId(vehicle);
     if (!vehicleClassEligibleForTier(classId, offer.durationHours)) {
       const def = getVehicleClass(classId);
+      const anchor = courierTierAnchorClass(offer.durationHours);
       reasons.push(
-        `${def?.displayName ?? 'That vehicle'} cannot run this tier — its class band is below the gate`,
+        def && anchor
+          ? `${def.displayName} cannot run the ${COURIER_TIER_BY_DURATION[offer.durationHours].name} — this tier takes ${anchor.displayName} class or stronger; assign a stronger spare vehicle`
+          : 'That vehicle\'s class is not recognized for courier work',
       );
     }
   }
