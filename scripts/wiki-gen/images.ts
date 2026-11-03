@@ -50,6 +50,7 @@ import { decodePng, encodePng, type RgbaImage } from '../../src/lib/pixel/pngCod
 import { showcaseWeaponInput } from '../../src/lib/pixel/showcaseWeaponInput';
 import { composeWeaponCard } from '../../src/lib/pixel/weaponCardCompositor';
 import type { PixelWeaponInput } from '../../src/lib/pixel/weaponCompositor';
+import type { GearRender } from '../../src/lib/pixel/gearCardCompositor';
 import {
   LEGENDARY_ART_PARITY,
   type LegendaryArtParityRow,
@@ -231,6 +232,47 @@ export function rasterizeWeaponCard(input: PixelWeaponInput): RgbaImage {
   for (let y = 0; y < card.height; y++) {
     const row = card.rows[y];
     for (let x = 0; x < card.width; x++) {
+      const rgb = rgbByShade.get(row[x]);
+      if (!rgb) continue;
+      for (let dy = 0; dy < scale; dy++) {
+        for (let dx = 0; dx < scale; dx++) {
+          const o = ((y * scale + dy) * width + (x * scale + dx)) * 4;
+          data[o] = rgb[0];
+          data[o + 1] = rgb[1];
+          data[o + 2] = rgb[2];
+          data[o + 3] = 255;
+        }
+      }
+    }
+  }
+  return { width, height, data };
+}
+
+/**
+ * Rasterize a composed gear render (gearCardCompositor's GearRender)
+ * at 2x nearest — the gear-plate twin of rasterizeWeaponCard, same
+ * treatment: shade chars through the render's own color table,
+ * unknown shades transparent. Gear marriage slice 5 re-pointed the
+ * W5 gear plates at the pixel compositor; this is their renderer.
+ */
+export function rasterizeGearRender(render: GearRender): RgbaImage {
+  const scale = 2;
+  const width = render.width * scale;
+  const height = render.height * scale;
+  const data = new Uint8Array(width * height * 4);
+  const rgbByShade = new Map<string, [number, number, number] | null>();
+  for (const [shade, color] of Object.entries(render.colors)) {
+    const hex = /^#([0-9a-f]{6})$/i.exec(color);
+    rgbByShade.set(
+      shade,
+      hex
+        ? [parseInt(hex[1].slice(0, 2), 16), parseInt(hex[1].slice(2, 4), 16), parseInt(hex[1].slice(4, 6), 16)]
+        : null,
+    );
+  }
+  for (let y = 0; y < render.height; y++) {
+    const row = render.rows[y];
+    for (let x = 0; x < render.width; x++) {
       const rgb = rgbByShade.get(row[x]);
       if (!rgb) continue;
       for (let dy = 0; dy < scale; dy++) {

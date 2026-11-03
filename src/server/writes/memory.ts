@@ -523,7 +523,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.addStat(userId, 'actions.total', 1);
     this.addStat(userId, `actions.${action}`, 1);
     const profilePayload = (result.profile ?? null) as Json | null;
-    if (action === 'cc_make_item' || action === 'cc_draw_item') {
+    if (action === 'cc_make_item') {
       this.addStat(userId, 'inventory.cache_draws', 1);
       this.addMasteryXp(userId, 'inventory.cache_draws', 30);
     } else if (action === 'cc_recycle_item' || action === 'cc_salvage_item') {

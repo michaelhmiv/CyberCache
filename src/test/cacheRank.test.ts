@@ -755,7 +755,7 @@ describe('cache rank consumers — Chef engines', () => {
 // ---------------------------------------------------------------------------
 
 describe('cache rank consumers — market fee composition', () => {
-  it('marketFeeForPrice: the uplift is floor(post-fee proceeds x rate), minted on top', () => {
+  it('marketFeeForPrice: the uplift is floor(post-fee proceeds x rate), paid on top (below the fee — unclamped)', () => {
     const plain = marketFeeForPrice(10_000, 0);
     expect(plain.fee).toBe(500);
     expect(plain.sellerProceeds).toBe(9500);
@@ -776,8 +776,10 @@ describe('cache rank consumers — market fee composition', () => {
     });
     expect(sale.feeReduction).toBeCloseTo(0.25, 10);
     expect(sale.fee).toBe(375); // 10000 x 0.05 x 0.75
-    expect(sale.proceedsBonus).toBe(481); // floor(9625 x 0.05)
-    expect(sale.sellerProceeds).toBe(9625 + 481);
+    // Fee floor (0064): the raw uplift floor(9625 x 0.05) = 481 is
+    // clamped to the fee — a rebate, never a mint.
+    expect(sale.proceedsBonus).toBe(375);
+    expect(sale.sellerProceeds).toBe(9625 + 375);
   });
 });
 
@@ -856,7 +858,7 @@ describe('cache rank consumers — writes store', () => {
     expect((rankedMade.odds as Json).total_weight).toBeCloseTo(113.5, 6);
   });
 
-  it('acceptListing: Silver Tongue composes after the fee and Darknet; seller is credited the uplift', async () => {
+  it('acceptListing: Silver Tongue composes after the fee and Darknet; the uplift is clamped to the fee', async () => {
     const ITEM = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1';
     const store = makeWriteStore((s) => {
       s.profiles = [
@@ -881,10 +883,12 @@ describe('cache rank consumers — writes store', () => {
     const accepted = await store.acceptListing(B, writeNonce(), (created.listing as Json).id as string) as Json;
     const fee = accepted.market_fee as Json;
     expect(fee.fee_credits).toBe(375);
-    expect(fee.cache_rank_proceeds_bonus).toBe(481);
-    expect(fee.seller_proceeds).toBe(9625 + 481);
+    // Fee floor (0064): raw uplift 481 clamps to the 375 fee, so the
+    // seller nets exactly the buyer's price — nothing is minted.
+    expect(fee.cache_rank_proceeds_bonus).toBe(375);
+    expect(fee.seller_proceeds).toBe(9625 + 375);
     const seller = store.seed.profiles.find((p) => p.id === A)!;
-    expect(seller.credits).toBe(9625 + 481);
+    expect(seller.credits).toBe(9625 + 375);
   });
 
   it('acceptListing: NPC-market listings are exempt from the uplift even with a maxed track', async () => {

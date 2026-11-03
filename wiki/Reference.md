@@ -189,61 +189,60 @@ Weapons are pictured in the frames and element tables above; the
 legendaries have their own page ([[Reference-Legendary-Effects]]).
 See [[Gear]] for how the slots play.
 
-<!-- GENERATED from src/components/gearArt/ShieldIllustration.tsx, src/components/gearArt/RelicIllustration.tsx, src/components/gearArt/ClassModIllustration.tsx, src/components/gearArt/OrdnanceIllustration.tsx, src/constants/shieldSilhouettes.ts, src/constants/relicSilhouettes.ts, src/constants/classModSilhouettes.ts, src/constants/ordnanceSilhouettes.ts, src/lib/combat/shieldBehaviors.ts — do not edit by hand -->
+<!-- GENERATED from src/lib/pixel/gearCardCompositor.ts, src/lib/pixel/shieldGrammar.ts, src/lib/pixel/ordnanceGrammar.ts, src/lib/pixel/classModGrammar.ts, src/lib/pixel/relicGrammar.ts, src/lib/combat/shieldBehaviors.ts — do not edit by hand -->
 <!-- wiki-gen:gear-plates -->
 ### Shields
 
-A shield's form is picked by its element and its seed — the illustration draws the device. Behavior is a separate stats axis (rolled by rarity when the shield drops; see [[Shield-Tech]]), and the current illustration does not draw it: any behavior can wear any form. Plates are Rare shields with no affixes, rendered by the game's own ShieldIllustration.
+A shield's form IS its rolled behavior — the plate draws the device the behavior describes (see [[Shield-Tech]] for how behaviors roll). The body wears the shield's element colorway and the frame its rarity, so two shields with the same behavior share a silhouette and differ in color and trim. Plates are Rare shields with no affixes, composed by the game's own shield grammar.
 
-| Plate | Form | Rolled for |
-| --- | --- | --- |
-| <img src="images/gear/shield-rounded.png" alt="Rounded Guard" width="240"> | **Rounded Guard** | Fire or Corrosive on an even seed; Void on an odd seed |
-| <img src="images/gear/shield-buckler.png" alt="Buckler" width="240"> | **Buckler** | Fire or Shock on an odd seed |
-| <img src="images/gear/shield-bulwark.png" alt="Bulwark" width="240"> | **Bulwark** | Corrosive or Cryo on an odd seed |
-| <img src="images/gear/shield-hex-plate.png" alt="Hex Plate" width="240"> | **Hex Plate** | Shock or Kinetic on an even seed |
-| <img src="images/gear/shield-split-panel.png" alt="Split Panel" width="240"> | **Split Panel** | Kinetic or Void on an odd seed; Cryo on an even seed |
-
-**Shield behaviors** — what the stats axis rolls:
-
-| Behavior | What it does |
-| --- | --- |
-| **Standard** | No special behavior. |
-| **Nova** | When this shield breaks, it erupts in a burst of damage. |
-| **Absorb** | Chance to fully absorb a hit and restore shield. |
-| **Amp** | Bonus damage while the shield is at full charge. |
-| **Turtle** | Oversized capacity, slow recharge. |
+| Plate | Behavior | Form | What it does |
+| --- | --- | --- | --- |
+| <img src="images/gear/shield-standard.png" alt="Standard shield" width="240"> | **Standard** | balanced housing + top fins + hex emitter + side pods | No special behavior. |
+| <img src="images/gear/shield-nova.png" alt="Nova shield" width="240"> | **Nova** | shutter ring around a stepped core + vented back plate | When this shield breaks, it erupts in a burst of damage. |
+| <img src="images/gear/shield-absorb.png" alt="Absorb shield" width="240"> | **Absorb** | concentric shell plates + orb + side shell stacks | Chance to fully absorb a hit and restore shield. |
+| <img src="images/gear/shield-amp.png" alt="Amp shield" width="240"> | **Amp** | twin capacitor towers + coil console + bolt | Bonus damage while the shield is at full charge. |
+| <img src="images/gear/shield-turtle.png" alt="Turtle shield" width="240"> | **Turtle** | wide riveted bulwark slab + segmented emitter slit | Oversized capacity, slow recharge. |
 
 ### Ordnance
 
-Form is a hash of the item's effect text and its seed — any ordnance can wear any form.
+Form follows the ordnance's rolled effect — the effect decides which device the item is. Plates are Rare ordnance with no affixes, composed by the game's own ordnance grammar.
 
-| Plate | Form |
-| --- | --- |
-| <img src="images/gear/ordnance-spike.png" alt="Spike Grenade" width="240"> | **Spike Grenade** |
-| <img src="images/gear/ordnance-cylinder.png" alt="Cylinder Charge" width="240"> | **Cylinder Charge** |
-| <img src="images/gear/ordnance-disc.png" alt="Disc Mine" width="240"> | **Disc Mine** |
-| <img src="images/gear/ordnance-canister.png" alt="Payload Canister" width="240"> | **Payload Canister** |
+| Plate | Form | Effects that wear it |
+| --- | --- | --- |
+| <img src="images/gear/ordnance-spike.png" alt="Spike" width="240"> | **Spike** | Fragmentation, Kinetic Slam |
+| <img src="images/gear/ordnance-disc.png" alt="Disc" width="240"> | **Disc** | EMP Payload, Shockwave |
+| <img src="images/gear/ordnance-dart.png" alt="Seeker Dart" width="240"> | **Seeker Dart** | Seeker, Void Tap |
+| <img src="images/gear/ordnance-canister.png" alt="Canister" width="240"> | **Canister** | Cluster, Incendiary, Acid Burst, Cryo Shell |
 
 ### Class mods
 
-Form follows the boosted tree's keyword.
+Every tree gets its own plate: the device draws the tree's socket field, with the mod's boosted nodes lit in their sockets. Plates are Rare mods with their first two small nodes boosted, composed by the game's own class-mod grammar.
 
-| Plate | Form | Trees |
-| --- | --- | --- |
-| <img src="images/gear/class-mod-core.png" alt="Combat Core" width="240"> | **Combat Core** | Gunslinger trees |
-| <img src="images/gear/class-mod-drive.png" alt="Tactical Drive" width="240"> | **Tactical Drive** | Demolition trees |
-| <img src="images/gear/class-mod-chip.png" alt="Skill Chip" width="240"> | **Skill Chip** | Scavenger trees — and any tree the keyword picker doesn't match, Fixer included |
+| Plate | Tree |
+| --- | --- |
+| <img src="images/gear/class-mod-gunslinger.png" alt="Gunslinger class mod" width="240"> | **Gunslinger** |
+| <img src="images/gear/class-mod-demolition.png" alt="Demolition class mod" width="240"> | **Demolition** |
+| <img src="images/gear/class-mod-scavenger.png" alt="Scavenger class mod" width="240"> | **Scavenger** |
+| <img src="images/gear/class-mod-fixer.png" alt="Fixer class mod" width="240"> | **Fixer** |
 
 ### Relics
 
-Form follows where the relic came from.
+A relic's form follows its name — every named relic is its own device. The plinth under it is chosen by where the relic came from: a boss drop stands on a heavy totem foot, a cache-forged relic sits in a forge cradle, an event relic on a display stand, and a world drop on a plain field plinth. The plates all rest on the world plinth so the forms compare cleanly. Plates are Rare relics with no affixes, composed by the game's own relic grammar.
 
-| Plate | Form | Drops from |
-| --- | --- | --- |
-| <img src="images/gear/relic-shard.png" alt="Void Shard" width="240"> | **Void Shard** | World drops, on an even seed |
-| <img src="images/gear/relic-prism.png" alt="Echo Prism" width="240"> | **Echo Prism** | Event drops; world drops on an odd seed |
-| <img src="images/gear/relic-totem.png" alt="Boss Totem" width="240"> | **Boss Totem** | Boss drops |
-| <img src="images/gear/relic-chip.png" alt="Data Chip" width="240"> | **Data Chip** | Cache-forged items |
+| Plate | Relic |
+| --- | --- |
+| <img src="images/gear/relic-vault-chip.png" alt="Vault Chip" width="240"> | **Vault Chip** |
+| <img src="images/gear/relic-data-shard.png" alt="Data Shard" width="240"> | **Data Shard** |
+| <img src="images/gear/relic-neural-key.png" alt="Neural Key" width="240"> | **Neural Key** |
+| <img src="images/gear/relic-cache-relic.png" alt="Cache Relic" width="240"> | **Cache Relic** |
+| <img src="images/gear/relic-echo-stone.png" alt="Echo Stone" width="240"> | **Echo Stone** |
+| <img src="images/gear/relic-void-prism.png" alt="Void Prism" width="240"> | **Void Prism** |
+| <img src="images/gear/relic-circuit-totem.png" alt="Circuit Totem" width="240"> | **Circuit Totem** |
+| <img src="images/gear/relic-ancient-module.png" alt="Ancient Module" width="240"> | **Ancient Module** |
+| <img src="images/gear/relic-scrap-core.png" alt="Scrap Core" width="240"> | **Scrap Core** |
+| <img src="images/gear/relic-glitched-token.png" alt="Glitched Token" width="240"> | **Glitched Token** |
+| <img src="images/gear/relic-ethereal-drive.png" alt="Ethereal Drive" width="240"> | **Ethereal Drive** |
+| <img src="images/gear/relic-quantum-fragment.png" alt="Quantum Fragment" width="240"> | **Quantum Fragment** |
 <!-- /wiki-gen:gear-plates -->
 
 ## Roaming areas
