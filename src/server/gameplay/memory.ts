@@ -1001,7 +1001,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const enrollment = this.researchEnrollments.get(playerId);
     const completions = this.researchCompletions.get(playerId);
     return {
-      playerLevel: p.player_level,
       workshopBenches: p.workshop_benches,
       credits: p.credits,
       completed: completions
@@ -1035,9 +1034,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (completions?.has(courseId)) throw new GameplayStoreError('course_already_completed');
     if (this.researchEnrollments.has(playerId)) {
       throw new GameplayStoreError('research_already_enrolled');
-    }
-    if (course.requiresLevel != null && p.player_level < course.requiresLevel) {
-      throw new GameplayStoreError('level_too_low');
     }
     if (course.prerequisite && !completions?.has(course.prerequisite)) {
       throw new GameplayStoreError('prerequisite_not_met');

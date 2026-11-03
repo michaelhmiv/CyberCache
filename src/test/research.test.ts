@@ -6,9 +6,12 @@
  * Laws under test:
  *  - THE CATALOG: 4 faculties × 3 tiers = 12 courses; 888 course
  *    hours (37 days sequential) and 310,000 credits total, 77,500
- *    per faculty. T1 6h/2,500cr/L5, T2 2d/15,000cr, T3 7d/60,000cr
- *    (Q4: flat capstones). The SQL catalog twin parses to the same
- *    numbers as the content module.
+ *    per faculty. T1 6h/2,500cr, T2 2d/15,000cr, T3 7d/60,000cr
+ *    (Q4: flat capstones). NO course carries a player-level gate
+ *    (gate-removal step 3, migration 0059 — the chain, the clock,
+ *    and the fee are the only gates, plus Fabrication's benches).
+ *    The SQL catalog twin parses to the same numbers as the
+ *    content module.
  *  - PARALLEL TRACK: enrollment lives in its own record beside the
  *    personal action slot — enrolling, settling, and cancelling
  *    never read or write action state, and other systems' activity
@@ -110,12 +113,11 @@ describe('research catalog — faculties, tiers, sizing', () => {
     }
   });
 
-  it('tier shapes: T1 6h/2,500/L5 · T2 48h/15,000 · T3 168h/60,000 flat (Q4)', () => {
+  it('tier shapes: T1 6h/2,500 · T2 48h/15,000 · T3 168h/60,000 flat (Q4), no level gates', () => {
     for (const course of RESEARCH_COURSES) {
       if (course.tier === 1) {
         expect(course.durationHours).toBe(6);
         expect(course.costCredits).toBe(2_500);
-        expect(course.requiresLevel).toBe(5);
         expect(course.prerequisite).toBeUndefined();
       } else if (course.tier === 2) {
         expect(course.durationHours).toBe(48);
@@ -130,13 +132,9 @@ describe('research catalog — faculties, tiers, sizing', () => {
         );
         expect(course.prerequisite).toBe(prior?.id);
       }
-    }
-    // Non-Fabrication ladders gate T2 at L20 and T3 at L40.
-    for (const id of ['powertrain_systems', 'supply_chains', 'shield_dynamics']) {
-      expect(researchCourse(id)?.requiresLevel).toBe(20);
-    }
-    for (const id of ['master_mechanic', 'syndicate_ledger', 'void_theory']) {
-      expect(researchCourse(id)?.requiresLevel).toBe(40);
+      // Gate-removal step 3 (0059): the former L5/L20/L40 numbers
+      // are gone from every course — no level gate exists to read.
+      expect('requiresLevel' in course, course.id).toBe(false);
     }
     // Fabrication gates on benches instead (the workshop IS the school).
     expect(researchCourse('production_systems')?.requiresBench).toBe(2);
@@ -403,7 +401,9 @@ describe('research store — enrollment lifecycle', () => {
 
     await expect(store.enrollResearch(B, nonce(), 'not_a_course')).rejects.toThrow('unknown_course');
     await expect(store.enrollResearch(B, nonce(), 'street_economics')).rejects.toThrow('insufficient_credits');
-    await expect(store.enrollResearch(B, nonce(), 'powertrain_systems')).rejects.toThrow('level_too_low');
+    // Step 3: Powertrain Systems (was L20) refuses a level-5 player
+    // by its prerequisite — the level check no longer exists.
+    await expect(store.enrollResearch(B, nonce(), 'powertrain_systems')).rejects.toThrow('prerequisite_not_met');
     await expect(store.enrollResearch(A, nonce(), 'production_systems')).rejects.toThrow('prerequisite_not_met');
     expect(store.profiles.get(B)?.credits).toBe(creditsBefore);
     expect(store.researchEnrollments.has(B)).toBe(false);
@@ -525,8 +525,12 @@ describe('research state view', () => {
     // Gates met but the fee is unpayable: available, yet canEnroll is false.
     expect(byId.get('shop_fundamentals')?.status).toBe('available');
     expect(byId.get('shop_fundamentals')?.canEnroll).toBe(false);
-    expect(byId.get('powertrain_systems')?.lockReasons.join(' ')).toContain('Requires level 20');
+    expect(byId.get('powertrain_systems')?.lockReasons.join(' ')).toContain('Requires Wrench Basics');
     expect(byId.get('production_systems')?.lockReasons.join(' ')).toContain('Requires Shop Fundamentals');
+    // Step 3: no course in the view names a level as a lock reason.
+    for (const course of view.courses) {
+      expect(course.lockReasons.join(' '), course.id).not.toMatch(/level/i);
+    }
 
     seedRich(store, A);
     await store.enrollResearch(A, nonce(), 'wrench_basics');

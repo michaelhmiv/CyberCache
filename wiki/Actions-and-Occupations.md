@@ -69,11 +69,11 @@ See [[Vehicles and the Garage]] for the vehicles themselves.
 
 Research is schooling: enroll in one course at a time and it progresses on **pure wall-clock time** — offline, while you roam, while you craft, even while you are dead. Nothing caps or pauses it, because it pays out nothing farmable.
 
-- The catalog is **12 courses in 4 faculties** (Fabrication, Field Mechanics, Logistics & Markets, Xenotech), three tiers each, chained by prerequisites within a faculty.
+- The catalog is **12 courses in 4 faculties** (Fabrication, Field Mechanics, Logistics & Markets, Xenotech), three tiers each, chained by prerequisites within a faculty. No course gates on your hunter level — the prerequisite chain, the wall-clock duration, and the fee are the whole price (Fabrication's upper courses also ask for the workshop benches they teach on).
 - The whole catalog totals **888 hours and 310,000 credits** if you take everything sequentially. Fees are charged at enrollment and are gone — cancelling forfeits the fee and the accrued time.
 - Completion grants **no player XP**. It grants mastery XP to the `research.scholarship` track — **10 XP per course hour** — and, more importantly, the course's unlock: batch recipes, permanent passives, and bonuses that real engines read.
 - One enrollment at a time is the scarcity: the calendar, not your hands, is the cost.
-- **Tap any course** in the Research panel to open its full brief before you commit: its gates (level, bench, prerequisite course), the fee and duration as they stand right now, what it unlocks, and — when a gate is unmet — exactly what is still needed. Enrolling happens from that brief or from the course card itself.
+- **Tap any course** in the Research panel to open its full brief before you commit: its gates (bench, prerequisite course), the fee and duration as they stand right now, what it unlocks, and — when a gate is unmet — exactly what is still needed. Enrolling happens from that brief or from the course card itself.
 
 ## Contracts board
 
