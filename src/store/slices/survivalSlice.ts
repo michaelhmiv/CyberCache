@@ -67,6 +67,13 @@ export interface SurvivalState {
    * nova stays spent until the shield recharges past the threshold.
    */
   shieldNovaArmed: boolean;
+  /**
+   * Death-loop trickle arm state (owner ruling 2026-11-02):
+   * server-authoritative, synced from claim results and sent back on
+   * the next claim — the presence trickle pays only after a kill
+   * since the last death.
+   */
+  trickleArmed: boolean;
   /** Med Kit HP buffer — absorbs damage after shield, before HP. */
   medKitBuffer: number;
   /** Nano Swarm regen ticks remaining — heals N HP per tick. */
@@ -118,6 +125,7 @@ export interface SurvivalState {
     killedBy?: { monsterId: string; monsterName: string; areaId: string } | null;
     diedAt?: number | null;
     shieldNovaArmed?: boolean;
+    trickleArmed?: boolean;
   }) => void;
 }
 
@@ -129,6 +137,7 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
   maxHp: INITIAL_MAX_HP,
   shieldHp: INITIAL_SHIELD_HP,
   shieldNovaArmed: true,
+  trickleArmed: true,
   medKitBuffer: 0,
   nanoSwarmTicksRemaining: 0,
   adrenalineActive: false,
@@ -275,6 +284,7 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
     adrenalineActive?: boolean;
     shieldCellResistance?: number;
     shieldNovaArmed?: boolean;
+    trickleArmed?: boolean;
   }) => {
     // Server-authoritative death WITH attribution: feed the server's
     // death record to die() so lastKilledBy and the death log carry
@@ -301,6 +311,8 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
 
       const novaArmed =
         typeof server.shieldNovaArmed === 'boolean' ? server.shieldNovaArmed : state.shieldNovaArmed;
+      const trickleArmed =
+        typeof server.trickleArmed === 'boolean' ? server.trickleArmed : state.trickleArmed;
 
       if (wasAlive && serverDead) {
         // Death state (log entry + timers) was either just written by
@@ -312,6 +324,7 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
           shieldHp: newShield,
           isDead: true,
           shieldNovaArmed: novaArmed,
+          trickleArmed,
           // Don't overwrite resurrection timers if already set
           resurrectionStartedAt: state.resurrectionStartedAt ?? Date.now(),
           resurrectionReadyAt: state.resurrectionReadyAt ?? Date.now() + RESURRECTION_FREE_TIMER_MS,
@@ -325,6 +338,7 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
           shieldHp: newShield,
           isDead: false,
           shieldNovaArmed: novaArmed,
+          trickleArmed,
           resurrectionStartedAt: null,
           resurrectionReadyAt: null,
         };
@@ -337,6 +351,7 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
         shieldHp: newShield,
         isDead: serverDead,
         shieldNovaArmed: novaArmed,
+        trickleArmed,
         medKitBuffer: typeof server.medKitBuffer === 'number' ? server.medKitBuffer : state.medKitBuffer,
         nanoSwarmTicksRemaining: typeof server.nanoSwarmTicksRemaining === 'number' ? server.nanoSwarmTicksRemaining : state.nanoSwarmTicksRemaining,
         adrenalineActive: typeof server.adrenalineActive === 'boolean' ? server.adrenalineActive : state.adrenalineActive,

@@ -139,6 +139,7 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
         isDead?: boolean;
         killedBy?: { monsterId: string; monsterName: string; areaId: string } | null;
         diedAt?: number | null;
+        trickleArmed?: boolean;
       }
     | undefined;
 
@@ -304,6 +305,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
           shieldHp: useSurvivalStore.getState().shieldHp,
           maxHp: useSurvivalStore.getState().maxHp,
           shieldNovaArmed: useSurvivalStore.getState().shieldNovaArmed,
+          trickleArmed: useSurvivalStore.getState().trickleArmed,
         },
         roamingConsumableState,
       };

@@ -94,6 +94,8 @@ export interface ChefClaimRequest {
     maxHp: number;
     /** Nova arm state round-trip (Phase 2c). */
     shieldNovaArmed?: boolean;
+    /** Death-loop trickle arm state round-trip (owner ruling 2026-11-02). */
+    trickleArmed?: boolean;
   };
   /** Prior roaming consumable state (carried from previous claim). */
   roamingConsumableState?: unknown;
@@ -192,6 +194,8 @@ export interface ChefClaimResult {
     shieldCellResistance?: number;
     /** Nova arm state at claim end (Phase 2c). */
     shieldNovaArmed?: boolean;
+    /** Trickle arm state at claim end (death-loop guard). */
+    trickleArmed?: boolean;
   };
   /**
    * The standing server death record (migration 0013), present when
@@ -959,8 +963,8 @@ export interface ChefDispatchOffer {
   durationHours: number;
   areaName: string;
   dangerRating: string;
-  areaUnlockLevel: number;
-  areaLocked: boolean;
+  // No area level gate (owner ruling 2026-11-02): dispatch offers no
+  // longer carry areaUnlockLevel / areaLocked — destinations are open.
 }
 
 export interface ChefDispatchMission {
