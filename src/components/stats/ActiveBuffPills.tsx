@@ -29,7 +29,7 @@ const signedPct = (delta: number): string => `${delta >= 0 ? '+' : ''}${Math.rou
  * Returns null only when no effect could be derived AND there's no ledger
  * fallback — in which case callers should render nothing.
  */
-function buildEffectSummary(
+export function buildEffectSummary(
   def: typeof CONSUMABLES[string] | undefined,
   buff: ActiveBuff,
   isBufferConsumable: boolean,

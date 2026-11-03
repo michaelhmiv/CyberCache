@@ -126,8 +126,12 @@ const DetailList: React.FC<{ metric: StatMetric; max: number }> = memo(function 
 export const MetricCard: React.FC<{
   metric: StatMetric;
   max?: number;
-}> = memo(function MetricCard({ metric, max }) {
-  const [expanded, setExpanded] = useState(false);
+  /** Focused single-metric sheets (the hero rundown's stat tap)
+   *  open with the source list already expanded — the tap WAS the
+   *  request for sources. Grid cards keep the collapsed default. */
+  defaultExpanded?: boolean;
+}> = memo(function MetricCard({ metric, max, defaultExpanded = false }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const tone = statToneTextClass[metric.tone];
   const showBar = shouldShowBar(metric);
   const segments = useMemo(() => buildSegments(metric), [metric]);
