@@ -77,6 +77,18 @@ research) instead of failing silently. Guests can open the sheet
 and see the real prices; signing in is only asked at the Buy
 button.
 
+The same **+** rides the other shortfall lines in the game: the
+[[Repair Board]]'s kit line and the [[Shield-Tech]] board's
+Calibration Core line (for whichever kit type you have selected),
+and the Garage's repair controls when the selected kit type can't
+fully restore the vehicle. Everywhere it appears, the count is
+the same kind of number — what you still need after the stock you
+hold is spent, counted in standard-quality units — and the sheet
+behind it is the same one. Patch Kits are a Vendor staple, so
+both tabs can price them; Field and Master Patch Kits and
+Calibration Cores are never vendor stock, so their sheets price
+the Market only.
+
 ## The catalog: 87 recipes
 
 The unified Workshop catalog holds **87 recipes**:

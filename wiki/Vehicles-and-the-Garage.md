@@ -96,7 +96,11 @@ restores **30 points**, a Field Patch Kit **45**, and a Master Patch Kit
 restores, so a 130% kit restores 130% of its base. A vehicle at zero
 condition says so in the Garage — Wrecked — and names patch kits as
 the fix right beside the repair controls; if you own no kits, the
-Vendor and Workshop doors stand there instead. You have two ways to
+Vendor and Workshop doors stand there instead. When the kit type you
+have selected can't fully restore the vehicle, the repair controls
+also carry the small quick-buy **+**: it opens the [[Crafting|quick-buy
+sheet]] for the kits a full restore still needs, counted after the
+kits you hold are spent. You have two ways to
 use one:
 
 - **Self-repair** — do it yourself in the Workshop: untrained and slow,
