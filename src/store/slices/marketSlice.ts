@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Listing, MarketHistory as MarketHistoryEntry, MarketFilter as MarketFilters } from '@/types/market';
 import type { ServiceBoardQuery } from '@/lib/market/boardQuery';
+import type { MarketCategory } from '@/lib/market/identityKey';
 
 /** The Market rail stops (DESIGN.md §2) — the only values the tab's
  *  stop state and the tab→stop deep link may name. My Listings and
@@ -33,6 +34,17 @@ interface MarketState {
   marketStopIntent: { stop: MarketStopId; seq: number } | null;
   requestMarketStop: (stop: MarketStopId) => void;
   clearMarketStopIntent: () => void;
+  /** Buy-lane browse deep link: a one-shot intent naming the Buy
+   *  category (and optionally a search term) a remedy door elsewhere
+   *  in the app wants to land the player ON — e.g. a service board's
+   *  no-supply blocker doors to the Consumables category searched for
+   *  the missing supply (DESIGN.md: every "no" carries its remedy).
+   *  MarketScreen consumes it on the Buy stop (applies + clears);
+   *  `seq` makes a repeat intent re-apply even while Market is
+   *  mounted. */
+  buyBrowseIntent: { category: MarketCategory; search: string | null; seq: number } | null;
+  requestBuyBrowse: (category: MarketCategory, search?: string | null) => void;
+  clearBuyBrowseIntent: () => void;
   /** Shield-tech deep link (0044): a shield id handed from the gear
    *  inspect sheet to the Shield Tech tab's post form, consumed once. */
   shieldTechPreselect: string | null;
@@ -66,6 +78,10 @@ export const useMarketStore = create<MarketState>()((set) => ({
   marketStopIntent: null,
   requestMarketStop: (stop) => set({ marketStopIntent: { stop, seq: Date.now() } }),
   clearMarketStopIntent: () => set({ marketStopIntent: null }),
+  buyBrowseIntent: null,
+  requestBuyBrowse: (category, search = null) =>
+    set({ buyBrowseIntent: { category, search, seq: Date.now() } }),
+  clearBuyBrowseIntent: () => set({ buyBrowseIntent: null }),
   shieldTechPreselect: null,
   setShieldTechPreselect: (itemId) => set({ shieldTechPreselect: itemId }),
   repairBoardQuery: {},

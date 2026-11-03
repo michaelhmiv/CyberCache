@@ -62,6 +62,16 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
 - **Claims never hide.** Claimable things live as chips directly under the Strip
   or as badged doors (see §9).
 
+### Every "no" carries its remedy (owner-approved 2026-11-02)
+
+When a surface refuses, locks, disables, or comes up empty, the same surface
+names what resolves it and doors to it in one tap: a disabled control prints
+its reason as visible text (never only in a hover title), a shortage names
+the missing thing *and where it comes from*, and a counter never shows a
+denominator the player hasn't been taught. One line is enough room for a
+remedy and a door — this law extends the one-line empty-state rule above,
+it does not repeal it.
+
 ---
 
 ## 2. Navigation — four tabs

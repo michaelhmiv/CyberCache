@@ -27,6 +27,7 @@ const REPAIR_SORT_OPTIONS: ServiceBoardSortOption[] = [
   { value: 'expiring', label: 'Sort: Expiring soon' },
 ];
 import { ServiceBoardControls, type ServiceBoardSortOption } from '@/components/market/ServiceBoardControls';
+import { MarketSupplyDoor, VendorSupplyDoor } from '@/components/market/SupplyDoors';
 import { RepairBayScene } from '@/components/pixelArt/ActionScenes';
 
 /**
@@ -488,7 +489,13 @@ export const RepairBoard: React.FC = () => {
                   {req.blockers.includes('unverified') ? (
                     <>Sign in with a verified account to take jobs.</>
                   ) : req.blockers.includes('no_supply') ? (
-                    <>Needs patch kits to start — you have none. The mechanic supplies the kits; the price covers kits + labor.</>
+                    <>
+                      Needs patch kits to start — you have none. You supply the kits; the
+                      price covers kits + labor. Patch Kits are a{' '}
+                      <VendorSupplyDoor ariaLabel="Get Patch Kits from the Vendor">Vendor</VendorSupplyDoor> staple and craft on the
+                      Workshop&apos;s Basic Bench — or buy them from another player on the{' '}
+                      <MarketSupplyDoor search="Patch Kit" ariaLabel="Buy Patch Kits on the player Market">Market</MarketSupplyDoor>.
+                    </>
                   ) : kitReq ? (
                     <>
                       You supply the kits: ≈{kitReq.estimatedKits ?? '—'} {KIT_LABELS[kit]} to finish

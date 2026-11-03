@@ -13,7 +13,11 @@ Workshop jobs advance **only while crafting is your active action**.
 Queue a job, switch to roaming or a boss, and the job sits **paused** —
 it keeps its place and its escrowed inputs, but no progress is made
 until you come back to the bench. One job runs per bench, with up to
-**5 more queued** behind it on that bench.
+**5 more queued** behind it on that bench. A full bench says so on the
+job button itself — and names the way out: jobs finish while Crafting
+is your action, or cancel one from the job list above the recipes. A
+locked bench in the bench picker likewise points at the Benches &
+Tools card above, where benches are unlocked.
 
 Crafting pays **XP at about 77.5% of roaming's rate** for the same time
 (the exact rate is pegged to the best roaming area unlocked at your

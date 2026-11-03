@@ -85,7 +85,12 @@ hidden behind the accept button:
   when you run dry, and the points you banked are kept and paid
   pro-rata.
 - **A job you cannot take says why** — no patch kits on hand, or (for
-  guests) that taking jobs needs a signed-in account. Mastery is never
+  guests) that taking jobs needs a signed-in account. The no-kits
+  reason also names where kits come from and doors to them in the same
+  line: the basic Patch Kit is a [[Vendor]] staple, kits craft on the
+  Workshop's Basic Bench, and player listings trade on the [[The
+  Market|Market]] — the Market door lands on the Consumables category
+  already searched for Patch Kits. Mastery is never
   a requirement: it only changes the speed and efficiency numbers the
   card quotes you.
 

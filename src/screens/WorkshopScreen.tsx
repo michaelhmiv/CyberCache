@@ -848,7 +848,7 @@ const RecipeCard: React.FC<{
             : epicMasteryLocked
             ? 'Epic needs gear mastery 10'
             : benchQueueFull
-              ? 'Bench queue full'
+              ? 'Bench queue full — jobs finish while Crafting is your action, or cancel one above'
               : materialsShort
                 ? 'Missing materials'
                 : '';
@@ -936,7 +936,7 @@ const RecipeCard: React.FC<{
             {[1, 2, 3].map((b) => (
               <option key={b} value={b} disabled={b < minBench}>
                 {b} · {benchDef(b).name}
-                {b > benchesOwned ? ' (locked)' : ''}
+                {b > benchesOwned ? ' (locked — unlock at Benches & Tools above)' : ''}
               </option>
             ))}
           </select>
