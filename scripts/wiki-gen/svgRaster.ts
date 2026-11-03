@@ -872,6 +872,16 @@ function samplePaint(paint: Paint, shape: Shape, deviceX: number, deviceY: numbe
   return stops[stops.length - 1].color;
 }
 
+/** Coverage test for one sample point against one pass of one shape. */
+function isCovered(shape: Shape, prep: PreparedShape | null, isFill: boolean, px: number, py: number): boolean {
+  if (shape.kind === 'circle' && shape.circle) {
+    const d = Math.hypot(px - shape.circle.cx, py - shape.circle.cy);
+    return isFill ? d <= shape.circle.r : Math.abs(d - shape.circle.r) <= shape.strokeWidth / 2;
+  }
+  if (prep === null) return false;
+  return isFill ? windingInside(prep, px, py) : strokeDistance(prep, px, py) <= shape.strokeWidth / 2;
+}
+
 /**
  * Rasterize one `<svg>` document (the markup an illustration component
  * emits) at its native viewBox size.
@@ -931,16 +941,7 @@ export function rasterizeSvg(svgMarkup: string): RgbaImage {
           const isFill = pass === 'fill';
           const paint = isFill ? shape.fill : shape.stroke;
           if (paint.kind === 'none') continue;
-          let covered = false;
-          if (shape.kind === 'circle' && shape.circle) {
-            const d = Math.hypot(px - shape.circle.cx, py - shape.circle.cy);
-            covered = isFill ? d <= shape.circle.r : Math.abs(d - shape.circle.r) <= shape.strokeWidth / 2;
-          } else if (isFill) {
-            covered = prep !== null && windingInside(prep, px, py);
-          } else {
-            covered = prep !== null && strokeDistance(prep, px, py) <= shape.strokeWidth / 2;
-          }
-          if (!covered) continue;
+          if (!isCovered(shape, prep, isFill, px, py)) continue;
           const color = samplePaint(paint, shape, px, py);
           if (!color) continue;
           const a = color[3] * shape.opacity * (isFill ? shape.fillOpacity : shape.strokeOpacity);
