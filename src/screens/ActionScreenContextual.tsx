@@ -793,7 +793,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer instead of crowding the Action tab." onClose={() => setShowSwitch(false)}>
           {switchActions.map(({ label, detail: rowDetail, icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber">{icon}</div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showAreaSelect} title="Choose Area" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Tap the scene title to switch areas.'} onClose={() => setShowAreaSelect(false)}>
+        <ContextualPickerSheet open={showAreaSelect} title="Choose Area" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Pick where roaming happens — the stage follows the area you choose.'} onClose={() => setShowAreaSelect(false)}>
           {/* Compact area stats strip — replaces the removed Roaming Intel card */}
           {isRoaming && (
             <div className="mb-3 grid grid-cols-3 gap-1.5 text-[9px]">
