@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 
@@ -131,17 +131,16 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
   const [pickerRequest, setPickerRequest] = useState<{ slot: LoadoutSlot; seq: number } | null>(null);
   // Anchor scrolls that must wait for a stop switch to mount their
   // target (the Workshop stop's bench signposts land on the merged
-  // page's Inventory section). The AnimatePresence swap takes
-  // ~180ms; the scroll fires just after the new stop mounts.
+  // page's Inventory section). Fired from the AnimatePresence
+  // onExitComplete below — the exiting stop is gone and the new
+  // stop has mounted by then; no timer needed.
   const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
-  useEffect(() => {
+  const handleExitComplete = () => {
     if (!pendingAnchor) return;
-    const t = setTimeout(() => {
-      scrollToAnchor(pendingAnchor);
-      setPendingAnchor(null);
-    }, 260);
-    return () => clearTimeout(t);
-  }, [pendingAnchor]);
+    const id = pendingAnchor;
+    setPendingAnchor(null);
+    requestAnimationFrame(() => scrollToAnchor(id));
+  };
   // Narrow selectors (gear-grid perf audit, 2026-11-02): only the
   // job list and bench count are read here — a whole-store
   // subscription re-rendered the entire gear home (and its 132-card
@@ -173,7 +172,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
         <GearRail activeStop={activeStop} onSelect={goToStop} workshopJobs={queueCount} />
       </div>
 
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="wait" initial={false} onExitComplete={handleExitComplete}>
         <motion.div
           key={activeStop}
           initial={reduceMotion ? false : { opacity: 0, y: 6 }}
