@@ -16,7 +16,11 @@ Your loadout has eight slots. Seven are gear:
 - **Shield** — hit points, recharge rate, and damage mitigation, plus a
   behavior archetype on newer shields (Standard, and types such as Nova,
   Absorb, Amp, and Turtle).
-- **Class Mod** — boosts one skill tree and specific nodes in it.
+- **Class Mod** — boosts one skill tree and specific nodes in it. Its
+  artwork is a different device per tree (a Gunslinger core, a
+  Demolition drive, a Scavenger chip, a Fixer relay rig), and the
+  nodes it boosts light up as pips on the device face — position is
+  the node, brightness is how hard it boosts.
 - **Relic** — a pure affix piece: no base stats of its own, all rolled
   bonuses.
 
