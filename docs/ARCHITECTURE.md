@@ -482,6 +482,7 @@ duplicates:
 | Segmented rigs + poses (enemies) | `src/lib/pixel/rig.ts` (+ `PixelRigActor`) |
 | Hunter part system (skeleton, poses, stock set, head variants, layout/raster, stage FX points) | `src/lib/pixel/parts.ts`, `standardIssue.ts`, `headParts.ts`, `partsCompositor.ts`, `partsStage.ts` (+ `PixelPartsActor`) |
 | Equipped-gear mounts (mount table, instance keying for shield/relic/pauldron/belt) | `src/lib/pixel/gearMounts.ts` |
+| Gear plate compositor core (frames, colorways, detail kit, signature/cache, bespoke resolution) + dispatch seam | `src/lib/pixel/gearCardCompositor.ts`, `gearRenderFlags.ts` (+ `PixelGear`) |
 | Palette remap core | `src/lib/pixel/paletteSwap.ts` |
 | Element FX dialects + shot cadence | `src/lib/pixel/elementFx.ts` |
 | Shared visual grammar (G-1..G-6) + action set dressing | `src/lib/pixel/grammar.ts` |
