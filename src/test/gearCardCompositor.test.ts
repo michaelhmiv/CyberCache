@@ -14,12 +14,7 @@ import {
   type GearComposeInput,
   type GearRender,
 } from '@/lib/pixel/gearCardCompositor';
-import {
-  GEAR_GRAMMARS,
-  GEAR_PIXEL_KINDS,
-  gearKindOf,
-  gearRenderRoute,
-} from '@/lib/pixel/gearRenderFlags';
+import { GEAR_GRAMMARS, gearKindOf } from '@/lib/pixel/gearDispatch';
 import { fixtureBlockGrammar, fixtureSlabGrammar } from './gearFixtureGrammar';
 
 /**
@@ -186,42 +181,19 @@ describe('gear core — bespoke resolves first (slot exists, registry empty)', (
   });
 });
 
-describe('gear core — dispatch seam (kinds flip one slice at a time)', () => {
-  it('every kind has flipped: shield (1), ordnance (2), classMod (3), relic (4)', () => {
-    // Slice 0 shipped every kind on its SVG; the four kind slices
-    // flipped them one at a time. No kind keeps the slice-0
-    // default — the SVG route now exists only as the fail-safe
-    // for a flag without a grammar (pinned below).
+describe('gear core — dispatch table (slice 5: total registry, no route left)', () => {
+  it('the registry is total: exactly the four gear kinds, each grammar matching its key', () => {
+    // Slices 0–4 flipped the kinds one at a time behind a flag +
+    // route seam whose fail-safe was "flag without a grammar
+    // renders the SVG". Slice 5 deleted the SVG island, so the
+    // seam collapsed into this table: GEAR_GRAMMARS is a Record,
+    // not a Partial — a missing grammar is a compile error. This
+    // pin guards the runtime shape of that contract: no missing
+    // kind, no extra kind, no grammar filed under the wrong key.
+    expect(Object.keys(GEAR_GRAMMARS).sort()).toEqual(['classMod', 'ordnance', 'relic', 'shield']);
     for (const kind of ['shield', 'ordnance', 'classMod', 'relic'] as const) {
-      expect(GEAR_PIXEL_KINDS[kind]).toBe(true);
-      expect(GEAR_GRAMMARS[kind]).toBeDefined();
-      expect(gearRenderRoute(kind)).toBe('pixel');
+      expect(GEAR_GRAMMARS[kind].kind).toBe(kind);
     }
-  });
-
-  it('classMod flipped in slice 3: flag on, grammar registered, route pixel', () => {
-    expect(GEAR_PIXEL_KINDS.classMod).toBe(true);
-    expect(GEAR_GRAMMARS.classMod).toBeDefined();
-    expect(gearRenderRoute('classMod')).toBe('pixel');
-  });
-
-  it('ordnance flipped in slice 2: flag on, grammar registered, route pixel', () => {
-    expect(GEAR_PIXEL_KINDS.ordnance).toBe(true);
-    expect(GEAR_GRAMMARS.ordnance?.id).toBe('ordnance');
-    expect(gearRenderRoute('ordnance')).toBe('pixel');
-  });
-
-  it('relic flipped in slice 4: flag on, grammar registered, route pixel', () => {
-    expect(GEAR_PIXEL_KINDS.relic).toBe(true);
-    expect(GEAR_GRAMMARS.relic?.kind).toBe('relic');
-    expect(gearRenderRoute('relic')).toBe('pixel');
-  });
-
-  it('pixel requires flag AND grammar; a flag alone fails safe to svg', () => {
-    const flags = { ...GEAR_PIXEL_KINDS, shield: true };
-    expect(gearRenderRoute('shield', flags, {})).toBe('svg');
-    expect(gearRenderRoute('shield', flags, { shield: fixtureBlockGrammar })).toBe('pixel');
-    expect(gearRenderRoute('relic', flags, { shield: fixtureBlockGrammar })).toBe('svg');
   });
 });
 

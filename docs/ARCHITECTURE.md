@@ -482,8 +482,8 @@ duplicates:
 | Segmented rigs + poses (enemies) | `src/lib/pixel/rig.ts` (+ `PixelRigActor`) |
 | Hunter part system (skeleton, poses, stock set, head variants, layout/raster, stage FX points) | `src/lib/pixel/parts.ts`, `standardIssue.ts`, `headParts.ts`, `partsCompositor.ts`, `partsStage.ts` (+ `PixelPartsActor`) |
 | Equipped-gear mounts (mount table, instance keying for shield/relic/pauldron/belt) | `src/lib/pixel/gearMounts.ts` |
-| Gear plate compositor core (frames, colorways, detail kit, signature/cache, bespoke resolution) + dispatch seam | `src/lib/pixel/gearCardCompositor.ts`, `gearRenderFlags.ts` (+ `PixelGear`) |
-| Gear kind grammars (shield behavior families; relic/class-mod/ordnance rows land with their slices) | `src/lib/pixel/shieldGrammar.ts` |
+| Gear plate compositor core (frames, colorways, detail kit, signature/cache, bespoke resolution) + dispatch table (total grammar registry + kind guards; the one dispatcher is `GearIllustration`) | `src/lib/pixel/gearCardCompositor.ts`, `gearDispatch.ts` (+ `PixelGear`) |
+| Gear kind grammars (shield behavior families, ordnance effect forms, class-mod tree fields, relic name forms + source plinths) | `src/lib/pixel/shieldGrammar.ts`, `ordnanceGrammar.ts`, `classModGrammar.ts`, `relicGrammar.ts` |
 | Palette remap core | `src/lib/pixel/paletteSwap.ts` |
 | Element FX dialects + shot cadence | `src/lib/pixel/elementFx.ts` |
 | Shared visual grammar (G-1..G-6) + action set dressing | `src/lib/pixel/grammar.ts` |

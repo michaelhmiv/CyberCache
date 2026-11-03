@@ -1,9 +1,13 @@
 import React from 'react';
 
 /**
- * Shared SVG filter definitions for procedural gear illustrations.
- * Include <SharedDefs /> inside an SVG <defs> block to make all surface
- * texture filters available by ID.
+ * Shared SVG filter definitions, mounted once at the app root
+ * (SharedDefsMount) and referenced by ID. The remaining consumers
+ * are BossPortrait (bevel-*) and ResourceIcon (the surface-*
+ * textures for material icons) — gear marriage slice 5 retired
+ * the procedural gear illustrations that were the third consumer,
+ * and with them the one filter nothing else applied
+ * (wear-scratches, removed in that slice).
  *
  * Filter IDs use the pattern `surface-{texture}`:
  *   - surface-metal    — brushed steel / alloy with specular sheen
@@ -17,7 +21,6 @@ import React from 'react';
  * Additional utility filters:
  *   - bevel-sm         — subtle 3D bevel (inner shadow)
  *   - bevel-lg         — pronounced 3D bevel
- *   - wear-scratches   — procedural scratch overlay (driven by rollQuality)
  */
 export const SharedDefs: React.FC = () => (
   <>
@@ -264,30 +267,6 @@ export const SharedDefs: React.FC = () => (
       <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="#000" floodOpacity="0.55" />
       <feDropShadow dx="-1" dy="-1" stdDeviation="0.8" floodColor="#fff" floodOpacity="0.12" />
     </filter>
-
-    {/* ===== WEAR / CONDITION ===== */}
-
-    {/* Procedural scratch overlay — intensity controlled by opacity */}
-    <filter id="wear-scratches" x="-5%" y="-5%" width="110%" height="110%">
-      <feTurbulence
-        type="fractalNoise"
-        baseFrequency="1.2 0.01"
-        numOctaves="5"
-        seed="29"
-        result="noise"
-      />
-      <feColorMatrix
-        type="matrix"
-        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0"
-        in="noise"
-        result="scratches"
-      />
-      <feComposite operator="in" in="scratches" in2="SourceGraphic" result="scratchMask" />
-      <feMerge>
-        <feMergeNode in="SourceGraphic" />
-        <feMergeNode in="scratchMask" />
-      </feMerge>
-    </filter>
   </>
 );
 
@@ -300,8 +279,8 @@ export const SharedDefs: React.FC = () => (
  * illustration. They used to: a 132-item inventory rendered 76 copies
  * of this block (836 <filter> elements), and that duplicated-defs DOM
  * was a measured share of the Gear grid's switch freeze (2026-11-02
- * gear-grid perf audit). Mount this once at the app root; every gear
- * illustration references the single copy. The zero-size, absolutely
+ * gear-grid perf audit). Mount this once at the app root; every
+ * consumer references the single copy. The zero-size, absolutely
  * positioned shell (not display:none) is the cross-browser-safe way
  * to park an SVG defs block.
  */

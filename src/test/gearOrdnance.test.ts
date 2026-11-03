@@ -9,9 +9,8 @@ import {
 import {
   GEAR_GRAMMARS,
   gearKindOf,
-  gearRenderRoute,
   isOrdnanceItem,
-} from '@/lib/pixel/gearRenderFlags';
+} from '@/lib/pixel/gearDispatch';
 import {
   ORDNANCE_EFFECT_FORMS,
   ordnanceEffectName,
@@ -143,9 +142,8 @@ describe('ordnance grammar — derivation from the real record', () => {
     expect(isOrdnanceItem(item())).toBe(true);
   });
 
-  it('the registered grammar is this grammar, and the route is pixel', () => {
+  it('the registered grammar is this grammar (slice 5: the table is the only route)', () => {
     expect(GEAR_GRAMMARS.ordnance).toBe(ordnanceGrammar);
-    expect(gearRenderRoute('ordnance')).toBe('pixel');
     expect(ordnanceGrammar.plate).toEqual({ width: 240, height: 120 });
   });
 });

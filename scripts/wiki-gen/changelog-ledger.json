@@ -102,8 +102,20 @@
           "title": "Gear marriage slice 2: ordnance to pixel (form = effect class)"
         },
         {
+          "number": 338,
+          "title": "Gate-removal step 4: bench unlocks drop hunter level — price + materials are the gate (migration 0061)"
+        },
+        {
+          "number": 339,
+          "title": "Gear marriage slice 3: class mods to pixel (4 tree grammars, Fixer family, nodeBoost pips)"
+        },
+        {
           "number": 340,
           "title": "Gear marriage slice 1 — shields to pixel (behavior grammar)"
+        },
+        {
+          "number": 341,
+          "title": "Gear marriage slice 4 — relics to pixel (name-form grammar)"
         },
         {
           "number": 342,

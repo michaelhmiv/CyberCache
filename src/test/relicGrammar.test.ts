@@ -7,11 +7,7 @@ import {
   type GearComposeInput,
   type GearRender,
 } from '@/lib/pixel/gearCardCompositor';
-import {
-  GEAR_GRAMMARS,
-  GEAR_PIXEL_KINDS,
-  gearRenderRoute,
-} from '@/lib/pixel/gearRenderFlags';
+import { GEAR_GRAMMARS } from '@/lib/pixel/gearDispatch';
 import {
   RELIC_FORM_ROWS,
   RELIC_TREATMENTS,
@@ -215,17 +211,12 @@ describe('relic grammar — thumb is detail level 0', () => {
   });
 });
 
-describe('relic grammar — dispatch seam', () => {
-  it('relic routes pixel: flag on, grammar registered', () => {
-    expect(GEAR_PIXEL_KINDS.relic).toBe(true);
+describe('relic grammar — dispatch table', () => {
+  it('relic grammar is registered in the total dispatch table', () => {
+    // Slice 5 retired the flag + route seam: the registry is a
+    // total Record, so registration IS the route — there is no
+    // second path left to fall back to.
     expect(GEAR_GRAMMARS.relic).toBe(relicGrammar);
-    expect(gearRenderRoute('relic')).toBe('pixel');
-  });
-
-  it('every kind routes pixel now — all four slices have landed', () => {
-    for (const kind of ['shield', 'classMod', 'ordnance'] as const) {
-      expect(gearRenderRoute(kind)).toBe('pixel');
-    }
   });
 });
 
