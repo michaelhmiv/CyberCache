@@ -103,6 +103,9 @@ exception — guests can look, but pulling takes a signed-in account, and a
 signed-in hunter who can't pull a tier sees the reason printed under its
 button: machine closed, out of pulls for the day, or short on credits.)
 
+The full consumables catalog — every item pictured with its in-game
+icon — is in [[Reference-Consumables]].
+
 ---
 
 _Source of truth: `src/lib/vendor/catalog.ts`, `src/screens/VendorScreen.tsx`, `src/constants/consumables.ts`, `docs/ECONOMY.md`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._
