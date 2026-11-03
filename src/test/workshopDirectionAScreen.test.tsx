@@ -98,7 +98,11 @@ const card = (recipeId: string) => {
   return within(el as HTMLElement);
 };
 
-describe('Workshop Direction A — the page at the mock fixture', () => {
+// Suite timeout: each test renders the full Workshop (87 cards,
+// stores, motion) — far heavier than the 5s default under shared CI
+// load; the endless suite sets the same precedent (per-test timeouts
+// for heavy subjects). Assertions are unchanged.
+describe('Workshop Direction A — the page at the mock fixture', { timeout: 60_000 }, () => {
   beforeEach(() => {
     seedStores();
   });
@@ -215,6 +219,13 @@ describe('Workshop Direction A — the page at the mock fixture', () => {
     expect(document.getElementById('workshop-recipe-recipe_medkit')).not.toBeNull();
   });
 
+  it('search finds a batch recipe by its natural multi-word name', async () => {
+    render(<WorkshopScreen onNavigate={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText('Search name, job or material…'), { target: { value: 'patch kit batch' } });
+    expect(document.getElementById('workshop-recipe-recipe_patch_kit_batch')).not.toBeNull();
+    expect(document.getElementById('workshop-recipe-recipe_medkit')).toBeNull();
+  });
+
   it('search finds a recipe by its material', async () => {
     render(<WorkshopScreen onNavigate={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('Search name, job or material…'), { target: { value: 'nitrocell' } });
@@ -226,7 +237,8 @@ describe('Workshop Direction A — the page at the mock fixture', () => {
     render(<WorkshopScreen onNavigate={vi.fn()} />);
     expect(screen.getByText('Workshop Activity')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Work the Benches' })).toBeTruthy();
-    expect(screen.getByText('Benches & Tools')).toBeTruthy();
+    // The header AND gate-door buttons both carry this text.
+    expect(screen.getAllByText('Benches & Tools').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Materials & Essences/)).toBeTruthy();
     expect(await screen.findByTestId('tint-panel')).toBeTruthy();
     // The bench select still names its unlock remedy verbatim.

@@ -209,9 +209,11 @@ export const RecipeInspectSheet: React.FC<{
             <div className="space-y-0.5 text-[11px] leading-relaxed text-text-muted">
               <div>Role: {def.tacticalRole}</div>
               <div>Effect: {def.effect}</div>
-              {def.uiHints.map((hint) => (
-                <div key={hint}>{hint}</div>
-              ))}
+              {def.uiHints
+                .filter((hint) => hint !== purpose.hint)
+                .map((hint) => (
+                  <div key={hint}>{hint}</div>
+                ))}
             </div>
           )}
         </div>

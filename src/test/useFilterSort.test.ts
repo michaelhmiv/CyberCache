@@ -59,6 +59,30 @@ describe('useFilterSort', () => {
     expect(result.current.filtered.map((i) => i.id).sort()).toEqual(['b', 'd']);
   });
 
+  it('multi-word search is token-AND across fields (natural name queries)', () => {
+    const { result } = renderHook(() =>
+      useFilterSort<TestItem>({
+        items: [
+          { id: 'a', name: 'Patch Kit ×3 (Batch)', element: 'None', rarity: 'common', price: 1 },
+          { id: 'b', name: 'Patch Kit', element: 'None', rarity: 'common', price: 1 },
+          { id: 'c', name: 'Batch Cell', element: 'Ice', rarity: 'common', price: 1 },
+        ],
+        searchFields: [(i) => i.name, (i) => i.element],
+        sorts: [{ key: 'name', label: 'Name', compare: (a, b) => a.name.localeCompare(b.name) }],
+      }),
+    );
+    // "patch kit batch": all three words must land somewhere — only
+    // the batch recipe carries all three.
+    act(() => result.current.setSearch('patch kit batch'));
+    expect(result.current.filtered.map((i) => i.id)).toEqual(['a']);
+    // Words may split across fields: name word + element word.
+    act(() => result.current.setSearch('batch ice'));
+    expect(result.current.filtered.map((i) => i.id)).toEqual(['c']);
+    // A word that lands nowhere excludes the item.
+    act(() => result.current.setSearch('patch void'));
+    expect(result.current.filtered).toHaveLength(0);
+  });
+
   it('filters by a single facet value', () => {
     const { result } = renderHook(() =>
       useFilterSort<TestItem>({
