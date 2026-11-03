@@ -27,7 +27,25 @@ export function useHunterLooks(ids: string[]): Record<string, HunterLookView> {
   useEffect(() => {
     if (!key) return;
     const wanted = key.split(',').filter((id) => !cache.has(id) && !inFlight.has(id));
-    if (wanted.length === 0) return;
+    if (wanted.length === 0) {
+      // Everything asked for is already cached — but a surface that
+      // mounted before its ids were known (the profile pop-up opens
+      // with no profile, then receives one) initialized its state
+      // empty and would never sync. Merge the cache hits in.
+      setLooks((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        for (const id of key.split(',')) {
+          const hit = cache.get(id);
+          if (hit && next[id] !== hit) {
+            next[id] = hit;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+      return;
+    }
     for (const id of wanted) inFlight.add(id);
     let cancelled = false;
     getHunterLooks(wanted.slice(0, 50))
