@@ -168,7 +168,14 @@ export type PlateMeasure = (text: string, fontSizePx: number) => number;
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;
 
-/** Canvas-backed measure for Chakra Petch 900; approximation off-browser. */
+/** Canvas-backed measure for Chakra Petch 900; approximation
+ * off-browser. A 6% safety margin rides on the canvas result: if
+ * the webfont has not finished loading, canvas measures a fallback
+ * face that runs narrower than Chakra Petch, and a ladder form
+ * chosen on those metrics overflows once the real font lands (seen
+ * on the first plate sheet — tier lines reaching the art edge).
+ * The component's CSS containment is the hard guarantee; this
+ * margin makes the ladder itself honest. */
 export const measurePlateText: PlateMeasure = (text, fontSizePx) => {
   try {
     if (typeof document !== 'undefined') {
@@ -177,7 +184,7 @@ export const measurePlateText: PlateMeasure = (text, fontSizePx) => {
       }
       if (measureCtx) {
         measureCtx.font = `900 ${fontSizePx}px "Chakra Petch", sans-serif`;
-        return measureCtx.measureText(text).width;
+        return measureCtx.measureText(text).width * 1.06;
       }
     }
   } catch {
@@ -242,7 +249,11 @@ export function fitPlateName(
 /**
  * The plate's tier line — the same three facts the panel prints today
  * (tier, level, phases), compacted along a fixed ladder until the
- * measured width fits the scrim at the §5 Label size.
+ * measured width fits the scrim at the §5 Label size. The component
+ * renders this line with 0.04em letter-spacing, which canvas
+ * measureText does not account for — the spacing is added per
+ * character here (omitting it under-measured the line by ~8% and
+ * let the first sheet's picks ellipsize at the scrim edge).
  */
 export function fitPlateTierLine(
   tier: number,
@@ -257,8 +268,10 @@ export function fitPlateTierLine(
     `TIER ${tier} · LV${level} · ${phases} ${phaseWord}`,
     `T${tier} · LV${level} · ${phases} ${phaseWord}`,
   ];
+  const fits = (candidate: string) =>
+    measure(candidate, 11) + candidate.length * 11 * 0.04 <= maxWidth;
   for (const candidate of candidates) {
-    if (measure(candidate, 11) <= maxWidth) return candidate;
+    if (fits(candidate)) return candidate;
   }
   return candidates[candidates.length - 1];
 }

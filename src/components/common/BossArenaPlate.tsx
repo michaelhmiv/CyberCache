@@ -12,7 +12,7 @@
  * bossIdentity.ts (shrink, split at the name's own seams) — never by
  * sliding under the art.
  */
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { BossDef } from '@/types/boss';
 import { ELEMENT_VISUALS } from '@/constants/visualAssets';
 import { Element } from '@/types/game';
@@ -37,11 +37,24 @@ interface BossArenaPlateProps {
 export const BossArenaPlate: React.FC<BossArenaPlateProps> = ({ boss, action }) => {
   const art = bossArt(boss.id);
   const element = ELEMENT_VISUALS[boss.weaknesses[0]] ?? ELEMENT_VISUALS[Element.Kinetic];
-  const nameFit = useMemo(() => fitPlateName(boss.name, SCRIM_TEXT_MAX), [boss.name]);
-  const tierLine = useMemo(
-    () => fitPlateTierLine(boss.tier, boss.level, boss.phases.length, SCRIM_TEXT_MAX),
-    [boss.tier, boss.level, boss.phases.length],
-  );
+  // The ladder measures with canvas; before the webfont lands it
+  // measures a narrower fallback face and can pick a form that only
+  // the CSS ellipsis then contains. The fits are cheap string math,
+  // computed per render; a state flip once fonts are ready re-fits
+  // them with true metrics so the ladder itself carries the
+  // containment (the ellipsis stays as the never-seen backstop).
+  const [, setFontsReady] = useState(false);
+  useEffect(() => {
+    let live = true;
+    document.fonts?.ready.then(() => {
+      if (live) setFontsReady(true);
+    }).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  const nameFit = fitPlateName(boss.name, SCRIM_TEXT_MAX);
+  const tierLine = fitPlateTierLine(boss.tier, boss.level, boss.phases.length, SCRIM_TEXT_MAX);
 
   return (
     <div
@@ -114,7 +127,13 @@ export const BossArenaPlate: React.FC<BossArenaPlateProps> = ({ boss, action }) 
             }}
           >
             {nameFit.lines.map((line) => (
-              <span key={line} className="block whitespace-nowrap">{line}</span>
+              <span
+                key={line}
+                className="block whitespace-nowrap"
+                style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                {line}
+              </span>
             ))}
           </div>
           <div
@@ -126,6 +145,8 @@ export const BossArenaPlate: React.FC<BossArenaPlateProps> = ({ boss, action }) 
               letterSpacing: '0.04em',
               color: '#C9BBA6',
               whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             {tierLine}
