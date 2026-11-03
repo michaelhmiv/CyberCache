@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 import { DropSource, Element, Rarity, SkillTreeType } from '@/types/game';
-import type { ClassMod, Shield } from '@/types/items';
+import type { ClassMod, Relic } from '@/types/items';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { composeGear, type GearRender } from '@/lib/pixel/gearCardCompositor';
 import { GEAR_GRAMMARS, GEAR_PIXEL_KINDS, gearRenderRoute } from '@/lib/pixel/gearRenderFlags';
@@ -133,10 +133,12 @@ describe('class-mod marriage — registration + dispatch', () => {
     expect(GEAR_GRAMMARS.classMod).toBe(classModGrammar);
     expect(GEAR_PIXEL_KINDS.classMod).toBe(true);
     expect(gearRenderRoute('classMod')).toBe('pixel');
-    // ordnance flipped in slice 2 (#337) and routes pixel too; only the
-    // kinds no slice has flipped yet stay on the SVG route.
+    // Shields (slice 1) and ordnance (slice 2) flipped too and route
+    // pixel; only relics — the kind no slice has flipped yet — stay
+    // on the SVG route.
+    expect(gearRenderRoute('shield')).toBe('pixel');
     expect(gearRenderRoute('ordnance')).toBe('pixel');
-    for (const kind of ['shield', 'relic'] as const) {
+    for (const kind of ['relic'] as const) {
       expect(gearRenderRoute(kind)).toBe('svg');
     }
   });
@@ -149,13 +151,14 @@ describe('class-mod marriage — registration + dispatch', () => {
     expect(canvas!.dataset.signature).toBe(cardOf(item).signature);
   });
 
-  it('a shield still renders its SVG (this slice flips one kind only)', () => {
-    const shield: Shield = {
-      id: 'test_shield', name: 'Test Shield', level: 5, rarity: Rarity.Rare,
-      hp: 200, rechargeRate: 5, mitigation: 0.2, element: Element.Fire,
-      affixes: [], sourceTag: 'World Drop', isLocked: false, pixelSeed: 67890,
+  it('a relic still renders its SVG (the one kind no slice has flipped yet)', () => {
+    // Slices 1–3 flipped shields, ordnance, and class mods to pixel;
+    // relics keep the SVG route until their own slice lands.
+    const relic: Relic = {
+      id: 'test_relic', name: 'Test Relic', level: 5, rarity: Rarity.Rare,
+      affixes: [], sourceTag: 'World Drop', isLocked: false,
     };
-    const { container } = render(<GearIllustration item={shield} size="card" showBadges={false} />);
+    const { container } = render(<GearIllustration item={relic} size="card" showBadges={false} />);
     expect(container.querySelector('svg')).not.toBeNull();
     expect(container.querySelector('canvas')).toBeNull();
   });

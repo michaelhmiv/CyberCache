@@ -124,7 +124,9 @@ describe('Workshop Direction A — the page at the mock fixture', { timeout: 60_
     expect(screen.getByText(/Mastery · Consumables/)).toBeTruthy();
     expect(await screen.findByText(/Research · Production Systems/)).toBeTruthy();
     expect(screen.getByText(/Bench dots: green = ready · amber = working · grey = locked/)).toBeTruthy();
-    expect(screen.getByText(/Lv\.30 · 25,000cr · 10 Void Dust/)).toBeTruthy();
+    expect(screen.getByText(/25,000cr · 10 Void Dust/)).toBeTruthy();
+    // Step 4: the strip prints price alone — no bench cites a hunter level.
+    expect(screen.queryByText(/Lv\.30/)).toBeNull();
   });
 
   it('sections run Craftable now → One gate away → Locked, each with its count', async () => {

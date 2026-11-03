@@ -107,17 +107,18 @@ The unified Workshop catalog holds **87 recipes**:
 
 ## Benches
 
-You start on the **Basic Bench** (level 1, free). Two upgrades matter:
+You start on the **Basic Bench** (free). Two upgrades matter, and
+price is the whole gate — no bench ever asks for your hunter level:
 
-- **Forge** — level 15, 5,000 credits. Quality rolls ×1.05; unlocks Rare
+- **Forge** — 5,000 credits. Quality rolls ×1.05; unlocks Rare
   gear frames and catalysts.
-- **Lab** — level 30, 25,000 credits + 10 VoidDust. Quality rolls ×1.10
+- **Lab** — 25,000 credits + 10 VoidDust. Quality rolls ×1.10
   with +5 to the minimum roll; unlocks Epic frames and the furnace for
   composite refining.
 
 The Benches & Tools card prints every bench's full price up front, and
 while the next bench is out of reach it shows exactly what is still
-needed — the level, and how many credits or materials you are short.
+needed — how many credits or materials you are short.
 Two recipe-card terms print as visible text on the card, never hidden:
 **catalysts** need the Forge (bench 2) and raise a craft's quality
 bounds, and a **Rush Ticket** is escrowed for one job and runs it

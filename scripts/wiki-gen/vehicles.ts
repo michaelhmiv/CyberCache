@@ -1,6 +1,8 @@
 /**
  * Vehicles — the 7 classes, the yield/fuel/condition model constants,
  * and the vehicle affix pool. Owner: src/lib/vehicles/vehicles.ts.
+ * W6: the classes table carries each class's sprite plate, and the
+ * affix/wear overlay plates close the block (images-w6.ts).
  */
 import {
   VEHICLE_CLASSES,
@@ -12,9 +14,11 @@ import {
   AREA_DANGER_DECAY,
 } from '../../src/lib/vehicles/vehicles';
 import { type GenBlock, mult, num, pct, table } from './lib';
+import { vehicleClassImgTag, vehicleOverlaysBody, vehiclePlates } from './images-w6';
 
 function vehiclesBody(): string {
   const classRows = VEHICLE_CLASSES.map((v) => [
+    vehicleClassImgTag(v),
     `**${v.displayName}**`,
     v.unlockLevel,
     mult(v.baseYield),
@@ -31,7 +35,7 @@ function vehiclesBody(): string {
   return [
     '### Vehicle classes',
     '',
-    table(['Class', 'Ladder tier', 'Yield', 'Fuel / tick', 'Wear rate', 'Material bonus', 'Role'], classRows),
+    table(['Plate', 'Class', 'Ladder tier', 'Yield', 'Fuel / tick', 'Wear rate', 'Material bonus', 'Role'], classRows),
     '',
     'The ladder tier is design data only (drop weighting, dispatch courier bands) — **no class has a level requirement**: vehicles are market goods, and if you can buy it, you can drive it.',
     '',
@@ -50,11 +54,14 @@ function vehiclesBody(): string {
     '### Vehicle affix pool',
     '',
     table(['Affix roll', 'Stat'], affixRows),
+    '',
+    vehicleOverlaysBody(),
   ].join('\n');
 }
 
 export const vehiclesBlock: GenBlock = {
   id: 'vehicles',
-  owners: ['src/lib/vehicles/vehicles.ts'],
+  owners: ['src/lib/vehicles/vehicles.ts', 'src/lib/pixel/manifest.ts'],
   render: vehiclesBody,
+  assets: vehiclePlates,
 };

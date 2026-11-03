@@ -248,6 +248,9 @@ Form follows where the relic came from.
 
 ## Roaming areas
 
+The same seven areas, pictured in their own paintings with their
+signature loot and named elites: [[Reference-Areas]].
+
 <!-- GENERATED from src/constants/roamingAreas.ts, src/constants/visualAssets.ts — do not edit by hand -->
 <!-- wiki-gen:areas -->
 Baseline rates are the area design rates before gear, skills, vehicles, and the hot-area rotation multiply them.
@@ -265,19 +268,19 @@ Baseline rates are the area design rates before gear, skills, vehicles, and the 
 
 ## Vehicles
 
-<!-- GENERATED from src/lib/vehicles/vehicles.ts — do not edit by hand -->
+<!-- GENERATED from src/lib/vehicles/vehicles.ts, src/lib/pixel/manifest.ts — do not edit by hand -->
 <!-- wiki-gen:vehicles -->
 ### Vehicle classes
 
-| Class | Ladder tier | Yield | Fuel / tick | Wear rate | Material bonus | Role |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Scrap Bike** | 1 | ×1.15 | 0.9 | ×1.1 | — | Starter mobility. |
-| **Dune Buggy** | 8 | ×1.35 | 1.1 | ×1 | — | General roaming travel. |
-| **Utility Rover** | 18 | ×1.25 | 0.7 | ×0.7 | — | Best fuel efficiency, slow wear — the long-haul farmer. |
-| **Cargo Hauler** | 28 | ×1.1 | 1.3 | ×0.95 | +30% | Material farming support: lower raw yield, bonus material quantity. |
-| **Armored Crawler** | 42 | ×1.05 | 1.5 | ×0.25 | — | Dangerous-zone reliability: near-negligible wear. |
-| **Relay Skimmer** | 60 | ×1.6 | 2 | ×1.25 | — | Fastest yield, highest fuel burn, fragile. |
-| **Leviathan Rig** | 75 | ×1.5 | 1.6 | ×0.5 | +15% | Endgame flagship: near-Skimmer yield, Crawler-grade endurance, a working cargo rack. |
+| Plate | Class | Ladder tier | Yield | Fuel / tick | Wear rate | Material bonus | Role |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| <img src="images/vehicles/scrap-bike.png" alt="Scrap Bike" width="128"> | **Scrap Bike** | 1 | ×1.15 | 0.9 | ×1.1 | — | Starter mobility. |
+| <img src="images/vehicles/dune-buggy.png" alt="Dune Buggy" width="128"> | **Dune Buggy** | 8 | ×1.35 | 1.1 | ×1 | — | General roaming travel. |
+| <img src="images/vehicles/utility-rover.png" alt="Utility Rover" width="111"> | **Utility Rover** | 18 | ×1.25 | 0.7 | ×0.7 | — | Best fuel efficiency, slow wear — the long-haul farmer. |
+| <img src="images/vehicles/cargo-hauler.png" alt="Cargo Hauler" width="128"> | **Cargo Hauler** | 28 | ×1.1 | 1.3 | ×0.95 | +30% | Material farming support: lower raw yield, bonus material quantity. |
+| <img src="images/vehicles/armored-crawler.png" alt="Armored Crawler" width="128"> | **Armored Crawler** | 42 | ×1.05 | 1.5 | ×0.25 | — | Dangerous-zone reliability: near-negligible wear. |
+| <img src="images/vehicles/relay-skimmer.png" alt="Relay Skimmer" width="128"> | **Relay Skimmer** | 60 | ×1.6 | 2 | ×1.25 | — | Fastest yield, highest fuel burn, fragile. |
+| <img src="images/vehicles/leviathan-rig.png" alt="Leviathan Rig" width="128"> | **Leviathan Rig** | 75 | ×1.5 | 1.6 | ×0.5 | +15% | Endgame flagship: near-Skimmer yield, Crawler-grade endurance, a working cargo rack. |
 
 The ladder tier is design data only (drop weighting, dispatch courier bands) — **no class has a level requirement**: vehicles are market goods, and if you can buy it, you can drive it.
 
@@ -306,6 +309,19 @@ The ladder tier is design data only (drop weighting, dispatch courier bands) —
 | +10–30% Reinforced Frame | vehicleFramePct |
 | +8–20% Cargo Racks | vehicleCargoPct |
 | +5–15% Scanner (find) | vehicleScannerPct |
+
+### Affix & wear overlays, pictured
+
+The Garage and the Home diorama draw these over the class sprite above: an overlay for the affix a vehicle rolled, and wear marks as its condition falls. Two plates ship in the game's art library ahead of their overlays — the table says which.
+
+| Plate | Overlay | Drawn when |
+| --- | --- | --- |
+| <img src="images/vehicles/affix-cargo-rack.png" alt="Cargo Rack" width="94"> | **Cargo Rack** | A Cargo Racks affix is fitted |
+| <img src="images/vehicles/affix-reinforced-frame.png" alt="Reinforced Frame" width="103"> | **Reinforced Frame** | A Reinforced Frame affix is fitted |
+| <img src="images/vehicles/affix-scanner-array.png" alt="Scanner Array" width="64"> | **Scanner Array** | A Scanner affix is fitted |
+| <img src="images/vehicles/affix-armor-plate.png" alt="Armor Plate" width="93"> | **Armor Plate** | Ships in the art library — no affix overlay draws it yet |
+| <img src="images/vehicles/condition-scuff.png" alt="Condition Scuff" width="128"> | **Condition Scuff** | Condition drops under 35% |
+| <img src="images/vehicles/condition-smoke.png" alt="Condition Smoke" width="128"> | **Condition Smoke** | Ships in the art library — no wear overlay draws it yet |
 <!-- /wiki-gen:vehicles -->
 
 ## Slots paytable

@@ -187,8 +187,15 @@ describe('gear core — bespoke resolves first (slot exists, registry empty)', (
 });
 
 describe('gear core — dispatch seam (kinds flip one slice at a time)', () => {
-  it('unflipped kinds route to svg: flags off, no grammars', () => {
-    for (const kind of ['shield', 'relic'] as const) {
+  it('unflipped kinds route to svg; shield (slice 1), ordnance (slice 2) + classMod (slice 3) flipped', () => {
+    // Slice 0 shipped every kind on its SVG; slices 1–3 flipped
+    // shields, ordnance, and class mods (flag on + grammar
+    // registered → pixel). Relics keep the slice-0 default until
+    // their own slice lands.
+    expect(GEAR_PIXEL_KINDS.shield).toBe(true);
+    expect(GEAR_GRAMMARS.shield).toBeDefined();
+    expect(gearRenderRoute('shield')).toBe('pixel');
+    for (const kind of ['relic'] as const) {
       expect(GEAR_PIXEL_KINDS[kind]).toBe(false);
       expect(GEAR_GRAMMARS[kind]).toBeUndefined();
       expect(gearRenderRoute(kind)).toBe('svg');

@@ -15,7 +15,11 @@ Your loadout has eight slots. Seven are gear:
   damage, with its own effect.
 - **Shield** — hit points, recharge rate, and damage mitigation, plus a
   behavior archetype on newer shields (Standard, and types such as Nova,
-  Absorb, Amp, and Turtle).
+  Absorb, Amp, and Turtle). A shield's art shows its behavior: each
+  archetype has its own form (Standard's finned housing, Nova's shutter
+  ring, Absorb's shelled orb, Amp's capacitor towers, Turtle's bulwark
+  slab), the body wears its element's colors, and the frame carries its
+  rarity.
 - **Class Mod** — boosts one skill tree and specific nodes in it. Its
   artwork is a different device per tree (a Gunslinger core, a
   Demolition drive, a Scavenger chip, a Fixer relay rig), and the

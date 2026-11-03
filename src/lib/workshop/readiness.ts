@@ -181,7 +181,7 @@ function benchCostText(bench: number): string {
   const inputs = Object.entries(def.costInputs)
     .map(([k, v]) => ` + ${v} ${inputLabel(k)}`)
     .join('');
-  return `Lv.${def.unlockLevel} · ${def.costCredits.toLocaleString('en-US')}cr${inputs}`;
+  return `${def.costCredits.toLocaleString('en-US')}cr${inputs}`;
 }
 
 function summaryPart(family: GateFamily, gates: RecipeGate[], shortages: InputShortage[], recipe: CraftRecipe, requiredBench: number): string {
