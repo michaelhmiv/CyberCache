@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 import { Element, Rarity } from '@/types/game';
-import type { Shield } from '@/types/items';
+import type { GearItem, Shield } from '@/types/items';
 import { PixelGear } from '@/components/pixelArt/PixelGear';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import {
@@ -60,9 +60,19 @@ describe('PixelGear — bespoke resolves first', () => {
   });
 });
 
-describe('GearIllustration — slice 0 flips nothing', () => {
-  it('a shield still renders its SVG illustration by default', () => {
+describe('GearIllustration — shield flipped (slice 1), relic still SVG', () => {
+  it('a shield renders its pixel plate through the seam', () => {
     const { container } = render(<GearIllustration item={shield} size="card" showBadges={false} />);
+    expect(container.querySelector('canvas')).not.toBeNull();
+    expect(container.querySelector('svg')).toBeNull();
+  });
+
+  it('a relic (not yet married) still renders its SVG illustration', () => {
+    const relic = {
+      id: 'test_relic', name: 'Test Relic', level: 3, rarity: Rarity.Common,
+      affixes: [], sourceTag: 'World Drop', isLocked: false,
+    } as unknown as GearItem;
+    const { container } = render(<GearIllustration item={relic} size="card" showBadges={false} />);
     expect(container.querySelector('svg')).not.toBeNull();
     expect(container.querySelector('canvas')).toBeNull();
   });
