@@ -1,6 +1,18 @@
 import React from 'react';
-import type { ClassMod, GearItem, Ordnance, Relic, Shield as ShieldItem, Weapon } from '@/types/items';
+import type { GearItem } from '@/types/items';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+import { PixelGear } from '@/components/pixelArt/PixelGear';
+import {
+  GEAR_GRAMMARS,
+  gearKindOf,
+  gearRenderRoute,
+  isClassModItem,
+  isOrdnanceItem,
+  isRelicItem,
+  isShieldItem,
+  isWeaponItem,
+} from '@/lib/pixel/gearRenderFlags';
+import type { GearDensity } from '@/lib/pixel/gearCardCompositor';
 import { ShieldIllustration, type IllustrationSize } from './ShieldIllustration';
 import { OrdnanceIllustration } from './OrdnanceIllustration';
 import { RelicIllustration } from './RelicIllustration';
@@ -19,12 +31,24 @@ const PIXEL_WEAPON_SIZE_PX: Record<IllustrationSize, number> = {
   showcase: 190,
 };
 
-/** Type guards */
-const isWeapon = (item: GearItem): item is Weapon => 'weaponType' in item;
-const isShield = (item: GearItem): item is ShieldItem => 'hp' in item && 'rechargeRate' in item && !isWeapon(item);
-const isOrdnance = (item: GearItem): item is Ordnance => 'damage' in item && 'effect' in item && !isWeapon(item);
-const isClassMod = (item: GearItem): item is ClassMod => 'treeBonus' in item;
-const isRelic = (item: GearItem): item is Relic => !isWeapon(item) && !isShield(item) && !isOrdnance(item) && !isClassMod(item);
+/** Pixel gear widths for the named sizes — same footprint table. */
+const PIXEL_GEAR_SIZE_PX = PIXEL_WEAPON_SIZE_PX;
+
+/** Named size → plate density: thumb is its own composed density;
+ *  card and showcase share the card plate (showcase is a bigger
+ *  paint of it, exactly as PixelWeapon treats its densities). */
+const PIXEL_GEAR_DENSITY: Record<IllustrationSize, GearDensity> = {
+  thumb: 'thumb',
+  card: 'card',
+  showcase: 'card',
+};
+
+/** Type guards (shared classification lives in gearRenderFlags). */
+const isWeapon = isWeaponItem;
+const isShield = isShieldItem;
+const isOrdnance = isOrdnanceItem;
+const isClassMod = isClassModItem;
+const isRelic = isRelicItem;
 
 interface GearIllustrationProps {
   item: GearItem;
@@ -57,6 +81,20 @@ export const GearIllustration: React.FC<GearIllustrationProps> = React.memo(({
   if (isWeapon(item)) {
     const pixelSize = typeof size === 'number' ? size : PIXEL_WEAPON_SIZE_PX[size];
     return <PixelWeapon weapon={item} size={pixelSize} className={className} density="card" />;
+  }
+  // Gear-marriage seam: a kind renders through the pixel plate
+  // engine only when its flag is on AND its grammar is registered
+  // (gearRenderFlags). All flags are off in slice 0, so every kind
+  // below still takes its SVG branch — each kind slice flips its
+  // own kind in its own PR.
+  const kind = gearKindOf(item);
+  if (kind !== 'weapon' && gearRenderRoute(kind) === 'pixel') {
+    const grammar = GEAR_GRAMMARS[kind]!;
+    const pixelSize = typeof size === 'number' ? size : PIXEL_GEAR_SIZE_PX[size];
+    const density = typeof size === 'number'
+      ? (size <= PIXEL_GEAR_SIZE_PX.thumb ? 'thumb' : 'card')
+      : PIXEL_GEAR_DENSITY[size];
+    return <PixelGear item={item} grammar={grammar} size={pixelSize} className={className} density={density} />;
   }
   if (isShield(item)) {
     return <ShieldIllustration shield={item} size={size as IllustrationSize | number} className={className} showBadges={showBadges} animate={animate} />;
