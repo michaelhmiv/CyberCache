@@ -129,18 +129,15 @@ const formMaskOf = (render: GearRender) =>
   render.rows.map((r) => [...r].map((c) => (c === '.' || c === 'F' || c === 'f' || c === 'K' || c === 'k' ? '0' : '1')).join('')).join('/');
 
 describe('class-mod marriage — registration + dispatch', () => {
-  it('the grammar is registered and the classMod flag is on; unflipped kinds stay svg', () => {
+  it('the grammar is registered and the classMod flag is on; every kind routes pixel', () => {
     expect(GEAR_GRAMMARS.classMod).toBe(classModGrammar);
     expect(GEAR_PIXEL_KINDS.classMod).toBe(true);
     expect(gearRenderRoute('classMod')).toBe('pixel');
-    // Shields (slice 1) and ordnance (slice 2) flipped too and route
-    // pixel; only relics — the kind no slice has flipped yet — stay
-    // on the SVG route.
+    // Shields (slice 1), ordnance (slice 2) and relics (slice 4)
+    // flipped too — no kind remains on the SVG route.
     expect(gearRenderRoute('shield')).toBe('pixel');
     expect(gearRenderRoute('ordnance')).toBe('pixel');
-    for (const kind of ['relic'] as const) {
-      expect(gearRenderRoute(kind)).toBe('svg');
-    }
+    expect(gearRenderRoute('relic')).toBe('pixel');
   });
 
   it('GearIllustration renders a class mod as a canvas with the core signature', () => {
@@ -151,16 +148,18 @@ describe('class-mod marriage — registration + dispatch', () => {
     expect(canvas!.dataset.signature).toBe(cardOf(item).signature);
   });
 
-  it('a relic still renders its SVG (the one kind no slice has flipped yet)', () => {
-    // Slices 1–3 flipped shields, ordnance, and class mods to pixel;
-    // relics keep the SVG route until their own slice lands.
+  it('a relic renders its pixel plate too (slice 4 landed last)', () => {
+    // This case pinned the relic SVG route while slices 1–3 were
+    // the flipped set; slice 4 flipped relics, so the pin now
+    // asserts the plate. The fixture carries a real pool name —
+    // relic form is keyed to it.
     const relic: Relic = {
-      id: 'test_relic', name: 'Test Relic', level: 5, rarity: Rarity.Rare,
+      id: 'test_relic', name: 'Echo Stone', level: 5, rarity: Rarity.Rare,
       affixes: [], sourceTag: 'World Drop', isLocked: false,
     };
     const { container } = render(<GearIllustration item={relic} size="card" showBadges={false} />);
-    expect(container.querySelector('svg')).not.toBeNull();
-    expect(container.querySelector('canvas')).toBeNull();
+    expect(container.querySelector('svg')).toBeNull();
+    expect(container.querySelector('canvas')).not.toBeNull();
   });
 });
 

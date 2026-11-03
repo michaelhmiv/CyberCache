@@ -138,14 +138,16 @@ describe('GearIllustration — weapon branch renders pixel (inventory/market/ins
     expect(container.querySelector('canvas')?.style.width).toBe('190px');
   });
 
-  it('leaves not-yet-married gear kinds on their existing illustration', () => {
-    // Class mods are the last unmarried kind; every other kind
-    // renders through the pixel seam (shield slice 1, ordnance
-    // slice 2, relic slice 4).
+  it('renders a married class mod as its pixel plate (gear marriage, slice 3)', () => {
+    // This case began as slice 0's "not-yet-married kinds keep
+    // their illustration" pin and was retargeted kind by kind as
+    // the slices landed; with slice 3 every kind is married, so
+    // the pin now asserts the last flip instead.
     const { container } = render(<GearIllustration item={classMod} size={46} showBadges={false} />);
-    expect(container.querySelector('canvas')).toBeNull();
-    expect(container.querySelector('img')).toBeNull();
-    expect(container.querySelector('svg')).not.toBeNull();
+    expect(container.querySelector('svg')).toBeNull();
+    const canvas = container.querySelector('canvas');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.getAttribute('data-density')).toBe('thumb');
   });
 
   it('renders a married relic as its pixel plate (gear marriage, slice 4)', () => {
