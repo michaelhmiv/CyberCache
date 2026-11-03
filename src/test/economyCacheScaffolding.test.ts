@@ -139,6 +139,8 @@ describe('0065 — no live source references the dead names', () => {
     }
   }
 
+  // The scan reads every source file — IO-bound by nature, so it
+  // carries an explicit timeout instead of the 5s default.
   it('src/ is clean (this test file is the record, like the migration headers)', () => {
     const self = join(process.cwd(), 'src', 'test', 'economyCacheScaffolding.test.ts');
     const offenders: string[] = [];
@@ -150,7 +152,7 @@ describe('0065 — no live source references the dead names', () => {
       }
     }
     expect(offenders).toEqual([]);
-  });
+  }, 60_000);
 
   it('docs/ECONOMY.md and wiki/Caches.md are clean', () => {
     for (const rel of ['docs/ECONOMY.md', 'wiki/Caches.md']) {
