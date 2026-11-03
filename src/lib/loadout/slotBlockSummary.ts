@@ -62,15 +62,18 @@ export interface SlotBlockSummary {
   name: string;
   /** Guns only: the four-term stat line; 'Tap to fill' when empty. */
   statLine: string | null;
+  /** Guns only: the stat line as segments (the headline stat last),
+   *  so a renderer can bold the value without re-deriving it. */
+  statSegments: string[] | null;
   /** Accessories only: the headline stat; 'Tap to fill' when empty. */
   headline: string | null;
 }
 
-function gunStatLine(slotLabel: string, item: GearItem): string {
-  if (!isWeapon(item)) return slotLabel;
+function gunStatSegments(slotLabel: string, item: GearItem): string[] {
+  if (!isWeapon(item)) return [slotLabel];
   // DPS is the picker's and the Grid's headline for a weapon
   // (gearCardSummary primaryStats[0] = combatPower as "DPS").
-  return [slotLabel, item.rarity, item.element, `DPS ${fmt(item.combatPower)}`].join(' · ');
+  return [slotLabel, item.rarity, item.element, `DPS ${fmt(item.combatPower)}`];
 }
 
 function accessoryHeadline(item: GearItem): string {
@@ -105,16 +108,19 @@ export function slotBlockSummary(slot: LoadoutSlot, item: GearItem | null): Slot
       filled: false,
       name: slot === 'primary' ? 'No weapon' : 'Open',
       statLine: kind === 'gun' ? 'Tap to fill' : null,
+      statSegments: null,
       headline: kind === 'accessory' ? 'Tap to fill' : null,
     };
   }
+  const segments = kind === 'gun' ? gunStatSegments(slotLabel, item) : null;
   return {
     slot,
     kind,
     slotLabel,
     filled: true,
     name: item.name,
-    statLine: kind === 'gun' ? gunStatLine(slotLabel, item) : null,
+    statLine: segments ? segments.join(' · ') : null,
+    statSegments: segments,
     headline: kind === 'accessory' ? accessoryHeadline(item) : null,
   };
 }
