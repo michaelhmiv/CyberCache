@@ -11,6 +11,7 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
 import { PickerSheet } from '@/components/common/PickerSheet';
+import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { getAllCraftRecipesUsingMaterial } from '@/content/crafting';
 import { getVisualAsset, getConsumableVisual } from '@/constants/visualAssets';
 
@@ -28,7 +29,12 @@ export const MaterialUsageSheet: React.FC<{
   const recipes = getAllCraftRecipesUsingMaterial(materialId);
 
   return (
-    <PickerSheet title={label} subtitle={`Used in ${recipes.length} recipe${recipes.length === 1 ? '' : 's'}`} onClose={onClose}>
+    <PickerSheet
+      title={label}
+      subtitle={`Used in ${recipes.length} recipe${recipes.length === 1 ? '' : 's'}`}
+      headerRight={<PixelMaterial id={materialId} size={52} testId="material-usage-stage" />}
+      onClose={onClose}
+    >
       {recipes.length === 0 ? (
         <div className="p-4 text-center text-xs text-text-muted">
           No crafting recipes use {label} yet.

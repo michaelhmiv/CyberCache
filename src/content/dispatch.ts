@@ -462,6 +462,23 @@ export function courierProjection(
 }
 
 /**
+ * Whole Generic Fuel Cells a courier departure is short, priced
+ * against the tank (QB-3): the departure burns TANK units
+ * (cc_dispatch_depart decrements profiles.vehicle_fuel), and one
+ * Generic cell loads 100 units (cc_refuel_vehicle), so the
+ * shortfall in cells is the unit gap rounded up to whole cells.
+ * This restates — verbatim — the refusal the Chef's dispatch route
+ * computes in priceContract (src/server/routes/dispatch.ts), so the
+ * prep surface's quick-buy + opens at exactly the count the server
+ * names. 0 when the tank covers the route.
+ */
+export function dispatchFuelShortfallCells(fuelUnits: number, fuelAvailable: number): number {
+  if (!Number.isFinite(fuelUnits) || !Number.isFinite(fuelAvailable)) return 0;
+  if (fuelUnits <= fuelAvailable) return 0;
+  return Math.ceil((fuelUnits - fuelAvailable) / 100);
+}
+
+/**
  * Courier payout lines (brief §2.5): credits = foot line (strength
  * 1.0 — no loadout rides) × the premium snapshot; scrap = the foot
  * scrap line unpremiated (the premium prices the credit line; the

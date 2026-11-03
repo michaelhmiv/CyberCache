@@ -28,6 +28,23 @@ export async function finalizePendingCraftedGear(
   const { rows } = await pool.query('select * from public.cc_pending_crafted_gear($1)', [playerId]);
   let finalized = 0;
   for (const row of rows as Array<Record<string, unknown>>) {
+    // Material catalyst (economy brief §9.1, 0067): the SQL settler
+    // stamps the unit's catalyst-shifted bounds onto the pending
+    // output; generation rolls each candidate inside them, exactly
+    // like the in-memory twin's gear branch.
+    const boundsRaw = row.quality_bounds as { min?: unknown; max?: unknown; cap?: unknown } | null;
+    const qualityRoll =
+      boundsRaw && typeof boundsRaw.min === 'number' && typeof boundsRaw.max === 'number'
+        ? {
+            bounds: {
+              min: boundsRaw.min,
+              max: boundsRaw.max,
+              cap: typeof boundsRaw.cap === 'number' ? boundsRaw.cap : 175,
+            },
+            bench: Number(row.bench ?? 1),
+            toolQualityMultiplier: Number(row.tool_quality_multiplier ?? 1),
+          }
+        : undefined;
     const candidate = generateCraftedGearItem({
       slot: String(row.slot) as CraftGearSlot,
       rarity: String(row.rarity) as Rarity,
@@ -35,6 +52,7 @@ export async function finalizePendingCraftedGear(
       creatorId: playerId,
       draws: Number(row.draws ?? 1),
       rng,
+      ...(qualityRoll ? { qualityRoll } : {}),
     });
     const inserted = await pool.query(
       `insert into public.item_instances (
@@ -48,11 +66,12 @@ export async function finalizePendingCraftedGear(
       [playerId, candidate.kind, candidate.rarity, candidate.itemLevel, JSON.stringify(candidate.payload)],
     );
     const itemId = String((inserted.rows[0] as { id: string }).id);
-    await pool.query('select public.cc_finalize_crafted_gear($1, $2, $3, $4)', [
+    await pool.query('select public.cc_finalize_crafted_gear($1, $2, $3, $4, $5)', [
       playerId,
       String(row.job_id),
       Number(row.unit),
       itemId,
+      candidate.craftQuality ?? null,
     ]);
     finalized += 1;
   }

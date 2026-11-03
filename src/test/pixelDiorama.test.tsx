@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
-import { useKillCycleStore } from '@/store';
+import { useBossStore, useKillCycleStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 // The diorama's area prop is required in practice (its siblings always pass one).
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -79,23 +79,43 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
 });
 
 describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', () => {
-  it('enemy HP plate anchors UNDER the enemy on the ground line, name + % whole', () => {
+  it('enemy HP plate rides IN the stage, level with the hunter plate, name + % whole', () => {
     useKillCycleStore.setState({ currentTargetId: 'dustwaste_raider', currentTargetHp: 30, currentTargetHpMax: 45 });
+    useSurvivalStore.setState({ currentHp: 66, maxHp: 100 });
     render(
       <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="roaming_loot" reducedMotion />,
     );
     const plate = screen.getByTestId('primary-diorama-target-hp');
-    // Anchored to the scene's ground line (0.86 for every zone
-    // background) on the enemy's column — NOT the old top-right
-    // perch across the enemy's face.
-    expect(plate.style.top).toMatch(/^calc\(86(\.0+)?% \+ 2px\)$/);
+    // Owner ruling 2026-11-03: lifted off the ground line into the
+    // stage by the hunter plate's own lift — ground line 0.86 for
+    // every zone background, minus the shared 18.5-point lift puts
+    // its top edge at 67.5%, over the enemy's lower body on the
+    // enemy's column (74%) — NOT the ground-line perch that read
+    // as part of the stats row, and never across the face.
+    expect(parseFloat(plate.style.top)).toBeCloseTo(67.5, 5);
     expect(plate.style.left).toBe('74%');
+    // The pair law: its top edge is EXACTLY the hunter plate's.
+    const hunterPlate = screen.getByTestId('diorama-hunter-hp');
+    expect(plate.style.top).toBe(hunterPlate.style.top);
     expect(plate.className).not.toContain('top-[68px]');
     expect(plate.textContent).toContain('Wraith Scavenger');
     expect(plate.textContent).toContain('67%');
     // The count plate keeps the top-right corner.
     expect(screen.getByText('4/7 gear')).toBeTruthy();
     useKillCycleStore.setState({ currentTargetId: null, currentTargetHp: 0, currentTargetHpMax: 0 });
+  });
+
+  it('boss HP plate does NOT move: still anchored under the boss on the ground line', () => {
+    // The 2026-11-03 lift is the roaming plate's alone — the boss
+    // plate's ground-line anchor was owner-ruled to stay.
+    useBossStore.setState({ activeBossId: 'dune_tyrant', activeBossHp: 500, activeBossMaxHp: 1000, activeStatus: 'active' });
+    render(
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="boss_fight" bossPhase="fight" reducedMotion />,
+    );
+    const plate = screen.getByTestId('primary-diorama-boss-hp');
+    expect(plate.style.top).toMatch(/^calc\(86(\.0+)?% \+ 2px\)$/);
+    expect(plate.style.left).toBe('74%');
+    useBossStore.setState({ activeBossId: null, activeBossHp: 0, activeBossMaxHp: 0, activeStatus: 'idle' });
   });
 
   it('hunter HP plate rides raised on the hunter column in combat, numbers whole; absent at camp', () => {

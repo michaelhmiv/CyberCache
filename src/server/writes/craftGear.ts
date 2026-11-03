@@ -22,6 +22,7 @@
  * (cache-forged precedent, brief §2.5c).
  */
 import { DropSource, Rarity } from '../../types/game.js';
+import { rollCraftQuality, type CraftQualityBounds } from '../../content/crafting.js';
 import { generateWeapon } from '../lib/generators/weaponGenerator.js';
 import { generateShield } from '../lib/generators/shieldGenerator.js';
 import { generateClassMod } from '../lib/generators/classModGenerator.js';
@@ -44,6 +45,12 @@ export interface CraftedGearCandidate {
   rarity: string;
   itemLevel: number;
   rollQuality: number;
+  /** The frame's bounds-roll quality (economy brief §9.1), present
+   *  only when the unit was generated under a quality roll — today
+   *  that means a material-catalyzed frame job. Also stamped onto
+   *  the payload as `craftQuality`. Absent on the plain path, whose
+   *  generation is bit-identical to the pre-0067 behavior. */
+  craftQuality?: number;
 }
 
 /** Rarity weights that force exactly one rarity through the
@@ -109,6 +116,18 @@ export function generateCraftedGearCandidate(input: {
  * tempered, else 1), keeping the highest rollQuality (§2.5c — temper
  * draws candidates and keeps the best roll; it never edits stats
  * after generation).
+ *
+ * Quality roll (economy brief §9.1): when the completing job carries
+ * a material catalyst, the settler passes `qualityRoll` — the frame's
+ * bounds from the shared bounds function with the catalyst flag set
+ * (+10 min / +15 max over the uncatalyzed frame bounds). Each
+ * candidate draw then ALSO rolls its quality inside those bounds
+ * (rollCraftQuality, after the candidate's own generation rolls),
+ * and the draw selection keeps the candidate with the highest
+ * BOUNDS roll: the shift composes UNDER the draw selection. The
+ * winning roll is stamped on the payload as `craftQuality`. Without
+ * `qualityRoll` nothing here changes — no extra RNG is consumed and
+ * selection is the shipped rollQuality rule.
  */
 export function generateCraftedGearItem(input: {
   slot: CraftGearSlot;
@@ -117,12 +136,36 @@ export function generateCraftedGearItem(input: {
   creatorId: string;
   draws: number;
   rng: () => number;
+  qualityRoll?: {
+    bounds: CraftQualityBounds;
+    bench: number;
+    toolQualityMultiplier?: number;
+  };
 }): CraftedGearCandidate {
   const draws = Math.max(1, Math.floor(input.draws) || 1);
   let best: CraftedGearCandidate | null = null;
+  let bestQuality = -Infinity;
   for (let i = 0; i < draws; i++) {
     const candidate = generateCraftedGearCandidate(input);
-    if (!best || candidate.rollQuality > best.rollQuality) best = candidate;
+    if (input.qualityRoll) {
+      const q = rollCraftQuality(
+        input.qualityRoll.bounds,
+        input.qualityRoll.bench,
+        input.rng,
+        input.qualityRoll.toolQualityMultiplier ?? 1,
+      );
+      candidate.craftQuality = q;
+      if (!best || q > bestQuality) {
+        best = candidate;
+        bestQuality = q;
+      }
+    } else if (!best || candidate.rollQuality > best.rollQuality) {
+      best = candidate;
+    }
   }
-  return best as CraftedGearCandidate;
+  const winner = best as CraftedGearCandidate;
+  if (input.qualityRoll && winner.craftQuality !== undefined) {
+    winner.payload.craftQuality = winner.craftQuality;
+  }
+  return winner;
 }

@@ -42,6 +42,7 @@ A courier contract sends a vehicle instead of a loadout, on one of three tiers. 
 - **Credits** pay a **1.6× premium** over the same-duration foot line to the same destination (priced at full strength — no loadout rides). **Scrap** pays the plain foot line, unpremiated.
 - **Materials** pay the foot amount **plus a cargo bonus** from the vehicle's hauling bonuses — hauling rigs earn their keep here.
 - **Fuel is real and shared.** Courier routes burn from the same vehicle tank roaming does — 100 units per Generic Fuel Cell, loaded in the Garage — priced from the route's length and the vehicle's own burn rate, and shown to the unit before departure. See [[Vehicles and the Garage]].
+- **Short on fuel?** When the tank cannot cover a route, the preview's fuel line carries the quick-buy **+** — it opens the [[Crafting|quick-buy sheet]] priced for exactly the cells the route is short. Bought cells land in your inventory; loading them into the tank stays the Garage's step, so the departure unblocks once the loaded tank covers the route.
 - **Wear is exact arithmetic, not luck.** Projected wear comes from the vehicle's decay rate against the destination's danger, computed before departure — there is **no random breakdown roll**. If the projected wear would consume the vehicle's whole condition before the route ends, it breaks down at exactly the point the math says, and you see that point at prep, not as a surprise.
 
 ## Settlement

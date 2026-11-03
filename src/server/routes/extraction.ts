@@ -11,10 +11,10 @@
  * (src/content/extraction.ts) from the CURRENT loadout. Starting,
  * switching, and stopping extraction ride the ordinary activity
  * path (POST /api/activity/set with kind 'extraction'); the start
- * gates live in cc_set_active_action (0033) — verified account, no
- * standing death record, unlocked area, Deep Delve mastery — not
- * here. This route starts nothing and trusts nothing from a body
- * (there is no body).
+ * gates live in cc_set_active_action (0033, gate re-carried 0063) —
+ * verified account, no standing death record, a real area (never a
+ * hunter-level check), Deep Delve mastery — not here. This route
+ * starts nothing and trusts nothing from a body (there is no body).
  *
  * The preview's gear factor is a PRICING readout (what a pass
  * settling now would pay and why), never a readiness or win-chance
