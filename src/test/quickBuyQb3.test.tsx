@@ -33,6 +33,7 @@ const hoisted = vi.hoisted(() => ({
   },
   getDispatchState: vi.fn(),
   previewDispatch: vi.fn(),
+  getEndlessMe: vi.fn(),
   quickbuyQuote: vi.fn(),
   quickbuyFill: vi.fn(),
   opNames: [
@@ -74,7 +75,7 @@ vi.mock('@/lib/chef/chefClient', () => ({
       noKeystoneNote: 'No action skill yet.',
     },
   })),
-  getEndlessMe: vi.fn(async () => { throw new Error('no chamber in QB-3 tests'); }),
+  getEndlessMe: (...args: unknown[]) => hoisted.getEndlessMe(...args),
   advanceEndlessEncounter: vi.fn(async () => { throw new Error('not in QB-3 tests'); }),
   bankEndlessRun: vi.fn(async () => { throw new Error('not in QB-3 tests'); }),
   startEndlessRun: vi.fn(async () => { throw new Error('not in QB-3 tests'); }),
@@ -98,6 +99,7 @@ import { DispatchPanel } from '@/components/dispatch/DispatchPanel';
 import { BossEncounterPanel } from '@/components/fight/BossEncounterPanel';
 import { EndlessPanel } from '@/components/fight/EndlessPanel';
 import { dispatchFuelShortfallCells } from '@/content/dispatch';
+import { endlessIntel } from '@/content/endless';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { RiskSetting } from '@/types/game';
 import { useBossStore, useLoadoutStore, usePlayerStore } from '@/store';
@@ -238,6 +240,17 @@ describe('boss + endless belt — commitment-over-stock quick-buy mount', () => 
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.auth.account = verifiedAccount;
+    // The Chamber's /me resolves with the content owner's own intel
+    // and no active run, so the panel lands on its prep stage (a
+    // rejection renders the error screen instead of the belt).
+    hoisted.getEndlessMe.mockResolvedValue({
+      verified: true,
+      intel: endlessIntel(20, 0),
+      bestDepth: 0,
+      runsStartedToday: 0,
+      recentRuns: [],
+      activeRun: null,
+    });
     hoisted.quickbuyQuote.mockImplementation(async (_kind: string, id: string, qty: number) =>
       quoteFor(id, qty, id === 'MedKit' ? 250 : null));
     useLoadoutStore.setState({
