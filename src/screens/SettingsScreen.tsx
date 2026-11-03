@@ -5,10 +5,10 @@ import { usePlayerStore, useIdleStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
-import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_LIMITER_OPTIONS, OFFLINE_CAP_TIERS, earnedOfflineCapHours, effectiveOfflineCapHours, nextOfflineCapTier } from '@/content/offlineCap';
+import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_LIMITER_OPTIONS, OFFLINE_CAP_MILESTONES, earnedOfflineCapHours, effectiveOfflineCapHours, nextOfflineCapMilestone } from '@/content/offlineCap';
 import { setOfflineCapLimiter } from '@/lib/api/offlineCapService';
 import { HUNTER_HEAD_VARIANTS, isHunterHeadVariantId, type HunterHeadVariantId } from '@/lib/pixel/headParts';
-import { getStandingState } from '@/lib/chef/chefClient';
+import { getResearchState, getStandingState } from '@/lib/chef/chefClient';
 import { STANDING_COSMETICS } from '@/content/manufacturerStanding';
 import type { Manufacturer } from '@/types/game';
 
@@ -19,15 +19,34 @@ export const SettingsScreen: React.FC = () => {
   const idle = useIdleStore();
   const skills = useSkillStore();
 
-  // Offline cap law (src/content/offlineCap.ts): the cap is EARNED by
-  // level (+ the Scavenger keystone's bonus), the player may set a
+  // Offline cap law (src/content/offlineCap.ts): the cap is EARNED
+  // through Research — the Logistics & Markets track's grants over a
+  // 2h base (+ the Scavenger keystone's bonus) — the player may set a
   // LIMITER below it, and a 24h ceiling binds everything. Settlement
   // enforces min(earned, limiter, 24h) server-side; this card shows
-  // the same math and writes the limiter. The stored profile value
-  // reaches the client as a number where 0 (or the pre-hydration
+  // the same math and writes the limiter. The Research grants are
+  // Chef-owned state, read through the research state view (the
+  // ResearchChip pattern): until the read lands — or if the Chef is
+  // unreachable — the card shows the 2h base, which is display-only;
+  // settlement always derives from server records. The stored profile
+  // value reaches the client as a number where 0 (or the pre-hydration
   // default) means "no limiter set" — a real limiter is 1..24.
+  const [researchCapHours, setResearchCapHours] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    getResearchState()
+      .then((result) => {
+        if (!cancelled) setResearchCapHours(result.research.bonuses.offlineCapBonus);
+      })
+      .catch(() => {
+        // Chef unreachable: base-only display (settlement is server-derived).
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const offlineCapBonus = Math.max(0, Math.floor(skills.getBonuses().offlineCapBonus ?? 0));
-  const earnedCapHours = earnedOfflineCapHours(player.level);
+  const earnedCapHours = earnedOfflineCapHours(researchCapHours);
   const storedLimiter = player.offlineCapHours >= 1 && player.offlineCapHours <= 24 ? Math.floor(player.offlineCapHours) : null;
   const [headVariant, setHeadVariant] = useState<HunterHeadVariantId>(() => {
     try {
@@ -67,11 +86,11 @@ export const SettingsScreen: React.FC = () => {
   const [limiterSaving, setLimiterSaving] = useState(false);
   const [limiterError, setLimiterError] = useState<string | null>(null);
   const effectiveCapHours = effectiveOfflineCapHours({
-    level: player.level,
+    researchCapHours,
     bonusHours: offlineCapBonus,
     userCapHours: limiter,
   });
-  const nextCapTier = nextOfflineCapTier(player.level);
+  const nextCapMilestone = nextOfflineCapMilestone(researchCapHours);
 
   const handleLimiter = async (value: number | null) => {
     if (limiterSaving || value === limiter) return;
@@ -133,22 +152,23 @@ export const SettingsScreen: React.FC = () => {
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-black text-text-primary">{effectiveCapHours}h</span>
           <span className="text-[10px] text-text-muted">
-            effective cap · earned {earnedCapHours + offlineCapBonus}h at level {player.level}
+            effective cap · earned {earnedCapHours + offlineCapBonus}h — {BASE_OFFLINE_CAP_HOURS}h base
+            {researchCapHours > 0 && <> + {researchCapHours}h from Research</>}
             {offlineCapBonus > 0 && <> (incl. +{offlineCapBonus}h King of Scrap)</>}
             {limiter !== null && <> · limited by you to {limiter}h</>}
           </span>
         </div>
-        <div className="grid grid-cols-5 gap-1.5">
-          {[{ minLevel: 1, hours: BASE_OFFLINE_CAP_HOURS }, ...OFFLINE_CAP_TIERS].map((tier) => {
-            const earned = player.level >= tier.minLevel;
-            const current = earnedCapHours === tier.hours;
+        <div className="grid grid-cols-4 gap-1.5">
+          {[{ courseId: '', courseName: 'Base', hours: BASE_OFFLINE_CAP_HOURS }, ...OFFLINE_CAP_MILESTONES.map((m) => ({ courseId: m.courseId, courseName: m.courseName, hours: m.capHours }))].map((step) => {
+            const earned = earnedCapHours >= step.hours;
+            const current = earnedCapHours === step.hours;
             return (
               <div
-                key={tier.hours}
+                key={step.hours}
                 className={`py-1.5 text-center text-xs font-black ${current ? 'bl-primary' : earned ? 'bl-secondary text-text-secondary' : 'bl-secondary text-text-muted opacity-50'}`}
               >
-                {tier.hours}h
-                <div className="text-[8px] font-bold uppercase tracking-wide">{earned ? `Lv ${tier.minLevel}` : <span className="inline-flex items-center justify-center gap-0.5">Lv {tier.minLevel} <PxIcon name="lock" size={13} /></span>}</div>
+                {step.hours}h
+                <div className="text-[8px] font-bold uppercase tracking-wide">{earned ? step.courseName : <span className="inline-flex items-center justify-center gap-0.5">{step.courseName} <PxIcon name="lock" size={13} /></span>}</div>
               </div>
             );
           })}
@@ -180,9 +200,9 @@ export const SettingsScreen: React.FC = () => {
           </div>
         </div>
         <div className="text-[10px] text-text-muted">
-          {nextCapTier
-            ? `Maximum hours of offline rewards that can pile up while away. Reach level ${nextCapTier.minLevel} to raise the earned cap to ${nextCapTier.hours}h.`
-            : 'Maximum hours of offline rewards that can pile up while away. Top tier earned.'}
+          {nextCapMilestone
+            ? `Maximum hours of offline rewards that can pile up while away. Complete ${nextCapMilestone.courseName} in Research (Logistics & Markets) to raise the earned cap to ${nextCapMilestone.capHours}h.`
+            : 'Maximum hours of offline rewards that can pile up while away. Top of the Research ladder earned.'}
         </div>
       </MobileCard>
 
