@@ -1,6 +1,7 @@
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { GearGrammar, GearKindId } from './gearCardCompositor';
 import { shieldGrammar } from './shieldGrammar';
+import { ordnanceGrammar } from './ordnanceGrammar';
 
 /**
  * The gear-marriage dispatch seam. `GearIllustration` is the only
@@ -15,12 +16,13 @@ export const GEAR_PIXEL_KINDS: Record<GearKindId, boolean> = {
   shield: true, // gear marriage slice 1 — behavior grammar
   relic: false,
   classMod: false,
-  ordnance: false,
+  ordnance: true, // gear marriage slice 2
 };
 
 /** Kind grammars, registered by the kind slices. */
 export const GEAR_GRAMMARS: Partial<Record<GearKindId, GearGrammar>> = {
   shield: shieldGrammar,
+  ordnance: ordnanceGrammar,
 };
 
 export type GearRenderRoute = 'pixel' | 'svg';

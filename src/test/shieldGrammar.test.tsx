@@ -78,11 +78,13 @@ const cellDistance = (a: GearRender, b: GearRender) => {
 };
 
 describe('shield grammar — registration + dispatch', () => {
-  it('the shield flag is on and the grammar is registered; other kinds stay svg', () => {
+  it('the shield flag is on and the grammar is registered; unflipped kinds stay svg', () => {
     expect(GEAR_PIXEL_KINDS.shield).toBe(true);
     expect(GEAR_GRAMMARS.shield).toBe(shieldGrammar);
     expect(gearRenderRoute('shield')).toBe('pixel');
-    for (const kind of ['relic', 'classMod', 'ordnance'] as const) {
+    // Ordnance flipped in slice 2; relic + class mods await theirs.
+    expect(gearRenderRoute('ordnance')).toBe('pixel');
+    for (const kind of ['relic', 'classMod'] as const) {
       expect(gearRenderRoute(kind)).toBe('svg');
     }
     expect(Object.keys(SHIELD_FAMILY_ROWS).sort()).toEqual([...BEHAVIORS].sort());
