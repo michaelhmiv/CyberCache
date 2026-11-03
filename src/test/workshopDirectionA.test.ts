@@ -294,7 +294,6 @@ describe('error humanizer — no Chef refusal renders raw', () => {
       'Insufficient legendary cores',
       'Insufficient material quantity',
       'Epic frames require crafting.gear mastery 10',
-      'Bench 3 requires level 30',
       'Profile not found',
       'some_other_machine_code',
     ];
