@@ -65,7 +65,11 @@ export const QuickBuySheet: React.FC<{
    *  driven surfaces (Workshop, Garage) need nothing — the fill's
    *  own sync already updated their lines. */
   onFilled?: () => void;
-}> = ({ good, goodName, shortfall, contextLabel, onClose, onNavigate, onRefineFocus, onFilled }) => {
+  /** Overlay stacking class for the sheet (QB-4): a mount inside
+   *  another sheet (the gear inspect sheet) passes a class above
+   *  its host; every other mount takes the default. */
+  overlayZClass?: string;
+}> = ({ good, goodName, shortfall, contextLabel, onClose, onNavigate, onRefineFocus, onFilled, overlayZClass }) => {
   const [quote, setQuote] = useState<QuickBuyQuote | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [qty, setQty] = useState(shortfall);
@@ -196,6 +200,7 @@ export const QuickBuySheet: React.FC<{
       title={goodName}
       subtitle={contextLabel ?? `Quick buy · short ${fmt(shortfall)}`}
       onClose={onClose}
+      overlayZClass={overlayZClass}
     >
       <div className="space-y-3 p-3" data-testid="quickbuy-sheet">
         {loadError && !quote ? (

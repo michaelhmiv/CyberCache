@@ -149,7 +149,12 @@ a 5-minute job costing a flat **25 Scrap** plus the palette's
 Chromaweave itself is a refined material: the **Chromaweave
 Weave** recipe (Refining lane) turns 2 Myco-Steel Fiber + 1 Void
 Essence into 2 Chromaweave (30 minutes, bench 2 furnace), and it
-trades on [[The Market]] like every other material. A tint
+trades on [[The Market]] like every other material. Short on
+Chromaweave at the bench, the Tinting lane's holdings line carries
+the quick-buy **+** — it opens the [[Crafting|quick-buy sheet]]
+priced for exactly the gap, so the tint in front of you never waits
+on a Market trip. (The tint's Scrap half never carries a **+** —
+Scrap is earned, not bought.) A tint
 replaces the part's previous tint; a part being tinted can't be
 listed for sale until the job lands.
 

@@ -35,6 +35,13 @@ interface PickerSheetProps {
   /** Scrollable body content (the item list). */
   children: React.ReactNode;
   onClose: () => void;
+  /**
+   * Overlay stacking class (QB-4): defaults to z-50. A sheet opened
+   * from inside another sheet (e.g. the gear inspect sheet at
+   * z-[70]) passes a higher class so it lands on top of its host
+   * instead of underneath the host's backdrop.
+   */
+  overlayZClass?: string;
 }
 
 export const PickerSheet: React.FC<PickerSheetProps> = ({
@@ -44,6 +51,7 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
   header,
   children,
   onClose,
+  overlayZClass = 'z-50',
 }) => {
   return (
     <SheetPortal>
@@ -53,7 +61,7 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-end bg-black/75"
+        className={`fixed inset-0 ${overlayZClass} flex items-end bg-black/75`}
         onClick={onClose}
       >
         <motion.div
