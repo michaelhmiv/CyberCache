@@ -170,7 +170,7 @@ export const TrophyShelfPanel: React.FC<{
                   {index + 1}
                 </div>
                 <div className="flex w-[104px] shrink-0 items-center justify-center">
-                  <PixelWeapon input={weaponInput(item)} size={104} />
+                  <PixelWeapon input={weaponInput(item)} size={104} density="card" />
                 </div>
                 <div className="min-w-0 flex-1">
                   {/* The trophy's name prints whole — a shelved

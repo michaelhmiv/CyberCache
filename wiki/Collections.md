@@ -16,7 +16,10 @@ the moment it happened. You can't claim an entry; you can only earn it.
 - **Weapon Frames — 36 entries.** Every weapon type × manufacturer
   combination (6 × 6) at **Legendary** rarity. A Legendary Pistol from
   Redline and a Legendary Pistol from Ironwood are two different
-  entries; a Rare version of either is none.
+  entries; a Rare version of either is none. Each frame is drawn with
+  the same card renderer as your inventory — the maker's signature
+  silhouette at Legendary finish — and undiscovered frames show as
+  dark silhouettes of the same shape.
 - **Named Elites — 7 entries.** Each roaming area has one named elite
   (the Silt Marshal, Pursuit Prime, Thornwarden, Slag Herald, Phase
   Revenant, Heap Warden, and Specimen Zero). Downing one when a roaming
