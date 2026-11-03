@@ -12,10 +12,13 @@
  *  3. ClaimPulse: pulses by default, holds a STATIC ring under
  *     reduced motion (MotionConfig reducedMotion="always" is
  *     framer's own switch for the same preference).
- *  4. The claimable surfaces this slice wired: the Standings
- *     door pill, the Weekly claim row button, and the contract
- *     Claim button carry the pulse exactly while a claim is live
- *     — and not for guests / not when nothing is claimable.
+ *  4. The claimable surfaces this slice wired: the Weekly claim
+ *     row button and the contract Claim button carry the pulse
+ *     exactly while a claim is live — and not for guests / not
+ *     when nothing is claimable. The Standings door pill is the
+ *     counter-pin: race rewards auto-pay at settlement, so its
+ *     earnings pill carries NO pulse (the pulse means "you can
+ *     claim this" — earnings are already paid).
  *  5. The Market stop transition is wired (source pin, the
  *     codebase's pattern for shell chrome).
  */
@@ -101,19 +104,33 @@ describe('ClaimPulse — pulses live, static ring under reduced motion', () => {
   });
 });
 
-describe('StandingsDoor — the claimable pill pulses (§10)', () => {
-  const badge: StandingsBadge = { claimableCount: 2, endsAt: null, endsSoon: false, buff: null };
+describe('StandingsDoor — the earnings pill does NOT pulse (race rewards auto-pay)', () => {
+  const badge: StandingsBadge = {
+    earningsCount: 2,
+    earningsWeekKey: '2026-10-19',
+    unseenEarningsCount: 2,
+    endsAt: null,
+    endsSoon: false,
+    buff: null,
+  };
 
-  it('carries the pulse while rewards wait', () => {
-    render(<StandingsDoor badge={badge} onOpen={() => {}} />);
-    expect(screen.getByTestId('standings-claimable-pill')).toBeTruthy();
-    expect(screen.getByTestId('standings-claim-pulse')).toBeTruthy();
+  it('prints the past-tense earnings pill with no claim pulse anywhere', () => {
+    const { container } = render(<StandingsDoor badge={badge} onOpen={() => {}} />);
+    expect(screen.getByTestId('standings-earnings-pill').textContent).toContain('2 race rewards earned');
+    expect(container.querySelector('.claim-pulse')).toBeNull();
   });
 
-  it('no pill and no pulse when nothing is claimable', () => {
-    render(<StandingsDoor badge={EMPTY_STANDINGS_BADGE} onOpen={() => {}} />);
-    expect(screen.queryByTestId('standings-claimable-pill')).toBeNull();
-    expect(screen.queryByTestId('standings-claim-pulse')).toBeNull();
+  it('no pill when the earnings have been seen', () => {
+    render(
+      <StandingsDoor badge={{ ...badge, unseenEarningsCount: 0 }} onOpen={() => {}} />,
+    );
+    expect(screen.queryByTestId('standings-earnings-pill')).toBeNull();
+  });
+
+  it('no pill and no pulse when nothing was earned', () => {
+    const { container } = render(<StandingsDoor badge={EMPTY_STANDINGS_BADGE} onOpen={() => {}} />);
+    expect(screen.queryByTestId('standings-earnings-pill')).toBeNull();
+    expect(container.querySelector('.claim-pulse')).toBeNull();
   });
 });
 

@@ -176,9 +176,15 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **Skill Trees** — the four trees + keystones; **Respec lives on this stop**
   (where the points are visible); **Mastery is a segment of this stop**.
 - **Standings** — the leaderboards door (8 weekly races + rewards + drop-luck
-  buff), carrying a **live badge**: claimable-count pill + ends-soon pill,
+  buff), carrying a **live badge**: an unseen-earnings pill + ends-soon pill,
   printed on the door itself. A plain unbadged button is a defect — the badge
-  is what replaces the ambient visibility the retired Rank tab carried.
+  is what replaces the ambient visibility the retired Rank tab carried. Race
+  rewards are NOT claimable — settlement pays them automatically — so the
+  earnings pill is a past-tense notice ("race rewards earned", no claim
+  pulse), and its destination is the **Your Weekly Earnings** panel at the
+  top of Standings, which prints each settled week's races, finishes, and
+  rewards and states the auto-pay plainly. Viewing the panel clears the
+  notice; a newly settled week raises it again.
 - **Account** — guest→Google link, identity/username, sign-out; **Settings**
   row and **Field Manual** row live on this stop (their canonical home).
 
@@ -447,11 +453,15 @@ should never be two taps from anywhere.
 
 **Claimables announce themselves.** Everything claimable, weekly, or
 time-boxed — the login streak, contract offers, the weekly Parts Crate
-and Signature Orders, race rewards — carries a visible surface on Home
-itself at 0–1 taps: a claim chip under the Strip, the Weekly panel in
-the deck, or the live badge on Hunter's Standings door. Consolidation
-must never silently demote them; the chips and badges exist to prevent
-exactly that.
+and Signature Orders — carries a visible surface on Home itself at 0–1
+taps: a claim chip under the Strip, the Weekly panel in the deck.
+Settled race rewards are not claimables (settlement pays them
+automatically); they announce through the live badge on Hunter's
+Standings door and resolve on the Standings earnings panel (§3).
+Consolidation must never silently demote any of them; the chips and
+badges exist to prevent exactly that, and their languages stay
+distinct — a pulse and the word "claim" belong only to rewards the
+player actually claims.
 
 **The two placements.** Slots' canonical door is the Market → Slots rail
 stop; Home carries exactly one secondary, the labeled launcher card in
