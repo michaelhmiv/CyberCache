@@ -326,6 +326,17 @@ function paintEllipse(
  * context is unavailable (jsdom) — the element and its testid render
  * regardless.
  */
+/** The canvas 2d context, or null where unavailable (jsdom, or a
+ *  context the browser refuses) — one try/catch so callers branch on
+ *  the value, not on assignment order. */
+function tryGet2dContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
+  try {
+    return canvas.getContext('2d');
+  } catch {
+    return null;
+  }
+}
+
 function useSteppedCanvas(
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
   drawRef: React.RefObject<SteppedDraw>,
@@ -335,14 +346,8 @@ function useSteppedCanvas(
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    let ctx: CanvasRenderingContext2D | null = null;
-    try {
-      ctx = canvas.getContext('2d');
-    } catch {
-      ctx = null;
-    }
-    if (!ctx) return undefined;
-    const context = ctx;
+    const context = tryGet2dContext(canvas);
+    if (!context) return undefined;
     let raf = 0;
     let stopped = false;
     const startedAt = performance.now();
@@ -560,17 +565,21 @@ export const LootBeam: React.FC<
 > = ({ xPct, groundYPct, color, widthPx, flareScale = 2.6, reduced = false, durationMs, glowYPct, radiant = true }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawRef = useRef<SteppedDraw>(() => {});
-  drawRef.current = (ctx, wCells, hCells, tMs) =>
-    paintLootBeamFrame(ctx, wCells, hCells, tMs, {
-      xPct,
-      groundYPct,
-      color,
-      widthPx,
-      flareScale,
-      durationMs: durationMs ?? MOVEMENT.LOOT_LEGENDARY_MS,
-      glowYPct,
-      radiant,
-    });
+  // Latest-closure draw for the stepped-canvas loop: assigned in an
+  // effect (every render), never during render itself.
+  useEffect(() => {
+    drawRef.current = (ctx, wCells, hCells, tMs) =>
+      paintLootBeamFrame(ctx, wCells, hCells, tMs, {
+        xPct,
+        groundYPct,
+        color,
+        widthPx,
+        flareScale,
+        durationMs: durationMs ?? MOVEMENT.LOOT_LEGENDARY_MS,
+        glowYPct,
+        radiant,
+      });
+  });
   useSteppedCanvas(canvasRef, drawRef, { reduced, staticMs: 1400 });
   return (
     <canvas
@@ -591,7 +600,8 @@ export const LootBeam: React.FC<
 export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> = ({ xPct, yPct, size = 360, reduced = false }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawRef = useRef<SteppedDraw>(() => {});
-  drawRef.current = (ctx, wCells, hCells, tMs) => {
+  useEffect(() => {
+    drawRef.current = (ctx, wCells, hCells, tMs) => {
     const ramp = fiveToneRamp('#FFEA3A');
     const cx = wCells / 2;
     const cy = hCells / 2;
@@ -619,7 +629,8 @@ export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> =
       }
     }
     ctx.globalAlpha = 1;
-  };
+    };
+  });
   useSteppedCanvas(canvasRef, drawRef, { reduced, staticMs: 1200 });
   return (
     <canvas
@@ -645,7 +656,8 @@ export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> =
 export const ShockwaveRing: React.FC<LootPoint & { color?: string }> = ({ xPct, groundYPct, color = '#FFEA3A' }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawRef = useRef<SteppedDraw>(() => {});
-  drawRef.current = (ctx, wCells, hCells, tMs) => {
+  useEffect(() => {
+    drawRef.current = (ctx, wCells, hCells, tMs) => {
     const p = tMs / MOVEMENT.LOOT_SHOCKWAVE_MS;
     if (p >= 1) return;
     const ramp = fiveToneRamp(color);
@@ -665,7 +677,8 @@ export const ShockwaveRing: React.FC<LootPoint & { color?: string }> = ({ xPct, 
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
-  };
+    };
+  });
   useSteppedCanvas(canvasRef, drawRef, { reduced: false, staticMs: 0, runMs: MOVEMENT.LOOT_SHOCKWAVE_MS });
   return (
     <canvas
