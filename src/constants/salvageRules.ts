@@ -9,6 +9,13 @@ export interface SalvageYield {
   techFragments: number;
   voidDust: number;
   essences: Record<string, number>;
+  /**
+   * Legendary cores the server paid on this recycle (Legendary
+   * salvage only). Set from the verified result by
+   * salvageYieldFromRecycleResult; the local formula never pays
+   * cores, so it leaves this unset.
+   */
+  legendaryCores?: number;
 }
 
 const RARITY_MULTIPLIERS: Record<string, number> = {

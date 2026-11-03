@@ -15,6 +15,7 @@ import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
 import { usePlayerStore, useWorkshopStore } from '@/store';
 import { TINT_PALETTES } from '@/content/skins';
 import { TINT_RECIPE } from '@/content/crafting';
+import { humanizeWorkshopError } from '@/lib/workshop/errors';
 
 /** The tint craft's flat Scrap escrow (the recipe's own input). */
 const TINT_FLAT_SCRAP = TINT_RECIPE.inputs['Scrap'] ?? 25;
@@ -56,7 +57,7 @@ export const TintPanel: React.FC = () => {
       window.setTimeout(() => setFlash(false), 900);
       void refreshWorkshop();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tint job did not queue.');
+      setError(humanizeWorkshopError(err));
     } finally {
       setBusy(false);
     }
@@ -88,7 +89,7 @@ export const TintPanel: React.FC = () => {
             >
               {parts.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} {`(Q${p.quality})`}
+                  {p.name} {`(${p.quality}% quality)`}
                 </option>
               ))}
             </select>
@@ -107,7 +108,7 @@ export const TintPanel: React.FC = () => {
                 data-testid={`tint-palette-${p.id}`}
               >
                 {p.name}
-                <span className="text-text-muted"> · {p.chromaweave === 0 ? 'starter' : `${p.chromaweave} CW`}</span>
+                <span className="text-text-muted"> · {p.chromaweave === 0 ? 'free' : `${p.chromaweave} Chromaweave`}</span>
               </button>
             ))}
           </div>

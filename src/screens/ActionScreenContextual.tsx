@@ -47,6 +47,8 @@ import {
   buildRoamingLootActivity,
 } from '@/lib/activity/activityBuilders';
 import { verifiedOps } from '@/lib/api/verifiedOps';
+import { salvageYieldFromRecycleResult } from '@/lib/gear/salvageAward';
+import { getVisualAsset } from '@/constants/visualAssets';
 import { salvageScrap } from '@/lib/skills/salvageBonuses';
 import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '@/content/roamingRates';
 import { isClassMod, isOrdnance, isRelic, isShield, isWeapon } from '@/lib/gear/gearCardSummary';
@@ -352,18 +354,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       const award = Number(result.scrap_award ?? 0);
       const cores = Number(result.cores_award ?? 0);
       const bonusMaterial = typeof result.bonus_material === 'string' ? result.bonus_material : null;
-      useSalvageFeedStore.getState().push(item, {
-        scrapValue: award,
-        scrapAlloy: 0,
-        ballisticParts: 0,
-        reactiveComponents: 0,
-        techFragments: 0,
-        voidDust: 0,
-        essences: {},
-      });
+      // The toast names what the server actually paid (Scrap, cores,
+      // and the narrow King-of-Scrap bonus material) — the one mapper.
+      useSalvageFeedStore.getState().push(item, salvageYieldFromRecycleResult(result));
       pushEvents([makeRunEvent(
         'SALVAGED',
-        `${item.name} recycled for +${award} scrap${cores > 0 ? ` · +${cores} legendary core${cores === 1 ? '' : 's'}` : ''}${bonusMaterial ? ` · +1 ${bonusMaterial}` : ''}.`,
+        `${item.name} recycled for +${award} scrap${cores > 0 ? ` · +${cores} legendary core${cores === 1 ? '' : 's'}` : ''}${bonusMaterial ? ` · +1 ${getVisualAsset('material', bonusMaterial).label}` : ''}.`,
         'cash',
         'salvaging',
       )]);

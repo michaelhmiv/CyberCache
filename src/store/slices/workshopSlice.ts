@@ -14,6 +14,7 @@
  */
 import { create } from 'zustand';
 import { fetchWorkshopState, verifiedOps } from '@/lib/api/verifiedOps';
+import { humanizeWorkshopError, WORKSHOP_ERROR_FALLBACK } from '@/lib/workshop/errors';
 
 /** One job as the server presents it (craftJobView). */
 export interface WorkshopJobView {
@@ -97,9 +98,14 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
       const view = asView(await fetchWorkshopState());
       set({ server: view, loading: false, error: null });
     } catch (err) {
+      // A state READ failure is a load problem, not a refusal: the
+      // humanizer's generic fallback would mislabel it, so it maps
+      // back to load wording here. Real refusal strings (the ops
+      // below) keep their translations.
+      const humanized = humanizeWorkshopError(err);
       set({
         loading: false,
-        error: err instanceof Error ? err.message : 'Unable to load the Workshop.',
+        error: humanized === WORKSHOP_ERROR_FALLBACK ? 'Unable to load the Workshop right now — try again in a moment.' : humanized,
       });
     }
   },
@@ -110,7 +116,7 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
       await get().refresh();
       return true;
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Unable to queue that job.' });
+      set({ error: humanizeWorkshopError(err) });
       return false;
     }
   },
@@ -121,7 +127,7 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
       await get().refresh();
       return true;
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Unable to cancel that job.' });
+      set({ error: humanizeWorkshopError(err) });
       return false;
     }
   },
@@ -132,7 +138,7 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
       await get().refresh();
       return true;
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Unable to unlock the bench.' });
+      set({ error: humanizeWorkshopError(err) });
       return false;
     }
   },
@@ -143,7 +149,7 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
       await get().refresh();
       return true;
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Unable to fit that tool.' });
+      set({ error: humanizeWorkshopError(err) });
       return false;
     }
   },

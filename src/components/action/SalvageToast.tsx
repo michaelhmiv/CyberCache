@@ -8,6 +8,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
+import { getVisualAsset } from '@/constants/visualAssets';
 import type { SalvageBatchFeedEvent, SalvageFeedEvent } from '@/store/slices/salvageFeedSlice';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -23,20 +24,24 @@ const RARITY_COLORS: Record<string, string> = {
 const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
   const dismiss = useSalvageFeedStore((s) => s.dismiss);
   const accent = RARITY_COLORS[event.item.rarity] ?? '#A5A7B5';
-  const { scrapValue, scrapAlloy, ballisticParts, reactiveComponents, techFragments, voidDust, essences } = event.yield;
+  const { scrapValue, scrapAlloy, ballisticParts, reactiveComponents, techFragments, voidDust, essences, legendaryCores } = event.yield;
 
   useEffect(() => {
     const timer = setTimeout(() => dismiss(event.id), 6000);
     return () => clearTimeout(timer);
   }, [event.id, dismiss]);
 
+  // Full display labels — a bonus material the server paid is named
+  // as itself (Scrap Alloy, Ballistic Parts…), never an abbreviation
+  // the player has to decode, and legendary cores print as cores.
   const parts: string[] = [];
   if (scrapValue > 0) parts.push(`+${scrapValue} Scrap`);
-  if (scrapAlloy > 0) parts.push(`+${scrapAlloy} Alloy`);
-  if (ballisticParts > 0) parts.push(`+${ballisticParts} Parts`);
-  if (reactiveComponents > 0) parts.push(`+${reactiveComponents} Reactive`);
-  if (techFragments > 0) parts.push(`+${techFragments} Tech`);
-  if (voidDust > 0) parts.push(`+${voidDust} Void Dust`);
+  if (scrapAlloy > 0) parts.push(`+${scrapAlloy} ${getVisualAsset('material', 'ScrapAlloy').label}`);
+  if (ballisticParts > 0) parts.push(`+${ballisticParts} ${getVisualAsset('material', 'BallisticParts').label}`);
+  if (reactiveComponents > 0) parts.push(`+${reactiveComponents} ${getVisualAsset('material', 'ReactiveComponents').label}`);
+  if (techFragments > 0) parts.push(`+${techFragments} ${getVisualAsset('material', 'TechFragments').label}`);
+  if (voidDust > 0) parts.push(`+${voidDust} ${getVisualAsset('material', 'VoidDust').label}`);
+  if ((legendaryCores ?? 0) > 0) parts.push(`+${legendaryCores} Legendary Core${legendaryCores === 1 ? '' : 's'}`);
   for (const [key, count] of Object.entries(essences)) {
     if (count > 0) parts.push(`+${count} ${key.replace(/([A-Z])/g, ' $1').trim()}`);
   }
