@@ -21,10 +21,11 @@
  *     (list order, source-over, currentColor = the consumable's accent
  *     from getConsumableVisual in src/constants/visualAssets.ts), over
  *     the defs in src/constants/consumables.ts.
- *   - Materials / essences: the MaterialBadge mark tile
- *     (src/components/common/MaterialBadge.tsx) — the mark character and
- *     colors from MATERIAL_VISUALS / ESSENCE_VISUALS, the tile being the
- *     material color at 0x18 alpha inside a black border.
+ *   - Materials / essences: the game's STUFF compositor
+ *     (src/lib/pixel/materialArt.ts) — the formed object each good
+ *     renders as in game, composed from the registry colorways in
+ *     MATERIAL_VISUALS / ESSENCE_VISUALS. (The letter-mark tile
+ *     these plates used to digitize retired with census C-2.)
  *
  * Representative-instance rules (fixed, so plates are stable):
  *   - Frames: one Rare, Kinetic, rollQuality-75 instance per type x
@@ -48,9 +49,8 @@
  * (the element/rarity badge text is data the tables already carry) and
  * without the procedural surface/bevel filters (feTurbulence + specular
  * lighting) or the card wrapper's CSS glow — geometry, gradients, and
- * colors are the components' own. Material marks are HTML text in game;
- * the plate digitizes the badge tile with a built-in 5x7 pixel font —
- * the mark character and both colors are the registry's own.
+ * colors are the components' own. Material plates are the compositor's
+ * own texels at plate scale (24-grid x4), alpha preserved.
  */
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -66,6 +66,7 @@ import {
   type VisualAsset,
 } from '../../src/constants/visualAssets';
 import { PX_ICONS, PX_ICON_TONE_FILLS } from '../../src/lib/pixel/icons';
+import { composeMaterial, materialArtRow } from '../../src/lib/pixel/materialArt';
 import { SHIELD_BEHAVIORS } from '../../src/lib/combat/shieldBehaviors';
 import { SHIELD_SILHOUETTES } from '../../src/constants/shieldSilhouettes';
 import { RELIC_SILHOUETTES } from '../../src/constants/relicSilhouettes';
@@ -602,78 +603,54 @@ export function consumablePlateImgTag(id: string, name: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Material / essence marks (the MaterialBadge mark tile)              */
+/* Material / essence objects (the STUFF compositor render)            */
 /* ------------------------------------------------------------------ */
 
 /**
- * 5x7 pixel glyphs for every mark character the registries use. The
- * badge renders its mark as HTML text in game; the plate digitizes the
- * tile (see the header disclosure). A mark with no glyph fails loudly.
+ * The material's STUFF object at plate size: the game's own
+ * compositor (src/lib/pixel/materialArt.ts) on its 24-texel grid,
+ * scaled x4 — the texel = 4 law — with alpha preserved (the ground
+ * shadow is a translucent shade). Deterministic by construction:
+ * the compositor seeds from the material id.
  */
-const MARK_GLYPHS: Record<string, string[]> = {
-  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
-  B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
-  C: ['01110', '10001', '10000', '10000', '10000', '10001', '01110'],
-  F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
-  H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
-  L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
-  M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
-  N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
-  P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
-  R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
-  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
-  T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
-  V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
-  W: ['10001', '10001', '10001', '10101', '10101', '11011', '10001'],
-  Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'],
-};
-
-/**
- * The MaterialBadge mark tile at plate size: the material color at
- * 0x18 alpha (the badge's `${color}18` background) inside its black
- * border, the mark letter centered in the full material color.
- */
-function materialMarkPng(visual: VisualAsset): Uint8Array {
-  const glyph = MARK_GLYPHS[visual.mark];
-  if (!glyph) throw new Error(`images-w5: no pixel glyph for material mark "${visual.mark}" (${visual.id})`);
-  const TILE = 96;
-  const BORDER = 5;
-  const SCALE = 9; // glyph cell: 5*9 x 7*9 = 45 x 63
-  const gx0 = Math.floor((TILE - 5 * SCALE) / 2);
-  const gy0 = Math.floor((TILE - 7 * SCALE) / 2);
-  const [cr, cg, cb] = hexToRgb(visual.color);
-  const tintA = 0x18 / 255;
-  const data = new Uint8Array(TILE * TILE * 4);
-  for (let y = 0; y < TILE; y++) {
-    for (let x = 0; x < TILE; x++) {
-      const o = (y * TILE + x) * 4;
-      const onBorder = x < BORDER || y < BORDER || x >= TILE - BORDER || y >= TILE - BORDER;
-      if (onBorder) {
-        data[o + 3] = 255; // border token is #000000 (--color-border)
-        continue;
-      }
-      // Tint interior, premultiplied-style: store straight color + alpha.
-      data[o] = Math.round(cr * 255);
-      data[o + 1] = Math.round(cg * 255);
-      data[o + 2] = Math.round(cb * 255);
-      data[o + 3] = Math.round(tintA * 255);
-    }
+function materialObjectPng(visual: VisualAsset): Uint8Array {
+  const render = composeMaterial(visual.id, 'object');
+  const SCALE = 4;
+  const width = render.width * SCALE;
+  const height = render.height * SCALE;
+  const data = new Uint8Array(width * height * 4);
+  const rgbaByShade = new Map<string, [number, number, number, number] | null>();
+  for (const [shade, color] of Object.entries(render.colors)) {
+    const hex = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(color ?? '');
+    rgbaByShade.set(
+      shade,
+      hex
+        ? [
+            parseInt(hex[1].slice(0, 2), 16),
+            parseInt(hex[1].slice(2, 4), 16),
+            parseInt(hex[1].slice(4, 6), 16),
+            hex[2] ? parseInt(hex[2], 16) : 255,
+          ]
+        : null,
+    );
   }
-  for (let gy = 0; gy < 7; gy++) {
-    for (let gx = 0; gx < 5; gx++) {
-      if (glyph[gy][gx] !== '1') continue;
+  for (let y = 0; y < render.height; y++) {
+    const row = render.rows[y];
+    for (let x = 0; x < render.width; x++) {
+      const rgba = rgbaByShade.get(row[x]);
+      if (!rgba) continue;
       for (let dy = 0; dy < SCALE; dy++) {
         for (let dx = 0; dx < SCALE; dx++) {
-          const o = ((gy0 + gy * SCALE + dy) * TILE + (gx0 + gx * SCALE + dx)) * 4;
-          data[o] = Math.round(cr * 255);
-          data[o + 1] = Math.round(cg * 255);
-          data[o + 2] = Math.round(cb * 255);
-          data[o + 3] = 255;
+          const o = ((y * SCALE + dy) * width + (x * SCALE + dx)) * 4;
+          data[o] = rgba[0];
+          data[o + 1] = rgba[1];
+          data[o + 2] = rgba[2];
+          data[o + 3] = rgba[3];
         }
       }
     }
   }
-  return encodePng({ width: TILE, height: TILE, data });
+  return encodePng({ width, height, data });
 }
 
 export function materialPlates(): GenAsset[] {
@@ -681,7 +658,7 @@ export function materialPlates(): GenAsset[] {
   return sortAssets(
     all.map((visual) => ({
       path: `${MATERIAL_PLATE_DIR}/${kebab(visual.id)}.png`,
-      bytes: materialMarkPng(visual),
+      bytes: materialObjectPng(visual),
     })),
   );
 }
@@ -691,24 +668,28 @@ function materialImgTag(visual: VisualAsset): string {
 }
 
 function materialsBody(): string {
+  const bandLabel = (v: VisualAsset) => {
+    const band = materialArtRow(v.id).band;
+    return band.charAt(0).toUpperCase() + band.slice(1);
+  };
   const materialRows = (Object.values(MATERIAL_VISUALS) as VisualAsset[]).map((v) => [
     materialImgTag(v),
     `**${v.label}**`,
-    v.mark,
+    bandLabel(v),
     v.description,
   ]);
   const essenceRows = (Object.values(ESSENCE_VISUALS) as VisualAsset[]).map((v) => [
     materialImgTag(v),
     `**${v.label}**`,
-    v.mark,
+    bandLabel(v),
     v.description,
   ]);
   return [
-    'Every material and essence, with the mark tile it wears in game — the letter and color are how it reads in the Workshop, the market, and your inventory.',
+    'Every material and essence, drawn as the object it renders as in game — form and colorway are how it reads in the Workshop, the market, and your inventory. The Band column is the processing finish the art itself wears: raw goods are worn and jumbled, refined goods are the same stuff aligned, composites carry their lamination seam.',
     '',
-    table(['Plate', 'Material', 'Mark', 'What it is'], materialRows),
+    table(['Plate', 'Material', 'Band', 'What it is'], materialRows),
     '',
-    table(['Plate', 'Essence', 'Mark', 'What it is'], essenceRows),
+    table(['Plate', 'Essence', 'Band', 'What it is'], essenceRows),
   ].join('\n');
 }
 

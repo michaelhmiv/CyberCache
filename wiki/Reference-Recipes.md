@@ -15,39 +15,39 @@ depends on the rarity you choose when you queue it.
 
 <!-- GENERATED from src/constants/visualAssets.ts — do not edit by hand -->
 <!-- wiki-gen:materials -->
-Every material and essence, with the mark tile it wears in game — the letter and color are how it reads in the Workshop, the market, and your inventory.
+Every material and essence, drawn as the object it renders as in game — form and colorway are how it reads in the Workshop, the market, and your inventory. The Band column is the processing finish the art itself wears: raw goods are worn and jumbled, refined goods are the same stuff aligned, composites carry their lamination seam.
 
-| Plate | Material | Mark | What it is |
+| Plate | Material | Band | What it is |
 | --- | --- | --- | --- |
-| <img src="images/materials/scrap-alloy.png" alt="Scrap Alloy" width="48"> | **Scrap Alloy** | A | Bolts, plates, and rough salvage metal. |
-| <img src="images/materials/ballistic-parts.png" alt="Ballistic Parts" width="48"> | **Ballistic Parts** | B | Barrels, chambers, triggers, and shell hardware. |
-| <img src="images/materials/reactive-components.png" alt="Reactive Components" width="48"> | **Reactive Components** | R | Capacitors, shield nodes, and charged regulators. |
-| <img src="images/materials/tech-fragments.png" alt="Tech" width="48"> | **Tech** | T | Broken chips, data shards, and machine logic. |
-| <img src="images/materials/void-dust.png" alt="Void Dust" width="48"> | **Void Dust** | V | Purple unstable residue from anomalous loot. |
-| <img src="images/materials/siltglass.png" alt="Siltglass" width="48"> | **Siltglass** | S | Dustwaste signature: silt fused to glass in the storm heat. Tier-2 input for sights and refining catalysts. |
-| <img src="images/materials/nitrocell-gel.png" alt="Nitrocell Gel" width="48"> | **Nitrocell Gel** | N | Redline signature: volatile gel bled from overrun fuel lines. Tier-2 input for overcharge fuel and speed ammo. |
-| <img src="images/materials/heartwood-resin.png" alt="Heartwood Resin" width="48"> | **Heartwood Resin** | H | Ironwood signature: resin from the bastion heartwood. Tier-2 input for patch kits, shields, and armor work. |
-| <img src="images/materials/forgeheart-ingots.png" alt="Forgeheart Ingots" width="48"> | **Forgeheart Ingots** | F | BlastForge signature: ingots poured at the forge heart. Tier-2 input for weapon parts and ordnance. |
-| <img src="images/materials/prism-shards.png" alt="Prism Shards" width="48"> | **Prism Shards** | P | Prismatek signature: reactor-grown prism crystal. Tier-2 input for beam parts, optics, class mods, and scanners. |
-| <img src="images/materials/magnetite-cores.png" alt="Magnetite Cores" width="48"> | **Magnetite Cores** | M | ThrowTech signature: magnetic cores pulled from the dumpnet grid. Tier-2 input for cargo racks and salvage gear. |
-| <img src="images/materials/myco-steel-fiber.png" alt="Myco-Steel Fiber" width="48"> | **Myco-Steel Fiber** | Y | HelixWorks signature: fungal fiber with a steel weave. Tier-2 input for top survival consumables and relics. |
-| <img src="images/materials/refined-alloy.png" alt="Refined Alloy" width="48"> | **Refined Alloy** | A | Scrap Alloy, refined: clean, even stock for gear frames. |
-| <img src="images/materials/tempered-parts.png" alt="Tempered Parts" width="48"> | **Tempered Parts** | T | Ballistic Parts, tempered: hardened barrels, chambers, and triggers. |
-| <img src="images/materials/stabilized-cells.png" alt="Stabilized Cells" width="48"> | **Stabilized Cells** | S | Reactive Components, stabilized: cells that hold their charge. |
-| <img src="images/materials/woven-circuits.png" alt="Woven Circuits" width="48"> | **Woven Circuits** | W | Tech, woven: logic looms for advanced work. |
-| <img src="images/materials/condensed-void.png" alt="Condensed Void" width="48"> | **Condensed Void** | V | Void Dust, condensed: anomaly charge in a denser, steadier form. |
-| <img src="images/materials/composite-plating.png" alt="Composite Plating" width="48"> | **Composite Plating** | C | Lab composite: layered plate for frames and armor work. |
-| <img src="images/materials/circuit-lattice.png" alt="Circuit Lattice" width="48"> | **Circuit Lattice** | L | Lab composite: a grown lattice of interlocked circuits. |
-| <img src="images/materials/voidweave.png" alt="Voidweave" width="48"> | **Voidweave** | V | Lab composite: void-touched weave for exotic builds. |
-| <img src="images/materials/chromaweave.png" alt="Chromaweave" width="48"> | **Chromaweave** | W | Pigment-bearing weave refined from myco-steel fiber and void essence. Carries a tint craft into a worn part. |
+| <img src="images/materials/scrap-alloy.png" alt="Scrap Alloy" width="48"> | **Scrap Alloy** | Raw | Bolts, plates, and rough salvage metal. |
+| <img src="images/materials/ballistic-parts.png" alt="Ballistic Parts" width="48"> | **Ballistic Parts** | Raw | Barrels, chambers, triggers, and shell hardware. |
+| <img src="images/materials/reactive-components.png" alt="Reactive Components" width="48"> | **Reactive Components** | Raw | Capacitors, shield nodes, and charged regulators. |
+| <img src="images/materials/tech-fragments.png" alt="Tech" width="48"> | **Tech** | Raw | Broken chips, data shards, and machine logic. |
+| <img src="images/materials/void-dust.png" alt="Void Dust" width="48"> | **Void Dust** | Raw | Purple unstable residue from anomalous loot. |
+| <img src="images/materials/siltglass.png" alt="Siltglass" width="48"> | **Siltglass** | Signature | Dustwaste signature: silt fused to glass in the storm heat. Tier-2 input for sights and refining catalysts. |
+| <img src="images/materials/nitrocell-gel.png" alt="Nitrocell Gel" width="48"> | **Nitrocell Gel** | Signature | Redline signature: volatile gel bled from overrun fuel lines. Tier-2 input for overcharge fuel and speed ammo. |
+| <img src="images/materials/heartwood-resin.png" alt="Heartwood Resin" width="48"> | **Heartwood Resin** | Signature | Ironwood signature: resin from the bastion heartwood. Tier-2 input for patch kits, shields, and armor work. |
+| <img src="images/materials/forgeheart-ingots.png" alt="Forgeheart Ingots" width="48"> | **Forgeheart Ingots** | Signature | BlastForge signature: ingots poured at the forge heart. Tier-2 input for weapon parts and ordnance. |
+| <img src="images/materials/prism-shards.png" alt="Prism Shards" width="48"> | **Prism Shards** | Signature | Prismatek signature: reactor-grown prism crystal. Tier-2 input for beam parts, optics, class mods, and scanners. |
+| <img src="images/materials/magnetite-cores.png" alt="Magnetite Cores" width="48"> | **Magnetite Cores** | Signature | ThrowTech signature: magnetic cores pulled from the dumpnet grid. Tier-2 input for cargo racks and salvage gear. |
+| <img src="images/materials/myco-steel-fiber.png" alt="Myco-Steel Fiber" width="48"> | **Myco-Steel Fiber** | Signature | HelixWorks signature: fungal fiber with a steel weave. Tier-2 input for top survival consumables and relics. |
+| <img src="images/materials/refined-alloy.png" alt="Refined Alloy" width="48"> | **Refined Alloy** | Refined | Scrap Alloy, refined: clean, even stock for gear frames. |
+| <img src="images/materials/tempered-parts.png" alt="Tempered Parts" width="48"> | **Tempered Parts** | Refined | Ballistic Parts, tempered: hardened barrels, chambers, and triggers. |
+| <img src="images/materials/stabilized-cells.png" alt="Stabilized Cells" width="48"> | **Stabilized Cells** | Refined | Reactive Components, stabilized: cells that hold their charge. |
+| <img src="images/materials/woven-circuits.png" alt="Woven Circuits" width="48"> | **Woven Circuits** | Refined | Tech, woven: logic looms for advanced work. |
+| <img src="images/materials/condensed-void.png" alt="Condensed Void" width="48"> | **Condensed Void** | Refined | Void Dust, condensed: anomaly charge in a denser, steadier form. |
+| <img src="images/materials/composite-plating.png" alt="Composite Plating" width="48"> | **Composite Plating** | Composite | Lab composite: layered plate for frames and armor work. |
+| <img src="images/materials/circuit-lattice.png" alt="Circuit Lattice" width="48"> | **Circuit Lattice** | Composite | Lab composite: a grown lattice of interlocked circuits. |
+| <img src="images/materials/voidweave.png" alt="Voidweave" width="48"> | **Voidweave** | Composite | Lab composite: void-touched weave for exotic builds. |
+| <img src="images/materials/chromaweave.png" alt="Chromaweave" width="48"> | **Chromaweave** | Composite | Pigment-bearing weave refined from myco-steel fiber and void essence. Carries a tint craft into a worn part. |
 
-| Plate | Essence | Mark | What it is |
+| Plate | Essence | Band | What it is |
 | --- | --- | --- | --- |
-| <img src="images/materials/ignition-fluid.png" alt="Ignition Fluid" width="48"> | **Ignition Fluid** | F | Hot fuel for incendiary payloads. |
-| <img src="images/materials/conduit-wire.png" alt="Conduit Wire" width="48"> | **Conduit Wire** | S | Blue wire bundles that carry shock charge. |
-| <img src="images/materials/acid-compound.png" alt="Acid Compound" width="48"> | **Acid Compound** | C | Toxic reagent for corrosive effects. |
-| <img src="images/materials/cryo-gel.png" alt="Cryo Gel" width="48"> | **Cryo Gel** | Y | Cold gel used for freeze modules. |
-| <img src="images/materials/void-essence.png" alt="Void Essence" width="48"> | **Void Essence** | V | Condensed anomaly charge for unstable gear. |
+| <img src="images/materials/ignition-fluid.png" alt="Ignition Fluid" width="48"> | **Ignition Fluid** | Essence | Hot fuel for incendiary payloads. |
+| <img src="images/materials/conduit-wire.png" alt="Conduit Wire" width="48"> | **Conduit Wire** | Essence | Blue wire bundles that carry shock charge. |
+| <img src="images/materials/acid-compound.png" alt="Acid Compound" width="48"> | **Acid Compound** | Essence | Toxic reagent for corrosive effects. |
+| <img src="images/materials/cryo-gel.png" alt="Cryo Gel" width="48"> | **Cryo Gel** | Essence | Cold gel used for freeze modules. |
+| <img src="images/materials/void-essence.png" alt="Void Essence" width="48"> | **Void Essence** | Essence | Condensed anomaly charge for unstable gear. |
 <!-- /wiki-gen:materials -->
 
 ## The recipes
