@@ -212,7 +212,7 @@ export function boxDownscaleHalf(img: RgbaImage): RgbaImage {
 }
 
 /** The compositor fallback: a weapon card rendered to pixels at 2x paint scale. */
-function rasterizeWeaponCard(input: PixelWeaponInput): RgbaImage {
+export function rasterizeWeaponCard(input: PixelWeaponInput): RgbaImage {
   const card = composeWeaponCard(input);
   const scale = 2;
   const width = card.width * scale;

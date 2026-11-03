@@ -64,6 +64,26 @@
         {
           "number": 328,
           "title": "Weapon marriage slice 3: retire the legacy SVG weapon renderer"
+        },
+        {
+          "number": 329,
+          "title": "Gate removal step 3: research courses drop hunter-level prerequisites (migration 0059)"
+        },
+        {
+          "number": 330,
+          "title": "Wiki wrap-up W1: Research, Dispatch, Contracts pages"
+        },
+        {
+          "number": 331,
+          "title": "Wiki W2: Changelog backfill (Nov 2–3) + Phase 4 automation — merge ledger & staleness tripwire"
+        },
+        {
+          "number": 332,
+          "title": "Wiki W4: image pipeline + legendary plates pilot"
+        },
+        {
+          "number": 333,
+          "title": "Wiki W3 — freshness fixes (areas law, Shield-Tech gate wording, Crafting recount, Economy ranks)"
         }
       ]
     },

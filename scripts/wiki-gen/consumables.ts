@@ -7,6 +7,7 @@
  * describes them).
  */
 import { CONSUMABLES, type ConsumableDef } from '../../src/constants/consumables';
+import { consumablePlateImgTag, consumablePlates } from './images-w5';
 import { type GenBlock, table, titleCase } from './lib';
 
 function vendorStatus(def: ConsumableDef): string {
@@ -17,7 +18,8 @@ function vendorStatus(def: ConsumableDef): string {
 }
 
 function consumablesBody(): string {
-  const rows = Object.values(CONSUMABLES).map((d) => [
+  const rows = Object.entries(CONSUMABLES).map(([id, d]) => [
+    consumablePlateImgTag(id, d.name),
     `**${d.name}**`,
     titleCase(d.family),
     d.effect,
@@ -25,11 +27,12 @@ function consumablesBody(): string {
     vendorStatus(d),
     d.market.craftable ? `${d.quality.craftMin}–${d.quality.craftMax}% (cap ${d.quality.cap}%)` : '—',
   ]);
-  return table(['Consumable', 'Family', 'Effect', 'Price (cr)', 'Vendor', 'Crafted quality range'], rows);
+  return table(['Icon', 'Consumable', 'Family', 'Effect', 'Price (cr)', 'Vendor', 'Crafted quality range'], rows);
 }
 
 export const consumablesBlock: GenBlock = {
   id: 'consumables',
-  owners: ['src/constants/consumables.ts'],
+  owners: ['src/constants/consumables.ts', 'src/lib/pixel/icons.ts', 'src/constants/visualAssets.ts'],
   render: consumablesBody,
+  assets: consumablePlates,
 };

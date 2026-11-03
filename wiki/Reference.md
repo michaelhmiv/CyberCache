@@ -79,6 +79,38 @@ A strong matchup deals ×1.3 damage; a weak one ×0.7 (from `getElementMatchup`,
 | **Legendary** | 4–5 | +20 | 100% | ×8 | 1 |
 <!-- /wiki-gen:weapons -->
 
+<!-- GENERATED from src/constants/weaponTypes.ts, src/constants/manufacturers.ts, src/lib/pixel/weaponCardCompositor.ts, src/lib/pixel/showcaseWeaponInput.ts — do not edit by hand -->
+<!-- wiki-gen:weapon-frames -->
+### Weapon frames, pictured
+
+One representative Rare, Kinetic instance per type × manufacturer — frame and maker grammar are the variables; element and affixes are held neutral, and the seeds are fixed, so these are the same guns on every render. How the finished gun reads with an element lit is the next table.
+
+| Type | Redline | Ironwood | BlastForge | Prismatek | ThrowTech | HelixWorks |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Pistol** | <img src="images/weapons/frames/pistol-redline.png" alt="Pistol — Redline" width="240"> | <img src="images/weapons/frames/pistol-ironwood.png" alt="Pistol — Ironwood" width="240"> | <img src="images/weapons/frames/pistol-blast-forge.png" alt="Pistol — BlastForge" width="240"> | <img src="images/weapons/frames/pistol-prismatek.png" alt="Pistol — Prismatek" width="240"> | <img src="images/weapons/frames/pistol-throw-tech.png" alt="Pistol — ThrowTech" width="240"> | <img src="images/weapons/frames/pistol-helix-works.png" alt="Pistol — HelixWorks" width="240"> |
+| **SMG** | <img src="images/weapons/frames/smg-redline.png" alt="SMG — Redline" width="240"> | <img src="images/weapons/frames/smg-ironwood.png" alt="SMG — Ironwood" width="240"> | <img src="images/weapons/frames/smg-blast-forge.png" alt="SMG — BlastForge" width="240"> | <img src="images/weapons/frames/smg-prismatek.png" alt="SMG — Prismatek" width="240"> | <img src="images/weapons/frames/smg-throw-tech.png" alt="SMG — ThrowTech" width="240"> | <img src="images/weapons/frames/smg-helix-works.png" alt="SMG — HelixWorks" width="240"> |
+| **Shotgun** | <img src="images/weapons/frames/shotgun-redline.png" alt="Shotgun — Redline" width="240"> | <img src="images/weapons/frames/shotgun-ironwood.png" alt="Shotgun — Ironwood" width="240"> | <img src="images/weapons/frames/shotgun-blast-forge.png" alt="Shotgun — BlastForge" width="240"> | <img src="images/weapons/frames/shotgun-prismatek.png" alt="Shotgun — Prismatek" width="240"> | <img src="images/weapons/frames/shotgun-throw-tech.png" alt="Shotgun — ThrowTech" width="240"> | <img src="images/weapons/frames/shotgun-helix-works.png" alt="Shotgun — HelixWorks" width="240"> |
+| **Sniper** | <img src="images/weapons/frames/sniper-redline.png" alt="Sniper — Redline" width="240"> | <img src="images/weapons/frames/sniper-ironwood.png" alt="Sniper — Ironwood" width="240"> | <img src="images/weapons/frames/sniper-blast-forge.png" alt="Sniper — BlastForge" width="240"> | <img src="images/weapons/frames/sniper-prismatek.png" alt="Sniper — Prismatek" width="240"> | <img src="images/weapons/frames/sniper-throw-tech.png" alt="Sniper — ThrowTech" width="240"> | <img src="images/weapons/frames/sniper-helix-works.png" alt="Sniper — HelixWorks" width="240"> |
+| **Launcher** | <img src="images/weapons/frames/launcher-redline.png" alt="Launcher — Redline" width="240"> | <img src="images/weapons/frames/launcher-ironwood.png" alt="Launcher — Ironwood" width="240"> | <img src="images/weapons/frames/launcher-blast-forge.png" alt="Launcher — BlastForge" width="240"> | <img src="images/weapons/frames/launcher-prismatek.png" alt="Launcher — Prismatek" width="240"> | <img src="images/weapons/frames/launcher-throw-tech.png" alt="Launcher — ThrowTech" width="240"> | <img src="images/weapons/frames/launcher-helix-works.png" alt="Launcher — HelixWorks" width="240"> |
+| **Beam** | <img src="images/weapons/frames/beam-redline.png" alt="Beam — Redline" width="240"> | <img src="images/weapons/frames/beam-ironwood.png" alt="Beam — Ironwood" width="240"> | <img src="images/weapons/frames/beam-blast-forge.png" alt="Beam — BlastForge" width="240"> | <img src="images/weapons/frames/beam-prismatek.png" alt="Beam — Prismatek" width="240"> | <img src="images/weapons/frames/beam-throw-tech.png" alt="Beam — ThrowTech" width="240"> | <img src="images/weapons/frames/beam-helix-works.png" alt="Beam — HelixWorks" width="240"> |
+<!-- /wiki-gen:weapon-frames -->
+
+<!-- GENERATED from src/constants/elements.ts, src/constants/weaponTypes.ts, src/constants/manufacturers.ts, src/lib/pixel/weaponCardCompositor.ts, src/lib/pixel/showcaseWeaponInput.ts — do not edit by hand -->
+<!-- wiki-gen:weapon-elements -->
+### Element reads, pictured
+
+The same representative frame per type — same maker, same seed, Rare — re-rolled with each element. Only the element changes across a row: Kinetic is the honest unlit base, the other five light the frame's current in their own colorway.
+
+| Type | Kinetic | Fire | Shock | Corrosive | Cryo | Void |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Pistol** (Redline) | <img src="images/weapons/elements/pistol-kinetic.png" alt="Pistol — Kinetic" width="240"> | <img src="images/weapons/elements/pistol-fire.png" alt="Pistol — Fire" width="240"> | <img src="images/weapons/elements/pistol-shock.png" alt="Pistol — Shock" width="240"> | <img src="images/weapons/elements/pistol-corrosive.png" alt="Pistol — Corrosive" width="240"> | <img src="images/weapons/elements/pistol-cryo.png" alt="Pistol — Cryo" width="240"> | <img src="images/weapons/elements/pistol-void.png" alt="Pistol — Void" width="240"> |
+| **SMG** (Ironwood) | <img src="images/weapons/elements/smg-kinetic.png" alt="SMG — Kinetic" width="240"> | <img src="images/weapons/elements/smg-fire.png" alt="SMG — Fire" width="240"> | <img src="images/weapons/elements/smg-shock.png" alt="SMG — Shock" width="240"> | <img src="images/weapons/elements/smg-corrosive.png" alt="SMG — Corrosive" width="240"> | <img src="images/weapons/elements/smg-cryo.png" alt="SMG — Cryo" width="240"> | <img src="images/weapons/elements/smg-void.png" alt="SMG — Void" width="240"> |
+| **Shotgun** (BlastForge) | <img src="images/weapons/elements/shotgun-kinetic.png" alt="Shotgun — Kinetic" width="240"> | <img src="images/weapons/elements/shotgun-fire.png" alt="Shotgun — Fire" width="240"> | <img src="images/weapons/elements/shotgun-shock.png" alt="Shotgun — Shock" width="240"> | <img src="images/weapons/elements/shotgun-corrosive.png" alt="Shotgun — Corrosive" width="240"> | <img src="images/weapons/elements/shotgun-cryo.png" alt="Shotgun — Cryo" width="240"> | <img src="images/weapons/elements/shotgun-void.png" alt="Shotgun — Void" width="240"> |
+| **Sniper** (Prismatek) | <img src="images/weapons/elements/sniper-kinetic.png" alt="Sniper — Kinetic" width="240"> | <img src="images/weapons/elements/sniper-fire.png" alt="Sniper — Fire" width="240"> | <img src="images/weapons/elements/sniper-shock.png" alt="Sniper — Shock" width="240"> | <img src="images/weapons/elements/sniper-corrosive.png" alt="Sniper — Corrosive" width="240"> | <img src="images/weapons/elements/sniper-cryo.png" alt="Sniper — Cryo" width="240"> | <img src="images/weapons/elements/sniper-void.png" alt="Sniper — Void" width="240"> |
+| **Launcher** (ThrowTech) | <img src="images/weapons/elements/launcher-kinetic.png" alt="Launcher — Kinetic" width="240"> | <img src="images/weapons/elements/launcher-fire.png" alt="Launcher — Fire" width="240"> | <img src="images/weapons/elements/launcher-shock.png" alt="Launcher — Shock" width="240"> | <img src="images/weapons/elements/launcher-corrosive.png" alt="Launcher — Corrosive" width="240"> | <img src="images/weapons/elements/launcher-cryo.png" alt="Launcher — Cryo" width="240"> | <img src="images/weapons/elements/launcher-void.png" alt="Launcher — Void" width="240"> |
+| **Beam** (HelixWorks) | <img src="images/weapons/elements/beam-kinetic.png" alt="Beam — Kinetic" width="240"> | <img src="images/weapons/elements/beam-fire.png" alt="Beam — Fire" width="240"> | <img src="images/weapons/elements/beam-shock.png" alt="Beam — Shock" width="240"> | <img src="images/weapons/elements/beam-corrosive.png" alt="Beam — Corrosive" width="240"> | <img src="images/weapons/elements/beam-cryo.png" alt="Beam — Cryo" width="240"> | <img src="images/weapons/elements/beam-void.png" alt="Beam — Void" width="240"> |
+<!-- /wiki-gen:weapon-elements -->
+
 ## Affix pools
 
 <!-- GENERATED from src/lib/gear/affixPools.ts — do not edit by hand -->
@@ -149,6 +181,70 @@ Weapons roll from three sub-pools (combat, boss, idle); shields, ordnance, class
 | +5–15% Survival | survivalBoost | boss |
 | +5–20% Consumable Efficiency | consumableEfficiency | skill |
 <!-- /wiki-gen:affixes -->
+
+## Gear, pictured
+
+Every non-weapon gear kind, in the forms the game actually renders.
+Weapons are pictured in the frames and element tables above; the
+legendaries have their own page ([[Reference-Legendary-Effects]]).
+See [[Gear]] for how the slots play.
+
+<!-- GENERATED from src/components/gearArt/ShieldIllustration.tsx, src/components/gearArt/RelicIllustration.tsx, src/components/gearArt/ClassModIllustration.tsx, src/components/gearArt/OrdnanceIllustration.tsx, src/constants/shieldSilhouettes.ts, src/constants/relicSilhouettes.ts, src/constants/classModSilhouettes.ts, src/constants/ordnanceSilhouettes.ts, src/lib/combat/shieldBehaviors.ts — do not edit by hand -->
+<!-- wiki-gen:gear-plates -->
+### Shields
+
+A shield's form is picked by its element and its seed — the illustration draws the device. Behavior is a separate stats axis (rolled by rarity when the shield drops; see [[Shield-Tech]]), and the current illustration does not draw it: any behavior can wear any form. Plates are Rare shields with no affixes, rendered by the game's own ShieldIllustration.
+
+| Plate | Form | Rolled for |
+| --- | --- | --- |
+| <img src="images/gear/shield-rounded.png" alt="Rounded Guard" width="240"> | **Rounded Guard** | Fire or Corrosive on an even seed; Void on an odd seed |
+| <img src="images/gear/shield-buckler.png" alt="Buckler" width="240"> | **Buckler** | Fire or Shock on an odd seed |
+| <img src="images/gear/shield-bulwark.png" alt="Bulwark" width="240"> | **Bulwark** | Corrosive or Cryo on an odd seed |
+| <img src="images/gear/shield-hex-plate.png" alt="Hex Plate" width="240"> | **Hex Plate** | Shock or Kinetic on an even seed |
+| <img src="images/gear/shield-split-panel.png" alt="Split Panel" width="240"> | **Split Panel** | Kinetic or Void on an odd seed; Cryo on an even seed |
+
+**Shield behaviors** — what the stats axis rolls:
+
+| Behavior | What it does |
+| --- | --- |
+| **Standard** | No special behavior. |
+| **Nova** | When this shield breaks, it erupts in a burst of damage. |
+| **Absorb** | Chance to fully absorb a hit and restore shield. |
+| **Amp** | Bonus damage while the shield is at full charge. |
+| **Turtle** | Oversized capacity, slow recharge. |
+
+### Ordnance
+
+Form is a hash of the item's effect text and its seed — any ordnance can wear any form.
+
+| Plate | Form |
+| --- | --- |
+| <img src="images/gear/ordnance-spike.png" alt="Spike Grenade" width="240"> | **Spike Grenade** |
+| <img src="images/gear/ordnance-cylinder.png" alt="Cylinder Charge" width="240"> | **Cylinder Charge** |
+| <img src="images/gear/ordnance-disc.png" alt="Disc Mine" width="240"> | **Disc Mine** |
+| <img src="images/gear/ordnance-canister.png" alt="Payload Canister" width="240"> | **Payload Canister** |
+
+### Class mods
+
+Form follows the boosted tree's keyword.
+
+| Plate | Form | Trees |
+| --- | --- | --- |
+| <img src="images/gear/class-mod-core.png" alt="Combat Core" width="240"> | **Combat Core** | Gunslinger trees |
+| <img src="images/gear/class-mod-drive.png" alt="Tactical Drive" width="240"> | **Tactical Drive** | Demolition trees |
+| <img src="images/gear/class-mod-chip.png" alt="Skill Chip" width="240"> | **Skill Chip** | Scavenger trees — and any tree the keyword picker doesn't match, Fixer included |
+
+### Relics
+
+Form follows where the relic came from.
+
+| Plate | Form | Drops from |
+| --- | --- | --- |
+| <img src="images/gear/relic-shard.png" alt="Void Shard" width="240"> | **Void Shard** | World drops, on an even seed |
+| <img src="images/gear/relic-prism.png" alt="Echo Prism" width="240"> | **Echo Prism** | Event drops; world drops on an odd seed |
+| <img src="images/gear/relic-totem.png" alt="Boss Totem" width="240"> | **Boss Totem** | Boss drops |
+| <img src="images/gear/relic-chip.png" alt="Data Chip" width="240"> | **Data Chip** | Cache-forged items |
+<!-- /wiki-gen:gear-plates -->
 
 ## Roaming areas
 
