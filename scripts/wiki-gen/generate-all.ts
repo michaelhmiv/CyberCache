@@ -35,6 +35,7 @@ import { recipesBlock } from './recipes';
 import { bossesBlock } from './bosses';
 import { skillTreesBlock, cacheRankBlock } from './progression';
 import { collectionsBlock } from './collections';
+import { changelogBlock, checkChangelogFreshness, refreshChangelogLedger } from './changelog';
 
 interface PageSpec {
   page: string;
@@ -49,6 +50,7 @@ const PAGES: PageSpec[] = [
   { page: 'Reference-Bosses.md', blocks: [bossesBlock] },
   { page: 'Reference-Progression.md', blocks: [skillTreesBlock, cacheRankBlock] },
   { page: 'Reference-Collections.md', blocks: [collectionsBlock] },
+  { page: 'Changelog.md', blocks: [changelogBlock] },
 ];
 
 function renderBlock(block: GenBlock): string {
@@ -74,10 +76,18 @@ function splice(pageText: string, block: GenBlock, page: string): string {
 
 function main(): void {
   const check = process.argv.includes('--check');
+  // Phase 4 (changelog): in write mode, harvest master's merge
+  // history into the ledger snapshot before rendering, so the
+  // Changelog block below renders the recorded merges. In --check
+  // mode the snapshot is read-only — the gate renders from committed
+  // data only, which is what keeps it deterministic.
+  if (!check) refreshChangelogLedger();
   const stale: string[] = [];
+  let changelogText = '';
   for (const spec of PAGES) {
     const path = join(WIKI_DIR, spec.page);
     const original = readFileSync(path, 'utf8');
+    if (spec.page === 'Changelog.md') changelogText = original;
     let next = original;
     for (const block of spec.blocks) {
       next = splice(next, block, spec.page);
@@ -88,12 +98,20 @@ function main(): void {
     }
   }
   if (check) {
+    // Phase 4 tripwire: a master merge newer than the Changelog's
+    // newest entry fails the gate even when every block renders
+    // fresh — the lapse this catches is an ABSENT entry, which no
+    // byte-diff of generated content can see.
+    const tripwire = checkChangelogFreshness(changelogText);
+    if (tripwire.status !== 'ok') console.error(`wiki-gen: ${tripwire.message}`);
+    else console.log(`wiki-gen: ${tripwire.message}`);
+    const failed = stale.length > 0 || tripwire.status === 'stale';
     if (stale.length) {
       console.error(`wiki-gen: STALE — ${stale.length} page(s) differ from a fresh render:`);
       for (const page of stale) console.error(`  - wiki/${page}`);
       console.error('Run `npm run wiki:gen` and commit the regenerated pages with the data change.');
-      process.exit(1);
     }
+    if (failed) process.exit(1);
     console.log(`wiki-gen: OK — ${PAGES.length} page(s), every generated block matches a fresh render.`);
     return;
   }
