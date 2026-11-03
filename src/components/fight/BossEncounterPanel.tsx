@@ -23,9 +23,10 @@ import { MobileCard } from '../layout/MobileCard';
 import { BossFightStage } from '../pixelArt/BossFightStage';
 import { LootMoment } from '../pixelArt/LootMoment';
 import { GhostHpBar } from '../pixelArt/PixelFx';
-import { BossSigil } from '@/components/common/BossSigil';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
-import { BossPortrait } from '@/components/common/BossPortrait';
+import { BossStamp } from '@/components/common/BossStamp';
+import { BossCell } from '@/components/common/BossCell';
+import { BossArenaPlate } from '@/components/common/BossArenaPlate';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import type { Weapon } from '../../types/items';
 
@@ -169,7 +170,7 @@ const FightCard: React.FC<{
       </div>
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[10px] text-text-muted">
-          <span className="flex items-center gap-1"><BossSigil bossId={bossId} size={14} showFrame={false} /> {bossName}</span>
+          <span className="flex items-center gap-1"><BossStamp bossId={bossId} size={14} /> {bossName}</span>
           <span className="font-black text-text-primary">{timeline.bossHp.toLocaleString()} / {timeline.bossHpMax.toLocaleString()}</span>
         </div>
         <GhostHpBar pct={bossPct} color="#F87171" reduced={reducedMotion === true} testId="fight-boss-hp" />
@@ -455,20 +456,39 @@ export const BossEncounterPanel: React.FC<{
 
   return (
     <div className="space-y-3" data-testid="boss-encounter-panel">
-      {/* Header */}
+      {/* Header — prep presents the full Arena Plate (the boss's own
+          sprite on its own arena); fight/result keep the compact row
+          with the detail-crop cell. Everything below the header row is
+          the panel's unchanged vitals/intel body. */}
       <div className="relative overflow-hidden border-2 border-red/40 bg-red/[0.06] p-3" style={panelClip}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <BossPortrait bossId={boss.id} size={48} animate />
-            <div>
-              <div className="text-lg font-black leading-tight text-text-primary">{boss.name}</div>
-              <div className="text-[10px] text-text-muted">Tier {boss.tier} · Lv.{boss.level} · {boss.phases.length} phase{boss.phases.length === 1 ? '' : 's'}</div>
+        {stage === 'prep' ? (
+          <BossArenaPlate
+            boss={boss}
+            action={(
+              <button
+                type="button"
+                onClick={onChangeBoss}
+                className="bl-secondary px-2 py-1 text-[9px] font-black text-amber"
+                style={{ backgroundColor: 'rgba(10,7,5,0.88)' }}
+              >
+                Change Boss
+              </button>
+            )}
+          />
+        ) : (
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <BossCell bossId={boss.id} size={48} />
+              <div>
+                <div className="text-lg font-black leading-tight text-text-primary">{boss.name}</div>
+                <div className="text-[10px] text-text-muted">Tier {boss.tier} · Lv.{boss.level} · {boss.phases.length} phase{boss.phases.length === 1 ? '' : 's'}</div>
+              </div>
             </div>
+            <button type="button" onClick={onChangeBoss} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
+              Change Boss
+            </button>
           </div>
-          <button type="button" onClick={onChangeBoss} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
-            Change Boss
-          </button>
-        </div>
+        )}
         <div className="mt-3">
           <BossVitals boss={boss} />
         </div>
@@ -713,7 +733,7 @@ export const BossEncounterPanel: React.FC<{
             </>
           ) : (
             <>
-              <BossSigil bossId={boss.id} size={38} className="mx-auto" />
+              <BossCell bossId={boss.id} size={38} className="mx-auto" />
               <div className="text-xl font-black text-red">DEFEATED</div>
               {result.result.phaseFailed && <div className="text-xs text-text-secondary">Failed during the {result.result.phaseFailed} phase</div>}
               {typeof result.result.bossHpRemaining === 'number' && (

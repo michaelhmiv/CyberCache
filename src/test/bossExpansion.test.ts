@@ -20,7 +20,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { REGION_1_BOSSES } from '@/constants/bosses';
-import { BOSS_VISUALS } from '@/constants/bossVisuals';
+import { BOSS_IDENTITY_DATA } from '@/lib/pixel/bossIdentityData';
 import { PIXEL_BOSS_ARENAS } from '@/content/areaPalettes';
 import { escalatedBossFee } from '@/lib/bossFees';
 import { getPixelSprite, pixelBossSpriteForBoss } from '@/lib/pixel/manifest';
@@ -166,8 +166,23 @@ describe('boss roster expansion — ladder integrity', () => {
       expect(getPixelSprite(arena.propId), `${boss.id} arena prop`).toBeTruthy();
       expect(arenaBackgrounds.has(arena.backgroundId)).toBe(false);
       arenaBackgrounds.add(arena.backgroundId);
-      expect(BOSS_VISUALS[boss.id], `${boss.id} visual`).toBeTruthy();
-      expect(BOSS_VISUALS[boss.id].description).not.toContain('Unknown boss');
+      // Arena Plate identity (C-4): the boss's identity derives from
+      // its own sprite — a generated detail-crop window inside the
+      // sprite's bounds and a two-tone silhouette stamp. The retired
+      // sigil/archetype registry (bossVisuals) is gone.
+      const identity = BOSS_IDENTITY_DATA[boss.id];
+      expect(identity, `${boss.id} identity data`).toBeTruthy();
+      const spriteEntry = getPixelSprite(spriteId!);
+      const [wx, wy, side] = identity.window;
+      expect(side, `${boss.id} window side`).toBeGreaterThan(0);
+      expect(wx, `${boss.id} window x`).toBeGreaterThanOrEqual(0);
+      expect(wy, `${boss.id} window y`).toBeGreaterThanOrEqual(0);
+      expect(wx + side, `${boss.id} window right`).toBeLessThanOrEqual(spriteEntry!.width);
+      expect(wy + side, `${boss.id} window bottom`).toBeLessThanOrEqual(spriteEntry!.height);
+      expect(identity.stamp.cells, `${boss.id} stamp rows`).toHaveLength(identity.stamp.rows);
+      expect(identity.stamp.cells.join(''), `${boss.id} stamp has body cells`).toContain('B');
+      expect(identity.stamp.bodyTone, `${boss.id} body tone`).toMatch(/^#[0-9a-f]{6}$/);
+      expect(identity.stamp.coreTone, `${boss.id} core tone`).toMatch(/^#[0-9a-f]{6}$/);
     }
     expect(arenaBackgrounds.size).toBe(13);
   });
