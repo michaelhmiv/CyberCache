@@ -116,13 +116,17 @@ describe('plate type fitting — scrim text never leaves its panel', () => {
 
   it('the full scrim stack fits the plate height for every roster boss', () => {
     // Vertical model of BossArenaPlate's scrim (CSS px, plate height
-    // 118, foot strip 4): top padding 10 + name lines at 1.04 line
-    // height + tier margin 3 + tier 11px at 1.2 + chip margin 7 +
-    // chip (11px at 1.2 + 4 padding + 3 border) + mechanic margin 7 +
-    // mechanic 11px at 1.2. The mechanic line's box must end above
-    // the foot strip (118 - 4 = 114).
+    // 118, foot strip 4): top padding 10 + name lines at their pinned
+    // 1.04 line height + tier margin 3 + tier 11px at its pinned 1.15
+    // line height + chip margin 7 + chip (11px at pinned 1.15 + 4
+    // padding + 3 border) + mechanic margin 7 + mechanic 11px at
+    // pinned 1.15. The line heights are pinned in the component —
+    // at the app's inherited 1.5 the stack runs ~11px taller and the
+    // mechanic line clips under the foot strip (the first production
+    // render proved it). The mechanic line's box must end above the
+    // foot strip (118 - 4 = 114).
     const stackHeight = (lines: number, fontSize: number) =>
-      10 + lines * fontSize * 1.04 + 3 + 11 * 1.2 + 7 + (11 * 1.2 + 4 + 3) + 7 + 11 * 1.2;
+      10 + lines * fontSize * 1.04 + 3 + 11 * 1.15 + 7 + (11 * 1.15 + 4 + 3) + 7 + 11 * 1.15;
     for (const boss of REGION_1_BOSSES) {
       const fit = fitPlateName(boss.name, SCRIM_TEXT_MAX, measure06);
       expect(

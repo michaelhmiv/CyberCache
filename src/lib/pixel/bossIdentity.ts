@@ -211,9 +211,9 @@ export interface PlateNameFit {
  * weakness chip + mechanic line, fixed margins) fills the 118px
  * plate; at 18–20px name sizes the mechanic line slides under the
  * foot strip and clips (seen on the first production sheet — Widow-9,
- * Verdant Maw, Vaultkeeper Omega). 16px is the largest two-line size
- * whose full stack stays inside the plate (Heap Guard's fitted form
- * is the in-capture proof).
+ * Verdant Maw, Vaultkeeper Omega). The other half of the budget is
+ * the component's pinned 1.15 line heights on the three 11px lines —
+ * at the app's inherited 1.5 the stack overflows even at 16px.
  */
 export function fitPlateName(
   name: string,
