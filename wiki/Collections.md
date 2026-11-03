@@ -10,7 +10,11 @@ the moment it happened. You can't claim an entry; you can only earn it.
 
 - **Legendary Effects — 25 entries.** One for every
   [[Legendary Effects|legendary effect]] in the game. An entry fills
-  the first time a weapon carrying that effect becomes yours.
+  the first time a weapon carrying that effect becomes yours. Each
+  entry is pictured by that effect's own bespoke weapon art — the
+  same fixed art the dropped weapon itself wears — and the weapon
+  type the art depicts is the type the drop always is: the art and
+  the item agree.
 - **Bosses — 13 entries.** One for every boss in the roster. An entry
   fills when you beat that boss — see [[Bosses]].
 - **Weapon Frames — 36 entries.** Every weapon type × manufacturer
