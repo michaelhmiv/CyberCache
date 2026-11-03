@@ -16,6 +16,7 @@ import {
 } from '@/lib/market/boardQuery';
 import { DEFAULT_LISTING_LIMIT } from '@/lib/market/listingQuery';
 import { ServiceBoardControls, type ServiceBoardSortOption } from '@/components/market/ServiceBoardControls';
+import { MarketSupplyDoor } from '@/components/market/SupplyDoors';
 import type { GearItem, Shield } from '@/types/items';
 import type { Rarity } from '@/types/game';
 import { ShieldTechBayScene } from '@/components/pixelArt/ActionScenes';
@@ -513,7 +514,13 @@ export const ShieldTechBoard: React.FC = () => {
                   {req.blockers.includes('unverified') ? (
                     <>Sign in with a verified account to take jobs.</>
                   ) : req.blockers.includes('no_supply') ? (
-                    <>Needs Calibration Cores to start — you have none. The tech supplies the cores; the price covers cores + labor.</>
+                    <>
+                      Needs Calibration Cores to start — you have none. You supply the
+                      cores; the price covers cores + labor. Cores craft in the Workshop
+                      at Lv 15 on the Forge bench — or buy them from another player on
+                      the{' '}
+                      <MarketSupplyDoor search="Calibration Core" ariaLabel="Buy Calibration Cores on the player Market">Market</MarketSupplyDoor>.
+                    </>
                   ) : (
                     <>
                       You supply the cores: ≈{req.estimatedCores ?? '—'} to finish

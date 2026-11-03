@@ -352,6 +352,30 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     useMarketStore.getState().clearMarketStopIntent();
   }, [marketStopIntent]);
 
+  // Buy-browse deep link: a remedy door (e.g. a service board's
+  // no-supply blocker) asked for the Buy stop pre-browsed to a
+  // category + search. Render-phase adjustment (the InventoryScreen
+  // tab-intent pattern) rather than an effect: the intent lands in
+  // the same commit as the stop switch that carried it. Apply the
+  // pair, drop the ancillary detailed filters so the door reliably
+  // lands on the supply it named, then clear the intent so it never
+  // re-fires on a later plain visit.
+  const buyBrowseIntent = useMarketStore((s) => s.buyBrowseIntent);
+  const [appliedBrowseSeq, setAppliedBrowseSeq] = useState<number | null>(null);
+  if (buyBrowseIntent && buyBrowseIntent.seq !== appliedBrowseSeq) {
+    setAppliedBrowseSeq(buyBrowseIntent.seq);
+    setBuyCategory(buyBrowseIntent.category);
+    setSearch(buyBrowseIntent.search ?? '');
+    setBuyWeaponType(null);
+    setBuyElement(null);
+    setFilterRarity(null);
+    setBuyLevelMin('');
+    setBuyLevelMax('');
+    setBuyPriceMin('');
+    setBuyPriceMax('');
+    useMarketStore.getState().clearBuyBrowseIntent();
+  }
+
   const buyQuery = useMemo<MarketListingQuery>(() => {
     const numOrUndef = (v: string) => {
       const n = Number(v);
