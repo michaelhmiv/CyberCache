@@ -741,7 +741,16 @@ export function processRoamingClaim(
   // the kill sites); deaths disarm (see the death sites). Without
   // this, a hunter dying on loop in a top area accrued its trickle
   // at full rate — death gated the kill cycle, not the reward roll.
-  let trickleArmed = !survDead && (request.survival?.trickleArmed ?? true);
+  //
+  // The guard reads death ONLY from a modeled survival state. A
+  // claim that carries no survival block at all (legacy routes,
+  // internal callers) has no hunter body to pronounce dead — survHp
+  // defaults to 0 there, which is an absent input, not a corpse —
+  // and such claims pay exactly as they did before the guard.
+  const survivalModeled = request.survival != null;
+  let trickleArmed = survivalModeled
+    ? !survDead && (request.survival?.trickleArmed ?? true)
+    : true;
 
   // --- Consumable engine initialization ---
   // Local copy: the Wounded Scavenger event can spend a carried
@@ -1124,7 +1133,7 @@ export function processRoamingClaim(
       survHp = Math.max(0, survHp - remaining);
       if (survHp <= 0) {
         survDead = true;
-        trickleArmed = false;
+        if (survivalModeled) trickleArmed = false;
         survKilledBy = { monsterId: sourceId, monsterName: sourceName, areaId };
         survDiedAt = at;
         feedEvents.push({
@@ -1509,7 +1518,7 @@ export function processRoamingClaim(
     // generation step happens exactly as for a live tick, so the
     // deterministic streams stay bit-identical; only the AWARDS are
     // discarded, via the snapshot/restore around the roll.
-    const trickleLive = trickleArmed && !survDead;
+    const trickleLive = trickleArmed && (!survivalModeled || !survDead);
     const trickleSnapshot = {
       generatedItems: generatedItems.length,
       feedEvents: feedEvents.length,
@@ -1830,7 +1839,7 @@ export function processRoamingClaim(
           survHp = Math.max(0, survHp - remainingHpDamage);
           if (survHp <= 0) {
             survDead = true;
-            trickleArmed = false;
+            if (survivalModeled) trickleArmed = false;
             survKilledBy = { monsterId: modifiedAttacker.id, monsterName: modifiedAttacker.name, areaId };
             survDiedAt = now - (ticks - 1 - tickIdx) * TICK_MS;
             // Feed event: hunter died

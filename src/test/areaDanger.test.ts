@@ -225,6 +225,19 @@ describe('death-loop trickle guard — presence pays only after a kill since the
     expect(result.rewards.creditsAwarded).toBeGreaterThan(0);
   });
 
+  it('a claim with NO survival block is not a dead hunter: it pays exactly as before the guard', () => {
+    // Legacy routes and internal callers claim without survival
+    // state; survHp defaults to 0 there, which is an absent input,
+    // not a corpse. The guard reads death only from a modeled
+    // survival state — this is the pre-guard Dustwaste baseline
+    // (20 ticks × 0.75 cr = 15, the economyFractional pin).
+    const req = claimRequest({ ticks: 20, survival: undefined, economy: { eventChanceBase: 0 } });
+    const result = processRoamingClaim(req);
+    expect(result.rewards.creditsAwarded).toBe(15);
+    expect(result.rewards.creditsRemainder).toBe(0);
+    expect(result.survival.trickleArmed).toBe(true);
+  });
+
   it('normal play is untouched: an armed hunter\'s claim is bit-identical across runs', () => {
     const req = claimRequest({ equippedGear: [makeWeapon()], ticks: 100 });
     const a = processRoamingClaim(req);
