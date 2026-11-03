@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
-import { DropSource, Element, Rarity, SkillTreeType } from '@/types/game';
+import { DropSource, Rarity, SkillTreeType } from '@/types/game';
 import type { ClassMod, Relic } from '@/types/items';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { composeGear, type GearRender } from '@/lib/pixel/gearCardCompositor';
