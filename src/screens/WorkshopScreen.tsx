@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
+import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X, Lock } from 'lucide-react';
 import { useActivityStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
@@ -24,6 +25,7 @@ import {
   gearRarityRequiresBench,
   isMaterialInput,
   refineOutputCount,
+  refineOutputRange,
   type CraftRecipe,
 } from '@/content/crafting';
 import { GRAMMAR } from '@/lib/pixel/grammar';
@@ -101,36 +103,6 @@ const SECTIONS: Array<{ key: RecipeClassification; title: string; hint: string; 
   { key: 'one-gate', title: 'One gate away', hint: 'the card names the gate and the way through', tone: 'text-amber' },
   { key: 'locked', title: 'Locked', hint: 'every failing gate is printed — nothing hides', tone: 'text-red' },
 ];
-
-const MATERIAL_COLORS: Record<string, string> = {
-  Scrap: 'text-orange-400',
-  Chromaweave: 'text-pink-300',
-  ScrapAlloy: 'text-gray-400',
-  BallisticParts: 'text-red-400',
-  ReactiveComponents: 'text-blue-400',
-  TechFragments: 'text-purple-400',
-  VoidDust: 'text-amber-400',
-  IgnitionFluid: 'text-orange-400',
-  ConduitWire: 'text-cyan-400',
-  AcidCompound: 'text-green-400',
-  CryoGel: 'text-sky-400',
-  VoidEssence: 'text-violet-400',
-};
-
-const MATERIAL_ICONS: Record<string, PxIconName> = {
-  Scrap: 'scrap',
-  Chromaweave: 'swirl',
-  ScrapAlloy: 'scrap',
-  BallisticParts: 'gun',
-  ReactiveComponents: 'bolt',
-  TechFragments: 'chip',
-  VoidDust: 'star',
-  IgnitionFluid: 'flame',
-  ConduitWire: 'nodes',
-  AcidCompound: 'flask',
-  CryoGel: 'snow',
-  VoidEssence: 'swirl',
-};
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
@@ -854,8 +826,6 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           </button>
           <div className={`grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] overflow-hidden transition-all ${expandedMaterials ? 'max-h-[500px] opacity-100' : 'max-h-16 opacity-70'}`}>
             {sortedMaterials.slice(0, expandedMaterials ? sortedMaterials.length : 4).map(([type, count]) => {
-              const colorClass = MATERIAL_COLORS[type] || 'text-text-secondary';
-              const icon: PxIconName | null = MATERIAL_ICONS[type] ?? null;
               return (
                 <button
                   key={type}
@@ -864,7 +834,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                   className="flex w-full items-center justify-between text-left"
                   aria-label={`${getVisualAsset('material', type).label}: show recipes that use it`}
                 >
-                  <span className={`inline-flex items-center gap-1 truncate ${colorClass}`}>{icon ? <PxIcon name={icon} size={13} /> : null} {getVisualAsset('material', type).label}</span>
+                  <span className="inline-flex items-center gap-1 truncate text-text-secondary"><PixelMaterial id={type} density="thumb" size={13} /> {getVisualAsset('material', type).label}</span>
                   <span className="font-bold ml-1 text-text-primary">{count}</span>
                 </button>
               );
@@ -1167,7 +1137,19 @@ const RecipeCard: React.FC<{
     recipe.kind === 'refine'
       ? refineOutputCount(recipe, ctx.masteries['crafting.refining']?.level ?? 1, REFINE_BASE_YIELD_DEFAULT)
       : null;
+  // Stochastic rounding (economy brief §9.3): a fractional refine
+  // expectation labels as its honest range, not the floored count.
+  const refineRange =
+    recipe.kind === 'refine'
+      ? refineOutputRange(recipe, ctx.masteries['crafting.refining']?.level ?? 1, REFINE_BASE_YIELD_DEFAULT)
+      : null;
   const makesPerUnit = recipe.kind === 'refine' ? refineOut : (recipe.outputQuantity ?? 1);
+  const makesLabel =
+    refineRange && refineRange.max > refineRange.min
+      ? `Makes ×${refineRange.min}–${refineRange.max} per unit`
+      : makesPerUnit && makesPerUnit > 1
+        ? `Makes ×${makesPerUnit} per unit`
+        : null;
 
   const inputRows = Object.entries(recipe.inputs).map(([key, per]) => {
     // 'Scrap' is the profile's scrap balance, not a material
@@ -1242,13 +1224,11 @@ const RecipeCard: React.FC<{
             every shortfall. */}
         <div className="space-y-1">
           {inputRows.map(({ key, need, have, enough, short }) => {
-            const colorClass = MATERIAL_COLORS[key] || 'text-text-muted';
-            const icon: PxIconName | null = MATERIAL_ICONS[key] ?? null;
             return (
               <React.Fragment key={key}>
                 <div className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className={`inline-flex items-center gap-1 ${colorClass}`}>
-                    {icon ? <PxIcon name={icon} size={13} /> : null}
+                  <span className="inline-flex items-center gap-1">
+                    <PixelMaterial id={key} density="thumb" size={13} />
                     <span className="text-text-secondary">{inputLabel(key)}</span>
                   </span>
                   <span className="inline-flex items-center">
@@ -1404,7 +1384,7 @@ const RecipeCard: React.FC<{
         <div className="text-[11px] text-text-secondary">
           Total for <span className="font-black text-text-primary">{units} unit{units === 1 ? '' : 's'}</span>:{' '}
           <span className="font-black text-text-primary">{formatDurationShort(baseDurationMs * units)}</span> · ≈{xpPerUnit * units} XP · inputs held when you queue
-          {makesPerUnit && makesPerUnit > 1 ? ` · Makes ×${makesPerUnit} per unit` : ''}
+          {makesLabel ? ` · ${makesLabel}` : ''}
         </div>
         {isGear && recipe.durationByRarityMs && (
           <div className="text-[11px] text-text-muted">

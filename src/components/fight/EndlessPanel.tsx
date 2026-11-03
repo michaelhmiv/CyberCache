@@ -22,6 +22,7 @@ import { syncEndlessResult } from '../../lib/api/verifiedStateSync';
 import type { ActionSkillStateView } from '@/content/actionSkills';
 import type { SkillTreeType } from '@/types/game';
 import { ActionSkillCard } from './ActionSkillCard';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { endlessDepthBand, endlessEncounterForDepth } from '../../content/endless';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
@@ -531,6 +532,16 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
                       +
                     </button>
                   </div>
+                  {/* QB-3: same belt, same rule as boss prep — the
+                      commitment (snapshot-restored, unclamped) can
+                      exceed the shelves; the + fills exactly that
+                      gap and hides the moment stock covers it. */}
+                  <QuickBuyPlus
+                    good={{ kind: 'consumable', id: def.id }}
+                    goodName={def.name}
+                    shortfall={(bossStore.preparedConsumables[def.id] ?? 0) - owned}
+                    contextLabel="Endless Chamber"
+                  />
                 </div>
               );
             })}

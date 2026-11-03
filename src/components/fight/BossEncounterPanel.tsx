@@ -24,6 +24,7 @@ import { BossFightStage } from '../pixelArt/BossFightStage';
 import { LootMoment } from '../pixelArt/LootMoment';
 import { GhostHpBar } from '../pixelArt/PixelFx';
 import { BossSigil } from '@/components/common/BossSigil';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { BossPortrait } from '@/components/common/BossPortrait';
 import { REGION_1_BOSSES } from '../../constants/bosses';
 import type { Weapon } from '../../types/items';
@@ -585,6 +586,18 @@ export const BossEncounterPanel: React.FC<{
                       +
                     </button>
                   </div>
+                  {/* QB-3: the belt's commitment can exceed the
+                      shelves — prep is snapshot-restored unclamped
+                      while only the spent display clamps to owned.
+                      The + fills exactly that gap; once bought, the
+                      synced stock lets the clamped count rise to
+                      the commitment on its own. */}
+                  <QuickBuyPlus
+                    good={{ kind: 'consumable', id: def.id }}
+                    goodName={def.name}
+                    shortfall={(bossStore.preparedConsumables[def.id] ?? 0) - owned}
+                    contextLabel={boss.name}
+                  />
                 </div>
               );
             })}

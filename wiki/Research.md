@@ -24,7 +24,7 @@ Production study for crafters: quality, batch work, and the temper roll.
 | Course | Tier | Duration | Fee | Requires | Unlocks |
 |---|---|---|---|---|---|
 | Shop Fundamentals | 1 | 6 h | 2,500 | — | Craft quality shift **+2** on every completed craft unit (inside the shared −10…+20 clamp) |
-| Production Systems | 2 | 48 h | 15,000 | Shop Fundamentals · the Forge bench | The three **batch recipes** — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units (see [[Crafting]]) |
+| Production Systems | 2 | 48 h | 15,000 | Shop Fundamentals · the Forge bench | The three **batch recipes** — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units: fewer materials and less time per unit than three singles (see [[Crafting]]) |
 | Master Fabricator Certification | 3 | 168 h | 60,000 | Production Systems · the Lab bench | Crafted gear **temper chance +0.03** (inside the 0.30 cap) and **+1 generation draw** on every crafted gear frame |
 
 ### Field Mechanics — home: the bay + the road
@@ -43,9 +43,9 @@ Supply-chain theory that pays in buyback, offline hours, and thinner fees.
 
 | Course | Tier | Duration | Fee | Requires | Unlocks |
 |---|---|---|---|---|---|
-| Street Economics | 1 | 6 h | 2,500 | — | NPC **vendor buyback rate +0.02** on everything you sell (under the 0.90 ceiling — see [[Vendor]]) |
-| Supply Chains | 2 | 48 h | 15,000 | Street Economics | **Offline earnings cap +1 hour** (the 24-hour absolute ceiling still binds — see [[Progression]]) |
-| Syndicate Ledger | 3 | 168 h | 60,000 | Supply Chains | **Market fee reduction +0.05** on all your sales (see [[The Market]]) |
+| Street Economics | 1 | 6 h | 2,500 | — | NPC **vendor buyback rate +0.02** on everything you sell (under the 0.90 ceiling — see [[Vendor]]), and **offline earnings cap +2 hours** |
+| Supply Chains | 2 | 48 h | 15,000 | Street Economics | **Offline earnings cap +4 hours** (the 24-hour absolute ceiling still binds — see [[Progression]]) |
+| Syndicate Ledger | 3 | 168 h | 60,000 | Supply Chains | **Market fee reduction +0.05** on all your sales (see [[The Market]]), and **offline earnings cap +4 hours** |
 
 ### Xenotech — home: theory
 

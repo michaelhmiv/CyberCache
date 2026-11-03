@@ -563,15 +563,30 @@ const ProjectileTape: React.FC<{ projectile: { color: string; glow: string }; we
 
 // ── Target HP Overlay (HTML, kept for accessibility but SVG version is primary) ──
 
+/** How far the in-stage HP plates ride ABOVE the ground line, as a
+ *  fraction of stage height. The hunter's plate and the roaming
+ *  target's plate share this one lift so the pair always reads
+ *  level — one constant, so they can never drift apart. */
+const HP_PLATE_LIFT = 0.185;
+
 /**
- * Target HP plate (owner ruling 2026-11-02): the plate used to
- * hang at the stage's top-right, across the enemy's face. It now
- * anchors UNDER the enemy — centered on the enemy's feet column
- * (xPct 74, the shared enemy placement), its top edge on the
- * scene's ground line, spanning the enemy's stance. The enemy's
- * face and body stay completely uncovered; the ground line comes
- * from the same anchor the scene renders by (the background's
- * groundLine, or the vector scene's feet line as fallback).
+ * Target HP plate (owner rulings 2026-11-02, amended 2026-11-03):
+ * the plate used to hang at the stage's top-right, across the
+ * enemy's face; the 2026-11-02 fix parked it under the enemy on
+ * the ground line — where on device it read as part of the stats
+ * row below the animation, the wrong layer entirely. It now rides
+ * IN the stage as a translucent overlay on the enemy's column
+ * (xPct 74, the shared enemy placement), its top edge lifted off
+ * the ground line by the hunter plate's own lift (HP_PLATE_LIFT),
+ * so the two plates read as a matched pair at the same height on
+ * their respective sides. The lift was chosen off the enemy's
+ * geometry, not the hunter's anchor copied blindly: roaming
+ * enemies stand 66% of the stage tall on the ground line, so a
+ * plate whose top edge sits 18.5 points above that line lands on
+ * the enemy's lower body — face and head stay completely clear,
+ * honoring the original no-plate-across-a-face ruling. The BOSS
+ * plate does NOT share this lift (see BossHpOverlay): its
+ * ground-line anchor was owner-ruled to stay.
  */
 const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYPct: number; reduced?: boolean }> = ({ active, accentColor, groundYPct, reduced = false }) => {
   const currentHp = useKillCycleStore((state) => state.currentTargetHp);
@@ -585,8 +600,8 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYP
 
   return (
     <div
-      className="pointer-events-none absolute z-30 w-[176px] border-2 border-border bg-bg/90 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.72)]"
-      style={{ ...signClip, left: '74%', top: `calc(${groundYPct * 100}% + 2px)`, transform: 'translateX(-50%)' }}
+      className="pointer-events-none absolute z-30 w-[176px] border-2 border-border bg-bg/80 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
+      style={{ ...signClip, left: '74%', top: `${(groundYPct - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
       data-testid="primary-diorama-target-hp"
     >
       <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-black uppercase leading-tight tracking-wide text-text-muted">
@@ -1016,7 +1031,7 @@ const PixelSceneLayer: React.FC<{
         <div
           data-testid="diorama-hunter-hp"
           className="pointer-events-none absolute z-20 w-[104px] border-2 border-border bg-bg/85 px-1.5 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
-          style={{ ...signClip, left: `${hunterPlacement.xPct}%`, top: `${(groundY - 0.185) * 100}%`, transform: 'translateX(-50%)' }}
+          style={{ ...signClip, left: `${hunterPlacement.xPct}%`, top: `${(groundY - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
         >
           <div className="mb-0.5 flex items-baseline justify-between gap-1 text-[11px] font-black leading-none">
             <span className="text-text-muted">HP</span>
@@ -1326,9 +1341,12 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           testId="diorama-loot-moment"
         />
       )}
-      {/* Target / boss HP plates — anchored under the enemy on
-          the ground line (owner ruling 2026-11-02), never across
-          its face. */}
+      {/* Target / boss HP plates — the roaming target's plate
+          rides IN the stage, lifted level with the hunter's plate
+          over the enemy's lower body (owner ruling 2026-11-03);
+          the boss plate stays anchored under the boss on the
+          ground line (owner ruling 2026-11-02, reaffirmed
+          2026-11-03). Neither ever sits across a face. */}
       <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
       <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
       {/* The count plate is the top row's only resident now

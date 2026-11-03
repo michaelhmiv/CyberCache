@@ -15,7 +15,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import { ResourceIcon } from '@/components/common/ResourceIcon';
+import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { useInitialBundleRevealStore } from '@/store/slices/initialBundleRevealSlice';
 
 function formatNumber(n: number): string {
@@ -86,14 +86,14 @@ export function StarterBundleReveal() {
           <div className="space-y-1 px-5 py-3">
             {grant.credits > 0 && (
               <GrantRow
-                icon={<ResourceIcon id="credits" size={16} />}
+                icon={<PixelWalletIcon id="credits" size={17} />}
                 label="Credits"
                 value={`+${formatNumber(grant.credits)}`}
               />
             )}
             {grant.scrap > 0 && (
               <GrantRow
-                icon={<ResourceIcon id="scrap" size={16} />}
+                icon={<PixelWalletIcon id="scrap" size={17} />}
                 label="Scrap"
                 value={`+${formatNumber(grant.scrap)}`}
                 accent="text-zinc-300"
@@ -101,7 +101,7 @@ export function StarterBundleReveal() {
             )}
             {grant.cacheKeys > 0 && (
               <GrantRow
-                icon={<ResourceIcon id="cacheKey" size={16} />}
+                icon={<PixelWalletIcon id="cacheKey" size={17} />}
                 label="Cache Keys"
                 value={`+${formatNumber(grant.cacheKeys)}`}
                 accent="text-cyan-400"
@@ -109,7 +109,7 @@ export function StarterBundleReveal() {
             )}
             {grant.vehicleName && (
               <GrantRow
-                icon={<ResourceIcon id="loot" size={16} />}
+                icon={<PixelWalletIcon id="loot" size={17} />}
                 label="Vehicle — equipped"
                 value={grant.vehicleName}
                 accent="text-green-400"

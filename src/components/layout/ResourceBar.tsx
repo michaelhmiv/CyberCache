@@ -77,13 +77,14 @@
  * display-only, exactly as the old LEVEL chip was; the tappable
  * level door lives in Home's claim row (DashboardTopBar).
  *
- * All icons rendered via ResourceIcon (central visualAssets
- * registry); the settings gear is the §7 pixel icon `cog`.
+ * All icons are §7 pixel drawings via PixelWalletIcon (the
+ * visualAssets registry carries their tints); the settings gear
+ * is the §7 pixel icon `cog`.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { ResourceIcon } from '@/components/common/ResourceIcon';
+import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { compactResourceValue } from '@/lib/ui/formatValue';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
@@ -106,12 +107,11 @@ interface SegmentProps {
   /** Full spoken state for the segment (names the resource and
    *  what the micro counts, in words). */
   ariaText: string;
-  seed?: number;
   /** True while the wallet tick is counting this value up. */
   ticking?: boolean;
 }
 
-const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, ariaText, seed = 0, ticking }) => (
+const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, ariaText, ticking }) => (
   <span
     data-testid={`resource-chip-${resourceId}`}
     data-ticking={ticking ? 'true' : undefined}
@@ -119,7 +119,7 @@ const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, aria
     aria-label={ariaText}
     className="flex shrink-0 items-center gap-1 whitespace-nowrap"
   >
-    <ResourceIcon id={resourceId} size={14} seed={seed} className="shrink-0" />
+    <PixelWalletIcon id={resourceId} size={13} className="shrink-0" />
     <span
       data-testid={`resource-value-${resourceId}`}
       className="whitespace-nowrap text-[13px] font-black tabular-nums leading-none text-text-primary"
@@ -290,7 +290,6 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
           resourceId="credits"
           value={compactResourceValue(tickDisplay ?? player.credits)}
           ariaText={`Credits — ${player.credits}`}
-          seed={1}
           ticking={tickDisplay !== null}
         />
         <Segment
@@ -298,27 +297,23 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
           value={compactResourceValue(player.scrap)}
           label="Scrap"
           ariaText={`Scrap — ${player.scrap}`}
-          seed={2}
         />
         <Segment
           resourceId="cacheKey"
           value={player.cacheKeys}
           micro={`${player.cacheKeyFragments}/5`}
           ariaText={`Keys — ${player.cacheKeys} keys, ${player.cacheKeyFragments} of 5 fragments`}
-          seed={3}
         />
         <Segment
           resourceId="legendaryCore"
           value={player.legendaryCores}
           ariaText={`Cores — ${player.legendaryCores} legendary cores`}
-          seed={6}
         />
         <Segment
           resourceId="loot"
           value={inventory.items.length}
           micro={`${equippedCount}/7`}
           ariaText={`Loot — ${inventory.items.length} items, ${equippedCount} of 7 gear slots equipped`}
-          seed={4}
         />
         {rightEnd(
           <span

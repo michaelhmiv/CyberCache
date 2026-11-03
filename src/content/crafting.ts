@@ -272,12 +272,14 @@ const GEAR_FRAME_RECIPES: CraftRecipe[] = [
 ];
 
 // ─── Workshop tools (§2.5e) ──────────────────────────────────────────
+// Tools are layer-2 PERMANENT modifiers (economy brief §9.2): crafted
+// once, fitted forever — no charges, no expiry, no upkeep. The
+// `workshop_tools.charges` values stored by pre-0067 profiles are
+// inert data, ignored by every reader.
 
 export interface CraftToolDef {
   id: string;
   name: string;
-  /** Jobs a fitted tool survives before it is spent. */
-  durabilityJobs: number;
   /** Rolled-quality multiplier while fitted (Precision Calipers). */
   qualityMultiplier?: number;
   /** Unit-duration multiplier while fitted (Servo Bench Rig). */
@@ -292,19 +294,19 @@ export interface CraftToolDef {
 
 export const CRAFT_TOOLS: readonly CraftToolDef[] = [
   {
-    id: 'tool_precision_calipers', name: 'Precision Calipers', durabilityJobs: 25,
+    id: 'tool_precision_calipers', name: 'Precision Calipers',
     qualityMultiplier: 1.08,
-    blurb: 'Fitted tool: rolled quality ×1.08 for 25 jobs.',
+    blurb: 'Fitted tool: rolled quality ×1.08. Permanent once crafted.',
   },
   {
-    id: 'tool_servo_bench_rig', name: 'Servo Bench Rig', durabilityJobs: 25,
+    id: 'tool_servo_bench_rig', name: 'Servo Bench Rig',
     durationMultiplier: 0.85,
-    blurb: 'Fitted tool: unit durations ×0.85 for 25 jobs.',
+    blurb: 'Fitted tool: unit durations ×0.85. Permanent once crafted.',
   },
   {
-    id: 'tool_reclaimer_head', name: 'Reclaimer Head', durabilityJobs: 25,
+    id: 'tool_reclaimer_head', name: 'Reclaimer Head',
     refineYieldBonus: 0.05, bonusUnitChance: 0.1,
-    blurb: 'Fitted tool: refining yield +5pts; consumable jobs may reclaim a bonus unit.',
+    blurb: 'Fitted tool: refining yield +5pts; consumable jobs may reclaim a bonus unit. Permanent once crafted.',
   },
 ];
 
@@ -371,12 +373,17 @@ export const CORE_CATALYST_CORES_PER_UNIT = 1;
 /**
  * Research batch recipes (0038, Production Systems): three shipped
  * consumables produced in batches of 3 — 2.5× the base recipe's
- * inputs and 2.2× its unit duration per 3 units (cheaper in time
- * than three singles, dearer in materials: the production-line
- * trade). Inputs are per-input ceil(base × 2.5) so every input is a
- * whole unit (Patch Kit's 1 Reactive Component prices as 3).
- * Data-only recipes behind the requiresResearch gate — the SQL
- * twin lives in cc_craft_recipe_catalog (migration 0038).
+ * inputs and 2.2× its unit duration per 3 units. Per unit that is
+ * ≈0.83× the materials and ≈0.73× the time of three singles:
+ * batch work is a straight EFFICIENCY, not a trade — Production
+ * Systems is a purchased Research reward, and like every other
+ * reward in the catalog (quality shifts, draw bonuses, rate
+ * bonuses) it never charges its owner per use (economy brief §9.4;
+ * the numbers shipped with 0038 are unchanged). Inputs are
+ * per-input ceil(base × 2.5) so every input is a whole unit
+ * (Patch Kit's 1 Reactive Component prices as 3). Data-only
+ * recipes behind the requiresResearch gate — the SQL twin lives
+ * in cc_craft_recipe_catalog (migration 0038).
  */
 export const BATCH_RECIPES: CraftRecipe[] = [
   {
@@ -710,14 +717,60 @@ export function refineYieldRate(masteryLevel: number, baseYield: number, toolBon
   return Math.min(1, baseYield + 0.004 * lv + toolBonus);
 }
 
-/** Units out for one refine unit: the recipe's base-rate output scaled
- *  by the yield rate relative to the base rate (floor). At mastery 1
- *  and the shipped 0.80 base this is exactly the printed output
- *  (10 → 8, composites → 2); at 100% yield tier-1 pays 10 per 10. */
-export function refineOutputCount(recipe: CraftRecipe, masteryLevel: number, baseYield: number, toolBonus = 0): number {
+/** The real-valued refine expectation for one unit: the recipe's
+ *  base-rate output scaled by the yield rate relative to the base
+ *  rate. Whole at the tier-1 worked points (8 / 9 / 10 per 10 at
+ *  mastery 1 / 25 / 50); fractional where investment lands between
+ *  whole units — the furnace recipes (outputBase 2) sit at 2.25 at
+ *  refining mastery ~25 and 2.5 at mastery 50. */
+export function refineOutputExpectation(recipe: CraftRecipe, masteryLevel: number, baseYield: number, toolBonus = 0): number {
   const base = recipe.outputBase ?? 0;
   if (base <= 0 || baseYield <= 0) return base;
-  return Math.floor((base * refineYieldRate(masteryLevel, baseYield, toolBonus)) / baseYield);
+  return (base * refineYieldRate(masteryLevel, baseYield, toolBonus)) / baseYield;
+}
+
+/** Units out for one refine unit, guaranteed part: floor of the
+ *  expectation. At mastery 1 and the shipped 0.80 base this is
+ *  exactly the printed output (10 → 8, composites → 2); at 100%
+ *  yield tier-1 pays 10 per 10. */
+export function refineOutputCount(recipe: CraftRecipe, masteryLevel: number, baseYield: number, toolBonus = 0): number {
+  return Math.floor(refineOutputExpectation(recipe, masteryLevel, baseYield, toolBonus));
+}
+
+/** The honest output range for one refine unit at settle:
+ *  [floor(x), floor(x)+1] when x has a fractional part (the +1 lands
+ *  with probability frac(x) — see rollRefineOutputCount), else the
+ *  single whole count. Display surfaces quote this range so a
+ *  fractional expectation never prints as a false certainty. */
+export function refineOutputRange(recipe: CraftRecipe, masteryLevel: number, baseYield: number, toolBonus = 0): { min: number; max: number } {
+  const x = refineOutputExpectation(recipe, masteryLevel, baseYield, toolBonus);
+  const lo = Math.floor(x);
+  return { min: lo, max: x > lo ? lo + 1 : lo };
+}
+
+/**
+ * Settle-time refine output (economy brief §9.3 — stochastic
+ * rounding): floor(x) plus one extra unit with probability frac(x),
+ * rolled on the injected RNG. Keeps the expected value of the old
+ * floor formula while making mastery and the Reclaimer Head real on
+ * the outputBase-2 furnace recipes, where floor() could never pay
+ * more than 2 at any reachable rate. The RNG is consumed ONLY when
+ * frac(x) > 0, so whole-expectation settles are stream-identical to
+ * the pre-0067 floor behavior. SQL twin: the refine branch of
+ * cc_complete_craft_unit (migration 0067, Postgres random()).
+ */
+export function rollRefineOutputCount(
+  recipe: CraftRecipe,
+  masteryLevel: number,
+  baseYield: number,
+  toolBonus: number,
+  rng: () => number,
+): number {
+  const x = refineOutputExpectation(recipe, masteryLevel, baseYield, toolBonus);
+  const lo = Math.floor(x);
+  const frac = x - lo;
+  if (frac <= 0) return lo;
+  return rng() < frac ? lo + 1 : lo;
 }
 
 // ─── Gear temper (§2.5c) ─────────────────────────────────────────────

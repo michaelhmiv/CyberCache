@@ -42,7 +42,7 @@ import {
   hasJackpot,
   hasSecondOpinion,
 } from '../lib/legendaryEffects';
-import { calculateSalvageYield } from '../constants/salvageRules';
+import { projectSalvageYield } from '../lib/gear/salvageAward';
 import { REGION_1_BOSSES } from '../constants/bosses';
 import { DropSource, Element, Manufacturer, Rarity, RiskSetting, WeaponType } from '../types/game';
 import type { Weapon } from '../types/items';
@@ -449,13 +449,17 @@ describe('Market Crash — 4x recycle scrap', () => {
     expect((result as { scrap_award?: number }).scrap_award).toBe(salvageScrap('Legendary', 10) * 4);
   });
 
-  it('inspect preview (calculateSalvageYield) shows the same 4x on scrap', () => {
-    const plain = calculateSalvageYield(makeWeapon());
-    const crash = calculateSalvageYield(makeWeapon({ legendaryEffectId: 'market_crash' }));
-    expect(crash.scrapAlloy).toBe(plain.scrapAlloy * 4);
-    expect(crash.scrapValue).toBe(crash.scrapAlloy);
-    // Materials/essences are not part of the effect.
-    expect(crash.ballisticParts).toBe(plain.ballisticParts);
-    expect(crash.techFragments).toBe(plain.techFragments);
+  it('inspect preview (projectSalvageYield) shows the same 4x on scrap', () => {
+    // Both weapons carry a legendary effect, so both earn the same
+    // cores — the crash 4x is a scrap-only multiplier.
+    const plain = projectSalvageYield(makeWeapon({ legendaryEffectId: 'second_opinion' }), {});
+    const crash = projectSalvageYield(makeWeapon({ legendaryEffectId: 'market_crash' }), {});
+    expect(crash.scrapValue).toBe(plain.scrapValue * 4);
+    expect(crash.legendaryCores).toBe(plain.legendaryCores);
+    // The server pays no materials or essences on salvage — the
+    // projection quotes none, where the retired formula promised both.
+    expect(crash.ballisticParts).toBe(0);
+    expect(crash.techFragments).toBe(0);
+    expect(crash.essences).toEqual({});
   });
 });

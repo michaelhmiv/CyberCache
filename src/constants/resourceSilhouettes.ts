@@ -7,7 +7,11 @@
  *   - Clear silhouettes with bold internal detail
  *   - Distinct profiles so no two resources share a shape class
  *
- * Used by ResourceIcon in the universal ResourceBar.
+ * Remaining consumer: the Home diorama's drop icons
+ * (LiveTurfDiorama). The ResourceBar's ResourceIcon retired with
+ * the STUFF slice (census C-2) — wallet resources render from the
+ * §7 pixel sheet via PixelWalletIcon. This table retires with
+ * the diorama's own census item (C-3).
  */
 
 export interface ResourceSilhouette {

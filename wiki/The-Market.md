@@ -50,7 +50,9 @@ Five kinds of things trade on the Market:
   here: a 140% batch is a different product from a 90% batch of the same
   consumable, and the listing says so.
 - **Materials** — units of a crafting material, listed by quantity at a
-  total price.
+  total price. On the card, a material or essence draws as the actual
+  stuff it is — its formed object, in its own colors — so a stack reads
+  by form and color, never a generic pack icon.
 - **Resources** — cache fragments, legendary cores, and essences, listed
   by quantity like materials. Fragments and cores each trade as a single
   commodity; each of the five essence types trades as its own commodity.

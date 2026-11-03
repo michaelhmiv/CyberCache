@@ -890,11 +890,12 @@ export interface ChefGameplayStore {
   getEndlessFacts(playerId: string, dayStartIso: string): Promise<EndlessFacts>;
   /**
    * `capHours` (pacing-baseline tuning): the server-derived offline cap
-   * — earnedOfflineCapHours(player level) + the Scavenger keystone's
-   * offlineCapBonus — computed by the settlement route from server
-   * records. When provided it overrides the stored profile preference
-   * inside the settlement; when omitted the stored value applies
-   * (legacy callers).
+   * — the earned cap (2h base + the Research Logistics track's
+   * offline-cap grants; gate-removal step 6 retired the level tiers)
+   * + the Scavenger keystone's offlineCapBonus — computed by the
+   * settlement route from server records. When provided it overrides
+   * the stored profile preference inside the settlement; when omitted
+   * the stored value applies (legacy callers).
    */
   settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;

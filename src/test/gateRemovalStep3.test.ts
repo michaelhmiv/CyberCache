@@ -42,6 +42,10 @@ const MIGRATION_0059 = readFileSync(
   join(process.cwd(), 'db', 'migrations', '0059_research_course_levels.sql'),
   'utf8',
 );
+const MIGRATION_0063 = readFileSync(
+  join(process.cwd(), 'db', 'migrations', '0063_offline_cap_research_carrier.sql'),
+  'utf8',
+);
 
 const A = '11111111-1111-4111-8111-111111111111';
 let nonceCounter = 0;
@@ -83,8 +87,12 @@ describe('migration 0059 — research course levels removed', () => {
   });
 
   it('both restated SQL catalogs deep-equal the TS catalog (12 courses)', () => {
+    // Parity binds the LIVE restatement: 0063 (gate-removal step 6)
+    // restated both catalogs again with the Logistics offline-cap
+    // grants, superseding 0059's literals, whose level-removal pins
+    // above stand as written.
     const expected = tsCatalogAsSql();
-    for (const catalog of catalogs) {
+    for (const catalog of parseCatalogs(MIGRATION_0063)) {
       expect(catalog).toHaveLength(12);
       expect(catalog).toEqual(expected);
     }

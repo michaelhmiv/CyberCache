@@ -44,6 +44,14 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   enemy/boss HP plate sits under the enemy on the ground line, and the
   hunter's HP plate rides at his lower body on his own column, thick and
   backed, numbers whole.*
+  *Owner ruling 2026-11-03 (from the device): the ROAMING enemy's plate
+  lifts off the ground line into the stage — at the ground line it read
+  as part of the stats row below the animation. It now rides as a
+  translucent overlay on the enemy's column, its top edge lifted by the
+  hunter plate's own offset (one shared lift, so the two plates read as
+  a matched pair at one height on their respective sides), over the
+  enemy's lower body — never its face. The BOSS plate does not move: its
+  under-the-boss ground-line anchor stays exactly as ruled in 2026-11-02.*
 - **The Rail** — one compact chip rail for modes and sections (Home modes, Gear
   stops, Market stops, Hunter stops), current state lit. The rail is a screen's
   table of contents: every stop is a destination, not a scroll position.

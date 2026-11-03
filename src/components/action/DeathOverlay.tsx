@@ -42,7 +42,7 @@ import {
   useKillCycleStore,
   useActivityStore,
 } from '@/store';
-import { ResourceIcon } from '@/components/common/ResourceIcon';
+import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { resurrectionCostForArea, formatCreditCost, RESURRECTION_FREE_TIMER_MS } from '@/lib/combat/resurrectionCost';
 import { newResurrectNonce, resurrectViaChef } from '@/lib/chef/chefClient';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
@@ -222,7 +222,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
                 : 'border-border bg-bg opacity-60'
             }`}
           >
-            <ResourceIcon id="credits" size={20} className={canPayCredits ? '' : 'opacity-40'} />
+            <PixelWalletIcon id="credits" size={17} className={canPayCredits ? '' : 'opacity-40'} />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-black uppercase tracking-wide text-text-primary">Pay Credits</div>
               <div className="text-[10px] text-text-muted">

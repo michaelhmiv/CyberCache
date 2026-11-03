@@ -120,6 +120,18 @@
         {
           "number": 342,
           "title": "feat(wiki): W6 — illustrated world (bosses, areas, vehicles, skins)"
+        },
+        {
+          "number": 343,
+          "title": "Gate-removal step 5: dispatch courier tiers read the class tier index (G7, migration 0062)"
+        },
+        {
+          "number": 344,
+          "title": "Wiki W7 — UI plates + Getting-Started depth pass (wrap-up complete)"
+        },
+        {
+          "number": 345,
+          "title": "Quick-Buy QB-2: + sheet on Repair Board, Shield-Tech Board, and Garage"
         }
       ]
     },
