@@ -105,6 +105,10 @@ Everything gear lives on the **Gear tab**, as a rail of two stops:
 **Loadout** and **Workshop**. The Loadout stop is one merged page —
 everything below is on it, in one scroll:
 
+[[images/ui/gear-loadout.png]]
+
+*The Loadout stop on day one: your hunter on the doll stage, the three gun rows down the right, the accessory band beneath, and the inventory below.*
+
 - **The doll zone** — the equip surface: your hunter stands on a
   compact stage wearing your actual equipped gear — your primary
   weapon in his hands, shield, relic, and belt mounted on the
@@ -140,6 +144,10 @@ everything below is on it, in one scroll:
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
 protected from salvage), or salvage it.
+
+[[images/ui/gear-inspect.png]]
+
+*An inspect sheet: the item drawn at card size, its headline numbers and rolled stats, where it came from, and the actions you can take on it.*
 
 **Salvage** breaks an item down into **Scrap** — that is the guaranteed
 payout, and the salvage result names exactly what you got. Salvaging a

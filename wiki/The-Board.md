@@ -1,6 +1,12 @@
 # The Board
 
-The Board is your home screen — the first thing you see, and the screen every session passes through. It lives on the **Home** tab: the app has four tabs — **Home, Gear, Market, Hunter** — and Home merges what used to be separate Board and Action tabs into one screen, with the action stage (below) at its centre. It is arranged so the things you check most are visible on the first paint, without scrolling. From top to bottom:
+The Board is your home screen — the first thing you see, and the screen every session passes through. It lives on the **Home** tab: the app has four tabs — **Home, Gear, Market, Hunter** — and Home merges what used to be separate Board and Action tabs into one screen, with the action stage (below) at its centre. It is arranged so the things you check most are visible on the first paint, without scrolling.
+
+[[images/ui/home-stage.png]]
+
+*The Board mid-roam: the stage live with the hunter's HP plate at his feet, the active area's rates in the workspace below, and a tick's payout arriving in the pop-up lane.*
+
+From top to bottom:
 
 ## The resource bar
 

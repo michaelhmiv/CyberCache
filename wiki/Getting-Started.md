@@ -2,6 +2,10 @@
 
 You can start playing **instantly as a guest** — no account, no sign-in wall, no password. Tap **Continue as Guest** and your hunter exists from that moment. A guest is a real account, not a demo: your progress is saved by the game server and kept on your device, so it survives closing and reopening the app.
 
+[[images/ui/home-top.png]]
+
+*The Board as a brand-new guest sees it: your resources across the top, your hunter on the stage, and the Roam workspace one tap from starting.*
+
 ## Signing in
 
 When you're ready, sign in with **Google** from the sign-in screen. There is no password form anywhere in the app, and sign-in is never through Play Games Services.
@@ -20,6 +24,12 @@ Every new hunter receives the **starter bundle** automatically, once, the first 
 | Vehicle | Scrap Bike |
 
 The Scrap Bike is a level 1 Common vehicle, and it is auto-equipped if your vehicle slot is empty. It is yours permanently — the bundle can only ever be granted once per account.
+
+Your hunter's own page is the **Hunter** tab — profile, trophy shelf, wardrobe, and the long-game trackers:
+
+[[images/ui/hunter-profile.png]]
+
+*The Hunter tab on day one: an empty trophy shelf, Cache Rank at zero, and the wardrobe waiting for its first crafted part.*
 
 ## What guests can and cannot do
 
@@ -41,6 +51,12 @@ Two things need **no account at all**:
 - **Crafting.** Guests craft freely — benches, recipes, and materials all work from your first session. See [[Crafting]].
 - **The NPC [[Vendor]].** The vendor yard is open to everyone: guests can buy from the vendor **and** sell gear back at the buyback desk.
 
+The Workshop — crafting's home — is fully readable as a guest, too: the whole recipe catalog, your benches, and your standing:
+
+[[images/ui/workshop.png]]
+
+*The Workshop as a new hunter sees it: one basic bench working, the Forge and Lab priced in the open, and every recipe naming what stands between you and making it.*
+
 Guests also earn daily login streak rewards on exactly the same terms as signed-in players — see [[Leaderboards and Streaks]].
 
 Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|Parts Crate or Signature Order]] is claimable, Home's Weekly chip and claimables panel show it with its real price — claiming is a locked action that asks for Google sign-in, per the rule above.
@@ -51,7 +67,16 @@ Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|
 2. **Equip whatever drops.** Even a small upgrade beats the starter setup. Salvage what you won't use — scrap feeds crafting and repairs.
 3. **Crack your free daily cache.** Every day includes one free cache box; more can be opened with the cache keys from your starter bundle, up to the daily cap. See [[Caches]].
 4. **Check in daily.** Opening the game records your login-streak day automatically — no button to remember. The streak flame on the Board shows where you stand.
-5. **Prep your first boss when a weapon feels strong.** Boss prep shows you the boss's own effects, mechanics, and stats — read them, match your loadout to them, and take the fight. See [[Bosses]].
+5. **Prep your first boss.** Your first boss is the **Dune Tyrant** — a level-5 tutorial fight, free to attempt (a rematch costs 100 credits), and beating it unlocks the next boss up the ladder. Open the **Boss** stop on the Board and do the prep in three beats:
+   - **Read the intel.** Prep shows the boss itself: its health, shield, armor, and damage, its mechanic, its phases, its weaknesses and resistances, and the consumables it recommends. The Tyrant has no special mechanic — its one phase is a basic survival check. Prep never prints a win chance or a readiness score: the intel is the boss's facts, and judging your build against them is your job.
+   - **Match the element.** The Tyrant is weak to **Kinetic** and resists nothing, so the best weapon you own is the right weapon. That stops being true up the ladder — a weakness pays ×1.3 damage, a resistance only ×0.7.
+   - **Load your belt.** The phase intel recommends a **Med Kit** and a **Shield Cell** for this fight. Belt consumables are burned by the attempt, so make sure yours are loaded before you start — and if your stacks are empty, the [[Vendor]] sells both (250 and 300 credits).
+
+   [[images/ui/boss-prep.png]]
+
+   *Boss prep for the Dune Tyrant: the boss's own numbers, its Kinetic weakness, and the phase's recommended counters — Med Kit and Shield Cell. No odds, anywhere.*
+
+   See [[Bosses]] for risk settings, fees, and the dedicated-drop chase.
 6. **Spend your first skill point.** Level 2 earns your first point in the four skill trees. See [[Progression]].
 
 From there, the game opens outward: all seven areas are open from the start — the area picker warns you in real numbers when one outmatches your build, but it never locks you out — the [[The Market|market]] once you sign in, occupations beyond roaming, and eventually bosses, [[Endless Mode]], and [[Collections]].
