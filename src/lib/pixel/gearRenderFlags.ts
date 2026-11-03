@@ -1,5 +1,6 @@
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { GearGrammar, GearKindId } from './gearCardCompositor';
+import { classModGrammar } from './classModGrammar';
 
 /**
  * The gear-marriage dispatch seam. `GearIllustration` is the only
@@ -13,12 +14,14 @@ import type { GearGrammar, GearKindId } from './gearCardCompositor';
 export const GEAR_PIXEL_KINDS: Record<GearKindId, boolean> = {
   shield: false,
   relic: false,
-  classMod: false,
+  classMod: true, // gear marriage slice 3 — class mods render as pixel plates
   ordnance: false,
 };
 
-/** Kind grammars, registered by the kind slices. Empty in slice 0. */
-export const GEAR_GRAMMARS: Partial<Record<GearKindId, GearGrammar>> = {};
+/** Kind grammars, registered by the kind slices. */
+export const GEAR_GRAMMARS: Partial<Record<GearKindId, GearGrammar>> = {
+  classMod: classModGrammar,
+};
 
 export type GearRenderRoute = 'pixel' | 'svg';
 

@@ -63,8 +63,9 @@ interface GearIllustrationProps {
  * illustration component. Weapons render through the pixel path at
  * CARD density (PixelWeapon density="card": bespoke legendary sprite,
  * else the 240×88 card compositor) so every card surface shows the
- * same image for the same weapon; the other gear types keep their
- * procedural SVG illustrations.
+ * same image for the same weapon; the other gear types render
+ * through the gear plate engine kind by kind as the gear marriage
+ * flips them (see gearRenderFlags), SVG until their slice lands.
  *
  * For weapons, `showBadges`/`animate` no longer apply: the badges were
  * drawn inside the vector weapon SVG itself, and pixel weapons are static
@@ -84,9 +85,9 @@ export const GearIllustration: React.FC<GearIllustrationProps> = React.memo(({
   }
   // Gear-marriage seam: a kind renders through the pixel plate
   // engine only when its flag is on AND its grammar is registered
-  // (gearRenderFlags). All flags are off in slice 0, so every kind
-  // below still takes its SVG branch — each kind slice flips its
-  // own kind in its own PR.
+  // (gearRenderFlags). Each kind slice flips its own kind in its
+  // own PR — classMod flipped in slice 3; the kinds still flagged
+  // off below take their SVG branches.
   const kind = gearKindOf(item);
   if (kind !== 'weapon' && gearRenderRoute(kind) === 'pixel') {
     const grammar = GEAR_GRAMMARS[kind]!;
