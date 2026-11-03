@@ -34,7 +34,7 @@ interface PixelWeaponProps {
   testId?: string;
 }
 
-export const PixelWeapon: React.FC<PixelWeaponProps> = ({ weapon, input, size = 120, fluid = false, className = '', testId }) => {
+export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, input, size = 120, fluid = false, className = '', testId }: PixelWeaponProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const resolved: PixelWeaponInput | undefined = useMemo(() => {
@@ -99,4 +99,4 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = ({ weapon, input, size = 
       data-signature={render.signature}
     />
   );
-};
+});

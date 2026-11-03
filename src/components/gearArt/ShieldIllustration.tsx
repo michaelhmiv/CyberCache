@@ -2,7 +2,6 @@ import React from 'react';
 import type { Shield } from '@/types/items';
 import { Element, Rarity } from '@/types/game';
 import { buildShieldVisualSpec, type ShieldVisualSpec } from '@/lib/gearArt/buildShieldVisualSpec';
-import { SharedDefs } from '@/components/gearArt/SharedDefs';
 import { surfaceFilterId } from '@/lib/gearArt/surfaceFilter';
 import { Decal } from './Decal';
 
@@ -43,7 +42,7 @@ const innerStroke = {
   strokeLinecap: 'round' as const,
 };
 
-export const ShieldIllustration: React.FC<ShieldIllustrationProps> = ({
+export const ShieldIllustration: React.FC<ShieldIllustrationProps> = React.memo(({
   shield, element, rarity, size = 'card', className = '', showBadges = true, animate = false,
 }) => {
   const sizing = toSize(size);
@@ -64,7 +63,7 @@ export const ShieldIllustration: React.FC<ShieldIllustrationProps> = ({
     >
       <svg viewBox="0 0 240 140" width="100%" height="100%" role="img" aria-label={`${spec.rarity} ${spec.element} Shield`}>
         <defs>
-          <SharedDefs />
+          {/* Shared surface/bevel filters live in the single document-level <SharedDefsMount /> (App root) — referenced by ID, never duplicated per item. */}
           <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor={frame.color} floodOpacity="0.55" />
           </filter>
@@ -151,4 +150,4 @@ export const ShieldIllustration: React.FC<ShieldIllustrationProps> = ({
       </svg>
     </div>
   );
-};
+});

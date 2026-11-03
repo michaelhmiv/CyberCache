@@ -2,7 +2,6 @@ import React from 'react';
 import type { Relic } from '@/types/items';
 import { Rarity } from '@/types/game';
 import { buildRelicVisualSpec, type RelicVisualSpec } from '@/lib/gearArt/buildRelicVisualSpec';
-import { SharedDefs } from '@/components/gearArt/SharedDefs';
 import { surfaceFilterId } from '@/lib/gearArt/surfaceFilter';
 import { Decal } from './Decal';
 
@@ -33,7 +32,7 @@ const innerStroke = {
   strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const,
 };
 
-export const RelicIllustration: React.FC<RelicIllustrationProps> = ({
+export const RelicIllustration: React.FC<RelicIllustrationProps> = React.memo(({
   relic, rarity, size = 'card', className = '', showBadges = true, animate = false,
 }) => {
   const sizing = toSize(size);
@@ -51,7 +50,7 @@ export const RelicIllustration: React.FC<RelicIllustrationProps> = ({
       title={`${spec.rarity} Relic`}>
       <svg viewBox="0 0 240 140" width="100%" height="100%" role="img">
         <defs>
-          <SharedDefs />
+          {/* Shared surface/bevel filters live in the single document-level <SharedDefsMount /> (App root) — referenced by ID, never duplicated per item. */}
           <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor={frame.color} floodOpacity="0.55" />
           </filter>
@@ -108,4 +107,4 @@ export const RelicIllustration: React.FC<RelicIllustrationProps> = ({
       </svg>
     </div>
   );
-};
+});
