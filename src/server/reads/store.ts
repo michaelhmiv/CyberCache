@@ -2405,17 +2405,20 @@ export class PgReadStore implements ReadStore {
     // over the columns migration 0019 stamps at creation — a browse
     // never opens an item payload to filter.
     const where: string[] = [`ml.status = 'active'`];
-    // Pure player market (owner ruling, 2026-11-02): NPC vendor
-    // weapons NEVER browse — the twin of the exclusion in
-    // applyListingQuery's matches(). Seller/category are read the way
-    // browseRowFor derives them (stamped column first, item facts as
-    // the fallback), so legacy rows seeded before stamping are caught
-    // too. Both the count and the page query share this clause (and
-    // the item join), so totals always agree with the rows.
+    // NPC stock ceiling (owner ruling, 2026-11-03, widening the pure
+    // player market of 2026-11-02): NPC-sourced gear above Common
+    // rarity NEVER browses — the twin of the exclusion in
+    // applyListingQuery's matches(). Seller and rarity are read the
+    // way browseRowFor derives them (stamped column first, item facts
+    // as the fallback), so legacy rows seeded before stamping are
+    // caught too. NPC Common gear of every kind keeps its seat — it
+    // is the beginner comfort stock. Both the count and the page
+    // query share this clause (and the item join), so totals always
+    // agree with the rows.
     where.push(`not (
       coalesce(ml.listing_kind, 'gear') = 'gear'
-      and coalesce(ml.category, public.cc_market_gear_category(coalesce(ii.payload, '{}'::jsonb), ii.kind)) = 'weapon'
       and (ml.seller_type = 'npc' or ii.supply_mode = 'npc_market')
+      and coalesce(ml.rarity, ii.rarity, ii.payload ->> 'rarity') in ('Uncommon', 'Rare', 'Epic', 'Legendary')
     )`);
     const params: unknown[] = [];
     const push = (clause: (i: number) => string, value: unknown) => {
