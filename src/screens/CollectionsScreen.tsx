@@ -6,7 +6,7 @@ import { usePlayerStore } from '@/store';
 import { fetchCollections, type CollectionsPayload } from '@/lib/api/verifiedOps';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
-import { getPixelSprite } from '@/lib/pixel/manifest';
+import { bespokeSpriteIdForLegendaryEffect, getPixelSprite } from '@/lib/pixel/manifest';
 import {
   COLLECTION_FAMILIES,
   COLLECTION_TOTAL,
@@ -78,7 +78,12 @@ function seedFromKey(key: string): number {
 
 function spriteIdFor(entry: CollectionEntry): string | undefined {
   if (entry.family === 'boss') return `boss-${entry.key.replace(/_/g, '-')}`;
-  if (entry.family === 'legendary_effect') return `legendary-${entry.key.replace(/_/g, '-')}`;
+  // Legendary effects resolve through the canonical effect → name →
+  // sprite resolver, never by munging the effect id: ids are not
+  // name-shaped (insurance_fraud_weapon → legendary-insurance-fraud,
+  // not legendary-insurance-fraud-weapon), and the string form silently
+  // missed the sprite and fell back to the star icon.
+  if (entry.family === 'legendary_effect') return bespokeSpriteIdForLegendaryEffect(entry.key);
   if (entry.family === 'named_elite') {
     return AREA_VISUALS[entry.key as RoamingAreaId]?.eliteSpriteId ?? 'enemy-elite';
   }

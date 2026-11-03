@@ -8,7 +8,8 @@ import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
  * shelved item row (the owner's stats fold or the public profile
  * projection) becomes the compositor input for its render. The
  * payload IS the instance the generators minted (real-item
- * invariant): seed, parts, affixes, and roll quality all ride it.
+ * invariant): seed, parts, affixes, roll quality, and
+ * legendaryEffectId all ride it.
  */
 
 export function showcaseWeaponInput(item: ShowcaseItemPayload): PixelWeaponInput {
@@ -28,6 +29,10 @@ export function showcaseWeaponInput(item: ShowcaseItemPayload): PixelWeaponInput
     rollQuality: num(payload.rollQuality),
     affixes: Array.isArray(payload.affixes) ? (payload.affixes as PixelWeaponInput['affixes']) : undefined,
     parts: Array.isArray(payload.parts) ? (payload.parts as PixelWeaponInput['parts']) : undefined,
+    // The instance's named identity: without it a shelved legendary
+    // fell through to the generic compositor instead of the bespoke
+    // sprite every other surface shows for the same item.
+    legendaryEffectId: str(payload.legendaryEffectId),
   };
 }
 
