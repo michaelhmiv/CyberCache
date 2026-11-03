@@ -203,6 +203,10 @@ const FIELD_PITCH = 6;
 function paintNodeDeck(p: DesignPainter, x: number, y: number, input: ClassModComposeInput) {
   p.rect(x, y, DECK_W, DECK_H, 'k');
   p.rect(x + 1, y + 1, DECK_W - 2, DECK_H - 2, 'D');
+  // The field's own backing plate — one ramp step up from the
+  // recess, so the socket grid sits on an instrument face, not in
+  // a black pit (silhouette layer: it shapes the thumb too).
+  p.rect(x + 3, y + 3, DECK_W - 6, DECK_H - 6, 'd');
   if (!p.detail) return;
   const lit = new Map<string, number>();
   for (const m of input.boosts) lit.set(`${m.row}:${m.col}`, m.value);
@@ -220,16 +224,23 @@ function paintNodeDeck(p: DesignPainter, x: number, y: number, input: ClassModCo
         p.rect(sx + 1, sy + 1, 2, 2, 'K'); // unlit socket hole
         continue;
       }
-      p.rect(sx, sy, 4, 4, 'd');
-      // Brightness stack in reading order: base → light → white-hot.
-      const stack: GearShade[] = ['E', 'p', 'W'];
-      const cells: [number, number][] = [[1, 1], [2, 1], [1, 2]];
-      for (let i = 0; i < value; i++) {
-        const [dx, dy] = cells[i];
-        p.rect(sx + dx, sy + dy, 1, 1, stack[i]);
+      // Lit socket: deep seat on the field backing, then the 2×2
+      // core fills with the rolled value — one texel at +1, two
+      // at +2, the full core (escalating to white-hot) at +3.
+      p.rect(sx, sy, 4, 4, 'D');
+      const core: [number, number, GearShade][] = [[1, 1, 'E'], [2, 1, 'p'], [1, 2, 'p'], [2, 2, 'W']];
+      const litTexels = value === 1 ? 1 : value === 2 ? 2 : 4;
+      for (let i = 0; i < litTexels; i++) {
+        const [dx, dy, s] = core[i];
+        p.rect(sx + dx, sy + dy, 1, 1, s);
       }
     }
   }
+  // The deck is a bolted-on panel: corner bolts at detail level.
+  p.canvas.rivet(p.X(x + 1), p.Y(y + 1));
+  p.canvas.rivet(p.X(x + DECK_W - 3), p.Y(y + 1));
+  p.canvas.rivet(p.X(x + 1), p.Y(y + DECK_H - 2));
+  p.canvas.rivet(p.X(x + DECK_W - 3), p.Y(y + DECK_H - 2));
 }
 
 /** Mounting bracket under the housing; affix sockets ride it. */
@@ -259,31 +270,43 @@ function paintWear(p: DesignPainter, spots: [number, number][]) {
 /* Family rows                                                         */
 /* ------------------------------------------------------------------ */
 
-/** GUNSLINGER — Combat Core: a hexagonal puck with a bullseye core. */
+/** GUNSLINGER — Combat Core: a stepped armor puck, bullseye heart. */
 function paintCore(p: DesignPainter, input: ClassModComposeInput) {
-  const hex: [number, number][] = [[52, 10], [180, 10], [224, 50], [180, 90], [52, 90], [8, 50]];
-  p.poly(hex, p.bands(34, 66));
+  // Dark chassis: a stepped puck — blocks, not one long diagonal.
+  p.rect(44, 18, 160, 64, 'D');
+  p.rect(28, 30, 16, 40, 'D');
+  p.rect(60, 10, 112, 8, 'D');
+  p.rect(60, 82, 112, 6, 'D');
+  // Armor panels over the chassis, seam-divided.
+  p.rect(48, 22, 66, 56, 'P'); // bullseye panel
+  p.rect(48, 22, 66, 10, 'p');
+  p.rect(118, 22, 86, 6, 'P'); // header strip over the deck housing
+  p.rect(32, 34, 12, 32, 'd'); // left pod — a darker side module
+  p.rect(32, 34, 12, 5, 'P');
   // Bullseye (the tree's sigil, worn as hardware): seat, ring, heart.
-  p.disc(70, 50, 17, 'k');
-  p.disc(70, 50, 16, 'E');
-  p.disc(70, 50, 11, 'D');
-  p.disc(70, 50, 10, 'p');
-  p.disc(70, 50, 5, 'W');
-  p.disc(70, 50, 2, 'E');
-  paintNodeDeck(p, 126, 35, input);
+  p.disc(81, 53, 19, 'k');
+  p.disc(81, 53, 17, 'E');
+  p.disc(81, 53, 12, 'D');
+  p.disc(81, 53, 11, 'p');
+  p.disc(81, 53, 5, 'W');
+  p.disc(81, 53, 2, 'E');
+  paintNodeDeck(p, 122, 33, input);
   // Edge contacts under the puck + bracket struts.
-  for (let i = 0; i < 6; i++) p.rect(64 + i * 18, 90, 9, 6, 'T');
-  p.rect(70, 96, 8, 4, 'd');
-  p.rect(154, 96, 8, 4, 'd');
+  for (let i = 0; i < 6; i++) {
+    p.rect(64 + i * 18, 88, 9, 7, 'k');
+    p.rect(64 + i * 18, 93, 9, 2, 'T');
+  }
+  p.rect(70, 95, 8, 5, 'd');
+  p.rect(154, 95, 8, 5, 'd');
   paintAffixRail(p, 116, 100, input.pips ?? 0);
   if (p.detail) {
-    p.canvas.rivet(p.X(56), p.Y(14));
-    p.canvas.rivet(p.X(174), p.Y(14));
-    p.canvas.rivet(p.X(56), p.Y(82));
-    p.canvas.rivet(p.X(174), p.Y(82));
-    p.canvas.vents(p.X(100), p.Y(24), 3);
-    p.canvas.seam(p.X(30), p.Y(76), p.X(102), p.Y(76));
-    paintWear(p, [[40, 30], [196, 28], [150, 82], [96, 16], [210, 58]]);
+    p.canvas.rivet(p.X(52), p.Y(26));
+    p.canvas.rivet(p.X(52), p.Y(72));
+    p.canvas.rivet(p.X(34), p.Y(38));
+    p.canvas.rivet(p.X(196), p.Y(74));
+    p.canvas.vents(p.X(126), p.Y(26), 3);
+    p.canvas.seam(p.X(52), p.Y(70), p.X(110), p.Y(70));
+    paintWear(p, [[58, 44], [196, 74], [150, 26], [96, 14], [36, 52]]);
   }
 }
 
@@ -293,38 +316,43 @@ function paintDrive(p: DesignPainter, input: ClassModComposeInput) {
   // Seeded fin count — a silhouette draw, so it precedes all detail.
   const finCount = 5 + canvas.pick(2) * 2;
   for (let i = 0; i < finCount; i++) {
-    const fx = Math.round(62 + (i * 108) / Math.max(1, finCount - 1)) - 3;
-    p.rect(fx, 10, 6, 12, 'd');
-    p.rect(fx, 10, 6, 3, 'P');
+    const fx = Math.round(62 + (i * 108) / Math.max(1, finCount - 1)) - 4;
+    p.rect(fx, 8, 8, 14, 'k');
+    p.rect(fx + 2, 10, 4, 12, 'P');
   }
-  // Housing bands.
-  p.rect(22, 22, 188, 62, 'P');
-  p.rect(22, 22, 188, 10, 'p');
-  p.rect(22, 68, 188, 16, 'd');
+  // Dark chassis, then armor panels seam-divided across its face.
+  p.rect(18, 22, 196, 66, 'D');
+  p.rect(26, 28, 58, 54, 'P'); // window panel
+  p.rect(26, 28, 58, 8, 'p');
+  p.rect(90, 28, 22, 54, 'p'); // spine panel
+  p.rect(90, 28, 22, 8, 'P');
+  p.rect(95, 46, 12, 16, 'K'); // spine gauge window
+  p.rect(99, 52, 4, 4, 'E');
+  p.rect(18, 76, 196, 12, 'k'); // foot chassis band (hazard rides it)
   // Side capacitor drums.
-  p.rect(12, 36, 10, 32, 'd');
-  p.rect(12, 44, 10, 6, 'P');
-  p.rect(210, 36, 10, 32, 'd');
-  p.rect(210, 44, 10, 6, 'P');
+  p.rect(8, 36, 10, 34, 'k');
+  p.rect(8, 44, 10, 7, 'P');
+  p.rect(214, 36, 10, 34, 'k');
+  p.rect(214, 44, 10, 7, 'P');
   // Processor window with the diamond sigil.
-  p.rect(36, 30, 48, 46, 'k');
-  p.rect(37, 31, 46, 44, 'D');
-  p.poly([[60, 36], [76, 53], [60, 70], [44, 53]], 'E');
-  p.poly([[60, 44], [68, 53], [60, 62], [52, 53]], 'p');
-  p.rect(59, 52, 2, 2, 'W');
-  paintNodeDeck(p, 118, 37, input);
-  p.rect(60, 84, 8, 8, 'd');
-  p.rect(164, 84, 8, 8, 'd');
+  p.rect(38, 34, 44, 42, 'k');
+  p.rect(39, 35, 42, 40, 'K');
+  p.poly([[60, 38], [75, 55], [60, 72], [45, 55]], 'E');
+  p.poly([[60, 46], [67, 55], [60, 64], [53, 55]], 'p');
+  p.rect(59, 54, 2, 2, 'W');
+  paintNodeDeck(p, 120, 36, input);
+  p.rect(60, 88, 8, 4, 'd');
+  p.rect(164, 88, 8, 4, 'd');
   paintAffixRail(p, 116, 92, input.pips ?? 0);
   if (p.detail) {
     // Hazard chevrons along the foot band (texel-scale, hard-edged).
-    for (let i = 0; i < 22; i++) p.rect(28 + i * 8, 80, 3, 2, i % 2 ? 'K' : 'W');
-    p.canvas.rivet(p.X(26), p.Y(26));
-    p.canvas.rivet(p.X(202), p.Y(26));
-    p.canvas.rivet(p.X(26), p.Y(60));
-    p.canvas.rivet(p.X(202), p.Y(60));
-    p.canvas.vents(p.X(94), p.Y(27), 3);
-    paintWear(p, [[100, 40], [200, 74], [30, 50], [140, 26]]);
+    for (let i = 0; i < 23; i++) p.rect(24 + i * 8, 81, 3, 2, i % 2 ? 'K' : 'W');
+    p.canvas.rivet(p.X(30), p.Y(32));
+    p.canvas.rivet(p.X(94), p.Y(32));
+    p.canvas.rivet(p.X(30), p.Y(66));
+    p.canvas.rivet(p.X(94), p.Y(66));
+    p.canvas.vents(p.X(94), p.Y(42), 2);
+    paintWear(p, [[104, 48], [206, 40], [30, 52], [140, 26]]);
   }
 }
 
@@ -332,27 +360,46 @@ function paintDrive(p: DesignPainter, input: ClassModComposeInput) {
 function paintChip(p: DesignPainter, input: ClassModComposeInput) {
   const board: [number, number][] = [[46, 16], [186, 16], [202, 32], [202, 72], [186, 88], [46, 88], [30, 72], [30, 32]];
   const inner: [number, number][] = [[50, 20], [182, 20], [197, 35], [197, 69], [182, 84], [50, 84], [35, 69], [35, 35]];
-  p.poly(board, 'd');
-  p.poly(inner, p.bands(32, 72));
-  // Corner capacitor blocks.
-  p.rect(42, 23, 16, 11, 'd');
-  p.rect(42, 23, 16, 3, 'p');
-  p.rect(174, 23, 16, 11, 'd');
-  p.rect(174, 23, 16, 3, 'p');
+  p.poly(board, 'k');
+  p.poly(inner, 'D');
+  // Memory blocks flanking the die — dark cans, tree-color lids.
+  p.rect(40, 40, 30, 26, 'k');
+  p.rect(42, 42, 26, 22, 'd');
+  p.rect(42, 42, 26, 5, 'P');
+  p.rect(162, 40, 30, 26, 'k');
+  p.rect(164, 42, 26, 22, 'd');
+  p.rect(164, 42, 26, 5, 'P');
+  // Corner capacitor blocks on the top edge.
+  p.rect(44, 24, 18, 10, 'k');
+  p.rect(44, 24, 18, 3, 'P');
+  p.rect(170, 24, 18, 10, 'k');
+  p.rect(170, 24, 18, 3, 'P');
   paintNodeDeck(p, 77, 37, input);
   // Split edge-connector pins (the bracket rides between them).
-  for (const px of [42, 54, 66]) p.rect(px, 88, 7, 7, 'T');
-  for (const px of [159, 171, 183]) p.rect(px, 88, 7, 7, 'T');
+  for (const px of [42, 54, 66]) {
+    p.rect(px, 88, 7, 7, 'k');
+    p.rect(px, 93, 7, 2, 'T');
+  }
+  for (const px of [159, 171, 183]) {
+    p.rect(px, 88, 7, 7, 'k');
+    p.rect(px, 93, 7, 2, 'T');
+  }
   paintAffixRail(p, 116, 89, input.pips ?? 0);
   if (p.detail) {
     // Circuit traces out of the die (hard-edged runs, never curves).
-    p.canvas.stripe(p.X(38), p.Y(36), p.X(70) - p.X(38), 'e');
-    p.canvas.stripe(p.X(162), p.Y(36), p.X(194) - p.X(162), 'e');
-    p.canvas.stripe(p.X(38), p.Y(74), p.X(70) - p.X(38), 'e');
-    p.canvas.stripe(p.X(162), p.Y(74), p.X(194) - p.X(162), 'e');
-    p.canvas.rivet(p.X(38), p.Y(78));
-    p.canvas.rivet(p.X(190), p.Y(78));
-    paintWear(p, [[60, 44], [180, 60], [100, 24], [150, 80]]);
+    for (const ty of [36, 37]) {
+      p.canvas.stripe(p.X(44), p.Y(ty), p.X(72) - p.X(44), 'e');
+      p.canvas.stripe(p.X(160), p.Y(ty), p.X(188) - p.X(160), 'e');
+    }
+    for (const ty of [72, 73]) {
+      p.canvas.stripe(p.X(44), p.Y(ty), p.X(72) - p.X(44), 'e');
+      p.canvas.stripe(p.X(160), p.Y(ty), p.X(188) - p.X(160), 'e');
+    }
+    p.canvas.rivet(p.X(38), p.Y(76));
+    p.canvas.rivet(p.X(190), p.Y(76));
+    p.canvas.rivet(p.X(52), p.Y(46));
+    p.canvas.rivet(p.X(170), p.Y(46));
+    paintWear(p, [[58, 56], [178, 56], [100, 26], [140, 80]]);
   }
 }
 
@@ -364,20 +411,26 @@ function paintChip(p: DesignPainter, input: ClassModComposeInput) {
  */
 function paintRelayRig(p: DesignPainter, input: ClassModComposeInput) {
   // Relay masts + crossbars + lit tips.
-  p.rect(56, 10, 6, 16, 'd');
-  p.rect(170, 10, 6, 16, 'd');
+  p.rect(56, 10, 6, 16, 'k');
+  p.rect(170, 10, 6, 16, 'k');
   p.rect(48, 6, 22, 5, 'P');
   p.rect(162, 6, 22, 5, 'P');
   p.rect(58, 2, 2, 4, 'E');
   p.rect(172, 2, 2, 4, 'E');
-  // Housing, composed around the jaw bite (x188..206, y50..66 open).
-  p.rect(26, 26, 162, 64, 'P');
-  p.rect(188, 26, 18, 24, 'P');
-  p.rect(188, 66, 18, 24, 'P');
-  p.rect(26, 26, 162, 9, 'p');
-  p.rect(188, 26, 18, 9, 'p');
-  p.rect(26, 74, 162, 16, 'd');
-  p.rect(188, 74, 18, 16, 'd');
+  // Dark chassis, composed around the jaw bite (x188..206, y50..66 open).
+  p.rect(26, 26, 162, 64, 'D');
+  p.rect(188, 26, 18, 24, 'D');
+  p.rect(188, 66, 18, 24, 'D');
+  p.rect(26, 78, 180, 12, 'k'); // lower chassis band (panels overpaint it)
+  // Armor panels: top band, the coil's panel, the jaw blocks.
+  p.rect(26, 26, 180, 12, 'P');
+  p.rect(26, 26, 180, 4, 'p');
+  p.rect(84, 26, 2, 12, 'k'); // panel seams across the top band
+  p.rect(150, 26, 2, 12, 'k');
+  p.rect(34, 44, 58, 40, 'k');
+  p.rect(36, 46, 54, 36, 'd'); // dark panel — the coil's E winding pops on it
+  p.rect(188, 38, 18, 12, 'P');
+  p.rect(188, 66, 18, 12, 'P');
   p.rect(187, 50, 2, 16, 'k'); // the jaw's inner face
   // The bolt the jaw grips.
   p.disc(186, 58, 6, 'T');
@@ -390,27 +443,27 @@ function paintRelayRig(p: DesignPainter, input: ClassModComposeInput) {
     p.rect(x, y, t, h, s);
     p.rect(x + w - t, y, t, h, s);
   };
-  border(46, 40, 36, 36, 2, 'E');
-  border(54, 48, 20, 20, 2, 'd');
-  p.rect(61, 55, 6, 6, 'p');
-  p.rect(63, 57, 2, 2, 'W');
-  paintNodeDeck(p, 100, 40, input);
+  border(43, 47, 40, 34, 3, 'E');
+  border(52, 54, 22, 20, 2, 'd');
+  p.rect(60, 61, 6, 6, 'p');
+  p.rect(62, 63, 2, 2, 'W');
+  paintNodeDeck(p, 100, 44, input);
   // Cable run from the coil toward the deck (one hard diagonal).
-  p.canvas.thickLine(p.X(70), p.Y(78), p.X(112), p.Y(88), 0, 'k');
-  p.rect(40, 90, 30, 6, 'd');
-  p.rect(150, 90, 30, 6, 'd');
+  p.canvas.thickLine(p.X(80), p.Y(84), p.X(116), p.Y(92), 1, 'K');
+  p.rect(40, 90, 30, 6, 'k');
+  p.rect(150, 90, 30, 6, 'k');
   p.rect(110, 96, 12, 4, 'd');
   paintAffixRail(p, 116, 100, input.pips ?? 0);
   if (p.detail) {
     p.canvas.rivet(p.X(32), p.Y(32));
-    p.canvas.rivet(p.X(192), p.Y(32));
-    p.canvas.rivet(p.X(32), p.Y(82));
-    p.canvas.rivet(p.X(192), p.Y(82));
-    p.canvas.vents(p.X(34), p.Y(64), 3);
+    p.canvas.rivet(p.X(196), p.Y(32));
+    p.canvas.rivet(p.X(32), p.Y(70));
+    p.canvas.rivet(p.X(196), p.Y(70));
+    p.canvas.vents(p.X(120), p.Y(82), 4);
     // One mast tip burns white-hot (seeded which).
     if (p.canvas.pick(2) === 0) p.rect(58, 1, 2, 1, 'W');
     else p.rect(172, 1, 2, 1, 'W');
-    paintWear(p, [[120, 30], [60, 84], [196, 44], [36, 46]]);
+    paintWear(p, [[140, 32], [60, 84], [196, 44], [104, 80]]);
   }
 }
 
