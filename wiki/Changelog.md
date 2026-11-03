@@ -1,6 +1,61 @@
 # Changelog
 
-Per-release notes for CyberCache, newest first. From Wiki Phase 4 this page is appended automatically by the publish workflow from merged pull-request titles; until then it is updated by hand in the same PR as any release.
+Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
+
+## 2026-11-03 — Profiles, the Gear Split, and the weapon marriage
+
+- **Showcase your hunter** — pin up to three favorite weapons on your Trophy Shelf, tap any hunter in the weekly Standings to open their profile, and read the full record in the redesigned profile pop-up.
+- **The Gear page, merged** — Loadout and Workshop share one page in the Split layout: hunter and guns on one side, accessories beneath, the Garage in place, and weapon names that print in full instead of trailing off.
+- **Workshop: Make-now first** — the Workshop opens on what you can craft right now, with one-gate-away and locked work below it, and every card carrying its real costs up front.
+- **The weapon marriage** — every weapon card in the game is now drawn by one pixel system from the gun itself: its maker's design language, its element lit along the barrel, its own rolled parts. Legendary weapons resolve to their bespoke art on every surface, audited type by type so a legendary's art always matches the weapon it drops as — and the old vector weapon renderer is retired.
+- **Your hunter holds your gun** — the Loadout-stage hunter visibly carries the equipped weapon, fitted to the stage instead of clipped by it.
+- **Streak, celebrated properly** — the login-streak reward lands as a poster plate while your credits tick up in the Strip; a claimed day reads honestly, with nothing left to "claim" by hand.
+- **The market stays player-run** — NPC stock in Buy is basic Common gear only, in every kind; anything above Common is another player's listing.
+- **Gates keep falling** — consumable recipes no longer ask your level: meet the bench, the research, and the materials, and the job queues.
+- **Sign-in, in the game's own art** — the sign-in banner is now a pixel wasteland landscape. Behind the scenes, product analytics (GA4) landed to watch retention and the core loops.
+
+## 2026-11-02 – 2026-11-03 — The evening batch: every "no" explains itself
+
+- **Every blocker carries its remedy** — across the service boards and beyond, a control that refuses now says why and what would unblock it: the missing material, the exact shortfall, the door that fixes it.
+- **Areas are open** — level locks on roaming areas are gone. The picker warns with real duel math — how fast you would kill, how fast you would fall — and always lets you roam anyway.
+- **Vehicles are pure market goods** — no equip level at all: if you can buy it, you can drive it, and the Garage shows only what you own.
+- **Cosmetic gates fall too** — the first gate-removal step stripped level requirements from cosmetic recipes.
+- **Batch salvage** — scrap a whole pile in one pass behind a rarity-threshold sheet: one settlement, one summary, and Legendaries never bulk-salvage.
+- **The stage, rebalanced** — the area plate leaves the scene, your effective stats ride a band on the stage, Home event pop-ups shrink to headline cards, and returning to the app lands you instantly back in your live action.
+- **Standings tell the truth** — weekly race rewards were always auto-paid; the panel now shows your weekly earnings instead of pointing at a claim that never existed.
+- Also: the Gear grid's List→Grid freeze is fixed.
+
+## 2026-11-02 — Skins wave 1 and the drift-fix pass
+
+- **Skins wave 1** — cosmetic skin parts are craftable from scrap, equippable in the Wardrobe, and tradeable on the market once unequipped; social renders of your hunter wear them.
+- **The drift-fix pass** — five composition fixes folding scattered chrome into the game's one-strip, one-stage language: the resource Strip, stage-first Home, listings-first Market, the Hunter identity panel, and the Gear constellation with the Garage in place.
+- **A pure player market for weapons** — NPC vendor weapons left the Buy/Sell lanes entirely. The vendor keeps its staples; weapon prices are set by players alone.
+- **The new icon** — the app icon is the cache itself, cracked open with gold light on vibrant rust.
+- **On the stage** — Action controls float on the stage (the controls row is gone), and the foreground sync now runs on the game's own 3-second tick.
+
+## 2026-11-02 — The art lands: A10, parts, and the character rebuild
+
+- **A10: the finished art** — all 122 placeholder sprites replaced with finished pixel art: hunters, enemies, bosses, gear — the works.
+- **The parts character** — the hunter is rebuilt on a parts system: an empty frame that gear and skins replace over, part by part. It is the foundation skins and loadout rendering now stand on.
+- **Legendaries keep their word** — a legendary drop is constrained to the weapon type its bespoke art depicts; the art and the item always agree.
+- **Endless is a fixed ladder** — the same depths for every hunter, re-anchored so a stronger hunter tears through the early depths by being stronger.
+- **The record completes** — your profile now tracks lifetime deaths, credits earned and spent, and kills by element.
+- Also under the hood: the hunter carries only the equipped weapon, cache crates rise only for real cache grants, boss encounters and the roaming ledger received server fixes, "Tech Fragments" is simply **Tech** now, and corner badges meet the 11px floor.
+
+## 2026-11-02 — The four-tab redesign
+
+- **Four tabs** — the app reorganized around Home, Gear, Market, and Hunter: Home merges the Board and the Action stage, Cache Rank folds into Hunter, and every screen carries a rail of stops inside its tab.
+- **Motion, Wave D** — claim pulses, Market stop transitions, and list entrances give the new layout its movement.
+- **Post-QC fixes** — the playtest's findings landed the same day: a Standings profile crash, dead rail stops, a string-hygiene sweep, layout sizing, affordances, and the papercut pile.
+- Under the hood: the design document itself was repaired and completed, so the system the redesign follows is written down whole.
+
+## 2026-11-01 – 2026-11-02 — The runway: resources, boards, and icons
+
+- **Resources join the market** — Cache Fragments, legendary cores, and essences are sellable on the player market like everything else in your inventory.
+- **Service boards grow up** — the Repair and Shield-Tech boards get the market's full browse toolkit: filters, sorting, search, and a card face that prints what each job needs from you.
+- **Pixel icons** — the 52-icon pixel foundation lands, purging emoji and glyph iconography from the interface.
+- **The wiki grows tables** — Wiki Phase 3: the Reference annex is generated from the game's own constants and gated against drift in CI.
+- Under the hood: the design system was locked in as DESIGN.md and PRODUCT.md — the conformance rule every later slice in this changelog followed.
 
 ## 2026-11-01 — The wiki, phases 1 and 2
 
@@ -40,9 +95,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 66 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 67 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-03** — 14 merges
+**2026-11-03** — 15 merges
 
 - #310 — feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)
 - #315 — Foreground resume: land instantly back in the live action
@@ -56,6 +111,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #323 — Sign-in banner: pixel-art wasteland landscape replaces the procedural SVG hero
 - #324 — Gate-removal step 2: consumable recipes lose their player-level requirements (0057)
 - #325 — Loadout truth: the hunter holds the equipped weapon — armed actor fits its stage width
+- #326 — Workshop redesign Direction A — Make-now first
 - #327 — Weapon pixel slice 2: legendary parity audit + wiring (24 agree, 1 owner-ruled, 0 open)
 - #328 — Weapon marriage slice 3: retire the legacy SVG weapon renderer
 

@@ -50,7 +50,33 @@ overwrites UI edits without warning. All changes go through PRs here.
    player-visible impact opts out by carrying a `wiki-impact: none`
    line in its body. (Phase 1 shipped this in warn mode; Phase 3
    flipped the `mode` field in `.page-map.json` to `fail`.)
-3. **Generated pages** (Phase 3): the data-heavy tables are rendered
+3. **Changelog automation** (Phase 4): `wiki/Changelog.md` is kept
+   honest by two mechanisms in `scripts/wiki-gen/changelog.ts`, both
+   riding the `wiki-gen-check` gate. (a) The **merge ledger**: a
+   generated block at the foot of the Changelog listing every master
+   merge since PR #262 / 2026-11-01, recorded as master's merge
+   history carries it. `npm run wiki:gen` harvests the local git
+   history into the committed snapshot
+   `scripts/wiki-gen/changelog-ledger.json` and renders the block
+   from it; `--check` re-renders from the snapshot only, so the gate
+   stays deterministic. (b) The **staleness tripwire**: the
+   `wiki-gen-check` job checks out with `fetch-depth: 0`, and the
+   gate fails when the newest first-parent master merge's date
+   (America/New_York) is newer than the Changelog's newest dated
+   heading. The remedy is a hand-written entry for the missing day —
+   player-facing themes like the existing entries; a day whose
+   merges were all internal still gets a one-line "Under the hood"
+   entry — plus a `wiki:gen` run to refresh the ledger. Regenerating
+   alone cannot silence the tripwire: it reads git, not the page.
+   Why not the original design (the publish workflow appending live
+   PR titles)? A freshness gate must be a deterministic function of
+   the checkout: the check job's default checkout is one commit deep
+   (no merge history, no API token), and "merged PRs as of now"
+   changes with every unrelated merge, which would fail the gate on
+   master after every merge until a follow-up landed. The
+   ledger + tripwire pair keeps the promise — the page cannot
+   silently lapse — in a form the gate can actually enforce.
+4. **Generated pages** (Phase 3): the data-heavy tables are rendered
    from the game's own constants by the generators in
    `scripts/wiki-gen/` — one module per data family (weapons,
    legendary effects, consumables, recipes, bosses, areas, vehicles,
@@ -130,4 +156,6 @@ npm run wiki:gen:check
 - **Phase 3 (this):** generated reference tables (`scripts/wiki-gen/`)
   + the `wiki-gen-check` freshness gate + the page-map check flipped
   from `warn` to `fail`.
-- **Phase 4:** Changelog automation from merged PR titles.
+- **Phase 4:** Changelog automation — a generated merge ledger in
+  `wiki/Changelog.md` plus a CI staleness tripwire, so the page can
+  never silently lapse again (see "Keeping it updated", layer 3).
