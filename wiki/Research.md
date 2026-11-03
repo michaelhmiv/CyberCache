@@ -23,7 +23,7 @@ Production study for crafters: quality, batch work, and the temper roll.
 
 | Course | Tier | Duration | Fee | Requires | Unlocks |
 |---|---|---|---|---|---|
-| Shop Fundamentals | 1 | 6 h | 2,500 | Level 5 | Craft quality shift **+2** on every completed craft unit (inside the shared −10…+20 clamp) |
+| Shop Fundamentals | 1 | 6 h | 2,500 | — | Craft quality shift **+2** on every completed craft unit (inside the shared −10…+20 clamp) |
 | Production Systems | 2 | 48 h | 15,000 | Shop Fundamentals · the Forge bench | The three **batch recipes** — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units (see [[Crafting]]) |
 | Master Fabricator Certification | 3 | 168 h | 60,000 | Production Systems · the Lab bench | Crafted gear **temper chance +0.03** (inside the 0.30 cap) and **+1 generation draw** on every crafted gear frame |
 
@@ -33,9 +33,9 @@ Wrench credentials: faster work, gentler miles, a master's XP rate.
 
 | Course | Tier | Duration | Fee | Requires | Unlocks |
 |---|---|---|---|---|---|
-| Wrench Basics | 1 | 6 h | 2,500 | Level 5 | **Repair work rate ×1.05** on board jobs you accept and your own self-repair (see [[Repair Board]]) |
-| Powertrain Systems | 2 | 48 h | 15,000 | Level 20 · Wrench Basics | Your vehicles' **condition decay −10%** — stacks multiplicatively with the Fixer Fleet Engineer term (see [[Vehicles and the Garage]]) |
-| Master Mechanic Certification | 3 | 168 h | 60,000 | Level 40 · Powertrain Systems | Repair work you perform pays **+1 player XP per condition point** restored |
+| Wrench Basics | 1 | 6 h | 2,500 | — | **Repair work rate ×1.05** on board jobs you accept and your own self-repair (see [[Repair Board]]) |
+| Powertrain Systems | 2 | 48 h | 15,000 | Wrench Basics | Your vehicles' **condition decay −10%** — stacks multiplicatively with the Fixer Fleet Engineer term (see [[Vehicles and the Garage]]) |
+| Master Mechanic Certification | 3 | 168 h | 60,000 | Powertrain Systems | Repair work you perform pays **+1 player XP per condition point** restored |
 
 ### Logistics & Markets — home: the economy
 
@@ -43,9 +43,9 @@ Supply-chain theory that pays in buyback, offline hours, and thinner fees.
 
 | Course | Tier | Duration | Fee | Requires | Unlocks |
 |---|---|---|---|---|---|
-| Street Economics | 1 | 6 h | 2,500 | Level 5 | NPC **vendor buyback rate +0.02** on everything you sell (under the 0.90 ceiling — see [[Vendor]]) |
-| Supply Chains | 2 | 48 h | 15,000 | Level 20 · Street Economics | **Offline earnings cap +1 hour** (the 24-hour absolute ceiling still binds — see [[Progression]]) |
-| Syndicate Ledger | 3 | 168 h | 60,000 | Level 40 · Supply Chains | **Market fee reduction +0.05** on all your sales (see [[The Market]]) |
+| Street Economics | 1 | 6 h | 2,500 | — | NPC **vendor buyback rate +0.02** on everything you sell (under the 0.90 ceiling — see [[Vendor]]) |
+| Supply Chains | 2 | 48 h | 15,000 | Street Economics | **Offline earnings cap +1 hour** (the 24-hour absolute ceiling still binds — see [[Progression]]) |
+| Syndicate Ledger | 3 | 168 h | 60,000 | Supply Chains | **Market fee reduction +0.05** on all your sales (see [[The Market]]) |
 
 ### Xenotech — home: theory
 
@@ -53,13 +53,13 @@ Combat theory: small, permanent, engine-read passives.
 
 | Course | Tier | Duration | Fee | Requires | Unlocks |
 |---|---|---|---|---|---|
-| Ballistics Theory | 1 | 6 h | 2,500 | Level 5 | **Weapon damage +1%** everywhere damage is priced |
-| Shield Dynamics | 2 | 48 h | 15,000 | Level 20 · Ballistics Theory | **Shield capacity +2%** in the survival composite |
-| Void Theory Certification | 3 | 168 h | 60,000 | Level 40 · Shield Dynamics | **Boss dedicated-drop chance +0.01** on every victory roll, on top of the base 0.10 (see [[Bosses]]) |
+| Ballistics Theory | 1 | 6 h | 2,500 | — | **Weapon damage +1%** everywhere damage is priced |
+| Shield Dynamics | 2 | 48 h | 15,000 | Ballistics Theory | **Shield capacity +2%** in the survival composite |
+| Void Theory Certification | 3 | 168 h | 60,000 | Shield Dynamics | **Boss dedicated-drop chance +0.01** on every victory roll, on top of the base 0.10 (see [[Bosses]]) |
 
 ## Reading the catalog
 
-The faculties reward the playstyle they are named for. Fabrication is the crafter's ladder — its tier 2 is the only door to batch production, and its gates are **benches**, not levels: Production Systems wants the Forge bench owned, the Certification wants the Lab. The other three faculties gate on level and their own prerequisite chain. Every unlock is permanent and small on purpose: Research is the slow way to buy what skill points buy faster, and its real price is never the fee — it is the weeks the single enrollment slot spends getting there.
+The faculties reward the playstyle they are named for. Fabrication is the crafter's ladder — its tier 2 is the only door to batch production, and it is the one faculty whose gates include **benches**: Production Systems wants the Forge bench owned, the Certification wants the Lab. No faculty gates on your hunter level — every course asks only for its prerequisite in the chain, its fee, and its time. Every unlock is permanent and small on purpose: Research is the slow way to buy what skill points buy faster, and its real price is never the fee — it is the weeks the single enrollment slot spends getting there.
 
 ---
 
