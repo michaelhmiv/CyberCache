@@ -23,6 +23,8 @@ By design, prep **never shows a computed win chance, readiness score, or any odd
 
 What you bring is also yours to choose: your loadout, a prepared belt of consumables (burned by the attempt), a risk setting that trades survival margin against damage tempo and consumable use, and — if it is charged — your [[Combat|action skill]].
 
+If your belt commits more of a consumable than you currently hold, that belt row carries the quick-buy **+** — it opens the [[Crafting|quick-buy sheet]] priced for exactly the gap, so a prepared belt never silently shrinks to whatever is left on the shelf. The same holds for the [[Endless Mode|Endless Chamber]]'s belt.
+
 ## The risk setting
 
 Each attempt is fought at one of four risk settings, chosen at prep:
