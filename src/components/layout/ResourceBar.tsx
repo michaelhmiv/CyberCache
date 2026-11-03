@@ -80,13 +80,18 @@
  * All icons rendered via ResourceIcon (central visualAssets
  * registry); the settings gear is the §7 pixel icon `cog`.
  */
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { ResourceIcon } from '@/components/common/ResourceIcon';
 import { compactResourceValue } from '@/lib/ui/formatValue';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
+import {
+  loginStreakAnnouncement,
+  loginStreakGrantKey,
+  useLoginStreakStore,
+} from '@/store/slices/loginStreakSlice';
 import { xpToNextLevel } from '@/content/simulation';
 
 type StripResourceId = 'credits' | 'scrap' | 'cacheKey' | 'legendaryCore' | 'loot';
@@ -102,11 +107,14 @@ interface SegmentProps {
    *  what the micro counts, in words). */
   ariaText: string;
   seed?: number;
+  /** True while the wallet tick is counting this value up. */
+  ticking?: boolean;
 }
 
-const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, ariaText, seed = 0 }) => (
+const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, ariaText, seed = 0, ticking }) => (
   <span
     data-testid={`resource-chip-${resourceId}`}
+    data-ticking={ticking ? 'true' : undefined}
     role="img"
     aria-label={ariaText}
     className="flex shrink-0 items-center gap-1 whitespace-nowrap"
@@ -166,6 +174,63 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
   const xpNeeded = xpToNextLevel(player.level);
   const xpProgress = xpNeeded > 0 ? Math.min(100, (player.xp / xpNeeded) * 100) : 100;
 
+  // Wallet tick (streak poster plate — direction B's beat):
+  // while a FRESH streak grant is announcing and it carried
+  // credits, the credits number counts up from the pre-grant
+  // balance to the balance the player store already holds — the
+  // reward is seen landing, once, in the wallet it landed in.
+  // The grant key is recorded in the streak store before the
+  // first frame renders, so remounts, acknowledgement-order
+  // races, already-claimed replays, and later balance changes
+  // never re-tick it. Reduced motion snaps to the true balance.
+  const streakResult = useLoginStreakStore((s) => s.result);
+  const streakResultDay = useLoginStreakStore((s) => s.resultDay);
+  const streakSeenGrantKey = useLoginStreakStore((s) => s.seenGrantKey);
+  const markWalletTicked = useLoginStreakStore((s) => s.markWalletTicked);
+  const reduceMotion = useReducedMotion();
+  const [tickDisplay, setTickDisplay] = useState<number | null>(null);
+  const tickRaf = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Wait for the real balance: while the profile is unloaded
+    // the store holds placeholder numbers, and consuming the
+    // grant key against them would spend the beat on nothing.
+    if (!streakResult || !player.profileLoaded) return;
+    const key = loginStreakGrantKey(streakResult, streakResultDay);
+    const awarded = streakResult.granted.creditsAwarded;
+    if (
+      !key ||
+      awarded <= 0 ||
+      !loginStreakAnnouncement(streakResult, streakResultDay, streakSeenGrantKey) ||
+      useLoginStreakStore.getState().tickedGrantKey === key
+    ) {
+      return;
+    }
+    markWalletTicked(key);
+    const target = usePlayerStore.getState().credits;
+    const from = target - awarded;
+    if (reduceMotion || from < 0 || target <= from) return;
+    const durationMs = 700;
+    const startedAt = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - startedAt) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setTickDisplay(Math.round(from + (target - from) * eased));
+      if (t < 1) {
+        tickRaf.current = requestAnimationFrame(step);
+      } else {
+        tickRaf.current = null;
+        setTickDisplay(null);
+      }
+    };
+    tickRaf.current = requestAnimationFrame(step);
+    return () => {
+      if (tickRaf.current !== null) cancelAnimationFrame(tickRaf.current);
+      tickRaf.current = null;
+      setTickDisplay(null);
+    };
+  }, [streakResult, streakResultDay, streakSeenGrantKey, markWalletTicked, reduceMotion, player.profileLoaded]);
+
   const gear = onOpenSettings ? (
     <button
       type="button"
@@ -211,9 +276,10 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
       >
         <Segment
           resourceId="credits"
-          value={compactResourceValue(player.credits)}
+          value={compactResourceValue(tickDisplay ?? player.credits)}
           ariaText={`Credits — ${player.credits}`}
           seed={1}
+          ticking={tickDisplay !== null}
         />
         <Segment
           resourceId="scrap"
