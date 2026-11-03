@@ -107,7 +107,6 @@ import { SignInLockPrompt } from '@/auth/SignInLockPrompt';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 
 const facts = (overrides: Partial<ResearchFacts> = {}): ResearchFacts => ({
-  playerLevel: 5,
   workshopBenches: 1,
   credits: 100,
   completed: [],
@@ -137,7 +136,9 @@ describe('ResearchPanel — course detail (QC A7)', () => {
     const detail = await screen.findByTestId('research-course-detail');
     expect(within(detail).getByText('Shop Fundamentals')).toBeTruthy();
     expect(within(detail).getByText(/Craft quality shift \+2/)).toBeTruthy();
-    expect(within(detail).getByText('Requires level 5')).toBeTruthy();
+    // Gate-removal step 3 (0059): courses carry no level requirement —
+    // the brief never prints one.
+    expect(within(detail).queryByText(/Requires level/)).toBeNull();
     // Available but unaffordable: the detail mirrors the card's gating —
     // the requirement and the real balance print, no enroll button.
     expect(within(detail).getByText(/Requires 2,500 cr — your balance is 100 cr/)).toBeTruthy();
@@ -151,14 +152,14 @@ describe('ResearchPanel — course detail (QC A7)', () => {
 
     const detail = await screen.findByTestId('research-course-detail');
     expect(within(detail).getByText('Still needed')).toBeTruthy();
-    // The level gate prints twice by design: once as a requirement
-    // fact row, once as the server's unmet-gate reason.
-    expect(within(detail).getAllByText('Requires level 20').length).toBeGreaterThanOrEqual(1);
+    // Gate-removal step 3 (0059): Powertrain Systems (was L20) is
+    // gated only by its prerequisite now — the level never prints.
+    expect(within(detail).queryByText(/Requires level/)).toBeNull();
     expect(within(detail).getByText('Requires Wrench Basics')).toBeTruthy();
   });
 
   it('an affordable course enrolls from its detail through the real op shape', async () => {
-    researchTransport.facts = facts({ playerLevel: 30, workshopBenches: 3, credits: 500_000 });
+    researchTransport.facts = facts({ workshopBenches: 3, credits: 500_000 });
     render(<ResearchPanel />);
     const card = await screen.findByTestId('research-course-shop_fundamentals');
     fireEvent.click(card);

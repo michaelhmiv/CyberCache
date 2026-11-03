@@ -1288,12 +1288,11 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     // before any fact is read (0038 — no cron duty by design).
     await this.callJson('select public.cc_settle_research($1) as result', [playerId]);
     const profile = await this.one(
-      `select player_level, workshop_benches, credits,
+      `select workshop_benches, credits,
               (extract(epoch from now()) * 1000)::bigint as now_ms
          from public.profiles where id = $1`,
       [playerId],
       (row) => ({
-        player_level: num(row.player_level),
         workshop_benches: num(row.workshop_benches),
         credits: num(row.credits),
         now_ms: num(row.now_ms),
@@ -1335,7 +1334,6 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       return translatePgError(err);
     }
     return {
-      playerLevel: profile.player_level,
       workshopBenches: profile.workshop_benches,
       credits: profile.credits,
       completed,

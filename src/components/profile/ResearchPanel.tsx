@@ -330,9 +330,6 @@ export const ResearchPanel: React.FC = () => {
               Pays {selectedCourse.masteryXp.toLocaleString()} Scholarship mastery XP on completion
               — no player XP.
             </div>
-            {selectedCourse.requiresLevel != null && (
-              <div>Requires level {selectedCourse.requiresLevel}</div>
-            )}
             {selectedCourse.requiresBench != null && (
               <div>Requires {researchBenchName(selectedCourse.requiresBench)}</div>
             )}

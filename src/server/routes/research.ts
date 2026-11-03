@@ -45,7 +45,6 @@ const RESEARCH_REFUSALS = new Set([
   'unknown_course',
   'course_already_completed',
   'research_already_enrolled',
-  'level_too_low',
   'prerequisite_not_met',
   'bench_too_low',
   'insufficient_credits',

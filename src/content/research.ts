@@ -193,8 +193,6 @@ export interface ResearchCourse {
   durationHours: number;
   /** Catalog fee in credits, destroyed at enroll (lever scalar applies). */
   costCredits: number;
-  /** Player level gate, when the brief names one. */
-  requiresLevel?: number;
   /** Owned-bench gate (profiles.workshop_benches), when named. */
   requiresBench?: number;
   /** Prerequisite course id within the faculty, when chained. */
@@ -211,7 +209,6 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
   {
     id: 'shop_fundamentals', faculty: 'fabrication', tier: 1,
     name: 'Shop Fundamentals', durationHours: 6, costCredits: 2500,
-    requiresLevel: 5,
     effects: { craftQualityShift: 2 },
     unlockText: 'Craft quality shift +2 on every completed craft unit (inside the shared −10…+20 clamp).',
   },
@@ -233,21 +230,20 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
   {
     id: 'wrench_basics', faculty: 'field_mechanics', tier: 1,
     name: 'Wrench Basics', durationHours: 6, costCredits: 2500,
-    requiresLevel: 5,
     effects: { repairWorkRateBonus: 0.05 },
     unlockText: 'Repair work rate ×1.05 on board jobs you accept and your own self-repair.',
   },
   {
     id: 'powertrain_systems', faculty: 'field_mechanics', tier: 2,
     name: 'Powertrain Systems', durationHours: 48, costCredits: 15000,
-    requiresLevel: 20, prerequisite: 'wrench_basics',
+    prerequisite: 'wrench_basics',
     effects: { vehicleDecayReduction: 0.10 },
     unlockText: 'Your vehicles’ condition decay −10% (stacks multiplicatively with the Fixer Fleet Engineer term).',
   },
   {
     id: 'master_mechanic', faculty: 'field_mechanics', tier: 3,
     name: 'Master Mechanic Certification', durationHours: 168, costCredits: 60000,
-    requiresLevel: 40, prerequisite: 'powertrain_systems',
+    prerequisite: 'powertrain_systems',
     effects: { repairServiceXpBonus: 1 },
     unlockText: 'Repair work you perform pays +1 player XP per condition point restored.',
   },
@@ -255,21 +251,20 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
   {
     id: 'street_economics', faculty: 'logistics_markets', tier: 1,
     name: 'Street Economics', durationHours: 6, costCredits: 2500,
-    requiresLevel: 5,
     effects: { vendorBuybackBonus: 0.02 },
     unlockText: 'NPC vendor buyback rate +0.02 on everything you sell (under the 0.90 ceiling).',
   },
   {
     id: 'supply_chains', faculty: 'logistics_markets', tier: 2,
     name: 'Supply Chains', durationHours: 48, costCredits: 15000,
-    requiresLevel: 20, prerequisite: 'street_economics',
+    prerequisite: 'street_economics',
     effects: { offlineCapBonus: 1 },
     unlockText: 'Offline earnings cap +1 hour (the 24-hour absolute ceiling still binds).',
   },
   {
     id: 'syndicate_ledger', faculty: 'logistics_markets', tier: 3,
     name: 'Syndicate Ledger', durationHours: 168, costCredits: 60000,
-    requiresLevel: 40, prerequisite: 'supply_chains',
+    prerequisite: 'supply_chains',
     effects: { marketFeeReduction: 0.05 },
     unlockText: 'Market fee reduction +0.05 on all your sales (additive with Darknet Broker, under the ≤1 clamp).',
   },
@@ -277,21 +272,20 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
   {
     id: 'ballistics_theory', faculty: 'xenotech', tier: 1,
     name: 'Ballistics Theory', durationHours: 6, costCredits: 2500,
-    requiresLevel: 5,
     effects: { weaponDamage: 0.01 },
     unlockText: 'Weapon damage +1% everywhere damage is priced.',
   },
   {
     id: 'shield_dynamics', faculty: 'xenotech', tier: 2,
     name: 'Shield Dynamics', durationHours: 48, costCredits: 15000,
-    requiresLevel: 20, prerequisite: 'ballistics_theory',
+    prerequisite: 'ballistics_theory',
     effects: { shieldCapacity: 0.02 },
     unlockText: 'Shield capacity +2% in the survival composite.',
   },
   {
     id: 'void_theory', faculty: 'xenotech', tier: 3,
     name: 'Void Theory Certification', durationHours: 168, costCredits: 60000,
-    requiresLevel: 40, prerequisite: 'shield_dynamics',
+    prerequisite: 'shield_dynamics',
     effects: { bossDedicatedChanceBonus: 0.01 },
     unlockText: 'Boss dedicated-drop chance +0.01 on every victory roll (on top of the tuned 0.10).',
   },
@@ -461,7 +455,6 @@ export interface ResearchCompletionFacts {
 
 /** Server-record facts the view derives from (routes/stores supply). */
 export interface ResearchFacts {
-  playerLevel: number;
   /** Owned benches (profiles.workshop_benches, 1..3). */
   workshopBenches: number;
   credits: number;
@@ -542,9 +535,6 @@ export function researchStateView(
   const courses: ResearchCourseView[] = RESEARCH_COURSES.map((course) => {
     const terms = researchEnrollmentTerms(course, levers);
     const lockReasons: string[] = [];
-    if (course.requiresLevel != null && facts.playerLevel < course.requiresLevel) {
-      lockReasons.push(`Requires level ${course.requiresLevel}`);
-    }
     if (course.prerequisite && !completedIds.has(course.prerequisite)) {
       lockReasons.push(`Requires ${researchCourse(course.prerequisite)?.name ?? course.prerequisite}`);
     }
