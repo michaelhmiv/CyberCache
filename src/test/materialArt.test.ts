@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EssenceType, MaterialType } from '@/types/game';
-import { ESSENCE_VISUALS, MATERIAL_VISUALS } from '@/constants/visualAssets';
+import { ESSENCE_VISUALS, MATERIAL_VISUALS, getMaterialVisual } from '@/constants/visualAssets';
 import {
   MATERIAL_ART,
   composeMaterial,
@@ -58,8 +58,20 @@ describe('materialArt — lineage (refinement reads as alignment of the same stu
 
   it('each refined form keeps its base material family', () => {
     for (const [base, refined] of PAIRS) {
+      // The one authored exception (the exploration's own table):
+      // Tech is a broken chunk, and WOVEN Circuits is what weaving
+      // it produces — the form changes because weaving IS the
+      // processing. Every other pair keeps its family outright.
+      if (base === MaterialType.TechFragments) continue;
       expect(MATERIAL_ART[refined].family, `${base} -> ${refined}`).toBe(MATERIAL_ART[base].family);
       expect(MATERIAL_ART[refined].band).toBe('refined');
+    }
+  });
+
+  it('every lineage pair keeps its colorway family (identical registry accent)', () => {
+    for (const [base, refined] of PAIRS) {
+      expect(getMaterialVisual(refined).accentColor, `${base} -> ${refined}`)
+        .toBe(getMaterialVisual(base).accentColor);
     }
   });
 
