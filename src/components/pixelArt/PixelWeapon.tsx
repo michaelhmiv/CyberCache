@@ -6,6 +6,10 @@ import {
   pixelWeaponInputFromWeapon,
   type PixelWeaponInput,
 } from '@/lib/pixel/weaponCompositor';
+import {
+  composeWeaponCardCached,
+  paintWeaponCard,
+} from '@/lib/pixel/weaponCardCompositor';
 import { bespokeSpriteIdForWeapon, getPixelSprite } from '@/lib/pixel/manifest';
 
 /**
@@ -18,9 +22,15 @@ import { bespokeSpriteIdForWeapon, getPixelSprite } from '@/lib/pixel/manifest';
  *   render their fixed sprite instead.
  * - Painting happens once per unique weapon signature; the composed render
  *   is cached module-wide, so re-renders and lists never repaint texels.
+ * - `density`: 'stage' (120×44) is the in-scene held weapon; 'card'
+ *   (240×88, weaponCardCompositor) is the same composition at card
+ *   density for inventory / gear detail / market / loot surfaces.
+ *   Both densities share the 30:11 aspect, so swapping never shifts
+ *   layout. Bespoke legendary resolution is identical at both.
  */
 
 const PAINT_SCALE = 3; // supersampled backing store; CSS size stays exact
+const CARD_PAINT_SCALE = 2; // the card grid is already 2× the stage grid
 
 interface PixelWeaponProps {
   weapon?: Weapon;
@@ -32,9 +42,11 @@ interface PixelWeaponProps {
   fluid?: boolean;
   className?: string;
   testId?: string;
+  /** Composition density: 'stage' 120×44 (default) or 'card' 240×88. */
+  density?: 'stage' | 'card';
 }
 
-export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, input, size = 120, fluid = false, className = '', testId }: PixelWeaponProps) => {
+export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, input, size = 120, fluid = false, className = '', testId, density = 'stage' }: PixelWeaponProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const resolved: PixelWeaponInput | undefined = useMemo(() => {
@@ -46,18 +58,26 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
   const bespoke = resolved ? bespokeSpriteIdForWeapon(resolved) : undefined;
   const bespokeSprite = bespoke ? getPixelSprite(bespoke) : undefined;
 
-  const render = useMemo(
-    () => (resolved && !bespokeSprite ? composePixelWeaponCached(resolved) : undefined),
-    [resolved, bespokeSprite],
+  const paintScale = density === 'card' ? CARD_PAINT_SCALE : PAINT_SCALE;
+
+  const stageRender = useMemo(
+    () => (resolved && !bespokeSprite && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
+    [resolved, bespokeSprite, density],
   );
+  const cardRender = useMemo(
+    () => (resolved && !bespokeSprite && density === 'card' ? composeWeaponCardCached(resolved) : undefined),
+    [resolved, bespokeSprite, density],
+  );
+  const render = cardRender ?? stageRender;
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !render) return;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return; // jsdom / unsupported — element + signature still render
-    paintPixelWeapon(ctx, render, PAINT_SCALE);
-  }, [render]);
+    if (cardRender) paintWeaponCard(ctx, cardRender, CARD_PAINT_SCALE);
+    else if (stageRender) paintPixelWeapon(ctx, stageRender, PAINT_SCALE);
+  }, [cardRender, stageRender]);
 
   if (bespokeSprite) {
     const height = Math.round(size * (bespokeSprite.height / bespokeSprite.width));
@@ -81,8 +101,8 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
   return (
     <canvas
       ref={canvasRef}
-      width={render.width * PAINT_SCALE}
-      height={render.height * PAINT_SCALE}
+      width={render.width * paintScale}
+      height={render.height * paintScale}
       className={className}
       style={{
         width: fluid ? '100%' : size,
@@ -97,6 +117,7 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
       aria-label={resolved?.name ?? `${resolved?.rarity ?? ''} ${resolved?.weaponType ?? 'weapon'}`}
       data-testid={testId}
       data-signature={render.signature}
+      data-density={density}
     />
   );
 });

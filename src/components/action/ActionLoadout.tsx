@@ -162,7 +162,7 @@ const SlotChip: React.FC<{
         <span>{label}</span>
       </div>
       {weapon && (
-        <PixelWeapon weapon={weapon} size={84} className="my-0.5 max-w-full" testId={`slot-weapon-${label.toLowerCase()}`} />
+        <PixelWeapon weapon={weapon} size={84} className="my-0.5 max-w-full" testId={`slot-weapon-${label.toLowerCase()}`} density="card" />
       )}
       <div
         className={`max-w-full font-black leading-snug [overflow-wrap:anywhere] ${isCenter ? 'text-[13px]' : 'text-[11px]'}`}

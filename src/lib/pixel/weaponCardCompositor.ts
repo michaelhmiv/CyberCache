@@ -982,10 +982,19 @@ function rarityFinish(ctx: Ctx) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g.filled(x, y)) bodyCells.push([x, y]);
 
   if (input.rarity === Rarity.Uncommon || input.rarity === Rarity.Rare) {
-    // Trim: recolor topmost per column in the body's span.
+    // Trim: recolor the topmost BODY cell per column in the body's
+    // span. Structural dark details and gems sitting on the edge
+    // (bolt heads, sight beads — 'K'/'G') are not finish surface:
+    // a column whose top cell is one of those keeps it and takes
+    // no trim.
     const trim: CardShade = input.rarity === Rarity.Uncommon ? 'g' : 'T';
     for (let x = L.bodyX - L.stockLen; x < ctx.bodyFront + L.barrelLen; x++) {
-      for (let y = 0; y < H; y++) if (g.filled(x, y)) { g.set(x, y, trim); break; }
+      for (let y = 0; y < H; y++) {
+        if (!g.filled(x, y)) continue;
+        const top = g.get(x, y);
+        if (top !== 'K' && top !== 'k' && top !== 'G') g.set(x, y, trim);
+        break;
+      }
     }
   }
   if (input.rarity === Rarity.Epic) {
@@ -1082,11 +1091,15 @@ function outlinePass(ctx: Ctx) {
   const wasFilled = (x: number, y: number) => x >= 0 && x < W && y >= 0 && y < H && snap[y][x] !== '.';
   const wasShade = (x: number, y: number) => (x >= 0 && x < W && y >= 0 && y < H ? snap[y][x] : '.');
   // Anti-step shading: diagonal neighbors of the outline get the
-  // half-tone 'k' so long slopes read smooth at card size.
+  // half-tone 'k' so long slopes read smooth at card size. Gem/trim
+  // accents ('G', and the rarity trim shade 'g' that can recolor a
+  // top-edge accent) don't grow step shading — they are sparkles,
+  // not slopes.
+  const isAccent = (s: string) => s === 'G' || s === 'g';
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (wasFilled(x, y)) continue;
-    const diag = (wasFilled(x + 1, y + 1) && wasShade(x + 1, y + 1) !== 'G') || (wasFilled(x - 1, y + 1) && wasShade(x - 1, y + 1) !== 'G')
-      || (wasFilled(x + 1, y - 1) && wasShade(x + 1, y - 1) !== 'G') || (wasFilled(x - 1, y - 1) && wasShade(x - 1, y - 1) !== 'G');
+    const diag = (wasFilled(x + 1, y + 1) && !isAccent(wasShade(x + 1, y + 1))) || (wasFilled(x - 1, y + 1) && !isAccent(wasShade(x - 1, y + 1)))
+      || (wasFilled(x + 1, y - 1) && !isAccent(wasShade(x + 1, y - 1))) || (wasFilled(x - 1, y - 1) && !isAccent(wasShade(x - 1, y - 1)));
     const ortho = wasFilled(x + 1, y) || wasFilled(x - 1, y) || wasFilled(x, y + 1) || wasFilled(x, y - 1);
     if (ortho) g.set(x, y, 'K');
     else if (diag) g.set(x, y, 'k');
@@ -1269,7 +1282,7 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
   // density marker keeps card signatures disjoint from stage ones;
   // the colors hash keeps palette-only theme variants distinct.
   const signature = hashString(
-    `card2x|${input.weaponType}|${input.manufacturer}|${input.rarity}|${input.element ?? ''}|${themeId ?? ''}|${rows.join('/')}|${hashString(JSON.stringify(colors)).toString(16)}`,
+    `card2x|${input.weaponType}|${input.manufacturer}|${input.rarity}|${input.element ?? ''}|${theme?.id ?? ''}|${rows.join('/')}|${hashString(JSON.stringify(colors)).toString(16)}`,
   ).toString(16);
   const render: WeaponCardRender = {
     width: W, height: H,

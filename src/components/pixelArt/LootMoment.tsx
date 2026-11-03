@@ -160,7 +160,7 @@ const RisenItem: React.FC<{ step: LootMomentStep; xPct: number; groundYPct: numb
         transition={still ? undefined : { duration: MOVEMENT.LOOT_FLOAT_MS / 1000, repeat: Infinity, ease: 'easeInOut', delay: MOVEMENT.LOOT_RISE_MS / 1000 }}
       >
         {step.card.isWeapon ? (
-          <PixelWeapon weapon={step.item as Weapon} fluid testId="loot-risen-weapon" />
+          <PixelWeapon weapon={step.item as Weapon} fluid testId="loot-risen-weapon" density="card" />
         ) : crate ? (
           <img
             src={crate.url}

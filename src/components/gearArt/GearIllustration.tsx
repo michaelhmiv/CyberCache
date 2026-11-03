@@ -36,10 +36,11 @@ interface GearIllustrationProps {
 
 /**
  * Unified gear illustration — dispatches to the correct type-specific
- * illustration component. Weapons render through the pixel path
- * (PixelWeapon: bespoke legendary sprite, else the deterministic parts-kit
- * compositor) so every surface shows the same image for the same weapon;
- * the other gear types keep their procedural SVG illustrations.
+ * illustration component. Weapons render through the pixel path at
+ * CARD density (PixelWeapon density="card": bespoke legendary sprite,
+ * else the 240×88 card compositor) so every card surface shows the
+ * same image for the same weapon; the other gear types keep their
+ * procedural SVG illustrations.
  *
  * For weapons, `showBadges`/`animate` no longer apply: the badges were
  * drawn inside the vector weapon SVG itself, and pixel weapons are static
@@ -55,7 +56,7 @@ export const GearIllustration: React.FC<GearIllustrationProps> = React.memo(({
 }: GearIllustrationProps) => {
   if (isWeapon(item)) {
     const pixelSize = typeof size === 'number' ? size : PIXEL_WEAPON_SIZE_PX[size];
-    return <PixelWeapon weapon={item} size={pixelSize} className={className} />;
+    return <PixelWeapon weapon={item} size={pixelSize} className={className} density="card" />;
   }
   if (isShield(item)) {
     return <ShieldIllustration shield={item} size={size as IllustrationSize | number} className={className} showBadges={showBadges} animate={animate} />;
