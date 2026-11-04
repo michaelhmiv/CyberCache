@@ -13,6 +13,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The market stays player-run** — NPC stock in Buy is basic Common gear only, in every kind; anything above Common is another player's listing.
 - **Gates keep falling** — consumable recipes no longer ask your level: meet the bench, the research, and the materials, and the job queues.
 - **Sign-in, in the game's own art** — the sign-in banner is now a pixel wasteland landscape. Behind the scenes, product analytics (GA4) landed to watch retention and the core loops.
+- **Bosses show themselves** — boss prep now opens on a portrait plate of the boss itself, standing on its own arena, with its weakness chip and mechanic up front; the picker rows, the fight header, and the defeat screen carry the same creature at every size. The old letter-emblem badges are retired.
 
 ## 2026-11-02 – 2026-11-03 — The evening batch: every "no" explains itself
 

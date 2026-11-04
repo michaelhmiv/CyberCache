@@ -19,7 +19,7 @@ import type { BossDef } from '@/types/boss';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { computeLoadoutDps } from '@/lib/stats/dpsChain';
 import { escalatedBossFee } from '@/lib/bossFees';
-import { BossSigil } from '@/components/common/BossSigil';
+import { BossStamp } from '@/components/common/BossStamp';
 
 interface BossPickerListProps {
   onSelect: (boss: BossDef) => void;
@@ -78,7 +78,7 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
                 ) : isLocked ? (
                   <Lock size={18} className="text-text-muted" />
                 ) : (
-                  <BossSigil bossId={boss.id} size={20} showFrame={false} />
+                  <BossStamp bossId={boss.id} size={20} />
                 )}
                 <div>
                   <div className="text-sm font-bold text-text-primary">
