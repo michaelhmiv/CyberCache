@@ -217,7 +217,7 @@ describe('vendor catalog — the one source', () => {
   it('rotation pool: priced non-staples incl. the rotating-only def, excl. legacy', () => {
     const ids = VENDOR_ROTATION_DEFS.map((c) => c.id);
     expect(ids).toContain('WorkshopRushTicket'); // rotatingVendorOnly
-    expect(ids).not.toContain('ElementalCoating'); // not craftable / not player-marketable
+    expect(ids).not.toContain('ElementalCoating'); // craftable (0077) but vendor-excluded / not player-marketable
     for (const staple of VENDOR_STAPLE_DEFS) expect(ids).not.toContain(staple.id);
     // 22 since the wiring package (0077): OrdnanceCharge left the
     // rotation pool to become the vendor staple (the Grenade merge).
