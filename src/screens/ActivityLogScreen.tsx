@@ -65,31 +65,41 @@ export function ActivityLogScreen() {
   const chip = useMemo(() => CHIPS.find((c) => c.id === chipId) ?? CHIPS[0], [chipId]);
 
   // Search applies on a short debounce — one box, server-side.
+  // The loading flip rides the timer callback with the query, so
+  // no state is set synchronously in an effect body.
   useEffect(() => {
-    const t = setTimeout(() => setAppliedQuery(query.trim()), 350);
+    const t = setTimeout(() => {
+      setAppliedQuery(query.trim());
+      setLoading(true);
+    }, 350);
     return () => clearTimeout(t);
   }, [query]);
 
-  const loadFirstPage = useCallback(async () => {
+  // First-page load, house pattern: the service promise's own
+  // callbacks write state (ProfileScreen's shape), with a sequence
+  // guard so a slow earlier page can never overwrite a newer one.
+  const [retryNonce, setRetryNonce] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
     const seq = ++requestSeq.current;
-    setLoading(true);
-    setError(null);
-    try {
-      const page = await fetchActivityLog({ kinds: chip.kinds, q: appliedQuery || undefined, limit: PAGE_SIZE });
-      if (requestSeq.current !== seq) return;
-      setRecords(page.records);
-      setNextCursor(page.nextCursor);
-    } catch {
-      if (requestSeq.current !== seq) return;
-      setError('The record could not be read. Your history is safe on the server — try again.');
-      setRecords([]);
-      setNextCursor(null);
-    } finally {
-      if (requestSeq.current === seq) setLoading(false);
-    }
-  }, [chip, appliedQuery]);
-
-  useEffect(() => { void loadFirstPage(); }, [loadFirstPage]);
+    fetchActivityLog({ kinds: chip.kinds, q: appliedQuery || undefined, limit: PAGE_SIZE })
+      .then((page) => {
+        if (cancelled || requestSeq.current !== seq) return;
+        setRecords(page.records);
+        setNextCursor(page.nextCursor);
+        setError(null);
+      })
+      .catch(() => {
+        if (cancelled || requestSeq.current !== seq) return;
+        setError('The record could not be read. Your history is safe on the server — try again.');
+        setRecords([]);
+        setNextCursor(null);
+      })
+      .finally(() => {
+        if (!cancelled && requestSeq.current === seq) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [chip, appliedQuery, retryNonce]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMore) return;
@@ -155,7 +165,7 @@ export function ActivityLogScreen() {
               role="tab"
               aria-selected={active}
               data-testid={`activity-chip-${c.id}`}
-              onClick={() => setChipId(c.id)}
+              onClick={() => { setChipId(c.id); setLoading(true); }}
               className={`flex min-h-[44px] shrink-0 items-center px-3 text-[11px] font-black uppercase tracking-[0.08em] ${
                 active ? 'bg-amber text-black' : 'border border-border bg-surface text-text-secondary'
               }`}
@@ -174,7 +184,7 @@ export function ActivityLogScreen() {
       {!loading && error && records.length === 0 && (
         <div className="bl-panel p-4 text-center">
           <p className="text-[13px] font-bold text-text-primary">{error}</p>
-          <button type="button" onClick={() => void loadFirstPage()} className="bl-primary mt-3 px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em]">
+          <button type="button" onClick={() => { setLoading(true); setRetryNonce((n) => n + 1); }} className="bl-primary mt-3 px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.08em]">
             Retry
           </button>
         </div>
