@@ -339,6 +339,12 @@ export interface OddsOutcomeData {
   payload: Json;
 }
 
+/** odds_tables row mirror — the version a draw stamps (AL-1, 0070). */
+export interface OddsTableData {
+  id: string;
+  version: number;
+}
+
 export interface RoamingAreaData {
   id: string;
   display_name: string;
@@ -398,6 +404,8 @@ export interface WriteSeed {
   masteries: MasteryData[];
   skillNodes: SkillNodeData[];
   oddsOutcomes: OddsOutcomeData[];
+  /** odds_tables rows (id + version) — seeded sparsely; see makeItem. */
+  oddsTables: OddsTableData[];
   roamingAreas: RoamingAreaData[];
   adGrants: { user_id: string; reward_type: string; status: string; granted_at: string }[];
   /** Cache box opening rows (migration 0037), the daily budget's record. */
@@ -430,6 +438,7 @@ export function emptyWriteSeed(): WriteSeed {
     masteries: [],
     skillNodes: [],
     oddsOutcomes: [],
+    oddsTables: [],
     roamingAreas: [],
     adGrants: [],
     cacheBoxOpenings: [],
@@ -702,6 +711,8 @@ export interface OddsDraw {
   roll: number;
   total_weight: number;
   payload: Json;
+  /** AL-1 (0070): the odds_tables version the draw read (cache lane stamps it). */
+  odds_table_version?: number | null;
 }
 
 /** cc_draw_odds over a provided outcome list (ordered by outcome, like SQL). */

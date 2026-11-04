@@ -126,4 +126,17 @@ export interface BossAttemptResult {
     surgeLoot?: string[];
     qualityMultiplier?: number;
   };
+  /**
+   * AL-1 (0070): the dedicated-drop facts for this attempt, merged
+   * into the stored attempt record — the claim-resolved dedicated
+   * chance (economy lever + research bonus, before drop luck),
+   * whether the dedicated roll hit, and the drop-luck buff fraction
+   * in force. The effective roll chance was
+   * dedicatedChance × (1 + dropLuckBonus). Recorded so the activity
+   * log answers "what were the chances of that drop?" from the
+   * attempt itself; absent on attempts recorded before AL-1.
+   */
+  dedicatedChance?: number;
+  dedicatedDropAwarded?: boolean;
+  dropLuckBonus?: number;
 }
