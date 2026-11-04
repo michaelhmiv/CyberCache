@@ -22,6 +22,7 @@
  *   GET /api/slots/me                    VendorScreen (Data Slots panel)      profiles.slot_pulls_* (own, today) + economy_config levers (0049)
  *   GET /api/profile/stats               ProfileScreen (trophy shelf)       lifetime fold over server records only (0034)
  *   GET /api/leaderboard/weekly          LeaderboardsScreen (weekly races)  weekly fold over server records + settlement outcomes (0035)
+ *   GET /api/activity-log/me             ActivityLogScreen (AL-3)           unified record: ledger + items + listings + jobs (AL-2)
  *
  * Identity rules (hard): the caller's player id comes ONLY from the
  * verified Chef JWT (chefPlayerId). Query/body player ids are never read.
@@ -42,6 +43,10 @@ import {
   type MarketSort,
 } from '../../lib/market/listingQuery';
 import type { MarketCategory } from '../../lib/market/identityKey';
+import {
+  ACTIVITY_KIND_FILTERS, decodeActivityCursor,
+  type ActivityKindFilter, type ActivityLogQuery,
+} from './activityLog';
 
 const MARKET_CATEGORIES: readonly string[] = [
   'weapon', 'shield', 'relic', 'classMod', 'ordnance', 'consumable', 'material',
@@ -371,6 +376,40 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
     if (!id) return;
     try {
       res.json(await store.getMyRuntimeItems(id));
+    } catch (err) { fail(res, err); }
+  });
+
+  // Activity Log (AL-2): the caller's unified record — newest first,
+  // cursor-paginated, kind-filtered, one search box. Identity from
+  // the JWT only; no query field can name another player. A cursor
+  // this endpoint did not issue is a 400, never a silent restart of
+  // the walk.
+  app.get('/api/activity-log/me', async (req, res) => {
+    const id = caller(config, req, res);
+    if (!id) return;
+    const kindRaw = typeof req.query.kind === 'string' ? req.query.kind : '';
+    const kinds = kindRaw
+      .split(',').map((k) => k.trim()).filter(Boolean)
+      .filter((k): k is ActivityKindFilter => ACTIVITY_KIND_FILTERS.includes(k as ActivityKindFilter));
+    if (kindRaw && kinds.length === 0) {
+      return validation(res, `Invalid activity kind filter: ${kindRaw}`);
+    }
+    const cursorRaw = typeof req.query.cursor === 'string' && req.query.cursor.length > 0
+      ? req.query.cursor
+      : undefined;
+    if (cursorRaw && !decodeActivityCursor(cursorRaw)) {
+      return validation(res, 'Invalid activity log cursor');
+    }
+    const query: ActivityLogQuery = {
+      kinds: kinds.length ? kinds : undefined,
+      q: typeof req.query.q === 'string' ? req.query.q : undefined,
+      cursor: cursorRaw,
+      limit: parseLimit(req.query.limit, 30, 100),
+    };
+    try {
+      const page = await store.getActivityLog(id, query);
+      if (!page) return notFound(res, 'Profile');
+      res.json(page);
     } catch (err) { fail(res, err); }
   });
 }
