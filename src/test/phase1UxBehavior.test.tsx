@@ -317,7 +317,7 @@ describe('Phase 1 — material "Used in" + area picker', () => {
   it('resolves consuming recipes from the single recipe source', () => {
     expect(getRecipesUsingMaterial('IgnitionFluid').map((r) => r.id)).toEqual(['recipe_fire_ammo']);
     expect(getRecipesUsingMaterial('Scrap').map((r) => r.id)).toContain('recipe_medkit');
-    expect(getRecipesUsingMaterial('VoidEssence').map((r) => r.id)).toEqual(['recipe_void_ammo']);
+    expect(getRecipesUsingMaterial('VoidEssence').map((r) => r.id)).toEqual(['recipe_void_ammo', 'recipe_elemental_coating']);
     expect(getRecipesUsingMaterial('NoSuchMaterial')).toEqual([]);
   });
 
