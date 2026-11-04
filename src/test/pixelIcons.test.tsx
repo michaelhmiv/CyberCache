@@ -32,7 +32,7 @@ const ADDITIONS = [
   'chip', 'clock', 'crown', 'diamond', 'diamondFill', 'diamondIn', 'dot',
   'flag', 'halfDisc', 'hatch', 'hatchH', 'hex', 'info', 'pause', 'pawn', 'pencil',
   'plus', 'power', 'recycle', 'ring', 'ringDot', 'rings', 'search', 'star5',
-  'swirl', 'target', 'triR', 'truck', 'warn', 'waves', 'x',
+  'stop', 'swap', 'swirl', 'target', 'triR', 'truck', 'warn', 'waves', 'x',
 ] as const;
 
 describe('pixel icon registry', () => {

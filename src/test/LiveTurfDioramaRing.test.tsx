@@ -8,7 +8,7 @@ const weapon = { id: 'w1', name: 'Test Gun' } as unknown as Weapon;
 const area = getRoamingArea(DEFAULT_ROAMING_AREA_ID);
 
 describe('LiveTurfDiorama — visualization-only surface', () => {
-  it('renders the SVG scene without the HUD overlays (ring, stat bar moved to DashboardScreen)', () => {
+  it('renders the SVG scene without the HUD overlays (ring, stat bar moved to DashboardScreen)', { timeout: 20_000 }, () => {
     render(
       <LiveTurfDiorama
         area={area}
@@ -29,12 +29,14 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
     // Drift-fix F2: the stage is visualization-only — the in-stage
     // action bar is gone (the mode's actions live in the workspace
     // under the stage). The stage renders no buttons at all; its
-    // furniture is the count plate + the status ribbon (DESIGN.md
-    // §1) — the area plate that once shared the top row was
-    // removed from the scene by owner ruling 2026-11-02.
+    // furniture is the count plate (DESIGN.md §1) — the area plate
+    // that once shared the top row was removed from the scene by
+    // owner ruling 2026-11-02, and the status ribbon was retired
+    // by the 2026-11-03 consolidation (the hero rundown attaches
+    // to the stage's foot in the screen's flow, not in here).
     expect(screen.queryAllByRole('button')).toHaveLength(0);
     expect(screen.queryByTestId('diorama-stage-plate')).toBeNull();
-    expect(screen.getByTestId('diorama-status-ribbon')).toBeTruthy();
+    expect(screen.queryByTestId('diorama-status-ribbon')).toBeNull();
   });
 
   it('renders the SVG scene cleanly with crafting activityKind (no stat bar inside)', () => {
@@ -56,6 +58,9 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
     expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(1);
     // No in-stage action bar in any mode (drift-fix F2).
     expect(screen.queryAllByRole('button')).toHaveLength(0);
-    expect(screen.getByTestId('diorama-status-ribbon').textContent).toContain('Crafting');
+    // No ribbon, and the mode word prints nowhere on the stage
+    // (consolidation 2026-11-03): the scene says it.
+    expect(screen.queryByTestId('diorama-status-ribbon')).toBeNull();
+    expect(document.body.textContent).not.toContain('Crafting');
   });
 });

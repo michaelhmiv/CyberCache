@@ -224,7 +224,7 @@ ALLOWED_STORAGE=(
   "$SRC/components/pixelArt/LootMoment.tsx:UI celebration seen-preference for tap-to-skip (not progression)"
   "$SRC/store/slices/offlineRecapSlice.ts:display-only copy of already-settled offline rewards so the summary can be re-opened after dismissal (not progression; server settlement stays the only economy truth)"
   "$SRC/lib/pixel/headParts.ts:reads the device-local hunter head-variant cosmetic preference (not progression)"
-  "$SRC/components/dashboard/ResearchChip.tsx:one-time Course Complete card dismissal keyed to the server completion (UI preference only; completions are server records, never stored here)"
+  "$SRC/components/dashboard/NextMoveCard.tsx:seen/dismissal markers for the Next Move card — the Course Complete dismissal keyed to the server completion (inherited from the retired ResearchChip card) and the craft-completion seen-set keyed by server jobId (UI preference only; completions are server records, never stored here)"
   "$SRC/components/profile/standingsBadge.ts:device-local seen-week marker for the standings earnings notice (UI state only; earnings are server-settled facts read from the weekly payload, never stored here)"
   "$SRC/screens/SettingsScreen.tsx:writes the device-local hunter head-variant cosmetic preference (not progression)"
   "$SRC/test/:test files"

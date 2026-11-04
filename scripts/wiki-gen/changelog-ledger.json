@@ -176,6 +176,10 @@
         {
           "number": 356,
           "title": "Econ slice 4 follow-up: re-pin 0067 settler parity + dropped-signature guard (test-only)"
+        },
+        {
+          "number": 357,
+          "title": "Fix idle tick desync after offline settle (F1+F2) — claims land within one cycle of return"
         }
       ]
     },

@@ -9,11 +9,20 @@ function readSource(relativePath: string): string {
 }
 
 describe('Reactivity and stat bug regression', () => {
-  it('the deck (DashboardScreen successor) uses reactive useNow for activeBuffs filter, not frozen useState(Date.now)[0]', () => {
-    const source = readSource('src/components/dashboard/DashboardDeck.tsx');
-    expect(source).toContain('import { useNow }');
-    expect(source).toContain('const activeBuffsNow = useNow();');
-    expect(source).not.toContain('useState(Date.now)[0]');
+  it('the activeBuffs expiry filter uses reactive useNow, not frozen useState(Date.now)[0]', () => {
+    // The filter rode the deck until the Home consolidation
+    // (2026-11-03) folded the buff glance into the hero
+    // rundown's buff line — the reactive-clock law moved with
+    // it. The deck's own clock (the gain-toast lane) is pinned
+    // to the same law.
+    const rundown = readSource('src/components/dashboard/HeroRundown.tsx');
+    expect(rundown).toContain('import { useNow }');
+    expect(rundown).toContain('const now = useNow();');
+    expect(rundown).toContain('buff.expiresAt > now');
+    expect(rundown).not.toContain('useState(Date.now)[0]');
+    const deck = readSource('src/components/dashboard/DashboardDeck.tsx');
+    expect(deck).toContain('const now = useNow();');
+    expect(deck).not.toContain('useState(Date.now)[0]');
   });
 
   it('ActionLoadout subscribes to skill store spent points so DPS re-renders on skill changes', () => {

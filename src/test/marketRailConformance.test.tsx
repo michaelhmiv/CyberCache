@@ -9,7 +9,8 @@
  *    History segment keeps the trade record, nothing removed;
  *  - the tab→stop deep link: a recorded market-stop intent (what
  *    App's handleNavigate stores for a 'market:<stop>' route —
- *    Home's Slots card navigates 'market:slots') lands the player
+ *    Home's Slots card navigated 'market:slots' until the Home
+ *    consolidation retired the card, 2026-11-03) lands the player
  *    ON the named stop when Market mounts, and is consumed so a
  *    later plain visit keeps the player's own stop.
  */
@@ -292,6 +293,11 @@ describe('market rail conformance — tab→stop deep link (§9)', () => {
     expect(app).toContain('isMarketStopId(stop)');
     expect(app).toContain('requestMarketStop(stop)');
     const deck = readFileSync(join(__dirname, '../..', 'src/components/dashboard/DashboardDeck.tsx'), 'utf8');
-    expect(deck).toContain("onNavigate('market:slots')");
+    // Home consolidation (2026-11-03): the deck's Slots card —
+    // the route's Home emitter — left the deck; the Slots
+    // stop's only door is the Market rail itself now
+    // (DESIGN.md §9). The App resolution legs above are the
+    // surviving wiring, and the deck no longer emits the route.
+    expect(deck).not.toContain("onNavigate('market:slots')");
   });
 });

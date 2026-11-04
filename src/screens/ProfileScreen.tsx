@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
-import { useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
+import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore, useSurvivalStore } from '@/store';
+import { useCharacterStatSummary } from '@/hooks/useCharacterStatSummary';
+import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
 import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/api/statsService';
 import { formatDuration, topBreakdown } from '@/lib/stats/statsHelpers';
 import { ResourceBar } from '@/components/layout/ResourceBar';
@@ -65,9 +67,10 @@ const HUNTER_STOPS: Array<{ id: HunterStop; label: string; icon: PxIconName }> =
   { id: 'account', label: 'Account', icon: 'cog' },
 ];
 
-const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; desc: string; onClick: () => void; tone?: string }> = ({ glyph, icon, label, desc, onClick, tone = '#FF9000' }) => (
+const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; desc: string; onClick: () => void; tone?: string; testId?: string }> = ({ glyph, icon, label, desc, onClick, tone = '#FF9000', testId }) => (
   <button
     onClick={onClick}
+    data-testid={testId}
     className="bl-card flex w-full items-center gap-3 p-3 text-left transition-transform active:scale-[0.98]"
     style={{ borderLeftColor: tone, borderLeftWidth: 5 }}
   >
@@ -95,6 +98,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const [setupOpen, setSetupOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [detailMetric, setDetailMetric] = useState<{ metric: ProgressionMetric; leaderboardMetric?: LeaderboardMetric; label: string; value: number; color: string } | null>(null);
+  // Totals & Sources (Home consolidation, 2026-11-03): the full
+  // all-metrics source breakdown lives behind this door now —
+  // the deck's Hunter Totals panel is retired, and Home's hero
+  // rundown covers the per-stat focused form. The summary is the
+  // one shared assembly (no boss context: the standing build).
+  const [totalsOpen, setTotalsOpen] = useState(false);
+  const { summary: totalsSummary } = useCharacterStatSummary();
+  const activityKind = useActivityStore((s) => s.current.kind);
   const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
   const [stop, setStop] = useState<HunterStop>(() => (focusSection === 'skills' ? 'trees' : focusSection === 'research' ? 'research' : 'profile'));
   // Stops whose content mounts lazily on first visit and stays
@@ -304,6 +315,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
         <TrophyShelfPanel bare onOpenCollections={() => goToStop('collections')} />
       </MobileCard>
+
+      {/* Totals & Sources — the full source breakdown's home
+          (Home consolidation): every effective stat with every
+          contributor, the surface the deck's Hunter Totals panel
+          used to host. Home's rundown heroes open the focused
+          single-stat form of this same sheet. */}
+      <ActionRow
+        icon="chart"
+        label="Totals & Sources"
+        desc="Every effective stat for your current build — and exactly where each number comes from"
+        tone="#FF9000"
+        testId="profile-totals-sources-door"
+        onClick={() => setTotalsOpen(true)}
+      />
 
       {/* Wardrobe (Parts M4) — the skin-part showcase + wear/remove
           surface. M4 placed it directly after the identity block;
@@ -611,6 +636,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           label={detailMetric.label}
           value={detailMetric.value}
           color={detailMetric.color}
+        />
+      )}
+      {totalsOpen && (
+        <CharacterStatBreakdownModal
+          summary={totalsSummary}
+          open={totalsOpen}
+          onClose={() => setTotalsOpen(false)}
+          activityKind={activityKind}
         />
       )}
     </div>
