@@ -26,7 +26,9 @@ Your loadout has eight slots. Seven are gear:
   nodes it boosts light up as pips on the device face — position is
   the node, brightness is how hard it boosts.
 - **Relic** — a pure affix piece: no base stats of its own, all rolled
-  bonuses. A relic's picture is the object its name names — a Neural
+  bonuses. Four **named craft relics** break the rolled pattern on
+  purpose: their workshop effects are fixed (never rolled, never
+  reforgeable) — see [[Crafting]] § Craft relics. A relic's picture is the object its name names — a Neural
   Key looks like a key, a Void Prism like a prism — and where it
   dropped only changes the base it rests on, never its shape.
 
@@ -164,7 +166,7 @@ everything below is on it, in one scroll:
   consumable batches with their quality % printed, materials,
   and essences.
 - **The Workshop door** — at the page's foot, printing your bench
-  state (benches owned, jobs running); it opens the **Workshop**
+  state (the one bench, jobs running); it opens the **Workshop**
   stop, the crafting bench (see [[Crafting]]).
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,

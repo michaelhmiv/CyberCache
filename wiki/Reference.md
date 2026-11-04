@@ -243,6 +243,10 @@ A relic's form follows its name — every named relic is its own device. The pli
 | <img src="images/gear/relic-glitched-token.png" alt="Glitched Token" width="240"> | **Glitched Token** |
 | <img src="images/gear/relic-ethereal-drive.png" alt="Ethereal Drive" width="240"> | **Ethereal Drive** |
 | <img src="images/gear/relic-quantum-fragment.png" alt="Quantum Fragment" width="240"> | **Quantum Fragment** |
+| <img src="images/gear/relic-precision-calipers.png" alt="Precision Calipers" width="240"> | **Precision Calipers** |
+| <img src="images/gear/relic-servo-bench-rig.png" alt="Servo Bench Rig" width="240"> | **Servo Bench Rig** |
+| <img src="images/gear/relic-reclaimer-head.png" alt="Reclaimer Head" width="240"> | **Reclaimer Head** |
+| <img src="images/gear/relic-prime-laboratory.png" alt="Prime Laboratory" width="240"> | **Prime Laboratory** |
 <!-- /wiki-gen:gear-plates -->
 
 ## Roaming areas

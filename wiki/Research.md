@@ -24,8 +24,8 @@ Production study for crafters: quality, batch work, and the temper roll.
 | Course | Tier | Duration | Fee | Requires | Unlocks |
 |---|---|---|---|---|---|
 | Shop Fundamentals | 1 | 6 h | 2,500 | — | Craft quality shift **+2** on every completed craft unit (inside the shared −10…+20 clamp) |
-| Production Systems | 2 | 48 h | 15,000 | Shop Fundamentals · the Forge bench | The three **batch recipes** — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units: fewer materials and less time per unit than three singles (see [[Crafting]]) |
-| Master Fabricator Certification | 3 | 168 h | 60,000 | Production Systems · the Lab bench | Crafted gear **temper chance +0.03** (inside the 0.30 cap) and **+1 generation draw** on every crafted gear frame |
+| Production Systems | 2 | 48 h | 15,000 | Shop Fundamentals | The three **batch recipes** — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units: fewer materials and less time per unit than three singles (see [[Crafting]]) |
+| Master Fabricator Certification | 3 | 168 h | 60,000 | Production Systems | Crafted gear **temper chance +0.03** (inside the 0.30 cap) and **+1 generation draw** on every crafted gear frame |
 
 ### Field Mechanics — home: the bay + the road
 
@@ -59,7 +59,7 @@ Combat theory: small, permanent, engine-read passives.
 
 ## Reading the catalog
 
-The faculties reward the playstyle they are named for. Fabrication is the crafter's ladder — its tier 2 is the only door to batch production, and it is the one faculty whose gates include **benches**: Production Systems wants the Forge bench owned, the Certification wants the Lab. No faculty gates on your hunter level — every course asks only for its prerequisite in the chain, its fee, and its time. Every unlock is permanent and small on purpose: Research is the slow way to buy what skill points buy faster, and its real price is never the fee — it is the weeks the single enrollment slot spends getting there.
+The faculties reward the playstyle they are named for. Fabrication is the crafter's ladder — its tier 2 is the only door to batch production. No faculty gates on your hunter level — and, since the Workshop's benches collapsed into one, none gates on a bench either: every course asks only for its prerequisite in the chain, its fee, and its time. Every unlock is permanent and small on purpose: Research is the slow way to buy what skill points buy faster, and its real price is never the fee — it is the weeks the single enrollment slot spends getting there.
 
 ---
 
