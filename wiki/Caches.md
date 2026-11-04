@@ -34,7 +34,6 @@ Keys and fragments reach you from play, for example:
 - **Login streaks** — the day-7 reward of the streak ladder pays a cache key, and earlier days pay fragments (see [[Leaderboards and Streaks]]).
 - **Weekly leaderboards** — the top finishers take cache keys: **3 for 1st, 2 for 2nd, 1 for 3rd**.
 - **Contracts** — clearing your full weekly contract set pays **1 cache key**; dailies pay fragments instead.
-- **[[Slots]]** — the slot machine's key prize is a real cache key. If a key prize lands when it cannot be paid, it converts to **5 fragments** instead — exactly one key's worth, so the prize is never lost.
 
 Every one of those sources feeds the same key stock, and every opening they fund spends from the same daily budget. A key from a leaderboard and a key from fragments are the same key.
 

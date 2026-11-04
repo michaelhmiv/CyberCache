@@ -250,10 +250,11 @@ describe('layout contract — swept surfaces (source shape)', () => {
     expect(market).toContain('text-[11px]');
     expect(market).not.toContain('grid grid-cols-3 gap-2');
     expect(market).not.toContain('min-w-[60px]');
-    // The rail carries exactly DESIGN.md §2's seven stops, Rep
-    // Desk + Slots included; My Listings and History are segments
-    // of the Sell stop, not stops.
-    for (const id of ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk', 'slots']) {
+    // The rail carries exactly DESIGN.md §2's six stops; My
+    // Listings and History are segments of the Sell stop, not
+    // stops. (The seventh stop, Slots, was removed with Data
+    // Slots — migration 0074.)
+    for (const id of ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk']) {
       expect(market).toContain(`{ id: '${id}'`);
     }
     expect(market).not.toContain("{ id: 'mylistings', label: 'My Listings', px");

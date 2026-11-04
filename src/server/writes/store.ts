@@ -47,7 +47,7 @@ import {
 import type { ServiceBoardQuery } from '../../lib/market/boardQuery.js';
 import { gearCategoryFromPayload } from '../../lib/market/identityKey.js';
 import type { ServiceReaderFacts, SupplyBatch } from './boardRequirements.js';
-import { resolveEconomyConfigValues } from '../economy/config.js';
+import { resolveEconomyConfigValues, resolveRecipeScrapCosts } from '../economy/config.js';
 import type { DiscoveryRecord } from '../../content/collections.js';
 import {
   applyReforgeToItem,
@@ -885,16 +885,6 @@ export interface EnqueueTintJobInput {
 export interface WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json>;
   makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json>;
-  /**
-   * Data Slots (cc_slot_pull, 0049): one pull of the vendor slot
-   * machine. The SQL op is the whole machine — nonce replay, the
-   * verified gate, the levered tier bet, the daily pull cap, the
-   * server draw over the seeded slot_machine odds table, and the
-   * payout (credits / staple bundle / fragments / budget-charged
-   * cache key with the fragment fallback) land in one transaction
-   * with one ledger row. The store only forwards intent.
-   */
-  slotPull(playerId: string, nonce: string, betTier: number): Promise<Json>;
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json>;
   disablePushDevice(playerId: string, token: string): Promise<Json>;
   vendorBuy(playerId: string, nonce: string, itemKey: string, quantity: number): Promise<Json>;
@@ -1312,9 +1302,6 @@ export class PgWriteStore implements WriteStore {
       adUnitId,
     ]);
   }
-  slotPull(playerId: string, nonce: string, betTier: number): Promise<Json> {
-    return this.callJson('select public.cc_slot_pull($1, $2, $3) as result', [playerId, nonce, betTier]);
-  }
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json> {
     return this.callJson('select public.cc_register_push_device($1, $2, $3, $4) as result', [
       playerId,
@@ -1571,6 +1558,11 @@ export class PgWriteStore implements WriteStore {
         fitted?: Record<string, string | null>;
         charges?: Record<string, number>;
       };
+      // Econ 7 (brief §4.4): ship the resolved per-recipe Scrap map
+      // so the Workshop displays exactly what the SQL enqueue charges.
+      const { rows: configRows } = await this.pool.query('select key, value from public.economy_config');
+      const storedConfig: Record<string, unknown> = {};
+      for (const row of configRows) storedConfig[String(row.key)] = row.value;
       return buildWorkshopStateView({
         benches: Number(profileRows[0].workshop_benches ?? 1),
         tools: {
@@ -1581,6 +1573,7 @@ export class PgWriteStore implements WriteStore {
         jobs: jobRows.map(mapCraftJobRow),
         masteries,
         activeActionKind: actionRows[0] ? String(actionRows[0].active_action) : null,
+        recipeScrapCosts: resolveRecipeScrapCosts(storedConfig),
       }) as Json;
     } catch (err) {
       return translatePgError(err);

@@ -31,8 +31,6 @@ job before earning anything.
   fee share leaves the economy for good.
 - **[[Vendor]] buyback** — the vendor pays **40% of an item's value**,
   on demand, for gear, consumables, materials, and essences.
-- **[[Slots]] credit prizes** — real, but remember the machine's other
-  side of the ledger below.
 
 ## Where credits are destroyed (sinks)
 
@@ -57,9 +55,6 @@ entirely.
   five-rank ladder with one maker destroys **410,000 cr in tributes**,
   and Parts Crates and the 150,000 cr Signature Order are destroyed on
   purchase too.
-- **The [[Slots]] machine** — every wager is destroyed at the pull, and
-  the credit prizes pay back an exact **50.5%** over time. Net: roughly
-  495 cr destroyed per 1,000 cr wagered.
 - **Dispatch board re-deals** — re-dealing today's dispatch board costs
   credits at an escalating price (each re-deal today costs double the
   last, capped per day), destroyed on payment; see [[Dispatch]].
@@ -85,9 +80,11 @@ it trades on the player market:
   one and only Scrap: what salvage pays is what the bench charges,
   and you can list it on [[The Market]] — salvage-rich hunters sell
   it, crafters buy it. There is no second scrap: what older hunters
-  knew as Scrap Alloy was the same stock all along, and the
-  [[Vendor]] sells Scrap itself at 10 credits. See [[Collections]]
-  and [[Crafting]].
+  knew as Scrap Alloy was the same stock all along. The [[Vendor]]
+  neither sells nor buys Scrap — play and the player market are the
+  only doors — and scrap's faucets and sinks are metered daily
+  alongside credits, so its supply is tuned on real numbers. See
+  [[Collections]] and [[Crafting]].
 - **Cache fragments and keys** — 5 fragments make a key, and openings
   share a daily budget of 10. See [[Caches]].
 - **Legendary cores** — minted only by salvaging Legendary gear, spent
@@ -97,11 +94,20 @@ it trades on the player market:
 - **Standing** — reputation per manufacturer, never spent, never traded.
   See [[Manufacturer Standing]].
 
+## Live tuning
+
+Crafting's Scrap prices are tuned live, per recipe — if one
+recipe's Scrap cost is choking its supply (or barely matters), that
+one cost can move without touching any other recipe. Two guarantees
+come with that: the Workshop always displays the price that will
+actually be charged, and a job already on a bench keeps the price
+it started at — tuning never reprices work in progress.
+
 ## The one-paragraph version
 
 Play creates credits — roaming, bosses, contracts, streaks, dispatch.
 Trading moves them around and skims 5% into the void. Permanence costs
-them: research, standing, respecs, boss fees, and the slot machine all
+them: research, standing, respecs, and boss fees all
 destroy credits on purpose, so the credits you earn keep meaning
 something. If you ever wonder why a price on [[The Market]] is what it
 is, this page is most of the answer.

@@ -73,14 +73,15 @@ describe('Phase 1 structure — one gear home', () => {
     expect(chest).not.toContain('Equip in Gear');
   });
 
-  it('the Fight tab loadout is read-only with a Manage door into the home', () => {
+  it('the Fight tab carries NO loadout block (consolidation 2026-11-03); the gear home holds the only one', () => {
+    // Phase 1 put a read-only doll on the Fight tab with a
+    // Manage door into the gear home. The Home consolidation
+    // (owner ruling 2026-11-03) removed the doll entirely —
+    // the Gear tab's Loadout stop is the loadout's one home,
+    // in manage mode. The component's read-only machinery
+    // survives for its remaining consumers.
     const action = readSource('src/screens/ActionScreenContextual.tsx');
-    expect(action).toContain('<ActionLoadout readOnly');
-    // Device-feedback r2 / flow audit F2: the Manage door fires the
-    // 'loadout' target so the gear home opens ON its Loadout tab —
-    // the bare 'inventory' target deposited the player on the Gear
-    // list, one undiscovered tab-switch from the equip surface.
-    expect(action).toContain("onManageLoadout={() => onNavigate?.('loadout')}");
+    expect(action).not.toContain('ActionLoadout');
     const loadout = readSource('src/components/action/ActionLoadout.tsx');
     expect(loadout).toContain('readOnly');
     // The picker renders only outside read-only mode.

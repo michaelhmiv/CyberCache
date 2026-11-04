@@ -41,7 +41,6 @@ import { PickerSheet } from '@/components/common/PickerSheet';
 import { listEntranceProps, stopTransitionProps } from '@/lib/animation/uiMotion';
 import { VendorScreen } from './VendorScreen';
 import { RepDeskPanel } from '@/components/vendor/RepDeskPanel';
-import { DataSlotsPanel } from '@/components/vendor/DataSlotsPanel';
 import { sellerDisplayName, historyPartyName } from '@/lib/market/sellerDisplay';
 import { RepairBoard } from '@/components/market/RepairBoard';
 import { ShieldTechBoard } from '@/components/market/ShieldTechBoard';
@@ -67,7 +66,7 @@ type MyListSort = 'price' | 'rarity' | 'name';
  * gap (the ChipRail track); the rail scrolls, labels never shrink
  * below the 11px floor. Rep Desk and Slots are first-class stops:
  * standing's canonical door and the slot machine's canonical home.
- * The rail carries exactly §2's seven stops — My Listings and
+ * The rail carries exactly §2's six stops — My Listings and
  * History are segments of the Sell stop (SELL_SEGMENTS below),
  * not stops of their own.
  */
@@ -78,7 +77,6 @@ const STOPS: { id: string; label: string; px: PxIconName }[] = [
   { id: 'repair', label: 'Repair', px: 'wrench' },
   { id: 'shieldTech', label: 'Shield Tech', px: 'shield' },
   { id: 'repdesk', label: 'Rep Desk', px: 'badge' },
-  { id: 'slots', label: 'Slots', px: 'bolt' },
 ];
 
 /** The Sell stop's segments (DESIGN.md §2): the listing form, the
@@ -934,9 +932,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
       {market.activeTab === 'repdesk' && <RepDeskPanel />}
 
-      {market.activeTab === 'slots' && <DataSlotsPanel />}
-
-      {market.activeTab !== 'vendor' && market.activeTab !== 'repdesk' && market.activeTab !== 'slots' && (
+      {market.activeTab !== 'vendor' && market.activeTab !== 'repdesk' && (
         <>
       {market.activeTab === 'buy' && (
         <div className="space-y-3">

@@ -12,8 +12,12 @@
  *   - Consumable entries DERIVE from the consumable defs
  *     (`market.vendorStocked` → staple, priced + player-marketable
  *     non-staples → rotation pool). No price is re-typed here.
- *   - Material / essence entries (the five profile materials + five
+ *   - Material / essence entries (four profile materials + five
  *     essences) are defined here — they had no vendor price before.
+ *     Scrap is NOT one of them: economy ruling 6 (redesign brief §6)
+ *     removed the base material from the vendor entirely — no sale
+ *     line, no rotation slot, no buyback anchor — so its price is
+ *     set only by play and the player market.
  *   - The SQL twin lives in migration 0020 (`cc_vendor_catalog()` —
  *     one VALUES list feeding `cc_vendor_price`, `cc_vendor_buy`,
  *     `cc_vendor_sell`), and parity between this module and the SQL
@@ -71,9 +75,13 @@ export interface VendorMaterialEntry {
  * itself (the staples are the beginner on-ramp; materials are a
  * convenience), and no buy/sell loop against the vendor can profit:
  * buyback pays a fraction (default 40%) of these same values.
+ *
+ * Scrap is deliberately ABSENT (economy ruling 6, brief §6): the
+ * vendor neither sells it, rotates it, nor buys it back. Do not
+ * re-add the row — a vendor price would re-anchor the engine
+ * material the ruling set floating on the player market.
  */
 export const VENDOR_MATERIALS: VendorMaterialEntry[] = [
-  { id: MaterialType.Scrap, name: 'Scrap', kind: 'material', unitPrice: 10 },
   { id: MaterialType.BallisticParts, name: 'Ballistic Parts', kind: 'material', unitPrice: 15 },
   { id: MaterialType.ReactiveComponents, name: 'Reactive Components', kind: 'material', unitPrice: 20 },
   { id: MaterialType.TechFragments, name: 'Tech', kind: 'material', unitPrice: 35 },

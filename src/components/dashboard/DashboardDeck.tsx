@@ -2,70 +2,48 @@ import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  ChevronDown,
   ChevronRight,
 } from 'lucide-react';
 import {
-  useActivityStore,
-  useBossStore,
-  useInventoryStore,
-  useLoadoutStore,
   usePlayerStore,
-  useSkillStore,
   useTickFeedStore,
-  useActiveBuffsStore,
 } from '@/store';
-import { useSurvivalStore } from '@/store/slices/survivalSlice';
-import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
-import { REGION_1_BOSSES } from '@/constants/bosses';
 import { MANUFACTURERS } from '@/constants/manufacturers';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { Rarity, type Manufacturer } from '@/types/game';
-import { CharacterStatBarBody } from '@/components/stats/CharacterStatBar';
-import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
-import { WeeklyClaimablesPanel } from '@/components/dashboard/WeeklyClaimables';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
-import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
-import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import { useNow } from '@/hooks/useNow';
-import { useSyncSurvivalMaxHp } from '@/hooks/useSyncSurvivalMaxHp';
 import { getActivityVisual } from '@/constants/activityVisuals';
 import { getResourceVisual } from '@/constants/visualAssets';
 import type { TickEvent, TickEventTone } from '@/store/slices/tickSlice';
-import type { ActivityKind } from '@/types/activity';
-import type { Weapon } from '@/types/items';
 // DisplayGainEvent + gainFeed are still needed by GainToast (the floating
 // fixed-position toasts at the bottom of the screen).
 
 /**
  * DashboardDeck — Home's deck, in the FIXED order DESIGN.md §4
- * fixes for everything below the fold (redesign Wave C):
+ * fixes for everything below the fold (redesign Wave C, slimmed
+ * by the 2026-11-03 Home consolidation):
  *
- *   1. Launcher deck — Dispatch and Crack Cache first (the
- *      Board orphans with no other low-tap door), then Slots,
- *      then the Loadout shortcut (rendered only while a loadout
- *      is incomplete, §3). The old Action Board's other rows are
- *      gone BY DESIGN, not by accident: roaming is the stage
- *      itself, skills live on the Hunter rail, the Workshop is
- *      the Gear rail's bench (and the Craft panel's door), and
- *      Market is a tab.
- *   2. Weekly claimables — the Parts Crate + Signature Order
- *      panel; renders only in its claimable states (§4).
- *   3. Now — the single merged feed (World Pulse + the latest
+ *   1. Launchers — Dispatch and Crack Cache (the Board orphans
+ *      with no other low-tap door), owner-kept unchanged.
+ *   2. Now — the single merged feed (World Pulse + the latest
  *      player activity). One panel, one header, no duplicates.
- *   4. Hunter Totals — one header (this panel's label) with its
- *      one Sources disclosure (this panel's button); the stat
- *      body renders embedded so its own title never repeats.
  *
- * What LEFT the deck in Wave C: the consumable belt (now above
- * the fold, under the lit workspace), the area/research chip row
- * (now beside the stage, where the #239 pairing puts research
- * next to the area), the Choose Area panel and Hunter Notes
- * (their doors are the stage's Area rail stop / mode sheet and
- * the Hunter Totals panel). The gain toasts stay — they are a
- * floating overlay, not a deck block. Settings is NOT a deck
- * row (DESIGN.md §3: Hunter → Account; the Strip gear icon is
- * the shortcut).
+ * What LEFT the deck in the consolidation: the Slots card (its
+ * home is the Market rail stop — §9's two-tap count survives via
+ * the Market tab), the Loadout Bench shortcut (the stage's count
+ * plate carries the n/7 signal; Gear → Loadout is canonical),
+ * the Weekly claimables panel (weekly earnings surface as the
+ * TopBar claim chip and the Next Move card; the Rep Desk list
+ * itself is unchanged), and the Hunter Totals panel (its stats
+ * are the hero rundown's four heroes now, its Sources job split
+ * between the heroes' per-stat breakdown sheets and Hunter →
+ * Profile's "Totals & Sources" door). What left in Wave C: the
+ * consumable belt (above the fold, under the lit workspace) and
+ * the Choose Area panel / Hunter Notes. The gain toasts stay —
+ * they are a floating overlay, not a deck block. Settings is
+ * NOT a deck row (DESIGN.md §3: Hunter → Account; the Strip
+ * gear icon is the shortcut).
  */
 interface DashboardDeckProps {
   onNavigate: (screen: string) => void;
@@ -77,8 +55,6 @@ type DisplayGainTone = TickEventTone | 'unknown';
 type DisplayGainEvent = Pick<TickEvent, 'id' | 'label' | 'detail' | 'manufacturer' | 'gear'> & {
   tone?: string;
 };
-
-const HUD_ACTIVITY_CYCLE: ActivityKind[] = ['roaming_loot', 'crafting', 'salvaging', 'market_listing', 'workshop_service'];
 
 const panelClip = {
   clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)',
@@ -308,52 +284,14 @@ interface LauncherAction {
 
 export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
   const player = usePlayerStore();
-  const loadout = useLoadoutStore();
-  const inventory = useInventoryStore();
-  const skills = useSkillStore();
-  const boss = useBossStore();
-  const activity = useActivityStore();
   const tickEvents = useTickFeedStore((state) => state.events);
   // The toast lane skips folded events (foreground-resume slice):
   // gains earned during a brief app switch stay in the Now record
   // below but never pop as catch-up toasts on return.
   const gainFeed = useMemo<DisplayGainEvent[]>(() => tickEvents.filter((event) => !event.folded).slice(0, 5), [tickEvents]);
   const nowEvents = useMemo(() => tickEvents.slice(0, 3), [tickEvents]);
+  const now = useNow();
 
-  const currentBoss = boss.currentBossId ? REGION_1_BOSSES.find((b) => b.id === boss.currentBossId) : null;
-  // CONS-04: gear-equipped counts the 7 gear slots only, via the one
-  // loadout read model — the raw slot map also holds the vehicle slot,
-  // which inflated this count against its /7 denominator.
-  const equippedCount = countEquippedLoadoutSlots(buildLoadoutRows(loadout.slots, inventory.items));
-  const shieldHp = loadout.getShield()?.hp ?? 0;
-  useSyncSurvivalMaxHp(player.level, shieldHp);
-  const hunterCurrentHp = useSurvivalStore((state) => state.currentHp);
-  const hunterMaxHp = useSurvivalStore((state) => state.maxHp);
-  const survivalMedKitBuffer = useSurvivalStore((state) => state.medKitBuffer);
-  const activeBuffsStore = useActiveBuffsStore();
-  const [overrideActivity, setOverrideActivity] = useState<ActivityKind | null>(null);
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
-  const cycleOverride = React.useCallback(() => {
-    setOverrideActivity((current) => {
-      const idx = current ? HUD_ACTIVITY_CYCLE.indexOf(current) : -1;
-      return HUD_ACTIVITY_CYCLE[(idx + 1) % HUD_ACTIVITY_CYCLE.length];
-    });
-  }, []);
-  // Stat weapons: mirror same logic as LiveTurfDiorama
-  const primaryWeapon = loadout.getWeapon('primary');
-  const secondaryWeapon = loadout.getWeapon('secondary');
-  const heavyWeapon = loadout.getWeapon('heavy');
-  const equippedWeapons = [primaryWeapon, secondaryWeapon, heavyWeapon].filter((w): w is Weapon => !!w);
-  const statWeapons = equippedWeapons;
-  const activeBuffsNow = useNow();
-  const activeBuffs = useMemo(
-    () => activeBuffsStore.buffs.filter((buff) => buff.expiresAt > activeBuffsNow),
-    [activeBuffsStore.buffs, activeBuffsNow],
-  );
-  const consumableMods = useMemo(
-    () => buildConsumableInventoryMods(player.consumables),
-    [player.consumables],
-  );
   // Pop-up transience (owner ruling, 2026-11-02): a gain toast is a
   // pop-up, not a fixture — each event shows for TOAST_WINDOW_MS from
   // when the deck first sees it, then clears; at most two are ever
@@ -373,7 +311,7 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
       for (const event of gainFeed) {
         if (!prev.has(event.id)) {
           next ??= new Map(prev);
-          next.set(event.id, activeBuffsNow);
+          next.set(event.id, now);
         }
       }
       for (const id of prev.keys()) {
@@ -389,43 +327,19 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
     () => gainFeed
       .filter((event) => {
         const seenAt = toastFirstSeen.get(event.id);
-        return seenAt !== undefined && activeBuffsNow - seenAt < TOAST_WINDOW_MS;
+        return seenAt !== undefined && now - seenAt < TOAST_WINDOW_MS;
       })
       .slice(0, 2),
-    [gainFeed, toastFirstSeen, activeBuffsNow],
-  );
-  const computedStats = useMemo(
-    () => buildCharacterStatSummary({
-      player,
-      weapons: statWeapons,
-      shield: loadout.getShield(),
-      classMod: loadout.getClassMod(),
-      relic: loadout.getRelic(),
-      ordnance: loadout.getOrdnance(),
-      spentSkills: skills.spent,
-      boss: currentBoss ?? undefined,
-      activeBuffs,
-      consumableMods,
-      consumableInventory: player.consumables,
-      medKitBuffer: survivalMedKitBuffer,
-    }),
-    [player, statWeapons, loadout, skills.spent, currentBoss, activeBuffs, consumableMods, survivalMedKitBuffer],
+    [gainFeed, toastFirstSeen, now],
   );
 
+  // §4 launcher deck, fixed order: Dispatch and Crack Cache — the
+  // two Board orphans with no other low-tap door (owner-ruled
+  // keeps in the consolidation; the Slots card and the Loadout
+  // Bench shortcut left the deck — see the header note).
   const actions: LauncherAction[] = [
-    // §4 launcher deck, fixed order: Dispatch and Crack Cache
-    // first — the two Board orphans with no other low-tap door.
     { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', primary: true, onClick: () => onNavigate('dispatch') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, primary: true, onClick: () => onNavigate('chest') },
-    // Slots' canonical home is the Market rail stop (§3); this
-    // card is its ◦ launcher — it deep-links straight to the stop
-    // ('market:slots', DESIGN.md §9's two-tap count).
-    { id: 'slots', label: 'Slots', desc: 'Data Slots — the wheel lives at the Market rail stop.', icon: <PxIcon name="bolt" size={17} className="text-purple" />, tone: 'purple' as Tone, stat: 'At Market', onClick: () => onNavigate('market:slots') },
-    // §3/R5: the Loadout shortcut renders ONLY while a loadout
-    // is incomplete — a full 7/7 hunter does not need the door.
-    ...(equippedCount < 7
-      ? [{ id: 'inventory', label: 'Loadout Bench', desc: 'Equip, compare, and tune gear.', icon: <PxIcon name="diamondIn" size={17} className="text-amber" />, tone: 'amber' as Tone, stat: `${equippedCount}/7 equipped`, onClick: () => onNavigate('loadout') }]
-      : []),
   ];
 
   return (
@@ -446,16 +360,12 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
         )}
       </AnimatePresence>
       <div className="relative space-y-2">
-        {/* 1 — Launcher deck (§4 fixed order) */}
+        {/* 1 — Launchers (§4 fixed order) */}
         <Panel label="Launchers" className="space-y-2">
-          <div className="grid grid-cols-1 gap-1.5">{actions.slice(0, 2).map((action) => <ActionButton key={action.id} {...action} />)}</div>
-          {actions.length > 2 && <div className="grid grid-cols-2 gap-1.5">{actions.slice(2).map((action) => <ActionButton key={action.id} {...action} />)}</div>}
+          <div className="grid grid-cols-1 gap-1.5">{actions.map((action) => <ActionButton key={action.id} {...action} />)}</div>
         </Panel>
 
-        {/* 2 — Weekly claimables (renders only in claimable states) */}
-        <WeeklyClaimablesPanel />
-
-        {/* 3 — Now: the single merged feed */}
+        {/* 2 — Now: the single merged feed */}
         <Panel label="Now">
           <div className="space-y-2">
             {nowEvents.length > 0 && (
@@ -466,43 +376,6 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
             <WorldPulseFeed bare />
           </div>
         </Panel>
-
-        {/* 4 — Hunter Totals: one header, one Sources disclosure */}
-        <Panel
-          label="Hunter Totals"
-          headerActions={
-            <button
-              type="button"
-              data-testid="hunter-totals-sources-button"
-              onClick={() => setBreakdownOpen(true)}
-              className="flex items-center gap-1 border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber transition-colors hover:bg-amber/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber"
-              style={signClip}
-              aria-label="Open source breakdown for all character stats"
-            >
-              Sources
-              <ChevronDown size={11} />
-            </button>
-          }
-        >
-          <CharacterStatBarBody
-            embedded
-            summary={computedStats}
-            currentHp={hunterCurrentHp}
-            maxHp={hunterMaxHp}
-            activityKind={activity.current.kind}
-            overrideActivity={overrideActivity}
-            onChangeOverride={setOverrideActivity}
-            onCycleActivity={cycleOverride}
-          />
-        </Panel>
-        {breakdownOpen && (
-          <CharacterStatBreakdownModal
-            summary={computedStats}
-            open={breakdownOpen}
-            onClose={() => setBreakdownOpen(false)}
-            activityKind={activity.current.kind}
-          />
-        )}
       </div>
     </div>
   );

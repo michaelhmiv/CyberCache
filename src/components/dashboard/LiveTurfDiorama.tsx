@@ -69,16 +69,11 @@ interface LiveTurfDioramaProps {
    *  (Switch Action · Stop) float ON the stage as chips in the
    *  plates' language — top-left since the same day's follow-up
    *  ruling removed the area plate from that corner — supplied
-   *  by the screen, rendered by the stage. */
+   *  by the screen, rendered by the stage. Owner ruling
+   *  2026-11-03: the chips are ICON-ONLY 44px squares (swap /
+   *  stop glyphs, aria-labels carry the words) — the text made
+   *  them way larger than they needed to be. */
   stageControls?: React.ReactNode;
-  /** Owner direction 2026-11-02: the ribbon's content is the
-   *  player's effective-stats band (StageStatsBand), supplied by
-   *  the screen — the stage owns the ribbon's placement, the
-   *  screen owns its numbers. When supplied, the band replaces
-   *  the ribbon's latest-event line (events live in the feed
-   *  cards now); the mode chip stays the stage's. Absent, the
-   *  ribbon keeps its legacy event/caption line. */
-  statsBand?: React.ReactNode;
 }
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
@@ -1241,7 +1236,7 @@ const PixelSceneLayer: React.FC<{
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls, statsBand }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls }) => {
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the SVG fight can react.
@@ -1260,27 +1255,22 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const projectile = ELEMENT_PROJECTILE[element];
   const eventActive = isImpact(latestEvent);
   const dropItem = gearDropFromEvent(latestEvent);
-  const weaponLabel = weapon ? `${weapon.rarity} ${weapon.element} ${weapon.weaponType}` : 'No weapon equipped';
   // Stage furniture (DESIGN.md §1, drift-fix F2; owner rulings
-  // 2026-11-02): the Stage carries the count plate (top-right),
-  // ONE status ribbon along its bottom edge, the action-control
-  // chips (top-left — see stageControls below), and the combat HP
-  // plates at the actors' bases. There is NO area/target plate
-  // anymore: the owner removed the "Area · …" banner from the
-  // scene outright — area switching lives one tap away in the
-  // rail's AREA stop and the workspace panels' Change Area
-  // buttons, and the boss's name rides its HP plate. There is no
-  // headline title either: the old plate printed the activity
-  // target at poster size, ellipsized long names, and repeated
-  // the mode word the ribbon also carried. The state prints
-  // ONCE, in the ribbon: the mode chip + the effective-stats
-  // band the screen supplies (owner direction 2026-11-02). The
-  // ribbonLine below remains only as the fallback for renders
-  // that supply no band: the latest event line, or the mode
-  // caption with the weapon state folded in.
-  const ribbonLine = latestEvent
-    ? `${latestEvent.label} ${latestEvent.detail}`
-    : `${copy.caption} · ${weaponLabel}`;
+  // 2026-11-02, 2026-11-03): the Stage carries the count plate
+  // (top-right), the action-control chips (top-left — see
+  // stageControls below), and the combat HP plates at the
+  // actors' bases. There is NO area/target plate anymore: the
+  // owner removed the "Area · …" banner from the scene outright
+  // — area switching lives one tap away in the rail's AREA stop
+  // and the workspace panels' Change Area buttons, and the
+  // boss's name rides its HP plate. There is no headline title
+  // either. And since the 2026-11-03 Home consolidation there is
+  // NO status ribbon on the stage at all: the ribbon's mode word
+  // ("ROAMING") died — the scene, the rail, and the workspace
+  // already say it — and its effective-stats band was replaced
+  // by the screen's hero rundown, attached to the stage's FOOT
+  // (below the art, never over it, so the HP plates keep their
+  // pairing with the actors). Events live in the feed cards.
   // The ground line the HP plates anchor to: the same anchor the
   // rendered scene uses — the pixel background's groundLine for
   // converted zones, the vector scene's feet line (y≈151 of 286)
@@ -1376,32 +1366,21 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           Unarmed
         </div>
       ) : null}
-      {/* The ONE status ribbon (DESIGN.md §1) along the stage's
-          bottom edge — the mode prints here and nowhere else on
-          the stage. The in-stage action bar and the floating
-          weapon/event cards that used to cover the art are gone
-          (drift-fix F2): the mode's actions live in the workspace
-          directly under the stage, where the mode rail put them. */}
-      <div data-testid="diorama-status-ribbon" className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t-2 border-border bg-surface/95 px-2 py-1.5">
-        <span className="shrink-0 border border-border bg-bg px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">{copy.label}</span>
-        {statsBand ? (
-          // The stats band (owner direction 2026-11-02): effective
-          // stats for the current action + the Loadout door. It
-          // needs pointer events (scroll + the door) inside the
-          // ribbon's pointer-events-none shell.
-          <div className="pointer-events-auto flex min-w-0 flex-1 items-center">{statsBand}</div>
-        ) : (
-          <span className="min-w-0 flex-1 break-words text-[11px] leading-snug text-text-muted">{ribbonLine}</span>
-        )}
-      </div>
-      {/* Action controls (owner rulings 2026-11-02): Switch /
-          Stop float on the scene — first bottom-right above the
-          ribbon, then moved the same day to the TOP-LEFT corner
-          the removed area plate vacated, so the scene's lower
-          half (hunter, enemy, loot moment) carries no controls
-          at all. The screen owns the buttons; the stage owns
-          the placement. z-30 rides above every sprite layer; the
-          count plate keeps the top-right. */}
+      {/* No status ribbon (Home consolidation, owner steer
+          2026-11-03): the mode word and the stats band left the
+          stage — the hero rundown attaches to the stage's foot
+          in the screen's flow, below the art. The in-stage action
+          bar and the floating weapon/event cards that used to
+          cover the art are gone (drift-fix F2): the mode's
+          actions live in the workspace directly under the stage,
+          where the mode rail put them. */}
+      {/* Action controls (owner rulings 2026-11-02, icon-only
+          2026-11-03): Switch / Stop float on the scene in the
+          TOP-LEFT corner the removed area plate vacated, so the
+          scene's lower half (hunter, enemy, loot moment) carries
+          no controls at all. The screen owns the buttons; the
+          stage owns the placement. z-30 rides above every sprite
+          layer; the count plate keeps the top-right. */}
       {stageControls ? (
         <div data-testid="diorama-stage-controls" className="absolute left-2 top-2 z-30 flex items-start gap-2">
           {stageControls}

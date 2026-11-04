@@ -61,6 +61,8 @@ Your Profile opens with your identity and the **Trophy Shelf** in one panel: you
 
 Your Profile carries a **Lifetime Record** under the Trophy Shelf: the all-time, server-proven account of your hunter — roaming kills by area, weapon type, and element; boss attempts and victories; salvage and legendary cores; crafting, repair, dispatch, and market history. Every figure is folded from the game's own server records; nothing is estimated.
 
+Directly under the Lifetime Record sits the **[[Activity Log]]** door: where the panel totals your history, the log lists it — every drop with its receipt and the odds it rolled, every trade, craft, boss fight, and while-away settlement, back to the account's first day.
+
 Three figures carry their history on their face:
 
 - **Lifetime deaths** counts every death the server has recorded — the full record, reaching back to when deaths first became server-recorded facts.

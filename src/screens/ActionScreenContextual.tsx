@@ -30,11 +30,9 @@ import {
   type ActionFeedEntry,
 } from '@/components/action/ActionWorkspace';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
-import { StageStatsBand } from '@/components/dashboard/StageStatsBand';
+import { HeroRundown } from '@/components/dashboard/HeroRundown';
+import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
-import { VehicleStatusLine } from '@/components/gear/VehicleStatusLine';
-import { ActionLoadout } from '@/components/action/ActionLoadout';
-import { ActivityModifierPanel } from '@/components/action/ActivityModifierPanel';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import {
@@ -69,7 +67,6 @@ import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 import { ClaimSyncStatusLine } from '@/components/action/ClaimSyncStatusLine';
 import { HomeModeRail, type HomeModeRailStop } from '@/components/action/HomeModeRail';
 import { ConsumableBelt } from '@/components/dashboard/ConsumableBelt';
-import { ResearchChip, ResearchCompletionCard } from '@/components/dashboard/ResearchChip';
 
 const TICK_SECONDS = 3;
 const LOG_LIMIT = 10;
@@ -196,8 +193,11 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const workshop = useWorkshopStore();
   const market = useMarketStore();
   const skillStore = useSkillStore();
-  const survival = useSurvivalStore();
   const skillBonuses = skillStore.getBonuses();
+  // The standby panel's Away cell: the effective offline cap
+  // (Home consolidation — the retired stats band's AFK entry
+  // rehoused in the Roam panel's facts grid).
+  const offlineCapHours = useOfflineCapHours();
   const [showSwitch, setShowSwitch] = useState(false);
   const [showAreaSelect, setShowAreaSelect] = useState(false);
   const [showBossPicker, setShowBossPicker] = useState(false);
@@ -486,10 +486,15 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     // Idle/standby: the Roam panel (drift-fix F2, the approved
     // mock's anatomy) — the ONE primary action bar lives here in
     // the workspace, not on the stage: area facts, the full-width
-    // Start Roam, and the secondary ghost row (Change Area ·
-    // Loadout n/7). Before F2 the only Start Roam door was a
-    // button bar printed over the stage art, beside a duplicate
-    // door to the Switch Action sheet.
+    // Start Roam, and the full-width Change Area door. Before F2
+    // the only Start Roam door was a button bar printed over the
+    // stage art, beside a duplicate door to the Switch Action
+    // sheet. Home consolidation (2026-11-03): the ghost row's
+    // Loadout · n/7 door is gone — the count lives once, on the
+    // stage's count plate — and the facts grid gains the Away
+    // cell (the retired stats band's AFK entry): while you are
+    // gone this area keeps paying at the rates above, up to the
+    // effective offline cap.
     if (currentKind === 'idle_standby' || currentKind === 'none') {
       return (
         <div data-testid="home-standby-panel" className="relative overflow-hidden border-2 border-border bg-surface/95 p-3 shadow-[0_4px_14px_rgba(0,0,0,0.5)]" style={panelClip}>
@@ -504,8 +509,8 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
               wraps into fewer lines at the same 11px floor, and every
               cell centers its label/value group — the shorter facts
               no longer sit top-weighted in boxes stretched by the
-              longest cell. */}
-          <div data-testid="home-standby-facts" className="relative mt-2 grid grid-cols-[minmax(0,0.74fr)_minmax(0,0.74fr)_minmax(0,0.92fr)_minmax(0,1.6fr)] gap-1.5 text-[11px]">
+              longest cell. The Away cell rides the same grammar. */}
+          <div data-testid="home-standby-facts" className="relative mt-2 grid grid-cols-[minmax(0,0.72fr)_minmax(0,0.72fr)_minmax(0,0.84fr)_minmax(0,0.84fr)_minmax(0,1.5fr)] gap-1.5 text-[11px]">
             <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
               <div className="text-text-muted">Credits</div>
               <div className="font-black text-cyan">+{selectedArea.idleCreditsPerMinute}/min</div>
@@ -519,6 +524,10 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
               <div className="font-black text-amber">XP · gear</div>
             </div>
             <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
+              <div className="text-text-muted">Away</div>
+              <div className="font-black text-text-primary">cap {offlineCapHours}h</div>
+            </div>
+            <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
               <div className="text-text-muted">Hostiles</div>
               <div className="font-black leading-[1.15] text-text-primary [text-wrap:balance]">{selectedArea.enemyType}</div>
             </div>
@@ -526,14 +535,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           <button type="button" onClick={() => startRoam()} className="bl-primary relative mt-3 w-full py-3 text-sm font-black">
             Start Roam
           </button>
-          <div className="relative mt-2 flex gap-2">
-            <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary min-h-[44px] flex-1 px-3 py-2 text-[11px] font-black text-amber">
-              Change Area
-            </button>
-            <button type="button" onClick={() => onNavigate?.('loadout')} className="bl-secondary min-h-[44px] flex-1 px-3 py-2 text-[11px] font-black text-amber">
-              Loadout · {equippedCount}/7
-            </button>
-          </div>
+          <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary relative mt-2 min-h-[44px] w-full px-3 py-2 text-[11px] font-black text-amber">
+            Change Area
+          </button>
         </div>
       );
     }
@@ -577,7 +581,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
             </div>
           </div>
           <div className="relative mt-2 pt-2 border-t border-border/40 text-[9px] text-text-muted">
-            {selectedArea.gameplayIdentity} · <ActionTickTimer key={`tick-${selectedArea.id}-${currentKind}`} tickSeconds={TICK_SECONDS} enabled={canTick} variant="active" className="text-amber" /> · {equippedCount}/7 gear equipped
+            {selectedArea.gameplayIdentity} · <ActionTickTimer key={`tick-${selectedArea.id}-${currentKind}`} tickSeconds={TICK_SECONDS} enabled={canTick} variant="active" className="text-amber" />
           </div>
         </div>
       );
@@ -655,25 +659,28 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
   ].slice(0, MAX_SWITCH_ROWS);
 
-  // Action controls (owner rulings 2026-11-02): Switch / Stop float
-  // ON the stage as chips in the plates' language — the stage
-  // places them top-left, in the corner the removed area plate
-  // vacated. The
-  // dedicated row under the rail that used to carry them is
-  // deleted and its height reclaimed. Switch rides the stage in
-  // EVERY state: it is the one door to the Switch sheet, and
-  // through it to Salvage, which has no rail stop — hiding it at
-  // standby would bury a feature. Stop joins it while an action
-  // runs; at standby Stop renders disabled today (a permanent
-  // no-op chip on the art), so nothing functional leaves the
-  // idle stage. Both keep their 44px touch height and one-tap
-  // behavior, unchanged.
+  // Action controls (owner rulings 2026-11-02; ICON-ONLY
+  // 2026-11-03): Switch / Stop float ON the stage as plates in
+  // the plates' language — the stage places them top-left, in
+  // the corner the removed area plate vacated. The dedicated row
+  // under the rail that used to carry them is deleted and its
+  // height reclaimed. Switch rides the stage in EVERY state: it
+  // is the one door to the Switch sheet, and through it to
+  // Salvage, which has no rail stop — hiding it at standby would
+  // bury a feature. Stop joins it while an action runs; at
+  // standby there is no Stop at all (it rendered disabled — a
+  // permanent no-op chip on the art), so nothing functional
+  // leaves the idle stage. The 2026-11-03 ruling: the buttons
+  // are icon-only pixel glyphs (swap / stop from the §7 sheet)
+  // in 44px squares — the text made them way larger than they
+  // needed to be; the words live in the aria-labels, and the
+  // Switch sheet they open keeps its own title.
   const actionRunning = currentKind !== 'idle_standby' && currentKind !== 'none';
   const stageControls = (
     <>
-      <button type="button" onClick={() => setShowSwitch(true)} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[11px] font-black text-amber shadow-[4px_4px_0_rgba(0,0,0,0.62)]">Switch Action</button>
+      <button type="button" onClick={() => setShowSwitch(true)} aria-label="Switch Action" className="bl-secondary flex h-11 w-11 items-center justify-center text-amber shadow-[4px_4px_0_rgba(0,0,0,0.62)]"><PxIcon name="swap" size={17} /></button>
       {actionRunning && (
-        <button type="button" onClick={stopAction} disabled={activity.pending} className="bl-secondary flex min-h-[44px] items-center px-3 py-2 text-[11px] font-black text-red shadow-[4px_4px_0_rgba(0,0,0,0.62)] disabled:opacity-50">Stop</button>
+        <button type="button" onClick={stopAction} disabled={activity.pending} aria-label="Stop" className="bl-secondary flex h-11 w-11 items-center justify-center text-red shadow-[4px_4px_0_rgba(0,0,0,0.62)] disabled:opacity-50"><PxIcon name="stop" size={17} /></button>
       )}
     </>
   );
@@ -695,40 +702,42 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
       {/* §4: nothing but the Strip and claim chips sits above the
           Stage. The Switch/Stop controls float ON the stage now
-          (owner ruling 2026-11-02 — see stageControls below); the
-          dedicated controls row that used to sit under the mode
-          rail is gone, and the claim-sync line moved down to the
-          session feed it describes. The one chip that remains in
-          this zone is the research chip (#239: the education track
-          runs beside the action) — the current-area bar that used
-          to share this row is gone (drift-fix F2), and the stage's
-          own area plate followed it (owner ruling 2026-11-02):
-          the area affordance is the mode rail's AREA stop plus
-          the workspace panels' Change Area buttons, and the
-          stage's top-left belongs to the Switch/Stop chips. */}
-      <ResearchChip />
-      {/* Research (0038): the one-time course-complete card —
-          appears on the first open after a course settles
-          (renders null otherwise). */}
-      <ResearchCompletionCard />
+          (owner rulings 2026-11-02, icon-only 2026-11-03 — see
+          stageControls below); the dedicated controls row that
+          used to sit under the mode rail is gone, and the
+          claim-sync line moved down to the session feed it
+          describes. Home consolidation (2026-11-03): the research
+          chip and the course-complete card left this zone too —
+          the education track's state lives on Hunter → Research,
+          and a finished course now arrives as a Next Move below
+          the stage. The current-area bar that used to share this
+          row is gone (drift-fix F2), and the stage's own area
+          plate followed it (owner ruling 2026-11-02): the area
+          affordance is the mode rail's AREA stop plus the
+          workspace panels' Change Area buttons, and the stage's
+          top-left belongs to the Switch/Stop buttons. */}
 
-      {/* 1. Diorama — dashboard animation at top */}
-      <LiveTurfDiorama
-        area={selectedArea}
-        weapon={activityWeapon}
-        bossName={prepBossTarget?.name}
-        boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : undefined}
-        playerLevel={player.level}
-        equippedCount={equippedCount}
-        activityKind={currentKind}
-        stageControls={stageControls}
-        statsBand={(
-          <StageStatsBand
-            boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null}
-            onOpenLoadout={() => onNavigate?.('loadout')}
-          />
-        )}
-      />
+      {/* 1. Stage + hero rundown — the rundown attaches to the
+          stage's foot (Home consolidation): the ribbon's mode
+          word and its ~15-stat scroller are replaced by two
+          rows of tappable heroes (DPS · Dmg/tick · Crit % ·
+          Crit × over HP · Shield · Mit · Shield Break), each
+          opening its source breakdown. The wrapper keeps the
+          two flush — no composition gap between art and
+          rundown. */}
+      <div className="relative">
+        <LiveTurfDiorama
+          area={selectedArea}
+          weapon={activityWeapon}
+          bossName={prepBossTarget?.name}
+          boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : undefined}
+          playerLevel={player.level}
+          equippedCount={equippedCount}
+          activityKind={currentKind}
+          stageControls={stageControls}
+        />
+        <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
+      </div>
 
       {/* 1b. Mode rail (§2/§4) — the stage's six stops under the
           diorama. This replaces the old compact action selector
@@ -742,52 +751,21 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* 2. Action-specific panel — the lit workspace */}
       {workspace}
 
-      {/* Vehicle status (0021): yield bonus, fuel, condition, inactive reason.
-          The Garage door (audit UX-06) deep-links to the labeled Garage
-          section of the Loadout tab. */}
-      <VehicleStatusLine onOpenGarage={() => onNavigate?.('garage')} />
-
       {/* 2c. Consumable belt (§4 step 5) — above the fold, directly
           under the lit workspace; it lived in the deck before
-          Wave C. */}
-      <ConsumableBelt />
-
-      {/* 3. Loadout — star-pattern gear constellation. Read-only here:
-          the Fight tab displays the loadout; the gear home (Inventory)
-          is the one place it is managed. */}
-      <ActionLoadout readOnly onManageLoadout={() => onNavigate?.('loadout')} />
-
-      {/* 2b. Activity modifiers — procedural gear bonuses for current action */}
-      <ActivityModifierPanel activityKind={currentKind} />
-
-      {/* 3. Compact status strip — HP (with buffer/shield/nano) / Keys / Tick */}
-      <div className="flex gap-2 text-[10px]">
-        <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
-          <span className="text-text-muted">HP </span>
-          <span className={`font-black ${survival.currentHp < survival.maxHp * 0.3 ? 'text-red' : survival.currentHp < survival.maxHp * 0.6 ? 'text-amber' : 'text-green'}`}>
-            {Math.round(survival.currentHp)}/{Math.round(survival.maxHp)}
-          </span>
-          {survival.shieldHp > 0 && (
-            <span className="ml-1 inline-flex items-center gap-0.5 font-black text-cyan"><PxIcon name="shield" size={13} /> {Math.round(survival.shieldHp)}</span>
-          )}
-          {survival.medKitBuffer > 0 && (
-            <span className="ml-1 inline-flex items-center gap-0.5 font-black text-green"><PxIcon name="cross" size={13} /> {Math.round(survival.medKitBuffer)}</span>
-          )}
-          {survival.nanoSwarmTicksRemaining > 0 && (
-            <span className="ml-1 inline-flex items-center gap-0.5 font-black text-purple"><PxIcon name="star" size={13} /> {survival.nanoSwarmTicksRemaining}t</span>
-          )}
-        </div>
-        <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
-          <span className="text-text-muted">Keys </span>
-          <span className="font-black text-cyan">{player.cacheKeys} +{player.cacheKeyFragments}/5</span>
-        </div>
-        <div className="flex-1 border-2 border-border bg-bg/70 px-2 py-1.5" style={smallClip}>
-          <span className="text-text-muted">Tick </span>
-          <span className="inline-flex font-black">
-            <ActionTickTimer key={`tick-${selectedArea.id}-${currentKind}`} tickSeconds={TICK_SECONDS} enabled={canTick} variant="compact" className={canTick ? 'text-green' : 'text-text-muted'} />
-          </span>
-        </div>
-      </div>
+          Wave C. Home consolidation (2026-11-03): the belt row
+          also carries the vehicle chip now (owner correction —
+          the bike gets no row of its own), and the blocks that
+          used to stack under the workspace are gone from Home:
+          the vehicle status line (its chip + the Garage's line
+          carry the state), the read-only Loadout block (Gear →
+          Loadout is the canonical surface), the Activity
+          Modifiers panel (its glance folded into the rundown's
+          buff line, its detail into the breakdown sheets), and
+          the compact HP/Keys/Tick strip (HP → the HP plate + the
+          hero rundown, Keys → the Strip, Tick → the workspace
+          footer and the feed). */}
+      <ConsumableBelt onNavigate={(target) => onNavigate?.(target)} />
 
       {/* Claim sync stall: visible when roaming claims stop landing
           (ticker-exposed flag) — rewards are paused, not silently
@@ -797,7 +775,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
       {/* 6. Feed — loot log below the decision panels. Dropped items
           are actionable from their inspect sheet (F11). */}
-      <ActionFeed entries={feedEntries} onGearEquip={handleFeedEquip} onGearSalvage={handleFeedSalvage} gearActionBusy={feedActionBusy} gearActionError={feedActionError} />
+      <ActionFeed entries={feedEntries} onGearEquip={handleFeedEquip} onGearSalvage={handleFeedSalvage} gearActionBusy={feedActionBusy} gearActionError={feedActionError} onOpenFullLog={() => onNavigate?.('activity-log')} />
 
       {/* Drawers — unchanged */}
       <AnimatePresence>

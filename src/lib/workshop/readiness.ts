@@ -40,6 +40,7 @@ import {
   REFINE_BASE_YIELD_DEFAULT,
   type CraftRecipe,
 } from '@/content/crafting';
+import { resolvedRecipeInputs } from './recipeCosts';
 import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import { RESEARCH_COURSES } from '@/content/research';
 import { SKIN_PARTS } from '@/content/skins';
@@ -92,6 +93,14 @@ export interface WorkshopPlayerContext {
   researchCompletedIds: ReadonlySet<string> | null;
   /** Active (running/queued/paused) jobs, for queue checks. */
   activeJobs: Array<{ bench: number; recipeId: string }>;
+  /**
+   * Econ 7 (brief §4.4): the server's resolved per-recipe Scrap
+   * costs from the Workshop snapshot. Material-shortage math runs
+   * off the RESOLVED bill so a card never calls a recipe
+   * unaffordable at a price the server no longer charges (or vice
+   * versa). Absent = content literals, the pre-lever behavior.
+   */
+  recipeScrapCosts?: Record<string, number>;
 }
 
 export type GateFamily =
@@ -295,8 +304,9 @@ export function deriveRecipeReadiness(
     });
   }
 
-  // Materials — every shortage, counted as ONE family.
-  for (const [key, per] of Object.entries(recipe.inputs)) {
+  // Materials — every shortage, counted as ONE family. Econ 7: the
+  // bill is the RESOLVED one (the Scrap leg at its lever value).
+  for (const [key, per] of Object.entries(resolvedRecipeInputs(recipe, ctx.recipeScrapCosts))) {
     const need = per * units;
     const have = haveFor(ctx, key);
     if (have < need) shortages.push({ key, label: inputLabel(key), have, need, short: need - have });
@@ -403,7 +413,7 @@ export function recipePurpose(
     // a single count that would be wrong half the time.
     const range = refineOutputRange(recipe, masteryLevel(ctx, 'crafting.refining'), REFINE_BASE_YIELD_DEFAULT);
     const out = range.max > range.min ? `${range.min}–${range.max}` : `${range.min}`;
-    const inputs = Object.entries(recipe.inputs)
+    const inputs = Object.entries(resolvedRecipeInputs(recipe, ctx.recipeScrapCosts))
       .map(([k, v]) => `${v} ${inputLabel(k)}`)
       .join(' + ');
     return {

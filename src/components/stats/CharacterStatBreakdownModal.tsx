@@ -43,7 +43,18 @@ export const CharacterStatBreakdownModal: React.FC<{
   open: boolean;
   onClose: () => void;
   activityKind?: ActivityKind;
-}> = ({ summary, open, onClose, activityKind }) => {
+  /**
+   * Focus mode (Home consolidation, owner steer 2026-11-03):
+   * tapping a hero stat opens this same surface focused on that
+   * ONE metric — its MetricCard, sources expanded — instead of
+   * the all-metrics overlay. The Hunter → Profile "Totals &
+   * Sources" door opens the overlay unfocused, as before.
+   */
+  focusMetric?: StatMetric | null;
+  /** One explainer line under the focused card (e.g. the
+   *  Dmg/tick derivation, the crit no-double-count note). */
+  focusNote?: string;
+}> = ({ summary, open, onClose, activityKind, focusMetric, focusNote }) => {
   const scopedMetrics = useMemo(
     () => filterByActivity(summary, activityKind),
     [summary, activityKind],
@@ -96,7 +107,9 @@ export const CharacterStatBreakdownModal: React.FC<{
               <div className="min-w-0">
                 <div className="bl-title text-xl leading-none text-text-primary">Source Breakdown</div>
                 <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-text-muted">
-                  {activityLabel} · {scopedMetrics.length} stats · {activeSourceCount} sources
+                  {focusMetric
+                    ? `${focusMetric.label} · ${focusMetric.display}`
+                    : `${activityLabel} · ${scopedMetrics.length} stats · ${activeSourceCount} sources`}
                 </div>
               </div>
               <button
@@ -111,6 +124,17 @@ export const CharacterStatBreakdownModal: React.FC<{
 
             {/* Scrollable metric grid */}
             <div className="flex-1 overflow-y-auto px-3 py-2 pb-8">
+              {focusMetric ? (
+                <div data-testid="breakdown-focus">
+                  <MetricCard metric={focusMetric} max={sourceMax} defaultExpanded />
+                  {focusNote && (
+                    <div className="mt-2 border border-border bg-surface/80 p-2 text-[11px] leading-snug text-text-muted">
+                      {focusNote}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
               {/* Combat Core section */}
               {coreMetrics.length > 0 && (
                 <>
@@ -163,6 +187,8 @@ export const CharacterStatBreakdownModal: React.FC<{
               <div className="mt-3 text-center text-[8px] font-black uppercase tracking-wider text-text-muted/40">
                 Presentation HUD · server math is authoritative
               </div>
+                </>
+              )}
             </div>
           </motion.div>
         </motion.div>

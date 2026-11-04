@@ -35,8 +35,11 @@
 --   cc_craft_recipe_catalog   regenerated from TS content
 --                             (src/content/crafting.ts ALL_CRAFT_RECIPES)
 --   cc_craft_quality_bounds   0044 body, Lab bench term removed
---   cc_enqueue_craft_job      0069 body (Econ 5's restatement)
---   cc_enqueue_tint_job       0069 body
+--   cc_enqueue_craft_job      0072 body (Econ 7's restatement of 0069;
+--                             its §4 recipe-Scrap lever block is kept
+--                             verbatim — chain head moved after this
+--                             slice was first assembled)
+--   cc_enqueue_tint_job       0072 body (same note)
 --   cc_complete_craft_unit    0067 body (Econ 4's restatement)
 --   cc_pending_crafted_gear   0067 body (+ named_relic column)
 --   cc_research_course        0038 body (requiresBench keys out)
@@ -1788,7 +1791,8 @@ begin
 end;
 $$;
 
--- ─── §8. cc_enqueue_craft_job — 0069 body; bench forced to 1,
+-- ─── §8. cc_enqueue_craft_job — 0072 body (Econ 7's Scrap lever
+-- -- kept verbatim); bench forced to 1,
 -- -- rarity bench gates out, tool uniqueness out, catalyst
 -- -- bench gates out, named-relic catalyst refusal in, the
 -- -- fitted-tool snapshot replaced by the equipped-relic
@@ -1830,6 +1834,7 @@ declare
   v_relic_payload jsonb;
   v_aff jsonb;
   v_relic_min_bonus numeric := 0;
+  v_scrap_cost bigint;
   v_tool_quality numeric := 1;
   v_tool_duration numeric := 1;
   v_tool_yield numeric := 0;
@@ -2018,6 +2023,23 @@ begin
     v_escrow_cores := v_units;
   end if;
 
+  -- Economy brief §4 (0072): the recipe's Scrap leg resolves through
+  -- its per-recipe lever at enqueue — cc_economy_config_number reads
+  -- recipeScrap.<recipeId>, clamped to the registry spec [0, 100000],
+  -- falling back to the catalog literal when no row is set. The
+  -- resolved figure replaces the leg in the local recipe copy, so
+  -- the escrow loop below prices (and escrow_inputs snapshots) the
+  -- resolved cost; a later lever move never reprices this job, and
+  -- cancel refunds ride the snapshot unchanged. Only the Scrap leg
+  -- is config-backed — every other input stays the catalog literal.
+  if recipe -> 'inputs' ? 'Scrap' then
+    v_scrap_cost := greatest(0, least(100000, coalesce(
+      public.cc_economy_config_number('recipeScrap.' || p_recipe_id,
+        (recipe -> 'inputs' ->> 'Scrap')::numeric),
+      (recipe -> 'inputs' ->> 'Scrap')::numeric)))::bigint;
+    recipe := jsonb_set(recipe, '{inputs,Scrap}', to_jsonb(v_scrap_cost));
+  end if;
+
   -- Verify the full escrow before taking any of it (atomicity).
   for v_key, v_per_unit in
     select key, value::numeric from jsonb_each_text(recipe -> 'inputs')
@@ -2193,7 +2215,7 @@ begin
 end;
 $$;
 
--- ─── §9. cc_enqueue_tint_job — 0069 body; the bench search loop
+-- ─── §9. cc_enqueue_tint_job — 0072 body (Scrap lever kept); the bench search loop
 -- -- collapses to the one bench. ───
 
 create or replace function public.cc_enqueue_tint_job(
@@ -2239,7 +2261,13 @@ begin
    limit 1;
   if v_palette is null then raise exception 'Unknown tint palette'; end if;
   v_chroma := coalesce((v_palette ->> 'chromaweave')::integer, 0);
-  v_scrap := coalesce((recipe -> 'inputs' ->> 'Scrap')::integer, 0);
+  -- Economy brief §4 (0072): the tint craft's flat Scrap leg resolves
+  -- through its lever (recipeScrap.tint_craft) exactly like the
+  -- generic enqueue — clamped [0, 100000], catalog literal fallback.
+  v_scrap := greatest(0, least(100000, coalesce(
+    public.cc_economy_config_number('recipeScrap.tint_craft',
+      coalesce((recipe -> 'inputs' ->> 'Scrap')::numeric, 0)),
+    coalesce((recipe -> 'inputs' ->> 'Scrap')::numeric, 0))))::integer;
 
   select * into item from public.item_instances
    where id = item_id and owner_user_id = actor for update;

@@ -9,8 +9,9 @@
  *     (src/content/roamingEvents.ts),
  *   - the refining catalog (a material that is another recipe's
  *     outputMaterial is made HERE, in the Workshop),
- *   - the vendor catalog (src/lib/vendor/catalog.ts — the five base
- *     materials and five essences rotate through the NPC vendor),
+ *   - the vendor catalog (src/lib/vendor/catalog.ts — four base
+ *     materials and five essences rotate through the NPC vendor;
+ *     Scrap is not among them since economy ruling 6),
  *   - the player market (every material and essence id is listable —
  *     src/lib/market/identityKey.ts).
  *
@@ -47,9 +48,12 @@ const areaName = (areaId: string): string =>
  * vendor rotation (catalog materials/essences only), the market.
  */
 export function sourcesForInput(inputId: string): MaterialSource[] {
-  // Econ 5: Scrap is an ordinary material — it derives roam/vendor/
-  // market sources like every other input (the old currency-line
-  // special case is gone; there is no second scrap).
+  // Econ 5: Scrap is an ordinary material — it derives its sources
+  // like every other input (the old currency-line special case is
+  // gone; there is no second scrap). Econ 6: the vendor door below
+  // derives from VENDOR_MATERIALS, which no longer lists Scrap
+  // (ruling 6) — a Scrap shortfall now offers roam + market only,
+  // which is the ruling's whole point.
   const sources: MaterialSource[] = [];
 
   // Refined here: this input is another recipe's output.

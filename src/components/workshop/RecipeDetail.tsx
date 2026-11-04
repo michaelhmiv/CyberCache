@@ -32,6 +32,7 @@ import {
   type WorkshopPlayerContext,
 } from '@/lib/workshop/readiness';
 import { sourcesForInput, type MaterialSource } from '@/lib/workshop/sources';
+import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 
 // ─── Shortfall source line: sources with working doors ─────────────
@@ -242,7 +243,7 @@ export const RecipeInspectSheet: React.FC<{
         {/* What it takes — per-unit materials, have counts, sources. */}
         <div className="space-y-1">
           <div className="text-[11px] font-black uppercase tracking-wider text-amber">What it takes — per unit</div>
-          {Object.entries(recipe.inputs).map(([key, per]) => {
+          {Object.entries(resolvedRecipeInputs(recipe, ctx.recipeScrapCosts)).map(([key, per]) => {
             const have = isMaterialInput(key) ? (ctx.materials[key] ?? 0) : (ctx.essences[key] ?? 0);
             const short = have < per;
             return (

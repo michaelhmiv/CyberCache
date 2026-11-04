@@ -87,14 +87,14 @@ describe('scrap merge — key-space parity', () => {
     expect(sqlMarket.sort()).toEqual(Object.values(MaterialType).sort());
   });
 
-  it('the display registry names the stock "Scrap"; the vendor sells it at the old 10 cr anchor', () => {
+  it('the display registry names the stock "Scrap"; the vendor line is GONE since slice 6', () => {
     expect(MATERIAL_VISUALS[MaterialType.Scrap].label).toBe('Scrap');
-    // Brief §3.3 step 5: the vendor row is renamed, not removed —
-    // the merged Scrap sells at the old ScrapAlloy anchor for one
-    // slice; slice 6 removes the line outright.
+    // Brief §3.3 step 5: the vendor row was renamed, not removed —
+    // the merged Scrap sold at the old ScrapAlloy anchor for one
+    // slice. Econ 6 (ruling 6, brief §6) then removed the line
+    // outright: the vendor no longer stocks Scrap at any price.
     const vendorScrap = VENDOR_MATERIALS.find((e) => e.id === MaterialType.Scrap);
-    expect(vendorScrap?.unitPrice).toBe(10);
-    expect(vendorScrap?.name).toBe('Scrap');
+    expect(vendorScrap).toBeUndefined();
   });
 });
 

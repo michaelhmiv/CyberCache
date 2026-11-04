@@ -57,6 +57,7 @@ import {
 } from '../../content/crafting.js';
 import type { Affix } from '../../types/items.js';
 import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
+import { clampRecipeScrapCost } from '../economy/config.js';
 import {
   MAX_ACTIVE_REPAIR_JOBS,
   PATCH_KIT_BASES,
@@ -306,6 +307,31 @@ export interface CraftLeverValues {
   shieldTechWorkRateBase: number;
   shieldTechMasterySpeedPerLevel: number;
   shieldTechMasteryEfficiencyPerLevel: number;
+  /**
+   * Economy brief §4 (0072): the resolved per-recipe Scrap costs
+   * (recipeId -> Scrap per unit) for every recipe whose inputs carry
+   * a Scrap leg. OPTIONAL adapter surface: an adapter that omits it
+   * resolves every recipe to its content literal — exactly the
+   * pre-lever behavior — so parity never depends on it being wired.
+   */
+  recipeScrapCosts?: Record<string, number>;
+}
+
+/**
+ * Economy brief §4: a recipe's inputs with the Scrap leg resolved
+ * through the per-recipe lever — the escrow the enqueue charges and
+ * the Workshop displays. Every other leg stays the content literal;
+ * a recipe without a Scrap leg (or without a resolved value) returns
+ * untouched. The resolved figure is clamped to the registry spec so
+ * a bad adapter value can never mint a negative or absurd escrow.
+ */
+export function withResolvedScrapInputs(
+  recipe: CraftRecipe,
+  levers: CraftLeverValues,
+): Record<string, number> {
+  const literal = recipe.inputs['Scrap'];
+  if (literal === undefined) return recipe.inputs;
+  return { ...recipe.inputs, Scrap: clampRecipeScrapCost(levers.recipeScrapCosts?.[recipe.id], literal) };
 }
 
 export interface CraftAdapter {
@@ -1143,8 +1169,13 @@ export function enqueueCraftJob(
   // Verify the full escrow before taking any of it (atomicity).
   // Econ 5 (0069): the `Scrap` key is an ordinary material key now —
   // the 0053 scrap-column special case is deleted in both twins.
+  // Econ 7 (0072, brief §4): the Scrap leg resolves through the
+  // per-recipe lever AT ENQUEUE — this escrow is the snapshot every
+  // later step (settle, cancel refund) reads, so a lever move never
+  // reprices the job. Levers are read once, here.
+  const levers = adapter.levers();
   const escrowInputs: Record<string, number> = {};
-  for (const [key, perUnit] of Object.entries(r.inputs)) {
+  for (const [key, perUnit] of Object.entries(withResolvedScrapInputs(r, levers))) {
     escrowInputs[key] = perUnit * units;
     const available = isMaterialInput(key) ? (p.materials[key] ?? 0) : (p.essences[key] ?? 0);
     if (available < escrowInputs[key]) {
@@ -1201,7 +1232,7 @@ export function enqueueCraftJob(
   }
 
   // Snapshotted unit duration: base × skill × tool × scalar × rush.
-  const levers = adapter.levers();
+  // (`levers` was read once at the escrow build above — Econ 7.)
   const baseDuration = r.kind === 'gear' && gearRarity && !r.namedRelic
     ? (r.durationByRarityMs?.[gearRarity] ?? 0)
     : r.unitDurationMs;
@@ -1586,7 +1617,12 @@ export function enqueueTintJob(
   const palette = tintPaletteById(input.paletteId);
   if (!palette) fail('Unknown tint palette');
   const chromaweave = palette.chromaweave;
-  const scrapCost = recipe.inputs['Scrap'] ?? 0;
+  // Econ 7 (0072, brief §4): the tint craft's flat Scrap leg resolves
+  // through recipeScrap.tint_craft, exactly like the generic enqueue.
+  const scrapCost = clampRecipeScrapCost(
+    adapter.levers().recipeScrapCosts?.['tint_craft'],
+    recipe.inputs['Scrap'] ?? 0,
+  );
 
   const info = adapter.cosmeticInfo(playerId, input.itemId);
   if (!info) fail('Item not found');
@@ -1829,6 +1865,12 @@ export interface CraftJobView {
   /** Legendary Core Catalyst job (0026): escrowed cores, +2 draws/unit. */
   coreCatalyst: boolean;
   escrowCores: number;
+  /**
+   * Econ 7: the job's snapshotted escrow (per-job totals) — the held
+   * line in the Workshop reads THIS, never the live recipe, so a
+   * lever move can't make a running job's display lie about its cost.
+   */
+  escrowInputs: Record<string, number>;
   outputs: CraftJobOutput[];
   createdAtMs: number;
   completedAtMs: number | null;
@@ -1878,6 +1920,7 @@ export function craftJobView(
     catalystMaterialId: job.snapshot.catalystMaterialId,
     coreCatalyst: !!job.snapshot.coreCatalyst,
     escrowCores: job.escrow_cores ?? 0,
+    escrowInputs: job.escrow_inputs,
     outputs: job.outputs,
     createdAtMs: job.created_at_ms,
     completedAtMs: job.completed_at_ms,
@@ -1899,6 +1942,13 @@ export function buildWorkshopStateView(parts: {
   jobs: CraftJobRecord[];
   masteries: Record<string, { level: number; xp: number }>;
   activeActionKind: string | null;
+  /**
+   * Economy brief §4.4: the server's resolved per-recipe Scrap costs.
+   * The Workshop displays THESE (falling back to content literals
+   * when the field is absent) so the number shown is the number
+   * charged. Optional so older payloads stay valid.
+   */
+  recipeScrapCosts?: Record<string, number>;
 }): Record<string, unknown> {
   const sorted = [...parts.jobs].sort(
     (a, b) => a.created_at_ms - b.created_at_ms || a.id.localeCompare(b.id),
@@ -1922,5 +1972,6 @@ export function buildWorkshopStateView(parts: {
     masteries: parts.masteries,
     activeActionKind: parts.activeActionKind,
     recentCompletions,
+    ...(parts.recipeScrapCosts ? { recipeScrapCosts: parts.recipeScrapCosts } : {}),
   };
 }

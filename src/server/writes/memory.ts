@@ -49,6 +49,7 @@ import {
   VEHICLE_CONDITION_MAX,
   getVehicleClass,
 } from '../../lib/vehicles/vehicles.js';
+import { RECIPE_SCRAP_DEFAULTS, clampRecipeScrapCost } from '../economy/config.js';
 import {
   buildWorkshopStateView,
   cancelCraftJob as cancelCraftJobCore,
@@ -130,15 +131,6 @@ import {
   type CacheBoxPaymentCounts,
   type CacheLaneLeverValues,
 } from '../../content/cacheLane.js';
-import {
-  SLOT_KEY_FALLBACK_FRAGMENTS,
-  SLOT_KEY_FALLBACK_NOTE,
-  composeSlotBundle,
-  resolveSlotLevers,
-  slotBetForTier,
-  slotUtcDay,
-  type SlotLeverValues,
-} from '../../content/slots.js';
 import {
   applyReforgeToItem,
   isReforgeableAffix,
@@ -333,13 +325,6 @@ export interface InMemoryWriteOptions {
    * table through cc_economy_config_number.
    */
   cacheLaneLeverProvider?: () => Partial<CacheLaneLeverValues>;
-  /**
-   * Live slot-machine lever values (economy_config, 0049) — the
-   * daily pull cap and the three bet tiers — resolved per pull,
-   * clamped by resolveSlotLevers. The mirror of cc_slot_pull reading
-   * the table through cc_economy_config_number.
-   */
-  slotLeverProvider?: () => Partial<SlotLeverValues>;
 }
 
 function clone<T>(value: T): T {
@@ -363,7 +348,6 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly reforgeLeverProvider: () => Partial<ReforgeLeverValues>;
   private readonly cacheRankLeverProvider: () => Partial<CacheRankLeverValues>;
   private readonly cacheLaneLeverProvider: () => Partial<CacheLaneLeverValues>;
-  private readonly slotLeverProvider: () => Partial<SlotLeverValues>;
   private craftViews = new Map<string, CraftProfileView>();
   /** Cache Rank grant log (0031 mirror of the cc_cache_rank_grant ledger rows) for test introspection. */
   readonly cacheRankGrantLog: Array<{ playerId: string; fromLevel: number; toLevel: number; tokens: number }> = [];
@@ -394,7 +378,6 @@ export class InMemoryWriteStore implements WriteStore {
     this.reforgeLeverProvider = opts.reforgeLeverProvider ?? (() => ({}));
     this.cacheRankLeverProvider = opts.cacheRankLeverProvider ?? (() => ({}));
     this.cacheLaneLeverProvider = opts.cacheLaneLeverProvider ?? (() => ({}));
-    this.slotLeverProvider = opts.slotLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) {
       // Econ 5 (0069): a seed's legacy `scrap` amount folds into the
@@ -982,124 +965,6 @@ export class InMemoryWriteStore implements WriteStore {
       },
     };
     return this.record(playerId, 'cc_make_item', key, result);
-  }
-
-  /**
-   * Data Slots (0049): the in-memory twin of cc_slot_pull — same
-   * check order, same result shape. The draw runs the seeded
-   * slot_machine outcomes through the shared drawOdds (the TS
-   * statement of cc_draw_odds); the bundle composes through the
-   * content owner's composeSlotBundle (the TS statement of
-   * cc_slot_bundle); the key outcome reads the cache lane's daily
-   * openings budget exactly like makeItem counts it.
-   */
-  async slotPull(playerId: string, nonce: string, betTier: number): Promise<Json> {
-    const key = this.cleanNonce(nonce);
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const p = this.profile(playerId);
-    if (!this.canUseEconomy(p)) throw writeError('Verified account required');
-    const levers = resolveSlotLevers(this.slotLeverProvider());
-    const bet = slotBetForTier(levers, betTier);
-    if (bet === null) throw writeError('Unknown bet tier');
-    const cap = levers.slotDailyPullCap;
-    if (cap <= 0) throw writeError('The slot machine is closed');
-    const day = slotUtcDay(this.nowFn());
-    const pullsToday = p.slot_pulls_day === day ? (p.slot_pulls_count ?? 0) : 0;
-    if (pullsToday >= cap) throw writeError('Daily slot pull limit reached');
-    if (p.credits < bet) throw writeError('Insufficient credits');
-    // The SQL op draws inside the transaction (a missing table rolls
-    // the charge back); the twin has no transactions, so the table
-    // check stands in for the rollback before anything is charged.
-    const outcomes = this.seed.oddsOutcomes.filter((o) => o.table_id === 'slot_machine');
-    if (!outcomes.length) throw writeError('No outcomes configured for slot_machine');
-
-    p.credits -= bet;
-    p.slot_pulls_day = day;
-    p.slot_pulls_count = pullsToday + 1;
-
-    const draw = drawOdds('slot_machine', outcomes, this.rng());
-    const payload = (draw.payload ?? {}) as Record<string, unknown>;
-    const kind = typeof payload.kind === 'string' ? payload.kind : 'none';
-
-    let creditsPaid = 0;
-    let fragmentsPaid = 0;
-    let keyPaid = false;
-    let keyFallback = false;
-    let bundleItems: Json[] = [];
-    let bundleValue = 0;
-    let note: string | null = null;
-
-    // The cache budget view rides every result; openings never
-    // change inside a pull (keys are a stock, openings are opens).
-    const cacheCap = resolveCacheLaneLevers(this.cacheLaneLeverProvider()).cacheBoxDailyCap;
-    let openedToday = 0;
-    for (const row of this.seed.cacheBoxOpenings) {
-      if (row.user_id === playerId && row.open_day === day) openedToday += 1;
-    }
-
-    if (kind === 'credits') {
-      const multiplier = typeof payload.multiplier === 'number' ? payload.multiplier : 0;
-      creditsPaid = Math.floor(bet * multiplier);
-      if (creditsPaid > 0) p.credits += creditsPaid;
-    } else if (kind === 'bundle') {
-      const bundle = composeSlotBundle(bet);
-      bundleValue = bundle.totalValue;
-      bundleItems = bundle.items.map((item) => ({
-        item_key: item.itemKey,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-      }));
-      for (const item of bundle.items) {
-        this.addConsumableBatch(playerId, item.itemKey, item.quantity, 100, 'vendor', null, null, {
-          source: 'slot_machine',
-          bet_tier: betTier,
-          bet_credits: bet,
-        });
-      }
-    } else if (kind === 'fragments') {
-      fragmentsPaid = typeof payload.fragments === 'number' ? payload.fragments : SLOT_KEY_FALLBACK_FRAGMENTS;
-      p.cache_token_parts += fragmentsPaid;
-    } else if (kind === 'key') {
-      if (openedToday < cacheCap) {
-        p.cache_tokens += 1;
-        keyPaid = true;
-      } else {
-        fragmentsPaid = SLOT_KEY_FALLBACK_FRAGMENTS;
-        keyFallback = true;
-        note = SLOT_KEY_FALLBACK_NOTE;
-        p.cache_token_parts += fragmentsPaid;
-      }
-    }
-    this.touch(p);
-
-    const result: Json = {
-      action_type: 'cc_slot_pull',
-      profile: this.profileSnapshot(p),
-      odds: draw as unknown as Json,
-      bet_tier: betTier,
-      bet_credits: bet,
-      outcome: draw.outcome,
-      payout: {
-        kind,
-        credits_paid: creditsPaid,
-        fragments_paid: fragmentsPaid,
-        key_paid: keyPaid,
-        key_fallback: keyFallback,
-        bundle: bundleItems,
-        bundle_value: bundleValue,
-        note,
-      },
-      pulls_today: pullsToday + 1,
-      pulls_remaining: Math.max(0, cap - (pullsToday + 1)),
-      cap,
-      cache_budget: {
-        opened_today: openedToday,
-        cap: cacheCap,
-        remaining: Math.max(0, cacheCap - openedToday),
-      },
-    };
-    return this.record(playerId, 'cc_slot_pull', key, result);
   }
 
   async registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json> {
@@ -2442,6 +2307,17 @@ export class InMemoryWriteStore implements WriteStore {
         SHIELD_TECH_MASTERY_PER_LEVEL_MIN,
         SHIELD_TECH_MASTERY_PER_LEVEL_MAX,
       ),
+      // Econ 7 (brief §4): the resolved per-recipe Scrap map — the
+      // provider's per-recipe values clamped over the content
+      // literals, covering EVERY Scrap recipe (the full map is what
+      // the Workshop snapshot ships, so displays resolve identically
+      // to charges).
+      recipeScrapCosts: Object.fromEntries(
+        Object.entries(RECIPE_SCRAP_DEFAULTS).map(([recipeId, literal]) => [
+          recipeId,
+          clampRecipeScrapCost(provided.recipeScrapCosts?.[recipeId], literal),
+        ]),
+      ),
     };
   }
 
@@ -2943,7 +2819,17 @@ export class InMemoryWriteStore implements WriteStore {
     const result: Json = {
       action_type: 'cc_enqueue_craft_job',
       profile: this.profileSnapshot(p),
-      job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+      // The recorded job carries the escrow maps alongside the view:
+      // the SQL twin's ledger payload embeds cc_craft_job_json's
+      // escrow_inputs / escrow_catalyst, and the economy metrics
+      // folds (materials + scrap destroyed-by-crafting) read them
+      // from the ledger. Without them the InMemory ledger silently
+      // under-reports every crafting burn (0071).
+      job: {
+        ...(craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Record<string, unknown>),
+        escrow_inputs: job.escrow_inputs,
+        escrow_catalyst: job.escrow_catalyst,
+      } as unknown as Json,
       escrow_cores: job.escrow_cores ?? 0,
     };
     return this.record(playerId, 'cc_enqueue_craft_job', key, result);
@@ -2968,7 +2854,14 @@ export class InMemoryWriteStore implements WriteStore {
     const result: Json = {
       action_type: 'cc_enqueue_tint_job',
       profile: this.profileSnapshot(p),
-      job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+      // Escrow maps ride the recorded job exactly as on craft
+      // enqueues (0071): the scrap destroyed-by-crafting fold reads
+      // the tint job's Scrap leg from this ledger payload.
+      job: {
+        ...(craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Record<string, unknown>),
+        escrow_inputs: job.escrow_inputs,
+        escrow_catalyst: job.escrow_catalyst,
+      } as unknown as Json,
     };
     return this.record(playerId, 'cc_enqueue_tint_job', key, result);
   }
@@ -3081,6 +2974,7 @@ export class InMemoryWriteStore implements WriteStore {
       jobs: this.seed.craftJobs.filter((j) => j.owner_user_id === playerId),
       masteries,
       activeActionKind: this.activities.get(playerId)?.active_action ?? null,
+      recipeScrapCosts: this.craftLevers().recipeScrapCosts,
     }) as Json;
   }
 

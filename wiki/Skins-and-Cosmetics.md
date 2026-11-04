@@ -123,7 +123,9 @@ the same item wearing different light.
 The **Wardrobe** lives on your Hunter profile: a showcase stage
 with your hunter wearing his current look (weapon included), your
 owned parts by slot, and the full craftable catalog with its
-costs. A shortcut door also sits on the figure stage of the Gear
+costs. Those costs are live: a part's Scrap price is tuned per
+recipe (see [[Economy]]), and the Wardrobe always quotes the
+price that will actually be charged. A shortcut door also sits on the figure stage of the Gear
 tab's Loadout page — it lands here, on the Wardrobe panel. Tap **Wear** and the part replaces the stock piece for that
 slot — parts replace, they never layer over the stock frame. One
 part per slot; equipping a second part for a slot swaps the first
@@ -140,7 +142,9 @@ overrides the pick while it's on.
 ## Tinting and Chromaweave
 
 Any owned part can be **tinted** at the Workshop's Tinting lane:
-a 5-minute job costing a flat **25 Scrap** plus the palette's
+a 5-minute job costing a flat **25 Scrap** (the tint's standard
+price — like every recipe's Scrap cost it is tuned live, and the
+panel always shows the current price) plus the palette's
 **Chromaweave**. Seven palettes ship in wave 1:
 
 - **Arctic** and **Void** are *starter* tints — no Chromaweave,

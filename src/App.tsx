@@ -17,6 +17,7 @@ import { HelpScreen } from './screens/HelpScreen';
 import { WorkshopScreen } from './screens/WorkshopScreen';
 import { CollectionsScreen } from './screens/CollectionsScreen';
 import { DispatchScreen } from './screens/DispatchScreen';
+import { ActivityLogScreen } from './screens/ActivityLogScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
@@ -49,7 +50,7 @@ type TabId = 'home' | 'gear' | 'market' | 'hunter';
 // retired: the Hunter slice mounts its badged Standings door
 // against this sub-screen (handleNavigate('standings')). The
 // LeaderboardsScreen itself is unchanged.
-type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | 'standings' | null;
+type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | 'standings' | 'activity-log' | null;
 const topLevelTabs: TabId[] = ['home', 'gear', 'market', 'hunter'];
 
 // Analytics screen names (the analytics module's documented table):
@@ -68,6 +69,7 @@ const SUB_SCREEN_NAMES: Record<NonNullable<SubScreen>, ScreenName> = {
   collections: 'Collections',
   dispatch: 'Dispatch',
   standings: 'Standings',
+  'activity-log': 'Activity Log',
 };
 
 function VerificationReminderBanner() {
@@ -281,6 +283,7 @@ function App() {
       collections: <CollectionsScreen />,
       dispatch: <DispatchScreen />,
       standings: <LeaderboardsScreen onNavigate={handleNavigate} />,
+      'activity-log': <ActivityLogScreen />,
     };
     const title = subScreen === 'chest'
       ? 'Crack Cache'
@@ -292,6 +295,8 @@ function App() {
           ? 'Collections'
         : subScreen === 'standings'
           ? 'Standings'
+        : subScreen === 'activity-log'
+          ? 'Activity Log'
         : subScreen === 'help'
           ? 'Field Manual'
           : subScreen === 'settings'

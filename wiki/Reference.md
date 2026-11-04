@@ -327,30 +327,6 @@ The Garage and the Home diorama draw these over the class sprite above: an overl
 | <img src="images/vehicles/condition-smoke.png" alt="Condition Smoke" width="128"> | **Condition Smoke** | Ships in the art library — no wear overlay draws it yet |
 <!-- /wiki-gen:vehicles -->
 
-## Slots paytable
-
-The machine prints this same table in-game; the return rate below is
-derived from it by the game's own math.
-
-<!-- GENERATED from src/content/slots.ts — do not edit by hand -->
-<!-- wiki-gen:slots -->
-| Outcome | Chance | Pays |
-| --- | --- | --- |
-| **Bust** | 54.8% | Nothing |
-| **Kickback** | 20% | 0.5× bet back |
-| **Break-even** | 12% | 1× bet back |
-| **Triple** | 6% | 3× bet |
-| **Vendor Bundle** | 4.2% | Staple goods ≈ 2× bet |
-| **Fragment Drop** | 2% | 5 cache fragments |
-| **Ten-Spot** | 0.8% | 10× bet |
-| **Cache Key** | 0.15% | 1 cache key |
-| **Jackpot** | 0.05% | 50× bet |
-
-- **Credit RTP: 50.5%** — derived from the table above (Σ weight × credit multiplier over the credit outcomes), not a hardcoded figure.
-- Bet tiers: Chump Change — 50 cr · Working Stiff — 250 cr · High Roller — 1000 cr.
-- Daily pull cap: **100 pulls** per UTC day (a live economy lever; 0 closes the machine).
-- The Vendor Bundle prize is staples worth ≈2× the bet; the Cache Key prize pays **5 fragments** instead when the daily cache budget is full.
-<!-- /wiki-gen:slots -->
 
 ---
 

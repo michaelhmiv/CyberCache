@@ -59,6 +59,7 @@ import {
 import { GateLines, RecipeInspectSheet, SourceLine } from '@/components/workshop/RecipeDetail';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
+import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
 
 /**
  * The Workshop — crafting's one home, rebuilt on the server job model
@@ -358,6 +359,9 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
       standingRanks,
       researchCompletedIds,
       activeJobs: activeJobs.map((j) => ({ bench: j.bench, recipeId: j.recipeId })),
+      // Econ 7: readiness + card costs resolve through the server's
+      // per-recipe Scrap map (§4.4 of the economy brief).
+      recipeScrapCosts: server?.recipeScrapCosts,
     }),
     [player.level, player.scrap, player.materials, player.essences, player.consumables, benchesOwned, masteries, standingRanks, researchCompletedIds, activeJobs, server],
   );
@@ -856,8 +860,19 @@ const JobCard: React.FC<{
         catalyst: job.catalystMaterialId !== null,
       })
     : null;
+  // Econ 7: the held line reads the job's ESCROW SNAPSHOT when the
+  // payload carries it — per-unit snapshot × remaining units — so a
+  // lever move after enqueue never makes a running job display a
+  // cost it didn't actually pay. Older payloads fall back to the
+  // recipe's literal inputs.
   const held = recipe
-    ? Object.entries(recipe.inputs)
+    ? Object.entries(
+        job.escrowInputs && job.unitsTotal > 0
+          ? Object.fromEntries(
+              Object.entries(job.escrowInputs).map(([key, total]) => [key, total / job.unitsTotal]),
+            )
+          : recipe.inputs,
+      )
         .map(([key, per]) => `${per * remainingUnits} ${getVisualAsset('material', key).label}`)
         .join(' + ')
     : '';
@@ -1013,7 +1028,10 @@ const RecipeCard: React.FC<{
         ? `Makes ×${makesPerUnit} per unit`
         : null;
 
-  const inputRows = Object.entries(recipe.inputs).map(([key, per]) => {
+  // Econ 7: the bill shown is the RESOLVED bill (Scrap leg at its
+  // lever value) — the same figures the readiness derivation and
+  // the server charge use.
+  const inputRows = Object.entries(resolvedRecipeInputs(recipe, ctx.recipeScrapCosts)).map(([key, per]) => {
     // 'Scrap' is an ordinary material key since the 0069 merge —
     // its stock is ctx.materials['Scrap'].
     const have = isMaterialInput(key) ? (ctx.materials[key] ?? 0) : (ctx.essences[key] ?? 0);

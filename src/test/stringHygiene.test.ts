@@ -136,7 +136,6 @@ const ALLOWLIST: Array<{ file: string; side: GlueHit['side']; cleanedEndsOrStart
   { file: 'src/screens/MarketScreen.tsx', side: 'text>expr', cleanedEndsOrStarts: 'cr', reason: 'SalesGuidance: {unit} is " ea" or "" — the segment carries its own leading space.' },
   { file: 'src/screens/WorkshopScreen.tsx', side: 'text>expr', cleanedEndsOrStarts: 'cr', reason: 'Bench unlock: cost-input segments each render as " + N <label>" — leading space by construction.' },
   { file: 'src/screens/WorkshopScreen.tsx', side: 'text>expr', cleanedEndsOrStarts: 'R', reason: 'Compact rank badge "{manufacturer} R{rank}" — R{rank} is one token, like Lv.{n}.' },
-  { file: 'src/components/action/ActivityModifierPanel.tsx', side: 'text>expr', cleanedEndsOrStarts: 'Q', reason: 'Quality badge "Q{quality}" is one token.' },
   { file: 'src/components/consumables/ConsumableInspectSheet.tsx', side: 'text>expr', cleanedEndsOrStarts: 'x', reason: 'Count prefix "x{owned} owned" is one token.' },
 ];
 
@@ -307,11 +306,6 @@ describe('string hygiene — A2/A3/A6: fixed sites stay fixed (source pins)', ()
       file: 'src/components/dispatch/DispatchPanel.tsx',
       mustContain: ['getMaterialVisual(m.payout_material_id).label'],
       mustNotContain: ['${m.payout_material_id}`'],
-    },
-    {
-      file: 'src/components/vendor/DataSlotsPanel.tsx',
-      mustContain: ['getConsumableVisual(i.item_key).label'],
-      mustNotContain: ['`${i.item_key} ×${i.quantity}`'],
     },
   ];
 

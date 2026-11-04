@@ -15,7 +15,9 @@
  *     Research catalog (OFFLINE_CAP_MILESTONES); every composition
  *     point (settle-offline route x3, craft/extraction internal
  *     away-caps, repair + shield-tech internal caps, Settings,
- *     StageStatsBand) reads researchCapHours, never level.
+ *     useOfflineCapHours — the Home standby Away cell's hook,
+ *     formerly the StageStatsBand) reads researchCapHours,
+ *     never level.
  *   - SQL (0063, drafted — the parent applies it live before
  *     merge): the research catalog restated with the grants,
  *     cc_research_offline_cap_bonus as the catalog sum, the new
@@ -197,7 +199,7 @@ describe('the TS offline-cap carrier after step 6', () => {
       'src/server/routes/settleOffline.ts',
       'src/server/writes/memory.ts',
       'src/server/writes/craftEngine.ts',
-      'src/components/dashboard/StageStatsBand.tsx',
+      'src/hooks/useOfflineCapHours.ts',
       'src/screens/SettingsScreen.tsx',
     ]) {
       const src = readSrc(rel);

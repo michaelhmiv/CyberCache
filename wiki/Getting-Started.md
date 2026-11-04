@@ -40,7 +40,6 @@ Only **transacting** requires signing in:
 - Buying, selling, or listing on [[The Market]]
 - Posting or accepting jobs on the [[Repair Board]] and [[Shield-Tech]] boards
 - Claiming contract rewards on [[The Board]]
-- Pulling the lever on [[Slots]]
 
 When a guest taps a locked action, the game says so and offers the Google sign-in right there — with your progress carrying over, per the rule above.
 
@@ -59,7 +58,7 @@ The Workshop — crafting's home — is fully readable as a guest, too: the whol
 
 Guests also earn daily login streak rewards on exactly the same terms as signed-in players — see [[Leaderboards and Streaks]].
 
-Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|Parts Crate or Signature Order]] is claimable, Home's Weekly chip and claimables panel show it with its real price — claiming is a locked action that asks for Google sign-in, per the rule above.
+Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|Parts Crate or Signature Order]] is claimable, Home's Weekly chip shows it with its real price — claiming is a locked action that asks for Google sign-in, per the rule above.
 
 ## Your first hour
 

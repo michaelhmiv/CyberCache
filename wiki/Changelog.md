@@ -14,6 +14,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Gates keep falling** — consumable recipes no longer ask your level: meet the bench, the research, and the materials, and the job queues.
 - **Sign-in, in the game's own art** — the sign-in banner is now a pixel wasteland landscape. Behind the scenes, product analytics (GA4) landed to watch retention and the core loops.
 - **Bosses show themselves** — boss prep now opens on a portrait plate of the boss itself, standing on its own arena, with its weakness chip and mechanic up front; the picker rows, the fight header, and the defeat screen carry the same creature at every size. The old letter-emblem badges are retired.
+- **Data Slots is gone** — the vendor's slot machine has been removed: the Market rail is back to six stops and the Home deck loses its Slots card. Pulls were always settled on the spot — wager in, prize out, in the same moment — so no player had anything stored with the machine, and nothing was owed or lost in the removal.
 
 ## 2026-11-02 – 2026-11-03 — The evening batch: every "no" explains itself
 

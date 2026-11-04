@@ -34,7 +34,6 @@ import { weaponFramesBlock, weaponElementsBlock, gearPlatesBlock, materialsBlock
 import { areasPicturedBlock, skinsPicturedBlock } from './images-w6';
 import { areasBlock } from './areas';
 import { vehiclesBlock } from './vehicles';
-import { slotsBlock } from './slots';
 import { legendaryEffectsBlock } from './legendaryEffects';
 import { consumablesBlock } from './consumables';
 import { recipesBlock } from './recipes';
@@ -51,7 +50,7 @@ interface PageSpec {
 const PAGES: PageSpec[] = [
   {
     page: 'Reference.md',
-    blocks: [weaponsBlock, weaponFramesBlock, weaponElementsBlock, affixesBlock, gearPlatesBlock, areasBlock, vehiclesBlock, slotsBlock],
+    blocks: [weaponsBlock, weaponFramesBlock, weaponElementsBlock, affixesBlock, gearPlatesBlock, areasBlock, vehiclesBlock],
   },
   { page: 'Reference-Legendary-Effects.md', blocks: [legendaryEffectsBlock] },
   { page: 'Reference-Consumables.md', blocks: [consumablesBlock] },

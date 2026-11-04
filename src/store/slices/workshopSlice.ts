@@ -33,6 +33,12 @@ export interface WorkshopJobView {
   xpAwarded: number;
   gearRarity: string | null;
   catalystMaterialId: string | null;
+  /**
+   * Econ 7: the job's snapshotted escrow (per-job totals). The held
+   * line reads this so a running job displays its enqueue-time cost
+   * even after a lever move. Absent on older payloads.
+   */
+  escrowInputs?: Record<string, number>;
   outputs: Array<Record<string, unknown>>;
   createdAtMs: number;
   completedAtMs: number | null;
@@ -62,6 +68,13 @@ export interface WorkshopServerView {
   masteries: Record<string, { level: number; xp: number }>;
   activeActionKind: string | null;
   recentCompletions: WorkshopCompletionView[];
+  /**
+   * Economy brief §4.4: the server's resolved per-recipe Scrap costs
+   * (recipeId -> Scrap per unit). Displays resolve through this map
+   * so the number shown is the number charged; absent on older
+   * payloads, where displays fall back to the content literals.
+   */
+  recipeScrapCosts?: Record<string, number>;
 }
 
 export interface WorkshopState {

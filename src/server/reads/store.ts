@@ -65,17 +65,21 @@ import {
   type CacheLaneView,
 } from '../../content/cacheLane';
 import {
-  buildSlotStateView,
-  resolveSlotLevers,
-  slotUtcDay,
-  type SlotStateView,
-} from '../../content/slots';
-import {
   computeRaceStandings,
   WEEKLY_FOLD_ACTION_TYPES,
   type WeeklyFoldInput,
 } from '../leaderboards/fold';
 import { NPC_MARKET_USER_ID } from '../lib/npcMarket';
+import {
+  buildActivityRecords, decodeActivityCursor, encodeActivityCursor,
+  normalizeActivityLimit, queryActivityRecords,
+  type ActivityCraftJobRow, type ActivityDispatchRow, type ActivityEndlessRow,
+  type ActivityLedgerRow, type ActivityListingRow, type ActivityLogPage,
+  type ActivityLogQuery, type ActivityRawInput,
+} from './activityLog';
+
+/** Payload-carried user ids are only ever looked up when uuid-shaped. */
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ---------------------------------------------------------------------------
 // Row shapes — mirrors of the client service interfaces (kept server-local
@@ -129,10 +133,6 @@ export interface ProfileRowData {
   cache_rank_grant_level?: number;
   /** Cache Rank per-track spend ranks (migration 0031). Optional: pre-0031 rows omit it (= {}). */
   cache_rank_spends?: Record<string, number>;
-  /** Data Slots daily pull counter day (migration 0049). Optional: pre-0049 rows omit it (= null). */
-  slot_pulls_day?: string | null;
-  /** Data Slots pulls on slot_pulls_day (migration 0049). Optional: pre-0049 rows omit it (= 0). */
-  slot_pulls_count?: number;
   /**
    * Computed by PgReadStore.getProfile (not a column): victories per
    * boss on the current UTC day from the verified action ledger — the
@@ -891,8 +891,8 @@ export interface ReadStore {
   getWeeklyLeaderboards(playerId: string, now: Date): Promise<WeeklyLeaderboardsData | null>;
   /** Caller's cache box lane state for the current UTC day (0037): opened today / remaining / free available; null when no profile. */
   getCacheLane(playerId: string, now: Date): Promise<CacheLaneView | null>;
-  /** Caller's Data Slots state for the current UTC day (0049): levered tiers, pulls used / remaining, and the cache budget a key prize would charge; null when no profile. */
-  getSlotState(playerId: string, now: Date): Promise<SlotStateView | null>;
+  /** Caller's unified activity record (AL-2): cursor-paginated, kind-filtered, searchable projection over the ledger + domain rows; null when no profile. */
+  getActivityLog(playerId: string, query: ActivityLogQuery): Promise<ActivityLogPage | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1569,6 +1569,11 @@ export interface ReadSeed {
   cacheBoxOpenings?: Array<{ user_id: string; open_day: string; payment: string }>;
   /** Trophy Shelf pin rows (0058). Optional: older seeds omit it. */
   showcasePins?: Array<{ user_id: string; item_id: string; pin_order: number }>;
+  /** Activity Log rows (AL-2) with the fields the fold shapes omit (row ids, timestamps). Optional. */
+  activityLedger?: Array<ActivityLedgerRow & { user_id: string }>;
+  activityCraftJobs?: Array<ActivityCraftJobRow & { user_id: string }>;
+  activityDispatchMissions?: Array<ActivityDispatchRow & { user_id: string }>;
+  activityEndlessRuns?: Array<ActivityEndlessRow & { user_id: string }>;
 }
 
 export function emptyReadSeed(): ReadSeed {
@@ -1578,6 +1583,82 @@ export function emptyReadSeed(): ReadSeed {
   };
 }
 
+/**
+ * Assemble one player's AL-2 projection input from the seed — the
+ * in-memory twin of PgReadStore.getActivityLog's fetches. Rich seed
+ * arrays (activityLedger / activityCraftJobs / …) carry the fields
+ * the fold-shaped seed types omit (row ids, completion timestamps);
+ * the plain `ledger` seed still answers, with synthesized row ids
+ * and epoch timestamps where a row carries none.
+ */
+function activityInputFromSeed(seed: ReadSeed, playerId: string): ActivityRawInput {
+  const rich = seed.activityLedger ?? null;
+  const ownLedger: ActivityLedgerRow[] = rich
+    ? rich.filter((r) => r.user_id === playerId).map((r) => ({
+      id: r.id, action_type: r.action_type, result_payload: foldRecord(r.result_payload), created_at: r.created_at,
+    }))
+    : (seed.ledger ?? []).filter((r) => r.user_id === playerId).map((r, i) => ({
+      id: `mem-ledger-${i}`, action_type: r.action_type, result_payload: foldRecord(r.result_payload),
+      created_at: r.created_at ?? '1970-01-01T00:00:00.000Z',
+    }));
+  const acceptRows: Array<{ user_id: string; result_payload: Record<string, unknown> }> = rich
+    ? rich.filter((r) => r.action_type === 'cc_accept_listing' || r.action_type === 'cc_quickbuy_fill')
+    : (seed.ledger ?? []).filter((r) => r.action_type === 'cc_accept_listing' || r.action_type === 'cc_quickbuy_fill');
+  const purchasedItemIds = new Set<string>();
+  const saleFacts = new Map<string, { feeCredits: number | null; buyerId: string | null }>();
+  for (const entry of acceptRows) {
+    const payload = foldRecord(entry.result_payload);
+    const listing = foldRecord(payload.listing);
+    if (entry.user_id === playerId) {
+      const itemId = foldRecord(payload.item).id ?? listing.item_instance_id;
+      if (typeof itemId === 'string') purchasedItemIds.add(itemId);
+    }
+    if (typeof listing.id === 'string' && listing.seller_user_id === playerId) {
+      const fee = foldRecord(payload.market_fee).fee_credits;
+      saleFacts.set(listing.id, { feeCredits: typeof fee === 'number' ? fee : null, buyerId: entry.user_id });
+    }
+  }
+  const cacheItemIds = new Set<string>();
+  for (const row of ownLedger) {
+    if (row.action_type !== 'cc_make_item') continue;
+    const itemId = foldRecord(row.result_payload.item).id;
+    if (typeof itemId === 'string') cacheItemIds.add(itemId);
+  }
+  const names = new Map<string, string>();
+  for (const p of seed.profiles) {
+    const name = p.display_name ?? p.username;
+    if (name) names.set(p.id, name);
+  }
+  return {
+    ledger: ownLedger,
+    items: seed.items.filter((i) => i.owner_user_id === playerId).map((i) => ({
+      id: i.id, kind: i.kind, rarity: i.rarity, item_level: i.item_level,
+      runtime_state: i.runtime_state, payload: i.payload, created_at: i.created_at,
+    })),
+    soldListings: (seed.listings ?? [])
+      .filter((l) => l.seller_user_id === playerId && l.status === 'sold' && typeof l.sold_at === 'string')
+      .map((l) => ({
+        id: l.id, item_instance_id: l.item_instance_id, price_credits: l.price_credits,
+        sold_at: l.sold_at as string, listing_kind: l.listing_kind ?? null,
+        display_name: l.display_name ?? null, rarity: l.rarity ?? null, item_level: l.item_level ?? null,
+      })),
+    craftJobs: (seed.activityCraftJobs ?? []).filter((j) => j.user_id === playerId).map((j) => ({
+      id: j.id, kind: j.kind, recipe_id: j.recipe_id, bench: j.bench, units_total: j.units_total,
+      units_completed: j.units_completed, outputs: j.outputs, xp_awarded: j.xp_awarded, completed_at: j.completed_at,
+    })),
+    dispatchMissions: (seed.activityDispatchMissions ?? []).filter((m) => m.user_id === playerId).map((m) => ({
+      id: m.id, contract_family: m.contract_family, payout_credits: m.payout_credits,
+      payout_fraction: m.payout_fraction, departed_at: m.departed_at, settled_at: m.settled_at,
+    })),
+    endlessRuns: (seed.activityEndlessRuns ?? []).filter((r) => r.user_id === playerId).map((r) => ({
+      id: r.id, status: r.status, depth_reached: r.depth_reached, started_at: r.started_at, ended_at: r.ended_at,
+    })),
+    purchasedItemIds,
+    cacheItemIds,
+    names,
+    saleFacts,
+  };
+}
 export class InMemoryReadStore implements ReadStore {
   constructor(private readonly seed: ReadSeed = emptyReadSeed(), private readonly now: () => Date = () => new Date()) {
     // Econ 5 (0069): fold any seed's legacy scrap balance into the
@@ -1628,29 +1709,12 @@ export class InMemoryReadStore implements ReadStore {
     );
   }
 
-  async getSlotState(playerId: string, now: Date): Promise<SlotStateView | null> {
+  async getActivityLog(playerId: string, query: ActivityLogQuery): Promise<ActivityLogPage | null> {
     const profile = this.seed.profiles.find((p) => p.id === playerId);
     if (!profile) return null;
-    const day = slotUtcDay(now);
-    const pullsToday = profile.slot_pulls_day === day ? (profile.slot_pulls_count ?? 0) : 0;
-    let openedToday = 0;
-    for (const row of this.seed.cacheBoxOpenings ?? []) {
-      if (row.user_id === playerId && row.open_day === day) openedToday += 1;
-    }
-    // The twin serves the shipped default levers; the Pg store reads
-    // the live economy_config values — the same split getCacheLane
-    // uses above.
-    return buildSlotStateView(
-      {
-        day,
-        pullsToday,
-        cacheOpenedToday: openedToday,
-        cacheCap: resolveCacheLaneLevers().cacheBoxDailyCap,
-      },
-      resolveSlotLevers(),
-    );
+    const result = queryActivityRecords(buildActivityRecords(activityInputFromSeed(this.seed, playerId)), query);
+    return { records: result.records, nextCursor: result.nextCursor, limit: result.limit };
   }
-
   async getProfileStats(playerId: string): Promise<ProfileLifetimeData | null> {
     const profile = this.seed.profiles.find((p) => p.id === playerId);
     if (!profile) return null;
@@ -2217,54 +2281,217 @@ export class PgReadStore implements ReadStore {
     );
   }
 
-  async getSlotState(playerId: string, now: Date): Promise<SlotStateView | null> {
-    const { rows } = await this.db.query(
-      'select slot_pulls_day, slot_pulls_count from public.profiles where id = $1',
+  async getActivityLog(playerId: string, query: ActivityLogQuery): Promise<ActivityLogPage | null> {
+    const { rows: profileRows } = await this.db.query(
+      'select id from public.profiles where id = $1',
       [playerId],
     );
-    if (!rows.length) return null;
-    const day = slotUtcDay(now);
-    const profileRow = rows[0] as Row;
-    const rawDay = profileRow.slot_pulls_day;
-    const pullsDay =
-      rawDay instanceof Date
-        ? rawDay.toISOString().slice(0, 10)
-        : typeof rawDay === 'string'
-          ? rawDay.slice(0, 10)
-          : null;
-    const pullsToday = pullsDay === day ? num(profileRow.slot_pulls_count) : 0;
-    const { rows: openingRows } = await this.db.query(
-      `select count(*)::integer as n
-         from public.cache_box_openings
-        where player_id = $1 and open_day = $2::date`,
-      [playerId, day],
-    );
-    const openedToday = openingRows.length ? num((openingRows[0] as Row).n) : 0;
-    // The slot levers + the cache cap are live economy_config values
-    // (0018): stored values when present; the content resolvers
-    // apply defaults + clamps, identical to cc_slot_pull's
-    // cc_economy_config_number reads.
-    const { rows: configRows } = await this.db.query(
-      `select key, value from public.economy_config
-        where key = any(array['slotDailyPullCap', 'slotBetTier1', 'slotBetTier2', 'slotBetTier3', 'cacheBoxDailyCap'])`,
-    );
-    const raw: Record<string, number> = {};
-    for (const row of configRows as Row[]) {
-      const parsed = Number(row.value);
-      if (Number.isFinite(parsed)) raw[String(row.key)] = parsed;
-    }
-    const levers = resolveSlotLevers({
-      slotDailyPullCap: raw.slotDailyPullCap,
-      slotBetTier1: raw.slotBetTier1,
-      slotBetTier2: raw.slotBetTier2,
-      slotBetTier3: raw.slotBetTier3,
-    });
-    const cacheCap = resolveCacheLaneLevers(
-      raw.cacheBoxDailyCap !== undefined ? { cacheBoxDailyCap: raw.cacheBoxDailyCap } : undefined,
-    ).cacheBoxDailyCap;
-    return buildSlotStateView({ day, pullsToday, cacheOpenedToday: openedToday, cacheCap }, levers);
-  }
+    if (!profileRows.length) return null;
 
+    const limit = normalizeActivityLimit(query.limit);
+    const cursor = query.cursor ? decodeActivityCursor(query.cursor) : null;
+    const cursorAt = cursor?.at ?? null;
+
+    // Set-shaped facts (ids only, never whole rows): items this
+    // player gained by buying, and items their cache draws created.
+    // Neither is ever a drop record — the market/cache records tell
+    // those stories — so the projection excludes them by id.
+    const { rows: boughtRows } = await this.db.query(
+      `select distinct coalesce(result_payload->'item'->>'id', result_payload->'listing'->>'item_instance_id') as item_id
+         from public.verified_action_ledger
+        where user_id = $1 and action_type = any($2::text[])`,
+      [playerId, ['cc_accept_listing', 'cc_quickbuy_fill']],
+    );
+    const purchasedItemIds = new Set<string>();
+    for (const row of boughtRows as Row[]) {
+      if (typeof row.item_id === 'string') purchasedItemIds.add(row.item_id);
+    }
+    const { rows: openingRows } = await this.db.query(
+      'select item_id::text as item_id from public.cache_box_openings where player_id = $1',
+      [playerId],
+    );
+    const cacheItemIds = new Set<string>();
+    for (const row of openingRows as Row[]) {
+      if (typeof row.item_id === 'string') cacheItemIds.add(row.item_id);
+    }
+
+    const WINDOW_CAP = 3000;
+    let window = Math.max(limit * 3, 60);
+    for (;;) {
+      const params: unknown[] = cursorAt ? [playerId, window, cursorAt] : [playerId, window];
+      const bound = (column: string) => (cursorAt ? `and ${column} <= $3::timestamptz` : '');
+      const { rows: ledgerRaw } = await this.db.query(
+        `select id::text as id, action_type, result_payload, created_at
+           from public.verified_action_ledger
+          where user_id = $1 ${bound('created_at')}
+          order by created_at desc, id desc limit $2`,
+        params,
+      );
+      const { rows: itemRaw } = await this.db.query(
+        `select id::text as id, kind, rarity, item_level, runtime_state, payload, created_at
+           from public.item_instances
+          where owner_user_id = $1 ${bound('created_at')}
+          order by created_at desc, id desc limit $2`,
+        params,
+      );
+      const { rows: listingRaw } = await this.db.query(
+        `select id::text as id, item_instance_id::text as item_instance_id, price_credits, sold_at,
+                listing_kind, display_name, rarity, item_level
+           from public.market_listings
+          where seller_user_id = $1 and status = 'sold' and sold_at is not null ${bound('sold_at')}
+          order by sold_at desc, id desc limit $2`,
+        params,
+      );
+      const { rows: craftRaw } = await this.db.query(
+        `select id::text as id, kind, recipe_id, bench, units_total, units_completed, outputs, xp_awarded, completed_at
+           from public.craft_jobs
+          where owner_user_id = $1 and status = 'completed' and completed_at is not null ${bound('completed_at')}
+          order by completed_at desc, id desc limit $2`,
+        params,
+      );
+      const { rows: dispatchRaw } = await this.db.query(
+        `select id::text as id, contract_family, payout_credits, payout_fraction, departed_at, settled_at
+           from public.dispatch_missions
+          where user_id = $1 and status = 'settled' and settled_at is not null ${bound('settled_at')}
+          order by settled_at desc, id desc limit $2`,
+        params,
+      );
+      const { rows: endlessRaw } = await this.db.query(
+        `select id::text as id, status, depth_reached, started_at, ended_at
+           from public.endless_runs
+          where user_id = $1 and ended_at is not null ${bound('ended_at')}
+          order by ended_at desc, id desc limit $2`,
+        params,
+      );
+      const exhausted = ledgerRaw.length < window && itemRaw.length < window
+        && listingRaw.length < window && craftRaw.length < window
+        && dispatchRaw.length < window && endlessRaw.length < window;
+
+      const ledger: ActivityLedgerRow[] = (ledgerRaw as Row[]).map((row) => ({
+        id: String(row.id),
+        action_type: String(row.action_type),
+        result_payload: foldRecord(row.result_payload),
+        created_at: iso(row.created_at),
+      }));
+      const soldListings: ActivityListingRow[] = (listingRaw as Row[]).map((row) => ({
+        id: String(row.id),
+        item_instance_id: typeof row.item_instance_id === 'string' ? row.item_instance_id : null,
+        price_credits: num(row.price_credits),
+        sold_at: iso(row.sold_at),
+        listing_kind: typeof row.listing_kind === 'string' ? row.listing_kind : null,
+        display_name: typeof row.display_name === 'string' ? row.display_name : null,
+        rarity: typeof row.rarity === 'string' ? row.rarity : null,
+        item_level: row.item_level === null || row.item_level === undefined ? null : num(row.item_level),
+      }));
+
+      // The fee + buyer for each sold listing live only in the
+      // buyer's accept row (the lifetime fold's seller-fee pattern).
+      const saleFacts = new Map<string, { feeCredits: number | null; buyerId: string | null }>();
+      if (soldListings.length) {
+        const { rows: factRows } = await this.db.query(
+          `select result_payload->'listing'->>'id' as listing_id,
+                  (result_payload->'market_fee'->>'fee_credits')::bigint as fee_credits,
+                  user_id::text as buyer_id
+             from public.verified_action_ledger
+            where action_type = any($1::text[])
+              and result_payload->'listing'->>'id' = any($2::text[])`,
+          [['cc_accept_listing', 'cc_quickbuy_fill'], soldListings.map((l) => l.id)],
+        );
+        for (const row of factRows as Row[]) {
+          if (typeof row.listing_id !== 'string') continue;
+          saleFacts.set(row.listing_id, {
+            feeCredits: row.fee_credits === null || row.fee_credits === undefined ? null : num(row.fee_credits),
+            buyerId: typeof row.buyer_id === 'string' ? row.buyer_id : null,
+          });
+        }
+      }
+
+      // Counterparty hunter names for the window (sellers on the
+      // player's buys, buyers on their sales) — display facts only.
+      const nameIds = new Set<string>();
+      for (const entry of ledger) {
+        if (entry.action_type !== 'cc_accept_listing' && entry.action_type !== 'cc_quickbuy_fill') continue;
+        const sellerId = foldRecord(entry.result_payload.listing).seller_user_id;
+        if (typeof sellerId === 'string' && UUID_SHAPE.test(sellerId)) nameIds.add(sellerId);
+      }
+      for (const facts of saleFacts.values()) {
+        if (facts.buyerId && UUID_SHAPE.test(facts.buyerId)) nameIds.add(facts.buyerId);
+      }
+      const names = new Map<string, string>();
+      if (nameIds.size) {
+        const { rows: nameRows } = await this.db.query(
+          'select id::text as id, display_name, username from public.profiles where id = any($1::uuid[])',
+          [[...nameIds]],
+        );
+        for (const row of nameRows as Row[]) {
+          const name = typeof row.display_name === 'string' && row.display_name
+            ? row.display_name
+            : (typeof row.username === 'string' && row.username ? row.username : null);
+          if (name) names.set(String(row.id), name);
+        }
+      }
+
+      const input: ActivityRawInput = {
+        ledger,
+        items: (itemRaw as Row[]).map((row) => ({
+          id: String(row.id),
+          kind: typeof row.kind === 'string' ? row.kind : null,
+          rarity: typeof row.rarity === 'string' ? row.rarity : null,
+          item_level: row.item_level === null || row.item_level === undefined ? null : num(row.item_level),
+          runtime_state: String(row.runtime_state),
+          payload: foldRecord(row.payload),
+          created_at: iso(row.created_at),
+        })),
+        soldListings,
+        craftJobs: (craftRaw as Row[]).map((row) => ({
+          id: String(row.id),
+          kind: String(row.kind),
+          recipe_id: String(row.recipe_id),
+          bench: row.bench === null || row.bench === undefined ? null : num(row.bench),
+          units_total: num(row.units_total),
+          units_completed: num(row.units_completed),
+          outputs: Array.isArray(row.outputs) ? (row.outputs as Array<Record<string, unknown>>) : [],
+          xp_awarded: num(row.xp_awarded),
+          completed_at: iso(row.completed_at),
+        })),
+        dispatchMissions: (dispatchRaw as Row[]).map((row) => ({
+          id: String(row.id),
+          contract_family: String(row.contract_family),
+          payout_credits: num(row.payout_credits),
+          payout_fraction: row.payout_fraction === null || row.payout_fraction === undefined
+            ? null
+            : Number(row.payout_fraction),
+          departed_at: row.departed_at === null || row.departed_at === undefined ? null : iso(row.departed_at),
+          settled_at: iso(row.settled_at),
+        })),
+        endlessRuns: (endlessRaw as Row[]).map((row) => ({
+          id: String(row.id),
+          status: String(row.status),
+          depth_reached: num(row.depth_reached),
+          started_at: row.started_at === null || row.started_at === undefined ? null : iso(row.started_at),
+          ended_at: iso(row.ended_at),
+        })),
+        purchasedItemIds,
+        cacheItemIds,
+        names,
+        saleFacts,
+      };
+
+      const result = queryActivityRecords(buildActivityRecords(input), query);
+      const filled = result.records.length >= limit;
+      if (filled || exhausted || window >= WINDOW_CAP) {
+        const last = result.records[result.records.length - 1];
+        return {
+          records: result.records,
+          nextCursor: last && (result.hasMoreInSet || !exhausted)
+            ? encodeActivityCursor({ at: last.at, id: last.id })
+            : null,
+          limit,
+        };
+      }
+      window = Math.min(WINDOW_CAP, window * 3);
+    }
+  }
   async getProfileStats(playerId: string): Promise<ProfileLifetimeData | null> {
     const { rows: profileRows } = await this.db.query(
       'select legendary_cores, cache_rank_tokens, cache_rank_spends from public.profiles where id = $1',
