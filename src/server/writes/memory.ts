@@ -59,10 +59,8 @@ import {
   enqueueShieldTechJob as enqueueShieldTechJobCore,
   enqueueTintJob as enqueueTintJobCore,
   type EnqueueTintJobInput,
-  fitCraftTool as fitCraftToolCore,
   overclockCompleteInProgressUnits,
   settleCraftJobs as settleCraftJobsCore,
-  unlockCraftBench as unlockCraftBenchCore,
   CraftEngineError,
   type CraftAdapter,
   type EnqueueShieldTechJobInput,
@@ -182,7 +180,7 @@ import type { ServiceBoardQuery } from '../../lib/market/boardQuery.js';
 import type { ServiceReaderFacts, SupplyBatch } from './boardRequirements.js';
 import { shieldBehaviorOf, type ShieldBehaviorId } from '../../lib/combat/shieldBehaviors.js';
 import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
-import type { GearItem } from '../../types/items.js';
+import type { Affix, GearItem } from '../../types/items.js';
 import { buildStarterVehicle } from '../lib/generators/vehicleGenerator.js';
 import {
   computeSkillBonuses,
@@ -2547,6 +2545,17 @@ export class InMemoryWriteStore implements WriteStore {
         this.researchCompletions.get(playerId)?.has(courseId) ?? false,
       standingRank: (playerId, manufacturer) =>
         this.standingRanks.get(`${playerId}:${manufacturer}`) ?? 0,
+      equippedRelic: (playerId) => {
+        for (const item of this.items.values()) {
+          if (item.owner_user_id !== playerId || item.runtime_state !== 'equipped' || item.kind !== 'relic') continue;
+          const payload = (item.payload ?? {}) as { affixes?: unknown };
+          return {
+            itemId: item.id,
+            affixes: Array.isArray(payload.affixes) ? (payload.affixes as Affix[]) : [],
+          };
+        }
+        return null;
+      },
       addMasteryXp: (playerId, track, xp) => {
         this.addMasteryXp(playerId, track, xp);
       },
@@ -2980,36 +2989,6 @@ export class InMemoryWriteStore implements WriteStore {
       cores_refunded: cancelled.coresRefunded,
     };
     return this.record(playerId, 'cc_cancel_craft_job', key, result);
-  }
-
-  async unlockCraftBench(playerId: string, nonce: string): Promise<Json> {
-    const key = this.cleanNonce(nonce);
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const p = this.profile(playerId);
-    const unlocked = this.craftCall(() => unlockCraftBenchCore(this.craftAdapter(), playerId));
-    this.flushCraftView(playerId);
-    const result: Json = {
-      action_type: 'cc_unlock_bench',
-      profile: this.profileSnapshot(p),
-      benches: unlocked.benches,
-    };
-    return this.record(playerId, 'cc_unlock_bench', key, result);
-  }
-
-  async fitWorkshopTool(playerId: string, nonce: string, bench: number, toolId: string | null): Promise<Json> {
-    const key = this.cleanNonce(nonce);
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const p = this.profile(playerId);
-    const fitted = this.craftCall(() => fitCraftToolCore(this.craftAdapter(), playerId, bench, toolId));
-    this.flushCraftView(playerId);
-    const result: Json = {
-      action_type: 'cc_fit_workshop_tool',
-      profile: this.profileSnapshot(p),
-      fitted: fitted.fitted as unknown as Json,
-    };
-    return this.record(playerId, 'cc_fit_workshop_tool', key, result);
   }
 
   async settleCraftJobs(playerId: string, maxAdvanceMs?: number): Promise<Json> {

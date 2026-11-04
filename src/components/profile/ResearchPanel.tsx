@@ -11,7 +11,6 @@ import {
 import {
   formatResearchDuration,
   formatResearchRemaining,
-  researchBenchName,
   researchCourse,
   researchFaculty,
   type ResearchCourseView,
@@ -330,9 +329,6 @@ export const ResearchPanel: React.FC = () => {
               Pays {selectedCourse.masteryXp.toLocaleString()} Scholarship mastery XP on completion
               — no player XP.
             </div>
-            {selectedCourse.requiresBench != null && (
-              <div>Requires {researchBenchName(selectedCourse.requiresBench)}</div>
-            )}
             {selectedCourse.prerequisite && (
               <div>
                 Requires completing{' '}

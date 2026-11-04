@@ -106,12 +106,6 @@ export const verifiedOps = {
     return result;
   },
   cancelCraftJob: (jobId: string) => op('/ops/craft-cancel', { nonce: requestId('craft-cancel'), job_id: jobId }),
-  unlockCraftBench: () => op('/ops/craft-unlock-bench', { nonce: requestId('craft-bench') }),
-  fitWorkshopTool: (bench: number, toolId: string | null) => op('/ops/craft-fit-tool', {
-    nonce: requestId('craft-fit'),
-    bench,
-    tool_id: toolId,
-  }),
   consumeConsumable: (input: { itemKey: string; quantity: number; activityType?: string; reason?: string }) => op('/ops/consume-consumable', {
     nonce: requestId('consume-consumable'),
     item_key: input.itemKey,

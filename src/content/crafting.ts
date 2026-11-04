@@ -112,7 +112,7 @@ export interface CraftRecipe {
   kind: CraftJobKind;
   name: string;
   /** Display grouping in the Workshop. */
-  category: 'survival' | 'offense' | 'utility' | 'refining' | 'gear' | 'tools' | 'cosmetics';
+  category: 'survival' | 'offense' | 'utility' | 'refining' | 'gear' | 'cosmetics';
   /** Per-unit inputs: material ids resolve against profiles.materials,
    *  essence ids against profiles.essences (legacy recipe convention). */
   inputs: Record<string, number>;

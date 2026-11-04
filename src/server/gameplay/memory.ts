@@ -1062,9 +1062,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (course.prerequisite && !completions?.has(course.prerequisite)) {
       throw new GameplayStoreError('prerequisite_not_met');
     }
-    if (course.requiresBench != null && (p.workshop_benches ?? 1) < course.requiresBench) {
-      throw new GameplayStoreError('bench_too_low');
-    }
     const terms = researchEnrollmentTerms(course, this.researchLevers());
     if (p.credits < terms.costCredits) throw new GameplayStoreError('insufficient_credits');
     p.credits -= terms.costCredits;
