@@ -145,11 +145,17 @@ const rewards = (kills: number): ChefRewardsInput => ({
 });
 
 describe('kill element record (0051 twin) — same choke point as weapon type', () => {
+  // Fixture correction (gear-truth slice): the weapons below were
+  // seeded at equipped_slot 'weapon' — a slot the equip RPC can
+  // never write (valid: primary/secondary/heavy/ordnance/shield/
+  // classMod/relic), which is why production attributed every kill
+  // to 'unarmed'. Fixtures now use the real primary slot;
+  // assertions unchanged.
   it('attributes claim kills to the equipped weapon\'s element, alongside its type', async () => {
     const store = new InMemoryChefGameplayStore();
     store.seedProfile({ id: A });
     store.seedItem({
-      id: 'gun-fire', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'weapon',
+      id: 'gun-fire', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'primary',
       payload: { weaponType: 'Rifle', element: 'Fire' },
     });
     await store.applyChefRewards(A, rewards(7), 1, 'redline_circuit');
@@ -163,7 +169,7 @@ describe('kill element record (0051 twin) — same choke point as weapon type', 
     const store = new InMemoryChefGameplayStore();
     store.seedProfile({ id: A });
     store.seedItem({
-      id: 'gun-fire', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'weapon',
+      id: 'gun-fire', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'primary',
       payload: { weaponType: 'Rifle', element: 'Fire' },
     });
     await store.applyChefRewards(A, rewards(5), 1, 'redline_circuit');
@@ -173,7 +179,7 @@ describe('kill element record (0051 twin) — same choke point as weapon type', 
       payload: { weaponType: 'Rifle', element: 'Fire' },
     });
     store.seedItem({
-      id: 'gun-shock', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'weapon',
+      id: 'gun-shock', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'primary',
       payload: { weaponType: 'Pistol', element: 'Shock' },
     });
     await store.applyChefRewards(A, rewards(3), 2, 'redline_circuit');
@@ -194,7 +200,7 @@ describe('kill element record (0051 twin) — same choke point as weapon type', 
     const store = new InMemoryChefGameplayStore(() => now);
     store.seedProfile({ id: A });
     store.seedItem({
-      id: 'gun-cryo', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'weapon',
+      id: 'gun-cryo', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'primary',
       payload: { weaponType: 'Sniper', element: 'Cryo' },
     });
     store.seedActiveAction({
