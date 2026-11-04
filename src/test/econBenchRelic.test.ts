@@ -96,6 +96,17 @@ describe('slice 9 — content collapse pins', () => {
   });
 });
 
+describe('slice 9 — crafting affixes are fixed identity', () => {
+  it('craft relic affixes are never reforgeable', async () => {
+    const { isReforgeableAffix } = await import('../lib/gear/affixPools');
+    for (const name of ['Precision Calipers', 'Servo Bench Rig', 'Reclaimer Head', 'Prime Laboratory']) {
+      for (const affix of craftAffixesForRelic(name)) {
+        expect(isReforgeableAffix(affix), `${name}/${affix.stat}`).toBe(false);
+      }
+    }
+  });
+});
+
 describe('slice 9 — the ×1.10/+5 ceiling (double-source law)', () => {
   it('two Prime Laboratories compose to exactly ×1.10/+5, never past', () => {
     const twoLabs = [...craftAffixesForRelic('Prime Laboratory'), ...craftAffixesForRelic('Prime Laboratory')];

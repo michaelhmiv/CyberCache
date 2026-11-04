@@ -152,9 +152,13 @@ export function reforgeKindOf(kind: string | null | undefined, item: GearItem): 
   return null;
 }
 
-/** Pool affixes are reforgeable; activity modules never are. */
+/** Pool affixes are reforgeable; activity modules never are —
+ * and neither are CRAFTING affixes (slice 9): a craft relic's
+ * fixed affixes ARE its identity (the Calipers' ×1.08, the Prime
+ * Laboratory's ×1.10/+5 ceiling), stamped from CRAFT_RELICS,
+ * never pool rolls, so reforge must not reroll or strip them. */
 export function isReforgeableAffix(affix: Affix): boolean {
-  return affix.category !== 'activity';
+  return affix.category !== 'activity' && affix.category !== 'crafting';
 }
 
 export function reforgeableAffixes(item: GearItem): Affix[] {

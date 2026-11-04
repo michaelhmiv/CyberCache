@@ -1099,7 +1099,9 @@ describe('migration 0043 — textual pins', () => {
     // 87 since 0053 added the 26 skin-part recipes, the tint craft,
     // and the Chromaweave refine (pinned against 0053's restated
     // catalog in skinsCosmetics.test.ts).
-    expect(ALL_CRAFT_RECIPES).toHaveLength(87);
+    // 88 since slice 9 (0073) added the Prime Laboratory relic
+    // recipe (pinned against 0073 in econBenchRelic.test.ts).
+    expect(ALL_CRAFT_RECIPES).toHaveLength(88);
     const sqlIds = new Set(catalog.map((r) => r.id));
     for (const recipe of ALL_CRAFT_RECIPES) {
       // recipe_calibration_core postdates 0043 (it lands in 0044's
@@ -1108,6 +1110,9 @@ describe('migration 0043 — textual pins', () => {
       // 0053's cosmetic recipes + the Chromaweave refine postdate
       // 0043 the same way (pinned against 0053 in skinsCosmetics).
       if (recipe.category === 'cosmetics' || recipe.id === 'refine_chromaweave') continue;
+      // Slice 9's Prime Laboratory relic postdates 0043 the same
+      // way (pinned against 0073 in econBenchRelic).
+      if (recipe.id === 'relic_prime_laboratory') continue;
       expect(sqlIds.has(recipe.id), recipe.id).toBe(true);
     }
     // The six standing recipes match the TS catalog field for field.

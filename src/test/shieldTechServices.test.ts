@@ -203,7 +203,10 @@ describe('migration 0044 — catalog + consumable parity pins', () => {
     // skinsCosmetics.test.ts.
     expect(catalog.map((r) => r.id).sort()).toEqual(
       ALL_CRAFT_RECIPES.filter(
-        (r) => r.category !== 'cosmetics' && r.id !== 'refine_chromaweave',
+        (r) => r.category !== 'cosmetics' && r.id !== 'refine_chromaweave'
+          // Slice 9's Prime Laboratory relic postdates 0044; pinned
+          // against 0073 in econBenchRelic.test.ts.
+          && r.id !== 'relic_prime_laboratory',
       ).map((r) => r.id).sort(),
     );
     // The slice's own recipe matches the TS catalog field for field
@@ -213,7 +216,9 @@ describe('migration 0044 — catalog + consumable parity pins', () => {
     // the historical value is restored for this comparison.
     const ts = ALL_CRAFT_RECIPES.find((r) => r.id === 'recipe_calibration_core')!;
     const entry = catalog.find((r) => r.id === 'recipe_calibration_core')!;
-    expect(entry).toEqual({ ...JSON.parse(JSON.stringify(ts)), requiresLevel: 15 });
+    // requiresBench restored the same way: the Core sat at bench
+    // 2 here; slice 9 collapsed it to 1 (pinned against 0073).
+    expect(entry).toEqual({ ...JSON.parse(JSON.stringify(ts)), requiresLevel: 15, requiresBench: 2 });
     // Nothing from 0038/0043 was dropped by the restatement.
     expect(catalog.find((r) => r.id === 'recipe_patch_kit_batch')?.requiresResearch)
       .toBe('production_systems');
