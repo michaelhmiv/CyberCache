@@ -192,6 +192,8 @@ describe('quickBuy QB-4 goods (Chromaweave + Legendary Core) — wire fills', ()
   afterAll(async () => { await h.close(); });
 
   const profileOf = (id: string) => h.store.seed.profiles.find((p) => p.id === id);
+  // Econ 5: balances live in the unified materials['Scrap'] stack.
+  const scrapOf = (id: string) => profileOf(id)?.materials['Scrap'] ?? 0;
   const creditsOf = (id: string) => profileOf(id)?.credits ?? 0;
   const coresOf = (id: string) => profileOf(id)?.legendary_cores ?? 0;
   const listingOf = (id: string) => h.store.seed.listings.find((l) => l.id === id);
@@ -255,7 +257,7 @@ describe('quickBuy QB-4 goods (Chromaweave + Legendary Core) — wire fills', ()
     const affixId = payload.affixes.find(isReforgeableAffix)!.id;
     const cost = reforgeCostFor({ rarity: Rarity.Legendary, level: 50 });
     expect(cost.cores).toBe(2);
-    const scrapBefore = profileOf(B)?.scrap ?? 0;
+    const scrapBefore = scrapOf(B);
     const res = await post(h, '/api/ops/reforge-item', h.tokens[B], {
       nonce: nonce(), item_id: WPN, affix_id: affixId,
     });
@@ -263,7 +265,7 @@ describe('quickBuy QB-4 goods (Chromaweave + Legendary Core) — wire fills', ()
     expect(res.json.action_type).toBe('cc_reforge_item');
     expect(res.json.cores_charged).toBe(2);
     expect(coresOf(B)).toBe(0);
-    expect(profileOf(B)?.scrap).toBe(scrapBefore - cost.scrap);
+    expect(scrapOf(B)).toBe(scrapBefore - cost.scrap);
   });
 
   it('core ceiling: a price move between quote and fill requotes and moves nothing', async () => {

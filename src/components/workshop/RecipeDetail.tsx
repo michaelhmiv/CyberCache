@@ -97,13 +97,6 @@ export const SourceLine: React.FC<{
             </button>
           </span>
         );
-      case 'scrap':
-        return (
-          <span key={index} className="text-text-muted">
-            {sep}
-            {'Roam · salvage gear · sell loot'}
-          </span>
-        );
     }
   };
   return (

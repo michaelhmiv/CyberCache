@@ -199,7 +199,7 @@ describe('Gear v2 — Items stacks with quality printed', () => {
     // Belt & Stacks is a section of the merged page — mounted with it.
     expect(await screen.findByText(/×3 at 137% quality/)).toBeTruthy();
     expect(screen.getByText(/×2 at 100% quality/)).toBeTruthy();
-    expect(screen.getByText('Scrap Alloy')).toBeTruthy();
+    expect(screen.getByText('Scrap')).toBeTruthy();
     expect(screen.getByText('Void Essence')).toBeTruthy();
   });
 });
