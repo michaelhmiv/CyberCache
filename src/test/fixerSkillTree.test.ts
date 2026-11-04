@@ -1107,7 +1107,7 @@ describe('migration 0029 — pins', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 8. Repair — Workshop Rush Ticket scope (wiring package, migration 0077)
+// 8. Repair — Workshop Rush Ticket scope (wiring package, migration 0078)
 // ---------------------------------------------------------------------------
 
 function ticketBatchData(id: string, owner: string, quality: number, quantity: number) {

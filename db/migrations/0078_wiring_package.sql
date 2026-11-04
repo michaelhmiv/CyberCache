@@ -1,4 +1,4 @@
--- 0077 — Wiring package: Grenade → Ordnance Charge merge + Rush Ticket repair scope.
+-- 0078 — Wiring package: Grenade → Ordnance Charge merge + Rush Ticket repair scope.
 --
 -- Owner ruling (2026-11-04, consumable strategy audit): "do all that
 -- wiring". Two state changes ride this migration; the rest of the
@@ -290,7 +290,7 @@ begin
          updated_at = now()
    where id = actor returning * into p;
 
-  -- Rush ticket (wiring package, 0077): the ticket def's repair
+  -- Rush ticket (wiring package, 0078): the ticket def's repair
   -- scope, wired exactly as the craft enqueue wires its crafting
   -- scope (0029) — escrowed at enqueue, burned at job start (FIFO,
   -- lowest quality first, the shipped burn order); its quality
@@ -440,9 +440,9 @@ begin
         job.snapshot -> 'repair' ->> 'kitType',
         job.units_total - job.units_completed);
     end if;
-    -- Rush ticket (0077): repair jobs can now carry one — refund it
+    -- Rush ticket (0078): repair jobs can now carry one — refund it
     -- under the same rule as the generic path below (unstarted only;
-    -- a started job has spent it). Before 0077 no repair job could
+    -- a started job has spent it). Before 0078 no repair job could
     -- hold a ticket, so this branch hardcoded the flag to false.
     if job.rush_ticket_quality is not null
        and not (job.units_completed > 0 or job.accrued_ms > 0) then

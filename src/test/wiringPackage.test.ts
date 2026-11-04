@@ -1,20 +1,20 @@
 /**
  * Wiring package (2026-11-04) — Grenade → Ordnance Charge merge and
- * migration 0077 pins.
+ * migration 0078 pins.
  *
  * The merge (owner ruling on the consumable strategy audit): the
  * vendor staple "Grenade" duplicated OrdnanceCharge — same display
  * name, same paper effect, same 400cr — but the boss sim only counts
  * OrdnanceCharge units as ordnance uses. Now the vendor sells
  * OrdnanceCharge, the Grenade def is a legacy unobtainable ID kept
- * for save compatibility, and migration 0077 converts all Grenade
+ * for save compatibility, and migration 0078 converts all Grenade
  * stock 1:1 (batches, profile counter, live listings).
  *
  * Layers pinned here:
  *  - defs + the derived TS vendor catalog (staples come from defs);
  *  - the shipped buy path: buying the staple yields units the boss
  *    sim counts as ordnance uses; 'Grenade' is no longer buyable;
- *  - migration 0077 source pins: chain heads, the catalog rows, the
+ *  - migration 0078 source pins: chain heads, the catalog rows, the
  *    three conversion statements, the repair-enqueue rush block, and
  *    the cancel restatement (0069 body + the one ticket change,
  *    proven by strip-and-compare). The SQL itself is exercised
@@ -143,11 +143,11 @@ describe('grenade merge — the shipped buy path yields sim-counted units', () =
 });
 
 // ---------------------------------------------------------------------------
-// Migration 0077 — source pins
+// Migration 0078 — source pins
 // ---------------------------------------------------------------------------
 
 const MIGRATIONS = join(process.cwd(), 'db/migrations');
-const sql0077 = readFileSync(join(MIGRATIONS, '0077_wiring_package.sql'), 'utf8');
+const sql0078 = readFileSync(join(MIGRATIONS, '0078_wiring_package.sql'), 'utf8');
 
 function definersOf(fn: string): string[] {
   return readdirSync(MIGRATIONS)
@@ -162,36 +162,36 @@ function fnBody(text: string, fn: string): string {
   return text.slice(start, text.indexOf('\n$$;\n', start));
 }
 
-describe('migration 0077 — chain heads and conversion pins', () => {
-  it('0077 is the chain head for cc_vendor_catalog, cc_enqueue_repair_job and cc_cancel_craft_job', () => {
-    expect(definersOf('cc_vendor_catalog').at(-1)).toBe('0077_wiring_package.sql');
-    expect(definersOf('cc_enqueue_repair_job').at(-1)).toBe('0077_wiring_package.sql');
-    expect(definersOf('cc_cancel_craft_job').at(-1)).toBe('0077_wiring_package.sql');
+describe('migration 0078 — chain heads and conversion pins', () => {
+  it('0078 is the chain head for cc_vendor_catalog, cc_enqueue_repair_job and cc_cancel_craft_job', () => {
+    expect(definersOf('cc_vendor_catalog').at(-1)).toBe('0078_wiring_package.sql');
+    expect(definersOf('cc_enqueue_repair_job').at(-1)).toBe('0078_wiring_package.sql');
+    expect(definersOf('cc_cancel_craft_job').at(-1)).toBe('0078_wiring_package.sql');
   });
 
   it('the catalog drops the Grenade row and makes OrdnanceCharge the staple', () => {
-    const catalog = fnBody(sql0077, 'cc_vendor_catalog');
+    const catalog = fnBody(sql0078, 'cc_vendor_catalog');
     expect(catalog).not.toContain("'Grenade'");
     expect(catalog).toContain("('OrdnanceCharge', 400, 'staple')");
     expect(catalog).not.toContain("('OrdnanceCharge', 400, 'rotation')");
   });
 
   it('stock conversion moves all three surfaces 1:1 (batches, counter map, live listings)', () => {
-    expect(sql0077).toContain("set consumable_type = 'OrdnanceCharge'");
-    expect(sql0077).toContain("where consumable_type = 'Grenade'");
+    expect(sql0078).toContain("set consumable_type = 'OrdnanceCharge'");
+    expect(sql0078).toContain("where consumable_type = 'Grenade'");
     // Counter map: Grenade count added onto OrdnanceCharge, key dropped.
-    expect(sql0077).toContain("public.cc_jsonb_add_int(\n           consumables, 'OrdnanceCharge',");
-    expect(sql0077).toContain("- 'Grenade')");
+    expect(sql0078).toContain("public.cc_jsonb_add_int(\n           consumables, 'OrdnanceCharge',");
+    expect(sql0078).toContain("- 'Grenade')");
     // Listings: only live ones, identity key recomputed from the new type.
-    expect(sql0077).toContain("identity_key = public.cc_market_consumable_identity('OrdnanceCharge', quality_percent)");
-    expect(sql0077).toContain("and status = 'active'");
+    expect(sql0078).toContain("identity_key = public.cc_market_consumable_identity('OrdnanceCharge', quality_percent)");
+    expect(sql0078).toContain("and status = 'active'");
     // History is not rewritten.
-    expect(sql0077).not.toContain('update public.consumable_events');
+    expect(sql0078).not.toContain('update public.consumable_events');
   });
 
   it('the repair enqueue gains the rush block (drop old signature, ticket check, FIFO burn, formula, snapshot)', () => {
-    expect(sql0077).toContain('drop function if exists public.cc_enqueue_repair_job(uuid, text, uuid, text, integer);');
-    const body = fnBody(sql0077, 'cc_enqueue_repair_job');
+    expect(sql0078).toContain('drop function if exists public.cc_enqueue_repair_job(uuid, text, uuid, text, integer);');
+    const body = fnBody(sql0078, 'cc_enqueue_repair_job');
     expect(body).toContain('p_use_rush_ticket boolean default false');
     expect(body).toContain("raise exception 'No Workshop Rush Ticket available'");
     expect(body).toContain("public.cc_consume_consumable_batch(actor, 'WorkshopRushTicket', 1,");
@@ -206,16 +206,16 @@ describe('migration 0077 — chain heads and conversion pins', () => {
   it('the cancel restatement is the 0069 body plus ONLY the repair-branch ticket refund', () => {
     const sql0069 = readFileSync(join(MIGRATIONS, '0069_scrap_merge.sql'), 'utf8');
     const body0069 = fnBody(sql0069, 'cc_cancel_craft_job');
-    let body0077 = fnBody(sql0077, 'cc_cancel_craft_job');
+    let body0078 = fnBody(sql0078, 'cc_cancel_craft_job');
     // Strip the inserted ticket block (marker comment .. its end if;).
-    const marker = body0077.indexOf('-- Rush ticket (0077)');
+    const marker = body0078.indexOf('-- Rush ticket (0078)');
     expect(marker).toBeGreaterThanOrEqual(0);
-    const blockStart = body0077.lastIndexOf('\n', body0077.lastIndexOf('    -- Rush ticket', marker)) + 1;
-    const trueLine = body0077.indexOf('v_rush_refunded := true;', marker);
-    const blockEnd = body0077.indexOf('    end if;\n', trueLine) + '    end if;\n'.length;
-    body0077 = body0077.slice(0, blockStart) + body0077.slice(blockEnd);
+    const blockStart = body0078.lastIndexOf('\n', body0078.lastIndexOf('    -- Rush ticket', marker)) + 1;
+    const trueLine = body0078.indexOf('v_rush_refunded := true;', marker);
+    const blockEnd = body0078.indexOf('    end if;\n', trueLine) + '    end if;\n'.length;
+    body0078 = body0078.slice(0, blockStart) + body0078.slice(blockEnd);
     // Revert the repair branch's flag (first occurrence in the body).
-    body0077 = body0077.replace("'rush_ticket_refunded', v_rush_refunded", "'rush_ticket_refunded', false");
-    expect(body0077).toBe(body0069);
+    body0078 = body0078.replace("'rush_ticket_refunded', v_rush_refunded", "'rush_ticket_refunded', false");
+    expect(body0078).toBe(body0069);
   });
 });

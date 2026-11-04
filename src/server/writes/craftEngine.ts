@@ -1875,7 +1875,7 @@ export function cancelCraftJob(
   // Repair jobs (0025): kits are discrete items, not divisible
   // inputs — every kit not yet applied refunds whole, including the
   // in-progress unit's kit (it has not been applied yet). The rush
-  // ticket follows the generic rule below (0077 wired tickets into
+  // ticket follows the generic rule below (0078 wired tickets into
   // repair enqueues; this branch's hardcoded false predates that).
   if (j.kind === 'repair') {
     const snap = j.snapshot.repair;

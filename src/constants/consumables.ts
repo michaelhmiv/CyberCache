@@ -746,7 +746,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     counterTags: ['shield', 'armor', 'burst', 'stagger'],
     effectRules: { shieldBreakMultiplier: 1.15, armorBreakMultiplier: 1.15, mechanicFlat: 0.04, freeOrdnanceUses: 1 },
     craftCategory: 'legacy',
-    uiHints: ['Legacy Grenade ID remains for save compatibility.', 'All Grenade stock was converted to Ordnance Charge 1:1 (migration 0077).'],
+    uiHints: ['Legacy Grenade ID remains for save compatibility.', 'All Grenade stock was converted to Ordnance Charge 1:1 (migration 0078).'],
     implementationStatus: 'legacy',
     isBossPrepVisible: false,
     visual: visual('dot', 'orange', 'grenade'),

@@ -219,7 +219,7 @@ describe('vendor catalog — the one source', () => {
     expect(ids).toContain('WorkshopRushTicket'); // rotatingVendorOnly
     expect(ids).not.toContain('ElementalCoating'); // craftable (0077) but vendor-excluded / not player-marketable
     for (const staple of VENDOR_STAPLE_DEFS) expect(ids).not.toContain(staple.id);
-    // 22 since the wiring package (0077): OrdnanceCharge left the
+    // 22 since the wiring package (0078): OrdnanceCharge left the
     // rotation pool to become the vendor staple (the Grenade merge).
     expect(VENDOR_ROTATION_DEFS).toHaveLength(22);
   });
@@ -592,11 +592,11 @@ describe('migration 0020 — SQL twin pins', () => {
     // renamed ScrapAlloy -> Scrap, price unchanged); Econ 6's 0071
     // restates it once more with the Scrap row REMOVED (ruling 6 —
     // the vendor drops the base material entirely); the wiring
-    // package's 0077 restates it for the Grenade → Ordnance Charge
+    // package's 0078 restates it for the Grenade → Ordnance Charge
     // merge (Grenade staple row deleted, OrdnanceCharge rotation →
     // staple).
     const catalogSql = readFileSync(
-      resolve(process.cwd(), 'db/migrations/0077_wiring_package.sql'),
+      resolve(process.cwd(), 'db/migrations/0078_wiring_package.sql'),
       'utf8',
     );
     const rows = [...catalogSql.matchAll(/\('([A-Za-z]+)',\s*(\d+),\s*'(staple|rotation|material|essence)'\)/g)].map(
