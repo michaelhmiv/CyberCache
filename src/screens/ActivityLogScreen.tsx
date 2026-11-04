@@ -141,7 +141,7 @@ export function ActivityLogScreen() {
           className="min-w-0 flex-1 bg-transparent text-[13px] font-semibold text-text-primary outline-none placeholder:text-text-muted"
         />
         <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.08em] text-text-muted" data-testid="activity-count">
-          {records.length} facts{nextCursor ? '+' : ''}
+          {records.length} {records.length === 1 ? 'fact' : 'facts'}{nextCursor ? '+' : ''}
         </span>
         {query && (
           <button
