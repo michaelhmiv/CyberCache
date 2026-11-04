@@ -91,7 +91,13 @@ export const ActionFeed: React.FC<{
   onGearSalvage?: (item: GearItem) => Promise<boolean>;
   gearActionBusy?: boolean;
   gearActionError?: string | null;
-}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet — start a roam and the stream fills in here.', onGearEquip, onGearSalvage, gearActionBusy = false, gearActionError = null }) => {
+  /**
+   * AL-3 door: when provided, the feed's foot carries the "See full
+   * log" door to the Activity Log — the feed shows the last few
+   * facts; the log keeps everything.
+   */
+  onOpenFullLog?: () => void;
+}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet — start a roam and the stream fills in here.', onGearEquip, onGearSalvage, gearActionBusy = false, gearActionError = null, onOpenFullLog }) => {
   const [selectedGear, setSelectedGear] = useState<GearItem | null>(null);
 
   const rarityBorder = (item?: GearItem): string => {
@@ -167,6 +173,20 @@ export const ActionFeed: React.FC<{
           return <button key={entry.id} type="button" onClick={() => entry.gear ? setSelectedGear(entry.gear) : entry.onInspect?.()} className="block w-full active:scale-[0.99]">{Inner}</button>;
         })}
       </div>
+      {onOpenFullLog && (
+        <button
+          type="button"
+          onClick={onOpenFullLog}
+          data-testid="action-feed-full-log"
+          className="mt-3 flex min-h-[44px] w-full items-center justify-between border-t border-border px-1 pt-2 text-left active:scale-[0.99]"
+        >
+          <span>
+            <span className="block text-[12px] font-black uppercase tracking-[0.08em] text-text-primary">See full log</span>
+            <span className="block text-[11px] text-text-muted">Every fact, kept — the Activity Log</span>
+          </span>
+          <PxIcon name="chevR" size={15} className="shrink-0 text-text-muted" />
+        </button>
+      )}
       <GearInspectSheet
         item={selectedGear}
         open={!!selectedGear}

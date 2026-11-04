@@ -797,7 +797,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
       {/* 6. Feed — loot log below the decision panels. Dropped items
           are actionable from their inspect sheet (F11). */}
-      <ActionFeed entries={feedEntries} onGearEquip={handleFeedEquip} onGearSalvage={handleFeedSalvage} gearActionBusy={feedActionBusy} gearActionError={feedActionError} />
+      <ActionFeed entries={feedEntries} onGearEquip={handleFeedEquip} onGearSalvage={handleFeedSalvage} gearActionBusy={feedActionBusy} gearActionError={feedActionError} onOpenFullLog={() => onNavigate?.('activity-log')} />
 
       {/* Drawers — unchanged */}
       <AnimatePresence>

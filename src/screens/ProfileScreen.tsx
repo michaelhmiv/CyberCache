@@ -15,6 +15,7 @@ import { ResearchPanel } from '@/components/profile/ResearchPanel';
 import { TrophyShelfPanel } from '@/components/profile/TrophyShelfPanel';
 import { WardrobePanel } from '@/components/profile/WardrobePanel';
 import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
+import { ActivityLogDoor } from '@/components/profile/ActivityLogDoor';
 import { StandingsDoor } from '@/components/profile/StandingsDoor';
 import { useStandingsBadge } from '@/components/profile/standingsBadge';
 import { SkillTreeScreen } from './SkillTreeScreen';
@@ -373,6 +374,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       </MobileCard>
 
       <LifetimeStatsPanel />
+
+      {/* AL-3 second door: the totals above say what you have; the
+          log says how it happened. */}
+      <ActivityLogDoor onOpen={() => onNavigate?.('activity-log')} />
 
       <div className="space-y-3">
         <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Progression</div>
