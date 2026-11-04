@@ -1,9 +1,12 @@
 /**
- * Hero rundown — the four tappable headline stats that replaced
- * the stage ribbon's stats-band scroller in the Home consolidation
+ * Hero rundown — the tappable headline stats attached to the
+ * stage's foot. Born as four heroes in the Home consolidation
  * (owner steers 2026-11-03: the mode word dies, the ~15-entry
- * scroller becomes four heroes, every hero opens its source
- * breakdown).
+ * scroller becomes heroes, every hero opens its source
+ * breakdown); the owner's device review the same evening stacked
+ * it into TWO rows of four at the Door type step — DPS · Dmg/tick
+ * · Crit % · Crit × over HP · Shield · Mit · Shield Break — so
+ * more of the hunter's real numbers ride the stage's foot.
  *
  * Pure builder: the component assembles the inputs from the
  * stores and the canonical summaries, this module shapes them.
@@ -14,6 +17,14 @@
  * formula; the DPS delta derivation, the pooled crit weighting,
  * and the per-tick damage expectation are the exact derivations
  * the retired band shipped with (they moved here verbatim).
+ *
+ * Percentage law (owner, 2026-11-03): a stat whose model carries
+ * a true base→effective pair (DPS off the weapon pool, HP off
+ * the chassis base) prints its delta AS A PERCENTAGE OF BASE,
+ * derived from the SAME pair its source-breakdown sheet prints,
+ * so rundown and sheet agree exactly. A stat with no base pair
+ * in the math (crit, shield, mitigation, shield break) prints
+ * plain — a baseline is never invented for the chip.
  */
 import type { Weapon } from '@/types/items';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
@@ -62,13 +73,15 @@ export function pooledCrit(weapons: Weapon[]): { chance: number; damage: number 
 }
 
 export interface HeroStatCell {
-  key: 'dps' | 'dmgTick' | 'crit';
+  key: 'dps' | 'dmgTick' | 'critChance' | 'critDamage' | 'shield' | 'mitigation' | 'shieldBreak';
   label: string;
   /** The EFFECTIVE value — the hero number (numbers-emphasis law). */
   display: string;
   tone: StatTone;
   /** Present exactly when modifiers moved the number off base:
-   *  green for gains, red for losses. Unmodified prints plain. */
+   *  the move AS A PERCENTAGE OF BASE, green for gains, red for
+   *  losses. Unmodified prints plain; a stat whose model has no
+   *  base→effective pair never carries one. */
   delta?: { display: string; tone: StatTone };
 }
 
@@ -84,19 +97,32 @@ export interface HeroHpCell {
   tone: StatTone;
   isDead: boolean;
   shieldHp: number;
-  /** "Shield 260 · Mit 8%" — the HP cell's microline; null when
-   *  neither shield nor mitigation exists to report. */
-  microline: string | null;
+  /** The max pool's move off the chassis base AS A PERCENTAGE —
+   *  the health metric's own "+N% from base" figure, computed
+   *  from the metric's base-bucket contribution and its value
+   *  with the sheet's whole-rounding, so the rundown and the
+   *  breakdown sheet print the identical number. Absent when
+   *  the pool sits exactly on base. (Shield and mitigation used
+   *  to ride this cell as a microline; they are their own cells
+   *  in the second row now — no redundant state.) */
+  delta?: { display: string; tone: StatTone };
 }
 
 export interface HeroRundownModel {
-  /** No weapons equipped: the DPS cell carries the honest
-   *  unarmed line and the dmg/crit cells do not render. */
+  /** No weapons equipped: row 1 is the honest unarmed line
+   *  alone; row 2 (HP · Shield · Mit · Shield Break) still
+   *  renders in full — none of it needs a weapon. */
   unarmed: boolean;
+  /** Row 1 — the damage line. */
   dps: HeroStatCell | null;
   dmgTick: HeroStatCell | null;
-  crit: HeroStatCell | null;
+  critChance: HeroStatCell | null;
+  critDamage: HeroStatCell | null;
+  /** Row 2 — the survival line. */
   hp: HeroHpCell;
+  shield: HeroStatCell;
+  mitigation: HeroStatCell;
+  shieldBreak: HeroStatCell | null;
 }
 
 export interface HeroRundownInput {
@@ -127,10 +153,25 @@ export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
   const cur = Math.round(survival.currentHp);
   const fraction = Math.max(0, Math.min(1, cur / max));
   const hpTone: StatTone = survival.isDead || fraction < 0.3 ? 'red' : fraction < 0.6 ? 'amber' : 'green';
-  const mitigation = snapshot.mitigation.value;
-  const microParts: string[] = [];
-  if (survival.shieldHp > 0) microParts.push(`Shield ${formatWhole(survival.shieldHp)}`);
-  if (mitigation > 0) microParts.push(`Mit ${formatPct(mitigation)}`);
+  // The HP percentage is the health metric's OWN figure: the
+  // sheet computes round((effective − base) / base × 100) with
+  // base = its chassis ('base' bucket) contribution and prints
+  // it as "Effective HP (+N% from base)". Recompute from that
+  // same pair — never from the survival mirror — so the chip
+  // and the sheet can never disagree.
+  const healthMetric = metricOf(summary, 'health');
+  let hpDelta: { display: string; tone: StatTone } | undefined;
+  if (healthMetric) {
+    const base = healthMetric.contributions
+      .filter((c) => c.bucket === 'base')
+      .reduce((sum, c) => sum + c.value, 0);
+    if (base > 0 && Number.isFinite(healthMetric.value)) {
+      const pct = Math.round(((healthMetric.value - base) / base) * 100);
+      if (pct !== 0) {
+        hpDelta = { display: `${pct > 0 ? '+' : ''}${pct}%`, tone: pct > 0 ? 'green' : 'red' };
+      }
+    }
+  }
   const hp: HeroHpCell = {
     key: 'hp',
     label: 'HP',
@@ -141,11 +182,40 @@ export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
     tone: hpTone,
     isDead: survival.isDead,
     shieldHp: survival.shieldHp,
-    microline: microParts.length > 0 ? microParts.join(' · ') : null,
+    delta: hpDelta,
   };
 
+  // Row 2's gear cells — built before the unarmed return: none
+  // of them needs a weapon. Shield capacity and mitigation are
+  // the equipped shield's OWN numbers (the snapshot reads them
+  // straight off the item): no base→effective pair exists, so
+  // they print plain by the percentage law. Shield Break is the
+  // summary's additive aggregate (weapon mods + ordnance +
+  // skills) — likewise no single base, likewise plain.
+  const shield: HeroStatCell = {
+    key: 'shield',
+    label: 'Shield',
+    display: formatWhole(snapshot.shield.value),
+    tone: 'cyan',
+  };
+  const mitigationCell: HeroStatCell = {
+    key: 'mitigation',
+    label: 'Mit',
+    display: formatPct(snapshot.mitigation.value),
+    tone: 'cyan',
+  };
+  const shieldBreakMetric = metricOf(summary, 'shieldBreak');
+  const shieldBreak: HeroStatCell | null = shieldBreakMetric
+    ? {
+        key: 'shieldBreak',
+        label: 'Shield Break',
+        display: shieldBreakMetric.display,
+        tone: shieldBreakMetric.tone,
+      }
+    : null;
+
   if (weapons.length === 0) {
-    return { unarmed: true, dps: null, dmgTick: null, crit: null, hp };
+    return { unarmed: true, dps: null, dmgTick: null, critChance: null, critDamage: null, hp, shield, mitigation: mitigationCell, shieldBreak };
   }
 
   let dps: HeroStatCell | null = null;
@@ -178,25 +248,34 @@ export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
     };
   }
 
-  let crit: HeroStatCell | null = null;
+  // Crit splits into its two steerable components — chance and
+  // multiplier get their own cells in the two-row rundown. Both
+  // print PLAIN, deliberately: no base→effective derivation for
+  // crit exists in the math. The chain consumes each weapon's
+  // own crit fields; skill/affix crit never rewrites them — it
+  // converts into the DPS aggregate at 0.5 weight
+  // (skillBonuses.dps), where the DPS delta already tells that
+  // story. Inventing an "effective crit" here would be a
+  // parallel number no engine settles.
+  let critChance: HeroStatCell | null = null;
+  let critDamage: HeroStatCell | null = null;
   const critPool = pooledCrit(weapons);
   if (critPool) {
-    // Crit prints PLAIN, deliberately: no base→effective
-    // derivation for crit exists in the math. The chain consumes
-    // each weapon's own crit fields; skill/affix crit never
-    // rewrites them — it converts into the DPS aggregate at 0.5
-    // weight (skillBonuses.dps), where the DPS delta already
-    // tells that story. Inventing an "effective crit" here would
-    // be a parallel number no engine settles.
-    crit = {
-      key: 'crit',
-      label: 'Crit',
-      display: `${Math.round(critPool.chance * 100)}% · ×${(1 + critPool.damage).toFixed(1)}`,
+    critChance = {
+      key: 'critChance',
+      label: 'Crit %',
+      display: `${Math.round(critPool.chance * 100)}%`,
+      tone: 'amber',
+    };
+    critDamage = {
+      key: 'critDamage',
+      label: 'Crit ×',
+      display: `×${(1 + critPool.damage).toFixed(1)}`,
       tone: 'amber',
     };
   }
 
-  return { unarmed: false, dps, dmgTick, crit, hp };
+  return { unarmed: false, dps, dmgTick, critChance, critDamage, hp, shield, mitigation: mitigationCell, shieldBreak };
 }
 
 /**
@@ -224,6 +303,60 @@ export function buildCritMetric(weapons: Weapon[]): StatMetric | null {
       display: `${Math.round((weapon.critChance ?? 0) * 100)}% · ×${(1 + (weapon.critDamage ?? 0)).toFixed(1)}`,
       tone: 'amber' as StatTone,
       bucket: 'weapon' as const,
+    })),
+  };
+}
+
+/**
+ * The Shield sheet's metric — shield capacity has no summary
+ * metric of its own (the summary folds it into HP), so the
+ * breakdown sheet synthesizes one from the snapshot scalar the
+ * rundown cell reads: the equipped shield's own contribution
+ * rows, carried over verbatim. With no shield equipped the
+ * scalar's single row says so ("No shield", 0) — the sheet
+ * renders the honest empty state.
+ */
+export function buildShieldMetric(snapshot: CharacterMechanicsSnapshot): StatMetric {
+  const shield = snapshot.shield;
+  return {
+    key: 'shield',
+    label: 'Shield',
+    value: shield.value,
+    display: formatWhole(shield.value),
+    detail: 'The equipped shield\u2019s capacity — incoming damage drains this pool before it reaches HP.',
+    tone: 'cyan',
+    contributions: shield.contributions.map((c) => ({
+      source: c.source,
+      detail: 'Shield capacity',
+      value: c.value,
+      display: formatWhole(c.value),
+      tone: 'cyan' as StatTone,
+      bucket: c.bucket,
+    })),
+  };
+}
+
+/**
+ * The Mitigation sheet's metric — same synthesis as the shield
+ * metric, from the snapshot's mitigation scalar: the equipped
+ * shield's damage-reduction rate and its source row.
+ */
+export function buildMitigationMetric(snapshot: CharacterMechanicsSnapshot): StatMetric {
+  const mitigation = snapshot.mitigation;
+  return {
+    key: 'mitigation',
+    label: 'Mitigation',
+    value: mitigation.value,
+    display: formatPct(mitigation.value),
+    detail: 'The share of incoming damage the equipped shield turns away before it lands.',
+    tone: 'cyan',
+    contributions: mitigation.contributions.map((c) => ({
+      source: c.source,
+      detail: 'Damage mitigation',
+      value: c.value,
+      display: formatPct(c.value),
+      tone: 'cyan' as StatTone,
+      bucket: c.bucket,
     })),
   };
 }

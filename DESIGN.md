@@ -30,11 +30,19 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   (vista / arena / bench / site). The loot feed never prints on the art;
   nothing overlays the stage except its plates and the action controls.
   Attached to the stage's foot — below the art, never over it — is the **hero
-  rundown**: DPS · Dmg/tick · Crit · HP (shield/mitigation as the HP cell's
-  microline), effective values as heroes with green/red modifier deltas
-  beside them, each stat tappable into its source breakdown sheet; a slim
-  buff line rides under the heroes while any buff or activity modifier is
-  active, and renders nothing otherwise.
+  rundown**: TWO rows of four at the Door type step — DPS · Dmg/tick · Crit %
+  · Crit × over HP · Shield · Mit · Shield Break — effective values as
+  heroes, each stat tappable into its source breakdown sheet. Where the
+  model carries a true base→effective pair (DPS, HP) the delta rides beside
+  the hero AS A PERCENTAGE OF BASE — the same figure the breakdown sheet
+  prints — green for gains, red for losses; stats with no base pair (crit,
+  shield, mitigation, shield break) print plain, and no baseline is
+  invented. A slim buff line rides under the heroes while any buff or
+  activity modifier is active, and renders nothing otherwise.
+  *Owner ruling 2026-11-03 (device review): the rundown stacks to two rows
+  at the Door step so more real numbers ride the stage's foot; shield and
+  mitigation leave the HP cell's microline — as their own cells, a second
+  printing would be redundant state.*
   *Owner ruling 2026-11-02: one more resident — the action controls (Switch
   Action · Stop) float on the stage itself as chips in the plates' language,
   and no dedicated controls row exists under the rail. The Switch Action
@@ -175,16 +183,18 @@ replace the canonical one. (Tap depths are governed by §9.)
   poster sheet) · Endless (rail stop) · Extract (rail stop) · Craft (the action;
   its panel prints an "Open Workshop" door to the Gear bench — the action is
   **Craft** here, the bench is **Workshop** there; never label both "Crafting").
-- **The hero rundown** is attached to the stage's foot (§1): the hunter's four
-  hero stats, each opening its source breakdown. The full all-metrics
-  breakdown lives behind **Hunter → Profile's "Totals & Sources" door** — the
-  deck's Hunter Totals panel is retired (2026-11-03).
-- **The Next Move card** sits between the rundown and the rail ONLY while
-  something genuinely waits on the player — an unreviewed away settlement, a
-  finished craft, a claimable contract, the free daily cache, weekly Rep Desk
-  earnings, an unacknowledged course completion — with the resolving action
-  on the card. When nothing waits there is NO card and no placeholder: the
-  layout closes up (owner correction, 2026-11-03).
+- **The hero rundown** is attached to the stage's foot (§1): the hunter's
+  eight hero stats in two rows of four, each opening its source breakdown.
+  The full all-metrics breakdown lives behind **Hunter → Profile's
+  "Totals & Sources" door** — the deck's Hunter Totals panel is retired
+  (2026-11-03).
+- **The Next Move card is REMOVED** (owner device review, 2026-11-03): it
+  shipped in the consolidation and the owner rejected the surface on
+  device. Nothing replaces it — every wait keeps its own door: a finished
+  craft reads on the Workshop's benches, the away settlement behind the
+  level chip's Return Sheet, contracts and weekly earnings in the claim
+  chips' sheets, the free daily cache at the Chest, a finished course on
+  Hunter → Research.
 - **Under the stage, first viewport:** the lit mode's workspace (Session panel +
   Loot Feed while roaming; boss/endless/extract/craft workspaces in their modes),
   belt consumable quick slots (use-in-loop; the full stacks live at Gear →
@@ -196,7 +206,7 @@ replace the canonical one. (Tap depths are governed by §9.)
   on Home; its full status line lives in the Garage. Research state is NOT
   on Home: the education track's chip and completion card left with the
   consolidation — enrollment state lives on Hunter → Research, and a
-  finished course announces through the Next Move card.
+  finished course reads completed there.
 - **Resurrection** is an event-driven overlay on the Home stage (0 taps; it has no
   door and gets none). **Action skills** are contextual controls inside the active
   workspace.
@@ -268,8 +278,8 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **Rep Desk** — manufacturer standing as a place: makers, ladder, turn-ins,
   rank tributes, Rep Shelf + the standing-exclusive recipe, and the weekly
   **Parts Crate + Signature Orders** — this stop is their home and first claim
-  surface (◦ claim chip on Home when ready, ◦ Next Move card on Home when
-  waiting — the deck's Weekly panel retired into it, 2026-11-03).
+  surface (◦ claim chip on Home when ready — the deck's Weekly panel
+  retired into it, 2026-11-03).
   The Vendor's hidden `rep` mode toggle is deleted and must not return.
 ### Hunter
 
@@ -315,15 +325,13 @@ player needs each block.
    (Absences under 5 minutes still settle silently; the Return Sheet is §10.)
 3. **The Stage** — count plate, combat HP plates, icon-only action controls
    (44px swap/stop glyph squares, top-left). Attached to its foot: **the hero
-   rundown** (DPS · Dmg/tick · Crit · HP, each tappable into its source
-   breakdown; the buff line under it while anything is active).
-4. **The Next Move card** — ONLY while something genuinely waits (away
-   settlement · finished craft · claimable contract · free daily cache ·
-   weekly earnings · course completion, in that priority); absent otherwise.
-5. **The mode rail** — `Area · Roam · Boss · Endless · Extract · Craft`.
-6. **The lit mode's workspace** — session/loot panels and the mode's primary
+   rundown** (two rows — DPS · Dmg/tick · Crit % · Crit × over HP · Shield ·
+   Mit · Shield Break — each tappable into its source breakdown; the buff
+   line under it while anything is active).
+4. **The mode rail** — `Area · Roam · Boss · Endless · Extract · Craft`.
+5. **The lit mode's workspace** — session/loot panels and the mode's primary
    actions (Start Roam, Choose Boss).
-7. **Belt quick slots** — the consumable quick-slot row, with the vehicle
+6. **Belt quick slots** — the consumable quick-slot row, with the vehicle
    chip riding it (fuel readout / remedy door; §3).
 
 **Never above the Stage:** no panel, card, feed, header, banner, or navigation

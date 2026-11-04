@@ -31,7 +31,6 @@ import {
 } from '@/components/action/ActionWorkspace';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { HeroRundown } from '@/components/dashboard/HeroRundown';
-import { NextMoveCard } from '@/components/dashboard/NextMoveCard';
 import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -720,10 +719,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
       {/* 1. Stage + hero rundown — the rundown attaches to the
           stage's foot (Home consolidation): the ribbon's mode
-          word and its ~15-stat scroller are replaced by four
-          tappable heroes (DPS · Dmg/tick · Crit · HP), each
-          opening its source breakdown. The wrapper keeps the two
-          flush — no composition gap between art and rundown. */}
+          word and its ~15-stat scroller are replaced by two
+          rows of tappable heroes (DPS · Dmg/tick · Crit % ·
+          Crit × over HP · Shield · Mit · Shield Break), each
+          opening its source breakdown. The wrapper keeps the
+          two flush — no composition gap between art and
+          rundown. */}
       <div className="relative">
         <LiveTurfDiorama
           area={selectedArea}
@@ -737,13 +738,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         />
         <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
       </div>
-
-      {/* 1a. Next Move — present ONLY while something genuinely
-          waits on the player (an away settlement, a finished
-          craft, a claimable, the free cache, a course done);
-          absent otherwise, by design (owner correction
-          2026-11-03). */}
-      <NextMoveCard onNavigate={(target) => onNavigate?.(target)} />
 
       {/* 1b. Mode rail (§2/§4) — the stage's six stops under the
           diorama. This replaces the old compact action selector

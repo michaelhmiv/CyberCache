@@ -10,15 +10,18 @@
  *    workspace, before the deck);
  *  - the stage carries NO ribbon and prints NO mode word
  *    (Home consolidation, 2026-11-03): the hero rundown at the
- *    stage's foot carries DPS · Dmg/tick · Crit · HP, once each;
- *  - the Next Move card exists only while something waits —
- *    the weekly claimables below pin its weekly form;
+ *    stage's foot carries two rows — DPS · Dmg/tick · Crit % ·
+ *    Crit × over HP · Shield · Mit · Shield Break — once each;
+ *  - the Next Move card is REMOVED (owner device review,
+ *    2026-11-03): the weekly claimables below pin that it never
+ *    renders, even under a live wait — the chip and its sheet
+ *    are the weekly earnings' only Home surface;
  *  - the deck prints its two blocks in the fixed order
  *    (Launchers → Now) — Slots, the Loadout shortcut, the
  *    Weekly panel, and Hunter Totals all left the deck in the
  *    consolidation (rehoused, per DESIGN.md §4's notes);
  *  - the weekly Parts Crate + Signature Orders announce on the
- *    claim chip under the Strip (and on the Next Move card) and
+ *    claim chip under the Strip and
  *    claim from Home through the Rep Desk's REAL wire ops
  *    (standingBuy / standingOrder with the view's own offer
  *    key); guests see the offers with the lock on the claim
@@ -293,7 +296,7 @@ describe('Home composition — the deck (§4 fixed order)', () => {
     expect(launchers.compareDocumentPosition(now) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // The consolidation retirements: Hunter Totals (→ the hero
     // rundown + Hunter → Profile's Totals & Sources door), the
-    // Weekly panel (→ chip + Next Move), the Slots launcher (→
+    // Weekly panel (→ claim chip + its sheet), the Slots launcher (→
     // the Market rail stop), the Loadout Bench shortcut (→ the
     // count plate + Gear → Loadout).
     expect(screen.queryByText('Hunter Totals')).toBeNull();
@@ -316,7 +319,7 @@ describe('Home composition — the deck (§4 fixed order)', () => {
 });
 
 describe('Home composition — weekly claimables (§9)', () => {
-  it('reads standing on mount (never behind a tap) and announces claimables on the chip + the Next Move card', async () => {
+  it('reads standing on mount (never behind a tap) and announces claimables on the chip', async () => {
     mockStanding.mockResolvedValue({ verified: true, standing: buildStandingStateView(standingFacts()) });
     render(<HomeScreen onNavigate={() => {}} />);
     await waitFor(() => expect(mockStanding).toHaveBeenCalledTimes(1));
@@ -329,13 +332,16 @@ describe('Home composition — weekly claimables (§9)', () => {
     expect(screen.getByTestId('weekly-claimable-order:Redline')).toBeTruthy();
   });
 
-  it('the weekly wait also surfaces as the Next Move card, whose Claim opens the same list', async () => {
+  it('the weekly wait never renders a Next Move card — the chip and its sheet carry it alone', async () => {
     mockStanding.mockResolvedValue({ verified: true, standing: buildStandingStateView(standingFacts()) });
     render(<HomeScreen onNavigate={() => {}} />);
-    const card = await screen.findByTestId('next-move-card');
-    expect(card.getAttribute('data-wait-kind')).toBe('weekly');
-    expect(card.textContent).toContain('2 weekly earnings ready');
-    fireEvent.click(within(card).getByRole('button', { name: 'Claim' }));
+    // The chip announces the two ready earnings…
+    const chip = await screen.findByTestId('top-weekly-button');
+    expect(chip.getAttribute('aria-label')).toContain('2 ready at the Rep Desk');
+    // …and no card exists anywhere on Home (removed 2026-11-03).
+    expect(screen.queryByTestId('next-move-card')).toBeNull();
+    // The chip's sheet still opens the same claim list.
+    fireEvent.click(chip);
     expect(await screen.findByTestId('weekly-claimable-crate:Redline')).toBeTruthy();
   });
 
@@ -378,7 +384,7 @@ describe('Home composition — weekly claimables (§9)', () => {
     expect(claimButton.textContent).toContain('Sign in to claim');
   });
 
-  it('no claimables: no chip, and no Next Move card — nothing waits', async () => {
+  it('no claimables: no chip announces — nothing waits', async () => {
     mockStanding.mockResolvedValue({
       verified: true,
       standing: buildStandingStateView(standingFacts({ rows: [], weeklyPurchases: [] })),
@@ -407,9 +413,10 @@ describe('Home composition — the Return Sheet (§10)', () => {
     // The lesser drop is folded into the poster's "+N more".
     expect(poster.textContent).toContain('+1 more drop');
 
-    // The settlement ALSO waits as the Next Move card (its own
-    // Collect opens this same sheet) — the sheet's Collect is
-    // the one this flow acknowledges with.
+    // The Return Sheet behind the level chip is the
+    // settlement's only Home door now (the Next Move card is
+    // removed) — its Collect is the one this flow
+    // acknowledges with.
     const sheetBody = screen.getByTestId('picker-sheet-body');
     fireEvent.click(within(sheetBody).getByRole('button', { name: 'Collect' }));
     await waitFor(() => expect(useOfflineRecapStore.getState().dismissed).toBe(true));
