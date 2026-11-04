@@ -136,10 +136,10 @@ export const NextMoveCard: React.FC<{
     wait = {
       kind: 'craft',
       icon: 'anvil',
-      title: `${newest.name} finished in the Workshop`,
+      title: `${newest.name} finished`,
       sub: unseenCompletions.length > 1
-        ? `${unseenCompletions.length} jobs are done and waiting on their benches.`
-        : 'It is sitting on the bench, ready to collect.',
+        ? `${unseenCompletions.length} jobs are done and waiting on their benches in the Workshop.`
+        : 'It is sitting on the bench in the Workshop, ready to collect.',
       actionLabel: 'Open Workshop',
       onAction: () => {
         const ids = (workshopServer?.recentCompletions ?? []).map((c) => c.jobId);
