@@ -171,7 +171,7 @@ export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
     // undefended target is DPS × tick). Same derivation, same delta.
     dmgTick = {
       key: 'dmgTick',
-      label: 'Dmg / tick',
+      label: 'Dmg/tick',
       display: formatWhole(dpsMetric.value * STAGE_TICK_SECONDS),
       tone: 'red',
       delta,

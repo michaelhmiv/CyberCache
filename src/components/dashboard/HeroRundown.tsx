@@ -111,6 +111,11 @@ export const HeroRundown: React.FC<{
     if (available) setFocus(key);
   };
 
+  // Hero values print at Poster (23px) while they fit their
+  // cell (≤6 glyphs); a longer value (the crit pair "73% · ×7.9")
+  // steps down to the HP cell's 15px form rather than shrinking
+  // under the §5 floor or painting over its neighbour — the
+  // exploration's §6.3 longest-case rule.
   const heroButton = (cell: HeroStatCell) => (
     <button
       key={cell.key}
@@ -124,7 +129,7 @@ export const HeroRundown: React.FC<{
         <span className="truncate text-[11px] font-black uppercase tracking-[0.12em] text-text-muted">{cell.label}</span>
         <PxIcon name="chevR" size={13} className="shrink-0 text-text-muted/60" />
       </span>
-      <span className={`mt-0.5 block whitespace-nowrap text-[23px] font-black leading-none ${statToneTextClass[cell.tone]}`}>
+      <span className={`mt-0.5 block whitespace-nowrap font-black ${cell.display.length > 6 ? 'text-[15px] leading-tight' : 'text-[23px] leading-none'} ${statToneTextClass[cell.tone]}`}>
         {cell.display}
         {cell.delta && (
           <span className={`ml-1 align-super text-[11px] font-black ${cell.delta.tone === 'green' ? 'text-green' : 'text-red'}`}>

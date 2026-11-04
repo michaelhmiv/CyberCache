@@ -45,8 +45,8 @@ export const VehicleBeltChip: React.FC<{
 
   if (outOfFuel || wornOut) {
     const target = outOfFuel && fuelCells <= 0 ? 'market:vendor' : 'garage';
-    const stateLabel = outOfFuel ? 'OUT OF FUEL' : 'WORN OUT';
-    const doorLabel = outOfFuel ? (fuelCells > 0 ? 'Garage' : 'Vendor') : 'Garage';
+    const stateLabel = outOfFuel ? 'Out of fuel' : 'Worn out';
+    const doorLabel = outOfFuel ? (fuelCells > 0 ? 'Refuel' : 'Buy cells') : 'Repair';
     const aria = outOfFuel
       ? fuelCells > 0
         ? `${name} is out of fuel — vehicle bonus inactive. Open the Garage to load one of your ${fuelCells} carried fuel cell${fuelCells === 1 ? '' : 's'}.`
@@ -63,9 +63,16 @@ export const VehicleBeltChip: React.FC<{
       >
         {iconBox}
         <div className="w-full truncate text-center text-[11px] font-black uppercase tracking-wide text-text-primary">{name}</div>
-        <div className="flex items-center gap-1 whitespace-nowrap text-[11px] font-black uppercase text-amber">
-          {stateLabel} · {doorLabel}
-          <PxIcon name="chevR" size={13} />
+        {/* State over remedy, stacked: the one-line form
+            ("OUT OF FUEL · VENDOR") is wider than a belt cell
+            and painted over the panel edge in the first real
+            capture — two short lines fit the cell's grammar. */}
+        <div className="text-center text-[11px] font-black uppercase leading-[1.25] text-amber">
+          <span className="block">{stateLabel}</span>
+          <span className="flex items-center justify-center gap-0.5">
+            {doorLabel}
+            <PxIcon name="chevR" size={13} />
+          </span>
         </div>
       </button>
     );
@@ -80,7 +87,7 @@ export const VehicleBeltChip: React.FC<{
     >
       {iconBox}
       <div className="w-full truncate text-center text-[11px] font-black uppercase tracking-wide text-text-primary">{name}</div>
-      <div className="whitespace-nowrap text-[11px] font-black uppercase text-text-muted">
+      <div className="text-center text-[11px] font-black uppercase leading-[1.25] text-text-muted">
         {`${Math.floor(vehicleFuel)}u · ×${factor.toFixed(2)}${fraction < 1 ? ` · ${Math.round(fraction * 100)}%` : ''}`}
       </div>
     </div>
