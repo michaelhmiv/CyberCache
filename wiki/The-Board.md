@@ -34,9 +34,15 @@ Directly under the resource bar sit the claim chips:
 
 Claimable state is designed to be glanceable: if something is waiting for you, the top bar says so before you scroll anywhere.
 
+## The mode rail
+
+Directly under the claim chips, above the stage, runs the **mode rail** — six stops, one tap each: **Area · Roam · Boss · Endless · Extract · Craft**. The lit stop is the mode whose workspace is open below. Endless, Extraction, and Crafting are full stops on the rail; the **Switch Action** sheet still offers every mode it always did, Salvage included — the rail is the fast door, the sheet is the complete one.
+
+The action controls themselves float **on the stage** as two small square buttons at the top-left corner: **Switch Action** (the swap-arrows glyph) in every state — it is the sheet's one door — and, while an action is running, **Stop** (the filled-square glyph) beside it. They are icon-only by design; their names live in their accessible labels and in the sheet they open. There is no separate controls row — the rail is the last thing above the stage.
+
 ## The stage
 
-The centre of Home is **the stage**: your hunter, rendered with the weapon you actually have equipped, with a **gear count plate** at the top-right corner. The stage prints no words of its own — no banner, no activity name, no status ribbon: what just happened — drops, finds, kills — reads in the feed cards under the stage, and the doors that matter in the moment live in the workspace directly under it: in standby that is the Roam panel (the area's rates, one **Start Roam** bar, and a full-width **Change Area** beneath it); while a boss encounter is open, the encounter panel carries its own fight and Change Boss controls. This is the Action workspace, living on Home itself: pick an area, tap Start Roam, and the rundown begins on the same screen.
+The centre of Home is **the stage**: your hunter, rendered with the weapon you actually have equipped, with a **gear count plate** at the top-right corner. The stage prints no words of its own — no banner, no activity name, no status ribbon: what just happened — drops, finds, kills — reads in the feed cards under the stage, and the doors that matter in the moment live in the workspace under the belt: in standby that is the Roam panel (the area's rates, one **Start Roam** bar, and a full-width **Change Area** beneath it); while a boss encounter is open, the encounter panel carries its own fight and Change Boss controls. This is the Action workspace, living on Home itself: pick an area, tap Start Roam, and the rundown begins on the same screen.
 
 Attached to the stage's foot — below the art, never over it — is the **hero rundown**: your hero stats in two stacked rows, live. The damage row: **DPS** (damage per second), **Dmg/tick** (DPS across the 3-second tick), **Crit %** and **Crit ×** (your pooled chance and multiplier, as their own numbers). The survival row: **HP** (current/max, with its bar), **Shield** (your equipped shield's capacity), **Mit** (its mitigation rate), and **Shield Break** (your stacked shield-breaking power). Swap gear, burn fuel, finish a buff and the numbers move. Every hero prints its **effective** value; where a stat has a base and your gear, skills, or vehicle lifted it above that base, the gain prints beside it smaller and green **as a percentage of the base** (base 100 DPS reading 150 prints **150 +50%**) — the same percentage its source breakdown prints — and where something is costing you, the loss prints in red. Stats with no base to measure against (crit, shield, mitigation, shield break) and unmodified stats print plain. While a boss holds the stage, DPS reads **Eff. DPS** against that boss. Each hero is a button: tap it and its **source breakdown** opens — every contributor to that one number, row by row. The full all-stats breakdown lives behind Hunter → Profile's **Totals & Sources** door. While any consumable buff or activity modifier is active, a slim **buff line** rides under the heroes naming it — the deltas above include it. The old per-action figures live where the action lives now: roaming's gathering rates print in the roaming workspace panel, a crafting job's figures in its panel, and at standby the Roam panel's facts carry an **Away** cell with your offline cap (the cap you have earned through [[Research]] — see [[Progression]]), so you can read your build — and your away terms — before you start.
 
@@ -52,17 +58,13 @@ Under the gear, the figure itself is dressed by your [[Skins-and-Cosmetics|skin 
 
 Changing area lives one tap from the stage: the mode rail's **Area** stop and the workspace panels' **Change Area** buttons both open the area picker. Research no longer prints on Home — research runs alongside your action rather than replacing it, its enrollment state lives on Hunter → Research, and when a course finishes, it reads completed there.
 
+## The consumable belt
+
+Directly under the stage — below the hero rundown at its foot — sits the **consumable belt**: your active consumable slots, above the fold. Tap a slot to open the ledger and manage what is loaded. The belt row also carries your **vehicle chip**: your equipped vehicle and its fuel, sitting quietly as a readout while it is fueled — and the moment it runs dry (or wears out), the chip carries the remedy: a door to the Garage to load a carried fuel cell, or to the Vendor when you have none. The vehicle's full status lives in the Garage on the Gear tab. Below the belt sits the **lit workspace** for the current mode.
+
 ## When something is waiting
 
 Nothing on Home gathers your waits into one card — each wait lives at its own home, where you act on it. A finished craft reads on the **Workshop's** benches, ready to collect. The free daily cache waits at the **Chest**. Claimable contracts and the weekly Rep Desk earnings announce on the claim chips under the Strip and claim from their sheets. A while-you-were-away settlement waits behind the level button (see below). A finished Research course reads completed on Hunter → Research.
-
-## The mode rail
-
-Under the stage runs the **mode rail** — six stops, one tap each: **Area · Roam · Boss · Endless · Extract · Craft**. The lit stop is the mode whose workspace is open below. Endless, Extraction, and Crafting are full stops on the rail; the **Switch Action** sheet still offers every mode it always did, Salvage included — the rail is the fast door, the sheet is the complete one.
-
-The action controls themselves float **on the stage** as two small square buttons at the top-left corner: **Switch Action** (the swap-arrows glyph) in every state — it is the sheet's one door — and, while an action is running, **Stop** (the filled-square glyph) beside it. They are icon-only by design; their names live in their accessible labels and in the sheet they open. There is no separate controls row; the space under the rail belongs to the workspace.
-
-Below the rail sits the **lit workspace** for the current mode, then the **consumable belt**: your active consumable slots, above the fold. Tap a slot to open the ledger and manage what is loaded. The belt row also carries your **vehicle chip**: your equipped vehicle and its fuel, sitting quietly as a readout while it is fueled — and the moment it runs dry (or wears out), the chip carries the remedy: a door to the Garage to load a carried fuel cell, or to the Vendor when you have none. The vehicle's full status lives in the Garage on the Gear tab.
 
 ## Event pop-ups
 

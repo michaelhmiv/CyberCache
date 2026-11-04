@@ -700,8 +700,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       {/* Home owns the Strip now (Wave B merge): the ResourceBar
           renders once at the top of the Home screen, not per-stage. */}
 
-      {/* §4: nothing but the Strip and claim chips sits above the
-          Stage. The Switch/Stop controls float ON the stage now
+      {/* §4: above the Stage sit only the Strip, the claim chips,
+          and — since the owner's device ruling of 2026-11-04 — the
+          mode rail. The Switch/Stop controls float ON the stage now
           (owner rulings 2026-11-02, icon-only 2026-11-03 — see
           stageControls below); the dedicated controls row that
           used to sit under the mode rail is gone, and the
@@ -717,7 +718,20 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           workspace panels' Change Area buttons, and the stage's
           top-left belongs to the Switch/Stop buttons. */}
 
-      {/* 1. Stage + hero rundown — the rundown attaches to the
+      {/* 1. Mode rail (§2/§4) — the stage's six stops, ABOVE the
+          diorama since the owner's device ruling of 2026-11-04:
+          the mode vocabulary leads the screen, one tap from
+          everything below it. This replaces the old compact
+          action selector grid: Endless, Extract, and Craft are
+          first-class rail stops now (1 tap), and the Switch
+          Action sheet below keeps every path it had, Salvage
+          included. Same component, relocated — contents, order,
+          lit-state treatment, and tap behavior are unchanged. */}
+      <div className="relative">
+        <HomeModeRail activeStop={railActiveStop} onSelect={handleRailSelect} />
+      </div>
+
+      {/* 2. Stage + hero rundown — the rundown attaches to the
           stage's foot (Home consolidation): the ribbon's mode
           word and its ~15-stat scroller are replaced by two
           rows of tappable heroes (DPS · Dmg/tick · Crit % ·
@@ -739,33 +753,28 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
       </div>
 
-      {/* 1b. Mode rail (§2/§4) — the stage's six stops under the
-          diorama. This replaces the old compact action selector
-          grid: Endless, Extract, and Craft are first-class rail
-          stops now (1 tap), and the Switch Action sheet below
-          keeps every path it had, Salvage included. */}
-      <div className="relative">
-        <HomeModeRail activeStop={railActiveStop} onSelect={handleRailSelect} />
-      </div>
-
-      {/* 2. Action-specific panel — the lit workspace */}
-      {workspace}
-
-      {/* 2c. Consumable belt (§4 step 5) — above the fold, directly
-          under the lit workspace; it lived in the deck before
-          Wave C. Home consolidation (2026-11-03): the belt row
-          also carries the vehicle chip now (owner correction —
-          the bike gets no row of its own), and the blocks that
-          used to stack under the workspace are gone from Home:
-          the vehicle status line (its chip + the Garage's line
-          carry the state), the read-only Loadout block (Gear →
-          Loadout is the canonical surface), the Activity
-          Modifiers panel (its glance folded into the rundown's
-          buff line, its detail into the breakdown sheets), and
-          the compact HP/Keys/Tick strip (HP → the HP plate + the
-          hero rundown, Keys → the Strip, Tick → the workspace
-          footer and the feed). */}
+      {/* 3. Consumable belt (§4) — in the mode rail's vacated
+          position since the owner's device ruling of 2026-11-04:
+          directly under the stage block, above the lit workspace,
+          so the use-in-loop slots sit between the rundown and the
+          mode's panel. It lived in the deck before Wave C and
+          under the workspace until this swap — same component,
+          relocated, mounted exactly once. Home consolidation
+          (2026-11-03): the belt row also carries the vehicle chip
+          now (owner correction — the bike gets no row of its own),
+          and the blocks that used to stack under the workspace are
+          gone from Home: the vehicle status line (its chip + the
+          Garage's line carry the state), the read-only Loadout
+          block (Gear → Loadout is the canonical surface), the
+          Activity Modifiers panel (its glance folded into the
+          rundown's buff line, its detail into the breakdown
+          sheets), and the compact HP/Keys/Tick strip (HP → the HP
+          plate + the hero rundown, Keys → the Strip, Tick → the
+          workspace footer and the feed). */}
       <ConsumableBelt onNavigate={(target) => onNavigate?.(target)} />
+
+      {/* 4. Action-specific panel — the lit workspace */}
+      {workspace}
 
       {/* Claim sync stall: visible when roaming claims stop landing
           (ticker-exposed flag) — rewards are paused, not silently

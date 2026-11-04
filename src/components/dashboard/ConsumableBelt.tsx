@@ -8,9 +8,11 @@ import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 /**
  * Consumable belt (redesign Wave C, DESIGN.md §4) — the active
  * consumable slots, lifted out of the deck into the above-fold
- * band: composition step 5 sits it directly under the lit
- * workspace on Home, so a hunter sees what is loaded and what
- * is burning before the fold. Same pills + ledger as the deck
+ * band: since the owner's device ruling of 2026-11-04 it sits
+ * in the mode rail's vacated position — directly under the
+ * stage block, above the lit workspace (it sat under the
+ * workspace until the swap) — so a hunter sees what is loaded
+ * and what is burning before the fold. Same pills + ledger as the deck
  * carried (one implementation, moved — the ledger's slot focus
  * state lives here now), and the Gear rail keeps its own
  * Loadout Bench surface for editing the loadout itself.
