@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-04 — One bench, and builds that staff your contracts
+
+- **One bench** — the Workshop's three benches are now a single bench that is simply yours. The old workshop tools did not vanish: they joined the relic family as permanent, equippable relics with their effects intact, and the Lab's quality touch survives as a top-end crafting relic. Anyone who owned a second or third bench was refunded in full.
+- **Dispatch: start from a build** — staffing a contract no longer means re-ticking the same spare set by hand. Pick an offer, tap one of your saved builds, and its dispatchable gear (or its vehicle, for courier work) arrives pre-picked. Anything that cannot go — equipped, listed, out on another contract, tied up in a service job, or gone since the build was saved — is named with its reason and how to free it. The build itself stays a simple list: starting from one equips, reserves, and sends nothing.
+
 ## 2026-11-03 — Profiles, the Gear Split, and the weapon marriage
 
 - **Showcase your hunter** — pin up to three favorite weapons on your Trophy Shelf, tap any hunter in the weekly Standings to open their profile, and read the full record in the redesigned profile pop-up.
@@ -97,9 +102,13 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 103 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 111 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-03** — 51 merges
+**2026-11-04** — 1 merge
+
+- #372 — Econ 9: bench collapse + relic merger (migration 0073)
+
+**2026-11-03** — 58 merges
 
 - #310 — feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)
 - #315 — Foreground resume: land instantly back in the live action
@@ -152,6 +161,13 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #362 — Saved Builds SB-1: truthful build apply — one server op (cc_apply_build, 0066)
 - #363 — Boss identity: the Arena Plate — the boss presents itself (C-4)
 - #364 — Economy slice 5 — the Scrap Merge (brief §3): one tradeable Scrap, migration 0069 draft
+- #365 — Home consolidation — hero rundown, Next Move, belt-row bike chip, icon-only stage controls (HELD FOR OWNER REVIEW)
+- #366 — AL-2: Activity Log read API (GET /api/activity-log/me)
+- #367 — Econ 6: vendor drops Scrap + scrap meters (0071)
+- #368 — Econ 7: the per-recipe Scrap-cost lever (economy brief §4)
+- #369 — AL-3: Activity Log screen (stream, receipts + odds sheet, two doors)
+- #370 — Slots removal: Data Slots deleted end-to-end (migration 0074)
+- #371 — Home feedback fixes: Next Move removed, two-row rundown with percentage-over-base deltas
 
 **2026-11-02** — 44 merges
 
