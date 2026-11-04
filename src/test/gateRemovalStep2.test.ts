@@ -27,6 +27,10 @@ const MIGRATION_0057 = readFileSync(
   join(process.cwd(), 'db', 'migrations', '0057_consumable_recipe_levels.sql'),
   'utf8',
 );
+const MIGRATION_0073 = readFileSync(
+  join(process.cwd(), 'db', 'migrations', '0073_bench_collapse_relic_merger.sql'),
+  'utf8',
+);
 
 const A = '11111111-1111-4111-8111-111111111111';
 let nonceCounter = 0;
@@ -40,7 +44,7 @@ describe('migration 0057 — consumable recipe levels removed', () => {
     MIGRATION_0057.split('$catalog$')[1],
   ) as Array<Record<string, unknown>>;
 
-  it('the restated SQL catalog deep-equals the TS catalog (87 recipes)', () => {
+  it('the restated SQL catalog deep-equals the TS catalog (87 recipes, minus documented later-slice deltas)', () => {
     const parts = MIGRATION_0057.split('$catalog$');
     expect(parts.length).toBeGreaterThanOrEqual(3);
     expect(sqlCatalog).toHaveLength(87);
@@ -54,10 +58,41 @@ describe('migration 0057 — consumable recipe levels removed', () => {
         .map((r) => String(r.id)),
     );
     expect(renamedBy0069.size).toBe(38);
-    const withoutRenamed = (rows: Array<Record<string, unknown>>) =>
-      rows.filter((r) => !renamedBy0069.has(String(r.id)));
-    expect(withoutRenamed(sqlCatalog)).toEqual(
-      withoutRenamed(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
+    // Slice 9 (0073) changed 34 of these rows (31 requiresBench
+    // collapses + the 3 tool recipes' family change) and added
+    // relic_prime_laboratory. Diffed mechanically against 0073's
+    // restated catalog — the changed set is pinned by count, and
+    // 0073's catalog itself deep-equals TS in econBenchRelic.
+    const catalog0073 = JSON.parse(
+      MIGRATION_0073.split('$catalog$')[1],
+    ) as Array<Record<string, unknown>>;
+    const byId0073 = new Map(catalog0073.map((r) => [String(r.id), r]));
+    // Canonical stringify (sorted keys): the two migrations order
+    // object keys differently; only real content diffs count.
+    const canon = (v: unknown): string => {
+      if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
+      if (v && typeof v === 'object') {
+        return `{${Object.keys(v as Record<string, unknown>).sort()
+          .map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`).join(',')}}`;
+      }
+      return JSON.stringify(v);
+    };
+    const changedBy0073 = new Set(
+      sqlCatalog
+        .filter((r) => canon(byId0073.get(String(r.id))) !== canon(r))
+        .map((r) => String(r.id)),
+    );
+    // 72 = Econ 5's 38 renames (all still differ from 0057 on the
+    // input key) + slice 9's own 34, disjoint from the renames.
+    expect(changedBy0073.size).toBe(72);
+    expect([...changedBy0073].filter((id) => !renamedBy0069.has(id))).toHaveLength(34);
+    // relic_prime_laboratory exists only on the TS side (slice 9's
+    // addition — 0057's catalog predates it by construction).
+    const carved = new Set([...renamedBy0069, ...changedBy0073, 'relic_prime_laboratory']);
+    const withoutCarved = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => !carved.has(String(r.id)));
+    expect(withoutCarved(sqlCatalog)).toEqual(
+      withoutCarved(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
     );
   });
 
@@ -77,9 +112,10 @@ describe('migration 0057 — consumable recipe levels removed', () => {
   });
 
   it('the surviving gates stand on the formerly level-gated recipes', () => {
-    // Bench: the Calibration Core (was L15) still needs the Forge.
+    // Bench: the Calibration Core (was L15) needed the Forge until
+    // slice 9's collapse — every recipe now sits at bench 1.
     const core = getCraftRecipe('recipe_calibration_core')!;
-    expect(core.requiresBench).toBe(2);
+    expect(core.requiresBench).toBe(1);
     // Research: the Shield Cell batch (was L3) still needs the course.
     const batch = getCraftRecipe('recipe_shield_cell_batch')!;
     expect(batch.requiresResearch).toBe('production_systems');
@@ -184,13 +220,13 @@ describe('consumable crafting after gate-removal step 2 (0057)', () => {
     })).rejects.toThrow('research_required');
   });
 
-  it('the bench gate still binds the Calibration Core at level 1', async () => {
+  it('no bench gate binds the Calibration Core anymore (slice 9): it enqueues on the one bench', async () => {
     const store = new InMemoryWriteStore(levelOneSeed(1), { now });
+    // Pre-collapse: 'requires bench 2 or higher' on bench 1 and
+    // 'Bench not unlocked' on bench 2. Post-collapse the recipe
+    // runs on the single bench everyone owns.
     await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 1, recipeId: 'recipe_calibration_core', units: 1, consumableEfficiencyBonus: 0,
-    })).rejects.toThrow(/requires bench 2 or higher/);
-    await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: 'recipe_calibration_core', units: 1, consumableEfficiencyBonus: 0,
-    })).rejects.toThrow(/Bench not unlocked/);
+    })).resolves.toBeTruthy();
   });
 });

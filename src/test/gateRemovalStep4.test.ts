@@ -22,6 +22,12 @@
  *   - Cross-system survivor: Research's Fabrication bench gates
  *     (Production Systems requires bench 2) read bench OWNERSHIP —
  *     pinned in gateRemovalStep3.test.ts, untouched here.
+ *
+ * [Slice-9 supersession, 2026-11-03: the bench collapse retired
+ * the unlock itself — one bench, always owned. The 0061 textual
+ * pins below stand as history; the catalog + behavior pins now
+ * assert the collapsed truth, and migration 0073 drops
+ * cc_unlock_bench outright.]
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -108,15 +114,19 @@ describe('migration 0061 — bench unlock levels removed', () => {
 // ─── TS catalog pins ────────────────────────────────────────────
 
 describe('the TS bench catalog after step 4', () => {
-  it('no bench def carries an unlock level; prices and quality stand', () => {
+  it('no bench def carries an unlock level — and there is only ONE bench now (slice 9)', () => {
     for (const def of CRAFT_BENCHES) {
       expect('unlockLevel' in def, def.id).toBe(false);
     }
-    expect(benchDef(1)).toMatchObject({ costCredits: 0, costInputs: {} });
-    expect(benchDef(2)).toMatchObject({ costCredits: 5000, costInputs: {}, qualityFactor: 1.05 });
-    expect(benchDef(3)).toMatchObject({
-      costCredits: 25000, costInputs: { VoidDust: 10 }, qualityFactor: 1.1, minQualityBonus: 5,
-    });
+    // The collapse: Forge (5,000cr, ×1.05) and Lab (25,000cr +
+    // 10 VoidDust, ×1.10/+5) are gone as purchasable tiers. The
+    // one bench is free, ×1.00, floor bonus 0 — the quality the
+    // tiers carried lives on relics (Calipers ×1.08, Prime
+    // Laboratory ×1.10/+5), and benchDef clamps every ask to it.
+    expect(CRAFT_BENCHES).toHaveLength(1);
+    expect(benchDef(1)).toMatchObject({ costCredits: 0, costInputs: {}, qualityFactor: 1.0, minQualityBonus: 0 });
+    expect(benchDef(2)).toBe(benchDef(1));
+    expect(benchDef(3)).toBe(benchDef(1));
   });
 
   it('client copy surfaces never cite a bench unlock level', () => {
@@ -137,64 +147,17 @@ describe('the TS bench catalog after step 4', () => {
 
 // ─── Behavior: the in-memory write twin ─────────────────────────
 
-describe('bench unlock after gate-removal step 4 (0061)', () => {
-  it('a level-1 player climbs Forge → Lab on price + materials alone', async () => {
-    const { store, prof } = makeStore({ credits: 30_000, materials: { VoidDust: 10 } });
-    const forge = await store.unlockCraftBench(A, nonce()) as { benches: number };
-    expect(forge.benches).toBe(2);
-    expect(prof().credits).toBe(25_000);
-    expect(prof().workshop_benches).toBe(2);
-
-    const lab = await store.unlockCraftBench(A, nonce()) as { benches: number };
-    expect(lab.benches).toBe(3);
-    expect(prof().credits).toBe(0);
-    expect(prof().materials.VoidDust).toBe(0);
-    expect(prof().player_level).toBe(1); // never leveled — money was the gate
-
-    await expect(store.unlockCraftBench(A, nonce()))
-      .rejects.toThrow('All benches already unlocked');
+describe('bench unlock after gate-removal step 4 (0061) — superseded by slice 9', () => {
+  it('the unlock operation no longer exists on the write store', () => {
+    const { store } = makeStore({ credits: 30_000, materials: { VoidDust: 10 } });
+    expect((store as unknown as Record<string, unknown>).unlockCraftBench).toBeUndefined();
   });
 
-  it('the exact price buys the Forge — not a credit more', async () => {
-    const { store, prof } = makeStore({ credits: 5_000 });
-    const res = await store.unlockCraftBench(A, nonce()) as { benches: number };
-    expect(res.benches).toBe(2);
-    expect(prof().credits).toBe(0);
-  });
-
-  it('one credit short refuses on credits — at level 1 and at level 40 alike', async () => {
-    const low = makeStore({ player_level: 1, credits: 4_999 });
-    await expect(low.store.unlockCraftBench(A, nonce()))
-      .rejects.toThrow('Insufficient credits');
-    expect(low.prof().workshop_benches).toBe(1);
-    expect(low.prof().credits).toBe(4_999); // refused unlocks charge zero
-
-    const high = makeStore({ player_level: 40, credits: 4_999 });
-    await expect(high.store.unlockCraftBench(A, nonce()))
-      .rejects.toThrow('Insufficient credits');
-  });
-
-  it('the Lab refuses on VoidDust only after the credits check passes', async () => {
-    // Broke AND dustless: credits speak first (0024's check order).
-    const broke = makeStore({ workshop_benches: 2, credits: 100, materials: {} });
-    await expect(broke.store.unlockCraftBench(A, nonce()))
-      .rejects.toThrow('Insufficient credits');
-
-    const dustless = makeStore({ workshop_benches: 2, credits: 25_000, materials: { VoidDust: 9 } });
-    await expect(dustless.store.unlockCraftBench(A, nonce()))
-      .rejects.toThrow('Insufficient material VoidDust');
-    expect(dustless.prof().credits).toBe(25_000); // refused unlocks charge zero
-    expect(dustless.prof().workshop_benches).toBe(2);
-  });
-
-  it('a replayed nonce returns the recorded unlock without charging twice', async () => {
-    const { store, prof } = makeStore({ credits: 30_000, materials: { VoidDust: 10 } });
-    const key = nonce();
-    const first = await store.unlockCraftBench(A, key) as { benches: number };
-    const replay = await store.unlockCraftBench(A, key) as { benches: number };
-    expect(first.benches).toBe(2);
-    expect(replay.benches).toBe(2);
-    expect(prof().credits).toBe(25_000); // charged exactly once
-    expect(prof().workshop_benches).toBe(2);
+  it('every profile sits at the one bench — nothing to climb, nothing charged', async () => {
+    const { store, prof } = makeStore({ player_level: 1, credits: 30_000, materials: { VoidDust: 10 } });
+    expect(prof().workshop_benches).toBe(1);
+    expect(prof().credits).toBe(30_000);
+    expect(prof().materials.VoidDust).toBe(10);
+    void store;
   });
 });
