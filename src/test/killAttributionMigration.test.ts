@@ -40,7 +40,7 @@ function fnBody(text: string): string {
 
 /** Replace the weapon-lookup SELECT (guard line .. limit 1) with a marker. */
 function stripLookup(body: string): string {
-  return body.replace(/  select [\s\S]*?   limit 1;/, '  <LOOKUP>;');
+  return body.replace(/ {2}select [\s\S]*? {3}limit 1;/, '  <LOOKUP>;');
 }
 
 describe('migration 0076 — provenance and shape pins', () => {
