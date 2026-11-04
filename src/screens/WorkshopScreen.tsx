@@ -684,7 +684,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         )}
       </div>
 
-      <TintPanel />
+      <TintPanel onNavigate={onNavigate} onRefineFocus={focusRefineRecipe} />
 
       <div className="text-[11px] text-text-muted">
         {ALL_CRAFT_RECIPES.length} recipes in the catalog · sorted Craftable → One gate away → Locked. Sorts: Level · Time · Name.

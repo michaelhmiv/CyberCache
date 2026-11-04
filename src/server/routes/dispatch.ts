@@ -5,6 +5,7 @@
  *   POST /api/dispatch/preview  — price a contract from server records
  *   POST /api/dispatch/start    — commit a spare loadout / vehicle
  *   POST /api/dispatch/recall   — end a running contract, pro-rata
+ *   POST /api/dispatch/reroll   — re-deal today's board for credits (0068)
  *
  * Trust model (the #207 pattern): identity comes from the JWT only;
  * bodies carry intent — an offer id, item/vehicle ids, a nonce. All
@@ -27,10 +28,13 @@ import {
   courierPayoutLines,
   courierProjection,
   courierTierAnchorClass,
-  dispatchOffersForDate,
+  dispatchOffersForBoard,
+  dispatchRerollPrice,
+  dispatchRerollsRemaining,
   dispatchStrengthFactor,
-  findDispatchOffer,
+  findDispatchOfferForBoard,
   footPayoutLines,
+  resolveDispatchBoardState,
   resolveDispatchLevers,
   roamingAreaById,
   vehicleClassEligibleForTier,
@@ -74,7 +78,11 @@ function dispatchErrorStatus(message: string): number {
     message.includes('Courier assignment') ||
     message.includes('Vehicle class cannot run') ||
     message.includes('Insufficient vehicle fuel') ||
-    message.includes('Destination locked')
+    message.includes('Destination locked') ||
+    message.includes('Dispatch offer is not on the current board') ||
+    message.includes('Dispatch offer already departed') ||
+    message.includes('Dispatch reroll cap reached') ||
+    message.includes('Insufficient credits for a dispatch reroll')
   ) {
     return 400;
   }
@@ -110,14 +118,31 @@ async function priceContract(
   itemIds: string[],
   vehicleItemId: string | null,
 ): Promise<PricedContract | { notFound: string }> {
-  const offer = findDispatchOffer(nowOf(config), offerId);
+  const facts = await store.getDispatchFacts(playerId);
+  if (!facts) return { notFound: 'Profile not found' };
+  // Board discipline (0068, economy brief §7.3): only the player's
+  // CURRENT board for today validates — yesterday's board and
+  // unpurchased future boards never price.
+  const boardState = resolveDispatchBoardState(
+    {
+      boardIndex: facts.profile.dispatch_board_index,
+      rerollsUsed: facts.profile.dispatch_rerolls_used,
+      day: facts.profile.dispatch_board_day,
+    },
+    nowOf(config),
+  );
+  const offer = findDispatchOfferForBoard(nowOf(config), boardState.boardIndex, offerId);
   if (!offer) return { notFound: 'Unknown dispatch offer' };
   const area = roamingAreaById(offer.areaId);
   if (!area) return { notFound: 'Unknown dispatch offer' };
-  const facts = await store.getDispatchFacts(playerId);
-  if (!facts) return { notFound: 'Profile not found' };
   const levers = await dispatchLevers(config);
   const reasons: string[] = [];
+  // A departed offer id stays departed for the day (the id is the
+  // consumption unit) — on any board index, in any mission status.
+  const missions = await store.listDispatchMissions(playerId, 50);
+  if (missions.some((m) => m.offer_id === offer.id)) {
+    reasons.push('That offer already departed today — re-deal the board for a fresh set of offers');
+  }
   // No destination level gate (owner ruling 2026-11-02): contracts
   // may run to any area at any hunter level. The courier-tier gate
   // keyed on the VEHICLE's class further down is a different gate
@@ -289,15 +314,32 @@ async function dispatchStateView(store: ChefGameplayStore, config: DispatchConfi
   const facts = await store.getDispatchFacts(playerId);
   if (!facts) return null;
   const levers = await dispatchLevers(config);
-  const missions = await store.listDispatchMissions(playerId, 20);
-  const offers = dispatchOffersForDate(nowOf(config)).map((offer) => {
-    const area = roamingAreaById(offer.areaId);
-    return {
-      ...offer,
-      areaName: area?.name ?? offer.areaId,
-      dangerRating: area?.dangerRating ?? 'Medium',
-    };
-  });
+  const missions = await store.listDispatchMissions(playerId, 50);
+  // Board state (0068): the effective board for today (lazy day
+  // reset on read), with departed offer ids filtered OUT of the
+  // presentable set — a departed offer stays departed all day, on
+  // every board index (the offer id is the consumption unit).
+  const boardState = resolveDispatchBoardState(
+    {
+      boardIndex: facts.profile.dispatch_board_index,
+      rerollsUsed: facts.profile.dispatch_rerolls_used,
+      day: facts.profile.dispatch_board_day,
+    },
+    nowOf(config),
+  );
+  const departedOfferIds = [...new Set(missions.map((m) => m.offer_id))];
+  const departedSet = new Set(departedOfferIds);
+  const offers = dispatchOffersForBoard(nowOf(config), boardState.boardIndex)
+    .filter((offer) => !departedSet.has(offer.id))
+    .map((offer) => {
+      const area = roamingAreaById(offer.areaId);
+      return {
+        ...offer,
+        areaName: area?.name ?? offer.areaId,
+        dangerRating: area?.dangerRating ?? 'Medium',
+      };
+    });
+  const rerollsRemaining = dispatchRerollsRemaining(boardState.rerollsUsed, levers);
   const candidates = facts.items.map((item) => ({
     id: item.id,
     kind: item.kind,
@@ -316,6 +358,13 @@ async function dispatchStateView(store: ChefGameplayStore, config: DispatchConfi
     slotsUsed: missions.filter((m) => m.status === 'active').length,
     playerLevel: facts.profile.player_level,
     vehicleFuel: facts.profile.vehicle_fuel,
+    credits: facts.profile.credits,
+    boardIndex: boardState.boardIndex,
+    boardDay: boardState.day,
+    rerollsUsed: boardState.rerollsUsed,
+    rerollsRemaining,
+    rerollPrice: rerollsRemaining > 0 ? dispatchRerollPrice(boardState.rerollsUsed, levers) : null,
+    departedOfferIds,
     offers,
     missions,
     candidates,
@@ -457,6 +506,26 @@ export function createRecallDispatchHandler(store: ChefGameplayStore, config: Di
       res.json({ verified: true, settlement, dispatch: state });
     } catch (err) {
       sendRouteError(res, 'Dispatch recall failed', err);
+    }
+  };
+}
+
+export function createRerollDispatchHandler(store: ChefGameplayStore, config: DispatchConfig) {
+  return async function handleRerollDispatch(req: Request, res: Response): Promise<void> {
+    try {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const playerId = getAuthenticatedChefPlayer(config, req, body.jwt as string | undefined, body.playerId as string | undefined);
+      let rerolled: Json;
+      try {
+        rerolled = await store.rerollDispatchBoard(playerId, bodyNonce(body, playerId, 'reroll'));
+      } catch (err) {
+        sendStoreError(res, 'Dispatch reroll failed', err);
+        return;
+      }
+      const state = await dispatchStateView(store, config, playerId);
+      res.json({ verified: true, rerolled, dispatch: state });
+    } catch (err) {
+      sendRouteError(res, 'Dispatch reroll failed', err);
     }
   };
 }

@@ -181,6 +181,11 @@ same pool the item originally rolled from.
 - **Cost:** scrap equal to **3× the item's own salvage value**, so the
   price scales with the item's rarity and level.
 - **Legendary items** additionally burn **2 legendary cores** per reroll.
+  Short on cores at the bench, the confirm's core line carries the
+  quick-buy **+** — it opens the [[Crafting|quick-buy sheet]] priced
+  for exactly the gap, so the reforge in front of you never waits on
+  a Market trip. (The cost's Scrap half never carries a **+** —
+  Scrap is earned, not bought.)
 - A reforge changes that one affix and nothing else. Rarity, level,
   element, manufacturer, roll quality, and a weapon's legendary effect
   are the item's identity — they never change, a non-Legendary can never

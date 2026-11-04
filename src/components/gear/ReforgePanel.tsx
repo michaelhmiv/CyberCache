@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, Check, Hammer, X } from 'lucide-react';
 import { RARITIES } from '@/constants/rarities';
 import { reforgeCostFor } from '@/content/reforge';
+import { QUICKBUY_CORE_ID } from '@/lib/market/quickBuy';
+import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/serverItemAdapter';
 import { isReforgeableAffix } from '@/lib/gear/affixPools';
@@ -136,8 +138,23 @@ export function ReforgePanel({ item, equipped, onReforged }: {
                 {cost.scrap.toLocaleString()} scrap <span className="text-text-muted">({scrap.toLocaleString()} on hand)</span>
               </span>
               {cost.cores > 0 && (
-                <span className={cores >= cost.cores ? 'text-text-primary' : 'text-red'}>
-                  {cost.cores} legendary cores <span className="text-text-muted">({cores} on hand)</span>
+                <span className={`inline-flex items-center gap-1 ${cores >= cost.cores ? 'text-text-primary' : 'text-red'}`}>
+                  <span>
+                    {cost.cores} legendary cores <span className="text-text-muted">({cores} on hand)</span>
+                  </span>
+                  {/* QB-4: the core line's lone + — cores trade as
+                      market stack listings, so a shortfall fills in
+                      place through the quick-buy sheet. The Scrap
+                      half is a profile number and never gets one.
+                      The sheet opens above this inspect sheet
+                      (z-[70]), hence the raised overlay class. */}
+                  <QuickBuyPlus
+                    good={{ kind: 'core', id: QUICKBUY_CORE_ID }}
+                    goodName="Legendary Core"
+                    shortfall={cost.cores - cores}
+                    contextLabel={item.name}
+                    overlayZClass="z-[80]"
+                  />
                 </span>
               )}
             </div>

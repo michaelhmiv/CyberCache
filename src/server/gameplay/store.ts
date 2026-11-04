@@ -244,6 +244,12 @@ export interface DispatchProfileFacts {
   vehicle_fuel: number;
   credits: number;
   scrap: number;
+  /** Board reroll state (0068): raw stored values — the routes
+   *  resolve the effective state against today via
+   *  resolveDispatchBoardState (lazy day reset on read). */
+  dispatch_board_index: number;
+  dispatch_rerolls_used: number;
+  dispatch_board_day: string | null;
 }
 
 /**
@@ -836,6 +842,14 @@ export interface ChefGameplayStore {
    * Nonce-idempotent via the ledger.
    */
   recallDispatch(playerId: string, nonce: string, missionId: string): Promise<Json>;
+  /**
+   * Re-deal today's dispatch board (cc_reroll_dispatch_board,
+   * 0068): burns the escalating credit price, advances the
+   * player's board index for the UTC day, and persists the lazy
+   * day-reset state. Departed offers and running contracts are
+   * untouched. Nonce-idempotent via the ledger.
+   */
+  rerollDispatchBoard(playerId: string, nonce: string): Promise<Json>;
   /**
    * The player's extraction_state row (0033) after a lazy accrual
    * (cc_settle_extraction_time): completed passes wait in
@@ -1532,13 +1546,17 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     const profile = await this.one(
       // Econ 5 (0069): the Scrap stock is materials['Scrap']; the
       // retired profiles.scrap column is never read.
-      'select player_level, vehicle_fuel, credits, coalesce((materials ->> \'Scrap\')::bigint, 0) as scrap from public.profiles where id = $1',
+      'select player_level, vehicle_fuel, credits, coalesce((materials ->> \'Scrap\')::bigint, 0) as scrap, dispatch_board_index, dispatch_rerolls_used, dispatch_board_day from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
         vehicle_fuel: num(row.vehicle_fuel),
         credits: num(row.credits),
         scrap: num(row.scrap),
+        dispatch_board_index: num(row.dispatch_board_index),
+        dispatch_rerolls_used: num(row.dispatch_rerolls_used),
+        dispatch_board_day: row.dispatch_board_day === null || row.dispatch_board_day === undefined
+          ? null : String(row.dispatch_board_day),
       }),
     );
     if (!profile) return null;
@@ -1613,6 +1631,13 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       playerId,
       nonce,
       missionId,
+    ]);
+  }
+
+  rerollDispatchBoard(playerId: string, nonce: string): Promise<Json> {
+    return this.callJson('select public.cc_reroll_dispatch_board($1, $2) as result', [
+      playerId,
+      nonce,
     ]);
   }
 

@@ -191,6 +191,10 @@ export interface EconomyConfigValues {
   courierPremiumMultiplier: number;
   /** Route ticks per courier contract hour. */
   courierRouteTicksPerHour: number;
+  /** Base price of the day's first dispatch board reroll (0068). */
+  dispatchRerollBaseCredits: number;
+  /** Max paid dispatch board rerolls per UTC day (0068). */
+  dispatchRerollDailyCap: number;
   // Extraction (0033) — content owner: src/content/extraction.ts
   // (EXTRACTION_LEVER_DEFAULTS / EXTRACTION_LEVER_CLAMPS, pinned
   // against these literals by tests).
@@ -363,6 +367,8 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   dispatchMaterialRate: 1,
   courierPremiumMultiplier: 1.6,
   courierRouteTicksPerHour: 120,
+  dispatchRerollBaseCredits: 250,
+  dispatchRerollDailyCap: 5,
   extractXpRate: 0.75,
   extractFindsPerHour: 192,
   extractSignatureChance: 0.15,
@@ -703,6 +709,14 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   courierRouteTicksPerHour: {
     key: 'courierRouteTicksPerHour', min: 60, max: 240, integer: true,
     defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS (courier brief §2.8)',
+  },
+  dispatchRerollBaseCredits: {
+    key: 'dispatchRerollBaseCredits', min: 0, max: 10000, integer: true,
+    defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS (economy brief §7.3)',
+  },
+  dispatchRerollDailyCap: {
+    key: 'dispatchRerollDailyCap', min: 0, max: 20, integer: true,
+    defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS (economy brief §7.3)',
   },
   extractXpRate: {
     key: 'extractXpRate', min: 0.7, max: 0.85, integer: false,

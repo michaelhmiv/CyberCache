@@ -6,6 +6,7 @@ import {
   newDispatchNonce,
   previewDispatch,
   recallDispatch,
+  rerollDispatch,
   startDispatch,
   type ChefDispatchCandidate,
   type ChefDispatchMission,
@@ -160,6 +161,26 @@ export const DispatchPanel: React.FC = () => {
     }
   }, [busy, refresh]);
 
+  const reroll = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await rerollDispatch({ nonce: newDispatchNonce('reroll') });
+      if (result.dispatch) setState(result.dispatch);
+      else await refresh();
+      setPickedItems([]);
+      setPickedVehicle(null);
+      setOfferId(null);
+      setPreview(null);
+      setReasons([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Re-deal failed');
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, refresh]);
+
   if (!state) return null;
 
   const active = state.missions.filter((m) => m.status === 'active');
@@ -239,6 +260,34 @@ export const DispatchPanel: React.FC = () => {
             </span>
           </button>
         ))}
+        {state.offers.length === 0 && (
+          <div className="text-xs text-text-muted">Every offer on this board has departed. Re-deal the board below for a fresh set of offers.</div>
+        )}
+        {/* Board re-deal (0068, economy brief §7.3): the price is the
+            CURRENT escalating price and the count is today's
+            remaining re-deals; at the cap the control disables WITH
+            its remedy — every "no" carries its remedy (DESIGN.md). */}
+        {state.rerollsRemaining > 0 && state.rerollPrice !== null ? (
+          <div className="space-y-1 border-t border-border/60 pt-2">
+            <button
+              onClick={reroll}
+              disabled={busy || state.credits < state.rerollPrice}
+              className="bl-secondary w-full px-3 py-2 text-xs font-black disabled:opacity-50"
+            >
+              Re-deal board — {state.rerollPrice} cr · {state.rerollsRemaining} left today
+            </button>
+            {state.credits < state.rerollPrice && (
+              <div className="text-[11px] font-bold text-amber">Not enough credits — contracts and roaming earn credits.</div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-1 border-t border-border/60 pt-2">
+            <button disabled className="bl-secondary w-full px-3 py-2 text-xs font-black disabled:opacity-50">
+              Re-deal board — no re-deals left today
+            </button>
+            <div className="text-[11px] font-bold text-text-muted">Board re-deals reset at the day rollover</div>
+          </div>
+        )}
         {slotsFull && <div className="text-[11px] font-bold text-amber">Bay is full — a contract must return (or be recalled) before another departs.</div>}
 
         {offer && (

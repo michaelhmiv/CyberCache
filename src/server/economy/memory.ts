@@ -297,6 +297,13 @@ export class InMemoryEconomyStore implements EconomyStore {
       .filter((r) => r.action_type === 'cc_dispatch_settle' && dig(r.result_payload, 'family') === 'courier')
       .reduce((acc, r) => acc + num(dig(r.result_payload, 'payout', 'credits')), 0);
 
+    // Dispatch reroll sink (0068): credits burned re-dealing the
+    // board, from the cc_reroll_dispatch_board ledger payloads —
+    // its own breakout, folded into the destroyed total exactly
+    // as in SQL.
+    const creditsDestroyedDispatchRerolls = sumBy(['cc_reroll_dispatch_board'], (p) =>
+      num(dig(p, 'credits_charged')));
+
     // Extraction meters (0033): passes + XP from the
     // cc_apply_extraction ledger payloads; the mint map folds the
     // payloads' finds_materials and finds_essences maps per id
@@ -415,7 +422,7 @@ export class InMemoryEconomyStore implements EconomyStore {
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
       + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees
       + endlessFeesDestroyed + researchCreditsDestroyed + standingCreditsDestroyed
-      + slotCreditsWagered;
+      + slotCreditsWagered + creditsDestroyedDispatchRerolls;
 
     const row: EconomyMetricsRow = {
       day,
@@ -497,6 +504,7 @@ export class InMemoryEconomyStore implements EconomyStore {
       cacheRankTokensSpent,
       creditsMintedDispatch,
       creditsMintedCourier,
+      creditsDestroyedDispatchRerolls,
       extractionPasses,
       extractionXpAwarded,
       materialsMintedExtraction,

@@ -1,6 +1,7 @@
 import { Rarity } from '@/types/game';
-import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
+import type { Affix, ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
+import { rollQualityLabel } from '@/constants/rarities';
 import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
 import { LEGENDARY_EFFECTS } from '@/constants/legendaryEffects';
 import { bespokeSpriteIdForWeapon, normalizeLegendaryName } from './manifest';
@@ -49,26 +50,29 @@ export interface LootCelebration {
   godRays: boolean;
   /** Legendary only: a shockwave ring rolls across the ground. */
   shockwave: boolean;
-  /** Legendary only: the weapon rises out of the beam and floats. */
+  /** The item itself rises out of the beam and floats — every rarity
+   *  (item-moment reveal, owner-approved 2026-11-03: the item is the
+   *  moment; before this the rise was legendary-only and ordinary
+   *  drops never showed the item at all). */
   weaponRise: boolean;
 }
 
 const CELEBRATION_BY_RARITY: Record<Rarity, Omit<LootCelebration, 'color'>> = {
   [Rarity.Common]: {
     tier: 'modest', durationMs: MOVEMENT.LOOT_COMMON_MS, beamWidthPx: 10, flareScale: 2.2,
-    dimWorld: false, godRays: false, shockwave: false, weaponRise: false,
+    dimWorld: false, godRays: false, shockwave: false, weaponRise: true,
   },
   [Rarity.Uncommon]: {
     tier: 'modest', durationMs: MOVEMENT.LOOT_UNCOMMON_MS, beamWidthPx: 14, flareScale: 2.4,
-    dimWorld: false, godRays: false, shockwave: false, weaponRise: false,
+    dimWorld: false, godRays: false, shockwave: false, weaponRise: true,
   },
   [Rarity.Rare]: {
     tier: 'bright', durationMs: MOVEMENT.LOOT_RARE_MS, beamWidthPx: 22, flareScale: 2.8,
-    dimWorld: false, godRays: false, shockwave: false, weaponRise: false,
+    dimWorld: false, godRays: false, shockwave: false, weaponRise: true,
   },
   [Rarity.Epic]: {
     tier: 'grand', durationMs: MOVEMENT.LOOT_EPIC_MS, beamWidthPx: 34, flareScale: 3.2,
-    dimWorld: false, godRays: false, shockwave: false, weaponRise: false,
+    dimWorld: false, godRays: false, shockwave: false, weaponRise: true,
   },
   [Rarity.Legendary]: {
     tier: 'legendary', durationMs: MOVEMENT.LOOT_LEGENDARY_MS, beamWidthPx: 68, flareScale: 3.6,
@@ -140,6 +144,18 @@ export function weaponStatFigures(item: Weapon): { dmg: string; spd: string; cri
   };
 }
 
+/**
+ * A shield's mitigation as a display percentage. Mitigation is stored
+ * as a FRACTION (the generator rolls 0.05–0.8; GearInspectSheet and
+ * gearCardSummary both print ×100). The loot card used to format the
+ * raw fraction — an 8% shield read "MIT 0.1%" (item-moment reveal
+ * rider, verified 2026-11-03). One formatter so the card line and the
+ * reveal deck can never disagree again.
+ */
+export function shieldMitigationPct(item: Shield): string {
+  return fmtRate(item.mitigation * 100);
+}
+
 /** The card's stat line — real numbers from the item's own rolled fields. */
 export function lootStatLine(item: GearItem): string {
   if (isWeapon(item)) {
@@ -151,7 +167,7 @@ export function lootStatLine(item: GearItem): string {
     const behavior = shieldBehaviorOf(item);
     const behaviorLabel =
       behavior !== 'standard' ? ` · ${SHIELD_BEHAVIORS[behavior].name.toUpperCase()}` : '';
-    return `HP ${fmtInt(item.hp)} · RECHARGE ${fmtRate(item.rechargeRate)}/s · MIT ${fmtRate(item.mitigation)}%${behaviorLabel}`;
+    return `HP ${fmtInt(item.hp)} · RECHARGE ${fmtRate(item.rechargeRate)}/s · MIT ${shieldMitigationPct(item)}%${behaviorLabel}`;
   }
   if (isClassMod(item)) {
     const boosts = Object.keys(item.nodeBoosts ?? {}).length;
@@ -235,6 +251,186 @@ export function lootCardData(item: GearItem): LootCardData {
     isWeapon: isWeapon(item),
     bespokeSpriteId: bespokeSpriteIdForWeapon(item),
   };
+}
+
+// ── The reveal deck (item-moment reveal, 2026-11-03) ───────────────────
+// The stage presentation's stat deck: the item's own numbers staged the
+// way the approved exploration specified — the effective value at hero
+// size, two support figures beside it, affix percentages vivid, a
+// dedicated strip for an activity module, and the roll quality read
+// honestly. Pure derivation from the item, like lootCardData; the
+// component (LootMoment.tsx) only renders what this returns.
+
+export interface LootDeckFigure {
+  label: string;
+  value: string;
+}
+
+/** One affix line split into its leading signed figure (rendered vivid)
+ *  and the remainder. Mirrors the exploration renderer's rich_line: a
+ *  figure exists only when the text opens with a signed percentage. */
+export interface LootDeckAffixLine {
+  figure: string;
+  rest: string;
+}
+
+export function splitAffixFigure(text: string): LootDeckAffixLine {
+  const match = /^([+-][\d.]+%)/.exec(text);
+  if (!match) return { figure: '', rest: text };
+  return { figure: match[1], rest: text.slice(match[1].length) };
+}
+
+export interface LootDeckData {
+  name: string;
+  rarity: Rarity;
+  color: string;
+  /** 'LEGENDARY SNIPER · FIRE · LV 7' — rarity · kind · element · level. */
+  stamp: string;
+  /** The legendary effect banner (legendary weapons with a resolvable
+   *  effect only). Name renders uppercase in rarity color. */
+  effect: { name: string; description: string } | null;
+  /** The hero figure (effective value). Relics carry no core stat —
+   *  null there; their affix rows are the read. */
+  hero: LootDeckFigure | null;
+  /** Support figures beside the hero (SPD/CRIT, RECHARGE/MITIGATION…). */
+  supports: LootDeckFigure[];
+  /** Non-activity affixes, figure-split. */
+  affixes: LootDeckAffixLine[];
+  /** The activity-module strip: the module's own displayText, split
+   *  into its title ('Salvage Module [95%]') and its yield lines. */
+  module: { title: string; lines: LootDeckAffixLine[] } | null;
+  /** Weapons only — gear items carry no rollQuality. */
+  quality: { value: number; label: string } | null;
+  flavor?: string;
+}
+
+const affixesOfItem = (item: GearItem): Affix[] =>
+  'affixes' in item && Array.isArray(item.affixes) ? item.affixes : [];
+
+export function lootDeckData(item: GearItem): LootDeckData {
+  const kindLabel = gearKindLabel(item);
+  const element = 'element' in item ? String(item.element).toUpperCase() : null;
+  const stamp = [
+    `${item.rarity.toUpperCase()} ${kindLabel}`,
+    ...(element ? [element] : []),
+    `LV ${item.level}`,
+  ].join(' · ');
+
+  let effect: LootDeckData['effect'] = null;
+  let hero: LootDeckFigure | null = null;
+  let supports: LootDeckFigure[] = [];
+  let quality: LootDeckData['quality'] = null;
+
+  if (isWeapon(item)) {
+    const figures = weaponStatFigures(item);
+    hero = { label: 'DAMAGE', value: figures.dmg };
+    supports = [
+      { label: 'SPD', value: figures.spd },
+      { label: 'CRIT', value: figures.crit },
+    ];
+    quality = { value: item.rollQuality, label: rollQualityLabel(item.rollQuality).toUpperCase() };
+    if (item.rarity === Rarity.Legendary && item.legendaryEffectId) {
+      const entry = LEGENDARY_EFFECTS.find((candidate) => candidate.id === item.legendaryEffectId);
+      if (entry) effect = { name: entry.name, description: entry.description };
+    }
+  } else if (isShield(item)) {
+    hero = { label: 'SHIELD HP', value: fmtInt(item.hp) };
+    supports = [
+      { label: 'RECHARGE', value: `${fmtRate(item.rechargeRate)}/s` },
+      { label: 'MITIGATION', value: `${shieldMitigationPct(item)}%` },
+    ];
+    const behavior = shieldBehaviorOf(item);
+    if (behavior !== 'standard') {
+      supports = [...supports, { label: 'BEHAVIOR', value: SHIELD_BEHAVIORS[behavior].name.toUpperCase() }];
+    }
+  } else if (isOrdnance(item)) {
+    hero = { label: 'DAMAGE', value: fmtInt(item.damage) };
+    supports = [
+      { label: 'SHLD', value: fmtInt(item.shieldDamage) },
+      { label: 'ARM', value: fmtInt(item.armorDamage) },
+    ];
+  } else if (isClassMod(item)) {
+    const boosts = Object.values(item.nodeBoosts ?? {});
+    hero = { label: 'NODE BOOST', value: `+${boosts.reduce((sum, value) => sum + value, 0)}` };
+    supports = [
+      { label: 'TREE', value: item.treeBonus.toUpperCase() },
+      { label: 'NODES', value: `${boosts.length}` },
+    ];
+  }
+
+  let module: LootDeckData['module'] = null;
+  const affixes: LootDeckAffixLine[] = [];
+  for (const affix of affixesOfItem(item)) {
+    if (affix.category === 'activity' && affix.subStats && !module) {
+      const parts = affix.displayText.split(' · ');
+      module = { title: parts[0] ?? affix.displayText, lines: parts.slice(1).map(splitAffixFigure) };
+    } else {
+      affixes.push(splitAffixFigure(affix.displayText));
+    }
+  }
+
+  return {
+    name: item.name,
+    rarity: item.rarity,
+    color: RARITY_FRAME_STYLES[item.rarity].color,
+    stamp,
+    effect,
+    hero,
+    supports,
+    affixes,
+    module,
+    quality,
+    // With the effect banner up, the banner already carries the
+    // effect's description — the flavor line is the hand-written
+    // override only, never the same text twice. Without a banner,
+    // lootFlavor's own fallback chain applies.
+    flavor: effect
+      ? legendaryFlavorOverride(item.name) ?? legendaryFlavorOverride(effect.name)
+      : lootFlavor(item),
+  };
+}
+
+/**
+ * The deck's row-landing schedule (ms from the step's start) — the
+ * exploration's beat map fitted inside the EXISTING step durations
+ * (movement.ts is law; nothing here extends a step). The deck panel is
+ * fixed at final geometry from its first frame; rows land at these
+ * times. Legendary withholds name/hero so the rise gets a clean frame
+ * first; affixes stagger; flavor lands last.
+ */
+export interface LootDeckSchedule {
+  panelMs: number;
+  bannerMs: number;
+  nameMs: number;
+  heroMs: number;
+  affixStartMs: number;
+  affixStaggerMs: number;
+  moduleMs: number;
+  qualityMs: number;
+  flavorMs: number;
+}
+
+export function lootDeckSchedule(
+  rarity: Rarity,
+  opts: { affixCount: number; hasModule: boolean },
+): LootDeckSchedule {
+  const celebration = lootCelebrationForRarity(rarity);
+  const step = celebration.durationMs;
+  const base: Record<Rarity, Omit<LootDeckSchedule, 'moduleMs' | 'qualityMs' | 'flavorMs'>> = {
+    [Rarity.Common]: { panelMs: 160, bannerMs: 300, nameMs: 300, heroMs: 480, affixStartMs: 580, affixStaggerMs: 100 },
+    [Rarity.Uncommon]: { panelMs: 200, bannerMs: 340, nameMs: 340, heroMs: 520, affixStartMs: 620, affixStaggerMs: 105 },
+    [Rarity.Rare]: { panelMs: 240, bannerMs: 380, nameMs: 380, heroMs: 560, affixStartMs: 680, affixStaggerMs: 110 },
+    [Rarity.Epic]: { panelMs: 280, bannerMs: 420, nameMs: 420, heroMs: 640, affixStartMs: 760, affixStaggerMs: 120 },
+    [Rarity.Legendary]: { panelMs: 560, bannerMs: 700, nameMs: 820, heroMs: 1100, affixStartMs: 1450, affixStaggerMs: 150 },
+  };
+  const b = base[rarity];
+  const lastAffixMs = b.affixStartMs + b.affixStaggerMs * Math.max(0, opts.affixCount - 1);
+  const moduleMs = opts.hasModule ? lastAffixMs + b.affixStaggerMs : 0;
+  const qualityMs =
+    rarity === Rarity.Legendary
+      ? step - 250
+      : Math.min(step - 120, Math.max(b.affixStartMs + b.affixStaggerMs * opts.affixCount, moduleMs + (opts.hasModule ? 110 : 0)));
+  return { ...b, moduleMs, qualityMs, flavorMs: qualityMs };
 }
 
 // ── The ladder ─────────────────────────────────────────────────────────
