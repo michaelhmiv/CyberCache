@@ -28,6 +28,7 @@ import { CRAFTING_RECIPES } from '../constants/craftingRecipes';
 import { CONSUMABLES } from '../constants/consumables';
 import { ROAMING_AREAS } from '../constants/roamingAreas';
 import { MaterialType, Rarity } from '../types/game';
+import type { Affix } from '../types/items';
 import { SKIN_PARTS, TINT_PALETTES } from './skins';
 
 // ─── Levers (§2.10; registered in src/server/economy/config.ts) ─────
@@ -46,22 +47,32 @@ export const REFINE_BASE_YIELD_DEFAULT = 0.8;
 // ─── Benches (§2.2) ──────────────────────────────────────────────────
 
 export interface CraftBenchDef {
-  /** 1..3 — also the value stored in profiles.workshop_benches. */
+  /** Always 1 since the slice-9 collapse — also the value stored in profiles.workshop_benches. */
   bench: number;
   id: string;
   name: string;
   /** Grammar ACTION_SETS sprite for this bench's station. */
   spriteId: string;
   costCredits: number;
-  /** Charged atomically by cc_unlock_bench (the credit sink + VoidDust). */
+  /** Retired with the collapse — the bench is free and always owned; kept at {} for shape stability. */
   costInputs: Record<string, number>;
-  /** Rolled quality multiplier (Forge 1.05, Lab 1.10). */
+  /** The bench's own rolled-quality multiplier: ×1.00 since the collapse (tier factors live on relics now). */
   qualityFactor: number;
-  /** Flat bonus to the quality roll's minimum bound (Lab +5). */
+  /** The bench's own floor bonus: 0 since the collapse (the +5 lives on the Prime Laboratory relic). */
   minQualityBonus: number;
   blurb: string;
 }
 
+/**
+ * THE bench (economy slice 9, brief §8.1): the Forge and the Lab
+ * collapsed into the one baseline bench. Every account owns it from
+ * creation; it always works, never starves, quality factor ×1.00.
+ * The quality the tiers carried lives on as relic effects now —
+ * Precision Calipers ×1.08 and the Prime Laboratory ×1.10/+5 (see
+ * CRAFT_RELICS below); the Forge's ×1.05 died with the Forge, its
+ * standing carrier being the Calipers. profiles.workshop_benches is
+ * set to 1 for every account by migration 0073 and stays 1.
+ */
 export const CRAFT_BENCHES: readonly CraftBenchDef[] = [
   {
     bench: 1,
@@ -72,34 +83,17 @@ export const CRAFT_BENCHES: readonly CraftBenchDef[] = [
     costInputs: {},
     qualityFactor: 1.0,
     minQualityBonus: 0,
-    blurb: 'The starter bench. Runs every legacy recipe and the crusher.',
-  },
-  {
-    bench: 2,
-    id: 'forge',
-    name: 'Forge',
-    spriteId: 'set-bench-forge',
-    costCredits: 5000,
-    costInputs: {},
-    qualityFactor: 1.05,
-    minQualityBonus: 0,
-    blurb: 'Quality rolls ×1.05. Unlocks Rare gear frames and catalysts.',
-  },
-  {
-    bench: 3,
-    id: 'lab',
-    name: 'Lab',
-    spriteId: 'set-bench-lab',
-    costCredits: 25000,
-    costInputs: { VoidDust: 10 },
-    qualityFactor: 1.1,
-    minQualityBonus: 5,
-    blurb: 'Quality rolls ×1.10 with +5 to the minimum. Unlocks Epic frames and the furnace.',
+    blurb: 'The bench. Runs every recipe in the catalog — materials, frames, relics, the crusher and the furnace.',
   },
 ];
 
-export const MAX_BENCH = 3;
-/** One job RUNS per bench; up to this many more QUEUE behind it. */
+export const MAX_BENCH = 1;
+/** BENCH ENVELOPE (baseline) — the constants Econ slice 10 (bench
+ * time) widens: one job RUNS on the bench; up to this many more
+ * QUEUE behind it, plus the Fixer workshopQueueBonus. The capacity
+ * rule itself lives in craftEngine.enqueueCraftJob and its SQL twin
+ * cc_enqueue_craft_job (1 + QUEUED_JOBS_PER_BENCH + queueBonus). */
+export const RUNNING_JOBS_ON_BENCH = 1;
 export const QUEUED_JOBS_PER_BENCH = 5;
 /** Sanity bound on a single job's unit count (escrow locks the inputs). */
 export const MAX_UNITS_PER_JOB = 500;
@@ -110,7 +104,7 @@ export function benchDef(bench: number): CraftBenchDef {
 
 // ─── The unified craft catalog (§2.5) ────────────────────────────────
 
-export type CraftJobKind = 'consumable' | 'refine' | 'gear' | 'tool' | 'repair' | 'shieldtech' | 'cosmetic';
+export type CraftJobKind = 'consumable' | 'refine' | 'gear' | 'repair' | 'shieldtech' | 'cosmetic';
 export type CraftStation = 'bench' | 'crusher' | 'furnace';
 
 export interface CraftRecipe {
@@ -118,7 +112,7 @@ export interface CraftRecipe {
   kind: CraftJobKind;
   name: string;
   /** Display grouping in the Workshop. */
-  category: 'survival' | 'offense' | 'utility' | 'refining' | 'gear' | 'tools' | 'cosmetics';
+  category: 'survival' | 'offense' | 'utility' | 'refining' | 'gear' | 'cosmetics';
   /** Per-unit inputs: material ids resolve against profiles.materials,
    *  essence ids against profiles.essences (legacy recipe convention). */
   inputs: Record<string, number>;
@@ -154,8 +148,13 @@ export interface CraftRecipe {
   gearSlot?: 'weapon' | 'shield' | 'classMod' | 'relic' | 'ordnance';
   /** gear kind: per-unit duration by chosen rarity. */
   durationByRarityMs?: Partial<Record<Rarity, number>>;
-  /** tool kind: the workshop tool asset this job produces. */
-  toolId?: string;
+  /** Named-relic crafts (slice 9): a gear recipe carrying this
+   *  field mints the NAMED relic (fixed crafting affixes, see
+   *  CRAFT_RELICS) instead of rolling the relic generator. */
+  namedRelic?: string;
+  /** Named-relic crafts: the fixed rarity the relic mints at —
+   *  the enqueue ignores the caller's rarity for these recipes. */
+  fixedRarity?: Rarity;
   /** cosmetic kind: the skin part this recipe produces (an id in
    *  src/content/skins.ts SKIN_PARTS). Completion stamps a pending
    *  output the craft finalizer turns into a cosmetic item. */
@@ -216,27 +215,27 @@ const VEHICLE_CONSUMABLE_RECIPES: CraftRecipe[] = [
     // Shield-Tech services (0044, brief §2.4): the Calibration Core —
     // the shield-tech lane's crafter-only consumable. PrismShards
     // (the Prismatek signature material) ties cores to the shield
-    // economy's home territory. 40 min, Forge bench.
+    // economy's home territory. 40 min.
     id: 'recipe_calibration_core', kind: 'consumable', name: 'Calibration Core', category: 'utility',
     inputs: { ReactiveComponents: 20, TechFragments: 15, PrismShards: 2, VoidDust: 2 },
     unitDurationMs: 40 * MIN,
-    requiresLevel: 1, requiresBench: 2, station: 'bench', consumableType: 'CalibrationCore',
+    requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'CalibrationCore',
   },
 ];
 
 /** Refining (§2.5a): deterministic yield, never random loss. Tier-1
- *  recipes run on the Basic Bench's crusher; composites need the Lab
- *  furnace. Essences are not refined in v1. */
+ *  recipes run on the Basic Bench's crusher; composites run in
+ *  the furnace. Essences are not refined in v1. */
 const REFINING_RECIPES: CraftRecipe[] = [
   { id: 'refine_refined_alloy', kind: 'refine', name: 'Refined Alloy', category: 'refining', inputs: { Scrap: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'RefinedAlloy', outputBase: 8 },
   { id: 'refine_tempered_parts', kind: 'refine', name: 'Tempered Parts', category: 'refining', inputs: { BallisticParts: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'TemperedParts', outputBase: 8 },
   { id: 'refine_stabilized_cells', kind: 'refine', name: 'Stabilized Cells', category: 'refining', inputs: { ReactiveComponents: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'StabilizedCells', outputBase: 8 },
   { id: 'refine_woven_circuits', kind: 'refine', name: 'Woven Circuits', category: 'refining', inputs: { TechFragments: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'WovenCircuits', outputBase: 8 },
   { id: 'refine_condensed_void', kind: 'refine', name: 'Condensed Void', category: 'refining', inputs: { VoidDust: 10 }, unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'CondensedVoid', outputBase: 8 },
-  { id: 'refine_composite_plating', kind: 'refine', name: 'Composite Plating', category: 'refining', inputs: { RefinedAlloy: 4, StabilizedCells: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 3, station: 'furnace', outputMaterial: 'CompositePlating', outputBase: 2 },
-  { id: 'refine_circuit_lattice', kind: 'refine', name: 'Circuit Lattice', category: 'refining', inputs: { WovenCircuits: 4, TemperedParts: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 3, station: 'furnace', outputMaterial: 'CircuitLattice', outputBase: 2 },
-  { id: 'refine_voidweave', kind: 'refine', name: 'Voidweave', category: 'refining', inputs: { CondensedVoid: 2, WovenCircuits: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 3, station: 'furnace', outputMaterial: 'Voidweave', outputBase: 2 },
-  { id: 'refine_chromaweave', kind: 'refine', name: 'Chromaweave', category: 'refining', inputs: { MycoSteelFiber: 2, VoidEssence: 1 }, unitDurationMs: 30 * MIN, requiresLevel: 1, requiresBench: 2, station: 'furnace', outputMaterial: 'Chromaweave', outputBase: 2 },
+  { id: 'refine_composite_plating', kind: 'refine', name: 'Composite Plating', category: 'refining', inputs: { RefinedAlloy: 4, StabilizedCells: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 1, station: 'furnace', outputMaterial: 'CompositePlating', outputBase: 2 },
+  { id: 'refine_circuit_lattice', kind: 'refine', name: 'Circuit Lattice', category: 'refining', inputs: { WovenCircuits: 4, TemperedParts: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 1, station: 'furnace', outputMaterial: 'CircuitLattice', outputBase: 2 },
+  { id: 'refine_voidweave', kind: 'refine', name: 'Voidweave', category: 'refining', inputs: { CondensedVoid: 2, WovenCircuits: 2 }, unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 1, station: 'furnace', outputMaterial: 'Voidweave', outputBase: 2 },
+  { id: 'refine_chromaweave', kind: 'refine', name: 'Chromaweave', category: 'refining', inputs: { MycoSteelFiber: 2, VoidEssence: 1 }, unitDurationMs: 30 * MIN, requiresLevel: 1, requiresBench: 1, station: 'furnace', outputMaterial: 'Chromaweave', outputBase: 2 },
 ];
 
 /** Gear-frame durations by rarity (§2.5c): C/U 90min, Rare 150, Epic 240. */
@@ -253,12 +252,9 @@ export const CRAFTABLE_GEAR_RARITIES: readonly Rarity[] = [
   Rarity.Common, Rarity.Uncommon, Rarity.Rare, Rarity.Epic,
 ];
 
-/** Bench a gear rarity needs: Rare frames need the Forge, Epic the Lab. */
-export function gearRarityRequiresBench(rarity: Rarity): number {
-  if (rarity === Rarity.Epic) return 3;
-  if (rarity === Rarity.Rare) return 2;
-  return 1;
-}
+/** Bench a gear rarity needs: none — the rarity bench gates retired
+ * with the collapse (brief §8.1). Rare frames are baseline; Epic
+ * frames keep their surviving carrier, the mastery gate below. */
 
 /** Epic frames additionally require gear mastery (§2.5c). */
 export const EPIC_FRAME_GEAR_MASTERY = 10;
@@ -271,58 +267,182 @@ const GEAR_FRAME_RECIPES: CraftRecipe[] = [
   { id: 'frame_ordnance', kind: 'gear', name: 'Ordnance Frame', category: 'gear', inputs: { TemperedParts: 6, StabilizedCells: 3, ForgeheartIngots: 2 }, unitDurationMs: 0, durationByRarityMs: GEAR_FRAME_DURATION_MS, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'ordnance' },
 ];
 
-// ─── Workshop tools (§2.5e) ──────────────────────────────────────────
-// Tools are layer-2 PERMANENT modifiers (economy brief §9.2): crafted
-// once, fitted forever — no charges, no expiry, no upkeep. The
-// `workshop_tools.charges` values stored by pre-0067 profiles are
-// inert data, ignored by every reader.
+// ─── Craft relics (§2.5e, as converted by economy slice 9) ──────────
+// Ruling 9: there is no tool category. The three fitted workshop
+// tools were always "the relic for hunters" — permanent layer-2
+// modifiers — so they converted into the relic family with their
+// effects intact: named relics carrying FIXED crafting affixes,
+// equipped in the hunter's relic slot like every relic (the bench's
+// fit mechanic and profiles.workshop_tools retired in migration
+// 0073; owned/fitted tools converted to these items there). The
+// Lab's ×1.10/+5 — the collapsed bench tier's quality ceiling —
+// became the fourth: a top-end crafting effect in the relic pool,
+// bounded at exactly ×1.10/+5 forever (the composer clamps below).
+// All four names joined RELIC_NAMES, so the shared loot/craft pool
+// can mint them too; a name in this table ALWAYS carries its fixed
+// affixes, never pool rolls (relicGenerator enforces it).
 
-export interface CraftToolDef {
+/** Affix stats the crafting engines read off the equipped relic. */
+export const CRAFT_AFFIX_STAT = {
+  qualityMultiplier: 'craftQualityMultiplier',
+  minQualityBonus: 'craftMinQualityBonus',
+  durationMultiplier: 'craftDurationMultiplier',
+  refineYieldBonus: 'craftRefineYieldBonus',
+  bonusUnitChance: 'craftBonusUnitChance',
+} as const;
+
+/** The Lab ceiling, as law: relic crafting quality never composes
+ *  past ×1.10, and the min-quality bonus never past +5 — no matter
+ *  how many sources a future pool adds up. */
+export const CRAFT_RELIC_QUALITY_CEILING = 1.1;
+export const CRAFT_RELIC_MIN_QUALITY_CEILING = 5;
+
+export interface CraftRelicDef {
+  /** Recipe id (unchanged from the tool era — in-flight jobs and
+   *  catalog history keep their ids). */
   id: string;
+  /** The relic's name — its identity (relic grammar keys on it). */
   name: string;
-  /** Rolled-quality multiplier while fitted (Precision Calipers). */
-  qualityMultiplier?: number;
-  /** Unit-duration multiplier while fitted (Servo Bench Rig). */
-  durationMultiplier?: number;
-  /** Refining yield bonus while fitted (Reclaimer Head). */
-  refineYieldBonus?: number;
-  /** Consumable jobs: chance per completed unit of one bonus unit at
-   *  the same rolled quality (Reclaimer Head). */
-  bonusUnitChance?: number;
+  /** The fixed crafting affixes, verbatim — the tool effects,
+   *  carried whole: {stat, value, displayText} per affix. */
+  effects: readonly { stat: string; value: number; displayText: string }[];
   blurb: string;
 }
 
-export const CRAFT_TOOLS: readonly CraftToolDef[] = [
+export const CRAFT_RELICS: readonly CraftRelicDef[] = [
   {
     id: 'tool_precision_calipers', name: 'Precision Calipers',
-    qualityMultiplier: 1.08,
-    blurb: 'Fitted tool: rolled quality ×1.08. Permanent once crafted.',
+    effects: [
+      { stat: CRAFT_AFFIX_STAT.qualityMultiplier, value: 1.08, displayText: 'Craft quality ×1.08 while equipped' },
+    ],
+    blurb: 'Relic: rolled craft quality ×1.08 while equipped. Permanent — the Calipers never wear out.',
   },
   {
     id: 'tool_servo_bench_rig', name: 'Servo Bench Rig',
-    durationMultiplier: 0.85,
-    blurb: 'Fitted tool: unit durations ×0.85. Permanent once crafted.',
+    effects: [
+      { stat: CRAFT_AFFIX_STAT.durationMultiplier, value: 0.85, displayText: 'Craft durations ×0.85 while equipped' },
+    ],
+    blurb: 'Relic: craft unit durations ×0.85 while equipped. Permanent — the Rig never wears out.',
   },
   {
     id: 'tool_reclaimer_head', name: 'Reclaimer Head',
-    refineYieldBonus: 0.05, bonusUnitChance: 0.1,
-    blurb: 'Fitted tool: refining yield +5pts; consumable jobs may reclaim a bonus unit. Permanent once crafted.',
+    effects: [
+      { stat: CRAFT_AFFIX_STAT.refineYieldBonus, value: 0.05, displayText: 'Refining yield +5pts while equipped' },
+      { stat: CRAFT_AFFIX_STAT.bonusUnitChance, value: 0.1, displayText: 'Consumable crafts: 10% chance of a bonus unit while equipped' },
+    ],
+    blurb: 'Relic: refining yield +5pts and a 10% bonus-unit chance on consumable crafts while equipped. Permanent — the Head never wears out.',
+  },
+  {
+    id: 'relic_prime_laboratory', name: 'Prime Laboratory',
+    effects: [
+      { stat: CRAFT_AFFIX_STAT.qualityMultiplier, value: 1.1, displayText: 'Craft quality ×1.10 while equipped' },
+      { stat: CRAFT_AFFIX_STAT.minQualityBonus, value: 5, displayText: 'Craft quality minimum +5 while equipped' },
+    ],
+    blurb: 'Relic: the Lab, distilled — rolled craft quality ×1.10 with +5 to the minimum while equipped. The ceiling of the craft, carried on the hunter.',
   },
 ];
 
-const TOOL_RECIPES: CraftRecipe[] = [
-  { id: 'tool_precision_calipers', kind: 'tool', name: 'Precision Calipers', category: 'tools', inputs: { CircuitLattice: 2, PrismShards: 2 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', toolId: 'tool_precision_calipers' },
-  { id: 'tool_servo_bench_rig', kind: 'tool', name: 'Servo Bench Rig', category: 'tools', inputs: { CompositePlating: 2, MagnetiteCores: 2 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', toolId: 'tool_servo_bench_rig' },
-  { id: 'tool_reclaimer_head', kind: 'tool', name: 'Reclaimer Head', category: 'tools', inputs: { CompositePlating: 1, CircuitLattice: 1, Voidweave: 1 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', toolId: 'tool_reclaimer_head' },
-];
+const CRAFT_RELIC_BY_NAME = new Map(CRAFT_RELICS.map((r) => [r.name, r]));
+const CRAFT_RELIC_BY_ID = new Map(CRAFT_RELICS.map((r) => [r.id, r]));
 
-export function toolDef(toolId: string): CraftToolDef | undefined {
-  return CRAFT_TOOLS.find((t) => t.id === toolId);
+export function craftRelicByName(name: string): CraftRelicDef | undefined {
+  return CRAFT_RELIC_BY_NAME.get(name);
 }
+
+export function craftRelicById(id: string): CraftRelicDef | undefined {
+  return CRAFT_RELIC_BY_ID.get(id);
+}
+
+/** The fixed Affix rows a named craft relic carries — the ONE
+ *  builder the generator, the craft completion, and the tests all
+ *  read, so a Calipers is a Calipers wherever it was minted. */
+export function craftAffixesForRelic(name: string): Affix[] {
+  const def = CRAFT_RELIC_BY_NAME.get(name);
+  if (!def) return [];
+  return def.effects.map((e, i) => ({
+    id: `${e.stat}_${i}`,
+    category: 'crafting' as const,
+    stat: e.stat,
+    value: e.value,
+    displayText: e.displayText,
+  }));
+}
+
+/** The composed crafting modifiers of a set of relic affixes (the
+ *  equipped relic's, in practice — one relic slot). THE CEILING:
+ *  quality multipliers compose multiplicatively but never past
+ *  ×1.10 total; min-quality bonuses add but never past +5 total.
+ *  Two Prime Laboratories would still read ×1.10/+5. */
+export interface CraftRelicEffects {
+  qualityMultiplier: number;
+  minQualityBonus: number;
+  durationMultiplier: number;
+  refineYieldBonus: number;
+  bonusUnitChance: number;
+}
+
+export const NO_CRAFT_RELIC_EFFECTS: CraftRelicEffects = {
+  qualityMultiplier: 1,
+  minQualityBonus: 0,
+  durationMultiplier: 1,
+  refineYieldBonus: 0,
+  bonusUnitChance: 0,
+};
+
+export function composeCraftRelicEffects(
+  affixes: readonly { stat: string; value: number }[],
+): CraftRelicEffects {
+  let quality = 1;
+  let minBonus = 0;
+  let duration = 1;
+  let refine = 0;
+  let bonusChance = 0;
+  for (const a of affixes) {
+    switch (a.stat) {
+      case CRAFT_AFFIX_STAT.qualityMultiplier:
+        quality *= a.value;
+        break;
+      case CRAFT_AFFIX_STAT.minQualityBonus:
+        minBonus += a.value;
+        break;
+      case CRAFT_AFFIX_STAT.durationMultiplier:
+        duration *= a.value;
+        break;
+      case CRAFT_AFFIX_STAT.refineYieldBonus:
+        refine += a.value;
+        break;
+      case CRAFT_AFFIX_STAT.bonusUnitChance:
+        bonusChance += a.value;
+        break;
+      default:
+        break;
+    }
+  }
+  return {
+    qualityMultiplier: Math.min(CRAFT_RELIC_QUALITY_CEILING, quality),
+    minQualityBonus: Math.min(CRAFT_RELIC_MIN_QUALITY_CEILING, Math.max(0, minBonus)),
+    durationMultiplier: duration,
+    refineYieldBonus: refine,
+    bonusUnitChance: Math.min(1, Math.max(0, bonusChance)),
+  };
+}
+
+/** The named-relic recipes: the three tool recipes, converted —
+ *  same ids, same inputs, same hour on the bench; what completes is
+ *  a relic now. The Prime Laboratory's recipe prices at the tier
+ *  the Lab itself drew from (furnace composites + void work). All
+ *  four mint at fixed Epic rarity: their effects never scaled with
+ *  rarity in the tool era and do not start now. */
+const CRAFT_RELIC_RECIPES: CraftRecipe[] = [
+  { id: 'tool_precision_calipers', kind: 'gear', name: 'Precision Calipers', category: 'gear', inputs: { CircuitLattice: 2, PrismShards: 2 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Precision Calipers', fixedRarity: Rarity.Epic },
+  { id: 'tool_servo_bench_rig', kind: 'gear', name: 'Servo Bench Rig', category: 'gear', inputs: { CompositePlating: 2, MagnetiteCores: 2 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Servo Bench Rig', fixedRarity: Rarity.Epic },
+  { id: 'tool_reclaimer_head', kind: 'gear', name: 'Reclaimer Head', category: 'gear', inputs: { CompositePlating: 1, CircuitLattice: 1, Voidweave: 1 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Reclaimer Head', fixedRarity: Rarity.Epic },
+  { id: 'relic_prime_laboratory', kind: 'gear', name: 'Prime Laboratory', category: 'gear', inputs: { Voidweave: 2, CircuitLattice: 2, CompositePlating: 2, PrismShards: 4 }, unitDurationMs: 240 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Prime Laboratory', fixedRarity: Rarity.Epic },
+];
 
 // ─── Catalysts (§2.5b) ───────────────────────────────────────────────
 
-/** Optional per-unit catalyst input on mapped recipes (Forge required):
+/** Optional per-unit catalyst input on mapped recipes:
  *  quality bounds +10 min / +15 max. Signature materials finally have
  *  their sink. `gear: true` = the catalyst also applies to gear frames. */
 export interface CatalystDef {
@@ -343,6 +463,10 @@ export const CATALYSTS: readonly CatalystDef[] = [
 
 /** The catalyst material that applies to a recipe, if any. */
 export function catalystForRecipe(recipe: CraftRecipe): string | null {
+  // Named relics take no catalyst (slice 9): their affixes are
+  // fixed, so a catalyst would burn for zero effect — the enqueue
+  // refusal's content side; cards offer no catalyst for them.
+  if (recipe.namedRelic) return null;
   for (const cat of CATALYSTS) {
     if (recipe.kind === 'consumable' && recipe.consumableType && cat.consumableTypes.includes(recipe.consumableType)) {
       return cat.materialId;
@@ -354,7 +478,6 @@ export function catalystForRecipe(recipe: CraftRecipe): string | null {
 
 export const CATALYST_MIN_BONUS = 10;
 export const CATALYST_MAX_BONUS = 15;
-export const CATALYST_REQUIRES_BENCH = 2;
 
 /**
  * Legendary Core Catalyst (0026, collections slice): gear-frame jobs
@@ -362,7 +485,7 @@ export const CATALYST_REQUIRES_BENCH = 2;
  * catalyst. Gear quality is priced in generation DRAWS (best-of-N
  * rollQuality — the same lever tempering uses), so the core buys
  * +2 draws per completed unit. Mutually exclusive with the material
- * catalyst; Forge-gated (CATALYST_REQUIRES_BENCH) like it. SQL twin:
+ * catalyst; baseline since the bench collapse, like it. SQL twin:
  * cc_enqueue_craft_job / cc_settle_craft_jobs in migration 0026.
  */
 export const CORE_CATALYST_DRAWS_BONUS = 2;
@@ -470,34 +593,34 @@ interface CosmeticCost {
 
 const COSMETIC_COSTS: Record<string, CosmeticCost> = {
   // Bulwark (T3 shaped): bench 3, hours-long, scrap in the thousands.
-  'bulwark-head': { inputs: { Scrap: 3200, CompositePlating: 2, PrismShards: 2 }, minutes: 180, bench: 3, maxUnits: 1 },
-  'bulwark-torso': { inputs: { Scrap: 3600, CompositePlating: 3, RefinedAlloy: 4 }, minutes: 210, bench: 3, maxUnits: 1 },
-  'bulwark-arm-upper-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 3, maxUnits: 1 },
-  'bulwark-arm-fore-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 3, maxUnits: 1 },
-  'bulwark-arm-far': { inputs: { Scrap: 1800, TemperedParts: 2 }, minutes: 105, bench: 3, maxUnits: 1 },
-  'bulwark-thigh-f': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 3, maxUnits: 1 },
-  'bulwark-thigh-b': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 3, maxUnits: 1 },
-  'bulwark-lower-leg-f': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 3, maxUnits: 1 },
-  'bulwark-lower-leg-b': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 3, maxUnits: 1 },
-  'bulwark-back': { inputs: { Scrap: 2600, CircuitLattice: 2, WovenCircuits: 2 }, minutes: 150, bench: 3, maxUnits: 1 },
+  'bulwark-head': { inputs: { Scrap: 3200, CompositePlating: 2, PrismShards: 2 }, minutes: 180, bench: 1, maxUnits: 1 },
+  'bulwark-torso': { inputs: { Scrap: 3600, CompositePlating: 3, RefinedAlloy: 4 }, minutes: 210, bench: 1, maxUnits: 1 },
+  'bulwark-arm-upper-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 1, maxUnits: 1 },
+  'bulwark-arm-fore-n': { inputs: { Scrap: 2000, TemperedParts: 3 }, minutes: 120, bench: 1, maxUnits: 1 },
+  'bulwark-arm-far': { inputs: { Scrap: 1800, TemperedParts: 2 }, minutes: 105, bench: 1, maxUnits: 1 },
+  'bulwark-thigh-f': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 1, maxUnits: 1 },
+  'bulwark-thigh-b': { inputs: { Scrap: 2200, RefinedAlloy: 3 }, minutes: 120, bench: 1, maxUnits: 1 },
+  'bulwark-lower-leg-f': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 1, maxUnits: 1 },
+  'bulwark-lower-leg-b': { inputs: { Scrap: 2800, CompositePlating: 1, TemperedParts: 2 }, minutes: 150, bench: 1, maxUnits: 1 },
+  'bulwark-back': { inputs: { Scrap: 2600, CircuitLattice: 2, WovenCircuits: 2 }, minutes: 150, bench: 1, maxUnits: 1 },
   // Dreadplate (T2 repaint): bench 2, an afternoon's craft.
-  'dread-head': { inputs: { Scrap: 700, PrismShards: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-torso': { inputs: { Scrap: 600, RefinedAlloy: 2 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-arm-upper-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-arm-fore-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-arm-far': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-thigh-f': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-thigh-b': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-lower-leg-f': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-lower-leg-b': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
-  'dread-back': { inputs: { Scrap: 600, WovenCircuits: 1 }, minutes: 45, bench: 2, maxUnits: 10 },
+  'dread-head': { inputs: { Scrap: 700, PrismShards: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-torso': { inputs: { Scrap: 600, RefinedAlloy: 2 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-arm-upper-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-arm-fore-n': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-arm-far': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-thigh-f': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-thigh-b': { inputs: { Scrap: 600, RefinedAlloy: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-lower-leg-f': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-lower-leg-b': { inputs: { Scrap: 600, TemperedParts: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
+  'dread-back': { inputs: { Scrap: 600, WovenCircuits: 1 }, minutes: 45, bench: 1, maxUnits: 10 },
   // Manufacturer heads: the normal scrap-crafting pool (brief §0.6).
-  'mfr-head-redline': { inputs: { Scrap: 1800, NitrocellGel: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
-  'mfr-head-ironwood': { inputs: { Scrap: 1800, HeartwoodResin: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
-  'mfr-head-blastforge': { inputs: { Scrap: 1800, ForgeheartIngots: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
-  'mfr-head-prismatek': { inputs: { Scrap: 1800, PrismShards: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
-  'mfr-head-throwtech': { inputs: { Scrap: 1800, MagnetiteCores: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
-  'mfr-head-helixworks': { inputs: { Scrap: 1800, Siltglass: 2 }, minutes: 90, bench: 2, maxUnits: 1 },
+  'mfr-head-redline': { inputs: { Scrap: 1800, NitrocellGel: 2 }, minutes: 90, bench: 1, maxUnits: 1 },
+  'mfr-head-ironwood': { inputs: { Scrap: 1800, HeartwoodResin: 2 }, minutes: 90, bench: 1, maxUnits: 1 },
+  'mfr-head-blastforge': { inputs: { Scrap: 1800, ForgeheartIngots: 2 }, minutes: 90, bench: 1, maxUnits: 1 },
+  'mfr-head-prismatek': { inputs: { Scrap: 1800, PrismShards: 2 }, minutes: 90, bench: 1, maxUnits: 1 },
+  'mfr-head-throwtech': { inputs: { Scrap: 1800, MagnetiteCores: 2 }, minutes: 90, bench: 1, maxUnits: 1 },
+  'mfr-head-helixworks': { inputs: { Scrap: 1800, Siltglass: 2 }, minutes: 90, bench: 1, maxUnits: 1 },
 };
 
 export const COSMETIC_RECIPES: CraftRecipe[] = SKIN_PARTS.map((p) => {
@@ -546,7 +669,7 @@ export const ALL_CRAFT_RECIPES: readonly CraftRecipe[] = [
   ...VEHICLE_CONSUMABLE_RECIPES,
   ...REFINING_RECIPES,
   ...GEAR_FRAME_RECIPES,
-  ...TOOL_RECIPES,
+  ...CRAFT_RELIC_RECIPES,
   ...BATCH_RECIPES,
   ...STANDING_RECIPES,
   ...COSMETIC_RECIPES,
@@ -587,7 +710,6 @@ export function craftMasteryForKind(kind: CraftJobKind): { track: string; xpPerU
     case 'refine':
       return { track: CRAFT_MASTERY_TRACKS.refining, xpPerUnit: 10 };
     case 'gear':
-    case 'tool':
       return { track: CRAFT_MASTERY_TRACKS.gear, xpPerUnit: 25 };
     case 'cosmetic':
       return { track: CRAFT_MASTERY_TRACKS.cosmetic, xpPerUnit: 15 };
@@ -597,10 +719,10 @@ export function craftMasteryForKind(kind: CraftJobKind): { track: string; xpPerU
 }
 
 /** The mastery track whose level widens a job's quality bounds: the
- *  consumable track for consumables, the gear track for frames/tools,
+ *  consumable track for consumables, the gear track for frames,
  *  the cosmetics track for cosmetic parts (their finish roll). */
 export function qualityMasteryTrackForKind(kind: CraftJobKind): string {
-  if (kind === 'gear' || kind === 'tool') return CRAFT_MASTERY_TRACKS.gear;
+  if (kind === 'gear') return CRAFT_MASTERY_TRACKS.gear;
   if (kind === 'cosmetic') return CRAFT_MASTERY_TRACKS.cosmetic;
   return CRAFT_MASTERY_TRACKS.consumable;
 }
@@ -658,7 +780,7 @@ export interface CraftQualityBounds {
 
 /**
  * THE bounds function (TS twin of cc_craft_quality_bounds):
- *   min = def.craftMin + min(20, 1.5 × (masteryLevel − 1)) [+5 Lab]
+ *   min = def.craftMin + min(20, 1.5 × (masteryLevel − 1)) [+5 Prime Laboratory relic]
  *         [+10 catalyst] [+ craftQualityShift lever]
  *   max = def.craftMax + min(25, 2.0 × (masteryLevel − 1))
  *         [+15 catalyst] [+ shift], capped at 175 before the bench
@@ -672,6 +794,11 @@ export function craftQualityBounds(input: {
   bench: number;
   catalyst: boolean;
   qualityShift?: number;
+  /** The equipped relic's composed min-quality bonus (slice 9 —
+   *  the Prime Laboratory's +5), snapshotted on the job at
+   *  enqueue. Composes exactly where the retired Lab bench bonus
+   *  used to sit; the composer already clamped it to the ceiling. */
+  relicMinQualityBonus?: number;
 }): CraftQualityBounds {
   const def = input.consumableType ? CONSUMABLES[input.consumableType] : undefined;
   const override = input.consumableType ? CRAFT_QUALITY_BOUND_OVERRIDES[input.consumableType] : undefined;
@@ -681,7 +808,7 @@ export function craftQualityBounds(input: {
   const mastery = Math.max(1, Math.floor(input.masteryLevel) || 1);
   const bench = benchDef(input.bench);
   const shift = input.qualityShift ?? 0;
-  let min = baseMin + Math.min(20, 1.5 * (mastery - 1)) + bench.minQualityBonus + shift;
+  let min = baseMin + Math.min(20, 1.5 * (mastery - 1)) + bench.minQualityBonus + (input.relicMinQualityBonus ?? 0) + shift;
   let max = baseMax + Math.min(25, 2.0 * (mastery - 1)) + shift;
   if (input.catalyst) {
     min += CATALYST_MIN_BONUS;

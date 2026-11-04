@@ -48,7 +48,6 @@ function fixtureCtx(over: Partial<WorkshopPlayerContext> = {}): WorkshopPlayerCo
     standingRanks: {},
     researchCompletedIds: new Set<string>(),
     activeJobs: [],
-    toolsOwned: {},
     ...over,
   };
 }
@@ -82,16 +81,21 @@ describe('readiness classification — the mock fixture, live derivation', () =>
   });
 
   it('the mock’s locked cards classify locked with every family named', () => {
-    for (const id of ['recipe_master_patch_kit', 'tool_precision_calipers', 'recipe_skin_bulwark_head']) {
+    // Slice 9 (bench collapse) retired the bench gate family: the
+    // Master Patch Kit (mastery + materials) is the only one of
+    // the mock's locked cards still locked. The Calipers and the
+    // Bulwark Head were locked by their bench tiers (Forge/Lab) —
+    // with one bench both fall to materials-only, one-gate, like
+    // the Calibration Core did at gate-removal step 2. The
+    // derivation follows the live defs; the mock predates both.
+    for (const id of ['recipe_master_patch_kit']) {
       expect(classify(id).classification, id).toBe('locked');
       expect(classify(id).blockerFamilies.length, id).toBeGreaterThanOrEqual(2);
     }
-    // Gate-removal step 2 (merged to master while this PR was in
-    // flight) dropped the Calibration Core's level requirement, so
-    // at this fixture it is one gate away now — materials only. The
-    // derivation follows the live defs; the mock predates step 2.
-    expect(classify('recipe_calibration_core').classification).toBe('one-gate');
-    expect(classify('recipe_calibration_core').blockerFamilies).toEqual(['materials']);
+    for (const id of ['recipe_calibration_core', 'tool_precision_calipers', 'recipe_skin_bulwark_head']) {
+      expect(classify(id).classification, id).toBe('one-gate');
+      expect(classify(id).blockerFamilies, id).toEqual(['materials']);
+    }
   });
 
   it('disabled summaries match the mock’s CTA words', () => {
@@ -99,21 +103,23 @@ describe('readiness classification — the mock fixture, live derivation', () =>
     expect(classify('recipe_patch_kit_batch').disabledSummary).toBe('Locked — research');
     expect(classify('recipe_master_patch_kit').disabledSummary).toBe('Locked — mastery + 1 material');
     expect(classify('recipe_calibration_core').disabledSummary).toBe('Missing materials');
-    expect(classify('recipe_skin_bulwark_head').disabledSummary).toBe('Locked — the Lab + materials');
-    expect(classify('tool_precision_calipers').disabledSummary).toBe('Locked — the Lab + materials');
+    // Slice 9: no Lab exists to name — both cards are short on
+    // materials and nothing else.
+    expect(classify('recipe_skin_bulwark_head').disabledSummary).toBe('Missing materials');
+    expect(classify('tool_precision_calipers').disabledSummary).toBe('Missing materials');
   });
 
   it('all gates print — met ones included — never just the first failure', () => {
     const master = classify('recipe_master_patch_kit');
     const labels = master.gates.map((g) => g.label).join(' | ');
     expect(labels).toContain('Level 1 — met');
-    expect(labels).toContain('Any bench — met');
+    expect(labels).toContain('The bench — ready');
     expect(labels).toContain('Mastery — Consumables 15. Yours is 9.');
     expect(labels).toContain('Missing Void Dust ×1');
     const cal = classify('recipe_calibration_core');
     const calLabels = cal.gates.map((g) => g.label).join(' | ');
     expect(calLabels).toContain('Level 1 — met');
-    expect(calLabels).toContain('Forge bench — owned');
+    expect(calLabels).toContain('The bench — ready');
   });
 
   it('the research gate renders in human words with its door', () => {
@@ -148,32 +154,43 @@ describe('readiness classification — the mock fixture, live derivation', () =>
     expect(researched).toBeGreaterThan(before);
   });
 
-  it('queue-full is a real gate, and a free second bench rescues it', () => {
+  it('queue-full is a real gate — and no second bench rescues it anymore (slice 9)', () => {
+    // The full envelope is 1 running + 5 queued on the one bench.
     const fullBench1 = Array.from({ length: 6 }, () => ({ bench: 1, recipeId: 'recipe_medkit' }));
     const oneBench = fixtureCtx({ benchesOwned: 1, activeJobs: fullBench1 });
     const blocked = classify('recipe_medkit', oneBench);
     expect(blocked.blockerFamilies).toContain('queue');
+    // Pre-collapse a free second bench rescued the card; the
+    // benchesOwned ctx field is inert shape-compat now — the gate
+    // stands and the bench stays 1.
     const twoBenches = fixtureCtx({ benchesOwned: 2, activeJobs: fullBench1 });
-    expect(classify('recipe_medkit', twoBenches).classification).toBe('craftable');
-    expect(classify('recipe_medkit', twoBenches).bench).toBe(2);
+    expect(classify('recipe_medkit', twoBenches).classification).toBe('one-gate');
+    expect(classify('recipe_medkit', twoBenches).blockerFamilies).toContain('queue');
+    expect(classify('recipe_medkit', twoBenches).bench).toBe(1);
   });
 
-  it('an owned tool cannot be crafted again; a queued one says so', () => {
-    const ownedCtx = fixtureCtx({ toolsOwned: { tool_precision_calipers: true } });
-    // Give the player the materials so ONLY the tool gate can bind.
+  it('a crafted relic gates on nothing but its inputs — the tool family is retired (slice 9)', () => {
+    // Pre-collapse an owned/fitted tool blocked recrafting through
+    // a dedicated 'tool' gate family. The Calipers is a relic ITEM
+    // now: owning one gates nothing, and a queued second craft is
+    // just a queue entry. Only materials (and the queue) can bind.
+    // (The readiness context no longer even carries a toolsOwned
+    // field — ownership of a relic is inventory state, not a gate.)
     const rich = fixtureCtx({
-      toolsOwned: { tool_precision_calipers: true },
       materials: { CircuitLattice: 5, PrismShards: 5 },
       benchesOwned: 3,
     });
-    expect(classify('tool_precision_calipers', rich).blockerFamilies).toEqual(['tool']);
+    expect(classify('tool_precision_calipers', rich).blockerFamilies).toEqual([]);
+    expect(classify('tool_precision_calipers', rich).classification).toBe('craftable');
+    const ownedCtx = fixtureCtx({});
     expect(classify('tool_precision_calipers', ownedCtx).blockerFamilies).toContain('materials');
+    expect(classify('tool_precision_calipers', ownedCtx).blockerFamilies).not.toContain('tool');
     const queuedCtx = fixtureCtx({
       materials: { CircuitLattice: 5, PrismShards: 5 },
       benchesOwned: 3,
       activeJobs: [{ bench: 1, recipeId: 'tool_precision_calipers' }],
     });
-    expect(classify('tool_precision_calipers', queuedCtx).blockerFamilies).toEqual(['tool']);
+    expect(classify('tool_precision_calipers', queuedCtx).blockerFamilies).toEqual([]);
   });
 
   it('selected units reprice the material gate (totals honesty)', () => {

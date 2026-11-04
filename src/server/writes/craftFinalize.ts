@@ -52,6 +52,10 @@ export async function finalizePendingCraftedGear(
       creatorId: playerId,
       draws: Number(row.draws ?? 1),
       rng,
+      // Named relics (slice 9): the pending output carries the
+      // relic's name; generation mints the fixed craft relic
+      // instead of rolling the pool.
+      namedRelic: typeof row.named_relic === 'string' && row.named_relic ? row.named_relic : undefined,
       ...(qualityRoll ? { qualityRoll } : {}),
     });
     const inserted = await pool.query(

@@ -2,11 +2,19 @@
  * CraftEngine — the shared TypeScript implementation of the crafting
  * job model (brief §2.1–§2.7), used by the in-memory WriteStore and
  * the in-memory gameplay store. The production path is the SQL twin
- * in db/migrations/0024_crafting_occupation.sql (cc_enqueue_craft_job,
- * cc_settle_craft_jobs, cc_cancel_craft_job, cc_unlock_bench,
- * cc_craft_recipe, cc_craft_quality_bounds); the two implementations
- * are pinned to each other by the parity tests, and the SQL is
- * exercised against embedded Postgres in the slice verification.
+ * (cc_enqueue_craft_job, cc_settle_craft_jobs, cc_cancel_craft_job,
+ * cc_craft_recipe, cc_craft_quality_bounds — chain heads through
+ * migration 0073); the two implementations are pinned to each other
+ * by the parity tests, and the SQL is exercised against embedded
+ * Postgres in the slice verification.
+ *
+ * Economy slice 9 (bench collapse + relic merger): there is ONE
+ * bench; every generic job runs on bench 1. The fitted-tool
+ * snapshot fields below keep their names (in-flight jobs carry
+ * them) but are now sourced from the player's EQUIPPED RELIC at
+ * enqueue — the snapshot's toolId records the relic item's id and
+ * the tool* multipliers carry the composed relic crafting effects
+ * (content/crafting composeCraftRelicEffects, ceiling-clamped).
  *
  * Rules that live here (and in the SQL twin, nowhere else):
  *   - progress accrues ONLY while `crafting` is the active action,
@@ -22,9 +30,8 @@
  *     stamped, and never carries a legendaryEffectId.
  */
 import {
-  benchDef,
   catalystForRecipe,
-  CATALYST_REQUIRES_BENCH,
+  composeCraftRelicEffects,
   CORE_CATALYST_CORES_PER_UNIT,
   CORE_CATALYST_DRAWS_BONUS,
   composedCraftQualityShift,
@@ -35,20 +42,20 @@ import {
   CRAFTABLE_GEAR_RARITIES,
   EPIC_FRAME_GEAR_MASTERY,
   fixerCraftSpeedDurationMultiplier,
-  gearRarityRequiresBench,
   gearTemperChance,
   getCraftRecipe,
   isMaterialInput,
   MAX_UNITS_PER_JOB,
+  NO_CRAFT_RELIC_EFFECTS,
   qualityMasteryTrackForKind,
   QUEUED_JOBS_PER_BENCH,
   rollRefineOutputCount,
   rollCraftQuality,
   rushTicketTimeReduction,
-  toolDef,
   type CraftJobKind,
   type CraftRecipe,
 } from '../../content/crafting.js';
+import type { Affix } from '../../types/items.js';
 import { effectiveOfflineCapHours } from '../../content/offlineCap.js';
 import { clampRecipeScrapCost } from '../economy/config.js';
 import {
@@ -106,11 +113,21 @@ function fail(message: string): never {
 // ─── Records ─────────────────────────────────────────────────────────
 
 export interface CraftJobSnapshot {
+  /** The equipped relic item's id at enqueue (pre-slice-9 jobs: the
+   *  fitted tool's id). Null when no relic was equipped. */
   toolId: string | null;
   toolQualityMultiplier: number;
   toolDurationMultiplier: number;
   toolRefineYieldBonus: number;
   toolBonusUnitChance: number;
+  /** Slice 9: the equipped relic's composed min-quality bonus
+   *  (the Prime Laboratory's +5, ceiling-clamped at compose time),
+   *  added into the quality bounds at completion. Absent on
+   *  pre-slice-9 snapshots — readers default it to 0. */
+  relicMinQualityBonus?: number;
+  /** Slice 9: named-relic crafts mint this named relic at
+   *  completion (fixed affixes, fixed rarity in gearRarity). */
+  namedRelic?: string | null;
   skillDurationMultiplier: number;
   rushReduction: number;
   craftTimeScalar: number;
@@ -350,6 +367,12 @@ export interface CraftAdapter {
    *  manufacturer's ladder (the exclusive recipes' enqueue gate).
    *  Optional: pre-Standing adapters read as 0 (the gate refuses). */
   standingRank?(playerId: string, manufacturer: string): number;
+  /** Economy slice 9: the player's EQUIPPED relic (item id + its
+   *  affix rows), derived by the store from the player's own item
+   *  records — the crafting effects source at enqueue. Optional:
+   *  adapters that predate the merger read as no relic equipped
+   *  (NO_CRAFT_RELIC_EFFECTS). */
+  equippedRelic?(playerId: string): { itemId: string; affixes: Affix[] } | null;
   addMasteryXp(playerId: string, track: string, xp: number): void;
   addStat(playerId: string, key: string, amount: number): void;
   /** Add a consumable batch and bump the profile count with it. */
@@ -518,10 +541,11 @@ export function settleCraftJobs(
     for (const job of benchJobs) {
       if (budget <= 0) break;
       if (job.status !== 'active') continue;
-      // Tools are permanent (economy brief §9.2, 0067): a job's first
-      // unit still marks the job tool-charged for record parity with
-      // the SQL twin, but no charge is ever spent — a fitted tool is
-      // never consumed, unfitted, or treated as absent.
+      // A job's first unit still marks the job tool-charged for
+      // record parity with the SQL twin, but nothing is ever spent:
+      // the snapshot's effects came from a permanent relic (slice 9;
+      // before it, a permanent fitted tool, 0067) — never consumed,
+      // unfitted, or treated as absent.
       if (!job.tool_charged && job.snapshot.toolId) {
         job.tool_charged = true;
       }
@@ -618,8 +642,8 @@ export function overclockCompleteInProgressUnits(
   for (const job of jobs) {
     if (benchesSeen.has(job.bench)) continue;
     benchesSeen.add(job.bench);
-    // Tools are permanent (economy brief §9.2, 0067): the fire marks
-    // the job tool-charged like the settler does, and spends nothing.
+    // The fire marks the job tool-charged like the settler does,
+    // and spends nothing (permanent relic effects, slice 9).
     if (!job.tool_charged && job.snapshot.toolId) {
       job.tool_charged = true;
     }
@@ -850,6 +874,7 @@ function completeCraftUnit(
       masteryLevel,
       bench: job.bench,
       catalyst: !!job.snapshot.catalystMaterialId,
+      relicMinQualityBonus: job.snapshot.relicMinQualityBonus ?? 0,
       // The composed shift (0029): lever + the Fixer craftQualityBonus
       // total, read from the crafter's records at completion, under
       // the one [−10, +20] clamp (composedCraftQualityShift).
@@ -887,12 +912,17 @@ function completeCraftUnit(
   } else if (job.kind === 'gear' && recipe.gearSlot) {
     const gearLevel = adapter.masteryLevel(playerId, 'crafting.gear');
     const rarity = (job.snapshot.gearRarity ?? Rarity.Common) as Rarity;
-    const tempered = adapter.rng() < gearTemperChance(
-      gearLevel,
-      levers.gearTemperBaseChance,
-      (adapter.skillBonus?.(playerId, 'craftTemperBonus') ?? 0)
-        + (adapter.researchBonus?.(playerId, 'gearTemperBonus') ?? 0),
-    );
+    // Named-relic crafts (slice 9) mint a fixed item: no temper
+    // roll, no draws — the name is the item.
+    const namedRelic = job.snapshot.namedRelic ?? recipe.namedRelic ?? null;
+    const tempered = namedRelic
+      ? false
+      : adapter.rng() < gearTemperChance(
+          gearLevel,
+          levers.gearTemperBaseChance,
+          (adapter.skillBonus?.(playerId, 'craftTemperBonus') ?? 0)
+            + (adapter.researchBonus?.(playerId, 'gearTemperBonus') ?? 0),
+        );
     // Material catalyst (economy brief §9.1, 0067): a gear job that
     // escrowed a material catalyst (ForgeheartIngots) gets the same
     // bounds shift the consumable branch applies — the shared bounds
@@ -908,6 +938,7 @@ function completeCraftUnit(
           masteryLevel: gearLevel,
           bench: job.bench,
           catalyst: true,
+          relicMinQualityBonus: job.snapshot.relicMinQualityBonus ?? 0,
           qualityShift: composedCraftQualityShift(
             levers.craftQualityShift,
             adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
@@ -922,11 +953,15 @@ function completeCraftUnit(
       creatorId: playerId,
       // Core catalyst (0026): +2 draws on top of the temper lever;
       // the Fixer keystone (0029) adds its snapshotted draw bonus.
-      draws: (tempered ? 3 : 1)
-        + (job.snapshot.coreCatalyst
-          ? CORE_CATALYST_DRAWS_BONUS + (job.snapshot.coreCatalystDrawBonus ?? 0)
-          : 0)
-        + (adapter.researchBonus?.(playerId, 'gearDrawBonus') ?? 0),
+      // Named relics mint once — the fixed item has no draws.
+      draws: namedRelic
+        ? 1
+        : (tempered ? 3 : 1)
+            + (job.snapshot.coreCatalyst
+              ? CORE_CATALYST_DRAWS_BONUS + (job.snapshot.coreCatalystDrawBonus ?? 0)
+              : 0)
+            + (adapter.researchBonus?.(playerId, 'gearDrawBonus') ?? 0),
+      ...(namedRelic ? { namedRelic } : {}),
       rng: adapter.rng,
       ...(catalystBounds
         ? {
@@ -942,11 +977,6 @@ function completeCraftUnit(
     output.rarity = candidate.rarity;
     output.tempered = tempered;
     if (candidate.craftQuality !== undefined) output.quality = candidate.craftQuality;
-  } else if (job.kind === 'tool' && recipe.toolId) {
-    // Permanent (economy brief §9.2, 0067): completion grants
-    // ownership, full stop — no charge count is stamped.
-    profile.workshop_tools.owned[recipe.toolId] = true;
-    output.toolId = recipe.toolId;
   } else if (job.kind === 'cosmetic' && recipe.tintCraft) {
     // Tint job (0053): the craft lands on the TARGET part item,
     // re-read at completion (the SQL branch's twin). A part that
@@ -1052,8 +1082,12 @@ export function enqueueCraftJob(
     fail(`This craft runs at most ${r.maxUnits} units at a time`);
   }
 
-  const bench = Math.floor(input.bench);
-  if (!Number.isFinite(bench) || bench < 1 || bench > 3) fail('bench must be 1, 2 or 3');
+  // Bench collapse (slice 9): there is one bench. Requests naming
+  // a retired tier land on it — the catalog's requiresBench is 1
+  // for every recipe, and every profile owns the bench.
+  const benchInput = Math.floor(input.bench);
+  if (!Number.isFinite(benchInput) || benchInput < 1 || benchInput > 3) fail('bench must be 1, 2 or 3');
+  const bench = 1;
   if (bench > p.workshop_benches) fail('Bench not unlocked');
   if (bench < r.requiresBench) fail(`Recipe requires bench ${r.requiresBench} or higher`);
   if (p.player_level < r.requiresLevel) fail(`Requires level ${r.requiresLevel}`);
@@ -1073,27 +1107,32 @@ export function enqueueCraftJob(
     fail('standing_required');
   }
 
-  // Gear rarity: forced at enqueue, Epic-capped by law.
+  // Gear rarity: forced at enqueue, Epic-capped by law. The rarity
+  // bench gates retired with the collapse (brief §8.1) — Epic keeps
+  // its surviving carrier, the mastery gate. Named-relic crafts
+  // mint at the recipe's fixed rarity; the caller's rarity is
+  // ignored for them.
   let gearRarity: Rarity | null = null;
   if (r.kind === 'gear') {
-    const rarity = (input.rarity ?? '') as Rarity;
-    if (!CRAFTABLE_GEAR_RARITIES.includes(rarity)) {
-      fail(rarity === Rarity.Legendary ? 'Legendary gear cannot be crafted' : 'A craftable rarity (Common–Epic) is required');
-    }
-    gearRarity = rarity;
-    if (bench < gearRarityRequiresBench(rarity)) {
-      fail(`${rarity} frames require bench ${gearRarityRequiresBench(rarity)}`);
-    }
-    if (rarity === Rarity.Epic && adapter.masteryLevel(playerId, 'crafting.gear') < EPIC_FRAME_GEAR_MASTERY) {
-      fail(`Epic frames require crafting.gear mastery ${EPIC_FRAME_GEAR_MASTERY}`);
+    if (r.namedRelic && r.fixedRarity) {
+      gearRarity = r.fixedRarity;
+    } else {
+      const rarity = (input.rarity ?? '') as Rarity;
+      if (!CRAFTABLE_GEAR_RARITIES.includes(rarity)) {
+        fail(rarity === Rarity.Legendary ? 'Legendary gear cannot be crafted' : 'A craftable rarity (Common–Epic) is required');
+      }
+      gearRarity = rarity;
+      if (rarity === Rarity.Epic && adapter.masteryLevel(playerId, 'crafting.gear') < EPIC_FRAME_GEAR_MASTERY) {
+        fail(`Epic frames require crafting.gear mastery ${EPIC_FRAME_GEAR_MASTERY}`);
+      }
     }
   }
 
-  // Tools are unique workshop assets: no duplicates owned or queued.
-  if (r.kind === 'tool' && r.toolId) {
-    if (p.workshop_tools.owned[r.toolId]) fail('Tool already fitted in the workshop');
-    const queued = adapter.jobs(playerId).some((j) => j.status === 'active' && j.recipe_id === r.id);
-    if (queued) fail('A job for this tool is already queued');
+  // Named relics take no catalyst (slice 9): their affixes are
+  // fixed, so a catalyst would burn for zero effect — the §9.1
+  // defect class. The refusal is the remedy.
+  if (r.namedRelic && (input.useCatalyst || input.useCoreCatalyst)) {
+    fail('Named relic crafts take no catalyst — the relic is fixed');
   }
 
   // Queue capacity: one running + QUEUED_JOBS_PER_BENCH waiting, plus
@@ -1106,24 +1145,23 @@ export function enqueueCraftJob(
     .filter((j) => j.status === 'active' && j.bench === bench).length;
   if (benchActive >= 1 + QUEUED_JOBS_PER_BENCH + queueBonus) fail('Bench queue is full');
 
-  // Catalyst (optional, Forge-gated).
+  // Catalyst (optional; baseline since the bench collapse —
+  // catalysts run on the one bench, their cost is their input).
   let catalystMaterialId: string | null = null;
   if (input.useCatalyst) {
     catalystMaterialId = catalystForRecipe(r);
     if (!catalystMaterialId) fail('Recipe takes no catalyst');
-    if (bench < CATALYST_REQUIRES_BENCH) fail('Catalysts require the Forge (bench 2)');
   }
 
   // Legendary Core Catalyst (0026): gear frames only, one core per
   // unit escrowed at enqueue; mutually exclusive with the material
-  // catalyst and Forge-gated like it (migration 0026's SQL twin
-  // carries the same gates and messages).
+  // catalyst. (Its Forge bench gate retired with the collapse,
+  // like the material catalyst's.)
   let coreCatalyst = false;
   let escrowCores = 0;
   if (input.useCoreCatalyst) {
     if (catalystMaterialId) fail('Choose one catalyst: material or legendary core');
     if (r.kind !== 'gear') fail('Legendary core catalyst applies to gear frames only');
-    if (bench < CATALYST_REQUIRES_BENCH) fail('Catalysts require the Forge (bench 2)');
     coreCatalyst = true;
     escrowCores = units * CORE_CATALYST_CORES_PER_UNIT;
   }
@@ -1156,11 +1194,14 @@ export function enqueueCraftJob(
     fail('No Workshop Rush Ticket available');
   }
 
-  // Fitted tool snapshot for this bench. Tools are permanent
-  // (economy brief §9.2, 0067): a fitted tool applies on every job —
-  // the stored charges from before 0067 are inert and never read.
-  const fittedToolId = p.workshop_tools.fitted[String(bench)] ?? null;
-  const fittedDef = fittedToolId ? toolDef(fittedToolId) : undefined;
+  // Equipped-relic snapshot (slice 9): the crafting effects of the
+  // relic the hunter carries, composed + ceiling-clamped by the
+  // content composer and snapshotted onto the job — swapping the
+  // relic mid-job never reprices a running job (the snapshot law).
+  const equippedRelic = adapter.equippedRelic?.(playerId) ?? null;
+  const relicEffects = equippedRelic
+    ? composeCraftRelicEffects(equippedRelic.affixes)
+    : NO_CRAFT_RELIC_EFFECTS;
 
   // Rush ticket: escrowed at enqueue, burned when the job starts —
   // the escrow takes it out of inventory now (FIFO, lowest quality
@@ -1192,7 +1233,7 @@ export function enqueueCraftJob(
 
   // Snapshotted unit duration: base × skill × tool × scalar × rush.
   // (`levers` was read once at the escrow build above — Econ 7.)
-  const baseDuration = r.kind === 'gear' && gearRarity
+  const baseDuration = r.kind === 'gear' && gearRarity && !r.namedRelic
     ? (r.durationByRarityMs?.[gearRarity] ?? 0)
     : r.unitDurationMs;
   // Skill duration terms compose MULTIPLICATIVELY (0029): the
@@ -1203,7 +1244,7 @@ export function enqueueCraftJob(
     consumableEfficiencyDurationMultiplier(input.consumableEfficiencyBonus)
       * fixerCraftSpeedDurationMultiplier(fixer?.craftSpeedBonus ?? 0),
   );
-  const toolDurationMultiplier = fittedDef?.durationMultiplier ?? 1;
+  const toolDurationMultiplier = relicEffects.durationMultiplier;
   const unitDurationMs = Math.max(
     1,
     Math.round(baseDuration * skillMultiplier * toolDurationMultiplier * levers.craftTimeScalar * (1 - rushReduction)),
@@ -1227,11 +1268,13 @@ export function enqueueCraftJob(
     rush_ticket_quality: rushTicketQuality,
     rush_ticket_origin: rushTicketOrigin,
     snapshot: {
-      toolId: fittedDef ? fittedToolId : null,
-      toolQualityMultiplier: fittedDef?.qualityMultiplier ?? 1,
+      toolId: equippedRelic ? equippedRelic.itemId : null,
+      toolQualityMultiplier: relicEffects.qualityMultiplier,
       toolDurationMultiplier,
-      toolRefineYieldBonus: fittedDef?.refineYieldBonus ?? 0,
-      toolBonusUnitChance: fittedDef?.bonusUnitChance ?? 0,
+      toolRefineYieldBonus: relicEffects.refineYieldBonus,
+      toolBonusUnitChance: relicEffects.bonusUnitChance,
+      relicMinQualityBonus: relicEffects.minQualityBonus,
+      namedRelic: r.namedRelic ?? null,
       skillDurationMultiplier: skillMultiplier,
       rushReduction,
       craftTimeScalar: levers.craftTimeScalar,
@@ -1602,16 +1645,10 @@ export function enqueueTintJob(
     fail('Insufficient material Chromaweave');
   }
 
-  // First bench with queue room (the generic capacity rule).
-  let bench = 0;
-  for (let b = 1; b <= Math.max(1, p.workshop_benches); b += 1) {
-    const active = adapter.jobs(playerId).filter((j) => j.status === 'active' && j.bench === b).length;
-    if (active < 1 + QUEUED_JOBS_PER_BENCH) {
-      bench = b;
-      break;
-    }
-  }
-  if (bench === 0) fail('Bench queue is full');
+  // The one bench (slice 9), under the generic capacity rule.
+  const bench = 1;
+  const tintActive = adapter.jobs(playerId).filter((j) => j.status === 'active' && j.bench === bench).length;
+  if (tintActive >= 1 + QUEUED_JOBS_PER_BENCH) fail('Bench queue is full');
 
   const escrowInputs: Record<string, number> = {};
   if (scrapCost > 0) {
@@ -1785,52 +1822,6 @@ export function cancelCraftJob(
 
   j.status = 'cancelled';
   return { jobId: j.id, refundedInputs: refunded, rushTicketRefunded, coresRefunded };
-}
-
-// ─── Bench unlock (§2.2) ─────────────────────────────────────────────
-
-export function unlockCraftBench(adapter: CraftAdapter, playerId: string): { benches: number } {
-  const profile = adapter.profile(playerId);
-  if (!profile) fail('Profile not found');
-  const p = profile as CraftProfileView;
-  const next = p.workshop_benches + 1;
-  if (next > 3) fail('All benches already unlocked');
-  const def = benchDef(next);
-  if (p.credits < def.costCredits) fail('Insufficient credits');
-  for (const [key, amount] of Object.entries(def.costInputs)) {
-    if ((p.materials[key] ?? 0) < amount) fail(`Insufficient material ${key}`);
-  }
-  p.credits -= def.costCredits;
-  for (const [key, amount] of Object.entries(def.costInputs)) {
-    p.materials[key] = (p.materials[key] ?? 0) - amount;
-  }
-  p.workshop_benches = next;
-  return { benches: next };
-}
-
-// ─── Tool fitting (§2.5e) ────────────────────────────────────────────
-
-export function fitCraftTool(
-  adapter: CraftAdapter,
-  playerId: string,
-  bench: number,
-  toolId: string | null,
-): { fitted: Record<string, string | null> } {
-  const profile = adapter.profile(playerId);
-  if (!profile) fail('Profile not found');
-  const p = profile as CraftProfileView;
-  if (bench < 1 || bench > p.workshop_benches) fail('Bench not unlocked');
-  const tools = p.workshop_tools;
-  if (toolId !== null) {
-    if (!toolDef(toolId)) fail('Unknown tool');
-    if (!tools.owned[toolId]) fail('Tool not owned');
-    // One bench per tool: fitting it here un-fits it elsewhere.
-    for (const key of Object.keys(tools.fitted)) {
-      if (tools.fitted[key] === toolId) tools.fitted[key] = null;
-    }
-  }
-  tools.fitted[String(bench)] = toolId;
-  return { fitted: tools.fitted };
 }
 
 // ─── Derived display state (shared by both stores' state reads) ─────

@@ -396,7 +396,7 @@ describe('collections + cores — shipped write paths', () => {
     expect(job!.escrowCores).toBe(2);
   });
 
-  it('core catalyst gates: insufficient cores, dual catalysts, consumables, low bench', async () => {
+  it('core catalyst gates: insufficient cores, dual catalysts, consumables — and NO bench gate anymore (slice 9)', async () => {
     const jobsBefore = wh.store.seed.craftJobs.length;
     const insufficient = await wpost('/api/ops/craft-enqueue', wh.tokens[P], {
       nonce: wnonce(), bench: 2, recipe_id: 'frame_weapon', units: 20, rarity: 'Rare',
@@ -420,11 +420,24 @@ describe('collections + cores — shipped write paths', () => {
     });
     expect(consumable.status).toBeGreaterThanOrEqual(400);
 
+    // Slice 9 retired the catalysts' Forge bench gate
+    // ('Catalysts require the Forge (bench 2)'): bench 1 is the
+    // only bench and it takes a core catalyst. The acceptance is
+    // exercised — and then cancelled, restoring the escrow so the
+    // scripted sequence below still nets to zero.
     const lowBench = await wpost('/api/ops/craft-enqueue', wh.tokens[P], {
       nonce: wnonce(), bench: 1, recipe_id: 'frame_weapon', units: 1, rarity: 'Common',
       use_core_catalyst: true,
     });
-    expect(lowBench.status).toBeGreaterThanOrEqual(400);
+    expect(lowBench.status).toBe(200);
+    expect(lowBench.json.escrow_cores).toBe(1);
+    expect(wprof(P).legendary_cores).toBe(11);
+    const lowJobId = (lowBench.json.job?.jobId ?? lowBench.json.job?.id) as string;
+    const lowCancel = await wpost('/api/ops/craft-cancel', wh.tokens[P], {
+      nonce: wnonce(), job_id: lowJobId,
+    });
+    expect(lowCancel.status).toBe(200);
+    expect(wprof(P).legendary_cores).toBe(12);
 
     // The routes layer codes failures (insufficient_funds / validation),
     // so the exact gate messages are pinned at the store boundary:
@@ -439,11 +452,18 @@ describe('collections + cores — shipped write paths', () => {
     })).rejects.toThrow('gear frames only');
     await expect(wh.store.enqueueCraftJob(P, wnonce(), {
       bench: 1, recipeId: 'frame_weapon', units: 1, rarity: 'Common', useCoreCatalyst: true,
-    })).rejects.toThrow('Catalysts require the Forge (bench 2)');
-
-    // Nothing escrowed, nothing created by any of the failures.
+    })).resolves.toBeTruthy();
+    // (That store-level acceptance escrowed 1 core; cancel its job
+    // straight from the seed so the sequence below is untouched.)
+    const storeJob = wh.store.seed.craftJobs.at(-1)!;
+    await wh.store.cancelCraftJob(P, wnonce(), storeJob.id);
     expect(wprof(P).legendary_cores).toBe(12);
-    expect(wh.store.seed.craftJobs).toHaveLength(jobsBefore);
+
+    // Nothing escrowed by any of the failures; the only new job
+    // records are the two accepted-then-cancelled bench-1 jobs.
+    expect(wprof(P).legendary_cores).toBe(12);
+    expect(wh.store.seed.craftJobs).toHaveLength(jobsBefore + 2);
+    expect(wh.store.seed.craftJobs.filter((j) => j.status === 'active')).toHaveLength(1);
   });
 
   it('cancelling the core-catalyst job refunds the escrowed cores in full', async () => {

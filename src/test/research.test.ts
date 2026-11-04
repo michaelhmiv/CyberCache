@@ -136,9 +136,10 @@ describe('research catalog — faculties, tiers, sizing', () => {
       // are gone from every course — no level gate exists to read.
       expect('requiresLevel' in course, course.id).toBe(false);
     }
-    // Fabrication gates on benches instead (the workshop IS the school).
-    expect(researchCourse('production_systems')?.requiresBench).toBe(2);
-    expect(researchCourse('master_fabricator')?.requiresBench).toBe(3);
+    // Slice 9 (bench collapse): Fabrication's bench gates retired
+    // with the tiers — no course carries a bench requirement.
+    expect('requiresBench' in (researchCourse('production_systems') ?? {})).toBe(false);
+    expect('requiresBench' in (researchCourse('master_fabricator') ?? {})).toBe(false);
   });
 
   it('mastery XP: 10 per catalog hour (T1 60, T2 480, T3 1,680)', () => {
@@ -426,13 +427,16 @@ describe('research store — enrollment lifecycle', () => {
     expect(store.profiles.get(A)?.credits).toBe(500_000 - 2_500);
   });
 
-  it('bench gate fires after the prerequisite is met', async () => {
+  it('no bench gate after the prerequisite (slice 9): Production Systems enrolls at bench 1', async () => {
     const store = makeStore();
     seedRich(store, A, { workshop_benches: 1 });
     await store.enrollResearch(A, nonce(), 'shop_fundamentals');
     nowMs += 6 * HOUR;
     await store.getResearchFacts(A); // settles the completion
-    await expect(store.enrollResearch(A, nonce(), 'production_systems')).rejects.toThrow('bench_too_low');
+    // Pre-collapse this threw 'bench_too_low' (Production Systems
+    // wanted bench 2). With one bench for everyone, the prereq +
+    // price are the whole gate.
+    await expect(store.enrollResearch(A, nonce(), 'production_systems')).resolves.toBeTruthy();
   });
 
   it('settle boundary: not complete 1s early, complete at completes_at, exactly once', async () => {

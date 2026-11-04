@@ -320,7 +320,7 @@ export function effectivePartPalette(
  *  stamps on the part it produces. Defined once here; the SQL
  *  completion branch (migration 0053) and the TS craft engine
  *  implement this exact formula:
- *    roll = clamp( round( (LO + u * (HI - LO)) * benchFactor * toolMult ) + shift, 1, 100 )
+ *    roll = clamp( round( (LO + u * (HI - LO)) * toolMult ) + shift, 1, 100 )
  *  with HI widened by cosmetic mastery (the consumable pattern:
  *  mastery makes top finishes reachable, never guaranteed). */
 export const COSMETIC_QUALITY = {
@@ -343,7 +343,9 @@ export function rollCosmeticQuality(args: {
       COSMETIC_QUALITY.masteryMaxBonusCap,
       COSMETIC_QUALITY.masteryMaxBonusPerLevel * Math.max(0, args.masteryLevel),
     );
-  const benchFactor = args.bench === 3 ? 1.1 : args.bench === 2 ? 1.05 : 1.0;
+  // Bench factor retired (economy slice 9): the collapsed bench
+  // is ×1.00 for every job; quality lives in relic effects now.
+  const benchFactor = 1.0;
   const raw =
     (COSMETIC_QUALITY.baseMin + args.random01 * (hi - COSMETIC_QUALITY.baseMin)) *
     benchFactor *

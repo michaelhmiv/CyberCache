@@ -55,12 +55,11 @@ export const MaterialUsageSheet: React.FC<{
                   {recipe.kind === 'refine'
                     ? `refines to ${getVisualAsset('material', recipe.outputMaterial).label}`
                     : recipe.kind === 'gear'
-                      ? 'gear frame'
-                      : recipe.kind === 'tool'
-                        ? 'workshop tool'
-                        : `makes ${recipe.consumableType ? getConsumableVisual(recipe.consumableType).label : 'a consumable'}`}
+                      ? recipe.namedRelic
+                        ? 'named relic'
+                        : 'gear frame'
+                      : `makes ${recipe.consumableType ? getConsumableVisual(recipe.consumableType).label : 'a consumable'}`}
                   {recipe.requiresLevel > 1 ? ` · Lv.${recipe.requiresLevel}` : ''}
-                  {recipe.requiresBench > 1 ? ` · Bench ${recipe.requiresBench}+` : ''}
                 </div>
               </div>
               <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-text-muted">

@@ -292,7 +292,7 @@ describe('remedy-law source pins — G8 queue remedy + the standing rule', () =>
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
 
-  it('Workshop: the bench-queue-full reason names its remedy, and a locked bench points at its unlock card', () => {
+  it('Workshop: the bench-queue-full reason names its remedy (the locked-bench half retired with the tiers)', () => {
     const workshop = read('screens/WorkshopScreen.tsx');
     // Direction A (2026-11-03): the queue-full gate copy moved with
     // the readiness derivation into lib/workshop/readiness.ts — the
@@ -302,7 +302,13 @@ describe('remedy-law source pins — G8 queue remedy + the standing rule', () =>
     expect(workshop + readiness).toContain(
       'Bench queue full — jobs finish while Crafting is your action, or cancel one above',
     );
-    expect(workshop).toContain('(locked — unlock at Benches & Tools above)');
+    // Pre-collapse this test also pinned '(locked — unlock at
+    // Benches & Tools above)': a recipe on an unowned bench pointed
+    // at its unlock card. Slice 9 leaves ONE bench, always owned —
+    // no bench can be locked, so the pointer copy is gone by
+    // design and its absence is the pin now.
+    expect(workshop).not.toContain('(locked — unlock at Benches & Tools above)');
+    expect(workshop).not.toContain('Benches & Tools');
   });
 
   it('Boards: the misleading supplier lines are gone from both boards', () => {

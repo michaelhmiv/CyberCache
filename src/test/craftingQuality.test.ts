@@ -85,13 +85,18 @@ describe('crafting XP peg (brief §2.3)', () => {
 // ---------------------------------------------------------------------------
 
 describe('quality bounds + batch profile (brief §2.4)', () => {
-  it('bounds follow the mastery/bench/catalyst formula', () => {
+  it('bounds follow the mastery/catalyst formula (bench term retired by slice 9)', () => {
     // MedKit def bounds 75/125. Mastery 1, Basic bench: unchanged.
     expect(craftQualityBounds({ consumableType: 'MedKit', masteryLevel: 1, bench: 1, catalyst: false })).toEqual({ min: 75, max: 125, cap: 175 });
     // Mastery 11: min +15, max +20.
     expect(craftQualityBounds({ consumableType: 'MedKit', masteryLevel: 11, bench: 1, catalyst: false })).toEqual({ min: 90, max: 145, cap: 175 });
-    // Lab adds +5 min; catalyst adds +10/+15.
-    expect(craftQualityBounds({ consumableType: 'MedKit', masteryLevel: 1, bench: 3, catalyst: true })).toEqual({ min: 90, max: 140, cap: 175 });
+    // Catalyst adds +10/+15. The bench argument no longer moves
+    // bounds at all (slice 9): the Lab's old +5 min left the bounds
+    // formula and lives on the Prime Laboratory relic's snapshot
+    // bonus, applied at completion — bench 3 reads exactly as
+    // bench 1 here.
+    expect(craftQualityBounds({ consumableType: 'MedKit', masteryLevel: 1, bench: 3, catalyst: true })).toEqual({ min: 85, max: 140, cap: 175 });
+    expect(craftQualityBounds({ consumableType: 'MedKit', masteryLevel: 1, bench: 3, catalyst: false })).toEqual({ min: 75, max: 125, cap: 175 });
     // Crafted Patch Kit override: 75/130 (not the def display 75/150).
     expect(craftQualityBounds({ consumableType: 'PatchKit', masteryLevel: 1, bench: 1, catalyst: false })).toEqual({ min: 75, max: 130, cap: 175 });
   });
@@ -286,16 +291,33 @@ describe('migration 0024 parity pins', () => {
     recipe_field_patch_kit: 12, recipe_fuel_cell: 8,
   };
 
+  // The bench gates 0024 shipped on the advanced furnace refines.
+  // Slice 9 collapsed every requiresBench to 1, so the projection
+  // restores the historical values for this comparison (the
+  // collapsed values are pinned against 0073 in econBenchRelic).
+  const BENCHES_0024: Record<string, number> = {
+    refine_composite_plating: 3, refine_circuit_lattice: 3, refine_voidweave: 3,
+  };
+  // The three workshop tools as 0024 knew them: kind 'tool',
+  // category 'tools', toolId = recipe id. Slice 9 converted them
+  // to named relics (kind 'gear', slot 'relic'); the projection
+  // restores their 0024 shape — inputs and durations never moved.
+  const TOOLS_0024 = new Set([
+    'tool_precision_calipers', 'tool_servo_bench_rig', 'tool_reclaimer_head',
+  ]);
+
   function projectRecipe(r: CraftRecipe): Record<string, unknown> {
+    const wasTool = TOOLS_0024.has(r.id);
     const base: Record<string, unknown> = {
-      id: r.id, kind: r.kind, name: r.name, category: r.category, inputs: r.inputs,
+      id: r.id, kind: wasTool ? 'tool' : r.kind, name: r.name,
+      category: wasTool ? 'tools' : r.category, inputs: r.inputs,
       unitDurationMs: r.unitDurationMs, requiresLevel: LEVELS_0024[r.id] ?? r.requiresLevel,
-      requiresBench: r.requiresBench, station: r.station,
+      requiresBench: BENCHES_0024[r.id] ?? r.requiresBench, station: r.station,
     };
     if (r.kind === 'consumable') base.consumableType = r.consumableType;
     if (r.kind === 'refine') { base.outputMaterial = r.outputMaterial; base.outputBase = r.outputBase; }
-    if (r.kind === 'gear') { base.gearSlot = r.gearSlot; base.durationByRarityMs = GEAR_FRAME_DURATION_MS; }
-    if (r.kind === 'tool') base.toolId = r.toolId;
+    if (r.kind === 'gear' && !wasTool) { base.gearSlot = r.gearSlot; base.durationByRarityMs = GEAR_FRAME_DURATION_MS; }
+    if (wasTool) base.toolId = r.id;
     if (r.requiresMastery) base.requiresMastery = r.requiresMastery;
     return base;
   }
@@ -332,7 +354,10 @@ describe('migration 0024 parity pins', () => {
           !r.requiresStanding &&
           r.id !== 'recipe_calibration_core' &&
           r.category !== 'cosmetics' &&
-          r.id !== 'refine_chromaweave',
+          r.id !== 'refine_chromaweave' &&
+          // Slice 9's Prime Laboratory relic postdates 0024; its
+          // parity is pinned against 0073 in econBenchRelic.
+          r.id !== 'relic_prime_laboratory',
       ).map(projectRecipe),
     );
   });

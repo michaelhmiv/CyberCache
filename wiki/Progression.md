@@ -16,7 +16,7 @@ The pacing figures below are **modeled, not guaranteed** — they come from the 
 
 XP comes from roaming, enemy defeats, boss attempts and victories, salvaging, and completed crafts — the activities themselves, so every occupation levels your hunter.
 
-Levels buy power (skill points, Cache Rank tokens, base HP), not permission: [[Actions and Occupations|Research]] courses, for one, never ask your hunter level — their gates are the prerequisite chain, the clock, and the fee.
+Levels buy power (skill points, Cache Rank tokens, base HP), not permission: [[Actions and Occupations|Research]] courses, for one, never ask your hunter level — their gates are the prerequisite chain, the clock, and the fee. The same is true of the Workshop: since its benches collapsed into one, no recipe or course asks for a bench tier either — the bench is simply always there.
 
 Your progress is glanceable without opening your profile: Home's **Now** feed carries your level progress alongside your current activity, boss progress, and best weapon (see [[The Board]]).
 

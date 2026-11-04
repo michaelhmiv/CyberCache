@@ -47,6 +47,10 @@ const MIGRATION_0056 = readFileSync(
   join(process.cwd(), 'db', 'migrations', '0056_cosmetic_recipe_levels.sql'),
   'utf8',
 );
+const MIGRATION_0073 = readFileSync(
+  join(process.cwd(), 'db', 'migrations', '0073_bench_collapse_relic_merger.sql'),
+  'utf8',
+);
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -78,8 +82,13 @@ describe('migration 0053 — catalog + schema pins', () => {
         .filter((r) => JSON.stringify(r.inputs ?? {}).includes('ScrapAlloy'))
         .map((r) => String(r.id)),
     );
+    // Slice 9 (0073) in turn changed rows inside this kept set
+    // (the 3 tool recipes' family change + 4 furnace refines'
+    // requiresBench) and added relic_prime_laboratory; those are
+    // carved here and pinned against 0073 in econBenchRelic.
+    const changed9 = changedBy0073(catalog);
     const withoutSuperseded = (rows: Array<Record<string, unknown>>) =>
-      rows.filter((r) => r.category !== 'cosmetics' && r.kind !== 'consumable' && !renamedBy0069.has(String(r.id)));
+      rows.filter((r) => r.category !== 'cosmetics' && r.kind !== 'consumable' && !renamedBy0069.has(String(r.id)) && !changed9.has(String(r.id)) && r.id !== 'relic_prime_laboratory');
     expect(catalog.filter((r) => r.category === 'cosmetics')).toHaveLength(27);
     expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(43);
     expect(withoutSuperseded(catalog)).toEqual(
@@ -118,6 +127,27 @@ describe('migration 0053 — catalog + schema pins', () => {
   });
 });
 
+
+/** Slice 9 (0073) changed rows vs a historical catalog: the ids
+ * whose 0073 row differs (canonical, key-order-insensitive). */
+function changedBy0073(rows: Array<Record<string, unknown>>): Set<string> {
+  const catalog0073 = JSON.parse(
+    MIGRATION_0073.split('$catalog$')[1],
+  ) as Array<Record<string, unknown>>;
+  const byId = new Map(catalog0073.map((r) => [String(r.id), r]));
+  const canon = (v: unknown): string => {
+    if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
+    if (v && typeof v === 'object') {
+      return `{${Object.keys(v as Record<string, unknown>).sort()
+        .map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`).join(',')}}`;
+    }
+    return JSON.stringify(v);
+  };
+  return new Set(
+    rows.filter((r) => canon(byId.get(String(r.id))) !== canon(r)).map((r) => String(r.id)),
+  );
+}
+
 // ─── 0056 textual pins (gate-removal step 1) ────────────────────
 
 describe('migration 0056 — cosmetic recipe levels removed', () => {
@@ -139,15 +169,20 @@ describe('migration 0056 — cosmetic recipe levels removed', () => {
         .filter((r) => JSON.stringify(r.inputs ?? {}).includes('ScrapAlloy'))
         .map((r) => String(r.id)),
     );
+    // Slice 9 (0073) changed the skin-part recipes' requiresBench
+    // (2/3 -> 1), the tool recipes' family, and 4 refines inside
+    // this set, and added relic_prime_laboratory — carved here,
+    // pinned against 0073 in econBenchRelic.
+    const changed9 = changedBy0073(catalog);
     const withoutConsumables = (rows: Array<Record<string, unknown>>) =>
-      rows.filter((r) => r.kind !== 'consumable' && !renamedBy0069.has(String(r.id)));
+      rows.filter((r) => r.kind !== 'consumable' && !renamedBy0069.has(String(r.id)) && !changed9.has(String(r.id)) && r.id !== 'relic_prime_laboratory');
     expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(43);
     expect(withoutConsumables(catalog)).toEqual(
       withoutConsumables(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
     );
   });
 
-  it('every cosmetic recipe sits at the no-gate level 1 in both catalogs; benches unchanged', () => {
+  it('every cosmetic recipe sits at the no-gate level 1 in both catalogs; benches collapsed by slice 9', () => {
     const sqlCatalog = JSON.parse(MIGRATION_0056.split('$catalog$')[1]) as Array<Record<string, unknown>>;
     for (const recipe of ALL_CRAFT_RECIPES.filter((r) => r.kind === 'cosmetic')) {
       expect(recipe.requiresLevel, recipe.id).toBe(1);
@@ -155,10 +190,12 @@ describe('migration 0056 — cosmetic recipe levels removed', () => {
     for (const row of sqlCatalog.filter((r) => r.kind === 'cosmetic')) {
       expect(row.requiresLevel, String(row.id)).toBe(1);
     }
-    // The bench gates are a later program step and stand untouched.
-    expect(getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!.requiresBench).toBe(2);
-    expect(getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!.requiresBench).toBe(3);
-    expect(getCraftRecipe(skinPartCatalog('mfr-head-redline')!.recipeId)!.requiresBench).toBe(2);
+    // The bench gates WERE a later program step: slice 9's
+    // collapse retired them — every recipe now sits at bench 1
+    // in TS (0073's catalog agrees; econBenchRelic pins it).
+    expect(getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!.requiresBench).toBe(1);
+    expect(getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!.requiresBench).toBe(1);
+    expect(getCraftRecipe(skinPartCatalog('mfr-head-redline')!.recipeId)!.requiresBench).toBe(1);
     expect(getCraftRecipe('tint_craft')!.requiresBench).toBe(1);
     // Step 1's boundary, pinned historically: in 0056's own catalog
     // a standing tonic still carried L12 — gate-removal step 2
@@ -337,15 +374,15 @@ describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
     });
   });
 
-  it('the bench gate still binds: bench 1 refuses a bench-2 cosmetic at level 1', async () => {
+  it('no bench gate binds a cosmetic anymore (slice 9): the dread head enqueues on the one bench', async () => {
     const store = new InMemoryWriteStore(levelOneSeed(1), { now });
     const dread = getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!;
-    await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: dread.id, units: 1, consumableEfficiencyBonus: 0,
-    })).rejects.toThrow(/Bench not unlocked/);
+    // Pre-collapse: 'Bench not unlocked' / 'requires bench 2 or
+    // higher'. Post-collapse the former bench-2 cosmetic runs on
+    // the single bench.
     await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 1, recipeId: dread.id, units: 1, consumableEfficiencyBonus: 0,
-    })).rejects.toThrow(/requires bench 2 or higher/);
+    })).resolves.toBeTruthy();
   });
 });
 

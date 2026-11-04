@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { motion } from 'framer-motion';
-import { Clock, ChevronDown, Search, X, Lock } from 'lucide-react';
+import { Clock, ChevronDown, Search, X } from 'lucide-react';
 import { useActivityStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 import { TintPanel } from '@/components/workshop/TintPanel';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -13,16 +13,16 @@ import { getVisualAsset } from '@/constants/visualAssets';
 import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import {
   ALL_CRAFT_RECIPES,
-  CRAFT_BENCHES,
-  CRAFT_TOOLS,
+  CRAFT_RELICS,
   CRAFT_XP_RATE_DEFAULT,
+  QUEUED_JOBS_PER_BENCH,
+  RUNNING_JOBS_ON_BENCH,
   CRAFTABLE_GEAR_RARITIES,
   REFINE_BASE_YIELD_DEFAULT,
   benchDef,
   catalystForRecipe,
   craftQualityBounds,
   craftUnitXp,
-  gearRarityRequiresBench,
   isMaterialInput,
   refineOutputCount,
   refineOutputRange,
@@ -68,8 +68,10 @@ import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
  *
  * The catalog leads, ordered by readiness — Craftable now → One gate
  * away → Locked — with the craftable count, the player's standing,
- * and the bench states printed above it, because the gates read
- * those numbers. Every recipe card carries its purpose, its quality
+ * and the bench state printed above it, because the gates read
+ * those numbers. Since the bench collapse (economy slice 9) there
+ * is ONE bench — always owned, no tiers — and the old workshop
+ * tools live on as named relics, equipped on the hunter. Every recipe card carries its purpose, its quality
  * definition, every gate (met or failing), per-shortfall sources
  * with doors, and the pre-queue totals. Jobs are server state: they
  * progress only while Crafting is the active action, settle from
@@ -86,7 +88,6 @@ const CATEGORIES: Array<{ key: CraftRecipe['category']; label: string }> = [
   { key: 'refining', label: 'Refining' },
   { key: 'gear', label: 'Gear Frames' },
   { key: 'cosmetics', label: 'Skin Parts' },
-  { key: 'tools', label: 'Tools' },
 ];
 
 const CATEGORY_ICONS: Record<CraftRecipe['category'], PxIconName> = {
@@ -96,7 +97,6 @@ const CATEGORY_ICONS: Record<CraftRecipe['category'], PxIconName> = {
   refining: 'recycle',
   gear: 'anvil',
   cosmetics: 'swirl',
-  tools: 'wrench',
 };
 
 const SECTIONS: Array<{ key: RecipeClassification; title: string; hint: string; tone: string }> = [
@@ -142,13 +142,6 @@ function pausedReason(activeActionKind: string | null): string {
   }
 }
 
-function benchCostLine(bench: number): string {
-  const def = benchDef(bench);
-  const inputs = Object.entries(def.costInputs)
-    .map(([k, v]) => ` · ${v} ${inputLabel(k)}`)
-    .join('');
-  return `${def.costCredits.toLocaleString('en-US')}cr${inputs}`;
-}
 
 /**
  * OverclockBar — the Fixer signature's workshop face (0030, brief
@@ -227,7 +220,7 @@ const OverclockBar: React.FC = () => {
         </span>
       </div>
       <div className="text-[11px] text-text-muted">
-        Overclock — fills as your benches and bay complete work. Firing completes the in-progress unit on every active bench, instantly, at full quality and XP.
+        Overclock — fills as your bench and bay complete work. Firing completes the in-progress unit on the bench, instantly, at full quality and XP.
       </div>
       <button
         type="button"
@@ -308,7 +301,6 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   }, []);
   const [expandedMaterials, setExpandedMaterials] = useState(false);
   const [usageMaterialId, setUsageMaterialId] = useState<string | null>(null);
-  const [selectedBenchRaw, setSelectedBench] = useState(1);
   const [activityError, setActivityError] = useState<string | null>(null);
   const [craftableOnly, setCraftableOnly] = useState(false);
   const [refineFocusId, setRefineFocusId] = useState<string | null>(null);
@@ -336,8 +328,8 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
     return () => window.clearInterval(id);
   }, [refresh]);
 
-  // Derived clamp: the viewed bench can never exceed ownership.
-  const selectedBench = Math.min(selectedBenchRaw, benchesOwned);
+  // Bench collapse (slice 9): the viewed bench is the only bench.
+  const selectedBench = 1;
 
   const startCrafting = useCallback(async () => {
     setActivityError(null);
@@ -367,7 +359,6 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
       standingRanks,
       researchCompletedIds,
       activeJobs: activeJobs.map((j) => ({ bench: j.bench, recipeId: j.recipeId })),
-      toolsOwned: server?.tools.owned ?? {},
       // Econ 7: readiness + card costs resolve through the server's
       // per-recipe Scrap map (§4.4 of the economy brief).
       recipeScrapCosts: server?.recipeScrapCosts,
@@ -445,7 +436,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   );
 
   const activeCategories = useMemo(() => activeFacets.category ?? new Set<string>(), [activeFacets.category]);
-  const stageBench = benchDef(selectedBench);
+  const stageBench = benchDef(1);
   const runningJob = activeJobs.find((j) => j.state === 'running');
 
   const openBenches = useCallback(() => {
@@ -480,13 +471,8 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
       <div className="flex items-center justify-between">
         <div className="bl-title text-3xl leading-none text-text-primary">Workshop</div>
         <div className="flex items-center gap-1.5 text-[11px] text-text-muted bg-surface-raised border-2 border-border rounded-full px-2.5 py-1">
-          {CRAFT_BENCHES.map((b) => (
-            <span
-              key={b.bench}
-              className={`w-2 h-2 rounded-full ${b.bench > benchesOwned ? 'bg-border' : activeJobs.some((j) => j.bench === b.bench) ? 'bg-amber' : 'bg-green'}`}
-            />
-          ))}
-          <span className="ml-1">{benchesOwned} bench{benchesOwned === 1 ? '' : 'es'}</span>
+          <span className={`w-2 h-2 rounded-full ${activeJobs.length > 0 ? 'bg-amber' : 'bg-green'}`} />
+          <span className="ml-1">The bench — {activeJobs.length > 0 ? 'working' : 'ready'}</span>
         </div>
       </div>
       <div className="text-xs text-text-muted">
@@ -584,34 +570,23 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         </div>
       </div>
 
-      {/* Bench strip: all three benches, their states, and the dot
-          legend in words (never color alone). */}
+      {/* The bench strip (slice 9 collapse): ONE bench, always
+          owned — its state, and the queue envelope in words. */}
       <div className="space-y-1">
-        <div className="grid grid-cols-3 gap-1.5">
-          {CRAFT_BENCHES.map((b) => {
-            const locked = b.bench > benchesOwned;
-            const working = activeJobs.some((j) => j.bench === b.bench);
-            return (
-              <div key={b.bench} className={`border border-border bg-surface px-2 py-1.5 ${locked ? 'opacity-70' : ''}`}>
-                <div className="flex items-center gap-1.5 text-[11px] font-black text-text-primary">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${locked ? 'bg-border' : working ? 'bg-amber' : 'bg-green'}`} />
-                  {b.name}
-                </div>
-                <div className="mt-0.5 text-[11px] leading-snug text-text-muted">
-                  {locked
-                    ? benchCostLine(b.bench)
-                    : working
-                      ? `Working · ${activeJobs.find((j) => j.bench === b.bench)?.name ?? 'job running'}`
-                      : b.bench === 1
-                        ? 'Idle · crusher ready'
-                        : `Idle · rolls ×${b.qualityFactor.toFixed(2)}${b.minQualityBonus ? ` · +${b.minQualityBonus} min quality` : ''}`}
-                </div>
-              </div>
-            );
-          })}
+        <div className="border border-border bg-surface px-2 py-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-black text-text-primary">
+            <span className={`h-2 w-2 shrink-0 rounded-full ${activeJobs.length > 0 ? 'bg-amber' : 'bg-green'}`} />
+            The Bench
+          </div>
+          <div className="mt-0.5 text-[11px] leading-snug text-text-muted">
+            {activeJobs.length > 0
+              ? `Working · ${runningJob?.name ?? activeJobs[0]?.name ?? 'job running'}`
+              : 'Idle · ready'}
+          </div>
         </div>
         <div className="text-[11px] text-text-muted">
-          Bench dots: green = ready · amber = working · grey = locked. One job runs per bench; 5 more may queue.
+          One job runs at a time; 5 more may queue (a Fixer keystone queues more). Quality comes from
+          mastery, catalysts — and the relic you wear.
         </div>
       </div>
 
@@ -694,33 +669,16 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         {ALL_CRAFT_RECIPES.length} recipes in the catalog · sorted Craftable → One gate away → Locked. Sorts: Level · Time · Name.
       </div>
 
-      {/* The bench stage (§2.9): the selected bench's station, the
-          hunter at work while crafting is active; paused jobs sit
-          idle-dark under a Paused pennant. */}
+      {/* The bench stage (§2.9): the bench's station, the hunter at
+          work while crafting is active; paused jobs sit idle-dark
+          under a Paused pennant. */}
       <div className="relative overflow-hidden rounded-lg border-2 border-border">
         <CraftingBenchScene benchSpriteId={stageBench.spriteId} unarmed={!hunterWeapon} />
         <div className="absolute left-2 top-2 flex gap-1.5">
-          {CRAFT_BENCHES.map((b) => {
-            const locked = b.bench > benchesOwned;
-            const running = activeJobs.some((j) => j.bench === b.bench);
-            return (
-              <button
-                key={b.bench}
-                type="button"
-                disabled={locked}
-                onClick={() => setSelectedBench(b.bench)}
-                className={`px-2 py-1 text-[11px] font-black border ${
-                  selectedBench === b.bench
-                    ? 'bl-primary border-transparent'
-                    : 'bg-bg/80 text-text-secondary border-border'
-                } ${locked ? 'opacity-50' : ''}`}
-                style={chipClip}
-              >
-                {locked ? <Lock size={10} className="inline" /> : null} {b.name}
-                {running ? <span className="ml-1 inline-flex align-middle"><PxIcon name="dot" size={13} /></span> : ''}
-              </button>
-            );
-          })}
+          <span className="px-2 py-1 text-[11px] font-black border bg-bg/80 text-text-secondary border-border" style={chipClip}>
+            The Bench
+            {runningJob ? <span className="ml-1 inline-flex align-middle"><PxIcon name="dot" size={13} /></span> : ''}
+          </span>
         </div>
         {!isCrafting && activeJobs.length > 0 && (
           <div className="absolute right-2 top-2 bg-red/85 text-white text-[11px] font-black px-2 py-1" style={chipClip}>
@@ -744,8 +702,8 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         </div>
         <div className="text-[11px] text-text-secondary leading-relaxed">
           {isCrafting
-            ? 'You are at the benches — the running job on each bench is progressing now.'
-            : 'Jobs pause while you do anything else. Switch to Crafting to work the benches; roaming, boss fights and salvaging all hold the action slot instead.'}
+            ? 'You are at the bench — the running job is progressing now.'
+            : 'Jobs pause while you do anything else. Switch to Crafting to work the bench; roaming, boss fights and salvaging all hold the action slot instead.'}
         </div>
         {!isCrafting && (
           <motion.button
@@ -754,7 +712,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
             disabled={activity.pending}
             className="w-full py-2 rounded-lg bg-amber text-bg text-xs font-bold active:bg-amber/80 transition-colors disabled:opacity-50"
           >
-            {activity.pending ? 'Syncing…' : 'Work the Benches'}
+            {activity.pending ? 'Syncing…' : 'Work the Bench'}
           </motion.button>
         )}
         {activityError && <div className="text-[11px] text-red">{activityError}</div>}
@@ -807,17 +765,8 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         </div>
       )}
 
-      <div ref={benchesRef} id="workshop-benches-tools" className="scroll-mt-4">
-        <BenchAndToolsCard
-          benchesOwned={benchesOwned}
-          credits={player.credits}
-          materials={player.materials}
-          tools={server?.tools ?? { owned: {}, fitted: {}, charges: {} }}
-          onUnlock={() => void workshop.unlockBench()}
-          onFit={(bench, toolId) => void workshop.fitTool(bench, toolId)}
-          onNavigate={onNavigate}
-          onRefineFocus={focusRefineRecipe}
-        />
+      <div ref={benchesRef} id="workshop-bench" className="scroll-mt-4">
+        <BenchCard />
       </div>
 
       {hasMaterials && (
@@ -904,7 +853,7 @@ const JobCard: React.FC<{
     ? craftQualityBounds({
         consumableType: recipe.kind === 'consumable' ? recipe.consumableType : null,
         masteryLevel:
-          (job.kind === 'gear' || job.kind === 'tool'
+          (job.kind === 'gear'
             ? masteries['crafting.gear']?.level
             : masteries.crafting_consumables?.level) ?? 1,
         bench: job.bench,
@@ -943,7 +892,7 @@ const JobCard: React.FC<{
     <MobileCard className="space-y-1.5">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold text-text-muted">
-          Bench {job.bench} · {job.name}
+          {job.name}
           {job.gearRarity ? ` · ${job.gearRarity}` : ''}
           {job.catalystMaterialId ? ` · catalyst ${getVisualAsset('material', job.catalystMaterialId).label}` : ''}
         </span>
@@ -979,126 +928,40 @@ const JobCard: React.FC<{
   );
 };
 
-// ─── Benches + tools ─────────────────────────────────────────────────
+// ─── The bench (slice 9 collapse) ────────────────────────────────────
+//
+// One bench, always owned — nothing to buy, nothing to fit. The
+// card states the envelope and names the relic family that took
+// over the workshop's permanent modifiers: the three fitted tools
+// of the old shop, plus the Prime Laboratory at the top end.
+// Effects live on the relics themselves (content/crafting.ts
+// CRAFT_RELICS) — this card only points at them.
 
-const BenchAndToolsCard: React.FC<{
-  benchesOwned: number;
-  credits: number;
-  materials: Record<string, number>;
-  tools: { owned: Record<string, boolean>; fitted: Record<string, string | null>; charges: Record<string, number> };
-  onUnlock: () => void;
-  onFit: (bench: number, toolId: string | null) => void;
-  onNavigate?: (screen: string) => void;
-  onRefineFocus?: (recipeId: string) => void;
-}> = ({ benchesOwned, credits, materials, tools, onUnlock, onFit, onNavigate, onRefineFocus }) => {
-  const next = CRAFT_BENCHES.find((b) => b.bench === benchesOwned + 1);
-  const nextAffordable =
-    next !== undefined &&
-    credits >= next.costCredits &&
-    Object.entries(next.costInputs).every(([k, v]) => (materials[k] ?? 0) >= v);
-  // Assumption-gaps G5: the unlock button used to grey out with
-  // no delta — the player couldn't tell whether the block was
-  // credits or materials, or by how much. Compute the
-  // shortfall from the same values the affordability gate reads
-  // and print the distance, so the locked button carries its
-  // remedy arithmetic on the same surface.
-  const nextShortfall: string[] = [];
-  // QB-1: goods segments carry their material id + shortfall so the
-  // line can offer the lone + beside them; level/credit segments
-  // stay plain text (profile numbers never get a +).
-  const nextShortfallGoods = new Map<number, { materialId: string; short: number }>();
-  if (next && !nextAffordable) {
-    if (credits < next.costCredits) nextShortfall.push(`short ${(next.costCredits - credits).toLocaleString()}cr`);
-    for (const [k, v] of Object.entries(next.costInputs)) {
-      const have = materials[k] ?? 0;
-      if (have < v) {
-        nextShortfallGoods.set(nextShortfall.length, { materialId: k, short: v - have });
-        nextShortfall.push(`short ${v - have} ${getVisualAsset('material', k).label}`);
-      }
-    }
-  }
-  return (
-    <MobileCard className="space-y-2">
-      <div className="text-xs font-bold text-amber uppercase">Benches & Tools</div>
-      {CRAFT_BENCHES.map((b) => {
-        const owned = b.bench <= benchesOwned;
-        const fittedTool = tools.fitted[String(b.bench)] ?? null;
-        return (
-          <div key={b.bench} className="border-t border-border/50 pt-1.5 first:border-t-0 first:pt-0">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-bold text-text-primary">
-                {b.bench}. {b.name}
-                {owned ? '' : <span className="ml-1 inline-flex align-middle"><PxIcon name="lock" size={13} /></span>}
-              </span>
-              {owned ? (
-                <span className="text-[11px] text-text-muted">
-                  {fittedTool ? `${CRAFT_TOOLS.find((t) => t.id === fittedTool)?.name ?? fittedTool} fitted · ${tools.charges[fittedTool] ?? 0} jobs left` : 'No tool fitted'}
-                </span>
-              ) : b.bench === benchesOwned + 1 ? (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={onUnlock}
-                  disabled={!nextAffordable}
-                  className={`py-1 px-2.5 rounded-lg text-[11px] font-bold ${nextAffordable ? 'bg-amber text-bg' : 'bg-surface-raised text-text-muted border border-border'}`}
-                >
-                  Unlock · {b.costCredits.toLocaleString()}cr
-                  {Object.entries(b.costInputs).map(([k, v]) => ` + ${v} ${getVisualAsset('material', k).label}`).join('')}
-                </motion.button>
-              ) : (
-                <span className="text-[11px] text-text-muted">
-                  {b.costCredits.toLocaleString()}cr
-                  {Object.entries(b.costInputs).map(([k, v]) => ` + ${v} ${getVisualAsset('material', k).label}`).join('')}
-                </span>
-              )}
-            </div>
-            <div className="text-[11px] text-text-muted">{b.blurb}</div>
-            {b.bench === benchesOwned + 1 && nextShortfall.length > 0 && (
-              <div className="text-[11px] font-bold text-amber" data-testid="bench-unlock-shortfall">
-                {nextShortfall.map((segment, i) => {
-                  const goods = nextShortfallGoods.get(i);
-                  return (
-                    <span key={i} className="inline-flex items-center">
-                      {i > 0 && <span> · </span>}
-                      {segment}
-                      {goods && (
-                        <QuickBuyPlus
-                          good={{ kind: 'material', id: goods.materialId }}
-                          goodName={getVisualAsset('material', goods.materialId).label}
-                          shortfall={goods.short}
-                          contextLabel={`${b.name} unlock`}
-                          onNavigate={onNavigate}
-                          onRefineFocus={onRefineFocus}
-                        />
-                      )}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-            {owned && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {CRAFT_TOOLS.filter((t) => tools.owned[t.id]).map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => onFit(b.bench, fittedTool === t.id ? null : t.id)}
-                    className={`px-2 py-1 text-[11px] font-bold border ${fittedTool === t.id ? 'bl-primary border-transparent' : 'border-border text-text-secondary'}`}
-                    style={chipClip}
-                  >
-                    {fittedTool === t.id ? `Unfit ${t.name}` : `Fit ${t.name}`}
-                  </button>
-                ))}
-                {CRAFT_TOOLS.every((t) => !tools.owned[t.id]) && (
-                  <span className="text-[11px] text-text-muted">Craft a tool below to fit it here.</span>
-                )}
-              </div>
-            )}
+const BenchCard: React.FC = () => (
+  <MobileCard className="space-y-2">
+    <div className="text-xs font-bold text-amber uppercase">The Bench</div>
+    <div className="text-[11px] leading-relaxed text-text-secondary">
+      One bench, always ready — no tiers to buy, nothing to unlock. It runs{' '}
+      {RUNNING_JOBS_ON_BENCH} job at a time with {QUEUED_JOBS_PER_BENCH} queued behind it (a Fixer
+      keystone queues more). The old Forge and Lab tiers are gone: quality now comes from mastery,
+      catalysts — and the relic you wear.
+    </div>
+    <div className="space-y-1.5">
+      {CRAFT_RELICS.map((relic) => (
+        <div key={relic.id} className="border-t border-border/50 pt-1.5 first:border-t-0 first:pt-0">
+          <div className="text-[11px] font-black text-text-primary">
+            {relic.name} <span className="font-bold text-text-muted">· named relic</span>
           </div>
-        );
-      })}
-    </MobileCard>
-  );
-};
+          <div className="text-[11px] leading-snug text-text-muted">{relic.blurb}</div>
+        </div>
+      ))}
+    </div>
+    <div className="text-[11px] text-text-muted">
+      Craft relics under Gear Frames, equip them from your Loadout — their workshop effects apply
+      to every job while worn, and relics never wear out.
+    </div>
+  </MobileCard>
+);
 
 // ─── Recipe card ─────────────────────────────────────────────────────
 
@@ -1121,18 +984,15 @@ const RecipeCard: React.FC<{
   highlighted?: boolean;
 }> = ({ recipe, ctx, readiness, consumables, onEnqueue, onNavigate, onOpenBenches, onRefineFocus, highlighted }) => {
   const isGear = recipe.kind === 'gear';
-  const [rarity, setRarity] = useState<string>(readiness?.rarity ?? 'Common');
-  const requiredBenchForRarity = isGear ? gearRarityRequiresBench(rarity as Rarity) : 1;
-  const minBench = Math.max(recipe.requiresBench, requiredBenchForRarity);
-  const [benchSelRaw, setBenchSel] = useState<number>(readiness?.bench ?? Math.max(1, minBench));
+  // Named relics mint at their fixed rarity — no rarity choice.
+  const [rarity, setRarity] = useState<string>(recipe.fixedRarity ?? readiness?.rarity ?? 'Common');
+  // Bench collapse (slice 9): the enqueue bench is the one bench.
+  const benchSel = 1;
   const [units, setUnits] = useState(1);
   const [useCatalyst, setUseCatalyst] = useState(false);
   const [useRush, setUseRush] = useState(false);
   const [queuedFlash, setQueuedFlash] = useState(false);
   const [inspectOpen, setInspectOpen] = useState(false);
-
-  // Derived floor: the enqueue bench never sits below the recipe's.
-  const benchSel = Math.max(benchSelRaw, minBench);
 
   const catalystId = catalystForRecipe(recipe);
   const def = recipe.consumableType ? CONSUMABLES[recipe.consumableType] : undefined;
@@ -1144,9 +1004,11 @@ const RecipeCard: React.FC<{
     useRushTicket: useRush,
   });
   const canEnqueue = evaluated.canEnqueue;
-  const baseDurationMs = isGear
-    ? (recipe.durationByRarityMs?.[rarity as keyof typeof recipe.durationByRarityMs] ?? 0)
-    : recipe.unitDurationMs;
+  const baseDurationMs = recipe.namedRelic
+    ? recipe.unitDurationMs
+    : isGear
+      ? (recipe.durationByRarityMs?.[rarity as keyof typeof recipe.durationByRarityMs] ?? 0)
+      : recipe.unitDurationMs;
   const xpPerUnit = craftUnitXp(baseDurationMs, ctx.playerLevel, CRAFT_XP_RATE_DEFAULT);
   const refineOut =
     recipe.kind === 'refine'
@@ -1181,7 +1043,7 @@ const RecipeCard: React.FC<{
   const laneLabel = CATEGORIES.find((c) => c.key === recipe.category)?.label ?? recipe.category;
   // No-redundant-state law (owner, 2026-11-03): the gate block
   // carries only NON-material gates — bench, research, mastery,
-  // level, standing, queue, tool. A material shortage is stated on
+  // level, standing, queue. A material shortage is stated on
   // its own input line (with its source) and is never re-narrated
   // here; the full gate list, materials included, lives in the
   // inspect sheet.
@@ -1212,9 +1074,6 @@ const RecipeCard: React.FC<{
                 </button>
                 {recipe.requiresLevel > 1 && (
                   <span className={`text-[11px] px-1 py-0.5 rounded font-bold ${ctx.playerLevel < recipe.requiresLevel ? 'bg-red/15 text-red' : 'bg-surface-raised text-text-muted'}`}>Lv.{recipe.requiresLevel}</span>
-                )}
-                {recipe.requiresBench > 1 && (
-                  <span className="text-[11px] px-1 py-0.5 rounded font-bold bg-surface-raised text-text-muted">Bench {recipe.requiresBench}+</span>
                 )}
                 {recipe.requiresStanding && (
                   <span className={`text-[11px] px-1 py-0.5 rounded font-bold ${(ctx.standingRanks[recipe.requiresStanding.manufacturer] ?? 0) < recipe.requiresStanding.rank ? 'bg-red/15 text-red' : 'bg-surface-raised text-text-muted'}`}>{recipe.requiresStanding.manufacturer} R{recipe.requiresStanding.rank}</span>
@@ -1313,7 +1172,16 @@ const RecipeCard: React.FC<{
           </div>
         )}
 
-        {isGear && (
+        {isGear && recipe.namedRelic && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="px-2 py-1 text-[11px] font-black border bl-primary border-transparent" style={chipClip}>
+              {recipe.fixedRarity} · named relic
+            </span>
+            <span className="text-[11px] text-text-muted self-center">Its rarity and effects are fixed — no catalyst, no temper roll.</span>
+          </div>
+        )}
+
+        {isGear && !recipe.namedRelic && (
           <div className="flex flex-wrap gap-1.5">
             {CRAFTABLE_GEAR_RARITIES.map((r) => (
               <button
@@ -1332,21 +1200,6 @@ const RecipeCard: React.FC<{
 
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
           <label className="flex items-center gap-1 text-text-secondary">
-            Bench
-            <select
-              value={benchSel}
-              onChange={(e) => setBenchSel(Number(e.target.value))}
-              className="text-[11px] font-bold border border-border bg-surface rounded px-1.5 py-1 text-text-primary"
-            >
-              {[1, 2, 3].map((b) => (
-                <option key={b} value={b} disabled={b < minBench}>
-                  {b} · {benchDef(b).name}
-                  {b > ctx.benchesOwned ? ' (locked — unlock at Benches & Tools above)' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-1 text-text-secondary">
             Units
             <input
               type="number"
@@ -1361,10 +1214,9 @@ const RecipeCard: React.FC<{
             <button
               type="button"
               onClick={() => setUseCatalyst(!useCatalyst)}
-              disabled={benchSel < 2}
-              className={`px-2 py-1 text-[11px] font-bold border ${useCatalyst ? 'bl-primary border-transparent' : 'border-border text-text-secondary'} disabled:opacity-40`}
+              className={`px-2 py-1 text-[11px] font-bold border ${useCatalyst ? 'bl-primary border-transparent' : 'border-border text-text-secondary'}`}
               style={chipClip}
-              title={benchSel < 2 ? 'Catalysts need the Forge (bench 2)' : `+10/+15 quality bounds, 1 ${inputLabel(catalystId)} per unit`}
+              title={`+10/+15 quality bounds, 1 ${inputLabel(catalystId)} per unit`}
             >
               <span className="inline-flex items-center gap-1"><PxIcon name="flask" size={13} /> Catalyst ({inputLabel(catalystId)})</span>
             </button>
@@ -1389,8 +1241,7 @@ const RecipeCard: React.FC<{
             The same guidance now prints as visible text. */}
         {(catalystId !== null || ticketsOwned < 1 || useRush) && (
           <div className="space-y-0.5 text-[11px] leading-snug text-text-muted">
-            {catalystId && benchSel < 2 && <div>Catalysts need the Forge (bench 2).</div>}
-            {catalystId && benchSel >= 2 && useCatalyst && (
+            {catalystId && useCatalyst && (
               <div>{`Catalyst: +10/+15 quality bounds, 1 ${inputLabel(catalystId)} per unit.`}</div>
             )}
             {ticketsOwned < 1 && <div>No rush tickets — they are crafted here (Utility recipes) and rotate through the vendor.</div>}

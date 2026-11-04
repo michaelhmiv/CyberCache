@@ -972,10 +972,7 @@ export interface WriteStore {
   enqueueCraftJob(playerId: string, nonce: string, input: EnqueueCraftJobInput): Promise<Json>;
   /** Cancel an active craft job with the §2.1 refund table (cc_cancel_craft_job). */
   cancelCraftJob(playerId: string, nonce: string, jobId: string): Promise<Json>;
-  /** Unlock the next bench atomically (cc_unlock_bench). */
-  unlockCraftBench(playerId: string, nonce: string): Promise<Json>;
   /** Fit (or clear, with null) a workshop tool on a bench. */
-  fitWorkshopTool(playerId: string, nonce: string, bench: number, toolId: string | null): Promise<Json>;
   /**
    * Run the craft settler for a player (cc_settle_craft_jobs).
    * Idempotent by server timestamps — not a nonce op. maxAdvanceMs,
@@ -1503,14 +1500,6 @@ export class PgWriteStore implements WriteStore {
     await finalizePendingCraftedGear(this.pool, playerId);
     await finalizePendingCraftedCosmetics(this.pool, playerId);
     return result;
-  }
-  unlockCraftBench(playerId: string, nonce: string): Promise<Json> {
-    return this.callJson('select public.cc_unlock_bench($1, $2) as result', [playerId, nonce]);
-  }
-  fitWorkshopTool(playerId: string, nonce: string, bench: number, toolId: string | null): Promise<Json> {
-    return this.callJson('select public.cc_fit_workshop_tool($1, $2, $3, $4) as result', [
-      playerId, nonce, bench, toolId,
-    ]);
   }
   async settleCraftJobs(playerId: string, maxAdvanceMs?: number): Promise<Json> {
     const result = await this.callJson('select public.cc_settle_craft_jobs($1, $2) as result', [

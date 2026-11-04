@@ -86,7 +86,7 @@ const formMaskOf = (render: GearRender) =>
 describe('relic grammar — coverage: every name in the pool maps to a row', () => {
   it('the grammar rows and RELIC_NAMES are exactly the same set', () => {
     expect(RELIC_FORM_ROWS.map((r) => r.name).sort()).toEqual([...RELIC_NAMES].sort());
-    expect(RELIC_FORM_ROWS).toHaveLength(12);
+    expect(RELIC_FORM_ROWS).toHaveLength(16);
   });
 
   it('every pooled name resolves a row and composes at both densities', () => {
@@ -270,6 +270,12 @@ describe('relic grammar — golden signature pins', () => {
     'glitched-token Epic card': 'f24a3315',
     'ethereal-drive Epic card': '83edad7c',
     'quantum-fragment Epic card': '17c1973b',
+    // The craft relics (economy slice 9): the converted workshop
+    // tools + the Prime Laboratory join the pool and the pins.
+    'precision-calipers Epic card': '3745118f',
+    'servo-bench-rig Epic card': 'dc03aff5',
+    'reclaimer-head Epic card': '3f9c366',
+    'prime-laboratory Epic card': '96d79796',
     'vault-chip Epic thumb': '4ca48cd3',
     'neural-key Epic thumb': '96ec728e',
     'glitched-token Epic thumb': '516da663',
@@ -304,6 +310,10 @@ describe('relic grammar — golden signature pins', () => {
     'glitched-token Epic card': { input: byForm('glitched-token'), density: 'card' },
     'ethereal-drive Epic card': { input: byForm('ethereal-drive'), density: 'card' },
     'quantum-fragment Epic card': { input: byForm('quantum-fragment'), density: 'card' },
+    'precision-calipers Epic card': { input: byForm('precision-calipers'), density: 'card' },
+    'servo-bench-rig Epic card': { input: byForm('servo-bench-rig'), density: 'card' },
+    'reclaimer-head Epic card': { input: byForm('reclaimer-head'), density: 'card' },
+    'prime-laboratory Epic card': { input: byForm('prime-laboratory'), density: 'card' },
     'vault-chip Epic thumb': { input: byForm('vault-chip'), density: 'thumb' },
     'neural-key Epic thumb': { input: byForm('neural-key'), density: 'thumb' },
     'glitched-token Epic thumb': { input: byForm('glitched-token'), density: 'thumb' },

@@ -92,8 +92,6 @@ export interface WorkshopState {
     useRushTicket?: boolean;
   }) => Promise<boolean>;
   cancel: (jobId: string) => Promise<boolean>;
-  unlockBench: () => Promise<boolean>;
-  fitTool: (bench: number, toolId: string | null) => Promise<boolean>;
 }
 
 function asView(result: Record<string, unknown>): WorkshopServerView {
@@ -149,25 +147,4 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
     }
   },
 
-  unlockBench: async () => {
-    try {
-      await verifiedOps.unlockCraftBench();
-      await get().refresh();
-      return true;
-    } catch (err) {
-      set({ error: humanizeWorkshopError(err) });
-      return false;
-    }
-  },
-
-  fitTool: async (bench, toolId) => {
-    try {
-      await verifiedOps.fitWorkshopTool(bench, toolId);
-      await get().refresh();
-      return true;
-    } catch (err) {
-      set({ error: humanizeWorkshopError(err) });
-      return false;
-    }
-  },
 }));

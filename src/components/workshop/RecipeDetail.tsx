@@ -19,8 +19,8 @@ import {
   craftQualityBounds,
   gearTemperChance,
   isMaterialInput,
+  craftRelicByName,
   refineOutputRange,
-  toolDef,
   type CraftRecipe,
 } from '@/content/crafting';
 import {
@@ -52,7 +52,7 @@ export const SourceLine: React.FC<{
           <span key={index}>
             {sep}
             <button type="button" className={doorClass} onClick={() => onRefineFocus(source.recipeId)}>
-              Refine here — the {source.station === 'furnace' ? 'Lab furnace' : 'crusher'} <PxIcon name="chevR" size={13} />
+              Refine here — the {source.station === 'furnace' ? 'furnace' : 'crusher'} <PxIcon name="chevR" size={13} />
             </button>
           </span>
         );
@@ -114,19 +114,12 @@ export const GateLines: React.FC<{
   gates: RecipeGate[];
   onNavigate?: (screen: string) => void;
   onOpenBenches: () => void;
-}> = ({ gates, onNavigate, onOpenBenches }) => {
+}> = ({ gates, onNavigate }) => {
   const door = (gate: RecipeGate) => {
     if (gate.door === 'research') {
       return (
         <button type="button" onClick={() => onNavigate?.('research')} className="ml-1 inline-flex items-center gap-0.5 font-black text-amber">
           Research, Hunter tab <PxIcon name="chevR" size={13} />
-        </button>
-      );
-    }
-    if (gate.door === 'benches') {
-      return (
-        <button type="button" onClick={onOpenBenches} className="ml-1 inline-flex items-center gap-0.5 font-black text-amber">
-          Benches &amp; Tools <PxIcon name="chevR" size={13} />
         </button>
       );
     }
@@ -172,12 +165,12 @@ export const RecipeInspectSheet: React.FC<{
   const purpose = recipePurpose(recipe, ctx);
   const def = recipe.consumableType ? CONSUMABLES[recipe.consumableType] : undefined;
   const bounds =
-    recipe.kind === 'refine' || recipe.kind === 'tool'
+    recipe.kind === 'refine'
       ? null
       : craftQualityBounds({
           consumableType: recipe.kind === 'consumable' ? recipe.consumableType : null,
           masteryLevel: masteryLevel(ctx, recipe.kind === 'gear' ? 'crafting.gear' : recipe.kind === 'cosmetic' ? 'crafting.cosmetics' : 'crafting_consumables'),
-          bench: Math.min(Math.max(bench, 1), Math.max(1, ctx.benchesOwned)),
+          bench,
           catalyst: useCatalyst,
         });
   const temperChance =
@@ -193,7 +186,7 @@ export const RecipeInspectSheet: React.FC<{
       ? `${refineRange.min}–${refineRange.max}`
       : `${refineRange.min}`
     : null;
-  const tool = recipe.kind === 'tool' && recipe.toolId ? toolDef(recipe.toolId) : undefined;
+  const relic = recipe.namedRelic ? craftRelicByName(recipe.namedRelic) : undefined;
 
   return (
     <PickerSheet title={recipe.name} subtitle="Recipe detail" onClose={onClose}>
@@ -239,9 +232,10 @@ export const RecipeInspectSheet: React.FC<{
             <div className="text-[11px] leading-relaxed text-text-secondary">
               Refining rolls no quality — the yield is the number: {refineOut} out per unit at your Refining mastery {masteryLevel(ctx, 'crafting.refining')}, rising toward 10 back for 10 as mastery grows.
             </div>
-          ) : tool ? (
+          ) : relic ? (
             <div className="text-[11px] leading-relaxed text-text-secondary">
-              {tool.blurb}
+              {relic.blurb} Equip it on your hunter and its workshop effects apply to every job
+              while worn — permanently; relics never wear out.
             </div>
           ) : null}
         </div>

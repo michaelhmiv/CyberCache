@@ -257,7 +257,13 @@ describe('string hygiene — A2/A3/A6: fixed sites stay fixed (source pins)', ()
     },
     {
       file: 'src/screens/WorkshopScreen.tsx',
-      mustContain: ["getVisualAsset('material', k).label"],
+      // The original pinned site rendered the bench-unlock card's
+      // cost inputs (`getVisualAsset('material', k).label`); slice
+      // 9 deleted the unlock card with the bench tiers. The law
+      // (material keys render through their labels, never raw)
+      // now pins at the surviving MaterialUsageSheet site, which
+      // iterates with `type`.
+      mustContain: ["getVisualAsset('material', type).label"],
       mustNotContain: ['` + ${v} ${k}`', '(${catalystId})', 'Refines to ${recipe.outputMaterial}'],
     },
     {

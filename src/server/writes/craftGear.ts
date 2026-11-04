@@ -26,7 +26,7 @@ import { rollCraftQuality, type CraftQualityBounds } from '../../content/craftin
 import { generateWeapon } from '../lib/generators/weaponGenerator.js';
 import { generateShield } from '../lib/generators/shieldGenerator.js';
 import { generateClassMod } from '../lib/generators/classModGenerator.js';
-import { generateRelic } from '../lib/generators/relicGenerator.js';
+import { generateNamedRelic, generateRelic } from '../lib/generators/relicGenerator.js';
 import { generateOrdnance } from '../lib/generators/ordnanceGenerator.js';
 
 export type CraftGearSlot = 'weapon' | 'shield' | 'classMod' | 'relic' | 'ordnance';
@@ -73,6 +73,9 @@ export function generateCraftedGearCandidate(input: {
   itemLevel: number;
   creatorId: string;
   rng: () => number;
+  /** Named-relic crafts (slice 9): mint this named relic (fixed
+   *  crafting affixes) instead of rolling the relic generator. */
+  namedRelic?: string;
 }): CraftedGearCandidate {
   const { slot, rarity, itemLevel, creatorId, rng } = input;
   let item: Record<string, unknown>;
@@ -90,7 +93,9 @@ export function generateCraftedGearCandidate(input: {
       item = generateClassMod(itemLevel, rng, forcedRarityWeights(rarity)) as unknown as Record<string, unknown>;
       break;
     case 'relic':
-      item = generateRelic(itemLevel, rng, forcedRarityWeights(rarity)) as unknown as Record<string, unknown>;
+      item = (input.namedRelic
+        ? generateNamedRelic(input.namedRelic, itemLevel, rarity, rng)
+        : generateRelic(itemLevel, rng, forcedRarityWeights(rarity))) as unknown as Record<string, unknown>;
       break;
     case 'ordnance':
       item = generateOrdnance(itemLevel, rng, forcedRarityWeights(rarity)) as unknown as Record<string, unknown>;
@@ -136,6 +141,10 @@ export function generateCraftedGearItem(input: {
   creatorId: string;
   draws: number;
   rng: () => number;
+  /** Named-relic crafts (slice 9): forwarded to the candidate
+   *  generator; the caller forces draws to 1 (the mint is fixed —
+   *  there is nothing to draw between). */
+  namedRelic?: string;
   qualityRoll?: {
     bounds: CraftQualityBounds;
     bench: number;

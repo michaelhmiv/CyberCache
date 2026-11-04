@@ -13,6 +13,8 @@
  *     durations (6h / 48h / 168h), the fees destroyed at enroll
  *     (2,500 / 15,000 / 60,000 cr), and Fabrication's bench gates
  *     (bench 2 / bench 3 — bench unlock levels are a later step).
+ *     [Slice-9 note, 2026-11-03: the bench collapse has since
+ *     retired those bench gates too — see the re-pointed pins.]
  *   - Behavior against the in-memory gameplay twin: a level-1
  *     player starts, queues, and completes the formerly gated
  *     Xenotech ladder end to end; without the prerequisite or the
@@ -42,8 +44,8 @@ const MIGRATION_0059 = readFileSync(
   join(process.cwd(), 'db', 'migrations', '0059_research_course_levels.sql'),
   'utf8',
 );
-const MIGRATION_0063 = readFileSync(
-  join(process.cwd(), 'db', 'migrations', '0063_offline_cap_research_carrier.sql'),
+const MIGRATION_0073 = readFileSync(
+  join(process.cwd(), 'db', 'migrations', '0073_bench_collapse_relic_merger.sql'),
   'utf8',
 );
 
@@ -87,13 +89,16 @@ describe('migration 0059 — research course levels removed', () => {
   });
 
   it('both restated SQL catalogs deep-equal the TS catalog (12 courses)', () => {
-    // Parity binds the LIVE restatement: 0063 (gate-removal step 6)
-    // restated both catalogs again with the Logistics offline-cap
-    // grants, superseding 0059's literals, whose level-removal pins
-    // above stand as written.
+    // Parity binds the LIVE restatement: 0073 (economy slice 9,
+    // bench collapse) restated both catalogs again with the
+    // Fabrication bench gates removed, superseding 0063's literals,
+    // whose pins above stand as written. (0073 also carries the
+    // 88-entry craft catalog — the filter keeps the two Research
+    // literals.)
     const expected = tsCatalogAsSql();
-    for (const catalog of parseCatalogs(MIGRATION_0063)) {
-      expect(catalog).toHaveLength(12);
+    const researchCatalogs = parseCatalogs(MIGRATION_0073).filter((c) => c.length === 12);
+    expect(researchCatalogs).toHaveLength(2);
+    for (const catalog of researchCatalogs) {
       expect(catalog).toEqual(expected);
     }
   });
@@ -201,13 +206,15 @@ describe('research enrollment after gate-removal step 3 (0059)', () => {
     expect(store.profiles.get(A)?.credits).toBe(500_000); // refused enrollments charge zero
   });
 
-  it('the Fabrication bench gate still binds at level 1', async () => {
+  it('the Fabrication bench gate no longer binds (slice 9): bench 1 enrolls after the prerequisite', async () => {
     const store = makeStore();
     seedLevelOne(store, { workshop_benches: 1 });
     await store.enrollResearch(A, nonce(), 'shop_fundamentals');
     nowMs += 6 * HOUR;
     await store.getResearchFacts(A); // settles Shop Fundamentals
-    await expect(store.enrollResearch(A, nonce(), 'production_systems')).rejects.toThrow('bench_too_low');
+    // Pre-collapse this threw 'bench_too_low'. One bench for
+    // everyone — the prerequisite + fee are the whole gate now.
+    await expect(store.enrollResearch(A, nonce(), 'production_systems')).resolves.toBeTruthy();
   });
 
   it('the state view at level 1: tier 1 is available; chains lock by prerequisite only', async () => {

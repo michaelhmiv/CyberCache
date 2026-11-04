@@ -333,19 +333,6 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     if (!jobId) return null;
     return store.cancelCraftJob(playerId, str(body(req).nonce), jobId);
   });
-  op('/api/ops/craft-unlock-bench', async (playerId, req) =>
-    store.unlockCraftBench(playerId, str(body(req).nonce)),
-  );
-  op('/api/ops/craft-fit-tool', async (playerId, req, res) => {
-    const bench = numField(req, res, 'bench', 'bench value');
-    if (bench === null) return null;
-    return store.fitWorkshopTool(
-      playerId,
-      str(body(req).nonce),
-      bench,
-      optStr(body(req).tool_id),
-    );
-  });
   // The Workshop state read: settles the player's jobs server-side,
   // then returns benches/tools/jobs/masteries in the one view shape.
   app.get('/api/workshop/me', async (req, res) => {

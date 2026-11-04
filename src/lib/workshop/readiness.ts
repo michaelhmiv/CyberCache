@@ -29,17 +29,14 @@
  * every one at enqueue.
  */
 import {
-  ALL_CRAFT_RECIPES,
   CRAFT_BENCHES,
   EPIC_FRAME_GEAR_MASTERY,
   QUEUED_JOBS_PER_BENCH,
-  benchDef,
   catalystForRecipe,
   craftQualityBounds,
-  gearRarityRequiresBench,
+  craftRelicByName,
   isMaterialInput,
   refineOutputRange,
-  toolDef,
   REFINE_BASE_YIELD_DEFAULT,
   type CraftRecipe,
 } from '@/content/crafting';
@@ -68,7 +65,7 @@ export function masteryTrackLabel(track: string): string {
 /** The mastery track whose level prices a recipe kind's quality. */
 export function masteryTrackForRecipe(recipe: CraftRecipe): string {
   if (recipe.kind === 'refine') return 'crafting.refining';
-  if (recipe.kind === 'gear' || recipe.kind === 'tool') return 'crafting.gear';
+  if (recipe.kind === 'gear') return 'crafting.gear';
   if (recipe.kind === 'cosmetic') return 'crafting.cosmetics';
   return 'crafting_consumables';
 }
@@ -94,9 +91,8 @@ export interface WorkshopPlayerContext {
    * way (never optimistically open).
    */
   researchCompletedIds: ReadonlySet<string> | null;
-  /** Active (running/queued/paused) jobs, for queue + tool checks. */
+  /** Active (running/queued/paused) jobs, for queue checks. */
   activeJobs: Array<{ bench: number; recipeId: string }>;
-  toolsOwned: Record<string, boolean>;
   /**
    * Econ 7 (brief §4.4): the server's resolved per-recipe Scrap
    * costs from the Workshop snapshot. Material-shortage math runs
@@ -115,10 +111,9 @@ export type GateFamily =
   | 'standing'
   | 'materials'
   | 'queue'
-  | 'tool'
   | 'ticket';
 
-export type GateDoor = 'research' | 'benches' | 'repdesk';
+export type GateDoor = 'research' | 'repdesk';
 
 export interface RecipeGate {
   family: GateFamily;
@@ -186,23 +181,12 @@ export function defaultEvalOptions(recipe: CraftRecipe): Required<RecipeEvalOpti
   };
 }
 
-function benchCostText(bench: number): string {
-  const def = benchDef(bench);
-  const inputs = Object.entries(def.costInputs)
-    .map(([k, v]) => ` + ${v} ${inputLabel(k)}`)
-    .join('');
-  return `${def.costCredits.toLocaleString('en-US')}cr${inputs}`;
-}
-
-function summaryPart(family: GateFamily, gates: RecipeGate[], shortages: InputShortage[], recipe: CraftRecipe, requiredBench: number): string {
+function summaryPart(family: GateFamily, gates: RecipeGate[], shortages: InputShortage[]): string {
   switch (family) {
     case 'level':
       return 'level';
-    case 'bench': {
-      const failing = gates.find((g) => g.family === 'bench' && !g.met);
-      if (failing?.summary) return failing.summary;
-      return `the ${benchDef(requiredBench).name}`;
-    }
+    case 'bench':
+      return 'the bench';
     case 'mastery':
       return 'mastery';
     case 'research':
@@ -213,8 +197,6 @@ function summaryPart(family: GateFamily, gates: RecipeGate[], shortages: InputSh
       return shortages.length === 1 ? '1 material' : 'materials';
     case 'queue':
       return 'bench queue full';
-    case 'tool':
-      return gates.some((g) => g.family === 'tool' && !g.met && g.label.includes('already queued')) ? 'tool queued' : 'tool owned';
     case 'ticket':
       return 'a Rush Ticket';
   }
@@ -236,21 +218,11 @@ export function deriveRecipeReadiness(
   const units = Math.max(1, Math.floor(opts.units ?? 1));
   const isGear = recipe.kind === 'gear';
   const rarity = isGear ? (opts.rarity ?? Rarity.Common) : null;
-  const rarityBench = isGear ? gearRarityRequiresBench(rarity as Rarity) : 1;
-  const requiredBench = Math.max(recipe.requiresBench, rarityBench);
-
-  // Bench choice: the requested bench, else the lowest OWNED bench
-  // that satisfies the requirement AND has queue room (a full bench
-  // 1 must not hide a free Forge), else the lowest owned sufficient
-  // bench (so the queue gate can fire), else the requirement itself
-  // (so the bench gate can name what is missing).
-  let bench = opts.bench ?? 0;
-  if (!bench) {
-    const jobsOn = (b: number) => ctx.activeJobs.filter((j) => j.bench === b).length;
-    const ownedSufficient = [1, 2, 3].filter((b) => b >= requiredBench && b <= ctx.benchesOwned);
-    bench = ownedSufficient.find((b) => jobsOn(b) < BENCH_JOB_CAPACITY) ?? ownedSufficient[0] ?? requiredBench;
-  }
-  bench = Math.max(bench, requiredBench);
+  // Bench collapse (slice 9): ONE bench, always owned, and every
+  // recipe's requiresBench is 1 — the bench is a constant of the
+  // workshop, not a choice. (Econ 10 widens its envelope — running
+  // + queued — never its count.)
+  const bench = 1;
 
   const gates: RecipeGate[] = [];
   const shortages: InputShortage[] = [];
@@ -265,18 +237,14 @@ export function deriveRecipeReadiness(
         : `Level ${recipe.requiresLevel} — yours is ${ctx.playerLevel}`,
   });
 
-  // Bench — recipe minimum and the chosen rarity's bench together.
-  const benchOwned = ctx.benchesOwned >= requiredBench;
+  // Bench — met by construction since the collapse: one bench,
+  // always owned. The gate line stays so the card's checklist keeps
+  // its shape and says the true thing.
+  const benchOwned = true;
   gates.push({
     family: 'bench',
-    met: benchOwned,
-    label: benchOwned
-      ? requiredBench <= 1
-        ? 'Any bench — met'
-        : `${benchDef(requiredBench).name} bench — owned`
-      : `${benchDef(requiredBench).name} bench (Bench ${requiredBench}) — yours is the ${benchDef(ctx.benchesOwned).name}. The ${benchDef(requiredBench).name} takes ${benchCostText(requiredBench)}:`,
-    door: benchOwned ? undefined : 'benches',
-    summary: benchOwned ? undefined : `the ${benchDef(requiredBench).name}`,
+    met: true,
+    label: 'The bench — ready',
   });
 
   // Mastery — the recipe's own gate, with the player's standing.
@@ -336,16 +304,6 @@ export function deriveRecipeReadiness(
     });
   }
 
-  // Tool ownership — a tool you own (or already have queued) cannot
-  // be crafted again; the server refuses both.
-  if (recipe.kind === 'tool' && recipe.toolId) {
-    if (ctx.toolsOwned[recipe.toolId]) {
-      gates.push({ family: 'tool', met: false, label: `You already own the ${toolDef(recipe.toolId)?.name ?? recipe.name} — fit it at Benches & Tools above.` });
-    } else if (ctx.activeJobs.some((j) => j.recipeId === recipe.id)) {
-      gates.push({ family: 'tool', met: false, label: 'A job for this tool is already queued on a bench.' });
-    }
-  }
-
   // Materials — every shortage, counted as ONE family. Econ 7: the
   // bill is the RESOLVED one (the Scrap leg at its lever value).
   for (const [key, per] of Object.entries(resolvedRecipeInputs(recipe, ctx.recipeScrapCosts))) {
@@ -372,23 +330,6 @@ export function deriveRecipeReadiness(
           ? `Missing ${shortages[0].label} ×${shortages[0].short} — its source is on its line above`
           : `Short on ${shortages.length} materials — every source is on its line above`,
     });
-    // Indirect bench gate (the mock's Precision Calipers rule): a
-    // short input whose only making is a refining recipe on a bench
-    // the player does not own yet carries that bench as a second
-    // family — the card is Locked, not one gate away, and says why.
-    for (const s of shortages) {
-      const producer = ALL_CRAFT_RECIPES.find((r) => r.kind === 'refine' && r.outputMaterial === s.key);
-      if (producer && producer.requiresBench > ctx.benchesOwned) {
-        gates.push({
-          family: 'bench',
-          met: false,
-          label: `${s.label} is made in the ${producer.station === 'furnace' ? 'Lab furnace' : 'crusher'} — the ${benchDef(producer.requiresBench).name} bench is still locked:`,
-          door: 'benches',
-          summary: `the ${benchDef(producer.requiresBench).name}`,
-        });
-        break;
-      }
-    }
   }
 
   // Rush ticket — an escrow the player must actually hold.
@@ -402,7 +343,7 @@ export function deriveRecipeReadiness(
 
   // Queue capacity — only binds when an owned, sufficient bench is
   // the one that would run the job and it is full.
-  if (benchOwned && bench <= ctx.benchesOwned) {
+  if (benchOwned) {
     const onBench = ctx.activeJobs.filter((j) => j.bench === bench).length;
     if (onBench >= BENCH_JOB_CAPACITY) {
       gates.push({
@@ -416,7 +357,7 @@ export function deriveRecipeReadiness(
   // Canonical summary order (the mock's CTA words: "the Lab +
   // materials", "mastery + 1 material", "level + materials") —
   // structural gates first, the material bill last.
-  const FAMILY_ORDER: GateFamily[] = ['level', 'bench', 'mastery', 'research', 'standing', 'materials', 'queue', 'tool', 'ticket'];
+  const FAMILY_ORDER: GateFamily[] = ['level', 'bench', 'mastery', 'research', 'standing', 'materials', 'queue', 'ticket'];
   const blockerFamilies: GateFamily[] = [];
   for (const gate of gates) {
     if (!gate.met && !blockerFamilies.includes(gate.family)) blockerFamilies.push(gate.family);
@@ -431,7 +372,7 @@ export function deriveRecipeReadiness(
     disabledSummary =
       blockerFamilies.length === 1 && blockerFamilies[0] === 'materials'
         ? 'Missing materials'
-        : `Locked — ${blockerFamilies.map((f) => summaryPart(f, gates, shortages, recipe, requiredBench)).join(' + ')}`;
+        : `Locked — ${blockerFamilies.map((f) => summaryPart(f, gates, shortages)).join(' + ')}`;
   }
 
   return {
@@ -492,9 +433,14 @@ export function recipePurpose(
       hint: 'Epic frames can finish tempered: a bonus stat roll.',
     };
   }
-  if (recipe.kind === 'tool' && recipe.toolId) {
-    const def = toolDef(recipe.toolId);
-    if (def) return { text: def.blurb, hint: 'Permanent once crafted — a fitted tool never wears out.' };
+  if (recipe.namedRelic) {
+    const def = craftRelicByName(recipe.namedRelic);
+    if (def) {
+      return {
+        text: def.blurb,
+        hint: 'A named relic — equip it on your hunter; its workshop effects apply to every job while worn. Permanent: relics never wear out.',
+      };
+    }
   }
   if (recipe.kind === 'cosmetic') {
     const part = SKIN_PARTS.find((p) => p.id === recipe.cosmeticPartId);
@@ -517,7 +463,7 @@ export function recipeQualityLine(
   bench: number,
   useCatalyst: boolean,
 ): string | null {
-  if (recipe.kind === 'refine' || recipe.kind === 'tool') return null;
+  if (recipe.kind === 'refine') return null;
   const bounds = craftQualityBounds({
     consumableType: recipe.kind === 'consumable' ? recipe.consumableType : null,
     masteryLevel: masteryLevel(ctx, masteryTrackForRecipe(recipe)),
