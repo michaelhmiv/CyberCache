@@ -505,7 +505,7 @@ describe('dispatch routes', () => {
     expect(mission.status).toBe('settled');
     expect(mission.payout_fraction).toBe(1);
     expect(h.store.profiles.get(A)!.credits).toBe(expected.credits);
-    expect(h.store.profiles.get(A)!.scrap).toBe(expected.scrap);
+    expect(h.store.profiles.get(A)!.materials['Scrap'] ?? 0).toBe(expected.scrap);
     // Gear is home and usable again.
     for (const id of itemIds) {
       const item = h.store.items.get(id)!;

@@ -4299,3 +4299,206 @@ as $$
 ]
 $catalog$::jsonb
 $$;
+
+-- ----------------------------------------------------------------
+-- 7. Extraction award applier (restated from 0053, its chain head):
+--    the material-find whitelist renames with the key space. Without
+--    this restatement the live applier would reject every 'Scrap'
+--    find as 'not a material' while still accepting the retired key.
+--    Single-token delta; the essence whitelist is untouched.
+-- ----------------------------------------------------------------
+create or replace function public.cc_apply_extraction(
+  p_player_id uuid,
+  p_nonce text,
+  p_passes jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor uuid := p_player_id;
+  prior jsonb;
+  p public.profiles%rowtype;
+  s public.extraction_state%rowtype;
+  v_rate numeric := least(0.85, greatest(0.70,
+    public.cc_economy_config_number('extractXpRate', 0.75)));
+  v_rank_fraction numeric;
+  v_pending jsonb;
+  v_expected integer;
+  v_pass jsonb;
+  v_index integer;
+  v_draws integer;
+  v_units bigint;
+  v_key text;
+  v_qty bigint;
+  v_xp bigint;
+  v_next jsonb;
+  v_level integer;
+  v_level_xp bigint;
+  v_total_xp bigint := 0;
+  v_materials jsonb := '{}'::jsonb;
+  v_essences jsonb := '{}'::jsonb;
+  v_results jsonb := '[]'::jsonb;
+  result jsonb;
+  v_material_ids text[] := array[
+    'Scrap','BallisticParts','ReactiveComponents','TechFragments','VoidDust',
+    'Siltglass','NitrocellGel','HeartwoodResin','ForgeheartIngots',
+    'PrismShards','MagnetiteCores','MycoSteelFiber',
+    'RefinedAlloy','TemperedParts','StabilizedCells','WovenCircuits',
+    'CondensedVoid','CompositePlating','CircuitLattice','Voidweave','Chromaweave'];
+  v_essence_ids text[] := array[
+    'IgnitionFluid','ConduitWire','AcidCompound','CryoGel','VoidEssence'];
+begin
+  if actor is null then raise exception 'Authentication required'; end if;
+  if p_nonce is null or length(trim(p_nonce)) < 8 then raise exception 'nonce is required'; end if;
+
+  select result_payload into prior
+  from public.verified_action_ledger vl
+  where vl.user_id = actor and vl.idempotency_key = p_nonce;
+  if prior is not null then return prior; end if;
+
+  perform pg_advisory_xact_lock(hashtext(actor::text));
+
+  select * into p from public.profiles where id = actor for update;
+  if not found then raise exception 'Profile not found'; end if;
+  select * into s from public.extraction_state where user_id = actor for update;
+  if not found then raise exception 'No extraction state'; end if;
+
+  v_pending := s.pending_passes;
+  if jsonb_typeof(p_passes) is distinct from 'array' then
+    raise exception 'Extraction passes payload must be an array';
+  end if;
+  if jsonb_array_length(p_passes) = 0 then
+    raise exception 'Extraction settle batch is empty';
+  end if;
+  if jsonb_array_length(p_passes) > jsonb_array_length(v_pending) then
+    raise exception 'Extraction settle claims more passes than are pending';
+  end if;
+
+  v_rank_fraction := public.cc_cache_rank_bonus_fraction(
+    coalesce(p.cache_rank_spends, '{}'::jsonb), 'xp');
+  v_level := p.player_level;
+  v_level_xp := p.player_xp;
+  v_expected := s.finalized_passes;
+
+  for v_pass in select * from jsonb_array_elements(p_passes) loop
+    v_expected := v_expected + 1;
+    v_index := (v_pass ->> 'index')::integer;
+    if v_index is null or v_index <> v_expected then
+      raise exception 'Extraction pass index % does not continue the sequence', v_index;
+    end if;
+    if (v_pending -> (v_expected - s.finalized_passes - 1) ->> 'areaId')
+         is distinct from (v_pass ->> 'area_id')
+       or (v_pending -> (v_expected - s.finalized_passes - 1) ->> 'method')
+         is distinct from (v_pass ->> 'method') then
+      raise exception 'Extraction pass % does not match the pending pass on record', v_index;
+    end if;
+    v_draws := coalesce((v_pass ->> 'draws')::integer, 0);
+    if v_draws < 0 or v_draws > 500 then
+      raise exception 'Extraction pass % draws out of bounds', v_index;
+    end if;
+
+    -- Whitelist + unit bound across both find maps.
+    v_units := 0;
+    for v_key, v_qty in
+      select key, (value)::bigint
+        from jsonb_each_text(coalesce(v_pass -> 'finds_materials', '{}'::jsonb))
+    loop
+      if not (v_key = any (v_material_ids)) then
+        raise exception 'Extraction find % is not a material', v_key;
+      end if;
+      if v_qty <= 0 then raise exception 'Extraction find quantity must be positive'; end if;
+      v_units := v_units + v_qty;
+    end loop;
+    for v_key, v_qty in
+      select key, (value)::bigint
+        from jsonb_each_text(coalesce(v_pass -> 'finds_essences', '{}'::jsonb))
+    loop
+      if not (v_key = any (v_essence_ids)) then
+        raise exception 'Extraction find % is not an essence', v_key;
+      end if;
+      if v_qty <= 0 then raise exception 'Extraction find quantity must be positive'; end if;
+      v_units := v_units + v_qty;
+    end loop;
+    if v_units > 2 * v_draws then
+      raise exception 'Extraction pass % finds exceed the per-pass unit bound', v_index;
+    end if;
+
+    -- XP priced here, sequentially, from the level sequence.
+    v_xp := round(public.cc_extract_pass_xp(v_level, v_rate) * (1 + v_rank_fraction))::bigint;
+    v_next := public.cc_apply_xp(v_level, v_level_xp, v_xp);
+    v_level := (v_next ->> 'player_level')::integer;
+    v_level_xp := (v_next ->> 'player_xp')::bigint;
+    v_total_xp := v_total_xp + v_xp;
+
+    for v_key, v_qty in
+      select key, (value)::bigint
+        from jsonb_each_text(coalesce(v_pass -> 'finds_materials', '{}'::jsonb))
+    loop
+      p.materials := public.cc_jsonb_add_int(p.materials, v_key, v_qty::integer);
+      v_materials := public.cc_jsonb_add_int(v_materials, v_key, v_qty::integer);
+    end loop;
+    for v_key, v_qty in
+      select key, (value)::bigint
+        from jsonb_each_text(coalesce(v_pass -> 'finds_essences', '{}'::jsonb))
+    loop
+      p.essences := public.cc_jsonb_add_int(p.essences, v_key, v_qty::integer);
+      v_essences := public.cc_jsonb_add_int(v_essences, v_key, v_qty::integer);
+    end loop;
+
+    perform public.cc_add_mastery_xp(actor, 'gathering.extraction', 20);
+    perform public.cc_add_stat(actor, 'extraction_passes', 1);
+
+    v_results := v_results || jsonb_build_array(jsonb_build_object(
+      'index', v_index,
+      'area_id', v_pass ->> 'area_id',
+      'method', v_pass ->> 'method',
+      'draws', v_draws,
+      'gear_factor', coalesce((v_pass ->> 'gear_factor')::numeric, 0),
+      'deep_degraded', coalesce((v_pass ->> 'deep_degraded')::boolean, false),
+      'xp', v_xp,
+      'finds_materials', coalesce(v_pass -> 'finds_materials', '{}'::jsonb),
+      'finds_essences', coalesce(v_pass -> 'finds_essences', '{}'::jsonb),
+      'signature_units', coalesce((v_pass ->> 'signature_units')::integer, 0)
+    ));
+  end loop;
+
+  update public.extraction_state
+     set pending_passes = (
+           select coalesce(jsonb_agg(elem order by ord), '[]'::jsonb)
+             from jsonb_array_elements(v_pending) with ordinality as t(elem, ord)
+            where ord > jsonb_array_length(p_passes)
+         ),
+         finalized_passes = s.finalized_passes + jsonb_array_length(p_passes),
+         total_xp_awarded = s.total_xp_awarded + v_total_xp,
+         updated_at = now()
+   where user_id = actor;
+
+  update public.profiles
+     set player_level = v_level,
+         player_xp = v_level_xp,
+         materials = p.materials,
+         essences = p.essences,
+         updated_at = now()
+   where id = actor;
+
+  result := jsonb_build_object(
+    'settled', true,
+    'passes_completed', jsonb_array_length(p_passes),
+    'xp_awarded', v_total_xp,
+    'mastery_xp', 20 * jsonb_array_length(p_passes),
+    'finds_materials', v_materials,
+    'finds_essences', v_essences,
+    'passes', v_results,
+    'player_level', v_level,
+    'player_xp', v_level_xp
+  );
+
+  insert into public.verified_action_ledger(user_id, action_type, idempotency_key, result_payload)
+  values (actor, 'cc_apply_extraction', p_nonce, result);
+
+  return result;
+end;
+$$;
