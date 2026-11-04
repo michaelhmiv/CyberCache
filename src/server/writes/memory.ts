@@ -70,6 +70,8 @@ import {
   type FixerEnqueueBonuses,
 } from './craftEngine.js';
 import {
+  BENCH_TIME_BANK_CAP_SECONDS,
+  BENCH_TIME_GRANT_SECONDS,
   CRAFT_XP_RATE_DEFAULT,
   CRAFT_TIME_SCALAR_DEFAULT,
   CRAFT_QUALITY_SHIFT_DEFAULT,
@@ -2318,6 +2320,11 @@ export class InMemoryWriteStore implements WriteStore {
           clampRecipeScrapCost(provided.recipeScrapCosts?.[recipeId], literal),
         ]),
       ),
+      // Econ 10 (brief §8.2): the bench-time grant and bank cap —
+      // clamped to the registry specs (config.ts), content literals
+      // as defaults; the SQL twin clamps identically in 0075.
+      benchTimeGrantSeconds: clamp(provided.benchTimeGrantSeconds, BENCH_TIME_GRANT_SECONDS, 0, 86400),
+      benchTimeBankCapSeconds: clamp(provided.benchTimeBankCapSeconds, BENCH_TIME_BANK_CAP_SECONDS, 0, 604800),
     };
   }
 
@@ -2348,6 +2355,8 @@ export class InMemoryWriteStore implements WriteStore {
           charges: { ...(rawTools.charges ?? {}) },
         },
         offline_cap_hours: p.offline_cap_hours ?? null,
+        bench_time_banked_seconds: p.bench_time_banked_seconds ?? 0,
+        bench_time_remainder_ms: p.bench_time_remainder_ms ?? 0,
       };
       p.materials = view.materials;
       p.essences = view.essences;
@@ -2360,6 +2369,8 @@ export class InMemoryWriteStore implements WriteStore {
       view.workshop_benches = p.workshop_benches ?? view.workshop_benches;
       view.legendary_cores = p.legendary_cores ?? view.legendary_cores;
       view.offline_cap_hours = p.offline_cap_hours ?? null;
+      view.bench_time_banked_seconds = p.bench_time_banked_seconds ?? view.bench_time_banked_seconds ?? 0;
+      view.bench_time_remainder_ms = p.bench_time_remainder_ms ?? view.bench_time_remainder_ms ?? 0;
     }
     return view;
   }
@@ -2374,6 +2385,8 @@ export class InMemoryWriteStore implements WriteStore {
     this.applyCacheRankGrant(p);
     p.credits = view.credits;
     p.legendary_cores = view.legendary_cores;
+    p.bench_time_banked_seconds = view.bench_time_banked_seconds ?? p.bench_time_banked_seconds ?? 0;
+    p.bench_time_remainder_ms = view.bench_time_remainder_ms ?? p.bench_time_remainder_ms ?? 0;
     p.workshop_benches = view.workshop_benches;
     p.workshop_tools = clone(view.workshop_tools) as unknown as Record<string, unknown>;
     this.touch(p);
@@ -2949,6 +2962,46 @@ export class InMemoryWriteStore implements WriteStore {
     return this.record(playerId, 'cc_fire_overclock_workshop', key, result);
   }
 
+  /**
+   * Bank bench time (cc_bank_bench_time, 0075; economy brief §8.2):
+   * one completed rewarded ad, attested client-side exactly like
+   * the cache lane — the server's controls are the nonce and the
+   * bank cap; there is no SSV, by the brief's design. Guests bank
+   * too: crafting requires no verified account and banking is not
+   * transacting, so there is deliberately no economy gate here.
+   * The grant clamps at the cap and reports what it actually added;
+   * a full bank refuses with the §8.2 remedy.
+   */
+  async bankBenchTime(playerId: string, nonce: string, adUnitId?: string | null): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+    const levers = this.craftLevers();
+    const grant = levers.benchTimeGrantSeconds ?? BENCH_TIME_GRANT_SECONDS;
+    const cap = levers.benchTimeBankCapSeconds ?? BENCH_TIME_BANK_CAP_SECONDS;
+    const bank = p.bench_time_banked_seconds ?? 0;
+    if (bank >= cap) throw writeError('Bench time bank full — 24 h');
+    const newBank = Math.min(cap, bank + grant);
+    p.bench_time_banked_seconds = newBank;
+    this.touch(p);
+    // Keep a live craft view in step with the row (the flush
+    // discipline: the view is re-synced from the row at next use,
+    // so both must agree the moment this op returns).
+    const view = this.craftViews.get(playerId);
+    if (view) view.bench_time_banked_seconds = newBank;
+    const result: Json = {
+      action_type: 'cc_bank_bench_time',
+      granted_seconds: newBank - bank,
+      banked_seconds: newBank,
+      bank_cap_seconds: cap,
+      grant_seconds: grant,
+      ad_unit_id: adUnitId ?? null,
+      profile: this.profileSnapshot(p),
+    };
+    return this.record(playerId, 'cc_bank_bench_time', key, result);
+  }
+
   async getWorkshopState(playerId: string): Promise<Json> {
     if (!this.profileOrNull(playerId)) throw writeError('Profile not found');
     const settled = this.craftCall(() => settleCraftJobsCore(this.craftAdapter(), playerId));
@@ -2968,13 +3021,23 @@ export class InMemoryWriteStore implements WriteStore {
         masteries[m.mastery_id] = { level: Math.max(1, m.mastery_level), xp: m.mastery_xp };
       }
     }
+    const levers = this.craftLevers();
     return buildWorkshopStateView({
       benches: view.workshop_benches,
       tools: view.workshop_tools,
       jobs: this.seed.craftJobs.filter((j) => j.owner_user_id === playerId),
       masteries,
       activeActionKind: this.activities.get(playerId)?.active_action ?? null,
-      recipeScrapCosts: this.craftLevers().recipeScrapCosts,
+      recipeScrapCosts: levers.recipeScrapCosts,
+      benchTime: {
+        bankedSeconds: view.bench_time_banked_seconds ?? 0,
+        capSeconds: levers.benchTimeBankCapSeconds ?? BENCH_TIME_BANK_CAP_SECONDS,
+        grantSeconds: levers.benchTimeGrantSeconds ?? BENCH_TIME_GRANT_SECONDS,
+        queueBonus: Math.max(
+          0,
+          Math.floor(this.craftAdapter().skillBonus?.(playerId, 'workshopQueueBonus') ?? 0),
+        ),
+      },
     }) as Json;
   }
 

@@ -106,6 +106,14 @@ export const verifiedOps = {
     return result;
   },
   cancelCraftJob: (jobId: string) => op('/ops/craft-cancel', { nonce: requestId('craft-cancel'), job_id: jobId }),
+  // Bench time (0075, economy brief §8.2): one completed rewarded
+  // ad banks +1 hour of bench time. 'ad' attestation mirrors the
+  // cache lane — the ad unit id is the claim; the server's controls
+  // are the nonce and the 24 h bank cap. Guests may bank.
+  bankBenchTime: (adUnitId?: string) => op('/ops/bank-bench-time', {
+    nonce: requestId('bench-time'),
+    ad_unit_id: adUnitId ?? null,
+  }),
   consumeConsumable: (input: { itemKey: string; quantity: number; activityType?: string; reason?: string }) => op('/ops/consume-consumable', {
     nonce: requestId('consume-consumable'),
     item_key: input.itemKey,

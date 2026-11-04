@@ -989,6 +989,13 @@ export interface WriteStore {
    */
   fireOverclockWorkshop(playerId: string, nonce: string): Promise<Json>;
   /**
+   * Bank bench time (cc_bank_bench_time, 0075; economy brief §8.2):
+   * one completed rewarded ad, attested client-side exactly like
+   * the cache lane (the server's controls are the nonce and the
+   * bank cap — no SSV). Guests bank too: no economy gate.
+   */
+  bankBenchTime(playerId: string, nonce: string, adUnitId?: string | null): Promise<Json>;
+  /**
    * The Workshop state read: settles lazily, finalizes any pending
    * crafted gear through the shared generators, and returns benches,
    * tools, jobs (with derived display state), and mastery levels.
@@ -1519,13 +1526,41 @@ export class PgWriteStore implements WriteStore {
     await finalizePendingCraftedCosmetics(this.pool, playerId);
     return result;
   }
+  async bankBenchTime(playerId: string, nonce: string, adUnitId?: string | null): Promise<Json> {
+    return this.callJson('select public.cc_bank_bench_time($1, $2, $3) as result', [
+      playerId, nonce, adUnitId ?? null,
+    ]);
+  }
+  /**
+   * The §8.3 envelope's display input: the player's own Fixer
+   * workshopQueueBonus, derived from server records (skill_spends +
+   * the equipped class mod's boosts) — the same derivation
+   * consumableEfficiencyBonus performs for its key.
+   */
+  private async fixerQueueBonus(playerId: string): Promise<number> {
+    try {
+      const { rows } = await this.pool.query(
+        'select skill_spends from public.profiles where id = $1',
+        [playerId],
+      );
+      const spends = (rows[0]?.skill_spends ?? {}) as Record<string, number>;
+      const { rows: itemRows } = await this.pool.query(
+        "select payload from public.item_instances where owner_user_id = $1 and runtime_state = 'equipped'",
+        [playerId],
+      );
+      const gear = itemRows.map((r) => r.payload as unknown as GearItem);
+      return Math.max(0, Math.floor(skillBonusesFromRecords(gear, spends).workshopQueueBonus ?? 0));
+    } catch (err) {
+      return translatePgError(err);
+    }
+  }
   async getWorkshopState(playerId: string): Promise<Json> {
     await this.callJson('select public.cc_settle_craft_jobs($1, $2) as result', [playerId, null]);
     await finalizePendingCraftedGear(this.pool, playerId);
     await finalizePendingCraftedCosmetics(this.pool, playerId);
     try {
       const { rows: profileRows } = await this.pool.query(
-        'select workshop_benches, workshop_tools from public.profiles where id = $1',
+        'select workshop_benches, workshop_tools, bench_time_banked_seconds from public.profiles where id = $1',
         [playerId],
       );
       if (!profileRows[0]) throw writeError('Profile not found');
@@ -1563,6 +1598,7 @@ export class PgWriteStore implements WriteStore {
       const { rows: configRows } = await this.pool.query('select key, value from public.economy_config');
       const storedConfig: Record<string, unknown> = {};
       for (const row of configRows) storedConfig[String(row.key)] = row.value;
+      const resolvedConfig = resolveEconomyConfigValues(storedConfig);
       return buildWorkshopStateView({
         benches: Number(profileRows[0].workshop_benches ?? 1),
         tools: {
@@ -1574,6 +1610,12 @@ export class PgWriteStore implements WriteStore {
         masteries,
         activeActionKind: actionRows[0] ? String(actionRows[0].active_action) : null,
         recipeScrapCosts: resolveRecipeScrapCosts(storedConfig),
+        benchTime: {
+          bankedSeconds: Number(profileRows[0].bench_time_banked_seconds ?? 0),
+          capSeconds: resolvedConfig.benchTimeBankCapSeconds,
+          grantSeconds: resolvedConfig.benchTimeGrantSeconds,
+          queueBonus: await this.fixerQueueBonus(playerId),
+        },
       }) as Json;
     } catch (err) {
       return translatePgError(err);
