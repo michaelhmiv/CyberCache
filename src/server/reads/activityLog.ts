@@ -416,7 +416,7 @@ export function buildActivityRecords(input: ActivityRawInput): ActivityRecord[] 
               elapsedMs: numOrNull(payload.elapsed_ms),
               capHours: numOrNull(payload.cap_hours),
               capReached: boolOrNull(payload.cap_reached),
-              ticks: numOrNull(rewards.ticks),
+              ticks: numOrNull(rewards.ticks) ?? numOrNull(payload.ticks),
             },
           });
         }
@@ -732,6 +732,9 @@ export function buildActivityRecords(input: ActivityRawInput): ActivityRecord[] 
   }
 
   for (const run of input.endlessRuns) {
+    // An active run proves nothing yet (the lifetime fold's law) —
+    // it lands in the record when it ends.
+    if (run.status === 'active') continue;
     records.push({
       id: `endless:${run.id}`,
       kind: 'endless',
