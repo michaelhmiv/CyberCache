@@ -134,11 +134,11 @@ describe('the Split — figure stage, gun rows, accessories band', () => {
     expect(onOpenWardrobe).toHaveBeenCalledTimes(1);
   });
 
-  it('the header prints the build identity — dominant tree · active preset', () => {
+  it('the header prints the build identity — dominant tree · active build', () => {
     useSkillStore.setState({ spent: { gs_dmg_1: 3, gs_crit_1: 2 } });
     useLoadoutPresetsStore.setState({
       presets: [{
-        id: 'p1', name: 'Boss Kit',
+        id: 'p1', name: 'Boss Kit', icon: 'skull',
         slots: { ...EMPTY_SLOTS },
         consumables: { PreFight: null, MidFight: null, Emergency: null },
         createdAt: 0, updatedAt: 0,

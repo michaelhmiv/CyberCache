@@ -9,8 +9,8 @@
  *    equip changes the loadout the claim/boss paths read.
  *  - The last offline summary can be re-opened after dismissal with
  *    identical numbers, and survives in on-device storage.
- *  - Loadout presets are fully manageable from visible controls
- *    (list / apply / rename / delete), not only the long-press.
+ *  - Saved builds are fully manageable from visible controls
+ *    (list / apply / rename / icon / delete), not only the long-press.
  *  - Material "Used in" reads the single recipe source of truth.
  *  - The current-area chip shows the selected area and opens the
  *    picker; the shared area list enforces unlock levels.
@@ -168,7 +168,7 @@ describe('Phase 1 — one gear home', () => {
 
     render(<ActionLoadout readOnly onManageLoadout={onManage} />);
 
-    // No picker, no preset management on the display surface.
+    // No picker, no build management on the display surface.
     expect(screen.queryByText('Primary Weapon')).toBeNull();
     expect(screen.queryByText('Save Loadout')).toBeNull();
 
@@ -266,8 +266,8 @@ describe('Phase 1 — replayable offline summary', () => {
   });
 });
 
-describe('Phase 1 — visible preset management', () => {
-  it('lists, renames, and deletes presets from the visible Manage sheet', async () => {
+describe('Phase 1 — visible build management', () => {
+  it('lists, renames, re-icons, and deletes builds from the visible Manage sheet', async () => {
     const weapon = makeWeapon('w-preset', 'Preset Pistol');
     useInventoryStore.setState({ items: [weapon] });
     useLoadoutStore.setState({
@@ -281,7 +281,7 @@ describe('Phase 1 — visible preset management', () => {
 
     // The visible door (not a long-press).
     fireEvent.click(screen.getByTestId('preset-manage-button'));
-    expect(await screen.findByText('Loadout Presets')).toBeTruthy();
+    expect(await screen.findByText('Saved Builds')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Apply' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Overwrite' })).toBeTruthy();
 
@@ -292,6 +292,17 @@ describe('Phase 1 — visible preset management', () => {
     fireEvent.click(screen.getByRole('button', { name: 'OK' }));
     await waitFor(() => {
       expect(useLoadoutPresetsStore.getState().presets[0]?.name).toBe('Bravo');
+    });
+
+    // SB-2: a fresh build wears the default gun glyph; the visible
+    // Icon control opens the §7 picker and the pick lands on the
+    // build's record (and therefore in the snapshot it syncs with).
+    expect(useLoadoutPresetsStore.getState().presets[0]?.icon).toBe('gun');
+    fireEvent.click(screen.getByRole('button', { name: 'Icon' }));
+    expect(await screen.findByTestId('build-icon-picker')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Build icon: anvil' }));
+    await waitFor(() => {
+      expect(useLoadoutPresetsStore.getState().presets[0]?.icon).toBe('anvil');
     });
 
     // Delete from the visible controls.
