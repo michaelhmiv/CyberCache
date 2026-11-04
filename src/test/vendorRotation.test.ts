@@ -549,10 +549,12 @@ describe('migration 0020 — SQL twin pins', () => {
 
   it('cc_vendor_catalog VALUES list matches the TS catalog exactly', () => {
     // The catalog's live SQL twin is the LATEST restatement:
-    // migration 0021 (vehicles) restates cc_vendor_catalog with the
-    // two vehicle staples added, superseding 0020's list.
+    // migration 0021 (vehicles) restated cc_vendor_catalog with the
+    // two vehicle staples added, superseding 0020's list; Econ 5's
+    // 0069 restated it again for the scrap merge (the material row
+    // renamed ScrapAlloy -> Scrap, price unchanged).
     const catalogSql = readFileSync(
-      resolve(process.cwd(), 'db/migrations/0021_vehicles.sql'),
+      resolve(process.cwd(), 'db/migrations/0069_scrap_merge.sql'),
       'utf8',
     );
     const rows = [...catalogSql.matchAll(/\('([A-Za-z]+)',\s*(\d+),\s*'(staple|rotation|material|essence)'\)/g)].map(
