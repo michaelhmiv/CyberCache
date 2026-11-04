@@ -2,15 +2,17 @@
  * Home consolidation (owner steers 2026-11-03) — the pins for the
  * consolidated Home:
  *
- *  - ONE hero rundown at the stage's foot: DPS · Dmg/tick · Crit ·
- *    HP, each exactly once; the "ROAMING" mode word prints
- *    nowhere; tapping a hero opens the breakdown sheet FOCUSED
- *    on that stat.
+ *  - ONE hero rundown at the stage's foot, two rows of four:
+ *    DPS · Dmg/tick · Crit % · Crit × over HP · Shield · Mit ·
+ *    Shield Break, each exactly once; the "ROAMING" mode word
+ *    prints nowhere; tapping a hero opens the breakdown sheet
+ *    FOCUSED on that stat.
  *  - The Loadout block is off Home (source pin) — Gear → Loadout
  *    is the canonical surface.
- *  - The Next Move card is ABSENT when nothing waits, shows the
- *    highest-priority wait when several exist, and its craft
- *    form navigates to the Workshop and clears.
+ *  - The Next Move card is REMOVED (owner device review): it
+ *    never renders, even under live waits — each wait keeps
+ *    its own door (Workshop, Return Sheet, top-bar sheets,
+ *    the Chest, Hunter → Research).
  *  - The vehicle chip rides the belt row: quiet fuel readout
  *    while fueled; a remedy door when out of fuel — Garage with
  *    a cell carried, Vendor without.
@@ -210,15 +212,19 @@ beforeEach(() => {
 const readSource = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
 
 describe('hero rundown — one printing of each hero stat', () => {
-  it('renders the four heroes exactly once, HP as current/max, and no ROAMING word anywhere', async () => {
+  it('renders the eight heroes exactly once across two rows, HP as current/max, and no ROAMING word anywhere', async () => {
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
     const rundown = await screen.findByTestId('hero-rundown');
     expect(screen.getAllByTestId('hero-stat-dps')).toHaveLength(1);
     expect(screen.getAllByTestId('hero-stat-dmgTick')).toHaveLength(1);
-    expect(screen.getAllByTestId('hero-stat-crit')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-critChance')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-critDamage')).toHaveLength(1);
     expect(screen.getAllByTestId('hero-stat-hp')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-shield')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-mitigation')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-shieldBreak')).toHaveLength(1);
     expect(within(rundown).getByTestId('hero-stat-hp').textContent).toMatch(/\d[\d,]*\/\d[\d,]*/);
-    expect(within(rundown).getByTestId('hero-stat-crit').textContent).toContain('%');
+    expect(within(rundown).getByTestId('hero-stat-critChance').textContent).toContain('%');
     // The mode word is dead on the whole screen.
     expect(document.body.textContent).not.toContain('ROAMING');
     // The retired duplicates stay retired.
@@ -243,17 +249,23 @@ describe('hero rundown — one printing of each hero stat', () => {
   });
 });
 
-describe('Next Move — earns its place or is absent', () => {
-  it('renders NOTHING when nothing waits', async () => {
+describe('Next Move — removed (owner device review, 2026-11-03)', () => {
+  // The card shipped in the consolidation and the owner rejected
+  // the surface on device: it is gone entirely, not hidden. These
+  // pins keep it gone UNDER LIVE WAITS — the states that used to
+  // summon it — and pin the source so the mount cannot creep
+  // back. Every wait keeps its own door: the finished craft reads
+  // on the Workshop's benches, the away settlement behind the
+  // level chip's Return Sheet, contracts and weekly earnings in
+  // the top bar's sheets, the free cache at the Chest.
+  it('no card when nothing waits', async () => {
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
     await screen.findByTestId('hero-rundown');
-    // Let the card's mount reads settle (they all fail closed).
     await waitFor(() => expect(screen.queryByTestId('next-move-card')).toBeNull());
     expect(screen.queryByTestId('next-move-card')).toBeNull();
   });
 
-  it('a finished craft shows the craft wait; Open Workshop navigates and clears it', async () => {
-    const onNavigate = vi.fn();
+  it('no card while a finished craft waits in the Workshop', async () => {
     useWorkshopStore.setState({
       server: {
         benches: 1,
@@ -264,27 +276,13 @@ describe('Next Move — earns its place or is absent', () => {
         recentCompletions: [{ jobId: 'job-1', recipeId: 'dmg-tonic', name: 'Damage Tonic' }],
       },
     });
-    render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={() => {}} />);
-    const card = await screen.findByTestId('next-move-card');
-    expect(card.getAttribute('data-wait-kind')).toBe('craft');
-    expect(card.textContent).toContain('Damage Tonic finished');
-    expect(card.textContent).toContain('bench in the Workshop');
-    fireEvent.click(within(card).getByRole('button', { name: 'Open Workshop' }));
-    expect(onNavigate).toHaveBeenCalledWith('workshop');
+    render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
+    await screen.findByTestId('hero-rundown');
     await waitFor(() => expect(screen.queryByTestId('next-move-card')).toBeNull());
+    expect(screen.queryByTestId('next-move-card')).toBeNull();
   });
 
-  it('an unreviewed away settlement outranks a finished craft', async () => {
-    useWorkshopStore.setState({
-      server: {
-        benches: 1,
-        tools: { owned: {}, fitted: {}, charges: {} },
-        jobs: [],
-        masteries: {},
-        activeActionKind: null,
-        recentCompletions: [{ jobId: 'job-1', recipeId: 'dmg-tonic', name: 'Damage Tonic' }],
-      },
-    });
+  it('no card while an unreviewed away settlement stands', async () => {
     useOfflineRecapStore.getState().setSettlement({
       settled: true,
       areaId: 'dustwaste',
@@ -307,10 +305,15 @@ describe('Next Move — earns its place or is absent', () => {
       idempotent: false,
     } as unknown as SettlementRecap);
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
-    const card = await screen.findByTestId('next-move-card');
-    expect(card.getAttribute('data-wait-kind')).toBe('away');
-    expect(card.textContent).toContain('While you were away');
-    expect(card.textContent).toContain('+500 credits');
+    await screen.findByTestId('hero-rundown');
+    await waitFor(() => expect(screen.queryByTestId('next-move-card')).toBeNull());
+    expect(screen.queryByTestId('next-move-card')).toBeNull();
+  });
+
+  it('the mount is out of the screen source', () => {
+    const source = readSource('src/screens/ActionScreenContextual.tsx');
+    expect(source).not.toContain('NextMoveCard');
+    expect(source).not.toContain('next-move');
   });
 });
 
