@@ -162,7 +162,8 @@ describe('batch salvage — settlement contract', () => {
     expect(itemState(store, LISTED)).toBe('listed');
 
     // The profile gained exactly the reported aggregate.
-    expect(profileOf(store, A).scrap).toBe(100 + Number(result.scrap_award));
+    // Opening balance is the merged 120 (seed column 100 + stack 20).
+    expect(profileOf(store, A).scrap).toBe(120 + Number(result.scrap_award));
   });
 
   it('Epic ceiling takes the epics but never the legendary', async () => {
@@ -180,7 +181,7 @@ describe('batch salvage — settlement contract', () => {
     await expect(store.recycleBatch(A, 'batch-nonce-0003', 'Legendary')).rejects.toThrow(/Invalid salvage ceiling/);
     await expect(store.recycleBatch(A, 'batch-nonce-0004', 'everything')).rejects.toThrow(/Invalid salvage ceiling/);
     expect(itemState(store, C1)).toBe('available');
-    expect(profileOf(store, A).scrap).toBe(100);
+    expect(profileOf(store, A).scrap).toBe(120);
   });
 
   it('nonce replay returns the original settlement without double-scrapping', async () => {
