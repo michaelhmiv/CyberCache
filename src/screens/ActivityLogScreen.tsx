@@ -68,12 +68,13 @@ export function ActivityLogScreen() {
   // The loading flip rides the timer callback with the query, so
   // no state is set synchronously in an effect body.
   useEffect(() => {
+    if (query.trim() === appliedQuery) return;
     const t = setTimeout(() => {
       setAppliedQuery(query.trim());
       setLoading(true);
     }, 350);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, appliedQuery]);
 
   // First-page load, house pattern: the service promise's own
   // callbacks write state (ProfileScreen's shape), with a sequence
