@@ -8,6 +8,18 @@
         {
           "number": 372,
           "title": "Econ 9: bench collapse + relic merger (migration 0073)"
+        },
+        {
+          "number": 373,
+          "title": "SB-3: dispatch Start from a build — prefill + flag report"
+        },
+        {
+          "number": 374,
+          "title": "SB-2: Builds identity — presets→builds rename + §7 pixel glyph per build"
+        },
+        {
+          "number": 375,
+          "title": "Econ 10: bench time — banked hours widen the bench (migration 0075)"
         }
       ]
     },

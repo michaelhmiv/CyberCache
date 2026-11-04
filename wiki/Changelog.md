@@ -4,6 +4,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-04 — One bench, and builds that staff your contracts
 
+- **Home, re-stacked** — the mode rail (Area · Roam · Boss · Endless · Extract · Craft) now runs above the stage, and the consumable belt takes the rail's old spot directly under the stage, above the workspace: your modes lead the screen, and your loaded consumables sit between the rundown and the panel.
 - **One bench** — the Workshop's three benches are now a single bench that is simply yours. The old workshop tools did not vanish: they joined the relic family as permanent, equippable relics with their effects intact, and the Lab's quality touch survives as a top-end crafting relic. Anyone who owned a second or third bench was refunded in full.
 - **Bench time** — watch a rewarded ad in the app to bank an hour of bench time, up to 24 hours banked. While time remains, the bench runs 3 jobs at once with 15 queued; the bank drains only while the extra lanes are working, and running dry never interrupts a job mid-craft.
 - **Dispatch: start from a build** — staffing a contract no longer means re-ticking the same spare set by hand. Pick an offer, tap one of your saved builds, and its dispatchable gear (or its vehicle, for courier work) arrives pre-picked. Anything that cannot go — equipped, listed, out on another contract, tied up in a service job, or gone since the build was saved — is named with its reason and how to free it. The build itself stays a simple list: starting from one equips, reserves, and sends nothing.
@@ -104,11 +105,14 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 111 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 114 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-04** — 1 merge
+**2026-11-04** — 4 merges
 
 - #372 — Econ 9: bench collapse + relic merger (migration 0073)
+- #373 — SB-3: dispatch Start from a build — prefill + flag report
+- #374 — SB-2: Builds identity — presets→builds rename + §7 pixel glyph per build
+- #375 — Econ 10: bench time — banked hours widen the bench (migration 0075)
 
 **2026-11-03** — 58 merges
 

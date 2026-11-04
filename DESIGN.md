@@ -151,7 +151,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 
 | Tab | Rail / composition | Holds |
 |---|---|---|
-| **Home** | Stage, then rail: `Area · Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The lit mode's workspace sits under the stage; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. |
+| **Home** | Rail, then Stage: `Area · Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The rail leads the screen (owner ruling 2026-11-04); the belt sits in the rail's vacated slot under the stage, and the lit mode's workspace under the belt; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. |
 | **Gear** | Rail: `Loadout · Workshop` | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop door row at its foot; the bench keeps its own stop. |
 | **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk` | Player market, NPC storefront, the two service boards as separate stops, and manufacturer standing at its own desk. |
 | **Hunter** | Rail: `Profile · Collections · Cache Rank · Research · Skill Trees · Standings · Account` | The hunter's record: profile + Trophy Shelf, collections and cores, ranks, courses, trees, the weekly races behind the Standings door, and account/settings/manual. |
@@ -195,11 +195,14 @@ replace the canonical one. (Tap depths are governed by §9.)
   level chip's Return Sheet, contracts and weekly earnings in the claim
   chips' sheets, the free daily cache at the Chest, a finished course on
   Hunter → Research.
-- **Under the stage, first viewport:** the lit mode's workspace (Session panel +
-  Loot Feed while roaming; boss/endless/extract/craft workspaces in their modes),
-  belt consumable quick slots (use-in-loop; the full stacks live at Gear →
+- **Under the stage, first viewport:** the belt consumable quick slots in the
+  rail's vacated slot, directly under the rundown (owner ruling, 2026-11-04 —
+  the belt sat under the workspace until the swap), then the lit mode's
+  workspace (Session panel +
+  Loot Feed while roaming; boss/endless/extract/craft workspaces in their modes).
+  Belt slots are use-in-loop; the full stacks live at Gear →
   Belt & Stacks, the Loadout page's belt section — do not consolidate them
-  into Gear). The belt row also carries the **vehicle chip** (owner
+  into Gear. The belt row also carries the **vehicle chip** (owner
   correction, 2026-11-03): the equipped vehicle's fuel readout in the belt
   chips' grammar — quiet while fueled, carrying its remedy door (Garage /
   Vendor) when out of fuel or worn out. The vehicle gets no row of its own
@@ -323,19 +326,24 @@ player needs each block.
    and the login streak — an announcement, not a claimable: its reward
    banks on arrival and its chip pulses only until acknowledged (§9).
    (Absences under 5 minutes still settle silently; the Return Sheet is §10.)
-3. **The Stage** — count plate, combat HP plates, icon-only action controls
+3. **The mode rail** — `Area · Roam · Boss · Endless · Extract · Craft`
+   (owner ruling 2026-11-04: the rail leads the Stage; it sat at step 4,
+   under the stage, until the swap).
+4. **The Stage** — count plate, combat HP plates, icon-only action controls
    (44px swap/stop glyph squares, top-left). Attached to its foot: **the hero
    rundown** (two rows — DPS · Dmg/tick · Crit % · Crit × over HP · Shield ·
    Mit · Shield Break — each tappable into its source breakdown; the buff
    line under it while anything is active).
-4. **The mode rail** — `Area · Roam · Boss · Endless · Extract · Craft`.
-5. **The lit mode's workspace** — session/loot panels and the mode's primary
-   actions (Start Roam, Choose Boss).
-6. **Belt quick slots** — the consumable quick-slot row, with the vehicle
+5. **Belt quick slots** — the consumable quick-slot row in the rail's
+   vacated position, directly under the stage block, with the vehicle
    chip riding it (fuel readout / remedy door; §3).
+6. **The lit mode's workspace** — session/loot panels and the mode's primary
+   actions (Start Roam, Choose Boss).
 
-**Never above the Stage:** no panel, card, feed, header, banner, or navigation
-other than the Strip and the claim chips may sit above the Stage, and the Stage
+**Never above the Stage:** no panel, card, feed, header, or banner other
+than the Strip and the claim chips may sit above the Stage, and — since
+the owner's device ruling of 2026-11-04 — the mode rail, the one
+navigation resident the owner placed there himself. The Stage
 is **never below the fold in any state** (standby, roaming, boss, death). The
 Stage is the emotional core of the game; bookkeeping never colonizes it.
 

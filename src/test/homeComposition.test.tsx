@@ -2,12 +2,15 @@
  * Home composition (redesign Wave C, DESIGN.md §4) — the merged
  * Home screen in its fixed composition order:
  *
- *  - the mode rail under the diorama carries exactly the six
- *    §2 stops (Area · Roam · Boss · Endless · Extract · Craft),
- *    and Endless / Extract / Craft open their workspaces from
- *    the rail at ONE tap (they sat at 2 via the mode sheet);
- *  - the consumable belt sits above the fold (after the lit
- *    workspace, before the deck);
+ *  - the mode rail ABOVE the diorama (owner device ruling,
+ *    2026-11-04 — it sat under the stage until the swap) carries
+ *    exactly the six §2 stops (Area · Roam · Boss · Endless ·
+ *    Extract · Craft), and Endless / Extract / Craft open their
+ *    workspaces from the rail at ONE tap (they sat at 2 via the
+ *    mode sheet);
+ *  - the consumable belt sits above the fold in the rail's
+ *    vacated position (directly under the stage block, before
+ *    the lit workspace and the deck);
  *  - the stage carries NO ribbon and prints NO mode word
  *    (Home consolidation, 2026-11-03): the hero rundown at the
  *    stage's foot carries two rows — DPS · Dmg/tick · Crit % ·
@@ -180,7 +183,7 @@ afterEach(() => {
 });
 
 describe('Home composition — mode rail (§2/§4)', () => {
-  it('renders exactly the six rail stops in order, under the Stage and above the belt and deck', async () => {
+  it('renders exactly the six rail stops in order, above the Stage, with the belt in the rail\u2019s vacated slot', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
     const rail = await screen.findByTestId('home-mode-rail');
     const stops = within(rail).getAllByRole('button').map((b) => b.getAttribute('data-testid'));
@@ -188,11 +191,26 @@ describe('Home composition — mode rail (§2/§4)', () => {
       'mode-rail-area', 'mode-rail-roam', 'mode-rail-boss',
       'mode-rail-endless', 'mode-rail-extract', 'mode-rail-craft',
     ]);
-    // §4 order: claim row → Stage (rail inside it) → belt → deck.
+    // §4 order (owner ruling 2026-11-04): claim row → rail →
+    // Stage (+ rundown at its foot) → belt → lit workspace → deck.
+    // The rail and the belt each mount exactly once on Home.
+    expect(screen.getAllByTestId('home-mode-rail')).toHaveLength(1);
+    expect(screen.getAllByTestId('consumable-belt')).toHaveLength(1);
     const topBar = screen.getByTestId('dashboard-top-bar');
     expect(topBar.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The rail sits ABOVE the stage: it precedes the diorama's
+    // on-stage controls and the hero rundown at the stage's foot.
+    const stageControls = screen.getByTestId('diorama-stage-controls');
+    expect(rail.compareDocumentPosition(stageControls) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const rundown = screen.getByTestId('hero-rundown');
+    expect(rail.compareDocumentPosition(rundown) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The belt takes the rail's vacated position: directly under
+    // the stage block (after the rundown) and BEFORE the lit
+    // workspace — it no longer sits under the workspace.
     const belt = screen.getByTestId('consumable-belt');
-    expect(rail.compareDocumentPosition(belt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rundown.compareDocumentPosition(belt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const workspace = screen.getByTestId('home-standby-panel');
+    expect(belt.compareDocumentPosition(workspace) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const launchers = screen.getByText('Launchers');
     expect(belt.compareDocumentPosition(launchers) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
