@@ -17,6 +17,15 @@ import { getMaterialVisual } from '@/constants/visualAssets';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { FUEL_CELL_TYPE } from '@/lib/vehicles/vehicles';
 import { dispatchFuelShortfallCells } from '@/content/dispatch';
+import {
+  useLoadoutPresetsStore,
+  type LoadoutPreset,
+} from '@/store/slices/loadoutPresetsSlice';
+import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
+import {
+  computeBuildPrefill,
+  type BuildPrefillLine,
+} from '@/lib/dispatch/buildPrefill';
 
 /**
  * Dispatch panel (0032) — the contract board + bay.
@@ -29,6 +38,13 @@ import { dispatchFuelShortfallCells } from '@/content/dispatch';
  * state. Missions run parallel to the personal action slot: nothing
  * here touches roaming/crafting/boss state. Renders nothing until
  * the Chef answers, so an unreachable Chef omits the surface.
+ *
+ * SB-3 adds "Start from a build": a saved build (a reference list,
+ * never a claim) prefills this prep form — its items that can
+ * dispatch now arrive picked; every item that cannot is reported
+ * with its reason and remedy, never silently dropped. The prefill
+ * writes only this panel's pick state; departure validation is
+ * the server's, unchanged.
  */
 
 function remainingLabel(endsAt: string, nowMs: number): string {
@@ -38,6 +54,45 @@ function remainingLabel(endsAt: string, nowMs: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`;
+}
+
+const PREFILL_SLOT_LABELS: Record<LoadoutSlot, string> = {
+  primary: 'Primary',
+  secondary: 'Secondary',
+  heavy: 'Heavy',
+  ordnance: 'Ordnance',
+  shield: 'Shield',
+  classMod: 'Mod',
+  relic: 'Relic',
+  vehicle: 'Vehicle',
+};
+
+function formatReturnTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'soon';
+  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/** One flagged prefill line: the reason, then its remedy — every
+ *  "no" carries its remedy (DESIGN.md), in SB-1's vocabulary. */
+function prefillFlagText(line: BuildPrefillLine): string {
+  const subject = line.name ?? `Your saved ${PREFILL_SLOT_LABELS[line.slot]}`;
+  switch (line.status) {
+    case 'gone':
+      return `${subject} is gone (sold, salvaged, or traded away) — pick a replacement from the spares below.`;
+    case 'listed':
+      return `${subject} is listed on the market — delist it in the Market tab to free it for dispatch.`;
+    case 'in_service':
+      return `${subject} is out on a contract — back ${line.returnsAt ? formatReturnTime(line.returnsAt) : 'when the mission ends'}. Recall it from the bay above, or pick another spare.`;
+    case 'locked':
+      return `${subject} is committed to a repair or shield-tech job — it frees up when the job finishes; pick another spare meanwhile.`;
+    case 'equipped':
+      return line.slot === 'vehicle'
+        ? `${subject} is your current ride — courier sends a spare vehicle. Pick another vehicle below.`
+        : `${subject} is equipped — dispatch sends spares only. Unequip it on the Gear tab, or pick another spare.`;
+    default:
+      return '';
+  }
 }
 
 function missionLine(m: ChefDispatchMission): string {
@@ -58,6 +113,14 @@ export const DispatchPanel: React.FC = () => {
   const [reasons, setReasons] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // SB-3: the last build prefill's report (a snapshot of the
+  // prefill moment, like SB-1's apply report) — the pick state it
+  // wrote stays editable below it.
+  const [prefillReport, setPrefillReport] = useState<{
+    buildName: string;
+    lines: BuildPrefillLine[];
+  } | null>(null);
+  const presets = useLoadoutPresetsStore((s) => s.presets);
   // Countdown clock: sampled on mount and on every interaction
   // (refresh / depart / recall) — no timers in components per the
   // architecture guard, no impure calls during render.
@@ -139,6 +202,7 @@ export const DispatchPanel: React.FC = () => {
       setPickedItems([]);
       setPickedVehicle(null);
       setOfferId(null);
+      setPrefillReport(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Departure failed');
     } finally {
@@ -174,12 +238,31 @@ export const DispatchPanel: React.FC = () => {
       setOfferId(null);
       setPreview(null);
       setReasons([]);
+      setPrefillReport(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Re-deal failed');
     } finally {
       setBusy(false);
     }
   }, [busy, refresh]);
+
+  // SB-3: prefill this offer's prep form from a saved build. The
+  // build is a reference list — this writes ONLY the panel's pick
+  // state (ready items in, flagged items reported); it equips,
+  // reserves, and claims nothing, and departure still validates
+  // on the server exactly as a hand-picked form does.
+  const startFromBuild = (preset: LoadoutPreset) => {
+    if (!state || !offer) return;
+    const prefill = computeBuildPrefill({
+      slots: preset.slots,
+      family: offer.family,
+      candidates: state.candidates,
+      missions: state.missions,
+    });
+    if (offer.family === 'foot') setPickedItems(prefill.readyItemIds);
+    else setPickedVehicle(prefill.readyVehicleId);
+    setPrefillReport({ buildName: preset.name, lines: prefill.lines });
+  };
 
   if (!state) return null;
 
@@ -194,6 +277,9 @@ export const DispatchPanel: React.FC = () => {
   };
 
   const payout = (preview?.payout ?? null) as { credits?: number; scrap?: number; materialId?: string | null; materialUnits?: number } | null;
+
+  const prefillReadyCount = prefillReport?.lines.filter((l) => l.status === 'ready').length ?? 0;
+  const prefillFlagged = prefillReport?.lines.filter((l) => l.status !== 'ready') ?? [];
 
   return (
     <div className="space-y-3">
@@ -249,7 +335,7 @@ export const DispatchPanel: React.FC = () => {
         {state.offers.map((o) => (
           <button
             key={o.id}
-            onClick={() => { setOfferId(offerId === o.id ? null : o.id); setPickedItems([]); setPickedVehicle(null); setPreview(null); setReasons([]); }}
+            onClick={() => { setOfferId(offerId === o.id ? null : o.id); setPickedItems([]); setPickedVehicle(null); setPreview(null); setReasons([]); setPrefillReport(null); }}
             className={`flex w-full items-center justify-between gap-2 border px-2 py-2 text-left ${offerId === o.id ? 'border-amber bg-amber/10' : 'border-border/60'}`}
           >
             <span className="text-xs font-bold text-text-primary">
@@ -292,6 +378,61 @@ export const DispatchPanel: React.FC = () => {
 
         {offer && (
           <div className="space-y-2 border-t border-border/60 pt-2">
+            {/* SB-3: Start from a build — the prefill door. A build
+                is a reference list: picking one writes only this
+                form's pick state and reports every item it could
+                not pick, with the remedy. */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-text-muted">
+                <PxIcon name="pack" size={13} /> Start from a build
+              </div>
+              {presets.length === 0 ? (
+                <div className="text-[11px] text-text-muted">
+                  No saved builds yet — save one on the Gear tab's Loadout screen and it can prefill this list.
+                </div>
+              ) : (
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {presets.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => startFromBuild(p)}
+                      className="bl-secondary min-h-11 shrink-0 px-3 text-[11px] font-black"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {prefillReport && (
+                <div data-testid="dispatch-prefill-report" className="space-y-1 border-2 border-amber/50 px-2 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-[11px] font-black text-text-primary">
+                      {prefillReport.lines.length === 0
+                        ? `Started from ${prefillReport.buildName} — it names no ${offer.family === 'foot' ? 'gear' : 'vehicle'} for this contract. Pick below.`
+                        : prefillFlagged.length === 0
+                          ? `Started from ${prefillReport.buildName} — every item ready and picked. The toggles below still rule.`
+                          : prefillReadyCount === 0
+                            ? `Started from ${prefillReport.buildName} — nothing in it can dispatch right now:`
+                            : `Started from ${prefillReport.buildName} — ${prefillReadyCount} ready and picked, ${prefillFlagged.length} flagged:`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPrefillReport(null)}
+                      className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black"
+                    >
+                      Done
+                    </button>
+                  </div>
+                  {prefillFlagged.map((line) => (
+                    <div key={line.slot} className="text-[11px] font-bold text-amber">
+                      {prefillFlagText(line)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {offer.family === 'foot' ? (
               <>
                 <div className="text-[11px] font-bold text-text-muted">Assign a spare loadout (gear stays locked away until return):</div>
