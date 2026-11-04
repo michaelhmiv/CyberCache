@@ -8,6 +8,17 @@ Dispatch sends what you are *not* using. A **foot contract** commits a spare, un
 
 The board is re-dealt every UTC day and is the same for every hunter: **6 offers — 4 foot, 2 courier** — each naming a destination area and a duration of **2, 8, or 24 hours**. You pick which offers to staff from your spares; unstaffed offers simply wait for tomorrow's board. Every number on a contract — payout, fuel, wear — is **fixed at departure** and shown before anything leaves. Nothing about a running contract is ever repriced.
 
+An offer, once departed, is **spent for the day** — it does not come back on any board, even after its contract settles or is recalled.
+
+## Re-dealing the board
+
+Don't like today's offers? You can **re-deal the board for credits**. A re-deal deals a fresh set of six offers — same mix, 4 foot and 2 courier, new destinations and durations — for the rest of the UTC day.
+
+- **The price escalates with each re-deal that day:** the first costs **250 cr**, then 500, 1,000, 2,000, and 4,000 cr.
+- **At most 5 re-deals per UTC day.** When you run out, the board itself says when they return: re-deals reset at the day rollover, when the free daily board arrives.
+- **Spent offers stay spent.** Re-dealing never brings back an offer you already departed today — but a fresh offer that happens to match a spent one's destination and duration is a genuinely new offer and can be staffed normally.
+- **Running contracts never move.** A re-deal changes only the offers still on the board; contracts already out keep the exact terms they departed on.
+
 ## Foot contracts
 
 A foot contract pays for the destination, the duration, and the strength of the loadout you send:

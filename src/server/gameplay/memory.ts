@@ -86,6 +86,10 @@ import {
   type CacheRankLeverValues,
 } from '../../content/cacheRank';
 import {
+  dispatchOffersForBoard,
+  dispatchRerollPrice,
+  dispatchRerollsRemaining,
+  resolveDispatchBoardState,
   resolveDispatchLevers,
   vehicleClassEligibleForTier,
   type DispatchLeverValues,
@@ -243,6 +247,12 @@ export interface InMemoryProfile {
   last_roaming_settled_at: string | null;
   last_settlement_nonce: string | null;
   offline_cap_hours: number | null;
+  /** Dispatch board reroll state (migration 0068): stored board
+   *  index + rerolls used + the UTC day key they belong to. Reads
+   *  resolve the effective state lazily (resolveDispatchBoardState). */
+  dispatch_board_index: number;
+  dispatch_rerolls_used: number;
+  dispatch_board_day: string | null;
   [key: string]: unknown;
 }
 
@@ -582,6 +592,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       last_roaming_settled_at: null,
       last_settlement_nonce: null,
       offline_cap_hours: null,
+      dispatch_board_index: 0,
+      dispatch_rerolls_used: 0,
+      dispatch_board_day: null,
       ...overrides,
     };
     this.profiles.set(profile.id, profile);
@@ -1866,6 +1879,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         vehicle_fuel: p.vehicle_fuel,
         credits: p.credits,
         scrap: p.scrap,
+        dispatch_board_index: p.dispatch_board_index ?? 0,
+        dispatch_rerolls_used: p.dispatch_rerolls_used ?? 0,
+        dispatch_board_day: p.dispatch_board_day ?? null,
       },
       items,
     };
@@ -1902,6 +1918,26 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       || !(payoutScrap >= 0 && payoutScrap <= 1000000)
       || !(payoutUnits >= 0 && payoutUnits <= 10000)) {
       throw new GameplayStoreError('Dispatch payout snapshot out of bounds');
+    }
+    // Board discipline (0068, economy brief §7.3): the offer must be
+    // on the player's CURRENT board for today — yesterday's board
+    // and unpurchased future boards never validate — and an offer
+    // id already departed today stays departed (the id is the
+    // consumption unit, on any board index).
+    const offerId = String(t.offer_id ?? '');
+    const boardState = resolveDispatchBoardState(
+      {
+        boardIndex: p.dispatch_board_index,
+        rerollsUsed: p.dispatch_rerolls_used,
+        day: p.dispatch_board_day,
+      },
+      this.now(),
+    );
+    if (!dispatchOffersForBoard(this.now(), boardState.boardIndex).some((o) => o.id === offerId)) {
+      throw new GameplayStoreError('Dispatch offer is not on the current board');
+    }
+    if (this.dispatchMissions.some((m) => m.user_id === playerId && m.offer_id === offerId)) {
+      throw new GameplayStoreError('Dispatch offer already departed');
     }
     const slots = this.dispatchLevers().dispatchQueueSlots;
     const activeCount = this.dispatchMissions.filter((m) => m.user_id === playerId && m.status === 'active').length;
@@ -2098,6 +2134,56 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (mission.breakdown_fraction !== null) fraction = Math.min(fraction, mission.breakdown_fraction);
     const result = this.settleDispatchMission(mission, fraction, true);
     this.ledger.set(nonce, result);
+    return result;
+  }
+
+  /** Dispatch reroll log (0068 mirror of the cc_reroll_dispatch_board ledger rows) for test introspection. */
+  readonly dispatchRerollLog: Json[] = [];
+
+  /**
+   * cc_reroll_dispatch_board mirror (0068, economy brief §7.3):
+   * burn the escalating price, advance today's board index, persist
+   * the (lazily reset) day state. Departed offers and running
+   * contracts are never touched — the new board is computed on read
+   * from the content owner under the new index.
+   */
+  async rerollDispatchBoard(playerId: string, nonce: string): Promise<Json> {
+    if (!nonce || nonce.trim().length < 8) throw new GameplayStoreError('nonce is required');
+    const prior = this.ledger.get(nonce);
+    if (prior) return prior;
+    const p = this.requireProfile(playerId);
+    const levers = this.dispatchLevers();
+    const state = resolveDispatchBoardState(
+      {
+        boardIndex: p.dispatch_board_index,
+        rerollsUsed: p.dispatch_rerolls_used,
+        day: p.dispatch_board_day,
+      },
+      this.now(),
+    );
+    if (dispatchRerollsRemaining(state.rerollsUsed, levers) <= 0) {
+      throw new GameplayStoreError('Dispatch reroll cap reached — board re-deals reset at the day rollover');
+    }
+    const price = dispatchRerollPrice(state.rerollsUsed, levers);
+    if (p.credits < price) throw new GameplayStoreError('Insufficient credits for a dispatch reroll');
+    p.credits -= price;
+    p.dispatch_board_index = state.boardIndex + 1;
+    p.dispatch_rerolls_used = state.rerollsUsed + 1;
+    p.dispatch_board_day = state.day;
+    const result: Json = {
+      action_type: 'cc_reroll_dispatch_board',
+      credits_charged: price,
+      board_index: p.dispatch_board_index,
+      rerolls_used: p.dispatch_rerolls_used,
+      rerolls_remaining: dispatchRerollsRemaining(p.dispatch_rerolls_used, levers),
+      next_reroll_price: dispatchRerollsRemaining(p.dispatch_rerolls_used, levers) > 0
+        ? dispatchRerollPrice(p.dispatch_rerolls_used, levers)
+        : null,
+      day: state.day,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(nonce, result);
+    this.dispatchRerollLog.push(result);
     return result;
   }
 

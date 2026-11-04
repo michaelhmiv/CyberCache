@@ -60,6 +60,9 @@ entirely.
 - **The [[Slots]] machine** — every wager is destroyed at the pull, and
   the credit prizes pay back an exact **50.5%** over time. Net: roughly
   495 cr destroyed per 1,000 cr wagered.
+- **Dispatch board re-deals** — re-dealing today's dispatch board costs
+  credits at an escalating price (each re-deal today costs double the
+  last, capped per day), destroyed on payment; see [[Dispatch]].
 
 ## Transfers are neither
 

@@ -99,6 +99,11 @@ export interface EconomyMetricsRow {
    *  Both are real mints and fold into creditsMintedTotal. */
   creditsMintedDispatch: number;
   creditsMintedCourier: number;
+  /** Dispatch reroll sink (migration 0068): credits burned re-dealing
+   *  the daily board, from the cc_reroll_dispatch_board ledger
+   *  payloads — its own sink breakout (contracts/dispatch family),
+   *  folded into creditsDestroyedTotal. */
+  creditsDestroyedDispatchRerolls: number;
   /** Extraction meters (migration 0033): passes finalized and XP
    *  awarded per day from the cc_apply_extraction ledger payloads,
    *  plus the per-material-id mint map (materials and essences —
@@ -253,6 +258,7 @@ interface PgMetricsRow {
   action_skill_fires_fixer?: number;
   cache_rank_tokens_granted?: number;
   cache_rank_tokens_spent?: number;
+  credits_destroyed_dispatch_rerolls?: string;
   computed_at: string;
 }
 
@@ -319,6 +325,7 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     cacheRankTokensGranted: Number(r.cache_rank_tokens_granted ?? 0),
     cacheRankTokensSpent: Number(r.cache_rank_tokens_spent ?? 0),
     creditsMintedDispatch: Number(r.credits_minted_dispatch ?? 0),
+    creditsDestroyedDispatchRerolls: Number(r.credits_destroyed_dispatch_rerolls ?? 0),
     creditsMintedCourier: Number(r.credits_minted_courier ?? 0),
     extractionPasses: Number(r.extraction_passes ?? 0),
     extractionXpAwarded: Number(r.extraction_xp_awarded ?? 0),
@@ -374,6 +381,7 @@ const METRICS_COLUMNS = `
   action_skill_fires_scavenger, action_skill_fires_fixer,
   cache_rank_tokens_granted, cache_rank_tokens_spent,
   credits_minted_dispatch, credits_minted_courier,
+  credits_destroyed_dispatch_rerolls,
   extraction_passes, extraction_xp_awarded, materials_minted_extraction,
   cache_keys_from_leaderboards,
   credits_minted_login_streak, cache_fragments_from_login_streak,
