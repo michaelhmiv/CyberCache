@@ -98,6 +98,67 @@ export const QUEUED_JOBS_PER_BENCH = 5;
 /** Sanity bound on a single job's unit count (escrow locks the inputs). */
 export const MAX_UNITS_PER_JOB = 500;
 
+// ─── Bench time (economy slice 10, brief §8.2/§8.3/§8.7) ────────────
+//
+// Banked hours that widen the one bench's envelope back to the
+// pre-collapse shape. Earn: one completed rewarded ad banks
+// BENCH_TIME_GRANT_SECONDS (the verified op cc_bank_bench_time;
+// attestation mirrors the cache lane — client-side by design, the
+// server's controls are the nonce and the bank cap; native-only,
+// guests may bank). Bank cap: BENCH_TIME_BANK_CAP_SECONDS. While
+// the bank is above zero the envelope is wide (benchEnvelope); the
+// bank drains in real time ONLY while an extra lane is occupied
+// (≥2 jobs running concurrently) — measured by the settlers from
+// the lanes' own consumption, never while a single job runs, and
+// an emptied bank never kills, pauses, or reprices a running job:
+// the extra lanes simply stop accruing until the bank refills.
+// These two figures are also economy-config levers
+// (benchTimeGrantSeconds / benchTimeBankCapSeconds, registry in
+// src/server/economy/config.ts) with these constants as their
+// content-owned defaults.
+
+/** Jobs running concurrently on the bench while bench time lasts. */
+export const BENCH_TIME_RUNNING_JOBS = 3;
+/** Jobs queueing behind them while bench time lasts. */
+export const BENCH_TIME_QUEUED_JOBS = 15;
+/** Seconds banked per completed rewarded ad (§8.2: one hour). */
+export const BENCH_TIME_GRANT_SECONDS = 3600;
+/** The bank cap in seconds (§8.2: 24 hours). */
+export const BENCH_TIME_BANK_CAP_SECONDS = 24 * 3600;
+
+export interface BenchEnvelope {
+  /** Jobs that may run concurrently on the bench. */
+  running: number;
+  /** Jobs that may queue behind the running jobs (Fixer bonus in). */
+  queued: number;
+  /** Total active jobs the enqueue gate admits (running + queued). */
+  capacity: number;
+  /** True while banked bench time keeps the wide envelope in force. */
+  wide: boolean;
+}
+
+/**
+ * THE BENCH ENVELOPE as a function of the bank (§8.3): above zero
+ * banked seconds, the bench runs the pre-collapse envelope — 3
+ * running + 15 queued, the Fixer workshopQueueBonus counting once
+ * per pre-collapse bench (×3); at zero, the baseline 1 + 5 with the
+ * bonus counting once. `queueBonus` is always a server-derived
+ * figure (the player's own Fixer keystone), never a request value.
+ * The tint enqueue's shipped gate never carried the Fixer bonus —
+ * it reads this with queueBonus 0 in both shapes. Wideness reads
+ * whole banked seconds; the sub-second drain remainder the settlers
+ * carry is accounting dust and never widens the bench on its own.
+ */
+export function benchEnvelope(bankedSeconds: number, queueBonus: number): BenchEnvelope {
+  const bonus = Math.max(0, Math.floor(queueBonus) || 0);
+  if (bankedSeconds > 0) {
+    const queued = BENCH_TIME_QUEUED_JOBS + 3 * bonus;
+    return { running: BENCH_TIME_RUNNING_JOBS, queued, capacity: BENCH_TIME_RUNNING_JOBS + queued, wide: true };
+  }
+  const queued = QUEUED_JOBS_PER_BENCH + bonus;
+  return { running: RUNNING_JOBS_ON_BENCH, queued, capacity: RUNNING_JOBS_ON_BENCH + queued, wide: false };
+}
+
 export function benchDef(bench: number): CraftBenchDef {
   return CRAFT_BENCHES[Math.max(1, Math.min(MAX_BENCH, Math.floor(bench) || 1)) - 1];
 }

@@ -4,9 +4,17 @@
  * the in-memory gameplay store. The production path is the SQL twin
  * (cc_enqueue_craft_job, cc_settle_craft_jobs, cc_cancel_craft_job,
  * cc_craft_recipe, cc_craft_quality_bounds — chain heads through
- * migration 0073); the two implementations are pinned to each other
+ * migration 0075); the two implementations are pinned to each other
  * by the parity tests, and the SQL is exercised against embedded
  * Postgres in the slice verification.
+ *
+ * Economy slice 10 (bench time, brief §8): banked hours widen the
+ * one bench's envelope (content benchEnvelope — baseline 1 + 5,
+ * banked 3 + 15, the Fixer queue bonus counting x1 / x3) at the
+ * enqueue gates, and the settler spends bench 1's window across
+ * three lanes while the bank lasts; only extra-lane busy time
+ * drains the bank, deducted from the profile view so the store's
+ * flush persists it. Mirrors 0075 exactly.
  *
  * Economy slice 9 (bench collapse + relic merger): there is ONE
  * bench; every generic job runs on bench 1. The fitted-tool
@@ -30,6 +38,8 @@
  *     stamped, and never carries a legendaryEffectId.
  */
 import {
+  BENCH_TIME_RUNNING_JOBS,
+  benchEnvelope,
   catalystForRecipe,
   composeCraftRelicEffects,
   CORE_CATALYST_CORES_PER_UNIT,
@@ -48,7 +58,6 @@ import {
   MAX_UNITS_PER_JOB,
   NO_CRAFT_RELIC_EFFECTS,
   qualityMasteryTrackForKind,
-  QUEUED_JOBS_PER_BENCH,
   rollRefineOutputCount,
   rollCraftQuality,
   rushTicketTimeReduction,
@@ -291,6 +300,16 @@ export interface CraftProfileView {
   legendary_cores: number;
   workshop_tools: WorkshopToolsState;
   offline_cap_hours: number | null;
+  /**
+   * Banked bench time, whole seconds (economy slice 10, 0075;
+   * mirrors profiles.bench_time_banked_seconds). Optional on the
+   * view: adapters that predate bench time read as an empty bank —
+   * the envelope stays baseline and nothing drains, exactly the
+   * pre-slice behavior. The production adapters always carry it.
+   */
+  bench_time_banked_seconds?: number;
+  /** The settlers' sub-second drain remainder, ms (0..999). */
+  bench_time_remainder_ms?: number;
 }
 
 export interface CraftLeverValues {
@@ -315,6 +334,15 @@ export interface CraftLeverValues {
    * pre-lever behavior — so parity never depends on it being wired.
    */
   recipeScrapCosts?: Record<string, number>;
+  /**
+   * Economy slice 10 (brief §8.2): the bench-time grant and bank
+   * cap, resolved from the economy-config levers. OPTIONAL adapter
+   * surface like recipeScrapCosts: an adapter that omits them reads
+   * the content literals (BENCH_TIME_GRANT_SECONDS /
+   * BENCH_TIME_BANK_CAP_SECONDS) — the registry defaults.
+   */
+  benchTimeGrantSeconds?: number;
+  benchTimeBankCapSeconds?: number;
 }
 
 /**
@@ -534,13 +562,44 @@ export function settleCraftJobs(
     benches.set(job.bench, list);
   }
 
-  for (const benchJobs of benches.values()) {
-    // Every job on a bench shares the same settle window; the queue
-    // consumes it in order and leftover flows to the next job.
-    let budget = Math.max(...benchJobs.map((j) => perJobAdvance.get(j.id) ?? 0), 0);
+  // Bench time (Econ 10, brief §8.3; SQL twin 0075): the bank at
+  // settle start in milliseconds. Bench 1's window is spent across
+  // three lanes while at least one whole second is banked; busy
+  // time on lanes past the first is the bank's drain, accumulated
+  // here and deducted from the profile view after the pass (the
+  // store's flush persists it). The baseline lane never drains.
+  const bankMs =
+    (profile.bench_time_banked_seconds ?? 0) * 1000 + (profile.bench_time_remainder_ms ?? 0);
+  let extraMs = 0;
+
+  for (const [bench, benchJobs] of benches.entries()) {
+    // Every job on a bench shares the same settle window; each lane
+    // holds the bench's full window, the queue consumes lanes in
+    // order, and a finished lane's leftover flows to the next job.
+    const benchBudget = Math.max(...benchJobs.map((j) => perJobAdvance.get(j.id) ?? 0), 0);
+    const lanes = bench === 1 && bankMs >= 1000 ? BENCH_TIME_RUNNING_JOBS : 1;
+    const laneBudgets = new Array<number>(lanes).fill(benchBudget);
     for (const job of benchJobs) {
-      if (budget <= 0) break;
       if (job.status !== 'active') continue;
+      // Take the usable lane holding the most window (ties go to
+      // the lowest lane, so a lone job always lands on the baseline
+      // lane and never drains). A lane past the first is usable
+      // only while undrained bank remains; its per-job allowance is
+      // clamped by that remainder, so an emptied bank stops the
+      // extra lanes accruing mid-settle — nothing is killed,
+      // paused out of existence, or repriced.
+      let lane = -1;
+      let avail = 0;
+      for (let li = 0; li < lanes; li++) {
+        if (laneBudgets[li] > avail && (li === 0 || extraMs < bankMs)) {
+          lane = li;
+          avail = laneBudgets[li];
+        }
+      }
+      if (lane < 0) break;
+      if (lane > 0) avail = Math.min(avail, bankMs - extraMs);
+      const initAvail = avail;
+      let budget = avail;
       // A job's first unit still marks the job tool-charged for
       // record parity with the SQL twin, but nothing is ever spent:
       // the snapshot's effects came from a permanent relic (slice 9;
@@ -603,7 +662,21 @@ export function settleCraftJobs(
         job.completed_at_ms = now;
         result.jobsCompleted += 1;
       }
+      // Lane bookkeeping: what this job drew leaves its lane; on an
+      // extra lane it is also the bank's drain.
+      laneBudgets[lane] -= initAvail - budget;
+      if (lane > 0) extraMs += initAvail - budget;
     }
+  }
+
+  // Bench-time drain: deduct this settle's extra-lane busy time
+  // from the bank — whole seconds into the bank field, the
+  // sub-second remainder carried so no fraction of a banked hour
+  // is ever lost to rounding.
+  if (extraMs > 0) {
+    const newBankMs = Math.max(0, bankMs - extraMs);
+    profile.bench_time_banked_seconds = Math.floor(newBankMs / 1000);
+    profile.bench_time_remainder_ms = newBankMs % 1000;
   }
   return result;
 }
@@ -1135,15 +1208,22 @@ export function enqueueCraftJob(
     fail('Named relic crafts take no catalyst — the relic is fixed');
   }
 
-  // Queue capacity: one running + QUEUED_JOBS_PER_BENCH waiting, plus
-  // the Fixer keystone's workshopQueueBonus (0029) — derived from the
-  // player's records by the store, snapshotted implicitly by the gate.
+  // Queue capacity — THE BENCH ENVELOPE (content benchEnvelope;
+  // SQL twin 0075): baseline one running + QUEUED_JOBS_PER_BENCH
+  // queued plus the Fixer keystone's workshopQueueBonus (0029) —
+  // derived from the player's records by the store, snapshotted
+  // implicitly by the gate; banked bench time widens it to the
+  // pre-collapse three running + fifteen queued with the bonus
+  // counting x3. The store settles before this call, so the bank
+  // read here is post-drain — the envelope in force at enqueue.
   const fixer = input.fixerBonuses;
   const queueBonus = Math.max(0, Math.floor(fixer?.workshopQueueBonus ?? 0));
   const benchActive = adapter
     .jobs(playerId)
     .filter((j) => j.status === 'active' && j.bench === bench).length;
-  if (benchActive >= 1 + QUEUED_JOBS_PER_BENCH + queueBonus) fail('Bench queue is full');
+  if (benchActive >= benchEnvelope(p.bench_time_banked_seconds ?? 0, queueBonus).capacity) {
+    fail('Bench queue is full');
+  }
 
   // Catalyst (optional; baseline since the bench collapse —
   // catalysts run on the one bench, their cost is their input).
@@ -1645,10 +1725,16 @@ export function enqueueTintJob(
     fail('Insufficient material Chromaweave');
   }
 
-  // The one bench (slice 9), under the generic capacity rule.
+  // The one bench (slice 9), under the generic capacity rule —
+  // widened by banked bench time exactly like the generic gate
+  // (0075), except that this gate has never carried the Fixer
+  // queue bonus and still does not. (The settle at this function's
+  // head already drained the bank, so the figure read is current.)
   const bench = 1;
   const tintActive = adapter.jobs(playerId).filter((j) => j.status === 'active' && j.bench === bench).length;
-  if (tintActive >= 1 + QUEUED_JOBS_PER_BENCH) fail('Bench queue is full');
+  if (tintActive >= benchEnvelope(p.bench_time_banked_seconds ?? 0, 0).capacity) {
+    fail('Bench queue is full');
+  }
 
   const escrowInputs: Record<string, number> = {};
   if (scrapCost > 0) {
@@ -1832,13 +1918,19 @@ export function deriveJobDisplayState(
   job: CraftJobRecord,
   allJobs: CraftJobRecord[],
   activeActionKind: string | null,
+  /**
+   * How many of the bench's FIFO-first jobs read as occupying a
+   * running lane (economy slice 10: bench 1 runs 3 lanes while
+   * bench time is banked). Defaults to the baseline single lane.
+   */
+  runningLanes = 1,
 ): CraftJobDisplayState {
   if (job.status !== 'active') return job.status;
   const ahead = allJobs
     .filter((j) => j.status === 'active' && j.bench === job.bench)
     .sort((a, b) => a.created_at_ms - b.created_at_ms || a.id.localeCompare(b.id));
-  const isHead = ahead[0]?.id === job.id;
-  if (!isHead) return 'queued';
+  const position = ahead.findIndex((j) => j.id === job.id);
+  if (position < 0 || position >= Math.max(1, runningLanes)) return 'queued';
   const lane = job.kind === 'repair' ? 'workshop_service' : 'crafting';
   return activeActionKind === lane ? 'running' : 'paused';
 }
@@ -1874,6 +1966,14 @@ export interface CraftJobView {
   outputs: CraftJobOutput[];
   createdAtMs: number;
   completedAtMs: number | null;
+  /**
+   * Economy slice 10: this job occupies an EXTRA lane — it runs
+   * (or holds its lane) only because bench time is banked. The
+   * Workshop marks these cards so widened-envelope work reads
+   * differently from baseline work at a glance. Always false on
+   * the baseline lane and on bench 0.
+   */
+  extraLane: boolean;
   /** Repair jobs only: the vehicle + kit and total points restored. */
   repairItemId: string | null;
   repairKitType: string | null;
@@ -1890,10 +1990,19 @@ export function craftJobView(
   job: CraftJobRecord,
   allJobs: CraftJobRecord[],
   activeActionKind: string | null,
+  /** Running lanes on THIS job's bench (bench-time widening). */
+  runningLanes = 1,
 ): CraftJobView {
   const recipe = getCraftRecipe(job.recipe_id);
   const repair = job.kind === 'repair' ? job.snapshot.repair : undefined;
   const shieldtech = job.kind === 'shieldtech' ? job.snapshot.shieldtech : undefined;
+  const benchPosition =
+    job.status === 'active'
+      ? [...allJobs]
+          .filter((j) => j.status === 'active' && j.bench === job.bench)
+          .sort((a, b) => a.created_at_ms - b.created_at_ms || a.id.localeCompare(b.id))
+          .findIndex((j) => j.id === job.id)
+      : -1;
   return {
     id: job.id,
     bench: job.bench,
@@ -1906,7 +2015,8 @@ export function craftJobView(
         : shieldtech
           ? `Shield recalibration — ${shieldtech.fromBehavior} → ${shieldtech.toBehavior}`
           : job.recipe_id),
-    state: deriveJobDisplayState(job, allJobs, activeActionKind),
+    state: deriveJobDisplayState(job, allJobs, activeActionKind, runningLanes),
+    extraLane: benchPosition > 0 && benchPosition < Math.max(1, runningLanes),
     unitsTotal: job.units_total,
     unitsCompleted: job.units_completed,
     unitDurationMs: job.unit_duration_ms,
@@ -1949,10 +2059,40 @@ export function buildWorkshopStateView(parts: {
    * charged. Optional so older payloads stay valid.
    */
   recipeScrapCosts?: Record<string, number>;
+  /**
+   * Economy slice 10 (brief §8.2/§8.3): the bench-time bank as the
+   * server reads it — the balance, the cap and per-ad grant (the
+   * resolved levers), and the player's own Fixer queue bonus (the
+   * envelope's last input). The view derives the envelope from
+   * these via content benchEnvelope, so the numbers the Workshop
+   * shows are the numbers the enqueue gate enforces. Optional so
+   * older payloads stay valid; both stores supply it.
+   */
+  benchTime?: {
+    bankedSeconds: number;
+    capSeconds: number;
+    grantSeconds: number;
+    queueBonus: number;
+  };
 }): Record<string, unknown> {
   const sorted = [...parts.jobs].sort(
     (a, b) => a.created_at_ms - b.created_at_ms || a.id.localeCompare(b.id),
   );
+  const benchTime = parts.benchTime
+    ? (() => {
+        const envelope = benchEnvelope(parts.benchTime.bankedSeconds, parts.benchTime.queueBonus);
+        return {
+          bankedSeconds: parts.benchTime.bankedSeconds,
+          capSeconds: parts.benchTime.capSeconds,
+          grantSeconds: parts.benchTime.grantSeconds,
+          wideActive: envelope.wide,
+          runningLimit: envelope.running,
+          queueLimit: envelope.queued,
+          capacity: envelope.capacity,
+        };
+      })()
+    : undefined;
+  const benchRunningLanes = benchTime?.wideActive ? benchTime.runningLimit : 1;
   const recentCompletions = sorted
     .flatMap((job) =>
       job.outputs.map((output) => ({
@@ -1968,10 +2108,13 @@ export function buildWorkshopStateView(parts: {
   return {
     benches: parts.benches,
     tools: parts.tools,
-    jobs: sorted.map((job) => craftJobView(job, sorted, parts.activeActionKind)),
+    jobs: sorted.map((job) =>
+      craftJobView(job, sorted, parts.activeActionKind, job.bench === 1 ? benchRunningLanes : 1),
+    ),
     masteries: parts.masteries,
     activeActionKind: parts.activeActionKind,
     recentCompletions,
     ...(parts.recipeScrapCosts ? { recipeScrapCosts: parts.recipeScrapCosts } : {}),
+    ...(benchTime ? { benchTime } : {}),
   };
 }

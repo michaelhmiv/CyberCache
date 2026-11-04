@@ -93,6 +93,12 @@ it trades on the player market:
   [[Crafting]].
 - **Standing** — reputation per manufacturer, never spent, never traded.
   See [[Manufacturer Standing]].
+- **Bench time** — not a currency you spend, but a bank you fill:
+  watching a rewarded ad in the app banks one hour, up to a 24-hour
+  bank. While the bank holds time, the Workshop bench runs wide —
+  3 jobs at once and 15 queued instead of 1 and 5 — and the bank
+  drains only while those extra lanes are actually working. A lone
+  job on the bench is always free. See [[Crafting]].
 
 ## Live tuning
 
@@ -102,6 +108,10 @@ one cost can move without touching any other recipe. Two guarantees
 come with that: the Workshop always displays the price that will
 actually be charged, and a job already on a bench keeps the price
 it started at — tuning never reprices work in progress.
+
+Bench time's grant and bank cap are tuned live the same way: the
+Workshop always shows the grant the next ad will bank and the cap
+the bank fills to, and a banked hour is never taken back by tuning.
 
 ## The one-paragraph version
 

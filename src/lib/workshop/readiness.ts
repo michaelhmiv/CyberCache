@@ -47,7 +47,10 @@ import { SKIN_PARTS } from '@/content/skins';
 import { getVisualAsset } from '@/constants/visualAssets';
 import { Rarity } from '@/types/game';
 
-/** Jobs that may sit on one bench: 1 running + the queued line. */
+/** Jobs that may sit on one bench at BASELINE: 1 running + the
+ *  queued line. Banked bench time (Econ 10) widens the envelope —
+ *  the Workshop feeds the server's live capacity through
+ *  WorkshopPlayerContext.benchCapacity when it has one. */
 export const BENCH_JOB_CAPACITY = 1 + QUEUED_JOBS_PER_BENCH;
 
 /** Mastery track ids → the names players read. One label owner. */
@@ -101,6 +104,14 @@ export interface WorkshopPlayerContext {
    * versa). Absent = content literals, the pre-lever behavior.
    */
   recipeScrapCosts?: Record<string, number>;
+  /**
+   * Econ 10 (brief §8.3): the bench's live job capacity from the
+   * Workshop snapshot — the server's benchEnvelope for this player
+   * (banked bench time widens it from the baseline 6 to 18, the
+   * Fixer queue bonus included in the server's figure). Absent =
+   * the baseline constant, the pre-slice behavior.
+   */
+  benchCapacity?: number;
 }
 
 export type GateFamily =
@@ -342,10 +353,12 @@ export function deriveRecipeReadiness(
   }
 
   // Queue capacity — only binds when an owned, sufficient bench is
-  // the one that would run the job and it is full.
+  // the one that would run the job and it is full. The capacity is
+  // the server's live envelope when the snapshot carries one
+  // (bench time widens it; Econ 10), else the baseline constant.
   if (benchOwned) {
     const onBench = ctx.activeJobs.filter((j) => j.bench === bench).length;
-    if (onBench >= BENCH_JOB_CAPACITY) {
+    if (onBench >= (ctx.benchCapacity ?? BENCH_JOB_CAPACITY)) {
       gates.push({
         family: 'queue',
         met: false,

@@ -123,6 +123,10 @@ export interface ProfileRowData {
   workshop_tools?: Record<string, unknown>;
   /** Legendary core balance (migration 0026). Optional: pre-0026 seed rows omit it. */
   legendary_cores?: number;
+  /** Banked bench time, whole seconds (migration 0075). Optional: pre-0075 seed rows omit it (= 0). */
+  bench_time_banked_seconds?: number;
+  /** The bench-time settlers' sub-second drain remainder, ms (migration 0075). Optional (= 0). */
+  bench_time_remainder_ms?: number;
   /** Action skill charge pool 0..100 (migration 0030). Optional: pre-0030 seed rows omit it (= 0). */
   action_skill_charge?: number;
   /** Recorded action skill selection (migration 0030). Optional: pre-0030 rows omit it (= null). */

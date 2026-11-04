@@ -39,6 +39,13 @@ export interface WorkshopJobView {
    * even after a lever move. Absent on older payloads.
    */
   escrowInputs?: Record<string, number>;
+  /**
+   * Econ 10: this job occupies an extra bench-time lane — it runs
+   * only because banked bench time is widening the bench. The card
+   * tags it so widened work reads differently at a glance. Absent
+   * (false) on older payloads and on the baseline lane.
+   */
+  extraLane?: boolean;
   outputs: Array<Record<string, unknown>>;
   createdAtMs: number;
   completedAtMs: number | null;
@@ -75,6 +82,23 @@ export interface WorkshopServerView {
    * payloads, where displays fall back to the content literals.
    */
   recipeScrapCosts?: Record<string, number>;
+  /**
+   * Econ 10 (brief §8.2/§8.3): the bench-time bank and the envelope
+   * it puts in force, resolved server-side (buildWorkshopStateView):
+   * the balance and cap in seconds, the per-ad grant, and the
+   * running/queue/capacity figures for THIS player's Fixer bonus.
+   * Absent on older payloads (the bench strip then renders the
+   * baseline from the content constants).
+   */
+  benchTime?: {
+    bankedSeconds: number;
+    capSeconds: number;
+    grantSeconds: number;
+    wideActive: boolean;
+    runningLimit: number;
+    queueLimit: number;
+    capacity: number;
+  };
 }
 
 export interface WorkshopState {
@@ -92,6 +116,12 @@ export interface WorkshopState {
     useRushTicket?: boolean;
   }) => Promise<boolean>;
   cancel: (jobId: string) => Promise<boolean>;
+  /**
+   * Bank one attested rewarded ad as +1 hour of bench time
+   * (cc_bank_bench_time). The caller shows the ad first (the bench
+   * strip owns that flow); this op only attests its completion.
+   */
+  bankBenchTime: (adUnitId?: string) => Promise<boolean>;
 }
 
 function asView(result: Record<string, unknown>): WorkshopServerView {
@@ -139,6 +169,17 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
   cancel: async (jobId) => {
     try {
       await verifiedOps.cancelCraftJob(jobId);
+      await get().refresh();
+      return true;
+    } catch (err) {
+      set({ error: humanizeWorkshopError(err) });
+      return false;
+    }
+  },
+
+  bankBenchTime: async (adUnitId) => {
+    try {
+      await verifiedOps.bankBenchTime(adUnitId);
       await get().refresh();
       return true;
     } catch (err) {

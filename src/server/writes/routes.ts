@@ -27,6 +27,7 @@
  *   GET  /api/repair/board                  verifiedOps.fetchRepairBoard        cc_settle_repair_jobs_for + board view
  *   POST /api/ops/shieldtech-enqueue        verifiedOps.enqueueShieldTechJob    cc_enqueue_shieldtech_job(...)
  *   POST /api/ops/tint-enqueue              verifiedOps.enqueueTintJob          cc_enqueue_tint_job(...)
+ *   POST /api/ops/bank-bench-time           verifiedOps.bankBenchTime           cc_bank_bench_time(nonce, ad_unit_id) — bench time (0075): one client-attested rewarded ad banks +1 h; nonce + 24 h cap are the server controls; guests bank
  *   POST /api/ops/shieldtech-post           verifiedOps.postShieldTechJob       cc_post_shieldtech_job(...)
  *   POST /api/ops/shieldtech-accept         verifiedOps.acceptShieldTechJob     cc_accept_shieldtech_job(...)
  *   POST /api/ops/shieldtech-finish         verifiedOps.finishShieldTechJob     cc_shieldtech_job_finish(...)
@@ -333,6 +334,13 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     if (!jobId) return null;
     return store.cancelCraftJob(playerId, str(body(req).nonce), jobId);
   });
+  // Bench time (0075, economy brief §8.2): one completed rewarded
+  // ad, attested client-side exactly like the cache lane — the
+  // server's controls are the nonce and the bank cap. Guests bank
+  // (banking is not transacting; no economy gate on the op).
+  op('/api/ops/bank-bench-time', async (playerId, req) =>
+    store.bankBenchTime(playerId, str(body(req).nonce), optStr(body(req).ad_unit_id) ?? null),
+  );
   // The Workshop state read: settles the player's jobs server-side,
   // then returns benches/tools/jobs/masteries in the one view shape.
   app.get('/api/workshop/me', async (req, res) => {
