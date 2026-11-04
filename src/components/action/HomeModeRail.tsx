@@ -7,8 +7,10 @@ import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
  *
  * The stage's mode strip: exactly the six stops the language
  * specifies — Area · Roam · Boss · Endless · Extract · Craft —
- * rendered under the diorama so the whole mode vocabulary is
- * one tap from the stage. Endless, Extraction, and Crafting
+ * rendered ABOVE the diorama (owner device ruling, 2026-11-04;
+ * it sat under the stage until the swap) so the whole mode
+ * vocabulary leads the screen, one tap from everything below
+ * it. Endless, Extraction, and Crafting
  * were promoted here from the stage's mode sheet (2 taps → 1);
  * the sheet paths still work and are untouched — this rail is
  * the first-class door, not a replacement control set. Salvage

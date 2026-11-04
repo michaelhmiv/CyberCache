@@ -16,14 +16,16 @@ interface HomeScreenProps {
  * the main stage: choose a place, get the immediate rundown.
  *
  * Composition order (DESIGN.md §4, the full ladder): Strip (+ the
- * one settings gear resident §1 allows) → claim chips → Stage →
- * mode rail → lit workspace → consumable belt (steps 1–5 above
+ * one settings gear resident §1 allows) → claim chips → mode
+ * rail → Stage → consumable belt → lit workspace (steps 1–5 above
  * the fold) → the deck below in its fixed order (launchers →
- * Weekly claimables → Now → Hunter Totals). Nothing but the
- * Strip and claim chips sits above the Stage, and the Stage is
- * never below the fold in any state — the mode rail, the lit
- * workspace, and the belt all render inside the stage component
- * (ActionScreenContextual) directly under the diorama.
+ * Weekly claimables → Now → Hunter Totals). The rail leads the
+ * Stage and the belt sits in the rail's vacated slot under the
+ * stage block since the owner's device ruling of 2026-11-04;
+ * nothing but the Strip, claim chips, and the rail sits above
+ * the Stage, and the Stage is never below the fold in any
+ * state — the mode rail, the belt, and the lit workspace all
+ * render inside the stage component (ActionScreenContextual).
  */
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSelect }) => {
   return (
@@ -43,7 +45,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
             streak / contracts / weekly claim chips — first paint,
             no scroll, nothing else above the Stage (§4). */}
         <DashboardTopBar />
-        {/* The Stage — diorama, mode rail, lit workspace, belt. */}
+        {/* The Stage block — mode rail, diorama, belt, lit workspace. */}
         <div className="scroll-mt-2">
           <ActionScreenContextual onOpenBossSelect={() => onOpenBossSelect?.()} onNavigate={onNavigate} />
         </div>
