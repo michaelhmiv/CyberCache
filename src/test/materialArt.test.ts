@@ -17,14 +17,16 @@ import {
  */
 
 const REGISTRY_IDS = [...Object.keys(MATERIAL_VISUALS), ...Object.keys(ESSENCE_VISUALS)];
-const ALL_IDS = [...REGISTRY_IDS, 'Scrap'];
+// Econ 5: Scrap is a registry good now — the resource row and the
+// material row are the same stock, no separate append.
+const ALL_IDS = [...REGISTRY_IDS];
 
 function filledCount(rows: string[]): number {
   return rows.reduce((n, row) => n + [...row].filter((c) => c !== '.').length, 0);
 }
 
 describe('materialArt — coverage', () => {
-  it('has exactly one STUFF row per registry good, plus the Scrap resource row', () => {
+  it('has exactly one STUFF row per registry good', () => {
     expect(Object.keys(MATERIAL_ART).sort()).toEqual([...ALL_IDS].sort());
   });
 
@@ -49,7 +51,7 @@ describe('materialArt — coverage', () => {
 
 describe('materialArt — lineage (refinement reads as alignment of the same stuff)', () => {
   const PAIRS: Array<[MaterialType, MaterialType]> = [
-    [MaterialType.ScrapAlloy, MaterialType.RefinedAlloy],
+    [MaterialType.Scrap, MaterialType.RefinedAlloy],
     [MaterialType.BallisticParts, MaterialType.TemperedParts],
     [MaterialType.ReactiveComponents, MaterialType.StabilizedCells],
     [MaterialType.TechFragments, MaterialType.WovenCircuits],
@@ -63,6 +65,11 @@ describe('materialArt — lineage (refinement reads as alignment of the same stu
       // it produces — the form changes because weaving IS the
       // processing. Every other pair keeps its family outright.
       if (base === MaterialType.TechFragments) continue;
+      // Econ 5 exception: the merge retired ScrapAlloy (silver
+      // plates) — RefinedAlloy's base is now Scrap, a rust junk
+      // pile. Refining scrap IS a transformation (junk in, clean
+      // aligned stock out), so this pair changes family by design.
+      if (base === MaterialType.Scrap) continue;
       expect(MATERIAL_ART[refined].family, `${base} -> ${refined}`).toBe(MATERIAL_ART[base].family);
       expect(MATERIAL_ART[refined].band).toBe('refined');
     }
@@ -70,6 +77,11 @@ describe('materialArt — lineage (refinement reads as alignment of the same stu
 
   it('every lineage pair keeps its colorway family (identical registry accent)', () => {
     for (const [base, refined] of PAIRS) {
+      // Econ 5 exception, same pair as the family test: the silver
+      // accent belonged to the retired ScrapAlloy; Scrap's rust
+      // colorway breaking into clean silver stock is the refine's
+      // fiction, not drift.
+      if (base === MaterialType.Scrap) continue;
       expect(getMaterialVisual(refined).accentColor, `${base} -> ${refined}`)
         .toBe(getMaterialVisual(base).accentColor);
     }

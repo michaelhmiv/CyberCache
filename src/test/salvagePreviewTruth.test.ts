@@ -186,7 +186,10 @@ async function startRoute(seed: WriteSeed, rng: () => number) {
 
 function profileOf(store: InMemoryWriteStore): ProfileRowData {
   const seed = (store as unknown as { seed: WriteSeed }).seed;
-  return seed.profiles.find((p) => p.id === A) as ProfileRowData;
+  const row = seed.profiles.find((p) => p.id === A) as ProfileRowData;
+  // Econ 5 (0069): the scrap balance lives in materials['Scrap']; the
+  // row's scrap field is the retired tombstone (seeds fold + zero it).
+  return { ...row, scrap: row.materials['Scrap'] ?? 0 };
 }
 
 describe('salvage preview truth — projection equals route settlement', () => {

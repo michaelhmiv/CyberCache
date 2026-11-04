@@ -543,7 +543,7 @@ describe('contracts — in-memory gameplay store', () => {
     const rerolled = await store.rerollContract(A, 'reroll-nonce-0001', first.id) as Json;
     expect(rerolled.free_reroll).toBe(true);
     expect(rerolled.scrap_charged).toBe(0);
-    expect(store.profiles.get(A)!.scrap).toBe(500);
+    expect(store.profiles.get(A)!.materials['Scrap'] ?? 0).toBe(500);
     expect(setIds).not.toContain(rerolled.template_id);
     const after = await store.getContractsFacts(A);
     expect(after!.daily.rerollsUsed).toBe(1);
@@ -551,11 +551,11 @@ describe('contracts — in-memory gameplay store', () => {
     const paid = await store.rerollContract(A, 'reroll-nonce-0002', second.id) as Json;
     expect(paid.free_reroll).toBe(false);
     expect(paid.scrap_charged).toBe(100);
-    expect(store.profiles.get(A)!.scrap).toBe(400);
+    expect(store.profiles.get(A)!.materials['Scrap'] ?? 0).toBe(400);
     // Replay returns the stored result and charges nothing again.
     const replay = await store.rerollContract(A, 'reroll-nonce-0002', second.id) as Json;
     expect(replay).toEqual(paid);
-    expect(store.profiles.get(A)!.scrap).toBe(400);
+    expect(store.profiles.get(A)!.materials['Scrap'] ?? 0).toBe(400);
     // A completed contract cannot be rerolled.
     const factsNow = await store.getContractsFacts(A);
     const completable = factsNow!.daily.instances.find((i) => CONTRACT_STAT_KEYS[

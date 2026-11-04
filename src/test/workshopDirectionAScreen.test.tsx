@@ -48,7 +48,7 @@ const MASTERIES = {
   'crafting.cosmetics': { level: 2, xp: 0 },
 };
 
-const MATERIALS = { ScrapAlloy: 42, ReactiveComponents: 17, BallisticParts: 9, TechFragments: 6, RefinedAlloy: 3 };
+const MATERIALS = { Scrap: 42, ReactiveComponents: 17, BallisticParts: 9, TechFragments: 6, RefinedAlloy: 3 };
 const ESSENCES = { IgnitionFluid: 2 };
 
 function seedStores() {

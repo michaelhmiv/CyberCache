@@ -256,13 +256,13 @@ Baseline rates are the area design rates before gear, skills, vehicles, and the 
 
 | Area | Danger | Enemies | Credits/min | Scrap/min | XP/tick | Material bias | Signature loot | Influence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Dustwaste Frontier** | Low | Raiders, scrap drones, and scavengers | 15 | 3 | 1 | Scrap Alloy, Ballistic Parts | Balanced gear, early salvage, cache fragments | Mixed |
-| **Redline Circuit** | Medium | Fast raiders, pursuit drones, and overheating runners | 18 | 3 | 1.2 | Scrap Alloy, Ballistic Parts | SMGs, pistols, attack speed, reload and ramp affixes | Redline |
+| **Dustwaste Frontier** | Low | Raiders, scrap drones, and scavengers | 15 | 3 | 1 | Scrap, Ballistic Parts | Balanced gear, early salvage, cache fragments | Mixed |
+| **Redline Circuit** | Medium | Fast raiders, pursuit drones, and overheating runners | 18 | 3 | 1.2 | Scrap, Ballistic Parts | SMGs, pistols, attack speed, reload and ramp affixes | Redline |
 | **Ironwood Bastion** | Medium/High | Marksmen, armored captains, and sentry posts | 17 | 4 | 1.4 | Ballistic Parts, Tech | Snipers, pistols, crit rolls, weakpoint and boss-damage flavor | Ironwood |
-| **BlastForge Yards** | Medium/High | Armored machines, refinery bots, and demolition crews | 16 | 5 | 1.65 | Scrap Alloy, Ballistic Parts, Reactive Components | Launchers, shotguns, armor break, stagger and explosive flavor | BlastForge |
+| **BlastForge Yards** | Medium/High | Armored machines, refinery bots, and demolition crews | 16 | 5 | 1.65 | Scrap, Ballistic Parts, Reactive Components | Launchers, shotguns, armor break, stagger and explosive flavor | BlastForge |
 | **Prismatek Reactor** | Variable | Elemental anomalies, shielded test subjects, and reactor constructs | 18 | 4 | 1.9 | Tech | Beams, elemental weapons, status affixes, weakness exploitation | Prismatek |
 | **ThrowTech Dumpnet** | Medium | Hacked drones, turret nests, minefields, and signal traps | 19 | 4 | 2.15 | Tech, Reactive Components | Deployable-flavored gear, ordnance, utility drops, drone parts | ThrowTech |
-| **HelixWorks Labyrinth** | High | Prototype constructs, unstable test rigs, and shifting lab defenses | 21 | 5 | 2.4 | Tech, Void Dust, Scrap Alloy, Reactive Components | HelixWorks gear, higher roll quality flavor, modular parts | HelixWorks |
+| **HelixWorks Labyrinth** | High | Prototype constructs, unstable test rigs, and shifting lab defenses | 21 | 5 | 2.4 | Tech, Void Dust, Scrap, Reactive Components | HelixWorks gear, higher roll quality flavor, modular parts | HelixWorks |
 <!-- /wiki-gen:areas -->
 
 ## Vehicles

@@ -143,7 +143,7 @@ function baseSeed(): WriteSeed {
     cache_rank_spends: { marketProceeds: 10 },
   } as Partial<ProfileRowData>;
   s.profiles = [
-    profile({ id: S, username: 'tongue', credits: 0, materials: { ScrapAlloy: 10 }, ...maxed }),
+    profile({ id: S, username: 'tongue', credits: 0, materials: { Scrap: 10 }, ...maxed }),
     profile({ id: B, username: 'buyer', credits: 100_000 }),
   ];
   s.items = [
@@ -155,7 +155,7 @@ function baseSeed(): WriteSeed {
     {
       id: STACK, seller_user_id: S, item_instance_id: null, price_credits: 10_000,
       status: 'active', listed_at: '2026-10-29T11:00:00.000Z', sold_at: null,
-      listing_kind: 'material', quantity: 10, material_id: 'ScrapAlloy',
+      listing_kind: 'material', quantity: 10, material_id: 'Scrap',
     } as WriteListingData,
   ];
   return s;
@@ -236,14 +236,14 @@ describe('fee floor — wire paths conserve credits exactly', () => {
   it('cc_quickbuy_fill twin: a full-stack market fill pays the same clamped settlement per leg', async () => {
     const before = totalCredits(h);
     const quoteRes = await post(h, '/api/ops/quickbuy-quote', h.tokens[B], {
-      good_kind: 'material', good_id: 'ScrapAlloy', quantity: 10,
+      good_kind: 'material', good_id: 'Scrap', quantity: 10,
     });
     expect(quoteRes.status).toBe(200);
     const market = (quoteRes.json as { market: { total: number } }).market;
     expect(market.total).toBe(10_000);
 
     const filled = await post(h, '/api/ops/quickbuy-fill', h.tokens[B], {
-      nonce: nonce(), source: 'market', good_kind: 'material', good_id: 'ScrapAlloy',
+      nonce: nonce(), source: 'market', good_kind: 'material', good_id: 'Scrap',
       quantity: 10, quoted_total: market.total,
     });
     expect(filled.status).toBe(200);

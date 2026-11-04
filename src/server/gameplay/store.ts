@@ -1544,7 +1544,9 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   async getDispatchFacts(playerId: string): Promise<{ profile: DispatchProfileFacts; items: DispatchCandidateItem[] } | null> {
     const profile = await this.one(
-      'select player_level, vehicle_fuel, credits, scrap, dispatch_board_index, dispatch_rerolls_used, dispatch_board_day from public.profiles where id = $1',
+      // Econ 5 (0069): the Scrap stock is materials['Scrap']; the
+      // retired profiles.scrap column is never read.
+      'select player_level, vehicle_fuel, credits, coalesce((materials ->> \'Scrap\')::bigint, 0) as scrap, dispatch_board_index, dispatch_rerolls_used, dispatch_board_day from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),

@@ -31,8 +31,11 @@ describe('W1 — material display names, never raw ids', () => {
   it('craft availability reports labels in the missing list', () => {
     const check = canStartCraft('recipe_medkit', {}, {}, 10);
     expect(check.can).toBe(false);
-    expect(check.missing.join(' ')).toContain('Scrap Alloy: 0/15');
-    expect(check.missing.join(' ')).not.toContain('ScrapAlloy');
+    expect(check.missing.join(' ')).toContain('Scrap: 0/15');
+    // Raw ids never print: the second entry is the display name
+    // ("Reactive Components"), not the camel-case id. (Scrap's
+    // display name IS "Scrap" post-merge — id and label coincide.)
+    expect(check.missing.join(' ')).not.toContain('ReactiveComponents:');
   });
 });
 

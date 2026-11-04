@@ -74,7 +74,7 @@ describe('runtime display snapshots are not economy authority', () => {
       cacheKeys: 2,
       cacheKeyFragments: 1,
       consumables: { MedKit: 1 },
-      materials: { ScrapAlloy: 3 },
+      materials: { Scrap: 3 },
       essences: { VoidEssence: 4 },
     });
     useInventoryStore.setState({ items: [serverItem] });
@@ -103,7 +103,7 @@ describe('runtime display snapshots are not economy authority', () => {
         cacheKeys: 99,
         cacheKeyFragments: 99,
         consumables: { MedKit: 99 },
-        materials: { ScrapAlloy: 99 },
+        materials: { Scrap: 99 },
         essences: { VoidEssence: 99 },
       },
       inventory: { items: [snapshotItem] as GearItem[] },
@@ -150,7 +150,7 @@ describe('runtime display snapshots are not economy authority', () => {
       cacheKeys: 2,
       cacheKeyFragments: 1,
       consumables: { MedKit: 1 },
-      materials: { ScrapAlloy: 3 },
+      materials: { Scrap: 3 },
       essences: { VoidEssence: 4 },
     });
     expect(useInventoryStore.getState().items.map((item) => item.id)).toEqual(['server-item']);

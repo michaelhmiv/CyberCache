@@ -112,7 +112,17 @@ export enum ConsumableType {
 }
 
 export enum MaterialType {
-  ScrapAlloy = 'ScrapAlloy',
+  // Scrap (economy slice 5, migration 0069): THE one scrap. The
+  // former profile `Scrap` currency AND the former `ScrapAlloy`
+  // material (renamed into this key, brief §3.1) merged into the single
+  // tradeable stock in profiles.materials['Scrap']. The retired
+  // profiles.scrap column was converted into this stack by 0069;
+  // every faucet/sink (roaming, salvage, dispatch, endless, boss
+  // auto-scrap, the initial bundle, cosmetics, tint, reforge,
+  // contract rerolls, and all 65 scrap-priced recipes) settles
+  // against this key, and the player market lists it like any other
+  // material. There is no second scrap anywhere.
+  Scrap = 'Scrap',
   BallisticParts = 'BallisticParts',
   ReactiveComponents = 'ReactiveComponents',
   TechFragments = 'TechFragments',

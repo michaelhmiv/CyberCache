@@ -73,7 +73,7 @@ export interface VendorMaterialEntry {
  * buyback pays a fraction (default 40%) of these same values.
  */
 export const VENDOR_MATERIALS: VendorMaterialEntry[] = [
-  { id: MaterialType.ScrapAlloy, name: 'Scrap Alloy', kind: 'material', unitPrice: 10 },
+  { id: MaterialType.Scrap, name: 'Scrap', kind: 'material', unitPrice: 10 },
   { id: MaterialType.BallisticParts, name: 'Ballistic Parts', kind: 'material', unitPrice: 15 },
   { id: MaterialType.ReactiveComponents, name: 'Reactive Components', kind: 'material', unitPrice: 20 },
   { id: MaterialType.TechFragments, name: 'Tech', kind: 'material', unitPrice: 35 },

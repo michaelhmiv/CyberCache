@@ -29,7 +29,8 @@ function fixtureCtx(over: Partial<WorkshopPlayerContext> = {}): WorkshopPlayerCo
     playerLevel: 14,
     scrap: 1240,
     materials: {
-      ScrapAlloy: 42,
+      // Econ 5: ctx.scrap is the display mirror of this one stock.
+      Scrap: 1240,
       ReactiveComponents: 17,
       BallisticParts: 9,
       TechFragments: 6,
@@ -177,11 +178,14 @@ describe('readiness classification — the mock fixture, live derivation', () =>
 
   it('selected units reprice the material gate (totals honesty)', () => {
     const recipe = getCraftRecipe('recipe_medkit')!;
-    const two = deriveRecipeReadiness(recipe, fixtureCtx(), { units: 2 });
+    // A leaner wallet for the gate arithmetic: 42 Scrap in stock.
+    const lean = fixtureCtx();
+    lean.materials = { ...lean.materials, Scrap: 42 };
+    const two = deriveRecipeReadiness(recipe, lean, { units: 2 });
     expect(two.classification).toBe('craftable'); // 42/30 + 17/16 still holds
-    const ten = deriveRecipeReadiness(recipe, fixtureCtx(), { units: 10 });
+    const ten = deriveRecipeReadiness(recipe, lean, { units: 10 });
     expect(ten.blockerFamilies).toEqual(['materials']);
-    expect(ten.shortages.map((s) => s.key)).toContain('ScrapAlloy');
+    expect(ten.shortages.map((s) => s.key)).toContain('Scrap');
   });
 });
 
@@ -196,7 +200,7 @@ describe('card copy — purpose, quality, search', () => {
   it('refining purpose states the live conversion at the player’s mastery', () => {
     const refine = getCraftRecipe('refine_refined_alloy')!;
     const purpose = recipePurpose(refine, fixtureCtx());
-    expect(purpose.text).toContain('10 Scrap Alloy');
+    expect(purpose.text).toContain('10 Scrap');
     expect(purpose.text).toContain('Refined Alloy');
   });
 
@@ -219,7 +223,7 @@ describe('card copy — purpose, quality, search', () => {
     const text = recipeSearchText(medkit, ctx).toLowerCase();
     expect(text).toContain('med kit');
     expect(text).toContain('heal'); // the job/purpose
-    expect(text).toContain('scrap alloy'); // a material
+    expect(text).toContain('scrap'); // a material
     const fuel = getCraftRecipe('recipe_fuel_cell')!;
     expect(recipeSearchText(fuel, ctx).toLowerCase()).toContain('nitrocell gel');
   });
@@ -248,14 +252,16 @@ describe('material sources — live owners only', () => {
   });
 
   it('a base material roams in a biased area, rotates at the vendor, and lists on the market', () => {
-    const sources = sourcesForInput('ScrapAlloy');
+    const sources = sourcesForInput('Scrap');
     expect(sources.some((s) => s.kind === 'roam')).toBe(true);
     expect(sources.some((s) => s.kind === 'vendor')).toBe(true);
     expect(sources.some((s) => s.kind === 'market')).toBe(true);
   });
 
-  it('Scrap is a currency line, never a market door', () => {
-    expect(sourcesForInput('Scrap')).toEqual([{ kind: 'scrap' }]);
+  it('Scrap is a material like any other — the market door included (Econ 5)', () => {
+    const kinds = sourcesForInput('Scrap').map((s) => s.kind);
+    expect(kinds).toContain('market');
+    expect(kinds).not.toContain('scrap');
   });
 });
 
@@ -285,7 +291,7 @@ describe('error humanizer — no Chef refusal renders raw', () => {
       'Requires crafting_consumables mastery 15',
       'Requires crafting.refining mastery 5',
       'Requires crafting.cosmetics mastery 5',
-      'Insufficient material ScrapAlloy',
+      'Insufficient material Scrap',
       'Insufficient material NitrocellGel',
       'Insufficient essence VoidEssence',
       'Insufficient material Chromaweave',

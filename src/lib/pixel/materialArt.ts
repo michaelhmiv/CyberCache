@@ -34,7 +34,7 @@ import { hexLerp } from './weaponCardCompositor';
  * refined alignment, the composite lamination seam, the essence
  * glow heart. Lineage survives refinement: the five refined forms
  * keep their base material's family, so Refined Alloy reads as
- * Scrap Alloy, cleaned, before the name is read.
+ * Scrap, cleaned, before the name is read.
  *
  * Runtime-composed: zero sprite payload, same as the gear
  * marriage. Compose-then-cache mirrors gearCardCompositor.
@@ -61,7 +61,9 @@ export interface MaterialArtRow {
  */
 export const MATERIAL_ART: Readonly<Record<string, MaterialArtRow>> = {
   // — raw base five —
-  [MaterialType.ScrapAlloy]: { family: 'plates', variant: 'junk', band: 'raw' },
+  // (Scrap's row sits at the bottom of this table: pre-merge it was
+  // the currency row keyed 'Scrap'; Econ 5 merged the stocks and the
+  // row is the one stock's row now — see the note there.)
   [MaterialType.BallisticParts]: { family: 'cluster', variant: 'parts', band: 'raw' },
   [MaterialType.ReactiveComponents]: { family: 'cluster', variant: 'cans', band: 'raw' },
   [MaterialType.TechFragments]: { family: 'chunk', variant: 'tech', band: 'raw' },
@@ -91,8 +93,13 @@ export const MATERIAL_ART: Readonly<Record<string, MaterialArtRow>> = {
   [EssenceType.AcidCompound]: { family: 'vessel', variant: 'flask', band: 'essence' },
   [EssenceType.CryoGel]: { family: 'vessel', variant: 'jar', band: 'essence' },
   [EssenceType.VoidEssence]: { family: 'vessel', variant: 'orb', band: 'essence' },
-  // — the currency that rides the Workshop's material lines —
-  Scrap: { family: 'pile', variant: 'junk', band: 'raw' },
+  // — the merged Scrap stock (Econ 5, 0069): one stock, one row.
+  // Pre-merge this key was the profile currency's row and the
+  // material lived under 'ScrapAlloy' (plates/junk); the merge kept
+  // the currency's rust-pile form for the unified stock — refining
+  // it into RefinedAlloy (clean silver plates) is a transformation,
+  // the authored lineage exception in materialArt.test.ts.
+  [MaterialType.Scrap]: { family: 'pile', variant: 'junk', band: 'raw' },
 };
 
 /** The art row for any material / essence / resource id. */

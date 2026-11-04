@@ -36,8 +36,7 @@ export type MaterialSource =
   | { kind: 'refine'; recipeId: string; recipeName: string; station: 'crusher' | 'furnace' }
   | { kind: 'roam'; areaId: string; areaName: string; home: boolean }
   | { kind: 'vendor' }
-  | { kind: 'market' }
-  | { kind: 'scrap' };
+  | { kind: 'market' };
 
 const areaName = (areaId: string): string =>
   ROAMING_AREAS.find((a) => a.id === areaId)?.name ?? areaId;
@@ -48,8 +47,9 @@ const areaName = (areaId: string): string =>
  * vendor rotation (catalog materials/essences only), the market.
  */
 export function sourcesForInput(inputId: string): MaterialSource[] {
-  if (inputId === 'Scrap') return [{ kind: 'scrap' }];
-
+  // Econ 5: Scrap is an ordinary material — it derives roam/vendor/
+  // market sources like every other input (the old currency-line
+  // special case is gone; there is no second scrap).
   const sources: MaterialSource[] = [];
 
   // Refined here: this input is another recipe's output.
@@ -105,8 +105,6 @@ export function sourceSummary(inputId: string): string {
         return 'Vendor rotation';
       case 'market':
         return 'Market';
-      case 'scrap':
-        return 'Roam · salvage gear · sell loot';
     }
   });
   return `${label}: ${parts.join(' · ')}`;

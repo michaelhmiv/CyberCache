@@ -211,7 +211,9 @@ export interface InMemoryProfile {
   player_level: number;
   player_xp: number;
   credits: number;
-  scrap: number;
+  // Econ 5 (migration 0069): there is NO scrap column balance on this
+  // record — the one Scrap stock lives in materials['Scrap'] and every
+  // read/write goes through it. Views project `scrap` from the stack.
   /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
   scrap_remainder: number;
   /** Banked fractional credits (migration 0010), 0 <= x < 1. */
@@ -564,11 +566,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
 
   /** Test helper: insert a profile row with June defaults. */
   seedProfile(overrides: Partial<InMemoryProfile> & { id: string }): InMemoryProfile {
+    // Econ 5: a seed's legacy `scrap` amount folds into the unified
+    // materials stock — seeding scrap N means holding N Scrap items.
+    const legacyScrap = typeof overrides.scrap === 'number' ? overrides.scrap : 0;
+    const { scrap: _legacyScrapKey, ...restOverrides } = overrides;
     const profile: InMemoryProfile = {
       player_level: 1,
       player_xp: 0,
       credits: 0,
-      scrap: 0,
       scrap_remainder: 0,
       credits_remainder: 0,
       xp_remainder: 0,
@@ -596,8 +601,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       dispatch_board_index: 0,
       dispatch_rerolls_used: 0,
       dispatch_board_day: null,
-      ...overrides,
+      ...restOverrides,
     };
+    if (legacyScrap !== 0) {
+      profile.materials = {
+        ...profile.materials,
+        Scrap: (profile.materials['Scrap'] ?? 0) + legacyScrap,
+      };
+    }
     this.profiles.set(profile.id, profile);
     return profile;
   }
@@ -634,7 +645,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       player_level: p.player_level,
       player_xp: p.player_xp,
       credits: p.credits,
-      scrap: p.scrap,
+      scrap: p.materials['Scrap'] ?? 0,
       cache_tokens: p.cache_tokens,
       cache_token_parts: p.cache_token_parts,
       legendary_cores: p.legendary_cores ?? 0,
@@ -672,7 +683,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     p.player_xp = leveled.player_xp;
     this.applyCacheRankGrant(p);
     p.credits += Math.trunc(rewards.credits);
-    p.scrap += Math.trunc(rewards.scrap);
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + Math.trunc(rewards.scrap);
     if (rewards.scrapRemainder != null) p.scrap_remainder = rewards.scrapRemainder;
     if (rewards.creditsRemainder != null) p.credits_remainder = rewards.creditsRemainder;
     if (rewards.xpRemainder != null) p.xp_remainder = rewards.xpRemainder;
@@ -1806,7 +1817,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const free = used < 1;
     const cost = free ? 0 : inst.periodKind === 'daily'
       ? levers.contractRerollScrapDaily : levers.contractRerollScrapWeekly;
-    if (cost > 0 && p.scrap < cost) throw new GameplayStoreError('Insufficient scrap for a reroll');
+    if (cost > 0 && (p.materials['Scrap'] ?? 0) < cost) throw new GameplayStoreError('Insufficient scrap for a reroll');
     const band = contractBandById(inst.band as ContractBandId);
     const draw = drawContractReroll({
       kind: inst.periodKind,
@@ -1822,7 +1833,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         .map((i) => CONTRACT_TEMPLATE_BY_ID.get(i.templateId)?.family ?? 'meta'),
     });
     if (!draw) throw new GameplayStoreError('No replacement contract available on this board');
-    if (cost > 0) p.scrap -= cost;
+    if (cost > 0) p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) - cost;
     inst.status = 'rerolled';
     const replacement: ContractInstanceRecord & { user_id: string; band: string } = {
       user_id: playerId,
@@ -1879,7 +1890,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         player_level: p.player_level,
         vehicle_fuel: p.vehicle_fuel,
         credits: p.credits,
-        scrap: p.scrap,
+        scrap: p.materials['Scrap'] ?? 0,
         dispatch_board_index: p.dispatch_board_index ?? 0,
         dispatch_rerolls_used: p.dispatch_rerolls_used ?? 0,
         dispatch_board_day: p.dispatch_board_day ?? null,
@@ -2076,7 +2087,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       }
     }
     p.credits += credits;
-    p.scrap += scrap;
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + scrap;
     if (mission.payout_material_id && units > 0) {
       p.materials[mission.payout_material_id] = (p.materials[mission.payout_material_id] ?? 0) + units;
     }
@@ -2235,7 +2246,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       player_level: profile.player_level,
       player_xp: profile.player_xp,
       credits: profile.credits,
-      scrap: profile.scrap,
       materials: profile.materials,
       essences: profile.essences,
       consumables: profile.consumables,
@@ -2999,8 +3009,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     p.boss_state = bossState;
 
     p.credits = Math.max(0, p.credits + Math.trunc(attempt.creditsDelta));
-    // 0008: Second Opinion auto-scrap credit (SQL: scrap = scrap + delta).
-    p.scrap += Math.trunc(attempt.scrap);
+    // 0008: Second Opinion auto-scrap credit (0069: lands in the
+    // unified materials['Scrap'] stack).
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + Math.trunc(attempt.scrap);
 
     const result: Json = {
       action_type: 'cc_apply_boss_attempt',
@@ -3055,7 +3066,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       scrap: Math.floor(run.escrow_scrap * frac),
     };
     p.credits += paid.credits;
-    p.scrap += paid.scrap;
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + paid.scrap;
     if (paid.xp > 0) {
       const leveled = applyXp(p.player_level, p.player_xp, paid.xp);
       p.player_level = leveled.player_level;
@@ -3620,7 +3631,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     item.runtime_state = 'consumed';
     item.tradeable = false;
     item.equipped_slot = null;
-    p.scrap += award;
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + award;
     // 0042: contracts stat mirror (salvages).
     this.addContractStat(playerId, 'inventory.recycle.count', 1);
     p.legendary_cores = (p.legendary_cores ?? 0) + cores;

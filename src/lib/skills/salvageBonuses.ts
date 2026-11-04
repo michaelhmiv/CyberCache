@@ -45,7 +45,7 @@ export const SALVAGE_MATERIAL_BY_KIND: Record<string, string> = {
   relic: 'TechFragments',
 };
 
-export const SALVAGE_FALLBACK_MATERIAL = 'ScrapAlloy';
+export const SALVAGE_FALLBACK_MATERIAL = 'Scrap';
 
 /** Rarities the King of Scrap treats as "low-rarity". */
 export function isLowRarity(rarity: string): boolean {

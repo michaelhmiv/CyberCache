@@ -132,6 +132,50 @@
         {
           "number": 345,
           "title": "Quick-Buy QB-2: + sheet on Repair Board, Shield-Tech Board, and Garage"
+        },
+        {
+          "number": 346,
+          "title": "Gear marriage slice 5 — retire the SVG island (final gear slice)"
+        },
+        {
+          "number": 347,
+          "title": "Gate-removal step 6: offline cap re-carried to Research (+ extraction rider)"
+        },
+        {
+          "number": 348,
+          "title": "Quick-Buy QB-3: dispatch fuel line + boss/endless belt mounts"
+        },
+        {
+          "number": 349,
+          "title": "Economy slice 1 — Silver Tongue fee floor (uplift clamped to the fee)"
+        },
+        {
+          "number": 350,
+          "title": "Economy slice 2 — delete dead cache scaffolding (cc_draw_item + second/third-drop tables, migration 0065)"
+        },
+        {
+          "number": 351,
+          "title": "Economy Slice 4 — production law-fixes (§9): catalyst wired, tools permanent, furnace lever live, batch comment truth"
+        },
+        {
+          "number": 352,
+          "title": "Relic SALVAGE adoption — broken-tone forms, wear budget, rubble footprints (relic-salvage-v2)"
+        },
+        {
+          "number": 353,
+          "title": "Economy slice 3: salvage previews quote the live award"
+        },
+        {
+          "number": 354,
+          "title": "STUFF: the materials pixel system — formed objects for all 26 goods, ResourceIcon deleted (C-2)"
+        },
+        {
+          "number": 355,
+          "title": "Fodder HP plate lift — in-stage, level with the hunter plate (owner device ruling 2026-11-03)"
+        },
+        {
+          "number": 356,
+          "title": "Econ slice 4 follow-up: re-pin 0067 settler parity + dropped-signature guard (test-only)"
         }
       ]
     },

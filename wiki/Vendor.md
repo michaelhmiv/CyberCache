@@ -52,7 +52,7 @@ the materials and essences, when they come up:
 
 | Material / Essence | Price |
 |---|---|
-| Scrap Alloy | 10 cr |
+| Scrap | 10 cr |
 | Ballistic Parts | 15 cr |
 | Reactive Components | 20 cr |
 | Ignition Fluid, Conduit Wire, Acid Compound, Cryo Gel | 30 cr each |

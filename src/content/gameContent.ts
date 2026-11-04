@@ -132,7 +132,7 @@ export const PROFESSION_TRACKS: ProfessionTrack[] = [
 ];
 
 export const MATERIALS: MaterialDef[] = [
-  { id: 'scrap_alloy', name: 'Scrap Alloy', tier: 'T1', sourceTags: ['starter', 'roaming'], usedByProfessions: ['refining', 'medtech', 'vehicle_mechanics'] },
+  { id: 'scrap_alloy', name: 'Scrap', tier: 'T1', sourceTags: ['starter', 'roaming'], usedByProfessions: ['refining', 'medtech', 'vehicle_mechanics'] },
   { id: 'basic_reagent', name: 'Basic Reagent', tier: 'T1', sourceTags: ['organic', 'starter'], usedByProfessions: ['medtech'] },
   { id: 'weak_battery', name: 'Weak Battery', tier: 'T1', sourceTags: ['tech', 'starter'], usedByProfessions: ['ammo_fabrication', 'vehicle_mechanics'] },
   { id: 'ballistic_parts', name: 'Ballistic Parts', tier: 'T2', sourceTags: ['weapon', 'roaming'], usedByProfessions: ['ammo_fabrication', 'gunsmithing'] },

@@ -478,7 +478,7 @@ describe('standing store (in-memory twin)', () => {
     expect(store.items.get(itemId)!.runtime_state).toBe('consumed');
     // Standing pays reputation ONLY.
     expect(profile.credits).toBe(1_000_000);
-    expect(profile.scrap).toBe(0);
+    expect(profile.materials['Scrap'] ?? 0).toBe(0);
     expect(profile.legendary_cores).toBe(0);
     expect(profile.materials).toEqual({ BallisticParts: 7 });
     expect(profile.consumables).toEqual({});
@@ -1115,7 +1115,16 @@ describe('migration 0043 — textual pins', () => {
       const sql = catalog.find((r) => r.id === recipe.id)!;
       expect(sql.name).toBe(recipe.name);
       expect(sql.consumableType).toBe(recipe.consumableType);
-      expect(sql.inputs).toEqual(recipe.inputs);
+      // Econ 5 (0069) renamed the ScrapAlloy input key to Scrap in
+      // the live catalog; 0043's text is historical, so its inputs
+      // are compared through the rename (amounts untouched).
+      const sqlInputs = Object.fromEntries(
+        Object.entries(sql.inputs as Record<string, number>).map(([k, v]) => [
+          k === 'ScrapAlloy' ? 'Scrap' : k,
+          v,
+        ]),
+      );
+      expect(sqlInputs).toEqual(recipe.inputs);
       expect(sql.unitDurationMs).toBe(recipe.unitDurationMs);
       // requiresLevel postdates 0043: the tonics shipped at L12
       // here, and gate-removal step 2 (0057) deleted the level in

@@ -19,7 +19,7 @@ Every material and essence, drawn as the object it renders as in game — form a
 
 | Plate | Material | Band | What it is |
 | --- | --- | --- | --- |
-| <img src="images/materials/scrap-alloy.png" alt="Scrap Alloy" width="48"> | **Scrap Alloy** | Raw | Bolts, plates, and rough salvage metal. |
+| <img src="images/materials/scrap.png" alt="Scrap" width="48"> | **Scrap** | Raw | Salvaged metal and parts — the workbench currency every hunter earns and spends. Tradeable on the player market. |
 | <img src="images/materials/ballistic-parts.png" alt="Ballistic Parts" width="48"> | **Ballistic Parts** | Raw | Barrels, chambers, triggers, and shell hardware. |
 | <img src="images/materials/reactive-components.png" alt="Reactive Components" width="48"> | **Reactive Components** | Raw | Capacitors, shield nodes, and charged regulators. |
 | <img src="images/materials/tech-fragments.png" alt="Tech" width="48"> | **Tech** | Raw | Broken chips, data shards, and machine logic. |
@@ -31,7 +31,7 @@ Every material and essence, drawn as the object it renders as in game — form a
 | <img src="images/materials/prism-shards.png" alt="Prism Shards" width="48"> | **Prism Shards** | Signature | Prismatek signature: reactor-grown prism crystal. Tier-2 input for beam parts, optics, class mods, and scanners. |
 | <img src="images/materials/magnetite-cores.png" alt="Magnetite Cores" width="48"> | **Magnetite Cores** | Signature | ThrowTech signature: magnetic cores pulled from the dumpnet grid. Tier-2 input for cargo racks and salvage gear. |
 | <img src="images/materials/myco-steel-fiber.png" alt="Myco-Steel Fiber" width="48"> | **Myco-Steel Fiber** | Signature | HelixWorks signature: fungal fiber with a steel weave. Tier-2 input for top survival consumables and relics. |
-| <img src="images/materials/refined-alloy.png" alt="Refined Alloy" width="48"> | **Refined Alloy** | Refined | Scrap Alloy, refined: clean, even stock for gear frames. |
+| <img src="images/materials/refined-alloy.png" alt="Refined Alloy" width="48"> | **Refined Alloy** | Refined | Scrap, refined: clean, even stock for gear frames. |
 | <img src="images/materials/tempered-parts.png" alt="Tempered Parts" width="48"> | **Tempered Parts** | Refined | Ballistic Parts, tempered: hardened barrels, chambers, and triggers. |
 | <img src="images/materials/stabilized-cells.png" alt="Stabilized Cells" width="48"> | **Stabilized Cells** | Refined | Reactive Components, stabilized: cells that hold their charge. |
 | <img src="images/materials/woven-circuits.png" alt="Woven Circuits" width="48"> | **Woven Circuits** | Refined | Tech, woven: logic looms for advanced work. |
@@ -56,41 +56,41 @@ Every material and essence, drawn as the object it renders as in game — form a
 <!-- wiki-gen:recipes -->
 | Recipe | Kind | Output (per unit) | Inputs (per unit) | Time | Gates | Station |
 | --- | --- | --- | --- | --- | --- | --- |
-| **Med Kit** | consumable | Med Kit | Scrap Alloy ×15, Reactive Components ×8 | 12 min | — | bench |
-| **Med Kit (Refined)** | consumable | Med Kit (Refined) | Scrap Alloy ×25, Reactive Components ×15, Void Dust ×1 | 25 min | — | bench |
-| **Shield Cell** | consumable | Shield Cell | Scrap Alloy ×20, Reactive Components ×12 | 15 min | — | bench |
-| **Nano-Swarm** | consumable | Nano Swarm | Scrap Alloy ×30, Reactive Components ×20, Void Dust ×2 | 40 min | — | bench |
-| **Adrenaline Shot** | consumable | Adrenaline Shot | Scrap Alloy ×40, Reactive Components ×25, Void Dust ×3 | 1 h | — | bench |
-| **Ammo Pack** | consumable | Ammo Pack | Scrap Alloy ×10, Ballistic Parts ×6 | 10 min | — | bench |
-| **High-Capacity Ammo Pack** | consumable | High-Capacity Ammo Pack | Scrap Alloy ×18, Ballistic Parts ×12, Tech ×2 | 18 min | — | bench |
-| **Armor-Piercing Ammo** | consumable | Armor-Piercing Ammo | Scrap Alloy ×15, Ballistic Parts ×10 | 15 min | — | bench |
-| **Incendiary Ammo** | consumable | Incendiary Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Ignition Fluid ×3 | 18 min | — | bench |
-| **Shock Ammo** | consumable | Shock Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Conduit Wire ×3 | 18 min | — | bench |
-| **Corrosive Ammo** | consumable | Corrosive Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Acid Compound ×3 | 18 min | — | bench |
-| **Cryo Ammo** | consumable | Cryo Ammo | Scrap Alloy ×15, Ballistic Parts ×8, Cryo Gel ×3 | 18 min | — | bench |
-| **Void Ammo** | consumable | Void Ammo | Scrap Alloy ×20, Ballistic Parts ×10, Void Essence ×5 | 25 min | — | bench |
-| **Ordnance Charge** | consumable | Ordnance Charge | Scrap Alloy ×12, Ballistic Parts ×10 | 12 min | — | bench |
-| **EMP Charge** | consumable | EMP Charge | Scrap Alloy ×18, Ballistic Parts ×8, Conduit Wire ×4, Tech ×2 | 22 min | — | bench |
-| **Corrosive Charge** | consumable | Corrosive Charge | Scrap Alloy ×18, Ballistic Parts ×8, Acid Compound ×4, Tech ×2 | 22 min | — | bench |
-| **Overcharge Stim** | consumable | Overcharge Stim | Scrap Alloy ×25, Ballistic Parts ×15, Void Dust ×2 | 30 min | — | bench |
-| **Target Painter** | consumable | Target Painter | Scrap Alloy ×20, Ballistic Parts ×10, Tech ×2 | 20 min | — | bench |
-| **Phase Shift Grenade** | consumable | Phase Shift Grenade | Scrap Alloy ×30, Ballistic Parts ×15, Void Dust ×5 | 35 min | — | bench |
-| **Luck Booster** | consumable | Luck Booster | Scrap Alloy ×15, Tech ×8 | 15 min | — | bench |
-| **Boss Scanner** | consumable | Boss Scanner | Scrap Alloy ×20, Tech ×12 | 20 min | — | bench |
-| **Insurance Token** | consumable | Insurance Token | Scrap Alloy ×30, Tech ×15, Void Dust ×2 | 35 min | — | bench |
-| **Data Skimmer** | consumable | Data Skimmer | Scrap Alloy ×25, Tech ×15, Void Dust ×3 | 40 min | — | bench |
-| **Jammer** | consumable | Jammer | Scrap Alloy ×20, Tech ×10, Conduit Wire ×2 | 25 min | — | bench |
-| **Magnetized Payload** | consumable | Magnetized Payload | Scrap Alloy ×15, Ballistic Parts ×10, Tech ×5 | 22 min | — | bench |
-| **Signal Scrambler** | consumable | Signal Scrambler | Scrap Alloy ×15, Tech ×10, Conduit Wire ×2 | 20 min | — | bench |
-| **Loot Beacon** | consumable | Loot Beacon | Scrap Alloy ×20, Tech ×14, Void Dust ×2 | 30 min | — | bench |
-| **Salvage Contract** | consumable | Salvage Contract | Scrap Alloy ×12, Tech ×8 | 16 min | — | bench |
-| **Workshop Rush Ticket** | consumable | Workshop Rush Ticket | Scrap Alloy ×18, Tech ×12, Void Dust ×1 | 24 min | — | bench |
-| **Patch Kit** | consumable | Patch Kit | Scrap Alloy ×4, Reactive Components ×1 | 12 min | — | bench |
-| **Field Patch Kit** | consumable | Field Patch Kit | Scrap Alloy ×6, Reactive Components ×3, Tech ×1, Heartwood Resin ×1 | 25 min | — | bench |
-| **Master Patch Kit** | consumable | Master Patch Kit | Scrap Alloy ×8, Reactive Components ×5, Tech ×3, Void Dust ×1 | 45 min | Mastery: crafting_consumables 15 | bench |
-| **Fuel Cell** | consumable | Fuel Cell | Scrap Alloy ×6, Nitrocell Gel ×1 | 15 min | — | bench |
+| **Med Kit** | consumable | Med Kit | Scrap ×15, Reactive Components ×8 | 12 min | — | bench |
+| **Med Kit (Refined)** | consumable | Med Kit (Refined) | Scrap ×25, Reactive Components ×15, Void Dust ×1 | 25 min | — | bench |
+| **Shield Cell** | consumable | Shield Cell | Scrap ×20, Reactive Components ×12 | 15 min | — | bench |
+| **Nano-Swarm** | consumable | Nano Swarm | Scrap ×30, Reactive Components ×20, Void Dust ×2 | 40 min | — | bench |
+| **Adrenaline Shot** | consumable | Adrenaline Shot | Scrap ×40, Reactive Components ×25, Void Dust ×3 | 1 h | — | bench |
+| **Ammo Pack** | consumable | Ammo Pack | Scrap ×10, Ballistic Parts ×6 | 10 min | — | bench |
+| **High-Capacity Ammo Pack** | consumable | High-Capacity Ammo Pack | Scrap ×18, Ballistic Parts ×12, Tech ×2 | 18 min | — | bench |
+| **Armor-Piercing Ammo** | consumable | Armor-Piercing Ammo | Scrap ×15, Ballistic Parts ×10 | 15 min | — | bench |
+| **Incendiary Ammo** | consumable | Incendiary Ammo | Scrap ×15, Ballistic Parts ×8, Ignition Fluid ×3 | 18 min | — | bench |
+| **Shock Ammo** | consumable | Shock Ammo | Scrap ×15, Ballistic Parts ×8, Conduit Wire ×3 | 18 min | — | bench |
+| **Corrosive Ammo** | consumable | Corrosive Ammo | Scrap ×15, Ballistic Parts ×8, Acid Compound ×3 | 18 min | — | bench |
+| **Cryo Ammo** | consumable | Cryo Ammo | Scrap ×15, Ballistic Parts ×8, Cryo Gel ×3 | 18 min | — | bench |
+| **Void Ammo** | consumable | Void Ammo | Scrap ×20, Ballistic Parts ×10, Void Essence ×5 | 25 min | — | bench |
+| **Ordnance Charge** | consumable | Ordnance Charge | Scrap ×12, Ballistic Parts ×10 | 12 min | — | bench |
+| **EMP Charge** | consumable | EMP Charge | Scrap ×18, Ballistic Parts ×8, Conduit Wire ×4, Tech ×2 | 22 min | — | bench |
+| **Corrosive Charge** | consumable | Corrosive Charge | Scrap ×18, Ballistic Parts ×8, Acid Compound ×4, Tech ×2 | 22 min | — | bench |
+| **Overcharge Stim** | consumable | Overcharge Stim | Scrap ×25, Ballistic Parts ×15, Void Dust ×2 | 30 min | — | bench |
+| **Target Painter** | consumable | Target Painter | Scrap ×20, Ballistic Parts ×10, Tech ×2 | 20 min | — | bench |
+| **Phase Shift Grenade** | consumable | Phase Shift Grenade | Scrap ×30, Ballistic Parts ×15, Void Dust ×5 | 35 min | — | bench |
+| **Luck Booster** | consumable | Luck Booster | Scrap ×15, Tech ×8 | 15 min | — | bench |
+| **Boss Scanner** | consumable | Boss Scanner | Scrap ×20, Tech ×12 | 20 min | — | bench |
+| **Insurance Token** | consumable | Insurance Token | Scrap ×30, Tech ×15, Void Dust ×2 | 35 min | — | bench |
+| **Data Skimmer** | consumable | Data Skimmer | Scrap ×25, Tech ×15, Void Dust ×3 | 40 min | — | bench |
+| **Jammer** | consumable | Jammer | Scrap ×20, Tech ×10, Conduit Wire ×2 | 25 min | — | bench |
+| **Magnetized Payload** | consumable | Magnetized Payload | Scrap ×15, Ballistic Parts ×10, Tech ×5 | 22 min | — | bench |
+| **Signal Scrambler** | consumable | Signal Scrambler | Scrap ×15, Tech ×10, Conduit Wire ×2 | 20 min | — | bench |
+| **Loot Beacon** | consumable | Loot Beacon | Scrap ×20, Tech ×14, Void Dust ×2 | 30 min | — | bench |
+| **Salvage Contract** | consumable | Salvage Contract | Scrap ×12, Tech ×8 | 16 min | — | bench |
+| **Workshop Rush Ticket** | consumable | Workshop Rush Ticket | Scrap ×18, Tech ×12, Void Dust ×1 | 24 min | — | bench |
+| **Patch Kit** | consumable | Patch Kit | Scrap ×4, Reactive Components ×1 | 12 min | — | bench |
+| **Field Patch Kit** | consumable | Field Patch Kit | Scrap ×6, Reactive Components ×3, Tech ×1, Heartwood Resin ×1 | 25 min | — | bench |
+| **Master Patch Kit** | consumable | Master Patch Kit | Scrap ×8, Reactive Components ×5, Tech ×3, Void Dust ×1 | 45 min | Mastery: crafting_consumables 15 | bench |
+| **Fuel Cell** | consumable | Fuel Cell | Scrap ×6, Nitrocell Gel ×1 | 15 min | — | bench |
 | **Calibration Core** | consumable | Calibration Core | Reactive Components ×20, Tech ×15, Prism Shards ×2, Void Dust ×2 | 40 min | Bench 2 | bench |
-| **Refined Alloy** | refine | Refined Alloy ×8 | Scrap Alloy ×10 | 20 min | — | crusher |
+| **Refined Alloy** | refine | Refined Alloy ×8 | Scrap ×10 | 20 min | — | crusher |
 | **Tempered Parts** | refine | Tempered Parts ×8 | Ballistic Parts ×10 | 20 min | — | crusher |
 | **Stabilized Cells** | refine | Stabilized Cells ×8 | Reactive Components ×10 | 20 min | — | crusher |
 | **Woven Circuits** | refine | Woven Circuits ×8 | Tech ×10 | 20 min | — | crusher |
@@ -107,14 +107,14 @@ Every material and essence, drawn as the object it renders as in game — form a
 | **Precision Calipers** | tool | Precision Calipers | Circuit Lattice ×2, Prism Shards ×2 | 1 h | — | bench |
 | **Servo Bench Rig** | tool | Servo Bench Rig | Composite Plating ×2, Magnetite Cores ×2 | 1 h | — | bench |
 | **Reclaimer Head** | tool | Reclaimer Head | Composite Plating ×1, Circuit Lattice ×1, Voidweave ×1 | 1 h | — | bench |
-| **Shield Cell ×3 (Batch)** | consumable | Shield Cell ×3 | Scrap Alloy ×50, Reactive Components ×30 | 33 min | Research: Production Systems | bench |
-| **Patch Kit ×3 (Batch)** | consumable | Patch Kit ×3 | Scrap Alloy ×10, Reactive Components ×3 | 26 min | Research: Production Systems | bench |
-| **Ordnance Charge ×3 (Batch)** | consumable | Ordnance Charge ×3 | Scrap Alloy ×30, Ballistic Parts ×25 | 26 min | Research: Production Systems | bench |
+| **Shield Cell ×3 (Batch)** | consumable | Shield Cell ×3 | Scrap ×50, Reactive Components ×30 | 33 min | Research: Production Systems | bench |
+| **Patch Kit ×3 (Batch)** | consumable | Patch Kit ×3 | Scrap ×10, Reactive Components ×3 | 26 min | Research: Production Systems | bench |
+| **Ordnance Charge ×3 (Batch)** | consumable | Ordnance Charge ×3 | Scrap ×30, Ballistic Parts ×25 | 26 min | Research: Production Systems | bench |
 | **Redline Tonic** | consumable | Redline Tonic | Ballistic Parts ×12, Nitrocell Gel ×2, Reactive Components ×6 | 25 min | Standing: Redline rank 2 | bench |
 | **Heartwood Sight Oil** | consumable | Heartwood Sight Oil | Heartwood Resin ×2, Tech ×10, Reactive Components ×6 | 25 min | Standing: Ironwood rank 2 | bench |
 | **Forgeheart Charge** | consumable | Forgeheart Charge | Forgeheart Ingots ×2, Ballistic Parts ×12, Reactive Components ×8 | 25 min | Standing: BlastForge rank 2 | bench |
 | **Prism Coating** | consumable | Prism Coating | Prism Shards ×2, Void Essence ×3, Tech ×8 | 25 min | Standing: Prismatek rank 2 | bench |
-| **ThrowTech Decoy Kit** | consumable | ThrowTech Decoy Kit | Magnetite Cores ×2, Tech ×12, Scrap Alloy ×20 | 25 min | Standing: ThrowTech rank 2 | bench |
+| **ThrowTech Decoy Kit** | consumable | ThrowTech Decoy Kit | Magnetite Cores ×2, Tech ×12, Scrap ×20 | 25 min | Standing: ThrowTech rank 2 | bench |
 | **Helix Calibration Kit** | consumable | Helix Calibration Kit | Siltglass ×2, Tech ×12, Void Dust ×2 | 25 min | Standing: HelixWorks rank 2 | bench |
 | **Bulwark Helm** | cosmetic | Bulwark Helm | Scrap ×3200, Composite Plating ×2, Prism Shards ×2 | 3 h | Bench 3 | bench |
 | **Bulwark Siege Torso** | cosmetic | Bulwark Siege Torso | Scrap ×3600, Composite Plating ×3, Refined Alloy ×4 | 3 h 30 min | Bench 3 | bench |

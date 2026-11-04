@@ -1152,9 +1152,9 @@ const RecipeCard: React.FC<{
         : null;
 
   const inputRows = Object.entries(recipe.inputs).map(([key, per]) => {
-    // 'Scrap' is the profile's scrap balance, not a material
-    // (0053: cosmetic recipes escrow it server-side).
-    const have = key === 'Scrap' ? ctx.scrap : isMaterialInput(key) ? (ctx.materials[key] ?? 0) : (ctx.essences[key] ?? 0);
+    // 'Scrap' is an ordinary material key since the 0069 merge —
+    // its stock is ctx.materials['Scrap'].
+    const have = isMaterialInput(key) ? (ctx.materials[key] ?? 0) : (ctx.essences[key] ?? 0);
     const need = per * units;
     return { key, per, need, have, enough: have >= need, short: Math.max(0, need - have) };
   });

@@ -247,9 +247,10 @@ describe('signature materials (§2.5)', () => {
     // 0023's whitelist was the 12-id era; migration 0024 (crafting
     // occupation) restated cc_market_create_material with the 20-id
     // list (refined + composite materials became tradeable); 0053
-    // restated it again with Chromaweave (21). The pin follows the
+    // restated it again with Chromaweave (21); 0069 restated it for
+    // the scrap merge (ScrapAlloy -> Scrap). The pin follows the
     // LATEST restatement.
-    const sql = readFileSync(join(process.cwd(), 'db/migrations/0053_skins_cosmetics.sql'), 'utf8');
+    const sql = readFileSync(join(process.cwd(), 'db/migrations/0069_scrap_merge.sql'), 'utf8');
     const match = sql.match(/material_id not in \(([^)]+)\)/);
     expect(match).not.toBeNull();
     const sqlMaterials = (match![1].match(/'([^']+)'/g) ?? []).map((s) => s.replace(/'/g, '')).sort();
