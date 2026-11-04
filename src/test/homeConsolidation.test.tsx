@@ -267,7 +267,8 @@ describe('Next Move — earns its place or is absent', () => {
     render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={() => {}} />);
     const card = await screen.findByTestId('next-move-card');
     expect(card.getAttribute('data-wait-kind')).toBe('craft');
-    expect(card.textContent).toContain('Damage Tonic finished in the Workshop');
+    expect(card.textContent).toContain('Damage Tonic finished');
+    expect(card.textContent).toContain('bench in the Workshop');
     fireEvent.click(within(card).getByRole('button', { name: 'Open Workshop' }));
     expect(onNavigate).toHaveBeenCalledWith('workshop');
     await waitFor(() => expect(screen.queryByTestId('next-move-card')).toBeNull());
@@ -340,7 +341,8 @@ describe('vehicle chip — in the belt row, both fuel states', () => {
     render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={() => {}} />);
     const chip = await screen.findByTestId('vehicle-belt-chip');
     expect(chip.getAttribute('data-state')).toBe('out-of-fuel');
-    expect(chip.textContent).toContain('OUT OF FUEL');
+    expect(chip.textContent).toContain('Out of fuel');
+    expect(chip.textContent).toContain('Refuel');
     fireEvent.click(chip);
     expect(onNavigate).toHaveBeenCalledWith('garage');
   });
