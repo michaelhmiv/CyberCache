@@ -213,8 +213,9 @@ export function consumableDisplayName(consumableType: string): string {
 /**
  * Whether a consumable type may be listed on the player market — the
  * defs own this (`market.playerMarketAllowed`); every shipped type is
- * allowed except the legacy ElementalCoating. Migration 0019 restates
- * the same exclusion in SQL.
+ * allowed except ElementalCoating (craftable since 0077, but its
+ * market exclusion is deliberate). Migration 0019 restates the same
+ * exclusion in SQL.
  */
 export function consumableListable(consumableType: string): boolean {
   const def = CONSUMABLES[consumableType];

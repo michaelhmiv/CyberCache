@@ -17,6 +17,13 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
   { id: 'recipe_corrosive_ammo', consumableType: 'CorrosiveAmmo', name: 'Corrosive Ammo', category: 'offense', materials: { Scrap: 15, BallisticParts: 8, AcidCompound: 3 }, craftTimeMs: 18 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
   { id: 'recipe_cryo_ammo', consumableType: 'CryoAmmo', name: 'Cryo Ammo', category: 'offense', materials: { Scrap: 15, BallisticParts: 8, CryoGel: 3 }, craftTimeMs: 18 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
   { id: 'recipe_void_ammo', consumableType: 'VoidAmmo', name: 'Void Ammo', category: 'offense', materials: { Scrap: 20, BallisticParts: 10, VoidEssence: 5 }, craftTimeMs: 25 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
+  // The baseline elemental coating (fleet-coverage disposition,
+  // 2026-11-04): priced in the elemental-ammo band — the ammos'
+  // Scrap 15 + BallisticParts 8 with VoidEssence 3 as the blended
+  // elemental feedstock (Prism Coating carries the same 3 essences
+  // plus signature PrismShards and TechFragments behind its
+  // Prismatek rank-2 gate; this one is the ungated baseline).
+  { id: 'recipe_elemental_coating', consumableType: 'ElementalCoating', name: 'Elemental Coating', category: 'offense', materials: { Scrap: 15, BallisticParts: 8, VoidEssence: 3 }, craftTimeMs: 20 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
 
   // Offense — Ordnance / Stim / Grenades
   { id: 'recipe_ordnance', consumableType: 'OrdnanceCharge', name: 'Ordnance Charge', category: 'offense', materials: { Scrap: 12, BallisticParts: 10 }, craftTimeMs: 12 * 60 * 1000, outputCount: 1, requiresLevel: 1 },

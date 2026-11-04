@@ -52,6 +52,7 @@ import { emptyWriteSeed, type WriteSeed } from '../server/writes/store';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIGRATION = readFileSync(join(HERE, '..', '..', 'db', 'migrations', '0069_scrap_merge.sql'), 'utf8');
 const MIGRATION_0073 = readFileSync(join(HERE, '..', '..', 'db', 'migrations', '0073_bench_collapse_relic_merger.sql'), 'utf8');
+const MIGRATION_0077 = readFileSync(join(HERE, '..', '..', 'db', 'migrations', '0077_elemental_coating_recipe.sql'), 'utf8');
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -147,13 +148,18 @@ describe('scrap merge — migration 0069 pins', () => {
     expect(catalog).toHaveLength(87);
     // Live parity binds the LATEST restatement: slice 9 (0073)
     // restated the catalog again (88 recipes — the bench collapse
-    // + the Prime Laboratory relic), so the deep-equal now binds
-    // 0073's literal; 0069's own pins (length, Scrap keys) stand.
+    // + the Prime Laboratory relic), and 0077 restated it once more
+    // (89 — recipe_elemental_coating), so the deep-equal now binds
+    // 0077's literal; 0069's and 0073's own pins (length) stand.
     const catalog0073 = JSON.parse(
       MIGRATION_0073.split('$catalog$')[1],
     ) as Array<Record<string, unknown>>;
     expect(catalog0073).toHaveLength(88);
-    expect(catalog0073).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    const catalog0077 = JSON.parse(
+      MIGRATION_0077.split('$catalog$')[1],
+    ) as Array<Record<string, unknown>>;
+    expect(catalog0077).toHaveLength(89);
+    expect(catalog0077).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
     // 65 recipes price in Scrap after the rename; none keys the old id.
     expect(catalog.filter((r) => JSON.stringify(r.inputs ?? {}).includes('"Scrap"'))).toHaveLength(65);
     expect(JSON.stringify(catalog)).not.toContain('ScrapAlloy');

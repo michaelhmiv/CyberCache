@@ -357,7 +357,11 @@ describe('migration 0024 parity pins', () => {
           r.id !== 'refine_chromaweave' &&
           // Slice 9's Prime Laboratory relic postdates 0024; its
           // parity is pinned against 0073 in econBenchRelic.
-          r.id !== 'relic_prime_laboratory',
+          r.id !== 'relic_prime_laboratory' &&
+          // The Elemental Coating recipe postdates 0024 the same
+          // way; its parity is pinned against 0077 in
+          // elementalCoatingRecipe.test.ts.
+          r.id !== 'recipe_elemental_coating',
       ).map(projectRecipe),
     );
   });

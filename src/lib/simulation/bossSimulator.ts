@@ -802,6 +802,20 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   if (consumables['ArmorPiercingAmmo'] > 0) {
     armorBreak *= 1.25;
   }
+  if (consumables['ElementalCoating'] > 0) {
+    // The coating's break multipliers live on its def — read them at
+    // the prepared batch's quality like every other quality-priced
+    // effect (quality 100 returns the def's flat 1.08 / 1.08). Until
+    // the crafting disposition (2026-11-04) these multipliers were
+    // display-only: the sim never read them, so a prepared coating
+    // burned for nothing.
+    const coating = getConsumableRuntimeEffects(
+      'ElementalCoating',
+      input.consumableQuality?.['ElementalCoating'] ?? 100,
+    );
+    shieldBreak *= coating.shieldBreakMultiplier ?? 1;
+    armorBreak *= coating.armorBreakMultiplier ?? 1;
+  }
   if (phaseShift > 0) {
     armorBreak *= 1.5; // Phase Shift ignores armor for 5s
   }

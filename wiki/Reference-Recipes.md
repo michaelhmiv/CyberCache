@@ -69,6 +69,7 @@ Every material and essence, drawn as the object it renders as in game — form a
 | **Corrosive Ammo** | consumable | Corrosive Ammo | Scrap ×15, Ballistic Parts ×8, Acid Compound ×3 | 18 min | — | bench |
 | **Cryo Ammo** | consumable | Cryo Ammo | Scrap ×15, Ballistic Parts ×8, Cryo Gel ×3 | 18 min | — | bench |
 | **Void Ammo** | consumable | Void Ammo | Scrap ×20, Ballistic Parts ×10, Void Essence ×5 | 25 min | — | bench |
+| **Elemental Coating** | consumable | Elemental Coating | Scrap ×15, Ballistic Parts ×8, Void Essence ×3 | 20 min | — | bench |
 | **Ordnance Charge** | consumable | Ordnance Charge | Scrap ×12, Ballistic Parts ×10 | 12 min | — | bench |
 | **EMP Charge** | consumable | EMP Charge | Scrap ×18, Ballistic Parts ×8, Conduit Wire ×4, Tech ×2 | 22 min | — | bench |
 | **Corrosive Charge** | consumable | Corrosive Charge | Scrap ×18, Ballistic Parts ×8, Acid Compound ×4, Tech ×2 | 22 min | — | bench |

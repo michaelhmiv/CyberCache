@@ -1269,29 +1269,35 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     id: ConsumableType.ElementalCoating,
     name: 'Elemental Coating',
     family: 'ammo',
-    shortDescription: 'Legacy elemental buff retained only for old saves; no longer vendor-stocked.',
-    tacticalRole: 'Legacy Element',
-    trigger: 'manual',
+    shortDescription: 'Bench-ground elemental coating — rounds bite through shields and armor alike. The ungated baseline beneath Prismatek\'s Prism Coating.',
+    tacticalRole: 'Elemental Coating',
+    trigger: 'fightStart',
     consumePolicy: 'onAttempt',
     counterTags: ['shield', 'armor'],
     effectRules: { shieldBreakMultiplier: 1.08, armorBreakMultiplier: 1.08 },
-    craftCategory: 'legacy',
-    uiHints: ['Legacy compatibility item.', 'New economy uses elemental ammo batches instead.'],
-    implementationStatus: 'legacy',
-    isBossPrepVisible: false,
+    craftCategory: 'offense',
+    uiHints: ['Crafted at the bench — never sold by the vendor.', 'Quality scales shield and armor break.'],
+    implementationStatus: 'implemented',
+    isBossPrepVisible: true,
     visual: visual('ringDot', 'purple', 'rounds'),
-    quality: quality(500, 100, 100, 'Legacy items do not roll quality.', 100),
+    quality: quality(500, 75, 150, 'Shield and armor break scale with quality.'),
     runtime: runtime(
       ['boss'],
       'ammo',
-      'manual',
+      'fightStart',
       'onAttempt',
-      'auto_unequip',
+      'inactive_continue',
       { shieldBreakMultiplier: 1.08, armorBreakMultiplier: 1.08 },
-      { shieldBreakMultiplier: { mode: 'none' }, armorBreakMultiplier: { mode: 'none' } },
-      'Elemental Coating consumed: applied legacy elemental break bonus.'
+      { shieldBreakMultiplier: DELTA(1.16), armorBreakMultiplier: DELTA(1.16) },
+      'Elemental Coating consumed: rounds coated in elemental grit.'
     ),
-    market: market(false, 500, false, false),
+    // Craftable since the fleet-coverage disposition (2026-11-04):
+    // recipe_elemental_coating gives this former legacy type its one
+    // acquisition path. Crafter-only like its peers — vendorExcluded
+    // keeps it out of every vendor channel, and playerMarketAllowed
+    // stays false: the 0019 market exclusion for this type stands
+    // (legacy batches in old saves remain unlistable).
+    market: market(false, 500, true, false, false, true),
   }),
   // Vehicle consumables (Phase 2b): neither activates in the roaming
   // consumable engine or boss prep — fuel cells load the tank through

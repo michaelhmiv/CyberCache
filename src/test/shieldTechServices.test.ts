@@ -206,7 +206,10 @@ describe('migration 0044 — catalog + consumable parity pins', () => {
         (r) => r.category !== 'cosmetics' && r.id !== 'refine_chromaweave'
           // Slice 9's Prime Laboratory relic postdates 0044; pinned
           // against 0073 in econBenchRelic.test.ts.
-          && r.id !== 'relic_prime_laboratory',
+          && r.id !== 'relic_prime_laboratory'
+          // Elemental Coating's recipe postdates 0044 (0077); its SQL
+          // parity is pinned against 0077 in elementalCoatingRecipe.test.ts.
+          && r.id !== 'recipe_elemental_coating',
       ).map((r) => r.id).sort(),
     );
     // The slice's own recipe matches the TS catalog field for field

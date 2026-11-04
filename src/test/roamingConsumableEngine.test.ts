@@ -472,7 +472,7 @@ describe('activateFromInventory — def contract', () => {
     // roaming function), so it activates now — pinned deliberately.
     expect(activated).toContain(ConsumableType.SalvageContract); // roaming since the overhaul
     expect(activated).not.toContain(ConsumableType.WorkshopRushTicket); // crafting/repair-scoped
-    expect(activated).not.toContain(ConsumableType.ElementalCoating); // boss-scoped legacy
+    expect(activated).not.toContain(ConsumableType.ElementalCoating); // boss-scoped
   });
 
   it('skips unknown ids and zero counts', () => {
