@@ -43,8 +43,8 @@ On top of the staples, the counter runs a small daily rotation:
 - **2 rotating consumables**, drawn from the wider priced catalog
   (refined med kits, the elemental ammos, charges, tactical tools, and
   the Workshop Rush Ticket among them),
-- **1 rotating material or essence**, drawn from the five profile
-  materials and five essences.
+- **1 rotating material or essence**, drawn from the four remaining
+  profile materials and the five essences.
 
 The rotation is seeded by the UTC date — every player sees the same stock
 on the same day, and new stock lands at **00:00 UTC**. Rotation prices for
@@ -52,7 +52,6 @@ the materials and essences, when they come up:
 
 | Material / Essence | Price |
 |---|---|
-| Scrap | 10 cr |
 | Ballistic Parts | 15 cr |
 | Reactive Components | 20 cr |
 | Ignition Fluid, Conduit Wire, Acid Compound, Cryo Gel | 30 cr each |
@@ -63,6 +62,12 @@ the materials and essences, when they come up:
 Buying materials from the vendor is a convenience, priced so that
 crafting a staple from vendor-bought materials always costs more than
 just buying the staple.
+
+**Scrap is not sold here.** The engine material left the vendor
+catalog entirely — no sale line, no rotation slot, and no buyback
+price (below). Scrap comes from playing the game — the roaming
+trickle and salvaging gear you don't need — or from other hunters on
+[[The Market|the player market]], where its price floats free.
 
 ## Item of the Day
 
@@ -86,7 +91,9 @@ stop — buys back almost anything, instantly, at
   quality % — a 140% batch is worth 40% more per unit than a 100% batch.
   Sell one at a time or the whole stack.
 - **Materials and essences** pay 40% of their unit value in the table
-  above.
+  above — except **Scrap**, which the vendor places no value on at
+  all: it can't be sold here. Sell Scrap to other hunters on the
+  player market instead.
 
 The payout for a sale is rounded down once, on the total. The screen shows
 an estimate before you sell and the confirmed payout after. Buyback is the

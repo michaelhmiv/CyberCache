@@ -252,16 +252,20 @@ describe('material sources — live owners only', () => {
   });
 
   it('a base material roams in a biased area, rotates at the vendor, and lists on the market', () => {
-    const sources = sourcesForInput('Scrap');
+    const sources = sourcesForInput('BallisticParts');
     expect(sources.some((s) => s.kind === 'roam')).toBe(true);
     expect(sources.some((s) => s.kind === 'vendor')).toBe(true);
     expect(sources.some((s) => s.kind === 'market')).toBe(true);
   });
 
-  it('Scrap is a material like any other — the market door included (Econ 5)', () => {
+  it('Scrap is a material like any other — the market door included (Econ 5), the vendor door excluded (Econ 6)', () => {
     const kinds = sourcesForInput('Scrap').map((s) => s.kind);
+    expect(kinds).toContain('roam');
     expect(kinds).toContain('market');
     expect(kinds).not.toContain('scrap');
+    // Ruling 6: the vendor dropped Scrap entirely, so the shortfall
+    // doors for Scrap are roam + market — never the vendor.
+    expect(kinds).not.toContain('vendor');
   });
 });
 
