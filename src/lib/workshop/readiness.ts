@@ -29,7 +29,6 @@
  * every one at enqueue.
  */
 import {
-  ALL_CRAFT_RECIPES,
   CRAFT_BENCHES,
   EPIC_FRAME_GEAR_MASTERY,
   QUEUED_JOBS_PER_BENCH,
@@ -173,7 +172,7 @@ export function defaultEvalOptions(recipe: CraftRecipe): Required<RecipeEvalOpti
   };
 }
 
-function summaryPart(family: GateFamily, gates: RecipeGate[], shortages: InputShortage[], recipe: CraftRecipe, requiredBench: number): string {
+function summaryPart(family: GateFamily, gates: RecipeGate[], shortages: InputShortage[]): string {
   switch (family) {
     case 'level':
       return 'level';
@@ -214,7 +213,6 @@ export function deriveRecipeReadiness(
   // recipe's requiresBench is 1 — the bench is a constant of the
   // workshop, not a choice. (Econ 10 widens its envelope — running
   // + queued — never its count.)
-  const requiredBench = recipe.requiresBench;
   const bench = 1;
 
   const gates: RecipeGate[] = [];
@@ -364,7 +362,7 @@ export function deriveRecipeReadiness(
     disabledSummary =
       blockerFamilies.length === 1 && blockerFamilies[0] === 'materials'
         ? 'Missing materials'
-        : `Locked — ${blockerFamilies.map((f) => summaryPart(f, gates, shortages, recipe, requiredBench)).join(' + ')}`;
+        : `Locked — ${blockerFamilies.map((f) => summaryPart(f, gates, shortages)).join(' + ')}`;
   }
 
   return {

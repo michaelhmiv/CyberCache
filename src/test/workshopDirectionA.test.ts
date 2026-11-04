@@ -48,7 +48,6 @@ function fixtureCtx(over: Partial<WorkshopPlayerContext> = {}): WorkshopPlayerCo
     standingRanks: {},
     researchCompletedIds: new Set<string>(),
     activeJobs: [],
-    toolsOwned: {},
     ...over,
   };
 }
@@ -175,14 +174,15 @@ describe('readiness classification — the mock fixture, live derivation', () =>
     // a dedicated 'tool' gate family. The Calipers is a relic ITEM
     // now: owning one gates nothing, and a queued second craft is
     // just a queue entry. Only materials (and the queue) can bind.
+    // (The readiness context no longer even carries a toolsOwned
+    // field — ownership of a relic is inventory state, not a gate.)
     const rich = fixtureCtx({
-      toolsOwned: { tool_precision_calipers: true },
       materials: { CircuitLattice: 5, PrismShards: 5 },
       benchesOwned: 3,
     });
     expect(classify('tool_precision_calipers', rich).blockerFamilies).toEqual([]);
     expect(classify('tool_precision_calipers', rich).classification).toBe('craftable');
-    const ownedCtx = fixtureCtx({ toolsOwned: { tool_precision_calipers: true } });
+    const ownedCtx = fixtureCtx({});
     expect(classify('tool_precision_calipers', ownedCtx).blockerFamilies).toContain('materials');
     expect(classify('tool_precision_calipers', ownedCtx).blockerFamilies).not.toContain('tool');
     const queuedCtx = fixtureCtx({

@@ -88,7 +88,6 @@ function fixtureCtx(): WorkshopPlayerContext {
     standingRanks: {},
     researchCompletedIds: new Set<string>(),
     activeJobs: [],
-    toolsOwned: {},
   };
 }
 

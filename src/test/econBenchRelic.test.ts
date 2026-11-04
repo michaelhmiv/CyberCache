@@ -284,8 +284,9 @@ async function post(path: string, token: string, payload: unknown) {
     body: JSON.stringify(payload),
   });
   const text = await res.text();
-  let json: Record<string, unknown> = {};
-  try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+  // Retired routes answer Express's HTML 404 — parse tolerantly.
+  let json: Record<string, unknown>;
+  try { json = text ? (JSON.parse(text) as Record<string, unknown>) : {}; } catch { json = {}; }
   return { status: res.status, json };
 }
 async function get(path: string, token: string) {

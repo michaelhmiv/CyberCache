@@ -53,8 +53,6 @@ const READINESS = readFileSync(
 
 const A = '11111111-1111-4111-8111-111111111111';
 const T0 = new Date('2026-11-03T12:00:00.000Z').getTime();
-let nonceCounter = 0;
-const nonce = () => `step4-nonce-${++nonceCounter}`;
 
 function profile(over: Partial<ProfileRowData> & { id: string }): ProfileRowData {
   return {

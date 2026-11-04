@@ -44,10 +44,6 @@ const MIGRATION_0059 = readFileSync(
   join(process.cwd(), 'db', 'migrations', '0059_research_course_levels.sql'),
   'utf8',
 );
-const MIGRATION_0063 = readFileSync(
-  join(process.cwd(), 'db', 'migrations', '0063_offline_cap_research_carrier.sql'),
-  'utf8',
-);
 const MIGRATION_0073 = readFileSync(
   join(process.cwd(), 'db', 'migrations', '0073_bench_collapse_relic_merger.sql'),
   'utf8',

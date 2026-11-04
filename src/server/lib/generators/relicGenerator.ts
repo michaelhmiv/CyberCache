@@ -62,7 +62,9 @@ export function generateRelic(level: number = 1, externalRng?: () => number, rar
     const rollVal = seededInt(def.min, def.max, rng);
     affixes.push({
       id: `${def.stat}_${i}`,
-      category: def.category,
+      // Same default as affixCategoryFor: a category-less relic
+      // def reads as 'idle'.
+      category: def.category ?? 'idle',
       stat: def.stat,
       value: rollVal / 100,
       displayText: def.text.replace('{v}', String(rollVal)),
