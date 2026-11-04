@@ -507,10 +507,14 @@ const renderCache = new Map<string, PixelWeaponRender>();
  * so lists and re-renders never recompose a weapon they have already drawn.
  */
 export function composePixelWeaponCached(input: PixelWeaponInput): PixelWeaponRender {
-  const composed = composePixelWeapon(input);
-  const cached = renderCache.get(composed.signature);
+  // Input-derived cache key (see composeWeaponCardCached): the
+  // render signature hashes the composed rows, so a signature-keyed
+  // lookup can only run AFTER a full compose and never hits.
+  const key = hashString(`stagekey|${JSON.stringify(input)}`).toString(16);
+  const cached = renderCache.get(key);
   if (cached) return cached;
-  renderCache.set(composed.signature, composed);
+  const composed = composePixelWeapon(input);
+  renderCache.set(key, composed);
   return composed;
 }
 
