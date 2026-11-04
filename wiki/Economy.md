@@ -99,6 +99,15 @@ it trades on the player market:
 - **Standing** — reputation per manufacturer, never spent, never traded.
   See [[Manufacturer Standing]].
 
+## Live tuning
+
+Crafting's Scrap prices are tuned live, per recipe — if one
+recipe's Scrap cost is choking its supply (or barely matters), that
+one cost can move without touching any other recipe. Two guarantees
+come with that: the Workshop always displays the price that will
+actually be charged, and a job already on a bench keeps the price
+it started at — tuning never reprices work in progress.
+
 ## The one-paragraph version
 
 Play creates credits — roaming, bosses, contracts, streaks, dispatch.

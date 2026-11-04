@@ -32,6 +32,8 @@ import {
   type CosmeticSlot,
 } from '@/content/skins';
 import { getCraftRecipe } from '@/content/crafting';
+import { useWorkshopStore } from '@/store/slices/workshopSlice';
+import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
 
 const SLOT_LABELS: Record<CosmeticSlot, string> = {
   head: 'Head',
@@ -46,10 +48,12 @@ const SLOT_LABELS: Record<CosmeticSlot, string> = {
   back: 'Back',
 };
 
-function recipeCostLine(recipeId: string): string {
+function recipeCostLine(recipeId: string, recipeScrapCosts?: Record<string, number>): string {
   const recipe = getCraftRecipe(recipeId);
   if (!recipe) return 'Craft in the Workshop';
-  const inputs = Object.entries(recipe.inputs)
+  // Econ 7: the Scrap leg prints at its resolved lever value when
+  // the Workshop snapshot has landed (see the mount effect below).
+  const inputs = Object.entries(resolvedRecipeInputs(recipe, recipeScrapCosts))
     .map(([key, qty]) => `${qty.toLocaleString('en-US')} ${key === 'Scrap' ? 'Scrap' : key}`)
     .join(' + ');
   return `${inputs} · ${recipe.durationMinutes} min · Bench ${recipe.requiredBenchLevel}`;
@@ -70,9 +74,16 @@ export const WardrobePanel: React.FC = () => {
   const primaryWeapon = useLoadoutStore((s) => s.getWeapon('primary'));
   const weaponInput = primaryWeapon ? pixelWeaponInputFromWeapon(primaryWeapon) : undefined;
 
+  // Econ 7: the cost lines below quote Scrap at its resolved lever
+  // value, which rides the Workshop snapshot — fetch it on mount so
+  // the quote matches the charge even before the player's first
+  // Workshop visit this session.
+  const recipeScrapCosts = useWorkshopStore((s) => s.server?.recipeScrapCosts);
+  const refreshWorkshop = useWorkshopStore((s) => s.refresh);
   useEffect(() => {
     void load();
-  }, [load]);
+    void refreshWorkshop();
+  }, [load, refreshWorkshop]);
 
   const isGuest = !account || account.isAnonymous;
   const equipped = view?.selection.equipped ?? {};
@@ -223,7 +234,7 @@ export const WardrobePanel: React.FC = () => {
                   {' '}· {skinSetById(p.setId)?.name ?? p.setId} · {SLOT_LABELS[p.slot]}
                 </span>
               </div>
-              <div className="truncate text-[11px] text-text-muted">{recipeCostLine(p.recipeId)}</div>
+              <div className="truncate text-[11px] text-text-muted">{recipeCostLine(p.recipeId, recipeScrapCosts)}</div>
             </div>
           </div>
         ))}

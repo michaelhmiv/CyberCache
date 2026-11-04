@@ -14,6 +14,8 @@ import { PickerSheet } from '@/components/common/PickerSheet';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { getAllCraftRecipesUsingMaterial } from '@/content/crafting';
 import { getVisualAsset, getConsumableVisual } from '@/constants/visualAssets';
+import { useWorkshopStore } from '@/store/slices/workshopSlice';
+import { resolvedScrapCost } from '@/lib/workshop/recipeCosts';
 
 function formatCraftTime(ms: number): string {
   if (ms >= 60000) return `${Math.round(ms / 60000)}m`;
@@ -24,6 +26,9 @@ export const MaterialUsageSheet: React.FC<{
   materialId: string | null;
   onClose: () => void;
 }> = ({ materialId, onClose }) => {
+  // Econ 7: a Scrap usage line quotes the RESOLVED per-recipe cost
+  // (the Workshop snapshot's map), never the stale literal.
+  const recipeScrapCosts = useWorkshopStore((s) => s.server?.recipeScrapCosts);
   if (!materialId) return null;
   const label = getVisualAsset('material', materialId).label;
   const recipes = getAllCraftRecipesUsingMaterial(materialId);
@@ -46,7 +51,7 @@ export const MaterialUsageSheet: React.FC<{
               <div className="min-w-0">
                 <div className="truncate text-xs font-black text-text-primary">{recipe.name}</div>
                 <div className="text-[9px] uppercase tracking-wide text-text-muted">
-                  {recipe.category} · needs {recipe.inputs[materialId]} × {label} ·{' '}
+                  {recipe.category} · needs {materialId === 'Scrap' ? resolvedScrapCost(recipe, recipeScrapCosts) : recipe.inputs[materialId]} × {label} ·{' '}
                   {recipe.kind === 'refine'
                     ? `refines to ${getVisualAsset('material', recipe.outputMaterial).label}`
                     : recipe.kind === 'gear'

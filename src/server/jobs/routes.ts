@@ -38,8 +38,10 @@ import { cleanPushText, type FcmSender } from './fcm';
 import { buildNpcSeedItems, clampSeedCount, clampSeedLevel } from './npcItems';
 import {
   ECONOMY_CONFIG_DEFAULTS,
-  isEconomyConfigKey,
+  RECIPE_SCRAP_DEFAULTS,
+  economyConfigSpecFor,
   resolveEconomyConfigValues,
+  resolveRecipeScrapCosts,
   validateEconomyConfigValue,
   type EconomyConfig,
 } from '../economy/config';
@@ -183,6 +185,10 @@ export function mountJobRoutes(app: Express, store: JobStore, config: JobRoutesC
             metrics,
             config: resolveEconomyConfigValues(stored),
             defaults: ECONOMY_CONFIG_DEFAULTS,
+            // The generated per-recipe Scrap levers (brief §4): the
+            // resolved effective map + the content-literal defaults.
+            recipeScrapCosts: resolveRecipeScrapCosts(stored),
+            recipeScrapDefaults: RECIPE_SCRAP_DEFAULTS,
           });
         } catch (err) {
           fail(res, err);
@@ -196,7 +202,9 @@ export function mountJobRoutes(app: Express, store: JobStore, config: JobRoutesC
           return;
         }
         const { key, value } = body(req);
-        if (typeof key !== 'string' || !isEconomyConfigKey(key)) {
+        // Writable keys = the fixed registry + the generated
+        // recipeScrap.<recipeId> levers (economy brief §4).
+        if (typeof key !== 'string' || !economyConfigSpecFor(key)) {
           res.status(400).json({ error: 'unknown_key', message: `Unknown economy config key: ${String(key)}` });
           return;
         }
@@ -212,7 +220,13 @@ export function mountJobRoutes(app: Express, store: JobStore, config: JobRoutesC
           await economyStore.setConfigValue(key, validated, 'admin-api');
           config.economyConfig?.invalidate();
           const stored = await economyStore.loadConfigValues();
-          res.json({ ok: true, key, value: validated, config: resolveEconomyConfigValues(stored) });
+          res.json({
+            ok: true,
+            key,
+            value: validated,
+            config: resolveEconomyConfigValues(stored),
+            recipeScrapCosts: resolveRecipeScrapCosts(stored),
+          });
         } catch (err) {
           fail(res, err);
         }

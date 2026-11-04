@@ -47,7 +47,7 @@ import {
 import type { ServiceBoardQuery } from '../../lib/market/boardQuery.js';
 import { gearCategoryFromPayload } from '../../lib/market/identityKey.js';
 import type { ServiceReaderFacts, SupplyBatch } from './boardRequirements.js';
-import { resolveEconomyConfigValues } from '../economy/config.js';
+import { resolveEconomyConfigValues, resolveRecipeScrapCosts } from '../economy/config.js';
 import type { DiscoveryRecord } from '../../content/collections.js';
 import {
   applyReforgeToItem,
@@ -1582,6 +1582,11 @@ export class PgWriteStore implements WriteStore {
         fitted?: Record<string, string | null>;
         charges?: Record<string, number>;
       };
+      // Econ 7 (brief §4.4): ship the resolved per-recipe Scrap map
+      // so the Workshop displays exactly what the SQL enqueue charges.
+      const { rows: configRows } = await this.pool.query('select key, value from public.economy_config');
+      const storedConfig: Record<string, unknown> = {};
+      for (const row of configRows) storedConfig[String(row.key)] = row.value;
       return buildWorkshopStateView({
         benches: Number(profileRows[0].workshop_benches ?? 1),
         tools: {
@@ -1592,6 +1597,7 @@ export class PgWriteStore implements WriteStore {
         jobs: jobRows.map(mapCraftJobRow),
         masteries,
         activeActionKind: actionRows[0] ? String(actionRows[0].active_action) : null,
+        recipeScrapCosts: resolveRecipeScrapCosts(storedConfig),
       }) as Json;
     } catch (err) {
       return translatePgError(err);
