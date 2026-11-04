@@ -31,7 +31,6 @@ import {
 } from '@/components/action/ActionWorkspace';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { HeroRundown } from '@/components/dashboard/HeroRundown';
-import { NextMoveCard } from '@/components/dashboard/NextMoveCard';
 import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -737,13 +736,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
         />
         <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
       </div>
-
-      {/* 1a. Next Move — present ONLY while something genuinely
-          waits on the player (an away settlement, a finished
-          craft, a claimable, the free cache, a course done);
-          absent otherwise, by design (owner correction
-          2026-11-03). */}
-      <NextMoveCard onNavigate={(target) => onNavigate?.(target)} />
 
       {/* 1b. Mode rail (§2/§4) — the stage's six stops under the
           diorama. This replaces the old compact action selector

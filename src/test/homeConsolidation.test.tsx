@@ -243,17 +243,23 @@ describe('hero rundown — one printing of each hero stat', () => {
   });
 });
 
-describe('Next Move — earns its place or is absent', () => {
-  it('renders NOTHING when nothing waits', async () => {
+describe('Next Move — removed (owner device review, 2026-11-03)', () => {
+  // The card shipped in the consolidation and the owner rejected
+  // the surface on device: it is gone entirely, not hidden. These
+  // pins keep it gone UNDER LIVE WAITS — the states that used to
+  // summon it — and pin the source so the mount cannot creep
+  // back. Every wait keeps its own door: the finished craft reads
+  // on the Workshop's benches, the away settlement behind the
+  // level chip's Return Sheet, contracts and weekly earnings in
+  // the top bar's sheets, the free cache at the Chest.
+  it('no card when nothing waits', async () => {
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
     await screen.findByTestId('hero-rundown');
-    // Let the card's mount reads settle (they all fail closed).
     await waitFor(() => expect(screen.queryByTestId('next-move-card')).toBeNull());
     expect(screen.queryByTestId('next-move-card')).toBeNull();
   });
 
-  it('a finished craft shows the craft wait; Open Workshop navigates and clears it', async () => {
-    const onNavigate = vi.fn();
+  it('no card while a finished craft waits in the Workshop', async () => {
     useWorkshopStore.setState({
       server: {
         benches: 1,
@@ -264,27 +270,13 @@ describe('Next Move — earns its place or is absent', () => {
         recentCompletions: [{ jobId: 'job-1', recipeId: 'dmg-tonic', name: 'Damage Tonic' }],
       },
     });
-    render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={() => {}} />);
-    const card = await screen.findByTestId('next-move-card');
-    expect(card.getAttribute('data-wait-kind')).toBe('craft');
-    expect(card.textContent).toContain('Damage Tonic finished');
-    expect(card.textContent).toContain('bench in the Workshop');
-    fireEvent.click(within(card).getByRole('button', { name: 'Open Workshop' }));
-    expect(onNavigate).toHaveBeenCalledWith('workshop');
+    render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
+    await screen.findByTestId('hero-rundown');
     await waitFor(() => expect(screen.queryByTestId('next-move-card')).toBeNull());
+    expect(screen.queryByTestId('next-move-card')).toBeNull();
   });
 
-  it('an unreviewed away settlement outranks a finished craft', async () => {
-    useWorkshopStore.setState({
-      server: {
-        benches: 1,
-        tools: { owned: {}, fitted: {}, charges: {} },
-        jobs: [],
-        masteries: {},
-        activeActionKind: null,
-        recentCompletions: [{ jobId: 'job-1', recipeId: 'dmg-tonic', name: 'Damage Tonic' }],
-      },
-    });
+  it('no card while an unreviewed away settlement stands', async () => {
     useOfflineRecapStore.getState().setSettlement({
       settled: true,
       areaId: 'dustwaste',
@@ -307,10 +299,15 @@ describe('Next Move — earns its place or is absent', () => {
       idempotent: false,
     } as unknown as SettlementRecap);
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
-    const card = await screen.findByTestId('next-move-card');
-    expect(card.getAttribute('data-wait-kind')).toBe('away');
-    expect(card.textContent).toContain('While you were away');
-    expect(card.textContent).toContain('+500 credits');
+    await screen.findByTestId('hero-rundown');
+    await waitFor(() => expect(screen.queryByTestId('next-move-card')).toBeNull());
+    expect(screen.queryByTestId('next-move-card')).toBeNull();
+  });
+
+  it('the mount is out of the screen source', () => {
+    const source = readSource('src/screens/ActionScreenContextual.tsx');
+    expect(source).not.toContain('NextMoveCard');
+    expect(source).not.toContain('next-move');
   });
 });
 
