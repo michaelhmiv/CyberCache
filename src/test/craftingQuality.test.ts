@@ -316,9 +316,18 @@ describe('migration 0024 parity pins', () => {
     // 0053's cosmetic recipes + the Chromaweave refine postdate
     // 0024 the same way; their SQL parity is pinned against 0053
     // in skinsCosmetics.test.ts.
-    expect(catalog).toEqual(
+    // Econ 5 (0069) renamed the ScrapAlloy input key to Scrap; the
+    // renamed rows in this subset are pinned against 0069's
+    // restated catalog in scrapMerge.test.ts.
+    const renamedBy0069 = new Set(
+      catalog
+        .filter((r) => JSON.stringify(r.inputs ?? {}).includes('ScrapAlloy'))
+        .map((r) => String(r.id)),
+    );
+    expect(catalog.filter((r) => !renamedBy0069.has(String(r.id)))).toEqual(
       ALL_CRAFT_RECIPES.filter(
         (r) =>
+          !renamedBy0069.has(r.id) &&
           !r.requiresResearch &&
           !r.requiresStanding &&
           r.id !== 'recipe_calibration_core' &&
@@ -328,17 +337,22 @@ describe('migration 0024 parity pins', () => {
     );
   });
 
-  it('the market material whitelist is exactly the 20 tradeable material ids', () => {
+  it('the market material whitelist is exactly the 21 tradeable material ids', () => {
     const expected = [
       'Scrap', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust',
       'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards',
       'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells',
-      'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave',
+      'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave',
     ];
-    const fnStart = sql.toLowerCase().indexOf('create or replace function public.cc_market_create_material');
-    const fnBody = sql.slice(fnStart, fnStart + 6000);
+    // 0024's frozen whitelist predates both Chromaweave and the
+    // merge; the live whitelist is 0069's restatement of
+    // cc_market_create_material (ScrapAlloy -> Scrap).
+    const latest = readFileSync(resolve(__dirname, '../../db/migrations/0069_scrap_merge.sql'), 'utf8');
+    const fnStart = latest.toLowerCase().indexOf('create or replace function public.cc_market_create_material');
+    const fnBody = latest.slice(fnStart, fnStart + 6000);
     for (const id of expected) expect(fnBody).toContain(`'${id}'`);
     expect(fnBody).not.toContain('CryoEssence');
+    expect(fnBody).not.toContain('ScrapAlloy');
   });
 
   it('the SQL quality-bounds table carries the PatchKit crafted override (75/130)', () => {

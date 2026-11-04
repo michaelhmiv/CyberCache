@@ -682,7 +682,7 @@ describe('reforge op — shipped write paths', () => {
     expect(res.status).toBe(400);
     expect(res.json.message).toBe('Insufficient scrap');
     expect(payloadOf(POORWPN)).toEqual(before);
-    expect(prof(BROKE).scrap).toBe(10);
+    expect(scrapOf(BROKE)).toBe(10);
   });
 
   it('insufficient legendary cores changes nothing (scrap included)', async () => {
@@ -691,7 +691,7 @@ describe('reforge op — shipped write paths', () => {
     expect(res.status).toBe(400);
     expect(res.json.message).toBe('Insufficient legendary cores');
     expect(payloadOf(COREWPN)).toEqual(before);
-    expect(prof(COREPOOR).scrap).toBe(100_000);
+    expect(scrapOf(COREPOOR)).toBe(100_000);
     expect(prof(COREPOOR).legendary_cores).toBe(1);
   });
 
