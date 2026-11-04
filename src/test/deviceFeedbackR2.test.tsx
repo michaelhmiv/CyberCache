@@ -295,14 +295,21 @@ describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
 
   it('the doors themselves carry the loadout intent (wiring)', () => {
     const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
-    // The deck's "Loadout Bench" (Wave B: the Board's Action Board
-    // rides Home's deck) and the stage's Manage door both fire the
-    // 'loadout' target, and App turns it into a tab intent.
-    expect(read('src/components/dashboard/DashboardDeck.tsx')).toContain("label: 'Loadout Bench'");
-    expect(read('src/components/dashboard/DashboardDeck.tsx')).toContain("onClick: () => onNavigate('loadout')");
-    expect(read('src/screens/ActionScreenContextual.tsx')).toContain("onManageLoadout={() => onNavigate?.('loadout')}");
+    // The deck's "Loadout Bench" and the stage's Manage door
+    // both fired the 'loadout' target — until the Home
+    // consolidation (owner ruling 2026-11-03) removed the Home
+    // loadout block and both doors with it; the Gear tab's
+    // Loadout stop is the one door now. What this test still
+    // protects: the App → Inventory intent legs themselves, so
+    // any 'loadout' target still lands on the equip surface.
     expect(read('src/App.tsx')).toContain("setInventoryTabIntent({ tab: 'loadout'");
     expect(read('src/screens/InventoryScreen.tsx')).toContain('tabIntent');
+    // And the consolidation's negative space: Home carries no
+    // loadout door anymore (the deck's doc comment names the
+    // retired card — the pin targets the door's label/wiring).
+    expect(read('src/components/dashboard/DashboardDeck.tsx')).not.toContain("label: 'Loadout Bench'");
+    expect(read('src/components/dashboard/DashboardDeck.tsx')).not.toContain("onNavigate('loadout')");
+    expect(read('src/screens/ActionScreenContextual.tsx')).not.toContain('ActionLoadout');
   });
 });
 
