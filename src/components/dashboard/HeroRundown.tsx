@@ -123,10 +123,10 @@ export const HeroRundown: React.FC<{
       data-testid={`hero-stat-${cell.key}`}
       onClick={() => openFocus(cell.key)}
       aria-label={`${cell.label}: ${cell.display}${cell.delta ? `, ${cell.delta.display} from modifiers` : ''}. Open source breakdown.`}
-      className="min-h-[56px] min-w-0 flex-1 border-l border-border/60 px-2 py-1.5 text-left transition-colors first:border-l-0 hover:bg-bg/40"
+      className="min-h-[56px] min-w-0 flex-1 border-l border-border/60 px-1.5 py-1.5 text-left transition-colors first:border-l-0 hover:bg-bg/40"
     >
       <span className="flex items-center justify-between gap-0.5">
-        <span className="truncate text-[11px] font-black uppercase tracking-[0.05em] text-text-muted">{cell.label}</span>
+        <span className="truncate text-[11px] font-black uppercase tracking-normal text-text-muted">{cell.label}</span>
         <PxIcon name="chevR" size={10} className="shrink-0 text-text-muted/60" />
       </span>
       <span className={`mt-0.5 block whitespace-nowrap font-black ${cell.display.length > 6 ? 'text-[15px] leading-tight' : 'text-[23px] leading-none'} ${statToneTextClass[cell.tone]}`}>
@@ -149,10 +149,10 @@ export const HeroRundown: React.FC<{
             data-testid="hero-stat-dps"
             onClick={() => openFocus('dps')}
             aria-label="DPS: no weapon equipped. Open source breakdown."
-            className="min-h-[56px] min-w-0 flex-[2] px-2 py-1.5 text-left transition-colors hover:bg-bg/40"
+            className="min-h-[56px] min-w-0 flex-[2] px-1.5 py-1.5 text-left transition-colors hover:bg-bg/40"
           >
             <span className="flex items-center justify-between gap-0.5">
-              <span className="truncate text-[11px] font-black uppercase tracking-[0.05em] text-text-muted">DPS</span>
+              <span className="truncate text-[11px] font-black uppercase tracking-normal text-text-muted">DPS</span>
               <PxIcon name="chevR" size={10} className="shrink-0 text-text-muted/60" />
             </span>
             <span className="mt-1 block text-[15px] font-black leading-tight text-red">No weapon equipped</span>
@@ -169,10 +169,10 @@ export const HeroRundown: React.FC<{
           data-testid="hero-stat-hp"
           onClick={() => openFocus('hp')}
           aria-label={`HP: ${model.hp.display}${model.hp.microline ? `, ${model.hp.microline}` : ''}. Open source breakdown.`}
-          className="min-h-[56px] min-w-0 flex-[1.25] border-l border-border/60 px-2 py-1.5 text-left transition-colors hover:bg-bg/40"
+          className="min-h-[56px] min-w-0 flex-[1.25] border-l border-border/60 px-1.5 py-1.5 text-left transition-colors hover:bg-bg/40"
         >
           <span className="flex items-center justify-between gap-0.5">
-            <span className="truncate text-[11px] font-black uppercase tracking-[0.05em] text-text-muted">HP</span>
+            <span className="truncate text-[11px] font-black uppercase tracking-normal text-text-muted">HP</span>
             <PxIcon name="chevR" size={10} className="shrink-0 text-text-muted/60" />
           </span>
           <span className={`mt-0.5 block whitespace-nowrap text-[15px] font-black leading-tight ${statToneTextClass[model.hp.tone]}`}>
