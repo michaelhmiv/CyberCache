@@ -59,7 +59,7 @@ type FirebaseAnalyticsModule = typeof import('firebase/analytics');
 export type ScreenName =
   | 'Home' | 'Gear' | 'Market' | 'Hunter'
   | 'Workshop' | 'Boss' | 'Endless' | 'Garage' | 'Standings' | 'Cache'
-  | 'Dispatch' | 'Collections' | 'Settings' | 'Help';
+  | 'Dispatch' | 'Collections' | 'Settings' | 'Help' | 'Activity Log';
 
 export type SignInMethod = 'google' | 'email';
 export type AccountTypeProperty = 'guest' | 'linked';

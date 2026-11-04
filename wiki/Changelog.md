@@ -97,9 +97,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 103 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 96 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-03** — 51 merges
+**2026-11-03** — 44 merges
 
 - #310 — feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)
 - #315 — Foreground resume: land instantly back in the live action
@@ -145,13 +145,6 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #355 — Fodder HP plate lift — in-stage, level with the hunter plate (owner device ruling 2026-11-03)
 - #356 — Econ slice 4 follow-up: re-pin 0067 settler parity + dropped-signature guard (test-only)
 - #357 — Fix idle tick desync after offline settle (F1+F2) — claims land within one cycle of return
-- #358 — Item-moment reveal: the item rises through radiating stepped light, stat deck lands staged
-- #359 — Quick-Buy QB-4: tint Chromaweave + reforge core mounts
-- #360 — AL-1: drop receipts — the game records what drops, where, and at what odds (recording only)
-- #361 — Econ 8: dispatch board reroll — credit-priced re-deal of the daily slate (§7.3, migration 0068)
-- #362 — Saved Builds SB-1: truthful build apply — one server op (cc_apply_build, 0066)
-- #363 — Boss identity: the Arena Plate — the boss presents itself (C-4)
-- #364 — Economy slice 5 — the Scrap Merge (brief §3): one tradeable Scrap, migration 0069 draft
 
 **2026-11-02** — 44 merges
 

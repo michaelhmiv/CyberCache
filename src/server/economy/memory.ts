@@ -304,6 +304,65 @@ export class InMemoryEconomyStore implements EconomyStore {
     const creditsDestroyedDispatchRerolls = sumBy(['cc_reroll_dispatch_board'], (p) =>
       num(dig(p, 'credits_charged')));
 
+    // Scrap meters (0071, brief §4.4 + §6): the engine material
+    // folded as a currency, exactly as in SQL. Salvage counts every
+    // application of the salvage rate to an item — manual recycles
+    // (single + batch scrap_award) and the boss Second Opinion
+    // auto-scrap (the attempt's top-level scrap_awarded). Roaming
+    // folds the trickle from live claims, offline settlement, and
+    // the retired legacy claim rows the credit fold still reads.
+    // The bundle fold counts grants x the shipped +500, mirroring
+    // minted_other's 5000 x grants for the bundle's credits (the
+    // bundle result carries no scrap field).
+    const scrapMintedSalvage =
+      sumBy(['cc_recycle_item', 'cc_recycle_batch'], (p) => num(dig(p, 'scrap_award')))
+      + sumBy(['cc_apply_boss_attempt'], (p) => num(dig(p, 'scrap_awarded')));
+    const scrapMintedRoaming = sumBy(
+      ['cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards'],
+      (p) => num(dig(p, 'rewards', 'scrap_awarded')),
+    );
+    const scrapMintedDispatch = sumBy(['cc_dispatch_settle'], (p) =>
+      num(dig(p, 'payout', 'scrap')));
+    const scrapMintedEndless =
+      sumBy(['cc_end_endless_run', 'cc_apply_endless_encounter'], (p) => num(dig(p, 'payout', 'scrap')))
+      + sumBy(['cc_start_endless_run'], (p) => num(dig(p, 'abandoned_settlement', 'payout', 'scrap')));
+    const scrapMintedBundle =
+      500 * rows.filter((r) => r.action_type === 'cc_initial_bundle').length;
+    // Destroyed by crafting: the materials fold's Scrap leg
+    // (enqueue escrows + catalysts, net of cancel refunds) PLUS
+    // tint escrows — tint enqueues under its own action type and
+    // its flat Scrap leg is a named crafting burn (§4.4). The
+    // materialsDestroyedCrafting map above keeps its shipped
+    // enqueue-only scope; this scalar is the scrap-complete view,
+    // floored at 0 exactly as in SQL.
+    const scrapLeg = (map: unknown): number => {
+      if (!map || typeof map !== 'object') return 0;
+      return Number((map as Record<string, unknown>)['Scrap']) || 0;
+    };
+    let scrapCraftNet = 0;
+    for (const row of rows) {
+      if (row.action_type === 'cc_enqueue_craft_job') {
+        scrapCraftNet += scrapLeg(dig(row.result_payload, 'job', 'escrow_inputs'));
+        scrapCraftNet += scrapLeg(dig(row.result_payload, 'job', 'escrow_catalyst'));
+      } else if (row.action_type === 'cc_enqueue_tint_job') {
+        scrapCraftNet += scrapLeg(dig(row.result_payload, 'job', 'escrow_inputs'));
+      } else if (row.action_type === 'cc_cancel_craft_job') {
+        scrapCraftNet -= scrapLeg(dig(row.result_payload, 'refunded_inputs'));
+      }
+    }
+    const scrapDestroyedCrafting = Math.max(0, scrapCraftNet);
+    // Contract-reroll destruction joins the scrap total exactly as
+    // in SQL. (This twin's row does not surface the contracts
+    // breakouts — a pre-existing gap — but the fold itself is part
+    // of the total's definition and is computed here regardless.)
+    const scrapDestroyedContractRerolls = sumBy(['cc_reroll_contract'], (p) =>
+      num(dig(p, 'scrap_charged')));
+    const scrapMintedTotal =
+      scrapMintedSalvage + scrapMintedRoaming + scrapMintedDispatch
+      + scrapMintedEndless + scrapMintedBundle;
+    const scrapDestroyedTotal =
+      scrapDestroyedCrafting + scrapDestroyedReforge + scrapDestroyedContractRerolls;
+
     // Extraction meters (0033): passes + XP from the
     // cc_apply_extraction ledger payloads; the mint map folds the
     // payloads' finds_materials and finds_essences maps per id
@@ -486,6 +545,15 @@ export class InMemoryEconomyStore implements EconomyStore {
       creditsMintedDispatch,
       creditsMintedCourier,
       creditsDestroyedDispatchRerolls,
+      scrapMintedSalvage,
+      scrapMintedRoaming,
+      scrapMintedDispatch,
+      scrapMintedEndless,
+      scrapMintedBundle,
+      scrapMintedTotal,
+      scrapDestroyedCrafting,
+      scrapDestroyedTotal,
+      netScrapChange: scrapMintedTotal - scrapDestroyedTotal,
       extractionPasses,
       extractionXpAwarded,
       materialsMintedExtraction,

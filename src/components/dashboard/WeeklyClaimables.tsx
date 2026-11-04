@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { ClaimPulse } from '@/components/common/ClaimPulse';
-import { panelEntranceProps } from '@/lib/animation/uiMotion';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   useStandingStore,
   weeklyClaimables,
@@ -15,11 +14,13 @@ import {
  *
  * The offers' canonical home is the Rep Desk (Market rail stop);
  * these are the secondary surfaces the surfacing spec assigns to
- * Home: the Weekly panel in the deck (rendered only in its
- * claimable states) and the claim sheet the Strip's weekly chip
- * opens. Both render THIS list from the shared standing mirror —
- * one claim path, the Rep Desk's real ops (standingBuy /
- * standingOrder through the standing slice), never a local award.
+ * Home: the claim sheet the Strip's weekly chip opens and, since
+ * the 2026-11-03 consolidation, the Next Move card's Claim sheet
+ * (the deck panel form is retired — the weekly wait surfaces as
+ * a card, not a deck block). Both render THIS list from the
+ * shared standing mirror — one claim path, the Rep Desk's real
+ * ops (standingBuy / standingOrder through the standing slice),
+ * never a local award.
  *
  * Guest law: the offers stay VISIBLE to guests with real prices;
  * the lock sits on the claim button itself, never on the panel.
@@ -117,41 +118,5 @@ export const WeeklyClaimablesList: React.FC = () => {
         </div>
       )}
     </div>
-  );
-};
-
-/**
- * The deck panel form: renders ONLY in its claimable states
- * (DESIGN.md §4 — the Weekly panel exists when a crate or order
- * is waiting; an empty week leaves no husk in the deck). Mounting
- * it also performs the session's standing read (deduped by the
- * slice with the claim chip's mount).
- */
-export const WeeklyClaimablesPanel: React.FC = () => {
-  const view = useStandingStore((s) => s.view);
-  const load = useStandingStore((s) => s.load);
-  const reduceMotion = useReducedMotion();
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  if (weeklyClaimables(view).length === 0) return null;
-  return (
-    <motion.section
-      {...panelEntranceProps(reduceMotion)}
-      data-testid="weekly-claimables-panel"
-      className="relative overflow-hidden border-2 bg-surface/95 p-2 shadow-[0_8px_18px_rgba(0,0,0,0.55)]"
-      style={{ borderColor: `${WEEKLY_ACCENT}66` }}
-    >
-      <div className="relative mb-1.5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-text-muted">
-        <span className="h-px flex-1 bg-border-light" />
-        <span className="flex items-center gap-1.5" style={{ color: WEEKLY_ACCENT }}>
-          <PxIcon name="crate" size={13} />
-          Weekly Claimables
-        </span>
-        <span className="h-px flex-1 bg-border-light" />
-      </div>
-      <WeeklyClaimablesList />
-    </motion.section>
   );
 };

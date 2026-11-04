@@ -49,6 +49,7 @@ import {
   VEHICLE_CONDITION_MAX,
   getVehicleClass,
 } from '../../lib/vehicles/vehicles.js';
+import { RECIPE_SCRAP_DEFAULTS, clampRecipeScrapCost } from '../economy/config.js';
 import {
   buildWorkshopStateView,
   cancelCraftJob as cancelCraftJobCore,
@@ -2308,6 +2309,17 @@ export class InMemoryWriteStore implements WriteStore {
         SHIELD_TECH_MASTERY_PER_LEVEL_MIN,
         SHIELD_TECH_MASTERY_PER_LEVEL_MAX,
       ),
+      // Econ 7 (brief §4): the resolved per-recipe Scrap map — the
+      // provider's per-recipe values clamped over the content
+      // literals, covering EVERY Scrap recipe (the full map is what
+      // the Workshop snapshot ships, so displays resolve identically
+      // to charges).
+      recipeScrapCosts: Object.fromEntries(
+        Object.entries(RECIPE_SCRAP_DEFAULTS).map(([recipeId, literal]) => [
+          recipeId,
+          clampRecipeScrapCost(provided.recipeScrapCosts?.[recipeId], literal),
+        ]),
+      ),
     };
   }
 
@@ -2798,7 +2810,17 @@ export class InMemoryWriteStore implements WriteStore {
     const result: Json = {
       action_type: 'cc_enqueue_craft_job',
       profile: this.profileSnapshot(p),
-      job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+      // The recorded job carries the escrow maps alongside the view:
+      // the SQL twin's ledger payload embeds cc_craft_job_json's
+      // escrow_inputs / escrow_catalyst, and the economy metrics
+      // folds (materials + scrap destroyed-by-crafting) read them
+      // from the ledger. Without them the InMemory ledger silently
+      // under-reports every crafting burn (0071).
+      job: {
+        ...(craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Record<string, unknown>),
+        escrow_inputs: job.escrow_inputs,
+        escrow_catalyst: job.escrow_catalyst,
+      } as unknown as Json,
       escrow_cores: job.escrow_cores ?? 0,
     };
     return this.record(playerId, 'cc_enqueue_craft_job', key, result);
@@ -2823,7 +2845,14 @@ export class InMemoryWriteStore implements WriteStore {
     const result: Json = {
       action_type: 'cc_enqueue_tint_job',
       profile: this.profileSnapshot(p),
-      job: craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Json,
+      // Escrow maps ride the recorded job exactly as on craft
+      // enqueues (0071): the scrap destroyed-by-crafting fold reads
+      // the tint job's Scrap leg from this ledger payload.
+      job: {
+        ...(craftJobView(job, jobs, this.activities.get(playerId)?.active_action ?? null) as unknown as Record<string, unknown>),
+        escrow_inputs: job.escrow_inputs,
+        escrow_catalyst: job.escrow_catalyst,
+      } as unknown as Json,
     };
     return this.record(playerId, 'cc_enqueue_tint_job', key, result);
   }
@@ -2966,6 +2995,7 @@ export class InMemoryWriteStore implements WriteStore {
       jobs: this.seed.craftJobs.filter((j) => j.owner_user_id === playerId),
       masteries,
       activeActionKind: this.activities.get(playerId)?.active_action ?? null,
+      recipeScrapCosts: this.craftLevers().recipeScrapCosts,
     }) as Json;
   }
 

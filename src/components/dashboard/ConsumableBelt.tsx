@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLoadoutStore, usePlayerStore } from '@/store';
 import { ActiveBuffPills } from '@/components/stats/ActiveBuffPills';
 import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
+import { VehicleBeltChip } from '@/components/dashboard/VehicleBeltChip';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 
 /**
@@ -14,7 +15,10 @@ import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
  * state lives here now), and the Gear rail keeps its own
  * Loadout Bench surface for editing the loadout itself.
  */
-export const ConsumableBelt: React.FC = () => {
+export const ConsumableBelt: React.FC<{
+  /** Routes the vehicle chip's remedy doors (Garage / Vendor). */
+  onNavigate?: (target: string) => void;
+}> = ({ onNavigate }) => {
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const [focusedSlot, setFocusedSlot] = useState<keyof LoadoutConsumables | null>(null);
@@ -37,6 +41,7 @@ export const ConsumableBelt: React.FC = () => {
           setFocusedSlot(slot);
           setLedgerOpen(true);
         }}
+        trailingCell={onNavigate ? <VehicleBeltChip onNavigate={onNavigate} /> : undefined}
       />
       {ledgerOpen && (
         <ConsumableLedger

@@ -25,16 +25,29 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   chip at its right. The wallet prints exactly once anywhere in the app. One resident
   besides the wallet is allowed: the settings gear icon at the Strip's right edge
   (a shortcut; Settings' canonical home is Hunter → Account — see §3).
-- **The Stage** — the pixel diorama art, unobstructed: one area/target plate (only
-  when a target exists), one count plate, and ONE status ribbon along the bottom
-  edge. Per-mode art (vista / arena / bench / site). The loot feed never prints on
-  the art; nothing overlays the stage except its plates and ribbon.
+- **The Stage** — the pixel diorama art, unobstructed: one count plate, the
+  combat HP plates at the actors' bases, and the action controls. Per-mode art
+  (vista / arena / bench / site). The loot feed never prints on the art;
+  nothing overlays the stage except its plates and the action controls.
+  Attached to the stage's foot — below the art, never over it — is the **hero
+  rundown**: DPS · Dmg/tick · Crit · HP (shield/mitigation as the HP cell's
+  microline), effective values as heroes with green/red modifier deltas
+  beside them, each stat tappable into its source breakdown sheet; a slim
+  buff line rides under the heroes while any buff or activity modifier is
+  active, and renders nothing otherwise.
   *Owner ruling 2026-11-02: one more resident — the action controls (Switch
   Action · Stop) float on the stage itself as chips in the plates' language,
-  bottom-right above the ribbon, and no dedicated controls row exists under
-  the rail. The Switch Action door rides the stage in every state (it is the
-  Switch sheet's only door, and Salvage's path home); Stop joins it while an
-  action runs.*
+  and no dedicated controls row exists under the rail. The Switch Action
+  door rides the stage in every state (it is the Switch sheet's only door,
+  and Salvage's path home); Stop joins it while an action runs.*
+  *Owner ruling 2026-11-03 (Home consolidation): the status ribbon is
+  RETIRED — there is no ribbon on the stage, and the mode word ("ROAMING")
+  prints nowhere: the scene, the rail, and the workspace already say it.
+  The ribbon's stats band is replaced by the hero rundown above. The action
+  controls are ICON-ONLY: 44px square buttons carrying the §7 swap / stop
+  pixel glyphs and no visible text (the words live in their aria-labels) —
+  the text made them way larger than they needed to be. Position stays
+  top-left; only the footprint shrank.*
   *Owner ruling 2026-11-02 (later, from the device): the area/target plate
   is REMOVED from the stage — no banner rides the art; area switching lives
   in the rail's AREA stop and the workspace panels' Change Area buttons,
@@ -157,16 +170,33 @@ replace the canonical one. (Tap depths are governed by §9.)
 
 ### Home
 
-- **Stage + rail modes:** Roam (stage ribbon + workspace) · Area (one picker sheet,
-  three openers: stage plate, rail Area, Change Area) · Boss (select sheet → prep
+- **Stage + rail modes:** Roam (hero rundown + workspace) · Area (one picker sheet,
+  two openers: rail Area, workspace Change Area) · Boss (select sheet → prep
   poster sheet) · Endless (rail stop) · Extract (rail stop) · Craft (the action;
   its panel prints an "Open Workshop" door to the Gear bench — the action is
   **Craft** here, the bench is **Workshop** there; never label both "Crafting").
+- **The hero rundown** is attached to the stage's foot (§1): the hunter's four
+  hero stats, each opening its source breakdown. The full all-metrics
+  breakdown lives behind **Hunter → Profile's "Totals & Sources" door** — the
+  deck's Hunter Totals panel is retired (2026-11-03).
+- **The Next Move card** sits between the rundown and the rail ONLY while
+  something genuinely waits on the player — an unreviewed away settlement, a
+  finished craft, a claimable contract, the free daily cache, weekly Rep Desk
+  earnings, an unacknowledged course completion — with the resolving action
+  on the card. When nothing waits there is NO card and no placeholder: the
+  layout closes up (owner correction, 2026-11-03).
 - **Under the stage, first viewport:** the lit mode's workspace (Session panel +
   Loot Feed while roaming; boss/endless/extract/craft workspaces in their modes),
   belt consumable quick slots (use-in-loop; the full stacks live at Gear →
   Belt & Stacks, the Loadout page's belt section — do not consolidate them
-  into Gear).
+  into Gear). The belt row also carries the **vehicle chip** (owner
+  correction, 2026-11-03): the equipped vehicle's fuel readout in the belt
+  chips' grammar — quiet while fueled, carrying its remedy door (Garage /
+  Vendor) when out of fuel or worn out. The vehicle gets no row of its own
+  on Home; its full status line lives in the Garage. Research state is NOT
+  on Home: the education track's chip and completion card left with the
+  consolidation — enrollment state lives on Hunter → Research, and a
+  finished course announces through the Next Move card.
 - **Resurrection** is an event-driven overlay on the Home stage (0 taps; it has no
   door and gets none). **Action skills** are contextual controls inside the active
   workspace.
@@ -182,8 +212,11 @@ replace the canonical one. (Tap depths are governed by §9.)
   until acknowledged; the already-banked state carries no pulse and no badge
   (§9).
 - **The deck** (below the fold, fixed order — §4): launcher cards (Dispatch ·
-  Crack Cache · Loadout shortcut ◦ while a loadout is incomplete),
-  Weekly claimables panel, Now feed, Hunter Totals.
+  Crack Cache), Now feed. (The Slots launcher, the Loadout shortcut, the
+  Weekly panel, and Hunter Totals all left the deck in the 2026-11-03
+  consolidation — rehoused per §4's notes, not deleted. The Slots
+  launcher's destination is gone entirely: Data Slots was removed,
+  migration 0074.)
 - **Field Manual and Settings are NOT on Home.** Their canonical home is
   Hunter → Account; the Strip's gear icon is a Settings shortcut only.
 
@@ -204,8 +237,9 @@ replace the canonical one. (Tap depths are governed by §9.)
   print as words (rarity rides the name's color, element the icon tint
   and the item's own render — owner ruling 2026-11-03). The Slot Picker
   is the one equip surface; the 7 gear slots + vehicle slot equip/
-  unequip there and in the Garage. (◦ Home keeps a Loadout shortcut card
-  while a loadout is incomplete.)
+  unequip there and in the Garage. (Home's old Loadout shortcut card is
+  retired — 2026-11-03: the stage's count plate carries the n/7 signal,
+  and this page is the loadout's only Home-adjacent door.)
 - **§ Inventory** (section of the Loadout page; the Grid stop retired into
   it, 2026-11-03) — the item grid + salvage/recycle, its header and
   toolbar sticky at the page's scroll top.
@@ -234,13 +268,17 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **Rep Desk** — manufacturer standing as a place: makers, ladder, turn-ins,
   rank tributes, Rep Shelf + the standing-exclusive recipe, and the weekly
   **Parts Crate + Signature Orders** — this stop is their home and first claim
-  surface (◦ claim chip on Home when ready, ◦ Weekly panel in Home's deck).
+  surface (◦ claim chip on Home when ready, ◦ Next Move card on Home when
+  waiting — the deck's Weekly panel retired into it, 2026-11-03).
   The Vendor's hidden `rep` mode toggle is deleted and must not return.
 ### Hunter
 
 - **Profile** — profile + Trophy Shelf + lifetime stats, top of the tab. The
   Trophy Shelf tile **opens Collections** (today it opens nothing — a defect the
-  redesign fixes, not a behavior to preserve).
+  redesign fixes, not a behavior to preserve). The **Totals & Sources door**
+  on this stop opens the full all-metrics source breakdown (the canonical
+  home of the totals view since the deck's Hunter Totals panel retired,
+  2026-11-03; Home's rundown heroes open the same sheet focused per-stat).
 - **Collections** — the 81 proofs as a poster-grid shelf; legendary cores print
   in the stop header (cores are spent from Gear → inspect).
 - **Cache Rank** — the tracks and token spend.
@@ -275,11 +313,18 @@ player needs each block.
    and the login streak — an announcement, not a claimable: its reward
    banks on arrival and its chip pulses only until acknowledged (§9).
    (Absences under 5 minutes still settle silently; the Return Sheet is §10.)
-3. **The Stage** — area plate, count plate, status ribbon.
-4. **The mode rail** — `Area · Roam · Boss · Endless · Extract · Craft`.
-5. **The lit mode's workspace** — session/loot panels and the mode's primary
+3. **The Stage** — count plate, combat HP plates, icon-only action controls
+   (44px swap/stop glyph squares, top-left). Attached to its foot: **the hero
+   rundown** (DPS · Dmg/tick · Crit · HP, each tappable into its source
+   breakdown; the buff line under it while anything is active).
+4. **The Next Move card** — ONLY while something genuinely waits (away
+   settlement · finished craft · claimable contract · free daily cache ·
+   weekly earnings · course completion, in that priority); absent otherwise.
+5. **The mode rail** — `Area · Roam · Boss · Endless · Extract · Craft`.
+6. **The lit mode's workspace** — session/loot panels and the mode's primary
    actions (Start Roam, Choose Boss).
-6. **Belt quick slots** — the consumable quick-slot row.
+7. **Belt quick slots** — the consumable quick-slot row, with the vehicle
+   chip riding it (fuel readout / remedy door; §3).
 
 **Never above the Stage:** no panel, card, feed, header, banner, or navigation
 other than the Strip and the claim chips may sit above the Stage, and the Stage
@@ -288,18 +333,21 @@ Stage is the emotional core of the game; bookkeeping never colonizes it.
 
 **Below the fold — the deck, in fixed order:**
 
-1. **Launcher deck** — Dispatch and Crack Cache first (they are Board orphans:
+1. **Launcher deck** — Dispatch and Crack Cache (they are Board orphans:
    when the Board tab died they lost their only door, so they inherit named,
-   stateful cards at the top), then the Loadout
-   shortcut card.
-2. **Weekly claimables** — the Parts Crate + Signature Orders panel. Renders
-   only in its claimable/offered states.
-3. **Now** — the single merged feed (World Pulse + player activity). Named
+   stateful cards at the top).
+2. **Now** — the single merged feed (World Pulse + player activity). Named
    "Now"; one panel, no duplicates. (Merging World Pulse into Now keeps the
    panel's name and place — a merge that deletes both is a cut, and cuts need
    the owner's sign-off.)
-4. **Hunter Totals** — last: reference data, not errands. One header, with its
-   Sources disclosure.
+
+*Retired from the deck in the 2026-11-03 consolidation: the Slots launcher
+card (the rail stop it pointed at was deleted with Data Slots,
+migration 0074), the Loadout shortcut card (the
+count plate carries the signal; Gear → Loadout is canonical), the Weekly
+claimables panel (weekly earnings announce via the claim chip and the Next
+Move card; the claim list itself is unchanged), and Hunter Totals (the hero
+rundown + Hunter → Profile's Totals & Sources door carry its jobs).*
 
 **Scarcity rule:** nothing joins Home — above or below the fold — without
 displacing a block or winning the argument that it is checked more often than
@@ -561,8 +609,9 @@ should never be two taps from anywhere.
 **Claimables announce themselves.** Everything claimable, weekly, or
 time-boxed — contract offers, the weekly Parts Crate and Signature
 Orders, and the login streak's announcement — carries a visible surface
-on Home itself at 0–1 taps: a claim chip under the Strip, the Weekly
-panel in the deck.
+on Home itself at 0–1 taps: a claim chip under the Strip, and the Next
+Move card under the stage (the deck's Weekly panel retired into it in
+the 2026-11-03 consolidation).
 Settled race rewards are not claimables (settlement pays them
 automatically); they announce through the live badge on Hunter's
 Standings door and resolve on the Standings earnings panel (§3).
@@ -578,10 +627,11 @@ distinct — a pulse and the word "claim" belong only to rewards the
 player actually claims.
 
 **The two placements.** Slots' canonical door is the Market → Slots rail
-stop; Home carries exactly one secondary, the labeled launcher card in
-the deck. Manufacturer standing's canonical door is the Market → Rep Desk
-rail stop; the Vendor's hidden `rep` toggle is deleted and must not
-return (§3).
+stop — its only door since the 2026-11-03 consolidation retired the
+deck's launcher card (Market tab press + rail stop: 2 taps, inside the
+discipline). Manufacturer standing's canonical door is the Market → Rep
+Desk rail stop; the Vendor's hidden `rep` toggle is deleted and must
+not return (§3).
 
 The full checkable list — all 54 audit rows, each feature's door and
 depth — is the feature-coverage audit's surfacing spec §8; §3 of this

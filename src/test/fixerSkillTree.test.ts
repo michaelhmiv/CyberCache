@@ -809,20 +809,23 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
   it('vendor sell: rate = min(0.90, lever + vendorBuybackBonus)', async () => {
     const sell = async (spends: Record<string, number>, opts: Record<string, unknown> = {}) => {
       const store = makeStore((s) => {
-        s.profiles = [profile({ id: P, materials: { Scrap: 10 }, skill_spends: spends })];
+        s.profiles = [profile({ id: P, materials: { BallisticParts: 20 }, skill_spends: spends })];
       }, opts);
-      return store.vendorSell(P, nonce(), { kind: 'material', materialId: 'Scrap', quantity: 10 });
+      return store.vendorSell(P, nonce(), { kind: 'material', materialId: 'BallisticParts', quantity: 20 });
     };
-    // Scrap vendor value 10 × 10 units = 100.
+    // Ballistic Parts vendor value 15 x 20 units = 300. (The test
+    // vehicle was Scrap until Econ 6 removed it from the vendor
+    // catalog entirely — ruling 6; the rate math is what is pinned
+    // here, not the material.)
     const plain = await sell({});
     expect(plain.buyback_rate).toBeCloseTo(0.4, 10);
-    expect(plain.total_payout).toBe(40);
+    expect(plain.total_payout).toBe(120);
     const appraised = await sell({ fix_vendor_1: 5 });
     expect(appraised.buyback_rate).toBeCloseTo(0.45, 10);
-    expect(appraised.total_payout).toBe(45);
+    expect(appraised.total_payout).toBe(135);
     const capped = await sell({ fix_vendor_1: 5 }, { buybackRateProvider: () => 0.88 });
     expect(capped.buyback_rate).toBeCloseTo(0.9, 10);
-    expect(capped.total_payout).toBe(90);
+    expect(capped.total_payout).toBe(270);
   });
 
   function gearData(id: string, owner: string, payload: Record<string, unknown>): WriteItemData {

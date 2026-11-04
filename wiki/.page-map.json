@@ -457,7 +457,8 @@
     },
     {
       "pages": [
-        "wiki/Reference-Consumables.md"
+        "wiki/Reference-Consumables.md",
+        "wiki/The-Board.md"
       ],
       "sources": [
         "src/lib/pixel/icons.ts",
@@ -517,6 +518,19 @@
       ],
       "sources": [
         "src/components/fight/"
+      ]
+    },
+    {
+      "pages": [
+        "wiki/Activity-Log.md"
+      ],
+      "sources": [
+        "src/screens/ActivityLogScreen.tsx",
+        "src/components/activity/ActivityRecordCard.tsx",
+        "src/components/activity/ActivityRecordSheet.tsx",
+        "src/components/profile/ActivityLogDoor.tsx",
+        "src/lib/api/activityLogService.ts",
+        "src/lib/activity/activityLogView.ts"
       ]
     }
   ],

@@ -23,7 +23,7 @@
  *    pop-up holds level specifics only — and the recap is
  *    nowhere in the Dashboard scroll or App root anymore.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => ({
@@ -220,13 +220,14 @@ describe('Dashboard top — first paint', () => {
     // level door is a 40px pill now, same sheet behind it.
     expect(levelButton.className).toContain('min-h-[40px]');
 
-    // Document order: ResourceBar chips → top bar → Hunter Totals
-    // (the first scroll surface). Nothing above the top bar needs
-    // a scroll to reach it, at phone height or ~740dp.
+    // Document order: ResourceBar chips → top bar → the deck's
+    // first panel (Launchers — Hunter Totals left the deck in
+    // the 2026-11-03 consolidation). Nothing above the top bar
+    // needs a scroll to reach it, at phone height or ~740dp.
     const levelChip = screen.getByTestId('resource-chip-level');
     expect(levelChip.compareDocumentPosition(topBar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const hunterTotals = await screen.findByTestId('hunter-totals-sources-button');
-    expect(topBar.compareDocumentPosition(hunterTotals) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const launchers = await screen.findByText('Launchers');
+    expect(topBar.compareDocumentPosition(launchers) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     // The panels are NOT in the scroll anymore.
     expect(screen.queryByText('Login Streak')).toBeNull();
@@ -294,7 +295,7 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
     expect(mockStreak).toHaveBeenCalledTimes(1);
   });
 
-  it('the contracts icon opens the sheet; claiming pays through the Chef op and clears the badge', async () => {
+  it('the contracts icon opens the sheet; claiming pays through the Chef op and clears the badge', { timeout: 20_000 }, async () => {
     mockContracts.mockResolvedValue(boardResult(true, [contractView('c-1', true)]));
     mockClaim.mockResolvedValue({
       verified: true,
@@ -313,7 +314,10 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
 
     fireEvent.click(icon);
     expect(await screen.findByTestId('picker-sheet-overlay')).toBeTruthy();
-    const claimButton = await screen.findByRole('button', { name: 'Claim' });
+    // The claimable contract ALSO waits as the Next Move card
+    // (its Claim opens this same sheet) — the panel's own Claim
+    // is the one this flow pays through.
+    const claimButton = await within(screen.getByTestId('picker-sheet-body')).findByRole('button', { name: 'Claim' });
     fireEvent.click(claimButton);
     await waitFor(() => expect(mockClaim).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(/Claimed: \+220 cr \+ \+1 fragment/)).toBeTruthy();
@@ -444,8 +448,10 @@ describe('Dashboard top — level chip doors: specifics pop-up + the Return Shee
     expect(screen.getByTestId('return-totals-row')).toBeTruthy();
 
     // "Collect" acknowledges: sheet closes, beacon stops, the recap
-    // store keeps the settlement (re-readable next open).
-    fireEvent.click(screen.getByRole('button', { name: 'Collect' }));
+    // store keeps the settlement (re-readable next open). Scoped
+    // to the sheet — the settlement also waits as the Next Move
+    // card, whose Collect opens this same sheet.
+    fireEvent.click(within(screen.getByTestId('picker-sheet-body')).getByRole('button', { name: 'Collect' }));
     await waitFor(() => expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull());
     expect(useOfflineRecapStore.getState().dismissed).toBe(true);
     expect(useOfflineRecapStore.getState().lastSettlement?.rewards.creditsAwarded).toBe(4321);

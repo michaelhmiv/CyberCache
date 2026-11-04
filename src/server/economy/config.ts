@@ -23,7 +23,12 @@
  * from the table itself via cc_economy_config_number; this accessor
  * serves the TypeScript consumers (Chef claim/boss routes, the
  * in-memory write mirror, the admin report).
+ *
+ * The per-recipe Scrap-cost levers (economy brief §4) live here too:
+ * GENERATED keys (recipeScrap.<recipeId>) built from the craft
+ * catalog at module init — see the generated registry below.
  */
+import { ALL_CRAFT_RECIPES } from '../../content/crafting';
 
 export interface EconomyConfigValues {
   /** Fraction of a completed market sale destroyed as the fee. */
@@ -799,11 +804,103 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   },
 };
 
+// ─── Per-recipe Scrap-cost levers (economy brief §4) ───────────────
+//
+// The owner's live-ops lever: ONE key per recipe whose inputs include
+// Scrap, GENERATED from ALL_CRAFT_RECIPES at module init — never
+// hand-listed, so the key set can never drift from the catalog (a
+// recipe that gains a Scrap input gains its lever; one that drops it
+// loses it — pinned by tests in both directions). The default of
+// every key is the recipe's shipped content literal, so a key with no
+// DB row resolves to the literal and an untouched game behaves
+// exactly as the content file prices it. Resolution happens at
+// ENQUEUE in both twins (SQL cc_enqueue_craft_job / cc_enqueue_tint_job
+// read cc_economy_config_number with the same bounds; the TS mirror
+// resolves through CraftLeverValues.recipeScrapCosts) and the
+// resolved figure snapshots onto the job's escrow — a lever move
+// never reprices a running job.
+
+export const RECIPE_SCRAP_KEY_PREFIX = 'recipeScrap.';
+export const RECIPE_SCRAP_MIN = 0;
+export const RECIPE_SCRAP_MAX = 100000;
+
+export function recipeScrapConfigKey(recipeId: string): string {
+  return `${RECIPE_SCRAP_KEY_PREFIX}${recipeId}`;
+}
+
+/** recipeId → the recipe's shipped literal Scrap cost (its default). */
+export const RECIPE_SCRAP_DEFAULTS: Readonly<Record<string, number>> = Object.freeze(
+  Object.fromEntries(
+    ALL_CRAFT_RECIPES.filter((r) => 'Scrap' in r.inputs).map((r) => [r.id, r.inputs['Scrap']]),
+  ),
+);
+
+/** Full config key → spec, for every generated recipeScrap key. */
+export const RECIPE_SCRAP_SPECS: Readonly<Record<string, EconomyConfigKeySpec>> = Object.freeze(
+  Object.fromEntries(
+    Object.keys(RECIPE_SCRAP_DEFAULTS).map((recipeId) => {
+      const key = recipeScrapConfigKey(recipeId);
+      return [
+        key,
+        {
+          // The generated key is not a member of the fixed
+          // EconomyConfigKey union; the spec's key field is the
+          // registry echo, carried as the literal string.
+          key: key as EconomyConfigKey,
+          min: RECIPE_SCRAP_MIN,
+          max: RECIPE_SCRAP_MAX,
+          integer: true,
+          defaultOwner: `src/content/crafting.ts ${recipeId} Scrap input`,
+        } satisfies EconomyConfigKeySpec,
+      ];
+    }),
+  ),
+);
+
+/** The spec for any writable key: the fixed registry first, then the
+ *  generated recipeScrap keys. Undefined = not a lever key at all. */
+export function economyConfigSpecFor(key: string): EconomyConfigKeySpec | undefined {
+  return (ECONOMY_CONFIG_KEYS as Record<string, EconomyConfigKeySpec>)[key] ?? RECIPE_SCRAP_SPECS[key];
+}
+
+export function isRecipeScrapConfigKey(key: string): boolean {
+  return key in RECIPE_SCRAP_SPECS;
+}
+
+/**
+ * Clamp an arbitrary value into a legal recipe Scrap cost, falling
+ * back to the recipe's content literal when the value is unusable —
+ * the defensive twin of the SQL clamp in cc_enqueue_craft_job
+ * (migration 0072): greatest(0, least(100000, value)).
+ */
+export function clampRecipeScrapCost(value: unknown, literal: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return literal;
+  return Math.min(RECIPE_SCRAP_MAX, Math.max(RECIPE_SCRAP_MIN, Math.round(value)));
+}
+
+/**
+ * The resolved effective Scrap cost of EVERY scrap-priced recipe
+ * (recipeId → per-unit cost): the stored recipeScrap.<id> row when
+ * valid, else the content literal. An untouched (empty) config
+ * resolves to the literals — byte-identical costs (brief §4.1).
+ */
+export function resolveRecipeScrapCosts(
+  stored: Record<string, unknown> | null | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [recipeId, literal] of Object.entries(RECIPE_SCRAP_DEFAULTS)) {
+    const key = recipeScrapConfigKey(recipeId);
+    const valid = stored && key in stored ? validateEconomyConfigValue(key, stored[key]) : null;
+    out[recipeId] = valid ?? literal;
+  }
+  return out;
+}
+
 const CACHE_TTL_MS = 60_000;
 
 /** Validate one raw stored/written value for a key. Null = invalid. */
 export function validateEconomyConfigValue(key: string, value: unknown): number | null {
-  const spec = (ECONOMY_CONFIG_KEYS as Record<string, EconomyConfigKeySpec>)[key];
+  const spec = economyConfigSpecFor(key);
   if (!spec) return null;
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   if (value < spec.min || value > spec.max) return null;
@@ -840,31 +937,61 @@ export interface EconomyConfigSource {
 }
 
 export class EconomyConfig {
-  private cache: { values: EconomyConfigValues; loadedAt: number } | null = null;
+  private cache: {
+    values: EconomyConfigValues;
+    recipeScrapCosts: Record<string, number>;
+    loadedAt: number;
+  } | null = null;
 
   constructor(
     private readonly source: EconomyConfigSource | null,
     private readonly now: () => number = () => Date.now(),
   ) {}
 
-  /** Effective lever values, cached ≤60s; defaults on any failure. */
-  async snapshot(): Promise<EconomyConfigValues> {
+  /** One cached load behind both reads: the scalar snapshot and the
+   *  generated recipeScrap map resolve from the SAME stored rows, so
+   *  they can never disagree about what the config table said. */
+  private async load(): Promise<{
+    values: EconomyConfigValues;
+    recipeScrapCosts: Record<string, number>;
+  }> {
     if (this.cache && this.now() - this.cache.loadedAt < CACHE_TTL_MS) {
-      return this.cache.values;
+      return this.cache;
     }
     if (!this.source) {
-      return { ...ECONOMY_CONFIG_DEFAULTS };
+      return {
+        values: { ...ECONOMY_CONFIG_DEFAULTS },
+        recipeScrapCosts: { ...RECIPE_SCRAP_DEFAULTS },
+      };
     }
     try {
       const stored = await this.source.loadConfigValues();
-      const values = resolveEconomyConfigValues(stored);
-      this.cache = { values, loadedAt: this.now() };
-      return values;
+      const entry = {
+        values: resolveEconomyConfigValues(stored),
+        recipeScrapCosts: resolveRecipeScrapCosts(stored),
+        loadedAt: this.now(),
+      };
+      this.cache = entry;
+      return entry;
     } catch {
       // Config must never take the game down: serve the last good
       // snapshot if we have one, else the shipped defaults.
-      return this.cache ? this.cache.values : { ...ECONOMY_CONFIG_DEFAULTS };
+      return this.cache ?? {
+        values: { ...ECONOMY_CONFIG_DEFAULTS },
+        recipeScrapCosts: { ...RECIPE_SCRAP_DEFAULTS },
+      };
     }
+  }
+
+  /** Effective lever values, cached ≤60s; defaults on any failure. */
+  async snapshot(): Promise<EconomyConfigValues> {
+    return (await this.load()).values;
+  }
+
+  /** The resolved per-recipe Scrap-cost map (brief §4): recipeId →
+   *  effective per-unit cost, every scrap-priced recipe present. */
+  async recipeScrapCosts(): Promise<Record<string, number>> {
+    return (await this.load()).recipeScrapCosts;
   }
 
   async get<K extends EconomyConfigKey>(key: K): Promise<number> {

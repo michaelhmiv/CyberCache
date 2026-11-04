@@ -180,34 +180,6 @@
         {
           "number": 357,
           "title": "Fix idle tick desync after offline settle (F1+F2) — claims land within one cycle of return"
-        },
-        {
-          "number": 358,
-          "title": "Item-moment reveal: the item rises through radiating stepped light, stat deck lands staged"
-        },
-        {
-          "number": 359,
-          "title": "Quick-Buy QB-4: tint Chromaweave + reforge core mounts"
-        },
-        {
-          "number": 360,
-          "title": "AL-1: drop receipts — the game records what drops, where, and at what odds (recording only)"
-        },
-        {
-          "number": 361,
-          "title": "Econ 8: dispatch board reroll — credit-priced re-deal of the daily slate (§7.3, migration 0068)"
-        },
-        {
-          "number": 362,
-          "title": "Saved Builds SB-1: truthful build apply — one server op (cc_apply_build, 0066)"
-        },
-        {
-          "number": 363,
-          "title": "Boss identity: the Arena Plate — the boss presents itself (C-4)"
-        },
-        {
-          "number": 364,
-          "title": "Economy slice 5 — the Scrap Merge (brief §3): one tradeable Scrap, migration 0069 draft"
         }
       ]
     },

@@ -104,6 +104,28 @@ export interface EconomyMetricsRow {
    *  payloads — its own sink breakout (contracts/dispatch family),
    *  folded into creditsDestroyedTotal. */
   creditsDestroyedDispatchRerolls: number;
+  /** Scrap meters (migration 0071, brief §4.4 + §6): the engine
+   *  material metered as a currency at last. Minted breakouts fold
+   *  the verified ledger — salvage (manual recycles' scrap_award +
+   *  the boss Second Opinion auto-scrap on the attempt payload),
+   *  roaming (the trickle from live claims, offline settlement, and
+   *  legacy claim rows), dispatch settle payouts, endless escrow
+   *  payouts, and the starter bundle (500 × grants, mirroring the
+   *  bundle's 5000 × grants credit fold). scrapDestroyedCrafting is
+   *  the materials fold's Scrap leg (enqueue escrows + catalysts net
+   *  of cancel refunds) PLUS tint escrows; reforge and contract
+   *  reroll destruction keep their own columns above and join
+   *  scrapDestroyedTotal. Market trades burn no scrap (the fee is
+   *  credits-side), so the market is net-zero here by construction. */
+  scrapMintedSalvage: number;
+  scrapMintedRoaming: number;
+  scrapMintedDispatch: number;
+  scrapMintedEndless: number;
+  scrapMintedBundle: number;
+  scrapMintedTotal: number;
+  scrapDestroyedCrafting: number;
+  scrapDestroyedTotal: number;
+  netScrapChange: number;
   /** Extraction meters (migration 0033): passes finalized and XP
    *  awarded per day from the cc_apply_extraction ledger payloads,
    *  plus the per-material-id mint map (materials and essences —
@@ -233,6 +255,15 @@ interface PgMetricsRow {
   cache_rank_tokens_granted?: number;
   cache_rank_tokens_spent?: number;
   credits_destroyed_dispatch_rerolls?: string;
+  scrap_minted_salvage?: string;
+  scrap_minted_roaming?: string;
+  scrap_minted_dispatch?: string;
+  scrap_minted_endless?: string;
+  scrap_minted_bundle?: string;
+  scrap_minted_total?: string;
+  scrap_destroyed_crafting?: string;
+  scrap_destroyed_total?: string;
+  net_scrap_change?: string;
   computed_at: string;
 }
 
@@ -300,6 +331,15 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     cacheRankTokensSpent: Number(r.cache_rank_tokens_spent ?? 0),
     creditsMintedDispatch: Number(r.credits_minted_dispatch ?? 0),
     creditsDestroyedDispatchRerolls: Number(r.credits_destroyed_dispatch_rerolls ?? 0),
+    scrapMintedSalvage: Number(r.scrap_minted_salvage ?? 0),
+    scrapMintedRoaming: Number(r.scrap_minted_roaming ?? 0),
+    scrapMintedDispatch: Number(r.scrap_minted_dispatch ?? 0),
+    scrapMintedEndless: Number(r.scrap_minted_endless ?? 0),
+    scrapMintedBundle: Number(r.scrap_minted_bundle ?? 0),
+    scrapMintedTotal: Number(r.scrap_minted_total ?? 0),
+    scrapDestroyedCrafting: Number(r.scrap_destroyed_crafting ?? 0),
+    scrapDestroyedTotal: Number(r.scrap_destroyed_total ?? 0),
+    netScrapChange: Number(r.net_scrap_change ?? 0),
     creditsMintedCourier: Number(r.credits_minted_courier ?? 0),
     extractionPasses: Number(r.extraction_passes ?? 0),
     extractionXpAwarded: Number(r.extraction_xp_awarded ?? 0),
@@ -347,6 +387,9 @@ const METRICS_COLUMNS = `
   cache_rank_tokens_granted, cache_rank_tokens_spent,
   credits_minted_dispatch, credits_minted_courier,
   credits_destroyed_dispatch_rerolls,
+  scrap_minted_salvage, scrap_minted_roaming, scrap_minted_dispatch,
+  scrap_minted_endless, scrap_minted_bundle, scrap_minted_total,
+  scrap_destroyed_crafting, scrap_destroyed_total, net_scrap_change,
   extraction_passes, extraction_xp_awarded, materials_minted_extraction,
   cache_keys_from_leaderboards,
   credits_minted_login_streak, cache_fragments_from_login_streak,

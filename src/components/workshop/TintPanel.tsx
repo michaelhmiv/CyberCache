@@ -16,10 +16,8 @@ import { usePlayerStore, useWorkshopStore } from '@/store';
 import { TINT_PALETTES } from '@/content/skins';
 import { TINT_RECIPE } from '@/content/crafting';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
+import { resolvedScrapCost } from '@/lib/workshop/recipeCosts';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
-
-/** The tint craft's flat Scrap escrow (the recipe's own input). */
-const TINT_FLAT_SCRAP = TINT_RECIPE.inputs['Scrap'] ?? 25;
 
 export const TintPanel: React.FC<{
   onNavigate?: (screen: string) => void;
@@ -30,6 +28,11 @@ export const TintPanel: React.FC<{
   const materials = usePlayerStore((s) => s.materials);
   const scrap = usePlayerStore((s) => s.scrap);
   const refreshWorkshop = useWorkshopStore((s) => s.refresh);
+  // Econ 7: display (and gate) on the RESOLVED tint cost — the
+  // server's recipeScrapCosts map wins, the content literal is the
+  // fallback before the first Workshop refresh lands.
+  const recipeScrapCosts = useWorkshopStore((s) => s.server?.recipeScrapCosts);
+  const tintScrapCost = resolvedScrapCost(TINT_RECIPE, recipeScrapCosts);
   const [partId, setPartId] = useState<string>('');
   const [paletteId, setPaletteId] = useState<string>(TINT_PALETTES[0]?.id ?? '');
   const [busy, setBusy] = useState(false);
@@ -46,7 +49,7 @@ export const TintPanel: React.FC<{
   );
   const palette = TINT_PALETTES.find((p) => p.id === paletteId) ?? TINT_PALETTES[0];
   const chromaweaveHave = materials['Chromaweave'] ?? 0;
-  const canAfford = palette ? scrap >= TINT_FLAT_SCRAP && chromaweaveHave >= palette.chromaweave : false;
+  const canAfford = palette ? scrap >= tintScrapCost && chromaweaveHave >= palette.chromaweave : false;
   const selected = parts.find((p) => p.id === partId) ?? parts[0];
   const alreadyTinted = selected && palette ? selected.tintPaletteId === palette.id : false;
   const canQueue = !!selected && !!palette && canAfford && !alreadyTinted && !busy;
@@ -73,7 +76,7 @@ export const TintPanel: React.FC<{
         <PxIcon name="swirl" size={17} className="text-pink-300" />
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Tinting</div>
         <div className="ml-auto text-[11px] text-text-muted">
-          {TINT_FLAT_SCRAP} Scrap + Chromaweave · 5 min
+          {tintScrapCost} Scrap + Chromaweave · 5 min
         </div>
       </div>
       {parts.length === 0 ? (

@@ -8,15 +8,21 @@
  *    the rail at ONE tap (they sat at 2 via the mode sheet);
  *  - the consumable belt sits above the fold (after the lit
  *    workspace, before the deck);
- *  - the deck prints its four blocks in the fixed order
- *    (Launchers → Weekly claimables → Now → Hunter Totals) and
- *    "Hunter Totals" prints exactly once, with one Sources
- *    button;
+ *  - the stage carries NO ribbon and prints NO mode word
+ *    (Home consolidation, 2026-11-03): the hero rundown at the
+ *    stage's foot carries DPS · Dmg/tick · Crit · HP, once each;
+ *  - the Next Move card exists only while something waits —
+ *    the weekly claimables below pin its weekly form;
+ *  - the deck prints its two blocks in the fixed order
+ *    (Launchers → Now) — Slots, the Loadout shortcut, the
+ *    Weekly panel, and Hunter Totals all left the deck in the
+ *    consolidation (rehoused, per DESIGN.md §4's notes);
  *  - the weekly Parts Crate + Signature Orders announce on the
- *    claim chip under the Strip and claim from Home through the
- *    Rep Desk's REAL wire ops (standingBuy / standingOrder with
- *    the view's own offer key); guests see the offers with the
- *    lock on the claim button;
+ *    claim chip under the Strip (and on the Next Move card) and
+ *    claim from Home through the Rep Desk's REAL wire ops
+ *    (standingBuy / standingOrder with the view's own offer
+ *    key); guests see the offers with the lock on the claim
+ *    button;
  *  - the Return Sheet (§10) presents the recap with a totals
  *    row and the absence's best drop as a poster card; Collect
  *    acknowledges.
@@ -220,26 +226,28 @@ describe('Home composition — stage furniture + standby panel (drift-fix F2)', 
     useActivityStore.setState({ current: IDLE_ACTIVITY, hydrated: true, pending: false, error: null });
   });
 
-  it('the stage carries NO area plate (owner ruling) + one status ribbon; the state prints once', async () => {
+  it('the stage carries NO area plate and NO ribbon; the mode word prints nowhere; the rundown carries the state', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
     // The "Area · …" banner is off the scene entirely (owner
-    // ruling 2026-11-02): no stage plate renders, and the area
-    // name reaches the player from the workspace panel below
-    // (pinned by the standby-panel test) — the stage's only text
-    // furniture is the count plate, the ribbon, and the chips.
-    await screen.findByTestId('diorama-status-ribbon');
+    // ruling 2026-11-02), and the consolidation (2026-11-03)
+    // retired the status ribbon with it: the stage's only text
+    // furniture is the count plate and the icon controls. The
+    // mode word ("Standby") prints NOWHERE on the screen — the
+    // scene, the rail, and the workspace already say it — and
+    // the weapon state reaches the player from the hero rundown
+    // attached to the stage's foot.
+    await screen.findByTestId('hero-rundown');
     expect(screen.queryByTestId('diorama-stage-plate')).toBeNull();
-    const ribbon = screen.getByTestId('diorama-status-ribbon');
-    expect(ribbon.textContent).toContain('Standby');
-    expect(ribbon.textContent).toContain('No weapon equipped');
-    // The duplicated-STANDBY / truncated-headline defects, closed:
-    // the mode word prints exactly once on the whole screen, and
-    // the old poster headline ("No target selected") is gone.
-    expect(screen.getAllByText('Standby')).toHaveLength(1);
+    expect(screen.queryByTestId('diorama-status-ribbon')).toBeNull();
+    expect(screen.queryByText('Standby')).toBeNull();
+    const rundown = screen.getByTestId('hero-rundown');
+    expect(rundown.textContent).toContain('No weapon equipped');
+    expect(rundown.textContent).toContain('HP');
+    // The old poster headline ("No target selected") stays gone.
     expect(screen.queryByText('No target selected')).toBeNull();
   });
 
-  it('standby workspace is the Roam panel: facts, the one Start Roam bar, and the Change Area · Loadout ghost row', async () => {
+  it('standby workspace is the Roam panel: facts + Away cell, the one Start Roam bar, full-width Change Area, no ghost Loadout door', async () => {
     const onNavigate = vi.fn();
     render(<HomeScreen onNavigate={onNavigate} />);
     const panel = await screen.findByTestId('home-standby-panel');
@@ -249,63 +257,86 @@ describe('Home composition — stage furniture + standby panel (drift-fix F2)', 
     // F2 fix pin: the fact band gives Hostiles the wide final
     // track (fewer wrapped lines at the 11px floor) and centers
     // every label/value group, so the shorter facts do not sit
-    // top-weighted in boxes stretched by the longest cell.
+    // top-weighted in boxes stretched by the longest cell. The
+    // consolidation adds the Away cell (the retired band's AFK
+    // entry): the effective offline cap, in the same grammar.
     const facts = within(panel).getByTestId('home-standby-facts');
-    expect(facts.className).toContain('grid-cols-[minmax(0,0.74fr)_minmax(0,0.74fr)_minmax(0,0.92fr)_minmax(0,1.6fr)]');
-    expect(facts.children).toHaveLength(4);
+    expect(facts.className).toContain('grid-cols-[minmax(0,0.72fr)_minmax(0,0.72fr)_minmax(0,0.84fr)_minmax(0,0.84fr)_minmax(0,1.5fr)]');
+    expect(facts.children).toHaveLength(5);
     for (const cell of facts.children) {
       expect(cell.className).toContain('flex');
       expect(cell.className).toContain('flex-col');
       expect(cell.className).toContain('items-center');
       expect(cell.className).toContain('justify-center');
     }
+    expect(facts.textContent).toContain('Away');
+    expect(facts.textContent).toMatch(/cap \d+h/);
     expect(facts.textContent).toContain('Raiders, scrap drones, and scavengers');
     // Exactly one Start Roam on the screen — the workspace bar
     // (the stage no longer carries a duplicate over the art).
     expect(screen.getAllByText('Start Roam')).toHaveLength(1);
-    fireEvent.click(within(panel).getByText('Loadout · 0/7'));
-    expect(onNavigate).toHaveBeenCalledWith('loadout');
+    // The ghost Loadout door is gone from Home entirely (the
+    // count plate carries the signal; Gear → Loadout is the
+    // door), and Change Area takes the full row.
+    expect(screen.queryByText(/Loadout · /)).toBeNull();
+    const changeArea = within(panel).getByText('Change Area');
+    expect(changeArea.className).toContain('w-full');
   });
 });
 
 describe('Home composition — the deck (§4 fixed order)', () => {
-  it('prints Launchers → Now → Hunter Totals, with Hunter Totals exactly once and one Sources button', async () => {
+  it('prints Launchers → Now, and nothing else: the retired deck blocks stay retired', async () => {
     const onNavigate = vi.fn();
     render(<HomeScreen onNavigate={onNavigate} />);
     const launchers = await screen.findByText('Launchers');
     const now = screen.getByText('Now');
-    const totals = screen.getByText('Hunter Totals');
     expect(launchers.compareDocumentPosition(now) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(now.compareDocumentPosition(totals) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The alignment defect, closed: the header prints ONCE.
-    expect(screen.queryAllByText('Hunter Totals')).toHaveLength(1);
-    expect(screen.getAllByTestId('hunter-totals-sources-button')).toHaveLength(1);
+    // The consolidation retirements: Hunter Totals (→ the hero
+    // rundown + Hunter → Profile's Totals & Sources door), the
+    // Weekly panel (→ chip + Next Move), the Slots launcher (→
+    // the Market rail stop), the Loadout Bench shortcut (→ the
+    // count plate + Gear → Loadout).
+    expect(screen.queryByText('Hunter Totals')).toBeNull();
+    expect(screen.queryByTestId('hunter-totals-sources-button')).toBeNull();
+    expect(screen.queryByTestId('weekly-claimables-panel')).toBeNull();
+    expect(screen.queryByText('Loadout Bench')).toBeNull();
+    expect(screen.queryByText('Slots')).toBeNull();
     // The removed panels stay removed.
     expect(screen.queryByText('Hunter Notes')).toBeNull();
     expect(screen.queryByText('Action Board')).toBeNull();
-    // Launcher deck contents: Dispatch + Crack Cache first, Loadout
-    // shortcut present while the loadout is incomplete (0/7 in a
-    // fresh store). The Slots launcher is GONE (Data Slots removed,
-    // migration 0074): no card, no 'market:slots' route.
+    // Launcher deck contents: Dispatch + Crack Cache, the two
+    // owner-kept Board orphans. The Slots launcher is GONE (Data
+    // Slots removed, migration 0074): no card, no 'market:slots'
+    // route.
     expect(screen.getByText('Dispatch')).toBeTruthy();
     expect(screen.getByText('Crack Cache')).toBeTruthy();
-    expect(screen.getByText('Loadout Bench')).toBeTruthy();
     expect(screen.queryByText('Slots')).toBeNull();
     expect(onNavigate).not.toHaveBeenCalledWith('market:slots');
   });
 });
 
 describe('Home composition — weekly claimables (§9)', () => {
-  it('reads standing on mount (never behind a tap) and announces claimables on the chip', async () => {
+  it('reads standing on mount (never behind a tap) and announces claimables on the chip + the Next Move card', async () => {
     mockStanding.mockResolvedValue({ verified: true, standing: buildStandingStateView(standingFacts()) });
     render(<HomeScreen onNavigate={() => {}} />);
     await waitFor(() => expect(mockStanding).toHaveBeenCalledTimes(1));
     const chip = await screen.findByTestId('top-weekly-button');
     expect(chip.getAttribute('aria-label')).toContain('2 ready at the Rep Desk');
-    // The deck panel renders in its claimable state too.
-    expect(screen.getByTestId('weekly-claimables-panel')).toBeTruthy();
-    expect(screen.getByTestId('weekly-claimable-crate:Redline')).toBeTruthy();
+    // The claimable rows live in the claim sheet now (the deck
+    // panel is retired): the chip opens it, both offers render.
+    fireEvent.click(chip);
+    expect(await screen.findByTestId('weekly-claimable-crate:Redline')).toBeTruthy();
     expect(screen.getByTestId('weekly-claimable-order:Redline')).toBeTruthy();
+  });
+
+  it('the weekly wait also surfaces as the Next Move card, whose Claim opens the same list', async () => {
+    mockStanding.mockResolvedValue({ verified: true, standing: buildStandingStateView(standingFacts()) });
+    render(<HomeScreen onNavigate={() => {}} />);
+    const card = await screen.findByTestId('next-move-card');
+    expect(card.getAttribute('data-wait-kind')).toBe('weekly');
+    expect(card.textContent).toContain('2 weekly earnings ready');
+    fireEvent.click(within(card).getByRole('button', { name: 'Claim' }));
+    expect(await screen.findByTestId('weekly-claimable-crate:Redline')).toBeTruthy();
   });
 
   it('claims the Parts Crate through the real standingBuy wire shape and the spent offer leaves the surfaces', async () => {
@@ -317,6 +348,7 @@ describe('Home composition — weekly claimables (§9)', () => {
       profile: null,
     });
     render(<HomeScreen onNavigate={() => {}} />);
+    fireEvent.click(await screen.findByTestId('top-weekly-button'));
     const crateRow = await screen.findByTestId('weekly-claimable-crate:Redline');
     fireEvent.click(within(crateRow).getByRole('button'));
 
@@ -333,20 +365,20 @@ describe('Home composition — weekly claimables (§9)', () => {
     expect(screen.getByTestId('top-weekly-button').getAttribute('aria-label')).toContain('1 ready');
   });
 
-  it('guests see the offers with the lock on the claim button, never on the panel', async () => {
+  it('guests see the offers with the lock on the claim button, never on the sheet', async () => {
     mockStanding.mockResolvedValue({
       verified: true,
       standing: buildStandingStateView(standingFacts({ accountType: 'guest', canUsePlayerEconomy: false })),
     });
     render(<HomeScreen onNavigate={() => {}} />);
-    expect(await screen.findByTestId('top-weekly-button')).toBeTruthy();
+    fireEvent.click(await screen.findByTestId('top-weekly-button'));
     const crateRow = await screen.findByTestId('weekly-claimable-crate:Redline');
     const claimButton = within(crateRow).getByRole('button');
     expect((claimButton as HTMLButtonElement).disabled).toBe(true);
     expect(claimButton.textContent).toContain('Sign in to claim');
   });
 
-  it('no claimables: no chip, no panel husk in the deck', async () => {
+  it('no claimables: no chip, and no Next Move card — nothing waits', async () => {
     mockStanding.mockResolvedValue({
       verified: true,
       standing: buildStandingStateView(standingFacts({ rows: [], weeklyPurchases: [] })),
@@ -356,6 +388,7 @@ describe('Home composition — weekly claimables (§9)', () => {
     await waitFor(() => expect(mockStanding).toHaveBeenCalled());
     expect(screen.queryByTestId('top-weekly-button')).toBeNull();
     expect(screen.queryByTestId('weekly-claimables-panel')).toBeNull();
+    expect(screen.queryByTestId('next-move-card')).toBeNull();
   });
 });
 
@@ -374,7 +407,11 @@ describe('Home composition — the Return Sheet (§10)', () => {
     // The lesser drop is folded into the poster's "+N more".
     expect(poster.textContent).toContain('+1 more drop');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Collect' }));
+    // The settlement ALSO waits as the Next Move card (its own
+    // Collect opens this same sheet) — the sheet's Collect is
+    // the one this flow acknowledges with.
+    const sheetBody = screen.getByTestId('picker-sheet-body');
+    fireEvent.click(within(sheetBody).getByRole('button', { name: 'Collect' }));
     await waitFor(() => expect(useOfflineRecapStore.getState().dismissed).toBe(true));
   });
 

@@ -37,7 +37,7 @@ const hoisted = vi.hoisted(() => ({
     'marketCreateEssence', 'marketCreateFragment', 'marketCreateMaterial',
     'postRepairJob', 'postShieldTechJob', 'reclaimRepairJob', 'reclaimShieldTechJob',
     'recycleItem', 'reforgeItem', 'refuelVehicle', 'registerPushDevice', 'resetProgress',
-    'retrain', 'slotPull', 'trainSkill', 'unequipSlot', 'unlockCraftBench', 'vendorBuy',
+    'retrain', 'trainSkill', 'unequipSlot', 'unlockCraftBench', 'vendorBuy',
     'vendorSellConsumable', 'vendorSellGear', 'vendorSellMaterial',
   ],
 }));
@@ -290,8 +290,11 @@ describe('market rail conformance — tab→stop deep link (§9)', () => {
     expect(app).toContain('isMarketStopId(stop)');
     expect(app).toContain('requestMarketStop(stop)');
     const deck = readFileSync(join(__dirname, '../..', 'src/components/dashboard/DashboardDeck.tsx'), 'utf8');
-    // The Home deck's Slots card is gone with Data Slots (0074):
-    // nothing routes to a 'market:slots' stop that no longer exists.
-    expect(deck).not.toContain('market:slots');
+    // The deck's Slots card left with the Home consolidation,
+    // and the Slots stop itself is gone with Data Slots (0074):
+    // nothing routes to a 'market:slots' stop that no longer
+    // exists, and 'slots' is not a valid stop id at all.
+    expect(deck).not.toContain("onNavigate('market:slots')");
+    expect(app).not.toContain("'slots'");
   });
 });
