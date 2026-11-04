@@ -49,13 +49,15 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
     expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
     // The vector SVG scene is gone for this zone.
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
-    // Chrome is shared: the status ribbon renders and NO area
-    // plate rides the art (owner ruling 2026-11-02 removed the
-    // "Area · …" banner from the scene; drift-fix F2 had already
-    // retired the in-stage action buttons — actions live in the
-    // workspace under the stage).
+    // Chrome is shared: NO area plate rides the art (owner
+    // ruling 2026-11-02 removed the "Area · …" banner from the
+    // scene; drift-fix F2 had already retired the in-stage
+    // action buttons — actions live in the workspace under the
+    // stage), and since the 2026-11-03 consolidation NO status
+    // ribbon either — the mode word died with it; the hero
+    // rundown at the stage's foot is the stat surface now.
     expect(screen.queryByTestId('diorama-stage-plate')).toBeNull();
-    expect(screen.getByTestId('diorama-status-ribbon').textContent).toContain('Roaming');
+    expect(screen.queryByTestId('diorama-status-ribbon')).toBeNull();
     expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 

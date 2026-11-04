@@ -16,7 +16,10 @@
  *    bottom nav (66 + 14px gap), pointer-transparent, and the
  *    toast entry slide (6px) can never dip into the nav.
  *  - C1: "Switch Action" prints once in the stage zone — the
- *    one button (and the sheet it opens). (The diorama's
+ *    one button (and the sheet it opens). (Superseded in form
+ *    by the owner ruling of 2026-11-03: the one door is now an
+ *    icon-only stage button whose name lives in its aria-label;
+ *    the C1 tests below pin that end state. The diorama's
  *    secondary door to the same sheet was labeled "All Actions"
  *    under C1; drift-fix F2 retired that door with the in-stage
  *    action bar. Owner ruling 2026-11-02 then moved the one
@@ -96,7 +99,7 @@ describe('QC A9 — gain toasts get their own lane above the bottom nav', () => 
   });
 });
 
-describe('QC C1 — "Switch Action" prints once in the stage zone', () => {
+describe('QC C1 — the one switch door in the stage zone (icon-only since 2026-11-03)', () => {
   const action = readSource('src/screens/ActionScreenContextual.tsx');
 
   // Drift-fix F2 retired the diorama's duplicate door entirely:
@@ -111,7 +114,13 @@ describe('QC C1 — "Switch Action" prints once in the stage zone', () => {
     expect(action).not.toContain(": 'Switch Action'");
   });
 
-  it('the stage-chip button keeps the one "Switch Action" label', () => {
-    expect(action).toContain('>Switch Action</button>');
+  // Owner ruling 2026-11-03 (Home consolidation): the stage
+  // controls are ICON-ONLY — the one door keeps its one name as
+  // an accessible name (aria-label), and no visible text prints.
+  it('the stage controls are icon-only: the one name survives as an aria-label, no visible text', () => {
+    expect(action).not.toContain('>Switch Action</button>');
+    expect(action).not.toContain('>Stop</button>');
+    expect(action).toContain('aria-label="Switch Action"');
+    expect(action).toContain('aria-label="Stop"');
   });
 });

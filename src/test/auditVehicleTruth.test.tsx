@@ -267,7 +267,13 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the banner
     expect(inventory).toContain('setActiveStop(tabIntent.tab)');
     expect(inventory).toContain('vehicleExpandSignal={vehicleExpandSeq}');
     const action = readSource('src/screens/ActionScreenContextual.tsx');
-    expect(action).toContain("onOpenGarage={() => onNavigate?.('garage')}");
+    // Home consolidation (2026-11-03): the vehicle banner left
+    // Home, and its Garage door is the belt chip now — threaded
+    // through the belt's onNavigate prop on the same screen,
+    // landing on the same 'garage' intent pinned above.
+    expect(action).toContain('<ConsumableBelt onNavigate={(target) => onNavigate?.(target)} />');
+    const chip = readSource('src/components/dashboard/VehicleBeltChip.tsx');
+    expect(chip).toContain("? 'market:vendor' : 'garage'");
   });
 });
 
@@ -307,17 +313,21 @@ describe('audit B — Action workspace Switch/Stop carry a 44px touch height', (
   const readSource = (rel: string) => readFileSync(resolve(__dirname, '../..', rel), 'utf8');
 
   function buttonOpeningTag(source: string, label: string): string {
-    const end = source.indexOf(`>${label}</button>`);
-    expect(end, `the ${label} button exists`).toBeGreaterThan(-1);
-    const start = source.lastIndexOf('<button', end);
+    // Icon-only controls (owner ruling 2026-11-03) carry their
+    // name in the aria-label; the opening tag runs to its '>'.
+    const anchor = source.indexOf(`aria-label="${label}"`);
+    expect(anchor, `the ${label} button exists`).toBeGreaterThan(-1);
+    const start = source.lastIndexOf('<button', anchor);
+    const end = source.indexOf('>', anchor);
     return source.slice(start, end);
   }
 
-  it('Switch and Stop both declare min-h-[44px]', () => {
+  it('Switch and Stop are both 44px squares (h-11 w-11)', () => {
     const source = readSource('src/screens/ActionScreenContextual.tsx');
-    // Label is 'Switch Action' since audit fix C unified the switcher
-    // verbs (NAV-01); this pin guards the 44px touch height from fix B.
-    expect(buttonOpeningTag(source, 'Switch Action')).toContain('min-h-[44px]');
-    expect(buttonOpeningTag(source, 'Stop')).toContain('min-h-[44px]');
+    // Fix B's 44px touch guarantee, in the icon-only form the
+    // 2026-11-03 owner ruling gave the stage controls: h-11
+    // w-11 IS 44px, on both axes now.
+    expect(buttonOpeningTag(source, 'Switch Action')).toContain('h-11 w-11');
+    expect(buttonOpeningTag(source, 'Stop')).toContain('h-11 w-11');
   });
 });
