@@ -367,6 +367,7 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       itemId,
       kitType: str(body(req).item_key),
       units,
+      useRushTicket: body(req).use_rush_ticket === true,
     });
   });
   op('/api/ops/repair-post', async (playerId, req, res) => {

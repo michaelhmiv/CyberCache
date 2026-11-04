@@ -297,14 +297,15 @@ export const GaragePanel: React.FC<{
               FieldPatchKit: consumables.FieldPatchKit ?? 0,
               MasterPatchKit: consumables.MasterPatchKit ?? 0,
             }}
+            rushTicketsOwned={consumables.WorkshopRushTicket ?? 0}
             repairJob={repairJobFor(vehicle.id)}
             repairMasteryLevel={repairMasteryLevel}
             busy={busy}
             onEquip={() => void run(() => verifiedOps.equipItem(vehicle.id, 'vehicle'))}
             onUnequip={() => void run(() => verifiedOps.unequipSlot('vehicle'))}
-            onStartRepair={(kitType, units) =>
+            onStartRepair={(kitType, units, useRushTicket) =>
               void run(async () => {
-                await verifiedOps.enqueueRepairJob(vehicle.id, kitType, units);
+                await verifiedOps.enqueueRepairJob(vehicle.id, kitType, units, useRushTicket);
                 await refreshWorkshop();
               })
             }
@@ -334,18 +335,19 @@ const VehicleCard: React.FC<{
   vehicle: VehicleDisplay;
   equipped: boolean;
   kitCounts: Record<string, number>;
+  rushTicketsOwned: number;
   repairJob?: WorkshopJobView;
   repairMasteryLevel: number;
   busy: boolean;
   onEquip: () => void;
   onUnequip: () => void;
-  onStartRepair: (kitType: string, units: number) => void;
+  onStartRepair: (kitType: string, units: number, useRushTicket: boolean) => void;
   onWorkRepair: (job: WorkshopJobView) => void;
   onCancelRepair: (job: WorkshopJobView) => void;
   onRequestService?: () => void;
   onNavigate?: (screen: string) => void;
 }> = ({
-  vehicle, equipped, kitCounts, repairJob, repairMasteryLevel,
+  vehicle, equipped, kitCounts, rushTicketsOwned, repairJob, repairMasteryLevel,
   busy, onEquip, onUnequip, onStartRepair, onWorkRepair, onCancelRepair, onRequestService,
   onNavigate,
 }) => {
@@ -374,6 +376,7 @@ const VehicleCard: React.FC<{
   ) : null;
   const [kitType, setKitType] = useState<string>('PatchKit');
   const [units, setUnits] = useState(1);
+  const [useRush, setUseRush] = useState(false);
   const ownedOfSelected = kitCounts[kitType] ?? 0;
   const unitMs = repairKitUnitDurationMs(
     PATCH_KIT_BASES[kitType] ?? 30,
@@ -536,10 +539,23 @@ const VehicleCard: React.FC<{
             <button
               type="button"
               disabled={busy || ownedOfSelected < 1}
-              onClick={() => onStartRepair(kitType, units)}
+              onClick={() => onStartRepair(kitType, units, useRush)}
               className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
             >
               Start repair job
+            </button>
+            {/* Rush ticket repair scope (boss-sim honesty wiring):
+                the ticket's def claims crafting AND repair — this
+                toggle mirrors the Workshop bench toggle's copy and
+                terms exactly. */}
+            <button
+              type="button"
+              onClick={() => setUseRush(!useRush)}
+              disabled={busy || rushTicketsOwned < 1}
+              className={`px-2 py-1 text-xs font-bold border ${useRush ? 'bl-primary border-transparent' : 'border-border bg-surface text-text-secondary'} disabled:opacity-40`}
+              title="Escrow one Workshop Rush Ticket: the job runs faster by the ticket's quality"
+            >
+              Rush ticket ({rushTicketsOwned})
             </button>
             {/* QB-2: the lone + beside the kit shortfall for a full
                 restore — pricing and states live in the sheet. */}
@@ -561,6 +577,11 @@ const VehicleCard: React.FC<{
               </button>
             )}
           </div>
+          {useRush && rushTicketsOwned >= 1 && (
+            <div className="text-[11px] leading-snug text-text-muted">
+              One rush ticket is escrowed for this job — it runs faster by the ticket's quality.
+            </div>
+          )}
         </div>
       )}
 

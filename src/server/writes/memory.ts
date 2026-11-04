@@ -3258,6 +3258,8 @@ export class InMemoryWriteStore implements WriteStore {
         itemId: input.itemId,
         kitType: input.kitType,
         units: input.units,
+        useRushTicket: input.useRushTicket,
+        fixerBonuses: this.fixerEnqueueBonuses(playerId),
       }),
     );
     this.flushCraftView(playerId);

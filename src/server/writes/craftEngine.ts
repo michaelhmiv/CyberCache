@@ -1380,6 +1380,13 @@ export interface EnqueueRepairJobInput {
   itemId: string;
   kitType: string;
   units: number;
+  /** Workshop Rush Ticket (boss-sim honesty wiring): the ticket's
+   *  def claims crafting AND repair scopes; repair honors it exactly
+   *  like crafting — escrowed at enqueue, its quality prices the
+   *  reduction, refunded on cancel while the job never started. */
+  useRushTicket?: boolean;
+  /** Fixer totals (server-derived); absent reads as all-zero. */
+  fixerBonuses?: FixerEnqueueBonuses;
 }
 
 /**
@@ -1437,6 +1444,9 @@ export function enqueueRepairJob(
   }
 
   if ((p.consumables[kitType] ?? 0) < units) fail(`Not enough ${kitType} in inventory`);
+  if (input.useRushTicket && (p.consumables['WorkshopRushTicket'] ?? 0) < 1) {
+    fail('No Workshop Rush Ticket available');
+  }
 
   // Escrow the kits: burn FIFO, recording each unit's quality/origin
   // so completion prices restoration from the ACTUAL kit and cancel /
@@ -1467,10 +1477,32 @@ export function enqueueRepairJob(
     levers.repairMasteryEfficiencyPerLevel,
     adapter.skillBonus?.(playerId, 'repairEfficiencyBonus') ?? 0,
   );
-  const unitDurationMs = repairKitUnitDurationMs(
-    kitBase,
-    workRate,
-    adapter.skillBonus?.(playerId, 'repairSpeedBonus') ?? 0,
+  // Rush ticket: escrowed at enqueue exactly like the crafting path —
+  // the burn takes it out of inventory now (FIFO, lowest quality
+  // first); its quality prices the reduction through the one formula
+  // (rushTicketTimeReduction, the 0029 clamp with the Fixer keystone
+  // cap bonus). Before this wiring the repair enqueue hardcoded
+  // rushReduction 0 and the ticket's repair scope was dead text.
+  let rushTicketQuality: number | null = null;
+  let rushTicketOrigin: string | null = null;
+  let rushReduction = 0;
+  if (input.useRushTicket) {
+    const burned = adapter.burnOneBatchUnit(playerId, 'WorkshopRushTicket');
+    if (!burned) fail('No Workshop Rush Ticket available');
+    rushTicketQuality = burned.quality;
+    rushTicketOrigin = burned.origin;
+    rushReduction = rushTicketTimeReduction(burned.quality, input.fixerBonuses?.rushReductionCapBonus ?? 0);
+  }
+
+  const unitDurationMs = Math.max(
+    1,
+    Math.round(
+      repairKitUnitDurationMs(
+        kitBase,
+        workRate,
+        adapter.skillBonus?.(playerId, 'repairSpeedBonus') ?? 0,
+      ) * (1 - rushReduction),
+    ),
   );
 
   const now = adapter.nowMs();
@@ -1487,8 +1519,8 @@ export function enqueueRepairJob(
     status: 'active',
     escrow_inputs: {},
     escrow_catalyst: {},
-    rush_ticket_quality: null,
-    rush_ticket_origin: null,
+    rush_ticket_quality: rushTicketQuality,
+    rush_ticket_origin: rushTicketOrigin,
     snapshot: {
       toolId: null,
       toolQualityMultiplier: 1,
@@ -1496,7 +1528,7 @@ export function enqueueRepairJob(
       toolRefineYieldBonus: 0,
       toolBonusUnitChance: 0,
       skillDurationMultiplier: 1,
-      rushReduction: 0,
+      rushReduction,
       craftTimeScalar: 1,
       catalystMaterialId: null,
       gearRarity: null,
@@ -1816,11 +1848,30 @@ export function cancelCraftJob(
   if (j.kind === 'repair') {
     const snap = j.snapshot.repair;
     const refundedCount = snap ? refundRemainingRepairKits(adapter, j) : 0;
+    // Rush ticket (repair scope wiring): the same rule as the
+    // generic path below — refunded as a batch at its escrowed
+    // quality only when the job never started; on a started job it
+    // is spent. (This branch previously hardcoded no refund because
+    // repair jobs could not carry a ticket.)
+    let rushTicketRefunded = false;
+    const repairStarted = j.units_completed > 0 || j.accrued_ms > 0;
+    if (j.rush_ticket_quality !== null && !repairStarted) {
+      adapter.addBatch(
+        playerId,
+        'WorkshopRushTicket',
+        1,
+        j.rush_ticket_quality,
+        j.rush_ticket_origin ?? 'crafted',
+        playerId,
+        null,
+      );
+      rushTicketRefunded = true;
+    }
     j.status = 'cancelled';
     return {
       jobId: j.id,
       refundedInputs: snap && refundedCount > 0 ? { [snap.kitType]: refundedCount } : {},
-      rushTicketRefunded: false,
+      rushTicketRefunded,
       coresRefunded: 0,
     };
   }

@@ -862,6 +862,10 @@ export interface EnqueueRepairJobInput {
   itemId: string;
   kitType: string;
   units: number;
+  /** Workshop Rush Ticket repair scope (0078): the SQL function
+   *  derives the Fixer cap bonus itself; the body carries only the
+   *  player's toggle. */
+  useRushTicket?: boolean;
 }
 
 /**
@@ -1623,8 +1627,8 @@ export class PgWriteStore implements WriteStore {
   }
   // ── Mechanics & repair services (migration 0025) ────────────────
   enqueueRepairJob(playerId: string, nonce: string, input: EnqueueRepairJobInput): Promise<Json> {
-    return this.callJson('select public.cc_enqueue_repair_job($1, $2, $3, $4, $5) as result', [
-      playerId, nonce, input.itemId, input.kitType, input.units,
+    return this.callJson('select public.cc_enqueue_repair_job($1, $2, $3, $4, $5, $6) as result', [
+      playerId, nonce, input.itemId, input.kitType, input.units, input.useRushTicket ?? false,
     ]);
   }
   postRepairJob(playerId: string, nonce: string, itemId: string, targetPoints: number | null, priceCredits: number): Promise<Json> {
