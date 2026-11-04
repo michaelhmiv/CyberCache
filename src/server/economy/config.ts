@@ -200,6 +200,10 @@ export interface EconomyConfigValues {
   dispatchRerollBaseCredits: number;
   /** Max paid dispatch board rerolls per UTC day (0068). */
   dispatchRerollDailyCap: number;
+  /** Seconds of bench time banked per completed rewarded ad (economy brief §8.2). */
+  benchTimeGrantSeconds: number;
+  /** Bench-time bank cap in seconds (economy brief §8.2). */
+  benchTimeBankCapSeconds: number;
   // Extraction (0033) — content owner: src/content/extraction.ts
   // (EXTRACTION_LEVER_DEFAULTS / EXTRACTION_LEVER_CLAMPS, pinned
   // against these literals by tests).
@@ -361,6 +365,8 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   courierRouteTicksPerHour: 120,
   dispatchRerollBaseCredits: 250,
   dispatchRerollDailyCap: 5,
+  benchTimeGrantSeconds: 3600,
+  benchTimeBankCapSeconds: 86400,
   extractXpRate: 0.75,
   extractFindsPerHour: 192,
   extractSignatureChance: 0.15,
@@ -705,6 +711,14 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   dispatchRerollDailyCap: {
     key: 'dispatchRerollDailyCap', min: 0, max: 20, integer: true,
     defaultOwner: 'src/content/dispatch.ts DISPATCH_LEVER_DEFAULTS (economy brief §7.3)',
+  },
+  benchTimeGrantSeconds: {
+    key: 'benchTimeGrantSeconds', min: 0, max: 86400, integer: true,
+    defaultOwner: 'src/content/crafting.ts BENCH_TIME_GRANT_SECONDS (economy brief §8.2)',
+  },
+  benchTimeBankCapSeconds: {
+    key: 'benchTimeBankCapSeconds', min: 0, max: 604800, integer: true,
+    defaultOwner: 'src/content/crafting.ts BENCH_TIME_BANK_CAP_SECONDS (economy brief §8.2)',
   },
   extractXpRate: {
     key: 'extractXpRate', min: 0.7, max: 0.85, integer: false,
