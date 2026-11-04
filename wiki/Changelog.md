@@ -2,10 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
-## 2026-11-04 — One bench, and time to widen it
+## 2026-11-04 — One bench, and builds that staff your contracts
 
-- **The benches become one** — the Workshop's three benches collapse into a single bench that is always yours, no tiers to buy. Bought benches were refunded in full — 5,000 credits for the second, 30,000 credits + 10 VoidDust for the third — and the old fitted tools live on as craft relics, worn on the hunter.
+- **One bench** — the Workshop's three benches are now a single bench that is simply yours. The old workshop tools did not vanish: they joined the relic family as permanent, equippable relics with their effects intact, and the Lab's quality touch survives as a top-end crafting relic. Anyone who owned a second or third bench was refunded in full.
 - **Bench time** — watch a rewarded ad in the app to bank an hour of bench time, up to 24 hours banked. While time remains, the bench runs 3 jobs at once with 15 queued; the bank drains only while the extra lanes are working, and running dry never interrupts a job mid-craft.
+- **Dispatch: start from a build** — staffing a contract no longer means re-ticking the same spare set by hand. Pick an offer, tap one of your saved builds, and its dispatchable gear (or its vehicle, for courier work) arrives pre-picked. Anything that cannot go — equipped, listed, out on another contract, tied up in a service job, or gone since the build was saved — is named with its reason and how to free it. The build itself stays a simple list: starting from one equips, reserves, and sends nothing.
 
 ## 2026-11-03 — Profiles, the Gear Split, and the weapon marriage
 

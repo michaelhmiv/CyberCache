@@ -56,7 +56,7 @@ Discrete fights use the slot differently: a [[Bosses|boss attempt]] takes the sl
 
 Dispatch sends what you are *not* using: a foot contract commits a spare, unequipped loadout; a courier contract commits a spare, unequipped vehicle. Committed gear is locked for the duration, and the missions run on their own clock — never touching your personal action, never paused by it, and never truncated by the offline cap. Foot and courier contracts share **one queue, 2 slots**, at durations of **2, 8, or 24 hours** with terms fixed at departure.
 
-The full system — the daily board, foot payout and strength rules, the courier tiers and their vehicle-class gates, fuel and breakdown arithmetic, pro-rata settlement — lives on the [[Dispatch]] page. See [[Vehicles and the Garage]] for the vehicles themselves.
+The full system — the daily board, foot payout and strength rules, the courier tiers and their vehicle-class gates, fuel and breakdown arithmetic, pro-rata settlement — lives on the [[Dispatch]] page. See [[Vehicles and the Garage]] for the vehicles themselves. Staffing an offer can start from a saved build: the build's dispatchable spares arrive pre-picked, and anything that cannot go is flagged with its reason and remedy.
 
 ## Research
 

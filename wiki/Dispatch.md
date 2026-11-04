@@ -19,6 +19,17 @@ Don't like today's offers? You can **re-deal the board for credits**. A re-deal 
 - **Spent offers stay spent.** Re-dealing never brings back an offer you already departed today — but a fresh offer that happens to match a spent one's destination and duration is a genuinely new offer and can be staffed normally.
 - **Running contracts never move.** A re-deal changes only the offers still on the board; contracts already out keep the exact terms they departed on.
 
+## Start from a build
+
+Staffing an offer by hand means ticking the same spare set over and over. Instead, pick an offer and use **Start from a build**: choose any of your [[Gear|saved builds]] and the prep form fills itself from it.
+
+- **Foot contracts** take the build's gear: every piece that is spare and free arrives ticked.
+- **Courier contracts** take the build's vehicle, selected for you when it is a spare.
+
+Anything in the build that cannot go is **named, with its reason** — it is equipped (dispatch sends spares only), listed on the market, out on another contract (the line shows when it returns), committed to a repair or shield-tech job, or gone since the build was saved. Each line also says how to free the item, and you can always tick a different spare instead.
+
+A build is only a list. Starting from one never equips, reserves, or sends anything — tick and untick freely afterward. What departs is exactly what the form shows when you press Depart, checked the same way as a hand-picked set.
+
 ## Foot contracts
 
 A foot contract pays for the destination, the duration, and the strength of the loadout you send:
