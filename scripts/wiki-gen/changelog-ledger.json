@@ -3,6 +3,15 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-04",
+      "merges": [
+        {
+          "number": 372,
+          "title": "Econ 9: bench collapse + relic merger (migration 0073)"
+        }
+      ]
+    },
+    {
       "date": "2026-11-03",
       "merges": [
         {
@@ -208,6 +217,34 @@
         {
           "number": 364,
           "title": "Economy slice 5 — the Scrap Merge (brief §3): one tradeable Scrap, migration 0069 draft"
+        },
+        {
+          "number": 365,
+          "title": "Home consolidation — hero rundown, Next Move, belt-row bike chip, icon-only stage controls (HELD FOR OWNER REVIEW)"
+        },
+        {
+          "number": 366,
+          "title": "AL-2: Activity Log read API (GET /api/activity-log/me)"
+        },
+        {
+          "number": 367,
+          "title": "Econ 6: vendor drops Scrap + scrap meters (0071)"
+        },
+        {
+          "number": 368,
+          "title": "Econ 7: the per-recipe Scrap-cost lever (economy brief §4)"
+        },
+        {
+          "number": 369,
+          "title": "AL-3: Activity Log screen (stream, receipts + odds sheet, two doors)"
+        },
+        {
+          "number": 370,
+          "title": "Slots removal: Data Slots deleted end-to-end (migration 0074)"
+        },
+        {
+          "number": 371,
+          "title": "Home feedback fixes: Next Move removed, two-row rundown with percentage-over-base deltas"
         }
       ]
     },
