@@ -13,11 +13,17 @@ import { CheckCircle, Lock } from 'lucide-react';
 import { useBossStore } from '@/store/slices/bossSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
+import { usePlayerStore } from '@/store/slices/playerSlice';
+import { useSkillStore } from '@/store/slices/skillSlice';
+import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
+import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { legendaryEffectName } from '@/constants/legendaryEffects';
 import type { BossDef } from '@/types/boss';
+import type { Weapon } from '@/types/items';
 import { MobileCard } from '@/components/layout/MobileCard';
-import { computeLoadoutDps } from '@/lib/stats/dpsChain';
+import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
+import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import { escalatedBossFee } from '@/lib/bossFees';
 import { BossStamp } from '@/components/common/BossStamp';
 
@@ -29,25 +35,50 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
   const bossStore = useBossStore();
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
-  // Equipped-first: use the actual equipped weapon for any DPS projection
-  // that feeds activity truth. The best-owned inventory weapon is only
-  // used as a clearly-labeled "Best Owned" preview when nothing is equipped.
-  const equippedWeapon = loadout.getWeapon('primary')
-    ?? loadout.getWeapon('secondary')
-    ?? loadout.getWeapon('heavy')
-    ?? null;
-  const bestOwnedWeapon = equippedWeapon
+  const player = usePlayerStore();
+  const skills = useSkillStore();
+  const survival = useSurvivalStore();
+  const activeBuffsStore = useActiveBuffsStore();
+  // Equipped-first: the projection prices the actual equipped loadout.
+  // The best-owned inventory weapon is only used as a clearly-labeled
+  // "Best Owned" preview when nothing is equipped.
+  const equippedWeapons = [loadout.getWeapon('primary'), loadout.getWeapon('secondary'), loadout.getWeapon('heavy')]
+    .filter((w): w is Weapon => !!w);
+  const bestOwnedWeapon = equippedWeapons.length
     ? null
     : [...inventory.getWeapons()].sort((a, b) => b.combatPower - a.combatPower)[0] ?? null;
-  const projectionWeapon = equippedWeapon ?? bestOwnedWeapon;
+  const projectionWeapons: Weapon[] = equippedWeapons.length
+    ? equippedWeapons
+    : bestOwnedWeapon
+      ? [bestOwnedWeapon]
+      : [];
+  const projectionWeapon = projectionWeapons[0] ?? null;
 
-  // Project the player's best weapon's DPS against each candidate boss. The
-  // label is "vs {boss.name}" so the chip is contextual, not abstract. This
-  // is the same call the diorama uses, so what the player sees here matches
-  // what the diorama will show after they select the target.
+  // Project the loadout's DPS against each candidate boss through the
+  // ONE authoritative display computation — the character stat
+  // summary in boss context (the DPS chain's boss-relative pool ×
+  // player bonuses), the identical figure the Fight stage's hero
+  // rundown prints as "Eff. DPS" once the boss is selected. The
+  // pre-fix chip priced a single weapon through a separate chain
+  // call, so the list and the prep screen disagreed (gear-truth
+  // slice). The input assembly mirrors useCharacterStatSummary.
   const projectDpsVs = (boss: BossDef): number => {
     if (!projectionWeapon) return 0;
-    return computeLoadoutDps([projectionWeapon], boss.weaknesses, boss.resistances);
+    const summary = buildCharacterStatSummary({
+      player,
+      weapons: projectionWeapons,
+      shield: loadout.getShield(),
+      classMod: loadout.getClassMod(),
+      relic: loadout.getRelic(),
+      ordnance: loadout.getOrdnance(),
+      spentSkills: skills.spent,
+      boss,
+      activeBuffs: activeBuffsStore.buffs.filter((buff) => buff.expiresAt > Date.now()),
+      consumableMods: buildConsumableInventoryMods(player.consumables),
+      consumableInventory: player.consumables,
+      medKitBuffer: survival.medKitBuffer,
+    });
+    return summary.all.find((entry) => entry.key === 'dps')?.value ?? 0;
   };
 
   return (
@@ -117,7 +148,7 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
                 className="shrink-0 border-2 border-border bg-bg/80 px-1.5 py-0.5"
                 data-testid={`bossselect-dps-${boss.id}`}
               >
-                <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{bestOwnedWeapon ? 'Preview: best owned vs' : 'Your weapon vs'} {boss.name.split(' ').slice(-1)[0]}</div>
+                <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{bestOwnedWeapon ? 'Preview: best owned vs' : 'Your DPS vs'} {boss.name.split(' ').slice(-1)[0]}</div>
                 <div className={`text-[11px] font-black ${projectionWeapon ? 'text-red' : 'text-text-muted'}`}>
                   {projectionWeapon ? `${Math.round(projectDpsVs(boss)).toLocaleString()} DPS` : 'no weapon'}
                 </div>

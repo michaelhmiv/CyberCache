@@ -41,7 +41,7 @@ import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
 import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
-import { loadoutEffectiveDps } from '@/lib/combat/loadoutSurvival';
+import { useCharacterStatSummary } from '@/hooks/useCharacterStatSummary';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
@@ -430,15 +430,24 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
   // Subscribe to consumable changes so the chips re-render
   usePlayerStore((s) => s.consumables);
   useLoadoutStore((s) => s.consumables);
-  // Subscribe to skill tree DPS changes — loadoutEffectiveDps() calls getState() internally
-  // for skill bonuses, so we must force a re-render when spent points change.
+  // Subscribe to skill tree DPS changes — the summary below reads
+  // spent points, so we must force a re-render when they change.
   const spent = useSkillStore((s) => s.spent);
   // HP is the panel's second headline number (the mock's header line:
   // DPS · HP). The survival store owns the live max — the same read
   // the Home deck uses. The Strip prints neither, so no duplication.
   const maxHp = useSurvivalStore((s) => s.maxHp);
 
-  const dps = loadoutEffectiveDps();
+  // DPS is the ONE authoritative display number — the character
+  // stat summary's dps metric (DPS chain standard pool × player
+  // bonuses), the identical figure Home's hero rundown prints for
+  // the same loadout. The pooled engine derivation
+  // (computeEffectiveDpsFromGear, which folds break pools and
+  // ordnance into DPS) prices claims and duels server-side; it is
+  // not a display number and no longer prints here (gear-truth
+  // slice: the same SMG read 146 on Home and 598 in this header).
+  const { summary } = useCharacterStatSummary();
+  const dps = summary.all.find((entry) => entry.key === 'dps')?.value ?? 0;
 
   // The figure: the parts actor wearing the ACTUAL equipped
   // instances — primary weapon held grip-to-grip, shield / relic /
