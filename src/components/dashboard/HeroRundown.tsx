@@ -137,24 +137,28 @@ export const HeroRundown: React.FC<{
   // Hero values print at the Door step (15px, §5) in BOTH rows —
   // the two-row stack is the owner's sanctioned fit: the Poster
   // step belonged to the single-row rundown, and splitting crit
-  // into its pair keeps every value short enough that nothing
-  // steps under the floor or paints over its neighbour (the
-  // §6.3 longest-case rule). Tap targets stay ≥44dp: the rows
+  // into its pair keeps values short. The §6.3 longest-case rule
+  // still stands guard: a value + chip too long for its cell
+  // steps down to the Base step (13px) rather than painting over
+  // its neighbour (an endgame HP line — "12,400/12,400 +125%" —
+  // is the case that bites). Tap targets stay ≥44dp: the rows
   // stack, the targets don't shrink.
-  const heroButton = (cell: HeroStatCell) => (
+  const heroButton = (cell: HeroStatCell, flexClass = 'flex-1') => {
+    const glyphs = cell.display.length + (cell.delta ? cell.delta.display.length + 1 : 0);
+    return (
     <button
       key={cell.key}
       type="button"
       data-testid={`hero-stat-${cell.key}`}
       onClick={() => openFocus(cell.key)}
       aria-label={`${cell.label}: ${cell.display}${cell.delta ? `, ${cell.delta.display} over base` : ''}. Open source breakdown.`}
-      className="min-h-[56px] min-w-0 flex-1 border-l border-border/60 px-1.5 py-1.5 text-left transition-colors first:border-l-0 hover:bg-bg/40"
+      className={`min-h-[56px] min-w-0 ${flexClass} border-l border-border/60 px-1.5 py-1.5 text-left transition-colors first:border-l-0 hover:bg-bg/40`}
     >
       <span className="flex items-center justify-between gap-0.5">
         <span className="truncate text-[11px] font-black uppercase tracking-normal text-text-muted">{cell.label}</span>
         <PxIcon name="chevR" size={10} className="shrink-0 text-text-muted/60" />
       </span>
-      <span className={`mt-0.5 block whitespace-nowrap text-[15px] font-black leading-tight ${statToneTextClass[cell.tone]}`}>
+      <span className={`mt-0.5 block whitespace-nowrap font-black leading-tight ${glyphs > 12 ? 'text-[13px]' : 'text-[15px]'} ${statToneTextClass[cell.tone]}`}>
         {cell.display}
         {cell.delta && (
           <span className={`ml-1 align-super text-[11px] font-black ${cell.delta.tone === 'green' ? 'text-green' : 'text-red'}`}>
@@ -163,7 +167,8 @@ export const HeroRundown: React.FC<{
         )}
       </span>
     </button>
-  );
+    );
+  };
 
   return (
     <div data-testid="hero-rundown" className="relative border-2 border-t-0 border-border bg-surface/95 shadow-[0_10px_22px_rgba(0,0,0,0.45)]">
@@ -201,13 +206,13 @@ export const HeroRundown: React.FC<{
           data-testid="hero-stat-hp"
           onClick={() => openFocus('hp')}
           aria-label={`HP: ${model.hp.display}${model.hp.delta ? `, ${model.hp.delta.display} over base` : ''}. Open source breakdown.`}
-          className="min-h-[56px] min-w-0 flex-[1.2] px-1.5 py-1.5 text-left transition-colors hover:bg-bg/40"
+          className="min-h-[56px] min-w-0 flex-[1.5] px-1.5 py-1.5 text-left transition-colors hover:bg-bg/40"
         >
           <span className="flex items-center justify-between gap-0.5">
             <span className="truncate text-[11px] font-black uppercase tracking-normal text-text-muted">HP</span>
             <PxIcon name="chevR" size={10} className="shrink-0 text-text-muted/60" />
           </span>
-          <span className={`mt-0.5 block whitespace-nowrap text-[15px] font-black leading-tight ${statToneTextClass[model.hp.tone]}`}>
+          <span className={`mt-0.5 block whitespace-nowrap font-black leading-tight ${model.hp.display.length + (model.hp.delta ? model.hp.delta.display.length + 1 : 0) > 16 ? 'text-[13px]' : 'text-[15px]'} ${statToneTextClass[model.hp.tone]}`}>
             {model.hp.display}
             {model.hp.delta && (
               <span className={`ml-1 align-super text-[11px] font-black ${model.hp.delta.tone === 'green' ? 'text-green' : 'text-red'}`}>
@@ -219,9 +224,9 @@ export const HeroRundown: React.FC<{
             <span className={`block h-full ${statToneRailClass[model.hp.tone]}`} style={{ width: `${Math.round(model.hp.fraction * 100)}%` }} />
           </span>
         </button>
-        {heroButton(model.shield)}
-        {heroButton(model.mitigation)}
-        {model.shieldBreak && heroButton(model.shieldBreak)}
+        {heroButton(model.shield, 'flex-[0.8]')}
+        {heroButton(model.mitigation, 'flex-[0.75]')}
+        {model.shieldBreak && heroButton(model.shieldBreak, 'flex-[0.95]')}
       </div>
       <HeroBuffLine activityKind={kind} />
       {focus && focusMetric && (
