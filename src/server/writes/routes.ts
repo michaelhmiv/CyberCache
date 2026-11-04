@@ -17,6 +17,7 @@
  *   POST /api/ops/item-lock                 verifiedOps.setItemLock             cc_item_lock(...)
  *   POST /api/ops/equip-item                verifiedOps.equipItem               cc_equip_item(...)
  *   POST /api/ops/unequip-slot              verifiedOps.unequipSlot             cc_unequip_slot(...)
+ *   POST /api/ops/apply-build               verifiedOps.applyBuild              cc_apply_build(...) — Saved Builds SB-1 (0066): one op applies a build's full slot map, per-slot outcomes returned
  *   POST /api/ops/refuel-vehicle            verifiedOps.refuelVehicle           cc_refuel_vehicle(...)
  *   POST /api/ops/repair-enqueue            verifiedOps.enqueueRepairJob        cc_enqueue_repair_job(...)
  *   POST /api/ops/repair-post               verifiedOps.postRepairJob           cc_post_repair_job(...)
@@ -555,6 +556,32 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   });
   op('/api/ops/unequip-slot', async (playerId, req) =>
     store.unequipSlot(playerId, str(body(req).nonce), str(body(req).slot_name)));
+  // Saved Builds SB-1 (0066): ONE server op applies a build's full
+  // slot map (all 8 slots, vehicle included) with per-slot outcomes —
+  // the client no longer fans out per-slot equip calls. Slot values
+  // are validated here (uuid or null per canonical slot); the store
+  // re-validates in lockstep.
+  op('/api/ops/apply-build', async (playerId, req, res) => {
+    const raw = body(req).slots;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      validation(res, 'A valid build is required');
+      return null;
+    }
+    const slots: Record<string, string | null> = {};
+    for (const slotName of ['primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic', 'vehicle']) {
+      const value = (raw as Record<string, unknown>)[slotName];
+      if (value === undefined || value === null) {
+        slots[slotName] = null;
+        continue;
+      }
+      if (typeof value !== 'string' || !UUID_RE.test(value)) {
+        validation(res, 'A valid build is required');
+        return null;
+      }
+      slots[slotName] = value;
+    }
+    return store.applyBuild(playerId, str(body(req).nonce), slots);
+  });
   op('/api/ops/refuel-vehicle', async (playerId, req, res) => {
     const cells = numField(req, res, 'cells', 'cells value');
     if (cells === null) return null;

@@ -422,6 +422,23 @@ export interface WriteSeed {
   extractionStates: ExtractionStateRecord[];
   /** Trophy Shelf pins (migration 0058), in pin order per player. */
   showcasePins: { user_id: string; item_id: string; pin_order: number }[];
+  /**
+   * Dispatch missions (migration 0032) — read-only for the writes
+   * twin: cc_apply_build (0066) names the active mission holding an
+   * in-service item and its return time. Optional so older seed
+   * literals stay valid; absent = no missions.
+   */
+  dispatchMissions?: DispatchMissionData[];
+}
+
+/** The dispatch facts cc_apply_build reads (migration 0032's row, trimmed). */
+export interface DispatchMissionData {
+  id: string;
+  user_id: string;
+  status: string;
+  ends_at: string;
+  loadout_item_ids: string[];
+  vehicle_item_id: string | null;
 }
 
 export function emptyWriteSeed(): WriteSeed {
@@ -450,6 +467,7 @@ export function emptyWriteSeed(): WriteSeed {
     craftJobs: [],
     extractionStates: [],
     showcasePins: [],
+    dispatchMissions: [],
   };
 }
 
@@ -940,6 +958,19 @@ export interface WriteStore {
   equipItem(playerId: string, nonce: string, itemId: string, slotName: string): Promise<Json>;
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json>;
   /**
+   * Apply a saved build in ONE operation (cc_apply_build, 0066;
+   * Saved Builds SB-1). Takes the build's full slot map (all 8
+   * slots, item id or null) and applies it server-side with
+   * cc_equip_item's per-slot semantics — the vehicle slot included,
+   * resolved from item records, never the client's inventory store.
+   * Partial application is allowed and fully reported: the result
+   * carries a per-slot outcome list (equipped / empty / gone /
+   * listed / in_service / locked / incompatible, with the remedy
+   * data each outcome needs) and `applied` is true only on a clean
+   * full apply — the client moves the active-build marker only then.
+   */
+  applyBuild(playerId: string, nonce: string, slots: Record<string, string | null>): Promise<Json>;
+  /**
    * Load fuel cells into the vehicle tank (cc_refuel_vehicle, 0021;
    * restated in 0024 to accept the crafted FuelCell type — fuel loads
    * at 100 × the consumed batches' weighted quality). itemKey defaults
@@ -1424,6 +1455,13 @@ export class PgWriteStore implements WriteStore {
   }
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json> {
     return this.callJson('select public.cc_unequip_slot($1, $2, $3) as result', [playerId, nonce, slotName]);
+  }
+  applyBuild(playerId: string, nonce: string, slots: Record<string, string | null>): Promise<Json> {
+    return this.callJson('select public.cc_apply_build($1, $2, $3::jsonb) as result', [
+      playerId,
+      nonce,
+      JSON.stringify(slots),
+    ]);
   }
   refuelVehicle(playerId: string, nonce: string, cells: number, itemKey = 'GenericFuelCell'): Promise<Json> {
     return this.callJson('select public.cc_refuel_vehicle($1, $2, $3, $4) as result', [playerId, nonce, cells, itemKey]);
