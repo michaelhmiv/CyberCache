@@ -24,7 +24,7 @@ export interface WeaponStats {
 
 export interface Affix {
   id: string;
-  category: 'combat' | 'elemental' | 'boss' | 'idle' | 'skill' | 'activity';
+  category: 'combat' | 'elemental' | 'boss' | 'idle' | 'skill' | 'activity' | 'crafting';
   stat: keyof WeaponStats | string;
   value: number;
   /** Multi-dimensional outputs for activity modules. Undefined for combat affixes. */

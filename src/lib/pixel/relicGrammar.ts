@@ -910,6 +910,161 @@ export const RELIC_FORM_ROWS: RelicFormRow[] = [
       c.set(X(ctx, 0.765), Y(ctx, 0.625), 'e');
     },
   },
+  {
+    // Craft relics (economy slice 9): the converted tools and the
+    // Prime Laboratory. Their forms are the OBJECTS themselves —
+    // instruments that were fitted to a bench for years and read
+    // as used as every relic here.
+    name: 'Precision Calipers',
+    formId: 'precision-calipers',
+    baseColor: '#8FA3B8',
+    paint(ctx) {
+      const c = ctx.c;
+      // The beam — a long panel-shaded rule across the upper third.
+      panelRect(ctx, 0.14, 0.30, 0.88, 0.40);
+      for (let x = X(ctx, 0.15); x < X(ctx, 0.87); x += 2) c.set(x, Y(ctx, 0.395), 'D');
+      // Tick marks along the beam's lower edge (detail): every
+      // fourth longer; the run stops short at the right — the last
+      // stretch of scale was never engraved.
+      if (c.detailLevel > 0) {
+        for (let i = 0; i < 13; i++) {
+          const tx = X(ctx, 0.20 + i * 0.042);
+          c.rect(tx, Y(ctx, 0.40), 1, i % 4 === 0 ? Y(ctx, 0.455) - Y(ctx, 0.40) : Y(ctx, 0.435) - Y(ctx, 0.40), 'k');
+        }
+      }
+      // Fixed jaw at the left, dropping from the beam; its tip is
+      // chipped to a dark point.
+      c.rect(X(ctx, 0.155), Y(ctx, 0.40), X(ctx, 0.215) - X(ctx, 0.155), Y(ctx, 0.72) - Y(ctx, 0.40), 'P');
+      c.rect(X(ctx, 0.155), Y(ctx, 0.40), 1, Y(ctx, 0.72) - Y(ctx, 0.40), 'p');
+      c.poly([[X(ctx, 0.155), Y(ctx, 0.72)], [X(ctx, 0.215), Y(ctx, 0.72)], [X(ctx, 0.185), Y(ctx, 0.775)]], 'd');
+      c.set(X(ctx, 0.185), Y(ctx, 0.775), 'k');
+      // The slider block, ridden right of center, with its seam
+      // stopping short and a soldered repair at its foot.
+      casing(ctx, 0.52, 0.265, 0.66, 0.475, 0.03);
+      c.seam(X(ctx, 0.535), Y(ctx, 0.33), X(ctx, 0.645), Y(ctx, 0.33));
+      solder(ctx, 0.585, 0.455);
+      // Sliding jaw dropping from the block — shorter than the
+      // fixed one; the two jaws do not quite close.
+      c.rect(X(ctx, 0.545), Y(ctx, 0.475), X(ctx, 0.60) - X(ctx, 0.545), Y(ctx, 0.665) - Y(ctx, 0.475), 'P');
+      c.poly([[X(ctx, 0.545), Y(ctx, 0.665)], [X(ctx, 0.60), Y(ctx, 0.665)], [X(ctx, 0.565), Y(ctx, 0.71)]], 'd');
+      // What it was measuring when it was dropped: a core seated
+      // in the dirt between the jaws.
+      socketCore(ctx, 0.375, 0.665, 0.082);
+      // Thumbwheel peeking above the beam, right side, one notch dark.
+      c.disc(X(ctx, 0.755), Y(ctx, 0.265), R(ctx, 0.055), 'D');
+      c.disc(X(ctx, 0.755), Y(ctx, 0.265), R(ctx, 0.034), 'd');
+      c.set(X(ctx, 0.755), Y(ctx, 0.245), 'k');
+    },
+  },
+  {
+    name: 'Servo Bench Rig',
+    formId: 'servo-bench-rig',
+    baseColor: '#D8622B',
+    paint(ctx) {
+      const c = ctx.c;
+      // The stand post, left of center, panel-shaded, planted on
+      // a foot that runs wider than the post.
+      panelRect(ctx, 0.30, 0.28, 0.385, 0.82);
+      c.rect(X(ctx, 0.235), Y(ctx, 0.82), X(ctx, 0.45) - X(ctx, 0.235), Y(ctx, 0.865) - Y(ctx, 0.82), 'D');
+      c.rect(X(ctx, 0.235), Y(ctx, 0.82), X(ctx, 0.45) - X(ctx, 0.235), 1, 'p');
+      // The arm reaching right from the post's shoulder.
+      panelRect(ctx, 0.345, 0.235, 0.78, 0.325);
+      c.seam(X(ctx, 0.40), Y(ctx, 0.28), X(ctx, 0.72), Y(ctx, 0.28));
+      // The servo block hanging off the arm's end — a worn casing
+      // with the servo eye seated low and off-axis.
+      casing(ctx, 0.60, 0.325, 0.845, 0.66, 0.04);
+      socketCore(ctx, 0.70, 0.52, 0.085);
+      stencil(ctx, 0.755, 0.375);
+      solder(ctx, 0.635, 0.625);
+      // The cable: droops from the arm, kinks once, enters the
+      // block's top — and a second stub hangs cut beside it.
+      c.slope(X(ctx, 0.47), Y(ctx, 0.325), X(ctx, 0.545), Y(ctx, 0.435), 'k', true);
+      c.slope(X(ctx, 0.545), Y(ctx, 0.435), X(ctx, 0.665), Y(ctx, 0.335), 'k', true);
+      c.slope(X(ctx, 0.80), Y(ctx, 0.325), X(ctx, 0.815), Y(ctx, 0.42), 'k', true);
+      c.set(X(ctx, 0.815), Y(ctx, 0.435), 'D');
+      // A grip claw under the block, one finger bent.
+      c.rect(X(ctx, 0.655), Y(ctx, 0.66), Math.max(2, Math.round(ctx.w * 0.035)), Y(ctx, 0.755) - Y(ctx, 0.66), 'D');
+      c.rect(X(ctx, 0.755), Y(ctx, 0.66), Math.max(2, Math.round(ctx.w * 0.035)), Y(ctx, 0.72) - Y(ctx, 0.66), 'D');
+      c.set(X(ctx, 0.755), Y(ctx, 0.735), 'k');
+      // Post rivets (detail).
+      if (c.detailLevel > 0) { c.rivet(X(ctx, 0.342), Y(ctx, 0.36)); c.rivet(X(ctx, 0.342), Y(ctx, 0.74)); }
+    },
+  },
+  {
+    name: 'Reclaimer Head',
+    formId: 'reclaimer-head',
+    baseColor: '#5E8C4A',
+    paint(ctx) {
+      const c = ctx.c;
+      // The hopper: a wide funnel, panel-shaded, its rim rolled —
+      // the left rim corner bent down where something heavy landed.
+      c.poly([
+        [X(ctx, 0.16), Y(ctx, 0.20)], [X(ctx, 0.85), Y(ctx, 0.185)], [X(ctx, 0.72), Y(ctx, 0.52)],
+        [X(ctx, 0.635), Y(ctx, 0.60)], [X(ctx, 0.365), Y(ctx, 0.60)], [X(ctx, 0.285), Y(ctx, 0.52)],
+      ], 'P');
+      brokenTone(ctx, 0.16, 0.185, 0.85, 0.60);
+      c.rect(X(ctx, 0.16), Y(ctx, 0.185), X(ctx, 0.85) - X(ctx, 0.16), Math.max(2, Math.round(ctx.h * 0.03)), 'p');
+      c.poly([[X(ctx, 0.16), Y(ctx, 0.185)], [X(ctx, 0.235), Y(ctx, 0.185)], [X(ctx, 0.20), Y(ctx, 0.245)]], 'd');
+      // Feed seams running down the funnel walls, stopping short.
+      c.seam(X(ctx, 0.33), Y(ctx, 0.27), X(ctx, 0.415), Y(ctx, 0.53));
+      c.seam(X(ctx, 0.68), Y(ctx, 0.26), X(ctx, 0.60), Y(ctx, 0.50));
+      // What it was chewing: a core wedged in the throat, lit.
+      socketCore(ctx, 0.50, 0.475, 0.08);
+      // The jaw bar under the throat, and its teeth — stepped,
+      // uneven, the second from the right snapped to a stump.
+      c.rect(X(ctx, 0.335), Y(ctx, 0.60), X(ctx, 0.665) - X(ctx, 0.335), Y(ctx, 0.665) - Y(ctx, 0.60), 'D');
+      const teeth = [0.35, 0.415, 0.48, 0.545, 0.595];
+      teeth.forEach((tf, i) => {
+        const tx = X(ctx, tf);
+        const drop = i === 3 ? 0.685 : 0.745 - (i % 2) * 0.018;
+        c.rect(tx, Y(ctx, 0.665), Math.max(2, Math.round(ctx.w * 0.038)), Y(ctx, drop) - Y(ctx, 0.665), i % 2 ? 'd' : 'P');
+        if (i === 3) c.set(tx + 1, Y(ctx, drop), 'k');
+      });
+      // Side cheek plates with bolts (detail), right one scarred.
+      casing(ctx, 0.115, 0.42, 0.235, 0.60, 0.03);
+      casing(ctx, 0.775, 0.405, 0.895, 0.585, 0.03);
+      if (c.detailLevel > 0) { c.rivet(X(ctx, 0.175), Y(ctx, 0.51)); c.rivet(X(ctx, 0.835), Y(ctx, 0.495)); }
+      crack(ctx, 0.80, 0.44, 0.855, 0.545, 0);
+    },
+  },
+  {
+    name: 'Prime Laboratory',
+    formId: 'prime-laboratory',
+    baseColor: '#2BB3A3',
+    paint(ctx) {
+      const c = ctx.c;
+      // The vessel: a round-bellied containment flask, panel
+      // shaded — shoulders sloping to a short neck.
+      c.poly([
+        [X(ctx, 0.435), Y(ctx, 0.235)], [X(ctx, 0.565), Y(ctx, 0.235)], [X(ctx, 0.60), Y(ctx, 0.34)],
+        [X(ctx, 0.735), Y(ctx, 0.52)], [X(ctx, 0.715), Y(ctx, 0.78)], [X(ctx, 0.645), Y(ctx, 0.85)],
+        [X(ctx, 0.355), Y(ctx, 0.85)], [X(ctx, 0.285), Y(ctx, 0.78)], [X(ctx, 0.265), Y(ctx, 0.52)],
+        [X(ctx, 0.40), Y(ctx, 0.34)],
+      ], 'P');
+      brokenTone(ctx, 0.265, 0.235, 0.735, 0.85);
+      // The neck + cap: a collar ring and a cap seated a texel
+      // off true — it was closed in a hurry, once.
+      c.rect(X(ctx, 0.42), Y(ctx, 0.205), X(ctx, 0.585) - X(ctx, 0.42), Y(ctx, 0.245) - Y(ctx, 0.205), 'D');
+      c.rect(X(ctx, 0.445), Y(ctx, 0.145), X(ctx, 0.565) - X(ctx, 0.445), Y(ctx, 0.21) - Y(ctx, 0.145), 'P');
+      c.rect(X(ctx, 0.445), Y(ctx, 0.145), X(ctx, 0.565) - X(ctx, 0.445), 1, 'p');
+      c.set(X(ctx, 0.565), Y(ctx, 0.175), 'k');
+      // The charge inside: the lab's core, seated low in the
+      // belly behind the glass-dark belly band.
+      c.rect(X(ctx, 0.315), Y(ctx, 0.555), X(ctx, 0.685) - X(ctx, 0.315), Y(ctx, 0.815) - Y(ctx, 0.555), 'D');
+      socketCore(ctx, 0.487, 0.685, 0.105);
+      // A fill line seam across the belly, and the stencil plate.
+      c.seam(X(ctx, 0.335), Y(ctx, 0.53), X(ctx, 0.665), Y(ctx, 0.53));
+      stencil(ctx, 0.615, 0.385);
+      solder(ctx, 0.375, 0.315);
+      // Two pipes elbow out of the shoulders: left runs down and
+      // is capped; right runs off and is cut, dripping one texel.
+      c.slope(X(ctx, 0.315), Y(ctx, 0.40), X(ctx, 0.225), Y(ctx, 0.47), 'D', true);
+      c.slope(X(ctx, 0.225), Y(ctx, 0.47), X(ctx, 0.225), Y(ctx, 0.62), 'D', true);
+      c.rect(X(ctx, 0.205), Y(ctx, 0.62), X(ctx, 0.245) - X(ctx, 0.205), Math.max(2, Math.round(ctx.h * 0.025)), 'k');
+      c.slope(X(ctx, 0.685), Y(ctx, 0.40), X(ctx, 0.775), Y(ctx, 0.455), 'D', true);
+      c.set(X(ctx, 0.782), Y(ctx, 0.475), 'c');
+    },
+  },
 ];
 
 export const RELIC_FORM_BY_NAME: ReadonlyMap<string, RelicFormRow> = new Map(

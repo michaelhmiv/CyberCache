@@ -197,8 +197,6 @@ export interface ResearchCourse {
   durationHours: number;
   /** Catalog fee in credits, destroyed at enroll (lever scalar applies). */
   costCredits: number;
-  /** Owned-bench gate (profiles.workshop_benches), when named. */
-  requiresBench?: number;
   /** Prerequisite course id within the faculty, when chained. */
   prerequisite?: string;
   /** The unlock, in the bonus vocabulary. */
@@ -219,14 +217,14 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
   {
     id: 'production_systems', faculty: 'fabrication', tier: 2,
     name: 'Production Systems', durationHours: 48, costCredits: 15000,
-    prerequisite: 'shop_fundamentals', requiresBench: 2,
+    prerequisite: 'shop_fundamentals',
     effects: {},
     unlockText: 'Unlocks the three batch recipes — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units: fewer materials and less time per unit than three singles.',
   },
   {
     id: 'master_fabricator', faculty: 'fabrication', tier: 3,
     name: 'Master Fabricator Certification', durationHours: 168, costCredits: 60000,
-    prerequisite: 'production_systems', requiresBench: 3,
+    prerequisite: 'production_systems',
     effects: { gearTemperBonus: 0.03, gearDrawBonus: 1 },
     unlockText: 'Crafted gear temper chance +0.03 (inside the 0.30 cap) and +1 generation draw on every crafted gear frame.',
   },
@@ -515,15 +513,6 @@ export interface ResearchStateView {
 export const RESEARCH_CANCEL_TERMS =
   'Cancelling forfeits the course: progress is lost and the enrollment fee is not refunded. Re-enrolling restarts from zero at the full price.';
 
-const BENCH_NAMES: Record<number, string> = { 2: 'the Forge bench', 3: 'the Lab bench' };
-
-/** Player-facing name of an owned-bench gate. The state view's lock
- *  reasons and the Research panel's course detail read bench gates
- *  through this one helper, so the two can never spell them apart. */
-export function researchBenchName(bench: number): string {
-  return BENCH_NAMES[bench] ?? `bench ${bench}`;
-}
-
 /**
  * Derive the panel view from server facts. Pure: the routes (and
  * the in-memory twin's tests) share this derivation, so the Pg and
@@ -541,9 +530,6 @@ export function researchStateView(
     const lockReasons: string[] = [];
     if (course.prerequisite && !completedIds.has(course.prerequisite)) {
       lockReasons.push(`Requires ${researchCourse(course.prerequisite)?.name ?? course.prerequisite}`);
-    }
-    if (course.requiresBench != null && facts.workshopBenches < course.requiresBench) {
-      lockReasons.push(`Requires ${researchBenchName(course.requiresBench)}`);
     }
     let status: ResearchCourseStatus;
     if (completedIds.has(course.id)) status = 'completed';
