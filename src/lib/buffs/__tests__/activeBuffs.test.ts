@@ -118,8 +118,8 @@ describe('resolveConsumableDuration', () => {
     });
 
     it('returns 0 when consumable has no highQualityPerks at all', () => {
-      // Grenade has no highQualityPerks → 0 regardless of quality.
-      const ms = resolveConsumableDuration(ConsumableType.Grenade, 160);
+      // ArmorPiercingAmmo has no highQualityPerks → 0 regardless of quality.
+      const ms = resolveConsumableDuration(ConsumableType.ArmorPiercingAmmo, 160);
       expect(ms).toBe(0);
     });
 

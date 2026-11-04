@@ -2,6 +2,14 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-04 — Boss prep reads the real cards
+
+- **Prep math is the printed math** — the boss prep simulation now reads every prepared consumable's own definition instead of a short hardwired list. Corrosive Ammo pays its printed ×1.30 armor break (it was quietly flattened to ×1.25); crafted quality deepens break effects the way the cards promise; and coatings and charges that used to burn for nothing in a fight — Prism Coating above all — now apply their break in full.
+- **Survival supplies count at their real values** — Shield Cells pool 120 and Nano Swarms 300 in a boss attempt, as printed (they were short-changed at 100 and 250), and a Refined Med Kit finally counts toward your survival pool at its full 260 instead of being burned for nothing.
+- **The Boss Scanner's quality tiers are real** — a scanner crafted past quality 115 / 130 / 145 / 160 now unlocks deeper intel lines in prep: which of your channels answers the phase the projection says will kill you, how much of your prep the fight is projected to burn, and an explicit warning for that phase. (The tier that would grade your odds stays dark — prep shows the boss's facts, never your chances.)
+- **One Ordnance Charge** — the vendor's staple "Grenade" and the crafted Ordnance Charge were the same item wearing two names. There is now one: the vendor stocks Ordnance Charge at 400 cr, crafters still make their own, and every Grenade in every hunter's stores became an Ordnance Charge, one for one, quality and origin kept.
+- **Rush Tickets speed repairs** — the Workshop Rush Ticket always claimed crafting *and* repair on its card; only crafting listened. It now escrows on a self-repair job exactly as it does at the bench, runs the job faster by its quality, and refunds on a cancel before the job starts.
+
 ## 2026-11-04 — Elemental Coating can be made
 
 - **Elemental Coating joins the bench** — the coating existed in the game's files with no way to earn it: no recipe, no vendor stock, no rotation. It now crafts at the bench like the other elemental ammo — Scrap, Ballistic Parts, and Void Essence, twenty minutes a batch — as the ungated baseline beneath Prismatek's gated Prism Coating. Its quality rolls like every crafted consumable, and quality now genuinely deepens its shield and armor break in a boss fight: the numbers were printed on the item before, but the fight never read them. It stays off the vendor's shelves and off the player market — if you want one, you make it.
@@ -117,9 +125,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 117 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 118 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-04** — 7 merges
+**2026-11-04** — 8 merges
 
 - #372 — Econ 9: bench collapse + relic merger (migration 0073)
 - #373 — SB-3: dispatch Start from a build — prefill + flag report
@@ -128,6 +136,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #376 — Home rail swap: mode rail above the stage, belt in its vacated slot (owner ruling 2026-11-04)
 - #377 — Gear/DPS/Profile truth fix — one read model, one DPS, honest Profile
 - #378 — 0076: cc_record_kill_stats kill attribution reads the real weapon slots
+- #379 — Elemental Coating: crafting recipe (0077) + boss-sim break wiring
 
 **2026-11-03** — 58 merges
 

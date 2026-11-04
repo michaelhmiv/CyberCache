@@ -32,6 +32,10 @@
         {
           "number": 378,
           "title": "0076: cc_record_kill_stats kill attribution reads the real weapon slots"
+        },
+        {
+          "number": 379,
+          "title": "Elemental Coating: crafting recipe (0077) + boss-sim break wiring"
         }
       ]
     },

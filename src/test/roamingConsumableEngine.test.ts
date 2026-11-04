@@ -465,7 +465,7 @@ describe('activateFromInventory — def contract', () => {
     // The seven defs the old engine silently skipped, by name:
     expect(activated).toContain(ConsumableType.MedKitRefined); // was skipped, now activates
     expect(activated).toContain(ConsumableType.HighCapacityAmmoPack); // was skipped, now activates
-    expect(activated).not.toContain(ConsumableType.Grenade); // boss-scoped in its def
+    expect(activated).not.toContain(ConsumableType.ShockAmmo); // boss-scoped in its def
     expect(activated).not.toContain(ConsumableType.InsuranceToken); // boss-scoped
     // Salvage Contract gained a roaming scope in the roaming-variance
     // overhaul (brief §2.6: its material-event yield is its real

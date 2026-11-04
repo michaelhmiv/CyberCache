@@ -219,7 +219,7 @@ describe('vendor catalog — the one source', () => {
     expect(ids).toContain('WorkshopRushTicket'); // rotatingVendorOnly
     expect(ids).not.toContain('ElementalCoating'); // craftable (0077) but vendor-excluded / not player-marketable
     for (const staple of VENDOR_STAPLE_DEFS) expect(ids).not.toContain(staple.id);
-    expect(VENDOR_ROTATION_DEFS).toHaveLength(23);
+    expect(VENDOR_ROTATION_DEFS).toHaveLength(22); // 23 until the 0078 merge: OrdnanceCharge became a staple
   });
 
   it('materials + essences carry vendor values for nine profile counters — Scrap is not one (ruling 6)', () => {
@@ -589,9 +589,12 @@ describe('migration 0020 — SQL twin pins', () => {
     // 0069 restated it again for the scrap merge (the material row
     // renamed ScrapAlloy -> Scrap, price unchanged); Econ 6's 0071
     // restates it once more with the Scrap row REMOVED (ruling 6 —
-    // the vendor drops the base material entirely).
+    // the vendor drops the base material entirely). 0078 restates
+    // it for the Grenade -> OrdnanceCharge merge (the legacy staple
+    // ID retires; OrdnanceCharge takes its staple row at the same
+    // 400 and leaves the rotation pool).
     const catalogSql = readFileSync(
-      resolve(process.cwd(), 'db/migrations/0071_vendor_scrap_meters.sql'),
+      resolve(process.cwd(), 'db/migrations/0078_boss_sim_honesty_wiring.sql'),
       'utf8',
     );
     const rows = [...catalogSql.matchAll(/\('([A-Za-z]+)',\s*(\d+),\s*'(staple|rotation|material|essence)'\)/g)].map(

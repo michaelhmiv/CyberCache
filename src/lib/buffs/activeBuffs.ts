@@ -135,8 +135,7 @@ export interface ConsumableActivator {
     | 'boss-prep'
     | 'boss-mechanic'
     | 'economy-outcome'
-    | 'activity-start'
-    | 'legacy-instant';
+    | 'activity-start';
 }
 
 /**
@@ -426,14 +425,6 @@ export const CONSUMABLE_ACTIVATORS: Record<ConsumableType, ConsumableActivator> 
     defaultValue: 0,
     source: 'activity-result',
   },
-
-  // LEGACY — kept for save compatibility; not vendor-stocked.
-  [ConsumableType.Grenade]: {
-    durationSource: 'none',
-    defaultDurationMs: 0,
-    defaultValue: 1.15,
-    source: 'chef-result',
-  },
 };
 
 
@@ -455,7 +446,6 @@ export function getConsumableMechanicKind(consumableId: ConsumableType): NonNull
   const activator = CONSUMABLE_ACTIVATORS[consumableId];
   if (activator.mechanicKind) return activator.mechanicKind;
   const def = CONSUMABLES[consumableId];
-  if (consumableId === ConsumableType.Grenade) return 'legacy-instant';
   if (def?.family === 'survival') return activator.durationSource === 'registryRepair' ? 'survival-repair' : 'survival-boost';
   if (activator.durationSource === 'registryCoverage') return 'ammo-coverage';
   if (def?.family === 'ordnance' || def?.trigger === 'shieldPhase' || def?.trigger === 'armorPhase') return 'phase-break';

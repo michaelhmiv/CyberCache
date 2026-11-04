@@ -8,11 +8,11 @@ vi.mock('@/store', () => ({
       MedKit: 5,
       ShieldCell: 2,
       AmmoPack: 3,
-      Grenade: 1,
+      OrdnanceCharge: 1,
       BossScanner: 0,
     },
     getConsumableCount: (id: string) =>
-      ({ MedKit: 5, ShieldCell: 2, AmmoPack: 3, Grenade: 1, BossScanner: 0 })[id] ?? 0,
+      ({ MedKit: 5, ShieldCell: 2, AmmoPack: 3, OrdnanceCharge: 1, BossScanner: 0 })[id] ?? 0,
   }),
 }));
 

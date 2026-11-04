@@ -19,6 +19,8 @@
  *  - shield-tech enqueue is deliberately NOT wired (the def claims
  *    crafting + repair only) — its job still stamps rush null/0.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SKILL_NODES } from '../constants/skillTrees';
 import { InMemoryWriteStore } from '../server/writes/memory';
@@ -155,6 +157,33 @@ describe('Workshop Rush Ticket — repair scope', () => {
     expect(store.seed.craftJobs).toHaveLength(0);
     // The kits were not escrowed by the failed enqueue.
     expect(store.seed.consumableBatches.find((b) => b.id === 'kit-q1')?.quantity).toBe(5);
+  });
+
+  it('migration 0078 — SQL twin pins (repair rush + Grenade conversion)', () => {
+    const sql = readFileSync(
+      resolve(process.cwd(), 'db/migrations/0078_boss_sim_honesty_wiring.sql'),
+      'utf8',
+    );
+    // §2: the 5-arg form is dropped; the 6-arg form carries the flag
+    // and the crafting clamp verbatim.
+    expect(sql).toContain('drop function if exists public.cc_enqueue_repair_job(uuid, text, uuid, text, integer);');
+    expect(sql).toContain('p_use_rush_ticket boolean default false');
+    expect(sql).toContain("raise exception 'No Workshop Rush Ticket available'");
+    expect(sql).toContain('v_rush_reduction := least(0.45 + v_rush_cap_bonus, 0.2 * coalesce(v_rush_quality, 100) / 100);');
+    expect(sql).toContain("'rushReduction', v_rush_reduction");
+    expect(sql).toContain('v_rush_quality, v_rush_origin,');
+    expect(sql).toContain('round(v_duration * (1 - v_rush_reduction))');
+    // §3: the cancel repair branch reports the real refund flag.
+    expect(sql).toContain("'rush_ticket_refunded', v_rush_refunded");
+    // §1: the vendor catalog serves OrdnanceCharge as the staple and
+    // no Grenade row survives anywhere in the catalog values.
+    expect(sql).toContain("('OrdnanceCharge', 400, 'staple')");
+    expect(sql).not.toContain("('Grenade', 400, 'staple')");
+    expect(sql).not.toContain("('OrdnanceCharge', 400, 'rotation')");
+    // §4: the three-surface 1:1 stock conversion.
+    expect(sql).toContain("set consumable_type = 'OrdnanceCharge'");
+    expect(sql).toContain("where consumable_type = 'Grenade'");
+    expect(sql).toContain("consumables - 'Grenade'");
   });
 
   it('cancelling an unstarted rushed repair job refunds the ticket at its escrowed quality', async () => {

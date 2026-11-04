@@ -52,7 +52,6 @@ export enum SkillTreeType {
 export enum ConsumableType {
   MedKit = 'MedKit',
   MedKitRefined = 'MedKitRefined',
-  Grenade = 'Grenade',
   OrdnanceCharge = 'OrdnanceCharge',
   AmmoPack = 'AmmoPack',
   HighCapacityAmmoPack = 'HighCapacityAmmoPack',
