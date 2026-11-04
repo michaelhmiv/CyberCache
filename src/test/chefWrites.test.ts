@@ -227,7 +227,9 @@ describe('initial bundle + idle claim', () => {
     expect(first.json.action_type).toBe('cc_initial_bundle');
     const prof = first.json.profile as Record<string, unknown>;
     expect(prof.credits).toBe(6000);
-    expect(prof.scrap).toBe(600);
+    // Econ 5: the seed's two ledgers (field 100 + stack 20) are one
+    // stock of 120 now; the bundle adds its 500 to the same stock.
+    expect(prof.scrap).toBe(620);
     expect(prof.cache_tokens).toBe(5);
     expect((prof.boss_state as Record<string, unknown>).initial_bundle_claimed).toBe(true);
 
@@ -323,7 +325,9 @@ describe('cache draws, vendor, crafting, consumables', () => {
     expect(res.status).toBe(200);
     const prof = res.json.profile as Record<string, unknown>;
     // Recipe materials are charged once per craft, not per unit.
-    expect((prof.materials as Record<string, number>).Scrap).toBe(5);
+    // Econ 5: the unified seed stock is 120 (100 field + 20 stack);
+    // the medkit's Scrap leg is 15.
+    expect((prof.materials as Record<string, number>).Scrap).toBe(105);
     expect((prof.materials as Record<string, number>).ReactiveComponents).toBe(2);
     // 2 from the vendor-buy test above (shared store in this describe) + 1 crafted.
     expect((prof.consumables as Record<string, number>).MedKit).toBe(3);
@@ -395,7 +399,8 @@ describe('inventory mutations', () => {
     // Rare lvl5: round((10 + 5*5) * 2.5) = 88
     expect(res.json.scrap_award).toBe(88);
     const prof = res.json.profile as Record<string, unknown>;
-    expect(prof.scrap).toBe(188);
+    // Econ 5: the award lands in the unified stock (seed 120 + 88).
+    expect(prof.scrap).toBe(208);
     const recycled = res.json.item as Record<string, unknown>;
     expect(recycled.runtime_state).toBe('consumed');
 

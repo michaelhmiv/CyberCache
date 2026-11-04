@@ -768,7 +768,10 @@ describe('migration 0019 — SQL source pins', () => {
   it('backfills legacy rows and restates the def-owned exclusions', () => {
     expect(sql).toContain('ml.identity_key is null');
     expect(sql).toContain("'ElementalCoating'");
-    expect(sql).toContain("'Scrap','BallisticParts','ReactiveComponents','TechFragments','VoidDust'");
+    // 0019's frozen five-id whitelist names the material as it was
+    // then; Econ 5 (0069) renamed it — the live whitelist is pinned
+    // against 0069 in scrapMerge.test.ts / craftingQuality.test.ts.
+    expect(sql).toContain("'ScrapAlloy','BallisticParts','ReactiveComponents','TechFragments','VoidDust'");
     expect(sql).toContain('cc_add_consumable_batch');
   });
 });
