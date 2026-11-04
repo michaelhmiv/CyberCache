@@ -748,7 +748,11 @@ describe('salvage skill bonuses — shipped write route', () => {
     return { status: res.status, json: text ? JSON.parse(text) : {}, nonce };
   }
 
-  const profileOf = (id: string) => store.seed.profiles.find((p) => p.id === id);
+  const profileOf = (id: string) => {
+    const row = store.seed.profiles.find((p) => p.id === id);
+    // Econ 5 (0069): balances read the unified materials['Scrap'] stack.
+    return row && { ...row, scrap: row.materials['Scrap'] ?? 0 };
+  };
 
   it('base award is untouched without the nodes (Common L10 = 60)', async () => {
     const r = await recycle(PLAIN, ITEM_PLAIN);
@@ -817,9 +821,14 @@ describe('migration 0022 — salvage skill wiring pins', () => {
   });
 
   it('carries the kind → material map and the additive result field', () => {
-    for (const material of ['BallisticParts', 'ReactiveComponents', 'TechFragments', 'Scrap']) {
+    for (const material of ['BallisticParts', 'ReactiveComponents', 'TechFragments', 'ScrapAlloy']) {
       expect(sql).toContain(`'${material}'`);
     }
+    // 0022 is historical text: its fallback names the pre-merge key.
+    // The live fallback (0069's restated cc_recycle_item) names the
+    // merged 'Scrap' — pinned here so the rename cannot drift.
+    const live = readFileSync(resolve(process.cwd(), 'db/migrations/0069_scrap_merge.sql'), 'utf8');
+    expect(live).toContain("else 'Scrap'");
     expect(sql).toContain("'bonus_material', bonus_material");
   });
 

@@ -347,9 +347,9 @@ describe('Second Opinion — processBossAttempt', () => {
     };
     const first = await store.applyChefBossAttempt(PLAYER, attempt);
     expect((first as { scrap_awarded?: number }).scrap_awarded).toBe(88);
-    expect(store.profiles.get(PLAYER)!.scrap).toBe(98);
+    expect(store.profiles.get(PLAYER)!.materials['Scrap'] ?? 0).toBe(98);
     await store.applyChefBossAttempt(PLAYER, attempt);
-    expect(store.profiles.get(PLAYER)!.scrap).toBe(98);
+    expect(store.profiles.get(PLAYER)!.materials['Scrap'] ?? 0).toBe(98);
   });
 });
 
@@ -381,7 +381,7 @@ describe('Market Crash — 4x recycle scrap', () => {
     expect((crash as { scrap_award?: number }).scrap_award).toBe(base * 4);
     const plain = await store.recycleItem(PLAYER, 'nonce-plain-0001', 'plain-item');
     expect((plain as { scrap_award?: number }).scrap_award).toBe(base);
-    expect(store.profiles.get(PLAYER)!.scrap).toBe(base * 5);
+    expect(store.profiles.get(PLAYER)!.materials['Scrap'] ?? 0).toBe(base * 5);
   });
 
   it('write store mirror: 4x for a Market Crash weapon', async () => {

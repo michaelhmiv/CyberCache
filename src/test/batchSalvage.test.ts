@@ -135,7 +135,10 @@ function itemState(store: InMemoryWriteStore, id: string): string {
 
 function profileOf(store: InMemoryWriteStore, id: string): ProfileRowData {
   const seed = (store as unknown as { seed: WriteSeed }).seed;
-  return seed.profiles.find((p) => p.id === id) as ProfileRowData;
+  const row = seed.profiles.find((p) => p.id === id) as ProfileRowData;
+  // Econ 5 (0069): the scrap balance lives in materials['Scrap']; the
+  // row's scrap field is the retired tombstone (seeds fold + zero it).
+  return { ...row, scrap: row.materials['Scrap'] ?? 0 };
 }
 
 describe('batch salvage — settlement contract', () => {
