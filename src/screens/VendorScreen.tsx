@@ -30,8 +30,7 @@ import {
  * the stock view is the stop, and buyback is a named dashed ROW on
  * its first viewport (DESIGN.md §3/§11 F2 — still 3 taps, the one
  * justified depth). Manufacturer standing is NOT here: the Rep Desk
- * is its own Market rail stop, and the slot machine's canonical
- * home is the Slots stop.
+ * is its own Market rail stop.
  *
  * Every action button on this stop shares ONE rectangular geometry
  * (vendorCtaCls): active/primary state is fill and color only —

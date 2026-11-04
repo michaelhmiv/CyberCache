@@ -132,7 +132,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 |---|---|---|
 | **Home** | Stage, then rail: `Area · Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The lit mode's workspace sits under the stage; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. |
 | **Gear** | Rail: `Loadout · Workshop` | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop door row at its foot; the bench keeps its own stop. |
-| **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk · Slots` | Player market, NPC storefront, the two service boards as separate stops, manufacturer standing at its own desk, and the slot machine's canonical home. |
+| **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk` | Player market, NPC storefront, the two service boards as separate stops, and manufacturer standing at its own desk. |
 | **Hunter** | Rail: `Profile · Collections · Cache Rank · Research · Skill Trees · Standings · Account` | The hunter's record: profile + Trophy Shelf, collections and cores, ranks, courses, trees, the weekly races behind the Standings door, and account/settings/manual. |
 
 Rules:
@@ -182,7 +182,7 @@ replace the canonical one. (Tap depths are governed by §9.)
   until acknowledged; the already-banked state carries no pulse and no badge
   (§9).
 - **The deck** (below the fold, fixed order — §4): launcher cards (Dispatch ·
-  Crack Cache · Slots ◦ · Loadout shortcut ◦ while a loadout is incomplete),
+  Crack Cache · Loadout shortcut ◦ while a loadout is incomplete),
   Weekly claimables panel, Now feed, Hunter Totals.
 - **Field Manual and Settings are NOT on Home.** Their canonical home is
   Hunter → Account; the Strip's gear icon is a Settings shortcut only.
@@ -236,10 +236,6 @@ replace the canonical one. (Tap depths are governed by §9.)
   **Parts Crate + Signature Orders** — this stop is their home and first claim
   surface (◦ claim chip on Home when ready, ◦ Weekly panel in Home's deck).
   The Vendor's hidden `rep` mode toggle is deleted and must not return.
-- **Slots** — Data Slots, the slot machine's canonical home: reels, bet tiers,
-  full payout table. (◦ exactly one secondary door: the labeled launcher card
-  in Home's deck.)
-
 ### Hunter
 
 - **Profile** — profile + Trophy Shelf + lifetime stats, top of the tab. The
@@ -294,7 +290,7 @@ Stage is the emotional core of the game; bookkeeping never colonizes it.
 
 1. **Launcher deck** — Dispatch and Crack Cache first (they are Board orphans:
    when the Board tab died they lost their only door, so they inherit named,
-   stateful cards at the top), then the Slots launcher card and the Loadout
+   stateful cards at the top), then the Loadout
    shortcut card.
 2. **Weekly claimables** — the Parts Crate + Signature Orders panel. Renders
    only in its claimable/offered states.
@@ -465,7 +461,7 @@ that hand does not ship.
 | `wrench` | Repair |
 | `shield` | Shield Tech |
 | `badge` | Rep Desk (manufacturer standing) |
-| `bolt` | Slots |
+| `bolt` | Ordnance |
 | `lock` | Locked (sign-in locks on transacting actions) |
 | `check` | Met / done |
 | `chevR` | Go (row navigation) |

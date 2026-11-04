@@ -417,10 +417,6 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
     // first — the two Board orphans with no other low-tap door.
     { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', primary: true, onClick: () => onNavigate('dispatch') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, primary: true, onClick: () => onNavigate('chest') },
-    // Slots' canonical home is the Market rail stop (§3); this
-    // card is its ◦ launcher — it deep-links straight to the stop
-    // ('market:slots', DESIGN.md §9's two-tap count).
-    { id: 'slots', label: 'Slots', desc: 'Data Slots — the wheel lives at the Market rail stop.', icon: <PxIcon name="bolt" size={17} className="text-purple" />, tone: 'purple' as Tone, stat: 'At Market', onClick: () => onNavigate('market:slots') },
     // §3/R5: the Loadout shortcut renders ONLY while a loadout
     // is incomplete — a full 7/7 hunter does not need the door.
     ...(equippedCount < 7
