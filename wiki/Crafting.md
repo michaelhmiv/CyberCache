@@ -14,7 +14,9 @@ Queue a job, switch to roaming or a boss, and the job sits **paused** —
 it keeps its place and its escrowed inputs, but no progress is made
 until you come back to the bench. There is **one bench**: one job
 runs on it, with up to **5 more queued** behind it (a Fixer keystone
-queues more). A full bench says so on the recipe card — and names
+queues more). Banked **bench time** widens it — while the bank
+lasts, **3 jobs run at once with 15 queued** (see *Bench time*
+below). A full bench says so on the recipe card — and names
 the way out: jobs finish while Crafting is your action, or cancel
 one from the job list.
 
@@ -126,6 +128,29 @@ were retired: hunters who had bought one were refunded in full —
 Lab — and every recipe now runs on the one bench.) It runs **1 job
 at a time with 5 queued** behind it; a Fixer keystone raises the
 queue. The crusher and the furnace are stations on the same bench.
+
+## Bench time
+
+The bench strip at the top of the Workshop carries your **bench
+time bank**. Watching a rewarded ad in the app banks **+1 hour**;
+the bank holds at most **24 hours**, and a full bank says so.
+
+While any time is banked, the bench runs wide: **3 jobs at once,
+15 queued** — and a Fixer keystone's queue bonus counts three
+times over, once for each of the bench's three lanes. Jobs on the
+extra lanes wear a **Bench time** tag on their cards.
+
+The bank **drains in real time only while the extra lanes are
+working** — that is, while 2 or more jobs are running at once. One
+job running alone is the baseline bench and never drains anything.
+When the bank runs dry, nothing is interrupted: running jobs keep
+their progress and finish in queue order exactly as they would on
+the baseline bench — the bench simply stops taking work beyond
+the baseline until lanes free up or you bank more time.
+
+Bench time is earned in the app only (the Workshop panel says so
+on the web), and **guests can bank it** like anyone else — banking
+is not a transaction.
 
 What the tiers used to sell — better craft quality — now lives on
 **craft relics**, worn by the hunter like any relic:
