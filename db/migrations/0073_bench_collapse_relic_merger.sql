@@ -3022,7 +3022,6 @@ as $func$
     "name": "Shop Fundamentals",
     "durationHours": 6,
     "costCredits": 2500,
-    "requiresLevel": 5,
     "effects": {
       "craftQualityShift": 2
     }
@@ -3057,7 +3056,6 @@ as $func$
     "name": "Wrench Basics",
     "durationHours": 6,
     "costCredits": 2500,
-    "requiresLevel": 5,
     "effects": {
       "repairWorkRateBonus": 0.05
     }
@@ -3069,7 +3067,6 @@ as $func$
     "name": "Powertrain Systems",
     "durationHours": 48,
     "costCredits": 15000,
-    "requiresLevel": 20,
     "prerequisite": "wrench_basics",
     "effects": {
       "vehicleDecayReduction": 0.1
@@ -3082,7 +3079,6 @@ as $func$
     "name": "Master Mechanic Certification",
     "durationHours": 168,
     "costCredits": 60000,
-    "requiresLevel": 40,
     "prerequisite": "powertrain_systems",
     "effects": {
       "repairServiceXpBonus": 1
@@ -3095,9 +3091,9 @@ as $func$
     "name": "Street Economics",
     "durationHours": 6,
     "costCredits": 2500,
-    "requiresLevel": 5,
     "effects": {
-      "vendorBuybackBonus": 0.02
+      "vendorBuybackBonus": 0.02,
+      "offlineCapBonus": 2
     }
   },
   {
@@ -3107,10 +3103,9 @@ as $func$
     "name": "Supply Chains",
     "durationHours": 48,
     "costCredits": 15000,
-    "requiresLevel": 20,
     "prerequisite": "street_economics",
     "effects": {
-      "offlineCapBonus": 1
+      "offlineCapBonus": 4
     }
   },
   {
@@ -3120,10 +3115,10 @@ as $func$
     "name": "Syndicate Ledger",
     "durationHours": 168,
     "costCredits": 60000,
-    "requiresLevel": 40,
     "prerequisite": "supply_chains",
     "effects": {
-      "marketFeeReduction": 0.05
+      "marketFeeReduction": 0.05,
+      "offlineCapBonus": 4
     }
   },
   {
@@ -3133,7 +3128,6 @@ as $func$
     "name": "Ballistics Theory",
     "durationHours": 6,
     "costCredits": 2500,
-    "requiresLevel": 5,
     "effects": {
       "weaponDamage": 0.01
     }
@@ -3145,7 +3139,6 @@ as $func$
     "name": "Shield Dynamics",
     "durationHours": 48,
     "costCredits": 15000,
-    "requiresLevel": 20,
     "prerequisite": "ballistics_theory",
     "effects": {
       "shieldCapacity": 0.02
@@ -3158,7 +3151,6 @@ as $func$
     "name": "Void Theory Certification",
     "durationHours": 168,
     "costCredits": 60000,
-    "requiresLevel": 40,
     "prerequisite": "shield_dynamics",
     "effects": {
       "bossDedicatedChanceBonus": 0.01
@@ -3182,7 +3174,6 @@ as $func$
     "name": "Shop Fundamentals",
     "durationHours": 6,
     "costCredits": 2500,
-    "requiresLevel": 5,
     "effects": {
       "craftQualityShift": 2
     }
@@ -3217,7 +3208,6 @@ as $func$
     "name": "Wrench Basics",
     "durationHours": 6,
     "costCredits": 2500,
-    "requiresLevel": 5,
     "effects": {
       "repairWorkRateBonus": 0.05
     }
@@ -3229,7 +3219,6 @@ as $func$
     "name": "Powertrain Systems",
     "durationHours": 48,
     "costCredits": 15000,
-    "requiresLevel": 20,
     "prerequisite": "wrench_basics",
     "effects": {
       "vehicleDecayReduction": 0.1
@@ -3242,7 +3231,6 @@ as $func$
     "name": "Master Mechanic Certification",
     "durationHours": 168,
     "costCredits": 60000,
-    "requiresLevel": 40,
     "prerequisite": "powertrain_systems",
     "effects": {
       "repairServiceXpBonus": 1
@@ -3255,9 +3243,9 @@ as $func$
     "name": "Street Economics",
     "durationHours": 6,
     "costCredits": 2500,
-    "requiresLevel": 5,
     "effects": {
-      "vendorBuybackBonus": 0.02
+      "vendorBuybackBonus": 0.02,
+      "offlineCapBonus": 2
     }
   },
   {
@@ -3267,10 +3255,9 @@ as $func$
     "name": "Supply Chains",
     "durationHours": 48,
     "costCredits": 15000,
-    "requiresLevel": 20,
     "prerequisite": "street_economics",
     "effects": {
-      "offlineCapBonus": 1
+      "offlineCapBonus": 4
     }
   },
   {
@@ -3280,10 +3267,10 @@ as $func$
     "name": "Syndicate Ledger",
     "durationHours": 168,
     "costCredits": 60000,
-    "requiresLevel": 40,
     "prerequisite": "supply_chains",
     "effects": {
-      "marketFeeReduction": 0.05
+      "marketFeeReduction": 0.05,
+      "offlineCapBonus": 4
     }
   },
   {
@@ -3293,7 +3280,6 @@ as $func$
     "name": "Ballistics Theory",
     "durationHours": 6,
     "costCredits": 2500,
-    "requiresLevel": 5,
     "effects": {
       "weaponDamage": 0.01
     }
@@ -3305,7 +3291,6 @@ as $func$
     "name": "Shield Dynamics",
     "durationHours": 48,
     "costCredits": 15000,
-    "requiresLevel": 20,
     "prerequisite": "ballistics_theory",
     "effects": {
       "shieldCapacity": 0.02
@@ -3318,7 +3303,6 @@ as $func$
     "name": "Void Theory Certification",
     "durationHours": 168,
     "costCredits": 60000,
-    "requiresLevel": 40,
     "prerequisite": "shield_dynamics",
     "effects": {
       "bossDedicatedChanceBonus": 0.01
@@ -3366,10 +3350,6 @@ begin
   end if;
   if exists (select 1 from public.research_enrollments where user_id = actor) then
     raise exception 'research_already_enrolled';
-  end if;
-  if (course ? 'requiresLevel')
-     and p.player_level < (course ->> 'requiresLevel')::int then
-    raise exception 'level_too_low';
   end if;
   if (course ? 'prerequisite')
      and not exists (select 1 from public.research_completions

@@ -7,8 +7,7 @@
  * Covered (brief §2.12): escrow exactness (per-unit), settle only while
  * crafting holds the action slot, pause at exact accrued values on
  * activity transition, per-bench queue order + capacity, the cancel
- * refund table, rush-ticket escrow/burn/refund, bench unlock charges +
- * refusals, gear frames through the shared generators (Epic ceiling,
+ * refund table, rush-ticket escrow/burn/refund, gear frames through the shared generators (Epic ceiling,
  * no legendaryEffectId, crafted provenance), refining yields, guest
  * gating, cross-player forgery, body-supplied outcome fields ignored,
  * and nonce replay.
@@ -204,14 +203,27 @@ describe('crafting occupation — job model through the shipped routes', () => {
     expect(prof(P).consumables.WorkshopRushTicket).toBe(1); // refunded as a batch
   });
 
-  it('bench unlock charges atomically and refuses the broke (level never speaks — step 4)', async () => {
+  it('bench unlock is gone (slice 9 collapse): the route 404s and nobody is charged', async () => {
+    // Gate-removal step 4 (0061) removed the unlock LEVEL gate;
+    // economy slice 9 removed the unlock itself — one bench,
+    // always owned, nothing to buy. The route no longer exists.
     const creditsBefore = prof(P).credits;
-    const res = await post('/api/ops/craft-unlock-bench', h.tokens[P], { nonce: nonce(), bench: 2 });
-    expect(res.status).toBe(200);
-    expect(prof(P).credits).toBe(creditsBefore - 5000);
-    expect(prof(P).workshop_benches).toBe(2);
-    const poor = await post('/api/ops/craft-unlock-bench', h.tokens[POOR], { nonce: nonce(), bench: 2 });
-    expect(poor.status).toBe(400);
+    // Raw fetch: the retired route answers Express's HTML 404,
+    // which this file's JSON post() helper cannot parse.
+    const res = await fetch(`${h.base}/api/ops/craft-unlock-bench`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${h.tokens[P]}` },
+      body: JSON.stringify({ nonce: nonce(), bench: 2 }),
+    });
+    expect(res.status).toBe(404);
+    expect(prof(P).credits).toBe(creditsBefore);
+    expect(prof(P).workshop_benches).toBe(1);
+    const poor = await fetch(`${h.base}/api/ops/craft-unlock-bench`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${h.tokens[POOR]}` },
+      body: JSON.stringify({ nonce: nonce(), bench: 2 }),
+    });
+    expect(poor.status).toBe(404);
     expect(prof(POOR).workshop_benches ?? 1).toBe(1);
   });
 
