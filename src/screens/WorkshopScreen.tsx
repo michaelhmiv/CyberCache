@@ -637,14 +637,14 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
             state, and the one earn door — a rewarded ad watched in
             the app (§8.7). Every refusal here prints its remedy. */}
         <div className="border border-border bg-surface px-2 py-1.5" data-testid="bench-time-panel">
-          <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-black text-text-primary">
+          <div className="flex items-start justify-between gap-2">
+            <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-black text-text-primary">
               <PxIcon name="clock" size={17} className={benchTime?.wideActive ? 'text-amber' : 'text-text-muted'} />
-              Bench time
-              <span>{formatBankTime(bankedSeconds)}</span>
-              <span className="font-bold text-text-muted">/ {formatBankTime(bankCapSeconds)}</span>
+              <span className="whitespace-nowrap">Bench time</span>
+              <span className="whitespace-nowrap">{formatBankTime(bankedSeconds)}</span>
+              <span className="whitespace-nowrap font-bold text-text-muted">/ {formatBankTime(bankCapSeconds)}</span>
               {benchTime?.wideActive && runningBenchJobs.length >= 2 && (
-                <span className="inline-flex items-center gap-1 font-bold text-cyan">
+                <span className="inline-flex items-center gap-1 whitespace-nowrap font-bold text-cyan">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan" />
                   Draining
                 </span>
@@ -654,7 +654,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
               <button
                 type="button"
                 disabled
-                className="shrink-0 border border-border bg-surface px-2.5 py-2 text-[11px] font-black text-text-muted disabled:opacity-60"
+                className="shrink-0 whitespace-nowrap border border-border bg-surface px-2.5 py-2 text-[11px] font-black text-text-muted disabled:opacity-60"
                 style={chipClip}
               >
                 Bank full
@@ -665,7 +665,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
                 whileTap={{ scale: 0.96 }}
                 onClick={() => void handleEarnBenchTime()}
                 disabled={benchEarnPending || !benchAdsReady}
-                className="shrink-0 border border-amber/50 bg-amber/10 px-2.5 py-2 text-[11px] font-black text-amber transition-colors active:bg-amber/20 disabled:opacity-50"
+                className="shrink-0 whitespace-nowrap border border-amber/50 bg-amber/10 px-2.5 py-2 text-[11px] font-black text-amber transition-colors active:bg-amber/20 disabled:opacity-50"
                 style={chipClip}
               >
                 {benchEarnPending ? 'Showing ad…' : `Watch ad · +${grantLabel}`}

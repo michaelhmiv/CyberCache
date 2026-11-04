@@ -58,7 +58,6 @@ import {
   MAX_UNITS_PER_JOB,
   NO_CRAFT_RELIC_EFFECTS,
   qualityMasteryTrackForKind,
-  QUEUED_JOBS_PER_BENCH,
   rollRefineOutputCount,
   rollCraftQuality,
   rushTicketTimeReduction,
