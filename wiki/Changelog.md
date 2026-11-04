@@ -8,6 +8,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **One DPS, everywhere** — Home, the Gear header, and your slot cards all print the same DPS figure for your loadout. Boss surfaces price that same loadout against the boss in front of you and say so on the label: the picker's **Your DPS vs Tyrant** chip and the prep stage's **Eff. DPS** are the same number.
 - **Danger warnings price your real loadout** — area warnings run their duel math on the gear you actually have equipped. A fresh hunter holding the Starter Pistol reads Dustwaste Frontier as the starter area it is, not a death sentence.
 - **Profile, honest in the small** — K/D no longer prints 0.00 next to a deathless record (no deaths yet reads **—**); **Active Time** accrues your real foreground play; Hunter level/XP and Mastery XP/levels sit in their own labeled groups, as the separate systems they are; Wardrobe craftable rows print each part's real craft time; and a Trophy Shelf weapon you currently have equipped carries its **Equipped** mark.
+- **Kills credit the weapon that made them** — the server's kills-by-weapon and kills-by-element records now name the gun you were actually holding (primary first, then secondary, then heavy) instead of filing every kill under "unarmed." Kills recorded before this fix stay as they were — history isn't rewritten.
 
 ## 2026-11-04 — One bench, and builds that staff your contracts
 
