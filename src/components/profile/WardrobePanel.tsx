@@ -48,7 +48,13 @@ const SLOT_LABELS: Record<CosmeticSlot, string> = {
   back: 'Back',
 };
 
-function recipeCostLine(recipeId: string, recipeScrapCosts?: Record<string, number>): string {
+/** Craft duration in the Workshop's own grammar (mirrors MaterialUsageSheet). */
+export function formatCraftTime(ms: number): string {
+  if (ms >= 60000) return `${Math.round(ms / 60000)}m`;
+  return `${Math.round(ms / 1000)}s`;
+}
+
+export function recipeCostLine(recipeId: string, recipeScrapCosts?: Record<string, number>): string {
   const recipe = getCraftRecipe(recipeId);
   if (!recipe) return 'Craft in the Workshop';
   // Econ 7: the Scrap leg prints at its resolved lever value when
@@ -56,7 +62,13 @@ function recipeCostLine(recipeId: string, recipeScrapCosts?: Record<string, numb
   const inputs = Object.entries(resolvedRecipeInputs(recipe, recipeScrapCosts))
     .map(([key, qty]) => `${qty.toLocaleString('en-US')} ${key === 'Scrap' ? 'Scrap' : key}`)
     .join(' + ');
-  return `${inputs} · ${recipe.durationMinutes} min · Bench ${recipe.requiredBenchLevel}`;
+  // Gear-truth: the pre-fix line read `durationMinutes` /
+  // `requiredBenchLevel` — fields that do not exist on CraftRecipe —
+  // so every row printed "undefined min · Bench undefined". The real
+  // duration is unitDurationMs. The bench segment is gone entirely:
+  // since the Econ 9 collapse there is ONE bench and every recipe
+  // runs on it, so a bench number carries no information.
+  return `${inputs} · ${formatCraftTime(recipe.unitDurationMs)}`;
 }
 
 export const WardrobePanel: React.FC = () => {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence } from 'framer-motion';
 import {
@@ -7,6 +7,7 @@ import {
 import {
   useActivityStore,
   useBossStore,
+  useCombatStatsStore,
   useIdleStore,
   useInventoryStore,
   useLoadoutStore,
@@ -457,7 +458,39 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   // Live-action sync: foreground heartbeat on the 3s game tick
   // (owner cadence, 2026-11-02) — see useActionHeartbeat for the
   // cadence constant and its in-flight / visibility / backoff guards.
-  const heartbeat = useCallback(() => activity.heartbeat(), [activity]);
+  //
+  // Active play time rides the same pulse (gear-truth slice):
+  // combat stats' addPlaytime had NO caller anywhere, so
+  // active_play_seconds stayed 0 and Profile's Active Time read
+  // "0s" after any amount of play. Each beat credits the real
+  // elapsed time since the previous beat — capped at two cadences
+  // (6s) so a backgrounded stretch, which the hook's visibility
+  // guard already skips, can never be credited — and the combat
+  // stats row is persisted on a slow throttle so the accrual
+  // reaches the server record the Profile stats summary reads.
+  const lastBeatAtRef = useRef<number | null>(null);
+  const lastPlaytimeSaveAtRef = useRef(0);
+  const heartbeat = useCallback(() => {
+    const now = Date.now();
+    const last = lastBeatAtRef.current;
+    lastBeatAtRef.current = now;
+    if (last != null) {
+      const elapsedSeconds = Math.min((now - last) / 1000, 6);
+      if (elapsedSeconds > 0) {
+        useCombatStatsStore.getState().addPlaytime(elapsedSeconds, 'active');
+        if (now - lastPlaytimeSaveAtRef.current > 30_000) {
+          lastPlaytimeSaveAtRef.current = now;
+          const playerId = usePlayerStore.getState().id;
+          if (playerId) {
+            void import('@/store/combatStatsSupabaseSync')
+              .then(({ saveCombatStats }) => saveCombatStats(playerId))
+              .catch(() => undefined);
+          }
+        }
+      }
+    }
+    return activity.heartbeat();
+  }, [activity]);
   useActionHeartbeat(canTick, heartbeat);
 
   const feedEntries: ActionFeedEntry[] = visualFeed.map((event) => ({
