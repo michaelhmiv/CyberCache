@@ -62,9 +62,9 @@ export interface BossSimulationInput {
    * Per-type quality of the prepared consumables (crafting §2.4): the
    * quantity-weighted average quality of the units the applier will
    * burn, supplied by the verify-boss route from server batch rows.
-   * Survival pools and the DPS chain read effects at this quality;
-   * absent (client prep display, pre-slice callers) = flat 100, the
-   * shipped sim exactly.
+   * Survival pools, break multipliers, rule totals, and the DPS chain
+   * read effects at this quality; absent (client prep display,
+   * pre-slice callers) = flat 100, every def's base value.
    */
   consumableQuality?: Record<string, number>;
   /**
@@ -94,6 +94,14 @@ export interface BossSimulationOutput extends BossPrepAnalysis {
   bonusLootChance: number;
   extraLootRollChance: number;
   /**
+   * Highest Boss Scanner intel tier unlocked by the prepared
+   * scanner batch's quality (0 = no scanner prepared). Gates the
+   * tier-2/4/5 scanner readout lines in recommendations. Tier 3's
+   * card promise (a win-chance delta) is deliberately NOT surfaced:
+   * boss prep shows intel, never a win-chance readout.
+   */
+  scannerIntelTier: number;
+  /**
    * Effective player DPS in damage/second. Already includes per-weapon
    * chain math, player-level skill bonuses, risk modifier, and the
    * penalty for dps=0. The HUD uses this to label the TTK card
@@ -115,6 +123,13 @@ interface RuleTotals {
   bonusLootChance: number;
   extraLootRollChance: number;
   recommendationIntel: number;
+  /**
+   * Highest Boss Scanner intel tier unlocked at the prepared batch's
+   * quality (def high-quality perks: tier 2 at Q115, 3 at Q130, 4 at
+   * Q145, 5 at Q160). An ordinal unlock, not an additive quantity —
+   * see scannerTierAtQuality.
+   */
+  scannerIntelTier: number;
 }
 
 type BossSimWeapon = Weapon & {
@@ -359,16 +374,62 @@ function selectedConsumableDefs(consumables: Record<string, number>): Consumable
   });
 }
 
-function getRuleTotals(defs: ConsumableDef[]): RuleTotals {
-  return defs.reduce<RuleTotals>(
-    (totals, def) => ({
-      deathFeeReduction: Math.min(0.95, totals.deathFeeReduction + (def.effectRules.deathFeeReduction || 0)),
-      bonusLootChance: Math.min(1, totals.bonusLootChance + (def.effectRules.bonusLootChance || 0)),
-      extraLootRollChance: Math.min(1, totals.extraLootRollChance + (def.effectRules.extraLootRollChance || 0)),
-      recommendationIntel: totals.recommendationIntel + (def.effectRules.recommendationIntel || 0),
-    }),
-    { deathFeeReduction: 0, bonusLootChance: 0, extraLootRollChance: 0, recommendationIntel: 0 }
-  );
+/**
+ * The Boss Scanner tier unlocked at a batch quality. The def carries
+ * the tier as high-quality perk values (tier 2 at Q115, 3 at Q130,
+ * 4 at Q145, 5 at Q160) — an ordinal unlock ladder. The shared
+ * runtime merger SUMS perk fields, which is right for quantities
+ * but would fabricate tiers (1+2+3+4+5) here, so the tier is read
+ * as the highest unlocked perk value over the def's base tier,
+ * using the same perk table getConsumableRuntimeEffects consumes.
+ */
+function scannerTierAtQuality(type: string, quality: number): number {
+  const def = CONSUMABLES[type];
+  if (!def) return 0;
+  let tier = def.runtime.baseEffects.scannerIntelTier ?? 0;
+  if (tier <= 0) return 0;
+  const cappedQuality = Math.min(Math.max(quality, 1), def.quality.cap ?? 250);
+  for (const perk of def.runtime.highQualityPerks ?? []) {
+    if (cappedQuality >= perk.minQuality && perk.effects.scannerIntelTier !== undefined) {
+      tier = Math.max(tier, perk.effects.scannerIntelTier);
+    }
+  }
+  return tier;
+}
+
+/**
+ * Rule totals for a boss attempt (boss-sim honesty wiring): every
+ * total is read from the prepared consumables' runtime effects at
+ * the prepared batch's quality — NOT from base effectRules. Crafted
+ * quality therefore counts in a boss attempt exactly as the cards
+ * promise (Insurance fee reduction toward its 70% cap, Luck /
+ * Data Skimmer / Helix loot chances toward theirs), where the old
+ * base-value sums left quality ornamental. Per-unit summation and
+ * the total caps are unchanged from the shipped model; at quality
+ * 100 every total is bit-identical to the old base-value read.
+ */
+function getRuleTotals(consumables: Record<string, number>, consumableQuality?: Record<string, number>): RuleTotals {
+  const totals: RuleTotals = {
+    deathFeeReduction: 0,
+    bonusLootChance: 0,
+    extraLootRollChance: 0,
+    recommendationIntel: 0,
+    scannerIntelTier: 0,
+  };
+  for (const [type, count] of Object.entries(consumables)) {
+    if (count <= 0) continue;
+    if (!CONSUMABLES[type]) continue;
+    const quality = consumableQuality?.[type] ?? 100;
+    const effects = getConsumableRuntimeEffects(type, quality);
+    totals.deathFeeReduction = Math.min(0.95, totals.deathFeeReduction + (effects.deathFeeReduction ?? 0) * count);
+    totals.bonusLootChance = Math.min(1, totals.bonusLootChance + (effects.bonusLootChance ?? 0) * count);
+    totals.extraLootRollChance = Math.min(1, totals.extraLootRollChance + (effects.extraLootRollChance ?? 0) * count);
+    totals.recommendationIntel += (effects.recommendationIntel ?? 0) * count;
+    if ((effects.scannerIntelTier ?? 0) > 0) {
+      totals.scannerIntelTier = Math.max(totals.scannerIntelTier, scannerTierAtQuality(type, quality));
+    }
+  }
+  return totals;
 }
 
 /**
@@ -476,7 +537,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   const rm = getBossRiskModifiers(risk);
   const selectedDefs = selectedConsumableDefs(consumables);
-  const rules = getRuleTotals(selectedDefs);
+  const rules = getRuleTotals(consumables, input.consumableQuality);
 
   // Legendary effect modifiers (damage/survival/break/credit multipliers).
   // SIM PROXY note: several effects are approximated here as flat
@@ -523,31 +584,35 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const playerShieldHP = shield?.hp || 0;
 
   const medkits = consumables['MedKit'] || 0;
+  const medkitRefined = consumables['MedKitRefined'] || 0;
   const shieldCells = consumables['ShieldCell'] || 0;
   const nanoSwarms = consumables['NanoSwarm'] || 0;
   const adrenaline = consumables['AdrenalineShot'] || 0;
 
-  // Quality wiring (crafting §2.4): the pooled survival values below
-  // are the sim's own baselines (150 / 100 / 250 per unit — the Shield
-  // Cell's 100 is the sim's long-standing pool value, NOT the def's
-  // 120 roaming restore; both are preserved). Each pool scales by the
-  // ratio of the def's runtime effect at the prepared units' quality
-  // to the def's base effect, so quality 100 leaves every pool
-  // bit-identical and a 150% batch pays exactly 1.5× its pool share.
-  const qualityScale = (type: string, field: 'healHp' | 'shieldRestore' | 'repairTotalHp'): number => {
+  // Survival pool (crafting §2.4 quality wiring + boss-sim honesty
+  // wiring): each pooled value is read from the consumable's
+  // DEFINITION at the prepared units' quality — Med Kit 150,
+  // Shield Cell 120, Nano Swarm 300 per unit at quality 100. The sim
+  // used to carry its own baselines (Shield Cell 100, Nano Swarm
+  // 250) under a quality-ratio scaler; the defs win now, so both pay
+  // their card values. Med Kit (Refined) joins the pool at its def
+  // value (260): it used to be absent entirely — burned on a loss
+  // while contributing zero. Quality keeps its exact meaning: the
+  // runtime effect at the batch quality IS the def value scaled, so
+  // a 150% batch pays exactly 1.5× its pool share, and client prep
+  // (no quality supplied) reads the def base values.
+  const poolValue = (type: string, field: 'healHp' | 'shieldRestore' | 'repairTotalHp'): number => {
     const quality = input.consumableQuality?.[type];
-    if (quality === undefined) return 1;
-    const base = CONSUMABLES[type]?.runtime.baseEffects[field];
-    if (!base) return 1;
-    const scaled = getConsumableRuntimeEffects(type, quality)[field];
-    return scaled !== undefined ? scaled / base : 1;
+    if (quality === undefined) return CONSUMABLES[type]?.runtime.baseEffects[field] ?? 0;
+    return getConsumableRuntimeEffects(type, quality)[field] ?? 0;
   };
 
-  const medkitHealing = medkits * 150 * qualityScale('MedKit', 'healHp');
-  const shieldCellBoost = shieldCells * 100 * qualityScale('ShieldCell', 'shieldRestore');
-  const nanoSwarmRepair = nanoSwarms * 250 * qualityScale('NanoSwarm', 'repairTotalHp');
+  const medkitHealing = medkits * poolValue('MedKit', 'healHp');
+  const medkitRefinedHealing = medkitRefined * poolValue('MedKitRefined', 'healHp');
+  const shieldCellBoost = shieldCells * poolValue('ShieldCell', 'shieldRestore');
+  const nanoSwarmRepair = nanoSwarms * poolValue('NanoSwarm', 'repairTotalHp');
 
-  let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
+  let totalSurvival = (playerHP + playerShieldHP + medkitHealing + medkitRefinedHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
 
   // Shield mitigation: % damage reduction effectively multiplies the survival pool.
   // Capped at 80% mitigation (i.e., max 5× effective HP multiplier).
@@ -723,7 +788,6 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   let shieldBreak = 0;
   let armorBreak = 0;
   let grenades = consumables['OrdnanceCharge'] || 0;
-  const phaseShift = consumables['PhaseShiftGrenade'] || 0;
 
   // MagnetizedPayload: +2 free ordnance uses
   if (consumables['MagnetizedPayload'] > 0) {
@@ -792,32 +856,24 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   shieldBreak += ordnanceShieldBreak;
   armorBreak += ordnanceArmorBreak;
 
-  // Elemental ammo modifiers
-  if (consumables['ShockAmmo'] > 0) {
-    shieldBreak *= 1.3;
-  }
-  if (consumables['CorrosiveAmmo'] > 0) {
-    armorBreak *= 1.25;
-  }
-  if (consumables['ArmorPiercingAmmo'] > 0) {
-    armorBreak *= 1.25;
-  }
-  if (consumables['ElementalCoating'] > 0) {
-    // The coating's break multipliers live on its def — read them at
-    // the prepared batch's quality like every other quality-priced
-    // effect (quality 100 returns the def's flat 1.08 / 1.08). Until
-    // the crafting disposition (2026-11-04) these multipliers were
-    // display-only: the sim never read them, so a prepared coating
-    // burned for nothing.
-    const coating = getConsumableRuntimeEffects(
-      'ElementalCoating',
-      input.consumableQuality?.['ElementalCoating'] ?? 100,
-    );
-    shieldBreak *= coating.shieldBreakMultiplier ?? 1;
-    armorBreak *= coating.armorBreakMultiplier ?? 1;
-  }
-  if (phaseShift > 0) {
-    armorBreak *= 1.5; // Phase Shift ignores armor for 5s
+  // Consumable break multipliers (boss-sim honesty wiring): every
+  // prepared consumable's shield/armor break multiplier is read from
+  // its DEFINITION at the prepared batch's quality, once per prepared
+  // type. This generic reader replaces the old hardcoded four-item
+  // table (Shock ×1.3 shield / Corrosive ×1.25 armor / AP ×1.25 armor
+  // / Phase Shift ×1.5 armor). Deliberate consequences, all def-led:
+  // Corrosive Ammo pays its card value ×1.30 (the table flattened it
+  // to AP's ×1.25); crafted quality now scales every break effect
+  // through getConsumableRuntimeEffects (the table ignored quality);
+  // and the coatings/charges that were inert in the sim switch ON —
+  // Prism Coating ×1.12/×1.12, EMP Charge ×1.35 shield, Corrosive
+  // Charge ×1.35 armor, Ordnance Charge ×1.15/×1.15 (on top of its
+  // gear-scaled use count above), Forgeheart Charge ×1.15 armor.
+  for (const [type, count] of Object.entries(consumables)) {
+    if (count <= 0) continue;
+    const effects = getConsumableRuntimeEffects(type, input.consumableQuality?.[type] ?? 100);
+    if (effects.shieldBreakMultiplier) shieldBreak *= effects.shieldBreakMultiplier;
+    if (effects.armorBreakMultiplier) armorBreak *= effects.armorBreakMultiplier;
   }
 
   shieldBreak *= (1 + (skillBonuses.shieldBreak || 0));
@@ -1127,6 +1183,37 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const baseChance = Math.min(effectiveSurvivalScore, 1) * Math.min(breakScore, 1) * Math.min(dpsScore, 1.5) * mechanicScore + pityBonus;
   const winChance = Math.max(0.02, Math.min(0.98, baseChance));
 
+  // Boss Scanner quality tiers (boss-sim honesty wiring): the tier
+  // unlocked by the prepared scanner batch's quality gates real
+  // readout lines, read off the phase analysis the sim already
+  // builds — tier 2 names the consumable channels answering the
+  // projected failure phase, tier 4 projects the consumable burn,
+  // tier 5 calls the phase warning explicitly. Tier 3's card text
+  // (a win-chance delta) is deliberately not surfaced: boss prep
+  // shows intel, never a win-chance readout. (Tier 1 — the weakest
+  // projected check — is the readout unshifted above.)
+  if (rules.scannerIntelTier >= 2 && projectedFailurePhase) {
+    if (projectedFailurePhase.relevantConsumables.length > 0) {
+      recommendations.push(
+        `Boss Scanner readout (tier ${rules.scannerIntelTier}): channels answering the ${projectedFailurePhase.phaseName} check — ${projectedFailurePhase.relevantConsumables.slice(0, 3).join(', ')}.`
+      );
+    }
+    if (rules.scannerIntelTier >= 4) {
+      const burn = getBossConsumableUsage(consumables, winChance >= 0.5, effectiveSurvivalScore);
+      const burnLines = Object.entries(burn)
+        .filter(([, count]) => count > 0)
+        .map(([type, count]) => `${CONSUMABLES[type]?.name ?? type} x${count}`);
+      if (burnLines.length > 0) {
+        recommendations.push(`Boss Scanner readout (tier 4): projected consumable burn — ${burnLines.join(', ')}.`);
+      }
+    }
+    if (rules.scannerIntelTier >= 5 && (projectedFailurePhase.status === 'failing' || projectedFailurePhase.status === 'risky')) {
+      recommendations.push(
+        `Boss Scanner readout (tier 5): phase warning — ${projectedFailurePhase.phaseName} is the projected failure point. ${projectedFailurePhase.explanation}`
+      );
+    }
+  }
+
   // In actual combat (called from executeBossAttempt), chaos roll is applied there
 
   // Death fee (computed here for preview display)
@@ -1155,6 +1242,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     deathFee,
     bonusLootChance: rules.bonusLootChance,
     extraLootRollChance: rules.extraLootRollChance,
+    scannerIntelTier: rules.scannerIntelTier,
     effectiveDPS: dps,
     timeToKill,
     actionSkill: saturation ? { tree: saturation.tree } : undefined,
@@ -1166,8 +1254,7 @@ export function executeBossAttempt(
   playerCredits: number
 ): { result: BossAttemptResult; creditsDelta: number; loot: Weapon[]; consumedConsumables: Record<string, number>; extraLoot: boolean; bonusLootRolls: number } {
   const sim = simulateBoss(input);
-  const selectedDefs = selectedConsumableDefs(input.consumables);
-  const rules = getRuleTotals(selectedDefs);
+  const rules = getRuleTotals(input.consumables, input.consumableQuality);
   const legendary = applyLegendaryEffects(input.primary, input.pityCount || 0);
   // Apply chaos/RNG in actual combat (not in preview)
   const chaosRoll = (Math.random() - 0.5) * 0.1 + (input.risk === 'Conservative' ? -0.02 : input.risk === 'Greedy' ? 0.02 : input.risk === 'AllIn' ? 0.04 : 0);
