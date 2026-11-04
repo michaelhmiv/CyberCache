@@ -13,6 +13,8 @@ import { getVisualAsset } from '@/constants/visualAssets';
 import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
 import {
   ALL_CRAFT_RECIPES,
+  BENCH_TIME_BANK_CAP_SECONDS,
+  BENCH_TIME_GRANT_SECONDS,
   CRAFT_RELICS,
   CRAFT_XP_RATE_DEFAULT,
   QUEUED_JOBS_PER_BENCH,
@@ -60,6 +62,7 @@ import { GateLines, RecipeInspectSheet, SourceLine } from '@/components/workshop
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
 import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
+import { canUseRewardedBenchTimeAds, showRewardedBenchTimeAd } from '@/lib/ads/rewardedBenchTimeAd';
 
 /**
  * The Workshop — crafting's one home, rebuilt on the server job model
@@ -113,6 +116,15 @@ function formatDuration(ms: number): string {
   if (hours > 0) return `${hours}h ${mins}m`;
   if (mins > 0) return `${mins}m ${secs.toString().padStart(2, '0')}s`;
   return `${secs}s`;
+}
+
+/** Banked bench time in the game's compact hand: 7 h 25 m · 25 m · 0 m. */
+function formatBankTime(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  if (hours > 0) return `${hours} h ${mins} m`;
+  return `${mins} m`;
 }
 
 /** Compact per-unit / totals durations in the mock's hand: 12m, 1h30, 4h. */
@@ -362,6 +374,9 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
       // Econ 7: readiness + card costs resolve through the server's
       // per-recipe Scrap map (§4.4 of the economy brief).
       recipeScrapCosts: server?.recipeScrapCosts,
+      // Econ 10: the queue gate reads the server's live envelope
+      // capacity (bench time widens it), not the baseline constant.
+      benchCapacity: server?.benchTime?.capacity,
     }),
     [player.level, player.scrap, player.materials, player.essences, player.consumables, benchesOwned, masteries, standingRanks, researchCompletedIds, activeJobs, server],
   );
@@ -438,6 +453,37 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const activeCategories = useMemo(() => activeFacets.category ?? new Set<string>(), [activeFacets.category]);
   const stageBench = benchDef(1);
   const runningJob = activeJobs.find((j) => j.state === 'running');
+  const runningBenchJobs = activeJobs.filter((j) => j.state === 'running' && j.bench === 1);
+  const benchJobCount = activeJobs.filter((j) => j.bench === 1).length;
+
+  // Bench time (slice 10, brief §8): the bank and the envelope from
+  // the server view; the content constants stand in until the first
+  // read lands (baseline shape — the op stays the authority).
+  const benchTime = server?.benchTime;
+  const bankedSeconds = benchTime?.bankedSeconds ?? 0;
+  const bankCapSeconds = benchTime?.capSeconds ?? BENCH_TIME_BANK_CAP_SECONDS;
+  const bankGrantSeconds = benchTime?.grantSeconds ?? BENCH_TIME_GRANT_SECONDS;
+  const bankFull = bankedSeconds >= bankCapSeconds;
+  const benchAdsReady = canUseRewardedBenchTimeAds();
+  const grantLabel = bankGrantSeconds % 3600 === 0 ? `${bankGrantSeconds / 3600} h` : formatBankTime(bankGrantSeconds);
+  const [benchEarnPending, setBenchEarnPending] = useState(false);
+  const [benchEarnError, setBenchEarnError] = useState<string | null>(null);
+  const handleEarnBenchTime = useCallback(async () => {
+    if (benchEarnPending) return;
+    setBenchEarnError(null);
+    setBenchEarnPending(true);
+    try {
+      const reward = await showRewardedBenchTimeAd(player.id);
+      await workshop.bankBenchTime(reward.adUnitId);
+    } catch {
+      // The ad did not complete — dismissed, no fill, or ads not
+      // serving right now: nothing was banked, and the panel says
+      // so plainly rather than pretending an hour landed.
+      setBenchEarnError('The ad did not complete, so no bench time was banked. Ads may be unavailable right now — try again later.');
+    } finally {
+      setBenchEarnPending(false);
+    }
+  }, [benchEarnPending, player.id, workshop]);
 
   const openBenches = useCallback(() => {
     benchesRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -580,13 +626,76 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           </div>
           <div className="mt-0.5 text-[11px] leading-snug text-text-muted">
             {activeJobs.length > 0
-              ? `Working · ${runningJob?.name ?? activeJobs[0]?.name ?? 'job running'}`
+              ? runningBenchJobs.length > 1
+                ? `Working · ${runningBenchJobs.length} jobs running on the bench`
+                : `Working · ${runningJob?.name ?? activeJobs[0]?.name ?? 'job running'}`
               : 'Idle · ready'}
           </div>
         </div>
+
+        {/* Bench time (slice 10, brief §8): the bank, the drain
+            state, and the one earn door — a rewarded ad watched in
+            the app (§8.7). Every refusal here prints its remedy. */}
+        <div className="border border-border bg-surface px-2 py-1.5" data-testid="bench-time-panel">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-black text-text-primary">
+              <PxIcon name="clock" size={17} className={benchTime?.wideActive ? 'text-amber' : 'text-text-muted'} />
+              Bench time
+              <span>{formatBankTime(bankedSeconds)}</span>
+              <span className="font-bold text-text-muted">/ {formatBankTime(bankCapSeconds)}</span>
+              {benchTime?.wideActive && runningBenchJobs.length >= 2 && (
+                <span className="inline-flex items-center gap-1 font-bold text-cyan">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan" />
+                  Draining
+                </span>
+              )}
+            </span>
+            {bankFull ? (
+              <button
+                type="button"
+                disabled
+                className="shrink-0 border border-border bg-surface px-2.5 py-2 text-[11px] font-black text-text-muted disabled:opacity-60"
+                style={chipClip}
+              >
+                Bank full
+              </button>
+            ) : (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() => void handleEarnBenchTime()}
+                disabled={benchEarnPending || !benchAdsReady}
+                className="shrink-0 border border-amber/50 bg-amber/10 px-2.5 py-2 text-[11px] font-black text-amber transition-colors active:bg-amber/20 disabled:opacity-50"
+                style={chipClip}
+              >
+                {benchEarnPending ? 'Showing ad…' : `Watch ad · +${grantLabel}`}
+              </motion.button>
+            )}
+          </div>
+          <div className="mt-0.5 text-[11px] leading-snug text-text-muted">
+            {benchTime?.wideActive
+              ? runningBenchJobs.length >= 2
+                ? 'The extra lanes are working — banked time drains while 2 or more jobs run. One job alone never drains it.'
+                : 'The wide bench holds while time remains. It drains only while 2 or more jobs run — one job is baseline and free.'
+              : 'Bank an hour and the bench runs 3 jobs at once, 15 queued, until the bank runs dry. Running dry never stops a job mid-craft.'}
+          </div>
+          {bankFull && (
+            <div className="mt-0.5 text-[11px] leading-snug text-text-secondary">
+              Bench time bank full — {formatBankTime(bankCapSeconds)}. It drains while the extra lanes work; bank more once it drops.
+            </div>
+          )}
+          {!bankFull && !benchAdsReady && (
+            <div className="mt-0.5 text-[11px] leading-snug text-text-secondary">
+              Bench time is earned by watching ads in the app.
+            </div>
+          )}
+          {benchEarnError && <div className="mt-0.5 text-[11px] leading-snug text-red">{benchEarnError}</div>}
+        </div>
+
         <div className="text-[11px] text-text-muted">
-          One job runs at a time; 5 more may queue (a Fixer keystone queues more). Quality comes from
-          mastery, catalysts — and the relic you wear.
+          {benchTime?.wideActive
+            ? `${benchTime.runningLimit} jobs run at a time while bench time lasts; ${benchTime.queueLimit} more may queue. Quality comes from mastery, catalysts — and the relic you wear.`
+            : 'One job runs at a time; 5 more may queue (a Fixer keystone queues more). Quality comes from mastery, catalysts — and the relic you wear.'}
         </div>
       </div>
 
@@ -751,7 +860,15 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
 
       {activeJobs.length > 0 && (
         <div className="space-y-2">
-          <div className="text-xs font-bold text-text-muted uppercase">Bench Jobs</div>
+          <div className="text-xs font-bold text-text-muted uppercase">
+            Bench Jobs
+            {benchTime ? (
+              <span className="ml-1.5 font-bold normal-case text-text-muted">
+                {benchJobCount} of {benchTime.capacity} bench spaces
+                {benchTime.wideActive ? ' · widened by bench time' : ''}
+              </span>
+            ) : null}
+          </div>
           {activeJobs.map((job) => (
             <JobCard
               key={job.id}
@@ -896,8 +1013,18 @@ const JobCard: React.FC<{
           {job.gearRarity ? ` · ${job.gearRarity}` : ''}
           {job.catalystMaterialId ? ` · catalyst ${getVisualAsset('material', job.catalystMaterialId).label}` : ''}
         </span>
-        <span className={`text-[11px] font-bold ${job.state === 'running' ? 'text-green' : job.state === 'paused' ? 'text-red' : 'text-amber'}`}>
-          {stateLabel}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {job.extraLane && (
+            <span
+              className="inline-flex items-center gap-1 border border-cyan/40 bg-cyan/10 px-1.5 py-0.5 text-[11px] font-bold text-cyan"
+              style={chipClip}
+            >
+              <PxIcon name="clock" size={13} /> Bench time
+            </span>
+          )}
+          <span className={`text-[11px] font-bold ${job.state === 'running' ? 'text-green' : job.state === 'paused' ? 'text-red' : 'text-amber'}`}>
+            {stateLabel}
+          </span>
         </span>
       </div>
       <div className="text-[11px] text-text-secondary">
@@ -943,7 +1070,9 @@ const BenchCard: React.FC = () => (
     <div className="text-[11px] leading-relaxed text-text-secondary">
       One bench, always ready — no tiers to buy, nothing to unlock. It runs{' '}
       {RUNNING_JOBS_ON_BENCH} job at a time with {QUEUED_JOBS_PER_BENCH} queued behind it (a Fixer
-      keystone queues more). The old Forge and Lab tiers are gone: quality now comes from mastery,
+      keystone queues more). Banked bench time — earned by watching ads at the bench strip above —
+      widens it to 3 running and 15 queued while the bank lasts, and drains only while the extra
+      lanes work. The old Forge and Lab tiers are gone: quality now comes from mastery,
       catalysts — and the relic you wear.
     </div>
     <div className="space-y-1.5">
