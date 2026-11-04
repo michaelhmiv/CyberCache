@@ -10,7 +10,8 @@
  *    workspace, before the deck);
  *  - the stage carries NO ribbon and prints NO mode word
  *    (Home consolidation, 2026-11-03): the hero rundown at the
- *    stage's foot carries DPS · Dmg/tick · Crit · HP, once each;
+ *    stage's foot carries two rows — DPS · Dmg/tick · Crit % ·
+ *    Crit × over HP · Shield · Mit · Shield Break — once each;
  *  - the Next Move card is REMOVED (owner device review,
  *    2026-11-03): the weekly claimables below pin that it never
  *    renders, even under a live wait — the chip and its sheet

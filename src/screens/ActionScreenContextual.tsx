@@ -719,10 +719,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
       {/* 1. Stage + hero rundown — the rundown attaches to the
           stage's foot (Home consolidation): the ribbon's mode
-          word and its ~15-stat scroller are replaced by four
-          tappable heroes (DPS · Dmg/tick · Crit · HP), each
-          opening its source breakdown. The wrapper keeps the two
-          flush — no composition gap between art and rundown. */}
+          word and its ~15-stat scroller are replaced by two
+          rows of tappable heroes (DPS · Dmg/tick · Crit % ·
+          Crit × over HP · Shield · Mit · Shield Break), each
+          opening its source breakdown. The wrapper keeps the
+          two flush — no composition gap between art and
+          rundown. */}
       <div className="relative">
         <LiveTurfDiorama
           area={selectedArea}

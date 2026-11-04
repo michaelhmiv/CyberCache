@@ -2,15 +2,17 @@
  * Home consolidation (owner steers 2026-11-03) — the pins for the
  * consolidated Home:
  *
- *  - ONE hero rundown at the stage's foot: DPS · Dmg/tick · Crit ·
- *    HP, each exactly once; the "ROAMING" mode word prints
- *    nowhere; tapping a hero opens the breakdown sheet FOCUSED
- *    on that stat.
+ *  - ONE hero rundown at the stage's foot, two rows of four:
+ *    DPS · Dmg/tick · Crit % · Crit × over HP · Shield · Mit ·
+ *    Shield Break, each exactly once; the "ROAMING" mode word
+ *    prints nowhere; tapping a hero opens the breakdown sheet
+ *    FOCUSED on that stat.
  *  - The Loadout block is off Home (source pin) — Gear → Loadout
  *    is the canonical surface.
- *  - The Next Move card is ABSENT when nothing waits, shows the
- *    highest-priority wait when several exist, and its craft
- *    form navigates to the Workshop and clears.
+ *  - The Next Move card is REMOVED (owner device review): it
+ *    never renders, even under live waits — each wait keeps
+ *    its own door (Workshop, Return Sheet, top-bar sheets,
+ *    the Chest, Hunter → Research).
  *  - The vehicle chip rides the belt row: quiet fuel readout
  *    while fueled; a remedy door when out of fuel — Garage with
  *    a cell carried, Vendor without.
@@ -210,15 +212,19 @@ beforeEach(() => {
 const readSource = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
 
 describe('hero rundown — one printing of each hero stat', () => {
-  it('renders the four heroes exactly once, HP as current/max, and no ROAMING word anywhere', async () => {
+  it('renders the eight heroes exactly once across two rows, HP as current/max, and no ROAMING word anywhere', async () => {
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
     const rundown = await screen.findByTestId('hero-rundown');
     expect(screen.getAllByTestId('hero-stat-dps')).toHaveLength(1);
     expect(screen.getAllByTestId('hero-stat-dmgTick')).toHaveLength(1);
-    expect(screen.getAllByTestId('hero-stat-crit')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-critChance')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-critDamage')).toHaveLength(1);
     expect(screen.getAllByTestId('hero-stat-hp')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-shield')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-mitigation')).toHaveLength(1);
+    expect(screen.getAllByTestId('hero-stat-shieldBreak')).toHaveLength(1);
     expect(within(rundown).getByTestId('hero-stat-hp').textContent).toMatch(/\d[\d,]*\/\d[\d,]*/);
-    expect(within(rundown).getByTestId('hero-stat-crit').textContent).toContain('%');
+    expect(within(rundown).getByTestId('hero-stat-critChance').textContent).toContain('%');
     // The mode word is dead on the whole screen.
     expect(document.body.textContent).not.toContain('ROAMING');
     // The retired duplicates stay retired.
