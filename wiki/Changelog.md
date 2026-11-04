@@ -95,9 +95,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 84 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 95 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-03** — 32 merges
+**2026-11-03** — 43 merges
 
 - #310 — feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)
 - #315 — Foreground resume: land instantly back in the live action
@@ -131,6 +131,17 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #343 — Gate-removal step 5: dispatch courier tiers read the class tier index (G7, migration 0062)
 - #344 — Wiki W7 — UI plates + Getting-Started depth pass (wrap-up complete)
 - #345 — Quick-Buy QB-2: + sheet on Repair Board, Shield-Tech Board, and Garage
+- #346 — Gear marriage slice 5 — retire the SVG island (final gear slice)
+- #347 — Gate-removal step 6: offline cap re-carried to Research (+ extraction rider)
+- #348 — Quick-Buy QB-3: dispatch fuel line + boss/endless belt mounts
+- #349 — Economy slice 1 — Silver Tongue fee floor (uplift clamped to the fee)
+- #350 — Economy slice 2 — delete dead cache scaffolding (cc_draw_item + second/third-drop tables, migration 0065)
+- #351 — Economy Slice 4 — production law-fixes (§9): catalyst wired, tools permanent, furnace lever live, batch comment truth
+- #352 — Relic SALVAGE adoption — broken-tone forms, wear budget, rubble footprints (relic-salvage-v2)
+- #353 — Economy slice 3: salvage previews quote the live award
+- #354 — STUFF: the materials pixel system — formed objects for all 26 goods, ResourceIcon deleted (C-2)
+- #355 — Fodder HP plate lift — in-stage, level with the hunter plate (owner device ruling 2026-11-03)
+- #356 — Econ slice 4 follow-up: re-pin 0067 settler parity + dropped-signature guard (test-only)
 
 **2026-11-02** — 44 merges
 

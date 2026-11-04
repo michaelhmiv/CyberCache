@@ -18,7 +18,7 @@ Every roaming area, pictured in its own backdrop painting — the art the Action
 Open scrapland routes where new runners learn the roaming loop.
 
 - **Danger:** Low · **Enemies:** Raiders, scrap drones, and scavengers
-- **Signature materials:** Scrap Alloy, Ballistic Parts · **Signature loot:** Balanced gear, early salvage, cache fragments
+- **Signature materials:** Scrap, Ballistic Parts · **Signature loot:** Balanced gear, early salvage, cache fragments
 - **Influence:** Mixed · **Named elite:** Silt Marshal
 - Need general early loot? Stay in Dustwaste Frontier.
 
@@ -29,7 +29,7 @@ Open scrapland routes where new runners learn the roaming loop.
 Burned highway loops owned by speed crews and pursuit drones.
 
 - **Danger:** Medium · **Enemies:** Fast raiders, pursuit drones, and overheating runners
-- **Signature materials:** Scrap Alloy, Ballistic Parts · **Signature loot:** SMGs, pistols, attack speed, reload and ramp affixes
+- **Signature materials:** Scrap, Ballistic Parts · **Signature loot:** SMGs, pistols, attack speed, reload and ramp affixes
 - **Influence:** Redline · **Named elite:** Pursuit Prime
 - Need speed farming gear? Roam Redline Circuit.
 
@@ -51,7 +51,7 @@ Fortified ridge posts where precision crews hold long sightlines.
 Industrial breaker yards packed with refinery bots and live ordnance.
 
 - **Danger:** Medium/High · **Enemies:** Armored machines, refinery bots, and demolition crews
-- **Signature materials:** Scrap Alloy, Ballistic Parts, Reactive Components, Ignition Fluid · **Signature loot:** Launchers, shotguns, armor break, stagger and explosive flavor
+- **Signature materials:** Scrap, Ballistic Parts, Reactive Components, Ignition Fluid · **Signature loot:** Launchers, shotguns, armor break, stagger and explosive flavor
 - **Influence:** BlastForge · **Named elite:** Slag Herald
 - Need armor-breaking materials? Roam BlastForge Yards.
 
@@ -84,7 +84,7 @@ A hacked junk-grid of turret nests, signal traps, and cheap disposable tech.
 A shifting prototype complex where modular test rigs rebuild themselves.
 
 - **Danger:** High · **Enemies:** Prototype constructs, unstable test rigs, and shifting lab defenses
-- **Signature materials:** Tech, Void Dust, Scrap Alloy, Reactive Components, Void Essence · **Signature loot:** HelixWorks gear, higher roll quality flavor, modular parts
+- **Signature materials:** Tech, Void Dust, Scrap, Reactive Components, Void Essence · **Signature loot:** HelixWorks gear, higher roll quality flavor, modular parts
 - **Influence:** HelixWorks · **Named elite:** Specimen Zero
 - Need modular crafting depth? Roam HelixWorks Labyrinth.
 
