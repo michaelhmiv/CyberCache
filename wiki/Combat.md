@@ -19,6 +19,8 @@ Every damage-per-second number in the game — gear inspect, loadout screen, bos
 
 Because every step multiplies the previous result, small bonuses compound — and a bad matchup at step 5 taxes everything underneath it. "Standard target" DPS (the number on a gear card) is this chain against a target with no weakness, no resistance, and no consumables involved. Boss-relative DPS is the same chain with the boss's matchup and your boss affixes switched on, which is why a weapon can look ordinary on its card and be the right pick for a specific fight.
 
+**One figure on every surface.** The loadout-wide summary of this chain is the only DPS a screen prints: the Home rundown, the Gear header, and the boss surfaces all read it — standard context at home, boss context (labeled **Eff. DPS** / **Your DPS vs …**) against a boss. The area danger warnings run their duel math on the same equipped loadout, so the hunter the warnings price is the hunter the other screens describe.
+
 ## Elemental matchups
 
 There are six elements: Kinetic, Fire, Shock, Corrosive, Cryo, and Void. Against any given boss, your weapon's element lands in exactly one of three states:

@@ -23,6 +23,8 @@ The boss presents itself, literally: the prep header is a portrait plate of the 
 
 By design, prep **never shows a computed win chance, readiness score, or any odds figure about you**. That is a hard rule of the game, not a missing feature: the intel is the boss's facts, and judging whether your build is ready is your call. If a screen ever seems to be rating your chances, that is a bug — the game does not grade you.
 
+One figure about your own build does appear, and it is a stat, not a grade: each picker row carries a **Your DPS vs …** chip — your equipped loadout's DPS priced against that boss through the same chain prep uses — and the prep stage prints the identical number as **Eff. DPS**. If the two ever disagree, that is a bug too.
+
 What you bring is also yours to choose: your loadout, a prepared belt of consumables (burned by the attempt), a risk setting that trades survival margin against damage tempo and consumable use, and — if it is charged — your [[Combat|action skill]].
 
 If your belt commits more of a consumable than you currently hold, that belt row carries the quick-buy **+** — it opens the [[Crafting|quick-buy sheet]] priced for exactly the gap, so a prepared belt never silently shrinks to whatever is left on the shelf. The same holds for the [[Endless Mode|Endless Chamber]]'s belt.

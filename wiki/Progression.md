@@ -61,6 +61,8 @@ Your Profile opens with your identity and the **Trophy Shelf** in one panel: you
 
 Your Profile carries a **Lifetime Record** under the Trophy Shelf: the all-time, server-proven account of your hunter — roaming kills by area, weapon type, and element; boss attempts and victories; salvage and legendary cores; crafting, repair, dispatch, and market history. Every figure is folded from the game's own server records; nothing is estimated.
 
+The panel derives its small print honestly: **K/D** is your kills divided by your deaths, and a record with no deaths yet prints **—** rather than a ratio that does not exist; **Active Time** accrues while the game is in front of you, heartbeat by heartbeat. **Hunter** level/XP and **Mastery** XP/levels are separate progression systems and sit in their own labeled groups on the Profile — mastery is per-track profession XP and accrues independently of your hunter's level. A shelved Trophy Shelf weapon that currently sits in one of your loadout slots carries an **Equipped** mark.
+
 Directly under the Lifetime Record sits the **[[Activity Log]]** door: where the panel totals your history, the log lists it — every drop with its receipt and the odds it rolled, every trade, craft, boss fight, and while-away settlement, back to the account's first day.
 
 Three figures carry their history on their face:
