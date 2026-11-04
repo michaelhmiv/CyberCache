@@ -31,9 +31,9 @@ import {
   tintPaletteById,
   type CosmeticSlot,
 } from '@/content/skins';
-import { getCraftRecipe } from '@/content/crafting';
+
 import { useWorkshopStore } from '@/store/slices/workshopSlice';
-import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
+import { recipeCostLine } from '@/lib/workshop/recipeCosts';
 
 const SLOT_LABELS: Record<CosmeticSlot, string> = {
   head: 'Head',
@@ -48,28 +48,9 @@ const SLOT_LABELS: Record<CosmeticSlot, string> = {
   back: 'Back',
 };
 
-/** Craft duration in the Workshop's own grammar (mirrors MaterialUsageSheet). */
-export function formatCraftTime(ms: number): string {
-  if (ms >= 60000) return `${Math.round(ms / 60000)}m`;
-  return `${Math.round(ms / 1000)}s`;
-}
-
-export function recipeCostLine(recipeId: string, recipeScrapCosts?: Record<string, number>): string {
-  const recipe = getCraftRecipe(recipeId);
-  if (!recipe) return 'Craft in the Workshop';
-  // Econ 7: the Scrap leg prints at its resolved lever value when
-  // the Workshop snapshot has landed (see the mount effect below).
-  const inputs = Object.entries(resolvedRecipeInputs(recipe, recipeScrapCosts))
-    .map(([key, qty]) => `${qty.toLocaleString('en-US')} ${key === 'Scrap' ? 'Scrap' : key}`)
-    .join(' + ');
-  // Gear-truth: the pre-fix line read `durationMinutes` /
-  // `requiredBenchLevel` — fields that do not exist on CraftRecipe —
-  // so every row printed "undefined min · Bench undefined". The real
-  // duration is unitDurationMs. The bench segment is gone entirely:
-  // since the Econ 9 collapse there is ONE bench and every recipe
-  // runs on it, so a bench number carries no information.
-  return `${inputs} · ${formatCraftTime(recipe.unitDurationMs)}`;
-}
+// The craftable rows' cost line (inputs · real craft duration)
+// lives with the other recipe-cost display helpers in
+// @/lib/workshop/recipeCosts (recipeCostLine).
 
 export const WardrobePanel: React.FC = () => {
   const { account } = useAuth();

@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { formatKillDeathRatio, killDeathRatio } from '@/lib/stats/statsHelpers';
-import { formatCraftTime, recipeCostLine } from '@/components/profile/WardrobePanel';
+import { formatCraftTime, recipeCostLine } from '@/lib/workshop/recipeCosts';
 import { SKIN_PARTS } from '@/content/skins';
 
 describe('K/D derivation', () => {
