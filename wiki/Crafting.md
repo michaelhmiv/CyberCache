@@ -168,7 +168,11 @@ aligned:
   minimum, +15 to the maximum).
 
 Inputs are escrowed when a job is queued — they are spoken for until
-the job finishes or you cancel it.
+the job finishes or you cancel it. A recipe's Scrap price is tuned
+live, per recipe (see [[Economy]]): the card always shows the price
+that will actually be charged, and the price a queued job started
+at is the price it keeps — its card shows the escrow it is holding,
+not today's price.
 
 ## Quality is real
 
