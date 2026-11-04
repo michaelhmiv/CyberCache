@@ -306,6 +306,5 @@ describe('F3 — retired chrome stays retired (source pins)', () => {
     // redesign suites; F3 asserts here only that its own sources
     // never import or re-declare the loot timings.
     expect(market).not.toContain('movement');
-    expect(slots).not.toContain('movement');
   });
 });

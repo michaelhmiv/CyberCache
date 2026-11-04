@@ -119,7 +119,11 @@ describe('0074 — the drops name exactly the machine', () => {
 
   it('keeps the history: no ledger or metrics-column deletion', () => {
     expect(MIGRATION_0074).not.toMatch(/delete from public\.verified_action_ledger/);
-    expect(MIGRATION_0074).not.toMatch(/drop column if exists (slot_pulls|slot_credits|slot_bundles|slot_fragments|slot_keys|slot_fragment|credits_minted_slots|credits_destroyed_slots)/);
+    // The ONLY columns dropped anywhere in 0074 are the profiles
+    // counter pair — the economy_metrics slot columns (slot_pulls,
+    // slot_credits_wagered, …) are history and stay.
+    const droppedColumns = [...MIGRATION_0074.matchAll(/drop column if exists ([a-z_0-9]+)/g)].map((m) => m[1]);
+    expect(droppedColumns.sort()).toEqual(['slot_pulls_count', 'slot_pulls_day']);
     expect(MIGRATION_0074).not.toContain('drop table');
   });
 
@@ -150,15 +154,17 @@ describe('slots removal — the live tree has no machine left', () => {
     }
   }
 
-  it('no source file under src/ references the machine (deletion records excluded)', () => {
-    // Carve-out, the 0065 pattern: this test and the two suites
-    // that pin SHIPPED migration text name the machine because
-    // migration 0049's filename and body are history — they are
-    // the deletion's record, not live references.
-    const RECORDS = ['slotsRemoval.test.ts', 'economyCacheScaffolding.test.ts', 'marketSellableResources.test.ts'];
+  it('no production source file references the machine', () => {
+    // Scope: src/ outside src/test. Test-side mentions that
+    // remain are absence witnesses (marketV2 / stringHygiene pin
+    // the panel's absence) or deletion records (the two suites
+    // pinning SHIPPED migration text name 0049 by its filename —
+    // history, per the 0065 pattern). Slots-only suites were
+    // deleted or excised outright (slots.test.ts; the G3-tail
+    // describe in remedyMarketAfford.test.tsx).
     const offenders: string[] = [];
     for (const path of walk(join(process.cwd(), 'src'))) {
-      if (RECORDS.some((name) => path.endsWith(name))) continue;
+      if (path.includes(join('src', 'test'))) continue;
       if (DEAD.test(readFileSync(path, 'utf8'))) offenders.push(path);
     }
     expect(offenders).toEqual([]);

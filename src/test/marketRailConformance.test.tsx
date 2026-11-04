@@ -66,10 +66,6 @@ vi.mock('@/lib/api/cacheLaneService', () => ({
   fetchCacheLane: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
-vi.mock('@/lib/api/slotService', () => ({
-  fetchSlotState: vi.fn(async () => null),
-}));
-
 vi.mock('@/lib/ads/rewardedCacheAd', () => ({
   canUseRewardedCacheAds: () => false,
   showRewardedCacheAd: vi.fn(async () => { throw new Error('ads unavailable in tests'); }),

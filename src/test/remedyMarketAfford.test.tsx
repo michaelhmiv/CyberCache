@@ -1,13 +1,14 @@
 /**
- * Remedy program slice B — G3: market & slots silent disables.
+ * Remedy program slice B — G3: market silent disables.
  *
  * The audit (assumption-gaps-audit-2026-11-02.md, G3) found the
  * Market Buy button disabled at 40% opacity when a signed-in
  * player couldn't afford a listing — visually identical to the
  * guest sign-in lock's dim, and it made handleBuy's
  * 'Not enough credits.' toast unreachable (a disabled button
- * never fires). Slots tier buttons had the same silent-disable
- * shape. The fix is presentation only:
+ * never fires). (Slots tier buttons had the same silent-disable
+ * shape; that half of G3 was removed with Data Slots itself,
+ * migration 0074.) The fix is presentation only:
  *
  *  - can't-afford renders a TAPPABLE button that prints
  *    "Short by X cr" in its own treatment (no amber fill, no
@@ -15,9 +16,6 @@
  *    where credits come from;
  *  - the guest lock is byte-for-byte the old treatment
  *    (Buy Now + lock glyph, enabled, tap raises the prompt);
- *  - slots tiers print their reason under the button
- *    (closed machine / out of pulls / per-tier shortfall);
- *    guests keep the panel's verified-only line only.
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
@@ -46,7 +44,7 @@ const hoisted = vi.hoisted(() => ({
     'marketCreateEssence', 'marketCreateFragment', 'marketCreateMaterial',
     'postRepairJob', 'postShieldTechJob', 'reclaimRepairJob', 'reclaimShieldTechJob',
     'recycleItem', 'reforgeItem', 'refuelVehicle', 'registerPushDevice', 'resetProgress',
-    'retrain', 'slotPull', 'trainSkill', 'unequipSlot', 'unlockCraftBench', 'vendorBuy',
+    'retrain', 'trainSkill', 'unequipSlot', 'unlockCraftBench', 'vendorBuy',
     'vendorSellConsumable', 'vendorSellGear', 'vendorSellMaterial',
   ],
 }));
@@ -75,10 +73,6 @@ vi.mock('@/lib/api/cacheLaneService', () => ({
   fetchCacheLane: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
-vi.mock('@/lib/api/slotService', () => ({
-  fetchSlotState: vi.fn(),
-}));
-
 vi.mock('@/lib/ads/rewardedCacheAd', () => ({
   canUseRewardedCacheAds: () => false,
   showRewardedCacheAd: vi.fn(async () => { throw new Error('ads unavailable in tests'); }),
@@ -98,11 +92,8 @@ globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: Inter
 }) as unknown as typeof IntersectionObserver;
 
 import { MarketScreen } from '@/screens/MarketScreen';
-import { DataSlotsPanel } from '@/components/vendor/DataSlotsPanel';
 import { fetchMarketListings } from '@/lib/api/marketListings';
-import { fetchSlotState } from '@/lib/api/slotService';
 import { verifiedOps } from '@/lib/api/verifiedOps';
-import { buildSlotStateView, resolveSlotLevers } from '@/content/slots';
 import { useInventoryStore, useMarketStore, usePlayerStore } from '@/store';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
@@ -192,8 +183,6 @@ const gearListing: Listing = {
   feePaid: 0,
 };
 
-const slotFacts = { day: '2026-11-02', pullsToday: 0, cacheOpenedToday: 0, cacheCap: 10 };
-
 function setPlayerCredits(credits: number) {
   usePlayerStore.setState({
     credits, consumables: {}, consumableBatches: [], materials: {}, name: 'Hunter',
@@ -267,76 +256,3 @@ describe('G3 — Market Buy: the shortfall prints, the guest lock does not chang
   }, 30_000);
 });
 
-describe('G3 tail — Slots tiers print their reason', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    hoisted.auth.account = verifiedAccount;
-    hoisted.auth.user = { id: 'user-1' };
-    vi.mocked(fetchSlotState).mockResolvedValue(buildSlotStateView(slotFacts, resolveSlotLevers()));
-  });
-  afterEach(() => cleanup());
-
-  it('per-tier shortfalls print under the tiers the player cannot afford — and only those', async () => {
-    setPlayerCredits(100); // default tiers 50 / 250 / 1,000
-    render(<DataSlotsPanel />);
-    expect(await screen.findByText('Short by 150 cr')).toBeInTheDocument();
-    expect(screen.getByText('Short by 900 cr')).toBeInTheDocument();
-    // Tier 1 (50cr) is affordable — exactly two shortfall lines.
-    expect(screen.getAllByText(/Short by/)).toHaveLength(2);
-    // Behavior is unchanged: the unaffordable tiers stay disabled.
-    expect(screen.getByRole('button', { name: /• 250cr/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /• 50cr/ })).toBeEnabled();
-  }, 30_000);
-
-  it('an exhausted daily cap prints its reset under every tier', async () => {
-    setPlayerCredits(100_000);
-    vi.mocked(fetchSlotState).mockResolvedValue(
-      buildSlotStateView({ ...slotFacts, pullsToday: 100 }, resolveSlotLevers()),
-    );
-    render(<DataSlotsPanel />);
-    expect(await screen.findByText(/Pulls left today: 0 \/ 100/)).toBeInTheDocument();
-    expect(screen.getAllByText('Out of pulls today — resets 00:00 UTC')).toHaveLength(3);
-    expect(screen.queryByText(/Short by/)).toBeNull();
-  }, 30_000);
-
-  it('a closed machine says so under every tier (and outranks the pulls reason)', async () => {
-    setPlayerCredits(100_000);
-    vi.mocked(fetchSlotState).mockResolvedValue(
-      buildSlotStateView(slotFacts, resolveSlotLevers({ slotDailyPullCap: 0 })),
-    );
-    render(<DataSlotsPanel />);
-    expect(await screen.findByText(/Pulls left today: 0 \/ 0/)).toBeInTheDocument();
-    expect(screen.getAllByText('Machine closed')).toHaveLength(3);
-    expect(screen.queryByText(/Out of pulls/)).toBeNull();
-  }, 30_000);
-
-  it('guests get the verified-only line and NO per-tier reasons', async () => {
-    hoisted.auth.account = guestAccount;
-    hoisted.auth.user = { id: 'guest-1' };
-    setPlayerCredits(0);
-    render(<DataSlotsPanel />);
-    expect(await screen.findByText(/pulls are verified-only/)).toBeInTheDocument();
-    expect(screen.queryByText(/Short by/)).toBeNull();
-    expect(screen.queryByText(/Out of pulls/)).toBeNull();
-    expect(screen.queryByText(/Machine closed/)).toBeNull();
-  }, 30_000);
-});
-
-describe('G3 — source pins', () => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const read = (rel: string) => readFileSync(join(here, '..', rel), 'utf8');
-
-  it('the silent afford-disable expression is gone from the Buy button', () => {
-    const market = read('screens/MarketScreen.tsx');
-    expect(market).not.toContain('|| (!marketLocked && player.credits < listing.price)');
-    expect(market).toContain('Short by {shortfall.toLocaleString()} cr');
-    expect(market).toContain('Earn credits roaming, running contracts, or selling loot.');
-  });
-
-  it('the slots panel carries the three reason prints', () => {
-    const panel = read('components/vendor/DataSlotsPanel.tsx');
-    expect(panel).toContain('Out of pulls today — resets 00:00 UTC');
-    expect(panel).toContain('Machine closed');
-    expect(panel).toContain('Short by ${(bet - player.credits).toLocaleString()} cr');
-  });
-});

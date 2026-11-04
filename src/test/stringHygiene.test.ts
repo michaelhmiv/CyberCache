@@ -302,11 +302,6 @@ describe('string hygiene — A2/A3/A6: fixed sites stay fixed (source pins)', ()
       mustContain: ['getMaterialVisual(m.payout_material_id).label'],
       mustNotContain: ['${m.payout_material_id}`'],
     },
-    {
-      file: 'src/components/vendor/DataSlotsPanel.tsx',
-      mustContain: ['getConsumableVisual(i.item_key).label'],
-      mustNotContain: ['`${i.item_key} ×${i.quantity}`'],
-    },
   ];
 
   for (const pin of pins) {

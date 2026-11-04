@@ -4,7 +4,7 @@
  * parent alignment audit's Market defect list, pinned:
  *
  *  - the 7-tile sub-nav grid is gone; one scrolling rail carries
- *    exactly DESIGN.md §2's seven stops — Buy · Sell · Vendor ·
+ *    exactly DESIGN.md §2's six stops — Buy · Sell · Vendor ·
  *    Repair · Shield Tech · Rep Desk · Slots — at the 11px floor,
  *    with My Listings ("Mine") and History as segments of the
  *    Sell stop, not stops of their own (Wave D conformance);
@@ -59,10 +59,12 @@ describe('sellerDisplay — sellers print as hunter names', () => {
 describe('market v2 — rail of stops (source pins)', () => {
   const market = readSource('src/screens/MarketScreen.tsx');
 
-  it('the rail replaced the tile grid and carries exactly the seven §2 stops', () => {
+  it('the rail replaced the tile grid and carries exactly the six §2 stops', () => {
     expect(market).not.toContain('grid grid-cols-3');
     expect(market).toContain('<ChipRail>');
-    const order = ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk', 'slots'];
+    const order = ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk'];
+    // Data Slots was the seventh stop; it is removed (0074).
+    expect(market).not.toContain("{ id: 'slots'");
     const positions = order.map((id) => market.indexOf(`{ id: '${id}'`));
     for (const pos of positions) expect(pos).toBeGreaterThan(-1);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
@@ -90,9 +92,10 @@ describe('market v2 — rail of stops (source pins)', () => {
     expect(market).toContain('historyPartyLabel');
   });
 
-  it('Rep Desk and Slots render as first-class stops', () => {
+  it('Rep Desk renders as a first-class stop', () => {
     expect(market).toContain("market.activeTab === 'repdesk' && <RepDeskPanel />");
-    expect(market).toContain("market.activeTab === 'slots' && <DataSlotsPanel />");
+    // The Slots stop is gone with Data Slots (migration 0074).
+    expect(market).not.toContain("market.activeTab === 'slots'");
   });
 
   it('every chip row rides the one ChipRail geometry', () => {
