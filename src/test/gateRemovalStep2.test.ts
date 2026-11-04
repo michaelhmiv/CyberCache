@@ -2,7 +2,7 @@
  * Gate-removal step 2 (migration 0057) — consumable recipe levels:
  *
  *   - 0057's restated SQL catalog deep-equals the TS catalog
- *     (87 recipes): every kind='consumable' entry (43) now carries
+ *     (87 recipes): every kind='consumable' entry (43 at 0057; 44 in TS since 0077) now carries
  *     requiresLevel 1 in both mirrors — the 36 formerly gated tiers
  *     (Shield Cell L3 up to Adrenaline Shot L20) are deleted, and
  *     after steps 1–2 no recipe in the catalog gates on level.
@@ -87,8 +87,9 @@ describe('migration 0057 — consumable recipe levels removed', () => {
     expect(changedBy0073.size).toBe(72);
     expect([...changedBy0073].filter((id) => !renamedBy0069.has(id))).toHaveLength(34);
     // relic_prime_laboratory exists only on the TS side (slice 9's
-    // addition — 0057's catalog predates it by construction).
-    const carved = new Set([...renamedBy0069, ...changedBy0073, 'relic_prime_laboratory']);
+    // addition — 0057's catalog predates it by construction), and
+    // recipe_elemental_coating likewise (0077's addition).
+    const carved = new Set([...renamedBy0069, ...changedBy0073, 'relic_prime_laboratory', 'recipe_elemental_coating']);
     const withoutCarved = (rows: Array<Record<string, unknown>>) =>
       rows.filter((r) => !carved.has(String(r.id)));
     expect(withoutCarved(sqlCatalog)).toEqual(
@@ -98,7 +99,7 @@ describe('migration 0057 — consumable recipe levels removed', () => {
 
   it('every consumable sits at the no-gate level 1 in both catalogs — and so does every recipe', () => {
     const tsConsumables = ALL_CRAFT_RECIPES.filter((r) => r.kind === 'consumable');
-    expect(tsConsumables).toHaveLength(43);
+    expect(tsConsumables).toHaveLength(44); // 43 + recipe_elemental_coating (0077)
     for (const recipe of tsConsumables) {
       expect(recipe.requiresLevel, recipe.id).toBe(1);
     }
