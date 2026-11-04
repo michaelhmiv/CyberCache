@@ -1882,6 +1882,22 @@ export class InMemoryReadStore implements ReadStore {
     const masteries = this.seed.playerMasteries.filter((m) => m.user_id === playerId);
     const kills = combat?.total_kills ?? 0;
     const deaths = combat?.total_deaths ?? 0;
+    // Gear-truth: kills by weapon type / element read from the
+    // SERVER kill record (player_kill_stats — the same rows the
+    // lifetime fold prints as "Kills by Weapon"), not the
+    // client-mirrored combat row: the mirror's recordKill calls
+    // never carried a weapon type, so its by-type map stayed empty
+    // forever and Profile's Top Weapon Types read "No data yet"
+    // beside a full server breakdown. The mirror map remains the
+    // fallback for a player with no server record yet.
+    const killTypeRecord: Record<string, number> = {};
+    for (const row of this.seed.killStats ?? []) {
+      if (row.user_id === playerId) killTypeRecord[row.weapon_type] = row.kills;
+    }
+    const killElementRecord: Record<string, number> = {};
+    for (const row of this.seed.killElementStats ?? []) {
+      if (row.user_id === playerId) killElementRecord[row.element] = row.kills;
+    }
     // CONS-04: the view's counting rule (isCollectionCountableItem) —
     // this twin of player_public_stats must agree with migration
     // 0040's restated view on every aggregate.
@@ -1905,8 +1921,8 @@ export class InMemoryReadStore implements ReadStore {
       active_play_seconds: combat?.active_play_seconds ?? 0,
       idle_play_seconds: combat?.idle_play_seconds ?? 0,
       kills_by_area: combat?.kills_by_area ?? {},
-      kills_by_weapon_type: combat?.kills_by_weapon_type ?? {},
-      kills_by_element: combat?.kills_by_element ?? {},
+      kills_by_weapon_type: Object.keys(killTypeRecord).length ? killTypeRecord : (combat?.kills_by_weapon_type ?? {}),
+      kills_by_element: Object.keys(killElementRecord).length ? killElementRecord : (combat?.kills_by_element ?? {}),
       net_worth: this.seed.netWorth[playerId] ?? 0,
       total_items: countable.length,
       weapons_owned: countable.filter((i) => i.kind === 'weapon').length,
@@ -2756,7 +2772,32 @@ export class PgReadStore implements ReadStore {
     const { rows } = await this.db.query('select * from public.cc_my_stats_summary($1)', [playerId]);
     // Composite-returning function: a missing player yields one all-NULL
     // row (PostgREST collapses that to a null payload for the client).
-    return rows.length && rows[0].user_id != null ? mapStats(rows[0]) : null;
+    if (!rows.length || rows[0].user_id == null) return null;
+    const stats = mapStats(rows[0]);
+    // Gear-truth: kills by weapon type / element come from the
+    // server kill record (player_kill_stats — the same rows the
+    // lifetime fold prints), overriding the client-mirrored combat
+    // row's maps, which never carried a weapon type. The twin's
+    // statsFor applies the identical rule.
+    const { rows: typeRows } = await this.db.query(
+      'select weapon_type, kills from public.player_kill_stats where user_id = $1',
+      [playerId],
+    );
+    if (typeRows.length) {
+      const byType: Record<string, number> = {};
+      for (const row of typeRows) byType[String(row.weapon_type)] = num(row.kills);
+      stats.kills_by_weapon_type = byType;
+    }
+    const { rows: elementRows } = await this.db.query(
+      'select element, kills from public.player_kill_element_stats where user_id = $1',
+      [playerId],
+    );
+    if (elementRows.length) {
+      const byElement: Record<string, number> = {};
+      for (const row of elementRows) byElement[String(row.element)] = num(row.kills);
+      stats.kills_by_element = byElement;
+    }
+    return stats;
   }
 
   async getPublicStats(playerId: string): Promise<PublicStatsData | null> {
