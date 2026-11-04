@@ -308,9 +308,13 @@ describe('Home composition — the deck (§4 fixed order)', () => {
     expect(screen.queryByText('Hunter Notes')).toBeNull();
     expect(screen.queryByText('Action Board')).toBeNull();
     // Launcher deck contents: Dispatch + Crack Cache, the two
-    // owner-kept Board orphans.
+    // owner-kept Board orphans. The Slots launcher is GONE (Data
+    // Slots removed, migration 0074): no card, no 'market:slots'
+    // route.
     expect(screen.getByText('Dispatch')).toBeTruthy();
     expect(screen.getByText('Crack Cache')).toBeTruthy();
+    expect(screen.queryByText('Slots')).toBeNull();
+    expect(onNavigate).not.toHaveBeenCalledWith('market:slots');
   });
 });
 

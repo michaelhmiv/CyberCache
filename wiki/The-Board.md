@@ -99,7 +99,7 @@ Everything below the fold is the **deck**, in a fixed order:
 1. **Launchers** — the directory doors: **Dispatch** and **Crack Cache**.
 2. **Now** — one merged feed: your latest activity plus the world pulse (current activity, level progress, boss progress, best weapon, bench state).
 
-That is the whole deck. The doors that used to stack here moved to their canonical homes: Slots is the Market rail stop, your loadout is the Gear tab (the stage's count plate carries the n/7 signal), weekly claimables announce through the top bar's Weekly chip and claim from its sheet, and your totals are the hero rundown at the stage's foot with the full breakdown behind Hunter → Profile's **Totals & Sources** door.
+That is the whole deck. The doors that used to stack here moved to their canonical homes: Slots was removed from the game entirely (migration 0074), your loadout is the Gear tab (the stage's count plate carries the n/7 signal), weekly claimables announce through the top bar's Weekly chip and claim from its sheet, and your totals are the hero rundown at the stage's foot with the full breakdown behind Hunter → Profile's **Totals & Sources** door.
 
 ## While you were away
 

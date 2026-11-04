@@ -26,7 +26,6 @@
 - [[Repair Board]]
 - [[Shield-Tech]]
 - [[Manufacturer Standing]]
-- [[Slots]]
 - [[Caches]]
 - [[Economy]]
 

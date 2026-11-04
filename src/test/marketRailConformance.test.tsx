@@ -2,17 +2,16 @@
  * Market rail conformance (DESIGN.md §2/§9, Wave D cleanup) —
  * mounted-screen journeys for the two structural fixes:
  *
- *  - the rail carries exactly §2's seven stops (Buy · Sell ·
- *    Vendor · Repair · Shield Tech · Rep Desk · Slots); My
- *    Listings and History are segments of the Sell stop — the
- *    Mine segment keeps the live listings + cancel action, the
- *    History segment keeps the trade record, nothing removed;
+ *  - the rail carries exactly §2's six stops (Buy · Sell ·
+ *    Vendor · Repair · Shield Tech · Rep Desk); My Listings and
+ *    History are segments of the Sell stop — the Mine segment
+ *    keeps the live listings + cancel action, the History segment
+ *    keeps the trade record, nothing removed;
  *  - the tab→stop deep link: a recorded market-stop intent (what
- *    App's handleNavigate stores for a 'market:<stop>' route —
- *    Home's Slots card navigated 'market:slots' until the Home
- *    consolidation retired the card, 2026-11-03) lands the player
- *    ON the named stop when Market mounts, and is consumed so a
- *    later plain visit keeps the player's own stop.
+ *    App's handleNavigate stores for a 'market:<stop>' route)
+ *    lands the player ON the named stop when Market mounts, and
+ *    is consumed so a later plain visit keeps the player's own
+ *    stop.
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -38,7 +37,7 @@ const hoisted = vi.hoisted(() => ({
     'marketCreateEssence', 'marketCreateFragment', 'marketCreateMaterial',
     'postRepairJob', 'postShieldTechJob', 'reclaimRepairJob', 'reclaimShieldTechJob',
     'recycleItem', 'reforgeItem', 'refuelVehicle', 'registerPushDevice', 'resetProgress',
-    'retrain', 'slotPull', 'trainSkill', 'unequipSlot', 'unlockCraftBench', 'vendorBuy',
+    'retrain', 'trainSkill', 'unequipSlot', 'unlockCraftBench', 'vendorBuy',
     'vendorSellConsumable', 'vendorSellGear', 'vendorSellMaterial',
   ],
 }));
@@ -65,10 +64,6 @@ vi.mock('@/lib/api/marketPriceStats', () => ({
 
 vi.mock('@/lib/api/cacheLaneService', () => ({
   fetchCacheLane: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
-}));
-
-vi.mock('@/lib/api/slotService', () => ({
-  fetchSlotState: vi.fn(async () => null),
 }));
 
 vi.mock('@/lib/ads/rewardedCacheAd', () => ({
@@ -208,11 +203,13 @@ describe('market rail conformance — seven stops, Sell segments (§2)', () => {
   });
   afterEach(() => cleanup());
 
-  it('the rail carries exactly the seven §2 stops — no My Listings or History stop', async () => {
+  it('the rail carries exactly the six §2 stops — no My Listings or History stop', async () => {
     render(<MarketScreen />);
-    for (const label of ['Buy', 'Sell', 'Vendor', 'Repair', 'Shield Tech', 'Rep Desk', 'Slots']) {
+    for (const label of ['Buy', 'Sell', 'Vendor', 'Repair', 'Shield Tech', 'Rep Desk']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
+    // Data Slots is removed (migration 0074): no Slots stop.
+    expect(screen.queryByRole('button', { name: 'Slots' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'My Listings' })).toBeNull();
     // History exists only as a Sell segment, so no History control
     // is on screen while the Buy stop is showing.
@@ -261,20 +258,20 @@ describe('market rail conformance — tab→stop deep link (§9)', () => {
   });
   afterEach(() => cleanup());
 
-  it('a recorded Slots intent lands ON the Slots stop when Market mounts, and is consumed', async () => {
-    // What App's handleNavigate stores for the Home deck card's
-    // 'market:slots' route (the card's navigate arg is pinned in
-    // homeComposition.test.tsx; the route resolution in App is
-    // pinned below by source).
+  it('a recorded intent lands ON the named stop when Market mounts, and is consumed', async () => {
+    // What App's handleNavigate stores for a 'market:<stop>'
+    // route (the route resolution in App is pinned below by
+    // source). The Vendor stop stands in for any named stop —
+    // the mechanism is stop-agnostic. (This journey used to ride
+    // the Slots stop; Data Slots was removed, migration 0074.)
     useMarketStore.setState({ activeTab: 'buy', history: [], marketStopIntent: null });
-    useMarketStore.getState().requestMarketStop('slots');
+    useMarketStore.getState().requestMarketStop('vendor');
 
     render(<MarketScreen />);
-    expect(await screen.findByText('Data Slots')).toBeInTheDocument();
-    expect(screen.getByText(/Pulls left today/)).toBeInTheDocument();
+    expect(await screen.findByText('Sell to Vendor — Buyback')).toBeInTheDocument();
     // The intent fired once and cleared — the stop is the
     // player's own state now.
-    expect(useMarketStore.getState().activeTab).toBe('slots');
+    expect(useMarketStore.getState().activeTab).toBe('vendor');
     expect(useMarketStore.getState().marketStopIntent).toBeNull();
   }, 30_000);
 
@@ -282,7 +279,7 @@ describe('market rail conformance — tab→stop deep link (§9)', () => {
     useMarketStore.setState({ activeTab: 'buy', history: [], marketStopIntent: null });
     render(<MarketScreen />);
     expect(await screen.findByText('Rail Conformance Rifle')).toBeInTheDocument();
-    expect(screen.queryByText('Data Slots')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Slots' })).toBeNull();
   }, 30_000);
 
   it("App resolves the 'market:<stop>' route into the intent (source pin)", async () => {
@@ -293,11 +290,11 @@ describe('market rail conformance — tab→stop deep link (§9)', () => {
     expect(app).toContain('isMarketStopId(stop)');
     expect(app).toContain('requestMarketStop(stop)');
     const deck = readFileSync(join(__dirname, '../..', 'src/components/dashboard/DashboardDeck.tsx'), 'utf8');
-    // Home consolidation (2026-11-03): the deck's Slots card —
-    // the route's Home emitter — left the deck; the Slots
-    // stop's only door is the Market rail itself now
-    // (DESIGN.md §9). The App resolution legs above are the
-    // surviving wiring, and the deck no longer emits the route.
+    // The deck's Slots card left with the Home consolidation,
+    // and the Slots stop itself is gone with Data Slots (0074):
+    // nothing routes to a 'market:slots' stop that no longer
+    // exists, and 'slots' is not a valid stop id at all.
     expect(deck).not.toContain("onNavigate('market:slots')");
+    expect(app).not.toContain("'slots'");
   });
 });

@@ -6,8 +6,8 @@ import type { MarketCategory } from '@/lib/market/identityKey';
 /** The Market rail stops (DESIGN.md §2) — the only values the tab's
  *  stop state and the tab→stop deep link may name. My Listings and
  *  History are NOT stops: they are segments of the Sell stop (§2). */
-export type MarketStopId = 'buy' | 'sell' | 'vendor' | 'repair' | 'shieldTech' | 'repdesk' | 'slots';
-export const MARKET_STOP_IDS: readonly MarketStopId[] = ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk', 'slots'];
+export type MarketStopId = 'buy' | 'sell' | 'vendor' | 'repair' | 'shieldTech' | 'repdesk';
+export const MARKET_STOP_IDS: readonly MarketStopId[] = ['buy', 'sell', 'vendor', 'repair', 'shieldTech', 'repdesk'];
 
 export const isMarketStopId = (value: string): value is MarketStopId =>
   (MARKET_STOP_IDS as readonly string[]).includes(value);
@@ -25,8 +25,8 @@ interface MarketState {
   setActiveTab: (tab: string) => void;
   /** Tab→stop deep link (DESIGN.md §9): a one-shot intent naming
    *  the Market stop a launcher elsewhere in the app wants to land
-   *  ON — e.g. Home's Slots card asks for 'slots' so the player
-   *  arrives at the wheel, not at the Market tab's last stop.
+   *  ON — so the player arrives at the named stop, not at the
+   *  Market tab's last stop.
    *  App's handleNavigate records it for a 'market:<stop>' route;
    *  MarketScreen consumes it on arrival (applies + clears), so a
    *  later plain Market visit keeps the player's own stop. `seq`
