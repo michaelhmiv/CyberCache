@@ -33,6 +33,7 @@ response (`economyMetrics.error`) and never fails the snapshot job.
 | `contract_rerolls` | Rerolls per day (count of `cc_reroll_contract` rows, free and paid) |
 | `contract_keys_awarded` | Cache keys paid by weekly full-set bonuses (Σ `cache_keys_awarded` over `cc_claim_contract_set_bonus` rows). Bounded by construction: ≤ 1/player/week at defaults |
 | `scrap_destroyed_contract_rerolls` | Scrap destroyed by paid rerolls (Σ `scrap_charged` over `cc_reroll_contract` rows) — a sink, recorded on the reroll ledger row |
+| `credits_destroyed_dispatch_rerolls` | Credits destroyed by dispatch board re-deals (Σ `credits_charged` over `cc_reroll_dispatch_board` rows, migration 0068) — the dispatch reroll sink breakout (escalating price, capped per UTC day); folds into `credits_destroyed_total` |
 | `credits_minted_total` | Sum of the four sources |
 | `credits_destroyed_market_fees` | The market sale fee destroyed on completed player sales (`cc_accept_listing` → `market_fee.fee_credits`; NPC sales are exempt and record 0) |
 | `credits_destroyed_vendor` | NPC vendor purchases (`cc_vendor_buy` → `total_price`) |

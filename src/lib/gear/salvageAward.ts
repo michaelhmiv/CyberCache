@@ -67,7 +67,7 @@ export interface SalvageYield {
 
 /** Bonus-material id → the fixed yield field that prints it. */
 const BONUS_FIELD: Record<string, 'scrapAlloy' | 'ballisticParts' | 'reactiveComponents' | 'techFragments'> = {
-  ScrapAlloy: 'scrapAlloy',
+  Scrap: 'scrapAlloy',
   BallisticParts: 'ballisticParts',
   ReactiveComponents: 'reactiveComponents',
   TechFragments: 'techFragments',

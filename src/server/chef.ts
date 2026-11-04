@@ -95,6 +95,13 @@ import {
   hasSecondOpinion,
 } from '../lib/legendaryEffects';
 import { salvageScrap } from './writes/store';
+import {
+  stampDropReceipt,
+  weightRecord,
+  type DropEnemyRelation,
+  type DropFoundVia,
+} from './dropReceipts';
+import { resolveRarityWeights } from '../content/lootResolver';
 import type { BossAttemptResult } from '../types/boss';
 import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterSelector';
 import { pickNextTarget } from '../lib/combat/killCycleHelpers';
@@ -287,6 +294,14 @@ export interface ClaimRequest {
     /** Fuel units in the tank at claim start (profiles.vehicle_fuel). */
     fuelUnits: number;
   } | null;
+  /**
+   * Which claim surface is running (AL-1, 0070): the foreground claim
+   * route leaves this unset ('roam'); the offline settlement route
+   * sets 'offline'. Set by the ROUTES from their own identity — never
+   * read from the client body. Used only to stamp drop receipts
+   * (foundVia) on generated items; it changes no outcome.
+   */
+  source?: 'roam' | 'offline';
 }
 
 export interface ClaimResult {
@@ -851,6 +866,20 @@ export function processRoamingClaim(
     return out;
   };
 
+  // AL-1 (0070): the shape of the most recent rollGearDrop roll — the
+  // drop kind and the rarity weights it drew from, as shaped — kept so
+  // the caller can stamp the drop's receipt onto the generated item
+  // (see dropReceipts.ts). Recording only: reads no RNG, changes no
+  // outcome.
+  let lastRollShape: {
+    kind: string;
+    rarityWeights: Record<string, number>;
+    luck: number;
+    boost: boolean;
+    floor?: string;
+    scalar: number;
+  } | null = null;
+
   // Generate one area gear drop (drop-kind roll + shared generators).
   // Used by the primary loot roll and by Data Skimmer's extra roll.
   // Overhaul options: rarityFloor (elite kills — the whole drop,
@@ -868,6 +897,20 @@ export function processRoamingClaim(
     // joins the shape ONLY when active, so an unbuffed claim's
     // weights — and every determinism pin — stay bit-identical.
     const luck = request.economy?.dropLuckBonus ?? 0;
+    // AL-1 (0070): record this roll's shape for the caller's receipt
+    // stamp. `scalar` is the Legendary scalar actually applied to
+    // this kind's weights (weapons only; every other kind rolls at 1).
+    lastRollShape = null;
+    const recordShape = (kindName: string, rarityWeights: Partial<Record<string, number>>, scalar = 1): void => {
+      lastRollShape = {
+        kind: kindName,
+        rarityWeights: weightRecord(rarityWeights),
+        luck,
+        boost,
+        ...(opts?.rarityFloor ? { floor: opts.rarityFloor as string } : {}),
+        scalar,
+      };
+    };
     if (evNextDropQualityBoost) evNextDropQualityBoost = false;
     if (!opts?.rarityFloor) {
       // Vehicle drops (Phase 2b): a share of gear drops are vehicles
@@ -877,6 +920,7 @@ export function processRoamingClaim(
       // claims when the roll misses.
       const vehicleRng = createTickRng(playerId, `${areaId}:vehicle`, tickNumber);
       if (vehicleRng() < VEHICLE_DROP_SHARE) {
+        recordShape('vehicle', { ...area.dropPoolRarityWeights });
         return generateVehicle(
           { level: playerLevel, areaUnlockLevel: area.unlockLevel, rarityWeights: area.dropPoolRarityWeights },
           vehicleRng,
@@ -917,19 +961,72 @@ export function processRoamingClaim(
         if (shape && options.zoneWeights) {
           options.zoneWeights = shapedZoneWeights(options.zoneWeights, shape);
         }
+        recordShape('weapon', { ...(options.zoneWeights ?? {}) }, scalar);
         return generateWeapon(options, dropRng);
       }
-      case 'shield':
-        return generateShield(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
-      case 'classMod':
-        return generateClassMod(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
-      case 'relic':
-        return generateRelic(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
-      case 'ordnance':
-        return generateOrdnance(playerLevel, dropRng, shape ? shapedRarityWeights(shape) : undefined);
+      case 'shield': {
+        const weights = shapedRarityWeights(shape);
+        recordShape('shield', weights);
+        return generateShield(playerLevel, dropRng, shape ? weights : undefined);
+      }
+      case 'classMod': {
+        const weights = shapedRarityWeights(shape);
+        recordShape('classMod', weights);
+        return generateClassMod(playerLevel, dropRng, shape ? weights : undefined);
+      }
+      case 'relic': {
+        const weights = shapedRarityWeights(shape);
+        recordShape('relic', weights);
+        return generateRelic(playerLevel, dropRng, shape ? weights : undefined);
+      }
+      case 'ordnance': {
+        const weights = shapedRarityWeights(shape);
+        recordShape('ordnance', weights);
+        return generateOrdnance(playerLevel, dropRng, shape ? weights : undefined);
+      }
       default:
         return undefined;
     }
+  };
+
+  // AL-1 (0070): stamp the drop receipt for the roll rollGearDrop
+  // just made onto the generated item. The defaults describe an
+  // ambient claim drop (this claim's surface, this area, the target
+  // engaged on the tick); kill-caused and event drops override via /
+  // context / relation at their call sites. Recording only.
+  const stampClaimDropReceipt = (
+    item: GearItem | Vehicle,
+    opts: {
+      via?: DropFoundVia;
+      context?: string | number;
+      enemy?: { id: string; name: string } | null;
+      relation?: DropEnemyRelation;
+      gearChance?: number;
+    },
+  ): void => {
+    if (!lastRollShape) return;
+    stampDropReceipt(item, {
+      foundVia: opts.via ?? (request.source === 'offline' ? 'offline' : 'roam'),
+      foundContext: opts.context ?? areaId,
+      ...(opts.enemy
+        ? {
+            foundEnemy: {
+              id: opts.enemy.id,
+              name: opts.enemy.name,
+              relation: opts.relation ?? 'engaged',
+            },
+          }
+        : {}),
+      dropOdds: {
+        ...(opts.gearChance !== undefined ? { gearChance: opts.gearChance } : {}),
+        kind: lastRollShape.kind,
+        rarityWeights: lastRollShape.rarityWeights,
+        luck: lastRollShape.luck,
+        boost: lastRollShape.boost,
+        ...(lastRollShape.floor ? { floor: lastRollShape.floor } : {}),
+        scalar: lastRollShape.scalar,
+      },
+    });
   };
 
   // Rich detail line for a gear drop: rarity, type, power, element, manufacturer.
@@ -1024,6 +1121,8 @@ export function processRoamingClaim(
       fragmentsAwarded += ELITE_FRAGMENT_BONUS;
       const drop = rollGearDrop(dropRng, tickNumber, { rarityFloor: ELITE_RARITY_FLOOR });
       if (drop) {
+        // AL-1 (0070): the kill caused this drop — 'killed' is literal here.
+        stampClaimDropReceipt(drop, { enemy: killed, relation: 'killed' });
         generatedItems.push(drop);
         feedEvents.push({
           at,
@@ -1052,6 +1151,8 @@ export function processRoamingClaim(
           qualityBoost: bounty.payout === 'gearQuality',
         });
         if (drop) {
+          // AL-1 (0070): the bounty kill caused this drop.
+          stampClaimDropReceipt(drop, { enemy: killed, relation: 'killed' });
           generatedItems.push(drop);
           feedEvents.push({
             at,
@@ -1063,12 +1164,12 @@ export function processRoamingClaim(
           });
         }
       } else if (bounty.payout === 'materials') {
-        materials[MaterialType.ScrapAlloy] = (materials[MaterialType.ScrapAlloy] || 0) + 6;
+        materials[MaterialType.Scrap] = (materials[MaterialType.Scrap] || 0) + 6;
         materials[MaterialType.BallisticParts] = (materials[MaterialType.BallisticParts] || 0) + 4;
         feedEvents.push({
           at,
           tone: 'material',
-          label: '+6 ScrapAlloy · +4 BallisticParts',
+          label: '+6 Scrap · +4 BallisticParts',
           detail: 'Turret nest stripped for parts.',
           areaId,
           value: 10,
@@ -1189,6 +1290,8 @@ export function processRoamingClaim(
         pushEventFeed(def.blurb);
         const gear = rollGearDrop(eventRng, tickNumber);
         if (gear) {
+          // AL-1 (0070): an event find — the event is the provenance.
+          stampClaimDropReceipt(gear, { via: 'event', context: def.id });
           generatedItems.push(gear);
           pushGearFeed(gear, def.name);
         }
@@ -1231,6 +1334,8 @@ export function processRoamingClaim(
         pushEventFeed(def.blurb);
         const gear = rollGearDrop(eventRng, tickNumber, { qualityBoost: true });
         if (gear) {
+          // AL-1 (0070): an event find — the event is the provenance.
+          stampClaimDropReceipt(gear, { via: 'event', context: def.id });
           generatedItems.push(gear);
           pushGearFeed(gear, def.name);
         }
@@ -1251,6 +1356,8 @@ export function processRoamingClaim(
         if (eventRng() < 0.35) {
           const gear = rollGearDrop(eventRng, tickNumber);
           if (gear) {
+            // AL-1 (0070): an event find — the event is the provenance.
+            stampClaimDropReceipt(gear, { via: 'event', context: def.id });
             generatedItems.push(gear);
             pushGearFeed(gear, 'grateful scavenger');
           }
@@ -1348,6 +1455,8 @@ export function processRoamingClaim(
         if (consumableMods.eventFindWeightBonus > 0 || consumableMods.eventChanceBonus > 0) {
           const gear = rollGearDrop(eventRng, tickNumber);
           if (gear) {
+            // AL-1 (0070): an event find — the event is the provenance.
+            stampClaimDropReceipt(gear, { via: 'event', context: def.id });
             generatedItems.push(gear);
             pushGearFeed(gear, 'signal trap spoils');
           }
@@ -1365,6 +1474,8 @@ export function processRoamingClaim(
         if (primaryWeapon && (area.elementBias ?? []).includes(primaryWeapon.element)) {
           const gear = rollGearDrop(eventRng, tickNumber);
           if (gear) {
+            // AL-1 (0070): an event find — the event is the provenance.
+            stampClaimDropReceipt(gear, { via: 'event', context: def.id });
             generatedItems.push(gear);
             pushGearFeed(gear, 'resonance attuned');
           }
@@ -1534,6 +1645,15 @@ export function processRoamingClaim(
       const gear = rollGearDrop(rng, tickCount - ticks + tickIdx + 1);
 
       if (gear) {
+        // AL-1 (0070): an ambient tick roll — the enemy is the target
+        // engaged on this tick ('engaged', never 'killed': the roll,
+        // not the kill, produced the drop), and the odds are the
+        // shaped chances computed for this tick above.
+        stampClaimDropReceipt(gear, {
+          enemy: kcTargetId ? roster.find((m) => m.id === kcTargetId) ?? null : null,
+          relation: 'engaged',
+          gearChance,
+        });
         generatedItems.push(gear);
         feedEvents.push({
           at: now - (ticks - 1 - tickIdx) * TICK_MS,
@@ -1552,6 +1672,13 @@ export function processRoamingClaim(
         if (consumableMods.extraLootRollChance > 0 && rng() < consumableMods.extraLootRollChance) {
           const bonusGear = rollGearDrop(rng, tickCount - ticks + tickIdx + 1);
           if (bonusGear) {
+            // AL-1 (0070): the Data Skimmer's extra roll — same tick,
+            // same engaged target; no gearChance (the Skimmer's own
+            // roll, not the gear threshold, produced this one).
+            stampClaimDropReceipt(bonusGear, {
+              enemy: kcTargetId ? roster.find((m) => m.id === kcTargetId) ?? null : null,
+              relation: 'engaged',
+            });
             generatedItems.push(bonusGear);
             feedEvents.push({
               at: now - (ticks - 1 - tickIdx) * TICK_MS,
@@ -2227,6 +2354,13 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   let secondOpinionScrap: BossAttemptChefResult['secondOpinionScrap'] = null;
   let unlockedBossId: string | undefined;
   let dedicatedDropAwarded = false;
+  // AL-1 (0070): the dedicated-drop chance in force for this attempt —
+  // the claim-resolved value (economy lever + research bonus) and the
+  // drop-luck buff. The roll below multiplies the two; the attempt
+  // record and the loot receipts stamp the factors separately.
+  const dedicatedChance = request.economy?.bossDedicatedChance ?? BOSS_DEDICATED_DROP_CHANCE;
+  const dropLuckBonus = request.economy?.dropLuckBonus ?? 0;
+  let dedicatedItem: GearItem | null = null;
   const surgeLootIds: string[] = [];
   if (victory) {
     const currentIndex = REGION_1_BOSSES.findIndex((entry) => entry.id === boss.id);
@@ -2246,28 +2380,26 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
         dedicatedPool.length > 0 &&
         // Drop luck (0035): the leaderboard buff multiplies the
         // dedicated-drop chance, the boss path's drop-chance lever.
-        rng() < (request.economy?.bossDedicatedChance ?? BOSS_DEDICATED_DROP_CHANCE)
-          * (1 + (request.economy?.dropLuckBonus ?? 0))
+        rng() < dedicatedChance * (1 + dropLuckBonus)
       ) {
         const pick = dedicatedPool[Math.floor(rng() * dedicatedPool.length)];
-        loot.push(
-          generateWeapon(
-            {
-              source: DropSource.BossDrop,
-              // Dedicated drops generate at the PLAYER's level once the
-              // player outlevels the boss (pacing-baseline tuning):
-              // boss levels stop at 45 while roaming legendaries scale
-              // to 100, so a boss-level dedicated drop lost the power
-              // race for any high-level farmer. Generic rolls below
-              // keep boss.level.
-              level: Math.max(boss.level, Math.max(1, Math.trunc(request.playerLevel) || boss.level)),
-              bossTier: boss.tier,
-              forcedRarity: Rarity.Legendary,
-              forcedLegendaryEffectId: pick,
-            },
-            rng,
-          ),
+        dedicatedItem = generateWeapon(
+          {
+            source: DropSource.BossDrop,
+            // Dedicated drops generate at the PLAYER's level once the
+            // player outlevels the boss (pacing-baseline tuning):
+            // boss levels stop at 45 while roaming legendaries scale
+            // to 100, so a boss-level dedicated drop lost the power
+            // race for any high-level farmer. Generic rolls below
+            // keep boss.level.
+            level: Math.max(boss.level, Math.max(1, Math.trunc(request.playerLevel) || boss.level)),
+            bossTier: boss.tier,
+            forcedRarity: Rarity.Legendary,
+            forcedLegendaryEffectId: pick,
+          },
+          rng,
         );
+        loot.push(dedicatedItem);
         dedicatedDropAwarded = true;
       } else {
         loot.push(generateWeapon({ source: DropSource.BossDrop, level: boss.level, bossTier: boss.tier }, rng));
@@ -2323,6 +2455,37 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
         surgeLootIds.push(surgeItem.id);
       }
     }
+
+    // AL-1 (0070): stamp every loot item with its boss receipt — the
+    // boss is the proven killer, the dedicated facts ride each item,
+    // and the rarity weights are the ones its roll drew from (generic
+    // rolls: the BossDrop base table; surge rolls: the surge weights;
+    // the dedicated item's rarity was forced, so it carries no
+    // weights — dedicatedHit tells its story). Runs after Second
+    // Opinion settles the final array, so a dedicated item the twin
+    // scrapped simply never gets stamped — it was never stored.
+    const surgeIdSet = new Set(surgeLootIds);
+    const genericBossWeights = weightRecord(resolveRarityWeights({ source: DropSource.BossDrop }));
+    for (const item of loot) {
+      const isDedicated = dedicatedItem !== null && item === dedicatedItem;
+      stampDropReceipt(item, {
+        foundVia: 'boss',
+        foundContext: boss.id,
+        foundEnemy: { id: boss.id, name: boss.name, relation: 'killed' },
+        dropOdds: {
+          dedicatedChance,
+          dedicatedHit: isDedicated,
+          dropLuckBonus,
+          ...(isDedicated
+            ? {}
+            : {
+                rarityWeights: surgeIdSet.has(item.id)
+                  ? weightRecord(surgePlan?.surgeWeights ?? {})
+                  : genericBossWeights,
+              }),
+        },
+      });
+    }
   }
 
   const projectedPhase = sim.projectedFailurePhase;
@@ -2361,6 +2524,12 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     consumablesUsed: consumedConsumables,
     consumablesLost: consumedConsumables,
     entryFee,
+    // AL-1 (0070): the dedicated-drop facts — the appliers store this
+    // attempt object verbatim (ledger result + lastBossAttempt), so
+    // stamping here is the whole G2 change; no schema moves.
+    dedicatedChance,
+    dedicatedDropAwarded,
+    dropLuckBonus,
     creditsGained: victory ? Math.max(0, creditsDelta) : 0,
     creditsLost: victory ? Math.max(0, -creditsDelta) : deathFee + entryFee,
     loot: loot.map((item) => item.id),
@@ -2602,7 +2771,19 @@ export function processEndlessEncounter(request: EndlessEncounterRequest): Endle
     // boss-tier encounter, so the tag is restamped here — the
     // legendaries-by-source meters count milestone legendaries as
     // boss-sourced, which is what they are.
-    if (drop) items.push({ ...drop, sourceTag: DropSource.BossDrop });
+    if (drop) {
+      const milestoneItem = { ...drop, sourceTag: DropSource.BossDrop };
+      // AL-1 (0070): the milestone receipt — the encounter was killed
+      // (milestones pay only on victory), the context is the depth,
+      // and the odds are the depth-shaped weights the roll used.
+      stampDropReceipt(milestoneItem, {
+        foundVia: 'endless',
+        foundContext: request.depth,
+        foundEnemy: { id: encounter.id, name: encounter.name, relation: 'killed' },
+        dropOdds: { kind, rarityWeights: weightRecord(weights) },
+      });
+      items.push(milestoneItem);
+    }
   }
 
   // Cache Surge (Scavenger action skill, 0030): extra rolls on a
@@ -2623,7 +2804,16 @@ export function processEndlessEncounter(request: EndlessEncounterRequest): Endle
         },
         rng,
       );
-      surgeItems.push({ ...surgeDrop, sourceTag: DropSource.BossDrop });
+      const surgeItem = { ...surgeDrop, sourceTag: DropSource.BossDrop };
+      // AL-1 (0070): surge drops carry the same endless receipt, with
+      // the surge weights they actually rolled against.
+      stampDropReceipt(surgeItem, {
+        foundVia: 'endless',
+        foundContext: request.depth,
+        foundEnemy: { id: encounter.id, name: encounter.name, relation: 'killed' },
+        dropOdds: { kind: 'weapon', rarityWeights: weightRecord(surgePlan.surgeWeights ?? {}) },
+      });
+      surgeItems.push(surgeItem);
     }
   }
 

@@ -191,25 +191,25 @@ const LEGACY_RECIPES: CraftRecipe[] = CRAFTING_RECIPES.map((r) => ({
 const VEHICLE_CONSUMABLE_RECIPES: CraftRecipe[] = [
   {
     id: 'recipe_patch_kit', kind: 'consumable', name: 'Patch Kit', category: 'utility',
-    inputs: { ScrapAlloy: 4, ReactiveComponents: 1 }, unitDurationMs: 12 * MIN,
+    inputs: { Scrap: 4, ReactiveComponents: 1 }, unitDurationMs: 12 * MIN,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'PatchKit',
   },
   {
     id: 'recipe_field_patch_kit', kind: 'consumable', name: 'Field Patch Kit', category: 'utility',
-    inputs: { ScrapAlloy: 6, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 },
+    inputs: { Scrap: 6, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 },
     unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'FieldPatchKit',
   },
   {
     id: 'recipe_master_patch_kit', kind: 'consumable', name: 'Master Patch Kit', category: 'utility',
-    inputs: { ScrapAlloy: 8, ReactiveComponents: 5, TechFragments: 3, VoidDust: 1 },
+    inputs: { Scrap: 8, ReactiveComponents: 5, TechFragments: 3, VoidDust: 1 },
     unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'MasterPatchKit',
     requiresMastery: { track: 'crafting_consumables', level: 15 },
   },
   {
     id: 'recipe_fuel_cell', kind: 'consumable', name: 'Fuel Cell', category: 'utility',
-    inputs: { ScrapAlloy: 6, NitrocellGel: 1 }, unitDurationMs: 15 * MIN,
+    inputs: { Scrap: 6, NitrocellGel: 1 }, unitDurationMs: 15 * MIN,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'FuelCell',
   },
   {
@@ -228,7 +228,7 @@ const VEHICLE_CONSUMABLE_RECIPES: CraftRecipe[] = [
  *  recipes run on the Basic Bench's crusher; composites need the Lab
  *  furnace. Essences are not refined in v1. */
 const REFINING_RECIPES: CraftRecipe[] = [
-  { id: 'refine_refined_alloy', kind: 'refine', name: 'Refined Alloy', category: 'refining', inputs: { ScrapAlloy: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'RefinedAlloy', outputBase: 8 },
+  { id: 'refine_refined_alloy', kind: 'refine', name: 'Refined Alloy', category: 'refining', inputs: { Scrap: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'RefinedAlloy', outputBase: 8 },
   { id: 'refine_tempered_parts', kind: 'refine', name: 'Tempered Parts', category: 'refining', inputs: { BallisticParts: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'TemperedParts', outputBase: 8 },
   { id: 'refine_stabilized_cells', kind: 'refine', name: 'Stabilized Cells', category: 'refining', inputs: { ReactiveComponents: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'StabilizedCells', outputBase: 8 },
   { id: 'refine_woven_circuits', kind: 'refine', name: 'Woven Circuits', category: 'refining', inputs: { TechFragments: 10 }, unitDurationMs: 20 * MIN, requiresLevel: 1, requiresBench: 1, station: 'crusher', outputMaterial: 'WovenCircuits', outputBase: 8 },
@@ -388,19 +388,19 @@ export const CORE_CATALYST_CORES_PER_UNIT = 1;
 export const BATCH_RECIPES: CraftRecipe[] = [
   {
     id: 'recipe_shield_cell_batch', kind: 'consumable', name: 'Shield Cell ×3 (Batch)', category: 'survival',
-    inputs: { ScrapAlloy: 50, ReactiveComponents: 30 }, unitDurationMs: 1980000,
+    inputs: { Scrap: 50, ReactiveComponents: 30 }, unitDurationMs: 1980000,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'ShieldCell',
     requiresResearch: 'production_systems', outputQuantity: 3,
   },
   {
     id: 'recipe_patch_kit_batch', kind: 'consumable', name: 'Patch Kit ×3 (Batch)', category: 'utility',
-    inputs: { ScrapAlloy: 10, ReactiveComponents: 3 }, unitDurationMs: 1584000,
+    inputs: { Scrap: 10, ReactiveComponents: 3 }, unitDurationMs: 1584000,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'PatchKit',
     requiresResearch: 'production_systems', outputQuantity: 3,
   },
   {
     id: 'recipe_ordnance_batch', kind: 'consumable', name: 'Ordnance Charge ×3 (Batch)', category: 'offense',
-    inputs: { ScrapAlloy: 30, BallisticParts: 25 }, unitDurationMs: 1584000,
+    inputs: { Scrap: 30, BallisticParts: 25 }, unitDurationMs: 1584000,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'OrdnanceCharge',
     requiresResearch: 'production_systems', outputQuantity: 3,
   },
@@ -438,7 +438,7 @@ const STANDING_RECIPES: CraftRecipe[] = [
   },
   {
     id: 'recipe_throwtech_standing', kind: 'consumable', name: 'ThrowTech Decoy Kit', category: 'utility',
-    inputs: { MagnetiteCores: 2, TechFragments: 12, ScrapAlloy: 20 },
+    inputs: { MagnetiteCores: 2, TechFragments: 12, Scrap: 20 },
     unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'ThrowTechDecoyKit', requiresStanding: { manufacturer: 'ThrowTech', rank: 2 },
   },
@@ -454,9 +454,10 @@ const STANDING_RECIPES: CraftRecipe[] = [
  * Cosmetic part recipes (skins slice, migration 0053; brief §6).
  * One recipe per skin part, listed in the Workshop cosmetic lane
  * for everyone — no blueprints, no learn-gating. Inputs are
- * SCRAP-LED (the `Scrap` key charges profiles.scrap, the game's
- * bulk material currency — the enqueue/cancel paths special-case
- * it beside materials and essences) with per-tier secondaries.
+ * SCRAP-LED (the `Scrap` key is the game's bulk currency, charged
+ * from the unified materials['Scrap'] stock since the 0069 merge —
+ * an ordinary material key in the enqueue/cancel paths) with
+ * per-tier secondaries.
  * T3 shaped parts and manufacturer heads are single-unit prestige
  * jobs (maxUnits 1); T2 repaints batch to 10.
  */

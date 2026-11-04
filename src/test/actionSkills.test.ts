@@ -878,7 +878,7 @@ function writeProfile(over: Partial<ProfileRowData> & { id: string }): ProfileRo
   return {
     username: 'fixer', display_name: null, player_level: 40, player_xp: 0,
     credits: 100_000, scrap: 0, cache_tokens: 0, cache_token_parts: 0,
-    materials: { ScrapAlloy: 1000, ReactiveComponents: 1000 }, essences: {}, consumables: {},
+    materials: { Scrap: 1000, ReactiveComponents: 1000 }, essences: {}, consumables: {},
     skill_spends: { fix_keystone: 1 }, boss_state: {}, action_skill_charge: 100,
     action_skill_selection: 'Fixer',
     last_idle_claim_at: '2026-10-31T00:00:00.000Z', last_claimed_tick: 0,

@@ -69,8 +69,17 @@ describe('migration 0053 — catalog + schema pins', () => {
     // consumables are excluded here too and pinned against 0057's
     // restated catalog in gateRemovalStep2.test.ts. Everything else
     // in 0053's catalog still deep-equals the TS catalog.
+    // Econ 5 (0069) renamed the ScrapAlloy input key to Scrap in 38
+    // recipes (37 consumables + refine_refined_alloy in this set);
+    // those rows are pinned against 0069's restated catalog in
+    // scrapMerge.test.ts instead.
+    const renamedBy0069 = new Set(
+      catalog
+        .filter((r) => JSON.stringify(r.inputs ?? {}).includes('ScrapAlloy'))
+        .map((r) => String(r.id)),
+    );
     const withoutSuperseded = (rows: Array<Record<string, unknown>>) =>
-      rows.filter((r) => r.category !== 'cosmetics' && r.kind !== 'consumable');
+      rows.filter((r) => r.category !== 'cosmetics' && r.kind !== 'consumable' && !renamedBy0069.has(String(r.id)));
     expect(catalog.filter((r) => r.category === 'cosmetics')).toHaveLength(27);
     expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(43);
     expect(withoutSuperseded(catalog)).toEqual(
@@ -122,8 +131,16 @@ describe('migration 0056 — cosmetic recipe levels removed', () => {
     // consumables are excluded here and pinned against 0057's
     // restated catalog in gateRemovalStep2.test.ts. Everything else
     // in 0056's catalog still deep-equals the TS catalog.
+    // Econ 5 (0069) renamed the ScrapAlloy input key to Scrap;
+    // refine_refined_alloy is the one renamed row in this set — it
+    // is pinned against 0069's restated catalog in scrapMerge.test.ts.
+    const renamedBy0069 = new Set(
+      catalog
+        .filter((r) => JSON.stringify(r.inputs ?? {}).includes('ScrapAlloy'))
+        .map((r) => String(r.id)),
+    );
     const withoutConsumables = (rows: Array<Record<string, unknown>>) =>
-      rows.filter((r) => r.kind !== 'consumable');
+      rows.filter((r) => r.kind !== 'consumable' && !renamedBy0069.has(String(r.id)));
     expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(43);
     expect(withoutConsumables(catalog)).toEqual(
       withoutConsumables(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
@@ -259,12 +276,14 @@ describe('cosmetic crafting — writes twin', () => {
     })).rejects.toThrow(/tint/i);
 
     const recipe = getCraftRecipe(skinPartCatalog('dread-arm-upper-n')!.recipeId)!;
-    const scrapBefore = store.seed.profiles.find((p) => p.id === A)!.scrap;
+    // Econ 5: the escrow draws from the unified materials['Scrap']
+    // stack (the seed's legacy scrap field folded into it).
+    const scrapBefore = store.seed.profiles.find((p) => p.id === A)!.materials['Scrap'] ?? 0;
     const job = await store.enqueueCraftJob(A, nonce(), {
       bench: 2, recipeId: recipe.id, units: 1, consumableEfficiencyBonus: 0,
     }) as Json;
     expect((job as { job?: Json }).job).toBeTruthy();
-    expect(store.seed.profiles.find((p) => p.id === A)!.scrap)
+    expect(store.seed.profiles.find((p) => p.id === A)!.materials['Scrap'] ?? 0)
       .toBe(scrapBefore - (recipe.inputs.Scrap ?? 0));
 
     // Settle past the unit duration; the workshop read settles jobs.

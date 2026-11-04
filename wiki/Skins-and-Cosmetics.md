@@ -15,6 +15,8 @@ There are no blueprints, no drops, and no cache-box tie-in. Every
 skin recipe simply **appears in [[Crafting]]** (Workshop → **Skin
 Parts** lane) and is paid for mostly in **Scrap** — the same salvage
 currency that drops everywhere — plus a few materials per part.
+Short on Scrap? It is a material like any other, so it trades on
+[[The Market]] — buy the stack instead of grinding for it.
 Skin recipes carry **no level requirement**: the bench tier and
 the scrap are the whole gate.
 Crafting a part is a normal timed Workshop job: it advances only
@@ -149,7 +151,12 @@ a 5-minute job costing a flat **25 Scrap** plus the palette's
 Chromaweave itself is a refined material: the **Chromaweave
 Weave** recipe (Refining lane) turns 2 Myco-Steel Fiber + 1 Void
 Essence into 2 Chromaweave (30 minutes, bench 2 furnace), and it
-trades on [[The Market]] like every other material. A tint
+trades on [[The Market]] like every other material. Short on
+Chromaweave at the bench, the Tinting lane's holdings line carries
+the quick-buy **+** — it opens the [[Crafting|quick-buy sheet]]
+priced for exactly the gap, so the tint in front of you never waits
+on a Market trip. (The tint's Scrap half never carries a **+** —
+Scrap is earned, not bought.) A tint
 replaces the part's previous tint; a part being tinted can't be
 listed for sale until the job lands.
 

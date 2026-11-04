@@ -234,7 +234,7 @@ describe('Phase 1 — replayable offline summary', () => {
       scrapAwarded: 87,
       xpAwarded: 640,
       cacheFragmentsAwarded: 2,
-      materials: { ScrapAlloy: 5 },
+      materials: { Scrap: 5 },
       essences: {},
     },
     items: [],
@@ -305,7 +305,7 @@ describe('Phase 1 — visible preset management', () => {
 describe('Phase 1 — material "Used in" + area picker', () => {
   it('resolves consuming recipes from the single recipe source', () => {
     expect(getRecipesUsingMaterial('IgnitionFluid').map((r) => r.id)).toEqual(['recipe_fire_ammo']);
-    expect(getRecipesUsingMaterial('ScrapAlloy').map((r) => r.id)).toContain('recipe_medkit');
+    expect(getRecipesUsingMaterial('Scrap').map((r) => r.id)).toContain('recipe_medkit');
     expect(getRecipesUsingMaterial('VoidEssence').map((r) => r.id)).toEqual(['recipe_void_ammo']);
     expect(getRecipesUsingMaterial('NoSuchMaterial')).toEqual([]);
   });

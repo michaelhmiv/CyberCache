@@ -7,16 +7,168 @@
  * Delete controls for every preset (Phase 1: nothing about presets
  * may live ONLY behind the long-press; the long-press remains as a
  * shortcut to the same per-preset sheet).
+ *
+ * Applying a build is one server operation (SB-1, cc_apply_build):
+ * the report under the chips states the truth — a clean apply gets a
+ * one-line confirmation; a partial apply lists every slot that did
+ * not land, why, and its remedy (delist & equip, recall, pick a
+ * replacement — every "no" carries its remedy, DESIGN.md).
  */
 import React, { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bookmark, Plus, Trash2, Pencil } from 'lucide-react';
-import { useLoadoutPresetsStore } from '@/store/slices/loadoutPresetsSlice';
+import {
+  useLoadoutPresetsStore,
+  type ApplyBuildReport,
+  type BuildSlotOutcome,
+} from '@/store/slices/loadoutPresetsSlice';
+import { useInventoryStore } from '@/store/slices/inventorySlice';
+import { useVehicleStore } from '@/store/slices/vehicleSlice';
+import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 const MAX_PRESETS = 5;
 
-export const PresetSwitcher: React.FC<{ className?: string }> = ({ className }) => {
+const SLOT_LABELS: Record<LoadoutSlot, string> = {
+  primary: 'Primary',
+  secondary: 'Secondary',
+  heavy: 'Heavy',
+  ordnance: 'Ordnance',
+  shield: 'Shield',
+  classMod: 'Mod',
+  relic: 'Relic',
+  vehicle: 'Vehicle',
+};
+
+function formatReturnTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'soon';
+  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/** The per-slot outcome sheet rendered after an apply (SB-1). */
+const ApplyReport: React.FC<{
+  report: ApplyBuildReport;
+  onPickReplacement?: (slot: LoadoutSlot) => void;
+}> = ({ report, onPickReplacement }) => {
+  const dismissApplyReport = useLoadoutPresetsStore((s) => s.dismissApplyReport);
+  const delistAndReapply = useLoadoutPresetsStore((s) => s.delistAndReapply);
+  const recallAndReapply = useLoadoutPresetsStore((s) => s.recallAndReapply);
+  const inventoryItems = useInventoryStore((s) => s.items);
+  const vehicleItems = useVehicleStore((s) => s.vehicles);
+
+  /** The item's display name when the local stores still carry it
+   *  (gone/listed items are excluded from the sync set — those read
+   *  as "The saved item"). */
+  const itemName = (outcome: BuildSlotOutcome): string | null => {
+    if (!outcome.itemId) return null;
+    const found =
+      inventoryItems.find((i) => i.id === outcome.itemId) ??
+      vehicleItems.find((i) => i.id === outcome.itemId);
+    return found?.name ?? null;
+  };
+
+  const reasonText = (outcome: BuildSlotOutcome): string => {
+    const subject = itemName(outcome) ?? 'The saved item';
+    switch (outcome.outcome) {
+      case 'gone':
+        return `${subject} is gone (sold, salvaged, or traded away).`;
+      case 'listed':
+        return `${subject} is listed on the market.`;
+      case 'in_service':
+        return `${subject} is out on dispatch — back ${outcome.returnsAt ? formatReturnTime(outcome.returnsAt) : 'when the mission ends'}.`;
+      case 'locked':
+        return `${subject} is committed to a ${outcome.jobKind === 'shield_tech' ? 'shield-tech' : 'repair'} job — it frees up when the job finishes.`;
+      case 'incompatible':
+        return `${subject} no longer fits this slot.`;
+      default:
+        return '';
+    }
+  };
+
+  if (report.applied) {
+    return (
+      <div
+        data-testid="apply-report"
+        className="mt-2 flex items-center gap-2 border-2 border-border bg-surface px-2 py-2"
+      >
+        <span className="flex-1 text-[11px] font-bold text-text-primary">
+          {report.presetName} applied — every slot equipped.
+        </span>
+        <button
+          type="button"
+          onClick={dismissApplyReport}
+          className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black"
+        >
+          Done
+        </button>
+      </div>
+    );
+  }
+
+  const attention = report.outcomes.filter((o) => o.outcome !== 'equipped' && o.outcome !== 'empty');
+  return (
+    <div data-testid="apply-report" className="mt-2 border-2 border-amber/50 bg-surface px-2 py-2">
+      <div className="flex items-center gap-2">
+        <span className="flex-1 text-[11px] font-black text-text-primary">
+          {report.presetName} partially applied — {attention.length}{' '}
+          {attention.length === 1 ? 'slot needs' : 'slots need'} attention. The rest equipped fine.
+        </span>
+        <button
+          type="button"
+          onClick={dismissApplyReport}
+          className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black"
+        >
+          Dismiss
+        </button>
+      </div>
+      <div className="mt-2 space-y-2">
+        {attention.map((outcome) => (
+          <div key={outcome.slot} className="flex items-center gap-2 border border-border bg-bg/60 px-2 py-1.5">
+            <span className="min-w-0 flex-1 text-[11px] font-bold text-text-primary">
+              <span className="uppercase tracking-wide text-text-muted">{SLOT_LABELS[outcome.slot]}</span>
+              {' — '}
+              {reasonText(outcome)}
+            </span>
+            {outcome.outcome === 'listed' && outcome.listingId && (
+              <button
+                type="button"
+                onClick={() => void delistAndReapply(report.presetId, outcome.listingId as string)}
+                className="bl-primary shrink-0 px-2 py-1 text-[11px] font-black"
+              >
+                Delist &amp; equip
+              </button>
+            )}
+            {outcome.outcome === 'in_service' && outcome.missionId && (
+              <button
+                type="button"
+                onClick={() => void recallAndReapply(report.presetId, outcome.missionId as string)}
+                className="bl-primary shrink-0 px-2 py-1 text-[11px] font-black"
+              >
+                Recall mission
+              </button>
+            )}
+            {(outcome.outcome === 'gone' || outcome.outcome === 'incompatible') && onPickReplacement && (
+              <button
+                type="button"
+                onClick={() => onPickReplacement(outcome.slot)}
+                className="bl-primary shrink-0 px-2 py-1 text-[11px] font-black"
+              >
+                Pick a replacement
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export const PresetSwitcher: React.FC<{
+  className?: string;
+  /** Opens the loadout slot picker for a slot (the gone/incompatible remedy). */
+  onPickReplacement?: (slot: LoadoutSlot) => void;
+}> = ({ className, onPickReplacement }) => {
   const presets = useLoadoutPresetsStore((s) => s.presets);
   const activeId = useLoadoutPresetsStore((s) => s.activePresetId);
   const savePreset = useLoadoutPresetsStore((s) => s.savePreset);
@@ -25,6 +177,9 @@ export const PresetSwitcher: React.FC<{ className?: string }> = ({ className }) 
   const renamePreset = useLoadoutPresetsStore((s) => s.renamePreset);
   const overwritePreset = useLoadoutPresetsStore((s) => s.overwritePreset);
   const findMatching = useLoadoutPresetsStore((s) => s.findMatchingPreset);
+  const lastApplyReport = useLoadoutPresetsStore((s) => s.lastApplyReport);
+  const presetLoadError = useLoadoutPresetsStore((s) => s.presetLoadError);
+  const clearPresetError = useLoadoutPresetsStore((s) => s.clearPresetError);
 
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
@@ -137,6 +292,31 @@ export const PresetSwitcher: React.FC<{ className?: string }> = ({ className }) 
           </button>
         )}
       </div>
+
+      {/* Apply failure (the op itself failed — nothing was applied) */}
+      {presetLoadError && (
+        <div
+          data-testid="apply-error"
+          className="mt-2 flex items-center gap-2 border-2 border-red/40 bg-surface px-2 py-2"
+        >
+          <span className="flex-1 text-[11px] font-bold text-text-primary">
+            That build could not be applied — {presetLoadError} Your current gear is unchanged; try again.
+          </span>
+          <button
+            type="button"
+            onClick={clearPresetError}
+            className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* The apply outcome report (SB-1): clean confirmation or the
+          per-slot sheet with remedies. */}
+      {lastApplyReport && (
+        <ApplyReport report={lastApplyReport} onPickReplacement={onPickReplacement} />
+      )}
 
       {/* Save name input */}
       <AnimatePresence>

@@ -74,7 +74,7 @@ Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|
 
    [[images/ui/boss-prep.png]]
 
-   *Boss prep for the Dune Tyrant: the boss's own numbers, its Kinetic weakness, and the phase's recommended counters — Med Kit and Shield Cell. No odds, anywhere.*
+   *Boss prep for the Dune Tyrant: the boss itself on its arena plate — Kinetic weakness chip and all — above its own numbers and the phase's recommended counters: Med Kit and Shield Cell. No odds, anywhere.*
 
    See [[Bosses]] for risk settings, fees, and the dedicated-drop chase.
 6. **Spend your first skill point.** Level 2 earns your first point in the four skill trees. See [[Progression]].

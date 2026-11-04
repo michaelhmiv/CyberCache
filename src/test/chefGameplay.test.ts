@@ -168,13 +168,13 @@ describe('legacy Chef gameplay routes (B6)', () => {
     expect(res.json.salvaged).toBe(true);
     expect(res.json.verified).toBe(true);
     expect(res.json.scrapValue).toBe(salvageScrap('Rare', 10));
-    expect(store.profiles.get(A)!.scrap).toBe(7 + salvageScrap('Rare', 10));
+    expect(store.profiles.get(A)!.materials['Scrap'] ?? 0).toBe(7 + salvageScrap('Rare', 10));
     expect(store.items.get('item-1')!.runtime_state).toBe('consumed');
 
     const replay = await post(base, '/api/salvage', body, tokenA);
     expect(replay.status).toBe(200);
     expect(replay.json.scrapValue).toBe(salvageScrap('Rare', 10));
-    expect(store.profiles.get(A)!.scrap).toBe(7 + salvageScrap('Rare', 10));
+    expect(store.profiles.get(A)!.materials['Scrap'] ?? 0).toBe(7 + salvageScrap('Rare', 10));
   });
 
   it('salvage: another player\'s item fails with the June 500 shape', async () => {

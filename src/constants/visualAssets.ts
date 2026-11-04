@@ -198,7 +198,10 @@ export const WEAPON_TYPE_VISUALS = {
 } satisfies Record<WeaponType, VisualAsset>;
 
 export const MATERIAL_VISUALS = {
-  [MaterialType.ScrapAlloy]: { id: MaterialType.ScrapAlloy, kind: 'material', label: 'Scrap Alloy', shortLabel: 'ALY', mark: 'A', color: '#A5A7B5', accentColor: '#F5F5F5', description: 'Bolts, plates, and rough salvage metal.', texture: 'metal' },
+  // Scrap the currency-material (economy slice 5, migration 0069):
+  // colors match the long-standing `scrap` resource visual below so
+  // the wallet strip and the material stack read as one stock.
+  [MaterialType.Scrap]: { id: MaterialType.Scrap, kind: 'material', label: 'Scrap', shortLabel: 'SCR', mark: 'S', color: '#FF5722', accentColor: '#FF8A65', description: 'Salvaged metal and parts — the workbench currency every hunter earns and spends. Tradeable on the player market.', texture: 'metal' },
   [MaterialType.BallisticParts]: { id: MaterialType.BallisticParts, kind: 'material', label: 'Ballistic Parts', shortLabel: 'BAL', mark: 'B', color: '#FF4B5C', accentColor: '#FFEA3A', description: 'Barrels, chambers, triggers, and shell hardware.', texture: 'ordnance' },
   [MaterialType.ReactiveComponents]: { id: MaterialType.ReactiveComponents, kind: 'material', label: 'Reactive Components', shortLabel: 'REA', mark: 'R', color: '#3B82F6', accentColor: '#A5F3FC', description: 'Capacitors, shield nodes, and charged regulators.', texture: 'energy' },
   [MaterialType.TechFragments]: { id: MaterialType.TechFragments, kind: 'material', label: 'Tech', shortLabel: 'TEC', mark: 'T', color: '#A855F7', accentColor: '#FF9DF5', description: 'Broken chips, data shards, and machine logic.', texture: 'data' },
@@ -215,7 +218,7 @@ export const MATERIAL_VISUALS = {
   // missing from this registry, so every Workshop/Rep Desk surface
   // that resolves a material label through getVisualAsset printed the
   // UNKNOWN fallback ("Unknown") for them (QC 2026-11-02, A3).
-  [MaterialType.RefinedAlloy]: { id: MaterialType.RefinedAlloy, kind: 'material', label: 'Refined Alloy', shortLabel: 'RAL', mark: 'A', color: '#C0C6D4', accentColor: '#F5F5F5', description: 'Scrap Alloy, refined: clean, even stock for gear frames.', texture: 'metal' },
+  [MaterialType.RefinedAlloy]: { id: MaterialType.RefinedAlloy, kind: 'material', label: 'Refined Alloy', shortLabel: 'RAL', mark: 'A', color: '#C0C6D4', accentColor: '#F5F5F5', description: 'Scrap, refined: clean, even stock for gear frames.', texture: 'metal' },
   [MaterialType.TemperedParts]: { id: MaterialType.TemperedParts, kind: 'material', label: 'Tempered Parts', shortLabel: 'TEM', mark: 'T', color: '#FF7A6B', accentColor: '#FFEA3A', description: 'Ballistic Parts, tempered: hardened barrels, chambers, and triggers.', texture: 'ordnance' },
   [MaterialType.StabilizedCells]: { id: MaterialType.StabilizedCells, kind: 'material', label: 'Stabilized Cells', shortLabel: 'STA', mark: 'S', color: '#6FB7FF', accentColor: '#A5F3FC', description: 'Reactive Components, stabilized: cells that hold their charge.', texture: 'energy' },
   [MaterialType.WovenCircuits]: { id: MaterialType.WovenCircuits, kind: 'material', label: 'Woven Circuits', shortLabel: 'WOV', mark: 'W', color: '#C39BFF', accentColor: '#FF9DF5', description: 'Tech, woven: logic looms for advanced work.', texture: 'data' },

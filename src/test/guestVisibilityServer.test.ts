@@ -195,7 +195,7 @@ describe('guest visibility — boards serve guests; writes still refuse them', (
         profile({ id: SELLER, credits: 100_000 }),
         profile({
           id: GUEST, username: null, account_type: 'guest', email: null, email_verified_at: null,
-          credits: 100_000, materials: { ScrapAlloy: 5 },
+          credits: 100_000, materials: { Scrap: 5 },
         }),
       ],
       items: [
@@ -253,7 +253,7 @@ describe('guest visibility — boards serve guests; writes still refuse them', (
 
   it('guest market-create-material (sell) is refused at the server: 403', async () => {
     const r = await post('/api/ops/market-create-material', guestToken, {
-      nonce: nonce(), material_id: 'ScrapAlloy', quantity: 1, price_credits: 50,
+      nonce: nonce(), material_id: 'Scrap', quantity: 1, price_credits: 50,
     });
     expect(r.status).toBe(403);
     expect(JSON.stringify(r.body)).toContain('Verified account required');

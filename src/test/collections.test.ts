@@ -247,7 +247,7 @@ function writeSeed(): WriteSeed {
   s.profiles = [
     profile({
       id: P, credits: 100_000, legendary_cores: 5,
-      materials: { RefinedAlloy: 1000, TemperedParts: 1000, ForgeheartIngots: 1000, ScrapAlloy: 1000, ReactiveComponents: 1000 },
+      materials: { RefinedAlloy: 1000, TemperedParts: 1000, ForgeheartIngots: 1000, Scrap: 1000, ReactiveComponents: 1000 },
     }),
     profile({ id: S, credits: 0 }),
   ];

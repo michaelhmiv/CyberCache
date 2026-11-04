@@ -94,7 +94,7 @@ function richSeed(): WriteSeed {
   s.profiles = [
     profile({
       id: A, username: 'alpha', player_level: 20, credits: 1000, scrap: 100,
-      materials: { ScrapAlloy: 20 },
+      materials: { Scrap: 20 },
       // Salvage skill tree spent: Hoarder's Instinct + King of Scrap
       // both live, so bonuses AND the Common material roll engage.
       skill_spends: { scav_major_1: 1, scav_keystone: 1 },
@@ -135,7 +135,10 @@ function itemState(store: InMemoryWriteStore, id: string): string {
 
 function profileOf(store: InMemoryWriteStore, id: string): ProfileRowData {
   const seed = (store as unknown as { seed: WriteSeed }).seed;
-  return seed.profiles.find((p) => p.id === id) as ProfileRowData;
+  const row = seed.profiles.find((p) => p.id === id) as ProfileRowData;
+  // Econ 5 (0069): the scrap balance lives in materials['Scrap']; the
+  // row's scrap field is the retired tombstone (seeds fold + zero it).
+  return { ...row, scrap: row.materials['Scrap'] ?? 0 };
 }
 
 describe('batch salvage — settlement contract', () => {
@@ -159,7 +162,8 @@ describe('batch salvage — settlement contract', () => {
     expect(itemState(store, LISTED)).toBe('listed');
 
     // The profile gained exactly the reported aggregate.
-    expect(profileOf(store, A).scrap).toBe(100 + Number(result.scrap_award));
+    // Opening balance is the merged 120 (seed column 100 + stack 20).
+    expect(profileOf(store, A).scrap).toBe(120 + Number(result.scrap_award));
   });
 
   it('Epic ceiling takes the epics but never the legendary', async () => {
@@ -177,7 +181,7 @@ describe('batch salvage — settlement contract', () => {
     await expect(store.recycleBatch(A, 'batch-nonce-0003', 'Legendary')).rejects.toThrow(/Invalid salvage ceiling/);
     await expect(store.recycleBatch(A, 'batch-nonce-0004', 'everything')).rejects.toThrow(/Invalid salvage ceiling/);
     expect(itemState(store, C1)).toBe('available');
-    expect(profileOf(store, A).scrap).toBe(100);
+    expect(profileOf(store, A).scrap).toBe(120);
   });
 
   it('nonce replay returns the original settlement without double-scrapping', async () => {

@@ -44,7 +44,21 @@ describe('migration 0057 — consumable recipe levels removed', () => {
     const parts = MIGRATION_0057.split('$catalog$');
     expect(parts.length).toBeGreaterThanOrEqual(3);
     expect(sqlCatalog).toHaveLength(87);
-    expect(sqlCatalog).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    // Econ 5 (0069) renamed the ScrapAlloy input key to Scrap in 38
+    // recipes; those rows are pinned against 0069's restated catalog
+    // in scrapMerge.test.ts. Everything else in 0057's catalog still
+    // deep-equals the TS catalog.
+    const renamedBy0069 = new Set(
+      sqlCatalog
+        .filter((r) => JSON.stringify(r.inputs ?? {}).includes('ScrapAlloy'))
+        .map((r) => String(r.id)),
+    );
+    expect(renamedBy0069.size).toBe(38);
+    const withoutRenamed = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => !renamedBy0069.has(String(r.id)));
+    expect(withoutRenamed(sqlCatalog)).toEqual(
+      withoutRenamed(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
+    );
   });
 
   it('every consumable sits at the no-gate level 1 in both catalogs — and so does every recipe', () => {
@@ -86,11 +100,11 @@ describe('migration 0057 — consumable recipe levels removed', () => {
 
   it('material costs are byte-identical on the formerly gated recipes', () => {
     expect(getCraftRecipe('recipe_adrenaline')!.inputs)
-      .toEqual({ ScrapAlloy: 40, ReactiveComponents: 25, VoidDust: 3 });
+      .toEqual({ Scrap: 40, ReactiveComponents: 25, VoidDust: 3 });
     expect(getCraftRecipe('recipe_fuel_cell')!.inputs)
-      .toEqual({ ScrapAlloy: 6, NitrocellGel: 1 });
+      .toEqual({ Scrap: 6, NitrocellGel: 1 });
     expect(getCraftRecipe('recipe_field_patch_kit')!.inputs)
-      .toEqual({ ScrapAlloy: 6, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 });
+      .toEqual({ Scrap: 6, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 });
     expect(getCraftRecipe('recipe_calibration_core')!.inputs)
       .toEqual({ ReactiveComponents: 20, TechFragments: 15, PrismShards: 2, VoidDust: 2 });
     expect(getCraftRecipe('recipe_redline_standing')!.inputs)
@@ -106,7 +120,7 @@ function levelOneSeed(benches: number): WriteSeed {
     username: 'crafter', display_name: null, player_level: 1, player_xp: 0,
     credits: 100_000, scrap: 0, cache_tokens: 0, cache_token_parts: 0,
     materials: {
-      ScrapAlloy: 500, ReactiveComponents: 500, BallisticParts: 200,
+      Scrap: 500, ReactiveComponents: 500, BallisticParts: 200,
       TechFragments: 200, NitrocellGel: 50, PrismShards: 50, VoidDust: 100,
       HeartwoodResin: 50,
     },

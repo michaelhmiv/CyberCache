@@ -163,6 +163,13 @@ export const verifiedOps = {
     }
   },
   unequipSlot: (slotName: string) => op('/ops/unequip-slot', { nonce: requestId('unequip'), slot_name: slotName }),
+  // Saved Builds SB-1 (0066): apply a saved build's full slot map
+  // (all 8 slots, vehicle included) in ONE server op. The result
+  // carries a per-slot outcome list and `applied` (true only on a
+  // clean full apply) — the caller renders the outcomes and moves
+  // the active-build marker only when applied is true.
+  applyBuild: (slots: Record<string, string | null>) =>
+    op('/ops/apply-build', { nonce: requestId('apply-build'), slots }),
   refuelVehicle: (cells: number, itemKey?: string) => op('/ops/refuel-vehicle', { nonce: requestId('refuel'), cells, item_key: itemKey ?? null }),
   // Mechanics & repair services (0025): self-repair is a timed job;
   // the board is post → escrow → accept → work → terminal settle.

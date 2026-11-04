@@ -28,6 +28,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { applyXp, computeItemEstimatedValue, masteryLevelForXp, salvageScrap, type Json } from '../writes/store';
+import { sourceIdFromPayload } from '../dropReceipts';
 import {
   deathRecordFromJson,
   GameplayStoreError,
@@ -86,6 +87,10 @@ import {
   type CacheRankLeverValues,
 } from '../../content/cacheRank';
 import {
+  dispatchOffersForBoard,
+  dispatchRerollPrice,
+  dispatchRerollsRemaining,
+  resolveDispatchBoardState,
   resolveDispatchLevers,
   vehicleClassEligibleForTier,
   type DispatchLeverValues,
@@ -206,7 +211,9 @@ export interface InMemoryProfile {
   player_level: number;
   player_xp: number;
   credits: number;
-  scrap: number;
+  // Econ 5 (migration 0069): there is NO scrap column balance on this
+  // record — the one Scrap stock lives in materials['Scrap'] and every
+  // read/write goes through it. Views project `scrap` from the stack.
   /** Banked fractional scrap (migration 0009), 0 <= x < 1. */
   scrap_remainder: number;
   /** Banked fractional credits (migration 0010), 0 <= x < 1. */
@@ -243,6 +250,12 @@ export interface InMemoryProfile {
   last_roaming_settled_at: string | null;
   last_settlement_nonce: string | null;
   offline_cap_hours: number | null;
+  /** Dispatch board reroll state (migration 0068): stored board
+   *  index + rerolls used + the UTC day key they belong to. Reads
+   *  resolve the effective state lazily (resolveDispatchBoardState). */
+  dispatch_board_index: number;
+  dispatch_rerolls_used: number;
+  dispatch_board_day: string | null;
   [key: string]: unknown;
 }
 
@@ -553,11 +566,14 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
 
   /** Test helper: insert a profile row with June defaults. */
   seedProfile(overrides: Partial<InMemoryProfile> & { id: string }): InMemoryProfile {
+    // Econ 5: a seed's legacy `scrap` amount folds into the unified
+    // materials stock — seeding scrap N means holding N Scrap items.
+    const legacyScrap = typeof overrides.scrap === 'number' ? overrides.scrap : 0;
+    const { scrap: _legacyScrapKey, ...restOverrides } = overrides;
     const profile: InMemoryProfile = {
       player_level: 1,
       player_xp: 0,
       credits: 0,
-      scrap: 0,
       scrap_remainder: 0,
       credits_remainder: 0,
       xp_remainder: 0,
@@ -582,8 +598,17 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       last_roaming_settled_at: null,
       last_settlement_nonce: null,
       offline_cap_hours: null,
-      ...overrides,
+      dispatch_board_index: 0,
+      dispatch_rerolls_used: 0,
+      dispatch_board_day: null,
+      ...restOverrides,
     };
+    if (legacyScrap !== 0) {
+      profile.materials = {
+        ...profile.materials,
+        Scrap: (profile.materials['Scrap'] ?? 0) + legacyScrap,
+      };
+    }
     this.profiles.set(profile.id, profile);
     return profile;
   }
@@ -620,7 +645,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       player_level: p.player_level,
       player_xp: p.player_xp,
       credits: p.credits,
-      scrap: p.scrap,
+      scrap: p.materials['Scrap'] ?? 0,
       cache_tokens: p.cache_tokens,
       cache_token_parts: p.cache_token_parts,
       legendary_cores: p.legendary_cores ?? 0,
@@ -658,7 +683,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     p.player_xp = leveled.player_xp;
     this.applyCacheRankGrant(p);
     p.credits += Math.trunc(rewards.credits);
-    p.scrap += Math.trunc(rewards.scrap);
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + Math.trunc(rewards.scrap);
     if (rewards.scrapRemainder != null) p.scrap_remainder = rewards.scrapRemainder;
     if (rewards.creditsRemainder != null) p.credits_remainder = rewards.creditsRemainder;
     if (rewards.xpRemainder != null) p.xp_remainder = rewards.xpRemainder;
@@ -1792,7 +1817,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const free = used < 1;
     const cost = free ? 0 : inst.periodKind === 'daily'
       ? levers.contractRerollScrapDaily : levers.contractRerollScrapWeekly;
-    if (cost > 0 && p.scrap < cost) throw new GameplayStoreError('Insufficient scrap for a reroll');
+    if (cost > 0 && (p.materials['Scrap'] ?? 0) < cost) throw new GameplayStoreError('Insufficient scrap for a reroll');
     const band = contractBandById(inst.band as ContractBandId);
     const draw = drawContractReroll({
       kind: inst.periodKind,
@@ -1808,7 +1833,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         .map((i) => CONTRACT_TEMPLATE_BY_ID.get(i.templateId)?.family ?? 'meta'),
     });
     if (!draw) throw new GameplayStoreError('No replacement contract available on this board');
-    if (cost > 0) p.scrap -= cost;
+    if (cost > 0) p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) - cost;
     inst.status = 'rerolled';
     const replacement: ContractInstanceRecord & { user_id: string; band: string } = {
       user_id: playerId,
@@ -1865,7 +1890,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         player_level: p.player_level,
         vehicle_fuel: p.vehicle_fuel,
         credits: p.credits,
-        scrap: p.scrap,
+        scrap: p.materials['Scrap'] ?? 0,
+        dispatch_board_index: p.dispatch_board_index ?? 0,
+        dispatch_rerolls_used: p.dispatch_rerolls_used ?? 0,
+        dispatch_board_day: p.dispatch_board_day ?? null,
       },
       items,
     };
@@ -1902,6 +1930,26 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       || !(payoutScrap >= 0 && payoutScrap <= 1000000)
       || !(payoutUnits >= 0 && payoutUnits <= 10000)) {
       throw new GameplayStoreError('Dispatch payout snapshot out of bounds');
+    }
+    // Board discipline (0068, economy brief §7.3): the offer must be
+    // on the player's CURRENT board for today — yesterday's board
+    // and unpurchased future boards never validate — and an offer
+    // id already departed today stays departed (the id is the
+    // consumption unit, on any board index).
+    const offerId = String(t.offer_id ?? '');
+    const boardState = resolveDispatchBoardState(
+      {
+        boardIndex: p.dispatch_board_index,
+        rerollsUsed: p.dispatch_rerolls_used,
+        day: p.dispatch_board_day,
+      },
+      this.now(),
+    );
+    if (!dispatchOffersForBoard(this.now(), boardState.boardIndex).some((o) => o.id === offerId)) {
+      throw new GameplayStoreError('Dispatch offer is not on the current board');
+    }
+    if (this.dispatchMissions.some((m) => m.user_id === playerId && m.offer_id === offerId)) {
+      throw new GameplayStoreError('Dispatch offer already departed');
     }
     const slots = this.dispatchLevers().dispatchQueueSlots;
     const activeCount = this.dispatchMissions.filter((m) => m.user_id === playerId && m.status === 'active').length;
@@ -2039,7 +2087,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       }
     }
     p.credits += credits;
-    p.scrap += scrap;
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + scrap;
     if (mission.payout_material_id && units > 0) {
       p.materials[mission.payout_material_id] = (p.materials[mission.payout_material_id] ?? 0) + units;
     }
@@ -2101,6 +2149,56 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return result;
   }
 
+  /** Dispatch reroll log (0068 mirror of the cc_reroll_dispatch_board ledger rows) for test introspection. */
+  readonly dispatchRerollLog: Json[] = [];
+
+  /**
+   * cc_reroll_dispatch_board mirror (0068, economy brief §7.3):
+   * burn the escalating price, advance today's board index, persist
+   * the (lazily reset) day state. Departed offers and running
+   * contracts are never touched — the new board is computed on read
+   * from the content owner under the new index.
+   */
+  async rerollDispatchBoard(playerId: string, nonce: string): Promise<Json> {
+    if (!nonce || nonce.trim().length < 8) throw new GameplayStoreError('nonce is required');
+    const prior = this.ledger.get(nonce);
+    if (prior) return prior;
+    const p = this.requireProfile(playerId);
+    const levers = this.dispatchLevers();
+    const state = resolveDispatchBoardState(
+      {
+        boardIndex: p.dispatch_board_index,
+        rerollsUsed: p.dispatch_rerolls_used,
+        day: p.dispatch_board_day,
+      },
+      this.now(),
+    );
+    if (dispatchRerollsRemaining(state.rerollsUsed, levers) <= 0) {
+      throw new GameplayStoreError('Dispatch reroll cap reached — board re-deals reset at the day rollover');
+    }
+    const price = dispatchRerollPrice(state.rerollsUsed, levers);
+    if (p.credits < price) throw new GameplayStoreError('Insufficient credits for a dispatch reroll');
+    p.credits -= price;
+    p.dispatch_board_index = state.boardIndex + 1;
+    p.dispatch_rerolls_used = state.rerollsUsed + 1;
+    p.dispatch_board_day = state.day;
+    const result: Json = {
+      action_type: 'cc_reroll_dispatch_board',
+      credits_charged: price,
+      board_index: p.dispatch_board_index,
+      rerolls_used: p.dispatch_rerolls_used,
+      rerolls_remaining: dispatchRerollsRemaining(p.dispatch_rerolls_used, levers),
+      next_reroll_price: dispatchRerollsRemaining(p.dispatch_rerolls_used, levers) > 0
+        ? dispatchRerollPrice(p.dispatch_rerolls_used, levers)
+        : null,
+      day: state.day,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(nonce, result);
+    this.dispatchRerollLog.push(result);
+    return result;
+  }
+
   async getActiveAction(playerId: string): Promise<ActiveActionRow | null> {
     const a = this.activeActions.get(playerId);
     if (!a) return null;
@@ -2148,7 +2246,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       player_level: profile.player_level,
       player_xp: profile.player_xp,
       credits: profile.credits,
-      scrap: profile.scrap,
       materials: profile.materials,
       essences: profile.essences,
       consumables: profile.consumables,
@@ -2759,6 +2856,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         // Vehicles are stored at full condition (0021 cc_store_chef_items).
         condition_current: kind === 'vehicle' ? VEHICLE_CONDITION_MAX : null,
         condition_max: kind === 'vehicle' ? VEHICLE_CONDITION_MAX : null,
+        // AL-1 (0070): the twin of the SQL store's source_id write —
+        // derived from the payload's drop receipt (identical string),
+        // NULL when the payload carries no stamp.
+        source_id: sourceIdFromPayload(payload),
         payload,
       });
       inserted += 1;
@@ -2908,8 +3009,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     p.boss_state = bossState;
 
     p.credits = Math.max(0, p.credits + Math.trunc(attempt.creditsDelta));
-    // 0008: Second Opinion auto-scrap credit (SQL: scrap = scrap + delta).
-    p.scrap += Math.trunc(attempt.scrap);
+    // 0008: Second Opinion auto-scrap credit (0069: lands in the
+    // unified materials['Scrap'] stack).
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + Math.trunc(attempt.scrap);
 
     const result: Json = {
       action_type: 'cc_apply_boss_attempt',
@@ -2964,7 +3066,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       scrap: Math.floor(run.escrow_scrap * frac),
     };
     p.credits += paid.credits;
-    p.scrap += paid.scrap;
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + paid.scrap;
     if (paid.xp > 0) {
       const leveled = applyXp(p.player_level, p.player_xp, paid.xp);
       p.player_level = leveled.player_level;
@@ -3529,7 +3631,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     item.runtime_state = 'consumed';
     item.tradeable = false;
     item.equipped_slot = null;
-    p.scrap += award;
+    p.materials['Scrap'] = (p.materials['Scrap'] ?? 0) + award;
     // 0042: contracts stat mirror (salvages).
     this.addContractStat(playerId, 'inventory.recycle.count', 1);
     p.legendary_cores = (p.legendary_cores ?? 0) + cores;

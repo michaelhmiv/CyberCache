@@ -217,14 +217,14 @@ describe('§9.2/§9.4 catalog and copy pins', () => {
 
   it('batch numbers are byte-identical to the shipped catalog (no-change pin)', () => {
     const shield = getCraftRecipe('recipe_shield_cell_batch')!;
-    expect(shield.inputs).toEqual({ ScrapAlloy: 50, ReactiveComponents: 30 });
+    expect(shield.inputs).toEqual({ Scrap: 50, ReactiveComponents: 30 });
     expect(shield.unitDurationMs).toBe(1980000);
     expect(shield.outputQuantity).toBe(3);
     const patch = getCraftRecipe('recipe_patch_kit_batch')!;
-    expect(patch.inputs).toEqual({ ScrapAlloy: 10, ReactiveComponents: 3 });
+    expect(patch.inputs).toEqual({ Scrap: 10, ReactiveComponents: 3 });
     expect(patch.unitDurationMs).toBe(1584000);
     const ord = getCraftRecipe('recipe_ordnance_batch')!;
-    expect(ord.inputs).toEqual({ ScrapAlloy: 30, BallisticParts: 25 });
+    expect(ord.inputs).toEqual({ Scrap: 30, BallisticParts: 25 });
     expect(ord.unitDurationMs).toBe(1584000);
   });
 
@@ -406,7 +406,7 @@ function seed(): WriteSeed {
     }),
     profile({
       id: TOOLP,
-      materials: { CircuitLattice: 4, PrismShards: 4, ScrapAlloy: 3000, ReactiveComponents: 3000 },
+      materials: { CircuitLattice: 4, PrismShards: 4, Scrap: 3000, ReactiveComponents: 3000 },
     }),
     profile({
       id: FURN, workshop_benches: 3,

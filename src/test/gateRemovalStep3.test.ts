@@ -253,7 +253,7 @@ describe('surviving gates outside the Research catalog', () => {
     s.profiles = [{
       username: 'crafter', display_name: null, player_level: 1, player_xp: 0,
       credits: 100_000, scrap: 0, cache_tokens: 0, cache_token_parts: 0,
-      materials: { ScrapAlloy: 100, ReactiveComponents: 100 }, essences: {}, consumables: {}, skill_spends: {},
+      materials: { Scrap: 100, ReactiveComponents: 100 }, essences: {}, consumables: {}, skill_spends: {},
       boss_state: {}, last_idle_claim_at: '2026-10-31T00:00:00.000Z', last_claimed_tick: 0,
       created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z',
       account_type: 'verified', email: 'crafter@example.com',

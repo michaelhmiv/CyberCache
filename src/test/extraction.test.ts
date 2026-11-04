@@ -239,7 +239,7 @@ describe('extraction content: the find pool is roaming\'s pool', () => {
       const total = Object.values(t).reduce((a, b) => a + b, 0);
       return (t[id] ?? 0) / Math.max(1, total);
     };
-    for (const id of ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents']) {
+    for (const id of ['Scrap', 'BallisticParts', 'ReactiveComponents']) {
       expect(Math.abs(share(extractTotals, id) - share(roamTotals, id)), id).toBeLessThan(0.05);
     }
   });
@@ -309,9 +309,10 @@ describe('migration 0033: textual pins', () => {
 
   it('the applier whitelist equals the TS material/essence id sets', () => {
     // 0053 restated the applier when Chromaweave joined the
-    // material set; the whitelist pin follows the LATEST
+    // material set; 0069 restated it again for the scrap merge
+    // (ScrapAlloy -> Scrap). The whitelist pin follows the LATEST
     // restatement (the overhaulMechanics convention).
-    const latest = readFileSync(join(process.cwd(), 'db/migrations/0053_skins_cosmetics.sql'), 'utf8');
+    const latest = readFileSync(join(process.cwd(), 'db/migrations/0069_scrap_merge.sql'), 'utf8');
     const listMatch = latest.match(/v_material_ids text\[\] := array\[([\s\S]*?)\];/);
     expect(listMatch).not.toBeNull();
     const sqlIds = [...listMatch![1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();

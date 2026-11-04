@@ -339,6 +339,12 @@ export interface OddsOutcomeData {
   payload: Json;
 }
 
+/** odds_tables row mirror — the version a draw stamps (AL-1, 0070). */
+export interface OddsTableData {
+  id: string;
+  version: number;
+}
+
 export interface RoamingAreaData {
   id: string;
   display_name: string;
@@ -398,6 +404,8 @@ export interface WriteSeed {
   masteries: MasteryData[];
   skillNodes: SkillNodeData[];
   oddsOutcomes: OddsOutcomeData[];
+  /** odds_tables rows (id + version) — seeded sparsely; see makeItem. */
+  oddsTables: OddsTableData[];
   roamingAreas: RoamingAreaData[];
   adGrants: { user_id: string; reward_type: string; status: string; granted_at: string }[];
   /** Cache box opening rows (migration 0037), the daily budget's record. */
@@ -414,6 +422,23 @@ export interface WriteSeed {
   extractionStates: ExtractionStateRecord[];
   /** Trophy Shelf pins (migration 0058), in pin order per player. */
   showcasePins: { user_id: string; item_id: string; pin_order: number }[];
+  /**
+   * Dispatch missions (migration 0032) — read-only for the writes
+   * twin: cc_apply_build (0066) names the active mission holding an
+   * in-service item and its return time. Optional so older seed
+   * literals stay valid; absent = no missions.
+   */
+  dispatchMissions?: DispatchMissionData[];
+}
+
+/** The dispatch facts cc_apply_build reads (migration 0032's row, trimmed). */
+export interface DispatchMissionData {
+  id: string;
+  user_id: string;
+  status: string;
+  ends_at: string;
+  loadout_item_ids: string[];
+  vehicle_item_id: string | null;
 }
 
 export function emptyWriteSeed(): WriteSeed {
@@ -430,6 +455,7 @@ export function emptyWriteSeed(): WriteSeed {
     masteries: [],
     skillNodes: [],
     oddsOutcomes: [],
+    oddsTables: [],
     roamingAreas: [],
     adGrants: [],
     cacheBoxOpenings: [],
@@ -441,6 +467,7 @@ export function emptyWriteSeed(): WriteSeed {
     craftJobs: [],
     extractionStates: [],
     showcasePins: [],
+    dispatchMissions: [],
   };
 }
 
@@ -491,35 +518,35 @@ export function skillSpendTotal(spends: Json): number {
  * Keys outside the five materials are essences (see the SQL loop).
  */
 const RECIPE_MATERIALS: Record<string, Record<string, number>> = {
-  recipe_medkit: { ScrapAlloy: 15, ReactiveComponents: 8 },
-  recipe_medkit_refined: { ScrapAlloy: 25, ReactiveComponents: 15, VoidDust: 1 },
-  recipe_shieldcell: { ScrapAlloy: 20, ReactiveComponents: 12 },
-  recipe_nanoswarm: { ScrapAlloy: 30, ReactiveComponents: 20, VoidDust: 2 },
-  recipe_adrenaline: { ScrapAlloy: 40, ReactiveComponents: 25, VoidDust: 3 },
-  recipe_ammo_pack: { ScrapAlloy: 10, BallisticParts: 6 },
-  recipe_high_capacity_ammo_pack: { ScrapAlloy: 18, BallisticParts: 12, TechFragments: 2 },
-  recipe_ap_ammo: { ScrapAlloy: 15, BallisticParts: 10 },
-  recipe_fire_ammo: { ScrapAlloy: 15, BallisticParts: 8, IgnitionFluid: 3 },
-  recipe_shock_ammo: { ScrapAlloy: 15, BallisticParts: 8, ConduitWire: 3 },
-  recipe_corrosive_ammo: { ScrapAlloy: 15, BallisticParts: 8, AcidCompound: 3 },
-  recipe_cryo_ammo: { ScrapAlloy: 15, BallisticParts: 8, CryoGel: 3 },
-  recipe_void_ammo: { ScrapAlloy: 20, BallisticParts: 10, VoidEssence: 5 },
-  recipe_ordnance: { ScrapAlloy: 12, BallisticParts: 10 },
-  recipe_emp_charge: { ScrapAlloy: 18, BallisticParts: 8, ConduitWire: 4, TechFragments: 2 },
-  recipe_corrosive_charge: { ScrapAlloy: 18, BallisticParts: 8, AcidCompound: 4, TechFragments: 2 },
-  recipe_overcharge: { ScrapAlloy: 25, BallisticParts: 15, VoidDust: 2 },
-  recipe_targetpainter: { ScrapAlloy: 20, BallisticParts: 10, TechFragments: 2 },
-  recipe_phaseshift: { ScrapAlloy: 30, BallisticParts: 15, VoidDust: 5 },
-  recipe_luck: { ScrapAlloy: 15, TechFragments: 8 },
-  recipe_scanner: { ScrapAlloy: 20, TechFragments: 12 },
-  recipe_insurance: { ScrapAlloy: 30, TechFragments: 15, VoidDust: 2 },
-  recipe_dataskimmer: { ScrapAlloy: 25, TechFragments: 15, VoidDust: 3 },
-  recipe_jammer: { ScrapAlloy: 20, TechFragments: 10, ConduitWire: 2 },
-  recipe_magnetized: { ScrapAlloy: 15, BallisticParts: 10, TechFragments: 5 },
-  recipe_signal_scrambler: { ScrapAlloy: 15, TechFragments: 10, ConduitWire: 2 },
-  recipe_loot_beacon: { ScrapAlloy: 20, TechFragments: 14, VoidDust: 2 },
-  recipe_salvage_contract: { ScrapAlloy: 12, TechFragments: 8 },
-  recipe_workshop_rush_ticket: { ScrapAlloy: 18, TechFragments: 12, VoidDust: 1 },
+  recipe_medkit: { Scrap: 15, ReactiveComponents: 8 },
+  recipe_medkit_refined: { Scrap: 25, ReactiveComponents: 15, VoidDust: 1 },
+  recipe_shieldcell: { Scrap: 20, ReactiveComponents: 12 },
+  recipe_nanoswarm: { Scrap: 30, ReactiveComponents: 20, VoidDust: 2 },
+  recipe_adrenaline: { Scrap: 40, ReactiveComponents: 25, VoidDust: 3 },
+  recipe_ammo_pack: { Scrap: 10, BallisticParts: 6 },
+  recipe_high_capacity_ammo_pack: { Scrap: 18, BallisticParts: 12, TechFragments: 2 },
+  recipe_ap_ammo: { Scrap: 15, BallisticParts: 10 },
+  recipe_fire_ammo: { Scrap: 15, BallisticParts: 8, IgnitionFluid: 3 },
+  recipe_shock_ammo: { Scrap: 15, BallisticParts: 8, ConduitWire: 3 },
+  recipe_corrosive_ammo: { Scrap: 15, BallisticParts: 8, AcidCompound: 3 },
+  recipe_cryo_ammo: { Scrap: 15, BallisticParts: 8, CryoGel: 3 },
+  recipe_void_ammo: { Scrap: 20, BallisticParts: 10, VoidEssence: 5 },
+  recipe_ordnance: { Scrap: 12, BallisticParts: 10 },
+  recipe_emp_charge: { Scrap: 18, BallisticParts: 8, ConduitWire: 4, TechFragments: 2 },
+  recipe_corrosive_charge: { Scrap: 18, BallisticParts: 8, AcidCompound: 4, TechFragments: 2 },
+  recipe_overcharge: { Scrap: 25, BallisticParts: 15, VoidDust: 2 },
+  recipe_targetpainter: { Scrap: 20, BallisticParts: 10, TechFragments: 2 },
+  recipe_phaseshift: { Scrap: 30, BallisticParts: 15, VoidDust: 5 },
+  recipe_luck: { Scrap: 15, TechFragments: 8 },
+  recipe_scanner: { Scrap: 20, TechFragments: 12 },
+  recipe_insurance: { Scrap: 30, TechFragments: 15, VoidDust: 2 },
+  recipe_dataskimmer: { Scrap: 25, TechFragments: 15, VoidDust: 3 },
+  recipe_jammer: { Scrap: 20, TechFragments: 10, ConduitWire: 2 },
+  recipe_magnetized: { Scrap: 15, BallisticParts: 10, TechFragments: 5 },
+  recipe_signal_scrambler: { Scrap: 15, TechFragments: 10, ConduitWire: 2 },
+  recipe_loot_beacon: { Scrap: 20, TechFragments: 14, VoidDust: 2 },
+  recipe_salvage_contract: { Scrap: 12, TechFragments: 8 },
+  recipe_workshop_rush_ticket: { Scrap: 18, TechFragments: 12, VoidDust: 1 },
 };
 
 export function recipeMaterials(recipeId: string): Record<string, number> | null {
@@ -702,6 +729,8 @@ export interface OddsDraw {
   roll: number;
   total_weight: number;
   payload: Json;
+  /** AL-1 (0070): the odds_tables version the draw read (cache lane stamps it). */
+  odds_table_version?: number | null;
 }
 
 /** cc_draw_odds over a provided outcome list (ordered by outcome, like SQL). */
@@ -928,6 +957,19 @@ export interface WriteStore {
   itemLock(playerId: string, nonce: string, itemId: string, locked: boolean): Promise<Json>;
   equipItem(playerId: string, nonce: string, itemId: string, slotName: string): Promise<Json>;
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json>;
+  /**
+   * Apply a saved build in ONE operation (cc_apply_build, 0066;
+   * Saved Builds SB-1). Takes the build's full slot map (all 8
+   * slots, item id or null) and applies it server-side with
+   * cc_equip_item's per-slot semantics — the vehicle slot included,
+   * resolved from item records, never the client's inventory store.
+   * Partial application is allowed and fully reported: the result
+   * carries a per-slot outcome list (equipped / empty / gone /
+   * listed / in_service / locked / incompatible, with the remedy
+   * data each outcome needs) and `applied` is true only on a clean
+   * full apply — the client moves the active-build marker only then.
+   */
+  applyBuild(playerId: string, nonce: string, slots: Record<string, string | null>): Promise<Json>;
   /**
    * Load fuel cells into the vehicle tank (cc_refuel_vehicle, 0021;
    * restated in 0024 to accept the crafted FuelCell type — fuel loads
@@ -1413,6 +1455,13 @@ export class PgWriteStore implements WriteStore {
   }
   unequipSlot(playerId: string, nonce: string, slotName: string): Promise<Json> {
     return this.callJson('select public.cc_unequip_slot($1, $2, $3) as result', [playerId, nonce, slotName]);
+  }
+  applyBuild(playerId: string, nonce: string, slots: Record<string, string | null>): Promise<Json> {
+    return this.callJson('select public.cc_apply_build($1, $2, $3::jsonb) as result', [
+      playerId,
+      nonce,
+      JSON.stringify(slots),
+    ]);
   }
   refuelVehicle(playerId: string, nonce: string, cells: number, itemKey = 'GenericFuelCell'): Promise<Json> {
     return this.callJson('select public.cc_refuel_vehicle($1, $2, $3, $4) as result', [playerId, nonce, cells, itemKey]);

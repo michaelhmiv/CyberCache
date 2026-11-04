@@ -266,7 +266,9 @@ const ACTIVE_KINDS = [
   'endless_run',
   'extraction',
 ] as const;
-const MATERIAL_KEYS = ['ScrapAlloy', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave'] as const;
+// Econ 5 (0069): 'Scrap' heads the list — the unified currency stock
+// is a material key everywhere (market escrow, recipe classification).
+const MATERIAL_KEYS = ['Scrap', 'BallisticParts', 'ReactiveComponents', 'TechFragments', 'VoidDust', 'Siltglass', 'NitrocellGel', 'HeartwoodResin', 'ForgeheartIngots', 'PrismShards', 'MagnetiteCores', 'MycoSteelFiber', 'RefinedAlloy', 'TemperedParts', 'StabilizedCells', 'WovenCircuits', 'CondensedVoid', 'CompositePlating', 'CircuitLattice', 'Voidweave', 'Chromaweave'] as const;
 
 export interface InMemoryWriteOptions {
   now?: () => Date;
@@ -396,7 +398,17 @@ export class InMemoryWriteStore implements WriteStore {
     this.cacheLaneLeverProvider = opts.cacheLaneLeverProvider ?? (() => ({}));
     this.slotLeverProvider = opts.slotLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
-    for (const p of this.seed.profiles) this.profiles.set(p.id, p);
+    for (const p of this.seed.profiles) {
+      // Econ 5 (0069): a seed's legacy `scrap` amount folds into the
+      // unified materials stock and the row's scrap field zeroes —
+      // mirroring the live conversion (column retired, stack holds it).
+      const legacyScrap = typeof p.scrap === 'number' ? p.scrap : 0;
+      if (legacyScrap !== 0) {
+        p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) + legacyScrap) };
+        p.scrap = 0;
+      }
+      this.profiles.set(p.id, p);
+    }
     for (const i of this.seed.items) this.items.set(i.id, i);
     for (const l of this.seed.listings) this.listings.set(l.id, l);
     for (const j of this.seed.serviceJobs) this.jobs.set(j.id, j);
@@ -514,7 +526,7 @@ export class InMemoryWriteStore implements WriteStore {
     for (const item of this.items.values()) {
       if (item.owner_user_id === userId) itemsValue += item.estimated_value;
     }
-    const total = Math.max(0, p.credits + p.scrap + itemsValue);
+    const total = Math.max(0, p.credits + (p.materials?.['Scrap'] ?? 0) + itemsValue);
     this.setStat(userId, 'account.net_worth', total);
     this.setMasteryXp(userId, 'account.net_worth', total);
   }
@@ -607,7 +619,7 @@ export class InMemoryWriteStore implements WriteStore {
       player_level: p.player_level,
       player_xp: p.player_xp,
       credits: p.credits,
-      scrap: p.scrap,
+      scrap: p.materials?.['Scrap'] ?? 0,
       cache_tokens: p.cache_tokens,
       cache_token_parts: p.cache_token_parts,
       legendary_cores: p.legendary_cores ?? 0,
@@ -790,7 +802,7 @@ export class InMemoryWriteStore implements WriteStore {
       throw writeError('Initial bundle already claimed');
     }
     p.credits += 5000;
-    p.scrap += 500;
+    p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) + 500) };
     p.cache_tokens += 3;
     p.boss_state = { ...p.boss_state, initial_bundle_claimed: true };
     this.touch(p);
@@ -889,11 +901,22 @@ export class InMemoryWriteStore implements WriteStore {
     // cc_draw_odds call.
     const skillQuality = computeSkillBonuses(asNumberMap(p.skill_spends)).cacheQuality ?? 0;
     const cacheQuality = Math.max(0, skillQuality) + this.cacheRankBonusesFor(p).cacheQuality;
-    const draw = drawOdds(
+    const rawDraw = drawOdds(
       'cache_primary_rarity',
       cacheQualityAdjustedWeights(outcomes, cacheQuality),
       this.rng(),
     );
+    // AL-1 (0070): stamp the odds-table version on the draw record —
+    // the twin of cc_draw_odds' odds_table_version, stamped before
+    // the value computation so the record the ledger keeps is the
+    // record the item was priced from. The seed carries odds_tables
+    // rows sparsely; an unseeded table stamps null, exactly what the
+    // SQL select-into yields for a missing row.
+    const draw = {
+      ...rawDraw,
+      odds_table_version:
+        this.seed.oddsTables.find((t) => t.id === 'cache_primary_rarity')?.version ?? null,
+    };
     const rarity = draw.outcome;
     if (resolved === 'key') {
       p.cache_tokens -= 1;
@@ -1782,7 +1805,7 @@ export class InMemoryWriteStore implements WriteStore {
     // selection record in the same operation.
     this.unequipCosmeticIfWorn(playerId, item);
     this.recalcNetWorth(playerId);
-    p.scrap += award;
+    p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) + award) };
     p.legendary_cores = (p.legendary_cores ?? 0) + cores;
     this.touch(p);
     const result: Json = {
@@ -1885,7 +1908,7 @@ export class InMemoryWriteStore implements WriteStore {
       { rarity: item.rarity, level: item.item_level },
       this.reforgeLeverProvider(),
     );
-    if (p.scrap < cost.scrap) throw writeError('Insufficient scrap');
+    if ((p.materials?.['Scrap'] ?? 0) < cost.scrap) throw writeError('Insufficient scrap');
     if ((p.legendary_cores ?? 0) < cost.cores) throw writeError('Insufficient legendary cores');
     const rng = createRNG(hashString(`reforge:${playerId}:${itemId}:${key}`));
     const { item: nextPayload, oldAffix, newAffix } = applyReforgeToItem(kind, payload, affixIndex, rng);
@@ -1898,7 +1921,7 @@ export class InMemoryWriteStore implements WriteStore {
     );
     this.touchItem(item);
     this.recalcNetWorth(playerId);
-    p.scrap -= cost.scrap;
+    p.materials = { ...(p.materials ?? {}), Scrap: ((p.materials?.['Scrap'] ?? 0) - cost.scrap) };
     p.legendary_cores = (p.legendary_cores ?? 0) - cost.cores;
     this.touch(p);
     const result: Json = {
@@ -2048,6 +2071,155 @@ export class InMemoryWriteStore implements WriteStore {
       loadout: this.loadoutSnapshot(playerId),
     };
     return this.record(playerId, 'cc_unequip_slot', key, result);
+  }
+
+  /**
+   * cc_apply_build (0066; Saved Builds SB-1) — the mirror of the SQL
+   * function, outcome for outcome. Applies a saved build's full slot
+   * map in one operation with equipItem's per-slot semantics (the
+   * vehicle slot resolves from item records — vehicles never enter
+   * the client's gear inventory store, which is why the old
+   * client-side fan-out silently dropped them). Partial application
+   * is allowed and fully reported: a slot that cannot apply leaves
+   * its current occupant equipped and names why; `applied` is true
+   * only when every slot outcome is 'equipped' or 'empty'.
+   */
+  async applyBuild(playerId: string, nonce: string, slots: Record<string, string | null>): Promise<Json> {
+    const key = this.cleanNonce(nonce);
+    if (!slots || typeof slots !== 'object' || Array.isArray(slots)) throw writeError('Invalid build');
+    for (const slotName of LOADOUT_SLOTS) {
+      const value = slots[slotName];
+      if (
+        value !== undefined &&
+        value !== null &&
+        (typeof value !== 'string' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))
+      ) {
+        throw writeError('Invalid build');
+      }
+    }
+    const prior = this.prior(playerId, key);
+    if (prior) return prior;
+    const p = this.profile(playerId);
+
+    const outcomes: Record<string, unknown>[] = [];
+    const changed: WriteItemData[] = [];
+    const seen = new Set<string>();
+    let equippedCount = 0;
+    let attentionCount = 0;
+
+    const clearSlot = (slotName: string, exceptId?: string) => {
+      for (const other of this.items.values()) {
+        if (other.owner_user_id === playerId && other.equipped_slot === slotName && other.id !== exceptId) {
+          other.equipped_slot = null;
+          other.runtime_state = other.is_locked ? 'locked' : 'available';
+          this.touchItem(other);
+          changed.push(other);
+        }
+      }
+    };
+
+    for (const slotName of LOADOUT_SLOTS) {
+      const targetId = slots[slotName] ?? null;
+      const base: Record<string, unknown> = {
+        slot: slotName,
+        item_id: targetId,
+        listing_id: null,
+        mission_id: null,
+        returns_at: null,
+        job_id: null,
+        job_kind: null,
+      };
+      if (targetId === null) {
+        clearSlot(slotName);
+        outcomes.push({ ...base, outcome: 'empty' });
+        continue;
+      }
+      if (seen.has(targetId)) {
+        // Malformed build (same item named twice): first slot won.
+        outcomes.push({ ...base, outcome: 'gone' });
+        attentionCount += 1;
+        continue;
+      }
+      seen.add(targetId);
+      const item = this.items.get(targetId);
+      if (!item || item.owner_user_id !== playerId || item.runtime_state === 'consumed' || item.runtime_state === 'salvaged') {
+        outcomes.push({ ...base, outcome: 'gone' });
+        attentionCount += 1;
+        continue;
+      }
+      if (item.runtime_state === 'listed') {
+        const listing = [...this.listings.values()]
+          .filter((l) => l.seller_user_id === playerId && l.item_instance_id === item.id && l.status === 'active')
+          .sort((a, b) => a.listed_at.localeCompare(b.listed_at))[0];
+        outcomes.push({ ...base, outcome: 'listed', listing_id: listing?.id ?? null });
+        attentionCount += 1;
+        continue;
+      }
+      const job = [...this.jobs.values()]
+        .filter(
+          (j) =>
+            j.owner_user_id === playerId &&
+            j.target_item_instance_id === item.id &&
+            !['completed', 'cancelled'].includes(j.status),
+        )
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
+      if (job) {
+        outcomes.push({ ...base, outcome: 'locked', job_id: job.id, job_kind: job.profession_id });
+        attentionCount += 1;
+        continue;
+      }
+      if (item.runtime_state === 'in_service') {
+        const mission = (this.seed.dispatchMissions ?? [])
+          .filter(
+            (m) =>
+              m.user_id === playerId &&
+              m.status === 'active' &&
+              (m.loadout_item_ids.includes(item.id) || m.vehicle_item_id === item.id),
+          )
+          .sort((a, b) => a.ends_at.localeCompare(b.ends_at))[0];
+        outcomes.push({
+          ...base,
+          outcome: 'in_service',
+          mission_id: mission?.id ?? null,
+          returns_at: mission?.ends_at ?? null,
+        });
+        attentionCount += 1;
+        continue;
+      }
+      if (!itemAcceptsSlot(item.payload, slotName)) {
+        outcomes.push({ ...base, outcome: 'incompatible' });
+        attentionCount += 1;
+        continue;
+      }
+      if (slotName === 'vehicle') {
+        const classId = (item.payload as Record<string, unknown>)?.vehicleClassId;
+        if (!getVehicleClass(typeof classId === 'string' ? classId : null)) {
+          outcomes.push({ ...base, outcome: 'incompatible' });
+          attentionCount += 1;
+          continue;
+        }
+      }
+      clearSlot(slotName, item.id);
+      item.equipped_slot = slotName;
+      item.runtime_state = 'equipped';
+      this.touchItem(item);
+      changed.push(item);
+      outcomes.push({ ...base, outcome: 'equipped' });
+      equippedCount += 1;
+    }
+
+    const result: Json = {
+      action_type: 'cc_apply_build',
+      profile: this.profileSnapshot(p),
+      loadout: this.loadoutSnapshot(playerId),
+      items: changed.map((i) => this.itemJson(i)),
+      outcomes,
+      applied: attentionCount === 0,
+      equipped_count: equippedCount,
+      attention_count: attentionCount,
+    };
+    return this.record(playerId, 'cc_apply_build', key, result);
   }
 
   /**
@@ -2291,7 +2463,6 @@ export class InMemoryWriteStore implements WriteStore {
         player_level: p.player_level,
         player_xp: p.player_xp,
         credits: p.credits,
-        scrap: p.scrap ?? 0,
         materials: asNumberMap(p.materials),
         essences: asNumberMap(p.essences),
         consumables: asNumberMap(p.consumables),
@@ -2312,7 +2483,6 @@ export class InMemoryWriteStore implements WriteStore {
       view.player_level = p.player_level;
       view.player_xp = p.player_xp;
       view.credits = p.credits;
-      view.scrap = p.scrap ?? view.scrap;
       view.workshop_benches = p.workshop_benches ?? view.workshop_benches;
       view.legendary_cores = p.legendary_cores ?? view.legendary_cores;
       view.offline_cap_hours = p.offline_cap_hours ?? null;
@@ -2329,7 +2499,6 @@ export class InMemoryWriteStore implements WriteStore {
     p.player_xp = view.player_xp;
     this.applyCacheRankGrant(p);
     p.credits = view.credits;
-    p.scrap = view.scrap;
     p.legendary_cores = view.legendary_cores;
     p.workshop_benches = view.workshop_benches;
     p.workshop_tools = clone(view.workshop_tools) as unknown as Record<string, unknown>;
@@ -4785,10 +4954,10 @@ export class InMemoryWriteStore implements WriteStore {
     p.player_level = 1;
     p.player_xp = 0;
     p.credits = 5000;
-    p.scrap = 500;
     p.cache_tokens = 3;
     p.cache_token_parts = 0;
-    p.materials = {};
+    // Econ 5 (0069): the reset's starting scrap is the materials stack.
+    p.materials = { Scrap: 500 };
     p.essences = {};
     p.consumables = {};
     p.skill_spends = {};

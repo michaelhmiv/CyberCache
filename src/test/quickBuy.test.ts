@@ -82,7 +82,7 @@ function listing(overrides: Partial<WriteListingData> & { id: string; seller_use
     sold_at: null,
     listing_kind: 'material',
     quantity: 1,
-    material_id: 'ScrapAlloy',
+    material_id: 'Scrap',
     ...overrides,
   };
 }
@@ -90,14 +90,14 @@ function listing(overrides: Partial<WriteListingData> & { id: string; seller_use
 function writeSeed(): WriteSeed {
   const s = emptyWriteSeed();
   s.profiles = [
-    profile({ id: S, username: 'seller1', credits: 0, materials: { ScrapAlloy: 50 } }),
+    profile({ id: S, username: 'seller1', credits: 0, materials: { Scrap: 50 } }),
     profile({ id: S2, username: 'seller2', credits: 0 }),
     profile({ id: B, username: 'buyer', credits: 100_000 }),
     profile({ id: G, username: 'guest', account_type: 'guest', email_verified_at: null, credits: 5_000 }),
     profile({ id: NPCBACK, username: 'npcbank', credits: 0 }),
   ];
   s.listings = [
-    // ScrapAlloy sweep for the buyer: 4 @ 10cr (stack 40) then 6 @ 15cr (stack 90).
+    // Scrap sweep for the buyer: 4 @ 10cr (stack 40) then 6 @ 15cr (stack 90).
     listing({ id: L_CHEAP, seller_user_id: S, quantity: 4, price_credits: 40, listed_at: '2026-11-04T07:00:00.000Z' }),
     listing({ id: L_DEAR, seller_user_id: S2, quantity: 6, price_credits: 90, listed_at: '2026-11-04T08:00:00.000Z' }),
     // The buyer's own dirt-cheap stack — invisible to their own sweep.
@@ -239,12 +239,12 @@ describe('quickBuy planner — sweep + default tab', () => {
   it('identity keys: commodities collapse, goods keep their id', () => {
     expect(quickBuyIdentityKey({ kind: 'fragment', id: 'cache' })).toBe('frag:cache');
     expect(quickBuyIdentityKey({ kind: 'core', id: 'legendary' })).toBe('core:legendary');
-    expect(quickBuyIdentityKey({ kind: 'material', id: 'ScrapAlloy' })).toBe('mat:ScrapAlloy');
+    expect(quickBuyIdentityKey({ kind: 'material', id: 'Scrap' })).toBe('mat:Scrap');
   });
 
   const quoteShape = (market: Partial<QuickBuyQuote['market']>, vendor: QuickBuyQuote['vendor']): QuickBuyQuote => ({
     action_type: 'cc_quickbuy_quote',
-    good: { kind: 'material', id: 'ScrapAlloy' },
+    good: { kind: 'material', id: 'Scrap' },
     requested_qty: 5,
     balance: 1000,
     market: {
@@ -283,7 +283,7 @@ describe('quickBuy — write paths', () => {
     [...(h.store as unknown as { ledger: Map<string, { action_type: string; idempotency_key: string }> }).ledger.values()];
 
   it('quote: sweep totals, own listing excluded, partial stated honestly', async () => {
-    const res = await quote(h, h.tokens[B], 'material', 'ScrapAlloy', 5);
+    const res = await quote(h, h.tokens[B], 'material', 'Scrap', 5);
     expect(res.status).toBe(200);
     const q = res.json as unknown as QuickBuyQuote;
     expect(q.balance).toBe(100_000);
@@ -298,7 +298,7 @@ describe('quickBuy — write paths', () => {
     // The sheet re-plans locally from the full eligible row set.
     expect(q.market.listings.map((l) => l.id)).toEqual([L_CHEAP, L_DEAR]);
 
-    const big = await quote(h, h.tokens[B], 'material', 'ScrapAlloy', 25);
+    const big = await quote(h, h.tokens[B], 'material', 'Scrap', 25);
     const bq = big.json as unknown as QuickBuyQuote;
     expect(bq.market.partial).toBe(true);
     expect(bq.market.fillableQty).toBe(10);
@@ -315,9 +315,9 @@ describe('quickBuy — write paths', () => {
     expect(mq.vendor?.total).toBe(offer!.unitPrice * 2);
     expect(mq.vendor?.staple).toBe(true);
 
-    const scrap = await quote(h, h.tokens[B], 'material', 'ScrapAlloy', 1);
+    const scrap = await quote(h, h.tokens[B], 'material', 'Scrap', 1);
     const sq = scrap.json as unknown as QuickBuyQuote;
-    const scrapOffer = vendorOfferFor('ScrapAlloy', key);
+    const scrapOffer = vendorOfferFor('Scrap', key);
     expect(sq.vendor?.unitPrice ?? null).toBe(scrapOffer?.unitPrice ?? null);
 
     const frag = await quote(h, h.tokens[B], 'fragment', 'cache', 5);
@@ -325,7 +325,7 @@ describe('quickBuy — write paths', () => {
   });
 
   it('guest: the quote is fully visible; the fill refuses with the sign-in remedy', async () => {
-    const res = await quote(h, h.tokens[G], 'material', 'ScrapAlloy', 5);
+    const res = await quote(h, h.tokens[G], 'material', 'Scrap', 5);
     expect(res.status).toBe(200);
     const gq = res.json as unknown as QuickBuyQuote;
     // Real numbers, swept for the GUEST: the buyer's own stack is a
@@ -336,7 +336,7 @@ describe('quickBuy — write paths', () => {
     expect(gq.balance).toBe(5_000);
 
     const blocked = await fill(h, h.tokens[G], {
-      source: 'market', kind: 'material', id: 'ScrapAlloy', quantity: 1, quotedTotal: 10,
+      source: 'market', kind: 'material', id: 'Scrap', quantity: 1, quotedTotal: 10,
     });
     expect(blocked.status).toBe(403);
     expect(blocked.json.message).toContain('Verified account required');
@@ -345,7 +345,7 @@ describe('quickBuy — write paths', () => {
   it('ceiling: a stale low quote requotes and moves nothing', async () => {
     const before = creditsOf(B);
     const res = await fill(h, h.tokens[B], {
-      source: 'market', kind: 'material', id: 'ScrapAlloy', quantity: 5, quotedTotal: 54,
+      source: 'market', kind: 'material', id: 'Scrap', quantity: 5, quotedTotal: 54,
     });
     expect(res.status).toBe(200);
     expect(res.json.status).toBe('requote');
@@ -353,7 +353,7 @@ describe('quickBuy — write paths', () => {
     expect((res.json.quote as QuickBuyQuote).market.total).toBe(55);
     expect(creditsOf(B)).toBe(before);
     expect(listingOf(L_CHEAP)?.quantity).toBe(4);
-    expect(profileOf(B)?.materials.ScrapAlloy ?? 0).toBe(0);
+    expect(profileOf(B)?.materials.Scrap ?? 0).toBe(0);
   });
 
   it('race: the cheap stack sells out between quote and fill — requote, nothing moves', async () => {
@@ -363,7 +363,7 @@ describe('quickBuy — write paths', () => {
     expect(cancel.status).toBe(200);
     const before = creditsOf(B);
     const res = await fill(h, h.tokens[B], {
-      source: 'market', kind: 'material', id: 'ScrapAlloy', quantity: 5, quotedTotal: 55,
+      source: 'market', kind: 'material', id: 'Scrap', quantity: 5, quotedTotal: 55,
     });
     expect(res.json.status).toBe('requote');
     expect(res.json.reason).toBe('price_moved');
@@ -377,13 +377,13 @@ describe('quickBuy — write paths', () => {
     const s2Before = creditsOf(S2);
     const bBefore = creditsOf(B);
     const res = await fill(h, h.tokens[B], {
-      source: 'market', kind: 'material', id: 'ScrapAlloy', quantity: 5, quotedTotal: 75, nonce: fillNonce,
+      source: 'market', kind: 'material', id: 'Scrap', quantity: 5, quotedTotal: 75, nonce: fillNonce,
     });
     expect(res.status).toBe(200);
     expect(res.json.status).toBe('filled');
     expect(res.json.total_charged).toBe(75);
     expect(creditsOf(B)).toBe(bBefore - 75);
-    expect(profileOf(B)?.materials.ScrapAlloy).toBe(5);
+    expect(profileOf(B)?.materials.Scrap).toBe(5);
     // Partial take: 5 of 6 at floor(90 × 5/6) = 75; remainder 1 @ 15.
     expect(listingOf(L_DEAR)?.status).toBe('active');
     expect(listingOf(L_DEAR)?.quantity).toBe(1);
@@ -397,7 +397,7 @@ describe('quickBuy — write paths', () => {
 
     // Replay: the same nonce returns the settled answer, nothing moves twice.
     const replay = await fill(h, h.tokens[B], {
-      source: 'market', kind: 'material', id: 'ScrapAlloy', quantity: 5, quotedTotal: 75, nonce: fillNonce,
+      source: 'market', kind: 'material', id: 'Scrap', quantity: 5, quotedTotal: 75, nonce: fillNonce,
     });
     expect(replay.json.status).toBe('filled');
     expect(replay.json.total_charged).toBe(75);

@@ -587,6 +587,8 @@ async function post(path: string, token: string, payload: unknown) {
   return { status: res.status, json: text ? JSON.parse(text) : {} };
 }
 const prof = (id: string) => h.store.seed.profiles.find((p) => p.id === id)!;
+// Econ 5: reforge charges the unified materials['Scrap'] stack.
+const scrapOf = (id: string) => prof(id).materials['Scrap'] ?? 0;
 const itemRow = (id: string) => h.store.seed.items.find((i) => i.id === id)!;
 const payloadOf = (id: string) => itemRow(id).payload as unknown as GearItem;
 const firstPoolAffixId = (id: string) => payloadOf(id).affixes.find(isReforgeableAffix)!.id;
@@ -607,7 +609,7 @@ describe('reforge op — shipped write paths', () => {
     expect(res.json.cores_charged).toBe(2);
     expect(res.json.old_affix).toEqual(before.affixes[index]);
     expect(res.json.new_affix).not.toEqual(before.affixes[index]);
-    expect(prof(P).scrap).toBe(100_000 - cost.scrap);
+    expect(scrapOf(P)).toBe(100_000 - cost.scrap);
     expect(prof(P).legendary_cores).toBe(3);
     const after = payloadOf(WPN);
     expect(after.affixes[index]).toEqual(res.json.new_affix);
@@ -620,25 +622,25 @@ describe('reforge op — shipped write paths', () => {
   it('a non-legendary reforge charges scrap only — cores untouched', async () => {
     const affixId = firstPoolAffixId(SHD);
     const cost = reforgeCostFor({ rarity: 'Epic', level: 40 });
-    const scrapBefore = prof(P).scrap;
+    const scrapBefore = scrapOf(P);
     const res = await post('/api/ops/reforge-item', h.tokens[P], { nonce: nonce(), item_id: SHD, affix_id: affixId });
     expect(res.status).toBe(200);
     expect(res.json.cores_charged).toBe(0);
     expect(res.json.scrap_charged).toBe(cost.scrap);
-    expect(prof(P).scrap).toBe(scrapBefore - cost.scrap);
+    expect(scrapOf(P)).toBe(scrapBefore - cost.scrap);
     expect(prof(P).legendary_cores).toBe(3);
   });
 
   it('nonce idempotency: a replayed tap returns the recorded result and charges once', async () => {
     const affixId = firstPoolAffixId(SHD);
     const n = nonce();
-    const scrapBefore = prof(P).scrap;
+    const scrapBefore = scrapOf(P);
     const first = await post('/api/ops/reforge-item', h.tokens[P], { nonce: n, item_id: SHD, affix_id: affixId });
     expect(first.status).toBe(200);
     const second = await post('/api/ops/reforge-item', h.tokens[P], { nonce: n, item_id: SHD, affix_id: affixId });
     expect(second.status).toBe(200);
     expect(second.json).toEqual(first.json);
-    expect(prof(P).scrap).toBe(scrapBefore - Number(first.json.scrap_charged));
+    expect(scrapOf(P)).toBe(scrapBefore - Number(first.json.scrap_charged));
   });
 
   it.each([
@@ -649,11 +651,11 @@ describe('reforge op — shipped write paths', () => {
     ['vehicle (out of scope)', VEH, 400, 'Item cannot be reforged'],
   ])('eligibility: %s items are refused', async (_label, itemId, status, message) => {
     const affixId = payloadOf(itemId).affixes[0]?.id ?? 'whatever_0';
-    const scrapBefore = prof(P).scrap;
+    const scrapBefore = scrapOf(P);
     const res = await post('/api/ops/reforge-item', h.tokens[P], { nonce: nonce(), item_id: itemId, affix_id: affixId });
     expect(res.status).toBe(status);
     expect(res.json.message).toBe(message);
-    expect(prof(P).scrap).toBe(scrapBefore);
+    expect(scrapOf(P)).toBe(scrapBefore);
   });
 
   it('eligibility: an activity module affix cannot be reforged', async () => {
@@ -680,7 +682,7 @@ describe('reforge op — shipped write paths', () => {
     expect(res.status).toBe(400);
     expect(res.json.message).toBe('Insufficient scrap');
     expect(payloadOf(POORWPN)).toEqual(before);
-    expect(prof(BROKE).scrap).toBe(10);
+    expect(scrapOf(BROKE)).toBe(10);
   });
 
   it('insufficient legendary cores changes nothing (scrap included)', async () => {
@@ -689,7 +691,7 @@ describe('reforge op — shipped write paths', () => {
     expect(res.status).toBe(400);
     expect(res.json.message).toBe('Insufficient legendary cores');
     expect(payloadOf(COREWPN)).toEqual(before);
-    expect(prof(COREPOOR).scrap).toBe(100_000);
+    expect(scrapOf(COREPOOR)).toBe(100_000);
     expect(prof(COREPOOR).legendary_cores).toBe(1);
   });
 

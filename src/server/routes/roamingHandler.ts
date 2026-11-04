@@ -236,6 +236,10 @@ export function createClaimHandler(
         // engine applies the yield/material bonuses and the danger
         // multiplier when this is set.
         hotArea: isHotArea(body.areaId, config.now?.() ?? new Date()),
+        // AL-1 (0070): this is the foreground claim surface — drop
+        // receipts stamp 'roam'. Route-pinned after the body spread,
+        // like every other server-derived field above.
+        source: 'roam' as const,
       };
 
       const result = processRoamingClaim(claimWithConsumables);

@@ -117,12 +117,12 @@ function baseSeed(): WriteSeed {
   s.profiles = [
     profile({
       id: A, username: 'alpha', credits: 100_000,
-      materials: { ScrapAlloy: 20 }, essences: { VoidEssence: 2 },
+      materials: { Scrap: 20 }, essences: { VoidEssence: 2 },
       consumables: { MedKit: 3 },
     }),
     profile({
       id: G, username: 'guest_g', account_type: 'guest', email_verified_at: null,
-      credits: 10_000, materials: { ScrapAlloy: 5 },
+      credits: 10_000, materials: { Scrap: 5 },
     }),
   ];
   s.items = [
@@ -223,7 +223,7 @@ describe('vendor catalog — the one source', () => {
 
   it('materials + essences carry vendor values for all ten profile counters', () => {
     expect(VENDOR_MATERIALS).toHaveLength(10);
-    expect(vendorBasePrice('ScrapAlloy')).toBe(10);
+    expect(vendorBasePrice('Scrap')).toBe(10);
     expect(vendorBasePrice('VoidDust')).toBe(75);
     expect(vendorBasePrice('VoidEssence')).toBe(90);
     expect(vendorBasePrice('Nope')).toBeNull();
@@ -390,17 +390,17 @@ describe('vendor buyback — shipped sell path', () => {
     const sharedNonce = nonce();
     const creditsBefore = profileOf(h, A).credits;
     const first = await post(h, '/api/ops/vendor-sell', h.tokenA, {
-      nonce: sharedNonce, kind: 'material', material_id: 'ScrapAlloy', quantity: 5,
+      nonce: sharedNonce, kind: 'material', material_id: 'Scrap', quantity: 5,
     });
     expect(first.status).toBe(200);
     expect(first.json.total_payout).toBe(20); // floor(5 × 10 × 0.4)
     const replay = await post(h, '/api/ops/vendor-sell', h.tokenA, {
-      nonce: sharedNonce, kind: 'material', material_id: 'ScrapAlloy', quantity: 5,
+      nonce: sharedNonce, kind: 'material', material_id: 'Scrap', quantity: 5,
     });
     expect(replay.status).toBe(200);
     expect(replay.json.total_payout).toBe(20);
     expect(profileOf(h, A).credits).toBe(creditsBefore + 20);
-    expect(profileOf(h, A).materials.ScrapAlloy).toBe(15);
+    expect(profileOf(h, A).materials.Scrap).toBe(15);
   });
 
   it('refuses equipped, locked, and listed gear', async () => {
@@ -461,10 +461,10 @@ describe('vendor buyback — shipped sell path', () => {
 
   it('refuses material sales beyond the stack', async () => {
     const res = await post(h, '/api/ops/vendor-sell', h.tokenA, {
-      nonce: nonce(), kind: 'material', material_id: 'ScrapAlloy', quantity: 10_000,
+      nonce: nonce(), kind: 'material', material_id: 'Scrap', quantity: 10_000,
     });
     expect(res.status).toBe(400);
-    expect(res.json.message).toBe('Insufficient material ScrapAlloy');
+    expect(res.json.message).toBe('Insufficient material Scrap');
   });
 
   it('guests can buy from the vendor and sell back to it', async () => {
@@ -472,11 +472,11 @@ describe('vendor buyback — shipped sell path', () => {
     expect(buy.status).toBe(200);
     expect(buy.json.total_price).toBe(250);
     const sell = await post(h, '/api/ops/vendor-sell', h.tokenG, {
-      nonce: nonce(), kind: 'material', material_id: 'ScrapAlloy', quantity: 2,
+      nonce: nonce(), kind: 'material', material_id: 'Scrap', quantity: 2,
     });
     expect(sell.status).toBe(200);
     expect(sell.json.total_payout).toBe(8); // floor(2 × 10 × 0.4)
-    expect(profileOf(h, G).materials.ScrapAlloy).toBe(3);
+    expect(profileOf(h, G).materials.Scrap).toBe(3);
   });
 });
 
@@ -549,10 +549,12 @@ describe('migration 0020 — SQL twin pins', () => {
 
   it('cc_vendor_catalog VALUES list matches the TS catalog exactly', () => {
     // The catalog's live SQL twin is the LATEST restatement:
-    // migration 0021 (vehicles) restates cc_vendor_catalog with the
-    // two vehicle staples added, superseding 0020's list.
+    // migration 0021 (vehicles) restated cc_vendor_catalog with the
+    // two vehicle staples added, superseding 0020's list; Econ 5's
+    // 0069 restated it again for the scrap merge (the material row
+    // renamed ScrapAlloy -> Scrap, price unchanged).
     const catalogSql = readFileSync(
-      resolve(process.cwd(), 'db/migrations/0021_vehicles.sql'),
+      resolve(process.cwd(), 'db/migrations/0069_scrap_merge.sql'),
       'utf8',
     );
     const rows = [...catalogSql.matchAll(/\('([A-Za-z]+)',\s*(\d+),\s*'(staple|rotation|material|essence)'\)/g)].map(

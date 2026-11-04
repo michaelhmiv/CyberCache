@@ -19,6 +19,8 @@ The roster by band:
 
 Before an attempt, prep shows you the boss itself: its stats, its mechanic, its phases and what each phase checks, its weaknesses and resistances, and the consumables it recommends bringing. Read it — a phase's failure reason tells you plainly what kind of build the phase is testing.
 
+The boss presents itself, literally: the prep header is a portrait plate of the creature itself, standing on its own arena — its name, tier and level, its first weakness as a colored chip (the strip along the plate's foot carries the same element color), and its mechanic's name. The same creature marks the boss picker rows, the fight's vitals line, and the defeat screen, each one cut from the same sprite — what prep promises is exactly what the fight delivers.
+
 By design, prep **never shows a computed win chance, readiness score, or any odds figure about you**. That is a hard rule of the game, not a missing feature: the intel is the boss's facts, and judging whether your build is ready is your call. If a screen ever seems to be rating your chances, that is a bug — the game does not grade you.
 
 What you bring is also yours to choose: your loadout, a prepared belt of consumables (burned by the attempt), a risk setting that trades survival margin against damage tempo and consumable use, and — if it is charged — your [[Combat|action skill]].

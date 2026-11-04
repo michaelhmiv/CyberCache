@@ -420,7 +420,7 @@ describe('Fixer formulas — composition rules', () => {
 // ---------------------------------------------------------------------------
 
 describe('craft enqueue — Fixer snapshots through the WriteStore', () => {
-  const MATS = { ScrapAlloy: 100_000, ReactiveComponents: 100_000 };
+  const MATS = { Scrap: 100_000, ReactiveComponents: 100_000 };
   const baseDuration = () => getCraftRecipe('recipe_medkit')!.unitDurationMs;
 
   function craftStore(spends: Record<string, number>, extra: Partial<ProfileRowData> = {}) {
@@ -551,7 +551,7 @@ function engineHarness(opts: {
   const profileView: CraftProfileView = {
     player_level: 25, player_xp: 0, credits: 0,
     materials: {
-      ScrapAlloy: 100_000, ReactiveComponents: 100_000,
+      Scrap: 100_000, ReactiveComponents: 100_000,
       RefinedAlloy: 100, TemperedParts: 100, ForgeheartIngots: 100,
     },
     essences: {}, consumables: {},
@@ -809,11 +809,11 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
   it('vendor sell: rate = min(0.90, lever + vendorBuybackBonus)', async () => {
     const sell = async (spends: Record<string, number>, opts: Record<string, unknown> = {}) => {
       const store = makeStore((s) => {
-        s.profiles = [profile({ id: P, materials: { ScrapAlloy: 10 }, skill_spends: spends })];
+        s.profiles = [profile({ id: P, materials: { Scrap: 10 }, skill_spends: spends })];
       }, opts);
-      return store.vendorSell(P, nonce(), { kind: 'material', materialId: 'ScrapAlloy', quantity: 10 });
+      return store.vendorSell(P, nonce(), { kind: 'material', materialId: 'Scrap', quantity: 10 });
     };
-    // ScrapAlloy vendor value 10 × 10 units = 100.
+    // Scrap vendor value 10 × 10 units = 100.
     const plain = await sell({});
     expect(plain.buyback_rate).toBeCloseTo(0.4, 10);
     expect(plain.total_payout).toBe(40);
@@ -977,7 +977,7 @@ describe('adversarial — forged Fixer fields in request bodies are ignored', ()
   beforeAll(async () => {
     store = makeStore((s) => {
       s.profiles = [
-        profile({ id: P, materials: { ScrapAlloy: 100_000, ReactiveComponents: 100_000 } }),
+        profile({ id: P, materials: { Scrap: 100_000, ReactiveComponents: 100_000 } }),
         profile({ id: Q, credits: 100_000 }),
       ];
       s.items = [{

@@ -851,13 +851,13 @@ describe('endless shipped path (HTTP)', () => {
 
     const bankNonce = nextNonce('bank');
     const beforeRow = h.store.profiles.get(A)!;
-    const before = { credits: beforeRow.credits, scrap: beforeRow.scrap, xp: beforeRow.player_xp, level: beforeRow.player_level };
+    const before = { credits: beforeRow.credits, scrap: beforeRow.materials['Scrap'] ?? 0, xp: beforeRow.player_xp, level: beforeRow.player_level };
     const banked = await post(h.base, '/api/endless/bank', { nonce: bankNonce }, h.tokenA);
     expect(banked.status).toBe(200);
     expect(banked.json.payout).toEqual({ ...escrow, fraction: 1 });
     const after = h.store.profiles.get(A)!;
     expect(after.credits).toBe(before.credits + escrow.credits);
-    expect(after.scrap).toBe(before.scrap + escrow.scrap);
+    expect(after.materials['Scrap'] ?? 0).toBe(before.scrap + escrow.scrap);
     // XP landed through the shared applyXp path (level/xp moved or banked).
     expect(after.player_xp + (after.player_level - before.level) * 100000).toBeGreaterThanOrEqual(before.xp + escrow.xp);
     const action = await h.store.getActiveAction(A);
