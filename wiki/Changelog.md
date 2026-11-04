@@ -113,14 +113,17 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 114 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 117 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-04** — 4 merges
+**2026-11-04** — 7 merges
 
 - #372 — Econ 9: bench collapse + relic merger (migration 0073)
 - #373 — SB-3: dispatch Start from a build — prefill + flag report
 - #374 — SB-2: Builds identity — presets→builds rename + §7 pixel glyph per build
 - #375 — Econ 10: bench time — banked hours widen the bench (migration 0075)
+- #376 — Home rail swap: mode rail above the stage, belt in its vacated slot (owner ruling 2026-11-04)
+- #377 — Gear/DPS/Profile truth fix — one read model, one DPS, honest Profile
+- #378 — 0076: cc_record_kill_stats kill attribution reads the real weapon slots
 
 **2026-11-03** — 58 merges
 

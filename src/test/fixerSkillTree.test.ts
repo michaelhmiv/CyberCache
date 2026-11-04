@@ -1105,3 +1105,98 @@ describe('migration 0029 — pins', () => {
     expect(sql).toContain("'crafted_item', crafted_item");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 8. Repair — Workshop Rush Ticket scope (wiring package, migration 0077)
+// ---------------------------------------------------------------------------
+
+function ticketBatchData(id: string, owner: string, quality: number, quantity: number) {
+  return {
+    id, owner_user_id: owner, consumable_type: 'WorkshopRushTicket', quality_percent: quality,
+    quantity, origin: 'crafted', creator_user_id: owner, source_recipe_id: null, metadata: {},
+    created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z',
+  } as WriteSeed['consumableBatches'][number];
+}
+
+describe('repair — Workshop Rush Ticket scope (wiring package)', () => {
+  const seedRepair = (ticketQualities: number[]) => (s: WriteSeed) => {
+    s.profiles = [profile({
+      id: Q,
+      consumables: { PatchKit: 5, WorkshopRushTicket: ticketQualities.length },
+    })];
+    s.items = [vehicleData(VEH_A, Q, 40)];
+    s.consumableBatches = [
+      kitBatchData('kit-q1', Q, 100, 5),
+      ...ticketQualities.map((q, i) => ticketBatchData(`ticket-q${i}`, Q, q, 1)),
+    ];
+  };
+
+  it('enqueue with a ticket: escrowed, quality/origin/reduction snapshotted, duration cut by the def formula', async () => {
+    const store = makeStore(seedRepair([100]));
+    await store.enqueueRepairJob(Q, nonce(), {
+      itemId: VEH_A, kitType: 'PatchKit', units: 1, useRushTicket: true,
+    });
+    const job = store.seed.craftJobs[0];
+    // Plain repair duration is 5,400,000ms; a Q100 ticket's def
+    // reduction is min(0.45, 0.2 x 100/100) = 0.20.
+    expect(job.unit_duration_ms).toBe(4_320_000);
+    expect(job.rush_ticket_quality).toBe(100);
+    expect(job.rush_ticket_origin).toBe('crafted');
+    expect(job.snapshot.rushReduction).toBeCloseTo(0.2, 10);
+    // The ticket is out of inventory: counter and batch both spent.
+    expect(store.seed.profiles[0].consumables.WorkshopRushTicket ?? 0).toBe(0);
+    const ticketBatch = store.seed.consumableBatches.find((b) => b.consumable_type === 'WorkshopRushTicket');
+    expect(ticketBatch?.quantity).toBe(0);
+  });
+
+  it('the escrow burns FIFO: the lowest-quality ticket prices the reduction', async () => {
+    const store = makeStore(seedRepair([120, 80]));
+    await store.enqueueRepairJob(Q, nonce(), {
+      itemId: VEH_A, kitType: 'PatchKit', units: 1, useRushTicket: true,
+    });
+    const job = store.seed.craftJobs[0];
+    expect(job.rush_ticket_quality).toBe(80);
+    expect(job.snapshot.rushReduction).toBeCloseTo(0.16, 10);
+    expect(job.unit_duration_ms).toBe(Math.round(5_400_000 * 0.84));
+  });
+
+  it('requesting a ticket without owning one fails before anything is escrowed', async () => {
+    const store = makeStore((s) => {
+      s.profiles = [profile({ id: Q, consumables: { PatchKit: 5 } })];
+      s.items = [vehicleData(VEH_A, Q, 40)];
+      s.consumableBatches = [kitBatchData('kit-q1', Q, 100, 5)];
+    });
+    await expect(
+      store.enqueueRepairJob(Q, nonce(), {
+        itemId: VEH_A, kitType: 'PatchKit', units: 1, useRushTicket: true,
+      }),
+    ).rejects.toThrow(/No Workshop Rush Ticket available/);
+    expect(store.seed.craftJobs).toHaveLength(0);
+    expect(store.seed.consumableBatches[0].quantity).toBe(5);
+  });
+
+  it('no flag: the rush fields stay null/0 — the pre-wiring job shape', async () => {
+    const store = makeStore(seedRepair([100]));
+    await store.enqueueRepairJob(Q, nonce(), { itemId: VEH_A, kitType: 'PatchKit', units: 1 });
+    const job = store.seed.craftJobs[0];
+    expect(job.unit_duration_ms).toBe(5_400_000);
+    expect(job.rush_ticket_quality).toBeNull();
+    expect(job.rush_ticket_origin).toBeNull();
+    expect(job.snapshot.rushReduction).toBe(0);
+    expect(store.seed.profiles[0].consumables.WorkshopRushTicket).toBe(1);
+  });
+
+  it('cancelling an unstarted rushed repair refunds the escrowed ticket', async () => {
+    const store = makeStore(seedRepair([100]));
+    const enqueued = await store.enqueueRepairJob(Q, nonce(), {
+      itemId: VEH_A, kitType: 'PatchKit', units: 1, useRushTicket: true,
+    });
+    const jobId = (enqueued.job as { id: string }).id;
+    await store.cancelCraftJob(Q, nonce(), jobId);
+    const ticketUnits = store.seed.consumableBatches
+      .filter((b) => b.consumable_type === 'WorkshopRushTicket')
+      .reduce((sum, b) => sum + b.quantity, 0);
+    expect(ticketUnits).toBe(1);
+    expect(store.seed.profiles[0].consumables.WorkshopRushTicket).toBe(1);
+  });
+});

@@ -1623,8 +1623,8 @@ export class PgWriteStore implements WriteStore {
   }
   // ── Mechanics & repair services (migration 0025) ────────────────
   enqueueRepairJob(playerId: string, nonce: string, input: EnqueueRepairJobInput): Promise<Json> {
-    return this.callJson('select public.cc_enqueue_repair_job($1, $2, $3, $4, $5) as result', [
-      playerId, nonce, input.itemId, input.kitType, input.units,
+    return this.callJson('select public.cc_enqueue_repair_job($1, $2, $3, $4, $5, $6) as result', [
+      playerId, nonce, input.itemId, input.kitType, input.units, input.useRushTicket === true,
     ]);
   }
   postRepairJob(playerId: string, nonce: string, itemId: string, targetPoints: number | null, priceCredits: number): Promise<Json> {

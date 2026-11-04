@@ -20,6 +20,18 @@
         {
           "number": 375,
           "title": "Econ 10: bench time — banked hours widen the bench (migration 0075)"
+        },
+        {
+          "number": 376,
+          "title": "Home rail swap: mode rail above the stage, belt in its vacated slot (owner ruling 2026-11-04)"
+        },
+        {
+          "number": 377,
+          "title": "Gear/DPS/Profile truth fix — one read model, one DPS, honest Profile"
+        },
+        {
+          "number": 378,
+          "title": "0076: cc_record_kill_stats kill attribution reads the real weapon slots"
         }
       ]
     },
