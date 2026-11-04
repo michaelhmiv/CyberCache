@@ -44,7 +44,7 @@ import { issueAccessToken } from '../server/auth/tokens';
 import {
   CATALYST_MAX_BONUS,
   CATALYST_MIN_BONUS,
-  CRAFT_TOOLS,
+  CRAFT_RELICS,
   REFINE_BASE_YIELD_DEFAULT,
   craftQualityBounds,
   getCraftRecipe,
@@ -90,10 +90,13 @@ describe('§9.1 gear catalyst — bounds grid parity', () => {
       .toEqual({ min: 85, max: 165, cap: 175 });
   });
 
-  it('the shift composes with bench and mastery exactly like the consumable branch', () => {
-    // Lab: +5 bench minimum on top of the catalyst shift.
+  it('the shift composes with mastery exactly like the consumable branch (bench term retired by slice 9)', () => {
+    // Pre-collapse the Lab added a +5 bench minimum here (min 90).
+    // Slice 9 retired the bench term from bounds entirely — the
+    // +5 lives on the Prime Laboratory relic's completion bonus —
+    // so bench 3 now composes exactly like bench 1.
     expect(craftQualityBounds({ ...frame, masteryLevel: 1, bench: 3, catalyst: true }))
-      .toEqual({ min: 90, max: 165, cap: 175 });
+      .toEqual({ min: 85, max: 165, cap: 175 });
     // Mastery 50: the shipped mastery terms — min(20, 1.5×49) = +20
     // min, min(25, 2×49) = +25 max — stack with the catalyst's
     // +10/+15, and the max lands on the 175 cap.
@@ -106,27 +109,29 @@ describe('§9.1 gear catalyst — bounds grid parity', () => {
 
   it('generator distribution: catalyzed draws live inside the shifted bounds only', () => {
     const rng = mulberry32(7);
-    const bounds = craftQualityBounds({ ...frame, masteryLevel: 1, bench: 2, catalyst: true });
+    const bounds = craftQualityBounds({ ...frame, masteryLevel: 1, bench: 1, catalyst: true });
     const samples: number[] = [];
     for (let i = 0; i < 300; i++) {
       const c = generateCraftedGearItem({
         slot: 'weapon', rarity: 'Rare', itemLevel: 25, creatorId: 'dist', draws: 1, rng,
-        qualityRoll: { bounds, bench: 2 },
+        qualityRoll: { bounds, bench: 1 },
       });
       samples.push(c.craftQuality!);
     }
-    // Forge factor ×1.05 over bounds 85–165 → [89.25, 173.25].
+    // The one bench's factor is ×1.00 (slice 9: the Forge's ×1.05
+    // died with it), so draws live in the shifted bounds 85–165
+    // exactly.
     for (const q of samples) {
-      expect(q).toBeGreaterThanOrEqual(89.25 - 1e-9);
-      expect(q).toBeLessThanOrEqual(173.25 + 1e-9);
+      expect(q).toBeGreaterThanOrEqual(85 - 1e-9);
+      expect(q).toBeLessThanOrEqual(165 + 1e-9);
     }
-    // The +15 max shift is real: rolls above the uncatalyzed ceiling
-    // (150 × 1.05 = 157.5) occur; the +10 min shift is real: no roll
-    // falls to the uncatalyzed floor (75 × 1.05 = 78.75).
+    // The +15 max shift is real: rolls above the uncatalyzed
+    // ceiling (150) occur; the +10 min shift is real: no roll
+    // falls to the uncatalyzed floor (75).
     expect(Math.max(...samples)).toBeGreaterThan(160);
     const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
-    expect(mean).toBeGreaterThan(124);
-    expect(mean).toBeLessThan(139);
+    expect(mean).toBeGreaterThan(118);
+    expect(mean).toBeLessThan(132);
   });
 
   it('generator no-change pin: without a qualityRoll, no craftQuality is stamped', () => {
@@ -207,11 +212,19 @@ describe('§9.3 furnace refine — stochastic rounding', () => {
 /* ── §9.2 / §9.4 static pins: catalog + copy truth ─────────────────── */
 
 describe('§9.2/§9.4 catalog and copy pins', () => {
-  it('tool defs carry no durability counter and promise permanence', () => {
-    for (const tool of CRAFT_TOOLS) {
-      expect('durabilityJobs' in tool).toBe(false);
-      expect(tool.blurb).toContain('Permanent once crafted');
-      expect(tool.blurb).not.toMatch(/25 jobs|lasts/i);
+  it('relic defs carry no durability counter and promise permanence (the §9.2 law in its new family)', () => {
+    // §9.2 killed the 25-charge tool expiry; slice 9 (ruling 9)
+    // folded the tools into the relic family, where permanence is
+    // structural: CRAFT_RELICS defs have no counter of any kind.
+    for (const relic of CRAFT_RELICS) {
+      expect('durabilityJobs' in relic).toBe(false);
+      expect('charges' in relic).toBe(false);
+      expect(relic.blurb).not.toMatch(/25 jobs|lasts/i);
+    }
+    // The three converted tools carry the promise in words, as
+    // their §9.2-era defs did ('Permanent once crafted').
+    for (const relic of CRAFT_RELICS.filter((r) => r.id.startsWith('tool_'))) {
+      expect(relic.blurb).toContain('Permanent');
     }
   });
 
@@ -498,14 +511,21 @@ describe('§9.1 wire contract — catalyzed gear through the shipped routes', ()
       nonce: nonce(), bench: 2, recipe_id: 'frame_weapon', units: 1, rarity: 'Rare', use_catalyst: true,
     });
     expect(catRes.status).toBe(200);
-    // Control on bench 1 at Common (Rare frames require the Forge);
-    // the frame quality band is rarity-independent, and the control
+    // Control on bench 1 at Common; the frame quality band is
+    // rarity-independent (rarity bench gates retired in slice 9 —
+    // Epic's mastery gate is the surviving one), and the control
     // assertion is the ABSENCE of the catalyst stamp.
     const ctlRes = await post(CAT, '/api/ops/craft-enqueue', {
       nonce: nonce(), bench: 1, recipe_id: 'frame_weapon', units: 1, rarity: 'Common',
     });
     expect(ctlRes.status).toBe(200);
-    advance(151 * MIN_MS);
+    // Slice 9 serialization: both frames now run on the ONE bench
+    // (pre-collapse they ran in parallel on benches 2 and 1), so
+    // the pair needs 150 + 90 minutes end to end. Advance in two
+    // settling reads (earned cap here is 4h — Street Economics).
+    advance(125 * MIN_MS);
+    await get(CAT, '/api/workshop/me');
+    advance(125 * MIN_MS);
     await get(CAT, '/api/workshop/me');
 
     const catJob = jobsOf(CAT, 'frame_weapon').find(
@@ -513,13 +533,14 @@ describe('§9.1 wire contract — catalyzed gear through the shipped routes', ()
     )!;
     expect(catJob).toBeTruthy();
     const catOut = catJob.outputs[0] as unknown as Record<string, unknown>;
-    // rng 0.5 → roll = (85 + 0.5 × 80) × 1.05 (Forge) = 131.25, inside
-    // the catalyst-shifted bounds and above the uncatalyzed ceiling
-    // roll (150 × 1.05 = 157.5 is the max; the midpoint proves the
-    // bounds moved, the range pins above prove the edges).
-    expect(catOut.quality).toBeCloseTo(131.25, 6);
+    // rng 0.5 → roll = (85 + 0.5 × 80) × 1.00 (the one bench —
+    // slice 9 retired the Forge's ×1.05 factor along with the
+    // bench-2 ask, which now lands on bench 1) = 125, inside the
+    // catalyst-shifted bounds; the midpoint proves the bounds
+    // moved, the range pins above prove the edges.
+    expect(catOut.quality).toBeCloseTo(125, 6);
     const catItem = h.store.seed.items.find((i) => i.id === catOut.itemId);
-    expect((catItem!.payload as Record<string, unknown>).craftQuality).toBeCloseTo(131.25, 6);
+    expect((catItem!.payload as Record<string, unknown>).craftQuality).toBeCloseTo(125, 6);
     // The ingot was consumed — and this time the effect it paid for exists.
     expect(catJob.escrow_catalyst).toEqual({ ForgeheartIngots: 1 });
     // 500 start; the cancelled job netted zero; −3 catalyzed unit
@@ -534,11 +555,16 @@ describe('§9.1 wire contract — catalyzed gear through the shipped routes', ()
   });
 });
 
-describe('§9.2 wire contract — fitted tools never expire', () => {
+describe('§9.2 wire contract — tools are relics now, and relics never expire (slice 9)', () => {
   beforeAll(async () => { rngFn = () => 0.5; h = await makeServer(); });
   afterAll(async () => { await h.close(); });
 
-  it('tool completion stamps ownership only — no charge count', async () => {
+  const relicItem = () => h.store.seed.items.find(
+    (i) => i.owner_user_id === TOOLP && i.kind === 'relic'
+      && (i.payload as Record<string, unknown>).name === 'Precision Calipers',
+  );
+
+  it('the tool recipe completes as a permanent relic ITEM — no ownership stamp, no charge count', async () => {
     await post(TOOLP, '/api/activity/set', {
       nonce: nonce(), activity_kind: 'crafting', activity_payload: {}, public_payload: {},
     });
@@ -548,35 +574,25 @@ describe('§9.2 wire contract — fitted tools never expire', () => {
     expect(res.status).toBe(200);
     advance(61 * MIN_MS);
     await get(TOOLP, '/api/workshop/me');
-    const tools = prof(TOOLP).workshop_tools as {
-      owned: Record<string, boolean>;
-      charges?: Record<string, number>;
-      fitted: Record<string, string>;
-    };
-    expect(tools.owned.tool_precision_calipers).toBe(true);
-    expect(tools.charges?.tool_precision_calipers).toBeUndefined();
+    // §9.2's law was "tools never expire"; slice 9 makes that
+    // structural: the Calipers is an Epic relic item carrying its
+    // ×1.08 affix — profiles.workshop_tools records NOTHING.
+    const item = relicItem();
+    expect(item).toBeTruthy();
+    expect(item!.rarity).toBe('Epic');
+    const payload = item!.payload as { affixes: Array<{ value: number }>; charges?: unknown };
+    expect(payload.affixes.some((a) => a.value === 1.08)).toBe(true);
+    expect(payload.charges).toBeUndefined();
+    const tools = prof(TOOLP).workshop_tools as { owned?: Record<string, boolean> };
+    expect(tools.owned?.tool_precision_calipers).toBeUndefined();
   });
 
-  it('a fitted tool at 0 stored charges still applies, and 26 job starts never unfit it', async () => {
-    const fit = await post(TOOLP, '/api/ops/craft-fit-tool', {
-      nonce: nonce(), bench: 1, tool_id: 'tool_precision_calipers',
+  it('equipped, the calipers relic applies on all 26 job starts — nothing unfits, nothing burns', async () => {
+    const item = relicItem()!;
+    const equip = await post(TOOLP, '/api/ops/equip-item', {
+      nonce: nonce(), item_id: item.id, slot_name: 'relic',
     });
-    expect(fit.status).toBe(200);
-    // Legacy profile state: the pre-0067 counter ran out. Under the
-    // old law the fitted read now returns "absent"; under §9.2 the
-    // stored value is inert and the tool applies in full.
-    const tools = prof(TOOLP).workshop_tools as unknown as {
-      owned: Record<string, boolean>;
-      charges: Record<string, number>;
-      fitted: Record<string, string>;
-    };
-    tools.charges = { tool_precision_calipers: 0 };
-    // The seeded exhaustion is really in the store's record before
-    // the loop starts (the old law would now read the tool absent).
-    expect(
-      (prof(TOOLP).workshop_tools as unknown as { charges: Record<string, number> })
-        .charges.tool_precision_calipers,
-    ).toBe(0);
+    expect(equip.status).toBe(200);
 
     for (let i = 0; i < 26; i++) {
       const res = await post(TOOLP, '/api/ops/craft-enqueue', {
@@ -584,27 +600,16 @@ describe('§9.2 wire contract — fitted tools never expire', () => {
       });
       expect(res.status).toBe(200);
       const job = jobsOf(TOOLP, 'recipe_medkit').at(-1)!;
-      // The Calipers' ×1.08 rides every snapshot — start 1 and start 26 alike.
+      // The Calipers' ×1.08 rides every snapshot — start 1 and
+      // start 26 alike (the old law needed 25-charge bookkeeping
+      // to say this; the relic says it by having no counter).
       expect(job.snapshot.toolQualityMultiplier).toBe(1.08);
-      expect(job.snapshot.toolId).toBe('tool_precision_calipers');
+      expect(job.snapshot.toolId).toBe(item.id);
       advance(13 * MIN_MS);
       await get(TOOLP, '/api/workshop/me');
       expect(job.status).toBe('complete');
-      expect(job.tool_charged).toBe(true); // completion record parity only
     }
-    const after = prof(TOOLP).workshop_tools as unknown as {
-      owned: Record<string, boolean>;
-      charges: Record<string, number>;
-      fitted: Record<string, string>;
-    };
-    expect(after.owned.tool_precision_calipers).toBe(true);
-    expect(after.fitted['1']).toBe('tool_precision_calipers');
-    // The inert counter was never decremented below 0 and never
-    // re-stamped to a fresh 25 — no reader consumes it (the twin's
-    // state normalization may drop the dead key entirely; both are
-    // the brief's "inert data" outcome).
-    expect(after.charges.tool_precision_calipers ?? 0).toBe(0);
-    expect(after.charges.tool_precision_calipers).not.toBe(25);
+    expect(relicItem()!.equipped_slot).toBe('relic'); // still worn
     expect(prof(TOOLP).consumables.MedKit).toBe(26);
   });
 });
