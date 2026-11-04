@@ -47,9 +47,9 @@ export type ActivityRecordKind =
   | 'earnings' | 'settlement' | 'salvage' | 'dispatch' | 'endless' | 'system';
 
 /** Kind filter values: every emitted kind, plus 'away' (the away-era pseudo-kind). */
-export type ActivityKindFilter = ActivityRecordKind | 'away';
+export type ActivityLogKindFilter = ActivityRecordKind | 'away';
 
-export const ACTIVITY_KIND_FILTERS: readonly ActivityKindFilter[] = [
+export const ACTIVITY_KIND_FILTERS: readonly ActivityLogKindFilter[] = [
   'drop', 'kills', 'boss', 'cache', 'craft', 'market', 'earnings', 'away',
   'settlement', 'salvage', 'dispatch', 'endless', 'system',
 ];
@@ -152,7 +152,7 @@ export interface ActivityRecord {
 }
 
 export interface ActivityLogQuery {
-  kinds?: ActivityKindFilter[];
+  kinds?: ActivityLogKindFilter[];
   /** One search box: matches item names, enemy names, area names (and boss / recipe / counterparty names) together. */
   q?: string;
   /** Opaque cursor from a previous page's nextCursor. */
@@ -771,7 +771,7 @@ export function activitySearchText(record: ActivityRecord): string {
   return parts.filter(Boolean).join(' ').toLowerCase();
 }
 
-function recordMatchesKind(record: ActivityRecord, kinds: ActivityKindFilter[]): boolean {
+function recordMatchesKind(record: ActivityRecord, kinds: ActivityLogKindFilter[]): boolean {
   return kinds.some((kind) => (kind === 'away' ? record.away : record.kind === kind));
 }
 

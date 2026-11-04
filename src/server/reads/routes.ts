@@ -45,7 +45,7 @@ import {
 import type { MarketCategory } from '../../lib/market/identityKey';
 import {
   ACTIVITY_KIND_FILTERS, decodeActivityCursor,
-  type ActivityKindFilter, type ActivityLogQuery,
+  type ActivityLogKindFilter, type ActivityLogQuery,
 } from './activityLog';
 
 const MARKET_CATEGORIES: readonly string[] = [
@@ -390,7 +390,7 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
     const kindRaw = typeof req.query.kind === 'string' ? req.query.kind : '';
     const kinds = kindRaw
       .split(',').map((k) => k.trim()).filter(Boolean)
-      .filter((k): k is ActivityKindFilter => ACTIVITY_KIND_FILTERS.includes(k as ActivityKindFilter));
+      .filter((k): k is ActivityLogKindFilter => ACTIVITY_KIND_FILTERS.includes(k as ActivityLogKindFilter));
     if (kindRaw && kinds.length === 0) {
       return validation(res, `Invalid activity kind filter: ${kindRaw}`);
     }
