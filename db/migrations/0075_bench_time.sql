@@ -346,9 +346,9 @@ begin
   -- read here is the envelope in force at enqueue time.
   if (select count(*) from public.craft_jobs
        where owner_user_id = actor and status = 'active' and bench = v_bench)
-       >= case when coalesce(p.bench_time_banked_seconds, 0) > 0
-               then 18 + 3 * v_workshop_queue_bonus
-               else 6 + v_workshop_queue_bonus end then
+       >= (case when coalesce(p.bench_time_banked_seconds, 0) > 0
+                then 18 + 3 * v_workshop_queue_bonus
+                else 6 + v_workshop_queue_bonus end) then
     raise exception 'Bench queue is full';
   end if;
 
@@ -667,7 +667,7 @@ begin
   v_bench := 1;
   if (select count(*) from public.craft_jobs
        where owner_user_id = actor and status = 'active' and bench = v_bench)
-       >= case when coalesce(p.bench_time_banked_seconds, 0) > 0 then 18 else 6 end then
+       >= (case when coalesce(p.bench_time_banked_seconds, 0) > 0 then 18 else 6 end) then
     raise exception 'Bench queue is full';
   end if;
 
