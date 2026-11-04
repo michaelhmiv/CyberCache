@@ -1,25 +1,29 @@
 /**
  * Owner ruling 2026-11-02 — the action controls float ON the stage.
+ * Owner ruling 2026-11-03 — the controls are ICON-ONLY.
  *
  * The Switch Action / Stop buttons used to occupy a dedicated row
  * under the Home mode rail; the owner killed the row from his
  * device ("that row is pure overhead") and chose the scene-float
- * placement over the activity-line placement. The controls now
- * render as chips on the stage itself, in the plates' overlay
- * language, via the diorama's `stageControls` slot — first
- * bottom-right above the ribbon, then (owner ruling, same day)
- * top-left, in the corner the removed area plate vacated.
+ * placement over the activity-line placement. The controls render
+ * on the stage itself, in the plates' overlay language, via the
+ * diorama's `stageControls` slot — top-left, in the corner the
+ * removed area plate vacated. In the 2026-11-03 consolidation the
+ * owner made them icon-only ("way larger than they need to be
+ * because of the text"): 44px squares carrying the §7 swap / stop
+ * pixel glyphs, no visible text, the words in their aria-labels.
  *
  * Pins:
  *  - No standalone controls row exists anymore (source + render).
- *  - While an action runs, BOTH chips sit inside the stage's
- *    controls overlay, exactly one of each in the document, and
+ *  - While an action runs, BOTH buttons sit inside the stage's
+ *    controls overlay, exactly one of each in the document,
+ *    reachable by accessible name, with NO visible text, and
  *    both still fire (Switch opens the sheet; Stop stops).
  *  - At standby, Stop leaves the stage (it rendered permanently
  *    disabled in the old row — a no-op), but Switch Action STAYS:
  *    it is the Switch sheet's only door and, through it, the
  *    standby path to Salvage, which has no rail stop. Hiding it
- *    would bury a feature, so the idle stage keeps the one chip.
+ *    would bury a feature, so the idle stage keeps the one button.
  *
  * The render harness mirrors flowScreens.test.tsx (same mocks,
  * same store seeding) — this screen's established test habitat.
@@ -218,29 +222,47 @@ describe('action controls on stage — the dedicated row is gone (source)', () =
     expect(diorama).toContain('data-testid="diorama-stage-controls"');
     expect(diorama).toContain('left-2 top-2 z-30');
     expect(diorama).not.toContain('bottom-11 right-2 z-30');
-    // The stats band (PR #310) does not move the chips: with the
-    // stage-overlay layout merged, the controls stay top-left
-    // whether or not the band is in the ribbon — the band-era
-    // bottom-offset conditional must not come back.
     expect(diorama).not.toContain('bottom-16');
-    expect(diorama).not.toContain("statsBand ? 'bottom-16'");
-    // …and the band itself is in the ribbon: the screen supplies
-    // it and the stage renders it in place of the legacy line.
-    expect(diorama).toContain('statsBand');
+    // The status ribbon is retired (consolidation 2026-11-03):
+    // no ribbon, no stats band slot — the hero rundown attaches
+    // to the stage's foot in the SCREEN's flow instead.
+    expect(diorama).not.toContain('statsBand');
+    expect(diorama).not.toContain('diorama-status-ribbon');
     const screen = readSource('src/screens/ActionScreenContextual.tsx');
-    expect(screen).toContain('statsBand={');
-    expect(screen).toContain('StageStatsBand');
+    expect(screen).not.toContain('StageStatsBand');
+    expect(screen).toContain('HeroRundown');
+  });
+
+  it('the controls are icon-only: swap/stop glyphs in 44px squares, words only in aria-labels (source)', () => {
+    const screen = readSource('src/screens/ActionScreenContextual.tsx');
+    expect(screen).toContain('aria-label="Switch Action"');
+    expect(screen).toContain('aria-label="Stop"');
+    expect(screen).toContain('<PxIcon name="swap"');
+    expect(screen).toContain('<PxIcon name="stop"');
+    // No visible text rides the buttons anymore.
+    expect(screen).not.toContain('>Switch Action</button>');
+    expect(screen).not.toContain('>Stop</button>');
   });
 });
 
 describe('action controls on stage — while an action runs', () => {
-  it('both chips render inside the stage overlay, exactly one of each', () => {
+  it('both buttons render inside the stage overlay, exactly one of each, icon-only at 44px', { timeout: 20_000 }, () => {
     seedRoaming();
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
 
     const overlay = screen.getByTestId('diorama-stage-controls');
-    expect(within(overlay).getByRole('button', { name: 'Switch Action' })).toBeTruthy();
-    expect(within(overlay).getByRole('button', { name: 'Stop' })).toBeTruthy();
+    const switchButton = within(overlay).getByRole('button', { name: 'Switch Action' });
+    const stopButton = within(overlay).getByRole('button', { name: 'Stop' });
+    // Icon-only (owner ruling 2026-11-03): no visible text on
+    // either button; the glyph is the content; the tap target
+    // stays a full 44px square.
+    expect(switchButton.textContent?.trim()).toBe('');
+    expect(stopButton.textContent?.trim()).toBe('');
+    for (const button of [switchButton, stopButton]) {
+      expect(button.className).toContain('h-11');
+      expect(button.className).toContain('w-11');
+      expect(button.querySelector('svg, canvas, img, [data-icon]')).toBeTruthy();
+    }
     // One door, one name — nowhere else on the screen.
     expect(screen.getAllByRole('button', { name: 'Switch Action' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Stop' })).toHaveLength(1);

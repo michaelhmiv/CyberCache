@@ -177,12 +177,14 @@ describe('buildHeroRundown — the four heroes', () => {
 
 describe('pooledCrit + buildCritMetric — the Crit sheet', () => {
   it('pools by standard-DPS weight, not a flat average', () => {
-    const heavy = makeWeapon({ id: 'heavy', baseDamage: 300, attackSpeed: 5, critChance: 0.1, critDamage: 1.0 });
-    const light = makeWeapon({ id: 'light', baseDamage: 100, attackSpeed: 5, critChance: 0.4, critDamage: 2.0 });
+    // Both weapons carry the same crit factor in the DPS chain
+    // (1 + chance × damage = 1.2), so their standard-DPS weights
+    // are exactly their damage weights, 3:1 — a flat average of
+    // the chances would read 0.15, the pool must read 0.175.
+    const heavy = makeWeapon({ id: 'heavy', baseDamage: 300, attackSpeed: 5, critChance: 0.2, critDamage: 1.0 });
+    const light = makeWeapon({ id: 'light', baseDamage: 100, attackSpeed: 5, critChance: 0.1, critDamage: 2.0 });
     const pool = pooledCrit([heavy, light]);
     expect(pool).not.toBeNull();
-    // Standard DPS ∝ baseDamage × attackSpeed here (equal speeds):
-    // weights 3:1 → chance (3×0.1 + 1×0.4)/4 = 0.175.
     expect(pool?.chance).toBeCloseTo(0.175);
     expect(pool?.damage).toBeCloseTo((3 * 1.0 + 1 * 2.0) / 4);
   });

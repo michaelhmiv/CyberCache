@@ -81,7 +81,7 @@ export const VehicleBeltChip: React.FC<{
       {iconBox}
       <div className="w-full truncate text-center text-[11px] font-black uppercase tracking-wide text-text-primary">{name}</div>
       <div className="whitespace-nowrap text-[11px] font-black uppercase text-text-muted">
-        {Math.floor(vehicleFuel)}u · ×{factor.toFixed(2)}{fraction < 1 ? ` · ${Math.round(fraction * 100)}%` : ''}
+        {`${Math.floor(vehicleFuel)}u · ×${factor.toFixed(2)}${fraction < 1 ? ` · ${Math.round(fraction * 100)}%` : ''}`}
       </div>
     </div>
   );
