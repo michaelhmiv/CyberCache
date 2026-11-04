@@ -15,7 +15,7 @@ import { usePlayerStore } from './slices/playerSlice';
 import { useSkillStore } from './slices/skillSlice';
 import { useSurvivalStore } from './slices/survivalSlice';
 import { useKillCycleStore } from './slices/killCycleSlice';
-import { useLoadoutPresetsStore } from './slices/loadoutPresetsSlice';
+import { useLoadoutPresetsStore, resolveBuildIcon } from './slices/loadoutPresetsSlice';
 import { useWorkshopStore } from './slices/workshopSlice';
 import { useActiveBuffsStore } from './slices/activeBuffsSlice';
 import { Capacitor } from '@capacitor/core';
@@ -121,6 +121,9 @@ type LoadoutPresetsSnapshot = {
   presets: Array<{
     id: string;
     name: string;
+    /** SB-2 build glyph. Optional: snapshots written before SB-2
+     *  carry no glyph; restore resolves those to the default. */
+    icon?: string;
     slots: Record<LoadoutSlot, string | null>;
     consumables: LoadoutConsumables;
     createdAt: number;
@@ -333,7 +336,11 @@ export function applyRuntimeDisplaySnapshot(snapshot: RuntimeStoreSnapshot): voi
     const loadoutPresets = objectValue<LoadoutPresetsSnapshot>(snapshot.loadoutPresets);
     if (loadoutPresets) {
       useLoadoutPresetsStore.setState({
-        presets: Array.isArray(loadoutPresets.presets) ? loadoutPresets.presets : [],
+        // SB-2: a restored build always lands with a resolved glyph —
+        // pre-SB-2 snapshots carry none and read as the default.
+        presets: Array.isArray(loadoutPresets.presets)
+          ? loadoutPresets.presets.map((p) => ({ ...p, icon: resolveBuildIcon(p.icon) }))
+          : [],
         activePresetId: typeof loadoutPresets.activePresetId === 'string' ? loadoutPresets.activePresetId : null,
       });
     }
