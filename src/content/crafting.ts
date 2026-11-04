@@ -54,11 +54,11 @@ export interface CraftBenchDef {
   /** Grammar ACTION_SETS sprite for this bench's station. */
   spriteId: string;
   costCredits: number;
-  /** Charged atomically by cc_unlock_bench (the credit sink + VoidDust). */
+  /** Retired with the collapse — the bench is free and always owned; kept at {} for shape stability. */
   costInputs: Record<string, number>;
-  /** Rolled quality multiplier (Forge 1.05, Lab 1.10). */
+  /** The bench's own rolled-quality multiplier: ×1.00 since the collapse (tier factors live on relics now). */
   qualityFactor: number;
-  /** Flat bonus to the quality roll's minimum bound (Lab +5). */
+  /** The bench's own floor bonus: 0 since the collapse (the +5 lives on the Prime Laboratory relic). */
   minQualityBonus: number;
   blurb: string;
 }
@@ -463,6 +463,10 @@ export const CATALYSTS: readonly CatalystDef[] = [
 
 /** The catalyst material that applies to a recipe, if any. */
 export function catalystForRecipe(recipe: CraftRecipe): string | null {
+  // Named relics take no catalyst (slice 9): their affixes are
+  // fixed, so a catalyst would burn for zero effect — the enqueue
+  // refusal's content side; cards offer no catalyst for them.
+  if (recipe.namedRelic) return null;
   for (const cat of CATALYSTS) {
     if (recipe.kind === 'consumable' && recipe.consumableType && cat.consumableTypes.includes(recipe.consumableType)) {
       return cat.materialId;
@@ -474,11 +478,6 @@ export function catalystForRecipe(recipe: CraftRecipe): string | null {
 
 export const CATALYST_MIN_BONUS = 10;
 export const CATALYST_MAX_BONUS = 15;
-/** Catalysts used to require the Forge; the gate retired with the
- * bench collapse (brief §8.1) — catalysts are baseline, their cost
- * is their input. Kept as a named constant because both engines
- * still evaluate the (now never-firing) check against it. */
-export const CATALYST_REQUIRES_BENCH = 1;
 
 /**
  * Legendary Core Catalyst (0026, collections slice): gear-frame jobs

@@ -31,7 +31,6 @@
  */
 import {
   catalystForRecipe,
-  CATALYST_REQUIRES_BENCH,
   composeCraftRelicEffects,
   CORE_CATALYST_CORES_PER_UNIT,
   CORE_CATALYST_DRAWS_BONUS,
@@ -1120,24 +1119,23 @@ export function enqueueCraftJob(
     .filter((j) => j.status === 'active' && j.bench === bench).length;
   if (benchActive >= 1 + QUEUED_JOBS_PER_BENCH + queueBonus) fail('Bench queue is full');
 
-  // Catalyst (optional, Forge-gated).
+  // Catalyst (optional; baseline since the bench collapse —
+  // catalysts run on the one bench, their cost is their input).
   let catalystMaterialId: string | null = null;
   if (input.useCatalyst) {
     catalystMaterialId = catalystForRecipe(r);
     if (!catalystMaterialId) fail('Recipe takes no catalyst');
-    if (bench < CATALYST_REQUIRES_BENCH) fail('Catalysts require the Forge (bench 2)');
   }
 
   // Legendary Core Catalyst (0026): gear frames only, one core per
   // unit escrowed at enqueue; mutually exclusive with the material
-  // catalyst and Forge-gated like it (migration 0026's SQL twin
-  // carries the same gates and messages).
+  // catalyst. (Its Forge bench gate retired with the collapse,
+  // like the material catalyst's.)
   let coreCatalyst = false;
   let escrowCores = 0;
   if (input.useCoreCatalyst) {
     if (catalystMaterialId) fail('Choose one catalyst: material or legendary core');
     if (r.kind !== 'gear') fail('Legendary core catalyst applies to gear frames only');
-    if (bench < CATALYST_REQUIRES_BENCH) fail('Catalysts require the Forge (bench 2)');
     coreCatalyst = true;
     escrowCores = units * CORE_CATALYST_CORES_PER_UNIT;
   }
