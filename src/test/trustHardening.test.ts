@@ -30,6 +30,7 @@ import type { Weapon } from '@/types/items';
 import { processBossAttempt, type BossAttemptChefResult, type BossAttemptRequest } from '../server/chef';
 import { mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/routes';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
+import { buildStarterWeaponPayload } from '../server/lib/starterWeapon';
 import { issueAccessToken } from '../server/auth/tokens';
 import { EconomyConfig } from '../server/economy/config';
 
@@ -310,27 +311,45 @@ describe('trust hardening — roaming claim (POST /api/claim)', () => {
   });
 
   it('fresh guest: the first claim runs from server records alone (bootstrap Starter Pistol row, no gear in body)', async () => {
-    const withRow = await makeServer();
+    const withSparse = await makeServer();
+    const withWhole = await makeServer();
     const bare = await makeServer();
-    seedClaimPlayer(withRow.store, true);
+    seedClaimPlayer(withSparse.store, true);
+    // The same row id seeded with the whole, generated weapon the
+    // gear-truth repair materializes from the sparse payload.
+    withWhole.store.seedProfile({ id: A, player_level: 10, credits: 0, scrap: 0 });
+    withWhole.store.seedItem({
+      id: 'starter-row',
+      owner_user_id: A,
+      kind: 'weapon',
+      runtime_state: 'equipped',
+      equipped_slot: 'primary',
+      payload: buildStarterWeaponPayload('starter-row'),
+    });
     seedClaimPlayer(bare.store, false);
 
     const body = {
       playerId: A, areaId: 'dustwaste_frontier', ticks: 20, tickCount: 20, playerLevel: 10,
       survival: ALIVE,
     };
-    const resRow = await post(withRow.base, '/api/claim', body, withRow.tokenA);
+    const resSparse = await post(withSparse.base, '/api/claim', body, withSparse.tokenA);
+    const resWhole = await post(withWhole.base, '/api/claim', body, withWhole.tokenA);
     const resBare = await post(bare.base, '/api/claim', body, bare.tokenA);
 
-    expect(resRow.status).toBe(200);
+    expect(resSparse.status).toBe(200);
+    expect(resWhole.status).toBe(200);
     expect(resBare.status).toBe(200);
-    // The sparse bootstrap payload is engine-inert (the client adapter
-    // hides it from the loadout for the same reason), so the guest
-    // pays the weaponless starter baseline — and pays it successfully,
-    // from records alone, with no gear anywhere in the request.
-    expect(resRow.json.rewards).toEqual(resBare.json.rewards);
-    expect((resRow.json.rewards as { creditsAwarded: number }).creditsAwarded).toBeGreaterThan(0);
-    expect(withRow.store.profiles.get(A)!.last_claimed_tick).toBe(20);
+    // Gear-truth contract: the sparse seed row is repaired into the
+    // real generated Starter Pistol before the claim prices the
+    // loadout, so the sparse-seeded guest's claim equals — exactly —
+    // the claim of a guest whose row held the whole weapon all
+    // along, from records alone, with no gear anywhere in the
+    // request. (Pre-fix the sparse payload was engine-inert, the
+    // slot priced empty, and the claim equaled the BARE guest's
+    // weaponless baseline instead — the playtest's unarmed kills.)
+    expect(resSparse.json.rewards).toEqual(resWhole.json.rewards);
+    expect((resSparse.json.rewards as { creditsAwarded: number }).creditsAwarded).toBeGreaterThan(0);
+    expect(withSparse.store.profiles.get(A)!.last_claimed_tick).toBe(20);
   });
 });
 
@@ -489,7 +508,7 @@ describe('trust hardening — boss attempts (POST /api/verify-boss)', () => {
     expect((res.json.items as unknown[]).length).toBeGreaterThan(0);
   });
 
-  it('the sparse bootstrap Starter Pistol is not a sim weapon: a guest attempt resolves on the empty slot, like the honest client', async () => {
+  it('the bootstrap Starter Pistol is a real sim weapon after the server-side repair: a guest attempt resolves on the materialized starter', async () => {
     const { base, store, tokenA } = await makeServer();
     store.seedProfile({
       id: A,
@@ -507,10 +526,18 @@ describe('trust hardening — boss attempts (POST /api/verify-boss)', () => {
       payload: { ...STARTER_PISTOL_PAYLOAD },
     });
 
-    // Expected: the route-built request with primary null (the
-    // adapter-hidden starter never reaches the honest client's sim
-    // either). Any nonce works — telemetry DPS pins the input.
-    const expected = processBossAttempt(routeRequest({ attemptNonce: 42 }));
+    // Expected: the route-built request whose primary is the
+    // server-materialized Starter Pistol — the gear-truth repair
+    // turns the sparse seed row into the real generated weapon
+    // (deterministically, from the row id alone) before the
+    // loadout derivation reads it, and the honest client's sim now
+    // prices the same weapon. Any nonce works — telemetry DPS
+    // pins the input. (Pre-fix this resolved on the empty slot:
+    // the sparse payload was engine-inert on both sides.)
+    const expected = processBossAttempt(routeRequest({
+      attemptNonce: 42,
+      primary: buildStarterWeaponPayload('starter-row') as unknown as Weapon,
+    }));
     const res = await post(base, '/api/verify-boss', {
       playerId: A,
       bossId: boss.id,

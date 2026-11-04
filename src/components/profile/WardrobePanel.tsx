@@ -31,9 +31,9 @@ import {
   tintPaletteById,
   type CosmeticSlot,
 } from '@/content/skins';
-import { getCraftRecipe } from '@/content/crafting';
+
 import { useWorkshopStore } from '@/store/slices/workshopSlice';
-import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
+import { recipeCostLine } from '@/lib/workshop/recipeCosts';
 
 const SLOT_LABELS: Record<CosmeticSlot, string> = {
   head: 'Head',
@@ -48,16 +48,9 @@ const SLOT_LABELS: Record<CosmeticSlot, string> = {
   back: 'Back',
 };
 
-function recipeCostLine(recipeId: string, recipeScrapCosts?: Record<string, number>): string {
-  const recipe = getCraftRecipe(recipeId);
-  if (!recipe) return 'Craft in the Workshop';
-  // Econ 7: the Scrap leg prints at its resolved lever value when
-  // the Workshop snapshot has landed (see the mount effect below).
-  const inputs = Object.entries(resolvedRecipeInputs(recipe, recipeScrapCosts))
-    .map(([key, qty]) => `${qty.toLocaleString('en-US')} ${key === 'Scrap' ? 'Scrap' : key}`)
-    .join(' + ');
-  return `${inputs} · ${recipe.durationMinutes} min · Bench ${recipe.requiredBenchLevel}`;
-}
+// The craftable rows' cost line (inputs · real craft duration)
+// lives with the other recipe-cost display helpers in
+// @/lib/workshop/recipeCosts (recipeCostLine).
 
 export const WardrobePanel: React.FC = () => {
   const { account } = useAuth();

@@ -6,8 +6,10 @@
  *    must not persist as a victory — the loot now rides the applier
  *    (migration 0040, one transaction), and the lifetime fold counts
  *    a victory only when the boss discovery proves it landed.
- *  - CONS-04: one collection counting rule — vehicles excluded, the
- *    sparse bootstrap starter weapon excluded — across the public
+ *  - CONS-04: one collection counting rule — vehicles excluded;
+ *    the bootstrap starter weapon counted as the real pistol the
+ *    gear-truth repair materializes (it was excluded while its
+ *    seed payload carried no combat numbers) — across the public
  *    stats fold and the trophy shelf.
  *  - COPY-01: the verify-boss response itemizes the ACTUAL ledger
  *    deltas (gross reward, server-classified fee kind, level span).
@@ -391,7 +393,7 @@ describe('CONS-02 — lifetime fold counts only proven victories', () => {
 // CONS-04 — one counting rule for the collection
 // ---------------------------------------------------------------------------
 
-describe('CONS-04 — collection counts exclude the phantom and the vehicle', () => {
+describe('CONS-04 — collection counts exclude the vehicle; the repaired starter counts as the pistol it is', () => {
   it('public stats + trophy shelf agree with the inventory surfaces', async () => {
     const seed = emptyReadSeed();
     seed.profiles = [profile({ id: A })];
@@ -406,9 +408,15 @@ describe('CONS-04 — collection counts exclude the phantom and the vehicle', ()
     } as MemItem);
     seed.items = [
       // The bootstrap starter row, exactly as cc_seed_starter_weapon
-      // writes it: real row, sparse payload, no combat number set.
+      // writes it (production shape: Common, level 1, sparse
+      // payload). Contract change (gear-truth slice): the reads
+      // repair the row into the real generated pistol before any
+      // fold, so it COUNTS — 0040 excluded it only because the
+      // sparse payload was not a displayable item; it is one now,
+      // and Gear shows it. It ranks on the shelf by its honest
+      // Common tier, below every real trophy here.
       item({
-        id: 'starter-pistol', rarity: 'Legendary', item_level: 99,
+        id: 'starter-pistol', rarity: 'Common', item_level: 1,
         payload: {
           name: 'Starter Pistol', weaponType: 'Pistol', element: 'Kinetic',
           manufacturer: 'Redline', rarity: 'Common', level: 1,
@@ -427,10 +435,10 @@ describe('CONS-04 — collection counts exclude the phantom and the vehicle', ()
 
     const pub = await store.getPublicProfile(A);
     expect(pub).not.toBeNull();
-    expect(pub!.total_items).toBe(4); // 3 weapons + 1 shield
-    expect(pub!.weapons_owned).toBe(3);
-    expect(pub!.legendary_items).toBe(1); // only w-1
-    expect(pub!.highest_item_level).toBe(40); // not the pistol's 99 or the vehicle's 50
+    expect(pub!.total_items).toBe(5); // 4 weapons (starter included) + 1 shield; the vehicle never counts
+    expect(pub!.weapons_owned).toBe(4);
+    expect(pub!.legendary_items).toBe(1); // only w-1 — the starter is Common, the vehicle is a vehicle
+    expect(pub!.highest_item_level).toBe(40); // not the vehicle's 50
 
     const stats = await store.getProfileStats(A);
     expect(stats!.showcase.top_weapons.map((w) => w.id)).toEqual(['w-1', 'w-2', 'w-3']);

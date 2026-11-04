@@ -70,6 +70,7 @@ import {
   type WeeklyFoldInput,
 } from '../leaderboards/fold';
 import { NPC_MARKET_USER_ID } from '../lib/npcMarket';
+import { repairSparseStarterRowsPg, repairStarterItemInPlace } from '../lib/starterWeapon';
 import {
   buildActivityRecords, decodeActivityCursor, encodeActivityCursor,
   normalizeActivityLimit, queryActivityRecords,
@@ -1054,10 +1055,16 @@ function bossVictoryCounts(
  * The ONE collection counting rule (CONS-04): collection aggregates
  * count the gear the inventory surfaces can actually show. Vehicles
  * are excluded (they are reported separately, never as collection
- * items) and the sparse bootstrap starter weapon is excluded (its
- * payload carries no combat numbers — isUsableWeaponPayload's rule;
- * the SQL twin of this rule lives in the player_public_stats view,
- * restated by migration 0040 with the baseDamage marker).
+ * items). For weapons the showable test is isUsableWeaponPayload —
+ * under the pre-gear-truth seed that excluded the sparse bootstrap
+ * starter (no combat numbers; migration 0040's baseDamage marker in
+ * the player_public_stats view). The gear-truth repair materializes
+ * the starter into the real generated pistol BEFORE any fold reads
+ * it (every reads entry point repairs first), so it now counts and
+ * ranks as the Common level-1 weapon it is — the rule's principle
+ * (count what can be shown) is unchanged; the starter can finally
+ * be shown. The usable check remains the guard against genuinely
+ * corrupt weapon payloads.
  */
 export function isCollectionCountableItem(item: RuntimeItemData): boolean {
   if (item.kind === 'vehicle') return false;
@@ -1070,8 +1077,10 @@ export function rankShowcaseWeapons(items: readonly RuntimeItemData[], limit = 3
   const levelOf = (item: RuntimeItemData): number =>
     item.item_level ?? foldNum(foldRecord(item.payload).level) ?? 0;
   return items
-    // CONS-04: only showable weapons rank — the sparse bootstrap
-    // starter (no combat numbers) never headlines the trophy shelf.
+    // CONS-04: only showable weapons rank. The bootstrap starter,
+    // repaired to a real Common L1 pistol before folds read it,
+    // ranks by that honest tier — it headlines a shelf only when
+    // nothing rarer stands beside it.
     .filter((item) => item.kind === 'weapon' && isUsableWeaponPayload(item.payload as unknown as GearItem))
     .sort((a, b) => {
       const rarityDelta = (SHOWCASE_RARITY_RANK[b.rarity ?? ''] ?? 0) - (SHOWCASE_RARITY_RANK[a.rarity ?? ''] ?? 0);
@@ -1876,11 +1885,32 @@ export class InMemoryReadStore implements ReadStore {
   private statsFor(playerId: string): PublicStatsData | null {
     const profile = this.seed.profiles.find((p) => p.id === playerId);
     if (!profile) return null;
+    // Starter repair before ANY fold (gear-truth): the counts and
+    // the showcase must read the same repaired rows the runtime
+    // items read serves — order-independent, mirroring the Pg
+    // store's repair-first profile reads.
+    this.repairStarterRows(playerId);
     const combat = this.seed.combatStats.find((c) => c.user_id === playerId);
     const items = this.seed.items.filter((i) => i.owner_user_id === playerId);
     const masteries = this.seed.playerMasteries.filter((m) => m.user_id === playerId);
     const kills = combat?.total_kills ?? 0;
     const deaths = combat?.total_deaths ?? 0;
+    // Gear-truth: kills by weapon type / element read from the
+    // SERVER kill record (player_kill_stats — the same rows the
+    // lifetime fold prints as "Kills by Weapon"), not the
+    // client-mirrored combat row: the mirror's recordKill calls
+    // never carried a weapon type, so its by-type map stayed empty
+    // forever and Profile's Top Weapon Types read "No data yet"
+    // beside a full server breakdown. The mirror map remains the
+    // fallback for a player with no server record yet.
+    const killTypeRecord: Record<string, number> = {};
+    for (const row of this.seed.killStats ?? []) {
+      if (row.user_id === playerId) killTypeRecord[row.weapon_type] = row.kills;
+    }
+    const killElementRecord: Record<string, number> = {};
+    for (const row of this.seed.killElementStats ?? []) {
+      if (row.user_id === playerId) killElementRecord[row.element] = row.kills;
+    }
     // CONS-04: the view's counting rule (isCollectionCountableItem) —
     // this twin of player_public_stats must agree with migration
     // 0040's restated view on every aggregate.
@@ -1904,8 +1934,8 @@ export class InMemoryReadStore implements ReadStore {
       active_play_seconds: combat?.active_play_seconds ?? 0,
       idle_play_seconds: combat?.idle_play_seconds ?? 0,
       kills_by_area: combat?.kills_by_area ?? {},
-      kills_by_weapon_type: combat?.kills_by_weapon_type ?? {},
-      kills_by_element: combat?.kills_by_element ?? {},
+      kills_by_weapon_type: Object.keys(killTypeRecord).length ? killTypeRecord : (combat?.kills_by_weapon_type ?? {}),
+      kills_by_element: Object.keys(killElementRecord).length ? killElementRecord : (combat?.kills_by_element ?? {}),
       net_worth: this.seed.netWorth[playerId] ?? 0,
       total_items: countable.length,
       weapons_owned: countable.filter((i) => i.kind === 'weapon').length,
@@ -2030,7 +2060,20 @@ export class InMemoryReadStore implements ReadStore {
     return computePriceStats(records, keys, now);
   }
 
+  /** Starter repair (gear-truth slice): the bootstrap seed row's
+   *  sparse payload becomes the real generated Starter Pistol in
+   *  place — see src/server/lib/starterWeapon. Deterministic per
+   *  row id, so every store repairs to the identical weapon. */
+  private repairStarterRows(playerId: string): void {
+    for (const item of this.seed.items) {
+      if (item.owner_user_id === playerId) {
+        repairStarterItemInPlace(item as unknown as { id: string; payload: unknown });
+      }
+    }
+  }
+
   async getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]> {
+    this.repairStarterRows(playerId);
     const excluded = new Set(['salvaged', 'consumed', 'listed']);
     return this.seed.items
       .filter((i) => i.owner_user_id === playerId && !excluded.has(i.runtime_state))
@@ -2723,6 +2766,11 @@ export class PgReadStore implements ReadStore {
   }
 
   async getPublicProfile(playerId: string): Promise<PublicProfileData | null> {
+    // Starter repair first (gear-truth) — see getMyStats above.
+    await repairSparseStarterRowsPg(
+      async (sql, params) => (await this.db.query(sql, params)).rows,
+      playerId,
+    );
     const { rows } = await this.db.query('select * from public.cc_get_public_profile($1)', [playerId]);
     if (!rows.length) return null;
     const base = mapPublicProfile(rows[0]);
@@ -2744,10 +2792,43 @@ export class PgReadStore implements ReadStore {
   }
 
   async getMyStats(playerId: string): Promise<PublicStatsData | null> {
+    // Starter repair first (gear-truth): the summary's collection
+    // aggregates read stored payloads through the CONS-04 marker —
+    // repairing first makes this read agree with the runtime items
+    // read regardless of which surface the player visited first.
+    await repairSparseStarterRowsPg(
+      async (sql, params) => (await this.db.query(sql, params)).rows,
+      playerId,
+    );
     const { rows } = await this.db.query('select * from public.cc_my_stats_summary($1)', [playerId]);
     // Composite-returning function: a missing player yields one all-NULL
     // row (PostgREST collapses that to a null payload for the client).
-    return rows.length && rows[0].user_id != null ? mapStats(rows[0]) : null;
+    if (!rows.length || rows[0].user_id == null) return null;
+    const stats = mapStats(rows[0]);
+    // Gear-truth: kills by weapon type / element come from the
+    // server kill record (player_kill_stats — the same rows the
+    // lifetime fold prints), overriding the client-mirrored combat
+    // row's maps, which never carried a weapon type. The twin's
+    // statsFor applies the identical rule.
+    const { rows: typeRows } = await this.db.query(
+      'select weapon_type, kills from public.player_kill_stats where user_id = $1',
+      [playerId],
+    );
+    if (typeRows.length) {
+      const byType: Record<string, number> = {};
+      for (const row of typeRows) byType[String(row.weapon_type)] = num(row.kills);
+      stats.kills_by_weapon_type = byType;
+    }
+    const { rows: elementRows } = await this.db.query(
+      'select element, kills from public.player_kill_element_stats where user_id = $1',
+      [playerId],
+    );
+    if (elementRows.length) {
+      const byElement: Record<string, number> = {};
+      for (const row of elementRows) byElement[String(row.element)] = num(row.kills);
+      stats.kills_by_element = byElement;
+    }
+    return stats;
   }
 
   async getPublicStats(playerId: string): Promise<PublicStatsData | null> {
@@ -2919,6 +3000,13 @@ export class PgReadStore implements ReadStore {
   }
 
   async getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]> {
+    // Starter repair (gear-truth slice): persist the canonical
+    // Starter Pistol payload onto the sparse bootstrap seed row
+    // before serving items — see src/server/lib/starterWeapon.
+    await repairSparseStarterRowsPg(
+      async (sql, params) => (await this.db.query(sql, params)).rows,
+      playerId,
+    );
     const { rows } = await this.db.query(
       `select id, item_level, rarity, is_locked, runtime_state, equipped_slot, payload, created_at, kind, condition_current, condition_max
        from public.item_instances

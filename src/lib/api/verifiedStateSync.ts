@@ -8,7 +8,7 @@ import { RiskSetting } from '@/types/game';
 import type { BossAttemptResult } from '@/types/boss';
 import type { GearItem } from '@/types/items';
 import type { ConsumableBatch } from '@/types/player';
-import { isVehicleRow, serverItemRowToDisplayGear, serverItemRowToVehicle, type ServerItemRow } from './serverItemAdapter';
+import { coerceServerItemRow, isVehicleRow, serverItemRowToDisplayGear, serverItemRowToVehicle, type ServerItemRow } from './serverItemAdapter';
 
 export type RuntimeProfilePayload = {
   id?: string;
@@ -188,7 +188,12 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
   }
 }
 
-function syncRuntimeItem(row: ServerItemRow | undefined): void {
+function syncRuntimeItem(input: ServerItemRow | Record<string, unknown> | undefined): void {
+  // Entries arrive as store rows OR as raw Chef item payloads
+  // (claim results) — normalize before the row logic runs, or the
+  // adapter reads a missing `payload` and drops the item
+  // (coerceServerItemRow carries the full story).
+  const row = coerceServerItemRow(input);
   if (!row?.id) return;
   // Vehicles (0021) route to the vehicle store — never the gear
   // inventory — with the same listed/gone handling.

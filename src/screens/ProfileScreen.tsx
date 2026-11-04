@@ -6,7 +6,7 @@ import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore, use
 import { useCharacterStatSummary } from '@/hooks/useCharacterStatSummary';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
 import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/api/statsService';
-import { formatDuration, topBreakdown } from '@/lib/stats/statsHelpers';
+import { formatDuration, formatKillDeathRatio, killDeathRatio, topBreakdown } from '@/lib/stats/statsHelpers';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -198,6 +198,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   // derives a second copy.
   const topAreas = topBreakdown(stats?.kills_by_area, 3);
   const topWeaponTypes = topBreakdown(stats?.kills_by_weapon_type, 3);
+
+  // K/D is arithmetic on the two numbers printed beside it — kills
+  // and deaths from this same stats summary. The summary's ratio
+  // field is null at zero deaths (the public-stats convention:
+  // kills / NULLIF(deaths, 0)), and the pre-fix render coerced that
+  // null to 0.00, printing a ratio no ledger supports next to
+  // "12 kills / 0 deaths" (gear-truth slice). Zero deaths means no
+  // ratio exists yet — '—', the public profile's own convention.
+  const kdRatio = stats ? killDeathRatio(stats.total_kills, stats.total_deaths) : null;
+  const kdText = stats ? formatKillDeathRatio(stats.total_kills, stats.total_deaths) : '—';
 
   const sparklineFor = (metric: ProgressionMetric): number[] => {
     return snapshots.map((s) => (typeof s[metric] === 'number' ? (s[metric] as number) : 0));
@@ -405,19 +415,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       <ActivityLogDoor onOpen={() => onNavigate?.('activity-log')} />
 
       <div className="space-y-3">
-        <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Progression</div>
+        {/* Hunter level/XP and Mastery XP/levels are SEPARATE
+            progression systems (gear-truth slice): masteries are
+            per-track profession XP that accrue independently of the
+            hunter's level, so the two pairs get their own labeled
+            groups instead of one undifferentiated "Progression"
+            grid where a Mastery Lv 6 sat unexplained beside a
+            Hunter Level 1. */}
+        <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Hunter</div>
         <div className="grid grid-cols-2 gap-2">
-          <StatCard label="Level" value={stats?.player_level ?? player.level} color="#FF9000" metric="level" leaderboardMetric="level" sparklineValues={sparklineFor('level')} onClick={() => openDetail({ metric: 'level', leaderboardMetric: 'level', label: 'Level', value: stats?.player_level ?? player.level, color: '#FF9000' })} />
-          <StatCard label="XP" value={stats?.player_xp ?? player.xp} color="#FF9000" metric="xp" leaderboardMetric="xp" sparklineValues={sparklineFor('xp')} onClick={() => openDetail({ metric: 'xp', leaderboardMetric: 'xp', label: 'XP', value: stats?.player_xp ?? player.xp, color: '#FF9000' })} />
-          <StatCard label="Mastery XP" value={stats?.total_mastery_xp ?? 0} color="#7CFC00" metric="total_mastery_xp" leaderboardMetric="total_mastery_xp" sparklineValues={sparklineFor('total_mastery_xp')} onClick={() => openDetail({ metric: 'total_mastery_xp', leaderboardMetric: 'total_mastery_xp', label: 'Mastery XP', value: stats?.total_mastery_xp ?? 0, color: '#7CFC00' })} />
-          <StatCard label="Mastery Lv" value={stats?.highest_mastery_level ?? 0} color="#7CFC00" metric="highest_mastery_level" leaderboardMetric="highest_mastery_level" sparklineValues={sparklineFor('highest_mastery_level')} onClick={() => openDetail({ metric: 'highest_mastery_level', leaderboardMetric: 'highest_mastery_level', label: 'Highest Mastery Level', value: stats?.highest_mastery_level ?? 0, color: '#7CFC00' })} />
+          <StatCard label="Hunter Level" value={stats?.player_level ?? player.level} color="#FF9000" metric="level" leaderboardMetric="level" sparklineValues={sparklineFor('level')} onClick={() => openDetail({ metric: 'level', leaderboardMetric: 'level', label: 'Hunter Level', value: stats?.player_level ?? player.level, color: '#FF9000' })} />
+          <StatCard label="Hunter XP" value={stats?.player_xp ?? player.xp} color="#FF9000" metric="xp" leaderboardMetric="xp" sparklineValues={sparklineFor('xp')} onClick={() => openDetail({ metric: 'xp', leaderboardMetric: 'xp', label: 'Hunter XP', value: stats?.player_xp ?? player.xp, color: '#FF9000' })} />
+        </div>
+
+        <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Masteries</div>
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard label="Mastery XP (all tracks)" value={stats?.total_mastery_xp ?? 0} color="#7CFC00" metric="total_mastery_xp" leaderboardMetric="total_mastery_xp" sparklineValues={sparklineFor('total_mastery_xp')} onClick={() => openDetail({ metric: 'total_mastery_xp', leaderboardMetric: 'total_mastery_xp', label: 'Mastery XP (all tracks)', value: stats?.total_mastery_xp ?? 0, color: '#7CFC00' })} />
+          <StatCard label="Highest Mastery Lv" value={stats?.highest_mastery_level ?? 0} color="#7CFC00" metric="highest_mastery_level" leaderboardMetric="highest_mastery_level" sparklineValues={sparklineFor('highest_mastery_level')} onClick={() => openDetail({ metric: 'highest_mastery_level', leaderboardMetric: 'highest_mastery_level', label: 'Highest Mastery Level', value: stats?.highest_mastery_level ?? 0, color: '#7CFC00' })} />
         </div>
 
         <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Combat</div>
         <div className="grid grid-cols-2 gap-2">
           <StatCard label="Kills" value={stats?.total_kills ?? 0} color="#FF4B5C" metric="total_kills" leaderboardMetric="total_kills" sparklineValues={sparklineFor('total_kills')} onClick={() => openDetail({ metric: 'total_kills', leaderboardMetric: 'total_kills', label: 'Kills', value: stats?.total_kills ?? 0, color: '#FF4B5C' })} />
           <StatCard label="Deaths" value={stats?.total_deaths ?? 0} color="#FF4B5C" metric="total_deaths" sparklineValues={sparklineFor('total_deaths')} />
-          <StatCard label="K/D" value={(stats?.kill_death_ratio ?? 0).toFixed(2)} color="#FF4B5C" metric="total_kills" leaderboardMetric="kdr" sparklineValues={sparklineFor('total_kills')} onClick={() => openDetail({ metric: 'total_kills', leaderboardMetric: 'kdr', label: 'Kill / Death Ratio', value: stats?.kill_death_ratio ?? 0, color: '#FF4B5C' })} />
+          <StatCard label="K/D" value={kdText} color="#FF4B5C" metric="total_kills" leaderboardMetric="kdr" sparklineValues={sparklineFor('total_kills')} onClick={() => openDetail({ metric: 'total_kills', leaderboardMetric: 'kdr', label: 'Kill / Death Ratio', value: kdRatio ?? 0, color: '#FF4B5C' })} />
           <StatCard label="Boss Tier" value={stats?.highest_boss_tier ?? 0} color="#FF4B5C" metric="highest_boss_tier" leaderboardMetric="highest_boss_tier" sparklineValues={sparklineFor('highest_boss_tier')} onClick={() => openDetail({ metric: 'highest_boss_tier', leaderboardMetric: 'highest_boss_tier', label: 'Highest Boss Tier', value: stats?.highest_boss_tier ?? 0, color: '#FF4B5C' })} />
         </div>
 
@@ -472,7 +493,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           </div>
           <div className="space-y-1">
             <div className="text-text-muted">K/D</div>
-            <div className="font-black text-text-primary">{(stats?.kill_death_ratio ?? 0).toFixed(2)}</div>
+            <div className="font-black text-text-primary">{kdText}</div>
           </div>
           <div className="space-y-1">
             <div className="text-text-muted">Best Streak</div>

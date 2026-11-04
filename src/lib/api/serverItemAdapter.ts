@@ -21,6 +21,44 @@ export function isVehicleRow(row: ServerItemRow): boolean {
 }
 
 /**
+ * Normalize one entry of a verified result's item list to a
+ * ServerItemRow. Two shapes arrive here (gear-truth slice):
+ *
+ *   - ROWS from the read/write stores (verified ops, runtime sync):
+ *     the item record itself — `payload` carries the item JSON.
+ *   - RAW ITEM PAYLOADS from the Chef engines (foreground claim
+ *     results): the generated item itself, fields at top level, no
+ *     `payload` wrapper — the same objects cc_store_chef_items
+ *     persisted.
+ *
+ * The pre-fix sync fed raw payloads to the row adapter, which found
+ * no `payload`, declared every roaming drop "unrecognizable", and
+ * actively REMOVED it from the inventory store — roaming loot never
+ * appeared in Gear until a full re-hydration, while cache and boss
+ * items (which arrive as rows or bypass this path) showed fine.
+ * Wrapping a raw payload as its own row routes it through the one
+ * adapter, validation and vehicle split included.
+ */
+export function coerceServerItemRow(entry: unknown): ServerItemRow | null {
+  if (!entry || typeof entry !== 'object') return null;
+  const record = entry as Record<string, unknown>;
+  if (record.payload && typeof record.payload === 'object') {
+    return record as ServerItemRow;
+  }
+  if (typeof record.id !== 'string' || record.id === '') return null;
+  return {
+    id: record.id,
+    payload: record,
+    runtime_state: 'available',
+    equipped_slot: null,
+    kind: 'vehicleClassId' in record ? 'vehicle' : null,
+    is_locked: Boolean(record.isLocked),
+    rarity: typeof record.rarity === 'string' ? record.rarity : null,
+    item_level: typeof record.level === 'number' ? record.level : null,
+  };
+}
+
+/**
  * Reconstruct a vehicle display object from an item row (0021).
  * Condition rides on the row columns, not the payload.
  */

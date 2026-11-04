@@ -47,7 +47,12 @@ export const ShowcaseWeaponRow: React.FC<{
         <div className="break-words text-xs font-black leading-snug text-text-primary">{name}</div>
         <div className="break-words text-[11px] font-bold leading-snug" style={{ color }}>
           {rarity} · Lv {level}
-          {item.equipped_slot === 'weapon' ? ' · Equipped' : ''}
+          {/* Gear-truth: the tag keyed on equipped_slot === 'weapon'
+              — a slot the equip RPC can never write (valid slots:
+              primary/secondary/heavy/ordnance/shield/classMod/
+              relic) — so it could never print for a real item. Any
+              non-null slot IS the equipped evidence. */}
+          {item.equipped_slot != null ? ' · Equipped' : ''}
         </div>
         {pinned && (
           <div className="mt-0.5 inline-block border border-amber/60 bg-amber/10 px-1.5 py-px text-[11px] font-black uppercase tracking-wide text-amber">

@@ -46,6 +46,7 @@ import { isHotArea } from '../../content/hotArea';
 import { contractBandForLevel, type ContractSetFacts } from '../../content/contracts';
 import { createTickRng } from '../../lib/rng/tickRng';
 import { skillBonusesFromRecords } from './serverLoadout';
+import { repairSparseStarterRowsPg } from '../lib/starterWeapon';
 import {
   computeResearchBonuses,
   type ResearchBonuses,
@@ -1892,6 +1893,13 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   async getEquippedItems(playerId: string): Promise<EquippedItemEntry[]> {
     try {
+      // Starter repair (gear-truth slice): the engines must price
+      // the real Starter Pistol, never the sparse bootstrap seed —
+      // persist the canonical payload first (src/server/lib/starterWeapon).
+      await repairSparseStarterRowsPg(
+        async (sql, params) => (await this.pool.query(sql, params)).rows as Array<Record<string, unknown>>,
+        playerId,
+      );
       const { rows } = await this.pool.query(
         `select equipped_slot, payload from public.item_instances
           where owner_user_id = $1 and runtime_state = 'equipped'

@@ -29,6 +29,7 @@
 import { randomUUID } from 'node:crypto';
 import { applyXp, computeItemEstimatedValue, masteryLevelForXp, salvageScrap, type Json } from '../writes/store';
 import { sourceIdFromPayload } from '../dropReceipts';
+import { repairStarterItemInPlace } from '../lib/starterWeapon';
 import {
   deathRecordFromJson,
   GameplayStoreError,
@@ -2650,7 +2651,23 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   }
 
   /** Synchronous equipped-items read (the extraction adapter's seam). */
+  /**
+   * Starter repair (gear-truth slice): materialize the sparse
+   * bootstrap seed payload into the real generated Starter Pistol
+   * in place — the twin of the Postgres stores' persisted repair
+   * (src/server/lib/starterWeapon). Deterministic per row id, so
+   * every store repairs to the identical weapon.
+   */
+  private repairStarterRows(playerId: string): void {
+    for (const item of this.items.values()) {
+      if (item.owner_user_id === playerId) {
+        repairStarterItemInPlace(item as unknown as { id: string; payload: unknown });
+      }
+    }
+  }
+
   private equippedItemsSync(playerId: string): EquippedItemEntry[] {
+    this.repairStarterRows(playerId);
     const slotRank = new Map<string, number>(LOADOUT_SLOT_ORDER.map((slot, i) => [slot, i]));
     return [...this.items.values()]
       .filter(
@@ -2732,20 +2749,30 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
    */
   private recordKillStats(playerId: string, kills: number): void {
     if (!Number.isFinite(kills) || kills <= 0) return;
+    // Gear-truth fix: the weapon held is the one in a WEAPON SLOT
+    // (primary, then secondary, then heavy — slot order). The
+    // pre-fix predicate looked for equipped_slot = 'weapon', a slot
+    // that has never existed, so every kill in history attributed
+    // to 'unarmed' no matter what the hunter held. The SQL twin
+    // (cc_record_kill_stats, chain head 0051) carries the same
+    // predicate and needs the matching restatement — tracked as the
+    // follow-up migration in this slice's PR, not shipped here.
+    this.repairStarterRows(playerId);
     let weaponType = 'unarmed';
     let element = 'unarmed';
-    for (const item of this.items.values()) {
-      if (
-        item.owner_user_id === playerId
-        && item.runtime_state === 'equipped'
-        && item.equipped_slot === 'weapon'
-      ) {
-        const fromPayload = item.payload?.weaponType;
-        weaponType = typeof fromPayload === 'string' && fromPayload !== '' ? fromPayload : 'unarmed';
-        const fromElement = item.payload?.element;
-        element = typeof fromElement === 'string' && fromElement !== '' ? fromElement : 'unarmed';
-        break;
-      }
+    for (const slot of ['primary', 'secondary', 'heavy']) {
+      const item = [...this.items.values()].find(
+        (candidate) =>
+          candidate.owner_user_id === playerId
+          && candidate.runtime_state === 'equipped'
+          && candidate.equipped_slot === slot,
+      );
+      if (!item) continue;
+      const fromPayload = item.payload?.weaponType;
+      weaponType = typeof fromPayload === 'string' && fromPayload !== '' ? fromPayload : 'unarmed';
+      const fromElement = item.payload?.element;
+      element = typeof fromElement === 'string' && fromElement !== '' ? fromElement : 'unarmed';
+      break;
     }
     const key = `${playerId}:${weaponType}`;
     this.killStats.set(key, (this.killStats.get(key) ?? 0) + Math.trunc(kills));

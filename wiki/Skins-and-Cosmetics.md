@@ -125,7 +125,9 @@ with your hunter wearing his current look (weapon included), your
 owned parts by slot, and the full craftable catalog with its
 costs. Those costs are live: a part's Scrap price is tuned per
 recipe (see [[Economy]]), and the Wardrobe always quotes the
-price that will actually be charged. A shortcut door also sits on the figure stage of the Gear
+price that will actually be charged. Each craftable row also
+prints the part's real craft time beside its inputs — the same
+duration the Workshop job will run. A shortcut door also sits on the figure stage of the Gear
 tab's Loadout page — it lands here, on the Wardrobe panel. Tap **Wear** and the part replaces the stock piece for that
 slot — parts replace, they never layer over the stock frame. One
 part per slot; equipping a second part for a slot swaps the first

@@ -2,6 +2,13 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-04 — Every screen reads the same hunter
+
+- **Gear shows everything you own** — the Gear tab now lists every item on your account: the Starter Pistol, roaming drops, cache finds, and boss loot alike, with the starter in its slot from the moment you collect it. Drops earned while roaming appear in your inventory as they land.
+- **One DPS, everywhere** — Home, the Gear header, and your slot cards all print the same DPS figure for your loadout. Boss surfaces price that same loadout against the boss in front of you and say so on the label: the picker's **Your DPS vs Tyrant** chip and the prep stage's **Eff. DPS** are the same number.
+- **Danger warnings price your real loadout** — area warnings run their duel math on the gear you actually have equipped. A fresh hunter holding the Starter Pistol reads Dustwaste Frontier as the starter area it is, not a death sentence.
+- **Profile, honest in the small** — K/D no longer prints 0.00 next to a deathless record (no deaths yet reads **—**); **Active Time** accrues your real foreground play; Hunter level/XP and Mastery XP/levels sit in their own labeled groups, as the separate systems they are; Wardrobe craftable rows print each part's real craft time; and a Trophy Shelf weapon you currently have equipped carries its **Equipped** mark.
+
 ## 2026-11-04 — One bench, and builds that staff your contracts
 
 - **Home, re-stacked** — the mode rail (Area · Roam · Boss · Endless · Extract · Craft) now runs above the stage, and the consumable belt takes the rail's old spot directly under the stage, above the workspace: your modes lead the screen, and your loaded consumables sit between the rundown and the panel.

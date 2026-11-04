@@ -313,11 +313,19 @@ const rewards = (kills: number): ChefRewardsInput => ({
 });
 
 describe('kill record (0034 twin) — claim + offline settle appliers', () => {
+  // Fixture correction (gear-truth slice): these tests originally
+  // seeded the weapon at equipped_slot 'weapon' — the slot the
+  // 0034 predicate looked for. That slot can never exist: the
+  // equip RPC validates slot_name against
+  // ('primary','secondary','heavy','ordnance','shield','classMod',
+  // 'relic'), so every production kill attributed 'unarmed'. The
+  // fixtures now seed the real primary slot; the assertions
+  // (attribution + replay idempotency) are unchanged.
   it('attributes claim kills to the equipped weapon; a tick replay never double-counts', async () => {
     const store = new InMemoryChefGameplayStore();
     store.seedProfile({ id: A });
     store.seedItem({
-      id: 'gun-1', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'weapon',
+      id: 'gun-1', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'primary',
       payload: { weaponType: 'Sniper' },
     });
     await store.applyChefRewards(A, rewards(7), 1, 'redline_circuit');
@@ -340,7 +348,7 @@ describe('kill record (0034 twin) — claim + offline settle appliers', () => {
     const store = new InMemoryChefGameplayStore(() => now);
     store.seedProfile({ id: A });
     store.seedItem({
-      id: 'gun-2', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'weapon',
+      id: 'gun-2', owner_user_id: A, runtime_state: 'equipped', equipped_slot: 'primary',
       payload: { weaponType: 'Pistol' },
     });
     store.seedActiveAction({

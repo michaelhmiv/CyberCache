@@ -74,12 +74,14 @@ export interface BossLoadoutSlots {
 /**
  * A stored weapon payload the engines can actually price. Mirrors
  * the client adapter's rule (serverItemAdapter): a weapon payload
- * missing its required numeric fields is corrupt/incomplete — the
- * bootstrap Starter Pistol row (migration 0004) is exactly this
- * shape — and is rejected rather than patched with defaults. The
- * adapter hides such rows from the client loadout, so an honest
- * client's boss attempt runs that slot EMPTY; the derivation must
- * agree, or the sim would price NaN DPS for the slot instead.
+ * missing its required numeric fields is corrupt/incomplete and is
+ * rejected rather than patched with defaults, or the sim would
+ * price NaN DPS for the slot instead. The one legitimate sparse
+ * shape — the bootstrap Starter Pistol seed row (migration 0004) —
+ * never reaches this guard: the stores repair it into the real
+ * generated weapon before any derivation reads it
+ * (src/server/lib/starterWeapon). What still arrives sparse is
+ * corrupt data, and it prices as an empty slot.
  */
 const REQUIRED_WEAPON_FIELDS = [
   'baseDamage',

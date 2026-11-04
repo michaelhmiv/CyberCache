@@ -150,7 +150,7 @@ function lifetimePayload(): ProfileLifetimePayload {
           rarity: 'Legendary',
           is_locked: false,
           runtime_state: 'inventory',
-          equipped_slot: 'weapon',
+          equipped_slot: 'primary',
           payload: {
             name: TROPHY_NAME,
             weaponType: 'Pistol',
