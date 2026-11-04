@@ -30,7 +30,7 @@ const SECRET = 'econ6-test-secret';
 const P = '11111111-1111-4111-8111-111111111111';
 const GUN = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const DAY = '2027-03-04';
-let nowMs = Date.parse(`${DAY}T12:00:00.000Z`);
+const nowMs = Date.parse(`${DAY}T12:00:00.000Z`);
 let uuidCounter = 0;
 let nonceCounter = 0;
 
