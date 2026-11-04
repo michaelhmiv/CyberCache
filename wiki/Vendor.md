@@ -11,8 +11,7 @@ You'll find the vendor as a stop on the Market rail. The stop opens on
 the buy counter; a dashed **Sell to Vendor — Buyback** row at the top of
 the stop opens the buyback desk. Standing with the makers has moved out
 of the stall entirely — the [[Manufacturer Standing|Rep Desk]] is its
-own stop on the same rail, and the [[Slots|slot machine]] has a stop of
-its own too. Every item on the counter is one compact row: its icon,
+own stop on the same rail. Every item on the counter is one compact row: its icon,
 its family and what it does, how many you already own, and the Buy
 button with its price.
 
@@ -98,10 +97,7 @@ more, but it makes you wait for a buyer.
 The vendor is the friendliest counter in the game: **guests can buy and
 sell here freely**. It's the one storefront whose transacting never
 required an account, which makes it the right first stop for a brand-new
-hunter. (The [[Slots|slot machine]], one stop over on the rail, is the
-exception — guests can look, but pulling takes a signed-in account, and a
-signed-in hunter who can't pull a tier sees the reason printed under its
-button: machine closed, out of pulls for the day, or short on credits.)
+hunter.
 
 The full consumables catalog — every item pictured with its in-game
 icon — is in [[Reference-Consumables]].

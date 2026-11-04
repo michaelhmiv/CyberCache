@@ -14,6 +14,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Gates keep falling** — consumable recipes no longer ask your level: meet the bench, the research, and the materials, and the job queues.
 - **Sign-in, in the game's own art** — the sign-in banner is now a pixel wasteland landscape. Behind the scenes, product analytics (GA4) landed to watch retention and the core loops.
 - **Bosses show themselves** — boss prep now opens on a portrait plate of the boss itself, standing on its own arena, with its weakness chip and mechanic up front; the picker rows, the fight header, and the defeat screen carry the same creature at every size. The old letter-emblem badges are retired.
+- **Data Slots is gone** — the vendor's slot machine has been removed: the Market rail is back to six stops and the Home deck loses its Slots card. Pulls were always settled on the spot — wager in, prize out, in the same moment — so no player had anything stored with the machine, and nothing was owed or lost in the removal.
 
 ## 2026-11-02 – 2026-11-03 — The evening batch: every "no" explains itself
 
@@ -96,9 +97,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 95 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 103 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-03** — 43 merges
+**2026-11-03** — 51 merges
 
 - #310 — feat(stage): the ribbon becomes the effective-stats band (+ Loadout door)
 - #315 — Foreground resume: land instantly back in the live action
@@ -143,6 +144,14 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #354 — STUFF: the materials pixel system — formed objects for all 26 goods, ResourceIcon deleted (C-2)
 - #355 — Fodder HP plate lift — in-stage, level with the hunter plate (owner device ruling 2026-11-03)
 - #356 — Econ slice 4 follow-up: re-pin 0067 settler parity + dropped-signature guard (test-only)
+- #357 — Fix idle tick desync after offline settle (F1+F2) — claims land within one cycle of return
+- #358 — Item-moment reveal: the item rises through radiating stepped light, stat deck lands staged
+- #359 — Quick-Buy QB-4: tint Chromaweave + reforge core mounts
+- #360 — AL-1: drop receipts — the game records what drops, where, and at what odds (recording only)
+- #361 — Econ 8: dispatch board reroll — credit-priced re-deal of the daily slate (§7.3, migration 0068)
+- #362 — Saved Builds SB-1: truthful build apply — one server op (cc_apply_build, 0066)
+- #363 — Boss identity: the Arena Plate — the boss presents itself (C-4)
+- #364 — Economy slice 5 — the Scrap Merge (brief §3): one tradeable Scrap, migration 0069 draft
 
 **2026-11-02** — 44 merges
 

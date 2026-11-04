@@ -13,8 +13,10 @@
  *   - cache_second_drop / cache_third_drop (seeded by 0004) were
  *     never drawn: every cc_draw_odds call site in every migration
  *     names only boss_attempt_{aggressive,defensive,balanced},
- *     cache_primary_rarity, or slot_machine, and the InMemory
- *     cache twin filters outcomes to cache_primary_rarity alone.
+ *     cache_primary_rarity, or slot_machine (the slot machine
+ *     has since been removed wholesale by migration 0074), and
+ *     the InMemory cache twin filters outcomes to
+ *     cache_primary_rarity alone.
  *   - The live open path is untouched by the slice: ChestScreen ->
  *     verifiedOps.makeItem -> cc_make_item (0037) makes exactly one
  *     draw, cc_draw_odds('cache_primary_rarity', cache_quality).

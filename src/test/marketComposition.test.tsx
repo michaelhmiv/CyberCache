@@ -22,7 +22,6 @@
  *  - Boards: header explainers compressed to the mocks' one-line
  *    form with every fact kept; browse controls at the Buy lane's
  *    chip geometry and the 11px floor.
- *  - Slots: 72px reels; the payout table is its own panel.
  *
  * These tests pin the new composition the way F2's
  * homeComposition.test.tsx pins Home's: rendered journeys for the
@@ -236,7 +235,6 @@ describe('F3 — Buy lane composition (rendered)', () => {
 describe('F3 — retired chrome stays retired (source pins)', () => {
   const market = read('screens/MarketScreen.tsx');
   const vendor = read('screens/VendorScreen.tsx');
-  const slots = read('components/vendor/DataSlotsPanel.tsx');
   const controls = read('components/market/ServiceBoardControls.tsx');
   const repair = read('components/market/RepairBoard.tsx');
   const shield = read('components/market/ShieldTechBoard.tsx');
@@ -269,11 +267,6 @@ describe('F3 — retired chrome stays retired (source pins)', () => {
     expect(shield).not.toContain('text-[9px]');
   });
 
-  it('Slots: 72px reels with their own glyph set, and the payout table is a separate panel', () => {
-    expect(slots).toContain('h-[72px] w-[72px]');
-    expect(slots).toContain('REEL_GLYPH_ICONS');
-    expect(slots.match(/<MobileCard/g)?.length).toBeGreaterThanOrEqual(2);
-  });
 
   it('Strip fit: the Market root carries the shared 0.625rem page pad (px-2.5), never a true p-4', () => {
     // Regression pin for the F3 fidelity-gate defect: the Strip's

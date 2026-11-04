@@ -31,8 +31,6 @@ job before earning anything.
   fee share leaves the economy for good.
 - **[[Vendor]] buyback** — the vendor pays **40% of an item's value**,
   on demand, for gear, consumables, materials, and essences.
-- **[[Slots]] credit prizes** — real, but remember the machine's other
-  side of the ledger below.
 
 ## Where credits are destroyed (sinks)
 
@@ -57,9 +55,6 @@ entirely.
   five-rank ladder with one maker destroys **410,000 cr in tributes**,
   and Parts Crates and the 150,000 cr Signature Order are destroyed on
   purchase too.
-- **The [[Slots]] machine** — every wager is destroyed at the pull, and
-  the credit prizes pay back an exact **50.5%** over time. Net: roughly
-  495 cr destroyed per 1,000 cr wagered.
 - **Dispatch board re-deals** — re-dealing today's dispatch board costs
   credits at an escalating price (each re-deal today costs double the
   last, capped per day), destroyed on payment; see [[Dispatch]].
@@ -101,7 +96,7 @@ it trades on the player market:
 
 Play creates credits — roaming, bosses, contracts, streaks, dispatch.
 Trading moves them around and skims 5% into the void. Permanence costs
-them: research, standing, respecs, boss fees, and the slot machine all
+them: research, standing, respecs, and boss fees all
 destroy credits on purpose, so the credits you earn keep meaning
 something. If you ever wonder why a price on [[The Market]] is what it
 is, this page is most of the answer.

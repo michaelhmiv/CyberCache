@@ -80,7 +80,7 @@ overwrites UI edits without warning. All changes go through PRs here.
    from the game's own constants by the generators in
    `scripts/wiki-gen/` — one module per data family (weapons,
    legendary effects, consumables, recipes, bosses, areas, vehicles,
-   slots, skill trees + cache rank, collections). Each generated
+   skill trees + cache rank, collections). Each generated
    block sits in its page between marker comments:
    `<!-- GENERATED from <owner files> — do not edit by hand -->` and
    `<!-- wiki-gen:<id> -->` … `<!-- /wiki-gen:<id> -->`. **Never edit
@@ -91,7 +91,7 @@ overwrites UI edits without warning. All changes go through PRs here.
    committed page differs from a fresh render; generation is
    deterministic (source order, no timestamps), so a failure always
    means data moved and the page did not. The tables live in
-   `wiki/Reference.md` (weapons, affixes, areas, vehicles, slots) and
+   `wiki/Reference.md` (weapons, affixes, areas, vehicles) and
    the dedicated `wiki/Reference-*.md` pages (effects, consumables,
    recipes, bosses, progression, collections).
 
@@ -102,7 +102,7 @@ overwrites UI edits without warning. All changes go through PRs here.
 node scripts/check-wiki-map.mjs
 
 # Against an explicit file list:
-node scripts/check-wiki-map.mjs src/content/slots.ts wiki/Slots.md
+node scripts/check-wiki-map.mjs src/content/vehicles.ts wiki/Reference.md
 
 # The list can also come from CHANGED_FILES (newline/comma separated)
 # or --base <ref>.

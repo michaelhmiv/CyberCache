@@ -283,15 +283,15 @@ describe('Home composition — the deck (§4 fixed order)', () => {
     // The removed panels stay removed.
     expect(screen.queryByText('Hunter Notes')).toBeNull();
     expect(screen.queryByText('Action Board')).toBeNull();
-    // Launcher deck contents: Dispatch + Crack Cache first, Slots
-    // launcher present, Loadout shortcut present while the
-    // loadout is incomplete (0/7 in a fresh store).
+    // Launcher deck contents: Dispatch + Crack Cache first, Loadout
+    // shortcut present while the loadout is incomplete (0/7 in a
+    // fresh store). The Slots launcher is GONE (Data Slots removed,
+    // migration 0074): no card, no 'market:slots' route.
     expect(screen.getByText('Dispatch')).toBeTruthy();
     expect(screen.getByText('Crack Cache')).toBeTruthy();
     expect(screen.getByText('Loadout Bench')).toBeTruthy();
-    fireEvent.click(screen.getByText('Slots'));
-    // The card deep-links to the Slots STOP (§9), not just the tab.
-    expect(onNavigate).toHaveBeenCalledWith('market:slots');
+    expect(screen.queryByText('Slots')).toBeNull();
+    expect(onNavigate).not.toHaveBeenCalledWith('market:slots');
   });
 });
 

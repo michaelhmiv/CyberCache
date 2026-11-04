@@ -2,7 +2,7 @@
 
 The Market is where hunters trade with each other. It lives on the Market
 tab, whose **rail of stops** — **Buy · Sell · Vendor · Repair · Shield
-Tech · Rep Desk · Slots** — runs across the
+Tech · Rep Desk** — runs across the
 top and scrolls sideways; everything below the rail is the stop you
 picked. The Sell stop carries three segments of its own — **Sell**,
 **Mine**, and **History** — switched by the segment control at the top
@@ -162,8 +162,7 @@ real cost.
   tech happens on the [[Repair Board]] and [[Shield-Tech]] stops of this
   same rail, under the same escrow-and-fee rules.
 - Standing with a weapon maker lives at the **Rep Desk** stop on this
-  rail — see [[Manufacturer Standing]]. The [[Slots]] machine is a stop
-  here too — and Home's Slots launcher card lands you right on it.
+  rail — see [[Manufacturer Standing]].
 
 ## The service boards browse the same way
 
